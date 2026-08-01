@@ -29,7 +29,7 @@ from personalscraper.core.sqlite import apply_migrations
 MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "acquire" / "migrations"
 
 # Expected tables after the full migration chain (001 → 004) is applied.
-_LATEST_VERSION = 12
+_LATEST_VERSION = 13
 
 _EXPECTED_TABLES = {
     "followed_series",
@@ -103,7 +103,7 @@ class TestAcquireMigrations:
         conn = sqlite3.connect(str(db_path))
         apply_migrations(conn, MIGRATIONS_DIR)
         rows = conn.execute("SELECT version FROM schema_version ORDER BY version").fetchall()
-        assert rows == [(1,), (2,), (3,), (4,), (5,), (6,), (7,), (8,), (9,), (10,), (11,), (12,)]
+        assert rows == [(1,), (2,), (3,), (4,), (5,), (6,), (7,), (8,), (9,), (10,), (11,), (12,), (13,)]
 
     def test_unique_index_followed_media_ref_exists(self, tmp_path: Path) -> None:
         """After applying the full chain, the UNIQUE index ux_followed_media_ref exists (004)."""
@@ -767,3 +767,124 @@ class TestMigrationFailureLeavesNoOpenTransaction:
         apply_migrations(repair, MIGRATIONS_DIR)
         assert _user_version(repair) == _LATEST_VERSION
         repair.close()
+
+
+# ---------------------------------------------------------------------------
+# Migration 013: season kind + absorbed/fallback_episodes statuses + absorbed_by
+# ---------------------------------------------------------------------------
+
+
+class TestMigration013:
+    """013 widens kind/status CHECKs and adds absorbed_by column (season-grab)."""
+
+    def test_fresh_db_accepts_season_kind(self, tmp_path: Path) -> None:
+        """After applying the full chain, INSERT with kind='season' succeeds."""
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        conn.execute(
+            "INSERT INTO wanted (followed_id, media_ref_json, kind, season, episode, "
+            "status, enqueued_at) "
+            "VALUES (NULL, '{}', 'season', 3, NULL, 'pending', 1)"
+        )
+        conn.commit()
+        row = conn.execute("SELECT kind, season, episode FROM wanted WHERE id = 1").fetchone()
+        assert row == ("season", 3, None)
+
+    def test_fresh_db_accepts_absorbed_status(self, tmp_path: Path) -> None:
+        """After migration, INSERT with status='absorbed' succeeds."""
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        conn.execute(
+            "INSERT INTO wanted (followed_id, media_ref_json, kind, season, episode, "
+            "status, enqueued_at) "
+            "VALUES (NULL, '{}', 'episode', 1, 1, 'absorbed', 1)"
+        )
+        conn.commit()
+        assert conn.execute("SELECT COUNT(*) FROM wanted WHERE status = 'absorbed'").fetchone()[0] == 1
+
+    def test_fresh_db_accepts_fallback_episodes_status(self, tmp_path: Path) -> None:
+        """After migration, INSERT with status='fallback_episodes' succeeds."""
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        conn.execute(
+            "INSERT INTO wanted (followed_id, media_ref_json, kind, season, episode, "
+            "status, enqueued_at) "
+            "VALUES (NULL, '{}', 'season', 3, NULL, 'fallback_episodes', 1)"
+        )
+        conn.commit()
+        assert conn.execute("SELECT COUNT(*) FROM wanted WHERE status = 'fallback_episodes'").fetchone()[0] == 1
+
+    def test_fresh_db_has_absorbed_by_column(self, tmp_path: Path) -> None:
+        """After applying the full chain, wanted has absorbed_by column."""
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        cols = {row[1] for row in conn.execute("PRAGMA table_info('wanted')").fetchall()}
+        assert "absorbed_by" in cols
+
+    def test_absorbed_by_is_nullable(self, tmp_path: Path) -> None:
+        """absorbed_by defaults to NULL for new rows."""
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        conn.execute(
+            "INSERT INTO wanted (followed_id, media_ref_json, kind, season, episode, "
+            "status, enqueued_at) "
+            "VALUES (NULL, '{}', 'episode', 1, 2, 'pending', 1)"
+        )
+        conn.commit()
+        row = conn.execute("SELECT absorbed_by FROM wanted WHERE id = 1").fetchone()
+        assert row[0] is None
+
+    def test_data_preservation_across_rebuild(self, tmp_path: Path) -> None:
+        """Pre-013 rows survive with all values intact, new column NULL."""
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        _apply_up_to_007(conn, tmp_path)
+
+        # Insert a row with all existing columns populated.
+        conn.executescript(
+            """
+            INSERT INTO wanted (id, followed_id, media_ref_json, kind, season, episode,
+                                status, criteria_json, enqueued_at, last_search_at,
+                                attempts, grabbed_hash)
+            VALUES (1, NULL, '{}', 'episode', 1, 1,
+                    'pending', '{"lang":"fr"}', 100, 200, 0, NULL);
+            """
+        )
+        conn.commit()
+
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        row = conn.execute("SELECT id, kind, status, absorbed_by FROM wanted WHERE id = 1").fetchone()
+        assert row[0] == 1
+        assert row[1] == "episode"
+        assert row[2] == "pending"
+        assert row[3] is None  # new column defaults to NULL for existing rows
+
+    def test_idx_wanted_pending_preserved(self, tmp_path: Path) -> None:
+        """After 013 rebuild, idx_wanted_pending still exists and is partial."""
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        row = conn.execute("SELECT sql FROM sqlite_master WHERE name = 'idx_wanted_pending'").fetchone()
+        assert row is not None, "idx_wanted_pending must exist after rebuild"
+        assert "WHERE" in row[0], "idx_wanted_pending must be a partial index"
+
+    def test_foreign_key_check_clean(self, tmp_path: Path) -> None:
+        """After 013, PRAGMA foreign_key_check returns no violations."""
+        db_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        violations = conn.execute("PRAGMA foreign_key_check").fetchall()
+        assert len(violations) == 0, f"foreign_key_check found violations: {violations}"

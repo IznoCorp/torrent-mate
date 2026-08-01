@@ -116,3 +116,85 @@ def test_ratio_state_fields() -> None:
         updated_at=int(time.time()),
     )
     assert rs.hnr_count == 0
+
+
+# ── Season-grab domain widening ────────────────────────────────────────────────
+
+
+def test_wanted_kind_includes_season() -> None:
+    """WantedKind must accept 'season' after widening."""
+    now = int(time.time())
+    item = WantedItem(
+        media_ref=_ref(tvdb_id=12345),
+        kind="season",
+        status="pending",
+        enqueued_at=now,
+        season=3,
+        episode=None,
+    )
+    assert item.kind == "season"
+    assert item.season == 3
+    assert item.episode is None
+
+
+def test_wanted_status_includes_absorbed_and_fallback() -> None:
+    """WantedStatus must accept 'absorbed' and 'fallback_episodes'."""
+    now = int(time.time())
+    # absorbed
+    item = WantedItem(
+        media_ref=_ref(tvdb_id=12345),
+        kind="episode",
+        status="absorbed",
+        enqueued_at=now,
+        season=3,
+        episode=5,
+    )
+    assert item.status == "absorbed"
+    # fallback_episodes
+    item2 = WantedItem(
+        media_ref=_ref(tvdb_id=12345),
+        kind="season",
+        status="fallback_episodes",
+        enqueued_at=now,
+        season=3,
+        episode=None,
+    )
+    assert item2.status == "fallback_episodes"
+
+
+def test_wanted_enqueued_kind_season() -> None:
+    """WantedEnqueued must accept kind='season'."""
+    from personalscraper.acquire.events import WantedEnqueued
+
+    ev = WantedEnqueued(media_ref=_ref(tvdb_id=12345), kind="season", season=3, episode=None)
+    assert ev.kind == "season"
+    assert ev.season == 3
+    assert ev.episode is None
+
+
+def test_season_absorbed_episodes_event() -> None:
+    """SeasonAbsorbedEpisodes carries the expected fields."""
+    from personalscraper.acquire.events import SeasonAbsorbedEpisodes
+
+    ev = SeasonAbsorbedEpisodes(
+        season_wanted_id=42,
+        media_ref=_ref(tvdb_id=12345),
+        season=3,
+        absorbed_ids=(10, 11, 12),
+    )
+    assert ev.season_wanted_id == 42
+    assert len(ev.absorbed_ids) == 3
+
+
+def test_season_fell_back_to_episodes_event() -> None:
+    """SeasonFellBackToEpisodes carries the expected fields."""
+    from personalscraper.acquire.events import SeasonFellBackToEpisodes
+
+    ev = SeasonFellBackToEpisodes(
+        season_wanted_id=42,
+        media_ref=_ref(tvdb_id=12345),
+        season=3,
+        reenqueued_count=5,
+    )
+    assert ev.season == 3
+    assert ev.reenqueued_count == 5

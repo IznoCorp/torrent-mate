@@ -156,6 +156,16 @@ def build_acquire_context(
             row = store.follow.get(item.followed_id)
             return row.year if row is not None else None
 
+        # Season-pack coverage resolver (review F4): the number of aired
+        # episodes for a season item's season, from the aired catalog cache.
+        # None for standalone items or an empty cache — filter_to_season then
+        # rejects episode-marker releases conservatively.
+        def _episode_count_resolver(item: WantedItem) -> int | None:
+            if item.followed_id is None or item.season is None:
+                return None
+            aired = store.aired.list_for_followed(item.followed_id)
+            return len([r for r in aired if r.season == item.season]) or None
+
         orchestrator = GrabOrchestrator(
             tracker_registry=tracker_registry,
             torrent_client=torrent_client,
@@ -163,6 +173,7 @@ def build_acquire_context(
             ranking=config.ranking,
             title_resolver=_title_resolver,
             year_resolver=_year_resolver,
+            episode_count_resolver=_episode_count_resolver,
         )
         service = AcquisitionService(
             store=store,

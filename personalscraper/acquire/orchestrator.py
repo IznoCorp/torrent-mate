@@ -61,12 +61,11 @@ Import direction: ``acquire/`` imports ``api/`` / ``core/`` / ``conf/`` /
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
 from personalscraper.acquire._dedup import SearchOutcome, dedup
-from personalscraper.acquire._filters import apply_hard_filters
+from personalscraper.acquire._filters import apply_hard_filters, filter_to_episode, filter_to_season
 from personalscraper.acquire.events import GrabFailed, TrackerAuthFailed, WantedAbandoned
 from personalscraper.api._contracts import ApiError, MediaType
 from personalscraper.api.tracker._errors import TorrentFetchError, TrackerAuthError
@@ -97,6 +96,7 @@ SEARCH_OUTCOMES: frozenset[str] = frozenset(
         "available",
         "no_candidates",
         "no_matching_episode",
+        "no_matching_season",
         "all_filtered",
         "trackers_unavailable",
         "circuit_open",
@@ -163,6 +163,7 @@ class _SearchChainResult:
     exit_path: str
     ranked: list[tuple[TrackerResult, int]]
     top: tuple[TrackerResult, int] | None
+    raw_before_filter: list[TrackerResult] | None = None
 
 
 #: High-level bucket a search verdict falls into. Kept as a named alias so the
@@ -196,6 +197,14 @@ class SearchVerdict:
     outcome: str  # member of SEARCH_OUTCOMES
     found: int | None  # takeable count; None = not concluded (NEVER 0 on outage)
     chosen: TrackerResult | None = None  # top-ranked candidate, for logging only
+    raw_results: tuple[TrackerResult, ...] | None = None
+    """Raw results before the per-kind filter, captured for R2 conversion.
+
+    Populated when the search path reaches ``no_matching_episode`` —
+    the raw results from the trackers carried season packs the episode
+    filter dropped. ``None`` on every other path (the conversion path
+    has no use for them).
+    """
 
 
 def build_search_query(item: "WantedItem", title: str | None, year: int | None = None) -> str:
@@ -224,6 +233,8 @@ def build_search_query(item: "WantedItem", title: str | None, year: int | None =
     if title:
         if item.kind == "episode" and item.season is not None and item.episode is not None:
             return f"{title} S{item.season:02d}E{item.episode:02d}"
+        if item.kind == "season" and item.season is not None:
+            return f"{title} S{item.season:02d}"
         if year is not None:
             return f"{title} {year}"
         return title
@@ -233,36 +244,6 @@ def build_search_query(item: "WantedItem", title: str | None, year: int | None =
     if media_ref.tmdb_id is not None:
         return str(media_ref.tmdb_id)
     return str(media_ref.imdb_id)
-
-
-def filter_to_episode(
-    results: "list[TrackerResult]",
-    season: int,
-    episode: int,
-) -> "list[TrackerResult]":
-    """Keep only results whose title carries the exact ``SxxEyy`` token.
-
-    A title-based query (``"{title} SxxEyy"``) returns fuzzy matches — other
-    episodes of the season, season packs — because trackers match loosely. Left
-    unfiltered they rank by seeders, so the wrong episode can win (observed:
-    ``S09E05`` wanted → an ``S09E01`` release ranked top). This keeps only
-    releases naming the requested episode, tolerating zero-padding (``S9E5`` /
-    ``S09E05``) and multi-episode spans (``S09E05-E06`` / ``S09E05E06`` still
-    match E05). Season packs (no ``E`` token) are intentionally dropped — an
-    exact-episode want should not pull a whole season.
-
-    Args:
-        results: The raw tracker results for the query.
-        season: Wanted season number.
-        episode: Wanted episode number.
-
-    Returns:
-        The subset whose title names the exact episode (possibly empty).
-    """
-    # (?<![0-9]) / (?![0-9]) bound the numbers so E5 does not match E51 and
-    # S9 does not match S19; 0* absorbs the zero-padding difference.
-    pattern = re.compile(rf"(?<![0-9])s0*{season}e0*{episode}(?![0-9])", re.IGNORECASE)
-    return [r for r in results if pattern.search(r.title)]
 
 
 #: Minimum rapidfuzz token-set score between a release's parsed title and the
@@ -472,6 +453,7 @@ class GrabOrchestrator:
         ranking: RankingConfig,
         title_resolver: Callable[[WantedItem], str | None] | None = None,
         year_resolver: "Callable[[WantedItem], int | None] | None" = None,
+        episode_count_resolver: "Callable[[WantedItem], int | None] | None" = None,
     ) -> None:
         """Initialise the orchestrator with injected narrow deps.
 
@@ -496,6 +478,11 @@ class GrabOrchestrator:
                 (from the followed-series row) — disambiguates an ambiguous movie
                 title (#28). ``None`` (or a miss) leaves the query yearless and
                 the movie identity filter inert on the year axis.
+            episode_count_resolver: Resolves a claimed SEASON ``WantedItem`` to
+                the number of aired episodes in its season (from the aired
+                catalog cache) so ``filter_to_season`` can verify a pack's
+                coverage (review F4). ``None`` (or a miss) makes the filter
+                reject any episode-marker release conservatively.
         """
         self._tracker_registry = tracker_registry
         self._torrent_client = torrent_client
@@ -503,6 +490,7 @@ class GrabOrchestrator:
         self._ranking = ranking
         self._title_resolver = title_resolver
         self._year_resolver = year_resolver
+        self._episode_count_resolver = episode_count_resolver
 
     # ------------------------------------------------------------------
     # Shared search→filter→rank chain
@@ -602,7 +590,7 @@ class GrabOrchestrator:
             :data:`SEARCH_OUTCOMES` values.
         """
         media_ref = item.media_ref
-        media_type = MediaType.TV if item.kind == "episode" else MediaType.MOVIE
+        media_type = MediaType.TV if item.kind in ("episode", "season") else MediaType.MOVIE
         title = self._title_resolver(item) if self._title_resolver is not None else None
         # #28 — resolve the follow's release year to narrow an ambiguous movie
         # title (« Wicker » → every « Wicker* » film) in BOTH the query and the
@@ -633,9 +621,26 @@ class GrabOrchestrator:
         # naming the wanted SxxEyy so ranking cannot pick the wrong episode. ---
         results = outcome.results
         if item.kind == "episode" and item.season is not None and item.episode is not None:
+            raw_before_filter = list(results)  # R2: snapshot for season conversion
             results = filter_to_episode(results, item.season, item.episode)
             if not results:
-                return _SearchChainResult(exit_path="no_matching_episode", ranked=[], top=None)
+                return _SearchChainResult(
+                    exit_path="no_matching_episode",
+                    ranked=[],
+                    top=None,
+                    raw_before_filter=raw_before_filter,
+                )
+        elif item.kind == "season" and item.season is not None:
+            # F4 — verify a pack's coverage against the aired-episode count;
+            # None (no resolver / empty cache) → the filter rejects any
+            # episode-marker release conservatively.
+            expected_count = self._episode_count_resolver(item) if self._episode_count_resolver is not None else None
+            results = filter_to_season(results, item.season, expected_count=expected_count)
+            if not results:
+                # A SEASON row's fruitless search states its own outcome —
+                # 'no_matching_episode' on a season row would surface a lie in
+                # the row's last_search_outcome (review F12).
+                return _SearchChainResult(exit_path="no_matching_season", ranked=[], top=None)
         elif item.kind == "movie" and title is not None:
             # #28 — a movie title query pulls the WRONG « Wicker* » films; keep
             # only releases whose parsed title+year match the wanted movie so
@@ -691,6 +696,7 @@ class GrabOrchestrator:
         ``all_errored``                ``retryable``   ``trackers_unavail.`` None
         No results                     ``not_found``   ``no_candidates``     0
         ``filter_to_episode`` empty    ``not_found``   ``no_matching_ep.``   0
+        ``filter_to_season`` empty     ``not_found``   ``no_matching_sea.``  0
         ``apply_hard_filters`` empty   ``not_found``   ``all_filtered``      0
         ``rank`` empty (min_seeders)   ``retryable``   ``no_seeders``        None
         Ranked non-empty               ``available``   ``available``         len(ranked)
@@ -730,6 +736,7 @@ class GrabOrchestrator:
             "trackers_unavailable": ("retryable", "trackers_unavailable", None),
             "no_candidates": ("not_found", "no_candidates", 0),
             "no_matching_episode": ("not_found", "no_matching_episode", 0),
+            "no_matching_season": ("not_found", "no_matching_season", 0),
             "all_filtered": ("not_found", "all_filtered", 0),
             "no_seeders": ("retryable", "no_seeders", None),
             "available": ("available", "available", len(result.ranked)),
@@ -737,6 +744,7 @@ class GrabOrchestrator:
         disposition, outcome, found = mapping[result.exit_path]
 
         chosen = result.top[0] if result.top is not None else None
+        raw_results = tuple(result.raw_before_filter) if result.raw_before_filter is not None else None
         log.debug(
             "acquire.search.verdict",
             disposition=disposition,
@@ -744,7 +752,13 @@ class GrabOrchestrator:
             found=found,
             kind=item.kind,
         )
-        return SearchVerdict(disposition=disposition, outcome=outcome, found=found, chosen=chosen)
+        return SearchVerdict(
+            disposition=disposition,
+            outcome=outcome,
+            found=found,
+            chosen=chosen,
+            raw_results=raw_results,
+        )
 
     def grab(
         self,
@@ -829,6 +843,8 @@ class GrabOrchestrator:
             return self._not_found(media_ref, "no_candidates")
         if result.exit_path == "no_matching_episode":
             return self._not_found(media_ref, "no_matching_episode")
+        if result.exit_path == "no_matching_season":
+            return self._not_found(media_ref, "no_matching_season")
         if result.exit_path == "all_filtered":
             return self._not_found(media_ref, "all_filtered")
         if result.exit_path == "no_seeders":
@@ -998,5 +1014,7 @@ __all__ = [
     "SearchVerdict",
     "SEARCH_OUTCOMES",
     "INCONCLUSIVE_OUTCOMES",
+    "filter_to_episode",
+    "filter_to_season",
     "rank_candidates",
 ]

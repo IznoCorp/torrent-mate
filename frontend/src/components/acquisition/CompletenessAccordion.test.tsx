@@ -12,6 +12,7 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
   within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -20,6 +21,36 @@ import type { CompletenessResponse } from "@/api/acquisition";
 
 import { CompletenessAccordion } from "./CompletenessAccordion";
 import * as hooks from "@/hooks/useAcquisition";
+
+// ── Season-grab mocks ──────────────────────────────────────────────────
+
+const grabSeasonMock = vi.fn();
+const toastSuccessMock = vi.fn();
+const toastErrorMock = vi.fn();
+const toastInfoMock = vi.fn();
+
+vi.mock("@/api/acquisition", async () => {
+  const actual =
+    await vi.importActual<typeof import("@/api/acquisition")>(
+      "@/api/acquisition",
+    );
+  return {
+    ...actual,
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    grabSeason: (...args: unknown[]) => grabSeasonMock(...args),
+  };
+});
+
+vi.mock("sonner", () => ({
+  toast: {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    success: (...args: unknown[]) => toastSuccessMock(...args),
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    error: (...args: unknown[]) => toastErrorMock(...args),
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    info: (...args: unknown[]) => toastInfoMock(...args),
+  },
+}));
 
 /** Epoch seconds of the detect pass in the cache fixture. */
 const REFRESHED_AT = 1_751_000_000;
@@ -504,5 +535,270 @@ describe("CompletenessAccordion — annonce, legend, date popover (episode-state
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(chip).toHaveFocus();
+  });
+});
+
+describe("CompletenessAccordion — season grab button (R4)", () => {
+  it("renders « Récupérer la saison » button for an incomplete season", () => {
+    mockCompleteness(
+      makeCompleteness({
+        seasons: [
+          {
+            season: 1,
+            owned: 1,
+            queued: 0,
+            total: 5,
+            announced: 0,
+            episodes: [
+              {
+                episode: 1,
+                state: "en_mediatheque",
+                title: null,
+                air_date: null,
+              },
+              { episode: 2, state: "en_attente", title: null, air_date: null },
+            ],
+          },
+        ],
+      }),
+    );
+    renderOpen();
+
+    const btn = screen.getByRole("button", { name: /Récupérer la saison/ });
+    expect(btn).toBeInTheDocument();
+    expect(btn).not.toBeDisabled();
+  });
+
+  it("disables the grab button when the season is fully owned", () => {
+    mockCompleteness(
+      makeCompleteness({
+        seasons: [
+          {
+            season: 1,
+            owned: 2,
+            queued: 0,
+            total: 2,
+            announced: 0,
+            episodes: [
+              {
+                episode: 1,
+                state: "en_mediatheque",
+                title: null,
+                air_date: null,
+              },
+              {
+                episode: 2,
+                state: "en_mediatheque",
+                title: null,
+                air_date: null,
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    renderOpen();
+
+    const btn = screen.getByRole("button", { name: /Récupérer la saison/ });
+    expect(btn).toBeDisabled();
+  });
+
+  it("disables the button while the mutation is pending", async () => {
+    // Never-resolving promise keeps the mutation in pending state.
+    grabSeasonMock.mockImplementation(() => new Promise(() => undefined));
+
+    mockCompleteness(
+      makeCompleteness({
+        seasons: [
+          {
+            season: 1,
+            owned: 0,
+            queued: 0,
+            total: 3,
+            announced: 0,
+            episodes: [
+              { episode: 1, state: "en_attente", title: null, air_date: null },
+            ],
+          },
+        ],
+      }),
+    );
+    renderOpen();
+
+    const btn = screen.getByRole("button", { name: /Récupérer la saison/ });
+    fireEvent.click(btn);
+
+    // Button text changes to « Mise en file… » and is disabled.
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /Mise en file/ }),
+      ).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: /Mise en file/ })).toBeDisabled();
+  });
+
+  it("calls grabSeason with correct payload and toasts on success", async () => {
+    grabSeasonMock.mockResolvedValue({
+      season_wanted_id: 42,
+      season: 1,
+      absorbed_count: 3,
+    });
+
+    mockCompleteness(
+      makeCompleteness({
+        seasons: [
+          {
+            season: 1,
+            owned: 0,
+            queued: 2,
+            total: 5,
+            announced: 0,
+            episodes: [
+              { episode: 1, state: "a_recuperer", title: null, air_date: null },
+              { episode: 2, state: "a_recuperer", title: null, air_date: null },
+            ],
+          },
+        ],
+      }),
+    );
+    renderOpen();
+
+    const btn = screen.getByRole("button", { name: /Récupérer la saison/ });
+    fireEvent.click(btn);
+
+    await waitFor(() => {
+      expect(grabSeasonMock).toHaveBeenCalledWith(7, 1);
+    });
+
+    await waitFor(() => {
+      expect(toastSuccessMock).toHaveBeenCalledWith(
+        expect.stringContaining("Saison 1 mise en file"),
+      );
+    });
+  });
+
+  it("toasts an informational « déjà en file » when the season row is reused", async () => {
+    // Review F8: a reused LIVE row (HTTP 200, reused=true) enqueues nothing —
+    // the toast must say so instead of claiming a fresh grab.
+    grabSeasonMock.mockResolvedValue({
+      season_wanted_id: 42,
+      season: 1,
+      absorbed_count: 3,
+      reused: true,
+    });
+
+    mockCompleteness(
+      makeCompleteness({
+        seasons: [
+          {
+            season: 1,
+            owned: 0,
+            queued: 2,
+            total: 5,
+            announced: 0,
+            episodes: [
+              { episode: 1, state: "a_recuperer", title: null, air_date: null },
+            ],
+          },
+        ],
+      }),
+    );
+    renderOpen();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Récupérer la saison/ }),
+    );
+
+    await waitFor(() => {
+      expect(toastInfoMock).toHaveBeenCalledWith("Saison 1 déjà en file");
+    });
+    expect(toastSuccessMock).not.toHaveBeenCalled();
+  });
+
+  it("toasts an error message when grabSeason rejects", async () => {
+    grabSeasonMock.mockRejectedValue(new Error("Saison déjà en file"));
+
+    mockCompleteness(
+      makeCompleteness({
+        seasons: [
+          {
+            season: 1,
+            owned: 0,
+            queued: 0,
+            total: 3,
+            announced: 0,
+            episodes: [
+              { episode: 1, state: "en_attente", title: null, air_date: null },
+            ],
+          },
+        ],
+      }),
+    );
+    renderOpen();
+
+    const btn = screen.getByRole("button", { name: /Récupérer la saison/ });
+    fireEvent.click(btn);
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith("Saison déjà en file");
+    });
+  });
+
+  it("shows absorbed count in the success toast when episodes were absorbed", async () => {
+    grabSeasonMock.mockResolvedValue({
+      season_wanted_id: 7,
+      season: 2,
+      absorbed_count: 5,
+    });
+
+    mockCompleteness(
+      makeCompleteness({
+        seasons: [
+          {
+            season: 2,
+            owned: 0,
+            queued: 0,
+            total: 8,
+            announced: 0,
+            episodes: [
+              { episode: 1, state: "a_recuperer", title: null, air_date: null },
+            ],
+          },
+        ],
+      }),
+    );
+    renderOpen();
+
+    const btn = screen.getByRole("button", { name: /Récupérer la saison/ });
+    fireEvent.click(btn);
+
+    await waitFor(() => {
+      expect(toastSuccessMock).toHaveBeenCalledWith(
+        "Saison 2 mise en file — 5 épisodes absorbés",
+      );
+    });
+  });
+
+  it("does NOT render grab button when total is 0 (empty season)", () => {
+    // total==0 means no aired episodes — render the button but it should
+    // be disabled because owned>=total (0>=0). The season has nothing to grab.
+    mockCompleteness(
+      makeCompleteness({
+        seasons: [
+          {
+            season: 1,
+            owned: 0,
+            queued: 0,
+            total: 0,
+            announced: 0,
+            episodes: [],
+          },
+        ],
+      }),
+    );
+    renderOpen();
+
+    const btn = screen.getByRole("button", { name: /Récupérer la saison/ });
+    expect(btn).toBeDisabled();
   });
 });

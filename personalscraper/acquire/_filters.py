@@ -20,7 +20,7 @@ Never imports sorter, cleaner, or indexer.
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from personalscraper.acquire.desired import QualityProfile, Resolution
 from personalscraper.api.tracker._base import TrackerResult
@@ -229,4 +229,178 @@ def apply_hard_filters(
     return survivors
 
 
-__all__ = ["apply_hard_filters"]
+def filter_to_episode(
+    results: "list[TrackerResult]",
+    season: int,
+    episode: int,
+) -> "list[TrackerResult]":
+    """Keep only results whose title carries the exact ``SxxEyy`` token.
+
+    A title-based query (``"{title} SxxEyy"``) returns fuzzy matches — other
+    episodes of the season, season packs — because trackers match loosely. Left
+    unfiltered they rank by seeders, so the wrong episode can win (observed:
+    ``S09E05`` wanted → an ``S09E01`` release ranked top). This keeps only
+    releases naming the requested episode, tolerating zero-padding (``S9E5`` /
+    ``S09E05``) and multi-episode spans (``S09E05-E06`` / ``S09E05E06`` still
+    match E05). Season packs (no ``E`` token) are intentionally dropped — an
+    exact-episode want should not pull a whole season.
+
+    Args:
+        results: The raw tracker results for the query.
+        season: Wanted season number.
+        episode: Wanted episode number.
+
+    Returns:
+        The subset whose title names the exact episode (possibly empty).
+    """
+    # (?<![0-9]) / (?![0-9]) bound the numbers so E5 does not match E51 and
+    # S9 does not match S19; 0* absorbs the zero-padding difference.
+    pattern = re.compile(rf"(?<![0-9])s0*{season}e0*{episode}(?![0-9])", re.IGNORECASE)
+    return [r for r in results if pattern.search(r.title)]
+
+
+def _episode_numbers(episode_raw: object) -> list[int]:
+    """Normalize guessit's ``episode`` field (int or list) to a sorted int list.
+
+    Args:
+        episode_raw: The raw ``episode`` value from a guessit parse — an int,
+            a list of ints, or ``None``.
+
+    Returns:
+        The episode numbers sorted ascending; empty when absent or when any
+        value cannot be coerced to an int (fail-soft — an unparseable marker
+        must never read as coverage).
+    """
+    if episode_raw is None:
+        return []
+    values: list[Any] = episode_raw if isinstance(episode_raw, list) else [episode_raw]
+    numbers: list[int] = []
+    for value in values:
+        try:
+            numbers.append(int(value))
+        except (TypeError, ValueError):
+            return []
+    return sorted(numbers)
+
+
+def filter_to_season(
+    results: list[TrackerResult],
+    season: int,
+    *,
+    expected_count: int | None = None,
+) -> list[TrackerResult]:
+    """Keep only WHOLE-season packs targeting the given *season*.
+
+    A season pack is identified by title markers — there is no provider-ID
+    on tracker results, so identity is verified from the parsed release name:
+
+    * **Bare season**: ``Sxx`` / ``Season N`` / ``Intégrale`` / ``Complete``
+      forms with NO episode markers anywhere in the title — the title claims
+      the whole season and nothing contradicts it. Kept.
+    * **Verified full coverage**: a release carrying episode markers is kept
+      ONLY when its coverage is proven against *expected_count* (the number
+      of aired episodes in the target season): the episode list must start
+      at E01 and reach at least ``expected_count`` (``SxxE01-Eyy`` with
+      ``yy >= expected_count``), or be a lone E01 whose guessit
+      ``episode_count`` reaches it.
+    * **Reject**: partial ranges (``S02E01-E05`` of a 12-episode season),
+      single episodes even when a season keyword is present
+      (``S02E05.COMPLETE`` — the keyword never overrides an explicit episode
+      marker), ANY marker-carrying release when *expected_count* is unknown
+      (a pack whose coverage cannot be verified is not « the season »),
+      multi-season packs (``S01-S03``, ``Saisons 1-4``), and releases whose
+      parsed season differs from the requested *season*.
+
+    Args:
+        results: Raw tracker results from the season search query.
+        season: The target season number.
+        expected_count: Number of aired episodes in the target season, when
+            known (from the aired catalog cache). ``None`` = unknown →
+            episode-marker releases are rejected conservatively.
+
+    Returns:
+        The subset identified as whole-season packs for the given season
+        (possibly empty).
+    """
+    from guessit import guessit  # noqa: PLC0415
+
+    kept: list[TrackerResult] = []
+    for r in results:
+        title = r.title
+        title_lower = title.lower()
+
+        # --- Gate 1: reject multi-season packs ---
+        if re.search(r"\bS\d{1,2}[-–]\d{1,2}\b", title, re.IGNORECASE):
+            continue
+        if re.search(r"(?i)saisons?\s*\d{1,2}\s*[-–àa]\s*\d{1,2}", title):
+            continue
+
+        # --- Gate 2: parse the title via guessit ---
+        try:
+            info = guessit(title)
+        except Exception:
+            continue  # unparseable → skip (fail-soft)
+
+        parsed_season = info.get("season")
+        if parsed_season is None:
+            continue  # no season signal at all
+        try:
+            # guessit can return a list for multi-season packs (e.g. S01-S03);
+            # int() on a list raises TypeError → dropped (also caught by Gate 1).
+            parsed_season = int(parsed_season)
+        except (TypeError, ValueError):
+            continue
+
+        # Season MUST match the target
+        if parsed_season != season:
+            continue
+
+        # --- Gate 3: classify the pack ---
+        episode_raw = info.get("episode")
+        episode_count = info.get("episode_count")
+        episode_range = info.get("episode_range")
+
+        has_episode_marker = bool(
+            episode_raw is not None
+            or episode_count is not None
+            or episode_range is not None
+            or re.search(r"(?<![0-9])s\d{1,2}e\d{1,2}", title_lower)
+        )
+
+        # Bare season (keyword or not): no episode markers → the title claims
+        # the whole season and nothing contradicts it.
+        if not has_episode_marker:
+            kept.append(r)
+            continue
+
+        # Episode markers present: only PROVEN full coverage may pass (review
+        # F4 — R3 replace-all would install a 5-of-12 pack as « the season »
+        # and the missing episodes would never be acquired). Coverage cannot
+        # be proven without the aired-episode count.
+        if expected_count is None:
+            continue
+
+        eps = _episode_numbers(episode_raw)
+        if not eps or eps[0] != 1:
+            continue  # no E01 start → partial pack whatever its length
+
+        if eps[-1] >= expected_count:
+            kept.append(r)
+            continue
+
+        # A lone E01 with an explicit episode_count (« E01 of 12 ») is
+        # coverage evidence too.
+        if len(eps) == 1 and episode_count is not None:
+            try:
+                if int(episode_count) >= expected_count:
+                    kept.append(r)
+                    continue
+            except (TypeError, ValueError):
+                pass
+
+        # Partial coverage (E01-E05 of 12, keyword + lone episode) → dropped.
+
+    return kept
+
+
+__all__ = ["apply_hard_filters", "filter_to_episode", "filter_to_season"]

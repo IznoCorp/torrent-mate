@@ -200,6 +200,31 @@ def test_inconclusive_verdict_never_reads_en_attente(acquire_conn: sqlite3.Conne
     assert _item(truth, wanted_grabbed=0).status == "non_verifie"
 
 
+def test_absorbed_episodes_read_en_acquisition_not_non_verifie(acquire_conn: sqlite3.Connection) -> None:
+    """Review F7: a season being grabbed keeps the card at « en acquisition ».
+
+    Every live episode wanted of the season was absorbed by an open season row
+    (R5). The absorbed rows used to be silenced (open-statuses-only selection),
+    dropping every episode to « never searched » → the card degraded to
+    « Non vérifié » while a season grab was actively in flight.
+    """
+    _seed_aired(acquire_conn, [(5, 1), (5, 2)])
+    _seed_wanted(acquire_conn, 5, 1, "absorbed")
+    _seed_wanted(acquire_conn, 5, 2, "absorbed")
+    # The open season row carrying the acquisition (kind='season', episode NULL).
+    acquire_conn.execute(
+        "INSERT INTO wanted (followed_id, media_ref_json, kind, season, episode, status, enqueued_at) "
+        "VALUES (1, '{\"tvdb_id\": 403245}', 'season', 5, NULL, 'grabbed', 1750000000)"
+    )
+    acquire_conn.commit()
+
+    truth = compute_follow_truth(acquire_conn, _StubChecker(set()), followed_id=1, media_ref=REF)
+
+    assert truth.en_acquisition_count == 2  # absorbed episodes are IN MOTION
+    assert truth.non_verifie_count == 0
+    assert _item(truth, wanted_grabbed=0).status == "en_acquisition"
+
+
 def _item(truth: FollowTruth, *, wanted_grabbed: int) -> FollowedSeriesItem:
     """Build a FollowedSeriesItem carrying the truth facts (status is computed)."""
     return FollowedSeriesItem(

@@ -236,6 +236,7 @@ class WantedSubStore(Protocol):
         kind: WantedKind,
         season: int | None,
         episode: int | None,
+        statuses: tuple[str, ...] | None = None,
     ) -> WantedItem | None:
         """Return the first matching wanted row, or None (soft dedup guard).
 
@@ -243,14 +244,47 @@ class WantedSubStore(Protocol):
         ``episode`` so that a NULL episode in a future movie case does not
         accidentally match an episode row.
 
+        Without ``statuses`` the lookup is status-agnostic and returns the
+        OLDEST matching row; with ``statuses`` only rows in those statuses
+        match — the way to find the LIVE row when an older terminal one
+        shares the same coordinates.
+
         Args:
             followed_id: FK to ``followed_series`` row, or ``None``.
-            kind: ``"movie"`` or ``"episode"``.
+            kind: ``"movie"``, ``"episode"`` or ``"season"``.
             season: Season number, or ``None`` for movies.
             episode: Episode number, or ``None`` for movies.
+            statuses: When given, restrict the match to these statuses.
 
         Returns:
             The first matching :class:`WantedItem` if found, else ``None``.
+        """
+        ...
+
+    def absorb_episodes(self, season_wanted_id: int, episode_ids: tuple[int, ...]) -> int:
+        """Transition episode wanteds to ``absorbed``, linking them to the season row.
+
+        Called when a season wanted absorbs its live episode siblings (R5).
+
+        Args:
+            season_wanted_id: Rowid of the absorbing season ``wanted`` row.
+            episode_ids: Rowids of the episode rows to absorb.
+
+        Returns:
+            Number of rows actually transitioned.
+        """
+        ...
+
+    def fallback_season(self, season_wanted_id: int) -> bool:
+        """Transition a season row to ``fallback_episodes`` — the cutoff path (R6).
+
+        Guarded on ``kind='season'`` and OPEN_WANTED_STATUSES.
+
+        Args:
+            season_wanted_id: Rowid of the season ``wanted`` row.
+
+        Returns:
+            ``True`` iff the row transitioned.
         """
         ...
 

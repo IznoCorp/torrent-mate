@@ -18,6 +18,9 @@ import {
   FOLLOW_STATUS_HINT,
   FOLLOW_STATUS_LABEL,
   FOLLOW_STATUS_TONE,
+  STATUS_LABEL,
+  STATUS_TONE,
+  WANTED_STATUS_OPTIONS,
   followStatusHint,
   followStatusLabel,
   searchOutcomeReason,
@@ -37,7 +40,7 @@ const FOLLOW_STATUSES: readonly FollowStatus[] = [
   "a_jour",
 ];
 
-/** The five per-episode states the backend serves (schema.d.ts truth). */
+/** The per-episode states the backend serves (schema.d.ts truth). */
 const EPISODE_STATES: readonly EpisodeState[] = [
   "annonce",
   "en_mediatheque",
@@ -45,6 +48,7 @@ const EPISODE_STATES: readonly EpisodeState[] = [
   "en_acquisition",
   "en_attente",
   "non_verifie",
+  "absorbed",
 ];
 
 describe("FOLLOW status vocabulary", () => {
@@ -133,13 +137,58 @@ describe("EPISODE state vocabulary", () => {
     }
   });
 
-  it("gives each of the six states a DISTINCT tone (operator #9)", () => {
-    // « Une couleur par statut »: no two episode states may share a BadgeTone,
-    // else the matrix would paint two states the same colour. This is the
-    // regression guard for the two collisions that existed at phase-1 end
-    // (annonce=en_acquisition=info, en_attente=non_verifie=neutral).
-    const tones = EPISODE_STATES.map((s) => EPISODE_STATE_TONE[s]);
-    expect(new Set(tones).size).toBe(EPISODE_STATES.length);
+  it("gives each of the six live-flow states a DISTINCT tone (operator #9)", () => {
+    // « Une couleur par statut »: no two LIVE-FLOW episode states may share a
+    // BadgeTone, else the matrix would paint two states the same colour. This
+    // is the regression guard for the two collisions that existed at phase-1
+    // end (annonce=en_acquisition=info, en_attente=non_verifie=neutral).
+    // Documented concession (season-grab): the terminal low-salience
+    // "absorbed" state shares "muted" — all 7 BadgeTones are taken and the
+    // only free one (danger) would misread; its distinct LABEL carries it.
+    const liveFlow = EPISODE_STATES.filter((s) => s !== "absorbed");
+    const tones = liveFlow.map((s) => EPISODE_STATE_TONE[s]);
+    expect(new Set(tones).size).toBe(liveFlow.length);
+  });
+});
+
+describe("WANTED-QUEUE status vocabulary (review F8)", () => {
+  /** Every wanted-row status the backend can serve to the queue panel. */
+  const WANTED_STATUSES: readonly string[] = [
+    "pending",
+    "searching",
+    "grabbed",
+    "done",
+    "abandoned",
+    "absorbed",
+    "fallback_episodes",
+  ];
+
+  it("maps every served queue status to a French label and a tone", () => {
+    for (const status of WANTED_STATUSES) {
+      expect(STATUS_LABEL[status], `label for ${status}`).toBeTruthy();
+      expect(STATUS_TONE[status], `tone for ${status}`).toBeTruthy();
+      // Never the raw machine token in the queue (NE-DOIT-PAS-4).
+      expect(STATUS_LABEL[status]).not.toBe(status);
+    }
+  });
+
+  it.each([
+    ["absorbed", "Absorbé (saison)", "muted"],
+    ["fallback_episodes", "Reporté en épisodes", "warning"],
+  ])("maps the season-grab status %s", (status, label, tone) => {
+    expect(STATUS_LABEL[status]).toBe(label);
+    expect(STATUS_TONE[status]).toBe(tone);
+  });
+
+  it("lets the queue filter select the season-grab statuses", () => {
+    const values = WANTED_STATUS_OPTIONS.map((o) => o.value);
+    expect(values).toContain("absorbed");
+    expect(values).toContain("fallback_episodes");
+    // Every option carries French wording, never the raw slug.
+    for (const opt of WANTED_STATUS_OPTIONS) {
+      expect(opt.label).toBeTruthy();
+      expect(opt.label).not.toBe(opt.value);
+    }
   });
 });
 
@@ -179,7 +228,7 @@ describe("searchOutcomeReason — le motif d'attente en français", () => {
 describe("waitingGroups — un motif, les épisodes qui le partagent", () => {
   const ep = (
     episode: number,
-    state: EpisodeState,
+    state: EpisodeCompleteness["state"],
     outcome: string | null,
   ): EpisodeCompleteness => ({
     episode,

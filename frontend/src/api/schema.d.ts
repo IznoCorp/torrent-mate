@@ -277,6 +277,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/acquisition/follows/{followed_id}/seasons/{season}/grab": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Grab Season
+         * @description Manually enqueue a season wanted for a followed series (R4).
+         *
+         *     Creates a ``WantedItem(kind='season', season=N, episode=None)`` and
+         *     absorbs every live episode wanted for that season (R5). Idempotent on the
+         *     LIVE row only: an existing OPEN season row is reused (HTTP 200,
+         *     ``reused=True``); a terminal row (``fallback_episodes`` / ``done`` /
+         *     ``abandoned``) is history and never blocks a fresh grab — this endpoint is
+         *     the manual escape hatch after an R6 fallback, so it must be able to
+         *     re-enqueue the season (201, new row).
+         *
+         *     Web mutations deliberately emit NO domain event: the web layer has no
+         *     event bus, and provenance comes from the store rows themselves.
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *         response: The outgoing response (status downgraded to 200 on reuse).
+         *         followed_id: Rowid of the ``followed_series`` row.
+         *         season: Season number (1-based).
+         *
+         *     Returns:
+         *         The created (201) or reused live (200) season wanted with absorption
+         *         count and the ``reused`` flag.
+         *
+         *     Raises:
+         *         HTTPException: 404 if the followed_id does not exist.
+         *         HTTPException: 400 if season < 1 or the follow is not a show.
+         */
+        post: operations["grab_season_api_acquisition_follows__followed_id__seasons__season__grab_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/acquisition/journeys": {
         parameters: {
             query?: never;
@@ -2873,7 +2918,7 @@ export interface components {
              * State
              * @enum {string}
              */
-            state: "annonce" | "en_mediatheque" | "a_recuperer" | "en_acquisition" | "en_attente" | "non_verifie";
+            state: "annonce" | "en_mediatheque" | "a_recuperer" | "en_acquisition" | "en_attente" | "non_verifie" | "absorbed";
             /** Title */
             title?: string | null;
         };
@@ -4256,6 +4301,30 @@ export interface components {
             total: number;
         };
         /**
+         * SeasonGrabResponse
+         * @description Response for a season grab request (R4).
+         *
+         *     Attributes:
+         *         season_wanted_id: Rowid of the season wanted row (new or existing).
+         *         season: Season number (1-based).
+         *         absorbed_count: Number of episode rows absorbed by this season wanted.
+         *         reused: ``True`` when an existing LIVE season row was returned (HTTP
+         *             200) instead of a freshly created one (HTTP 201).
+         */
+        SeasonGrabResponse: {
+            /** Absorbed Count */
+            absorbed_count: number;
+            /**
+             * Reused
+             * @default false
+             */
+            reused: boolean;
+            /** Season */
+            season: number;
+            /** Season Wanted Id */
+            season_wanted_id: number;
+        };
+        /**
          * SecretEntry
          * @description A single secret key catalogued from ``.env.example``.
          *
@@ -5228,6 +5297,38 @@ export interface operations {
             };
         };
     };
+    grab_season_api_acquisition_follows__followed_id__seasons__season__grab_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                followed_id: number;
+                season: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeasonGrabResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_journeys_api_acquisition_journeys_get: {
         parameters: {
             query?: {
@@ -5463,7 +5564,7 @@ export interface operations {
     get_wanted_api_acquisition_wanted_get: {
         parameters: {
             query?: {
-                status?: "all" | "pending" | "searching" | "grabbed" | "done" | "abandoned";
+                status?: "all" | "pending" | "searching" | "grabbed" | "done" | "abandoned" | "absorbed" | "fallback_episodes";
                 page?: number;
                 page_size?: number;
             };

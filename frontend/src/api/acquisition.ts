@@ -395,6 +395,45 @@ export function triggerFollowedGrab(id: number): Promise<GrabTriggerResponse> {
   });
 }
 
+/** Response type for POST /api/acquisition/follows/{id}/seasons/{season}/grab (R4).
+ *
+ * The endpoint returns ``201``, not ``200``, so ``SuccessBody`` does not match —
+ * the type is extracted directly from the generated schema.
+ */
+export type SeasonGrabResponse =
+  components["schemas"]["SeasonGrabResponse"];
+
+/**
+ * Manually enqueue a season wanted for a followed series (R4).
+ *
+ * Sends ``POST /api/acquisition/follows/{id}/seasons/{season}/grab`` with the
+ * ``X-Requested-With`` header. Idempotent: returns the existing season row if
+ * one already exists.
+ *
+ * Args:
+ *   followedId: Rowid of the ``followed_series`` row.
+ *   season: Season number (1-based).
+ *
+ * Returns:
+ *   The {@link SeasonGrabResponse} with the season wanted id and absorbed count.
+ *
+ * Raises:
+ *   ApiError: 404 (unknown series) / 400 (season < 1, or follow is not a show).
+ */
+export function grabSeason(
+  followedId: number,
+  season: number,
+): Promise<SeasonGrabResponse> {
+  return apiFetch(
+    "/api/acquisition/follows/{followed_id}/seasons/{season}/grab",
+    {
+      method: "post",
+      headers: XRW_HEADERS,
+      params: { path: { followed_id: followedId, season } },
+    },
+  );
+}
+
 /**
  * Launch the aired-episode / film discovery NOW (§5 manual watcher trigger).
  *

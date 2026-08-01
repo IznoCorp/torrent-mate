@@ -43,13 +43,18 @@ def _fs(followed_id: int = 1, tvdb_id: int = 99) -> FollowedSeries:
     )
 
 
-def _ep(tvdb_id: int = 99, season: int = 1, ep: int = 1) -> AiredEpisode:
+def _ep(
+    tvdb_id: int = 99,
+    season: int = 1,
+    ep: int = 1,
+    air_date: date = date(2024, 1, 1),
+) -> AiredEpisode:
     """Build an aired-episode VO whose media_ref maps back to ``_fs``."""
     return AiredEpisode(
         media_ref=MediaRef(tvdb_id=tvdb_id),
         season=season,
         episode=ep,
-        air_date=date(2024, 1, 1),
+        air_date=air_date,
         title="Episode Title",
     )
 
@@ -94,6 +99,27 @@ def _make_ctx(
     return app_context, store, bus
 
 
+@contextmanager
+def _pinned_today(fixed: date) -> Any:
+    """Pin ``personalscraper.commands.follow.date.today()`` to *fixed*.
+
+    ``follow_detect`` reads the wall clock via ``date.today()`` (module-level
+    import). A real ``date`` subclass keeps every other ``date`` behavior
+    (comparisons with the AiredEpisode air_dates) intact, so a test can anchor
+    « today » next to its hardcoded air-date literals and pass on ANY system
+    date (review F3 — the previous recent-air-date trick expired with the
+    wall clock).
+    """
+
+    class _FixedDate(date):
+        @classmethod
+        def today(cls) -> date:
+            return fixed
+
+    with patch("personalscraper.commands.follow.date", _FixedDate):
+        yield
+
+
 def _run_detect(
     app_context: Any,
     aired_eps: list[AiredEpisode],
@@ -124,14 +150,21 @@ def _run_detect(
 
 
 def test_detect_golden_enqueues_unowned_episode() -> None:
-    """GOLDEN: non-owned, non-dup episode → add() once, WantedEnqueued once."""
+    """GOLDEN: non-owned, non-dup episode → add() once, WantedEnqueued once.
+
+    « today » is PINNED 2 days after the episode's air date (deterministic —
+    passes on any system date, review F3): within 7 days, so the season-grab
+    R1 post-pass skips this single-episode season — the golden's intent is
+    verifying the per-episode enqueue path, not exercising season detection.
+    """
     from personalscraper.acquire.events import WantedEnqueued
 
     fs = _fs(followed_id=1, tvdb_id=99)
-    ep = _ep(tvdb_id=99, season=1, ep=1)
+    ep = _ep(tvdb_id=99, season=1, ep=1, air_date=date(2024, 1, 10))
     app_context, store, bus = _make_ctx([fs], owned=False, existing=None)
 
-    _run_detect(app_context, [ep])
+    with _pinned_today(date(2024, 1, 12)):
+        _run_detect(app_context, [ep])
 
     store.wanted.add.assert_called_once()
     added: WantedItem = store.wanted.add.call_args[0][0]
@@ -380,7 +413,9 @@ def test_detect_integration_enqueues_into_real_store(tmp_path: Path) -> None:
             media_ref=MediaRef(tvdb_id=81189),  # equals the followed media_ref
             season=2,
             episode=5,
-            air_date=date(2024, 3, 1),
+            # Aired 2 days before the PINNED today below — within 7d so the R1
+            # season gate skips; deterministic on any system date (review F3).
+            air_date=date(2024, 1, 10),
             title="Better Call Saul",
         )
 
@@ -393,6 +428,7 @@ def test_detect_integration_enqueues_into_real_store(tmp_path: Path) -> None:
 
         poll_spy = MagicMock(return_value=[aired])
         with (
+            _pinned_today(date(2024, 1, 12)),
             patch("personalscraper.commands.follow.per_step_boundary", _boundary),
             patch("personalscraper.acquire.detect.poll_known", poll_spy),
         ):
@@ -415,6 +451,52 @@ def test_detect_integration_enqueues_into_real_store(tmp_path: Path) -> None:
         assert found.media_ref == MediaRef(tvdb_id=81189)
     finally:
         store.close()
+
+
+def test_detect_row_renders_season_action_without_none() -> None:
+    """F9 REGRESSION: a season action renders an em-dash episode cell.
+
+    ``_detect_row`` only special-cased movies, so a season action fell into
+    the episode branch and printed ``str(None)`` == "None" in the Episode
+    column. The season row must render like the movie special-case style:
+    real season number, em-dash episode, last air date, empty title cell.
+    """
+    from personalscraper.acquire.detect import DetectAction, DetectOutcome
+    from personalscraper.commands.follow import _detect_row
+
+    action = DetectAction(
+        kind="season",
+        title="Severance",
+        season=2,
+        episode=None,
+        air_date="2024-06-01",
+        episode_title=None,
+        outcome=DetectOutcome.ENQUEUED,
+    )
+
+    row = _detect_row(action, dry_run=False)
+
+    assert row == ("Severance", "2", "—", "2024-06-01", "", "[green]enqueued[/green]")
+    assert "None" not in row, "a season row must never print the literal 'None'"
+
+    # Episode rows keep their exact pre-existing shape (no regression).
+    ep_action = DetectAction(
+        kind="episode",
+        title="Severance",
+        season=2,
+        episode=3,
+        air_date="2024-05-01",
+        episode_title="Ep3",
+        outcome=DetectOutcome.ENQUEUED,
+    )
+    assert _detect_row(ep_action, dry_run=False) == (
+        "Severance",
+        "2",
+        "3",
+        "2024-05-01",
+        "Ep3",
+        "[green]enqueued[/green]",
+    )
 
 
 def test_detect_resurrects_wrongfully_abandoned_episode() -> None:

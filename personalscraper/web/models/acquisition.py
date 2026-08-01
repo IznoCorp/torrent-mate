@@ -715,3 +715,20 @@ class AcquisitionOverviewResponse(BaseModel):
     awaiting_resolution: int = 0
     watcher_enabled: bool = True
     last_successful_run_at: int | None = None
+
+
+class SeasonGrabResponse(BaseModel):
+    """Response for a season grab request (R4).
+
+    Attributes:
+        season_wanted_id: Rowid of the season wanted row (new or existing).
+        season: Season number (1-based).
+        absorbed_count: Number of episode rows absorbed by this season wanted.
+        reused: ``True`` when an existing LIVE season row was returned (HTTP
+            200) instead of a freshly created one (HTTP 201).
+    """
+
+    season_wanted_id: int
+    season: int
+    absorbed_count: int
+    reused: bool = False

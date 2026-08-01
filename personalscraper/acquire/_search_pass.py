@@ -19,15 +19,16 @@ import time
 from typing import TYPE_CHECKING
 
 from personalscraper.acquire._pass_gates import PassGatesMixin
-from personalscraper.acquire.events import WantedAbandoned
+from personalscraper.acquire.domain import OPEN_WANTED_STATUSES, WantedItem
+from personalscraper.acquire.events import SeasonAbsorbedEpisodes, WantedAbandoned, WantedEnqueued
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
     from personalscraper.acquire._ports import AcquireStore
     from personalscraper.acquire.cadence import Cadence
-    from personalscraper.acquire.domain import WantedItem
     from personalscraper.acquire.orchestrator import GrabOrchestrator, SearchVerdict
     from personalscraper.acquire.service import _SearchItemOutcome
+    from personalscraper.api.tracker._base import TrackerResult
     from personalscraper.core.event_bus import EventBus
 
 log = get_logger("acquire.service")
@@ -44,6 +45,7 @@ SEARCH_OUTCOME_STATUS: dict[str, str] = {
     "available": "available",
     "no_candidates": "pending",
     "no_matching_episode": "pending",
+    "no_matching_season": "pending",
     "all_filtered": "pending",
     "trackers_unavailable": "pending",
     "circuit_open": "pending",
@@ -132,6 +134,49 @@ class SearchPassMixin(PassGatesMixin):
         # forever). Empty on the ordinary first search.
         tried = frozenset(self._store.wanted.list_tried_hashes(wanted_id))
         verdict = self._orchestrator.search(current, profile, exclude_hashes=tried)
+
+        # R2: episode→season conversion — when filter_to_episode zeroed the
+        # results but a whole-season pack is present in the raw results, enqueue
+        # a season wanted and absorb the episode (+ live siblings). The season
+        # row is enqueued pending, so the next pass evaluates it cleanly.
+        if (
+            verdict.outcome == "no_matching_episode"
+            and current.kind == "episode"
+            and current.season is not None
+            and verdict.raw_results is not None
+        ):
+            from personalscraper.acquire.orchestrator import filter_to_season
+
+            # F4 — verify pack coverage against the aired-episode count; an
+            # empty cache (or a standalone item) yields None and the filter
+            # rejects episode-marker releases conservatively.
+            expected_count: int | None = None
+            if current.followed_id is not None:
+                expected_count = len(self._aired_episodes_for_season(current.followed_id, current.season)) or None
+            season_packs = filter_to_season(list(verdict.raw_results), current.season, expected_count=expected_count)
+            if season_packs:
+                # Record the triggering verdict BEFORE the conversion absorbs
+                # the row (verdict-before-status, the #320 order): an absorbed
+                # episode must still state WHY its own search concluded
+                # (review F12). ``found`` is 0 — 'no_matching_episode' is a
+                # concluded not_found, never an outage.
+                self._store.wanted.record_search_outcome(wanted_id, verdict.outcome, 0)
+                converted = self._enqueue_season_from_conversion(
+                    current,
+                    list(verdict.raw_results),
+                    season_packs,
+                    now,
+                )
+                if converted:
+                    # The episode row is absorbed into the season row (R5); the
+                    # season is enqueued/reused pending.
+                    # _enqueue_season_from_conversion emits WantedEnqueued (if
+                    # new) and SeasonAbsorbedEpisodes.
+                    return "waiting"
+                # Conversion refused (terminal season row — post-R6 fallback):
+                # fall through to the ordinary verdict path so the episode row
+                # records its verdict and stays live.
+
         return self._apply_search_verdict(current, verdict)
 
     def _apply_search_verdict(self, item: WantedItem, verdict: SearchVerdict) -> _SearchItemOutcome:
@@ -219,6 +264,172 @@ class SearchPassMixin(PassGatesMixin):
         # not_found concluded « nothing yet » (waiting); everything else did not
         # conclude at all (unverified) — never merge the two.
         return "waiting" if verdict.disposition == "not_found" else "unverified"
+
+    # ------------------------------------------------------------------
+    # R2: Episode→Season Conversion
+    # ------------------------------------------------------------------
+
+    def _enqueue_season_from_conversion(
+        self,
+        episode_item: WantedItem,
+        raw_results: list[TrackerResult],
+        season_packs: list[TrackerResult],
+        now: int,
+    ) -> bool:
+        """Enqueue/reuse a season wanted for the episode's season (R2).
+
+        Called from :meth:`_search_item` when a ``no_matching_episode`` verdict
+        reveals a whole-season pack in the raw results. Absorption is idempotent
+        — if an OPEN season wanted already exists, only absorption runs.
+
+        The dedup consults the LIVE season row FIRST (counter-review F-A):
+        the status-agnostic ``find()`` returns the OLDEST row, so a stale
+        terminal season row would otherwise mask a NEWER live one (e.g.
+        re-minted by the manual web re-grab, review F5) and starve it of
+        absorption. A live row always wins and absorption proceeds onto it.
+
+        Only when NO live row exists does a TERMINAL season row
+        (``fallback_episodes`` / ``abandoned`` / ``done``) refuse the
+        conversion entirely (review F1): after an R6 fallback the re-enqueued
+        episodes must stay live, and absorbing them onto a dead season row
+        would empty the queue permanently. Anti ping-pong: the season is
+        never re-minted from conversion after a fallback.
+
+        The season wanted is enqueued as ``pending`` (not advanced to available
+        in this tick) so the next pass evaluates it cleanly.
+
+        Args:
+            episode_item: The episode wanted whose search zeroed on
+                ``filter_to_episode``.
+            raw_results: The raw tracker results (for logging, unused here).
+            season_packs: The results that survived ``filter_to_season``.
+            now: Unix epoch seconds (stamps ``enqueued_at``).
+
+        Returns:
+            ``True`` when the conversion ran (season enqueued/reused and
+            absorption attempted); ``False`` when it was refused because the
+            existing season row is terminal — the caller then applies the
+            ordinary search verdict so the episode stays live.
+        """
+        assert episode_item.followed_id is not None  # noqa: S101
+        assert episode_item.season is not None  # noqa: S101
+        fid = episode_item.followed_id
+        season_num = episode_item.season
+
+        # Dedup: one season wanted per follow+season. Consult the LIVE row
+        # FIRST (counter-review F-A) — the status-agnostic find() returns the
+        # OLDEST row, so an old terminal season row (post-R6 fallback) would
+        # mask a newer live one (manual web re-grab, review F5) and the
+        # conversion would refuse absorption the live row is entitled to.
+        existing = self._store.wanted.find(
+            followed_id=fid,
+            kind="season",
+            season=season_num,
+            episode=None,
+            statuses=tuple(sorted(OPEN_WANTED_STATUSES)),
+        )
+        if existing is None:
+            # No live row: only now may a terminal row veto the conversion.
+            terminal = self._store.wanted.find(
+                followed_id=fid,
+                kind="season",
+                season=season_num,
+                episode=None,
+            )
+            if terminal is not None:
+                # Terminal season row (post-R6 fallback, abandon, or done): never
+                # absorb live episodes onto a dead row, never re-mint the season.
+                log.info(
+                    "acquire.service.season_conversion_skipped_terminal",
+                    wanted_id=terminal.id,
+                    status=terminal.status,
+                    season=season_num,
+                )
+                return False
+        season_wid = existing.id if existing is not None else None
+
+        if season_wid is None:
+            season_wid = self._store.wanted.add(
+                WantedItem(
+                    media_ref=episode_item.media_ref,
+                    kind="season",
+                    status="pending",
+                    enqueued_at=now,
+                    followed_id=fid,
+                    season=season_num,
+                    episode=None,
+                ),
+            )
+            self._event_bus.emit(
+                WantedEnqueued(
+                    media_ref=episode_item.media_ref,
+                    kind="season",
+                    season=season_num,
+                    episode=None,
+                ),
+            )
+            log.info(
+                "acquire.service.season_conversion_enqueued",
+                wanted_id=episode_item.id,
+                season=season_num,
+                season_wanted_id=season_wid,
+            )
+
+        # Absorb the triggering episode + its live siblings. The statuses
+        # filter targets the LIVE row directly: after an R6 fallback an older
+        # 'absorbed' row shares the coordinates of the freshly re-enqueued one,
+        # and the status-agnostic find would return that dead shadow (review F1).
+        live_episode_ids: list[int] = []
+        for ep_num in self._aired_episodes_for_season(fid, season_num):
+            ep_wanted = self._store.wanted.find(
+                followed_id=fid,
+                kind="episode",
+                season=season_num,
+                episode=ep_num,
+                statuses=("pending", "searching", "available"),
+            )
+            if ep_wanted is not None and ep_wanted.id is not None:
+                live_episode_ids.append(ep_wanted.id)
+
+        # Always absorb the TRIGGERING episode: it is live by construction (it
+        # was just claimed to 'searching'), but an empty aired-episode cache
+        # leaves the loop above blind to it — without this it would bounce
+        # back through conversion forever with a stale verdict (review F12).
+        if episode_item.id is not None and episode_item.id not in live_episode_ids:
+            live_episode_ids.append(episode_item.id)
+
+        if live_episode_ids:
+            self._store.wanted.absorb_episodes(season_wid, tuple(live_episode_ids))
+            self._event_bus.emit(
+                SeasonAbsorbedEpisodes(
+                    season_wanted_id=season_wid,
+                    media_ref=episode_item.media_ref,
+                    season=season_num,
+                    absorbed_ids=tuple(live_episode_ids),
+                ),
+            )
+            log.info(
+                "acquire.service.season_conversion_absorbed",
+                episode_count=len(live_episode_ids),
+            )
+
+        return True
+
+    def _aired_episodes_for_season(self, followed_id: int, season: int) -> list[int]:
+        """Return episode numbers of aired episodes for the given follow+season.
+
+        Reads the ``aired_episode`` catalog cache via :attr:`_store.aired`,
+        filtering the full series catalog to the requested season.
+
+        Args:
+            followed_id: FK to the ``followed_series`` row.
+            season: Season number to filter for.
+
+        Returns:
+            Episode numbers of aired episodes in that season (may be empty).
+        """
+        aired_rows = self._store.aired.list_for_followed(followed_id)
+        return [int(r.episode) for r in aired_rows if r.season == season]
 
 
 __all__ = ["SEARCH_OUTCOME_STATUS", "SearchPassMixin"]

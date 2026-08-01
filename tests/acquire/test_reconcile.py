@@ -447,3 +447,171 @@ def test_owned_movie_available_row_surfaces_its_follow(store: ConcreteAcquireSto
 
     assert summary.closed_owned == 1
     assert summary.closed_movie_followed_ids == (followed_id,)
+
+
+def test_season_row_without_followed_id_is_never_closed(store: ConcreteAcquireStore) -> None:
+    """A season row with no ``followed_id`` has no catalog → no ownership answer.
+
+    The season-ownership derivation reads the follow's aired catalog; without a
+    ``followed_id`` there is nothing to read, so the blind-spot guard answers
+    « not owned » — even when the stub claims (season, None) as owned.
+    """
+    wanted_id = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=403245),
+            kind="season",
+            status="pending",
+            enqueued_at=1_750_000_000,
+            season=3,
+            episode=None,
+        )
+    )
+
+    reconcile_wanted(store, _StubOwnership({(3, None)}), set())
+
+    row = store.wanted.get(wanted_id)
+    assert row is not None
+    assert row.status == "pending"  # untouched — not closed to done
+
+
+# ---------------------------------------------------------------------------
+# Review F6 (season-grab) — season rows walk the reconciliation sweep
+# ---------------------------------------------------------------------------
+
+
+def _followed_show(store: ConcreteAcquireStore) -> int:
+    """Insert a followed show and return its id."""
+    return store.follow.add(
+        FollowedSeries(
+            media_ref=MediaRef(tvdb_id=403245),
+            title="Silo",
+            added_at=1_750_000_000,
+            kind="show",
+        )
+    )
+
+
+def _season_row(
+    store: ConcreteAcquireStore,
+    *,
+    followed_id: int,
+    season: int,
+    info_hash: str | None = None,
+) -> int:
+    """Insert one season wanted row (optionally grabbed) and return its id."""
+    wanted_id = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=403245),
+            kind="season",
+            status="pending",
+            enqueued_at=1_750_000_000,
+            followed_id=followed_id,
+            season=season,
+            episode=None,
+        )
+    )
+    if info_hash is not None:
+        store.wanted.mark_grabbed(wanted_id, info_hash)
+    return wanted_id
+
+
+def test_grabbed_season_all_aired_owned_closes_done(store: ConcreteAcquireStore) -> None:
+    """A grabbed season whose aired episodes are ALL owned closes ``done``.
+
+    Review F6: the wholesale kind=="season" skip meant nothing could ever close
+    a grabbed season row — it read « en cours » forever even after the whole
+    season pack was dispatched to the library.
+    """
+    followed_id = _followed_show(store)
+    store.aired.replace_for_followed(
+        followed_id,
+        [(3, 1, None, "2026-01-01"), (3, 2, None, "2026-01-08")],
+        now=1_750_000_000,
+    )
+    wanted_id = _season_row(store, followed_id=followed_id, season=3, info_hash="5ea50e01")
+
+    summary = reconcile_wanted(store, _StubOwnership({(3, 1), (3, 2)}), {"5ea50e01"})
+
+    assert summary.checked == 1
+    assert summary.closed_owned == 1
+    assert summary.closed_movie_followed_ids == ()  # seasons are shows — no retirement
+    row = store.wanted.get(wanted_id)
+    assert row is not None and row.status == "done"
+
+
+def test_grabbed_season_partially_owned_stays_in_flight(store: ConcreteAcquireStore) -> None:
+    """Half the season owned + torrent still in the client → left in flight."""
+    followed_id = _followed_show(store)
+    store.aired.replace_for_followed(
+        followed_id,
+        [(3, 1, None, "2026-01-01"), (3, 2, None, "2026-01-08")],
+        now=1_750_000_000,
+    )
+    wanted_id = _season_row(store, followed_id=followed_id, season=3, info_hash="5ea50e02")
+
+    summary = reconcile_wanted(store, _StubOwnership({(3, 1)}), {"5ea50e02"})
+
+    assert summary.closed_owned == 0
+    assert summary.still_in_flight == 1
+    row = store.wanted.get(wanted_id)
+    assert row is not None and row.status == "grabbed"
+
+
+def test_grabbed_season_vanished_torrent_requeues_pending(store: ConcreteAcquireStore) -> None:
+    """Season torrent vanished from the client + season not fully owned → requeued.
+
+    Review F6: the skip also starved the vanished-torrent path — a dead season
+    grab was never sent back to ``pending``, so the season was never retried.
+    """
+    followed_id = _followed_show(store)
+    store.aired.replace_for_followed(
+        followed_id,
+        [(3, 1, None, "2026-01-01"), (3, 2, None, "2026-01-08")],
+        now=1_750_000_000,
+    )
+    wanted_id = _season_row(store, followed_id=followed_id, season=3, info_hash="5ea50e03")
+
+    summary = reconcile_wanted(store, _StubOwnership({(3, 1)}), set())
+
+    assert summary.requeued_missing == 1
+    row = store.wanted.get(wanted_id)
+    assert row is not None
+    assert row.status == "pending"
+    assert row.grabbed_hash is None
+
+
+def test_searching_season_with_hash_in_client_is_confirmed(store: ConcreteAcquireStore) -> None:
+    """A §11(d) crash-window SEASON row (searching + hash in client) is confirmed."""
+    followed_id = _followed_show(store)
+    store.aired.replace_for_followed(
+        followed_id,
+        [(3, 1, None, "2026-01-01"), (3, 2, None, "2026-01-08")],
+        now=1_750_000_000,
+    )
+    wanted_id = _season_row(store, followed_id=followed_id, season=3, info_hash="5ea50e04")
+    store.wanted.set_status(wanted_id, "searching")
+
+    summary = reconcile_wanted(store, _StubOwnership(set()), {"5ea50e04"})
+
+    assert summary.confirmed_grabbed == 1
+    row = store.wanted.get(wanted_id)
+    assert row is not None
+    assert row.status == "grabbed"
+    assert row.grabbed_hash == "5ea50e04"
+
+
+def test_season_with_empty_aired_catalog_is_never_closed(store: ConcreteAcquireStore) -> None:
+    """Blind-spot guard: an empty aired catalog can NEVER close a season row.
+
+    Even an owns-everything checker must not close the row — an empty catalog
+    is absence of knowledge, not a statement that the season is complete.
+    """
+    followed_id = _followed_show(store)  # no aired catalog written
+    wanted_id = _season_row(store, followed_id=followed_id, season=3, info_hash="5ea50e05")
+
+    summary = reconcile_wanted(store, _OwnsAllOwnership(), {"5ea50e05"})
+
+    assert summary.closed_owned == 0
+    assert summary.still_in_flight == 1
+    row = store.wanted.get(wanted_id)
+    assert row is not None and row.status == "grabbed"

@@ -1463,3 +1463,176 @@ def test_mark_done_covers_every_open_status_and_no_closed_one(store: ConcreteAcq
         )
         store.wanted.set_status(wid, status)  # type: ignore[arg-type]
         assert store.wanted.mark_done(wid) is False, f"a closed {status!r} row must never be touched"
+
+
+# ---------------------------------------------------------------------------
+# Season-grab store methods — absorb_episodes / fallback_season
+# ---------------------------------------------------------------------------
+
+
+def test_absorb_episodes_transitions_status(store: ConcreteAcquireStore) -> None:
+    """absorb_episodes() sets status='absorbed' + absorbed_by on matching rows."""
+    now = 1_700_000_000
+    # Create a season wanted (will get id assigned by INSERT).
+    season_wid = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=12345),
+            kind="season",
+            status="pending",
+            enqueued_at=now,
+            season=3,
+            episode=None,
+        )
+    )
+    # Create 3 episode wanteds.
+    ep1 = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=12345),
+            kind="episode",
+            status="pending",
+            enqueued_at=now,
+            season=3,
+            episode=1,
+        )
+    )
+    ep2 = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=12345),
+            kind="episode",
+            status="pending",
+            enqueued_at=now,
+            season=3,
+            episode=2,
+        )
+    )
+    ep3 = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=12345),
+            kind="episode",
+            status="pending",
+            enqueued_at=now,
+            season=3,
+            episode=3,
+        )
+    )
+
+    count = store.wanted.absorb_episodes(season_wid, (ep1, ep2, ep3))
+    assert count == 3
+
+    for eid in (ep1, ep2, ep3):
+        row = store.wanted.get(eid)
+        assert row is not None
+        assert row.status == "absorbed"
+        assert row.absorbed_by == season_wid
+
+
+def test_absorb_episodes_empty_ids_returns_zero(store: ConcreteAcquireStore) -> None:
+    """absorb_episodes() with empty tuple returns 0 without error."""
+    assert store.wanted.absorb_episodes(1, ()) == 0
+
+
+def test_absorb_episodes_skips_already_closed(store: ConcreteAcquireStore) -> None:
+    """absorb_episodes() skips rows that are already done/abandoned."""
+    now = 1_700_000_000
+    season_wid = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=12345),
+            kind="season",
+            status="pending",
+            enqueued_at=now,
+            season=3,
+            episode=None,
+        )
+    )
+    done_ep = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=12345),
+            kind="episode",
+            status="done",
+            enqueued_at=now,
+            season=3,
+            episode=1,
+        )
+    )
+
+    count = store.wanted.absorb_episodes(season_wid, (done_ep,))
+    assert count == 0  # already closed, not absorbed
+    row = store.wanted.get(done_ep)
+    assert row is not None and row.status == "done"
+
+
+def test_fallback_season_transitions_season_row(store: ConcreteAcquireStore) -> None:
+    """fallback_season() transitions only an OPEN season row."""
+    now = 1_700_000_000
+    season_wid = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=12345),
+            kind="season",
+            status="pending",
+            enqueued_at=now,
+            season=3,
+            episode=None,
+        )
+    )
+
+    ok = store.wanted.fallback_season(season_wid)
+    assert ok
+    row = store.wanted.get(season_wid)
+    assert row is not None
+    assert row.status == "fallback_episodes"
+
+
+def test_fallback_season_refuses_episode_row(store: ConcreteAcquireStore) -> None:
+    """fallback_season() refuses a non-season row (kind guard)."""
+    now = 1_700_000_000
+    ep_id = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=12345),
+            kind="episode",
+            status="pending",
+            enqueued_at=now,
+            season=3,
+            episode=1,
+        )
+    )
+
+    ok = store.wanted.fallback_season(ep_id)
+    assert not ok
+    row = store.wanted.get(ep_id)
+    assert row is not None and row.status == "pending"
+
+
+def test_fallback_season_refuses_already_closed(store: ConcreteAcquireStore) -> None:
+    """fallback_season() refuses a row that is already closed (not OPEN)."""
+    now = 1_700_000_000
+    season_wid = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=12345),
+            kind="season",
+            status="done",
+            enqueued_at=now,
+            season=3,
+            episode=None,
+        )
+    )
+
+    ok = store.wanted.fallback_season(season_wid)
+    assert not ok
+
+
+def test_fallback_season_idempotent(store: ConcreteAcquireStore) -> None:
+    """fallback_season() is idempotent — second call returns False."""
+    now = 1_700_000_000
+    season_wid = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=12345),
+            kind="season",
+            status="pending",
+            enqueued_at=now,
+            season=3,
+            episode=None,
+        )
+    )
+
+    assert store.wanted.fallback_season(season_wid) is True
+    assert store.wanted.fallback_season(season_wid) is False  # already fallback_episodes

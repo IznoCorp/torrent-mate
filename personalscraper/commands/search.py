@@ -191,6 +191,15 @@ def _build_search_service(
         row = store.follow.get(item.followed_id)
         return row.year if row is not None else None
 
+    # Season-pack coverage resolver (review F4) — same wiring as the factory,
+    # so the search pass verdict and the grab never diverge on what counts as
+    # « the season ».
+    def _episode_count_resolver(item: WantedItem) -> int | None:
+        if item.followed_id is None or item.season is None:
+            return None
+        aired = store.aired.list_for_followed(item.followed_id)
+        return len([r for r in aired if r.season == item.season]) or None
+
     orchestrator = GrabOrchestrator(
         tracker_registry=acquire.tracker_registry,
         torrent_client=None,  # the search pass adds nothing
@@ -198,6 +207,7 @@ def _build_search_service(
         ranking=config.ranking,
         title_resolver=_title_resolver,
         year_resolver=_year_resolver,
+        episode_count_resolver=_episode_count_resolver,
     )
     return AcquisitionService(
         store=store,

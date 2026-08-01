@@ -9,7 +9,12 @@
 
 import { useState, type ReactElement } from "react";
 
-import type { SeasonCompleteness } from "@/api/acquisition";
+import {
+  grabSeason,
+  type SeasonGrabResponse,
+  type SeasonCompleteness,
+  acqKeys,
+} from "@/api/acquisition";
 import { Badge } from "@/components/ui/badge";
 import {
   Accordion,
@@ -17,8 +22,12 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCompleteness } from "@/hooks/useAcquisition";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Download } from "lucide-react";
+import { toast } from "sonner";
 
 import { EpisodeDatePopover } from "./EpisodeDatePopover";
 import { EpisodeStateLegende } from "./EpisodeStateLegende";
@@ -36,22 +45,61 @@ export interface CompletenessAccordionProps {
   readonly title: string;
 }
 
-/** One season's per-episode chips + aggregate readout. */
-function SeasonRow({ season }: { season: SeasonCompleteness }): ReactElement {
+/** Props for a season-row sub-component. */
+interface SeasonRowProps {
+  readonly season: SeasonCompleteness;
+  readonly followedId: number;
+}
+
+/** One season's per-episode chips + aggregate readout + grab button. */
+function SeasonRow({ season, followedId }: SeasonRowProps): ReactElement {
+  const queryClient = useQueryClient();
+  // Nothing to grab when the season is fully owned OR has no aired episode
+  // at all (total 0) — both disable the per-season grab button.
+  const nothingToGrab = season.total === 0 || season.owned >= season.total;
+
+  const grabSeasonMutation = useMutation({
+    mutationFn: () => grabSeason(followedId, season.season),
+    onSuccess: (result: SeasonGrabResponse) => {
+      if (result.reused) {
+        // The backend reused an existing LIVE season row (HTTP 200): nothing
+        // new was enqueued, so an informational toast — never a success one
+        // claiming a fresh grab (review F8).
+        toast.info(`Saison ${String(season.season)} déjà en file`);
+      } else {
+        toast.success(
+          `Saison ${String(season.season)} mise en file` +
+            (result.absorbed_count > 0
+              ? ` — ${String(result.absorbed_count)} épisode${result.absorbed_count > 1 ? "s" : ""} absorbé${result.absorbed_count > 1 ? "s" : ""}`
+              : ""),
+        );
+      }
+      void queryClient.invalidateQueries({
+        queryKey: acqKeys.completeness(followedId),
+      });
+      void queryClient.invalidateQueries({ queryKey: acqKeys.wanted() });
+      void queryClient.invalidateQueries({ queryKey: acqKeys.followed() });
+    },
+    onError: (err: Error) => {
+      toast.error(err.message);
+    },
+  });
+
   return (
     <div className="flex flex-col gap-1.5 border-t border-border py-2 first:border-t-0">
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium">Saison {season.season}</span>
         {/* ``queued`` counts what is IN MOTION — « à récupérer » + « en cours
-            d'acquisition ». The former « N en file » wording described a queue
-            volume, which is precisely the number that let « rows queued » pass
-            for « progress »; « N en cours » names the movement instead, and the
-            tooltip spells out the two states it sums. */}
+            d'acquisition » + « absorbé (saison) ». The former « N en file »
+            wording described a queue volume, which is precisely the number
+            that let « rows queued » pass for « progress »; « N en cours »
+            names the movement instead, and the tooltip spells out the states
+            it sums. */}
         <span
           className="text-xs text-muted-foreground"
           title={
             season.queued > 0
-              ? "En cours = à récupérer + en cours d'acquisition"
+              ? "En cours = à récupérer + en cours d'acquisition + absorbé (saison)"
               : undefined
           }
         >
@@ -97,6 +145,26 @@ function SeasonRow({ season }: { season: SeasonCompleteness }): ReactElement {
           E{group.episodes.map(String).join(", E")} — {group.reason}
         </p>
       ))}
+
+      {/* Per-season grab: enqueue a season wanted (R4). Disabled when the
+          season is fully owned (nothing to grab) or while the mutation is
+          in flight. The backend is idempotent (returns the existing row on
+          duplicate), so a double-click is harmless. */}
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={nothingToGrab || grabSeasonMutation.isPending}
+          onClick={() => {
+            grabSeasonMutation.mutate();
+          }}
+        >
+          <Download className="mr-1 h-4 w-4" aria-hidden="true" />
+          {grabSeasonMutation.isPending
+            ? "Mise en file…"
+            : "Récupérer la saison"}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -150,7 +218,7 @@ export function CompletenessAccordion({
           ) : data && data.seasons.length > 0 ? (
             <div className="flex flex-col">
               {data.seasons.map((s) => (
-                <SeasonRow key={s.season} season={s} />
+                <SeasonRow key={s.season} season={s} followedId={followedId} />
               ))}
               {/* Colour key under the matrix (#9) — derived from the vocabulary
                   maps, so it always matches the chips above. */}

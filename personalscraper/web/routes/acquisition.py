@@ -32,15 +32,14 @@ from contextlib import closing
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 
 from personalscraper.acquire._provenance_store import STUCK_IDLE_SECONDS, provenance_row_is_stuck
 from personalscraper.acquire.cadence import Cadence
 from personalscraper.acquire.desired import cadence_from_config, cadence_from_json, effective_cadence
-from personalscraper.acquire.domain import FollowedSeries
+from personalscraper.acquire.domain import OPEN_WANTED_STATUSES, FollowedSeries
 from personalscraper.acquire.metadata_enrich import FollowMetadata, enrich_follow_metadata
 from personalscraper.acquire.store import build_acquire_store
-from personalscraper.conf.models._ranking import RankingConfig
 from personalscraper.core.identity import MediaRef
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.logger import get_logger
@@ -77,8 +76,7 @@ from personalscraper.web.models.acquisition import (
     MediaSearchResponse,
     ObligationItem,
     ObligationsResponse,
-    RankingPreviewRelease,
-    RankingPreviewResponse,
+    SeasonGrabResponse,
     UpdateFollowRequest,
     WantedItemResponse,
     WantedResponse,
@@ -87,7 +85,6 @@ from personalscraper.web.routes.acquisition_triggers import enqueue_prime_run, p
 
 if TYPE_CHECKING:
     from personalscraper.acquire.store import ConcreteAcquireStore
-    from personalscraper.api.tracker._base import TrackerResult
 
 router = APIRouter(prefix="/api/acquisition", tags=["acquisition"])
 logger = get_logger(__name__)
@@ -441,7 +438,20 @@ def get_followed_completeness(request: Request, followed_id: int) -> Completenes
 # ── /api/acquisition/wanted ────────────────────────────────────────────
 
 
-_WANTED_STATUSES = Literal["all", "pending", "searching", "grabbed", "done", "abandoned"]
+_WANTED_STATUSES = Literal[
+    "all",
+    "pending",
+    "searching",
+    "grabbed",
+    "done",
+    "abandoned",
+    # Season-grab terminal statuses (review F8): an episode absorbed by a
+    # season wanted (R5) and a season row degraded to per-episode retry (R6)
+    # must be selectable in the queue filter like any other status — the WHERE
+    # clause below passes the value through unchanged.
+    "absorbed",
+    "fallback_episodes",
+]
 
 
 @router.get("/wanted", response_model=WantedResponse)
@@ -663,229 +673,6 @@ def get_acquisition_downloads(request: Request) -> AcquisitionDownloadsResponse:
     from personalscraper.web.acquisition.downloads import list_active_downloads
 
     return list_active_downloads(request.app.state.config)
-
-
-# ── ranking preview (ranking editor, #18) ─────────────────────────────────
-
-
-def _ranking_preview_samples() -> list["TrackerResult"]:
-    """Build the fixed, representative release sample set for the ranking preview.
-
-    Six synthetic releases spanning every scored axis (resolution, codec,
-    language, source, provider, seeders, freeleech) so the operator sees a
-    weight/value change reorder visible rows without running a real search.
-    Fields are set explicitly (as the trackers would after title-parsing), so
-    the preview scores exactly what a real grab would.
-    """
-    from personalscraper.api._units import ByteSize
-    from personalscraper.api.tracker._base import TrackerResult
-
-    return [
-        TrackerResult(
-            provider="tr4ker",
-            tracker_id="s1",
-            title="Sample.2024.MULTi.2160p.UHD.BluRay.x265 — tr4ker",
-            size=ByteSize(15_000_000_000),
-            seeders=40,
-            leechers=2,
-            is_freeleech=True,
-            resolution="2160p",
-            codec="x265",
-            source="BluRay",
-            language="MULTI",
-        ),
-        TrackerResult(
-            provider="tr4ker",
-            tracker_id="s2",
-            title="Sample.2024.MULTi.1080p.WEB-DL.x265 — tr4ker",
-            size=ByteSize(4_500_000_000),
-            seeders=120,
-            leechers=5,
-            is_freeleech=True,
-            resolution="1080p",
-            codec="x265",
-            source="WEB-DL",
-            language="MULTI",
-        ),
-        TrackerResult(
-            provider="c411",
-            tracker_id="s3",
-            title="Sample.2024.VFF.1080p.WEB-DL.x264 — c411",
-            size=ByteSize(4_000_000_000),
-            seeders=60,
-            leechers=3,
-            resolution="1080p",
-            codec="x264",
-            source="WEB-DL",
-            language="VFF",
-        ),
-        TrackerResult(
-            provider="c411",
-            tracker_id="s4",
-            title="Sample.2024.TRUEFRENCH.1080p.BluRay.x265 — c411",
-            size=ByteSize(8_000_000_000),
-            seeders=8,
-            leechers=1,
-            resolution="1080p",
-            codec="x265",
-            source="BluRay",
-            language="TRUEFRENCH",
-        ),
-        TrackerResult(
-            provider="lacale",
-            tracker_id="s5",
-            title="Sample.2024.VOSTFR.720p.HDTV.x264 — lacale",
-            size=ByteSize(1_500_000_000),
-            seeders=15,
-            leechers=0,
-            resolution="720p",
-            codec="x264",
-            source="HDTV",
-            language="VOSTFR",
-        ),
-        TrackerResult(
-            provider="lacale",
-            tracker_id="s6",
-            title="Sample.2024.MULTi.2160p.BluRay.x265 — lacale (low seed)",
-            size=ByteSize(16_000_000_000),
-            seeders=3,
-            leechers=0,
-            resolution="2160p",
-            codec="x265",
-            source="BluRay",
-            language="MULTI",
-        ),
-        # ── 6 new samples (ticket 374) ──────────────────────────────
-        TrackerResult(
-            provider="tr4ker",
-            tracker_id="s7",
-            title="Demo.2025.TRUEFRENCH.2160p.REMUX.BluRay.x265 — tr4ker",
-            size=ByteSize(52_000_000_000),
-            seeders=200,
-            leechers=10,
-            resolution="2160p",
-            codec="x265",
-            source="BluRay",
-            language="TRUEFRENCH",
-        ),
-        TrackerResult(
-            provider="tr4ker",
-            tracker_id="s8",
-            title="Demo.S01.FRENCH.1080p.WEB-DL.x264 Season.Pack — tr4ker",
-            size=ByteSize(80_000_000_000),
-            seeders=25,
-            leechers=6,
-            is_freeleech=True,
-            resolution="1080p",
-            codec="x264",
-            source="WEB-DL",
-            language="FRENCH",
-        ),
-        TrackerResult(
-            provider="c411",
-            tracker_id="s9",
-            title="Demo.2025.VOSTFR.1080p.WEB-DL.x265 — c411 (leech trap)",
-            size=ByteSize(5_000_000_000),
-            seeders=2,
-            leechers=15,
-            resolution="1080p",
-            codec="x265",
-            source="WEB-DL",
-            language="VOSTFR",
-        ),
-        TrackerResult(
-            provider="c411",
-            tracker_id="s10",
-            title="Demo.2025.VFF.720p.HDTV.x264 — c411",
-            size=ByteSize(2_200_000_000),
-            seeders=4,
-            leechers=1,
-            resolution="720p",
-            codec="x264",
-            source="HDTV",
-            language="VFF",
-        ),
-        TrackerResult(
-            provider="tr4ker",
-            tracker_id="s11",
-            title="Demo.2025.MULTi.2160p.WEB-DL.x265 — tr4ker",
-            size=ByteSize(12_000_000_000),
-            seeders=35,
-            leechers=8,
-            is_freeleech=True,
-            resolution="2160p",
-            codec="x265",
-            source="WEB-DL",
-            language="MULTI",
-        ),
-        TrackerResult(
-            provider="c411",
-            tracker_id="s12",
-            title="Demo.2025.VOSTFR.2160p.BluRay.x265 — c411 (FL low seed)",
-            size=ByteSize(18_000_000_000),
-            seeders=5,
-            leechers=0,
-            is_freeleech=True,
-            resolution="2160p",
-            codec="x265",
-            source="BluRay",
-            language="VOSTFR",
-        ),
-    ]
-
-
-@router.post("/ranking/preview", response_model=RankingPreviewResponse)
-def preview_ranking(body: RankingConfig) -> RankingPreviewResponse:
-    """Score the representative sample set under a candidate ranking (#18).
-
-    Read-only + pure: no DB, no filesystem, no torrent client — it scores the
-    fixed :func:`_ranking_preview_samples` set with the POSTed candidate config
-    so the editor can render a live preview of the acquisition ranking. To keep
-    every sample VISIBLE (a live preview must never silently drop rows), scoring
-    runs with ``min_seeders`` neutralized; each row is instead flagged
-    ``excluded`` when its seeders fall below the candidate ``min_seeders`` — so
-    the operator SEES which releases the real ``rank()`` would drop. Rows sort
-    non-excluded first (by score desc), excluded last.
-
-    Not staging-guarded and no CSRF header: it mutates nothing, so it is safe
-    on the read-only staging role and idempotent by construction.
-
-    Args:
-        body: The candidate ranking configuration to score with.
-
-    Returns:
-        A :class:`RankingPreviewResponse` with the scored, sorted samples.
-    """
-    from personalscraper.api.tracker._ranking import rank
-
-    samples = _ranking_preview_samples()
-    # Neutralize the seeder floor so EVERY sample is scored and shown; flag the
-    # ones the real min_seeders would have dropped rather than hiding them.
-    scored = rank(samples, body.model_copy(update={"min_seeders": 0}))
-    rows = [
-        RankingPreviewRelease(
-            title=result.title,
-            provider=str(result.provider),
-            resolution=result.resolution,
-            codec=result.codec,
-            language=result.language,
-            source=result.source,
-            seeders=result.seeders,
-            leechers=result.leechers,
-            is_freeleech=result.is_freeleech,
-            score=score,
-            excluded=result.seeders < body.min_seeders,
-        )
-        for result, score in scored
-    ]
-    # Excluded rows sink to the end; within each group keep the score order.
-    rows.sort(key=lambda r: (r.excluded, -r.score))
-    # known_trackers: the hardcoded factory roster minus lacale (deprecated).
-    # No torznab generic engine key exists in _TRACKER_CLASSES (ticket 374 check).
-    from personalscraper.api.tracker._factory import _TRACKER_CLASSES
-
-    known = sorted(k for k in _TRACKER_CLASSES if k != "lacale")
-    return RankingPreviewResponse(ranked=rows, known_trackers=known)
 
 
 # ── provenance journeys (« parcours » — F1) ───────────────────────────────
@@ -1188,5 +975,175 @@ def delete_follow(request: Request, followed_id: int) -> None:
         if existing is None:
             raise HTTPException(status_code=404, detail="Followed series not found")
         store.follow.set_active(followed_id, False)
+    finally:
+        store.close()
+
+
+# ── Season Grab (R4 / R5) ────────────────────────────────────────────────
+
+
+def _count_absorbed_for_season(
+    store: "ConcreteAcquireStore",
+    followed_id: int,
+    season: int,
+) -> int:
+    """Count episode rows already absorbed for a season by a season wanted.
+
+    Args:
+        store: An open acquire store.
+        followed_id: FK to ``followed_series``.
+        season: Season number (1-based).
+
+    Returns:
+        Number of episode rows with ``status='absorbed'`` for the follow+season.
+    """
+    store.wanted._conn.row_factory = sqlite3.Row
+    row = store.wanted._conn.execute(
+        "SELECT COUNT(*) AS cnt FROM wanted "
+        "WHERE followed_id IS ? AND kind = 'episode' "
+        "AND season = ? AND status = 'absorbed'",
+        (followed_id, season),
+    ).fetchone()
+    return int(row["cnt"]) if row else 0
+
+
+def _absorb_live_episodes_for_season(
+    store: "ConcreteAcquireStore",
+    followed_id: int,
+    season: int,
+    season_wanted_id: int,
+) -> list[int]:
+    """Absorb all live episode wanted rows for a season (R5).
+
+    Args:
+        store: An open acquire store.
+        followed_id: FK to ``followed_series``.
+        season: Season number (1-based).
+        season_wanted_id: Rowid of the season wanted to absorb into.
+
+    Returns:
+        The list of episode rowids that were absorbed.
+    """
+    store.wanted._conn.row_factory = sqlite3.Row
+    rows = store.wanted._conn.execute(
+        "SELECT id FROM wanted "
+        "WHERE followed_id IS ? AND kind = 'episode' "
+        "AND season = ? AND status IN ('pending', 'searching', 'available')",
+        (followed_id, season),
+    ).fetchall()
+    episode_ids = tuple(int(r["id"]) for r in rows)
+    if episode_ids:
+        store.wanted.absorb_episodes(season_wanted_id, episode_ids)
+    return list(episode_ids)
+
+
+@router.post(
+    "/follows/{followed_id}/seasons/{season}/grab",
+    status_code=201,
+    response_model=SeasonGrabResponse,
+    dependencies=[Depends(require_not_staging), Depends(require_x_requested_with)],
+)
+def grab_season(
+    request: Request,
+    response: Response,
+    followed_id: int,
+    season: int,
+) -> SeasonGrabResponse:
+    """Manually enqueue a season wanted for a followed series (R4).
+
+    Creates a ``WantedItem(kind='season', season=N, episode=None)`` and
+    absorbs every live episode wanted for that season (R5). Idempotent on the
+    LIVE row only: an existing OPEN season row is reused (HTTP 200,
+    ``reused=True``); a terminal row (``fallback_episodes`` / ``done`` /
+    ``abandoned``) is history and never blocks a fresh grab — this endpoint is
+    the manual escape hatch after an R6 fallback, so it must be able to
+    re-enqueue the season (201, new row).
+
+    Web mutations deliberately emit NO domain event: the web layer has no
+    event bus, and provenance comes from the store rows themselves.
+
+    Args:
+        request: The incoming FastAPI request.
+        response: The outgoing response (status downgraded to 200 on reuse).
+        followed_id: Rowid of the ``followed_series`` row.
+        season: Season number (1-based).
+
+    Returns:
+        The created (201) or reused live (200) season wanted with absorption
+        count and the ``reused`` flag.
+
+    Raises:
+        HTTPException: 404 if the followed_id does not exist.
+        HTTPException: 400 if season < 1 or the follow is not a show.
+    """
+    if season < 1:
+        raise HTTPException(status_code=400, detail="Season must be >= 1")
+
+    config = request.app.state.config
+    store = build_acquire_store(config.acquire)
+    try:
+        followed = store.follow.get(followed_id)
+        if followed is None:
+            raise HTTPException(status_code=404, detail="Followed series not found")
+        if followed.kind != "show":
+            raise HTTPException(
+                status_code=400,
+                detail="Season grab only applies to TV shows (kind='show')",
+            )
+
+        # Dedup: one LIVE season wanted per follow+season. Status-scoped to the
+        # open statuses — a terminal row (fallback_episodes/done/abandoned)
+        # must not be « reused »: that answered 201 with nothing enqueued,
+        # closing the only manual escape hatch after a fallback (review F5).
+        existing = store.wanted.find(
+            followed_id=followed_id,
+            kind="season",
+            season=season,
+            episode=None,
+            statuses=tuple(sorted(OPEN_WANTED_STATUSES)),
+        )
+        if existing is not None:
+            # Count already-absorbed episodes for a truthful response.
+            absorbed = _count_absorbed_for_season(store, followed_id, season)
+            response.status_code = 200
+            return SeasonGrabResponse(
+                season_wanted_id=existing.id or 0,
+                season=season,
+                absorbed_count=absorbed,
+                reused=True,
+            )
+
+        assert followed.id is not None  # noqa: S101 — get() sets id
+        now = int(time.time())
+
+        from personalscraper.acquire.domain import WantedItem
+
+        # Enqueue the season wanted
+        season_wid = store.wanted.add(
+            WantedItem(
+                media_ref=followed.media_ref,
+                kind="season",
+                status="pending",
+                enqueued_at=now,
+                followed_id=followed.id,
+                season=season,
+                episode=None,
+            )
+        )
+
+        # Absorb live episode wanteds for this season
+        absorbed_ids = _absorb_live_episodes_for_season(
+            store,
+            followed.id,
+            season,
+            season_wid,
+        )
+
+        return SeasonGrabResponse(
+            season_wanted_id=season_wid,
+            season=season,
+            absorbed_count=len(absorbed_ids),
+            reused=False,
+        )
     finally:
         store.close()

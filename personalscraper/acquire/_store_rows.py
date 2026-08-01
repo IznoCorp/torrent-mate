@@ -119,6 +119,9 @@ def _row_to_wanted(row: sqlite3.Row) -> WantedItem:
     # field. Decode defensively so every other read (which omits the column)
     # keeps working with an empty tuple — no SELECT churn across the store.
     tried_blob = row["tried_hashes_json"] if "tried_hashes_json" in row.keys() else None
+    # absorbed_by is optional: only SELECTs that fetch it populate the field.
+    # Decode defensively — pre-013 databases lack the column.
+    absorbed_by = int(row["absorbed_by"]) if ("absorbed_by" in row.keys() and row["absorbed_by"] is not None) else None
     return WantedItem(
         media_ref=_media_ref_from_json(row["media_ref_json"]),
         # kind/status are CHECK-constrained columns; cast the raw string to the
@@ -137,6 +140,7 @@ def _row_to_wanted(row: sqlite3.Row) -> WantedItem:
         last_search_outcome=row["last_search_outcome"],
         last_search_found=row["last_search_found"],
         tried_hashes=decode_tried_hashes(tried_blob),
+        absorbed_by=absorbed_by,
     )
 
 

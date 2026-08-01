@@ -353,7 +353,9 @@ describe("FileDAcquisitionPanel", () => {
     mockEmpty();
     renderPanel();
 
-    expect(await screen.findByText(/Aucune recherche en file/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Aucune recherche en file/),
+    ).toBeInTheDocument();
   });
 
   it("shows filter-specific empty text when a non-all status is selected", async () => {
@@ -723,7 +725,9 @@ describe("FileDAcquisitionPanel", () => {
     renderPanel();
 
     // Expand the accordion.
-    fireEvent.click(await screen.findByRole("button", { name: /Le Robot sauvage/ }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Le Robot sauvage/ }),
+    );
 
     // Group heading reads « Film (1) » (not « Saison ?? »).
     expect(screen.getByText(/Film \(1\)/)).toBeInTheDocument();
@@ -733,5 +737,99 @@ describe("FileDAcquisitionPanel", () => {
     // The raw enum value must not leak.
     const rawMovie = screen.queryByText((content) => content === "movie");
     expect(rawMovie).not.toBeInTheDocument();
+  });
+
+  // ── Season wanted rows (R4) ──────────────────────────────────────────
+
+  it("renders a season wanted row with « Saison NN » label and kind badge", async () => {
+    mockEmpty();
+    mockWantedItems(
+      [
+        makeWanted({
+          id: 100,
+          title: "Top Chef",
+          kind: "season",
+          season: 3,
+          episode: null,
+          status: "pending",
+        }),
+      ],
+      1,
+    );
+    renderPanel();
+
+    // Expand the accordion.
+    fireEvent.click(await screen.findByRole("button", { name: /Top Chef/ }));
+
+    // The row label AND the kind badge both read « Saison 03 » (no episode
+    // code anywhere) — assert via getAllByText: getByText would throw on the
+    // expected multiple occurrences.
+    const badges = screen.getAllByText("Saison 03");
+    expect(badges.length).toBeGreaterThanOrEqual(2);
+    // Status badge still renders.
+    expect(screen.getByText("En attente")).toBeInTheDocument();
+  });
+
+  it("renders an absorbed episode row with « Absorbé (saison) » status badge", async () => {
+    mockEmpty();
+    mockWantedItems(
+      [
+        makeWanted({
+          id: 200,
+          title: "Koh-Lanta",
+          kind: "episode",
+          season: 30,
+          episode: 5,
+          status: "absorbed",
+        }),
+      ],
+      1,
+    );
+    renderPanel();
+
+    // Expand the accordion.
+    fireEvent.click(await screen.findByRole("button", { name: /Koh-Lanta/ }));
+
+    // The status badge reads « Absorbé (saison) », not the raw "absorbed" token.
+    expect(screen.getByText("Absorbé (saison)")).toBeInTheDocument();
+    expect(screen.queryByText("absorbed")).not.toBeInTheDocument();
+    // The episode code still renders.
+    expect(screen.getByText("S30E05")).toBeInTheDocument();
+  });
+
+  it("renders a season wanted in the same group as episode items for that season", async () => {
+    mockEmpty();
+    mockWantedItems(
+      [
+        makeWanted({
+          id: 300,
+          title: "Top Chef",
+          kind: "season",
+          season: 16,
+          episode: null,
+          status: "pending",
+        }),
+        makeWanted({
+          id: 301,
+          title: "Top Chef",
+          kind: "episode",
+          season: 16,
+          episode: 3,
+          status: "pending",
+        }),
+      ],
+      2,
+    );
+    renderPanel();
+
+    // Expand the accordion.
+    fireEvent.click(await screen.findByRole("button", { name: /Top Chef/ }));
+
+    // Both the season wanted and the episode row are visible (the season
+    // label appears on the row AND its kind badge → getAllByText).
+    expect(screen.getAllByText("Saison 16").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("S16E03")).toBeInTheDocument();
+    // The season count should reflect both items.
+    expect(screen.getByText(/1 saison, 2 épisodes/)).toBeInTheDocument();
   });
 });

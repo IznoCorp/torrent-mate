@@ -13,6 +13,18 @@ the single reconciliation pass, pure over the acquire ports:
 - ``grabbed`` + torrent still present            → left alone (downloading /
   seeding — the pipeline will land it, then the next pass closes it).
 
+Season rows (``kind == "season"``) go through the SAME sweep. Their ownership
+answer cannot come from the per-file ``ownership.owns`` port (it has no
+season-level notion), so it is derived from the aired catalog instead: a season
+row is « owned » iff its follow's cached catalog lists at least one aired
+episode for that season AND every one of them is owned. Any blind spot — no
+``followed_id``, an unreadable or empty catalog, partial ownership — answers
+« not owned », so the row falls through to the hash paths (vanished → requeue,
+intent → confirm, else in flight) rather than being mis-closed. Skipping season
+rows wholesale was the original bug: a ``grabbed`` season could never close
+``done``, a vanished season torrent was never requeued, and a crash-window
+``searching`` season was never confirmed.
+
 Import direction: acquire/ downward only — ownership arrives through the
 ``core.ownership.OwnershipChecker`` port (never the indexer implementation),
 client hashes as a plain set gathered by the caller. Called from the
@@ -31,9 +43,60 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from personalscraper.acquire._ports import AcquireStore
+    from personalscraper.acquire.domain import WantedItem
     from personalscraper.core.ownership import OwnershipChecker
 
 log = get_logger("acquire.reconcile")
+
+
+def _season_fully_owned(
+    store: "AcquireStore",
+    ownership: "OwnershipChecker",
+    row: "WantedItem",
+) -> bool:
+    """Answer ownership for a SEASON wanted row from the aired catalog.
+
+    The per-file ownership port has no season-level answer, so a season is
+    « owned » iff the follow's cached aired catalog lists at least one episode
+    for ``row.season`` AND :meth:`ownership.owns` holds for every one of them.
+    Every blind spot answers ``False`` — a missing ``followed_id``, an
+    unreadable or empty catalog, or partial ownership — so the caller never
+    mis-closes a season row on missing knowledge; the row simply falls through
+    to the hash-based paths.
+
+    Args:
+        store: The acquire store (``aired`` catalog-cache sub-store).
+        ownership: The library ownership port (fail-soft ``False`` per episode).
+        row: The ``kind == "season"`` wanted row.
+
+    Returns:
+        ``True`` iff the catalog is non-empty for the season and every aired
+        episode of it is owned.
+    """
+    if row.followed_id is None or row.season is None:
+        return False
+    try:
+        aired = store.aired.list_for_followed(row.followed_id)
+    except Exception as exc:  # noqa: BLE001 — fail-soft: no catalog is no answer
+        log.warning("acquire.reconcile.season_catalog_error", wanted_id=row.id, error=str(exc))
+        return False
+    episodes = [r.episode for r in aired if r.season == row.season]
+    if not episodes:
+        return False
+    for episode in episodes:
+        try:
+            if not ownership.owns(row.media_ref, kind="episode", season=row.season, episode=episode):
+                return False
+        except Exception as exc:  # noqa: BLE001 — fail-soft: treat as not owned
+            log.warning(
+                "acquire.reconcile.ownership_error",
+                wanted_id=row.id,
+                season=row.season,
+                episode=episode,
+                error=str(exc),
+            )
+            return False
+    return True
 
 
 @dataclass(frozen=True)
@@ -112,6 +175,9 @@ def reconcile_wanted(
     #   * 'available' — an owned row marked « À récupérer » is a standing order to
     #     re-download media the library already has. Skipping this status left
     #     exactly that order in place.
+    #   * season rows walk the sweep too — their ownership answer comes from the
+    #     aired catalog (see _season_fully_owned), and the hash paths below apply
+    #     to them unchanged (vanished → requeue, intent → confirm, else in flight).
     for row in [
         *store.wanted.list_grabbed(),
         *store.wanted.list_searching(),
@@ -121,16 +187,25 @@ def reconcile_wanted(
         if row.id is None:  # pragma: no cover — SELECT always carries the id
             continue
         checked += 1
-        try:
-            owned = ownership.owns(
-                row.media_ref,
-                kind=row.kind,
-                season=row.season,
-                episode=row.episode,
-            )
-        except Exception as exc:  # noqa: BLE001 — fail-soft: treat as not owned
-            log.warning("acquire.reconcile.ownership_error", wanted_id=row.id, error=str(exc))
-            owned = False
+        if row.kind == "season":
+            # Per-file ownership has no season-level answer, so a season row's
+            # ownership is derived from the aired catalog: non-empty for the
+            # season AND every aired episode owned. Any blind spot (no
+            # followed_id, empty/unreadable catalog, partial ownership) reads
+            # « not owned » and the row falls through to the hash paths — a
+            # season is never mis-closed on missing knowledge.
+            owned = _season_fully_owned(store, ownership, row)
+        else:
+            try:
+                owned = ownership.owns(
+                    row.media_ref,
+                    kind=row.kind,
+                    season=row.season,
+                    episode=row.episode,
+                )
+            except Exception as exc:  # noqa: BLE001 — fail-soft: treat as not owned
+                log.warning("acquire.reconcile.ownership_error", wanted_id=row.id, error=str(exc))
+                owned = False
 
         if owned:
             if store.wanted.mark_done(row.id):

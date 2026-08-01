@@ -1,6 +1,6 @@
 """Muted Telegram subscriber for acquisition events (RP4).
 
-Subscribes to all 11 acquisition events from :mod:`personalscraper.acquire.events`.
+Subscribes to 12 acquisition events from :mod:`personalscraper.acquire.events`.
 Each handler formats a human-readable message and emits a structlog line.
 Network send is dispatched on a fire-and-forget daemon thread only when
 ``enabled=True`` (default ``False`` — muted until wave-4/5 producers are active).
@@ -20,6 +20,7 @@ from personalscraper.acquire.events import (
     GrabFailed,
     GrabSucceeded,
     RatioMeasured,
+    SeasonFellBackToEpisodes,
     SeedObligationBreached,
     SeedObligationRecorded,
     SeedObligationSatisfied,
@@ -41,7 +42,7 @@ log = get_logger(__name__)
 class AcquisitionTelegramSubscriber:
     """Formats and (optionally) sends Telegram alerts for acquisition events.
 
-    Subscribes to all 11 acquisition event types defined in
+    Subscribes to 12 acquisition event types defined in
     :mod:`personalscraper.acquire.events`. Each handler formats a short message
     and emits a structlog line at ``INFO`` level with the static key
     ``acquire.notify.event`` and an ``acquire_event`` discriminator field.
@@ -82,6 +83,7 @@ class AcquisitionTelegramSubscriber:
             bus.subscribe(SeriesUnfollowed, self._on_series_unfollowed),
             bus.subscribe(WantedEnqueued, self._on_wanted_enqueued),
             bus.subscribe(WantedAbandoned, self._on_wanted_abandoned),
+            bus.subscribe(SeasonFellBackToEpisodes, self._on_season_fell_back_to_episodes),
             bus.subscribe(GrabSucceeded, self._on_grab_succeeded),
             bus.subscribe(GrabFailed, self._on_grab_failed),
             bus.subscribe(SeedObligationRecorded, self._on_seed_obligation_recorded),
@@ -94,7 +96,7 @@ class AcquisitionTelegramSubscriber:
     def close(self) -> None:
         """Unsubscribe every stored token. Idempotent.
 
-        Releases all 11 subscriptions registered in ``__init__``.
+        Releases all 12 subscriptions registered in ``__init__``.
         """
         for token in self._tokens:
             self._bus.unsubscribe(token)
@@ -174,6 +176,14 @@ class AcquisitionTelegramSubscriber:
         """Handle WantedAbandoned — format + dispatch."""
         msg = f"❌ Wanted abandoned: tvdb:{event.media_ref.tvdb_id} — {event.reason}"
         self._dispatch(msg, "wanted_abandoned")
+
+    def _on_season_fell_back_to_episodes(self, event: SeasonFellBackToEpisodes) -> None:
+        """Handle SeasonFellBackToEpisodes — format + dispatch (DESIGN §2 R6)."""
+        msg = (
+            f"🔁 Saison {event.season} : bascule en épisodes "
+            f"({event.reenqueued_count} re-mis en file) — tvdb:{event.media_ref.tvdb_id}"
+        )
+        self._dispatch(msg, "season_fell_back_to_episodes")
 
     def _on_grab_succeeded(self, event: GrabSucceeded) -> None:
         """Handle GrabSucceeded — format + dispatch."""

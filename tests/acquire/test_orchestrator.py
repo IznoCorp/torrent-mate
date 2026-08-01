@@ -37,7 +37,13 @@ from personalscraper.acquire._dedup import SearchOutcome
 from personalscraper.acquire.desired import QualityProfile, Resolution
 from personalscraper.acquire.domain import WantedItem
 from personalscraper.acquire.events import GrabFailed, GrabSucceeded, WantedAbandoned
-from personalscraper.acquire.orchestrator import GrabOrchestrator, GrabOutcome, rank_candidates
+from personalscraper.acquire.orchestrator import (
+    GrabOrchestrator,
+    GrabOutcome,
+    build_search_query,
+    filter_to_season,
+    rank_candidates,
+)
 from personalscraper.api._contracts import ApiError, MediaType
 from personalscraper.api._units import ByteSize
 from personalscraper.api.torrent._base import TorrentSource
@@ -572,7 +578,7 @@ def test_negative_seed_write_never_called_during_full_success() -> None:
 
 
 # ---------------------------------------------------------------------------
-# SEARCH exit paths (acq-states phase 2) — the NINE contract paths, forced
+# SEARCH exit paths (acq-states phase 2) — the TEN contract paths, forced
 # through the REAL chain (the service-level matrix mocks the orchestrator, so
 # this is the only place the chain's own routing is proven).
 # ---------------------------------------------------------------------------
@@ -733,6 +739,39 @@ def test_search_no_matching_episode_concludes_zero() -> None:
     _assert_no_side_effects(spy, torrent_client)
 
 
+def test_search_no_matching_season_concludes_zero() -> None:
+    """F12: a SEASON row's fruitless search states its OWN outcome.
+
+    Wanting S02 whole, the tracker returns a lone episode and a wrong-season
+    pack. Both are dropped by ``filter_to_season``, and the verdict must read
+    ('not_found', 'no_matching_season', 0) — 'no_matching_episode' on a season
+    row would surface a lie in the row's last_search_outcome.
+    """
+    wrong_packs = SearchOutcome(
+        results=[
+            _make_result(title="Some Show S02E05 1080p WEB x265-GRP", info_hash="eeee3333"),
+            _make_result(title="Some Show S04 COMPLETE 1080p WEB x265-GRP", info_hash="ffff4444"),
+        ],
+        trackers_queried=1,
+        trackers_errored=0,
+    )
+    orchestrator, spy, _registry, torrent_client, _seed = _make_orchestrator(search_outcome=wrong_packs)
+
+    season_item = WantedItem(
+        media_ref=MediaRef(tvdb_id=12345),
+        kind="season",
+        status="searching",
+        enqueued_at=1_700_000_000,
+        attempts=1,
+        season=2,
+        episode=None,
+    )
+    verdict = orchestrator.search(season_item, QualityProfile())
+
+    assert (verdict.disposition, verdict.outcome, verdict.found) == ("not_found", "no_matching_season", 0)
+    _assert_no_side_effects(spy, torrent_client)
+
+
 def test_search_all_filtered_concludes_zero() -> None:
     """Only hard-filtered releases came back → ('not_found', 'all_filtered', 0).
 
@@ -818,7 +857,7 @@ def test_grab_folds_a_search_time_auth_error_into_search_api_error() -> None:
 
 
 def test_search_covers_every_declared_outcome() -> None:
-    """The nine cases above exercise EXACTLY the declared ``SEARCH_OUTCOMES``.
+    """The ten cases above exercise EXACTLY the declared ``SEARCH_OUTCOMES``.
 
     Exhaustiveness backstop at the orchestrator level: a new declared outcome
     with no forcing test above fails here, so an exit path can never ship
@@ -835,6 +874,7 @@ def test_search_covers_every_declared_outcome() -> None:
         "trackers_unavailable",
         "no_candidates",
         "no_matching_episode",
+        "no_matching_season",
         "all_filtered",
         "no_seeders",
     }
@@ -1082,3 +1122,297 @@ class TestMediaKindThreading:
         # The ranked list uses movie tiers → 5GB movie scores 5 (not generic 10).
         # The score itself isn't on the outcome, but we can verify the top was chosen.
         assert outcome.chosen is r
+
+
+# ---------------------------------------------------------------------------
+# filter_to_season (season-grab phase 2.1) — whole-season pack parser
+# ---------------------------------------------------------------------------
+
+
+def _make_season_result(
+    title: str,
+    seeders: int = 10,
+    info_hash: str = "deadbeef",
+) -> TrackerResult:
+    """Build a tracker result for season-pack filter tests."""
+    return TrackerResult(
+        provider="tr4ker",
+        tracker_id="test",
+        title=title,
+        size=ByteSize(10_000_000_000),
+        seeders=seeders,
+        leechers=0,
+        info_hash=info_hash,
+    )
+
+
+def test_filter_to_season_accepts_full_range() -> None:
+    """S01E01-E08 with expected_count=8 (full coverage proven) → kept."""
+    results = [
+        _make_season_result("Show.S01E01-E08.MULTi.1080p.x265"),
+        _make_season_result("Show.S01E05.MULTi.1080p.x265"),  # single ep, dropped
+    ]
+    kept = filter_to_season(results, 1, expected_count=8)
+    assert len(kept) == 1
+    assert "E01-E08" in kept[0].title
+
+
+def test_filter_to_season_accepts_bare_season() -> None:
+    """'Show S01' without episode markers → kept."""
+    results = [
+        _make_season_result("Show.S01.1080p.WEB-DL.x265"),
+        _make_season_result("Show.S01E05.1080p.WEB-DL.x265"),  # has ep marker, dropped
+    ]
+    kept = filter_to_season(results, 1)
+    assert len(kept) == 1
+    assert "S01" in kept[0].title and "E05" not in kept[0].title
+
+
+def test_filter_to_season_accepts_integrale_keyword() -> None:
+    """'INTEGRALE' with no episode markers → kept (bare-season acceptance)."""
+    results = [_make_season_result("Show.S01.INTEGRALE.1080p.x265")]
+    kept = filter_to_season(results, 1)
+    assert len(kept) == 1
+
+
+def test_filter_to_season_accepts_ep01_range_as_full_range() -> None:
+    """S01E01-E03 with expected_count=3 (covers the whole season) → kept.
+
+    guessit expands the range into an episode list [1, 2, 3]; it starts at
+    E01 and reaches the aired-episode count, so coverage is proven.
+    """
+    results = [_make_season_result("Show.S01E01-E03.1080p")]
+    kept = filter_to_season(results, 1, expected_count=3)
+    assert len(kept) == 1
+
+
+def test_filter_to_season_rejects_partial_range() -> None:
+    """S01E03-E06 (starts at E03, not E01 → partial) → dropped."""
+    results = [_make_season_result("Show.S01E03-E06.1080p")]
+    kept = filter_to_season(results, 1)
+    assert len(kept) == 0
+
+
+def test_filter_to_season_rejects_multi_season() -> None:
+    """'Show S01-S03' → dropped."""
+    results = [_make_season_result("Show.S01-S03.Complete.1080p")]
+    kept = filter_to_season(results, 1)
+    assert len(kept) == 0
+
+
+def test_filter_to_season_rejects_wrong_season() -> None:
+    """S02 pack when looking for S01 → dropped."""
+    results = [_make_season_result("Show.S02.Complete.1080p")]
+    kept = filter_to_season(results, 1)
+    assert len(kept) == 0
+
+
+def test_filter_to_season_empty_on_no_match() -> None:
+    """Empty results → empty returned."""
+    kept = filter_to_season([], 1)
+    assert kept == []
+
+
+def test_filter_to_season_accepts_complete_keyword() -> None:
+    """'Complete Season 1' → kept."""
+    results = [_make_season_result("Show.Complete.Season.1.1080p.x265")]
+    kept = filter_to_season(results, 1)
+    assert len(kept) == 1
+
+
+def test_filter_to_season_rejects_complete_keyword_with_ep_info() -> None:
+    """F4: the season keyword must NOT override an explicit episode marker.
+
+    ``COMPLETE`` is a standard scene tag (COMPLETE.BLURAY): ``S01E05.COMPLETE``
+    is episode 5, not the season — keeping it let R3 replace-all install a
+    single episode as « the season ». Only the bare-season title survives.
+    """
+    results = [
+        _make_season_result("Show.S01.COMPLETE.1080p.x265"),
+        _make_season_result("Show.S01E05.COMPLETE.1080p.x265"),  # ep marker → dropped
+    ]
+    kept = filter_to_season(results, 1, expected_count=8)
+    assert len(kept) == 1
+    assert "E05" not in kept[0].title
+
+
+def test_filter_to_season_rejects_multi_season_french() -> None:
+    """'Saisons 1 à 4' → dropped."""
+    results = [_make_season_result("Show.Saisons.1.a.4.1080p")]
+    kept = filter_to_season(results, 1)
+    assert len(kept) == 0
+
+
+def test_filter_to_season_rejects_partial_pack_against_expected_count() -> None:
+    """F4 REGRESSION: E01-start is not enough — coverage must reach the count.
+
+    ``S02E01-E05`` starts at E01 but covers 5 of 12 aired episodes: R3
+    replace-all would install it as « the season » and the 7 missing episodes
+    would never be acquired (the per-season dedup blocks a second wanted).
+    """
+    results = [_make_season_result("Show.S02E01-E05.1080p")]
+    kept = filter_to_season(results, 2, expected_count=12)
+    assert kept == []
+
+
+def test_filter_to_season_rejects_short_multi_episode_release() -> None:
+    """F4: S02E01E02 (two episodes of twelve) → dropped."""
+    results = [_make_season_result("Show.S02E01E02.1080p")]
+    kept = filter_to_season(results, 2, expected_count=12)
+    assert kept == []
+
+
+def test_filter_to_season_rejects_single_episode_with_complete_bluray_tag() -> None:
+    """F4: ``S02E05.COMPLETE.BLURAY-GRP`` is episode 5, never the season."""
+    results = [_make_season_result("Show.S02E05.COMPLETE.BLURAY-GRP")]
+    kept = filter_to_season(results, 2, expected_count=12)
+    assert kept == []
+
+
+def test_filter_to_season_keeps_verified_full_range() -> None:
+    """F4: S02E01-E12 with expected_count=12 → coverage proven, kept."""
+    results = [_make_season_result("Show.S02E01-E12.1080p")]
+    kept = filter_to_season(results, 2, expected_count=12)
+    assert len(kept) == 1
+
+
+def test_filter_to_season_keeps_bare_season_and_integrale_forms() -> None:
+    """F4: titles with NO episode markers stay accepted (with or without count)."""
+    results = [
+        _make_season_result("Show.S02.1080p"),
+        _make_season_result("Show.Saison.2.Intégrale"),
+    ]
+    assert len(filter_to_season(results, 2, expected_count=12)) == 2
+    assert len(filter_to_season(results, 2)) == 2  # count unknown — still fine
+
+
+def test_filter_to_season_rejects_full_looking_range_without_expected_count() -> None:
+    """F4: unknown aired count → even S02E01-E12 is rejected (conservative).
+
+    A pack whose coverage cannot be verified is not « the season »: the range
+    might stop short of a season whose real episode count we do not know.
+    """
+    results = [_make_season_result("Show.S02E01-E12.1080p")]
+    kept = filter_to_season(results, 2, expected_count=None)
+    assert kept == []
+
+
+def test_filter_to_season_parse_error_skips() -> None:
+    """A result that crashes guessit → dropped (fail-soft)."""
+    bad_title = _make_season_result("\x00Invalid\x00Title")
+    results = [bad_title]
+    # Must not raise — fail-soft per the contract.
+    kept = filter_to_season(results, 1)
+    assert len(kept) == 0
+
+
+# ---------------------------------------------------------------------------
+# build_search_query — season kind (season-grab phase 2.2)
+# ---------------------------------------------------------------------------
+
+
+def test_build_search_query_season() -> None:
+    """A season wanted item builds ``"Breaking Bad S03"``."""
+    item = WantedItem(
+        media_ref=MediaRef(tvdb_id=12345),
+        kind="season",
+        status="pending",
+        enqueued_at=0,
+        season=3,
+        episode=None,
+    )
+    q = build_search_query(item, "Breaking Bad")
+    assert q == "Breaking Bad S03"
+
+
+def test_build_search_query_season_no_title_falls_back() -> None:
+    """A season item with no resolved title falls back to provider ID."""
+    item = WantedItem(
+        media_ref=MediaRef(tvdb_id=12345),
+        kind="season",
+        status="pending",
+        enqueued_at=0,
+        season=3,
+        episode=None,
+    )
+    q = build_search_query(item, None)
+    assert q == "12345"
+
+
+def test_build_search_query_season_zero_pads() -> None:
+    """Season 3 → ``S03``, season 11 → ``S11``."""
+    item = WantedItem(
+        media_ref=MediaRef(tvdb_id=12345),
+        kind="season",
+        status="pending",
+        enqueued_at=0,
+        season=11,
+        episode=None,
+    )
+    q = build_search_query(item, "Show")
+    assert q == "Show S11"
+
+
+# ---------------------------------------------------------------------------
+# rank() with media_kind="season" — season-grab phase 2.3 golden
+# ---------------------------------------------------------------------------
+
+
+def test_rank_season_media_kind_uses_season_tiers() -> None:
+    """rank() with media_kind='season' applies season-specific size thresholds.
+
+    Proves that the per-media-type mechanism (#376) activates for ``"season"``:
+    the size criterion's own ``thresholds`` are overridden by
+    ``size_thresholds_by_type["season"]`` when ``media_kind="season"`` is passed.
+    """
+    from personalscraper.api.tracker._ranking import rank as rank_func
+
+    # 80 GB — above the 50GB season tier
+    big = TrackerResult(
+        provider="tr4ker",
+        tracker_id="s1",
+        title="Show.S01.Complete.1080p",
+        size=ByteSize(80_000_000_000),
+        seeders=50,
+        leechers=2,
+    )
+    # 15 GB — below the 50GB season tier, but above the 10GB generic tier
+    below_season_tier = TrackerResult(
+        provider="tr4ker",
+        tracker_id="s2",
+        title="Show.S01.Complete.720p",
+        size=ByteSize(15_000_000_000),
+        seeders=100,
+        leechers=5,
+    )
+
+    cfg = RankingConfig(
+        criteria=[
+            RankingCriterion(
+                field="size",
+                weight=1,
+                thresholds=[
+                    ThresholdEntry(at=10_000_000_000, score=1),  # generic: ≥10GB = 1pt
+                ],
+            ),
+        ],
+        min_seeders=0,
+        size_thresholds_by_type={
+            "season": [ThresholdEntry(at=50_000_000_000, score=5)],
+        },
+    )
+
+    # media_kind=None → generic thresholds: both ≥10GB → both score 1.
+    scored_generic = rank_func([big, below_season_tier], cfg, media_kind=None)
+    assert scored_generic[0][1] == 1
+    assert scored_generic[1][1] == 1
+
+    # media_kind="season" → season thresholds override: big (80GB) ≥ 50GB → 5;
+    # below_season_tier (15GB) < 50GB → 0.
+    scored_season = rank_func([big, below_season_tier], cfg, media_kind="season")
+    assert len(scored_season) == 2
+    # big wins because the season tier gives it 5 pts while below_season_tier
+    # gets 0 — proving the per-media-type override is active for "season".
+    assert scored_season[0][1] == 5
+    assert scored_season[0][0].title == "Show.S01.Complete.1080p"
+    assert scored_season[1][1] == 0
