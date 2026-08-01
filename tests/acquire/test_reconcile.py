@@ -447,3 +447,28 @@ def test_owned_movie_available_row_surfaces_its_follow(store: ConcreteAcquireSto
 
     assert summary.closed_owned == 1
     assert summary.closed_movie_followed_ids == (followed_id,)
+
+
+def test_season_row_never_closed_by_ownership_pass(store: ConcreteAcquireStore) -> None:
+    """A season wanted is NEVER closed by the per-file ownership pass (v1).
+
+    Season lifecycle is grab/absorb/fallback (R5/R6); the ownership checker
+    has no season-level answer, so reconcile must skip kind="season" rows —
+    even when the stub claims (season, None) as owned.
+    """
+    wanted_id = store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=403245),
+            kind="season",
+            status="pending",
+            enqueued_at=1_750_000_000,
+            season=3,
+            episode=None,
+        )
+    )
+
+    reconcile_wanted(store, _StubOwnership({(3, None)}), set())
+
+    row = store.wanted.get(wanted_id)
+    assert row is not None
+    assert row.status == "pending"  # untouched — not closed to done

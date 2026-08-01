@@ -120,6 +120,12 @@ def reconcile_wanted(
     ]:
         if row.id is None:  # pragma: no cover — SELECT always carries the id
             continue
+        if row.kind == "season":
+            # A season wanted's lifecycle is grab/absorb/fallback (R5/R6) —
+            # per-file ownership has no season-level answer in v1, and
+            # detection R1 already counts per-episode ownership before
+            # enqueueing. Never close a season row from this pass.
+            continue
         checked += 1
         try:
             owned = ownership.owns(
