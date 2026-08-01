@@ -469,9 +469,7 @@ class DetectService:
             owned = 0
             for ep in eps:
                 try:
-                    if self._ownership.owns(
-                        ep.media_ref, kind="episode", season=ep.season, episode=ep.episode
-                    ):
+                    if self._ownership.owns(ep.media_ref, kind="episode", season=ep.season, episode=ep.episode):
                         owned += 1
                 except Exception:  # fail-soft
                     pass

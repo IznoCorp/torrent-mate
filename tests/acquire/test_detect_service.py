@@ -250,8 +250,11 @@ def _aired_season(
         days_back = last_days_ago + (count - ep_num)  # ep 1 = oldest, ep N = last_days_ago ago
         eps.append(
             AiredEpisode(
-                media_ref=ref, season=season, episode=ep_num,
-                air_date=today - timedelta(days=days_back), title=f"Ep{ep_num}",
+                media_ref=ref,
+                season=season,
+                episode=ep_num,
+                air_date=today - timedelta(days=days_back),
+                title=f"Ep{ep_num}",
             )
         )
     return eps
@@ -270,7 +273,11 @@ def test_season_detect_enqueues_when_conditions_met(store: ConcreteAcquireStore)
     bus.subscribe(WantedEnqueued, enqueued.append)
 
     svc = DetectService(
-        store=store, ownership=owned, registry=MagicMock(), event_bus=bus, config=_config(),
+        store=store,
+        ownership=owned,
+        registry=MagicMock(),
+        event_bus=bus,
+        config=_config(),
     )
     with patch("personalscraper.acquire.detect.poll_known", return_value=eps):
         result = svc.run(series=None, dry_run=False, today=today, now=100)
@@ -294,7 +301,11 @@ def test_season_detect_skips_when_last_ep_recent(store: ConcreteAcquireStore) ->
     owned = _StubPerEpisodeOwnership(set())
 
     svc = DetectService(
-        store=store, ownership=owned, registry=MagicMock(), event_bus=EventBus(), config=_config(),
+        store=store,
+        ownership=owned,
+        registry=MagicMock(),
+        event_bus=EventBus(),
+        config=_config(),
     )
     with patch("personalscraper.acquire.detect.poll_known", return_value=eps):
         result = svc.run(series=None, dry_run=False, today=today, now=100)
@@ -312,7 +323,11 @@ def test_season_detect_skips_when_more_than_half_owned(store: ConcreteAcquireSto
     owned = _StubPerEpisodeOwnership({(2, 1), (2, 2), (2, 3), (2, 4)})  # 4 of 6
 
     svc = DetectService(
-        store=store, ownership=owned, registry=MagicMock(), event_bus=EventBus(), config=_config(),
+        store=store,
+        ownership=owned,
+        registry=MagicMock(),
+        event_bus=EventBus(),
+        config=_config(),
     )
     with patch("personalscraper.acquire.detect.poll_known", return_value=eps):
         result = svc.run(series=None, dry_run=False, today=today, now=100)
@@ -330,7 +345,11 @@ def test_season_detect_skips_when_fully_owned(store: ConcreteAcquireStore) -> No
     owned = _StubPerEpisodeOwnership({(2, 1), (2, 2), (2, 3), (2, 4)})
 
     svc = DetectService(
-        store=store, ownership=owned, registry=MagicMock(), event_bus=EventBus(), config=_config(),
+        store=store,
+        ownership=owned,
+        registry=MagicMock(),
+        event_bus=EventBus(),
+        config=_config(),
     )
     with patch("personalscraper.acquire.detect.poll_known", return_value=eps):
         result = svc.run(series=None, dry_run=False, today=today, now=100)
@@ -346,8 +365,13 @@ def test_season_detect_skips_when_duplicate(store: ConcreteAcquireStore) -> None
     # Pre-insert a season wanted
     store.wanted.add(
         WantedItem(
-            media_ref=ref, kind="season", status="pending",
-            enqueued_at=1, followed_id=fid, season=2, episode=None,
+            media_ref=ref,
+            kind="season",
+            status="pending",
+            enqueued_at=1,
+            followed_id=fid,
+            season=2,
+            episode=None,
         )
     )
     today = date(2024, 6, 15)
@@ -355,7 +379,11 @@ def test_season_detect_skips_when_duplicate(store: ConcreteAcquireStore) -> None
     owned = _StubPerEpisodeOwnership(set())
 
     svc = DetectService(
-        store=store, ownership=owned, registry=MagicMock(), event_bus=EventBus(), config=_config(),
+        store=store,
+        ownership=owned,
+        registry=MagicMock(),
+        event_bus=EventBus(),
+        config=_config(),
     )
     with patch("personalscraper.acquire.detect.poll_known", return_value=eps):
         result = svc.run(series=None, dry_run=False, today=today, now=100)
@@ -372,8 +400,13 @@ def test_season_detect_absorbs_episode_wanteds(store: ConcreteAcquireStore) -> N
     for ep_num in range(1, 7):
         store.wanted.add(
             WantedItem(
-                media_ref=ref, kind="episode", status="pending",
-                enqueued_at=1, followed_id=fid, season=2, episode=ep_num,
+                media_ref=ref,
+                kind="episode",
+                status="pending",
+                enqueued_at=1,
+                followed_id=fid,
+                season=2,
+                episode=ep_num,
             )
         )
     today = date(2024, 6, 15)
@@ -384,7 +417,11 @@ def test_season_detect_absorbs_episode_wanteds(store: ConcreteAcquireStore) -> N
     bus.subscribe(SeasonAbsorbedEpisodes, absorbed_events.append)
 
     svc = DetectService(
-        store=store, ownership=owned, registry=MagicMock(), event_bus=bus, config=_config(),
+        store=store,
+        ownership=owned,
+        registry=MagicMock(),
+        event_bus=bus,
+        config=_config(),
     )
     with patch("personalscraper.acquire.detect.poll_known", return_value=eps):
         result = svc.run(series=None, dry_run=False, today=today, now=100)
@@ -413,7 +450,11 @@ def test_season_detect_boundary_exactly_7_days(store: ConcreteAcquireStore) -> N
     owned = _StubPerEpisodeOwnership(set())
 
     svc = DetectService(
-        store=store, ownership=owned, registry=MagicMock(), event_bus=EventBus(), config=_config(),
+        store=store,
+        ownership=owned,
+        registry=MagicMock(),
+        event_bus=EventBus(),
+        config=_config(),
     )
     with patch("personalscraper.acquire.detect.poll_known", return_value=eps):
         result = svc.run(series=None, dry_run=False, today=today, now=100)
@@ -431,7 +472,11 @@ def test_season_detect_boundary_exactly_half_owned(store: ConcreteAcquireStore) 
     owned = _StubPerEpisodeOwnership({(2, 1), (2, 2), (2, 3)})  # exactly 3 of 6
 
     svc = DetectService(
-        store=store, ownership=owned, registry=MagicMock(), event_bus=EventBus(), config=_config(),
+        store=store,
+        ownership=owned,
+        registry=MagicMock(),
+        event_bus=EventBus(),
+        config=_config(),
     )
     with patch("personalscraper.acquire.detect.poll_known", return_value=eps):
         result = svc.run(series=None, dry_run=False, today=today, now=100)
@@ -453,7 +498,11 @@ def test_season_detect_dry_run_no_writes(store: ConcreteAcquireStore) -> None:
     bus.subscribe(WantedEnqueued, emitted.append)
 
     svc = DetectService(
-        store=store, ownership=owned, registry=MagicMock(), event_bus=bus, config=_config(),
+        store=store,
+        ownership=owned,
+        registry=MagicMock(),
+        event_bus=bus,
+        config=_config(),
     )
     with patch("personalscraper.acquire.detect.poll_known", return_value=eps):
         result = svc.run(series=None, dry_run=True, today=today, now=100)

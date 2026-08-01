@@ -47,7 +47,7 @@ def _canon_cadence() -> Cadence:
     """Return the canonical Hot/Warm/Cold/30d cadence (same as test_service_cadence)."""
     return Cadence(
         tiers=(
-            CadenceTier(max_age_s=72 * 3600, interval_s=2 * 3600),   # Hot
+            CadenceTier(max_age_s=72 * 3600, interval_s=2 * 3600),  # Hot
             CadenceTier(max_age_s=14 * 24 * 3600, interval_s=86400),  # Warm
             CadenceTier(max_age_s=30 * 24 * 3600, interval_s=7 * 86400),  # Cold
         ),
@@ -82,9 +82,13 @@ def test_season_cutoff_falls_back_to_episodes(store: ConcreteAcquireStore) -> No
     individually, and emits ``SeasonFellBackToEpisodes``.
     """
     # Create the parent followed series so the FK resolves.
-    store.follow.add(FollowedSeries(
-        media_ref=MediaRef(tvdb_id=99), title="Test Show", added_at=1,
-    ))
+    store.follow.add(
+        FollowedSeries(
+            media_ref=MediaRef(tvdb_id=99),
+            title="Test Show",
+            added_at=1,
+        )
+    )
 
     # Seed the aired catalog with 8 episodes in season 3.
     episodes = [(3, i, f"E{i:02d}", f"2024-01-{i:02d}") for i in range(1, 9)]
@@ -111,22 +115,15 @@ def test_season_cutoff_falls_back_to_episodes(store: ConcreteAcquireStore) -> No
     # The season row must be in fallback_episodes status.
     season_after = store.wanted.get(season_wid)
     assert season_after is not None
-    assert season_after.status == "fallback_episodes", (
-        f"expected fallback_episodes, got {season_after.status!r}"
-    )
+    assert season_after.status == "fallback_episodes", f"expected fallback_episodes, got {season_after.status!r}"
 
     # 8 new episode wanteds must have been enqueued (one per aired ep).
     pending = store.wanted.list_pending()
     episode_pending = [i for i in pending if i.kind == "episode" and i.season == 3]
-    assert len(episode_pending) == 8, (
-        f"expected 8 re-enqueued episodes, got {len(episode_pending)}"
-    )
+    assert len(episode_pending) == 8, f"expected 8 re-enqueued episodes, got {len(episode_pending)}"
 
     # SeasonFellBackToEpisodes must have been emitted.
-    fallback_calls = [
-        c for c in event_bus.emit.call_args_list
-        if isinstance(c[0][0], SeasonFellBackToEpisodes)
-    ]
+    fallback_calls = [c for c in event_bus.emit.call_args_list if isinstance(c[0][0], SeasonFellBackToEpisodes)]
     assert len(fallback_calls) >= 1, "SeasonFellBackToEpisodes must be emitted"
     emitted = fallback_calls[0][0][0]
     assert emitted.season_wanted_id == season_wid
@@ -140,9 +137,13 @@ def test_season_fallback_reenqueues_exact_missing_count(store: ConcreteAcquireSt
     Prove the count in the emitted event matches the number of aired
     episodes in the catalog.
     """
-    store.follow.add(FollowedSeries(
-        media_ref=MediaRef(tvdb_id=99), title="Test Show", added_at=1,
-    ))
+    store.follow.add(
+        FollowedSeries(
+            media_ref=MediaRef(tvdb_id=99),
+            title="Test Show",
+            added_at=1,
+        )
+    )
 
     # Only 5 aired episodes in season 2.
     episodes = [(2, i, f"E{i:02d}", f"2024-01-{i:02d}") for i in range(1, 6)]
@@ -164,15 +165,10 @@ def test_season_fallback_reenqueues_exact_missing_count(store: ConcreteAcquireSt
     with patch("personalscraper.acquire.service.time.time", return_value=_NOW):
         svc.run_search()
 
-    fallback_calls = [
-        c for c in event_bus.emit.call_args_list
-        if isinstance(c[0][0], SeasonFellBackToEpisodes)
-    ]
+    fallback_calls = [c for c in event_bus.emit.call_args_list if isinstance(c[0][0], SeasonFellBackToEpisodes)]
     assert len(fallback_calls) >= 1
     emitted = fallback_calls[0][0][0]
-    assert emitted.reenqueued_count == 5, (
-        f"expected reenqueued_count=5, got {emitted.reenqueued_count}"
-    )
+    assert emitted.reenqueued_count == 5, f"expected reenqueued_count=5, got {emitted.reenqueued_count}"
 
     # Verify the re-enqueued episodes have exactly the 5 episode numbers.
     pending = store.wanted.list_pending()
@@ -184,9 +180,13 @@ def test_season_fallback_reenqueues_exact_missing_count(store: ConcreteAcquireSt
 
 def test_season_fallback_not_triggered_for_episode(store: ConcreteAcquireStore) -> None:
     """R6 guard: an episode past cutoff still abandons normally, not via fallback."""
-    store.follow.add(FollowedSeries(
-        media_ref=MediaRef(tvdb_id=99), title="Test Show", added_at=1,
-    ))
+    store.follow.add(
+        FollowedSeries(
+            media_ref=MediaRef(tvdb_id=99),
+            title="Test Show",
+            added_at=1,
+        )
+    )
 
     episode_item = WantedItem(
         media_ref=MediaRef(tvdb_id=99),
@@ -217,13 +217,8 @@ def test_season_fallback_not_triggered_for_episode(store: ConcreteAcquireStore) 
     # Episode should be abandoned, not fallback_episodes.
     after = store.wanted.get(ep_wid)
     assert after is not None
-    assert after.status == "abandoned", (
-        f"episode past cutoff must be abandoned, got {after.status!r}"
-    )
+    assert after.status == "abandoned", f"episode past cutoff must be abandoned, got {after.status!r}"
 
     # No SeasonFellBackToEpisodes should have been emitted.
-    fallback_calls = [
-        c for c in event_bus.emit.call_args_list
-        if isinstance(c[0][0], SeasonFellBackToEpisodes)
-    ]
+    fallback_calls = [c for c in event_bus.emit.call_args_list if isinstance(c[0][0], SeasonFellBackToEpisodes)]
     assert len(fallback_calls) == 0, "episode cutoff must not trigger season fallback"

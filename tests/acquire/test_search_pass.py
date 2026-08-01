@@ -252,9 +252,13 @@ def test_conversion_enqueues_season_when_pack_present(store: ConcreteAcquireStor
     from personalscraper.acquire.domain import FollowedSeries
 
     # Create the parent followed series so the FK resolves.
-    store.follow.add(FollowedSeries(
-        media_ref=MediaRef(tvdb_id=99), title="Test Show", added_at=1,
-    ))
+    store.follow.add(
+        FollowedSeries(
+            media_ref=MediaRef(tvdb_id=99),
+            title="Test Show",
+            added_at=1,
+        )
+    )
 
     item = _episode_item()
     store.wanted.add(item)
@@ -262,9 +266,13 @@ def test_conversion_enqueues_season_when_pack_present(store: ConcreteAcquireStor
     # Seed the aired catalog so _aired_episodes_for_season returns live eps.
     store.aired.replace_for_followed(
         1,
-        [(3, 1, "E01", "2024-01-01"), (3, 2, "E02", "2024-01-08"),
-         (3, 3, "E03", "2024-01-15"), (3, 4, "E04", "2024-01-22"),
-         (3, 5, "E05", "2024-01-29")],
+        [
+            (3, 1, "E01", "2024-01-01"),
+            (3, 2, "E02", "2024-01-08"),
+            (3, 3, "E03", "2024-01-15"),
+            (3, 4, "E04", "2024-01-22"),
+            (3, 5, "E05", "2024-01-29"),
+        ],
         now=1_700_000_000,
     )
     # Create sibling episode wanteds (episodes 1-4) that should be absorbed.
@@ -303,7 +311,10 @@ def test_conversion_enqueues_season_when_pack_present(store: ConcreteAcquireStor
 
     # The season wanted should exist.
     season_item = store.wanted.find(
-        followed_id=1, kind="season", season=3, episode=None,
+        followed_id=1,
+        kind="season",
+        season=3,
+        episode=None,
     )
     assert season_item is not None, "season wanted must be enqueued"
     assert season_item.kind == "season"
@@ -311,16 +322,12 @@ def test_conversion_enqueues_season_when_pack_present(store: ConcreteAcquireStor
 
     # WantedEnqueued must have been emitted for the season.
     enqueued_calls = [
-        c for c in event_bus.emit.call_args_list
-        if isinstance(c[0][0], WantedEnqueued) and c[0][0].kind == "season"
+        c for c in event_bus.emit.call_args_list if isinstance(c[0][0], WantedEnqueued) and c[0][0].kind == "season"
     ]
     assert len(enqueued_calls) >= 1, "WantedEnqueued(season) must be emitted"
 
     # SeasonAbsorbedEpisodes must have been emitted.
-    absorbed_calls = [
-        c for c in event_bus.emit.call_args_list
-        if isinstance(c[0][0], SeasonAbsorbedEpisodes)
-    ]
+    absorbed_calls = [c for c in event_bus.emit.call_args_list if isinstance(c[0][0], SeasonAbsorbedEpisodes)]
     assert len(absorbed_calls) >= 1, "SeasonAbsorbedEpisodes must be emitted"
 
     # The converted season wanted absorbs the triggering episode + its siblings.
@@ -337,9 +344,13 @@ def test_conversion_noop_when_no_pack_in_results(store: ConcreteAcquireStore) ->
     from personalscraper.acquire.domain import FollowedSeries
 
     # Create the parent followed series so the FK resolves.
-    store.follow.add(FollowedSeries(
-        media_ref=MediaRef(tvdb_id=99), title="Test Show", added_at=1,
-    ))
+    store.follow.add(
+        FollowedSeries(
+            media_ref=MediaRef(tvdb_id=99),
+            title="Test Show",
+            added_at=1,
+        )
+    )
 
     item = _episode_item()
     store.wanted.add(item)
@@ -350,9 +361,7 @@ def test_conversion_noop_when_no_pack_in_results(store: ConcreteAcquireStore) ->
         disposition="not_found",
         outcome="no_matching_episode",
         found=0,
-        raw_results=(
-            _season_pack_result(title="Show S03E06 Single Episode 1080p"),
-        ),
+        raw_results=(_season_pack_result(title="Show S03E06 Single Episode 1080p"),),
     )
 
     event_bus = MagicMock()
@@ -369,13 +378,13 @@ def test_conversion_noop_when_no_pack_in_results(store: ConcreteAcquireStore) ->
 
     # No season wanted should have been enqueued.
     season_item = store.wanted.find(
-        followed_id=1, kind="season", season=3, episode=None,
+        followed_id=1,
+        kind="season",
+        season=3,
+        episode=None,
     )
     assert season_item is None, "no season wanted when no pack in results"
 
     # No SeasonAbsorbedEpisodes should have been emitted.
-    absorbed_calls = [
-        c for c in event_bus.emit.call_args_list
-        if isinstance(c[0][0], SeasonAbsorbedEpisodes)
-    ]
+    absorbed_calls = [c for c in event_bus.emit.call_args_list if isinstance(c[0][0], SeasonAbsorbedEpisodes)]
     assert len(absorbed_calls) == 0, "no absorption when no pack"

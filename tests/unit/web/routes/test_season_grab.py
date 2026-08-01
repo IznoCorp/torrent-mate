@@ -117,8 +117,7 @@ def _seed_followed(
     now = int(time.time())
     tid = tvdb_id if tvdb_id is not None else 360000 + idx
     cur = conn.execute(
-        "INSERT INTO followed_series (media_ref_json, title, active, added_at, kind) "
-        "VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO followed_series (media_ref_json, title, active, added_at, kind) VALUES (?, ?, ?, ?, ?)",
         (json.dumps({"tvdb_id": tid, "tmdb_id": 1000 + idx}), title, 1 if active else 0, now, kind),
     )
     return cur.lastrowid
@@ -227,7 +226,9 @@ class TestSeasonGrab:
     """POST /api/acquisition/follows/{id}/seasons/{N}/grab — season grab (R4/R5)."""
 
     def test_creates_season_wanted_and_absorbs_episodes(
-        self, client: TestClient, tmp_path: Path,
+        self,
+        client: TestClient,
+        tmp_path: Path,
     ) -> None:
         """First grab on a season → 201, season wanted created, episodes absorbed."""
         acquire_path = tmp_path / "acquire.db"
@@ -253,7 +254,9 @@ class TestSeasonGrab:
         assert data["absorbed_count"] == 3
 
     def test_duplicate_returns_existing(
-        self, client: TestClient, tmp_path: Path,
+        self,
+        client: TestClient,
+        tmp_path: Path,
     ) -> None:
         """Second grab on the same season → returns existing row with absorbed count."""
         acquire_path = tmp_path / "acquire.db"
@@ -287,7 +290,10 @@ class TestSeasonGrab:
         assert data2["absorbed_count"] == 1
 
     def test_403_on_staging(
-        self, client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        self,
+        client: TestClient,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Staging role → 403 Forbidden (require_not_staging)."""
         monkeypatch.setattr(
@@ -321,7 +327,9 @@ class TestSeasonGrab:
         assert "not found" in resp.text.lower()
 
     def test_400_on_movie_follow(
-        self, client: TestClient, tmp_path: Path,
+        self,
+        client: TestClient,
+        tmp_path: Path,
     ) -> None:
         """Movie follow (kind='movie') → 400."""
         acquire_path = tmp_path / "acquire.db"
@@ -340,7 +348,9 @@ class TestSeasonGrab:
         assert "TV shows" in resp.text
 
     def test_400_on_invalid_season(
-        self, client: TestClient, tmp_path: Path,
+        self,
+        client: TestClient,
+        tmp_path: Path,
     ) -> None:
         """Season < 1 → 400."""
         acquire_path = tmp_path / "acquire.db"
@@ -359,7 +369,9 @@ class TestSeasonGrab:
         assert "Season must be >= 1" in resp.text
 
     def test_400_missing_xrw_header(
-        self, client: TestClient, tmp_path: Path,
+        self,
+        client: TestClient,
+        tmp_path: Path,
     ) -> None:
         """Missing X-Requested-With header → 400 (require_x_requested_with)."""
         acquire_path = tmp_path / "acquire.db"
@@ -377,7 +389,9 @@ class TestSeasonGrab:
         assert "X-Requested-With" in resp.text
 
     def test_no_episodes_absorbed_when_none_exist(
-        self, client: TestClient, tmp_path: Path,
+        self,
+        client: TestClient,
+        tmp_path: Path,
     ) -> None:
         """Season grab on a season with no live episodes → 201, absorbed_count=0."""
         acquire_path = tmp_path / "acquire.db"

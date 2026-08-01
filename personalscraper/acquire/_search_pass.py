@@ -149,7 +149,10 @@ class SearchPassMixin(PassGatesMixin):
             season_packs = filter_to_season(list(verdict.raw_results), current.season)
             if season_packs:
                 self._enqueue_season_from_conversion(
-                    current, list(verdict.raw_results), season_packs, now,
+                    current,
+                    list(verdict.raw_results),
+                    season_packs,
+                    now,
                 )
                 # The episode row stays pending; the season is enqueued pending.
                 # _enqueue_season_from_conversion emits WantedEnqueued (if new)
@@ -278,8 +281,10 @@ class SearchPassMixin(PassGatesMixin):
 
         # Dedup: one season wanted per follow+season
         existing = self._store.wanted.find(
-            followed_id=fid, kind="season",
-            season=season_num, episode=None,
+            followed_id=fid,
+            kind="season",
+            season=season_num,
+            episode=None,
         )
         season_wid = existing.id if existing is not None else None
 
@@ -314,8 +319,10 @@ class SearchPassMixin(PassGatesMixin):
         live_episode_ids: list[int] = []
         for ep_num in self._aired_episodes_for_season(fid, season_num):
             ep_wanted = self._store.wanted.find(
-                followed_id=fid, kind="episode",
-                season=season_num, episode=ep_num,
+                followed_id=fid,
+                kind="episode",
+                season=season_num,
+                episode=ep_num,
             )
             if ep_wanted is not None and ep_wanted.id is not None:
                 if ep_wanted.status in ("pending", "searching", "available"):

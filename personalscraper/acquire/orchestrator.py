@@ -315,10 +315,16 @@ def filter_to_season(
     from guessit import guessit  # noqa: PLC0415
 
     #: Tokens that signal a WHOLE-season pack (case-insensitive).
-    _SEASON_PACK_KEYWORDS: frozenset[str] = frozenset({
-        "intégrale", "integrale", "complete", "complete season",
-        "saison complete", "saison complète",
-    })
+    _SEASON_PACK_KEYWORDS: frozenset[str] = frozenset(
+        {
+            "intégrale",
+            "integrale",
+            "complete",
+            "complete season",
+            "saison complete",
+            "saison complète",
+        }
+    )
 
     kept: list[TrackerResult] = []
     for r in results:
@@ -772,7 +778,9 @@ class GrabOrchestrator:
             results = filter_to_episode(results, item.season, item.episode)
             if not results:
                 return _SearchChainResult(
-                    exit_path="no_matching_episode", ranked=[], top=None,
+                    exit_path="no_matching_episode",
+                    ranked=[],
+                    top=None,
                     raw_before_filter=raw_before_filter,
                 )
         elif item.kind == "season" and item.season is not None:
@@ -880,11 +888,7 @@ class GrabOrchestrator:
         disposition, outcome, found = mapping[result.exit_path]
 
         chosen = result.top[0] if result.top is not None else None
-        raw_results = (
-            tuple(result.raw_before_filter)
-            if result.raw_before_filter is not None
-            else None
-        )
+        raw_results = tuple(result.raw_before_filter) if result.raw_before_filter is not None else None
         log.debug(
             "acquire.search.verdict",
             disposition=disposition,
@@ -893,8 +897,11 @@ class GrabOrchestrator:
             kind=item.kind,
         )
         return SearchVerdict(
-            disposition=disposition, outcome=outcome, found=found,
-            chosen=chosen, raw_results=raw_results,
+            disposition=disposition,
+            outcome=outcome,
+            found=found,
+            chosen=chosen,
+            raw_results=raw_results,
         )
 
     def grab(

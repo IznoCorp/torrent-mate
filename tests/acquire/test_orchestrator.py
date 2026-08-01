@@ -1222,8 +1222,12 @@ def test_filter_to_season_parse_error_skips() -> None:
 def test_build_search_query_season() -> None:
     """A season wanted item builds ``"Breaking Bad S03"``."""
     item = WantedItem(
-        media_ref=MediaRef(tvdb_id=12345), kind="season",
-        status="pending", enqueued_at=0, season=3, episode=None,
+        media_ref=MediaRef(tvdb_id=12345),
+        kind="season",
+        status="pending",
+        enqueued_at=0,
+        season=3,
+        episode=None,
     )
     q = build_search_query(item, "Breaking Bad")
     assert q == "Breaking Bad S03"
@@ -1232,8 +1236,12 @@ def test_build_search_query_season() -> None:
 def test_build_search_query_season_no_title_falls_back() -> None:
     """A season item with no resolved title falls back to provider ID."""
     item = WantedItem(
-        media_ref=MediaRef(tvdb_id=12345), kind="season",
-        status="pending", enqueued_at=0, season=3, episode=None,
+        media_ref=MediaRef(tvdb_id=12345),
+        kind="season",
+        status="pending",
+        enqueued_at=0,
+        season=3,
+        episode=None,
     )
     q = build_search_query(item, None)
     assert q == "12345"
@@ -1242,8 +1250,12 @@ def test_build_search_query_season_no_title_falls_back() -> None:
 def test_build_search_query_season_zero_pads() -> None:
     """Season 3 → ``S03``, season 11 → ``S11``."""
     item = WantedItem(
-        media_ref=MediaRef(tvdb_id=12345), kind="season",
-        status="pending", enqueued_at=0, season=11, episode=None,
+        media_ref=MediaRef(tvdb_id=12345),
+        kind="season",
+        status="pending",
+        enqueued_at=0,
+        season=11,
+        episode=None,
     )
     q = build_search_query(item, "Show")
     assert q == "Show S11"
@@ -1265,24 +1277,32 @@ def test_rank_season_media_kind_uses_season_tiers() -> None:
 
     # 80 GB — above the 50GB season tier
     big = TrackerResult(
-        provider="tr4ker", tracker_id="s1",
+        provider="tr4ker",
+        tracker_id="s1",
         title="Show.S01.Complete.1080p",
         size=ByteSize(80_000_000_000),
-        seeders=50, leechers=2,
+        seeders=50,
+        leechers=2,
     )
     # 15 GB — below the 50GB season tier, but above the 10GB generic tier
     below_season_tier = TrackerResult(
-        provider="tr4ker", tracker_id="s2",
+        provider="tr4ker",
+        tracker_id="s2",
         title="Show.S01.Complete.720p",
         size=ByteSize(15_000_000_000),
-        seeders=100, leechers=5,
+        seeders=100,
+        leechers=5,
     )
 
     cfg = RankingConfig(
         criteria=[
-            RankingCriterion(field="size", weight=1, thresholds=[
-                ThresholdEntry(at=10_000_000_000, score=1),  # generic: ≥10GB = 1pt
-            ]),
+            RankingCriterion(
+                field="size",
+                weight=1,
+                thresholds=[
+                    ThresholdEntry(at=10_000_000_000, score=1),  # generic: ≥10GB = 1pt
+                ],
+            ),
         ],
         min_seeders=0,
         size_thresholds_by_type={
