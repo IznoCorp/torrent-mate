@@ -61,12 +61,19 @@ function SeasonRow({ season, followedId }: SeasonRowProps): ReactElement {
   const grabSeasonMutation = useMutation({
     mutationFn: () => grabSeason(followedId, season.season),
     onSuccess: (result: SeasonGrabResponse) => {
-      toast.success(
-        `Saison ${String(season.season)} mise en file` +
-          (result.absorbed_count > 0
-            ? ` — ${String(result.absorbed_count)} épisode${result.absorbed_count > 1 ? "s" : ""} absorbé${result.absorbed_count > 1 ? "s" : ""}`
-            : ""),
-      );
+      if (result.reused) {
+        // The backend reused an existing LIVE season row (HTTP 200): nothing
+        // new was enqueued, so an informational toast — never a success one
+        // claiming a fresh grab (review F8).
+        toast.info(`Saison ${String(season.season)} déjà en file`);
+      } else {
+        toast.success(
+          `Saison ${String(season.season)} mise en file` +
+            (result.absorbed_count > 0
+              ? ` — ${String(result.absorbed_count)} épisode${result.absorbed_count > 1 ? "s" : ""} absorbé${result.absorbed_count > 1 ? "s" : ""}`
+              : ""),
+        );
+      }
       void queryClient.invalidateQueries({
         queryKey: acqKeys.completeness(followedId),
       });
@@ -83,15 +90,16 @@ function SeasonRow({ season, followedId }: SeasonRowProps): ReactElement {
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium">Saison {season.season}</span>
         {/* ``queued`` counts what is IN MOTION — « à récupérer » + « en cours
-            d'acquisition ». The former « N en file » wording described a queue
-            volume, which is precisely the number that let « rows queued » pass
-            for « progress »; « N en cours » names the movement instead, and the
-            tooltip spells out the two states it sums. */}
+            d'acquisition » + « absorbé (saison) ». The former « N en file »
+            wording described a queue volume, which is precisely the number
+            that let « rows queued » pass for « progress »; « N en cours »
+            names the movement instead, and the tooltip spells out the states
+            it sums. */}
         <span
           className="text-xs text-muted-foreground"
           title={
             season.queued > 0
-              ? "En cours = à récupérer + en cours d'acquisition"
+              ? "En cours = à récupérer + en cours d'acquisition + absorbé (saison)"
               : undefined
           }
         >

@@ -5438,7 +5438,9 @@
                 "searching",
                 "grabbed",
                 "done",
-                "abandoned"
+                "abandoned",
+                "absorbed",
+                "fallback_episodes"
               ],
               "title": "Status",
               "type": "string"

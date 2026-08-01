@@ -5564,7 +5564,7 @@ export interface operations {
     get_wanted_api_acquisition_wanted_get: {
         parameters: {
             query?: {
-                status?: "all" | "pending" | "searching" | "grabbed" | "done" | "abandoned";
+                status?: "all" | "pending" | "searching" | "grabbed" | "done" | "abandoned" | "absorbed" | "fallback_episodes";
                 page?: number;
                 page_size?: number;
             };

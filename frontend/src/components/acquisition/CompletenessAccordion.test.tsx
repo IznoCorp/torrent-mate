@@ -27,6 +27,7 @@ import * as hooks from "@/hooks/useAcquisition";
 const grabSeasonMock = vi.fn();
 const toastSuccessMock = vi.fn();
 const toastErrorMock = vi.fn();
+const toastInfoMock = vi.fn();
 
 vi.mock("@/api/acquisition", async () => {
   const actual =
@@ -46,7 +47,8 @@ vi.mock("sonner", () => ({
     success: (...args: unknown[]) => toastSuccessMock(...args),
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     error: (...args: unknown[]) => toastErrorMock(...args),
-    info: vi.fn(),
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    info: (...args: unknown[]) => toastInfoMock(...args),
   },
 }));
 
@@ -673,6 +675,44 @@ describe("CompletenessAccordion — season grab button (R4)", () => {
         expect.stringContaining("Saison 1 mise en file"),
       );
     });
+  });
+
+  it("toasts an informational « déjà en file » when the season row is reused", async () => {
+    // Review F8: a reused LIVE row (HTTP 200, reused=true) enqueues nothing —
+    // the toast must say so instead of claiming a fresh grab.
+    grabSeasonMock.mockResolvedValue({
+      season_wanted_id: 42,
+      season: 1,
+      absorbed_count: 3,
+      reused: true,
+    });
+
+    mockCompleteness(
+      makeCompleteness({
+        seasons: [
+          {
+            season: 1,
+            owned: 0,
+            queued: 2,
+            total: 5,
+            announced: 0,
+            episodes: [
+              { episode: 1, state: "a_recuperer", title: null, air_date: null },
+            ],
+          },
+        ],
+      }),
+    );
+    renderOpen();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Récupérer la saison/ }),
+    );
+
+    await waitFor(() => {
+      expect(toastInfoMock).toHaveBeenCalledWith("Saison 1 déjà en file");
+    });
+    expect(toastSuccessMock).not.toHaveBeenCalled();
   });
 
   it("toasts an error message when grabSeason rejects", async () => {

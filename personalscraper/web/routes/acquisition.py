@@ -438,7 +438,20 @@ def get_followed_completeness(request: Request, followed_id: int) -> Completenes
 # ── /api/acquisition/wanted ────────────────────────────────────────────
 
 
-_WANTED_STATUSES = Literal["all", "pending", "searching", "grabbed", "done", "abandoned"]
+_WANTED_STATUSES = Literal[
+    "all",
+    "pending",
+    "searching",
+    "grabbed",
+    "done",
+    "abandoned",
+    # Season-grab terminal statuses (review F8): an episode absorbed by a
+    # season wanted (R5) and a season row degraded to per-episode retry (R6)
+    # must be selectable in the queue filter like any other status — the WHERE
+    # clause below passes the value through unchanged.
+    "absorbed",
+    "fallback_episodes",
+]
 
 
 @router.get("/wanted", response_model=WantedResponse)

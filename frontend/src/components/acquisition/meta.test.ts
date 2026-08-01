@@ -18,6 +18,9 @@ import {
   FOLLOW_STATUS_HINT,
   FOLLOW_STATUS_LABEL,
   FOLLOW_STATUS_TONE,
+  STATUS_LABEL,
+  STATUS_TONE,
+  WANTED_STATUS_OPTIONS,
   followStatusHint,
   followStatusLabel,
   searchOutcomeReason,
@@ -145,6 +148,47 @@ describe("EPISODE state vocabulary", () => {
     const liveFlow = EPISODE_STATES.filter((s) => s !== "absorbed");
     const tones = liveFlow.map((s) => EPISODE_STATE_TONE[s]);
     expect(new Set(tones).size).toBe(liveFlow.length);
+  });
+});
+
+describe("WANTED-QUEUE status vocabulary (review F8)", () => {
+  /** Every wanted-row status the backend can serve to the queue panel. */
+  const WANTED_STATUSES: readonly string[] = [
+    "pending",
+    "searching",
+    "grabbed",
+    "done",
+    "abandoned",
+    "absorbed",
+    "fallback_episodes",
+  ];
+
+  it("maps every served queue status to a French label and a tone", () => {
+    for (const status of WANTED_STATUSES) {
+      expect(STATUS_LABEL[status], `label for ${status}`).toBeTruthy();
+      expect(STATUS_TONE[status], `tone for ${status}`).toBeTruthy();
+      // Never the raw machine token in the queue (NE-DOIT-PAS-4).
+      expect(STATUS_LABEL[status]).not.toBe(status);
+    }
+  });
+
+  it.each([
+    ["absorbed", "Absorbé (saison)", "muted"],
+    ["fallback_episodes", "Reporté en épisodes", "warning"],
+  ])("maps the season-grab status %s", (status, label, tone) => {
+    expect(STATUS_LABEL[status]).toBe(label);
+    expect(STATUS_TONE[status]).toBe(tone);
+  });
+
+  it("lets the queue filter select the season-grab statuses", () => {
+    const values = WANTED_STATUS_OPTIONS.map((o) => o.value);
+    expect(values).toContain("absorbed");
+    expect(values).toContain("fallback_episodes");
+    // Every option carries French wording, never the raw slug.
+    for (const opt of WANTED_STATUS_OPTIONS) {
+      expect(opt.label).toBeTruthy();
+      expect(opt.label).not.toBe(opt.value);
+    }
   });
 });
 

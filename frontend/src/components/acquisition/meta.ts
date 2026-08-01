@@ -99,7 +99,9 @@ export type WantedFilter =
   | "searching"
   | "grabbed"
   | "done"
-  | "abandoned";
+  | "abandoned"
+  | "absorbed"
+  | "fallback_episodes";
 
 /** Allowed status filter values for obligations (includes "all"). */
 export type ObligationFilter = "all" | "pending" | "breached" | "satisfied";
@@ -112,6 +114,9 @@ export const WANTED_STATUS_OPTIONS = [
   { value: "grabbed", label: "Récupéré" },
   { value: "done", label: "Terminé" },
   { value: "abandoned", label: "Abandonné" },
+  // Season-grab statuses (R5/R6) — selectable like any other status.
+  { value: "absorbed", label: "Absorbé (saison)" },
+  { value: "fallback_episodes", label: "Reporté en épisodes" },
 ];
 
 /** Obligation status filter options. */
@@ -127,6 +132,9 @@ export const STATUS_TONE: Record<string, BadgeTone> = {
   ...STATE_TONE,
   killed: "warning",
   absorbed: "muted",
+  // R6: a season past cutoff degraded to per-episode retry — warning tone so
+  // the fallback is visible in the queue, never the raw slug (review F8).
+  fallback_episodes: "warning",
 };
 
 /** Status → French label mapping. */
@@ -134,6 +142,7 @@ export const STATUS_LABEL: Record<string, string> = {
   ...STATE_LABEL,
   killed: "Arrêté",
   absorbed: "Absorbé (saison)",
+  fallback_episodes: "Reporté en épisodes",
 };
 
 /** Cadence temperature token colour (DS `--temp-*`), by tier. */
