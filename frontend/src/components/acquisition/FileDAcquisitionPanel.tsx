@@ -277,33 +277,47 @@ export function FileDAcquisitionPanel(): ReactElement {
                                   : `Saison ${sg.season != null ? String(sg.season).padStart(2, "0") : "?"} (${String(sg.episodes.length)} épisode${sg.episodes.length > 1 ? "s" : ""})`}
                               </h4>
                               <div className="space-y-1">
-                                {sg.episodes.map((ep) => (
-                                  <div
-                                    key={`ep-${String(ep.id)}`}
-                                    className="flex items-center justify-between gap-2 rounded px-2 py-1 text-sm hover:bg-muted/50"
-                                  >
-                                    <span className="min-w-0 truncate">
-                                      {ep.episode != null
-                                        ? `S${String(ep.season ?? "?").padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`
-                                        : (FOLLOW_KIND_LABEL[ep.kind] ??
-                                          ep.kind)}
-                                    </span>
-                                    <span className="flex shrink-0 items-center gap-2">
-                                      <span className="text-xs text-muted-foreground">
-                                        {ep.attempts > 0
-                                          ? `${String(ep.attempts)} tentative${ep.attempts > 1 ? "s" : ""}`
-                                          : ""}
+                                {sg.episodes.map((ep) => {
+                                  const isSeasonWanted = ep.kind === "season";
+                                  return (
+                                    <div
+                                      key={`ep-${String(ep.id)}`}
+                                      className="flex items-center justify-between gap-2 rounded px-2 py-1 text-sm hover:bg-muted/50"
+                                    >
+                                      <span className="min-w-0 truncate">
+                                        {isSeasonWanted
+                                          ? `Saison ${String(ep.season ?? "?").padStart(2, "0")}`
+                                          : ep.episode != null
+                                            ? `S${String(ep.season ?? "?").padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`
+                                            : (FOLLOW_KIND_LABEL[ep.kind] ??
+                                              ep.kind)}
                                       </span>
-                                      <Badge
-                                        tone={
-                                          STATUS_TONE[ep.status] ?? "neutral"
-                                        }
-                                      >
-                                        {STATUS_LABEL[ep.status] ?? ep.status}
-                                      </Badge>
-                                    </span>
-                                  </div>
-                                ))}
+                                      <span className="flex shrink-0 items-center gap-2">
+                                        {isSeasonWanted && (
+                                          <Badge tone="neutral">
+                                            {FOLLOW_KIND_LABEL.season}{" "}
+                                            {String(ep.season ?? "?").padStart(
+                                              2,
+                                              "0",
+                                            )}
+                                          </Badge>
+                                        )}
+                                        <span className="text-xs text-muted-foreground">
+                                          {ep.attempts > 0
+                                            ? `${String(ep.attempts)} tentative${ep.attempts > 1 ? "s" : ""}`
+                                            : ""}
+                                        </span>
+                                        <Badge
+                                          tone={
+                                            STATUS_TONE[ep.status] ?? "neutral"
+                                          }
+                                        >
+                                          {STATUS_LABEL[ep.status] ?? ep.status}
+                                        </Badge>
+                                      </span>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
                           );

@@ -126,12 +126,14 @@ export const OBLIGATION_STATUS_OPTIONS = [
 export const STATUS_TONE: Record<string, BadgeTone> = {
   ...STATE_TONE,
   killed: "warning",
+  absorbed: "muted",
 };
 
 /** Status → French label mapping. */
 export const STATUS_LABEL: Record<string, string> = {
   ...STATE_LABEL,
   killed: "Arrêté",
+  absorbed: "Absorbé (saison)",
 };
 
 /** Cadence temperature token colour (DS `--temp-*`), by tier. */
@@ -177,8 +179,16 @@ export const TIER_LABEL: Record<string, string> = {
  */
 export type FollowStatus = FollowedSeriesItem["status"];
 
-/** One aired episode's state — same contract-derived guarantee as {@link FollowStatus}. */
-export type EpisodeState = SeasonCompleteness["episodes"][number]["state"];
+/**
+ * One aired episode's state — same contract-derived guarantee as
+ * {@link FollowStatus}, plus the ``"absorbed"`` status added by the
+ * season-grab feature (R5). ``absorbed`` only appears on WantedItem rows
+ * (not in the completeness matrix yet), but the legend and badge maps
+ * define it here so every rendering surface sees it.
+ */
+export type EpisodeState =
+  | SeasonCompleteness["episodes"][number]["state"]
+  | "absorbed";
 
 /**
  * Followed-card status → badge tone (phase-08 vocabulary table).
@@ -303,7 +313,7 @@ export function followStatusHint(status: FollowStatus, kind: string): string {
  * card status. It lives only in the completeness matrix.
  */
 const COUNT_NOUN: Record<
-  Exclude<EpisodeState, "en_mediatheque" | "annonce">,
+  Exclude<EpisodeState, "en_mediatheque" | "annonce" | "absorbed">,
   { readonly one: string; readonly many: string }
 > = {
   a_recuperer: { one: "à récupérer", many: "à récupérer" },
@@ -318,7 +328,7 @@ const COUNT_NOUN: Record<
 /** The caption's bucket order — most actionable first, as the card status is. */
 const COUNT_ORDER: readonly Exclude<
   EpisodeState,
-  "en_mediatheque" | "annonce"
+  "en_mediatheque" | "annonce" | "absorbed"
 >[] = ["a_recuperer", "en_acquisition", "en_attente", "non_verifie"];
 
 /**
@@ -362,7 +372,7 @@ export function followFraction(item: FollowedSeriesItem): string | null {
  */
 export function followCountsCaption(item: FollowedSeriesItem): string | null {
   const counts: Record<
-    Exclude<EpisodeState, "en_mediatheque" | "annonce">,
+    Exclude<EpisodeState, "en_mediatheque" | "annonce" | "absorbed">,
     number | null
   > = {
     a_recuperer: item.a_recuperer_count ?? null,
@@ -401,6 +411,7 @@ export function canGrabNow(item: FollowedSeriesItem): boolean {
 export const FOLLOW_KIND_LABEL: Record<string, string> = {
   movie: "Film",
   show: "Série",
+  season: "Saison",
 };
 
 /** Run outcome → badge tone (acquisition recent runs). */
@@ -478,6 +489,7 @@ export const EPISODE_STATE_TONE: Record<EpisodeState, BadgeTone> = {
   en_attente: "neutral",
   non_verifie: "muted",
   annonce: "upcoming",
+  absorbed: "muted",
 };
 
 /**
@@ -495,6 +507,7 @@ export const EPISODE_STATE_LABEL: Record<EpisodeState, string> = {
   en_acquisition: "En cours d'acquisition",
   en_attente: "En attente",
   non_verifie: "Non vérifié",
+  absorbed: "Absorbé (saison)",
 };
 
 /**
@@ -515,6 +528,8 @@ export const EPISODE_STATE_HINT: Record<EpisodeState, string> = {
     "Recherché sur les trackers : rien de conforme au profil pour l'instant.",
   non_verifie:
     "Pas encore vérifié sur les trackers — aucune conclusion à ce jour.",
+  absorbed:
+    "Épisode absorbé par une récupération de saison complète.",
 };
 
 /**
