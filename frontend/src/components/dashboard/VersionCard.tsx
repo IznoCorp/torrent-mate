@@ -56,15 +56,14 @@ export function VersionCard(): ReactElement {
     );
   }
 
-  const version = data?.version ?? "—";
-  const restCommit = data?.build_commit;
+  // Past the isPending/isError guards the query narrowed to success — data is
+  // guaranteed (TanStack v5 discriminated union).
+  const version = data.version;
+  const restCommit = data.build_commit;
 
   // A live build_commit that differs from the REST one means the server has
   // moved on since load — the seam the phase-7 auto-update toast will hook into.
-  const hasMismatch =
-    liveCommit !== null &&
-    restCommit !== undefined &&
-    liveCommit !== restCommit;
+  const hasMismatch = liveCommit !== null && liveCommit !== restCommit;
 
   return (
     <div className="flex flex-col gap-2">

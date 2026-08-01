@@ -204,7 +204,10 @@ export function ParcoursPanel(): ReactElement {
                   ? "min-w-0 flex-1 truncate text-sm font-medium"
                   : "min-w-0 flex-1 truncate font-mono text-sm font-medium"
               }
-              title={j.follow_title ? j.follow_title : j.info_hash}
+              // Truthiness (not ??) on purpose: an empty follow_title falls
+              // back to the hash, mirroring journeyTitle().
+              // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+              title={j.follow_title || j.info_hash}
             >
               {journeyTitle(j)}
             </span>
