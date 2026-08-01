@@ -13,7 +13,7 @@ fallback to episodes, manual per-season grab button, season ranking tiers (#376)
 **PR merge**: auto — standing operator contract: adversarial review(s) + tests before merge.
 **PR**: _(created after last phase)_
 **Design**: docs/features/season-grab/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/season-grab/plan/INDEX.md
 
 ## Non-negotiable invariants (operator rules R1-R6 — DESIGN §2, frozen)
 
@@ -29,7 +29,14 @@ fallback to episodes, manual per-season grab button, season ranking tiers (#376)
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                                           | File                            | Status |
+| --- | ----------------------------------------------- | ------------------------------- | ------ |
+| 1   | Domain + store (season kind, absorbed/fallback) | phase-01-domain-store.md        | [ ]    |
+| 2   | filter_to_season + season search query + rank   | phase-02-filter-to-season.md    | [ ]    |
+| 3   | Auto detection R1 + absorption R5               | phase-03-detection-auto-r1.md   | [ ]    |
+| 4   | Episode→season conversion R2 + fallback R6      | phase-04-conversion-fallback.md | [ ]    |
+| 5   | Web API (grab endpoint) + frontend              | phase-05-web-api-frontend.md    | [ ]    |
+| 6   | ACCEPTANCE.md + full gate                       | phase-06-acceptance.md          | [ ]    |
 
 ## Review cycles
 
