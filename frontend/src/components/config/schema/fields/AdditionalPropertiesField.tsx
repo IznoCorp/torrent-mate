@@ -21,7 +21,8 @@ import type { CompositeFieldProps } from "./types";
  * when the ``additionalProperties`` schema is an object, otherwise a plain
  * ``Input``).  Add/remove buttons let the user grow or shrink the dict.
  * Key renames commit on blur/Enter (CONFIG-10, ticket 250) and preserve row
- * order; a blank or colliding key silently reverts (never merges two entries).
+ * order; a blank, colliding or invalid key reverts (never merges two entries)
+ * and explains the refusal in a per-row alert, cleared on the next keystroke.
  *
  * Args:
  *   schema: The object schema with ``additionalProperties``.
@@ -51,6 +52,21 @@ export function AdditionalPropertiesField({
   // row identity (and input focus) survives every keystroke.
   const [keyDrafts, setKeyDrafts] = useState<Record<string, string>>({});
 
+  // CONFIG-10 (ticket 250): per-row rename-refusal explanations, keyed by the
+  // CURRENT object key. A refused rename reverts (never merges two entries)
+  // but must say WHY; editing that row's key input clears its message.
+  const [keyErrors, setKeyErrors] = useState<Record<string, string>>({});
+
+  function clearKeyError(key: string): void {
+    setKeyErrors((prev) => {
+      if (!Object.hasOwn(prev, key)) return prev;
+      const next = { ...prev };
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete next[key];
+      return next;
+    });
+  }
+
   function setEntry(key: string, newValue: unknown): void {
     onChange({ ...obj, [key]: newValue });
   }
@@ -58,8 +74,9 @@ export function AdditionalPropertiesField({
   /**
    * Commit a key rename (blur/Enter), preserving row order.
    *
-   * A blank, unchanged or colliding new key reverts to the current key —
-   * a rename must never silently merge two entries.
+   * A blank, invalid or colliding new key reverts to the current key — a
+   * rename must never merge two entries — and records a per-row explanation
+   * for the refusal (cleared when the user edits that row's key again).
    */
   function commitKeyRename(oldKey: string, rawNewKey: string): void {
     setKeyDrafts((prev) => {
@@ -69,7 +86,37 @@ export function AdditionalPropertiesField({
       return next;
     });
     const newKey = rawNewKey.trim();
-    if (newKey === "" || newKey === oldKey || newKey in obj) return;
+    if (newKey === oldKey) {
+      clearKeyError(oldKey);
+      return;
+    }
+    if (newKey === "") {
+      setKeyErrors((prev) => ({
+        ...prev,
+        [oldKey]: "Renommage annulé : clé vide",
+      }));
+      return;
+    }
+    // "__proto__" can never become a dict key: the computed assignment
+    // `renamed["__proto__"] = v` below would invoke the inherited prototype
+    // setter instead of creating an own property, silently losing the entry.
+    if (newKey === "__proto__") {
+      setKeyErrors((prev) => ({
+        ...prev,
+        [oldKey]: "Renommage annulé : clé invalide",
+      }));
+      return;
+    }
+    // Object.hasOwn, not `in`: `in` walks the prototype chain and would
+    // refuse legitimate keys such as `toString` as phantom collisions.
+    if (Object.hasOwn(obj, newKey)) {
+      setKeyErrors((prev) => ({
+        ...prev,
+        [oldKey]: "Renommage annulé : clé déjà utilisée",
+      }));
+      return;
+    }
+    clearKeyError(oldKey);
     const renamed: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(obj)) {
       renamed[k === oldKey ? newKey : k] = v;
@@ -81,6 +128,9 @@ export function AdditionalPropertiesField({
     const next = { ...obj };
     // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
     delete next[key];
+    // Drop any pending refusal message so it cannot resurface on a future
+    // entry that reuses the removed key.
+    clearKeyError(key);
     onChange(next);
   }
 
@@ -99,10 +149,16 @@ export function AdditionalPropertiesField({
     <fieldset className="flex flex-col gap-2 rounded-md border border-border p-3">
       <legend className="px-1 text-sm font-medium">{label}</legend>
 
-      {entries.map(([k, v]) => {
+      {entries.map(([k, v], idx) => {
         const rowPath = joinPath(path, k);
+        const keyError = keyErrors[k];
         return (
-          <div key={k} className="flex items-start gap-2">
+          // CONFIG-10 (ticket 250): rows are keyed by entry index, not by the
+          // dict key — a committed rename changes the key, and a key-based row
+          // would remount, dropping focus and detaching the remove button
+          // mid-click. Index identity is deliberate and stable here: renames
+          // preserve entry order and every input is controlled.
+          <div key={idx} className="flex items-start gap-2">
             <div className="min-w-0 flex-1">
               {/* CONFIG-10: the key is EDITABLE, as the field docstring promises
                   — renames commit on blur/Enter. X7: a dict key is a machine
@@ -116,6 +172,8 @@ export function AdditionalPropertiesField({
                 onChange={(e) => {
                   const draft = e.target.value;
                   setKeyDrafts((prev) => ({ ...prev, [k]: draft }));
+                  // A new keystroke supersedes a previous rename refusal.
+                  clearKeyError(k);
                 }}
                 onBlur={(e) => {
                   commitKeyRename(k, e.target.value);
@@ -123,10 +181,19 @@ export function AdditionalPropertiesField({
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
-                    e.currentTarget.blur();
+                    // Commit directly instead of blur(): a successful rename
+                    // re-renders the row and blur() would strand focus on
+                    // document.body; committing inline keeps the caret in
+                    // this key input. Tab-out still commits via onBlur.
+                    commitKeyRename(k, e.currentTarget.value);
                   }
                 }}
               />
+              {keyError !== undefined && (
+                <p className="mb-1 text-sm text-danger" role="alert">
+                  {keyError}
+                </p>
+              )}
               {isObject(addSchema) &&
               addSchema.type === "object" &&
               isObject(addSchema.properties) ? (

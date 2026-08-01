@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { useState, type ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SchemaForm, flattenLocToPath } from "@/components/config/SchemaForm";
@@ -555,6 +556,33 @@ describe("SchemaForm — additionalProperties", () => {
     additionalProperties: { type: "string" },
   };
 
+  // CONFIG-10 (ticket 250): stateful harness feeding onChange back into the
+  // values prop, like the real config editor. Required by the tests that
+  // exercise post-commit re-render behaviour (focus retention, DOM node
+  // reuse) — a static mock never re-renders, so it cannot catch a remount.
+  function StatefulDict({
+    initial,
+    onChange,
+  }: {
+    readonly initial: Record<string, unknown>;
+    readonly onChange: (values: Record<string, unknown>) => void;
+  }): ReactElement {
+    const [values, setValues] = useState<Record<string, unknown>>({
+      env: initial,
+    });
+    return (
+      <SchemaForm
+        schema={dictSchema}
+        values={values}
+        onChange={(v) => {
+          setValues(v);
+          onChange(v);
+        }}
+        path="env"
+      />
+    );
+  }
+
   it("affiche les entrées existantes avec clé et valeur", () => {
     const onChange = vi.fn();
     render(
@@ -630,6 +658,160 @@ describe("SchemaForm — additionalProperties", () => {
     fireEvent.change(keyInput, { target: { value: "  " } });
     fireEvent.blur(keyInput);
     expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("Entrée valide le renommage et le focus reste dans le champ clé (ticket 250)", () => {
+    const onChange = vi.fn();
+    render(
+      <StatefulDict
+        initial={{ HOME: "/home/user", PATH: "/usr/bin" }}
+        onChange={onChange}
+      />,
+    );
+
+    const keyInput = screen.getByRole("textbox", { name: "Clé HOME" });
+    keyInput.focus();
+    fireEvent.change(keyInput, { target: { value: "HOME_DIR" } });
+    fireEvent.keyDown(keyInput, { key: "Enter" });
+
+    expect(onChange).toHaveBeenCalledWith({
+      env: { HOME_DIR: "/home/user", PATH: "/usr/bin" },
+    });
+    // Rows are index-keyed, so the SAME input node survives the rename, and
+    // the Enter path commits without blur() — focus must still be there.
+    const renamedInput = screen.getByRole("textbox", { name: "Clé HOME_DIR" });
+    expect(renamedInput).toBe(keyInput);
+    expect(document.activeElement).toBe(keyInput);
+  });
+
+  it("préserve l'ordre exact des clés au renommage d'une clé du milieu (ticket 250)", () => {
+    const onChange = vi.fn();
+    render(
+      <SchemaForm
+        schema={dictSchema}
+        values={{ env: { alpha: "a", beta: "b", gamma: "c" } }}
+        onChange={onChange}
+        path="env"
+      />,
+    );
+
+    const keyInput = screen.getByRole("textbox", { name: "Clé beta" });
+    fireEvent.change(keyInput, { target: { value: "beta_two" } });
+    fireEvent.blur(keyInput);
+
+    const call = onChange.mock.calls[0];
+    if (!call) throw new Error("Expected onChange to have been called");
+    const arg = call[0] as { env: Record<string, unknown> };
+    // toEqual on the object cannot see ordering — assert the key ORDER itself.
+    expect(Object.keys(arg.env)).toEqual(["alpha", "beta_two", "gamma"]);
+  });
+
+  it("autorise le renommage vers toString malgré la chaîne de prototypes (ticket 250)", () => {
+    const onChange = vi.fn();
+    render(
+      <SchemaForm
+        schema={dictSchema}
+        values={{ env: { HOME: "/home/user", PATH: "/usr/bin" } }}
+        onChange={onChange}
+        path="env"
+      />,
+    );
+
+    // `"toString" in obj` is true via Object.prototype — collision detection
+    // must use own keys only, so this rename has to go through.
+    const keyInput = screen.getByRole("textbox", { name: "Clé HOME" });
+    fireEvent.change(keyInput, { target: { value: "toString" } });
+    fireEvent.blur(keyInput);
+
+    expect(onChange).toHaveBeenCalledWith({
+      env: { toString: "/home/user", PATH: "/usr/bin" },
+    });
+  });
+
+  it("rejette le renommage vers __proto__ avec explication, sans pollution (ticket 250)", () => {
+    const onChange = vi.fn();
+    render(
+      <SchemaForm
+        schema={dictSchema}
+        values={{ env: { HOME: "/home/user", PATH: "/usr/bin" } }}
+        onChange={onChange}
+        path="env"
+      />,
+    );
+
+    const keyInput = screen.getByRole("textbox", { name: "Clé HOME" });
+    fireEvent.change(keyInput, { target: { value: "__proto__" } });
+    fireEvent.blur(keyInput);
+
+    // The rename is refused: the object is unchanged and the row says why.
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Renommage annulé : clé invalide",
+    );
+    // The input reverts to the real key…
+    expect(screen.getByRole("textbox", { name: "Clé HOME" })).toHaveValue(
+      "HOME",
+    );
+    // …and Object.prototype was never polluted by the attempted rename.
+    expect(Object.hasOwn(Object.prototype, "HOME")).toBe(false);
+  });
+
+  it("explique un renommage en collision et efface l'explication à la saisie (ticket 250)", () => {
+    const onChange = vi.fn();
+    render(
+      <SchemaForm
+        schema={dictSchema}
+        values={{ env: { HOME: "/home/user", PATH: "/usr/bin" } }}
+        onChange={onChange}
+        path="env"
+      />,
+    );
+
+    const keyInput = screen.getByRole("textbox", { name: "Clé HOME" });
+    fireEvent.change(keyInput, { target: { value: "PATH" } });
+    fireEvent.blur(keyInput);
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Renommage annulé : clé déjà utilisée",
+    );
+
+    // Editing the row's key again clears the explanation immediately.
+    fireEvent.change(keyInput, { target: { value: "PATH_2" } });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("supprime la ligne dont la clé vient d'être éditée — le clic n'est pas avalé (ticket 250)", () => {
+    const onChange = vi.fn();
+    render(
+      <StatefulDict
+        initial={{ HOME: "/home/user", PATH: "/usr/bin" }}
+        onChange={onChange}
+      />,
+    );
+
+    const keyInput = screen.getByRole("textbox", { name: "Clé HOME" });
+    keyInput.focus();
+    fireEvent.change(keyInput, { target: { value: "HOME_DIR" } });
+
+    // Browser click sequence on the row's remove button: mousedown steals
+    // focus (blur commits the rename and re-renders the row), then mouseup
+    // and click land on the SAME node — it must survive the commit
+    // re-render, otherwise the click dies on a detached button.
+    const removeButton = screen.getByRole("button", {
+      name: "Supprimer la clé HOME",
+    });
+    fireEvent.mouseDown(removeButton);
+    fireEvent.blur(keyInput);
+    fireEvent.mouseUp(removeButton);
+    fireEvent.click(removeButton);
+
+    // The rename committed on blur…
+    expect(onChange).toHaveBeenCalledWith({
+      env: { HOME_DIR: "/home/user", PATH: "/usr/bin" },
+    });
+    // …AND the click still removed the (renamed) row.
+    expect(onChange).toHaveBeenLastCalledWith({ env: { PATH: "/usr/bin" } });
   });
 
   it("ajoute une entrée avec une clé unique via +", () => {
