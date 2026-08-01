@@ -26,6 +26,53 @@ function ev(
   return { id, type, data };
 }
 
+/**
+ * The full happy-path run — shared by the golden narrative test and the
+ * structural segment-invariant test so both stay in sync.
+ */
+const GOLDEN_RUN_EVENTS: EventMessage[] = [
+  ev("StepStarted", { step: "ingest" }),
+  ev("ItemProgressed", {
+    step: "ingest",
+    item: "The.Movie.2024.1080p",
+    status: "copied",
+    details: { action: "copied", dest: "/staging/097-TEMP/The.Movie.2024.1080p" },
+  }),
+  ev("StepStarted", { step: "sort" }),
+  ev("ItemProgressed", {
+    step: "sort",
+    item: "The.Movie.2024.1080p",
+    status: "moved",
+    details: { destination: "/staging/001-MOVIES/The.Movie.2024.1080p" },
+  }),
+  ev("StepStarted", { step: "clean" }),
+  // The backend emits status "cleaned"/"skipped"/"error" for a clean step —
+  // never "recleaned" (that is only a structlog detail key). Use the real
+  // vocab so this golden covers the actual code path.
+  ev("ItemProgressed", { step: "clean", item: "001-MOVIES", status: "cleaned" }),
+  ev("StepStarted", { step: "scrape" }),
+  ev("ItemProgressed", {
+    step: "scrape",
+    item: "The.Movie.2024.1080p",
+    status: "matched",
+    details: { action: "created", provider: "tmdb" },
+  }),
+  ev("StepStarted", { step: "trailers" }),
+  ev("ItemProgressed", {
+    step: "trailers",
+    item: "The Movie (2024)",
+    status: "downloaded",
+    details: { reason: "downloaded" },
+  }),
+  ev("StepStarted", { step: "dispatch" }),
+  ev("ItemProgressed", {
+    step: "dispatch",
+    item: "The Movie (2024)",
+    status: "moved",
+    details: { dest: "/Volumes/Disk2/001-MOVIES/The Movie (2024)", disk: "Disk2" },
+  }),
+];
+
 describe("interpretRun", () => {
   it("returns no lines for an empty stream", () => {
     expect(interpretRun([])).toEqual([]);
@@ -42,50 +89,7 @@ describe("interpretRun", () => {
   });
 
   it("folds a full happy-path run into ordered French lines (golden)", () => {
-    const events: EventMessage[] = [
-      ev("StepStarted", { step: "ingest" }),
-      ev("ItemProgressed", {
-        step: "ingest",
-        item: "The.Movie.2024.1080p",
-        status: "copied",
-        details: { action: "copied", dest: "/staging/097-TEMP/The.Movie.2024.1080p" },
-      }),
-      ev("StepStarted", { step: "sort" }),
-      ev("ItemProgressed", {
-        step: "sort",
-        item: "The.Movie.2024.1080p",
-        status: "moved",
-        details: { destination: "/staging/001-MOVIES/The.Movie.2024.1080p" },
-      }),
-      ev("StepStarted", { step: "clean" }),
-      // The backend emits status "cleaned"/"skipped"/"error" for a clean step —
-      // never "recleaned" (that is only a structlog detail key). Use the real
-      // vocab so this golden covers the actual code path.
-      ev("ItemProgressed", { step: "clean", item: "001-MOVIES", status: "cleaned" }),
-      ev("StepStarted", { step: "scrape" }),
-      ev("ItemProgressed", {
-        step: "scrape",
-        item: "The.Movie.2024.1080p",
-        status: "matched",
-        details: { action: "created", provider: "tmdb" },
-      }),
-      ev("StepStarted", { step: "trailers" }),
-      ev("ItemProgressed", {
-        step: "trailers",
-        item: "The Movie (2024)",
-        status: "downloaded",
-        details: { reason: "downloaded" },
-      }),
-      ev("StepStarted", { step: "dispatch" }),
-      ev("ItemProgressed", {
-        step: "dispatch",
-        item: "The Movie (2024)",
-        status: "moved",
-        details: { dest: "/Volumes/Disk2/001-MOVIES/The Movie (2024)", disk: "Disk2" },
-      }),
-    ];
-
-    expect(prose(interpretRun(events))).toEqual([
+    expect(prose(interpretRun(GOLDEN_RUN_EVENTS))).toEqual([
       { step: "ingest", text: "Récupération des téléchargements…", tone: "info" },
       {
         step: "ingest",
@@ -264,8 +268,35 @@ describe("interpretRun", () => {
     ]);
 
     // Step headers carry no machine token — no segments, text fallback.
+    // Assert the line EXISTS first, then that the segments key is absent on
+    // the non-optional reference (a `?.` here would pass vacuously if the
+    // header line were never produced).
     const [header] = interpretRun([ev("StepStarted", { step: "ingest" })]);
-    expect(header?.segments).toBeUndefined();
+    expect(header).toBeDefined();
+    if (header === undefined) throw new Error("expected a header line");
+    expect("segments" in header).toBe(false);
+  });
+
+  it("preserves text as the joined segments, with a mono token, on every golden line carrying segments", () => {
+    const lines = interpretRun(GOLDEN_RUN_EVENTS);
+    // Derive the line families from the golden output itself: iterate every
+    // line, skip the header lines (no segments key), and hold each
+    // segment-carrying family to the two structural invariants.
+    let carriers = 0;
+    for (const line of lines) {
+      const segments = line.segments;
+      if (segments === undefined) continue;
+      carriers += 1;
+      // Invariant 1 — text preservation: the flat sentence is exactly the
+      // in-order join of the segments (render fallback stays byte-identical).
+      expect(line.text).toBe(segments.map((s) => s.text).join(""));
+      // Invariant 2 — every golden per-item family interpolates at least one
+      // machine token rendered as a mono segment.
+      expect(segments.some((s) => s.mono === true)).toBe(true);
+    }
+    // Non-vacuity: the golden run yields one segment-carrying line per
+    // narrated step (ingest, sort, clean, scrape, trailers, dispatch).
+    expect(carriers).toBe(6);
   });
 
   it("tolerates a Pipeline-prefixed event type", () => {

@@ -237,12 +237,38 @@ describe("FlowBoard", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows the run's identity as a short mono run_uid with the full uid in title (PIPELINE-3, ticket 250)", () => {
+  it("shows the run's identity truncated to a short mono prefix with the full uid in title (PIPELINE-3, ticket 250)", () => {
+    // A realistic run_uid (32 hex chars) — the display truncates to the first
+    // 8 chars with an ellipsis; the full value stays in the title attribute.
+    const longUid = "a1b2c3d4e5f60718293a4b5c6d7e8f90";
+    stagesMock.mockReturnValue({
+      data: {
+        stages: EIGHT,
+        run_uid: longUid,
+        run_state: "idle",
+        updated_at: 1750000000,
+        run_trigger: "watch",
+        run_processed: 3,
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
     renderBoard();
-    // run_uid "run-1" is short — slice(0, 8) keeps it whole, "…" appended.
-    const uid = screen.getByText(/run-1…/);
+    const uid = screen.getByText("a1b2c3d4…");
+    expect(uid.className).toContain("font-mono");
+    expect(uid).toHaveAttribute("title", longUid);
+  });
+
+  it("renders a short run_uid whole, without a misleading ellipsis (ticket 250)", () => {
+    // Default mock run_uid "run-1" fits within the 8-char budget — it is
+    // rendered verbatim; an appended "…" would falsely suggest truncation.
+    renderBoard();
+    const uid = screen.getByText("run-1");
     expect(uid.className).toContain("font-mono");
     expect(uid).toHaveAttribute("title", "run-1");
+    expect(screen.queryByText("run-1…")).not.toBeInTheDocument();
   });
 
   it("shows a loading skeleton row while fetching", () => {
