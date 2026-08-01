@@ -96,6 +96,7 @@ SEARCH_OUTCOMES: frozenset[str] = frozenset(
         "available",
         "no_candidates",
         "no_matching_episode",
+        "no_matching_season",
         "all_filtered",
         "trackers_unavailable",
         "circuit_open",
@@ -625,7 +626,10 @@ class GrabOrchestrator:
         elif item.kind == "season" and item.season is not None:
             results = filter_to_season(results, item.season)
             if not results:
-                return _SearchChainResult(exit_path="no_matching_episode", ranked=[], top=None)
+                # A SEASON row's fruitless search states its own outcome —
+                # 'no_matching_episode' on a season row would surface a lie in
+                # the row's last_search_outcome (review F12).
+                return _SearchChainResult(exit_path="no_matching_season", ranked=[], top=None)
         elif item.kind == "movie" and title is not None:
             # #28 — a movie title query pulls the WRONG « Wicker* » films; keep
             # only releases whose parsed title+year match the wanted movie so
@@ -681,6 +685,7 @@ class GrabOrchestrator:
         ``all_errored``                ``retryable``   ``trackers_unavail.`` None
         No results                     ``not_found``   ``no_candidates``     0
         ``filter_to_episode`` empty    ``not_found``   ``no_matching_ep.``   0
+        ``filter_to_season`` empty     ``not_found``   ``no_matching_sea.``  0
         ``apply_hard_filters`` empty   ``not_found``   ``all_filtered``      0
         ``rank`` empty (min_seeders)   ``retryable``   ``no_seeders``        None
         Ranked non-empty               ``available``   ``available``         len(ranked)
@@ -720,6 +725,7 @@ class GrabOrchestrator:
             "trackers_unavailable": ("retryable", "trackers_unavailable", None),
             "no_candidates": ("not_found", "no_candidates", 0),
             "no_matching_episode": ("not_found", "no_matching_episode", 0),
+            "no_matching_season": ("not_found", "no_matching_season", 0),
             "all_filtered": ("not_found", "all_filtered", 0),
             "no_seeders": ("retryable", "no_seeders", None),
             "available": ("available", "available", len(result.ranked)),
@@ -826,6 +832,8 @@ class GrabOrchestrator:
             return self._not_found(media_ref, "no_candidates")
         if result.exit_path == "no_matching_episode":
             return self._not_found(media_ref, "no_matching_episode")
+        if result.exit_path == "no_matching_season":
+            return self._not_found(media_ref, "no_matching_season")
         if result.exit_path == "all_filtered":
             return self._not_found(media_ref, "all_filtered")
         if result.exit_path == "no_seeders":

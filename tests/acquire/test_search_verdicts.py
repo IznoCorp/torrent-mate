@@ -138,6 +138,12 @@ def _service(
             0,
         ),
         (
+            {"disposition": "not_found", "outcome": "no_matching_season", "found": 0},
+            "pending",
+            "no_matching_season",
+            0,
+        ),
+        (
             {"disposition": "not_found", "outcome": "all_filtered", "found": 0},
             "pending",
             "all_filtered",
@@ -170,6 +176,7 @@ def _service(
         "no_seeders",
         "no_candidates",
         "no_matching_episode",
+        "no_matching_season",
         "all_filtered",
         "available",
         "tracker_auth",

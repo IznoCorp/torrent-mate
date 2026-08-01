@@ -45,6 +45,7 @@ SEARCH_OUTCOME_STATUS: dict[str, str] = {
     "available": "available",
     "no_candidates": "pending",
     "no_matching_episode": "pending",
+    "no_matching_season": "pending",
     "all_filtered": "pending",
     "trackers_unavailable": "pending",
     "circuit_open": "pending",
@@ -148,6 +149,12 @@ class SearchPassMixin(PassGatesMixin):
 
             season_packs = filter_to_season(list(verdict.raw_results), current.season)
             if season_packs:
+                # Record the triggering verdict BEFORE the conversion absorbs
+                # the row (verdict-before-status, the #320 order): an absorbed
+                # episode must still state WHY its own search concluded
+                # (review F12). ``found`` is 0 — 'no_matching_episode' is a
+                # concluded not_found, never an outage.
+                self._store.wanted.record_search_outcome(wanted_id, verdict.outcome, 0)
                 converted = self._enqueue_season_from_conversion(
                     current,
                     list(verdict.raw_results),
@@ -358,6 +365,13 @@ class SearchPassMixin(PassGatesMixin):
             if ep_wanted is not None and ep_wanted.id is not None:
                 live_episode_ids.append(ep_wanted.id)
 
+        # Always absorb the TRIGGERING episode: it is live by construction (it
+        # was just claimed to 'searching'), but an empty aired-episode cache
+        # leaves the loop above blind to it — without this it would bounce
+        # back through conversion forever with a stale verdict (review F12).
+        if episode_item.id is not None and episode_item.id not in live_episode_ids:
+            live_episode_ids.append(episode_item.id)
+
         if live_episode_ids:
             self._store.wanted.absorb_episodes(season_wid, tuple(live_episode_ids))
             self._event_bus.emit(
@@ -372,6 +386,8 @@ class SearchPassMixin(PassGatesMixin):
                 "acquire.service.season_conversion_absorbed",
                 episode_count=len(live_episode_ids),
             )
+
+        return True
 
     def _aired_episodes_for_season(self, followed_id: int, season: int) -> list[int]:
         """Return episode numbers of aired episodes for the given follow+season.

@@ -335,6 +335,58 @@ def test_conversion_enqueues_season_when_pack_present(store: ConcreteAcquireStor
     assert len(absorbed_event.absorbed_ids) >= 1
 
 
+def test_conversion_with_empty_aired_cache_absorbs_triggering_episode(store: ConcreteAcquireStore) -> None:
+    """F12 REGRESSION: an empty aired cache must not leave the trigger spinning.
+
+    Absorption iterates the aired-episode cache; when it is empty for the
+    follow, even the TRIGGERING episode (just claimed 'searching') used to
+    escape absorption and oscillate forever with a stale verdict. It must end
+    ``absorbed``, with its triggering verdict recorded.
+    """
+    from personalscraper.acquire.domain import FollowedSeries
+
+    store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=99), title="Test Show", added_at=1))
+    # NO aired cache seeded — _aired_episodes_for_season returns [].
+
+    ep_wid = store.wanted.add(_episode_item())
+
+    orch = MagicMock(spec=GrabOrchestrator)
+    orch.search.return_value = SearchVerdict(
+        disposition="not_found",
+        outcome="no_matching_episode",
+        found=0,
+        # Bare-season pack (no episode markers) — identifiable without a
+        # known episode count.
+        raw_results=(_season_pack_result(title="Show S03 COMPLETE 1080p"),),
+    )
+    event_bus = MagicMock()
+    config = MagicMock()
+    config.acquire = AcquireConfig()
+    svc = AcquisitionService(
+        store=store,  # type: ignore[arg-type]
+        orchestrator=orch,  # type: ignore[arg-type]
+        event_bus=event_bus,  # type: ignore[arg-type]
+        config=config,
+    )
+    with patch("personalscraper.acquire.service.time.time", return_value=_PINNED_NOW):
+        svc.run_search()
+
+    row = store.wanted.get(ep_wid)
+    assert row is not None
+    assert row.status == "absorbed", f"triggering episode must be absorbed, got {row.status!r}"
+    # The triggering verdict was recorded BEFORE absorption — no stale verdict.
+    assert row.last_search_outcome == "no_matching_episode"
+    assert row.last_search_found == 0
+
+    season_item = store.wanted.find(followed_id=1, kind="season", season=3, episode=None)
+    assert season_item is not None and season_item.status == "pending"
+    assert row.absorbed_by == season_item.id
+
+    absorbed_calls = [c for c in event_bus.emit.call_args_list if isinstance(c[0][0], SeasonAbsorbedEpisodes)]
+    assert len(absorbed_calls) == 1
+    assert absorbed_calls[0][0][0].absorbed_ids == (ep_wid,)
+
+
 def test_conversion_refused_on_terminal_season_row_keeps_episodes_live(store: ConcreteAcquireStore) -> None:
     """F1 REGRESSION: R6→R2 ping-pong must not starve the season.
 

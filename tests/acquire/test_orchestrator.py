@@ -578,7 +578,7 @@ def test_negative_seed_write_never_called_during_full_success() -> None:
 
 
 # ---------------------------------------------------------------------------
-# SEARCH exit paths (acq-states phase 2) — the NINE contract paths, forced
+# SEARCH exit paths (acq-states phase 2) — the TEN contract paths, forced
 # through the REAL chain (the service-level matrix mocks the orchestrator, so
 # this is the only place the chain's own routing is proven).
 # ---------------------------------------------------------------------------
@@ -739,6 +739,39 @@ def test_search_no_matching_episode_concludes_zero() -> None:
     _assert_no_side_effects(spy, torrent_client)
 
 
+def test_search_no_matching_season_concludes_zero() -> None:
+    """F12: a SEASON row's fruitless search states its OWN outcome.
+
+    Wanting S02 whole, the tracker returns a lone episode and a wrong-season
+    pack. Both are dropped by ``filter_to_season``, and the verdict must read
+    ('not_found', 'no_matching_season', 0) — 'no_matching_episode' on a season
+    row would surface a lie in the row's last_search_outcome.
+    """
+    wrong_packs = SearchOutcome(
+        results=[
+            _make_result(title="Some Show S02E05 1080p WEB x265-GRP", info_hash="eeee3333"),
+            _make_result(title="Some Show S04 COMPLETE 1080p WEB x265-GRP", info_hash="ffff4444"),
+        ],
+        trackers_queried=1,
+        trackers_errored=0,
+    )
+    orchestrator, spy, _registry, torrent_client, _seed = _make_orchestrator(search_outcome=wrong_packs)
+
+    season_item = WantedItem(
+        media_ref=MediaRef(tvdb_id=12345),
+        kind="season",
+        status="searching",
+        enqueued_at=1_700_000_000,
+        attempts=1,
+        season=2,
+        episode=None,
+    )
+    verdict = orchestrator.search(season_item, QualityProfile())
+
+    assert (verdict.disposition, verdict.outcome, verdict.found) == ("not_found", "no_matching_season", 0)
+    _assert_no_side_effects(spy, torrent_client)
+
+
 def test_search_all_filtered_concludes_zero() -> None:
     """Only hard-filtered releases came back → ('not_found', 'all_filtered', 0).
 
@@ -824,7 +857,7 @@ def test_grab_folds_a_search_time_auth_error_into_search_api_error() -> None:
 
 
 def test_search_covers_every_declared_outcome() -> None:
-    """The nine cases above exercise EXACTLY the declared ``SEARCH_OUTCOMES``.
+    """The ten cases above exercise EXACTLY the declared ``SEARCH_OUTCOMES``.
 
     Exhaustiveness backstop at the orchestrator level: a new declared outcome
     with no forcing test above fails here, so an exit path can never ship
@@ -841,6 +874,7 @@ def test_search_covers_every_declared_outcome() -> None:
         "trackers_unavailable",
         "no_candidates",
         "no_matching_episode",
+        "no_matching_season",
         "all_filtered",
         "no_seeders",
     }
