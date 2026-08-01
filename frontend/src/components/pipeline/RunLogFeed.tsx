@@ -21,6 +21,7 @@ import {
 
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 import { LogLine, type LogLevel } from "@/components/ds/LogLine";
+import { Button } from "@/components/ui/button";
 
 import {
   formatEventTime,
@@ -154,14 +155,17 @@ export function RunLogFeed({ runUid }: RunLogFeedProps): ReactElement {
         <h2 className="text-sm font-semibold tracking-tight">
           Journal d&rsquo;exécution
         </h2>
+        {/* X6: DS Button so radius/focus-ring come from the system. */}
         {!autoFollow && !isEmpty && (
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
+            className="text-xs text-muted-foreground"
             onClick={scrollToBottom}
-            className="rounded-md border border-border px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
           >
             Revenir en bas
-          </button>
+          </Button>
         )}
       </div>
 

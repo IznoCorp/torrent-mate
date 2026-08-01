@@ -21,6 +21,7 @@ import { StalledLoadRetry } from "@/components/config/panels/StalledLoadRetry";
 import { FileList } from "@/components/config/FileList";
 import { SecretsTab } from "@/components/config/SecretsTab";
 import { StagingBanner } from "@/components/StagingBanner";
+import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useConfigEditor } from "@/hooks/useConfigEditor";
 import { cn } from "@/lib/utils";
@@ -147,14 +148,15 @@ export default function Config(): ReactElement {
       {/* Files tab: two-panel layout (FileList sidebar + SchemaForm editor). */}
       {editor.leftTab === "files" && (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-[240px_1fr]">
-          {/* Left panel: file list (hidden < md — replaced by the mobile Select) */}
-          <div className="hidden rounded-md border border-border p-2 md:block">
+          {/* Left panel: file list (hidden < md — replaced by the mobile
+              Select). X6: DS Card instead of a hand-rolled bordered div. */}
+          <Card className="hidden gap-0 p-2 md:block">
             <FileList
               dirtyFiles={editor.dirtyFileNames}
               selected={editor.selectedFile}
               onSelect={editor.handleSelectFile}
             />
-          </div>
+          </Card>
 
           {/* Right panel: form or placeholder */}
           <ConfigFilePanel
@@ -181,11 +183,12 @@ export default function Config(): ReactElement {
         </div>
       )}
 
-      {/* Secrets tab (sibling of the file list — no more scroll-to-find, G2/E3) */}
+      {/* Secrets tab (sibling of the file list — no more scroll-to-find,
+          G2/E3). X6: DS Card instead of a hand-rolled bordered div. */}
       {editor.leftTab === "secrets" && (
-        <div className="rounded-md border border-border p-4">
+        <Card className="gap-0 p-4">
           <SecretsTab readOnly={editor.readOnly} />
-        </div>
+        </Card>
       )}
 
       {/* Conflict dialog */}

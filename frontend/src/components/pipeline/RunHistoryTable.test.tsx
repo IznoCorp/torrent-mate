@@ -221,6 +221,23 @@ describe("RunHistoryTable", () => {
     );
   });
 
+  it("rend la pagination et les en-têtes triables avec le Button DS (X6)", async () => {
+    const getHistory = await mockGetHistory();
+    const runs = Array.from({ length: 25 }, (_, i) =>
+      makeRun({ run_uid: `run-${String(i)}` }),
+    );
+    getHistory.mockResolvedValue(makePage(runs.slice(0, 20), 25));
+    renderTable();
+    await screen.findByText(/25 exécutions/);
+
+    // Pagination + sortable headers come from the DS primitive (focus ring /
+    // radius / disabled handling owned by the system).
+    for (const name of ["Précédent", "Suivant", "Date", "Durée"]) {
+      const button = screen.getByRole("button", { name });
+      expect(button).toHaveAttribute("data-slot", "button");
+    }
+  });
+
   it("appelle onSelect quand on clique une ligne", async () => {
     const getHistory = await mockGetHistory();
     getHistory.mockResolvedValue(

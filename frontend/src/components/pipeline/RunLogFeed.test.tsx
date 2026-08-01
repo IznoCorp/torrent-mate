@@ -140,14 +140,16 @@ describe("RunLogFeed", () => {
     expect(
       screen.getByRole("button", { name: "Revenir en bas" }),
     ).toBeInTheDocument();
+    // X6: the affordance is a DS Button, not a hand-rolled bordered button.
+    expect(
+      screen.getByRole("button", { name: "Revenir en bas" }),
+    ).toHaveAttribute("data-slot", "button");
   });
 
   it("affiche le titre du journal", () => {
     renderFeed("run-1", [makeEvent(1_700_000_000_000, "PipelineStarted")]);
 
-    expect(
-      screen.getByText(/Journal d.exécution/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Journal d.exécution/)).toBeInTheDocument();
   });
 
   it("utilise le niveau error pour les événements d'erreur", () => {

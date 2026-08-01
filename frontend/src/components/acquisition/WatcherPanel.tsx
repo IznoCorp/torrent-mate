@@ -200,75 +200,80 @@ export function WatcherPanel(): ReactElement {
         </CardContent>
       </Card>
 
-      {/* Recent runs */}
-      <div>
-        <h3 className="mb-2 text-sm font-semibold">Exécutions récentes</h3>
-        {recent_runs.length === 0 ? (
-          <p className="py-4 text-center text-muted-foreground">
-            Aucune exécution récente enregistrée.
-          </p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Type</TableHead>
-                <TableHead>Démarré</TableHead>
-                <TableHead>Résultat</TableHead>
-                <TableHead>État</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {recent_runs.map((run) => {
-                const label =
-                  run.command === "follow-detect"
-                    ? "Détection"
-                    : run.command === "grab"
-                      ? "Récupération"
-                      : run.command === "prime"
-                        ? "Amorce d'un suivi"
-                        : "Pipeline";
-                const numeric = formatRunResult(run.result);
-                const pending = run.ended_at == null;
-                return (
-                  <TableRow key={run.run_uid}>
-                    <TableCell className="text-xs font-medium">
-                      {label}
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {formatDatetime(run.started_at)}{" "}
-                      <span className="text-muted-foreground">
-                        ({relativeTime(run.started_at)})
-                      </span>
-                    </TableCell>
-                    <TableCell className="font-mono text-xs tabular-nums">
-                      {numeric || (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {pending ? (
-                        <Badge tone="info">En cours…</Badge>
-                      ) : (
-                        <Badge
-                          tone={
-                            run.outcome != null
-                              ? (RUN_OUTCOME_TONE[run.outcome] ?? "neutral")
-                              : "neutral"
-                          }
-                        >
-                          {run.outcome != null
-                            ? (RUN_OUTCOME_LABEL[run.outcome] ?? run.outcome)
-                            : "—"}
-                        </Badge>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        )}
-      </div>
+      {/* Recent runs — X6: hosted in a DS Card (title in CardHeader) instead
+          of a bare h3 floating above the table. */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Exécutions récentes</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {recent_runs.length === 0 ? (
+            <p className="py-4 text-center text-muted-foreground">
+              Aucune exécution récente enregistrée.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Démarré</TableHead>
+                  <TableHead>Résultat</TableHead>
+                  <TableHead>État</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recent_runs.map((run) => {
+                  const label =
+                    run.command === "follow-detect"
+                      ? "Détection"
+                      : run.command === "grab"
+                        ? "Récupération"
+                        : run.command === "prime"
+                          ? "Amorce d'un suivi"
+                          : "Pipeline";
+                  const numeric = formatRunResult(run.result);
+                  const pending = run.ended_at == null;
+                  return (
+                    <TableRow key={run.run_uid}>
+                      <TableCell className="text-xs font-medium">
+                        {label}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {formatDatetime(run.started_at)}{" "}
+                        <span className="text-muted-foreground">
+                          ({relativeTime(run.started_at)})
+                        </span>
+                      </TableCell>
+                      <TableCell className="font-mono text-xs tabular-nums">
+                        {numeric || (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {pending ? (
+                          <Badge tone="info">En cours…</Badge>
+                        ) : (
+                          <Badge
+                            tone={
+                              run.outcome != null
+                                ? (RUN_OUTCOME_TONE[run.outcome] ?? "neutral")
+                                : "neutral"
+                            }
+                          >
+                            {run.outcome != null
+                              ? (RUN_OUTCOME_LABEL[run.outcome] ?? run.outcome)
+                              : "—"}
+                          </Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

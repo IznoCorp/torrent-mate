@@ -232,6 +232,19 @@ describe("RunDetail", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("rend Retour avec le Button DS (X6)", async () => {
+    const getDetail = await mockGetDetail();
+    getDetail.mockResolvedValue(makeDetail());
+    renderDetail("abc123-run-uid", vi.fn());
+
+    await screen.findByText("abc123-r…");
+
+    expect(screen.getByRole("button", { name: "Retour" })).toHaveAttribute(
+      "data-slot",
+      "button",
+    );
+  });
+
   it("affiche le run_uid en police monospace (tabular-nums)", async () => {
     const getDetail = await mockGetDetail();
     getDetail.mockResolvedValue(makeDetail());
