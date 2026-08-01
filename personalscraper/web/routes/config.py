@@ -90,6 +90,13 @@ from personalscraper.web.models.config import (
 router = APIRouter(prefix="/api/config", tags=["config"])
 logger = get_logger(__name__)
 
+# Clone-root ``.env`` / ``.env.example`` — the secrets endpoints must resolve
+# these from the CLONE root (where the working tree and its .env live), NOT
+# from ``config_dir.parent`` (which after config-home relocation points at
+# ``~/.torrentmate/``, a directory with no .env file).  Mirrors the
+# ``commands/web.py`` _ENV_PATH pattern (4 parents from web/routes/config.py).
+_CLONE_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+
 #: Top-level config keys whose modification requires a web process restart.
 #: Unknown keys default to ``True`` at lookup time (fail-safe).  See
 #: docs/features/config-editor/plan/phase-02-backend-routes.md §2.4.
@@ -759,10 +766,7 @@ def get_secrets(request: Request) -> SecretsResponse:
     Returns:
         A :class:`SecretsResponse` with one :class:`SecretEntry` per key.
     """
-    config_dir = _config_dir()
-    repo_root = config_dir.parent
-
-    env_example_path = repo_root / ".env.example"
+    env_example_path = _CLONE_ROOT / ".env.example"
     if not env_example_path.is_file():
         logger.warning("env_example_missing", path=str(env_example_path))
         return SecretsResponse(secrets=[])
@@ -770,7 +774,7 @@ def get_secrets(request: Request) -> SecretsResponse:
     catalog = read_env_catalog(env_example_path)
 
     # Parse .env for is_set flags — values are never read or returned.
-    env_path = repo_root / ".env"
+    env_path = _CLONE_ROOT / ".env"
     env_set: set[str] = set()
     if env_path.is_file():
         for line in env_path.read_text(encoding="utf-8").splitlines():
@@ -818,10 +822,7 @@ def put_secrets(
     if not body.root:
         raise HTTPException(status_code=422, detail="no keys provided")
 
-    config_dir = _config_dir()
-    repo_root = config_dir.parent
-
-    env_example_path = repo_root / ".env.example"
+    env_example_path = _CLONE_ROOT / ".env.example"
     if not env_example_path.is_file():
         raise HTTPException(status_code=404, detail=".env.example not found")
 
@@ -835,7 +836,7 @@ def put_secrets(
             detail={"unknown_keys": unknown_keys},
         )
 
-    env_path = repo_root / ".env"
+    env_path = _CLONE_ROOT / ".env"
     logger.info("config_secrets_write", keys=sorted(body.root.keys()))
     # R10: serialize the .env read-modify-write under the same module lock as
     # PUT /files. write_env_keys reads .env, upserts, and atomically rewrites

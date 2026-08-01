@@ -115,7 +115,9 @@ def secrets_tmp_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Provision a tmp dir with ``.env.example`` and ``.env`` for secrets tests.
 
     Also creates a minimal config dir with ``config.json5`` so the config
-    router can resolve the project root (``config_dir.parent``).
+    router can resolve the project root.  Monkeypatches ``_CLONE_ROOT`` on
+    the config routes module so the secrets endpoints see the tmp dir as
+    the clone root (the real clone root is unaffected).
 
     Args:
         tmp_path: Pytest temporary directory.
@@ -132,6 +134,11 @@ def secrets_tmp_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setenv("PERSONALSCRAPER_CONFIG", str(config_dir))
 
     root = tmp_path
+    # Point the config routes module's _CLONE_ROOT at this tmp tree so the
+    # secrets endpoints resolve .env / .env.example from here — the real
+    # clone root is elsewhere after config-home relocation.
+    monkeypatch.setattr("personalscraper.web.routes.config._CLONE_ROOT", root)
+
     # Create .env.example with known keys.
     (root / ".env.example").write_text(
         "# ── API Keys ─────────────────\n"
@@ -747,6 +754,8 @@ class TestSecretsGetEndpoint:
 
     def test_200_empty_when_no_env_example(self, config_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Returns empty list when .env.example is absent."""
+        # Point _CLONE_ROOT at tmp_path (which has config/ but no .env.example).
+        monkeypatch.setattr("personalscraper.web.routes.config._CLONE_ROOT", config_dir.parent)
         app = _build_app()
         client = TestClient(app)
         resp = client.get("/api/config/secrets")
