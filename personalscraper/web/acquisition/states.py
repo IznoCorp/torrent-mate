@@ -51,8 +51,19 @@ NO_WANTED_FACTS: WantedFacts = (None, None, None)
 #: is the episode-states addition: a future episode (air_date > today) is known
 #: to the cache but not yet aired, so it is neither owned nor searchable — it is
 #: announced. It is a MATRIX-ONLY state: the card aggregation never sees it (a
-#: future never degrades a series' status).
-EpisodeState = Literal["annonce", "en_mediatheque", "a_recuperer", "en_acquisition", "en_attente", "non_verifie"]
+#: future never degrades a series' status). ``absorbed`` is the season-grab
+#: addition (R5): the episode's acquisition is carried by a season wanted, so
+#: it is in motion — reading it as « never checked » (``non_verifie``) would be
+#: untruthful for every episode of a season being grabbed.
+EpisodeState = Literal[
+    "annonce",
+    "en_mediatheque",
+    "a_recuperer",
+    "en_acquisition",
+    "en_attente",
+    "non_verifie",
+    "absorbed",
+]
 
 #: State of a followed card, aggregated from its episodes. Same vocabulary as
 #: :data:`EpisodeState` (``en_mediatheque`` becoming the card-level ``a_jour``),
@@ -78,6 +89,10 @@ _EPISODE_TO_FOLLOW_STATUS: dict[EpisodeState, FollowStatus] = {
     "en_acquisition": "en_acquisition",
     "en_attente": "en_attente",
     "non_verifie": "non_verifie",
+    # Defensive: a movie row can never be 'absorbed' (only episode rows are,
+    # by a season wanted), but the mapping stays total so a data anomaly
+    # degrades to « in motion » instead of a KeyError on the card.
+    "absorbed": "en_acquisition",
 }
 
 
@@ -90,14 +105,19 @@ def select_wanted_facts(rows: Iterable[tuple[int, str | None, str | None, int | 
     :func:`derive_episode_state`, and every surface calls it:
 
     1. Only OPEN rows speak — see
-       :data:`~personalscraper.acquire.domain.OPEN_WANTED_STATUSES`. A ``done``
-       or ``abandoned`` row is HISTORY, not state: it describes an acquisition
-       that ended, so letting its stale verdict answer for the episode would
-       claim knowledge the queue no longer holds.
-    2. Among the open rows, the HIGHEST id wins — a re-follow or a crash between
-       two passes can leave an older open row behind, and the latest one is the
-       current intent.
-    3. No open row at all → :data:`NO_WANTED_FACTS`, which reads as « never
+       :data:`~personalscraper.acquire.domain.OPEN_WANTED_STATUSES` — plus
+       ``absorbed`` (season-grab R5): an absorbed episode row is terminal for
+       the EPISODE row but the acquisition it describes is alive, carried by
+       the season wanted that absorbed it. Silencing it read every episode of
+       a season being grabbed as « never checked ». A ``done`` or ``abandoned``
+       row stays HISTORY: it describes an acquisition that ended, so letting
+       its stale verdict answer for the episode would claim knowledge the
+       queue no longer holds.
+    2. Among the admitted rows, the HIGHEST id wins — a re-follow or a crash
+       between two passes can leave an older open row behind, and the latest
+       one is the current intent. In particular, after an R6 fallback the
+       NEWER live episode row must outrank the old absorbed one.
+    3. No admitted row at all → :data:`NO_WANTED_FACTS`, which reads as « never
        searched » (``non_verifie`` unless the library holds the file).
 
     Args:
@@ -110,7 +130,7 @@ def select_wanted_facts(rows: Iterable[tuple[int, str | None, str | None, int | 
     governing_id = -1
     facts = NO_WANTED_FACTS
     for row_id, status, outcome, found in rows:
-        if status not in OPEN_WANTED_STATUSES:
+        if status not in OPEN_WANTED_STATUSES and status != "absorbed":
             continue
         # ``>=`` so that, at equal ids, the last row seen wins — matching a
         # caller that already reads its rows in id order.
@@ -146,6 +166,9 @@ def derive_episode_state(
        disk is the strongest fact we hold, so a stale ``grabbed`` row on an
        owned episode is a phantom (the Silo bug) and cannot pin the episode at
        « en cours d'acquisition ».
+    1b. ``wanted_status == "absorbed"`` → ``absorbed`` (season-grab R5): the
+       episode's acquisition is carried by a season wanted, so the episode is
+       in motion — never « never checked ». Ownership still wins above.
     2. ``wanted_status == "grabbed"`` → ``en_acquisition`` (torrent taken, the
        pipeline is carrying it).
     3. ``wanted_status == "available"`` → ``a_recuperer`` (the search found a
@@ -187,6 +210,8 @@ def derive_episode_state(
         return "annonce"
     if owned:
         return "en_mediatheque"
+    if wanted_status == "absorbed":
+        return "absorbed"
     if wanted_status == "grabbed":
         return "en_acquisition"
     if wanted_status == "available":

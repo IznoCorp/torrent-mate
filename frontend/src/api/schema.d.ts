@@ -2918,7 +2918,7 @@ export interface components {
              * State
              * @enum {string}
              */
-            state: "annonce" | "en_mediatheque" | "a_recuperer" | "en_acquisition" | "en_attente" | "non_verifie";
+            state: "annonce" | "en_mediatheque" | "a_recuperer" | "en_acquisition" | "en_attente" | "non_verifie" | "absorbed";
             /** Title */
             title?: string | null;
         };

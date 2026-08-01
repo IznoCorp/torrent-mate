@@ -109,6 +109,49 @@ def test_states_matrix_over_the_five_states() -> None:
     }
 
 
+def test_absorbed_episode_reads_absorbed_and_counts_in_motion() -> None:
+    """Review F7: an absorbed episode chips « Absorbé », never « Non vérifié ».
+
+    Season-grab R5 absorbs the live episode rows into a season wanted. The
+    open-statuses-only selection silenced them → NO_WANTED_FACTS →
+    ``non_verifie`` (« never checked ») for every episode of a season being
+    grabbed. The absorbed row must speak, and the season header must count the
+    episode as in motion (``queued``).
+    """
+    ownership = MagicMock()
+    ownership.owns.return_value = False
+    store = _store(
+        [_cached(2, 1), _cached(2, 2)],
+        [
+            _wanted(2, 1, "absorbed"),
+            _wanted(2, 2, "absorbed", last_search_outcome="no_candidates", last_search_found=0),
+        ],
+    )
+
+    result = compute_completeness(_follow(), ownership=ownership, store=store)
+
+    season = result.seasons[0]
+    assert {e.episode: e.state for e in season.episodes} == {1: "absorbed", 2: "absorbed"}
+    assert season.queued == 2  # absorbed = in motion, the header stays honest
+
+
+def test_newer_live_row_outranks_the_old_absorbed_one_in_the_matrix() -> None:
+    """Review F7 (R6 ordering): after a fallback, the fresh live row governs."""
+    ownership = MagicMock()
+    ownership.owns.return_value = False
+    store = _store(
+        [_cached(3, 1)],
+        [
+            _wanted(3, 1, "absorbed", row_id=10),
+            _wanted(3, 1, "pending", row_id=11, last_search_outcome="available", last_search_found=2),
+        ],
+    )
+
+    result = compute_completeness(_follow(), ownership=ownership, store=store)
+
+    assert result.seasons[0].episodes[0].state == "a_recuperer"
+
+
 def test_ownership_beats_a_stale_grabbed_row() -> None:
     """A grabbed row on an owned episode is a phantom (the Silo bug), not an acquisition."""
     ownership = MagicMock()

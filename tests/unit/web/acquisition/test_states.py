@@ -124,6 +124,12 @@ TRUTH_TABLE: list[tuple[bool, str | None, str | None, int | None, str, str]] = [
     # Edge: abandoned/done rows should still derive from last verdict.
     (False, "abandoned", "success", 0, "en_attente", "abandoned-concluded-zero"),
     (False, "done", None, None, "non_verifie", "done-never-searched"),
+    # ── Rule 1b (season-grab R5, review F7): absorbed short-circuits ──
+    # An absorbed episode's acquisition is carried by its season wanted — it
+    # is IN MOTION, never « never checked ». Ownership still wins above.
+    (False, "absorbed", None, None, "absorbed", "absorbed-never-searched"),
+    (False, "absorbed", "no_candidates", 0, "absorbed", "absorbed-beats-stale-verdict"),
+    (True, "absorbed", None, None, "en_mediatheque", "owned-beats-absorbed"),
 ]
 
 
@@ -326,6 +332,36 @@ def test_a_closed_row_with_a_higher_id_does_not_shadow_an_open_one() -> None:
     """Closing a row must not silence the open row that replaced it."""
     rows = [(10, "available", "available", 2), (11, "abandoned", "no_candidates", 0)]
     assert select_wanted_facts(rows) == ("available", "available", 2)
+
+
+def test_an_absorbed_row_governs_when_it_is_the_latest() -> None:
+    """Review F7: an absorbed row SPEAKS — its episode is carried by a season.
+
+    Silencing it (open-statuses-only selection) dropped the episode to the
+    all-None « never searched » facts → « Non vérifié » on the matrix for
+    every episode of a season being grabbed.
+    """
+    rows = [(10, "done", "success", 1), (12, "absorbed", None, None)]
+    assert select_wanted_facts(rows) == ("absorbed", None, None)
+
+
+def test_a_newer_live_row_outranks_an_older_absorbed_one() -> None:
+    """Review F7 (R6 ordering): after a season fallback, the NEW live row wins.
+
+    ``fallback_episodes`` re-enqueues fresh episode rows; the old absorbed row
+    keeps its lower id, so the highest-id rule must hand governance to the new
+    live row — not freeze the episode at « Absorbé » forever.
+    """
+    rows = [(10, "absorbed", None, None), (11, "pending", "no_candidates", 0)]
+    assert select_wanted_facts(rows) == ("pending", "no_candidates", 0)
+    # Order-independence, same pair.
+    assert select_wanted_facts(reversed(rows)) == ("pending", "no_candidates", 0)
+
+
+def test_an_absorbed_row_newer_than_a_stale_open_one_governs() -> None:
+    """The absorption is the CURRENT intent when it is the latest row."""
+    rows = [(10, "pending", "no_candidates", 0), (11, "absorbed", None, None)]
+    assert select_wanted_facts(rows) == ("absorbed", None, None)
 
 
 def test_open_statuses_come_from_the_domain_definition() -> None:

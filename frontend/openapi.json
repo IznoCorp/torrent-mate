@@ -1196,7 +1196,8 @@
               "a_recuperer",
               "en_acquisition",
               "en_attente",
-              "non_verifie"
+              "non_verifie",
+              "absorbed"
             ],
             "title": "State",
             "type": "string"
