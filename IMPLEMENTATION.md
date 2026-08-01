@@ -32,7 +32,7 @@ before the auto-merge fires; merge only on clean adversarial review + green CI.
 
 | #   | Phase                                                                                                            | File                             | Status |
 | --- | ---------------------------------------------------------------------------------------------------------------- | -------------------------------- | ------ |
-| 1   | Sync engine — additive JSON5 deep-merge + `init-config --sync` CLI + golden tests                                | phase-01-sync-engine.md          | [ ]    |
+| 1   | Sync engine — additive JSON5 deep-merge + `init-config --sync` CLI + golden tests                                | phase-01-sync-engine.md          | [x]    |
 | 2   | Config git mini-repo — `config_git.py` helper + S4 auto-commit hook + unit tests                                 | phase-02-config-git.md           | [ ]    |
 | 3   | Verify + ecosystem tests — `config_home` check + ecosystem test pins + worktree-invariant + integration tests    | phase-03-verify-and-tests.md     | [ ]    |
 | 4   | Migration + config changes — `migrate-config-home.sh` + `ecosystem.config.js` + `deploy.sh` + git untrack + docs | phase-04-migration-and-config.md | [ ]    |
@@ -44,4 +44,4 @@ _(filled by implement:pr-review — operator contract: multiple adversarial revi
 
 ## Next action
 
-Run `/implement:phase` to start Phase 1 (sync engine).
+Phase 2 (config_git mini-repo + S4 auto-commit).
