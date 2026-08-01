@@ -755,6 +755,82 @@ def _ranking_preview_samples() -> list["TrackerResult"]:
             source="BluRay",
             language="MULTI",
         ),
+        # ── 6 new samples (ticket 374) ──────────────────────────────
+        TrackerResult(
+            provider="tr4ker",
+            tracker_id="s7",
+            title="Demo.2025.TRUEFRENCH.2160p.REMUX.BluRay.x265 — tr4ker",
+            size=ByteSize(52_000_000_000),
+            seeders=200,
+            leechers=10,
+            resolution="2160p",
+            codec="x265",
+            source="BluRay",
+            language="TRUEFRENCH",
+        ),
+        TrackerResult(
+            provider="tr4ker",
+            tracker_id="s8",
+            title="Demo.S01.FRENCH.1080p.WEB-DL.x264 Season.Pack — tr4ker",
+            size=ByteSize(80_000_000_000),
+            seeders=25,
+            leechers=6,
+            is_freeleech=True,
+            resolution="1080p",
+            codec="x264",
+            source="WEB-DL",
+            language="FRENCH",
+        ),
+        TrackerResult(
+            provider="c411",
+            tracker_id="s9",
+            title="Demo.2025.VOSTFR.1080p.WEB-DL.x265 — c411 (leech trap)",
+            size=ByteSize(5_000_000_000),
+            seeders=2,
+            leechers=15,
+            resolution="1080p",
+            codec="x265",
+            source="WEB-DL",
+            language="VOSTFR",
+        ),
+        TrackerResult(
+            provider="c411",
+            tracker_id="s10",
+            title="Demo.2025.VFF.720p.HDTV.x264 — c411",
+            size=ByteSize(2_200_000_000),
+            seeders=4,
+            leechers=1,
+            resolution="720p",
+            codec="x264",
+            source="HDTV",
+            language="VFF",
+        ),
+        TrackerResult(
+            provider="tr4ker",
+            tracker_id="s11",
+            title="Demo.2025.MULTi.2160p.WEB-DL.x265 — tr4ker",
+            size=ByteSize(12_000_000_000),
+            seeders=35,
+            leechers=8,
+            is_freeleech=True,
+            resolution="2160p",
+            codec="x265",
+            source="WEB-DL",
+            language="MULTI",
+        ),
+        TrackerResult(
+            provider="c411",
+            tracker_id="s12",
+            title="Demo.2025.VOSTFR.2160p.BluRay.x265 — c411 (FL low seed)",
+            size=ByteSize(18_000_000_000),
+            seeders=5,
+            leechers=0,
+            is_freeleech=True,
+            resolution="2160p",
+            codec="x265",
+            source="BluRay",
+            language="VOSTFR",
+        ),
     ]
 
 
@@ -795,6 +871,7 @@ def preview_ranking(body: RankingConfig) -> RankingPreviewResponse:
             language=result.language,
             source=result.source,
             seeders=result.seeders,
+            leechers=result.leechers,
             is_freeleech=result.is_freeleech,
             score=score,
             excluded=result.seeders < body.min_seeders,
@@ -803,7 +880,12 @@ def preview_ranking(body: RankingConfig) -> RankingPreviewResponse:
     ]
     # Excluded rows sink to the end; within each group keep the score order.
     rows.sort(key=lambda r: (r.excluded, -r.score))
-    return RankingPreviewResponse(ranked=rows)
+    # known_trackers: the hardcoded factory roster minus lacale (deprecated).
+    # No torznab generic engine key exists in _TRACKER_CLASSES (ticket 374 check).
+    from personalscraper.api.tracker._factory import _TRACKER_CLASSES
+
+    known = sorted(k for k in _TRACKER_CLASSES if k != "lacale")
+    return RankingPreviewResponse(ranked=rows, known_trackers=known)
 
 
 # ── provenance journeys (« parcours » — F1) ───────────────────────────────

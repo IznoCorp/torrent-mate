@@ -3817,6 +3817,8 @@ export interface components {
          *         language: Parsed language / audio-track marker (``MULTI`` / ``VFF`` / …).
          *         source: Parsed media-source token (``BluRay`` / ``WEB-DL`` / …).
          *         seeders: Sample seeder count.
+         *         leechers: Sample leecher count — paired with ``seeders`` so the preview
+         *             table shows the supply/demand tension a live scorer considers.
          *         is_freeleech: Whether the sample is freeleech (earns ``bonuses.freeleech``).
          *         score: Total score under the candidate ranking.
          *         excluded: ``True`` when ``seeders`` is below the candidate ``min_seeders``
@@ -3838,6 +3840,8 @@ export interface components {
             is_freeleech: boolean;
             /** Language */
             language?: string | null;
+            /** Leechers */
+            leechers: number;
             /** Provider */
             provider: string;
             /** Resolution */
@@ -3858,8 +3862,18 @@ export interface components {
          *     Attributes:
          *         ranked: The sample releases scored under the candidate ranking, highest
          *             score first (excluded-by-min_seeders rows sink to the end, flagged).
+         *         known_trackers: The app's tracker roster sourced from the hardcoded factory
+         *             map (:data:`personalscraper.api.tracker._factory._TRACKER_CLASSES`),
+         *             excluding ``"lacale"`` (deprecated dead tracker).  Stable sorted order.
+         *             The frontend uses this to populate the tracker-criterion key select
+         *             so the operator picks from actual providers, not free-text.
          */
         RankingPreviewResponse: {
+            /**
+             * Known Trackers
+             * @default []
+             */
+            known_trackers: string[];
             /**
              * Ranked
              * @default []

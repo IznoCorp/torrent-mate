@@ -39,10 +39,13 @@ class TestPreviewRankingLogic:
         )
         resp = preview_ranking(cfg)
         assert isinstance(resp, RankingPreviewResponse)
-        assert len(resp.ranked) == 6, "no sample may be dropped from the preview"
+        assert len(resp.ranked) == 12, "no sample may be dropped from the preview"
         top = resp.ranked[0]
         assert top.provider == "tr4ker"
         assert top.language == "MULTI"
+        assert len(resp.known_trackers) >= 1, "known_trackers must not be empty"
+        assert "lacale" not in resp.known_trackers, "lacale is deprecated, must be excluded"
+        assert all(r.leechers >= 0 for r in resp.ranked), "leechers must be >= 0"
 
     def test_min_seeders_flags_but_never_drops(self) -> None:
         """min_seeders marks low-seed rows excluded and sinks them — never drops."""
@@ -51,8 +54,8 @@ class TestPreviewRankingLogic:
             min_seeders=10,
         )
         resp = preview_ranking(cfg)
-        assert len(resp.ranked) == 6, "excluded samples must still be present"
-        # The seeders=3 and seeders=8 samples are below 10 → flagged excluded.
+        assert len(resp.ranked) == 12, "excluded samples must still be present"
+        # The seeders <= 5 samples are below 10 → flagged excluded.
         assert any(r.excluded and r.seeders < 10 for r in resp.ranked)
         # Excluded rows sink to the end; the non-excluded prefix has none flagged.
         first_excluded = next((i for i, r in enumerate(resp.ranked) if r.excluded), len(resp.ranked))
@@ -60,12 +63,12 @@ class TestPreviewRankingLogic:
         assert all(r.excluded for r in resp.ranked[first_excluded:])
 
     def test_empty_ranking_scores_zero_keeps_all(self) -> None:
-        """Empty criteria + zeroed bonuses scores every sample 0, still returns six."""
+        """Empty criteria + zeroed bonuses scores every sample 0, still returns twelve."""
         # Zero the bonuses too: freeleech samples would otherwise earn the default
         # +10 freeleech bonus even with no criteria.
         cfg = RankingConfig(criteria=[], bonuses={"freeleech": 0, "silverleech": 0}, min_seeders=1)
         resp = preview_ranking(cfg)
-        assert len(resp.ranked) == 6
+        assert len(resp.ranked) == 12
         assert all(r.score == 0 for r in resp.ranked)
 
 
@@ -73,7 +76,7 @@ class TestPreviewRankingRoute:
     """The route is mounted behind the auth guard and round-trips JSON."""
 
     def test_http_preview_returns_scored_samples(self, test_config: Any) -> None:
-        """POST with a candidate ranking returns 200 + six scored samples."""
+        """POST with a candidate ranking returns 200 + twelve scored samples."""
         settings = Settings(web_jwt_secret="testsecret", _env_file=None)  # type: ignore[call-arg]
         client = guarded_client(
             config=test_config,
@@ -93,8 +96,14 @@ class TestPreviewRankingRoute:
         )
         assert resp.status_code == 200, resp.text
         data = resp.json()
-        assert len(data["ranked"]) == 6
+        assert len(data["ranked"]) == 12
         assert data["ranked"][0]["provider"] == "tr4ker"
+        # known_trackers asserted.
+        assert isinstance(data["known_trackers"], list)
+        assert len(data["known_trackers"]) >= 1, "known_trackers must not be empty"
+        assert "lacale" not in data["known_trackers"], "lacale is deprecated"
+        # Every release carries leechers.
+        assert all("leechers" in r and isinstance(r["leechers"], int) for r in data["ranked"])
 
     def test_http_preview_requires_auth(self, test_config: Any) -> None:
         """Without a session cookie the guard rejects the request."""

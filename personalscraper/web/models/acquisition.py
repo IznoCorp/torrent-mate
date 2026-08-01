@@ -589,6 +589,8 @@ class RankingPreviewRelease(BaseModel):
         language: Parsed language / audio-track marker (``MULTI`` / ``VFF`` / …).
         source: Parsed media-source token (``BluRay`` / ``WEB-DL`` / …).
         seeders: Sample seeder count.
+        leechers: Sample leecher count — paired with ``seeders`` so the preview
+            table shows the supply/demand tension a live scorer considers.
         is_freeleech: Whether the sample is freeleech (earns ``bonuses.freeleech``).
         score: Total score under the candidate ranking.
         excluded: ``True`` when ``seeders`` is below the candidate ``min_seeders``
@@ -603,6 +605,7 @@ class RankingPreviewRelease(BaseModel):
     language: str | None = None
     source: str | None = None
     seeders: int
+    leechers: int
     is_freeleech: bool = False
     score: int
     excluded: bool = False
@@ -614,9 +617,15 @@ class RankingPreviewResponse(BaseModel):
     Attributes:
         ranked: The sample releases scored under the candidate ranking, highest
             score first (excluded-by-min_seeders rows sink to the end, flagged).
+        known_trackers: The app's tracker roster sourced from the hardcoded factory
+            map (:data:`personalscraper.api.tracker._factory._TRACKER_CLASSES`),
+            excluding ``"lacale"`` (deprecated dead tracker).  Stable sorted order.
+            The frontend uses this to populate the tracker-criterion key select
+            so the operator picks from actual providers, not free-text.
     """
 
     ranked: list[RankingPreviewRelease] = []
+    known_trackers: list[str] = []
 
 
 class JourneyItem(BaseModel):
