@@ -190,8 +190,12 @@ export function WatcherPanel(): ReactElement {
                   <li
                     key={`${d.name}-${d.reason}`}
                     className="text-xs text-muted-foreground break-words"
+                    title={d.reason}
                   >
-                    {d.name} — {DEFERRED_REASON_LABEL[d.reason] ?? d.reason}
+                    {/* X7: never the raw machine reason (NE-DOIT-PAS-4) —
+                        an unmapped one reads as French, raw kept in title. */}
+                    {d.name} —{" "}
+                    {DEFERRED_REASON_LABEL[d.reason] ?? "raison inconnue"}
                   </li>
                 ))}
               </ul>
@@ -253,17 +257,27 @@ export function WatcherPanel(): ReactElement {
                         {pending ? (
                           <Badge tone="info">En cours…</Badge>
                         ) : (
-                          <Badge
-                            tone={
-                              run.outcome != null
-                                ? (RUN_OUTCOME_TONE[run.outcome] ?? "neutral")
-                                : "neutral"
-                            }
+                          // X7: an unmapped outcome renders French, never the
+                          // raw token (NE-DOIT-PAS-4); raw kept in title.
+                          <span
+                            className="inline-flex"
+                            {...(run.outcome != null && {
+                              title: run.outcome,
+                            })}
                           >
-                            {run.outcome != null
-                              ? (RUN_OUTCOME_LABEL[run.outcome] ?? run.outcome)
-                              : "—"}
-                          </Badge>
+                            <Badge
+                              tone={
+                                run.outcome != null
+                                  ? (RUN_OUTCOME_TONE[run.outcome] ?? "neutral")
+                                  : "neutral"
+                              }
+                            >
+                              {run.outcome != null
+                                ? (RUN_OUTCOME_LABEL[run.outcome] ??
+                                  "État inconnu")
+                                : "—"}
+                            </Badge>
+                          </span>
                         )}
                       </TableCell>
                     </TableRow>

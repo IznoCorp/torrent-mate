@@ -24,6 +24,7 @@ import { LogLine, type LogLevel } from "@/components/ds/LogLine";
 import { Button } from "@/components/ui/button";
 
 import {
+  eventTypeLabel,
   formatEventTime,
   severityForEventType,
   type Severity,
@@ -197,7 +198,13 @@ export function RunLogFeed({ runUid }: RunLogFeedProps): ReactElement {
 
               return (
                 <LogLine key={event.id} level={level} time={time}>
-                  <span className="font-medium">{event.type}</span>
+                  {/* X7: French event label, raw class name only in title.
+                      The JSON payload fallback is the point of this raw
+                      journal — the whole feed sits behind the collapsed
+                      « Journal brut (avancé) » accordion. */}
+                  <span className="font-medium" title={event.type}>
+                    {eventTypeLabel(event.type)}
+                  </span>
                   {" — "}
                   <span className="text-muted-foreground">
                     {line ?? JSON.stringify(event.data)}

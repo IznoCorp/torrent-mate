@@ -217,4 +217,46 @@ describe("WatcherPanel — recent-run outcome badges (sub-phase 5.2)", () => {
     // The unified OUTCOME_LABEL maps error → "Échec" (NOT "Erreur").
     expect(screen.getByText("Échec")).toBeInTheDocument();
   });
+
+  it("ne rend jamais un outcome inconnu brut — français + brut en title (X7)", () => {
+    vi.spyOn(hooks, "useAcquisitionStatus").mockReturnValue({
+      data: {
+        watcher_enabled: true,
+        last_successful_run_at: null,
+        recent_runs: [
+          {
+            run_uid: "weird-run-1",
+            command: "follow-detect",
+            started_at: 1_720_000_000,
+            ended_at: 1_720_000_010,
+            outcome: "weird_new_outcome",
+            result: null,
+          },
+        ],
+        deferred: [{ name: "Some.Torrent", reason: "weird_new_reason" }],
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof hooks.useAcquisitionStatus>);
+    vi.spyOn(hooks, "useTrackedAcquisitionRun").mockReturnValue(undefined);
+
+    renderPanel();
+
+    // Unknown outcome: French fallback, raw token only in the title.
+    expect(screen.queryByText("weird_new_outcome")).not.toBeInTheDocument();
+    const badge = screen.getByText("État inconnu");
+    expect(badge.closest("[title]")).toHaveAttribute(
+      "title",
+      "weird_new_outcome",
+    );
+
+    // Unknown deferral reason: same contract.
+    expect(screen.queryByText(/weird_new_reason/)).not.toBeInTheDocument();
+    const reason = screen.getByText(/raison inconnue/);
+    expect(reason.closest("[title]")).toHaveAttribute(
+      "title",
+      "weird_new_reason",
+    );
+  });
 });

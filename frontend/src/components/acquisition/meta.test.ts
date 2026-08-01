@@ -12,12 +12,16 @@ import { describe, expect, it } from "vitest";
 import type { EpisodeCompleteness } from "@/api/acquisition";
 
 import {
+  DEFERRED_REASON_LABEL,
   EPISODE_STATE_HINT,
   EPISODE_STATE_LABEL,
   EPISODE_STATE_TONE,
   FOLLOW_STATUS_HINT,
   FOLLOW_STATUS_LABEL,
   FOLLOW_STATUS_TONE,
+  OBLIGATION_STATUS_OPTIONS,
+  RUN_OUTCOME_LABEL,
+  RUN_OUTCOME_TONE,
   STATUS_LABEL,
   STATUS_TONE,
   WANTED_STATUS_OPTIONS,
@@ -288,5 +292,48 @@ describe("« En attente » vs « Non vérifié » (must not be confusable)", () 
     expect(FOLLOW_STATUS_HINT.non_verifie).toMatch(/[Pp]as encore vérifié/);
     expect(EPISODE_STATE_HINT.en_attente).toMatch(/rien de conforme/);
     expect(EPISODE_STATE_HINT.non_verifie).toMatch(/[Pp]as encore vérifié/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// X7 — no-raw-slug coverage for the WatcherPanel / queue / obligations enums
+// ---------------------------------------------------------------------------
+
+describe("X7 — les enums servis ne rendent jamais un slug brut", () => {
+  it("couvre chaque outcome de run servi (success/error/killed)", () => {
+    const SERVED_OUTCOMES = ["success", "error", "killed"] as const;
+    for (const outcome of SERVED_OUTCOMES) {
+      expect(RUN_OUTCOME_LABEL[outcome]).toBeTruthy();
+      expect(RUN_OUTCOME_LABEL[outcome]).not.toBe(outcome);
+      expect(RUN_OUTCOME_TONE[outcome]).toBeTruthy();
+    }
+  });
+
+  it("couvre chaque raison de report du watcher (schéma DeferredTorrent)", () => {
+    const SERVED_REASONS = [
+      "ratio_below_threshold",
+      "content_missing",
+      "insufficient_space",
+    ] as const;
+    for (const reason of SERVED_REASONS) {
+      expect(DEFERRED_REASON_LABEL[reason]).toBeTruthy();
+      expect(DEFERRED_REASON_LABEL[reason]).not.toBe(reason);
+    }
+  });
+
+  it("couvre chaque statut filtrable de la file et des obligations", () => {
+    // Every selectable status (the « all » sentinel aside) must resolve to a
+    // French STATUS_LABEL — the queue Badge and the empty-state sentence
+    // both read from it.
+    for (const opt of WANTED_STATUS_OPTIONS) {
+      if (opt.value === "all") continue;
+      expect(STATUS_LABEL[opt.value]).toBeTruthy();
+      expect(STATUS_LABEL[opt.value]).not.toBe(opt.value);
+    }
+    for (const opt of OBLIGATION_STATUS_OPTIONS) {
+      if (opt.value === "all") continue;
+      expect(STATUS_LABEL[opt.value]).toBeTruthy();
+      expect(STATUS_LABEL[opt.value]).not.toBe(opt.value);
+    }
   });
 });

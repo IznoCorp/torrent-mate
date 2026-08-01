@@ -229,7 +229,7 @@ export function FileDAcquisitionPanel(): ReactElement {
               <p className="text-muted-foreground">
                 {status === "all"
                   ? "Aucune recherche en file. Suivez des séries pour remplir cette liste."
-                  : `Aucune recherche avec le statut « ${STATUS_LABEL[status] ?? status} ».`}
+                  : `Aucune recherche avec le statut « ${STATUS_LABEL[status] ?? "statut inconnu"} ».`}
               </p>
             </div>
           )}
@@ -289,8 +289,10 @@ export function FileDAcquisitionPanel(): ReactElement {
                                           ? `Saison ${String(ep.season ?? "?").padStart(2, "0")}`
                                           : ep.episode != null
                                             ? `S${String(ep.season ?? "?").padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`
-                                            : (FOLLOW_KIND_LABEL[ep.kind] ??
-                                              ep.kind)}
+                                            : // X7: never the raw kind
+                                              // token (NE-DOIT-PAS-4).
+                                              (FOLLOW_KIND_LABEL[ep.kind] ??
+                                                "Média")}
                                       </span>
                                       <span className="flex shrink-0 items-center gap-2">
                                         {isSeasonWanted && (
@@ -307,13 +309,22 @@ export function FileDAcquisitionPanel(): ReactElement {
                                             ? `${String(ep.attempts)} tentative${ep.attempts > 1 ? "s" : ""}`
                                             : ""}
                                         </span>
-                                        <Badge
-                                          tone={
-                                            STATUS_TONE[ep.status] ?? "neutral"
-                                          }
+                                        {/* X7: French label, never the
+                                            raw status; raw in title. */}
+                                        <span
+                                          className="inline-flex"
+                                          title={ep.status}
                                         >
-                                          {STATUS_LABEL[ep.status] ?? ep.status}
-                                        </Badge>
+                                          <Badge
+                                            tone={
+                                              STATUS_TONE[ep.status] ??
+                                              "neutral"
+                                            }
+                                          >
+                                            {STATUS_LABEL[ep.status] ??
+                                              "Statut inconnu"}
+                                          </Badge>
+                                        </span>
                                       </span>
                                     </div>
                                   );

@@ -113,7 +113,7 @@ export function ObligationsPanel(): ReactElement {
         <p className="text-muted-foreground">
           {status === "all"
             ? "Aucune obligation de seed enregistrée."
-            : `Aucune obligation avec le statut « ${STATUS_LABEL[status] ?? status} ».`}
+            : `Aucune obligation avec le statut « ${STATUS_LABEL[status] ?? "statut inconnu"} ».`}
         </p>
       </div>
     );
@@ -183,7 +183,7 @@ export function ObligationsPanel(): ReactElement {
                       }}
                     >
                       {copied ? (
-                        <Check className="size-3 text-green-600" />
+                        <Check className="size-3 text-success" />
                       ) : (
                         <Copy className="size-3" />
                       )}
@@ -214,8 +214,9 @@ export function ObligationsPanel(): ReactElement {
                   )}
                 </TableCell>
                 <TableCell>
+                  {/* X7: French label, never the raw status token. */}
                   <Badge tone={STATUS_TONE[obs] ?? "neutral"}>
-                    {STATUS_LABEL[obs] ?? obs}
+                    {STATUS_LABEL[obs] ?? "Statut inconnu"}
                   </Badge>
                 </TableCell>
               </TableRow>

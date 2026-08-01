@@ -76,7 +76,10 @@ export function AdditionalPropertiesField({
         return (
           <div key={k} className="flex items-start gap-2">
             <div className="min-w-0 flex-1">
-              <Label className="text-xs text-muted-foreground">{k}</Label>
+              {/* X7: a dict key is a machine token — mono, not prose. */}
+              <Label className="font-mono text-xs text-muted-foreground">
+                {k}
+              </Label>
               {isObject(addSchema) &&
               addSchema.type === "object" &&
               isObject(addSchema.properties) ? (
