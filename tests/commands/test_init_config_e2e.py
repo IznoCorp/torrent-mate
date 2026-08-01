@@ -324,7 +324,79 @@ def test_init_config_error_output_user_friendly(tmp_path: Path) -> None:
     assert "not found" in result.output.lower()
 
 
-# ── 7. Events ──
+# ── 7. --sync flag ──
+
+
+def test_init_config_sync_dry_run_reports(tmp_path: Path) -> None:
+    """``init-config --sync --dry-run`` exits 0, reports DRY-RUN, creates no files."""
+    example = _make_minimal_example(tmp_path)
+    output = tmp_path / "config"
+
+    result = run_cli(
+        [
+            "init-config",
+            "--sync",
+            "--dry-run",
+            "--example",
+            str(example),
+            "--output",
+            str(output),
+        ]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "DRY-RUN" in result.output
+    # sync_config_dir creates the target directory even in dry-run mode,
+    # but no files should be written inside it.
+    if output.exists():
+        assert list(output.iterdir()) == [], f"--sync --dry-run must not create files in {output}"
+
+
+def test_init_config_sync_additive_apply(tmp_path: Path) -> None:
+    """``init-config --sync`` copies missing files from example to target."""
+    example = _make_minimal_example(tmp_path)
+    output = tmp_path / "config"
+
+    result = run_cli(
+        [
+            "init-config",
+            "--sync",
+            "--example",
+            str(example),
+            "--output",
+            str(output),
+        ]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert output.is_dir()
+    assert (output / "config.json5").is_file()
+    assert (output / "paths.json5").is_file()
+
+
+def test_init_config_sync_and_force_mutually_exclusive(tmp_path: Path) -> None:
+    """``init-config --sync --force`` exits 2 with a clear error message."""
+    example = _make_minimal_example(tmp_path)
+    output = tmp_path / "config"
+
+    result = run_cli(
+        [
+            "init-config",
+            "--sync",
+            "--force",
+            "--example",
+            str(example),
+            "--output",
+            str(output),
+        ]
+    )
+
+    assert result.exit_code == 2, result.output
+    assert "mutually exclusive" in result.output.lower()
+    assert_no_python_traceback(result)
+
+
+# ── 8. Events ──
 
 # N/A: init-config is a filesystem bootstrap operation that runs before any
 # config or BDD exists. It has no EventBus — the command body constructs a
@@ -332,7 +404,7 @@ def test_init_config_error_output_user_friendly(tmp_path: Path) -> None:
 # for init-config (it runs before config exists). No pipeline events are
 # relevant.
 
-# ── 8. Closure-of-loop ──
+# ── 9. Closure-of-loop ──
 
 # N/A: init-config creates config files from a template; there is no BDD
 # cycle to close. The files are written once and verified by template-copy

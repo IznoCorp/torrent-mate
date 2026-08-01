@@ -134,3 +134,41 @@ def _prompt_for_values(config_dir: Path) -> None:
             typer.echo(f"Edit {disks_file} directly to configure storage disks.")
         else:
             typer.echo("No disks configured. Add them in disks.json5 before running the pipeline.")
+
+
+def init_config_sync(
+    example: Path,
+    target: Path,
+    *,
+    dry_run: bool = False,
+) -> None:
+    """Sync missing keys and files from *example* to *target* additively.
+
+    Non-destructive: never modifies or removes an existing key or value.
+    Reports every addition via stdout.
+
+    Args:
+        example: Path to ``config.example/`` directory.
+        target: Path to the canonical config directory (e.g.
+            ``~/.torrentmate/config``).
+        dry_run: If ``True``, report would-be additions without writing.
+    """
+    from personalscraper.conf.sync import sync_config_dir  # noqa: PLC0415
+
+    if dry_run:
+        typer.echo(f"[DRY-RUN] Would sync {example} → {target}")
+    else:
+        typer.echo(f"Syncing {example} → {target}")
+
+    additions = sync_config_dir(example, target, dry_run=dry_run)
+
+    if not additions:
+        typer.echo("No new keys or files to add — config is up to date.")
+        return
+
+    for msg in additions:
+        typer.echo(f"  {msg}")
+
+    typer.echo(f"\n{'Would add' if dry_run else 'Added'} {len(additions)} item(s).")
+    if not dry_run and (target / ".git").exists():
+        typer.echo(f"Tip: the canonical config is a local git repo. Review changes with:\n  git -C {target} diff")

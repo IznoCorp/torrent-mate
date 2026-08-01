@@ -81,6 +81,11 @@ def init_config_cmd(
             "Checks that config.example/ exists and reports the target path."
         ),
     ),
+    sync: bool = typer.Option(
+        False,
+        "--sync",
+        help="Additive sync from config.example to canonical config (non-destructive).",
+    ),
 ) -> None:
     """Create ./config/ from the config.example/ template directory.
 
@@ -95,6 +100,15 @@ def init_config_cmd(
         personalscraper init-config --dry-run
     """
     from personalscraper.commands.init_config import init_config
+
+    if sync:
+        if force:
+            typer.echo("Error: --sync and --force are mutually exclusive.", err=True)
+            raise typer.Exit(code=2)
+        from personalscraper.commands.init_config import init_config_sync  # noqa: PLC0415
+
+        init_config_sync(example=example.resolve(), target=output.resolve(), dry_run=dry_run)
+        return
 
     if dry_run:
         typer.echo(f"[DRY-RUN] Would copy {example} → {output}")

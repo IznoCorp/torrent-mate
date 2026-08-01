@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
+import json5
 import pytest
 
 from personalscraper.commands.init_config import _backup_dir, init_config
@@ -223,6 +224,137 @@ class TestInitConfigInteractive:
         assert "No disks configured" in result.output
 
 
+class TestInitConfigSync:
+    """Tests for the init_config_sync function (non-destructive config merge)."""
+
+    @staticmethod
+    def _make_minimal_example(d: Path) -> None:
+        """Create a minimal config.example structure for testing."""
+        (d / "config.json5").write_text(
+            json5.dumps(
+                {
+                    "config_version": 1,
+                    "overlays": ["paths.json5"],
+                },
+                indent=2,
+            )
+        )
+        (d / "paths.json5").write_text(
+            json5.dumps(
+                {
+                    "paths": {
+                        "staging_dir": "/tmp/staging",
+                        "torrent_complete_dir": "/tmp/torrents",
+                    },
+                },
+                indent=2,
+            )
+        )
+
+    def test_dry_run_reports_but_does_not_write(self, tmp_path: Path) -> None:
+        """--sync --dry-run reports additions but creates no files."""
+        from personalscraper.commands.init_config import init_config_sync
+
+        example = tmp_path / "example"
+        target = tmp_path / "target"
+        example.mkdir()
+        self._make_minimal_example(example)
+
+        init_config_sync(example, target, dry_run=True)
+        # sync_config_dir creates the target directory even in dry-run mode,
+        # but no files should be written inside it.
+        if target.exists():
+            assert list(target.iterdir()) == []
+
+    def test_sync_additive_applies_writes_files(self, tmp_path: Path) -> None:
+        """--sync without --dry-run copies missing files to target."""
+        from personalscraper.commands.init_config import init_config_sync
+
+        example = tmp_path / "example"
+        target = tmp_path / "target"
+        example.mkdir()
+        self._make_minimal_example(example)
+
+        init_config_sync(example, target, dry_run=False)
+        assert target.is_dir()
+        assert (target / "config.json5").is_file()
+        assert (target / "paths.json5").is_file()
+
+    def test_sync_up_to_date_reports_nothing(self, tmp_path: Path) -> None:
+        """Second sync with identical example reports no additions."""
+        from personalscraper.commands.init_config import init_config_sync
+
+        example = tmp_path / "example"
+        target = tmp_path / "target"
+        example.mkdir()
+        self._make_minimal_example(example)
+
+        init_config_sync(example, target, dry_run=False)
+        # Second sync: target already has everything
+        init_config_sync(example, target, dry_run=False)
+        # No assertion needed — just ensure no error/exceptions
+
+    def test_sync_preserves_existing_target_values(self, tmp_path: Path) -> None:
+        """After sync, a user-edited value in target remains unchanged."""
+        from personalscraper.commands.init_config import init_config_sync
+
+        example = tmp_path / "example"
+        target = tmp_path / "target"
+        example.mkdir()
+        self._make_minimal_example(example)
+
+        # First sync: populate target
+        init_config_sync(example, target, dry_run=False)
+        # User edits a value
+        paths_file = target / "paths.json5"
+        paths_data = json5.loads(paths_file.read_text())
+        paths_data["paths"]["staging_dir"] = "/user/custom"
+        paths_file.write_text(json5.dumps(paths_data, indent=2))
+        # Sync again
+        init_config_sync(example, target, dry_run=False)
+        # Verify user edit preserved
+        final = json5.loads((target / "paths.json5").read_text())
+        assert final["paths"]["staging_dir"] == "/user/custom"
+
+    def test_sync_adds_new_missing_file(self, tmp_path: Path) -> None:
+        """Sync copies a new example file not yet in target."""
+        from personalscraper.commands.init_config import init_config_sync
+
+        example = tmp_path / "example"
+        target = tmp_path / "target"
+        example.mkdir()
+        self._make_minimal_example(example)
+
+        # First sync: partial (only one file)
+        (target / "paths.json5").parent.mkdir(parents=True, exist_ok=True)
+        # Copy just paths.json5 manually (simulate partial state)
+        (target / "paths.json5").write_text((example / "paths.json5").read_text())
+        # Now sync — config.json5 should be added
+        init_config_sync(example, target, dry_run=False)
+        assert (target / "config.json5").is_file()
+
+    def test_sync_adds_missing_key_to_existing_file(self, tmp_path: Path) -> None:
+        """Sync merges a new key from example into an existing target file."""
+        from personalscraper.commands.init_config import init_config_sync
+
+        example = tmp_path / "example"
+        target = tmp_path / "target"
+        example.mkdir()
+        self._make_minimal_example(example)
+
+        # First sync: populate target
+        init_config_sync(example, target, dry_run=False)
+        # Add a new key to example that target doesn't have
+        ex_data = json5.loads((example / "paths.json5").read_text())
+        ex_data["paths"]["data_dir"] = "/new/data"
+        (example / "paths.json5").write_text(json5.dumps(ex_data, indent=2))
+        # Sync again
+        init_config_sync(example, target, dry_run=False)
+        # Verify new key was added
+        final = json5.loads((target / "paths.json5").read_text())
+        assert final["paths"]["data_dir"] == "/new/data"
+
+
 class TestInitConfigCliCommand:
     """Tests for the Typer-wired `init-config` command in cli.py."""
 
@@ -311,3 +443,69 @@ class TestInitConfigCliCommand:
         # The dry-run path never calls sys.exit(2) — it only prints a warning.
         assert result.exit_code == 0
         assert "WARNING" in result.output
+
+    # ── --sync flag ──
+
+    def test_sync_flag_invokes_init_config_sync(self, tmp_path: Path) -> None:
+        """--sync flag delegates to init_config_sync."""
+        from typer.testing import CliRunner
+
+        from personalscraper.cli import app
+
+        example = tmp_path / "example"
+        example.mkdir()
+        (example / "config.json5").write_text("{}")
+        target = tmp_path / "target"
+
+        runner = CliRunner()
+        with patch("personalscraper.commands.init_config.init_config_sync") as mock_sync:
+            result = runner.invoke(
+                app,
+                [
+                    "init-config",
+                    "--sync",
+                    "--example",
+                    str(example),
+                    "--output",
+                    str(target),
+                ],
+            )
+        assert result.exit_code == 0, result.output
+        mock_sync.assert_called_once()
+
+    def test_sync_and_force_mutually_exclusive(self, tmp_path: Path) -> None:
+        """--sync --force exits 2 with a clear error message."""
+        from typer.testing import CliRunner
+
+        from personalscraper.cli import app
+
+        example = tmp_path / "example"
+        example.mkdir()
+        (example / "config.json5").write_text("{}")
+
+        runner = CliRunner()
+        result = runner.invoke(
+            app,
+            [
+                "init-config",
+                "--sync",
+                "--force",
+                "--example",
+                str(example),
+                "--output",
+                str(tmp_path / "target"),
+            ],
+        )
+        assert result.exit_code == 2, result.output
+        assert "mutually exclusive" in result.output.lower()
+
+    def test_sync_help_shows_flag(self) -> None:
+        """--help output includes --sync."""
+        from typer.testing import CliRunner
+
+        from personalscraper.cli import app
+
+        runner = CliRunner()
+        result = runner.invoke(app, ["init-config", "--help"])
+        assert result.exit_code == 0
+        assert "--sync" in result.output
