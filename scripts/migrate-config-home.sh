@@ -15,7 +15,25 @@ DATA_ROOT="/Users/izno/dev/PersonalScraper/.data"
 
 say() { printf "${GREEN}[migrate-config-home]${NC} %s\n" "$*"; }
 warn() { printf "${YELLOW}[migrate-config-home] WARN${NC} %s\n" "$*" >&2; }
-die() { printf "${RED}[migrate-config-home] FATAL${NC} %s\n" "$*" >&2; exit 1; }
+die() {
+  printf "${RED}[migrate-config-home] FATAL${NC} %s\n" "$*" >&2
+  if [ "${STOPS_DONE:-0}" = "1" ]; then
+    printf "${RED}╔══════════════════════════════════════════════════════════════╗${NC}\n" >&2
+    printf "${RED}║  MIGRATION FAILED AFTER STOPS — RECOVERY                    ║${NC}\n" >&2
+    printf "${RED}╠══════════════════════════════════════════════════════════════╣${NC}\n" >&2
+    printf "${RED}║  Stopped apps: %-46s ║${NC}\n" "${STOPPED_APPS:-none}" >&2
+    printf "${RED}║                                                            ║${NC}\n" >&2
+    printf "${RED}║  To restart the daemons:                                    ║${NC}\n" >&2
+    printf "${RED}║  pm2 startOrRestart %-40s ║${NC}\n" "$ECOSYSTEM_JS" >&2
+    printf "${RED}║    --only torrentmate-web,torrentmate-web-staging,           ║${NC}\n" >&2
+    printf "${RED}║    personalscraper-watch,torrentmate-autodeploy              ║${NC}\n" >&2
+    printf "${RED}║    --update-env                                             ║${NC}\n" >&2
+    printf "${RED}║                                                            ║${NC}\n" >&2
+    printf "${RED}║  Then check: pm2 status                                     ║${NC}\n" >&2
+    printf "${RED}╚══════════════════════════════════════════════════════════════╝${NC}\n" >&2
+  fi
+  exit 1
+}
 
 # ── Guard 0: idempotence — refuse if canonical already exists with .git ──
 if [ -d "$CANONICAL/.git" ]; then
@@ -54,24 +72,18 @@ read -rp "Proceed? [y/N] " REPLY
 # Rewrite relative data_dir to the absolute path in the old config dir so the
 # rsync copies the anchored version.
 say "Step 0/6: Anchoring data_dir to absolute path..."
-if grep -q 'data_dir:\s*"\./' "$OLD_CONFIG/paths.json5"; then
+# Both grep and sed use [[:space:]] (BSD-compatible — macOS sed treats \s as literal).
+if grep -q 'data_dir:[[:space:]]*"\./' "$OLD_CONFIG/paths.json5"; then
   say "  data_dir is relative — rewriting to absolute $DATA_ROOT"
-  sed -i '' 's|data_dir:\s*"\./[^"]*"|data_dir: "'"$DATA_ROOT"'"|' "$OLD_CONFIG/paths.json5"
-  # Verify the rewrite
-  verify_data="$(python3 -c "
-import os, sys
-os.environ['PERSONALSCRAPER_CONFIG'] = '$OLD_CONFIG'
-from personalscraper.conf.loader import load_config
-cfg = load_config()
-dd = cfg.paths.data_dir
-db = cfg.indexer.db_path
-print(f'data_dir={dd}')
-print(f'db_path={db}')
-" 2>/dev/null || true)"
-  if ! echo "$verify_data" | grep -q "data_dir=$DATA_ROOT"; then
-    die "Step 0 FAILED — data_dir not anchored. Got: $verify_data"
+  sed -i '' 's|data_dir:[[:space:]]*"\./[^"]*"|data_dir: "'"$DATA_ROOT"'"|' "$OLD_CONFIG/paths.json5"
+  # Verify by checking the file text directly (never the loader — it resolves
+  # relative paths against the OLD parent so it would falsely ✓ even if the sed
+  # were a no-op).
+  if grep -qF "$DATA_ROOT" "$OLD_CONFIG/paths.json5"; then
+    say "  Verified: data_dir anchored to $DATA_ROOT in paths.json5"
+  else
+    die "Step 0 FAILED — data_dir not anchored. paths.json5 does not contain $DATA_ROOT"
   fi
-  say "  Verified: data_dir=$DATA_ROOT"
 else
   say "  data_dir is already absolute — skipping anchor"
 fi
@@ -89,27 +101,9 @@ else
   warn "  No .env found at $HOME/dev/PersonalScraper/.env — skipping (may need manual setup)"
 fi
 
-# ── Recovery trap (set AFTER stops begin) ──
-# Deferred: the trap is registered after the first stop; if ERR fires before
-# that, there's nothing to recover.
+# ── Recovery state — die() prints recovery instructions when stops have begun ──
 STOPPED_APPS=""
-recovery_block() {
-  printf "${RED}${NC}" >&2
-  printf "${RED}╔══════════════════════════════════════════════════════════════╗${NC}\n" >&2
-  printf "${RED}║  MIGRATION FAILED — RECOVERY INSTRUCTIONS                    ║${NC}\n" >&2
-  printf "${RED}╠══════════════════════════════════════════════════════════════╣${NC}\n" >&2
-  printf "${RED}║  Stopped apps: %-46s ║${NC}\n" "$STOPPED_APPS" >&2
-  printf "${RED}║                                                            ║${NC}\n" >&2
-  printf "${RED}║  To restart the daemons:                                    ║${NC}\n" >&2
-  printf "${RED}║  pm2 startOrRestart %-40s ║${NC}\n" "$ECOSYSTEM_JS" >&2
-  printf "${RED}║    --only torrentmate-web,torrentmate-web-staging,           ║${NC}\n" >&2
-  printf "${RED}║    personalscraper-watch,torrentmate-autodeploy              ║${NC}\n" >&2
-  printf "${RED}║    --update-env                                             ║${NC}\n" >&2
-  printf "${RED}║                                                            ║${NC}\n" >&2
-  printf "${RED}║  Then check: pm2 status                                     ║${NC}\n" >&2
-  printf "${RED}╚══════════════════════════════════════════════════════════════╝${NC}\n" >&2
-  exit 1
-}
+STOPS_DONE=0
 
 # ── Step 1: Stop writers (autodeploy FIRST, one-at-a-time, verify each) ──
 say "Step 1/6: Stopping PM2 writers..."
@@ -166,11 +160,14 @@ sys.exit(0 if status in ('stopped','') else 1)
   STOPPED_APPS="$STOPPED_APPS $app"
 done
 
-# Register the ERR trap NOW (after stops began — recovery makes sense)
-trap recovery_block ERR
-
 sleep 2
 say "  All writers stopped. Stopped:${STOPPED_APPS}"
+STOPS_DONE=1
+
+# Register the ERR trap AFTER stops (so die() prints recovery instructions).
+# ERR fires on any non-zero exit (set -e), calling die() which includes the
+# recovery block when STOPS_DONE=1.
+trap 'die "Unexpected error during migration (trapped ERR)"' ERR
 
 # ── Step 2: rsync config ──
 say "Step 2/6: Copying $OLD_CONFIG → $CANONICAL..."
@@ -270,14 +267,16 @@ case "$actual_db_path" in
     ;;
 esac
 
-# 5d: Assert plex_token non-empty via settings loader (names only, never print values)
+# 5d: Assert plex_token non-empty via Settings (names only, never print values)
+# Config has no .settings attribute — secrets live on personalscraper.config.Settings
+# (loaded from .env via pydantic-settings), accessed via get_settings().
 PLEX_OK=false
 plex_check="$(PERSONALSCRAPER_CONFIG="$CANONICAL" "$SMOKE_PYTHON" -c "
 import os
 os.environ['PERSONALSCRAPER_CONFIG'] = '$CANONICAL'
-from personalscraper.conf.loader import load_config
-cfg = load_config()
-token = cfg.settings.plex_token if hasattr(cfg.settings, 'plex_token') else ''
+from personalscraper.config import get_settings
+settings = get_settings()
+token = settings.plex_token
 print('present' if token else 'missing')
 " 2>/dev/null || echo "missing")"
 
@@ -305,14 +304,43 @@ pm2 startOrRestart "$ECOSYSTEM_JS" \
 say "  ✓ torrentmate-autodeploy restarted (last)"
 sleep 2
 
+# 6c: Refresh cron env (startOrRestart + stop, one at a time)
+# The crons were stopped in Step 1c and their stored pm2 env still carries
+# the OLD PERSONALSCRAPER_CONFIG pin. A startOrRestart with --update-env
+# picks up the updated ecosystem.config.js, then an immediate stop persists
+# the NEW env in the pm2 dump so reboot resurrection loads the right pin.
+# The ≤2s startup window is accepted — python boot exceeds it, so the cron
+# never actually fires during the refresh. Sequence them so only one runs
+# at a time (cpu/IO isolation).
+for app in personalscraper-index-enrich personalscraper-backfill-ids \
+  personalscraper-follow-detect personalscraper-search \
+  personalscraper-grab personalscraper-health-check; do
+  say "  Refreshing env for $app..."
+  pm2 startOrRestart "$ECOSYSTEM_JS" --only "$app" --update-env
+  sleep 1
+  pm2 stop "$app"
+  if pm2 jlist 2>/dev/null | python3 -c "
+import json,sys
+apps={a['name']:a.get('pm2_env',{}).get('status','') for a in json.load(sys.stdin)}
+status=apps.get('$app','')
+sys.exit(0 if status=='stopped' else 1)
+" 2>/dev/null; then
+    say "  ✓ $app env refreshed, stopped"
+  else
+    die "$app not stopped after env refresh — refusing to proceed"
+  fi
+done
+
 # ── pm2 save + resurrection guard ──
 say "Saving PM2 process list for reboot resurrection..."
 pm2 save
+# After the env refresh, all 10 apps (4 writers + 6 crons) carry the canonical
+# path in their stored env.
 count="$(grep -c '.torrentmate/config' "$HOME/.pm2/dump.pm2" 2>/dev/null || echo 0)"
-if [ "$count" -ge 9 ]; then
-  say "  ✓ pm2 dump contains $count canonical config references (≥ 9)"
+if [ "$count" -ge 10 ]; then
+  say "  ✓ pm2 dump contains $count canonical config references (≥ 10)"
 else
-  die "PM2 dump integrity FAILED — only $count '.torrentmate/config' references found (expected ≥ 9). Reboot would resurrect wrong configs."
+  die "PM2 dump integrity FAILED — only $count '.torrentmate/config' references found (expected ≥ 10). Reboot would resurrect wrong configs."
 fi
 
 # ── Post-check: /api/health ──
