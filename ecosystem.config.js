@@ -26,7 +26,7 @@
 // tests/indexer/test_ecosystem.py can parse them. Keep the three canonical strings in sync:
 //   prod clone : /Users/izno/deploy/torrentmate
 //   prod binary: /Users/izno/deploy/torrentmate-venv/bin/personalscraper
-//   config dir : /Users/izno/dev/PersonalScraper/config
+//   config dir : /Users/izno/.torrentmate/config
 
 module.exports = {
   apps: [
@@ -47,7 +47,7 @@ module.exports = {
       kill_timeout: 30000,
       env: {
         PYTHONUNBUFFERED: "1",
-        PERSONALSCRAPER_CONFIG: "/Users/izno/dev/PersonalScraper/config",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
       },
       // Log to PM2's default log dir; view with `pm2 logs personalscraper-watch`.
     },
@@ -73,7 +73,7 @@ module.exports = {
       // target this app; unset it to disable the endpoint (404 + hidden button).
       env: {
         PYTHONUNBUFFERED: "1",
-        PERSONALSCRAPER_CONFIG: "/Users/izno/dev/PersonalScraper/config",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
         PERSONALSCRAPER_PM2_NAME: "torrentmate-web",
       },
     },
@@ -94,7 +94,7 @@ module.exports = {
       kill_timeout: 30000,
       env: {
         PYTHONUNBUFFERED: "1",
-        PERSONALSCRAPER_CONFIG: "/Users/izno/dev/PersonalScraper/config",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
         PERSONALSCRAPER_WEB_ROLE: "staging",
       },
     },
@@ -130,7 +130,7 @@ module.exports = {
       cron_restart: "30 4 * * 0", // Sundays 04:30 local — off-peak
       env: {
         PYTHONUNBUFFERED: "1",
-        PERSONALSCRAPER_CONFIG: "/Users/izno/dev/PersonalScraper/config",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
       },
     },
 
@@ -144,7 +144,7 @@ module.exports = {
       cron_restart: "0 5 * * 0", // Sundays 05:00 local (after enrich)
       env: {
         PYTHONUNBUFFERED: "1",
-        PERSONALSCRAPER_CONFIG: "/Users/izno/dev/PersonalScraper/config",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
       },
     },
 
@@ -162,7 +162,7 @@ module.exports = {
       cron_restart: "0 3 * * *", // 03:00 daily — enqueue newly-aired episodes
       env: {
         PYTHONUNBUFFERED: "1",
-        PERSONALSCRAPER_CONFIG: "/Users/izno/dev/PersonalScraper/config",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
       },
     },
 
@@ -178,7 +178,7 @@ module.exports = {
       cron_restart: "10 3,15 * * *",
       env: {
         PYTHONUNBUFFERED: "1",
-        PERSONALSCRAPER_CONFIG: "/Users/izno/dev/PersonalScraper/config",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
       },
     },
 
@@ -193,7 +193,7 @@ module.exports = {
       cron_restart: "20 3,15 * * *",
       env: {
         PYTHONUNBUFFERED: "1",
-        PERSONALSCRAPER_CONFIG: "/Users/izno/dev/PersonalScraper/config",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
       },
     },
 
@@ -210,7 +210,7 @@ module.exports = {
       cron_restart: "15 * * * *", // hourly at :15
       env: {
         PYTHONUNBUFFERED: "1",
-        PERSONALSCRAPER_CONFIG: "/Users/izno/dev/PersonalScraper/config",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
       },
     },
   ],
