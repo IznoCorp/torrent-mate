@@ -85,7 +85,7 @@ class WantedEnqueued(Event):
     """
 
     media_ref: MediaRef
-    kind: Literal["movie", "episode"]
+    kind: Literal["movie", "episode", "season"]
     season: int | None
     episode: int | None
 
@@ -103,6 +103,49 @@ class WantedAbandoned(Event):
 
     media_ref: MediaRef
     reason: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class SeasonAbsorbedEpisodes(Event):
+    """A season wanted absorbed its season's live episode wanteds (R5).
+
+    Emitted when detection or the conversion path absorbs episode rows
+    into a season wanted — the episode rows transition to ``absorbed``
+    and the season wanted governs their acquisition.
+
+    Attributes:
+        season_wanted_id: Rowid of the absorbing season ``wanted`` row.
+        media_ref: Provider-ID key of the parent series.
+        season: Season number.
+        absorbed_ids: Rowids of the episode rows that were absorbed.
+    """
+
+    season_wanted_id: int
+    media_ref: MediaRef
+    season: int
+    absorbed_ids: tuple[int, ...]
+
+
+@dataclass(frozen=True, kw_only=True)
+class SeasonFellBackToEpisodes(Event):
+    """A season wanted fell back to per-episode retry (R6).
+
+    Emitted when a season wanted reaches its cutoff — the season row
+    transitions to ``fallback_episodes`` and the missing episodes are
+    re-enqueued individually. Telegram notification fires per existing
+    cutoff path.
+
+    Attributes:
+        season_wanted_id: Rowid of the season ``wanted`` row.
+        media_ref: Provider-ID key of the parent series.
+        season: Season number.
+        reenqueued_count: Number of missing episodes re-enqueued.
+    """
+
+    season_wanted_id: int
+    media_ref: MediaRef
+    season: int
+    reenqueued_count: int
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -354,6 +397,8 @@ __all__ = [
     "GrabFailed",
     "GrabSucceeded",
     "RatioMeasured",
+    "SeasonAbsorbedEpisodes",
+    "SeasonFellBackToEpisodes",
     "SeedObligationBreached",
     "SeedObligationRecorded",
     "SeedObligationSatisfied",

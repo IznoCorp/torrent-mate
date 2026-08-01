@@ -17,8 +17,17 @@ from typing import Literal
 
 from personalscraper.core.identity import MediaRef
 
-WantedKind = Literal["movie", "episode"]
-WantedStatus = Literal["pending", "searching", "available", "grabbed", "done", "abandoned"]
+WantedKind = Literal["movie", "episode", "season"]
+WantedStatus = Literal[
+    "pending",
+    "searching",
+    "available",
+    "grabbed",
+    "done",
+    "abandoned",
+    "absorbed",
+    "fallback_episodes",
+]
 FollowKind = Literal["movie", "show"]
 
 #: The ``wanted`` statuses that describe an acquisition still in flight — the
@@ -195,6 +204,7 @@ class WantedItem:
     last_search_outcome: str | None = None
     last_search_found: int | None = None
     tried_hashes: tuple[str, ...] = ()
+    absorbed_by: int | None = None
 
     def __post_init__(self) -> None:
         """Validate kind and status values.
@@ -202,8 +212,17 @@ class WantedItem:
         Raises:
             ValueError: If kind or status is not a valid literal.
         """
-        valid_kinds: tuple[str, ...] = ("movie", "episode")
-        valid_statuses: tuple[str, ...] = ("pending", "searching", "available", "grabbed", "done", "abandoned")
+        valid_kinds: tuple[str, ...] = ("movie", "episode", "season")
+        valid_statuses: tuple[str, ...] = (
+            "pending",
+            "searching",
+            "available",
+            "grabbed",
+            "done",
+            "abandoned",
+            "absorbed",
+            "fallback_episodes",
+        )
         if self.kind not in valid_kinds:
             raise ValueError(f"Invalid WantedItem.kind={self.kind!r}; must be one of {valid_kinds}")
         if self.status not in valid_statuses:
