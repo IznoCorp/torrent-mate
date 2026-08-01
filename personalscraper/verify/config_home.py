@@ -42,7 +42,7 @@ def _is_inside_worktree(path: Path) -> bool:
     return (root / ".git").exists()
 
 
-def check_config_home(config_dir: Path) -> list[str]:
+def check_config_home(config_dir: Path, *, report_missing: bool = True) -> list[str]:
     """Verify that *config_dir* is NOT inside any **ancestor** git working tree.
 
     This is a lightweight startup guard.  After relocation (§3.1), the
@@ -56,6 +56,11 @@ def check_config_home(config_dir: Path) -> list[str]:
 
     Args:
         config_dir: Resolved path to the active config directory.
+        report_missing: When ``True`` (default), a nonexistent *config_dir*
+            yields a warning. The composition root passes ``False``: by the
+            time an AppContext is built the config has already LOADED, so a
+            missing-dir warning there is either impossible or mock-induced
+            noise — only the worktree hazard is meaningful at that site.
 
     Returns:
         List of warning strings.  Empty if the config is safely outside all
@@ -64,9 +69,10 @@ def check_config_home(config_dir: Path) -> list[str]:
     warnings: list[str] = []
 
     if not config_dir.is_dir():
-        warnings.append(
-            f"config_home: directory not found: {config_dir} — run 'personalscraper init-config' to create one."
-        )
+        if report_missing:
+            warnings.append(
+                f"config_home: directory not found: {config_dir} — run 'personalscraper init-config' to create one."
+            )
         return warnings
 
     if _is_inside_worktree(config_dir):

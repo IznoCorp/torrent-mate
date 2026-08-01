@@ -190,7 +190,7 @@ def _build_app_context(
     from personalscraper.verify.config_home import check_config_home
 
     config_dir = resolve_config_path()
-    for warning in check_config_home(config_dir):
+    for warning in check_config_home(config_dir, report_missing=False):
         log.warning(warning)
 
     return AppContext(
