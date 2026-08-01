@@ -133,6 +133,18 @@ def test_dry_run_reports_but_does_not_write(tmp_path: Path):
     assert list(target.iterdir()) == []
 
 
+def test_dry_run_does_not_create_target_dir(tmp_path: Path):
+    """--dry-run must NOT create the target directory when it does not exist."""
+    example = tmp_path / "example"
+    target = tmp_path / "absent"
+    example.mkdir()
+    _make_minimal_example(example)
+    result = sync_config_dir(example, target, dry_run=True)
+    assert len(result) > 0
+    # Target directory must NOT have been created.
+    assert not target.exists(), f"dry-run must not create {target}"
+
+
 def test_sync_never_removes_target_key(tmp_path: Path):
     """A key present in target but absent in example is NEVER removed."""
     example = tmp_path / "example"

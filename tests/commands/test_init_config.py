@@ -261,10 +261,9 @@ class TestInitConfigSync:
         self._make_minimal_example(example)
 
         init_config_sync(example, target, dry_run=True)
-        # sync_config_dir creates the target directory even in dry-run mode,
-        # but no files should be written inside it.
-        if target.exists():
-            assert list(target.iterdir()) == []
+        # Dry-run must NOT create the target directory, and no files
+        # should be written (the target dir should not exist at all).
+        assert not target.exists(), f"--sync --dry-run must not create {target}"
 
     def test_sync_additive_applies_writes_files(self, tmp_path: Path) -> None:
         """--sync without --dry-run copies missing files to target."""

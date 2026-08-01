@@ -346,10 +346,8 @@ def test_init_config_sync_dry_run_reports(tmp_path: Path) -> None:
 
     assert result.exit_code == 0, result.output
     assert "DRY-RUN" in result.output
-    # sync_config_dir creates the target directory even in dry-run mode,
-    # but no files should be written inside it.
-    if output.exists():
-        assert list(output.iterdir()) == [], f"--sync --dry-run must not create files in {output}"
+    # Dry-run must NOT create the target directory at all.
+    assert not output.exists(), f"--sync --dry-run must not create {output}"
 
 
 def test_init_config_sync_additive_apply(tmp_path: Path) -> None:

@@ -106,7 +106,8 @@ def sync_config_dir(
     if not example.is_dir():
         raise FileNotFoundError(f"Example directory not found: {example}")
 
-    target.mkdir(parents=True, exist_ok=True)
+    if not dry_run:
+        target.mkdir(parents=True, exist_ok=True)
     pairs = _files_to_sync(example, target)
     all_additions: list[str] = []
 
