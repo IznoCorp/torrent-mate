@@ -185,7 +185,10 @@ function ProvidersPanel(): ReactElement {
               <CardTitle className="font-mono text-lg">
                 {p.provider_name}
               </CardTitle>
-              <Badge tone={CIRCUIT_TONE[p.circuit_state]}>
+              {/* REGISTRY-5 (ticket 250): dot-badge — the circuit state reads
+                  as a status affordance (closed→success, open→danger,
+                  half_open→warning), like every other state chip. */}
+              <Badge tone={CIRCUIT_TONE[p.circuit_state]} dot>
                 {CIRCUIT_LABEL[p.circuit_state] ?? p.circuit_state}
               </Badge>
             </CardHeader>
@@ -231,7 +234,8 @@ function ProvidersPanel(): ReactElement {
                             </span>
                           )}
                         </span>
-                        <Badge tone={CIRCUIT_TONE[s.circuit_state]}>
+                        {/* REGISTRY-5: same dot affordance on sub-circuits. */}
+                        <Badge tone={CIRCUIT_TONE[s.circuit_state]} dot>
                           {CIRCUIT_LABEL[s.circuit_state] ?? s.circuit_state}
                         </Badge>
                       </div>

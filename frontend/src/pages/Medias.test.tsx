@@ -877,3 +877,27 @@ describe("Medias", () => {
     expect(screen.queryByText("Ready Movie")).not.toBeInTheDocument();
   });
 });
+
+describe("Medias — défilement indépendant liste/détail (DECISIONS-4, ticket 250)", () => {
+  // Mobile-truth rule: structural class-presence checks only — jsdom does not
+  // lay out; the visual proof happens post-deploy in Chrome.
+  it("la liste scrolle seule et le détail est sticky à partir de lg", () => {
+    renderPage("decisions");
+
+    const grid = document.querySelector('div[class*="lg:grid-cols-"]');
+    expect(grid).not.toBeNull();
+    const panels = Array.from(grid?.children ?? []);
+    expect(panels).toHaveLength(2);
+
+    const [listPanel, detailPanel] = panels;
+    // List: independent scroll below the sticky TopBar.
+    expect(listPanel?.className).toContain("lg:overflow-y-auto");
+    expect(listPanel?.className).toContain("lg:max-h-");
+    // Detail: sticky + self-start (a stretched grid item can never stick) +
+    // its own scroll.
+    expect(detailPanel?.className).toContain("lg:sticky");
+    expect(detailPanel?.className).toContain("lg:top-20");
+    expect(detailPanel?.className).toContain("lg:self-start");
+    expect(detailPanel?.className).toContain("lg:overflow-y-auto");
+  });
+});

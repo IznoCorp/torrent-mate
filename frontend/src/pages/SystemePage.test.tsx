@@ -235,9 +235,10 @@ describe("SystemePage", () => {
     // The ActionCatalog fetches /api/maintenance/actions. Since fetch is mocked
     // synchronously, the tab selection is immediate. Assert that the actions
     // tab is selected.
-    expect(
-      screen.getByRole("tab", { name: "Actions" }),
-    ).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Actions" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
   });
 
   it("l'onglet maintenance affiche l'historique filtré", async () => {
@@ -364,6 +365,10 @@ describe("SystemePage", () => {
 
     // CIRCUIT_LABEL.closed === "OK".
     expect(screen.getByText("OK")).toBeInTheDocument();
+    // REGISTRY-5 (ticket 250): the circuit chip is a dot-badge.
+    expect(
+      screen.getByText("OK").querySelector('[aria-hidden="true"]'),
+    ).not.toBeNull();
     // Latency formatted to integer + " ms".
     expect(screen.getByText("43 ms")).toBeInTheDocument();
   });
@@ -392,6 +397,10 @@ describe("SystemePage", () => {
 
     // CIRCUIT_LABEL.open === "Ouvert".
     expect(screen.getByText("Ouvert")).toBeInTheDocument();
+    // REGISTRY-5 (ticket 250): danger dot-badge on an open circuit.
+    expect(
+      screen.getByText("Ouvert").querySelector('[aria-hidden="true"]'),
+    ).not.toBeNull();
     expect(screen.getByText("tvdb")).toBeInTheDocument();
   });
 

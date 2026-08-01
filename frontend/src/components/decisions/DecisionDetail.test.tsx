@@ -217,6 +217,28 @@ describe("DecisionDetail", () => {
     expect(screen.getAllByText("2010")).toHaveLength(2);
   });
 
+  it("la grille de candidats monte à 4 colonnes en xl (DECISIONS-5, ticket 250)", () => {
+    // Structural class-presence check (jsdom does not lay out).
+    renderDetail(makeDecision());
+    const grid = document.querySelector("div.grid.grid-cols-2");
+    expect(grid).not.toBeNull();
+    expect(grid?.className).toContain("md:grid-cols-3");
+    expect(grid?.className).toContain("xl:grid-cols-4");
+  });
+
+  it("le run_uid mono se coupe sur mobile : break-all + min-w-0 (DECISIONS-3, ticket 250)", async () => {
+    resolveDecisionMock.mockResolvedValueOnce({ run_uid: "run-xyz-789" });
+
+    renderDetail(makeDecision());
+    fireEvent.click(firstCandidateCard());
+    fireEvent.click(screen.getByText("Choisir"));
+
+    const uid = await screen.findByText("run-xyz-789");
+    expect(uid.className).toContain("break-all");
+    expect(uid.className).toContain("font-mono");
+    expect(uid.parentElement?.className).toContain("min-w-0");
+  });
+
   it("affiche le message quand il n'y a aucun candidat", () => {
     renderDetail(makeDecision({ candidates: [], candidates_count: 0 }));
     expect(

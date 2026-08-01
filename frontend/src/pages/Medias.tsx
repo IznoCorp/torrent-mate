@@ -46,6 +46,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -470,8 +471,15 @@ export default function Medias(): ReactElement {
           ) : (
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
               {/* List panel — hidden on mobile when detail is showing, always
-                  visible on desktop */}
-              <div className={showDetailMobile ? "hidden lg:block" : "block"}>
+                  visible on desktop. DECISIONS-4 (ticket 250): from lg the list
+                  (up to 800 rows) scrolls independently below the sticky
+                  TopBar instead of stretching the shared page scroll. */}
+              <div
+                className={cn(
+                  "lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto",
+                  showDetailMobile ? "hidden lg:block" : "block",
+                )}
+              >
                 {listLoading && items.length === 0 ? (
                   <ListSkeleton />
                 ) : (
@@ -487,15 +495,18 @@ export default function Medias(): ReactElement {
               {/* Detail panel — a SINGLE DecisionDetail instance (F36): shown on
                   mobile when selected (with a back button), side-by-side on
                   desktop, and replaced by the placeholder when nothing is
-                  selected. */}
+                  selected. DECISIONS-4: sticky below the TopBar from lg
+                  (self-start — a stretched grid item can never stick) with its
+                  own independent scroll. */}
               <div
-                className={
+                className={cn(
+                  "lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:self-start lg:overflow-y-auto",
                   selectedId != null
                     ? showDetailMobile
                       ? "block"
                       : "hidden lg:block"
-                    : "hidden lg:flex lg:items-center lg:justify-center lg:rounded-lg lg:border lg:border-dashed lg:border-border lg:p-8"
-                }
+                    : "hidden lg:flex lg:items-center lg:justify-center lg:rounded-lg lg:border lg:border-dashed lg:border-border lg:p-8",
+                )}
               >
                 {selectedId != null ? (
                   <>
