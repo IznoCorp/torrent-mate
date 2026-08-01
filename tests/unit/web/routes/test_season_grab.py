@@ -258,7 +258,7 @@ class TestSeasonGrab:
         client: TestClient,
         tmp_path: Path,
     ) -> None:
-        """Second grab on the same season → returns existing row with absorbed count."""
+        """Second grab on the same LIVE season → 200, reused=True, no new row."""
         acquire_path = tmp_path / "acquire.db"
         conn = sqlite3.connect(str(acquire_path))
         apply_pragmas(conn)
@@ -277,17 +277,113 @@ class TestSeasonGrab:
         data1 = resp1.json()
         wid = data1["season_wanted_id"]
         assert data1["absorbed_count"] == 1
+        assert data1["reused"] is False
 
-        # Second grab — same season_wanted_id, same absorbed count
+        # Second grab — HTTP 200 (nothing created), same id, reused flag set
         resp2 = client.post(
             f"/api/acquisition/follows/{fid}/seasons/1/grab",
             cookies=_auth_cookies(),
             headers=_xrw_headers(),
         )
-        assert resp2.status_code == 201, resp2.text
+        assert resp2.status_code == 200, resp2.text
         data2 = resp2.json()
         assert data2["season_wanted_id"] == wid
         assert data2["absorbed_count"] == 1
+        assert data2["reused"] is True
+
+        # Mutation-check: still exactly ONE season row in the DB.
+        conn = sqlite3.connect(str(acquire_path))
+        count = conn.execute(
+            "SELECT COUNT(*) FROM wanted WHERE kind = 'season' AND followed_id = ? AND season = 1",
+            (fid,),
+        ).fetchone()[0]
+        conn.close()
+        assert count == 1
+
+    def test_terminal_season_row_does_not_block_a_fresh_grab(
+        self,
+        client: TestClient,
+        tmp_path: Path,
+    ) -> None:
+        """Review F5: a ``fallback_episodes`` season row is history, not a dedup hit.
+
+        The status-agnostic dedup « reused » the terminal row: 201 + success
+        toast, nothing enqueued, forever — with this endpoint being the ONLY
+        manual escape hatch after an R6 fallback. A terminal row must yield a
+        FRESH season row (201) that absorbs the live episodes.
+        """
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        fid = _seed_followed(conn, 1, "Test Show")
+        old_season_id = _seed_wanted(conn, fid, "season", 2, None, status="fallback_episodes")
+        ep1 = _seed_wanted(conn, fid, "episode", 2, 1, status="pending")
+        ep2 = _seed_wanted(conn, fid, "episode", 2, 2, status="searching")
+        conn.commit()
+        conn.close()
+
+        resp = client.post(
+            f"/api/acquisition/follows/{fid}/seasons/2/grab",
+            cookies=_auth_cookies(),
+            headers=_xrw_headers(),
+        )
+        assert resp.status_code == 201, resp.text
+        data = resp.json()
+        assert data["reused"] is False
+        assert data["season_wanted_id"] != old_season_id
+        assert data["absorbed_count"] == 2
+
+        # Mutation-check on the DB, not just the response.
+        conn = sqlite3.connect(str(acquire_path))
+        conn.row_factory = sqlite3.Row
+        new_row = conn.execute(
+            "SELECT status FROM wanted WHERE id = ?", (data["season_wanted_id"],)
+        ).fetchone()
+        assert new_row is not None and new_row["status"] == "pending"
+        old_row = conn.execute(
+            "SELECT status, absorbed_by FROM wanted WHERE id = ?", (old_season_id,)
+        ).fetchone()
+        assert old_row["status"] == "fallback_episodes"  # untouched
+        assert old_row["absorbed_by"] is None
+        episodes = conn.execute(
+            "SELECT id, status, absorbed_by FROM wanted WHERE id IN (?, ?)", (ep1, ep2)
+        ).fetchall()
+        conn.close()
+        assert {(r["status"], r["absorbed_by"]) for r in episodes} == {
+            ("absorbed", data["season_wanted_id"]),
+        }
+
+    def test_live_season_row_is_reused_with_200(
+        self,
+        client: TestClient,
+        tmp_path: Path,
+    ) -> None:
+        """A LIVE (open) season row → 200 + reused=True + same id, no new row."""
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        fid = _seed_followed(conn, 1, "Test Show")
+        live_id = _seed_wanted(conn, fid, "season", 3, None, status="grabbed")
+        conn.commit()
+        conn.close()
+
+        resp = client.post(
+            f"/api/acquisition/follows/{fid}/seasons/3/grab",
+            cookies=_auth_cookies(),
+            headers=_xrw_headers(),
+        )
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        assert data["reused"] is True
+        assert data["season_wanted_id"] == live_id
+
+        conn = sqlite3.connect(str(acquire_path))
+        count = conn.execute(
+            "SELECT COUNT(*) FROM wanted WHERE kind = 'season' AND followed_id = ? AND season = 3",
+            (fid,),
+        ).fetchone()[0]
+        conn.close()
+        assert count == 1
 
     def test_403_on_staging(
         self,

@@ -32,12 +32,12 @@ from contextlib import closing
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 
 from personalscraper.acquire._provenance_store import STUCK_IDLE_SECONDS, provenance_row_is_stuck
 from personalscraper.acquire.cadence import Cadence
 from personalscraper.acquire.desired import cadence_from_config, cadence_from_json, effective_cadence
-from personalscraper.acquire.domain import FollowedSeries
+from personalscraper.acquire.domain import OPEN_WANTED_STATUSES, FollowedSeries
 from personalscraper.acquire.metadata_enrich import FollowMetadata, enrich_follow_metadata
 from personalscraper.acquire.store import build_acquire_store
 from personalscraper.core.identity import MediaRef
@@ -1032,22 +1032,32 @@ def _absorb_live_episodes_for_season(
 )
 def grab_season(
     request: Request,
+    response: Response,
     followed_id: int,
     season: int,
 ) -> SeasonGrabResponse:
     """Manually enqueue a season wanted for a followed series (R4).
 
     Creates a ``WantedItem(kind='season', season=N, episode=None)`` and
-    absorbs every live episode wanted for that season (R5). Idempotent:
-    returns the existing season row id if one already exists.
+    absorbs every live episode wanted for that season (R5). Idempotent on the
+    LIVE row only: an existing OPEN season row is reused (HTTP 200,
+    ``reused=True``); a terminal row (``fallback_episodes`` / ``done`` /
+    ``abandoned``) is history and never blocks a fresh grab — this endpoint is
+    the manual escape hatch after an R6 fallback, so it must be able to
+    re-enqueue the season (201, new row).
+
+    Web mutations deliberately emit NO domain event: the web layer has no
+    event bus, and provenance comes from the store rows themselves.
 
     Args:
         request: The incoming FastAPI request.
+        response: The outgoing response (status downgraded to 200 on reuse).
         followed_id: Rowid of the ``followed_series`` row.
         season: Season number (1-based).
 
     Returns:
-        The created or existing season wanted with absorption count.
+        The created (201) or reused live (200) season wanted with absorption
+        count and the ``reused`` flag.
 
     Raises:
         HTTPException: 404 if the followed_id does not exist.
@@ -1068,20 +1078,26 @@ def grab_season(
                 detail="Season grab only applies to TV shows (kind='show')",
             )
 
-        # Dedup: one live season wanted per follow+season
+        # Dedup: one LIVE season wanted per follow+season. Status-scoped to the
+        # open statuses — a terminal row (fallback_episodes/done/abandoned)
+        # must not be « reused »: that answered 201 with nothing enqueued,
+        # closing the only manual escape hatch after a fallback (review F5).
         existing = store.wanted.find(
             followed_id=followed_id,
             kind="season",
             season=season,
             episode=None,
+            statuses=tuple(sorted(OPEN_WANTED_STATUSES)),
         )
         if existing is not None:
-            # Count already-absorbed episodes for a truthful response
+            # Count already-absorbed episodes for a truthful response.
             absorbed = _count_absorbed_for_season(store, followed_id, season)
+            response.status_code = 200
             return SeasonGrabResponse(
                 season_wanted_id=existing.id or 0,
                 season=season,
                 absorbed_count=absorbed,
+                reused=True,
             )
 
         assert followed.id is not None  # noqa: S101 — get() sets id
@@ -1114,6 +1130,7 @@ def grab_season(
             season_wanted_id=season_wid,
             season=season,
             absorbed_count=len(absorbed_ids),
+            reused=False,
         )
     finally:
         store.close()

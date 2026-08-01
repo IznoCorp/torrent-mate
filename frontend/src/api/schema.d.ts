@@ -291,16 +291,25 @@ export interface paths {
          * @description Manually enqueue a season wanted for a followed series (R4).
          *
          *     Creates a ``WantedItem(kind='season', season=N, episode=None)`` and
-         *     absorbs every live episode wanted for that season (R5). Idempotent:
-         *     returns the existing season row id if one already exists.
+         *     absorbs every live episode wanted for that season (R5). Idempotent on the
+         *     LIVE row only: an existing OPEN season row is reused (HTTP 200,
+         *     ``reused=True``); a terminal row (``fallback_episodes`` / ``done`` /
+         *     ``abandoned``) is history and never blocks a fresh grab — this endpoint is
+         *     the manual escape hatch after an R6 fallback, so it must be able to
+         *     re-enqueue the season (201, new row).
+         *
+         *     Web mutations deliberately emit NO domain event: the web layer has no
+         *     event bus, and provenance comes from the store rows themselves.
          *
          *     Args:
          *         request: The incoming FastAPI request.
+         *         response: The outgoing response (status downgraded to 200 on reuse).
          *         followed_id: Rowid of the ``followed_series`` row.
          *         season: Season number (1-based).
          *
          *     Returns:
-         *         The created or existing season wanted with absorption count.
+         *         The created (201) or reused live (200) season wanted with absorption
+         *         count and the ``reused`` flag.
          *
          *     Raises:
          *         HTTPException: 404 if the followed_id does not exist.
@@ -4299,10 +4308,17 @@ export interface components {
          *         season_wanted_id: Rowid of the season wanted row (new or existing).
          *         season: Season number (1-based).
          *         absorbed_count: Number of episode rows absorbed by this season wanted.
+         *         reused: ``True`` when an existing LIVE season row was returned (HTTP
+         *             200) instead of a freshly created one (HTTP 201).
          */
         SeasonGrabResponse: {
             /** Absorbed Count */
             absorbed_count: number;
+            /**
+             * Reused
+             * @default false
+             */
+            reused: boolean;
             /** Season */
             season: number;
             /** Season Wanted Id */
