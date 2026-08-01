@@ -7,6 +7,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient, type UseQueryOptions, type UseQueryResult } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import {
   acqKeys,
@@ -30,7 +31,33 @@ import {
   type WantedParams,
   type WantedResponse,
 } from "@/api/acquisition";
+import { ApiError } from "@/api/client";
 import { useRunToCompletion } from "@/hooks/useRunToCompletion";
+
+/**
+ * Toast a mutation failure in French, surfacing the backend detail when the
+ * error is a typed {@link ApiError} (409/422/428 carry an operator-readable
+ * ``detail``) — X3: no acquisition mutation may fail silently.
+ *
+ * Args:
+ *   action: The French phrase naming the failed action (no trailing period).
+ *   err: The error thrown by the mutation.
+ */
+function toastMutationError(action: string, err: unknown): void {
+  if (err instanceof ApiError) {
+    // The staging read-only guard already carries a clean French message;
+    // any other ApiError surfaces the backend ``detail`` (409/422/428).
+    toast.error(
+      err.isReadOnly
+        ? err.message
+        : err.detail !== ""
+          ? `${action} — ${err.detail}`
+          : `${action}.`,
+    );
+  } else {
+    toast.error(`${action}.`);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Read hooks
@@ -236,7 +263,9 @@ export function useTrackedAcquisitionRun(runUid: string | null) {
  *
  * Sends ``POST /api/acquisition/followed``.  On success invalidates the
  * entire acquisition query namespace so the followed list, wanted queue, and
- * obligations panel all refresh.
+ * obligations panel all refresh.  Failures toast in French with the backend
+ * detail (X3) — call sites add their own ``onSuccess`` wording but never a
+ * second error toast.
  *
  * Returns:
  *   The mutation result; call ``mutateAsync(body)`` from a form.
@@ -248,6 +277,9 @@ export function useFollow() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: acqKeys.all });
     },
+    onError: (err: unknown) => {
+      toastMutationError("Échec de l'ajout au suivi", err);
+    },
   });
 }
 
@@ -255,7 +287,8 @@ export function useFollow() {
  * Update a followed series (active flag / cadence).
  *
  * Sends ``PATCH /api/acquisition/followed/{followed_id}``.  On success
- * invalidates the entire acquisition query namespace.
+ * invalidates the entire acquisition query namespace; failures toast in
+ * French with the backend detail (X3).
  *
  * Args:
  *   (none — pass ``{id, body}`` to ``mutateAsync``)
@@ -272,6 +305,10 @@ export function useUpdateFollow() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: acqKeys.all });
     },
+    onError: (err: unknown) => {
+      // X3: a failed toggle/cadence edit silently snapped back before this.
+      toastMutationError("Échec de la mise à jour du suivi", err);
+    },
   });
 }
 
@@ -279,7 +316,8 @@ export function useUpdateFollow() {
  * Soft-unfollow a series (sets active=False).
  *
  * Sends ``DELETE /api/acquisition/followed/{followed_id}``.  On success
- * invalidates the entire acquisition query namespace.
+ * invalidates the entire acquisition query namespace; failures toast in
+ * French with the backend detail (X3).
  *
  * Returns:
  *   The mutation result; call ``mutateAsync(id)`` with the followed row id.
@@ -290,6 +328,11 @@ export function useUnfollow() {
     mutationFn: (id: number) => deleteFollow(id),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: acqKeys.all });
+    },
+    onError: (err: unknown) => {
+      // X3: an unfollow that failed used to leave the row visibly unchanged
+      // with no explanation.
+      toastMutationError("Échec du retrait du suivi", err);
     },
   });
 }

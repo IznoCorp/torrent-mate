@@ -101,6 +101,8 @@ export function MediaSearchAdd(): ReactElement {
   function handleAddById(): void {
     if (idBody === null) return;
     if (idTitle.trim()) idBody.title = idTitle.trim();
+    // Error feedback is owned by the useFollow hook (X3) — a second onError
+    // here would double-toast the same failure.
     followMut.mutate(idBody, {
       onSuccess: (created) => {
         toast.success("Média ajouté au suivi");
@@ -111,9 +113,6 @@ export function MediaSearchAdd(): ReactElement {
             "Série ajoutée, mais l'ID TVDB n'a pas pu être résolu — la détection d'épisodes est indisponible tant qu'un ID TVDB n'est pas fourni.",
           );
         }
-      },
-      onError: (err: unknown) => {
-        toast.error(err instanceof Error ? err.message : "Échec de l'ajout");
       },
     });
   }
@@ -135,6 +134,7 @@ export function MediaSearchAdd(): ReactElement {
 
   function doFollow(result: MediaSearchResult): void {
     const key = `${result.provider}-${String(result.provider_id)}`;
+    // Error feedback is owned by the useFollow hook (X3) — no second onError.
     followMut.mutate(toFollowBody(result), {
       onSuccess: () => {
         toast.success(`« ${result.title} » ajouté au suivi`);
@@ -143,9 +143,6 @@ export function MediaSearchAdd(): ReactElement {
         // the results collapse and the input clears.
         setDraft("");
         setQuery("");
-      },
-      onError: (err: unknown) => {
-        toast.error(err instanceof Error ? err.message : "Échec de l'ajout");
       },
     });
   }

@@ -9,14 +9,19 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { toastSuccess, toastInfo, toastError, triggerDetectMock } = vi.hoisted(
-  () => ({
-    toastSuccess: vi.fn(),
-    toastInfo: vi.fn(),
-    toastError: vi.fn(),
-    triggerDetectMock: vi.fn(),
-  }),
-);
+const {
+  toastSuccess,
+  toastInfo,
+  toastError,
+  triggerDetectMock,
+  setWatcherMock,
+} = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastInfo: vi.fn(),
+  toastError: vi.fn(),
+  triggerDetectMock: vi.fn(),
+  setWatcherMock: vi.fn(),
+}));
 
 vi.mock("sonner", () => ({
   toast: { success: toastSuccess, info: toastInfo, error: toastError },
@@ -37,7 +42,11 @@ vi.mock("@/api/acquisition", async () => {
 vi.mock("@/api/pipeline", async () => {
   const actual =
     await vi.importActual<typeof import("@/api/pipeline")>("@/api/pipeline");
-  return { ...actual, setWatcher: vi.fn() };
+  return {
+    ...actual,
+    setWatcher: (body: { enabled: boolean }): Promise<unknown> =>
+      setWatcherMock(body) as Promise<unknown>,
+  };
 });
 
 import { WatcherPanel } from "./WatcherPanel";
@@ -62,7 +71,12 @@ afterEach(() => {
 describe("WatcherPanel — §5 detect trigger", () => {
   it("does NOT toast success on the 202, only 'lancée'", async () => {
     vi.spyOn(hooks, "useAcquisitionStatus").mockReturnValue({
-      data: { watcher_enabled: true, last_successful_run_at: null, recent_runs: [], deferred: [] },
+      data: {
+        watcher_enabled: true,
+        last_successful_run_at: null,
+        recent_runs: [],
+        deferred: [],
+      },
       isLoading: false,
       isError: false,
       error: null,
@@ -72,7 +86,9 @@ describe("WatcherPanel — §5 detect trigger", () => {
     triggerDetectMock.mockResolvedValue({ run_uid: "run-1" });
 
     renderPanel();
-    fireEvent.click(screen.getByRole("button", { name: /Détecter maintenant/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Détecter maintenant/ }),
+    );
 
     await waitFor(() => {
       expect(triggerDetectMock).toHaveBeenCalledTimes(1);
@@ -83,7 +99,12 @@ describe("WatcherPanel — §5 detect trigger", () => {
 
   it("toasts the NUMERIC result once the tracked run ends", async () => {
     vi.spyOn(hooks, "useAcquisitionStatus").mockReturnValue({
-      data: { watcher_enabled: true, last_successful_run_at: null, recent_runs: [], deferred: [] },
+      data: {
+        watcher_enabled: true,
+        last_successful_run_at: null,
+        recent_runs: [],
+        deferred: [],
+      },
       isLoading: false,
       isError: false,
       error: null,
@@ -92,7 +113,7 @@ describe("WatcherPanel — §5 detect trigger", () => {
     vi.spyOn(hooks, "useTrackedAcquisitionRun").mockImplementation((runUid) =>
       runUid == null
         ? undefined
-        : ({
+        : {
             run_uid: runUid,
             started_at: 1,
             ended_at: 2,
@@ -100,12 +121,14 @@ describe("WatcherPanel — §5 detect trigger", () => {
             command: "follow-detect",
             trigger: "web",
             result: { detected: 3, enqueued: 2 },
-          }),
+          },
     );
     triggerDetectMock.mockResolvedValue({ run_uid: "run-1" });
 
     renderPanel();
-    fireEvent.click(screen.getByRole("button", { name: /Détecter maintenant/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Détecter maintenant/ }),
+    );
 
     // The success toast carries the numeric result, never a bare "lancée".
     await waitFor(() => {
@@ -119,6 +142,51 @@ describe("WatcherPanel — §5 detect trigger", () => {
 // ---------------------------------------------------------------------------
 // Recent-run badge assertions (sub-phase 5.2)
 // ---------------------------------------------------------------------------
+
+describe("WatcherPanel — toggle feedback (X3)", () => {
+  function mockStatus(): void {
+    vi.spyOn(hooks, "useAcquisitionStatus").mockReturnValue({
+      data: {
+        watcher_enabled: true,
+        last_successful_run_at: null,
+        recent_runs: [],
+        deferred: [],
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+    } as unknown as ReturnType<typeof hooks.useAcquisitionStatus>);
+    vi.spyOn(hooks, "useTrackedAcquisitionRun").mockReturnValue(undefined);
+  }
+
+  it("toasts the new state when the toggle write lands", async () => {
+    mockStatus();
+    setWatcherMock.mockResolvedValue({});
+
+    renderPanel();
+    fireEvent.click(screen.getByRole("switch", { name: /Activé/ }));
+
+    await waitFor(() => {
+      expect(setWatcherMock).toHaveBeenCalledWith({ enabled: false });
+    });
+    expect(toastSuccess).toHaveBeenCalledWith("Watcher désactivé.");
+  });
+
+  it("toasts an error when the toggle write fails (no silent snap-back)", async () => {
+    mockStatus();
+    setWatcherMock.mockRejectedValue(new Error("boom"));
+
+    renderPanel();
+    fireEvent.click(screen.getByRole("switch", { name: /Activé/ }));
+
+    await waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith(
+        "Impossible de désactiver le watcher.",
+      );
+    });
+    expect(toastSuccess).not.toHaveBeenCalled();
+  });
+});
 
 describe("WatcherPanel — recent-run outcome badges (sub-phase 5.2)", () => {
   it("affiche « Échec » pour un run récent en erreur", () => {

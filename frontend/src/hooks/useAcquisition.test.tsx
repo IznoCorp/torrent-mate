@@ -12,6 +12,21 @@ import { cleanup, renderHook, waitFor } from "@testing-library/react";
 import { type ReactElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+// X3: every acquisition mutation toasts its failure — spy on sonner.
+const { toastSuccess, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
+
+vi.mock("sonner", () => ({
+  toast: {
+    success: toastSuccess,
+    error: toastError,
+    warning: vi.fn(),
+    info: vi.fn(),
+  },
+}));
+
 import {
   useAcquisitionStatus,
   useFollow,
@@ -51,8 +66,8 @@ const FOLLOWED: FollowedResponse = {
       active: true,
       added_at: 1_750_000_000,
       wanted_pending: 3,
-    wanted_grabbed: 0,
-    kind: "show",
+      wanted_grabbed: 0,
+      kind: "show",
       status: "a_recuperer",
       priming_running: false,
       tvdb_unresolved: false,
@@ -146,6 +161,8 @@ function createWrapper(): (props: { children: ReactNode }) => ReactElement {
 
 beforeEach(() => {
   fetchMock.mockReset();
+  toastSuccess.mockReset();
+  toastError.mockReset();
   vi.stubGlobal("fetch", fetchMock);
 });
 
@@ -401,8 +418,26 @@ describe("useFollow", () => {
       wrapper: createWrapper(),
     });
 
-    await expect(result.current.mutateAsync({ tvdb_id: 123, kind: "show" })).rejects.toThrow(
-      ApiError,
+    await expect(
+      result.current.mutateAsync({ tvdb_id: 123, kind: "show" }),
+    ).rejects.toThrow(ApiError);
+  });
+
+  it("toasts the failure with the backend detail (X3)", async () => {
+    fetchMock.mockResolvedValue(
+      buildResponse(409, { detail: "Already actively followed" }),
+    );
+
+    const { result } = renderHook(() => useFollow(), {
+      wrapper: createWrapper(),
+    });
+
+    await expect(
+      result.current.mutateAsync({ tvdb_id: 123, kind: "show" }),
+    ).rejects.toThrow(ApiError);
+
+    expect(toastError).toHaveBeenCalledWith(
+      "Échec de l'ajout au suivi — Already actively followed",
     );
   });
 });
@@ -445,6 +480,20 @@ describe("useUnfollow", () => {
     });
 
     await expect(result.current.mutateAsync(999)).rejects.toThrow(ApiError);
+  });
+
+  it("toasts the failure with the backend detail (X3)", async () => {
+    fetchMock.mockResolvedValue(buildResponse(404, { detail: "Not found" }));
+
+    const { result } = renderHook(() => useUnfollow(), {
+      wrapper: createWrapper(),
+    });
+
+    await expect(result.current.mutateAsync(999)).rejects.toThrow(ApiError);
+
+    expect(toastError).toHaveBeenCalledWith(
+      "Échec du retrait du suivi — Not found",
+    );
   });
 });
 
@@ -489,5 +538,21 @@ describe("useUpdateFollow", () => {
     await expect(
       result.current.mutateAsync({ id: 999, body: { active: true } }),
     ).rejects.toThrow(ApiError);
+  });
+
+  it("toasts the failure with the backend detail (X3)", async () => {
+    fetchMock.mockResolvedValue(buildResponse(404, { detail: "Not found" }));
+
+    const { result } = renderHook(() => useUpdateFollow(), {
+      wrapper: createWrapper(),
+    });
+
+    await expect(
+      result.current.mutateAsync({ id: 999, body: { active: true } }),
+    ).rejects.toThrow(ApiError);
+
+    expect(toastError).toHaveBeenCalledWith(
+      "Échec de la mise à jour du suivi — Not found",
+    );
   });
 });

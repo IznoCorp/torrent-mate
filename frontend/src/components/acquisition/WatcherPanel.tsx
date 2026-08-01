@@ -53,8 +53,21 @@ export function WatcherPanel(): ReactElement {
 
   const toggleMutation = useMutation({
     mutationFn: (enabled: boolean) => setWatcher({ enabled }),
-    onSuccess: () => {
+    onSuccess: (_res, enabled) => {
+      // X3: name the action — the Switch alone cannot say the write landed.
+      toast.success(enabled ? "Watcher activé." : "Watcher désactivé.");
       void queryClient.invalidateQueries({ queryKey: acqKeys.status() });
+    },
+    onError: (err: unknown, enabled) => {
+      // X3: on failure the Switch silently snapped back with no explanation.
+      const action = enabled
+        ? "Impossible d'activer le watcher."
+        : "Impossible de désactiver le watcher.";
+      toast.error(
+        err instanceof ApiError && err.detail !== ""
+          ? `${action} — ${err.detail}`
+          : action,
+      );
     },
   });
 
