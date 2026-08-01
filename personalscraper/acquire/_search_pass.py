@@ -147,7 +147,13 @@ class SearchPassMixin(PassGatesMixin):
         ):
             from personalscraper.acquire.orchestrator import filter_to_season
 
-            season_packs = filter_to_season(list(verdict.raw_results), current.season)
+            # F4 — verify pack coverage against the aired-episode count; an
+            # empty cache (or a standalone item) yields None and the filter
+            # rejects episode-marker releases conservatively.
+            expected_count: int | None = None
+            if current.followed_id is not None:
+                expected_count = len(self._aired_episodes_for_season(current.followed_id, current.season)) or None
+            season_packs = filter_to_season(list(verdict.raw_results), current.season, expected_count=expected_count)
             if season_packs:
                 # Record the triggering verdict BEFORE the conversion absorbs
                 # the row (verdict-before-status, the #320 order): an absorbed

@@ -1147,12 +1147,12 @@ def _make_season_result(
 
 
 def test_filter_to_season_accepts_full_range() -> None:
-    """S01E01-E08 full-range → kept."""
+    """S01E01-E08 with expected_count=8 (full coverage proven) → kept."""
     results = [
         _make_season_result("Show.S01E01-E08.MULTi.1080p.x265"),
         _make_season_result("Show.S01E05.MULTi.1080p.x265"),  # single ep, dropped
     ]
-    kept = filter_to_season(results, 1)
+    kept = filter_to_season(results, 1, expected_count=8)
     assert len(kept) == 1
     assert "E01-E08" in kept[0].title
 
@@ -1169,21 +1169,20 @@ def test_filter_to_season_accepts_bare_season() -> None:
 
 
 def test_filter_to_season_accepts_integrale_keyword() -> None:
-    """'Intégrale' token overrides partial episode info."""
+    """'INTEGRALE' with no episode markers → kept (bare-season acceptance)."""
     results = [_make_season_result("Show.S01.INTEGRALE.1080p.x265")]
     kept = filter_to_season(results, 1)
     assert len(kept) == 1
 
 
 def test_filter_to_season_accepts_ep01_range_as_full_range() -> None:
-    """S01E01-E03 (starts at E01 → full-range) → kept.
+    """S01E01-E03 with expected_count=3 (covers the whole season) → kept.
 
-    guessit expands the range into an episode list [1, 2, 3]; the first episode
-    is 1, so this is classified as a full-range pack. The per-season dedup rule
-    (one season wanted per season) prevents duplicates.
+    guessit expands the range into an episode list [1, 2, 3]; it starts at
+    E01 and reaches the aired-episode count, so coverage is proven.
     """
     results = [_make_season_result("Show.S01E01-E03.1080p")]
-    kept = filter_to_season(results, 1)
+    kept = filter_to_season(results, 1, expected_count=3)
     assert len(kept) == 1
 
 
@@ -1221,15 +1220,20 @@ def test_filter_to_season_accepts_complete_keyword() -> None:
     assert len(kept) == 1
 
 
-def test_filter_to_season_accepts_complete_keyword_with_ep_info() -> None:
-    """'Complete' keyword overrides episode markers — S01E01.E02 COMPLETE → kept."""
+def test_filter_to_season_rejects_complete_keyword_with_ep_info() -> None:
+    """F4: the season keyword must NOT override an explicit episode marker.
+
+    ``COMPLETE`` is a standard scene tag (COMPLETE.BLURAY): ``S01E05.COMPLETE``
+    is episode 5, not the season — keeping it let R3 replace-all install a
+    single episode as « the season ». Only the bare-season title survives.
+    """
     results = [
         _make_season_result("Show.S01.COMPLETE.1080p.x265"),
-        _make_season_result("Show.S01E05.COMPLETE.1080p.x265"),  # has ep marker + keyword → kept
+        _make_season_result("Show.S01E05.COMPLETE.1080p.x265"),  # ep marker → dropped
     ]
-    kept = filter_to_season(results, 1)
-    # Both survive: first is bare season (no ep markers), second is keyword override.
-    assert len(kept) == 2
+    kept = filter_to_season(results, 1, expected_count=8)
+    assert len(kept) == 1
+    assert "E05" not in kept[0].title
 
 
 def test_filter_to_season_rejects_multi_season_french() -> None:
@@ -1237,6 +1241,60 @@ def test_filter_to_season_rejects_multi_season_french() -> None:
     results = [_make_season_result("Show.Saisons.1.a.4.1080p")]
     kept = filter_to_season(results, 1)
     assert len(kept) == 0
+
+
+def test_filter_to_season_rejects_partial_pack_against_expected_count() -> None:
+    """F4 REGRESSION: E01-start is not enough — coverage must reach the count.
+
+    ``S02E01-E05`` starts at E01 but covers 5 of 12 aired episodes: R3
+    replace-all would install it as « the season » and the 7 missing episodes
+    would never be acquired (the per-season dedup blocks a second wanted).
+    """
+    results = [_make_season_result("Show.S02E01-E05.1080p")]
+    kept = filter_to_season(results, 2, expected_count=12)
+    assert kept == []
+
+
+def test_filter_to_season_rejects_short_multi_episode_release() -> None:
+    """F4: S02E01E02 (two episodes of twelve) → dropped."""
+    results = [_make_season_result("Show.S02E01E02.1080p")]
+    kept = filter_to_season(results, 2, expected_count=12)
+    assert kept == []
+
+
+def test_filter_to_season_rejects_single_episode_with_complete_bluray_tag() -> None:
+    """F4: ``S02E05.COMPLETE.BLURAY-GRP`` is episode 5, never the season."""
+    results = [_make_season_result("Show.S02E05.COMPLETE.BLURAY-GRP")]
+    kept = filter_to_season(results, 2, expected_count=12)
+    assert kept == []
+
+
+def test_filter_to_season_keeps_verified_full_range() -> None:
+    """F4: S02E01-E12 with expected_count=12 → coverage proven, kept."""
+    results = [_make_season_result("Show.S02E01-E12.1080p")]
+    kept = filter_to_season(results, 2, expected_count=12)
+    assert len(kept) == 1
+
+
+def test_filter_to_season_keeps_bare_season_and_integrale_forms() -> None:
+    """F4: titles with NO episode markers stay accepted (with or without count)."""
+    results = [
+        _make_season_result("Show.S02.1080p"),
+        _make_season_result("Show.Saison.2.Intégrale"),
+    ]
+    assert len(filter_to_season(results, 2, expected_count=12)) == 2
+    assert len(filter_to_season(results, 2)) == 2  # count unknown — still fine
+
+
+def test_filter_to_season_rejects_full_looking_range_without_expected_count() -> None:
+    """F4: unknown aired count → even S02E01-E12 is rejected (conservative).
+
+    A pack whose coverage cannot be verified is not « the season »: the range
+    might stop short of a season whose real episode count we do not know.
+    """
+    results = [_make_season_result("Show.S02E01-E12.1080p")]
+    kept = filter_to_season(results, 2, expected_count=None)
+    assert kept == []
 
 
 def test_filter_to_season_parse_error_skips() -> None:

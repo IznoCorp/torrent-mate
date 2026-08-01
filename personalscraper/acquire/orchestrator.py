@@ -453,6 +453,7 @@ class GrabOrchestrator:
         ranking: RankingConfig,
         title_resolver: Callable[[WantedItem], str | None] | None = None,
         year_resolver: "Callable[[WantedItem], int | None] | None" = None,
+        episode_count_resolver: "Callable[[WantedItem], int | None] | None" = None,
     ) -> None:
         """Initialise the orchestrator with injected narrow deps.
 
@@ -477,6 +478,11 @@ class GrabOrchestrator:
                 (from the followed-series row) — disambiguates an ambiguous movie
                 title (#28). ``None`` (or a miss) leaves the query yearless and
                 the movie identity filter inert on the year axis.
+            episode_count_resolver: Resolves a claimed SEASON ``WantedItem`` to
+                the number of aired episodes in its season (from the aired
+                catalog cache) so ``filter_to_season`` can verify a pack's
+                coverage (review F4). ``None`` (or a miss) makes the filter
+                reject any episode-marker release conservatively.
         """
         self._tracker_registry = tracker_registry
         self._torrent_client = torrent_client
@@ -484,6 +490,7 @@ class GrabOrchestrator:
         self._ranking = ranking
         self._title_resolver = title_resolver
         self._year_resolver = year_resolver
+        self._episode_count_resolver = episode_count_resolver
 
     # ------------------------------------------------------------------
     # Shared search→filter→rank chain
@@ -624,7 +631,11 @@ class GrabOrchestrator:
                     raw_before_filter=raw_before_filter,
                 )
         elif item.kind == "season" and item.season is not None:
-            results = filter_to_season(results, item.season)
+            # F4 — verify a pack's coverage against the aired-episode count;
+            # None (no resolver / empty cache) → the filter rejects any
+            # episode-marker release conservatively.
+            expected_count = self._episode_count_resolver(item) if self._episode_count_resolver is not None else None
+            results = filter_to_season(results, item.season, expected_count=expected_count)
             if not results:
                 # A SEASON row's fruitless search states its own outcome —
                 # 'no_matching_episode' on a season row would surface a lie in
