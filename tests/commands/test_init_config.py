@@ -807,8 +807,9 @@ class TestInitConfigCliCommand:
         assert kwargs["target"] == explicit_target.resolve()
 
     def test_sync_target_exists_with_output_explicit(self, tmp_path: Path) -> None:
-        """--sync --output to a nonexistent dir works (guard only applies when
-        --output is NOT explicit).
+        """--sync --output to a nonexistent dir works.
+
+        The existence guard only applies when --output is NOT explicit.
         """
         from typer.testing import CliRunner
 

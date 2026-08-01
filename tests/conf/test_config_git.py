@@ -168,10 +168,10 @@ def test_commit_config_dir_stages_untracked_files(tmp_path: Path):
 
 
 def test_commit_config_dir_staging_not_skipped(tmp_path: Path):
-    """Probe (e) kill: staging MUST happen — a file added but not staged
-    before commit_config_dir still lands in the commit.
+    """Probe (e) kill: staging MUST happen.
 
-    This test fails if ``git add -A`` is ever skipped or bypassed — it
+    A file added but not staged before commit_config_dir still lands in the
+    commit. This test fails if ``git add -A`` is ever skipped or bypassed — it
     proves the commit actually captured the file content, not an empty tree.
     """
     cfg = tmp_path / "config"
