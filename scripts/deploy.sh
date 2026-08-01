@@ -113,7 +113,7 @@ fi
 # fail-soft ; MISMATCH ou timeout → échec dur.
 VERSION_URL="http://127.0.0.1:${PORT}/api/version"
 tm_token="$("$VENV/bin/python" - "$REPO" 2>/dev/null <<'PYEOF' || true
-import re, sys, time
+import os, re, sys, time
 from pathlib import Path
 
 import jwt  # PyJWT — ships with the web extra in the prod venv
@@ -127,7 +127,8 @@ secret = next(
     ),
     "",
 )
-web_cfg = (repo / "config" / "web.json5").read_text()
+config_dir = Path(os.environ.get("PERSONALSCRAPER_CONFIG", str(Path.home() / ".torrentmate" / "config")))
+web_cfg = (config_dir / "web.json5").read_text()
 match = re.search(r'username:\s*"([^"]+)"', web_cfg)
 if not secret or match is None:
     raise SystemExit(1)
