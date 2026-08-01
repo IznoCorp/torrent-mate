@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import json5
+
 from tests.commands._e2e_helpers import (
     assert_no_python_traceback,
     run_cli,
@@ -419,6 +421,44 @@ def test_init_config_sync_malformed_json5_clean_error(tmp_path: Path) -> None:
     assert result.exit_code == 1, result.output
     assert "broken.json5" in result.output
     assert_no_python_traceback(result)
+
+
+# ── 8c. M8: non-iterable overlays guard ──
+
+
+def test_init_config_sync_non_iterable_overlays_no_traceback(tmp_path: Path) -> None:
+    """Non-iterable overlays (e.g. int 5) → clean report, exit 0, no traceback (M8).
+
+    Before the fix, ``list(5)`` raised TypeError through the CLI as a raw
+    Python traceback.  The guard (isinstance list check) catches it and emits
+    a clean conflict report line instead.
+    """
+    example = tmp_path / "config.example"
+    example.mkdir()
+    (example / "config.json5").write_text(
+        json5.dumps({"config_version": 1, "overlays": 5}, indent=2)
+    )
+    (example / "paths.json5").write_text('{"paths": {"staging_dir": "/s"}}')
+    output = tmp_path / "config"
+
+    result = run_cli(
+        [
+            "init-config",
+            "--sync",
+            "--example",
+            str(example),
+            "--output",
+            str(output),
+        ]
+    )
+
+    # Must exit cleanly (0).
+    assert result.exit_code == 0, result.output
+    # No raw traceback.
+    assert_no_python_traceback(result)
+    # Files were copied normally — the guard prevented the TypeError without
+    # blocking the rest of the sync (no overlay names to register from int 5).
+    assert "copy new file" in result.output.lower()
 
 
 # ── 8b. F-G: --sync target resolution ──

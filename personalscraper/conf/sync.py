@@ -5,6 +5,8 @@ Never modifies or removes existing keys.  Reports every addition made.
 
 from __future__ import annotations
 
+import os
+import stat
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +17,25 @@ from personalscraper.io_utils import atomic_write_text
 from personalscraper.logger import get_logger
 
 log = get_logger("conf.sync")
+
+
+def _write_merge_preserving_mode(path: Path, content: str) -> None:
+    """Write *content* to *path* via atomic_write_text, preserving the original mode.
+
+    L11: ``atomic_write_text`` defaults to 0o644.  Stat the file before the
+    write and restore its mode afterward so that e.g. a 0o600 config file
+    stays 0o600 after a merge update.
+    """
+    try:
+        st_mode = path.stat().st_mode
+    except OSError:
+        st_mode = None
+    atomic_write_text(path, content)
+    if st_mode is not None:
+        try:
+            os.chmod(path, stat.S_IMODE(st_mode))
+        except OSError:
+            pass
 
 
 def _deep_merge_additive(
@@ -157,13 +178,16 @@ def sync_config_dir(
             if report:
                 for line in report:
                     all_report.append(f"{tgt_path.name}: {line}")
-                if not dry_run:
-                    atomic_write_text(tgt_path, json5.dumps(merged, indent=2))
+                # M6: only write when the merged dict actually differs from the
+                # target — a conflict-only report must NOT rewrite the file
+                # (json5.dumps destroys comments, trailing commas, etc.).
+                if not dry_run and merged != tgt_data:
+                    _write_merge_preserving_mode(tgt_path, json5.dumps(merged, indent=2))
 
     # ── Overlay registration ──
     # NEW overlay files copied from example must be registered in the target
     # master config.json5 overlays list — otherwise their keys never load.
-    if copied_filenames and not dry_run:
+    if copied_filenames:
         master_name = "config.json5"
         example_master = example / master_name
         target_master = target / master_name
@@ -176,20 +200,38 @@ def sync_config_dir(
                 tgt_master_data = json5.loads(target_master.read_text(encoding="utf-8"))
             except ValueError:
                 tgt_master_data = {}
-            ex_overlays: list[str] = list(ex_master_data.get("overlays", []))
-            tgt_overlays: list[str] = list(tgt_master_data.get("overlays", []))
-            tgt_overlay_set = set(tgt_overlays)
+            ex_overlays_raw = ex_master_data.get("overlays", [])
+            tgt_overlays_raw = tgt_master_data.get("overlays", [])
 
-            new_overlays: list[str] = []
-            for name in ex_overlays:
-                if name in copied_filenames and name not in tgt_overlay_set:
-                    new_overlays.append(name)
+            # M7/M8: guard against non-list overlays (dict, int, etc.) —
+            # ``list()`` on a non-iterable raises TypeError through the CLI.
+            if isinstance(tgt_overlays_raw, list) and isinstance(ex_overlays_raw, list):
+                ex_overlays: list[str] = list(ex_overlays_raw)
+                tgt_overlays: list[str] = list(tgt_overlays_raw)
+                tgt_overlay_set = set(tgt_overlays)
 
-            if new_overlays:
-                tgt_overlays.extend(new_overlays)
-                tgt_master_data["overlays"] = tgt_overlays
-                atomic_write_text(target_master, json5.dumps(tgt_master_data, indent=2))
-                for name in new_overlays:
-                    all_report.append(f"register overlay: {name}")
+                new_overlays: list[str] = []
+                for name in ex_overlays:
+                    if name in copied_filenames and name not in tgt_overlay_set:
+                        new_overlays.append(name)
+
+                # L10: report registration in dry-run too (preview parity).
+                if new_overlays:
+                    for name in new_overlays:
+                        all_report.append(f"register overlay: {name}")
+                    if not dry_run:
+                        tgt_overlays.extend(new_overlays)
+                        tgt_master_data["overlays"] = tgt_overlays
+                        atomic_write_text(target_master, json5.dumps(tgt_master_data, indent=2))
+            else:
+                # M7/M8: non-list overlays — cannot register, report as conflict.
+                overlay_names: list[str] = []
+                if isinstance(ex_overlays_raw, list):
+                    overlay_names = [str(n) for n in ex_overlays_raw]
+                new_names = [n for n in overlay_names if n in copied_filenames]
+                if new_names:
+                    all_report.append(
+                        f"conflict (kept target): overlays not a list — cannot register: {', '.join(new_names)}"
+                    )
 
     return all_report
