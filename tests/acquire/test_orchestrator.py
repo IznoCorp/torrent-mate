@@ -37,7 +37,7 @@ from personalscraper.acquire._dedup import SearchOutcome
 from personalscraper.acquire.desired import QualityProfile, Resolution
 from personalscraper.acquire.domain import WantedItem
 from personalscraper.acquire.events import GrabFailed, GrabSucceeded, WantedAbandoned
-from personalscraper.acquire.orchestrator import GrabOrchestrator, GrabOutcome, rank_candidates
+from personalscraper.acquire.orchestrator import GrabOrchestrator, GrabOutcome, filter_to_season, rank_candidates
 from personalscraper.api._contracts import ApiError, MediaType
 from personalscraper.api._units import ByteSize
 from personalscraper.api.torrent._base import TorrentSource
@@ -1082,3 +1082,127 @@ class TestMediaKindThreading:
         # The ranked list uses movie tiers → 5GB movie scores 5 (not generic 10).
         # The score itself isn't on the outcome, but we can verify the top was chosen.
         assert outcome.chosen is r
+
+
+# ---------------------------------------------------------------------------
+# filter_to_season (season-grab phase 2.1) — whole-season pack parser
+# ---------------------------------------------------------------------------
+
+
+def _make_season_result(
+    title: str,
+    seeders: int = 10,
+    info_hash: str = "deadbeef",
+) -> TrackerResult:
+    """Build a tracker result for season-pack filter tests."""
+    return TrackerResult(
+        provider="tr4ker",
+        tracker_id="test",
+        title=title,
+        size=ByteSize(10_000_000_000),
+        seeders=seeders,
+        leechers=0,
+        info_hash=info_hash,
+    )
+
+
+def test_filter_to_season_accepts_full_range() -> None:
+    """S01E01-E08 full-range → kept."""
+    results = [
+        _make_season_result("Show.S01E01-E08.MULTi.1080p.x265"),
+        _make_season_result("Show.S01E05.MULTi.1080p.x265"),  # single ep, dropped
+    ]
+    kept = filter_to_season(results, 1)
+    assert len(kept) == 1
+    assert "E01-E08" in kept[0].title
+
+
+def test_filter_to_season_accepts_bare_season() -> None:
+    """'Show S01' without episode markers → kept."""
+    results = [
+        _make_season_result("Show.S01.1080p.WEB-DL.x265"),
+        _make_season_result("Show.S01E05.1080p.WEB-DL.x265"),  # has ep marker, dropped
+    ]
+    kept = filter_to_season(results, 1)
+    assert len(kept) == 1
+    assert "S01" in kept[0].title and "E05" not in kept[0].title
+
+
+def test_filter_to_season_accepts_integrale_keyword() -> None:
+    """'Intégrale' token overrides partial episode info."""
+    results = [_make_season_result("Show.S01.INTEGRALE.1080p.x265")]
+    kept = filter_to_season(results, 1)
+    assert len(kept) == 1
+
+
+def test_filter_to_season_accepts_ep01_range_as_full_range() -> None:
+    """S01E01-E03 (starts at E01 → full-range) → kept.
+
+    guessit expands the range into an episode list [1, 2, 3]; the first episode
+    is 1, so this is classified as a full-range pack. The per-season dedup rule
+    (one season wanted per season) prevents duplicates.
+    """
+    results = [_make_season_result("Show.S01E01-E03.1080p")]
+    kept = filter_to_season(results, 1)
+    assert len(kept) == 1
+
+
+def test_filter_to_season_rejects_partial_range() -> None:
+    """S01E03-E06 (starts at E03, not E01 → partial) → dropped."""
+    results = [_make_season_result("Show.S01E03-E06.1080p")]
+    kept = filter_to_season(results, 1)
+    assert len(kept) == 0
+
+
+def test_filter_to_season_rejects_multi_season() -> None:
+    """'Show S01-S03' → dropped."""
+    results = [_make_season_result("Show.S01-S03.Complete.1080p")]
+    kept = filter_to_season(results, 1)
+    assert len(kept) == 0
+
+
+def test_filter_to_season_rejects_wrong_season() -> None:
+    """S02 pack when looking for S01 → dropped."""
+    results = [_make_season_result("Show.S02.Complete.1080p")]
+    kept = filter_to_season(results, 1)
+    assert len(kept) == 0
+
+
+def test_filter_to_season_empty_on_no_match() -> None:
+    """Empty results → empty returned."""
+    kept = filter_to_season([], 1)
+    assert kept == []
+
+
+def test_filter_to_season_accepts_complete_keyword() -> None:
+    """'Complete Season 1' → kept."""
+    results = [_make_season_result("Show.Complete.Season.1.1080p.x265")]
+    kept = filter_to_season(results, 1)
+    assert len(kept) == 1
+
+
+def test_filter_to_season_accepts_complete_keyword_with_ep_info() -> None:
+    """'Complete' keyword overrides episode markers — S01E01.E02 COMPLETE → kept."""
+    results = [
+        _make_season_result("Show.S01.COMPLETE.1080p.x265"),
+        _make_season_result("Show.S01E05.COMPLETE.1080p.x265"),  # has ep marker + keyword → kept
+    ]
+    kept = filter_to_season(results, 1)
+    # Both survive: first is bare season (no ep markers), second is keyword override.
+    assert len(kept) == 2
+
+
+def test_filter_to_season_rejects_multi_season_french() -> None:
+    """'Saisons 1 à 4' → dropped."""
+    results = [_make_season_result("Show.Saisons.1.a.4.1080p")]
+    kept = filter_to_season(results, 1)
+    assert len(kept) == 0
+
+
+def test_filter_to_season_parse_error_skips() -> None:
+    """A result that crashes guessit → dropped (fail-soft)."""
+    bad_title = _make_season_result("\x00Invalid\x00Title")
+    results = [bad_title]
+    # Must not raise — fail-soft per the contract.
+    kept = filter_to_season(results, 1)
+    assert len(kept) == 0

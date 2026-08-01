@@ -265,6 +265,130 @@ def filter_to_episode(
     return [r for r in results if pattern.search(r.title)]
 
 
+def filter_to_season(
+    results: list[TrackerResult],
+    season: int,
+) -> list[TrackerResult]:
+    """Keep only WHOLE-season packs targeting the given *season*.
+
+    A season pack is identified by title markers — there is no provider-ID
+    on tracker results, so identity is verified from the parsed release name:
+
+    * **Full-range**: ``SxxE01-Eyy`` where the first episode is E01 (the
+      range covers the season's opening episode). guessit expands ranges
+      into episode lists like ``[1, 2, ..., N]``, so the start-of-season
+      test is ``list[0] == 1`` (or ``int == 1`` for a single-episode
+      release with an episode_count/episode_range). Accepts any range
+      length — the per-season dedup (one season wanted per season)
+      prevents duplicates.
+    * **Bare season**: ``Sxx`` / ``Season N`` without a specific
+      episode token next to it, and NO episode markers anywhere in
+      the title.
+    * **Keyword**: ``Intégrale`` / ``Complete`` / ``Complete Season``
+      anywhere in the title, with no specific episode markers.
+    * **Reject**: partial ranges (``SxxE01-E03`` where a full range is
+      expected), multi-season packs (``S01-S03``, ``Saisons 1-4``),
+      releases that carry specific episode markers alongside the
+      season keyword.
+    * **Reject**: releases whose parsed season from the title differs
+      from the requested *season*.
+
+    Args:
+        results: Raw tracker results from the season search query.
+        season: The target season number.
+
+    Returns:
+        The subset identified as whole-season packs for the given season
+        (possibly empty).
+    """
+    from guessit import guessit  # noqa: PLC0415
+
+    #: Tokens that signal a WHOLE-season pack (case-insensitive).
+    _SEASON_PACK_KEYWORDS: frozenset[str] = frozenset({
+        "intégrale", "integrale", "complete", "complete season",
+        "saison complete", "saison complète",
+    })
+
+    kept: list[TrackerResult] = []
+    for r in results:
+        title = r.title
+        title_lower = title.lower()
+
+        # --- Gate 1: reject multi-season packs ---
+        if re.search(r"\bS\d{1,2}[-–]\d{1,2}\b", title, re.IGNORECASE):
+            continue
+        if re.search(r"(?i)saisons?\s*\d{1,2}\s*[-–àa]\s*\d{1,2}", title):
+            continue
+
+        # --- Gate 2: parse the title via guessit ---
+        try:
+            info = guessit(title)
+        except Exception:
+            continue  # unparseable → skip (fail-soft)
+
+        parsed_season = info.get("season")
+        if parsed_season is None:
+            continue  # no season signal at all
+        try:
+            # guessit can return a list for multi-season packs (e.g. S01-S03);
+            # int() on a list raises TypeError → dropped (also caught by Gate 1).
+            parsed_season = int(parsed_season)
+        except (TypeError, ValueError):
+            continue
+
+        # Season MUST match the target
+        if parsed_season != season:
+            continue
+
+        # --- Gate 3: classify the pack ---
+        episode_raw = info.get("episode")
+        episode_count = info.get("episode_count")
+        episode_range = info.get("episode_range")
+
+        # Full-range detection: the first episode must be 1 (E01 start marker).
+        # guessit expands ranges like S01E01-E08 into episode lists [1,2,...,N],
+        # so the start-of-season test is ``list[0] == 1`` or ``int == 1``.
+        is_full_range = False
+        if episode_raw is not None:
+            if isinstance(episode_raw, list) and len(episode_raw) > 0:
+                is_full_range = episode_raw[0] == 1
+            else:
+                try:
+                    ep_int = int(episode_raw)
+                except (TypeError, ValueError):
+                    ep_int = None
+                if ep_int == 1 and episode_count is not None:
+                    is_full_range = True
+                if ep_int == 1 and episode_range is not None:
+                    is_full_range = True
+
+        if is_full_range:
+            kept.append(r)
+            continue
+
+        # Bare season: Sxx present, NO episode markers
+        has_episode_marker = bool(
+            episode_raw is not None
+            or episode_count is not None
+            or episode_range is not None
+            or re.search(r"(?<![0-9])s\d{1,2}e\d{1,2}", title_lower)
+        )
+        if not has_episode_marker:
+            kept.append(r)
+            continue
+
+        # Keyword match (Intégrale, Complete, etc.) — accept even with
+        # episode info if the keyword overrides
+        if any(kw in title_lower for kw in _SEASON_PACK_KEYWORDS):
+            kept.append(r)
+            continue
+
+        # Explicit rejection: partial range (episode > 1 or small range)
+        # → dropped
+
+    return kept
+
+
 #: Minimum rapidfuzz token-set score between a release's parsed title and the
 #: wanted movie title to survive the identity filter. Deliberately LOOSE — a
 #: subset like "Wicker" vs "The Wicker Man" scores high either way, so the YEAR
@@ -998,5 +1122,6 @@ __all__ = [
     "SearchVerdict",
     "SEARCH_OUTCOMES",
     "INCONCLUSIVE_OUTCOMES",
+    "filter_to_season",
     "rank_candidates",
 ]
