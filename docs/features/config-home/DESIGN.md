@@ -48,6 +48,19 @@ them live; and the topology is **pinned by tests** (`tests/indexer/test_ecosyste
 - The repo keeps **`config.example/` only**. The 5 tracked files are un-tracked
   (`git rm --cached`), `config/` becomes fully gitignored, and the local `config/` dir is
   removed after migration. CI never loads real config (already true) — no CI change.
+- **Data-anchor precondition** (BLOCKER): the migration script rewrites relative `data_dir`
+  (e.g. `"./.data"`) to its absolute path (`/Users/izno/dev/PersonalScraper/.data`) **before**
+  the rsync that relocates `config/`. Reason: the loader resolves relative paths against
+  `config_dir.parent` — after relocation, `config_dir.parent` changes from the dev checkout
+  root to `~/.torrentmate`, so a relative `data_dir` would silently re-root to
+  `~/.torrentmate/.data` and abandon ~1.9 GB of live state (library.db, acquire.db, analysis
+  artifacts, ingested_torrents.json). The anchor is verified after the rewrite by loading the
+  config and asserting `paths.data_dir == /Users/izno/dev/PersonalScraper/.data`.
+- **Env layer**: the migration script copies the dev checkout's `.env` to
+  `~/.torrentmate/.env` (`cp -p`, Step 0b). The canonical env layer lives at
+  `<config parent>/.env` — it preserves secrets (`PLEX_TOKEN`, `WEB_JWT_SECRET`, etc.)
+  shared by all clones (prod, staging, dev). Without this copy, every clone would need its
+  own `.env` at the new location, breaking the single-config model (D2).
 - Strict `extra="forbid"` **stays**: with the config out of the working tree, strictness is
   pure quality again (a typo fails fast); the "branch arms a prod boot-break" vector is
   gone by construction.
@@ -81,10 +94,35 @@ them live; and the topology is **pinned by tests** (`tests/indexer/test_ecosyste
 ### 3.4 Migration + guard tests
 
 - One-shot migration script `scripts/migrate-config-home.sh` (idempotent, refuses to run
-  twice): stop PM2 writers → `rsync -a` current `config/` → `~/.torrentmate/config` →
-  `git init` + initial commit → verify boot (`personalscraper --config ~/.torrentmate/config
-info` smoke) → operator flips `ecosystem.config.js` + dev env → `pm2 startOrRestart` →
-  post-checks (`/api/version`, one pipeline `--dry-run`).
+  twice). Steps (hardened, see the script for full detail):
+  - **Step 0**: Anchor `data_dir` to absolute path (rewrite relative `"./.data"` →
+    `/Users/izno/dev/PersonalScraper/.data` in `paths.json5`, verify by loading config).
+  - **Step 0b**: Copy `.env` layer (`cp -p`) to `~/.torrentmate/.env` (preserves secrets).
+  - **Step 1**: Stop PM2 writers — `torrentmate-autodeploy` first (prevents mid-migration
+    deploy), then web/watch one-at-a-time with `pm2 jlist` verification, then crons.
+    ERR trap (registered after stops) prints explicit recovery instructions on failure.
+  - **Step 2**: `rsync -a` current `config/` → `~/.torrentmate/config` (guard: refuses to
+    overwrite a hand-crafted non-git canonical).
+  - **Step 3**: `git init` + initial commit.
+  - **Step 4**: Update `ecosystem.config.js` PERSONALSCRAPER_CONFIG pins (dev repo only).
+  - **Step 5**: Extended smoke — boot with canonical config; assert `data_dir` still resolves
+    to `/Users/izno/dev/PersonalScraper/.data`; assert `indexer.db_path` is under it;
+    assert `plex_token` non-empty (by name, never by value).
+  - **Step 6**: Scoped restart — `pm2 startOrRestart` with `--only
+torrentmate-web,torrentmate-web-staging,personalscraper-watch`, then `torrentmate-autodeploy`
+    last; `pm2 save` + assert ≥ 9 `.torrentmate/config` refs in dump.pm2 (reboot resurrection).
+  - Post-checks: `/api/health` → 200.
+- **Merge sequencing**: **migration BEFORE merge on this host.** The migration writes the
+  canonical config and flips dev `ecosystem.config.js` pins; the `feat/config-home` branch
+  merge brings the deploy clone's ecosystem up to date (autodeploy → redploy with new pins).
+  Deploy.sh's migration guard (§3.4 below) protects any other ordering — it refuses to
+  restart the web process if the canonical dir doesn't exist when pins point there, converting
+  a prod-down incident into a loud no-op deploy (old process keeps serving).
+- `scripts/deploy.sh` migration guard (BLOCKER): at the top, before build/restart, checks
+  whether the deploy clone's `ecosystem.config.js` pins point to `.torrentmate/config`. If
+  yes → requires that `~/.torrentmate/config` exists, else refuses with an explicit "run the
+  migration script" message. If pins still point at the old dev config path, the guard is a
+  no-op (pre-merge deploys unaffected).
 - `tests/indexer/test_ecosystem.py`: `_CANONICAL_CONFIG` becomes
   `/Users/izno/.torrentmate/config`; plus a **new invariant test**: for every app,
   `PERSONALSCRAPER_CONFIG` must NOT point inside any **ancestor** git working tree (walk
