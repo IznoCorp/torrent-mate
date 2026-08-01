@@ -715,3 +715,27 @@ class AcquisitionOverviewResponse(BaseModel):
     awaiting_resolution: int = 0
     watcher_enabled: bool = True
     last_successful_run_at: int | None = None
+
+
+class SeasonGrabResponse(BaseModel):
+    """Response for a season grab request (R4).
+
+    Attributes:
+        season_wanted_id: Rowid of the season wanted row (new or existing).
+        season: Season number (1-based).
+        absorbed_count: Number of episode rows absorbed by this season wanted.
+    """
+
+    season_wanted_id: int
+    season: int
+    absorbed_count: int
+
+
+class SeasonGrabError(BaseModel):
+    """Error detail for season grab conflicts.
+
+    Attributes:
+        detail: Human-readable error explanation.
+    """
+
+    detail: str

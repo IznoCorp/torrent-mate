@@ -277,6 +277,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/acquisition/follows/{followed_id}/seasons/{season}/grab": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Grab Season
+         * @description Manually enqueue a season wanted for a followed series (R4).
+         *
+         *     Creates a ``WantedItem(kind='season', season=N, episode=None)`` and
+         *     absorbs every live episode wanted for that season (R5). Idempotent:
+         *     returns the existing season row id if one already exists.
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *         followed_id: Rowid of the ``followed_series`` row.
+         *         season: Season number (1-based).
+         *
+         *     Returns:
+         *         The created or existing season wanted with absorption count.
+         *
+         *     Raises:
+         *         HTTPException: 404 if the followed_id does not exist.
+         *         HTTPException: 400 if season < 1 or the follow is not a show.
+         */
+        post: operations["grab_season_api_acquisition_follows__followed_id__seasons__season__grab_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/acquisition/journeys": {
         parameters: {
             query?: never;
@@ -4256,6 +4292,23 @@ export interface components {
             total: number;
         };
         /**
+         * SeasonGrabResponse
+         * @description Response for a season grab request (R4).
+         *
+         *     Attributes:
+         *         season_wanted_id: Rowid of the season wanted row (new or existing).
+         *         season: Season number (1-based).
+         *         absorbed_count: Number of episode rows absorbed by this season wanted.
+         */
+        SeasonGrabResponse: {
+            /** Absorbed Count */
+            absorbed_count: number;
+            /** Season */
+            season: number;
+            /** Season Wanted Id */
+            season_wanted_id: number;
+        };
+        /**
          * SecretEntry
          * @description A single secret key catalogued from ``.env.example``.
          *
@@ -5215,6 +5268,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GrabTriggerResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    grab_season_api_acquisition_follows__followed_id__seasons__season__grab_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                followed_id: number;
+                season: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeasonGrabResponse"];
                 };
             };
             /** @description Validation Error */

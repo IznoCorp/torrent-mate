@@ -3519,6 +3519,30 @@
         "title": "SeasonCompleteness",
         "type": "object"
       },
+      "SeasonGrabResponse": {
+        "description": "Response for a season grab request (R4).\n\nAttributes:\n    season_wanted_id: Rowid of the season wanted row (new or existing).\n    season: Season number (1-based).\n    absorbed_count: Number of episode rows absorbed by this season wanted.",
+        "properties": {
+          "absorbed_count": {
+            "title": "Absorbed Count",
+            "type": "integer"
+          },
+          "season": {
+            "title": "Season",
+            "type": "integer"
+          },
+          "season_wanted_id": {
+            "title": "Season Wanted Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "season_wanted_id",
+          "season",
+          "absorbed_count"
+        ],
+        "title": "SeasonGrabResponse",
+        "type": "object"
+      },
       "SecretEntry": {
         "additionalProperties": false,
         "description": "A single secret key catalogued from ``.env.example``.\n\nAttributes:\n    key: Environment variable name (e.g. ``\"TMDB_API_KEY\"``).\n    description: Human-readable description from the catalog comment.\n    is_set: Whether the key has a value in ``.env``.",
@@ -4992,6 +5016,58 @@
           }
         },
         "summary": "Trigger Followed Search",
+        "tags": [
+          "acquisition"
+        ]
+      }
+    },
+    "/api/acquisition/follows/{followed_id}/seasons/{season}/grab": {
+      "post": {
+        "description": "Manually enqueue a season wanted for a followed series (R4).\n\nCreates a ``WantedItem(kind='season', season=N, episode=None)`` and\nabsorbs every live episode wanted for that season (R5). Idempotent:\nreturns the existing season row id if one already exists.\n\nArgs:\n    request: The incoming FastAPI request.\n    followed_id: Rowid of the ``followed_series`` row.\n    season: Season number (1-based).\n\nReturns:\n    The created or existing season wanted with absorption count.\n\nRaises:\n    HTTPException: 404 if the followed_id does not exist.\n    HTTPException: 400 if season < 1 or the follow is not a show.",
+        "operationId": "grab_season_api_acquisition_follows__followed_id__seasons__season__grab_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "followed_id",
+            "required": true,
+            "schema": {
+              "title": "Followed Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "season",
+            "required": true,
+            "schema": {
+              "title": "Season",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeasonGrabResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Grab Season",
         "tags": [
           "acquisition"
         ]
