@@ -709,3 +709,79 @@ class TestTrailersConfig:
 
         with pytest.raises(pydantic.ValidationError):
             TrailersFiltersConfig(allowed_extensions=["mp4 ", "mkv"])
+
+
+# ---------------------------------------------------------------------------
+# RankingConfig — size_thresholds_by_type validator (#376)
+# ---------------------------------------------------------------------------
+
+
+class TestRankingConfigSizeThresholdsByType:
+    """Tests for RankingConfig.size_thresholds_by_type validation."""
+
+    def test_none_is_valid(self) -> None:
+        """size_thresholds_by_type=None should be valid (default)."""
+        from personalscraper.conf.models._ranking import RankingConfig
+
+        cfg = RankingConfig(size_thresholds_by_type=None)
+        assert cfg.size_thresholds_by_type is None
+
+    def test_valid_keys_accepted(self) -> None:
+        """All three valid keys (movie, episode, season) should be accepted."""
+        from personalscraper.conf.models._ranking import RankingConfig, ThresholdEntry
+
+        cfg = RankingConfig(
+            size_thresholds_by_type={
+                "movie": [ThresholdEntry(at=0, score=0), ThresholdEntry(at="4GB", score=10)],
+                "episode": [ThresholdEntry(at=0, score=0)],
+                "season": [],
+            }
+        )
+        assert set(cfg.size_thresholds_by_type.keys()) == {"movie", "episode", "season"}
+        assert cfg.size_thresholds_by_type["season"] == []
+
+    def test_empty_dict_is_valid(self) -> None:
+        """An empty dict should be valid (no overrides)."""
+        from personalscraper.conf.models._ranking import RankingConfig
+
+        cfg = RankingConfig(size_thresholds_by_type={})
+        assert cfg.size_thresholds_by_type == {}
+
+    def test_unknown_key_rejected(self) -> None:
+        """An unknown key must raise ValidationError with a clear message."""
+        from personalscraper.conf.models._ranking import RankingConfig, ThresholdEntry
+
+        with pytest.raises(ValidationError, match="Unknown key.*size_thresholds_by_type"):
+            RankingConfig(
+                size_thresholds_by_type={
+                    "movie": [ThresholdEntry(at=0, score=0)],
+                    "tv_show": [ThresholdEntry(at=0, score=0)],  # invalid key
+                }
+            )
+
+    def test_multiple_unknown_keys_rejected_with_all_listed(self) -> None:
+        """All unknown keys should appear in the error message."""
+        from personalscraper.conf.models._ranking import RankingConfig, ThresholdEntry
+
+        with pytest.raises(ValidationError, match="foo.*bar"):
+            RankingConfig(
+                size_thresholds_by_type={
+                    "foo": [ThresholdEntry(at=0, score=0)],
+                    "bar": [],
+                }
+            )
+
+    def test_default_rankingconfig_has_none_by_type(self) -> None:
+        """Default RankingConfig() should have size_thresholds_by_type=None."""
+        from personalscraper.conf.models._ranking import RankingConfig
+
+        cfg = RankingConfig()
+        assert cfg.size_thresholds_by_type is None
+
+    def test_size_thresholds_by_type_not_in_criteria(self) -> None:
+        """size_thresholds_by_type is an override map, NOT a criterion field."""
+        from personalscraper.conf.models._ranking import RankingConfig
+
+        cfg = RankingConfig()
+        # The field lives on RankingConfig, not inside criteria.
+        assert not any(c.field == "size_thresholds_by_type" for c in cfg.criteria)

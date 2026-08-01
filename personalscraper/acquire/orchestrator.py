@@ -342,6 +342,7 @@ def rank_candidates(
     ranking: "RankingConfig",
     *,
     exclude_hashes: "frozenset[str]" = frozenset(),
+    media_kind: "str | None" = None,
 ) -> "tuple[list[TrackerResult], list[tuple[TrackerResult, int]]]":
     """Run the hard-filter → dedup → rank tail of the grab chain (DESIGN §15).
 
@@ -371,6 +372,10 @@ def rank_candidates(
         exclude_hashes: Lowercase info-hashes to exclude from ranking — releases
             already grabbed-and-failed for this item (reswitch #342). Empty by
             default, so the ordinary grab and the dry-run preview are unchanged.
+        media_kind: The wanted item's kind (``"movie"`` or ``"episode"``) for
+            per-media-type size thresholds (#376). ``None`` (default) keeps the
+            current byte-identical behaviour; passed by the orchestrator's
+            ``_search_chain`` from the wanted item's ``.kind`` field.
 
     Returns:
         ``(representatives, ranked)`` — the deduped post-hard-filter survivors
@@ -379,7 +384,7 @@ def rank_candidates(
     """
     survivors = apply_hard_filters(results, profile, media_ref)
     representatives = dedup(survivors)
-    ranked = rank(representatives, ranking, exclude_hashes=exclude_hashes)
+    ranked = rank(representatives, ranking, exclude_hashes=exclude_hashes, media_kind=media_kind)
     return representatives, ranked
 
 
@@ -647,7 +652,7 @@ class GrabOrchestrator:
         # hard-filter survivors (``dedup([])`` is ``[]``), so the two guards
         # below keep the all_filtered / no_seeders taxonomy bit-for-bit.
         representatives, ranked = rank_candidates(
-            results, profile, media_ref, self._ranking, exclude_hashes=exclude_hashes
+            results, profile, media_ref, self._ranking, exclude_hashes=exclude_hashes, media_kind=item.kind
         )
         if not representatives:
             return _SearchChainResult(exit_path="all_filtered", ranked=[], top=None)

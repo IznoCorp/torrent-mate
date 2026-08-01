@@ -35,6 +35,7 @@ def rank(
     ranking: RankingConfig,
     *,
     exclude_hashes: frozenset[str] = frozenset(),
+    media_kind: str | None = None,
 ) -> list[tuple[TrackerResult, int]]:
     """Score tracker results, apply bonuses, drop sub-min-seeders, sort desc.
 
@@ -52,6 +53,14 @@ def rank(
         ByteSize values use ``.bytes``; other numerics are coerced via ``int()``.
       - Multiply by ``weight`` and add to total.
       - Add ``bonuses.freeleech`` / ``bonuses.silverleech`` if applicable.
+
+    When ``media_kind`` is set and ``ranking.size_thresholds_by_type`` has a
+    non-empty entry for that kind, the ``size`` criterion uses those per-type
+    thresholds instead of its own ``thresholds`` (the criterion's ``prefer``
+    still applies).  When ``media_kind`` is ``None`` (default) or the kind has
+    no by-type entry, the criterion's own thresholds are used — byte-identical
+    to the current behaviour.
+
     Returns a list of ``(result, score)`` sorted by score descending; ties
     keep input order (Python's sort is stable).
 
@@ -61,6 +70,9 @@ def rank(
         exclude_hashes: Lowercase info-hashes to drop before scoring — releases
             already grabbed-and-failed for this item (reswitch #342). Empty by
             default, so the ordinary grab is unchanged.
+        media_kind: The wanted item's kind (``"movie"`` or ``"episode"``) when
+            the grab context knows it, so per-type size thresholds can be applied.
+            ``None`` (default) keeps the current byte-identical behaviour.
 
     Returns:
         Sorted list of (result, score) pairs, highest score first.
@@ -92,11 +104,19 @@ def rank(
             if cf is not None:
                 pts = cf.get(str(v).casefold(), 0)
             elif c.thresholds:
+                # Per-media-type size thresholds override the generic size
+                # criterion's thresholds when the grab context knows the wanted
+                # kind (#376). The criterion's ``prefer`` still applies.
+                thresholds = c.thresholds
+                if c.field == "size" and media_kind is not None and ranking.size_thresholds_by_type is not None:
+                    by_type = ranking.size_thresholds_by_type.get(media_kind)
+                    if by_type:
+                        thresholds = by_type
                 numeric = v.bytes if isinstance(v, ByteSize) else int(v)
                 if c.prefer == "lower":
-                    applicable = [t for t in c.thresholds if numeric <= t.at]
+                    applicable = [t for t in thresholds if numeric <= t.at]
                 else:
-                    applicable = [t for t in c.thresholds if numeric >= t.at]
+                    applicable = [t for t in thresholds if numeric >= t.at]
                 pts = max((t.score for t in applicable), default=0)
             total += int(pts * c.weight)
         if r.is_freeleech:

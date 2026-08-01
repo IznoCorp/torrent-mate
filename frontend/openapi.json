@@ -2758,7 +2758,7 @@
         "type": "object"
       },
       "RankingConfig": {
-        "description": "Full ranking configuration consumed by the ranking engine.\n\nAttributes:\n    criteria: Ordered list of :class:`RankingCriterion` to evaluate.\n    bonuses: Bonus point configuration.\n    min_seeders: Minimum seeders required for a result to be considered.",
+        "description": "Full ranking configuration consumed by the ranking engine.\n\nAttributes:\n    criteria: Ordered list of :class:`RankingCriterion` to evaluate.\n    bonuses: Bonus point configuration.\n    min_seeders: Minimum seeders required for a result to be considered.\n    size_thresholds_by_type: Optional per-media-type size thresholds that\n        override the generic ``size`` criterion's ``thresholds`` when the\n        grab context knows the wanted item's kind.  Valid keys are\n        ``\"movie\"``, ``\"episode\"``, and ``\"season\"`` (forward-provisioned\n        for season-kind wanted items that will land with the whole-season\n        feature).  Empty lists are allowed (no override for that kind).\n        When ``None`` (default) or when a kind has no entry (or an empty\n        list), ``rank()`` falls back to the criterion's own ``thresholds``\n        \u2014 byte-identical to the current behavior.",
         "properties": {
           "bonuses": {
             "$ref": "#/components/schemas/RankingBonuses"
@@ -2774,6 +2774,23 @@
             "default": 1,
             "title": "Min Seeders",
             "type": "integer"
+          },
+          "size_thresholds_by_type": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "items": {
+                    "$ref": "#/components/schemas/ThresholdEntry"
+                  },
+                  "type": "array"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Thresholds By Type"
           }
         },
         "title": "RankingConfig",

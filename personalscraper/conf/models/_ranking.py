@@ -19,6 +19,10 @@ from pydantic import BaseModel, Field, field_validator
 # parser from api/_units (arch-cleanup-2 Phase 2 plan, Option A).
 from personalscraper.api._units import ByteSize  # layering: allow
 
+#: Valid keys for ``size_thresholds_by_type`` — "season" is forward-provisioned
+#: for season-kind wanted items that will land with the whole-season feature.
+_VALID_SIZE_THRESHOLD_KINDS: frozenset[str] = frozenset({"movie", "season", "episode"})
+
 
 class ThresholdEntry(BaseModel):
     """A size-or-count threshold with a score value.
@@ -86,8 +90,44 @@ class RankingConfig(BaseModel):
         criteria: Ordered list of :class:`RankingCriterion` to evaluate.
         bonuses: Bonus point configuration.
         min_seeders: Minimum seeders required for a result to be considered.
+        size_thresholds_by_type: Optional per-media-type size thresholds that
+            override the generic ``size`` criterion's ``thresholds`` when the
+            grab context knows the wanted item's kind.  Valid keys are
+            ``"movie"``, ``"episode"``, and ``"season"`` (forward-provisioned
+            for season-kind wanted items that will land with the whole-season
+            feature).  Empty lists are allowed (no override for that kind).
+            When ``None`` (default) or when a kind has no entry (or an empty
+            list), ``rank()`` falls back to the criterion's own ``thresholds``
+            — byte-identical to the current behavior.
     """
 
     criteria: list[RankingCriterion] = Field(default_factory=list)
     bonuses: RankingBonuses = Field(default_factory=RankingBonuses)
     min_seeders: int = 1
+    size_thresholds_by_type: dict[str, list[ThresholdEntry]] | None = None
+
+    @field_validator("size_thresholds_by_type")
+    @classmethod
+    def _validate_size_thresholds_by_type(
+        cls, v: dict[str, list[ThresholdEntry]] | None
+    ) -> dict[str, list[ThresholdEntry]] | None:
+        """Reject unknown keys in ``size_thresholds_by_type``.
+
+        Args:
+            v: The raw value from config, or ``None``.
+
+        Returns:
+            The value unchanged if valid.
+
+        Raises:
+            ValueError: If any key is not one of ``{"movie", "season", "episode"}``.
+        """
+        if v is None:
+            return v
+        unknown = set(v.keys()) - _VALID_SIZE_THRESHOLD_KINDS
+        if unknown:
+            raise ValueError(
+                f"Unknown key(s) in size_thresholds_by_type: {sorted(unknown)}. "
+                f"Valid keys are: {sorted(_VALID_SIZE_THRESHOLD_KINDS)}"
+            )
+        return v

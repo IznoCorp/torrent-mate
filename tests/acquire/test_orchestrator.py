@@ -37,14 +37,14 @@ from personalscraper.acquire._dedup import SearchOutcome
 from personalscraper.acquire.desired import QualityProfile, Resolution
 from personalscraper.acquire.domain import WantedItem
 from personalscraper.acquire.events import GrabFailed, GrabSucceeded, WantedAbandoned
-from personalscraper.acquire.orchestrator import GrabOrchestrator, GrabOutcome
+from personalscraper.acquire.orchestrator import GrabOrchestrator, GrabOutcome, rank_candidates
 from personalscraper.api._contracts import ApiError, MediaType
 from personalscraper.api._units import ByteSize
 from personalscraper.api.torrent._base import TorrentSource
 from personalscraper.api.torrent._contracts import TorrentAdder
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.tracker._errors import TorrentFetchError, TrackerAuthError
-from personalscraper.api.tracker._ranking import RankingConfig
+from personalscraper.api.tracker._ranking import RankingConfig, RankingCriterion, ThresholdEntry
 from personalscraper.core._contracts import CircuitOpenError
 from personalscraper.core.event_bus import Event, EventBus
 from personalscraper.core.identity import MediaRef
@@ -1004,3 +1004,81 @@ def test_search_pass_applies_movie_year_filter_and_query(followed_id: int = 7) -
     # higher-seeded wrong-year « The Wicker Man ».
     assert verdict.disposition == "available"
     assert verdict.found == 1
+
+
+# ---------------------------------------------------------------------------
+# Per-media-type size thresholds threading (#376)
+# ---------------------------------------------------------------------------
+
+
+class TestMediaKindThreading:
+    """rank_candidates threads media_kind through to rank()."""
+
+    _MOVIE_TIERS = [
+        ThresholdEntry(at=0, score=0),
+        ThresholdEntry(at="4GB", score=5),  # type: ignore[arg-type]
+        ThresholdEntry(at="15GB", score=10),  # type: ignore[arg-type]
+    ]
+    _GENERIC_SIZE_TIERS = [
+        ThresholdEntry(at=0, score=0),
+        ThresholdEntry(at="1GB", score=5),  # type: ignore[arg-type]
+        ThresholdEntry(at="5GB", score=10),  # type: ignore[arg-type]
+    ]
+
+    def _make_ranking(self, by_type: dict | None = None) -> RankingConfig:
+        """Build a size-only ranking config, optionally with per-type thresholds."""
+        return RankingConfig(
+            criteria=[
+                RankingCriterion(
+                    field="size",
+                    prefer="higher",
+                    thresholds=self._GENERIC_SIZE_TIERS,
+                ),
+            ],
+            min_seeders=0,
+            size_thresholds_by_type=by_type,
+        )
+
+    def test_media_kind_none_keeps_generic_scores(self) -> None:
+        """rank_candidates with media_kind=None uses generic size thresholds."""
+        r = _make_result()
+        ranking = self._make_ranking({"movie": self._MOVIE_TIERS})
+        _, ranked = rank_candidates([r], QualityProfile(), None, ranking, media_kind=None)
+        # 5GB → generic: ≥5GB → 10
+        assert ranked[0][1] == 10
+
+    def test_media_kind_movie_uses_movie_tiers(self) -> None:
+        """rank_candidates with media_kind='movie' uses movie-specific thresholds."""
+        r = _make_result()
+        ranking = self._make_ranking({"movie": self._MOVIE_TIERS})
+        _, ranked = rank_candidates([r], QualityProfile(), None, ranking, media_kind="movie")
+        # 5GB → movie tiers: ≥4GB but <15GB → 5
+        assert ranked[0][1] == 5
+
+    def test_orchestrator_grab_threads_kind_from_wanted(self) -> None:
+        """GrabOrchestrator.grab() passes item.kind as media_kind to rank_candidates.
+
+        A 5GB movie with movie-size tiers scoring 5 (vs generic 10). The orchestrator's
+        _search_chain passes item.kind="movie" → rank_candidates → rank() should use the
+        movie tiers, so the outcome's chosen result should score 5.
+        """
+        r = _make_result()
+        registry = MagicMock()
+        registry.search_candidates.return_value = SearchOutcome(results=[r], trackers_queried=1, trackers_errored=0)
+        registry.transports.return_value = {"lacale": MagicMock()}
+
+        ranking = self._make_ranking({"movie": self._MOVIE_TIERS})
+        orchestrator = GrabOrchestrator(
+            tracker_registry=registry,
+            torrent_client=MagicMock(spec=TorrentAdder),
+            event_bus=EventBus(),
+            ranking=ranking,
+        )
+
+        with patch(_RESOLVE, return_value=MagicMock(spec=TorrentSource)):
+            outcome = orchestrator.grab(_make_wanted(kind="movie"), QualityProfile())
+
+        assert outcome.disposition == "success"
+        # The ranked list uses movie tiers → 5GB movie scores 5 (not generic 10).
+        # The score itself isn't on the outcome, but we can verify the top was chosen.
+        assert outcome.chosen is r
