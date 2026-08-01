@@ -115,7 +115,9 @@ export function FileList({
               }
             }}
           >
-            <div className="flex items-center gap-2">
+            {/* CONFIG-7 (ticket 250): min-w-0 lets the filename truncate inside
+                the 240px track and the badges wrap below instead of clipping. */}
+            <div className="flex flex-wrap items-center gap-2">
               {/* Dirty dot */}
               {isDirty && (
                 <span
@@ -124,7 +126,7 @@ export function FileList({
                 />
               )}
 
-              <span className="text-sm truncate">{file.name}</span>
+              <span className="min-w-0 truncate text-sm">{file.name}</span>
 
               {/* Badges */}
               {hasRestart && (
@@ -168,13 +170,10 @@ export function FileList({
             {/* Owned keys as muted chips */}
             {file.owned_keys.length > 0 && (
               <div className="flex flex-wrap gap-1 pl-4">
+                {/* CONFIG-7: no ad-hoc size override — the Badge's own token
+                    size stands. */}
                 {file.owned_keys.map((key) => (
-                  <Badge
-                    key={key}
-                    tone="neutral"
-                    mono
-                    className="text-[0.65rem]"
-                  >
+                  <Badge key={key} tone="neutral" mono>
                     {key}
                   </Badge>
                 ))}

@@ -4,11 +4,10 @@
  */
 
 import { Plus, X } from "lucide-react";
-import { type ReactElement } from "react";
+import { useState, type ReactElement } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 import { fieldError, isObject, joinPath } from "../engine";
 import { fieldLabel } from "../labels";
@@ -21,6 +20,8 @@ import type { CompositeFieldProps } from "./types";
  * Each row has a text input for the key and a control for the value (recursive
  * when the ``additionalProperties`` schema is an object, otherwise a plain
  * ``Input``).  Add/remove buttons let the user grow or shrink the dict.
+ * Key renames commit on blur/Enter (CONFIG-10, ticket 250) and preserve row
+ * order; a blank or colliding key silently reverts (never merges two entries).
  *
  * Args:
  *   schema: The object schema with ``additionalProperties``.
@@ -45,8 +46,35 @@ export function AdditionalPropertiesField({
   const addSchema = schema.additionalProperties as Record<string, unknown>;
   const label = fieldLabel(schema, path.split(".").pop() ?? "entries");
 
+  // CONFIG-10 (ticket 250): per-row key drafts, keyed by the CURRENT object
+  // key. Typing edits the draft only; the rename commits on blur/Enter so the
+  // row identity (and input focus) survives every keystroke.
+  const [keyDrafts, setKeyDrafts] = useState<Record<string, string>>({});
+
   function setEntry(key: string, newValue: unknown): void {
     onChange({ ...obj, [key]: newValue });
+  }
+
+  /**
+   * Commit a key rename (blur/Enter), preserving row order.
+   *
+   * A blank, unchanged or colliding new key reverts to the current key —
+   * a rename must never silently merge two entries.
+   */
+  function commitKeyRename(oldKey: string, rawNewKey: string): void {
+    setKeyDrafts((prev) => {
+      const next = { ...prev };
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete next[oldKey];
+      return next;
+    });
+    const newKey = rawNewKey.trim();
+    if (newKey === "" || newKey === oldKey || newKey in obj) return;
+    const renamed: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(obj)) {
+      renamed[k === oldKey ? newKey : k] = v;
+    }
+    onChange(renamed);
   }
 
   function removeEntry(key: string): void {
@@ -76,10 +104,29 @@ export function AdditionalPropertiesField({
         return (
           <div key={k} className="flex items-start gap-2">
             <div className="min-w-0 flex-1">
-              {/* X7: a dict key is a machine token — mono, not prose. */}
-              <Label className="font-mono text-xs text-muted-foreground">
-                {k}
-              </Label>
+              {/* CONFIG-10: the key is EDITABLE, as the field docstring promises
+                  — renames commit on blur/Enter. X7: a dict key is a machine
+                  token — mono, not prose. */}
+              <Input
+                type="text"
+                aria-label={`Clé ${k}`}
+                disabled={readOnly}
+                className="mb-1 h-8 font-mono text-xs"
+                value={keyDrafts[k] ?? k}
+                onChange={(e) => {
+                  const draft = e.target.value;
+                  setKeyDrafts((prev) => ({ ...prev, [k]: draft }));
+                }}
+                onBlur={(e) => {
+                  commitKeyRename(k, e.target.value);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    e.currentTarget.blur();
+                  }
+                }}
+              />
               {isObject(addSchema) &&
               addSchema.type === "object" &&
               isObject(addSchema.properties) ? (

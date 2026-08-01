@@ -566,14 +566,70 @@ describe("SchemaForm — additionalProperties", () => {
       />,
     );
 
-    // Labels show the keys.
-    expect(screen.getByText("HOME")).toBeInTheDocument();
-    expect(screen.getByText("PATH")).toBeInTheDocument();
+    // CONFIG-10 (ticket 250): keys are editable inputs, no longer static labels.
+    expect(screen.getByRole("textbox", { name: "Clé HOME" })).toHaveValue(
+      "HOME",
+    );
+    expect(screen.getByRole("textbox", { name: "Clé PATH" })).toHaveValue(
+      "PATH",
+    );
 
     // Inputs for the values.
-    const inputs = screen.getAllByRole("textbox");
-    // "HOME" and "PATH" value inputs + key label is just Label text, not inputs.
-    expect(inputs.length).toBeGreaterThanOrEqual(2);
+    expect(
+      screen.getByRole("textbox", { name: "Valeur pour HOME" }),
+    ).toHaveValue("/home/user");
+    expect(
+      screen.getByRole("textbox", { name: "Valeur pour PATH" }),
+    ).toHaveValue("/usr/bin");
+  });
+
+  it("renomme la clé au blur en préservant l'ordre des entrées (ticket 250)", () => {
+    const onChange = vi.fn();
+    render(
+      <SchemaForm
+        schema={dictSchema}
+        values={{ env: { HOME: "/home/user", PATH: "/usr/bin" } }}
+        onChange={onChange}
+        path="env"
+      />,
+    );
+
+    const keyInput = screen.getByRole("textbox", { name: "Clé HOME" });
+    fireEvent.change(keyInput, { target: { value: "HOME_DIR" } });
+    // Typing alone must not push a half-typed key upward.
+    expect(onChange).not.toHaveBeenCalled();
+
+    fireEvent.blur(keyInput);
+    expect(onChange).toHaveBeenCalledWith({
+      env: { HOME_DIR: "/home/user", PATH: "/usr/bin" },
+    });
+  });
+
+  it("annule le renommage vers une clé vide ou déjà prise (ticket 250)", () => {
+    const onChange = vi.fn();
+    render(
+      <SchemaForm
+        schema={dictSchema}
+        values={{ env: { HOME: "/home/user", PATH: "/usr/bin" } }}
+        onChange={onChange}
+        path="env"
+      />,
+    );
+
+    // Collision: renaming HOME → PATH must never merge the two entries.
+    const keyInput = screen.getByRole("textbox", { name: "Clé HOME" });
+    fireEvent.change(keyInput, { target: { value: "PATH" } });
+    fireEvent.blur(keyInput);
+    expect(onChange).not.toHaveBeenCalled();
+    // The input reverts to the real key.
+    expect(screen.getByRole("textbox", { name: "Clé HOME" })).toHaveValue(
+      "HOME",
+    );
+
+    // Blank: an emptied key reverts too.
+    fireEvent.change(keyInput, { target: { value: "  " } });
+    fireEvent.blur(keyInput);
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   it("ajoute une entrée avec une clé unique via +", () => {

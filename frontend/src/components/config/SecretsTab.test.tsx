@@ -228,6 +228,44 @@ describe("SecretsTab", () => {
     });
   });
 
+  // ---- CONFIG-9 (ticket 250): stale inline saved-check clears on edit ------
+  it("efface la confirmation inline « Secrets enregistrés » dès qu'une valeur est retapée (ticket 250)", async () => {
+    const putAsync = vi.fn().mockResolvedValue({});
+    mocks.usePutConfigSecrets.mockReturnValue({
+      mutateAsync: putAsync,
+      isPending: false,
+    });
+    renderSecretsTab();
+
+    const inputs = screen.getAllByPlaceholderText(/••••/);
+    const firstInput = inputs[0];
+    if (!firstInput) throw new Error("missing first input");
+    fireEvent.change(firstInput, { target: { value: "abc123" } });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Enregistrer les secrets" }),
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /Secrets enregistrés — un redémarrage peut être requis/,
+        ),
+      ).toBeInTheDocument();
+    });
+
+    // A new edit makes the confirmation stale — it must disappear, not sit
+    // green over a dirty form.
+    fireEvent.change(firstInput, { target: { value: "another" } });
+    await waitFor(() => {
+      expect(
+        screen.queryByText(
+          /Secrets enregistrés — un redémarrage peut être requis/,
+        ),
+      ).not.toBeInTheDocument();
+    });
+  });
+
   // ---- 8. Non-ApiError → generic message ----------------------------------
   it("affiche le message générique sur une erreur non-ApiError", async () => {
     const putAsync = vi.fn().mockRejectedValue(new Error("Network error"));

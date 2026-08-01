@@ -8,6 +8,7 @@ import { type ReactElement } from "react";
 import { SchemaForm } from "@/components/config/SchemaForm";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { Button } from "@/components/ui/button";
+import { Card, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /** Props for {@link ConfigFilePanel}. */
@@ -72,7 +73,9 @@ export function ConfigFilePanel({
   onChange,
 }: ConfigFilePanelProps): ReactElement {
   return (
-    <div className="rounded-md border border-border p-4">
+    // CONFIG-8/X6 (ticket 250): DS Card hosts the editor panel; the selected
+    // file name is a CardTitle instead of a one-off h2.
+    <Card className="gap-0 p-4">
       {selectedFile === null ? (
         <EmptyState
           title="Aucun fichier disponible"
@@ -92,7 +95,7 @@ export function ConfigFilePanel({
       ) : (
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold">{selectedFile}</h2>
+            <CardTitle className="text-base">{selectedFile}</CardTitle>
 
             {/* Action buttons */}
             <div className="flex items-center gap-2">
@@ -128,6 +131,6 @@ export function ConfigFilePanel({
           />
         </div>
       )}
-    </div>
+    </Card>
   );
 }
