@@ -31,6 +31,18 @@ HEALTH_URL="http://127.0.0.1:${PORT}/api/health"
 
 fail() { printf '\n❌ DÉPLOIEMENT REFUSÉ: %s\n' "$*" >&2; exit 1; }
 
+# ── Guard 0: config-home migration must have run if pins point there ──────────
+# If this clone's ecosystem.config.js pins PERSONALSCRAPER_CONFIG to the
+# canonical .torrentmate/config, the migration MUST have been run — a boot
+# without the canonical config dir is a silent no-op (no library.db, no state).
+# If the pins still point at the old dev config path, this guard is a no-op
+# (pre-merge deploys and deploys on hosts that have not yet migrated are
+# unaffected).
+if grep -q '.torrentmate/config' ecosystem.config.js 2>/dev/null; then
+  [ -d "/Users/izno/.torrentmate/config" ] \
+    || fail "config-home migration not done — refusing to deploy (run scripts/migrate-config-home.sh)"
+fi
+
 # ── Guard 1: must be on `main` ────────────────────────────────────────────────
 branch="$(git rev-parse --abbrev-ref HEAD)"
 [ "$branch" = "main" ] || fail "branche '$branch' ≠ main. On ne déploie QUE main."
