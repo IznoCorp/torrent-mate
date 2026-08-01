@@ -59,7 +59,7 @@ interface PipelineControlsProps {
  * - running: « Arrêter » (destructive) + ⋮ dropdown with Pause
  * - paused:  « Reprendre » (primary) + ⋮ dropdown with Arrêter
  *
- * The Auto-trigger switch stays visible in every state. All 5 mutations
+ * The « Déclenchement automatique » switch stays visible in every state. All 5 mutations
  * (run / pause / resume / kill / setWatcher) are preserved — only the
  * visual layout changes.
  *
@@ -245,7 +245,8 @@ export function PipelineControls({
           </DropdownMenu>
         )}
 
-        {/* Watcher toggle — always visible */}
+        {/* Watcher toggle — always visible. PIPELINE-9: French wording in an
+            all-French UI (label + aria-label). */}
         <label className="ml-auto flex items-center gap-2 text-sm">
           <Switch
             checked={status.watcher_enabled}
@@ -253,9 +254,9 @@ export function PipelineControls({
               watcherMutation.mutate(v);
             }}
             disabled={watcherMutation.isPending}
-            aria-label="Auto-trigger"
+            aria-label="Déclenchement automatique"
           />
-          Auto-trigger
+          Déclenchement automatique
         </label>
       </div>
 

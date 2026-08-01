@@ -82,14 +82,14 @@ function openDropdown(): void {
 describe("PipelineControls", () => {
   // ---- Idle state ----
 
-  it("renders Démarrer and Auto-trigger, hides secondary actions when idle", () => {
+  it("renders Démarrer and Déclenchement automatique, hides secondary actions when idle", () => {
     renderControls(IDLE_STATUS);
 
     expect(
       screen.getByRole("button", { name: /Démarrer/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("switch", { name: /Auto-trigger/i }),
+      screen.getByRole("switch", { name: /Déclenchement automatique/i }),
     ).toBeInTheDocument();
 
     // Secondary actions are not visible when idle — no dropdown trigger needed.
@@ -192,26 +192,26 @@ describe("PipelineControls", () => {
   it("reflects watcher_enabled in the Switch", () => {
     renderControls(RUNNING_STATUS);
     expect(
-      screen.getByRole("switch", { name: /Auto-trigger/i }),
+      screen.getByRole("switch", { name: /Déclenchement automatique/i }),
     ).toHaveAttribute("aria-checked", "true");
   });
 
-  it("Auto-trigger switch is visible in every state", () => {
+  it("Déclenchement automatique switch is visible in every state", () => {
     renderControls(IDLE_STATUS);
     expect(
-      screen.getByRole("switch", { name: /Auto-trigger/i }),
+      screen.getByRole("switch", { name: /Déclenchement automatique/i }),
     ).toBeInTheDocument();
 
     cleanup();
     renderControls(RUNNING_STATUS);
     expect(
-      screen.getByRole("switch", { name: /Auto-trigger/i }),
+      screen.getByRole("switch", { name: /Déclenchement automatique/i }),
     ).toBeInTheDocument();
 
     cleanup();
     renderControls(PAUSED_STATUS);
     expect(
-      screen.getByRole("switch", { name: /Auto-trigger/i }),
+      screen.getByRole("switch", { name: /Déclenchement automatique/i }),
     ).toBeInTheDocument();
   });
 
