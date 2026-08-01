@@ -4,8 +4,9 @@
  * `/login` is a public, chrome-less route. Every authenticated route nests under
  * {@link ProtectedRoute} → {@link AppShell} (TopBar + responsive nav +
  * `<Outlet />`), so the guard runs once and the shell renders once, swapping only
- * the page. The S5–S6 slots resolved to the shared {@link ComingSoon} placeholder;
- * S7 (acquisition) has its own fully-implemented page as of 0.47.0.
+ * the page. The former S5–S6 "coming soon" placeholder slots are gone — every
+ * slot now routes to a real page; S7 (acquisition) has its own fully-implemented
+ * page as of 0.47.0.
  *
  * A pathless {@link RouterBridge} wraps the whole tree: it lives *inside* the
  * router (so it may call `useNavigate`) and registers the router-aware 401

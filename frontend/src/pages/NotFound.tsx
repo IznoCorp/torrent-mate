@@ -1,6 +1,8 @@
 import type { ReactElement } from "react";
 import { Link } from "react-router-dom";
 
+import { Button } from "@/components/ui/button";
+
 /**
  * NotFound — the French 404 page for any unmatched route.
  *
@@ -20,12 +22,11 @@ export default function NotFound(): ReactElement {
       <p className="text-sm text-muted-foreground">
         La page demandée n’existe pas.
       </p>
-      <Link
-        to="/"
-        className="text-sm text-primary underline-offset-4 hover:underline"
-      >
-        Retour au tableau de bord
-      </Link>
+      {/* MISC-2 — DS Button primitive (focus ring + consistent sizing), not a
+          raw text link. */}
+      <Button asChild variant="link">
+        <Link to="/">Retour au tableau de bord</Link>
+      </Button>
     </main>
   );
 }
