@@ -40,10 +40,15 @@ def _run_git(
     )
 
 
+_GITIGNORE_CONTENT = "# Gitignore for the canonical config mini-repo.\n.backups/\n"
+
+
 def ensure_config_repo(config_dir: Path) -> bool:
     """Initialize a git repo in *config_dir* if one doesn't exist.
 
     Idempotent: calling on an already-initialized directory is a no-op.
+    Writes a minimal ``.gitignore`` (ignores ``.backups/``) so that S4
+    backup churn is not versioned.
 
     Args:
         config_dir: Path to the config directory.
@@ -63,6 +68,8 @@ def ensure_config_repo(config_dir: Path) -> bool:
                 stderr=result.stderr.strip(),
             )
             return False
+        # Write minimal .gitignore so backup churn isn't versioned (F-I).
+        (config_dir / ".gitignore").write_text(_GITIGNORE_CONTENT, encoding="utf-8")
         log.info("config_git.repo_initialized", config_dir=str(config_dir))
         return True
     except (subprocess.TimeoutExpired, OSError) as exc:
@@ -78,11 +85,13 @@ def commit_config_dir(config_dir: Path, message: str) -> bool:
     """Commit all changes in *config_dir* with the given *message*.
 
     Uses ``git add -A`` to stage new, modified, and deleted files, then
-    ``git commit``.  **Fail-soft**: a git failure never raises — it returns
-    ``False`` and logs a warning.
+    checks ``git status --porcelain``.  If the staging area is empty
+    (nothing to commit), returns ``True`` **without** creating a commit
+    — no empty commits pollute the history.  Otherwise creates a single
+    commit with ``-m``.
 
-    If there is nothing to commit (clean tree), returns ``True`` — an empty
-    commit is not an error.
+    **Fail-soft**: a git failure never raises — it returns ``False`` and
+    logs a warning.
 
     Args:
         config_dir: Path to the git working tree.
@@ -103,11 +112,24 @@ def commit_config_dir(config_dir: Path, message: str) -> bool:
             )
             return False
 
-        # Commit. --allow-empty avoids exit-1 on a clean tree.
+        # Check if there is anything staged — no empty commits (F-H).
+        status_result = _run_git(config_dir, "status", "--porcelain")
+        if status_result.returncode != 0:
+            log.warning(
+                "config_git.status_failed",
+                config_dir=str(config_dir),
+                stderr=status_result.stderr.strip(),
+            )
+            return False
+
+        if not status_result.stdout.strip():
+            log.debug("config_git.nothing_to_commit", config_dir=str(config_dir))
+            return True
+
+        # Commit only when there are staged changes.
         result = _run_git(
             config_dir,
             "commit",
-            "--allow-empty",
             "-m",
             message,
         )
@@ -119,12 +141,7 @@ def commit_config_dir(config_dir: Path, message: str) -> bool:
             )
             return False
 
-        # Distinguish "nothing to commit" from a real commit for logging.
-        if "nothing to commit" in result.stdout.lower() or "nothing added" in result.stdout.lower():
-            log.debug("config_git.nothing_to_commit", config_dir=str(config_dir))
-        else:
-            log.info("config_git.committed", config_dir=str(config_dir), message=message)
-
+        log.info("config_git.committed", config_dir=str(config_dir), message=message)
         return True
     except (subprocess.TimeoutExpired, OSError) as exc:
         log.warning(

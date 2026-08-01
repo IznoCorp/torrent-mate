@@ -117,3 +117,94 @@ def test_init_config_sync_dry_run_does_not_write(
 
     # Nothing written
     assert not list(target.iterdir()), "dry-run must not write any files to target"
+
+
+def test_sync_commits_to_git_repo_with_content(tmp_path: Path) -> None:
+    """Sync into a git repo creates a config_sync commit with file content (F-J).
+
+    Uses ls-tree to prove the committed files are real, not an empty tree.
+    """
+    import subprocess
+
+    example = tmp_path / "config.example"
+    target = tmp_path / "canonical"
+    example.mkdir()
+    target.mkdir()
+    (example / "config.json5").write_text('{"key": "val"}')
+
+    # Init git repo + configure user.
+    subprocess.run(
+        ["git", "-C", str(target), "init"],
+        capture_output=True,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(target), "config", "user.email", "test@test"],
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(target), "config", "user.name", "Test"],
+        capture_output=True,
+    )
+
+    init_config_sync(example, target, dry_run=False)
+
+    # A commit must exist.
+    log = subprocess.run(
+        ["git", "-C", str(target), "log", "--oneline"],
+        capture_output=True,
+        text=True,
+    )
+    assert "config_sync:" in log.stdout, (
+        f"Expected config_sync commit, got: {log.stdout}"
+    )
+
+    # The committed tree must contain the synced file (ls-tree content assertion).
+    ls = subprocess.run(
+        ["git", "-C", str(target), "ls-tree", "-r", "HEAD", "--name-only"],
+        capture_output=True,
+        text=True,
+    )
+    files = ls.stdout.strip().splitlines()
+    assert "config.json5" in files, f"ls-tree missing config.json5, got: {files}"
+
+
+def test_sync_no_additions_no_commit_created(tmp_path: Path) -> None:
+    """Sync with 0 additions creates no commit (F-J).
+
+    Target is already identical to example — nothing should be committed.
+    """
+    import subprocess
+
+    example = tmp_path / "config.example"
+    target = tmp_path / "canonical"
+    example.mkdir()
+    target.mkdir()
+    (example / "config.json5").write_text('{"key": "val"}')
+    (target / "config.json5").write_text('{"key": "val"}')
+
+    # Init git repo.
+    subprocess.run(
+        ["git", "-C", str(target), "init"],
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(target), "config", "user.email", "test@test"],
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(target), "config", "user.name", "Test"],
+        capture_output=True,
+    )
+
+    init_config_sync(example, target, dry_run=False)
+
+    # No commits should exist (nothing was added, and we don't create empty commits).
+    log = subprocess.run(
+        ["git", "-C", str(target), "log", "--oneline"],
+        capture_output=True,
+        text=True,
+    )
+    assert "config_sync:" not in log.stdout, (
+        f"Unexpected commit when nothing was added: {log.stdout}"
+    )

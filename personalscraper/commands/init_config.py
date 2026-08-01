@@ -194,5 +194,33 @@ def init_config_sync(
 
     prefix = "Would add" if dry_run else "Added"
     typer.echo(f"\n{prefix} {len(additions)} item(s).")
-    if not dry_run and (target / ".git").exists():
+
+    # Commit the canonical mini-repo after a non-dry-run sync with additions
+    # (DESIGN §3.3).  This also sweeps any manual edits via ``add -A``.
+    # Fail-soft: a git failure never blocks or fails the sync.
+    if not dry_run and additions:
+        try:
+            from personalscraper.conf.config_git import (  # noqa: PLC0415
+                commit_config_dir,
+                ensure_config_repo,
+            )
+
+            if ensure_config_repo(target):
+                committed = commit_config_dir(
+                    target,
+                    f"config_sync: {len(additions)} additions from config.example",
+                )
+                if committed:
+                    log.info(
+                        "config_sync.committed",
+                        target=str(target),
+                        additions=len(additions),
+                    )
+                else:
+                    typer.echo("Warning: git commit failed — sync was applied but not versioned.")
+            else:
+                typer.echo("Warning: could not initialize git repo for config sync commit.")
+        except Exception:
+            typer.echo("Warning: git commit failed — sync was applied but not versioned.")
+    elif not dry_run and (target / ".git").exists():
         typer.echo(f"Tip: the canonical config is a local git repo. Review changes with:\n  git -C {target} diff")

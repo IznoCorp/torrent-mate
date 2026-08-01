@@ -36,8 +36,10 @@ def _mock_cli_config_load(request, test_config):
     the Typer CLI without needing a real config.json5 on disk.
     """
     # Skip when the test file does not exercise the CLI callback (e.g.
-    # test_init_config.py calls init_config() directly).
-    if request.fspath.basename == "test_init_config.py":
+    # test_init_config.py calls init_config() directly) or when the test
+    # itself controls the config resolution (e.g. test_init_config_e2e.py
+    # tests --sync target resolution via env/global config).
+    if request.fspath.basename in {"test_init_config.py", "test_init_config_e2e.py"}:
         yield
         return
 
