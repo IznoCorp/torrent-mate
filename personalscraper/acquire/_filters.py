@@ -20,7 +20,7 @@ Never imports sorter, cleaner, or indexer.
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from personalscraper.acquire.desired import QualityProfile, Resolution
 from personalscraper.api.tracker._base import TrackerResult
@@ -273,7 +273,7 @@ def _episode_numbers(episode_raw: object) -> list[int]:
     """
     if episode_raw is None:
         return []
-    values = episode_raw if isinstance(episode_raw, list) else [episode_raw]
+    values: list[Any] = episode_raw if isinstance(episode_raw, list) else [episode_raw]
     numbers: list[int] = []
     for value in values:
         try:
