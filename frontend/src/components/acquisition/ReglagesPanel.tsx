@@ -290,13 +290,19 @@ export function ReglagesPanel(): ReactElement {
       const res = await putFile.mutateAsync({ values, base_sha256: fileQ.data.sha256 });
       if (res.warnings.length > 0) toast.warning(res.warnings.join("\n"));
       toast.success("Réglages enregistrés — pris en compte à la prochaine recherche.");
-      setDraft(null); // re-seed from the refetched file (new sha)
+      // Await the fresh server snapshot — setDraft(null) + the stale
+      // in-memory cache causes the form to snap back to pre-save values (#372).
+      const fresh = await fileQ.refetch();
+      const freshLoaded = readRanking(fresh.data?.values);
+      setDraft(freshLoaded ? structuredClone(freshLoaded) : null);
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 412) {
           toast.error("Le fichier a changé entre-temps — rechargement.");
-          setDraft(null);
-          void fileQ.refetch();
+          // Same treatment: await the refetch and seed from its result.
+          const fresh = await fileQ.refetch();
+          const freshLoaded = readRanking(fresh.data?.values);
+          setDraft(freshLoaded ? structuredClone(freshLoaded) : null);
           return;
         }
         if (err.status === 422) {
