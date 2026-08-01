@@ -4,7 +4,18 @@ import type { EventMessage } from "@/api/events";
 import {
   interpretRun,
   type InterpretedLine,
+  type LineSegment,
 } from "@/components/pipeline/interpretRun";
+
+/**
+ * Project lines onto their prose triple — the segment structure is asserted
+ * in its own test, so the golden narratives stay readable.
+ */
+function prose(
+  lines: readonly InterpretedLine[],
+): { step: string; text: string; tone: string }[] {
+  return lines.map(({ step, text, tone }) => ({ step, text, tone }));
+}
 
 /** Build an EventMessage with an incrementing id. */
 function ev(
@@ -74,7 +85,7 @@ describe("interpretRun", () => {
       }),
     ];
 
-    expect(interpretRun(events)).toEqual<InterpretedLine[]>([
+    expect(prose(interpretRun(events))).toEqual([
       { step: "ingest", text: "Récupération des téléchargements…", tone: "info" },
       {
         step: "ingest",
@@ -125,7 +136,7 @@ describe("interpretRun", () => {
         details: { provider: "tmdb", confidence: 0.31 },
       }),
     ]);
-    expect(lines).toEqual<InterpretedLine[]>([
+    expect(prose(lines)).toEqual([
       {
         step: "scrape",
         text: "Ambigu — en attente d'une décision : Unknown.Show.S01",
@@ -160,7 +171,7 @@ describe("interpretRun", () => {
         details: { reason: "no_trailer" },
       }),
     ]);
-    expect(lines).toEqual<InterpretedLine[]>([
+    expect(prose(lines)).toEqual([
       { step: "dispatch", text: "Fusionné sur Disk1 : Some Show (2020)", tone: "success" },
       { step: "dispatch", text: "Remplacé sur Disk3 : Old Movie (1999)", tone: "success" },
       {
@@ -201,7 +212,7 @@ describe("interpretRun", () => {
         details: { action: "artwork_recovered", provider: "tmdb" },
       }),
     ]);
-    expect(lines).toEqual<InterpretedLine[]>([
+    expect(prose(lines)).toEqual([
       { step: "scrape", text: "Posters récupérés : Fight Club (1999) (tmdb)", tone: "success" },
     ]);
   });
@@ -215,6 +226,46 @@ describe("interpretRun", () => {
       ev("SomeFutureEvent", { foo: "bar" }),
     ]);
     expect(lines).toEqual([]);
+  });
+
+  it("carries item/disk/provider/dest as mono segments (X5/PIPELINE-8)", () => {
+    const [dispatched] = interpretRun([
+      ev("ItemProgressed", {
+        step: "dispatch",
+        item: "The Movie (2024)",
+        status: "moved",
+        details: { dest: "/Volumes/Disk2/001-MOVIES/The Movie (2024)", disk: "Disk2" },
+      }),
+    ]);
+    expect(dispatched?.segments).toEqual<LineSegment[]>([
+      { text: "Rangé" },
+      { text: " sur " },
+      { text: "Disk2", mono: true },
+      { text: " : " },
+      { text: "The Movie (2024)", mono: true },
+    ]);
+    // The flat sentence is exactly the joined segments (render fallback).
+    expect(dispatched?.text).toBe("Rangé sur Disk2 : The Movie (2024)");
+
+    const [scraped] = interpretRun([
+      ev("ItemProgressed", {
+        step: "scrape",
+        item: "The.Movie.2024.1080p",
+        status: "matched",
+        details: { action: "created", provider: "tmdb" },
+      }),
+    ]);
+    expect(scraped?.segments).toEqual<LineSegment[]>([
+      { text: "Métadonnées trouvées : " },
+      { text: "The.Movie.2024.1080p", mono: true },
+      { text: " (" },
+      { text: "tmdb", mono: true },
+      { text: ")" },
+    ]);
+
+    // Step headers carry no machine token — no segments, text fallback.
+    const [header] = interpretRun([ev("StepStarted", { step: "ingest" })]);
+    expect(header?.segments).toBeUndefined();
   });
 
   it("tolerates a Pipeline-prefixed event type", () => {

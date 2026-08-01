@@ -24,14 +24,72 @@ import type { EventMessage } from "@/api/events";
 /** Semantic tone for an interpreted line (drives the row colour). */
 export type LineTone = "info" | "success" | "warning" | "danger";
 
+/**
+ * One typed fragment of an interpreted line.
+ *
+ * Machine tokens (item / disk / provider / dest names) carry ``mono: true``
+ * so the render site can set them in ``font-mono`` inside the French prose
+ * (X5/PIPELINE-8) instead of flattening everything into one string.
+ */
+export interface LineSegment {
+  /** The fragment text. */
+  readonly text: string;
+  /** ``true`` when the fragment is a machine token to render in mono. */
+  readonly mono?: boolean;
+}
+
 /** One interpreted line of the run narrative. */
 export interface InterpretedLine {
   /** The pipeline step this line belongs to (``"ingest"``, ``"scrape"``, …). */
   readonly step: string;
-  /** The plain-French sentence. */
+  /** The plain-French sentence (the joined segments). */
   readonly text: string;
   /** Semantic tone for display. */
   readonly tone: LineTone;
+  /**
+   * The typed fragments the sentence is built from. Absent on lines that
+   * carry no machine token (step headers, persisted-summary lines from
+   * ``summariseSteps``) — the render site then falls back to ``text``.
+   */
+  readonly segments?: readonly LineSegment[];
+}
+
+/** One part fed to {@link mkLine}: French prose, or a mono machine token. */
+type SegmentPart = string | { readonly mono: string };
+
+/**
+ * Build an {@link InterpretedLine} from typed parts.
+ *
+ * Empty parts are dropped; ``text`` is the in-order join of every fragment,
+ * so the flat sentence stays byte-identical to the pre-segment output.
+ *
+ * Args:
+ *   step: The pipeline step the line belongs to.
+ *   tone: The semantic tone.
+ *   parts: Prose strings and ``{mono: token}`` machine fragments, in order.
+ *
+ * Returns:
+ *   The interpreted line with both ``text`` and ``segments``.
+ */
+function mkLine(
+  step: string,
+  tone: LineTone,
+  parts: readonly SegmentPart[],
+): InterpretedLine {
+  const segments: LineSegment[] = [];
+  for (const part of parts) {
+    if (typeof part === "string") {
+      if (part !== "") segments.push({ text: part });
+    } else if (part.mono !== "") {
+      segments.push({ text: part.mono, mono: true });
+    }
+  }
+  return {
+    step,
+    tone,
+    text: segments.map((s) => s.text).join(""),
+    segments,
+  };
 }
 
 /** Human step names (French) for the step-lifecycle headers. */
@@ -179,14 +237,24 @@ function ingestLine(
 ): InterpretedLine | null {
   if (status === "copied") {
     const dest = basename(detail(data, "dest"));
-    const where = dest !== "" ? ` vers ${dest}` : "";
-    return { step, text: `Nouveau téléchargement collecté : ${item}${where}`, tone: "success" };
+    return mkLine(step, "success", [
+      "Nouveau téléchargement collecté : ",
+      { mono: item },
+      ...(dest !== "" ? [" vers ", { mono: dest }] : []),
+    ]);
   }
   if (status === "skipped") {
-    return { step, text: `Ignoré (${detail(data, "reason")}) : ${item}`, tone: "info" };
+    return mkLine(step, "info", [
+      `Ignoré (${detail(data, "reason")}) : `,
+      { mono: item },
+    ]);
   }
   if (status === "failed") {
-    return { step, text: `Échec de la copie : ${item} (${detail(data, "error")})`, tone: "danger" };
+    return mkLine(step, "danger", [
+      "Échec de la copie : ",
+      { mono: item },
+      ` (${detail(data, "error")})`,
+    ]);
   }
   return null;
 }
@@ -200,14 +268,24 @@ function sortLine(
 ): InterpretedLine | null {
   if (status === "moved") {
     const dest = basename(detail(data, "destination"));
-    const where = dest !== "" ? ` → ${dest}` : "";
-    return { step, text: `Déplacé en préparation : ${item}${where}`, tone: "success" };
+    return mkLine(step, "success", [
+      "Déplacé en préparation : ",
+      { mono: item },
+      ...(dest !== "" ? [" → ", { mono: dest }] : []),
+    ]);
   }
   if (status === "skipped") {
-    return { step, text: `Non trié (${detail(data, "reason")}) : ${item}`, tone: "info" };
+    return mkLine(step, "info", [
+      `Non trié (${detail(data, "reason")}) : `,
+      { mono: item },
+    ]);
   }
   if (status === "error") {
-    return { step, text: `Erreur de tri : ${item} (${detail(data, "error")})`, tone: "danger" };
+    return mkLine(step, "danger", [
+      "Erreur de tri : ",
+      { mono: item },
+      ` (${detail(data, "error")})`,
+    ]);
   }
   return null;
 }
@@ -221,10 +299,10 @@ function cleanLine(
   // "cleaned" is the real backend status; "recleaned" is tolerated dead input
   // (it is a structlog detail key the backend never emits as an item status).
   if (status === "cleaned" || status === "recleaned") {
-    return { step, text: `Nettoyé : ${item}`, tone: "success" };
+    return mkLine(step, "success", ["Nettoyé : ", { mono: item }]);
   }
   if (status === "skipped") {
-    return { step, text: `Rien à nettoyer : ${item}`, tone: "info" };
+    return mkLine(step, "info", ["Rien à nettoyer : ", { mono: item }]);
   }
   return null;
 }
@@ -238,36 +316,47 @@ function scrapeLine(
 ): InterpretedLine | null {
   if (status === "matched") {
     const provider = detail(data, "provider");
-    const src = provider !== "" ? ` (${provider})` : "";
+    const src: SegmentPart[] =
+      provider !== "" ? [" (", { mono: provider }, ")"] : [];
     // §2 lists "posters récupérés" as a distinct visible state. The backend
     // emits status='matched' for BOTH a fresh scrape and an artwork-only
     // recovery (an item that already had its NFO but was missing artwork),
     // distinguished by details.action — surface them as different lines instead
     // of folding both into "Métadonnées trouvées".
     if (detail(data, "action") === "artwork_recovered") {
-      return { step, text: `Posters récupérés : ${item}${src}`, tone: "success" };
+      return mkLine(step, "success", [
+        "Posters récupérés : ",
+        { mono: item },
+        ...src,
+      ]);
     }
-    return { step, text: `Métadonnées trouvées : ${item}${src}`, tone: "success" };
+    return mkLine(step, "success", [
+      "Métadonnées trouvées : ",
+      { mono: item },
+      ...src,
+    ]);
   }
   if (status === "queued_for_decision") {
-    return {
-      step,
-      text: `Ambigu — en attente d'une décision : ${item}`,
-      tone: "warning",
-    };
+    return mkLine(step, "warning", [
+      "Ambigu — en attente d'une décision : ",
+      { mono: item },
+    ]);
   }
   if (status === "skipped_low_confidence") {
-    return {
-      step,
-      text: `Correspondance trop incertaine, laissé de côté : ${item}`,
-      tone: "warning",
-    };
+    return mkLine(step, "warning", [
+      "Correspondance trop incertaine, laissé de côté : ",
+      { mono: item },
+    ]);
   }
   if (status === "skipped") {
-    return { step, text: `Non scrapé : ${item}`, tone: "info" };
+    return mkLine(step, "info", ["Non scrapé : ", { mono: item }]);
   }
   if (status === "failed") {
-    return { step, text: `Échec du scraping : ${item} (${detail(data, "error")})`, tone: "danger" };
+    return mkLine(step, "danger", [
+      "Échec du scraping : ",
+      { mono: item },
+      ` (${detail(data, "error")})`,
+    ]);
   }
   return null;
 }
@@ -281,11 +370,14 @@ function cleanupLine(
 ): InterpretedLine | null {
   if (status === "removed") {
     const n = detailNum(data, "removed");
-    const count = n !== undefined ? ` (${String(n)})` : "";
-    return { step, text: `Dossiers vides supprimés dans ${item}${count}`, tone: "success" };
+    return mkLine(step, "success", [
+      "Dossiers vides supprimés dans ",
+      { mono: item },
+      n !== undefined ? ` (${String(n)})` : "",
+    ]);
   }
   if (status === "skipped") {
-    return { step, text: `Aucun dossier vide : ${item}`, tone: "info" };
+    return mkLine(step, "info", ["Aucun dossier vide : ", { mono: item }]);
   }
   return null;
 }
@@ -297,10 +389,10 @@ function enforceLine(
   item: string,
 ): InterpretedLine | null {
   if (status === "fixed") {
-    return { step, text: `Nom corrigé : ${item}`, tone: "success" };
+    return mkLine(step, "success", ["Nom corrigé : ", { mono: item }]);
   }
   if (status === "skipped") {
-    return { step, text: `Déjà conforme : ${item}`, tone: "info" };
+    return mkLine(step, "info", ["Déjà conforme : ", { mono: item }]);
   }
   return null;
 }
@@ -313,24 +405,34 @@ function trailersLine(
   data: Record<string, unknown>,
 ): InterpretedLine | null {
   // Step-level envelopes use item "<step>"; keep them terse.
-  const name = item === "<step>" || item === "" ? "" : ` : ${item}`;
+  const name: SegmentPart[] =
+    item === "<step>" || item === "" ? [] : [" : ", { mono: item }];
   if (status === "downloaded") {
-    return { step, text: `Bande-annonce téléchargée${name}`, tone: "success" };
+    return mkLine(step, "success", ["Bande-annonce téléchargée", ...name]);
   }
   if (status === "already_present") {
-    return { step, text: `Bande-annonce déjà présente${name}`, tone: "info" };
+    return mkLine(step, "info", ["Bande-annonce déjà présente", ...name]);
   }
   if (status === "no_trailer" || status === "unavailable") {
-    return { step, text: `Aucune bande-annonce disponible${name}`, tone: "info" };
+    return mkLine(step, "info", ["Aucune bande-annonce disponible", ...name]);
   }
   if (status === "bot_detected") {
-    return { step, text: `Bande-annonce indisponible (blocage anti-robot)${name}`, tone: "warning" };
+    return mkLine(step, "warning", [
+      "Bande-annonce indisponible (blocage anti-robot)",
+      ...name,
+    ]);
   }
   if (status === "skipped") {
-    return { step, text: `Bande-annonce ignorée (${detail(data, "reason")})`, tone: "info" };
+    return mkLine(step, "info", [
+      `Bande-annonce ignorée (${detail(data, "reason")})`,
+    ]);
   }
   if (status === "failed" || status === "error") {
-    return { step, text: `Échec bande-annonce${name} (${detail(data, "reason")})`, tone: "danger" };
+    return mkLine(step, "danger", [
+      "Échec bande-annonce",
+      ...name,
+      ` (${detail(data, "reason")})`,
+    ]);
   }
   return null;
 }
@@ -344,21 +446,43 @@ function dispatchLine(
 ): InterpretedLine | null {
   const disk = detail(data, "disk");
   const dest = basename(detail(data, "dest"));
-  const where = disk !== "" ? ` sur ${disk}` : dest !== "" ? ` → ${dest}` : "";
+  const where: SegmentPart[] =
+    disk !== ""
+      ? [" sur ", { mono: disk }]
+      : dest !== ""
+        ? [" → ", { mono: dest }]
+        : [];
   if (status === "moved") {
-    return { step, text: `Rangé${where} : ${item}`, tone: "success" };
+    return mkLine(step, "success", ["Rangé", ...where, " : ", { mono: item }]);
   }
   if (status === "replaced") {
-    return { step, text: `Remplacé${where} : ${item}`, tone: "success" };
+    return mkLine(step, "success", [
+      "Remplacé",
+      ...where,
+      " : ",
+      { mono: item },
+    ]);
   }
   if (status === "merged") {
-    return { step, text: `Fusionné${where} : ${item}`, tone: "success" };
+    return mkLine(step, "success", [
+      "Fusionné",
+      ...where,
+      " : ",
+      { mono: item },
+    ]);
   }
   if (status === "skipped") {
-    return { step, text: `Non rangé (${detail(data, "reason")}) : ${item}`, tone: "info" };
+    return mkLine(step, "info", [
+      `Non rangé (${detail(data, "reason")}) : `,
+      { mono: item },
+    ]);
   }
   if (status === "error") {
-    return { step, text: `Erreur de rangement : ${item} (${detail(data, "reason")})`, tone: "danger" };
+    return mkLine(step, "danger", [
+      "Erreur de rangement : ",
+      { mono: item },
+      ` (${detail(data, "reason")})`,
+    ]);
   }
   return null;
 }

@@ -141,7 +141,26 @@ export function InterpretedRunFeed({
                 key={`${String(index)}-${line.step}`}
                 className={`text-sm leading-snug ${TONE_CLASS[line.tone]}`}
               >
-                {line.text}
+                {/* X5/PIPELINE-8: machine tokens (item/disk/provider/dest)
+                    render in mono inside the French prose; lines without
+                    segments (headers, persisted summaries) fall back to the
+                    flat text. */}
+                {line.segments !== undefined
+                  ? line.segments.map((segment, segIndex) =>
+                      segment.mono === true ? (
+                        <span
+                          key={`${String(segIndex)}-${segment.text}`}
+                          className="font-mono"
+                        >
+                          {segment.text}
+                        </span>
+                      ) : (
+                        <span key={`${String(segIndex)}-${segment.text}`}>
+                          {segment.text}
+                        </span>
+                      ),
+                    )
+                  : line.text}
               </li>
             ))}
           </ol>

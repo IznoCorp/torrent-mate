@@ -468,10 +468,11 @@ describe("AcquisitionPage", () => {
       name: "Désactiver",
     });
     fireEvent.click(deactivateItem);
-    expect(updateFollowMutateFn).toHaveBeenCalledWith({
-      id: 7,
-      body: { active: false },
-    });
+    // X3: the call-site now names the action in a success toast via options.
+    expect(updateFollowMutateFn).toHaveBeenCalledWith(
+      { id: 7, body: { active: false } },
+      expect.objectContaining({ onSuccess: expect.any(Function) as () => void }),
+    );
   });
 
   it("surfaces a followed-query error instead of the empty state", () => {
@@ -644,7 +645,11 @@ describe("AcquisitionPage", () => {
       name: "Retirer",
     });
     fireEvent.click(retirerItem);
-    expect(unfollowMutateFn).toHaveBeenCalledWith(42);
+    // X3: the call-site now names the action in a success toast via options.
+    expect(unfollowMutateFn).toHaveBeenCalledWith(
+      42,
+      expect.objectContaining({ onSuccess: expect.any(Function) as () => void }),
+    );
   });
 
   // ── Followed panel — edit-cadence dialog ────────────────────────────────

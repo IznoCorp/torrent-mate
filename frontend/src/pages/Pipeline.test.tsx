@@ -182,9 +182,15 @@ describe("Pipeline page", () => {
     ];
     renderPage(events);
     expect(screen.getByText("Résumé de l'exécution")).toBeInTheDocument();
-    expect(
-      screen.getByText("Ambigu — en attente d'une décision : Unknown.Show.S01"),
-    ).toBeInTheDocument();
+    // X5/PIPELINE-8: the line is now split into segments (the item renders in
+    // a mono span), so match on the list item's full text content.
+    const line = screen.getByText(/Ambigu — en attente d'une décision/);
+    expect(line.closest("li")).toHaveTextContent(
+      "Ambigu — en attente d'une décision : Unknown.Show.S01",
+    );
+    expect(screen.getByText("Unknown.Show.S01").className).toContain(
+      "font-mono",
+    );
   });
 
   it("collapses the raw WS log by default (content unmounted until expanded)", () => {
