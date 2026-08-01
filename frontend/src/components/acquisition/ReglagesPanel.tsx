@@ -51,7 +51,9 @@ function parseNum(raw: string, fallback: number): number {
 }
 
 /** The ranking sub-object read out of the loaded ranking.json5 file. */
-function readRanking(values: Record<string, unknown> | undefined): RankingConfig | undefined {
+function readRanking(
+  values: Record<string, unknown> | undefined,
+): RankingConfig | undefined {
   if (!values) return undefined;
   const ranking = (values as { ranking?: RankingConfig }).ranking;
   return ranking ?? undefined;
@@ -163,7 +165,10 @@ function CriterionCard({
             aria-label={`Poids ${label}`}
             className="h-8 w-20"
             onChange={(e) => {
-              onChange({ ...criterion, weight: parseNum(e.target.value, criterion.weight) });
+              onChange({
+                ...criterion,
+                weight: parseNum(e.target.value, criterion.weight),
+              });
             }}
           />
         </label>
@@ -177,8 +182,14 @@ function CriterionCard({
         />
       ) : criterion.thresholds != null ? (
         <p className="text-xs text-muted-foreground">
-          Paliers ({criterion.prefer === "lower" ? "plus petit = mieux" : "plus grand = mieux"}) :{" "}
-          {criterion.thresholds.map((t) => `${String(t.at)}→${String(t.score)}`).join(", ")}
+          Paliers (
+          {criterion.prefer === "lower"
+            ? "plus petit = mieux"
+            : "plus grand = mieux"}
+          ) :{" "}
+          {criterion.thresholds
+            .map((t) => `${String(t.at)}→${String(t.score)}`)
+            .join(", ")}
           <span className="italic"> — ajustez le poids ci-dessus.</span>
         </p>
       ) : null}
@@ -198,8 +209,8 @@ function PreviewColumn({
     <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/40 p-3 lg:sticky lg:top-4">
       <h3 className="text-sm font-semibold">Aperçu du classement</h3>
       <p className="text-xs text-muted-foreground">
-        Un échantillon représentatif classé avec vos réglages — l'effet est visible
-        immédiatement, sans lancer de recherche.
+        Un échantillon représentatif classé avec vos réglages — l'effet est
+        visible immédiatement, sans lancer de recherche.
       </p>
       {error != null && <p className="text-xs text-danger">{error}</p>}
       <ol className="flex flex-col gap-1.5">
@@ -272,7 +283,9 @@ export function ReglagesPanel(): ReactElement {
   }, [draft]);
 
   const isDirty =
-    draft != null && loaded != null && JSON.stringify(draft) !== JSON.stringify(loaded);
+    draft != null &&
+    loaded != null &&
+    JSON.stringify(draft) !== JSON.stringify(loaded);
 
   function setCriterion(index: number, next: RankingCriterion): void {
     setDraft((d) => {
@@ -287,11 +300,16 @@ export function ReglagesPanel(): ReactElement {
     if (draft == null || fileQ.data == null) return;
     const values = { ...fileQ.data.values, ranking: draft };
     try {
-      const res = await putFile.mutateAsync({ values, base_sha256: fileQ.data.sha256 });
+      const res = await putFile.mutateAsync({
+        values,
+        base_sha256: fileQ.data.sha256,
+      });
       if (res.warnings.length > 0) toast.warning(res.warnings.join("\n"));
-      toast.success("Réglages enregistrés — pris en compte à la prochaine recherche.");
+      toast.success(
+        "Réglages enregistrés — pris en compte à la prochaine recherche.",
+      );
       // Await the fresh server snapshot — setDraft(null) + the stale
-      // in-memory cache causes the form to snap back to pre-save values (#372).
+      // in-memory cache causes the form to snap back to pre-save values (ticket 372).
       const fresh = await fileQ.refetch();
       const freshLoaded = readRanking(fresh.data?.values);
       setDraft(freshLoaded ? structuredClone(freshLoaded) : null);
@@ -317,7 +335,9 @@ export function ReglagesPanel(): ReactElement {
   }
 
   if (fileQ.isLoading) {
-    return <p className="text-sm text-muted-foreground">Chargement des réglages…</p>;
+    return (
+      <p className="text-sm text-muted-foreground">Chargement des réglages…</p>
+    );
   }
   if (fileQ.isError || draft == null) {
     return (
@@ -331,9 +351,9 @@ export function ReglagesPanel(): ReactElement {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <p className="max-w-prose text-sm text-muted-foreground">
-          Réglez la façon dont les versions trouvées sur les trackers sont classées
-          avant d'être récupérées. Les modifications s'appliquent à la prochaine
-          recherche automatique — aucun redémarrage nécessaire.
+          Réglez la façon dont les versions trouvées sur les trackers sont
+          classées avant d'être récupérées. Les modifications s'appliquent à la
+          prochaine recherche automatique — aucun redémarrage nécessaire.
         </p>
         <div className="flex items-center gap-2">
           <Button
@@ -374,7 +394,15 @@ export function ReglagesPanel(): ReactElement {
                   className="h-8 w-20"
                   onChange={(e) => {
                     setDraft((d) =>
-                      d ? { ...d, min_seeders: parseNum(e.target.value, d.min_seeders) } : d,
+                      d
+                        ? {
+                            ...d,
+                            min_seeders: parseNum(
+                              e.target.value,
+                              d.min_seeders,
+                            ),
+                          }
+                        : d,
                     );
                   }}
                 />
@@ -392,7 +420,10 @@ export function ReglagesPanel(): ReactElement {
                         ? {
                             ...d,
                             bonuses: {
-                              freeleech: parseNum(e.target.value, d.bonuses?.freeleech ?? 0),
+                              freeleech: parseNum(
+                                e.target.value,
+                                d.bonuses?.freeleech ?? 0,
+                              ),
                               silverleech: d.bonuses?.silverleech ?? 0,
                             },
                           }
@@ -415,7 +446,10 @@ export function ReglagesPanel(): ReactElement {
                             ...d,
                             bonuses: {
                               freeleech: d.bonuses?.freeleech ?? 0,
-                              silverleech: parseNum(e.target.value, d.bonuses?.silverleech ?? 0),
+                              silverleech: parseNum(
+                                e.target.value,
+                                d.bonuses?.silverleech ?? 0,
+                              ),
                             },
                           }
                         : d,
