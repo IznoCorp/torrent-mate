@@ -169,7 +169,12 @@ export function FileList({
             {file.owned_keys.length > 0 && (
               <div className="flex flex-wrap gap-1 pl-4">
                 {file.owned_keys.map((key) => (
-                  <Badge key={key} tone="neutral" className="text-[0.65rem]">
+                  <Badge
+                    key={key}
+                    tone="neutral"
+                    mono
+                    className="text-[0.65rem]"
+                  >
                     {key}
                   </Badge>
                 ))}

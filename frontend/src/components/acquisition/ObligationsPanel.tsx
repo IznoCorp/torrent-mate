@@ -190,7 +190,9 @@ export function ObligationsPanel(): ReactElement {
                     </Button>
                   </span>
                 </TableCell>
-                <TableCell className="text-xs">{item.source_tracker}</TableCell>
+                <TableCell className="font-mono text-xs">
+                  {item.source_tracker}
+                </TableCell>
                 <TableCell className="font-mono text-xs">
                   {item.min_ratio.toFixed(2)}
                 </TableCell>

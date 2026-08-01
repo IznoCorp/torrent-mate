@@ -196,7 +196,16 @@ export function ParcoursPanel(): ReactElement {
           className="flex flex-col gap-2 rounded-lg border border-border p-3"
         >
           <div className="flex items-center justify-between gap-2">
-            <span className="min-w-0 flex-1 truncate text-sm font-medium">
+            {/* X5 — id/hash fallbacks are machine tokens: mono + full hash in
+                title (the resolved follow title stays proportional). */}
+            <span
+              className={
+                j.follow_title
+                  ? "min-w-0 flex-1 truncate text-sm font-medium"
+                  : "min-w-0 flex-1 truncate font-mono text-sm font-medium"
+              }
+              title={j.follow_title ? j.follow_title : j.info_hash}
+            >
               {journeyTitle(j)}
             </span>
             <Badge tone="neutral" className="shrink-0">

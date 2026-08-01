@@ -227,7 +227,7 @@ export function WatcherPanel(): ReactElement {
                         ({relativeTime(run.started_at)})
                       </span>
                     </TableCell>
-                    <TableCell className="text-xs">
+                    <TableCell className="font-mono text-xs tabular-nums">
                       {numeric || (
                         <span className="text-muted-foreground">—</span>
                       )}
