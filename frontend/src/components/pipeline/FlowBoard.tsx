@@ -297,6 +297,16 @@ export function FlowBoard(): ReactElement {
           </h2>
           <span className="text-[length:var(--text-2xs)] text-muted-foreground/80">
             {runCaption(data, running)}
+            {/* PIPELINE-3 leftover (ticket 250): the run's identity — short
+                mono run_uid, full value in title (RunDetail convention). */}
+            {data?.run_uid != null && data.run_uid !== "" && (
+              <>
+                {" · "}
+                <span className="font-mono" title={data.run_uid}>
+                  {data.run_uid.slice(0, 8)}…
+                </span>
+              </>
+            )}
           </span>
         </div>
         <StatusBadge tone={runBadge.tone} label={runBadge.label} />

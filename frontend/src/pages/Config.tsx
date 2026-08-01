@@ -21,6 +21,7 @@ import { StalledLoadRetry } from "@/components/config/panels/StalledLoadRetry";
 import { FileList } from "@/components/config/FileList";
 import { SecretsTab } from "@/components/config/SecretsTab";
 import { StagingBanner } from "@/components/StagingBanner";
+import { PageHeader } from "@/components/ds/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useConfigEditor } from "@/hooks/useConfigEditor";
@@ -46,7 +47,7 @@ export default function Config(): ReactElement {
   if (editor.isLoading) {
     return (
       <section className="mx-auto flex max-w-5xl flex-col gap-4">
-        <h1 className="text-xl font-semibold tracking-tight">Configuration</h1>
+        <PageHeader title="Configuration" />
         {/* X8 — layout-shaped Skeleton (sidebar + panel), not bare text. */}
         <div
           className="grid grid-cols-1 gap-4 md:grid-cols-[240px_1fr]"
@@ -64,7 +65,7 @@ export default function Config(): ReactElement {
   if (editor.isError) {
     return (
       <section className="mx-auto flex max-w-5xl flex-col gap-4">
-        <h1 className="text-xl font-semibold tracking-tight">Configuration</h1>
+        <PageHeader title="Configuration" />
         <p className="text-sm text-danger" role="alert">
           Impossible de charger la configuration. Vérifiez que le backend est
           accessible.
@@ -76,7 +77,7 @@ export default function Config(): ReactElement {
   // ---- Render --------------------------------------------------------------
   return (
     <section className="mx-auto flex max-w-5xl flex-col gap-4">
-      <h1 className="text-xl font-semibold tracking-tight">Configuration</h1>
+      <PageHeader title="Configuration" />
 
       {/* Staging read-only banner */}
       {editor.isStaging && <StagingBanner />}

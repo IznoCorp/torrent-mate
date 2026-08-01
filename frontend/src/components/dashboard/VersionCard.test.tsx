@@ -10,13 +10,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { VersionCard } from "@/components/dashboard/VersionCard";
 
+const { streamMock } = vi.hoisted(() => ({
+  streamMock: vi.fn(),
+}));
+
 vi.mock("@/hooks/useEventStreamContext", () => ({
-  useEventStreamContext: () => ({
-    connectionState: "connected",
-    events: [],
-    buildCommit: null,
-    lastEventId: null,
-  }),
+  useEventStreamContext: () => streamMock() as unknown,
 }));
 
 /** Build a minimal ``Response``-shaped object the API client can consume. */
@@ -34,6 +33,13 @@ const fetchMock = vi.fn<typeof fetch>();
 beforeEach(() => {
   fetchMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
+  // Default stream state: no live commit known (no mismatch hint).
+  streamMock.mockReturnValue({
+    connectionState: "connected",
+    events: [],
+    buildCommit: null,
+    lastEventId: null,
+  });
 });
 
 afterEach(() => {
@@ -83,5 +89,45 @@ describe("VersionCard", () => {
     expect(await screen.findByText("0.75.1")).toBeInTheDocument();
     expect(screen.getByText("commit abcdef0")).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+});
+
+describe("VersionCard — indice de décalage (DASHBOARD-4, ticket 250)", () => {
+  it("rend le décalage de version comme Badge warning avec le commit en mono", async () => {
+    streamMock.mockReturnValue({
+      connectionState: "connected",
+      events: [],
+      buildCommit: "fedcba9876543210",
+      lastEventId: null,
+    });
+    fetchMock.mockResolvedValue(
+      buildResponse(200, { version: "0.73.0", build_commit: "abc1234def" }),
+    );
+    renderCard();
+
+    // The short live commit renders as a mono token inside a warning Badge.
+    const commit = await screen.findByText("fedcba9");
+    expect(commit.className).toContain("font-mono");
+    const badge = commit.closest('[data-slot="badge"]');
+    expect(badge).not.toBeNull();
+    expect(badge?.className).toContain("--warning");
+  });
+
+  it("aucun badge de décalage quand les commits concordent", async () => {
+    streamMock.mockReturnValue({
+      connectionState: "connected",
+      events: [],
+      buildCommit: "abc1234def",
+      lastEventId: null,
+    });
+    fetchMock.mockResolvedValue(
+      buildResponse(200, { version: "0.73.0", build_commit: "abc1234def" }),
+    );
+    renderCard();
+
+    expect(await screen.findByText(/commit abc1234/)).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Nouvelle version côté serveur/),
+    ).not.toBeInTheDocument();
   });
 });

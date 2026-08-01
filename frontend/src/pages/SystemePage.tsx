@@ -39,6 +39,7 @@ import { LocksPanel } from "@/components/maintenance/LocksPanel";
 import { RunDetail } from "@/components/pipeline/RunDetail";
 import { RunHistoryTable } from "@/components/pipeline/RunHistoryTable";
 import { TriggerLegend } from "@/components/pipeline/TriggerLegend";
+import { PageHeader } from "@/components/ds/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -332,7 +333,7 @@ export default function SystemePage(): ReactElement {
 
   return (
     <section className="mx-auto flex max-w-5xl flex-col gap-4">
-      <h1 className="text-xl font-semibold tracking-tight">Système</h1>
+      <PageHeader title="Système" />
 
       {/* Tabs — horizontal scroll on narrow screens (4 tabs at ~390px: no wrap,
           natural width per tab, scroll inside the tablist). On sm+ tabs fill

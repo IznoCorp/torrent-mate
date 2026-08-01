@@ -24,6 +24,7 @@ import { useCallback, type ReactElement } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { ErrorState } from "@/components/ds/ErrorState";
+import { PageHeader } from "@/components/ds/PageHeader";
 import { FlowBoard } from "@/components/pipeline/FlowBoard";
 import { PipelineActionBanner } from "@/components/pipeline/PipelineActionBanner";
 import { InterpretedRunFeed } from "@/components/pipeline/InterpretedRunFeed";
@@ -89,7 +90,7 @@ export default function Pipeline(): ReactElement {
 
   return (
     <section className="mx-auto flex max-w-5xl flex-col gap-4">
-      <h1 className="text-xl font-semibold tracking-tight">Pipeline</h1>
+      <PageHeader title="Pipeline" />
 
       {/* Human-action banner — impossible to miss when decisions await (C5). */}
       <PipelineActionBanner />

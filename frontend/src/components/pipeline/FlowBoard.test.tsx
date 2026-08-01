@@ -211,10 +211,9 @@ describe("FlowBoard", () => {
       expect.any(Function),
     );
     const firstCall = addEventListenerMock.mock.calls[0];
-    if (firstCall === undefined) throw new Error("expected addEventListener call");
-    const handler = firstCall[1] as (
-      e: MediaQueryListEvent,
-    ) => void;
+    if (firstCall === undefined)
+      throw new Error("expected addEventListener call");
+    const handler = firstCall[1] as (e: MediaQueryListEvent) => void;
 
     // Fire the change event: viewport narrows → mobile.
     act(() => {
@@ -236,6 +235,14 @@ describe("FlowBoard", () => {
     expect(
       screen.getByText(/Dernier run · .* · 3 médias traités/),
     ).toBeInTheDocument();
+  });
+
+  it("shows the run's identity as a short mono run_uid with the full uid in title (PIPELINE-3, ticket 250)", () => {
+    renderBoard();
+    // run_uid "run-1" is short — slice(0, 8) keeps it whole, "…" appended.
+    const uid = screen.getByText(/run-1…/);
+    expect(uid.className).toContain("font-mono");
+    expect(uid).toHaveAttribute("title", "run-1");
   });
 
   it("shows a loading skeleton row while fetching", () => {

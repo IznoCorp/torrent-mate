@@ -12,6 +12,7 @@ import type { ReactElement } from "react";
 
 import { ErrorState } from "@/components/ds/ErrorState";
 import { StatPanel } from "@/components/ds/StatPanel";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 import { useVersion } from "@/hooks/useHealth";
@@ -71,10 +72,13 @@ export function VersionCard(): ReactElement {
       <p className="font-mono text-xs text-muted-foreground">
         commit {short(restCommit)}
       </p>
+      {/* DASHBOARD-4 (ticket 250): DS warning Badge, not an ad-hoc coloured
+          paragraph — the commit stays a mono machine token. */}
       {hasMismatch && (
-        <p className="text-xs text-warning">
-          Nouvelle version côté serveur : {short(liveCommit)}
-        </p>
+        <Badge tone="warning" dot className="self-start">
+          Nouvelle version côté serveur :{" "}
+          <span className="font-mono">{short(liveCommit)}</span>
+        </Badge>
       )}
     </div>
   );

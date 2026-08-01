@@ -36,6 +36,7 @@ import { ParcoursPanel } from "@/components/acquisition/ParcoursPanel";
 import { ReglagesPanel } from "@/components/acquisition/ReglagesPanel";
 import { WatcherPanel } from "@/components/acquisition/WatcherPanel";
 import { NavCountBadge } from "@/components/ds/NavCountBadge";
+import { PageHeader } from "@/components/ds/PageHeader";
 import { useDownloads, useFollowed } from "@/hooks/useAcquisition";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 import { handleTablistKeyDown } from "@/lib/tablist";
@@ -148,7 +149,7 @@ export default function AcquisitionPage(): ReactElement {
 
   return (
     <section className="mx-auto flex max-w-5xl flex-col gap-4">
-      <h1 className="text-xl font-semibold tracking-tight">Acquisition</h1>
+      <PageHeader title="Acquisition" />
 
       {/* Tabs — horizontal scroll on narrow screens (5 tabs at ~390px: no wrap,
           natural width per tab, scroll inside the tablist). On sm+ tabs fill
