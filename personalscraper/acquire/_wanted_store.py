@@ -64,8 +64,8 @@ class _WantedSubStore:
                 INSERT INTO wanted
                   (followed_id, media_ref_json, kind, season, episode,
                    status, criteria_json, enqueued_at, last_search_at, attempts,
-                   last_search_outcome, last_search_found)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   last_search_outcome, last_search_found, absorbed_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     item.followed_id,
@@ -80,6 +80,7 @@ class _WantedSubStore:
                     item.attempts,
                     item.last_search_outcome,
                     item.last_search_found,
+                    item.absorbed_by,
                 ),
             )
             row_id = cur.lastrowid
@@ -101,7 +102,7 @@ class _WantedSubStore:
             SELECT id, followed_id, media_ref_json, kind, season, episode,
                    status, criteria_json, enqueued_at, last_search_at, attempts,
                    grabbed_hash, last_search_outcome, last_search_found,
-                   tried_hashes_json
+                   tried_hashes_json, absorbed_by
             FROM wanted WHERE id = ?
             """,
             (wanted_id,),
@@ -135,7 +136,7 @@ class _WantedSubStore:
         rows = self._conn.execute(
             "SELECT id, followed_id, media_ref_json, kind, season, episode, "
             "status, criteria_json, enqueued_at, last_search_at, attempts, grabbed_hash, "
-            "last_search_outcome, last_search_found, tried_hashes_json "
+            "last_search_outcome, last_search_found, tried_hashes_json, absorbed_by "
             "FROM wanted WHERE status = ? ORDER BY " + order_by,  # noqa: S608 — order_by is an internal literal
             (status,),
         ).fetchall()
@@ -495,7 +496,7 @@ class _WantedSubStore:
                 f"""
                 SELECT id, followed_id, media_ref_json, kind, season, episode,
                        status, criteria_json, enqueued_at, last_search_at, attempts,
-                       grabbed_hash, last_search_outcome, last_search_found
+                       grabbed_hash, last_search_outcome, last_search_found, absorbed_by
                 FROM wanted
                 WHERE status IN ({placeholders}) AND lower(grabbed_hash) = lower(?)
                 """,  # noqa: S608 — placeholders are generated from an internal frozenset
@@ -678,6 +679,52 @@ class _WantedSubStore:
             )
             return cur.rowcount == 1
 
+    def absorb_episodes(self, season_wanted_id: int, episode_ids: tuple[int, ...]) -> int:
+        """Transition episode wanteds to ``absorbed``, linking them to the season row.
+
+        Called when a season wanted absorbs its live episode siblings (R5).
+        Runs inside a single ``BEGIN IMMEDIATE`` transaction.
+
+        Args:
+            season_wanted_id: Rowid of the absorbing season ``wanted`` row.
+            episode_ids: Rowids of the episode rows to absorb.
+
+        Returns:
+            Number of rows actually transitioned (may be less than len(episode_ids)
+            if some were already absorbed/closed).
+        """
+        if not episode_ids:
+            return 0
+        placeholders = ", ".join("?" for _ in episode_ids)
+        with self._write_tx(self._conn):
+            cur = self._conn.execute(
+                f"UPDATE wanted SET status = 'absorbed', absorbed_by = ? "
+                f"WHERE id IN ({placeholders}) AND status IN ('pending', 'searching', 'available')",
+                (season_wanted_id, *episode_ids),
+            )
+            return cur.rowcount
+
+    def fallback_season(self, season_wanted_id: int) -> bool:
+        """Transition a season row to ``fallback_episodes`` — the cutoff path (R6).
+
+        Guarded on ``kind='season'`` and OPEN_WANTED_STATUSES.
+
+        Args:
+            season_wanted_id: Rowid of the season ``wanted`` row.
+
+        Returns:
+            ``True`` iff the row transitioned.
+        """
+        open_statuses = tuple(sorted(OPEN_WANTED_STATUSES))
+        placeholders = ", ".join("?" for _ in open_statuses)
+        with self._write_tx(self._conn):
+            cur = self._conn.execute(
+                f"UPDATE wanted SET status = 'fallback_episodes' "
+                f"WHERE id = ? AND kind = 'season' AND status IN ({placeholders})",
+                (season_wanted_id, *open_statuses),
+            )
+            return cur.rowcount == 1
+
     def resurrect(self, wanted_id: int, now: int) -> bool:
         """Re-open an ``abandoned`` row for an episode that is still missing.
 
@@ -767,7 +814,7 @@ class _WantedSubStore:
             """
             SELECT id, followed_id, media_ref_json, kind, season, episode,
                    status, criteria_json, enqueued_at, last_search_at, attempts,
-                   grabbed_hash, last_search_outcome, last_search_found
+                   grabbed_hash, last_search_outcome, last_search_found, absorbed_by
             FROM wanted
             WHERE status = 'searching' AND last_search_at < ?
             ORDER BY id
@@ -798,7 +845,7 @@ class _WantedSubStore:
             """
             SELECT id, followed_id, media_ref_json, kind, season, episode,
                    status, criteria_json, enqueued_at, last_search_at, attempts,
-                   grabbed_hash, last_search_outcome, last_search_found
+                   grabbed_hash, last_search_outcome, last_search_found, absorbed_by
             FROM wanted
             WHERE followed_id IS ? AND kind = ?
             ORDER BY id
@@ -835,7 +882,7 @@ class _WantedSubStore:
             """
             SELECT id, followed_id, media_ref_json, kind, season, episode,
                    status, criteria_json, enqueued_at, last_search_at, attempts,
-                   grabbed_hash, last_search_outcome, last_search_found
+                   grabbed_hash, last_search_outcome, last_search_found, absorbed_by
             FROM wanted
             WHERE followed_id IS ?
               AND kind = ?
