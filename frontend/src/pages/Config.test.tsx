@@ -234,7 +234,9 @@ describe("Config", () => {
 
     // File list entries are rendered. master.json5 may appear twice once
     // auto-selected (list button + editor header) — assert presence, not unicity.
-    expect(screen.getAllByText("master.json5").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("master.json5").length).toBeGreaterThanOrEqual(
+      1,
+    );
     expect(screen.getByText("secrets.json5")).toBeInTheDocument();
     expect(screen.getByText("local.json5")).toBeInTheDocument();
 
@@ -247,7 +249,9 @@ describe("Config", () => {
       expect(screen.getByDisplayValue("3")).toBeInTheDocument();
     });
     expect(
-      screen.queryByText("Sélectionnez un fichier dans la liste pour l'éditer."),
+      screen.queryByText(
+        "Sélectionnez un fichier dans la liste pour l'éditer.",
+      ),
     ).not.toBeInTheDocument();
   });
 
@@ -260,9 +264,7 @@ describe("Config", () => {
 
     // Select a file via the FileList button (accessible name includes file name).
     mocks.useConfigFile.mockReturnValue(success(masterFileContent));
-    fireEvent.click(
-      screen.getByRole("button", { name: /master\.json5/ }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: /master\.json5/ }));
 
     await waitFor(() => {
       // The input should be disabled.
@@ -438,7 +440,8 @@ describe("Config", () => {
 
     renderConfig();
 
-    expect(screen.getByText("Chargement…")).toBeInTheDocument();
+    // X8 convention: loading renders a layout-shaped Skeleton, not bare text.
+    expect(document.querySelector('[aria-busy="true"]')).not.toBeNull();
   });
 
   // ---- 9. Error state ------------------------------------------------------
@@ -834,7 +837,9 @@ describe("Config — fichier adressable par URL (D3 / DOIT-10)", () => {
       expect(screen.getByText("max_retries")).toBeInTheDocument();
     });
     expect(
-      screen.queryByText("Sélectionnez un fichier dans la liste pour l'éditer."),
+      screen.queryByText(
+        "Sélectionnez un fichier dans la liste pour l'éditer.",
+      ),
     ).not.toBeInTheDocument();
   });
 
@@ -846,7 +851,9 @@ describe("Config — fichier adressable par URL (D3 / DOIT-10)", () => {
       expect(screen.getByDisplayValue("3")).toBeInTheDocument();
     });
     expect(
-      screen.queryByText("Sélectionnez un fichier dans la liste pour l'éditer."),
+      screen.queryByText(
+        "Sélectionnez un fichier dans la liste pour l'éditer.",
+      ),
     ).not.toBeInTheDocument();
   });
 

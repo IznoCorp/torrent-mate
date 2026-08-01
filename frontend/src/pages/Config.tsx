@@ -21,6 +21,7 @@ import { StalledLoadRetry } from "@/components/config/panels/StalledLoadRetry";
 import { FileList } from "@/components/config/FileList";
 import { SecretsTab } from "@/components/config/SecretsTab";
 import { StagingBanner } from "@/components/StagingBanner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useConfigEditor } from "@/hooks/useConfigEditor";
 import { cn } from "@/lib/utils";
 
@@ -38,7 +39,14 @@ export default function Config(): ReactElement {
     return (
       <section className="mx-auto flex max-w-5xl flex-col gap-4">
         <h1 className="text-xl font-semibold tracking-tight">Configuration</h1>
-        <p className="text-sm text-muted-foreground">Chargement…</p>
+        {/* X8 — layout-shaped Skeleton (sidebar + panel), not bare text. */}
+        <div
+          className="grid grid-cols-1 gap-4 md:grid-cols-[240px_1fr]"
+          aria-busy="true"
+        >
+          <Skeleton className="hidden h-64 md:block" />
+          <Skeleton className="h-64 w-full" />
+        </div>
         <StalledLoadRetry onRetry={editor.refetchAll} />
       </section>
     );

@@ -12,6 +12,7 @@
 import { useState, type ReactElement } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import {
   useConfigFiles,
@@ -53,8 +54,11 @@ export function FileList({
   // Loading / error states.
   if (files.isLoading || schema.isLoading || status.isLoading) {
     return (
-      <div className="text-sm text-muted-foreground py-4">
-        Chargement des fichiers…
+      <div className="flex flex-col gap-2 py-4" aria-busy="true">
+        {/* X8 — layout-shaped Skeleton rows, not bare text. */}
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-8 w-full" />
       </div>
     );
   }

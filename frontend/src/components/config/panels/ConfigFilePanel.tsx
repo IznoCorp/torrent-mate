@@ -8,6 +8,7 @@ import { type ReactElement } from "react";
 import { SchemaForm } from "@/components/config/SchemaForm";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 /** Props for {@link ConfigFilePanel}. */
 interface ConfigFilePanelProps {
@@ -78,7 +79,12 @@ export function ConfigFilePanel({
           description="La configuration ne contient aucun fichier éditable."
         />
       ) : fileLoading ? (
-        <p className="text-sm text-muted-foreground">Chargement du fichier…</p>
+        <div className="flex flex-col gap-2" aria-busy="true">
+          {/* X8 — layout-shaped Skeleton, not bare text. */}
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-2/3" />
+        </div>
       ) : fileError ? (
         <p className="text-sm text-danger" role="alert">
           Erreur lors du chargement de &quot;{selectedFile}&quot;.

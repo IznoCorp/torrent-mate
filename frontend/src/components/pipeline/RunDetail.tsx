@@ -30,6 +30,7 @@ import { StalledPanel } from "@/components/pipeline/StalledPanel";
 import { triggerLabel } from "@/components/pipeline/triggers";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate, formatDuration, runOutcomeInfo } from "@/lib/format";
 import { ErrorState } from "@/components/ds/ErrorState";
 
@@ -222,8 +223,12 @@ export function RunDetail({
             Retour
           </button>
         </CardHeader>
-        <CardContent className="py-4 text-center text-xs text-muted-foreground">
-          Chargement…
+        <CardContent>
+          {/* X8 — layout-shaped Skeleton, not bare text. */}
+          <div className="flex flex-col gap-2" aria-busy="true">
+            <Skeleton className="h-6 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </div>
         </CardContent>
       </Card>
     );

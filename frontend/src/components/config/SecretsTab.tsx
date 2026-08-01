@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useConfigSecrets, usePutConfigSecrets } from "@/hooks/useConfig";
 
 // ---------------------------------------------------------------------------
@@ -89,9 +90,11 @@ export function SecretsTab({
 
   if (secrets.isLoading) {
     return (
-      <p className="text-sm text-muted-foreground py-4">
-        Chargement des secrets…
-      </p>
+      <div className="flex flex-col gap-2 py-4" aria-busy="true">
+        {/* X8 — layout-shaped Skeleton rows, not bare text. */}
+        <Skeleton className="h-9 w-full" />
+        <Skeleton className="h-9 w-full" />
+      </div>
     );
   }
 

@@ -40,6 +40,7 @@ import {
 import type { components } from "@/api/schema";
 import { triggerLabel } from "@/components/pipeline/triggers";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate, formatDuration, runOutcomeInfo } from "@/lib/format";
 import {
   Table,
@@ -263,11 +264,13 @@ export function RunHistoryTable({
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell
-                  colSpan={COLUMNS.length}
-                  className="text-center text-xs text-muted-foreground"
-                >
-                  Chargement…
+                <TableCell colSpan={COLUMNS.length}>
+                  {/* X8 — layout-shaped Skeleton rows, not bare text. */}
+                  <div className="flex flex-col gap-2" aria-busy="true">
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-6 w-full" />
+                  </div>
                 </TableCell>
               </TableRow>
             ) : isError ? (

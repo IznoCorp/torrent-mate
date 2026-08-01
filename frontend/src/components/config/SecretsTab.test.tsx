@@ -28,7 +28,11 @@ import { toast } from "sonner";
 const defaultSecrets = {
   secrets: [
     { key: "TMDB_API_KEY", is_set: true, description: "TMDB API key" },
-    { key: "QBITTORRENT_PASS", is_set: false, description: "qBittorrent password" },
+    {
+      key: "QBITTORRENT_PASS",
+      is_set: false,
+      description: "qBittorrent password",
+    },
   ],
 };
 
@@ -184,7 +188,8 @@ describe("SecretsTab", () => {
     mocks.useConfigSecrets.mockReturnValue(loading);
     renderSecretsTab();
 
-    expect(screen.getByText("Chargement des secrets…")).toBeInTheDocument();
+    // X8 convention: loading renders a layout-shaped Skeleton, not bare text.
+    expect(document.querySelector('[aria-busy="true"]')).not.toBeNull();
   });
 
   // ---- 7. 422 rejection → toast carries backend detail --------------------
@@ -225,9 +230,7 @@ describe("SecretsTab", () => {
 
   // ---- 8. Non-ApiError → generic message ----------------------------------
   it("affiche le message générique sur une erreur non-ApiError", async () => {
-    const putAsync = vi
-      .fn()
-      .mockRejectedValue(new Error("Network error"));
+    const putAsync = vi.fn().mockRejectedValue(new Error("Network error"));
     mocks.usePutConfigSecrets.mockReturnValue({
       mutateAsync: putAsync,
       isPending: false,
