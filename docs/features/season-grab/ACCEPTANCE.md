@@ -22,7 +22,7 @@ pytest tests/acquire/test_detect_service.py -v -k "test_season_detect_boundary_e
 # Expected: 1 passed. Last ep aired exactly 7 days ago → season action emitted.
 ```
 
-**Status**: PENDING
+**Status**: PASS (exercised 2026-08-01, post review-fix wave)
 
 ---
 
@@ -36,7 +36,7 @@ pytest tests/acquire/test_detect_service.py -v -k "test_season_detect_boundary_e
 # Expected: 1 passed. 6 episodes, 3 owned → owned ≤ total/2 → season enqueued.
 ```
 
-**Status**: PENDING
+**Status**: PASS (exercised 2026-08-01, post review-fix wave)
 
 ---
 
@@ -52,7 +52,7 @@ pytest tests/acquire/test_search_pass.py -v -k "test_conversion_enqueues_season_
 # SeasonAbsorbedEpisodes emitted.
 ```
 
-**Status**: PENDING
+**Status**: PASS (exercised 2026-08-01, post review-fix wave)
 
 ---
 
@@ -67,7 +67,7 @@ pytest tests/acquire/test_store.py -v -k "test_absorb_episodes_transitions_statu
 # and absorbed_by pointing to the season wanted id.
 ```
 
-**Status**: PENDING
+**Status**: PASS (exercised 2026-08-01, post review-fix wave)
 
 ---
 
@@ -81,7 +81,7 @@ pytest tests/acquire/test_orchestrator.py -v -k "test_filter_to_season_accepts_f
 # Expected: 1 passed. The full-range result survives.
 ```
 
-**Status**: PENDING
+**Status**: PASS (exercised 2026-08-01, post review-fix wave)
 
 ---
 
@@ -95,7 +95,7 @@ pytest tests/acquire/test_orchestrator.py -v -k "test_filter_to_season_accepts_b
 # Expected: 1 passed. The bare-season result survives.
 ```
 
-**Status**: PENDING
+**Status**: PASS (exercised 2026-08-01, post review-fix wave)
 
 ---
 
@@ -109,7 +109,7 @@ pytest tests/acquire/test_orchestrator.py -v -k "test_filter_to_season_accepts_i
 # Expected: 1 passed. The Intégrale release survives.
 ```
 
-**Status**: PENDING
+**Status**: PASS (exercised 2026-08-01, post review-fix wave)
 
 ---
 
@@ -123,7 +123,7 @@ pytest tests/acquire/test_orchestrator.py -v -k "test_filter_to_season_rejects_p
 # Expected: 1 passed. S01E03-E06 is dropped.
 ```
 
-**Status**: PENDING
+**Status**: PASS (exercised 2026-08-01, post review-fix wave)
 
 ---
 
@@ -137,7 +137,7 @@ pytest tests/acquire/test_orchestrator.py -v -k "test_filter_to_season_rejects_m
 # Expected: 1 passed. S01-S03 is dropped.
 ```
 
-**Status**: PENDING
+**Status**: PASS (exercised 2026-08-01, post review-fix wave)
 
 ---
 
@@ -151,7 +151,7 @@ pytest tests/acquire/test_orchestrator.py -v -k "test_filter_to_season_rejects_w
 # Expected: 1 passed. S02 pack when targeting S01 is dropped.
 ```
 
-**Status**: PENDING
+**Status**: PASS (exercised 2026-08-01, post review-fix wave)
 
 ---
 
@@ -166,7 +166,7 @@ pytest tests/acquire/test_orchestrator.py -v -k "test_rank_season_media_kind_use
 # Golden assert: scored_season[0][1] == 5, scored_season[1][1] == 0.
 ```
 
-**Status**: PENDING
+**Status**: PASS (exercised 2026-08-01, post review-fix wave)
 
 ---
 
@@ -181,7 +181,7 @@ pytest tests/unit/web/routes/test_season_grab.py -v -k "TestSeasonGrab and test_
 # Expected: 1 passed. HTTP 403 Forbidden, body contains "read-only".
 ```
 
-**Status**: PENDING
+**Status**: PASS (exercised 2026-08-01, post review-fix wave)
 
 ---
 
@@ -195,7 +195,7 @@ pytest tests/unit/web/routes/test_season_grab.py -v -k "TestSeasonGrab and test_
 # Expected: 1 passed. HTTP 201, response includes season=1, season_wanted_id>0, absorbed_count=3.
 ```
 
-**Status**: PENDING
+**Status**: PASS (exercised 2026-08-01, post review-fix wave)
 
 ---
 
@@ -209,7 +209,7 @@ pytest tests/unit/web/routes/test_season_grab.py -v -k "TestSeasonGrab and test_
 # Expected: 1 passed. Same season_wanted_id returned, absorbed_count unchanged.
 ```
 
-**Status**: PENDING
+**Status**: PASS (exercised 2026-08-01, post review-fix wave)
 
 ---
 
@@ -225,7 +225,7 @@ pytest tests/acquire/test_pass_gates.py -v -k "test_season_cutoff_falls_back_to_
 # SeasonFellBackToEpisodes emitted with season_wanted_id, season=3, reenqueued_count=8.
 ```
 
-**Status**: PENDING
+**Status**: PASS (exercised 2026-08-01, post review-fix wave)
 
 ---
 
@@ -242,7 +242,7 @@ personalscraper follow detect --dry-run 2>&1 | head -20
 # No acquire.db writes — verify with: stat acquire.db (mtime unchanged).
 ```
 
-**Status**: PENDING
+**Status**: PASS (exercised 2026-08-01, post review-fix wave)
 
 ---
 
@@ -258,7 +258,7 @@ print('OK: both events importable')
 # Expected: OK: both events importable (zero exit code).
 ```
 
-**Status**: PENDING
+**Status**: PASS (exercised 2026-08-01, post review-fix wave)
 
 ---
 
@@ -271,7 +271,7 @@ pytest tests/acquire/test_domain.py -v -k "test_wanted_kind_includes_season or t
 # Expected: 2 passed. WantedKind set includes "season"; WantedStatus includes "absorbed" + "fallback_episodes".
 ```
 
-**Status**: PENDING
+**Status**: PASS (exercised 2026-08-01, post review-fix wave)
 
 ---
 
@@ -279,4 +279,10 @@ pytest tests/acquire/test_domain.py -v -k "test_wanted_kind_includes_season or t
 
 | Date       | Phase | ACC-01 | ACC-02 | ACC-03 | ACC-04 | ACC-05 | ACC-06 | ACC-07 | ACC-08 | ACC-09 | ACC-10 | ACC-11 | ACC-12 | ACC-13 | ACC-14 | ACC-15 | ACC-16 |
 | ---------- | ----- | ------ | ------ | ------ | ------ | ------ | ------ | ------ | ------ | ------ | ------ | ------ | ------ | ------ | ------ | ------ | ------ |
-| 2026-08-01 | 6     |        |        |        |        |        |        |        |        |        |        |        |        |        |        |        |        |
+| 2026-08-01 | 6+fix | ✅     | ✅     | ✅     | ✅     | ✅     | ✅     | ✅     | ✅     | ✅     | ✅     | ✅     | ✅     | ✅     | ✅     | ✅     | ✅     |
+
+Run notes (2026-08-01, after the 14-commit adversarial-review fix wave `3156b40f..cd34a2c2`):
+
+- ACC-01..15 + Event Catalog + WantedKind/Status checks: every pytest selector ran individually — `1 passed` each (ACC-09 `2 passed`: selector matches an added regression sibling; ACC-DOM `2 passed` as documented).
+- ACC-16 live: `personalscraper follow detect --dry-run` exit 0; `wanted` table row count/max-id 53→53 and db mtime unchanged (sqlite snapshot before/after) — NO writes. Zero season candidates reported: the live library holds no season currently meeting R1 (post-fix gate: all episodes aired + last ≥ 7d + owned ≤ half). This is the honest outcome — the pre-fix code minted a season from a single aired episode of a still-airing season (review finding 2), which no longer happens.
+- Full gates same day: `make check` → 9919 passed backend, 1040 frontend, lint/mypy clean.
