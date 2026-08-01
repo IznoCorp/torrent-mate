@@ -195,3 +195,73 @@ def test_commit_config_dir_staging_not_skipped(tmp_path: Path):
     # The untracked file must be in the commit.
     files = _ls_tree_files(cfg)
     assert "untracked.json5" in files, f"untracked.json5 not in commit, ls-tree: {files}"
+
+
+# ── M9a: Refuse git init inside ancestor worktree ──
+
+
+def test_ensure_config_repo_refuses_inside_ancestor_worktree(tmp_path: Path):
+    """ensure_config_repo returns False when config_dir has a worktree ANCESTOR (M9a).
+
+    Creates a git repo at tmp_path/repo, then tries to init a config repo
+    INSIDE it.  Must refuse (return False) and NOT create a .git directory.
+    """
+    import subprocess
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(
+        ["git", "-C", str(repo), "init"],
+        capture_output=True,
+        check=True,
+    )
+
+    cfg = repo / "sub" / "config"
+    cfg.mkdir(parents=True)
+
+    result = ensure_config_repo(cfg)
+    assert result is False, "M9a: ensure_config_repo must refuse inside ancestor worktree"
+    assert not (cfg / ".git").exists(), "M9a: .git must NOT be created inside ancestor worktree"
+
+
+# ── M9b: Always ensure .gitignore exists ──
+
+
+def test_ensure_config_repo_adds_gitignore_to_existing_repo(tmp_path: Path):
+    """ensure_config_repo adds .gitignore even when .git pre-exists (M9b).
+
+    A repo created externally (e.g. by the migration script) may not have
+    a .gitignore.  ensure_config_repo must seed it idempotently.
+    """
+    import subprocess
+
+    cfg = tmp_path / "config"
+    cfg.mkdir()
+    # Create a repo externally — no .gitignore.
+    subprocess.run(
+        ["git", "-C", str(cfg), "init"],
+        capture_output=True,
+        check=True,
+    )
+    assert (cfg / ".git").is_dir()
+    assert not (cfg / ".gitignore").exists(), "precondition: no .gitignore yet"
+
+    result = ensure_config_repo(cfg)
+    assert result is True
+    assert (cfg / ".gitignore").is_file(), "M9b: .gitignore must be created"
+    content = (cfg / ".gitignore").read_text()
+    assert ".backups/" in content, "M9b: .gitignore must contain .backups/"
+
+
+def test_ensure_config_repo_gitignore_is_idempotent(tmp_path: Path):
+    """ensure_config_repo does NOT overwrite an existing .gitignore (M9b idempotence)."""
+    cfg = tmp_path / "config"
+    cfg.mkdir()
+    ensure_config_repo(cfg)
+    original_content = (cfg / ".gitignore").read_text()
+
+    # Second call — content unchanged.
+    ensure_config_repo(cfg)
+    assert (cfg / ".gitignore").read_text() == original_content, (
+        "M9b: existing .gitignore must not be overwritten"
+    )

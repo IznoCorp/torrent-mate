@@ -186,6 +186,8 @@ say "Step 3/6: Initializing local git repo..."
 git -C "$CANONICAL" init
 git -C "$CANONICAL" config user.email "izno@iznoserver"
 git -C "$CANONICAL" config user.name "IznoServer Config"
+# M9c: seed .gitignore so .backups/ churn is never versioned.
+echo ".backups/" > "$CANONICAL/.gitignore"
 git -C "$CANONICAL" add -A
 git -C "$CANONICAL" commit -m "initial commit — config migrated from $OLD_CONFIG"
 say "  Initial commit: $(git -C "$CANONICAL" rev-parse --short HEAD)"
