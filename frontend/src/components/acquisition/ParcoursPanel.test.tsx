@@ -307,6 +307,22 @@ describe("ParcoursPanel — copie du hash (ACQUISITION-5, ticket 250)", () => {
     });
   });
 
+  it("donne au bouton copie le minimum tactile mobile min-h-11 (X4, ticket 250)", async () => {
+    getJourneysMock.mockResolvedValue({ journeys: [journeyFixture()] });
+    renderPanel();
+
+    const btn = await screen.findByRole("button", { name: /Copier le hash/ });
+    // X4: class-presence check (jsdom does not lay out — the real proof at
+    // 390px happens post-deploy in Chrome, mobile-truth rule). The button
+    // holds the mobile touch minimum and compacts on desktop.
+    expect(btn.className).toContain("min-h-11");
+    expect(btn.className).toContain("min-w-11");
+    expect(btn.className).toContain("md:min-h-8");
+    expect(btn.className).toContain("md:min-w-8");
+    // The tiny fixed square the finding flagged must be gone.
+    expect(btn.className).not.toContain("size-5");
+  });
+
   it("toast d'erreur quand le presse-papiers refuse", async () => {
     const writeText = vi.fn().mockRejectedValue(new Error("denied"));
     Object.defineProperty(navigator, "clipboard", {

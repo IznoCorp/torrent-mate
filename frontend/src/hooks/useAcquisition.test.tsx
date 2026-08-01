@@ -13,9 +13,10 @@ import { type ReactElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // X3: every acquisition mutation toasts its failure — spy on sonner.
-const { toastSuccess, toastError } = vi.hoisted(() => ({
+const { toastSuccess, toastError, toastInfo } = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
+  toastInfo: vi.fn(),
 }));
 
 vi.mock("sonner", () => ({
@@ -23,7 +24,7 @@ vi.mock("sonner", () => ({
     success: toastSuccess,
     error: toastError,
     warning: vi.fn(),
-    info: vi.fn(),
+    info: toastInfo,
   },
 }));
 
@@ -163,6 +164,7 @@ beforeEach(() => {
   fetchMock.mockReset();
   toastSuccess.mockReset();
   toastError.mockReset();
+  toastInfo.mockReset();
   vi.stubGlobal("fetch", fetchMock);
 });
 
@@ -424,6 +426,29 @@ describe("useFollow", () => {
   });
 
   it("toasts the failure with the backend detail (X3)", async () => {
+    // A non-409 failure keeps the error path — the 409 duplicate has its own
+    // informational path (NE-DOIT-PAS-3, next test).
+    fetchMock.mockResolvedValue(
+      buildResponse(422, { detail: "Invalid follow body" }),
+    );
+
+    const { result } = renderHook(() => useFollow(), {
+      wrapper: createWrapper(),
+    });
+
+    await expect(
+      result.current.mutateAsync({ tvdb_id: 123, kind: "show" }),
+    ).rejects.toThrow(ApiError);
+
+    expect(toastError).toHaveBeenCalledWith(
+      "Échec de l'ajout au suivi — Invalid follow body",
+    );
+    expect(toastInfo).not.toHaveBeenCalled();
+  });
+
+  it("toasts the 409 duplicate-follow as information, never as an error (NE-DOIT-PAS-3)", async () => {
+    // The duplicate of the SAME action is the one legitimate refusal: it is
+    // an information, not a failure — mirrors useFollowedPanel's 409 rule.
     fetchMock.mockResolvedValue(
       buildResponse(409, { detail: "Already actively followed" }),
     );
@@ -436,9 +461,10 @@ describe("useFollow", () => {
       result.current.mutateAsync({ tvdb_id: 123, kind: "show" }),
     ).rejects.toThrow(ApiError);
 
-    expect(toastError).toHaveBeenCalledWith(
-      "Échec de l'ajout au suivi — Already actively followed",
+    expect(toastInfo).toHaveBeenCalledWith(
+      "Déjà suivi — ce média est déjà dans les suivis.",
     );
+    expect(toastError).not.toHaveBeenCalled();
   });
 });
 

@@ -232,11 +232,13 @@ export function ParcoursPanel(): ReactElement {
               {journeyTitle(j)}
             </span>
             {/* ACQUISITION-5: copy the full info_hash (the visible title may
-                be a truncated fallback of it). */}
+                be a truncated fallback of it). X4: 44px touch minimum below
+                md, compact on desktop — the icons stay size-3, only the hit
+                target grows. */}
             <Button
               variant="ghost"
               size="icon"
-              className="size-5 shrink-0"
+              className="min-h-11 min-w-11 shrink-0 md:min-h-8 md:min-w-8"
               aria-label={`Copier le hash ${j.info_hash}`}
               onClick={() => {
                 handleCopyHash(j.info_hash);

@@ -265,7 +265,9 @@ export function useTrackedAcquisitionRun(runUid: string | null) {
  * entire acquisition query namespace so the followed list, wanted queue, and
  * obligations panel all refresh.  Failures toast in French with the backend
  * detail (X3) — call sites add their own ``onSuccess`` wording but never a
- * second error toast.
+ * second error toast.  The 409 duplicate-follow is the exception: refusing
+ * the duplicate of the SAME action is the one legitimate refusal and toasts
+ * as information, never as an error (NE-DOIT-PAS-3).
  *
  * Returns:
  *   The mutation result; call ``mutateAsync(body)`` from a form.
@@ -278,6 +280,13 @@ export function useFollow() {
       void qc.invalidateQueries({ queryKey: acqKeys.all });
     },
     onError: (err: unknown) => {
+      // NE-DOIT-PAS-3: a 409 (already actively followed) is the duplicate of
+      // the same action — an information, never a failure (same house rule as
+      // useFollowedPanel's trigger/grab 409 handling).
+      if (err instanceof ApiError && err.status === 409) {
+        toast.info("Déjà suivi — ce média est déjà dans les suivis.");
+        return;
+      }
       toastMutationError("Échec de l'ajout au suivi", err);
     },
   });

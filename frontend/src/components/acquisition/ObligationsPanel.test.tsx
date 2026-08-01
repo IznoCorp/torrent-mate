@@ -4,7 +4,13 @@
  */
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ObligationItem } from "@/api/acquisition";
@@ -47,6 +53,20 @@ const { toastError } = vi.hoisted(() => ({
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: toastError },
 }));
+
+// X7 (ticket 250): meta passes through except obligationStatus, wrapped in a
+// mock so one test can simulate a status this build does not know — the real
+// derivation is a closed union, so the fallback is unreachable via item data.
+const { obligationStatusMock } = vi.hoisted(() => ({
+  obligationStatusMock: vi.fn(),
+}));
+
+vi.mock("./meta", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./meta")>();
+  // Default to the real derivation; the X7 test overrides it and restores.
+  obligationStatusMock.mockImplementation(actual.obligationStatus);
+  return { ...actual, obligationStatus: obligationStatusMock };
+});
 
 import { ObligationsPanel } from "./ObligationsPanel";
 
@@ -306,6 +326,28 @@ describe("ObligationsPanel — status badges", () => {
 });
 
 // ---------------------------------------------------------------------------
+// X7 (ticket 250): unknown-status fallback stays French
+// ---------------------------------------------------------------------------
+
+describe("ObligationsPanel — repli statut inconnu (X7, ticket 250)", () => {
+  it("affiche « Statut inconnu » pour un statut hors vocabulaire, jamais le slug brut", async () => {
+    // Simulate a future status the label map does not know. This test FAILS
+    // if the badge fallback reverts to rendering the raw slug.
+    const actual = await vi.importActual<typeof import("./meta")>("./meta");
+    obligationStatusMock.mockReturnValue("weird_new_status");
+    try {
+      renderPanel({ items: [makeObligation({ title: "Top Chef" })] });
+
+      expect(screen.getByText("Statut inconnu")).toBeInTheDocument();
+      expect(screen.queryByText("weird_new_status")).not.toBeInTheDocument();
+    } finally {
+      // Hand the real derivation back to the other tests.
+      obligationStatusMock.mockImplementation(actual.obligationStatus);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Mobile column collapse + full-value titles (ticket 250)
 // ---------------------------------------------------------------------------
 
@@ -337,11 +379,18 @@ describe("ObligationsPanel — repli mobile des colonnes (ACQUISITION-4, ticket 
   });
 
   it("porte le hash complet dans le title de la cellule Titre en repli hash", () => {
+    const fullHash = "abcdef1234567890abcdef1234567890abcdef12";
     renderPanel({ items: [makeObligation({ title: null })] });
-    // Title cell (fallback) + hash cell both carry the full hash title.
-    expect(
-      screen.getAllByTitle("abcdef1234567890abcdef1234567890abcdef12").length,
-    ).toBeGreaterThanOrEqual(1);
+    // Scoped to the Titre cell: the hidden hash-cell span ALSO carries the
+    // full hash in its title, so a global getAllByTitle stays green even when
+    // the Titre-cell title is reverted (vacuous — review finding, ticket 250).
+    const dataRow = screen.getAllByRole("row")[1];
+    if (dataRow === undefined) throw new Error("no obligation data row");
+    const titreCell = within(dataRow).getAllByRole("cell")[0];
+    if (titreCell === undefined) throw new Error("no Titre cell in the row");
+    expect(titreCell).toHaveAttribute("title", fullHash);
+    // Its visible fallback text is the truncated hash.
+    expect(titreCell).toHaveTextContent("abcdef123456…");
   });
 });
 

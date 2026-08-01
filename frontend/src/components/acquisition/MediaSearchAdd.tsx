@@ -96,10 +96,16 @@ export function MediaSearchAdd(): ReactElement {
       : provider === "tmdb"
         ? "ex: 1399"
         : "ex: 255968";
-  const idBody = buildIdFollowBody(provider, idValue);
+  const trimmedId = idValue.trim();
+  // ACQUISITION-2 (ticket 250): Number() coerces scientific ("12e34") and hex
+  // ("0x1f") notation into valid positive integers, so the numeric providers
+  // gate on plain digits BEFORE buildIdFollowBody — otherwise "12e34" would
+  // silently follow a bogus huge id.
+  const numericIdOk = provider === "imdb" || /^[0-9]+$/.test(trimmedId);
+  const idBody = numericIdOk ? buildIdFollowBody(provider, idValue) : null;
   // ACQUISITION-2 (ticket 250): a typed-but-invalid id must say WHY the
   // « Suivre » button stays disabled — never a silent no-op.
-  const idInvalid = idValue.trim() !== "" && idBody === null;
+  const idInvalid = trimmedId !== "" && idBody === null;
   const idErrorText =
     provider === "imdb"
       ? "Identifiant IMDB invalide — format attendu : tt1234567."
@@ -252,7 +258,12 @@ export function MediaSearchAdd(): ReactElement {
                 <Label htmlFor="acq-id">{idLabel}</Label>
                 <Input
                   id="acq-id"
-                  type={provider === "imdb" ? "text" : "number"}
+                  // ACQUISITION-2 (ticket 250): type="text" for ALL providers —
+                  // a type="number" input reports value "" on badInput ("12e",
+                  // "-") while the garbage stays visible, so the inline error
+                  // never fired (silent no-op). inputMode keeps the mobile
+                  // numeric keypad for TVDB/TMDB.
+                  type="text"
                   inputMode={provider === "imdb" ? "text" : "numeric"}
                   placeholder={idPlaceholder}
                   value={idValue}

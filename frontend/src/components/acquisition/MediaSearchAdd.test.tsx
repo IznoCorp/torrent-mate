@@ -273,6 +273,34 @@ describe("MediaSearchAdd — add-by-id (merged surface, #21)", () => {
     );
   });
 
+  it("affiche l'erreur inline pour du texte non numérique et ne suit pas (ticket 250)", () => {
+    render(<MediaSearchAdd />);
+    expandById();
+    // TVDB is the default provider. With the former type="number" field,
+    // badInput text ("12e34") reported value "" while the garbage stayed
+    // visible → no error, disabled button, silent no-op. The text field lets
+    // the garbage reach state, and the digits-only gate rejects it (Number()
+    // alone would coerce "12e34" into a bogus huge id).
+    const input = screen.getByLabelText("ID TVDB");
+    fireEvent.change(input, { target: { value: "12e34" } });
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Identifiant invalide — entrez un nombre entier positif.",
+    );
+    expect(screen.getByRole("button", { name: "Suivre" })).toBeDisabled();
+    expect(followMutate).not.toHaveBeenCalled();
+  });
+
+  it("garde le clavier numérique mobile via inputMode sur un champ type text (ticket 250)", () => {
+    render(<MediaSearchAdd />);
+    expandById();
+    // ACQUISITION-2: type="text" so invalid text reaches state (no badInput
+    // black hole), inputMode="numeric" so mobiles still open the keypad.
+    const input = screen.getByLabelText("ID TVDB");
+    expect(input).toHaveAttribute("type", "text");
+    expect(input).toHaveAttribute("inputmode", "numeric");
+  });
+
   it("aucune erreur inline pour un ID valide ou un champ vide (ticket 250)", () => {
     render(<MediaSearchAdd />);
     expandById();
