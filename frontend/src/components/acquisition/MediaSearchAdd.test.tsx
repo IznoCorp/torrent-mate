@@ -83,7 +83,9 @@ describe("MediaSearchAdd", () => {
     // an idle query renders nothing where the results grid would be.
     expect(screen.queryByText("Recherchez un média")).not.toBeInTheDocument();
     // The by-ID entry is merged into this surface and always visible.
-    expect(screen.getByText("ou ajouter directement par ID")).toBeInTheDocument();
+    expect(
+      screen.getByText("ou ajouter directement par ID"),
+    ).toBeInTheDocument();
     // No result card yet (query is empty).
     expect(screen.queryByText("Dune")).not.toBeInTheDocument();
   });
@@ -105,10 +107,9 @@ describe("MediaSearchAdd", () => {
 
   it("renders results after submitting and follows on click", () => {
     render(<MediaSearchAdd />);
-    fireEvent.change(
-      screen.getByLabelText("Rechercher un média à suivre"),
-      { target: { value: "dune" } },
-    );
+    fireEvent.change(screen.getByLabelText("Rechercher un média à suivre"), {
+      target: { value: "dune" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Chercher" }));
 
     expect(screen.getByText("Dune")).toBeInTheDocument();
@@ -239,6 +240,94 @@ describe("MediaSearchAdd — add-by-id (merged surface, #21)", () => {
       target: { value: "0903747" },
     });
     expect(screen.getByRole("button", { name: "Suivre" })).toBeDisabled();
+  });
+
+  // ---- ACQUISITION-2 (ticket 250): inline field error on an invalid id -----
+
+  it("affiche une erreur inline sous le champ pour un ID numérique invalide (ticket 250)", () => {
+    render(<MediaSearchAdd />);
+    expandById();
+    // TVDB is the default provider; a negative number is rejected by
+    // buildIdFollowBody (positive integers only).
+    const input = screen.getByLabelText("ID TVDB");
+    fireEvent.change(input, { target: { value: "-5" } });
+
+    const error = screen.getByRole("alert");
+    expect(error).toHaveTextContent(
+      "Identifiant invalide — entrez un nombre entier positif.",
+    );
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(input).toHaveAttribute("aria-describedby", "acq-id-error");
+    expect(screen.getByRole("button", { name: "Suivre" })).toBeDisabled();
+  });
+
+  it("affiche l'erreur au format IMDB pour un tt… malformé (ticket 250)", () => {
+    render(<MediaSearchAdd />);
+    expandById();
+    fireEvent.click(screen.getByRole("button", { name: "IMDB" }));
+    fireEvent.change(screen.getByLabelText("ID IMDB"), {
+      target: { value: "0903747" },
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Identifiant IMDB invalide — format attendu : tt1234567.",
+    );
+  });
+
+  it("affiche l'erreur inline pour du texte non numérique et ne suit pas (ticket 250)", () => {
+    render(<MediaSearchAdd />);
+    expandById();
+    // TVDB is the default provider. With the former type="number" field,
+    // badInput text ("12e34") reported value "" while the garbage stayed
+    // visible → no error, disabled button, silent no-op. The text field lets
+    // the garbage reach state, and the digits-only gate rejects it (Number()
+    // alone would coerce "12e34" into a bogus huge id).
+    const input = screen.getByLabelText("ID TVDB");
+    fireEvent.change(input, { target: { value: "12e34" } });
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Identifiant invalide — entrez un nombre entier positif.",
+    );
+    expect(screen.getByRole("button", { name: "Suivre" })).toBeDisabled();
+    expect(followMutate).not.toHaveBeenCalled();
+  });
+
+  it("affiche l'erreur inline pour un ID trop long qui perdrait sa précision et ne suit pas (ticket 250)", () => {
+    render(<MediaSearchAdd />);
+    expandById();
+    // TVDB is the default provider. A 23-digit string passes the digits-only
+    // gate AND Number.isInteger, but Number() has already mangled it
+    // (JSON would emit 1e+23) — the safe-integer gate in buildIdFollowBody
+    // must refuse it rather than follow a wrong id.
+    const input = screen.getByLabelText("ID TVDB");
+    fireEvent.change(input, { target: { value: "12345678901234567890123" } });
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Identifiant invalide — entrez un nombre entier positif.",
+    );
+    expect(screen.getByRole("button", { name: "Suivre" })).toBeDisabled();
+    expect(followMutate).not.toHaveBeenCalled();
+  });
+
+  it("garde le clavier numérique mobile via inputMode sur un champ type text (ticket 250)", () => {
+    render(<MediaSearchAdd />);
+    expandById();
+    // ACQUISITION-2: type="text" so invalid text reaches state (no badInput
+    // black hole), inputMode="numeric" so mobiles still open the keypad.
+    const input = screen.getByLabelText("ID TVDB");
+    expect(input).toHaveAttribute("type", "text");
+    expect(input).toHaveAttribute("inputmode", "numeric");
+  });
+
+  it("aucune erreur inline pour un ID valide ou un champ vide (ticket 250)", () => {
+    render(<MediaSearchAdd />);
+    expandById();
+    // Empty field: disabled button but NO error (nothing typed yet).
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    // Valid id: no error either.
+    fireEvent.change(screen.getByLabelText("ID TVDB"), {
+      target: { value: "255968" },
+    });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("toasts a warning when the followed show comes back tvdb_unresolved", () => {

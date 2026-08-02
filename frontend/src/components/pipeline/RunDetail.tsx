@@ -29,7 +29,9 @@ import { PipelineStepper } from "@/components/pipeline/PipelineStepper";
 import { StalledPanel } from "@/components/pipeline/StalledPanel";
 import { triggerLabel } from "@/components/pipeline/triggers";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate, formatDuration, runOutcomeInfo } from "@/lib/format";
 import { ErrorState } from "@/components/ds/ErrorState";
 
@@ -214,16 +216,22 @@ export function RunDetail({
       <Card>
         <CardHeader className="flex-row items-center justify-between">
           <CardTitle className="text-base">Exécution</CardTitle>
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
+            className="text-xs text-muted-foreground"
             onClick={onClose}
-            className="rounded-md border border-border px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             Retour
-          </button>
+          </Button>
         </CardHeader>
-        <CardContent className="py-4 text-center text-xs text-muted-foreground">
-          Chargement…
+        <CardContent>
+          {/* X8 — layout-shaped Skeleton, not bare text. */}
+          <div className="flex flex-col gap-2" aria-busy="true">
+            <Skeleton className="h-6 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </div>
         </CardContent>
       </Card>
     );
@@ -235,13 +243,15 @@ export function RunDetail({
       <Card>
         <CardHeader className="flex-row items-center justify-between">
           <CardTitle className="text-base">Exécution</CardTitle>
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
+            className="text-xs text-muted-foreground"
             onClick={onClose}
-            className="rounded-md border border-border px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             Retour
-          </button>
+          </Button>
         </CardHeader>
         <CardContent className="py-4">
           {is404 ? (
@@ -290,13 +300,15 @@ export function RunDetail({
             {label}
           </Badge>
         </div>
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
+          className="text-xs text-muted-foreground"
           onClick={onClose}
-          className="rounded-md border border-border px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           Retour
-        </button>
+        </Button>
       </CardHeader>
 
       <CardContent className="flex flex-col gap-4">

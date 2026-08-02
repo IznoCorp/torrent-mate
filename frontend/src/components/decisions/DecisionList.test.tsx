@@ -245,6 +245,19 @@ describe("DecisionList", () => {
     expect(onQuickDismiss).toHaveBeenCalledWith(7);
   });
 
+  it("donne à 'Ignorer' le minimum tactile mobile min-h-11 (X4)", () => {
+    render(
+      <DecisionList
+        items={[makeItem({ id: 7, status: "pending" })]}
+        onSelect={vi.fn()}
+        onQuickDismiss={vi.fn()}
+      />,
+    );
+    const button = screen.getByRole("button", { name: "Ignorer" });
+    expect(button.className).toContain("min-h-11");
+    expect(button.className).toContain("md:min-h-8");
+  });
+
   it("n'affiche pas 'Ignorer' inline sur une ligne non-pending", () => {
     const tree: ReactElement = (
       <DecisionList

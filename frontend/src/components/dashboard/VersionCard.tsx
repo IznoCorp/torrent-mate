@@ -10,7 +10,10 @@
 
 import type { ReactElement } from "react";
 
+import { ErrorState } from "@/components/ds/ErrorState";
 import { StatPanel } from "@/components/ds/StatPanel";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 import { useVersion } from "@/hooks/useHealth";
 
@@ -32,18 +35,36 @@ function short(commit: string | undefined): string {
  *   The version card element.
  */
 export function VersionCard(): ReactElement {
-  const { data } = useVersion();
+  const { data, isPending, isError } = useVersion();
   const { buildCommit: liveCommit } = useEventStreamContext();
 
-  const version = data?.version ?? "—";
-  const restCommit = data?.build_commit;
+  // X2 — a down /api/version must never collapse to a "—" placeholder
+  // indistinguishable from loading (data-illusion class).
+  if (isPending) {
+    return (
+      <div className="flex flex-col gap-2" aria-busy="true">
+        <Skeleton className="h-16 w-full" />
+        <Skeleton className="h-3 w-24" />
+      </div>
+    );
+  }
+  if (isError) {
+    return (
+      <ErrorState
+        title="Version indisponible"
+        message="La version déployée n'a pas pu être lue."
+      />
+    );
+  }
+
+  // Past the isPending/isError guards the query narrowed to success — data is
+  // guaranteed (TanStack v5 discriminated union).
+  const version = data.version;
+  const restCommit = data.build_commit;
 
   // A live build_commit that differs from the REST one means the server has
   // moved on since load — the seam the phase-7 auto-update toast will hook into.
-  const hasMismatch =
-    liveCommit !== null &&
-    restCommit !== undefined &&
-    liveCommit !== restCommit;
+  const hasMismatch = liveCommit !== null && liveCommit !== restCommit;
 
   return (
     <div className="flex flex-col gap-2">
@@ -51,10 +72,13 @@ export function VersionCard(): ReactElement {
       <p className="font-mono text-xs text-muted-foreground">
         commit {short(restCommit)}
       </p>
+      {/* DASHBOARD-4 (ticket 250): DS warning Badge, not an ad-hoc coloured
+          paragraph — the commit stays a mono machine token. */}
       {hasMismatch && (
-        <p className="text-xs text-warning">
-          Nouvelle version côté serveur : {short(liveCommit)}
-        </p>
+        <Badge tone="warning" dot className="self-start">
+          Nouvelle version côté serveur :{" "}
+          <span className="font-mono">{short(liveCommit)}</span>
+        </Badge>
       )}
     </div>
   );

@@ -45,7 +45,9 @@ function makeHealth(
 
 vi.mock("@/api/maintenance", async () => {
   const actual =
-    await vi.importActual<typeof import("@/api/maintenance")>("@/api/maintenance");
+    await vi.importActual<typeof import("@/api/maintenance")>(
+      "@/api/maintenance",
+    );
   return {
     ...actual,
     getIndexHealth: vi.fn(),
@@ -95,7 +97,9 @@ describe("IndexHealthPanel", () => {
     renderPanel();
 
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Erreur lors du chargement.");
+    expect(alert).toHaveTextContent(
+      "Impossible de charger la santé de l'index.",
+    );
     expect(alert).toHaveClass("text-danger");
   });
 

@@ -46,6 +46,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -325,9 +326,11 @@ export default function Medias(): ReactElement {
         title="Médias"
         actions={
           <div className="flex items-center gap-1 rounded-md border border-border p-0.5">
+            {/* X4: 44px touch height on mobile, compact sm height on desktop. */}
             <Button
               type="button"
               size="sm"
+              className="min-h-11 md:min-h-8"
               variant={tab === "library" ? "default" : "ghost"}
               onClick={() => {
                 setTab("library");
@@ -338,6 +341,7 @@ export default function Medias(): ReactElement {
             <Button
               type="button"
               size="sm"
+              className="min-h-11 md:min-h-8"
               variant={tab === "resolve" ? "default" : "ghost"}
               onClick={() => {
                 setTab("resolve");
@@ -349,6 +353,7 @@ export default function Medias(): ReactElement {
             <Button
               type="button"
               size="sm"
+              className="min-h-11 md:min-h-8"
               variant={tab === "decisions" ? "default" : "ghost"}
               onClick={() => {
                 setTab("decisions");
@@ -373,6 +378,8 @@ export default function Medias(): ReactElement {
                 key={seg.value}
                 type="button"
                 size="sm"
+                // X4: 44px touch height on mobile, compact on desktop.
+                className="min-h-11 md:min-h-8"
                 variant={segment === seg.value ? "default" : "ghost"}
                 aria-pressed={segment === seg.value}
                 onClick={() => {
@@ -423,6 +430,9 @@ export default function Medias(): ReactElement {
                         ? `${STATUS_TOOLTIP[status]} — échec du chargement`
                         : STATUS_TOOLTIP[status]
                     }
+                    // X4: the bare Badge is ~22px tall — give the chip a 44px
+                    // hit area on touch, compact again on desktop density.
+                    className="inline-flex min-h-11 min-w-11 items-center justify-center md:min-h-8 md:min-w-8"
                     onClick={() => {
                       handleToggleStatus(status);
                     }}
@@ -461,8 +471,15 @@ export default function Medias(): ReactElement {
           ) : (
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
               {/* List panel — hidden on mobile when detail is showing, always
-                  visible on desktop */}
-              <div className={showDetailMobile ? "hidden lg:block" : "block"}>
+                  visible on desktop. DECISIONS-4 (ticket 250): from lg the list
+                  (up to 800 rows) scrolls independently below the sticky
+                  TopBar instead of stretching the shared page scroll. */}
+              <div
+                className={cn(
+                  "lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto",
+                  showDetailMobile ? "hidden lg:block" : "block",
+                )}
+              >
                 {listLoading && items.length === 0 ? (
                   <ListSkeleton />
                 ) : (
@@ -478,15 +495,18 @@ export default function Medias(): ReactElement {
               {/* Detail panel — a SINGLE DecisionDetail instance (F36): shown on
                   mobile when selected (with a back button), side-by-side on
                   desktop, and replaced by the placeholder when nothing is
-                  selected. */}
+                  selected. DECISIONS-4: sticky below the TopBar from lg
+                  (self-start — a stretched grid item can never stick) with its
+                  own independent scroll. */}
               <div
-                className={
+                className={cn(
+                  "lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:self-start lg:overflow-y-auto",
                   selectedId != null
                     ? showDetailMobile
                       ? "block"
                       : "hidden lg:block"
-                    : "hidden lg:flex lg:items-center lg:justify-center lg:rounded-lg lg:border lg:border-dashed lg:border-border lg:p-8"
-                }
+                    : "hidden lg:flex lg:items-center lg:justify-center lg:rounded-lg lg:border lg:border-dashed lg:border-border lg:p-8",
+                )}
               >
                 {selectedId != null ? (
                   <>

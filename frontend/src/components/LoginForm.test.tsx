@@ -60,6 +60,13 @@ describe("LoginForm", () => {
     ).toBeInTheDocument();
   });
 
+  it("donne au CTA de connexion le minimum tactile mobile min-h-11 (X4)", async () => {
+    renderLoginForm();
+
+    const cta = await screen.findByRole("button", { name: /se connecter/i });
+    expect(cta.className).toContain("min-h-11");
+  });
+
   it("bloque une soumission vide via zod, sans appeler l’API", async () => {
     renderLoginForm();
 

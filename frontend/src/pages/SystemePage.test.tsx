@@ -10,9 +10,15 @@
  */
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import type { ReactElement } from "react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // ---------------------------------------------------------------------------
@@ -235,9 +241,10 @@ describe("SystemePage", () => {
     // The ActionCatalog fetches /api/maintenance/actions. Since fetch is mocked
     // synchronously, the tab selection is immediate. Assert that the actions
     // tab is selected.
-    expect(
-      screen.getByRole("tab", { name: "Actions" }),
-    ).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Actions" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
   });
 
   it("l'onglet maintenance affiche l'historique filtré", async () => {
@@ -364,6 +371,16 @@ describe("SystemePage", () => {
 
     // CIRCUIT_LABEL.closed === "OK".
     expect(screen.getByText("OK")).toBeInTheDocument();
+    // REGISTRY-5 (ticket 250): the circuit chip is a dot-badge.
+    expect(
+      screen.getByText("OK").querySelector('[aria-hidden="true"]'),
+    ).not.toBeNull();
+    // REGISTRY-5: the chip carries the SUCCESS tone token for a closed
+    // circuit (the dot is bg-current, so the badge tone class is the
+    // tone-bearing attribute) — a danger↔success mapping regression fails here.
+    const okBadge = screen.getByText("OK");
+    expect(okBadge.className).toContain("text-[var(--success)]");
+    expect(okBadge.className).not.toContain("text-[var(--danger)]");
     // Latency formatted to integer + " ms".
     expect(screen.getByText("43 ms")).toBeInTheDocument();
   });
@@ -392,6 +409,15 @@ describe("SystemePage", () => {
 
     // CIRCUIT_LABEL.open === "Ouvert".
     expect(screen.getByText("Ouvert")).toBeInTheDocument();
+    // REGISTRY-5 (ticket 250): danger dot-badge on an open circuit.
+    expect(
+      screen.getByText("Ouvert").querySelector('[aria-hidden="true"]'),
+    ).not.toBeNull();
+    // REGISTRY-5: the chip carries the DANGER tone token for an open circuit
+    // — must differ from the success tone the closed circuit gets.
+    const openBadge = screen.getByText("Ouvert");
+    expect(openBadge.className).toContain("text-[var(--danger)]");
+    expect(openBadge.className).not.toContain("text-[var(--success)]");
     expect(screen.getByText("tvdb")).toBeInTheDocument();
   });
 
@@ -529,5 +555,138 @@ describe("SystemePage", () => {
     renderSystemePage();
 
     expect(screen.getByText(/Impossible de charger/)).toBeInTheDocument();
+  });
+});
+
+describe("SystemePage — tablist ARIA (ACQUISITION-7, ticket 250)", () => {
+  it("relie chaque onglet au panneau : aria-controls, tabpanel, aria-labelledby", () => {
+    renderSystemePage();
+
+    const tab = screen.getByRole("tab", { name: "État" });
+    expect(tab).toHaveAttribute("id", "systeme-tab-etat");
+    expect(tab).toHaveAttribute("aria-controls", "systeme-tabpanel");
+
+    const panel = screen.getByRole("tabpanel");
+    expect(panel).toHaveAttribute("id", "systeme-tabpanel");
+    expect(panel).toHaveAttribute("aria-labelledby", "systeme-tab-etat");
+  });
+
+  it("le tabpanel suit l'onglet actif (aria-labelledby)", () => {
+    renderSystemePage();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Journal" }));
+    expect(screen.getByRole("tabpanel")).toHaveAttribute(
+      "aria-labelledby",
+      "systeme-tab-journal",
+    );
+  });
+
+  it("roving tabindex : seul l'onglet actif est tabbable", () => {
+    renderSystemePage();
+
+    expect(screen.getByRole("tab", { name: "État" })).toHaveAttribute(
+      "tabindex",
+      "0",
+    );
+    expect(screen.getByRole("tab", { name: "Actions" })).toHaveAttribute(
+      "tabindex",
+      "-1",
+    );
+  });
+
+  it("ArrowRight/ArrowLeft naviguent, Home/End sautent aux extrêmes", () => {
+    renderSystemePage();
+
+    const tablist = screen.getByRole("tablist");
+
+    // etat → ArrowRight → actions
+    fireEvent.keyDown(tablist, { key: "ArrowRight" });
+    expect(screen.getByRole("tab", { name: "Actions" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+
+    // actions → ArrowLeft → etat
+    fireEvent.keyDown(tablist, { key: "ArrowLeft" });
+    expect(screen.getByRole("tab", { name: "État" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+
+    // End → last tab (Journal), Home → back to the first (État).
+    fireEvent.keyDown(tablist, { key: "End" });
+    expect(screen.getByRole("tab", { name: "Journal" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    fireEvent.keyDown(tablist, { key: "Home" });
+    expect(screen.getByRole("tab", { name: "État" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+});
+
+describe("SystemePage — activation clavier sans empilement d'historique (ACQUISITION-7, ticket 250)", () => {
+  /** Probe exposing the live URL search + a navigate(-1) trigger. */
+  function BackProbe(): ReactElement {
+    const navigate = useNavigate();
+    const location = useLocation();
+    return (
+      <>
+        <div data-testid="loc-search">{location.search}</div>
+        <button
+          data-testid="go-back"
+          onClick={() => {
+            void navigate(-1);
+          }}
+        >
+          Back
+        </button>
+      </>
+    );
+  }
+
+  /** Render the page with the back probe (single /systeme history entry). */
+  function renderWithBackProbe(): void {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const tree: ReactElement = (
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={["/systeme"]}>
+          <SystemePage />
+          <BackProbe />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+    render(tree);
+  }
+
+  it("deux ArrowRight puis Back reviennent à l'onglet d'origine, pas à l'intermédiaire", async () => {
+    renderWithBackProbe();
+
+    // Click pushes one entry (D3 addressable URLs kept)…
+    fireEvent.click(screen.getByRole("tab", { name: "Actions" }));
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=actions");
+
+    // …then each keyboard activation REPLACES that entry instead of pushing.
+    const tablist = screen.getByRole("tablist");
+    fireEvent.keyDown(tablist, { key: "ArrowRight" }); // actions → maintenance
+    fireEvent.keyDown(tablist, { key: "ArrowRight" }); // maintenance → journal
+    expect(screen.getByRole("tab", { name: "Journal" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+
+    // One Back lands on the pre-click tab (État), not an intermediate one.
+    fireEvent.click(screen.getByTestId("go-back"));
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "État" })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+    });
+    expect(screen.getByTestId("loc-search").textContent).not.toContain("tab=");
   });
 });

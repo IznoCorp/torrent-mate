@@ -40,6 +40,8 @@ import {
 import type { components } from "@/api/schema";
 import { triggerLabel } from "@/components/pipeline/triggers";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate, formatDuration, runOutcomeInfo } from "@/lib/format";
 import {
   Table,
@@ -234,10 +236,14 @@ export function RunHistoryTable({
                   const sorted = header.column.getIsSorted();
                   return (
                     <TableHead key={header.id}>
-                      <button
+                      {/* X6: DS ghost Button (negative margin keeps the header
+                          text aligned with the cell text below). */}
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="-ml-2.5 h-8 gap-1 px-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground hover:text-foreground"
                         onClick={header.column.getToggleSortingHandler()}
-                        className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
                       >
                         {flexRender(
                           header.column.columnDef.header,
@@ -253,7 +259,7 @@ export function RunHistoryTable({
                             aria-hidden="true"
                           />
                         )}
-                      </button>
+                      </Button>
                     </TableHead>
                   );
                 })}
@@ -263,11 +269,13 @@ export function RunHistoryTable({
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell
-                  colSpan={COLUMNS.length}
-                  className="text-center text-xs text-muted-foreground"
-                >
-                  Chargement…
+                <TableCell colSpan={COLUMNS.length}>
+                  {/* X8 — layout-shaped Skeleton rows, not bare text. */}
+                  <div className="flex flex-col gap-2" aria-busy="true">
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-6 w-full" />
+                  </div>
                 </TableCell>
               </TableRow>
             ) : isError ? (
@@ -288,7 +296,7 @@ export function RunHistoryTable({
                   >
                     <span
                       role="alert"
-                      className="rounded bg-[var(--danger)]/15 px-1.5 py-0.5 font-medium text-[var(--danger)]"
+                      className="rounded bg-danger/15 px-1.5 py-0.5 font-medium text-danger"
                     >
                       Historique indisponible — la base n&apos;a pas pu être
                       lue.
@@ -336,23 +344,28 @@ export function RunHistoryTable({
             {total} exécution{total !== 1 ? "s" : ""} — page {currentPage}/
             {totalPages}
           </span>
+          {/* X6: DS outline Buttons instead of hand-rolled bordered buttons. */}
           <div className="flex gap-2">
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
+              className="text-xs"
               disabled={!hasPrev}
               onClick={goPrev}
-              className="rounded-md border border-border px-2 py-1 text-xs transition-colors hover:bg-muted disabled:opacity-40"
             >
               Précédent
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
+              className="text-xs"
               disabled={!hasNext}
               onClick={goNext}
-              className="rounded-md border border-border px-2 py-1 text-xs transition-colors hover:bg-muted disabled:opacity-40"
             >
               Suivant
-            </button>
+            </Button>
           </div>
         </div>
       )}

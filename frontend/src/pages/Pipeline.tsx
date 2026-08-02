@@ -23,6 +23,8 @@
 import { useCallback, type ReactElement } from "react";
 import { useSearchParams } from "react-router-dom";
 
+import { ErrorState } from "@/components/ds/ErrorState";
+import { PageHeader } from "@/components/ds/PageHeader";
 import { FlowBoard } from "@/components/pipeline/FlowBoard";
 import { PipelineActionBanner } from "@/components/pipeline/PipelineActionBanner";
 import { InterpretedRunFeed } from "@/components/pipeline/InterpretedRunFeed";
@@ -38,6 +40,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useLastPipelineRun } from "@/hooks/useLastPipelineRun";
 import { usePipelineStatus } from "@/hooks/usePipelineStatus";
 
@@ -87,7 +90,7 @@ export default function Pipeline(): ReactElement {
 
   return (
     <section className="mx-auto flex max-w-5xl flex-col gap-4">
-      <h1 className="text-xl font-semibold tracking-tight">Pipeline</h1>
+      <PageHeader title="Pipeline" />
 
       {/* Human-action banner — impossible to miss when decisions await (C5). */}
       <PipelineActionBanner />
@@ -98,9 +101,17 @@ export default function Pipeline(): ReactElement {
       <PipelineControls status={liveStatus} />
 
       {/* Interpreted narrative — live for an active run, else the last run's
-          persisted summary (never blanks). */}
+          persisted summary (never blanks). X2: a failed/loading history fetch
+          must not masquerade as "no activity" (data-illusion). */}
       {isActive ? (
         <InterpretedRunFeed runUid={activeRunUid} />
+      ) : lastRun.isError ? (
+        <ErrorState title="Impossible de charger la dernière exécution." />
+      ) : lastRun.isLoading ? (
+        <Skeleton
+          aria-busy="true"
+          className="h-80 w-full rounded-lg md:h-[28rem]"
+        />
       ) : (
         <InterpretedRunFeed lines={lastRun.lines} label="Dernière exécution" />
       )}

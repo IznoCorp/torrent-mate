@@ -8,14 +8,17 @@
  * existing secrets.
  */
 
+import { Check } from "lucide-react";
 import { useState, type ReactElement } from "react";
 import { toast } from "sonner";
 
 import { ApiError } from "@/api/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useConfigSecrets, usePutConfigSecrets } from "@/hooks/useConfig";
 
 // ---------------------------------------------------------------------------
@@ -89,9 +92,11 @@ export function SecretsTab({
 
   if (secrets.isLoading) {
     return (
-      <p className="text-sm text-muted-foreground py-4">
-        Chargement des secrets…
-      </p>
+      <div className="flex flex-col gap-2 py-4" aria-busy="true">
+        {/* X8 — layout-shaped Skeleton rows, not bare text. */}
+        <Skeleton className="h-9 w-full" />
+        <Skeleton className="h-9 w-full" />
+      </div>
     );
   }
 
@@ -112,6 +117,9 @@ export function SecretsTab({
 
   /** Update the local draft for a single key. */
   function setDraft(key: string, value: string): void {
+    // CONFIG-9 (ticket 250): any edit invalidates the inline « enregistrés »
+    // confirmation — it must never stay green over a dirty form.
+    setSaved(false);
     setEdited((prev) => {
       const next = new Map(prev);
       if (value === "") {
@@ -152,8 +160,10 @@ export function SecretsTab({
 
   return (
     <div className="flex flex-col gap-3">
+      {/* CONFIG-8 (ticket 250): the section title is a CardTitle — the panel
+          is hosted in a DS Card by the Config page since X6. */}
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold">Secrets</h2>
+        <CardTitle className="text-base">Secrets</CardTitle>
       </div>
 
       {entries.length === 0 && (
@@ -211,8 +221,10 @@ export function SecretsTab({
         </Button>
 
         {saved && (
-          <span className="text-sm text-success">
-            ✓ Secrets enregistrés — un redémarrage peut être requis.
+          <span className="inline-flex items-center gap-1 text-sm text-success">
+            {/* CONFIG-4 (ticket 250): lucide Check, not a raw ✓ glyph. */}
+            <Check className="size-4 shrink-0" aria-hidden="true" />
+            Secrets enregistrés — un redémarrage peut être requis.
           </span>
         )}
       </div>

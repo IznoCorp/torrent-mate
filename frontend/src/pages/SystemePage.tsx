@@ -39,12 +39,14 @@ import { LocksPanel } from "@/components/maintenance/LocksPanel";
 import { RunDetail } from "@/components/pipeline/RunDetail";
 import { RunHistoryTable } from "@/components/pipeline/RunHistoryTable";
 import { TriggerLegend } from "@/components/pipeline/TriggerLegend";
+import { PageHeader } from "@/components/ds/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 import { useRegistryStatus } from "@/hooks/useRegistryStatus";
 import { relativeTime } from "@/lib/format";
+import { handleTablistKeyDown } from "@/lib/tablist";
 
 // ---------------------------------------------------------------------------
 // Tab model
@@ -185,7 +187,10 @@ function ProvidersPanel(): ReactElement {
               <CardTitle className="font-mono text-lg">
                 {p.provider_name}
               </CardTitle>
-              <Badge tone={CIRCUIT_TONE[p.circuit_state]}>
+              {/* REGISTRY-5 (ticket 250): dot-badge — the circuit state reads
+                  as a status affordance (closed→success, open→danger,
+                  half_open→warning), like every other state chip. */}
+              <Badge tone={CIRCUIT_TONE[p.circuit_state]} dot>
                 {CIRCUIT_LABEL[p.circuit_state] ?? p.circuit_state}
               </Badge>
             </CardHeader>
@@ -231,7 +236,8 @@ function ProvidersPanel(): ReactElement {
                             </span>
                           )}
                         </span>
-                        <Badge tone={CIRCUIT_TONE[s.circuit_state]}>
+                        {/* REGISTRY-5: same dot affordance on sub-circuits. */}
+                        <Badge tone={CIRCUIT_TONE[s.circuit_state]} dot>
                           {CIRCUIT_LABEL[s.circuit_state] ?? s.circuit_state}
                         </Badge>
                       </div>
@@ -279,9 +285,15 @@ export default function SystemePage(): ReactElement {
     ? (rawTab as TabId)
     : DEFAULT_TAB;
 
-  /** Push or clear the ``?tab=`` param. The default tab carries no param. */
+  /**
+   * Push or clear the ``?tab=`` param. The default tab carries no param.
+   * ACQUISITION-7 (ticket 250): keyboard-driven activation (arrows follow
+   * focus) REPLACES the current history entry — holding ArrowRight must not
+   * stack one entry per keystroke. Click activation keeps push (D3
+   * addressable URLs: Back returns to the previous tab).
+   */
   const setActiveTab = useCallback(
-    (id: TabId) => {
+    (id: TabId, viaKeyboard = false) => {
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
@@ -289,7 +301,7 @@ export default function SystemePage(): ReactElement {
           else next.set("tab", id);
           return next;
         },
-        { replace: false },
+        { replace: viaKeyboard },
       );
     },
     [setSearchParams],
@@ -328,20 +340,38 @@ export default function SystemePage(): ReactElement {
 
   return (
     <section className="mx-auto flex max-w-5xl flex-col gap-4">
-      <h1 className="text-xl font-semibold tracking-tight">Système</h1>
+      <PageHeader title="Système" />
 
       {/* Tabs — horizontal scroll on narrow screens (4 tabs at ~390px: no wrap,
           natural width per tab, scroll inside the tablist). On sm+ tabs fill
-          the row evenly (flex-1). E5 segmented control. */}
+          the row evenly (flex-1). E5 segmented control.
+          ACQUISITION-7 (ticket 250): full WAI-ARIA tablist wiring — roving
+          tabIndex + arrow-key navigation + tab/panel linkage. */}
       <div
         role="tablist"
+        aria-label="Sections de la page Système"
         className="flex flex-nowrap gap-1 overflow-x-auto rounded-lg bg-muted p-1"
+        onKeyDown={(e) => {
+          handleTablistKeyDown(
+            e,
+            TABS.map((t) => t.id),
+            activeTab,
+            (id) => {
+              setActiveTab(id, true);
+            },
+            (id) => `systeme-tab-${id}`,
+          );
+        }}
       >
         {TABS.map((tab) => (
           <button
             key={tab.id}
+            type="button"
+            id={`systeme-tab-${tab.id}`}
             role="tab"
             aria-selected={activeTab === tab.id}
+            aria-controls="systeme-tabpanel"
+            tabIndex={activeTab === tab.id ? 0 : -1}
             onClick={() => {
               setActiveTab(tab.id);
             }}
@@ -357,54 +387,63 @@ export default function SystemePage(): ReactElement {
       </div>
 
       {/* Active panel — each tab renders its own Cards directly (H1: max 3
-          surface levels — page → Card panel → row). No outer Card wrapper. */}
-      {/* État — system health at a glance: disks, locks, index, providers,
+          surface levels — page → Card panel → row). No outer Card wrapper.
+          ACQUISITION-7 (ticket 250): the single tabpanel wrapper carries the
+          tab/panel linkage (aria-labelledby follows the active tab). */}
+      <div
+        id="systeme-tabpanel"
+        role="tabpanel"
+        aria-labelledby={`systeme-tab-${activeTab}`}
+        className="flex flex-col gap-4"
+      >
+        {/* État — system health at a glance: disks, locks, index, providers,
           and the live event stream. */}
-      {activeTab === "etat" && (
-        <div className="flex flex-col gap-6">
-          {/* Monitoring panels: 1 col mobile → 2 tablet → 3 desktop. */}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <DisksPanel />
-            <LocksPanel />
-            <IndexHealthPanel />
-          </div>
+        {activeTab === "etat" && (
+          <div className="flex flex-col gap-6">
+            {/* Monitoring panels: 1 col mobile → 2 tablet → 3 desktop. */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <DisksPanel />
+              <LocksPanel />
+              <IndexHealthPanel />
+            </div>
 
-          {/* Provider health cards — ex-RegistryPage. */}
-          <ProvidersPanel />
+            {/* Provider health cards — ex-RegistryPage. */}
+            <ProvidersPanel />
 
-          {/* Live event feed + recent-events table (formerly on the
+            {/* Live event feed + recent-events table (formerly on the
               /maintenance page; relocated to /systeme?tab=etat). */}
-          <EventFeed events={events} />
-          <RecentEventsTable events={events} />
-        </div>
-      )}
+            <EventFeed events={events} />
+            <RecentEventsTable events={events} />
+          </div>
+        )}
 
-      {/* Actions — maintenance command catalog with generated run forms
+        {/* Actions — maintenance command catalog with generated run forms
           (ActionCatalog is rendered as-is, zero changes). */}
-      {activeTab === "actions" && <ActionCatalog />}
+        {activeTab === "actions" && <ActionCatalog />}
 
-      {/* Exécutions de maintenance (F1 — the second history table,
+        {/* Exécutions de maintenance (F1 — the second history table,
           renamed). The trigger legend is carried here so labels stay
           decodable (C2). Clicking a row sets ?run=<uid>; when set, the
           RunDetail drawer renders inline below the table. */}
-      {activeTab === "maintenance" && (
-        <div className="flex flex-col gap-4">
-          <RunHistoryTable
-            kind="maintenance"
-            onSelect={openRun}
-            legend={<TriggerLegend />}
-          />
+        {activeTab === "maintenance" && (
+          <div className="flex flex-col gap-4">
+            <RunHistoryTable
+              kind="maintenance"
+              onSelect={openRun}
+              legend={<TriggerLegend />}
+            />
 
-          {selectedRun !== null && (
-            <RunDetail runUid={selectedRun} onClose={closeRun} />
-          )}
-        </div>
-      )}
+            {selectedRun !== null && (
+              <RunDetail runUid={selectedRun} onClose={closeRun} />
+            )}
+          </div>
+        )}
 
-      {/* Journal — the append-only destructive-operations trail (§7).
+        {/* Journal — the append-only destructive-operations trail (§7).
           Gets its addressable home here, linked directly via
           /systeme?tab=journal. */}
-      {activeTab === "journal" && <DestructiveLogPanel />}
+        {activeTab === "journal" && <DestructiveLogPanel />}
+      </div>
     </section>
   );
 }

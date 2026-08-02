@@ -66,8 +66,13 @@ describe("RunLogFeed", () => {
     ];
     renderFeed("run-1", events);
 
-    expect(screen.getByText("PipelineStepStarted")).toBeInTheDocument();
-    expect(screen.getByText("PipelineStepCompleted")).toBeInTheDocument();
+    // X7: the type renders as its French label, raw class in title only.
+    expect(screen.getByText("Étape démarrée")).toBeInTheDocument();
+    expect(screen.getByText("Étape démarrée")).toHaveAttribute(
+      "title",
+      "PipelineStepStarted",
+    );
+    expect(screen.getByText("Étape terminée")).toBeInTheDocument();
     // The JSON data preview should be visible (both events have same data).
     const dataElements = screen.getAllByText('{"step":"ingest"}');
     expect(dataElements).toHaveLength(2);
@@ -89,8 +94,9 @@ describe("RunLogFeed", () => {
     renderFeed("run-A", events);
 
     // Only run-A events should be visible.
-    expect(screen.getAllByText("PipelineStarted").length).toBe(1);
-    expect(screen.getByText("PipelineEnded")).toBeInTheDocument();
+    expect(screen.getAllByText("Pipeline démarré").length).toBe(1);
+    // Unmapped class → de-prefixed spaced form, never the raw class name.
+    expect(screen.getByText("Ended")).toBeInTheDocument();
     // run-B event with data.run_uid="run-B" should NOT appear.
     const bodies = screen.getAllByText(/run_uid/);
     // Two events: the ones with run_uid "run-A".
@@ -104,7 +110,7 @@ describe("RunLogFeed", () => {
     ];
     renderFeed(null, events);
 
-    expect(screen.getAllByText("PipelineStarted")).toHaveLength(2);
+    expect(screen.getAllByText("Pipeline démarré")).toHaveLength(2);
   });
 
   it("affiche tous les événements quand runUid est undefined", () => {
@@ -114,7 +120,7 @@ describe("RunLogFeed", () => {
     ];
     renderFeed(undefined, events);
 
-    expect(screen.getAllByText("PipelineStarted")).toHaveLength(2);
+    expect(screen.getAllByText("Pipeline démarré")).toHaveLength(2);
   });
 
   it('montre le bouton "Revenir en bas" quand on scroll vers le haut', () => {
@@ -140,14 +146,16 @@ describe("RunLogFeed", () => {
     expect(
       screen.getByRole("button", { name: "Revenir en bas" }),
     ).toBeInTheDocument();
+    // X6: the affordance is a DS Button, not a hand-rolled bordered button.
+    expect(
+      screen.getByRole("button", { name: "Revenir en bas" }),
+    ).toHaveAttribute("data-slot", "button");
   });
 
   it("affiche le titre du journal", () => {
     renderFeed("run-1", [makeEvent(1_700_000_000_000, "PipelineStarted")]);
 
-    expect(
-      screen.getByText(/Journal d.exécution/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Journal d.exécution/)).toBeInTheDocument();
   });
 
   it("utilise le niveau error pour les événements d'erreur", () => {

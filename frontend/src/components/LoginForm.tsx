@@ -160,7 +160,8 @@ export function LoginForm(): ReactElement {
       <Button
         type="submit"
         disabled={loginMutation.isPending}
-        className="mt-2 w-full"
+        // X4: the login CTA is a primary mobile touch target — hold 44px.
+        className="mt-2 min-h-11 w-full"
       >
         {loginMutation.isPending && (
           <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />

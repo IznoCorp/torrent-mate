@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 
+import { PageHeader } from "@/components/ds/PageHeader";
 import { ATraiterList } from "@/components/controle/ATraiterList";
 import { CompactHealth } from "@/components/controle/CompactHealth";
 import { LastRunDigest } from "@/components/controle/LastRunDigest";
@@ -38,7 +39,7 @@ export default function Dashboard(): ReactElement {
 
   return (
     <section className="mx-auto flex max-w-[1280px] flex-col gap-4">
-      <h1 className="text-xl font-semibold tracking-tight">Contrôle</h1>
+      <PageHeader title="Contrôle" />
 
       {/* 1. À traiter — all blocked cases, unified (DESIGN §2.1). */}
       <ATraiterList />

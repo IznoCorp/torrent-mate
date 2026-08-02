@@ -3,15 +3,15 @@
  *
  * Fetches the static action registry once (``GET /api/maintenance/actions``,
  * ``staleTime: Infinity`` — the registry never changes at runtime) and renders
- * it grouped by category. Each group is a collapsible section (plain React
- * state) whose header shows the category label and its action count; each
- * action is a clickable card carrying a risk badge and a long-running
- * indicator. Selecting an action opens {@link ActionForm} in a shadcn
- * ``<Dialog>``.
+ * it grouped by category. Each group is a collapsible DS {@link Accordion}
+ * section (X6) whose header shows the category label and its action count;
+ * each action is a clickable DS Button tile carrying a risk badge and a
+ * long-running indicator. Selecting an action opens {@link ActionForm} in a
+ * shadcn ``<Dialog>``.
  */
 
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight, Clock } from "lucide-react";
+import { Clock } from "lucide-react";
 import { useState, type ReactElement } from "react";
 
 import {
@@ -19,8 +19,16 @@ import {
   type ActionsResponse,
   type MaintenanceAction,
 } from "@/api/maintenance";
+import { ErrorState } from "@/components/ds/ErrorState";
 import { ActionForm } from "@/components/maintenance/ActionForm";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -29,6 +37,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { maintenanceKeys } from "@/hooks/useMaintenanceKeys";
 
 // ---------------------------------------------------------------------------
@@ -93,26 +102,11 @@ export function ActionCatalog(): ReactElement {
       refetchOnWindowFocus: false,
     });
 
-  // Categories the user has collapsed (all expanded by default for discovery).
-  const [collapsed, setCollapsed] = useState<ReadonlySet<Category>>(new Set());
   // The action whose form dialog is open, or null when closed.
   const [selected, setSelected] = useState<MaintenanceAction | null>(null);
 
   const actions = data?.actions ?? [];
   const counts = data?.category_counts ?? {};
-
-  /** Toggle a category's collapsed state. */
-  function toggleCategory(category: Category): void {
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      if (next.has(category)) {
-        next.delete(category);
-      } else {
-        next.add(category);
-      }
-      return next;
-    });
-  }
 
   return (
     <Card>
@@ -124,87 +118,76 @@ export function ActionCatalog(): ReactElement {
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {isLoading && (
-          <p className="text-sm text-muted-foreground">
-            Chargement des actions…
-          </p>
+          <div className="flex flex-col gap-3" aria-busy="true">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+          </div>
         )}
         {isError && (
-          <p className="text-sm text-muted-foreground">
-            Erreur lors du chargement.
-          </p>
+          <ErrorState title="Impossible de charger le catalogue d'actions." />
         )}
 
-        {!isLoading &&
-          !isError &&
-          CATEGORY_ORDER.map((category) => {
-            const items = actions.filter((a) => a.category === category);
-            if (items.length === 0) return null;
-            const count = counts[category] ?? items.length;
-            const isCollapsed = collapsed.has(category);
+        {/* X6: the DS Accordion owns aria-expanded/aria-controls and the
+            chevron affordance; each action tile is a DS outline Button so
+            radius / focus-ring come from the system. All categories stay
+            expanded by default (discovery), collapsible per item. */}
+        {!isLoading && !isError && (
+          <Accordion>
+            {CATEGORY_ORDER.map((category) => {
+              const items = actions.filter((a) => a.category === category);
+              if (items.length === 0) return null;
+              const count = counts[category] ?? items.length;
 
-            return (
-              <section key={category} className="flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    toggleCategory(category);
-                  }}
-                  aria-expanded={!isCollapsed}
-                  className="flex items-center gap-2 text-left text-sm font-semibold"
-                >
-                  {isCollapsed ? (
-                    <ChevronRight
-                      className="size-4 shrink-0"
-                      aria-hidden="true"
-                    />
-                  ) : (
-                    <ChevronDown
-                      className="size-4 shrink-0"
-                      aria-hidden="true"
-                    />
-                  )}
-                  <span>{CATEGORY_LABELS[category]}</span>
-                  <Badge tone="neutral">{count}</Badge>
-                </button>
-
-                {!isCollapsed && (
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {items.map((action) => {
-                      const risk = RISK_BADGE[action.risk];
-                      return (
-                        <button
-                          key={action.id}
-                          type="button"
-                          onClick={() => {
-                            setSelected(action);
-                          }}
-                          className="flex flex-col gap-1.5 rounded-md border border-border bg-card p-3 text-left transition-colors hover:bg-accent"
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <span className="text-sm font-medium">
-                              {action.title}
-                            </span>
-                            <div className="flex shrink-0 items-center gap-1">
-                              <Badge tone={risk.tone}>{risk.label}</Badge>
-                              {action.long_running && (
-                                <Badge tone="neutral">
-                                  <Clock aria-hidden="true" />
-                                  long
-                                </Badge>
-                              )}
+              return (
+                <AccordionItem key={category} defaultOpen>
+                  <AccordionTrigger className="text-sm font-semibold">
+                    <span className="flex items-center gap-2">
+                      <span>{CATEGORY_LABELS[category]}</span>
+                      <Badge tone="neutral">{count}</Badge>
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {items.map((action) => {
+                        const risk = RISK_BADGE[action.risk];
+                        return (
+                          <Button
+                            key={action.id}
+                            type="button"
+                            variant="outline"
+                            className="h-auto min-h-11 flex-col items-start justify-start gap-1.5 whitespace-normal p-3 text-left"
+                            onClick={() => {
+                              setSelected(action);
+                            }}
+                          >
+                            <div className="flex w-full items-start justify-between gap-2">
+                              <span className="text-sm font-medium">
+                                {action.title}
+                              </span>
+                              <div className="flex shrink-0 items-center gap-1">
+                                <Badge tone={risk.tone}>{risk.label}</Badge>
+                                {action.long_running && (
+                                  <Badge tone="neutral">
+                                    <Clock aria-hidden="true" />
+                                    long
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                          <span className="text-xs text-muted-foreground">
-                            {action.description}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </section>
-            );
-          })}
+                            <span className="text-xs font-normal text-muted-foreground">
+                              {action.description}
+                            </span>
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              );
+            })}
+          </Accordion>
+        )}
 
         {!isLoading && !isError && actions.length === 0 && (
           <p className="text-sm text-muted-foreground">

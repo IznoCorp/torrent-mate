@@ -13,7 +13,9 @@ import { useState, type ReactElement } from "react";
 
 import { getLocks, type LocksResponse } from "@/api/maintenance";
 import type { components } from "@/api/schema";
+import { ErrorState } from "@/components/ds/ErrorState";
 import { StatusDot } from "@/components/ds/StatusDot";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -126,15 +128,13 @@ export function LocksPanel(): ReactElement {
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {isLoading && (
-          <p className="text-sm text-muted-foreground">
-            Chargement des verrous…
-          </p>
+          <div className="flex flex-col gap-3" aria-busy="true">
+            <Skeleton className="h-6 w-full" />
+            <Skeleton className="h-6 w-full" />
+            <Skeleton className="h-6 w-full" />
+          </div>
         )}
-        {isError && (
-          <p className="text-sm text-danger" role="alert">
-            Erreur lors du chargement.
-          </p>
-        )}
+        {isError && <ErrorState title="Impossible de charger les verrous." />}
 
         {!isLoading && !isError && lock != null && lockInfo != null && (
           <>
@@ -144,26 +144,35 @@ export function LocksPanel(): ReactElement {
               <StatusDot status={lockInfo.status} label={lockInfo.label} />
             </div>
 
-            {/* Sentinels */}
+            {/* Sentinels — MAINTENANCE-9 (ticket 250): StatusDot readouts, not
+                plain muted text (a paused pipeline must read as a STATE). */}
             <div className="flex flex-col gap-1">
               <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Sentinelles
               </span>
               <div className="flex items-center justify-between">
                 <span className="text-xs">Pause</span>
-                <span className="text-xs text-muted-foreground">
-                  {sentinels?.pause === true
-                    ? `Activée — ${humanAge(sentinels.pause_age_s)}`
-                    : "Inactive"}
-                </span>
+                <StatusDot
+                  status={sentinels?.pause === true ? "warning" : "done"}
+                  label={
+                    sentinels?.pause === true
+                      ? `Activée — ${humanAge(sentinels.pause_age_s)}`
+                      : "Inactive"
+                  }
+                />
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs">Watcher</span>
-                <span className="text-xs text-muted-foreground">
-                  {sentinels?.watcher_paused === true
-                    ? `Désactivé — ${humanAge(sentinels.watcher_paused_age_s)}`
-                    : "Actif"}
-                </span>
+                <StatusDot
+                  status={
+                    sentinels?.watcher_paused === true ? "warning" : "done"
+                  }
+                  label={
+                    sentinels?.watcher_paused === true
+                      ? `Désactivé — ${humanAge(sentinels.watcher_paused_age_s)}`
+                      : "Actif"
+                  }
+                />
               </div>
             </div>
 
@@ -197,7 +206,15 @@ export function LocksPanel(): ReactElement {
                     ) : (
                       <ChevronDown className="size-3" aria-hidden="true" />
                     )}
-                    Orphelins tmp ({String(orphans.length)})
+                    Orphelins tmp
+                    {/* MAINTENANCE-9: the count is a Badge — danger when > 0
+                        (residue on disk), neutral when clean. */}
+                    <Badge
+                      tone={orphans.length > 0 ? "danger" : "neutral"}
+                      mono
+                    >
+                      {String(orphans.length)}
+                    </Badge>
                   </button>
 
                   {orphansExpanded && (

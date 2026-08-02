@@ -12,6 +12,22 @@ import { cleanup, renderHook, waitFor } from "@testing-library/react";
 import { type ReactElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+// X3: every acquisition mutation toasts its failure — spy on sonner.
+const { toastSuccess, toastError, toastInfo } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+  toastInfo: vi.fn(),
+}));
+
+vi.mock("sonner", () => ({
+  toast: {
+    success: toastSuccess,
+    error: toastError,
+    warning: vi.fn(),
+    info: toastInfo,
+  },
+}));
+
 import {
   useAcquisitionStatus,
   useFollow,
@@ -51,8 +67,8 @@ const FOLLOWED: FollowedResponse = {
       active: true,
       added_at: 1_750_000_000,
       wanted_pending: 3,
-    wanted_grabbed: 0,
-    kind: "show",
+      wanted_grabbed: 0,
+      kind: "show",
       status: "a_recuperer",
       priming_running: false,
       tvdb_unresolved: false,
@@ -146,6 +162,9 @@ function createWrapper(): (props: { children: ReactNode }) => ReactElement {
 
 beforeEach(() => {
   fetchMock.mockReset();
+  toastSuccess.mockReset();
+  toastError.mockReset();
+  toastInfo.mockReset();
   vi.stubGlobal("fetch", fetchMock);
 });
 
@@ -401,9 +420,62 @@ describe("useFollow", () => {
       wrapper: createWrapper(),
     });
 
-    await expect(result.current.mutateAsync({ tvdb_id: 123, kind: "show" })).rejects.toThrow(
-      ApiError,
+    await expect(
+      result.current.mutateAsync({ tvdb_id: 123, kind: "show" }),
+    ).rejects.toThrow(ApiError);
+  });
+
+  it("toasts the failure with the backend detail (X3)", async () => {
+    // A non-409 failure keeps the error path — the 409 duplicate has its own
+    // informational path (NE-DOIT-PAS-3, next test).
+    fetchMock.mockResolvedValue(
+      buildResponse(422, { detail: "Invalid follow body" }),
     );
+
+    const { result } = renderHook(() => useFollow(), {
+      wrapper: createWrapper(),
+    });
+
+    await expect(
+      result.current.mutateAsync({ tvdb_id: 123, kind: "show" }),
+    ).rejects.toThrow(ApiError);
+
+    expect(toastError).toHaveBeenCalledWith(
+      "Échec de l'ajout au suivi — Invalid follow body",
+    );
+    expect(toastInfo).not.toHaveBeenCalled();
+  });
+
+  it("toasts the 409 duplicate-follow as information, never as an error (NE-DOIT-PAS-3)", async () => {
+    // The duplicate of the SAME action is the one legitimate refusal: it is
+    // an information, not a failure — mirrors useFollowedPanel's 409 rule.
+    fetchMock.mockResolvedValue(
+      buildResponse(409, { detail: "Already actively followed" }),
+    );
+
+    const qc = new QueryClient({
+      defaultOptions: { mutations: { retry: false } },
+    });
+    const invalidateSpy = vi.spyOn(qc, "invalidateQueries");
+
+    const wrapper = ({ children }: { children: ReactNode }): ReactElement => (
+      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+    );
+
+    const { result } = renderHook(() => useFollow(), { wrapper });
+
+    await expect(
+      result.current.mutateAsync({ tvdb_id: 123, kind: "show" }),
+    ).rejects.toThrow(ApiError);
+
+    expect(toastInfo).toHaveBeenCalledWith(
+      "Déjà suivi — ce média est déjà dans les suivis.",
+    );
+    expect(toastError).not.toHaveBeenCalled();
+    // The 409 proves the follow already exists — the stale local cache must
+    // resync exactly as a success would.
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: acqKeys.all });
+    invalidateSpy.mockRestore();
   });
 });
 
@@ -445,6 +517,20 @@ describe("useUnfollow", () => {
     });
 
     await expect(result.current.mutateAsync(999)).rejects.toThrow(ApiError);
+  });
+
+  it("toasts the failure with the backend detail (X3)", async () => {
+    fetchMock.mockResolvedValue(buildResponse(404, { detail: "Not found" }));
+
+    const { result } = renderHook(() => useUnfollow(), {
+      wrapper: createWrapper(),
+    });
+
+    await expect(result.current.mutateAsync(999)).rejects.toThrow(ApiError);
+
+    expect(toastError).toHaveBeenCalledWith(
+      "Échec du retrait du suivi — Not found",
+    );
   });
 });
 
@@ -489,5 +575,21 @@ describe("useUpdateFollow", () => {
     await expect(
       result.current.mutateAsync({ id: 999, body: { active: true } }),
     ).rejects.toThrow(ApiError);
+  });
+
+  it("toasts the failure with the backend detail (X3)", async () => {
+    fetchMock.mockResolvedValue(buildResponse(404, { detail: "Not found" }));
+
+    const { result } = renderHook(() => useUpdateFollow(), {
+      wrapper: createWrapper(),
+    });
+
+    await expect(
+      result.current.mutateAsync({ id: 999, body: { active: true } }),
+    ).rejects.toThrow(ApiError);
+
+    expect(toastError).toHaveBeenCalledWith(
+      "Échec de la mise à jour du suivi — Not found",
+    );
   });
 });

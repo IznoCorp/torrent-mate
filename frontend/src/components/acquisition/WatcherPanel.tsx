@@ -53,8 +53,21 @@ export function WatcherPanel(): ReactElement {
 
   const toggleMutation = useMutation({
     mutationFn: (enabled: boolean) => setWatcher({ enabled }),
-    onSuccess: () => {
+    onSuccess: (_res, enabled) => {
+      // X3: name the action — the Switch alone cannot say the write landed.
+      toast.success(enabled ? "Watcher activé." : "Watcher désactivé.");
       void queryClient.invalidateQueries({ queryKey: acqKeys.status() });
+    },
+    onError: (err: unknown, enabled) => {
+      // X3: on failure the Switch silently snapped back with no explanation.
+      const action = enabled
+        ? "Impossible d'activer le watcher."
+        : "Impossible de désactiver le watcher.";
+      toast.error(
+        err instanceof ApiError && err.detail !== ""
+          ? `${action} — ${err.detail}`
+          : action,
+      );
     },
   });
 
@@ -177,8 +190,12 @@ export function WatcherPanel(): ReactElement {
                   <li
                     key={`${d.name}-${d.reason}`}
                     className="text-xs text-muted-foreground break-words"
+                    title={d.reason}
                   >
-                    {d.name} — {DEFERRED_REASON_LABEL[d.reason] ?? d.reason}
+                    {/* X7: never the raw machine reason (NE-DOIT-PAS-4) —
+                        an unmapped one reads as French, raw kept in title. */}
+                    {d.name} —{" "}
+                    {DEFERRED_REASON_LABEL[d.reason] ?? "raison inconnue"}
                   </li>
                 ))}
               </ul>
@@ -187,75 +204,95 @@ export function WatcherPanel(): ReactElement {
         </CardContent>
       </Card>
 
-      {/* Recent runs */}
-      <div>
-        <h3 className="mb-2 text-sm font-semibold">Exécutions récentes</h3>
-        {recent_runs.length === 0 ? (
-          <p className="py-4 text-center text-muted-foreground">
-            Aucune exécution récente enregistrée.
-          </p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Type</TableHead>
-                <TableHead>Démarré</TableHead>
-                <TableHead>Résultat</TableHead>
-                <TableHead>État</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {recent_runs.map((run) => {
-                const label =
-                  run.command === "follow-detect"
-                    ? "Détection"
-                    : run.command === "grab"
-                      ? "Récupération"
-                      : run.command === "prime"
-                        ? "Amorce d'un suivi"
-                        : "Pipeline";
-                const numeric = formatRunResult(run.result);
-                const pending = run.ended_at == null;
-                return (
-                  <TableRow key={run.run_uid}>
-                    <TableCell className="text-xs font-medium">
-                      {label}
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {formatDatetime(run.started_at)}{" "}
-                      <span className="text-muted-foreground">
-                        ({relativeTime(run.started_at)})
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {numeric || (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {pending ? (
-                        <Badge tone="info">En cours…</Badge>
-                      ) : (
-                        <Badge
-                          tone={
-                            run.outcome != null
-                              ? (RUN_OUTCOME_TONE[run.outcome] ?? "neutral")
-                              : "neutral"
-                          }
-                        >
-                          {run.outcome != null
-                            ? (RUN_OUTCOME_LABEL[run.outcome] ?? run.outcome)
-                            : "—"}
-                        </Badge>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        )}
-      </div>
+      {/* Recent runs — X6: hosted in a DS Card (title in CardHeader) instead
+          of a bare h3 floating above the table. */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Exécutions récentes</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {recent_runs.length === 0 ? (
+            <p className="py-4 text-center text-muted-foreground">
+              Aucune exécution récente enregistrée.
+            </p>
+          ) : (
+            // ACQUISITION-4 (ticket 250): the numeric « Résultat » column is
+            // the lowest-priority one — collapse it below md so the nowrap
+            // cells fit a 375px viewport.
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Démarré</TableHead>
+                  <TableHead className="hidden md:table-cell">
+                    Résultat
+                  </TableHead>
+                  <TableHead>État</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recent_runs.map((run) => {
+                  const label =
+                    run.command === "follow-detect"
+                      ? "Détection"
+                      : run.command === "grab"
+                        ? "Récupération"
+                        : run.command === "prime"
+                          ? "Amorce d'un suivi"
+                          : "Pipeline";
+                  const numeric = formatRunResult(run.result);
+                  const pending = run.ended_at == null;
+                  return (
+                    <TableRow key={run.run_uid}>
+                      <TableCell className="text-xs font-medium">
+                        {label}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {formatDatetime(run.started_at)}{" "}
+                        <span className="text-muted-foreground">
+                          ({relativeTime(run.started_at)})
+                        </span>
+                      </TableCell>
+                      <TableCell className="hidden font-mono text-xs tabular-nums md:table-cell">
+                        {numeric || (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {pending ? (
+                          <Badge tone="info">En cours…</Badge>
+                        ) : (
+                          // X7: an unmapped outcome renders French, never the
+                          // raw token (NE-DOIT-PAS-4); raw kept in title.
+                          <span
+                            className="inline-flex"
+                            {...(run.outcome != null && {
+                              title: run.outcome,
+                            })}
+                          >
+                            <Badge
+                              tone={
+                                run.outcome != null
+                                  ? (RUN_OUTCOME_TONE[run.outcome] ?? "neutral")
+                                  : "neutral"
+                              }
+                            >
+                              {run.outcome != null
+                                ? (RUN_OUTCOME_LABEL[run.outcome] ??
+                                  "État inconnu")
+                                : "—"}
+                            </Badge>
+                          </span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

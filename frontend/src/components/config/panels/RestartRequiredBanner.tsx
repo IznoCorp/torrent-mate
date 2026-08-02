@@ -42,9 +42,13 @@ export function RestartRequiredBanner({
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <p className="font-medium">Redémarrage requis</p>
-          <p className="text-muted-foreground text-xs mt-0.5">
-            Fichiers modifiés : {staleFiles.join(", ")}
-          </p>
+          {/* CONFIG-5 (ticket 250): guard the join — an empty stale-files list
+              must not render a dangling « Fichiers modifiés : ». */}
+          {staleFiles.length > 0 && (
+            <p className="text-muted-foreground text-xs mt-0.5">
+              Fichiers modifiés : {staleFiles.join(", ")}
+            </p>
+          )}
         </div>
         {!readOnly && restartConfigured && (
           <Button

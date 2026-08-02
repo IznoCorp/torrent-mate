@@ -16,11 +16,21 @@ import {
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getJourneysMock, rescrapeMock, requeueMock } = vi.hoisted(() => ({
-  getJourneysMock: vi.fn(),
-  rescrapeMock: vi.fn(),
-  requeueMock: vi.fn(),
-}));
+const { getJourneysMock, rescrapeMock, requeueMock, toastMock } = vi.hoisted(
+  () => ({
+    getJourneysMock: vi.fn(),
+    rescrapeMock: vi.fn(),
+    requeueMock: vi.fn(),
+    toastMock: {
+      success: vi.fn(),
+      error: vi.fn(),
+      info: vi.fn(),
+      warning: vi.fn(),
+    },
+  }),
+);
+
+vi.mock("sonner", () => ({ toast: toastMock }));
 
 vi.mock("@/api/acquisition", async () => {
   const actual =
@@ -244,5 +254,90 @@ describe("ParcoursPanel — F4 actions", () => {
     renderPanel();
     await screen.findByText("Stuck Movie");
     expect(screen.queryByRole("button", { name: "Re-scraper" })).toBeNull();
+  });
+});
+
+describe("ParcoursPanel — copie du hash (ACQUISITION-5, ticket 250)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+  afterEach(() => {
+    cleanup();
+  });
+
+  /** One in-flight journey whose visible title is the hash fallback. */
+  function journeyFixture(): Record<string, unknown> {
+    return {
+      info_hash: "feedbeef00112233445566778899aabbccddeeff",
+      kind: "episode",
+      media_ref: { tvdb_id: null, tmdb_id: null, imdb_id: null },
+      scraped_ref: null,
+      followed_id: null,
+      follow_title: null,
+      status: "grabbed",
+      ingest_path: null,
+      current_path: null,
+      dispatch_path: null,
+      grabbed_at: 1_700_000_000,
+      ingested_at: null,
+      scraped_at: null,
+      dispatched_at: null,
+    };
+  }
+
+  it("copie l'info_hash complet dans le presse-papiers et le confirme par un toast", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+    getJourneysMock.mockResolvedValue({ journeys: [journeyFixture()] });
+    renderPanel();
+
+    const btn = await screen.findByRole("button", { name: /Copier le hash/ });
+    fireEvent.click(btn);
+
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith(
+        "feedbeef00112233445566778899aabbccddeeff",
+      );
+    });
+    await waitFor(() => {
+      expect(toastMock.success).toHaveBeenCalledWith("Hash copié.");
+    });
+  });
+
+  it("donne au bouton copie le minimum tactile mobile min-h-11 (X4, ticket 250)", async () => {
+    getJourneysMock.mockResolvedValue({ journeys: [journeyFixture()] });
+    renderPanel();
+
+    const btn = await screen.findByRole("button", { name: /Copier le hash/ });
+    // X4: class-presence check (jsdom does not lay out — the real proof at
+    // 390px happens post-deploy in Chrome, mobile-truth rule). The button
+    // holds the mobile touch minimum and compacts on desktop.
+    expect(btn.className).toContain("min-h-11");
+    expect(btn.className).toContain("min-w-11");
+    expect(btn.className).toContain("md:min-h-8");
+    expect(btn.className).toContain("md:min-w-8");
+    // The tiny fixed square the finding flagged must be gone.
+    expect(btn.className).not.toContain("size-5");
+  });
+
+  it("toast d'erreur quand le presse-papiers refuse", async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error("denied"));
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+    getJourneysMock.mockResolvedValue({ journeys: [journeyFixture()] });
+    renderPanel();
+
+    const btn = await screen.findByRole("button", { name: /Copier le hash/ });
+    fireEvent.click(btn);
+
+    await waitFor(() => {
+      expect(toastMock.error).toHaveBeenCalledWith("Copie du hash impossible");
+    });
+    expect(toastMock.success).not.toHaveBeenCalled();
   });
 });

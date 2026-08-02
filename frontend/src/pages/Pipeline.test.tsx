@@ -90,7 +90,7 @@ function streamState(events: EventMessage[]): EventStreamState {
 function renderPage(
   events: EventMessage[] = [],
   initialEntries: string[] = ["/pipeline"],
-): void {
+): ReturnType<typeof render> {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -103,7 +103,7 @@ function renderPage(
       </MemoryRouter>
     </QueryClientProvider>
   );
-  render(tree);
+  return render(tree);
 }
 
 beforeEach(() => {
@@ -117,6 +117,7 @@ beforeEach(() => {
     runUid: null,
     lines: [],
     isLoading: false,
+    isError: false,
   });
   mocks.getPipelineHistory.mockResolvedValue({
     runs: [],
@@ -151,12 +152,52 @@ describe("Pipeline page", () => {
       runUid: "last-run",
       lines,
       isLoading: false,
+      isError: false,
     });
     renderPage();
     expect(screen.getByText("Dernière exécution")).toBeInTheDocument();
     expect(
       screen.getByText("Rangement vers le stockage — 4 traités"),
     ).toBeInTheDocument();
+  });
+
+  it("shows an error state when the last-run fetch fails — never a fake empty feed (X2)", () => {
+    mocks.useLastPipelineRun.mockReturnValue({
+      runUid: null,
+      lines: [],
+      isLoading: false,
+      isError: true,
+    });
+    renderPage();
+    // The failed fetch surfaces as an explicit error…
+    expect(
+      screen.getByText("Impossible de charger la dernière exécution."),
+    ).toBeInTheDocument();
+    // …and must NOT masquerade as "no activity": the last-run interpreted
+    // feed is not rendered at all.
+    expect(screen.queryByText("Dernière exécution")).not.toBeInTheDocument();
+  });
+
+  it("shows a busy skeleton while the last run is loading, not the feed (X2)", () => {
+    mocks.useLastPipelineRun.mockReturnValue({
+      runUid: null,
+      lines: [],
+      isLoading: true,
+      isError: false,
+    });
+    const { container } = renderPage();
+    // FlowBoard renders its own aria-busy skeletons — the log-area
+    // placeholder is the aria-busy element carrying the feed-height class.
+    const busyNodes = Array.from(
+      container.querySelectorAll('[aria-busy="true"]'),
+    );
+    const skeleton = busyNodes.find((el) => el.className.includes("h-80"));
+    expect(skeleton).toBeDefined();
+    // Neither the feed nor the error state renders while loading.
+    expect(screen.queryByText("Dernière exécution")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Impossible de charger la dernière exécution."),
+    ).not.toBeInTheDocument();
   });
 
   it("shows live interpreted lines when a run is active", () => {
@@ -182,9 +223,15 @@ describe("Pipeline page", () => {
     ];
     renderPage(events);
     expect(screen.getByText("Résumé de l'exécution")).toBeInTheDocument();
-    expect(
-      screen.getByText("Ambigu — en attente d'une décision : Unknown.Show.S01"),
-    ).toBeInTheDocument();
+    // X5/PIPELINE-8: the line is now split into segments (the item renders in
+    // a mono span), so match on the list item's full text content.
+    const line = screen.getByText(/Ambigu — en attente d'une décision/);
+    expect(line.closest("li")).toHaveTextContent(
+      "Ambigu — en attente d'une décision : Unknown.Show.S01",
+    );
+    expect(screen.getByText("Unknown.Show.S01").className).toContain(
+      "font-mono",
+    );
   });
 
   it("collapses the raw WS log by default (content unmounted until expanded)", () => {

@@ -44,7 +44,9 @@ function makeDisksResponse(
 
 vi.mock("@/api/maintenance", async () => {
   const actual =
-    await vi.importActual<typeof import("@/api/maintenance")>("@/api/maintenance");
+    await vi.importActual<typeof import("@/api/maintenance")>(
+      "@/api/maintenance",
+    );
   return {
     ...actual,
     getDisks: vi.fn(),
@@ -84,7 +86,8 @@ describe("DisksPanel", () => {
     // Never resolve — the hook should show loading.
     fn.mockReturnValue(new Promise<never>(() => undefined));
     renderPanel();
-    expect(screen.getByText("Chargement des disques…")).toBeInTheDocument();
+    // X2 convention: loading renders a layout-shaped Skeleton, not bare text.
+    expect(document.querySelector('[aria-busy="true"]')).not.toBeNull();
   });
 
   it("affiche l'état d'erreur avec role=alert", async () => {
@@ -93,7 +96,9 @@ describe("DisksPanel", () => {
     renderPanel();
 
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Erreur lors du chargement.");
+    expect(alert).toHaveTextContent(
+      "Impossible de charger l'état des disques.",
+    );
     expect(alert).toHaveClass("text-danger");
   });
 

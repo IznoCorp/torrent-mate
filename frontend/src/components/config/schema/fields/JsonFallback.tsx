@@ -5,7 +5,7 @@
 import { useId, useState, type ReactElement, type ChangeEvent } from "react";
 
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+import { Textarea } from "@/components/ui/textarea";
 
 import { fieldError } from "../engine";
 
@@ -69,12 +69,12 @@ export function JsonFallback({
   return (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={id}>JSON</Label>
-      <textarea
+      {/* CONFIG-11 (ticket 250): the DS Textarea primitive replaces the
+          hand-rolled <textarea> so border/focus/invalid tokens come from the
+          system; the invalid look rides on aria-invalid alone. */}
+      <Textarea
         id={id}
-        className={cn(
-          "border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 flex min-h-[120px] w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 font-mono",
-          (er !== null || parseErr !== null) && "border-destructive",
-        )}
+        className="font-mono"
         aria-invalid={er !== null || parseErr !== null ? true : undefined}
         disabled={readOnly}
         value={draft}

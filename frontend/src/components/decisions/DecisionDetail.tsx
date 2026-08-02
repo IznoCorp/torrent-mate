@@ -295,7 +295,9 @@ export function DecisionDetail({
             Aucun candidat disponible pour cette décision.
           </p>
         ) : (
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+          // DECISIONS-5 (ticket 250): the wide 3fr detail track fits a 4th
+          // candidate column from xl up.
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
             {candidates.map((candidate, idx) => {
               const isSelected =
                 selectedCandidate?.provider === candidate.provider &&
@@ -317,7 +319,9 @@ export function DecisionDetail({
         {/* ---- Live resolve output ------------------------------------------- */}
         {runUid != null && (
           <div className="flex flex-col gap-2 rounded-md border border-border bg-muted p-3">
-            <div className="flex items-center gap-2">
+            {/* DECISIONS-3 (ticket 250): min-w-0 + break-all so the mono
+                run_uid wraps at 375px instead of overflowing the row. */}
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               {/* SF1: a terminal FAILURE (error/killed) shows a danger badge —
                   it must not look like the success "terminé" state. */}
               {(() => {
@@ -333,8 +337,8 @@ export function DecisionDetail({
                 }
                 return <Badge tone="success">Re-scraping terminé</Badge>;
               })()}
-              <span className="text-xs text-muted-foreground">
-                run_uid : <span className="font-mono">{runUid}</span>
+              <span className="min-w-0 text-xs text-muted-foreground">
+                run_uid : <span className="break-all font-mono">{runUid}</span>
               </span>
             </div>
             <RunLogFeed runUid={runUid} />

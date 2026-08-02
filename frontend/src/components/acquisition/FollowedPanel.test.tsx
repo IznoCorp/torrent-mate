@@ -18,9 +18,10 @@ import { ApiError } from "@/api/client";
 
 // The « Récupérer maintenant » action posts through the API module directly
 // (no hook), so the endpoint itself is stubbed; everything else stays real.
-const { grabMock, followMock, toastMock } = vi.hoisted(() => ({
+const { grabMock, followMock, unfollowMock, toastMock } = vi.hoisted(() => ({
   grabMock: vi.fn(),
   followMock: vi.fn(),
+  unfollowMock: vi.fn(),
   toastMock: {
     info: vi.fn(),
     error: vi.fn(),
@@ -45,7 +46,7 @@ vi.mock("sonner", () => ({ toast: toastMock }));
 vi.mock("@/hooks/useAcquisition", () => ({
   useFollow: () => ({ mutate: followMock, isPending: false }),
   useUpdateFollow: () => ({ mutate: vi.fn(), isPending: false }),
-  useUnfollow: () => ({ mutate: vi.fn(), isPending: false }),
+  useUnfollow: () => ({ mutate: unfollowMock, isPending: false }),
   useCompleteness: () => ({
     data: undefined,
     isLoading: false,
@@ -412,7 +413,8 @@ describe("FollowedPanel — suivis retirés (revue mobile 2026-07-15)", () => {
     renderPanel([
       makeItem({
         id: 8,
-        title: "Un titre de suivi retiré vraiment très très long qui déborde sur mobile",
+        title:
+          "Un titre de suivi retiré vraiment très très long qui déborde sur mobile",
         kind: "show",
         active: false,
       }),
@@ -421,6 +423,58 @@ describe("FollowedPanel — suivis retirés (revue mobile 2026-07-15)", () => {
     expect(button.className).toContain("shrink-0");
     const li = button.closest("li");
     expect(li?.className).not.toContain("flex-wrap");
+  });
+});
+
+describe("FollowedPanel — confirmation « Retirer » (ACQUISITION-3, ticket 250)", () => {
+  /** Open the row's ⋯ menu and click « Retirer » to open the dialog. */
+  function openUnfollowDialog(): void {
+    // Radix DropdownMenuTrigger listens for pointerdown, not click.
+    fireEvent.pointerDown(
+      screen.getByRole("button", { name: "Actions pour House of the Dragon" }),
+    );
+    fireEvent.click(screen.getByRole("menuitem", { name: /Retirer/ }));
+  }
+
+  it("n'appelle PAS la mutation au clic « Retirer » du menu — un dialog s'ouvre", async () => {
+    renderPanel([makeItem()]);
+    openUnfollowDialog();
+
+    await waitFor(() => {
+      expect(screen.getByText("Retirer ce suivi ?")).toBeInTheDocument();
+    });
+    expect(unfollowMock).not.toHaveBeenCalled();
+  });
+
+  it("Annuler ferme le dialog et conserve le suivi (aucune mutation)", async () => {
+    renderPanel([makeItem()]);
+    openUnfollowDialog();
+
+    await waitFor(() => {
+      expect(screen.getByText("Retirer ce suivi ?")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Annuler" }));
+
+    await waitFor(() => {
+      expect(screen.queryByText("Retirer ce suivi ?")).not.toBeInTheDocument();
+    });
+    expect(unfollowMock).not.toHaveBeenCalled();
+    // The row is still there.
+    expect(screen.getByText("House of the Dragon")).toBeInTheDocument();
+  });
+
+  it("confirmer déclenche la mutation d'unfollow avec l'id du suivi", async () => {
+    renderPanel([makeItem({ id: 42 })]);
+    openUnfollowDialog();
+
+    await waitFor(() => {
+      expect(screen.getByText("Retirer ce suivi ?")).toBeInTheDocument();
+    });
+    // The dialog's destructive confirm button (distinct from the menuitem).
+    fireEvent.click(screen.getByRole("button", { name: "Retirer" }));
+
+    expect(unfollowMock).toHaveBeenCalledTimes(1);
+    expect(unfollowMock).toHaveBeenCalledWith(42, expect.anything());
   });
 });
 
@@ -464,7 +518,9 @@ describe("FollowedPanel — « Récupérer maintenant » (phase 8 / §6)", () =>
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /En file/ })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /En file/ }),
+      ).toBeInTheDocument();
     });
     // §6 / NE-DOIT-PAS-3: the duplicate of the same action is an information.
     expect(toastMock.error).not.toHaveBeenCalled();
@@ -526,8 +582,12 @@ describe("FollowedPanel — séries / films sub-tabs (#20)", () => {
 
   it("labels each sub-tab with its active follow count", () => {
     renderPanel([aShow, aMovie]);
-    expect(screen.getByRole("button", { name: "Séries (1)" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Films (1)" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Séries (1)" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Films (1)" }),
+    ).toBeInTheDocument();
   });
 
   it("shows a per-tab empty hint when the selected kind has no follow", () => {

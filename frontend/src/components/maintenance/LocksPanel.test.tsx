@@ -1,5 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -68,7 +74,9 @@ function makeLocksResponse(
 
 vi.mock("@/api/maintenance", async () => {
   const actual =
-    await vi.importActual<typeof import("@/api/maintenance")>("@/api/maintenance");
+    await vi.importActual<typeof import("@/api/maintenance")>(
+      "@/api/maintenance",
+    );
   return {
     ...actual,
     getLocks: vi.fn(),
@@ -107,7 +115,8 @@ describe("LocksPanel", () => {
     const fn = await mockGetLocks();
     fn.mockReturnValue(new Promise<never>(() => undefined));
     renderPanel();
-    expect(screen.getByText("Chargement des verrous…")).toBeInTheDocument();
+    // X2 convention: loading renders a layout-shaped Skeleton, not bare text.
+    expect(document.querySelector('[aria-busy="true"]')).not.toBeNull();
   });
 
   it("affiche l'état d'erreur avec role=alert", async () => {
@@ -116,7 +125,7 @@ describe("LocksPanel", () => {
     renderPanel();
 
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Erreur lors du chargement.");
+    expect(alert).toHaveTextContent("Impossible de charger les verrous.");
     expect(alert).toHaveClass("text-danger");
   });
 
@@ -204,15 +213,24 @@ describe("LocksPanel", () => {
               prefix: "_tmp_dispatch_",
               age_s: 300,
             },
-            { path: "/tmp/.ingest_tmp_xyz", prefix: ".ingest_tmp_", age_s: 600 },
+            {
+              path: "/tmp/.ingest_tmp_xyz",
+              prefix: ".ingest_tmp_",
+              age_s: 600,
+            },
           ],
         },
       }),
     );
     renderPanel();
 
-    const toggle = await screen.findByText("Orphelins tmp (2)");
-    expect(toggle).toBeInTheDocument();
+    // MAINTENANCE-9 (ticket 250): the count is a Badge on the toggle — danger
+    // tone when > 0 (residue on disk).
+    const toggle = await screen.findByRole("button", {
+      name: /Orphelins tmp/,
+    });
+    const countBadge = within(toggle).getByText("2");
+    expect(countBadge.className).toContain("--danger");
 
     // Expand the orphans list.
     fireEvent.click(toggle);
@@ -227,7 +245,12 @@ describe("LocksPanel", () => {
     fn.mockResolvedValue(makeLocksResponse());
     renderPanel();
 
-    const toggle = await screen.findByText("Orphelins tmp (0)");
+    const toggle = await screen.findByRole("button", {
+      name: /Orphelins tmp/,
+    });
+    // Zero orphans: the count Badge stays neutral, never danger.
+    const countBadge = within(toggle).getByText("0");
+    expect(countBadge.className).not.toContain("--danger");
     fireEvent.click(toggle);
     expect(screen.getByText("Aucun.")).toBeInTheDocument();
   });
@@ -243,6 +266,9 @@ describe("LocksPanel", () => {
     // pending caption instead of a count toggle.
     expect(await screen.findByText("Verrou du pipeline")).toBeInTheDocument();
     expect(screen.getByText("analyse en cours…")).toBeInTheDocument();
-    expect(screen.queryByText(/Orphelins tmp \(/)).not.toBeInTheDocument();
+    // No count toggle while the sweep is pending (the badge would lie).
+    expect(
+      screen.queryByRole("button", { name: /Orphelins tmp/ }),
+    ).not.toBeInTheDocument();
   });
 });

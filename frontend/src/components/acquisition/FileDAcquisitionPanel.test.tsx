@@ -832,4 +832,42 @@ describe("FileDAcquisitionPanel", () => {
     // The season count should reflect both items.
     expect(screen.getByText(/1 saison, 2 épisodes/)).toBeInTheDocument();
   });
+
+  // ── X7 (ticket 250): unknown-slug fallbacks stay French ────────────────
+
+  it("affiche les libellés de repli français pour un statut et un type inconnus (X7, ticket 250)", async () => {
+    mockEmpty();
+    // A status/kind this build does not know (e.g. served by a newer backend)
+    // must render the French fallbacks, never the raw machine tokens
+    // (NE-DOIT-PAS-4). This test FAILS if a fallback reverts to the raw slug.
+    mockWantedItems(
+      [
+        makeWanted({
+          id: 400,
+          title: "Emission Mystere",
+          kind: "weird_kind",
+          season: null,
+          episode: null,
+          status: "weird_new_status",
+        }),
+      ],
+      1,
+    );
+    renderPanel();
+
+    // Expand the accordion.
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Emission Mystere/ }),
+    );
+
+    // The status badge falls back to French; the raw slug is never visible
+    // text but stays available in the wrapping span's title attribute.
+    expect(screen.getByText("Statut inconnu")).toBeInTheDocument();
+    expect(screen.queryByText("weird_new_status")).not.toBeInTheDocument();
+    expect(screen.getByTitle("weird_new_status")).toBeInTheDocument();
+
+    // The unknown kind (no episode code) reads « Média », never the raw token.
+    expect(screen.getByText("Média")).toBeInTheDocument();
+    expect(screen.queryByText("weird_kind")).not.toBeInTheDocument();
+  });
 });

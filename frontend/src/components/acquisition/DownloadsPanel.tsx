@@ -75,10 +75,10 @@ export function DownloadRow({ d }: { d: AcquisitionDownload }): ReactElement {
         <div
           className={
             d.state === "missing" || d.state === "errored"
-              ? "h-full bg-[var(--danger)]"
+              ? "h-full bg-danger"
               : d.progress >= 1
-                ? "h-full bg-[var(--success)]"
-                : "h-full bg-[var(--info)]"
+                ? "h-full bg-success"
+                : "h-full bg-info"
           }
           style={{
             width: `${String(d.state === "missing" || d.state === "errored" ? 100 : pct)}%`,
@@ -97,7 +97,7 @@ export function DownloadRow({ d }: { d: AcquisitionDownload }): ReactElement {
       {d.state === "errored" &&
         d.error_reason != null &&
         d.error_reason !== "" && (
-          <p className="text-xs text-[var(--danger)]">{d.error_reason}</p>
+          <p className="text-xs text-danger">{d.error_reason}</p>
         )}
     </div>
   );
@@ -139,7 +139,7 @@ export function DownloadsPanel(): ReactElement {
         ) : (
           <>
             {data?.client_available === false && (
-              <p className="text-xs text-[var(--warning)]">
+              <p className="text-xs text-warning">
                 Client torrent injoignable — progression indisponible, les
                 éléments récupérés restent listés.
               </p>

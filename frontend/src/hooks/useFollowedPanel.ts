@@ -59,7 +59,11 @@ export function buildIdFollowBody(
     return IMDB_ID_RE.test(value) ? { imdb_id: value, kind: "show" } : null;
   }
   const numeric = Number(value);
-  if (!Number.isInteger(numeric) || numeric <= 0) return null;
+  // Number.isSafeInteger, not isInteger: a 17-digit-or-longer id still passes
+  // isInteger but has already lost precision (JSON would emit 1e+23 for a
+  // 23-digit string) — a precision-mangled id must refuse here, never silently
+  // follow a wrong id.
+  if (!Number.isSafeInteger(numeric) || numeric <= 0) return null;
   return provider === "tvdb"
     ? { tvdb_id: numeric, kind: "show" }
     : { tmdb_id: numeric, kind: "show" };
@@ -225,14 +229,27 @@ export function useFollowedPanel(): FollowedPanelMachine {
   const [editTarget, setEditTarget] = useState<FollowedSeriesItem | null>(null);
   const [editInterval, setEditInterval] = useState("");
 
+  // X3: name the action in the success toast; error toasts are owned by the
+  // useUnfollow / useUpdateFollow hooks (backend detail included there).
   const handleUnfollow = (id: number): void => {
-    unfollowMutation.mutate(id);
+    unfollowMutation.mutate(id, {
+      onSuccess: () => {
+        toast.success("Suivi retiré.");
+      },
+    });
   };
 
   // Toggle active/paused in place (C16) — the update hook invalidates the
   // acquisition views, so the status badge follows without leaving the card.
   const handleToggleActive = (id: number, active: boolean): void => {
-    updateMutation.mutate({ id, body: { active } });
+    updateMutation.mutate(
+      { id, body: { active } },
+      {
+        onSuccess: () => {
+          toast.success(active ? "Suivi réactivé." : "Suivi mis en pause.");
+        },
+      },
+    );
   };
 
   const openEditCadence = (item: FollowedSeriesItem): void => {
@@ -248,6 +265,8 @@ export function useFollowedPanel(): FollowedPanelMachine {
       { id: editTarget.id, body: { cadence: { interval_minutes: interval } } },
       {
         onSuccess: () => {
+          // X3: the dialog closing alone did not say the save actually landed.
+          toast.success("Cadence mise à jour.");
           setEditTarget(null);
         },
       },

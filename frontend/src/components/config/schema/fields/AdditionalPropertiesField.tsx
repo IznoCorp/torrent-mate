@@ -4,11 +4,10 @@
  */
 
 import { Plus, X } from "lucide-react";
-import { type ReactElement } from "react";
+import { useState, type ReactElement } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 import { fieldError, isObject, joinPath } from "../engine";
 import { fieldLabel } from "../labels";
@@ -21,6 +20,9 @@ import type { CompositeFieldProps } from "./types";
  * Each row has a text input for the key and a control for the value (recursive
  * when the ``additionalProperties`` schema is an object, otherwise a plain
  * ``Input``).  Add/remove buttons let the user grow or shrink the dict.
+ * Key renames commit on blur/Enter (CONFIG-10, ticket 250) and preserve row
+ * order; a blank, colliding or invalid key reverts (never merges two entries)
+ * and explains the refusal in a per-row alert, cleared on the next keystroke.
  *
  * Args:
  *   schema: The object schema with ``additionalProperties``.
@@ -45,14 +47,90 @@ export function AdditionalPropertiesField({
   const addSchema = schema.additionalProperties as Record<string, unknown>;
   const label = fieldLabel(schema, path.split(".").pop() ?? "entries");
 
+  // CONFIG-10 (ticket 250): per-row key drafts, keyed by the CURRENT object
+  // key. Typing edits the draft only; the rename commits on blur/Enter so the
+  // row identity (and input focus) survives every keystroke.
+  const [keyDrafts, setKeyDrafts] = useState<Record<string, string>>({});
+
+  // CONFIG-10 (ticket 250): per-row rename-refusal explanations, keyed by the
+  // CURRENT object key. A refused rename reverts (never merges two entries)
+  // but must say WHY; editing that row's key input clears its message.
+  const [keyErrors, setKeyErrors] = useState<Record<string, string>>({});
+
+  function clearKeyError(key: string): void {
+    setKeyErrors((prev) => {
+      if (!Object.hasOwn(prev, key)) return prev;
+      const next = { ...prev };
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete next[key];
+      return next;
+    });
+  }
+
   function setEntry(key: string, newValue: unknown): void {
     onChange({ ...obj, [key]: newValue });
+  }
+
+  /**
+   * Commit a key rename (blur/Enter), preserving row order.
+   *
+   * A blank, invalid or colliding new key reverts to the current key — a
+   * rename must never merge two entries — and records a per-row explanation
+   * for the refusal (cleared when the user edits that row's key again).
+   */
+  function commitKeyRename(oldKey: string, rawNewKey: string): void {
+    setKeyDrafts((prev) => {
+      const next = { ...prev };
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete next[oldKey];
+      return next;
+    });
+    const newKey = rawNewKey.trim();
+    if (newKey === oldKey) {
+      clearKeyError(oldKey);
+      return;
+    }
+    if (newKey === "") {
+      setKeyErrors((prev) => ({
+        ...prev,
+        [oldKey]: "Renommage annulé : clé vide",
+      }));
+      return;
+    }
+    // "__proto__" can never become a dict key: the computed assignment
+    // `renamed["__proto__"] = v` below would invoke the inherited prototype
+    // setter instead of creating an own property, silently losing the entry.
+    if (newKey === "__proto__") {
+      setKeyErrors((prev) => ({
+        ...prev,
+        [oldKey]: "Renommage annulé : clé invalide",
+      }));
+      return;
+    }
+    // Object.hasOwn, not `in`: `in` walks the prototype chain and would
+    // refuse legitimate keys such as `toString` as phantom collisions.
+    if (Object.hasOwn(obj, newKey)) {
+      setKeyErrors((prev) => ({
+        ...prev,
+        [oldKey]: "Renommage annulé : clé déjà utilisée",
+      }));
+      return;
+    }
+    clearKeyError(oldKey);
+    const renamed: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(obj)) {
+      renamed[k === oldKey ? newKey : k] = v;
+    }
+    onChange(renamed);
   }
 
   function removeEntry(key: string): void {
     const next = { ...obj };
     // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
     delete next[key];
+    // Drop any pending refusal message so it cannot resurface on a future
+    // entry that reuses the removed key.
+    clearKeyError(key);
     onChange(next);
   }
 
@@ -71,12 +149,60 @@ export function AdditionalPropertiesField({
     <fieldset className="flex flex-col gap-2 rounded-md border border-border p-3">
       <legend className="px-1 text-sm font-medium">{label}</legend>
 
-      {entries.map(([k, v]) => {
+      {entries.map(([k, v], idx) => {
         const rowPath = joinPath(path, k);
+        const keyError = keyErrors[k];
         return (
-          <div key={k} className="flex items-start gap-2">
+          // CONFIG-10 (ticket 250): rows are keyed by entry index, not by the
+          // dict key — a committed rename changes the key, and a key-based row
+          // would remount, dropping focus and detaching the remove button
+          // mid-click. Index identity is deliberate and safe here because
+          // renames preserve entry order and every REACHABLE input is
+          // controlled (key drafts/errors live in maps keyed by dict key; the
+          // scalar value Input reads straight from the object). Known
+          // limitation: the nested SchemaFormRenderer branch below is NOT
+          // fully controlled — its descendants (NumberField/StringField
+          // clientErr, JsonFallback draft) hold internal state that would
+          // migrate across rows on a middle-row removal under index keys. That
+          // branch is unreachable with the current config schema (no
+          // inline-object additionalProperties — all $refs) and would need
+          // stable synthetic row ids before it ever becomes reachable.
+          <div key={idx} className="flex items-start gap-2">
             <div className="min-w-0 flex-1">
-              <Label className="text-xs text-muted-foreground">{k}</Label>
+              {/* CONFIG-10: the key is EDITABLE, as the field docstring promises
+                  — renames commit on blur/Enter. X7: a dict key is a machine
+                  token — mono, not prose. */}
+              <Input
+                type="text"
+                aria-label={`Clé ${k}`}
+                disabled={readOnly}
+                className="mb-1 h-8 font-mono text-xs"
+                value={keyDrafts[k] ?? k}
+                onChange={(e) => {
+                  const draft = e.target.value;
+                  setKeyDrafts((prev) => ({ ...prev, [k]: draft }));
+                  // A new keystroke supersedes a previous rename refusal.
+                  clearKeyError(k);
+                }}
+                onBlur={(e) => {
+                  commitKeyRename(k, e.target.value);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    // Commit directly instead of blur(): a successful rename
+                    // re-renders the row and blur() would strand focus on
+                    // document.body; committing inline keeps the caret in
+                    // this key input. Tab-out still commits via onBlur.
+                    commitKeyRename(k, e.currentTarget.value);
+                  }
+                }}
+              />
+              {keyError !== undefined && (
+                <p className="mb-1 text-sm text-danger" role="alert">
+                  {keyError}
+                </p>
+              )}
               {isObject(addSchema) &&
               addSchema.type === "object" &&
               isObject(addSchema.properties) ? (
@@ -117,7 +243,8 @@ export function AdditionalPropertiesField({
                 variant="ghost"
                 size="sm"
                 aria-label={`Supprimer la clé ${k}`}
-                className="mt-5 shrink-0"
+                // X4: 44px touch target on mobile, compact on desktop.
+                className="mt-5 min-h-11 min-w-11 shrink-0 md:min-h-8 md:min-w-8"
                 onClick={() => {
                   removeEntry(k);
                 }}
@@ -134,7 +261,8 @@ export function AdditionalPropertiesField({
           type="button"
           variant="outline"
           size="sm"
-          className="self-start"
+          // X4: 44px touch target on mobile, compact on desktop.
+          className="min-h-11 self-start md:min-h-8"
           aria-label="Ajouter une entrée"
           onClick={addEntry}
         >

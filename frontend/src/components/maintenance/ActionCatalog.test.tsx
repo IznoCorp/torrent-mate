@@ -66,7 +66,9 @@ function makeActionsResponse(): ActionsResponse {
 
 vi.mock("@/api/maintenance", async () => {
   const actual =
-    await vi.importActual<typeof import("@/api/maintenance")>("@/api/maintenance");
+    await vi.importActual<typeof import("@/api/maintenance")>(
+      "@/api/maintenance",
+    );
   return {
     ...actual,
     getActions: vi.fn(),
@@ -105,17 +107,20 @@ describe("ActionCatalog", () => {
     const fn = await mockGetActions();
     fn.mockReturnValue(new Promise<never>(() => undefined));
     renderCatalog();
-    expect(screen.getByText("Chargement des actions…")).toBeInTheDocument();
+    // X2 convention: loading renders a layout-shaped Skeleton, not bare text.
+    expect(document.querySelector('[aria-busy="true"]')).not.toBeNull();
   });
 
-  it("affiche l'état d'erreur", async () => {
+  it("affiche l'état d'erreur avec role=alert", async () => {
     const fn = await mockGetActions();
     fn.mockRejectedValue(new Error("boom"));
     renderCatalog();
 
-    expect(
-      await screen.findByText("Erreur lors du chargement."),
-    ).toBeInTheDocument();
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
+      "Impossible de charger le catalogue d'actions.",
+    );
+    expect(alert).toHaveClass("text-danger");
   });
 
   it("groupe les actions par catégorie avec leur décompte", async () => {
@@ -172,5 +177,25 @@ describe("ActionCatalog", () => {
     fireEvent.click(screen.getByText("Requêtes"));
 
     expect(screen.queryByText("Rechercher")).not.toBeInTheDocument();
+  });
+
+  it("utilise les primitives DS : Accordion (aria-expanded) + tuiles Button (X6)", async () => {
+    const fn = await mockGetActions();
+    fn.mockResolvedValue(makeActionsResponse());
+    renderCatalog();
+
+    // Category header is a real accordion trigger owned by the DS primitive.
+    const tile = await screen.findByText("Rechercher");
+    const trigger = screen
+      .getByText("Requêtes")
+      .closest('[data-slot="accordion-trigger"]');
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(trigger).toHaveAttribute("aria-controls");
+
+    fireEvent.click(screen.getByText("Requêtes"));
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+
+    // Each action tile is a DS Button (focus ring / radius from the system).
+    expect(tile.closest('[data-slot="button"]')).not.toBeNull();
   });
 });

@@ -226,7 +226,8 @@ describe("AppShell mobile nav Sheet", () => {
 
     const sheet = await screen.findByRole("dialog");
     // The card's StatPanel label + its commit line, scoped to the drawer.
-    expect(within(sheet).getByText("Version")).toBeInTheDocument();
+    // findBy: the card shows a Skeleton until /api/version resolves (X2).
+    expect(await within(sheet).findByText("Version")).toBeInTheDocument();
     expect(within(sheet).getByText(/^commit /)).toBeInTheDocument();
   });
 });

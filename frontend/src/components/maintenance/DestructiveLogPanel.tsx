@@ -45,7 +45,7 @@ function LogRow({ op }: { op: DestructiveOp }): ReactElement {
   return (
     <li className="flex flex-col gap-0.5 border-b border-border/60 py-2 last:border-b-0">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="rounded bg-[var(--danger)]/15 px-1.5 py-0.5 text-xs font-medium text-[var(--danger)]">
+        <span className="rounded bg-danger/15 px-1.5 py-0.5 text-xs font-medium text-danger">
           {OP_LABEL[op.op] ?? op.op}
         </span>
         <span className="text-xs text-muted-foreground">

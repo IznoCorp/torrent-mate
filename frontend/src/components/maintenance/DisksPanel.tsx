@@ -12,6 +12,7 @@ import type { ReactElement } from "react";
 
 import { getDisks, type DisksResponse } from "@/api/maintenance";
 import type { components } from "@/api/schema";
+import { ErrorState } from "@/components/ds/ErrorState";
 import { StatPanel } from "@/components/ds/StatPanel";
 import { StatusDot } from "@/components/ds/StatusDot";
 import {
@@ -21,6 +22,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { maintenanceKeys } from "@/hooks/useMaintenanceKeys";
 import { formatGb } from "@/lib/format";
 
@@ -124,14 +126,13 @@ export function DisksPanel(): ReactElement {
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {isLoading && (
-          <p className="text-sm text-muted-foreground">
-            Chargement des disques…
-          </p>
+          <div className="flex flex-col gap-3" aria-busy="true">
+            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-14 w-full" />
+          </div>
         )}
         {isError && (
-          <p className="text-sm text-danger" role="alert">
-            Erreur lors du chargement.
-          </p>
+          <ErrorState title="Impossible de charger l'état des disques." />
         )}
         {!isLoading &&
           !isError &&

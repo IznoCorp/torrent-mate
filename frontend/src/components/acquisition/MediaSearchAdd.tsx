@@ -8,7 +8,7 @@
  * reuses {@link useFollow}. Loading, error and empty states are all soigné.
  */
 
-import { ChevronDown, Search } from "lucide-react";
+import { Check, ChevronDown, Search } from "lucide-react";
 import { useState, type ReactElement, type SyntheticEvent } from "react";
 import { toast } from "sonner";
 
@@ -96,11 +96,26 @@ export function MediaSearchAdd(): ReactElement {
       : provider === "tmdb"
         ? "ex: 1399"
         : "ex: 255968";
-  const idBody = buildIdFollowBody(provider, idValue);
+  const trimmedId = idValue.trim();
+  // ACQUISITION-2 (ticket 250): Number() coerces scientific ("12e34") and hex
+  // ("0x1f") notation into valid positive integers, so the numeric providers
+  // gate on plain digits BEFORE buildIdFollowBody — otherwise "12e34" would
+  // silently follow a bogus huge id.
+  const numericIdOk = provider === "imdb" || /^[0-9]+$/.test(trimmedId);
+  const idBody = numericIdOk ? buildIdFollowBody(provider, idValue) : null;
+  // ACQUISITION-2 (ticket 250): a typed-but-invalid id must say WHY the
+  // « Suivre » button stays disabled — never a silent no-op.
+  const idInvalid = trimmedId !== "" && idBody === null;
+  const idErrorText =
+    provider === "imdb"
+      ? "Identifiant IMDB invalide — format attendu : tt1234567."
+      : "Identifiant invalide — entrez un nombre entier positif.";
 
   function handleAddById(): void {
     if (idBody === null) return;
     if (idTitle.trim()) idBody.title = idTitle.trim();
+    // Error feedback is owned by the useFollow hook (X3) — a second onError
+    // here would double-toast the same failure.
     followMut.mutate(idBody, {
       onSuccess: (created) => {
         toast.success("Média ajouté au suivi");
@@ -111,9 +126,6 @@ export function MediaSearchAdd(): ReactElement {
             "Série ajoutée, mais l'ID TVDB n'a pas pu être résolu — la détection d'épisodes est indisponible tant qu'un ID TVDB n'est pas fourni.",
           );
         }
-      },
-      onError: (err: unknown) => {
-        toast.error(err instanceof Error ? err.message : "Échec de l'ajout");
       },
     });
   }
@@ -135,6 +147,7 @@ export function MediaSearchAdd(): ReactElement {
 
   function doFollow(result: MediaSearchResult): void {
     const key = `${result.provider}-${String(result.provider_id)}`;
+    // Error feedback is owned by the useFollow hook (X3) — no second onError.
     followMut.mutate(toFollowBody(result), {
       onSuccess: () => {
         toast.success(`« ${result.title} » ajouté au suivi`);
@@ -143,9 +156,6 @@ export function MediaSearchAdd(): ReactElement {
         // the results collapse and the input clears.
         setDraft("");
         setQuery("");
-      },
-      onError: (err: unknown) => {
-        toast.error(err instanceof Error ? err.message : "Échec de l'ajout");
       },
     });
   }
@@ -248,14 +258,31 @@ export function MediaSearchAdd(): ReactElement {
                 <Label htmlFor="acq-id">{idLabel}</Label>
                 <Input
                   id="acq-id"
-                  type={provider === "imdb" ? "text" : "number"}
+                  // ACQUISITION-2 (ticket 250): type="text" for ALL providers —
+                  // a type="number" input reports value "" on badInput ("12e",
+                  // "-") while the garbage stays visible, so the inline error
+                  // never fired (silent no-op). inputMode keeps the mobile
+                  // numeric keypad for TVDB/TMDB.
+                  type="text"
                   inputMode={provider === "imdb" ? "text" : "numeric"}
                   placeholder={idPlaceholder}
                   value={idValue}
+                  aria-invalid={idInvalid ? true : undefined}
+                  aria-describedby={idInvalid ? "acq-id-error" : undefined}
                   onChange={(e) => {
                     setIdValue(e.target.value);
                   }}
                 />
+                {/* ACQUISITION-2: inline field error under the input. */}
+                {idInvalid && (
+                  <p
+                    id="acq-id-error"
+                    role="alert"
+                    className="text-xs text-danger"
+                  >
+                    {idErrorText}
+                  </p>
+                )}
               </div>
               <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <Label htmlFor="acq-id-title">Titre (optionnel)</Label>
@@ -331,11 +358,18 @@ export function MediaSearchAdd(): ReactElement {
                         follow(result);
                       }}
                     >
-                      {done
-                        ? "Suivi ✓"
-                        : result.already_owned
-                          ? "Remplacer…"
-                          : "Suivre"}
+                      {/* CONFIG-4 leftover (ticket 250): lucide Check, not a
+                          raw ✓ glyph. */}
+                      {done ? (
+                        <span className="inline-flex items-center gap-1">
+                          <Check className="size-4" aria-hidden="true" />
+                          Suivi
+                        </span>
+                      ) : result.already_owned ? (
+                        "Remplacer…"
+                      ) : (
+                        "Suivre"
+                      )}
                     </Button>
                   </div>
                 }

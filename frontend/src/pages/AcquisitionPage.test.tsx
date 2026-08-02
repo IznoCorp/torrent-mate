@@ -67,6 +67,13 @@ vi.mock("@/hooks/useAcquisition", () => ({
   useFollow: () => ({ mutate: followMutateFn, isPending: false }),
   useUpdateFollow: () => ({ mutate: updateFollowMutateFn, isPending: false }),
   useUnfollow: () => ({ mutate: unfollowMutateFn, isPending: false }),
+  // Inert stub so keyboard navigation can land on the « Vue d'ensemble » tab.
+  useOverview: () => ({
+    data: undefined,
+    isLoading: false,
+    isError: false,
+    error: null,
+  }),
   // §5 additions: the completeness accordion + the run-tracking hook. Stubbed
   // to inert values so the page/panel render is unaffected by them.
   useCompleteness: () => ({
@@ -468,10 +475,13 @@ describe("AcquisitionPage", () => {
       name: "Désactiver",
     });
     fireEvent.click(deactivateItem);
-    expect(updateFollowMutateFn).toHaveBeenCalledWith({
-      id: 7,
-      body: { active: false },
-    });
+    // X3: the call-site now names the action in a success toast via options.
+    expect(updateFollowMutateFn).toHaveBeenCalledWith(
+      { id: 7, body: { active: false } },
+      expect.objectContaining({
+        onSuccess: expect.any(Function) as () => void,
+      }),
+    );
   });
 
   it("surfaces a followed-query error instead of the empty state", () => {
@@ -644,7 +654,18 @@ describe("AcquisitionPage", () => {
       name: "Retirer",
     });
     fireEvent.click(retirerItem);
-    expect(unfollowMutateFn).toHaveBeenCalledWith(42);
+    // ACQUISITION-3 (ticket 250): a confirmation dialog now gates the
+    // destructive unfollow — the menu click alone must NOT mutate.
+    expect(unfollowMutateFn).not.toHaveBeenCalled();
+    const confirmBtn = await screen.findByRole("button", { name: "Retirer" });
+    fireEvent.click(confirmBtn);
+    // X3: the call-site now names the action in a success toast via options.
+    expect(unfollowMutateFn).toHaveBeenCalledWith(
+      42,
+      expect.objectContaining({
+        onSuccess: expect.any(Function) as () => void,
+      }),
+    );
   });
 
   // ── Followed panel — edit-cadence dialog ────────────────────────────────
@@ -1386,5 +1407,103 @@ describe("AcquisitionPage — back-navigation probe (mutation-proof 5.2)", () =>
     });
     // The tab param must be absent.
     expect(screen.getByTestId("loc-search")).toHaveTextContent("");
+  });
+
+  it("deux ArrowRight puis Back reviennent à l'onglet d'origine, pas à l'intermédiaire (ACQUISITION-7, ticket 250)", async () => {
+    mockAllEmpty();
+    // History: [/somewhere, /acquisition] — Suivis is the origin tab.
+    renderPageWithProbe();
+
+    // Click pushes one entry (D3 addressable URLs kept)…
+    fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=file");
+
+    // …then each keyboard activation REPLACES that entry instead of pushing.
+    const tablist = screen.getByRole("tablist");
+    fireEvent.keyDown(tablist, { key: "ArrowRight" }); // file → obligations
+    fireEvent.keyDown(tablist, { key: "ArrowRight" }); // obligations → watcher
+    expect(screen.getByRole("tab", { name: "Watcher" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+
+    // One Back lands on the pre-click tab (Suivis), not an intermediate one.
+    fireEvent.click(screen.getByTestId("go-back"));
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "Suivis" })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+    });
+    expect(screen.getByTestId("loc-search").textContent).not.toContain("tab=");
+  });
+});
+
+describe("AcquisitionPage — tablist ARIA (ACQUISITION-7, ticket 250)", () => {
+  it("relie chaque onglet au panneau : aria-controls, tabpanel, aria-labelledby", () => {
+    mockAllEmpty();
+    renderPage();
+
+    const tab = screen.getByRole("tab", { name: "Suivis" });
+    expect(tab).toHaveAttribute("id", "acq-tab-followed");
+    expect(tab).toHaveAttribute("aria-controls", "acq-tabpanel");
+
+    const panel = screen.getByRole("tabpanel");
+    expect(panel).toHaveAttribute("id", "acq-tabpanel");
+    expect(panel).toHaveAttribute("aria-labelledby", "acq-tab-followed");
+  });
+
+  it("le tabpanel suit l'onglet actif (aria-labelledby)", () => {
+    mockAllEmpty();
+    renderPage();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Obligations" }));
+    expect(screen.getByRole("tabpanel")).toHaveAttribute(
+      "aria-labelledby",
+      "acq-tab-obligations",
+    );
+  });
+
+  it("roving tabindex : seul l'onglet actif est tabbable", () => {
+    mockAllEmpty();
+    renderPage();
+
+    expect(screen.getByRole("tab", { name: "Suivis" })).toHaveAttribute(
+      "tabindex",
+      "0",
+    );
+    expect(screen.getByRole("tab", { name: "Obligations" })).toHaveAttribute(
+      "tabindex",
+      "-1",
+    );
+  });
+
+  it("ArrowRight/ArrowLeft naviguent, Home/End sautent aux extrêmes", () => {
+    mockAllEmpty();
+    renderPage();
+
+    const tablist = screen.getByRole("tablist");
+
+    // followed → ArrowRight → file
+    fireEvent.keyDown(tablist, { key: "ArrowRight" });
+    expect(
+      screen.getByRole("tab", { name: "File d'acquisition" }),
+    ).toHaveAttribute("aria-selected", "true");
+
+    // file → ArrowLeft → followed
+    fireEvent.keyDown(tablist, { key: "ArrowLeft" });
+    expect(screen.getByRole("tab", { name: "Suivis" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+
+    // Home → first tab (Vue d'ensemble). End/wrap-around edge cases are
+    // covered by the lib/tablist unit tests (the End target mounts the
+    // Réglages panel, whose config hooks are out of this page harness).
+    fireEvent.keyDown(tablist, { key: "Home" });
+    expect(screen.getByRole("tab", { name: "Vue d'ensemble" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
   });
 });

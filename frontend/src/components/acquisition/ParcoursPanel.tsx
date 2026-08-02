@@ -8,7 +8,8 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type ReactElement } from "react";
+import { Check, Copy } from "lucide-react";
+import { useCallback, useState, type ReactElement } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -165,6 +166,25 @@ export function ParcoursPanel(): ReactElement {
     queryFn: getJourneys,
   });
 
+  // ACQUISITION-5 (ticket 250): the truncated hash gets a copy affordance —
+  // check icon for ~1.5 s + a toast naming the outcome (same recipe as the
+  // Obligations table).
+  const [copiedHash, setCopiedHash] = useState<string | null>(null);
+  const handleCopyHash = useCallback((hash: string): void => {
+    void navigator.clipboard
+      .writeText(hash)
+      .then(() => {
+        setCopiedHash(hash);
+        toast.success("Hash copié.");
+        setTimeout(() => {
+          setCopiedHash((prev) => (prev === hash ? null : prev));
+        }, 1500);
+      })
+      .catch(() => {
+        toast.error("Copie du hash impossible");
+      });
+  }, []);
+
   if (query.isLoading) {
     return (
       <p className="text-sm text-muted-foreground">Chargement des parcours…</p>
@@ -196,9 +216,40 @@ export function ParcoursPanel(): ReactElement {
           className="flex flex-col gap-2 rounded-lg border border-border p-3"
         >
           <div className="flex items-center justify-between gap-2">
-            <span className="min-w-0 flex-1 truncate text-sm font-medium">
+            {/* X5 — id/hash fallbacks are machine tokens: mono + full hash in
+                title (the resolved follow title stays proportional). */}
+            <span
+              className={
+                j.follow_title
+                  ? "min-w-0 flex-1 truncate text-sm font-medium"
+                  : "min-w-0 flex-1 truncate font-mono text-sm font-medium"
+              }
+              // Truthiness (not ??) on purpose: an empty follow_title falls
+              // back to the hash, mirroring journeyTitle().
+              // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+              title={j.follow_title || j.info_hash}
+            >
               {journeyTitle(j)}
             </span>
+            {/* ACQUISITION-5: copy the full info_hash (the visible title may
+                be a truncated fallback of it). X4: 44px touch minimum below
+                md, compact on desktop — the icons stay size-3, only the hit
+                target grows. */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="min-h-11 min-w-11 shrink-0 md:min-h-8 md:min-w-8"
+              aria-label={`Copier le hash ${j.info_hash}`}
+              onClick={() => {
+                handleCopyHash(j.info_hash);
+              }}
+            >
+              {copiedHash === j.info_hash ? (
+                <Check className="size-3 text-success" />
+              ) : (
+                <Copy className="size-3" />
+              )}
+            </Button>
             <Badge tone="neutral" className="shrink-0">
               {j.kind === "movie"
                 ? "Film"

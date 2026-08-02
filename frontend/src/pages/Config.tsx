@@ -21,8 +21,18 @@ import { StalledLoadRetry } from "@/components/config/panels/StalledLoadRetry";
 import { FileList } from "@/components/config/FileList";
 import { SecretsTab } from "@/components/config/SecretsTab";
 import { StagingBanner } from "@/components/StagingBanner";
+import { PageHeader } from "@/components/ds/PageHeader";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useConfigEditor } from "@/hooks/useConfigEditor";
+import { handleTablistKeyDown } from "@/lib/tablist";
 import { cn } from "@/lib/utils";
+
+/** The desktop tab bar entries (Fichiers / Secrets), in display order. */
+const CONFIG_TABS = [
+  { id: "files", label: "Fichiers" },
+  { id: "secrets", label: "Secrets" },
+] as const;
 
 /**
  * Config — the authenticated config editor route (``/config``).
@@ -37,8 +47,15 @@ export default function Config(): ReactElement {
   if (editor.isLoading) {
     return (
       <section className="mx-auto flex max-w-5xl flex-col gap-4">
-        <h1 className="text-xl font-semibold tracking-tight">Configuration</h1>
-        <p className="text-sm text-muted-foreground">Chargement…</p>
+        <PageHeader title="Configuration" />
+        {/* X8 — layout-shaped Skeleton (sidebar + panel), not bare text. */}
+        <div
+          className="grid grid-cols-1 gap-4 md:grid-cols-[240px_1fr]"
+          aria-busy="true"
+        >
+          <Skeleton className="hidden h-64 md:block" />
+          <Skeleton className="h-64 w-full" />
+        </div>
         <StalledLoadRetry onRetry={editor.refetchAll} />
       </section>
     );
@@ -48,7 +65,7 @@ export default function Config(): ReactElement {
   if (editor.isError) {
     return (
       <section className="mx-auto flex max-w-5xl flex-col gap-4">
-        <h1 className="text-xl font-semibold tracking-tight">Configuration</h1>
+        <PageHeader title="Configuration" />
         <p className="text-sm text-danger" role="alert">
           Impossible de charger la configuration. Vérifiez que le backend est
           accessible.
@@ -60,7 +77,7 @@ export default function Config(): ReactElement {
   // ---- Render --------------------------------------------------------------
   return (
     <section className="mx-auto flex max-w-5xl flex-col gap-4">
-      <h1 className="text-xl font-semibold tracking-tight">Configuration</h1>
+      <PageHeader title="Configuration" />
 
       {/* Staging read-only banner */}
       {editor.isStaging && <StagingBanner />}
@@ -96,57 +113,64 @@ export default function Config(): ReactElement {
         onSelectSecrets={editor.handleSelectSecrets}
       />
 
-      {/* Desktop tab bar — visible only on md+; mobile uses the dropdown above. */}
+      {/* Desktop tab bar — visible only on md+; mobile uses the dropdown above.
+          ACQUISITION-7 (ticket 250): full WAI-ARIA tablist wiring — roving
+          tabIndex + arrow-key navigation + tab/panel linkage. */}
       <div
         className="hidden md:flex gap-0.5 rounded-lg bg-muted p-1 w-fit"
         role="tablist"
         aria-label="Section"
+        onKeyDown={(e) => {
+          handleTablistKeyDown(
+            e,
+            CONFIG_TABS.map((t) => t.id),
+            editor.leftTab,
+            editor.setLeftTab,
+            (id) => `config-tab-${id}`,
+          );
+        }}
       >
-        <button
-          role="tab"
-          aria-selected={editor.leftTab === "files"}
-          type="button"
-          onClick={() => {
-            editor.setLeftTab("files");
-          }}
-          className={cn(
-            "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-            editor.leftTab === "files"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          Fichiers
-        </button>
-        <button
-          role="tab"
-          aria-selected={editor.leftTab === "secrets"}
-          type="button"
-          onClick={() => {
-            editor.setLeftTab("secrets");
-          }}
-          className={cn(
-            "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-            editor.leftTab === "secrets"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          Secrets
-        </button>
+        {CONFIG_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            id={`config-tab-${tab.id}`}
+            role="tab"
+            aria-selected={editor.leftTab === tab.id}
+            aria-controls="config-tabpanel"
+            tabIndex={editor.leftTab === tab.id ? 0 : -1}
+            type="button"
+            onClick={() => {
+              editor.setLeftTab(tab.id);
+            }}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+              editor.leftTab === tab.id
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Files tab: two-panel layout (FileList sidebar + SchemaForm editor). */}
       {editor.leftTab === "files" && (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-[240px_1fr]">
-          {/* Left panel: file list (hidden < md — replaced by the mobile Select) */}
-          <div className="hidden rounded-md border border-border p-2 md:block">
+        <div
+          id="config-tabpanel"
+          role="tabpanel"
+          aria-labelledby="config-tab-files"
+          className="grid grid-cols-1 gap-4 md:grid-cols-[240px_1fr]"
+        >
+          {/* Left panel: file list (hidden < md — replaced by the mobile
+              Select). X6: DS Card instead of a hand-rolled bordered div. */}
+          <Card className="hidden gap-0 p-2 md:block">
             <FileList
               dirtyFiles={editor.dirtyFileNames}
               selected={editor.selectedFile}
               onSelect={editor.handleSelectFile}
             />
-          </div>
+          </Card>
 
           {/* Right panel: form or placeholder */}
           <ConfigFilePanel
@@ -173,11 +197,17 @@ export default function Config(): ReactElement {
         </div>
       )}
 
-      {/* Secrets tab (sibling of the file list — no more scroll-to-find, G2/E3) */}
+      {/* Secrets tab (sibling of the file list — no more scroll-to-find,
+          G2/E3). X6: DS Card instead of a hand-rolled bordered div. */}
       {editor.leftTab === "secrets" && (
-        <div className="rounded-md border border-border p-4">
+        <Card
+          id="config-tabpanel"
+          role="tabpanel"
+          aria-labelledby="config-tab-secrets"
+          className="gap-0 p-4"
+        >
           <SecretsTab readOnly={editor.readOnly} />
-        </div>
+        </Card>
       )}
 
       {/* Conflict dialog */}

@@ -13,6 +13,7 @@ import type { ReactElement } from "react";
 
 import { getIndexHealth, type IndexHealthResponse } from "@/api/maintenance";
 import type { components } from "@/api/schema";
+import { ErrorState } from "@/components/ds/ErrorState";
 import { StatPanel } from "@/components/ds/StatPanel";
 import { StatusDot } from "@/components/ds/StatusDot";
 import {
@@ -22,6 +23,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { maintenanceKeys } from "@/hooks/useMaintenanceKeys";
 import { formatGb } from "@/lib/format";
 
@@ -206,8 +208,13 @@ export function IndexHealthPanel(): ReactElement {
     return (
       <div key={v.label} className="flex items-center justify-between gap-2">
         <StatusDot status={v.status} label={v.label} />
+        {/* MAINTENANCE-10 (ticket 250): min-w-0 + text-right so a long detail
+            (« 12 en attente — + ancien : 3 j 4 h ») wraps inside the narrow
+            card track instead of fighting the label at 375px. */}
         {v.detail != null && (
-          <span className="text-xs text-muted-foreground">{v.detail}</span>
+          <span className="min-w-0 text-right text-xs text-muted-foreground">
+            {v.detail}
+          </span>
         )}
       </div>
     );
@@ -221,14 +228,14 @@ export function IndexHealthPanel(): ReactElement {
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {isLoading && (
-          <p className="text-sm text-muted-foreground">
-            Chargement de l'index…
-          </p>
+          <div className="flex flex-col gap-3" aria-busy="true">
+            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-6 w-full" />
+            <Skeleton className="h-6 w-full" />
+          </div>
         )}
         {isError && (
-          <p className="text-sm text-danger" role="alert">
-            Erreur lors du chargement.
-          </p>
+          <ErrorState title="Impossible de charger la santé de l'index." />
         )}
 
         {!isLoading && !isError && data != null && data.degraded && (
