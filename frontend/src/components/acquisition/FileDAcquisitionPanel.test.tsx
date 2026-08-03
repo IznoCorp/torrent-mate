@@ -766,11 +766,14 @@ describe("FileDAcquisitionPanel", () => {
     // expected multiple occurrences.
     const badges = screen.getAllByText("Saison 03");
     expect(badges.length).toBeGreaterThanOrEqual(2);
-    // Status badge still renders.
+    // Status badge still renders. NB: this row's status is the QUEUE status
+    // `pending` (« En attente » = queued, not searched yet) — a different
+    // vocabulary from the card/episode state `en_attente` (« En attente de
+    // torrent » = searched, nothing conforming). Do not conflate them.
     expect(screen.getByText("En attente")).toBeInTheDocument();
   });
 
-  it("renders an absorbed episode row with « Absorbé (saison) » status badge", async () => {
+  it("renders an absorbed episode row as « En cours d'acquisition »", async () => {
     mockEmpty();
     mockWantedItems(
       [
@@ -790,8 +793,10 @@ describe("FileDAcquisitionPanel", () => {
     // Expand the accordion.
     fireEvent.click(await screen.findByRole("button", { name: /Koh-Lanta/ }));
 
-    // The status badge reads « Absorbé (saison) », not the raw "absorbed" token.
-    expect(screen.getByText("Absorbé (saison)")).toBeInTheDocument();
+    // An absorbed episode IS being acquired — the badge says exactly that, and
+    // never the raw "absorbed" token nor the season-pack plumbing behind it.
+    expect(screen.getByText("En cours d'acquisition")).toBeInTheDocument();
+    expect(screen.queryByText(/Absorb/)).not.toBeInTheDocument();
     expect(screen.queryByText("absorbed")).not.toBeInTheDocument();
     // The episode code still renders.
     expect(screen.getByText("S30E05")).toBeInTheDocument();

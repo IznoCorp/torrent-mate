@@ -114,8 +114,9 @@ export const WANTED_STATUS_OPTIONS = [
   { value: "grabbed", label: "Récupéré" },
   { value: "done", label: "Terminé" },
   { value: "abandoned", label: "Abandonné" },
-  // Season-grab statuses (R5/R6) — selectable like any other status.
-  { value: "absorbed", label: "Absorbé (saison)" },
+  // `absorbed` is NOT offered as a filter: it is not a state the operator
+  // reasons about — an absorbed row is simply being acquired (inside a season
+  // pack), and it already reads « En cours d'acquisition » in the queue.
   { value: "fallback_episodes", label: "Reporté en épisodes" },
 ];
 
@@ -131,7 +132,7 @@ export const OBLIGATION_STATUS_OPTIONS = [
 export const STATUS_TONE: Record<string, BadgeTone> = {
   ...STATE_TONE,
   killed: "warning",
-  absorbed: "muted",
+  absorbed: "info",
   // R6: a season past cutoff degraded to per-episode retry — warning tone so
   // the fallback is visible in the queue, never the raw slug (review F8).
   fallback_episodes: "warning",
@@ -141,7 +142,7 @@ export const STATUS_TONE: Record<string, BadgeTone> = {
 export const STATUS_LABEL: Record<string, string> = {
   ...STATE_LABEL,
   killed: "Arrêté",
-  absorbed: "Absorbé (saison)",
+  absorbed: "En cours d'acquisition",
   fallback_episodes: "Reporté en épisodes",
 };
 
@@ -211,12 +212,11 @@ export const FOLLOW_STATUS_TONE: Record<FollowStatus, BadgeTone> = {
   verification_en_cours: "info",
   a_recuperer: "warning",
   en_acquisition: "info",
-  // #24 — « En attente » (searched, nothing conforming yet) and « Non vérifié »
-  // (no verdict at all yet) must NOT read as the same colour. They use the same
-  // distinct pair as the episode matrix: « En attente » is the solid neutral
-  // chip, « Non vérifié » the ``muted`` idle tone (a visibly different fill, see
-  // badge-variants). Labels + hints still disambiguate on top.
-  en_attente: "neutral",
+  // « En attente de torrent » (searched, nothing conforming yet) and « Non
+  // vérifié » (no verdict at all yet) must NOT read as the same colour — and
+  // neither may collide with « En cours d'acquisition ». Same pair as the
+  // episode matrix: teal ``waiting`` vs the colourless dashed ``muted`` ghost.
+  en_attente: "waiting",
   non_verifie: "muted",
   a_jour: "success",
 };
@@ -227,7 +227,7 @@ export const FOLLOW_STATUS_LABEL: Record<FollowStatus, string> = {
   verification_en_cours: "Vérification en cours",
   a_recuperer: "À récupérer",
   en_acquisition: "En cours d'acquisition",
-  en_attente: "En attente",
+  en_attente: "En attente de torrent",
   non_verifie: "Non vérifié",
   a_jour: "À jour",
 };
@@ -330,7 +330,10 @@ const COUNT_NOUN: Record<
     one: "en cours d'acquisition",
     many: "en cours d'acquisition",
   },
-  en_attente: { one: "en attente", many: "en attente" },
+  en_attente: {
+    one: "en attente de torrent",
+    many: "en attente de torrent",
+  },
   non_verifie: { one: "non vérifié", many: "non vérifiés" },
 };
 
@@ -492,13 +495,16 @@ export function formatRunResult(
  * and ``annonce`` onto the violet ``upcoming``.
  */
 export const EPISODE_STATE_TONE: Record<EpisodeState, BadgeTone> = {
-  en_mediatheque: "success",
-  a_recuperer: "warning",
-  en_acquisition: "info",
-  en_attente: "neutral",
   non_verifie: "muted",
   annonce: "upcoming",
-  absorbed: "muted",
+  en_attente: "waiting",
+  a_recuperer: "warning",
+  en_acquisition: "info",
+  en_mediatheque: "success",
+  // An absorbed episode IS an episode being acquired — same tone, same label:
+  // whether the pipeline takes it alone or inside a season pack is plumbing the
+  // operator never has to think about (it stays in the tooltip).
+  absorbed: "info",
 };
 
 /**
@@ -510,14 +516,32 @@ export const EPISODE_STATE_TONE: Record<EpisodeState, BadgeTone> = {
  * is on the disks or it is not.
  */
 export const EPISODE_STATE_LABEL: Record<EpisodeState, string> = {
+  non_verifie: "Non vérifié",
   annonce: "Annoncé",
-  en_mediatheque: "En médiathèque",
+  en_attente: "En attente de torrent",
   a_recuperer: "À récupérer",
   en_acquisition: "En cours d'acquisition",
-  en_attente: "En attente",
-  non_verifie: "Non vérifié",
-  absorbed: "Absorbé (saison)",
+  en_mediatheque: "En médiathèque",
+  absorbed: "En cours d'acquisition",
 };
+
+/**
+ * The legend's state order — the lifecycle an episode actually walks, as the
+ * operator reads it: unknown → announced → searched-but-nothing → takeable →
+ * being taken → owned.
+ *
+ * ``absorbed`` is deliberately absent: it renders exactly like
+ * ``en_acquisition`` (same tone, same label), so listing it would print the
+ * same chip twice for what is one operator-facing state.
+ */
+export const EPISODE_LEGEND_ORDER: readonly EpisodeState[] = [
+  "non_verifie",
+  "annonce",
+  "en_attente",
+  "a_recuperer",
+  "en_acquisition",
+  "en_mediatheque",
+];
 
 /**
  * Per-episode state → the sentence that disambiguates it (chip tooltip).
@@ -537,8 +561,13 @@ export const EPISODE_STATE_HINT: Record<EpisodeState, string> = {
     "Recherché sur les trackers : rien de conforme au profil pour l'instant.",
   non_verifie:
     "Pas encore vérifié sur les trackers — aucune conclusion à ce jour.",
+  // NEVER claim a torrent was taken here: absorption happens when the SEASON
+  // row is enqueued (`pending`), before any search has run — an absorbed
+  // episode can sit here with nothing taken at all (and stays if the season row
+  // is abandoned without an R6 fallback). The hint says what is true: the
+  // acquisition of this episode is carried by a season row.
   absorbed:
-    "Épisode absorbé par une récupération de saison complète.",
+    "Récupération portée par un pack de saison — suivez la ligne « saison » dans la file.",
 };
 
 /**

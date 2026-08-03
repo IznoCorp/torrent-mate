@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import type { BadgeTone } from "@/components/ui/badge";
+
 import {
   DEFAULT_OUTCOME,
   OUTCOME_LABEL,
@@ -62,12 +64,19 @@ describe("outcome-labels — mapping completeness", () => {
   });
 
   it("every tone in every map is a valid BadgeTone", () => {
-    const VALID_TONES = new Set([
+    // Hand-frozen duplicate of the `BadgeTone` union — it had already drifted
+    // (it was missing `muted` / `upcoming`) and passed only because these two
+    // maps happen to use the five oldest tones. Kept in sync deliberately: an
+    // omission here fails a CORRECT map, which is the worst kind of red.
+    const VALID_TONES = new Set<BadgeTone>([
       "success",
       "danger",
       "warning",
       "info",
       "neutral",
+      "muted",
+      "waiting",
+      "upcoming",
     ]);
     for (const [key, tone] of Object.entries(OUTCOME_TONE)) {
       expect(

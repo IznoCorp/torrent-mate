@@ -190,9 +190,9 @@ describe("CompletenessAccordion — les cinq états par épisode (phase 8)", () 
     expect(titleOf(1)).toContain("En médiathèque");
     expect(titleOf(2)).toContain("À récupérer");
     expect(titleOf(3)).toContain("En cours d'acquisition");
-    expect(titleOf(4)).toContain("En attente");
+    expect(titleOf(4)).toContain("En attente de torrent");
     expect(titleOf(5)).toContain("Non vérifié");
-    // « En attente » and « Non vérifié » must never read alike.
+    // « En attente de torrent » and « Non vérifié » must never read alike.
     expect(titleOf(4)).toMatch(/rien de conforme/);
     expect(titleOf(5)).toMatch(/[Pp]as encore vérifié/);
     // Never the raw machine token (NE-DOIT-PAS-4).
@@ -434,7 +434,7 @@ describe("CompletenessAccordion — annonce, legend, date popover (episode-state
       "En médiathèque",
       "À récupérer",
       "En cours d'acquisition",
-      "En attente",
+      "En attente de torrent",
       "Non vérifié",
       "Annoncé",
     ]) {

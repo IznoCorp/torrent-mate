@@ -99,7 +99,7 @@ function SeasonRow({ season, followedId }: SeasonRowProps): ReactElement {
           className="text-xs text-muted-foreground"
           title={
             season.queued > 0
-              ? "En cours = à récupérer + en cours d'acquisition + absorbé (saison)"
+              ? "En cours = à récupérer + en cours d'acquisition"
               : undefined
           }
         >

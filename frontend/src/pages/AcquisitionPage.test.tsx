@@ -345,8 +345,10 @@ describe("AcquisitionPage", () => {
     renderPage();
 
     expect(screen.getByText("Top Chef")).toBeInTheDocument();
-    // Derived état badge: Top Chef (active + 3 pending) → "En attente".
-    expect(screen.getByText("En attente")).toBeInTheDocument();
+    // Derived état badge: Top Chef (active + 3 pending) → the card state
+    // `en_attente`, i.e. « En attente de torrent » (searched, nothing
+    // conforming yet) — never the bare « En attente » of the queue vocabulary.
+    expect(screen.getByText("En attente de torrent")).toBeInTheDocument();
     // The inactive follow leaves the grid (revue mobile 2026-07-15): it lives
     // in the collapsed « Suivis retirés » section, reactivatable.
     expect(screen.getByText("Suivis retirés (1)")).toBeInTheDocument();

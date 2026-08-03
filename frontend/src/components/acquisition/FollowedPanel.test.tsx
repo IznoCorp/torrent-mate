@@ -255,7 +255,7 @@ describe("FollowedPanel — les cinq états sur la carte (phase 8)", () => {
     ["a_jour", "À jour"],
     ["a_recuperer", "À récupérer"],
     ["en_acquisition", "En cours d'acquisition"],
-    ["en_attente", "En attente"],
+    ["en_attente", "En attente de torrent"],
     ["non_verifie", "Non vérifié"],
     ["verification_en_cours", "Vérification en cours"],
   ])("affiche %s comme « %s »", (status, label) => {
@@ -272,13 +272,13 @@ describe("FollowedPanel — les cinq états sur la carte (phase 8)", () => {
     expect(screen.getByText("Suivis retirés (1)")).toBeInTheDocument();
   });
 
-  it("explique l'état en infobulle (En attente ≠ Non vérifié)", () => {
+  it("explique l'état en infobulle (En attente de torrent ≠ Non vérifié)", () => {
     renderPanel([
       makeItem({ id: 1, title: "Silo", status: "en_attente" }),
       makeItem({ id: 2, title: "Furious", status: "non_verifie" }),
     ]);
 
-    const attente = screen.getByText("En attente").closest("[title]");
+    const attente = screen.getByText("En attente de torrent").closest("[title]");
     const nonVerifie = screen.getByText("Non vérifié").closest("[title]");
     expect(attente?.getAttribute("title")).toMatch(/rien de conforme/);
     expect(nonVerifie?.getAttribute("title")).toMatch(/[Pp]as encore vérifié/);
@@ -304,11 +304,11 @@ describe("FollowedPanel — les cinq états sur la carte (phase 8)", () => {
 
     expect(
       screen.getByText(
-        "3 à récupérer · 1 en cours d'acquisition · 1 en attente · 1 non vérifié",
+        "3 à récupérer · 1 en cours d'acquisition · 1 en attente de torrent · 1 non vérifié",
       ),
     ).toBeInTheDocument();
     // The raw wanted_pending chip is gone — it knew nothing about ownership.
-    expect(screen.queryByText("9 en attente")).not.toBeInTheDocument();
+    expect(screen.queryByText("9 en attente de torrent")).not.toBeInTheDocument();
   });
 
   it("n'affiche aucun compteur quand tout est en médiathèque", () => {
@@ -377,7 +377,7 @@ describe("FollowedPanel — statut film sur ownership (D2-B)", () => {
     ]);
     selectFilmsTab();
 
-    expect(screen.getByText("En attente")).toBeInTheDocument();
+    expect(screen.getByText("En attente de torrent")).toBeInTheDocument();
     expect(screen.getByText("rien de conforme au profil")).toBeInTheDocument();
     expect(screen.queryByText(/all_filtered/)).not.toBeInTheDocument();
   });
