@@ -336,7 +336,7 @@ export function StagingLibrary({
                   key={filter.value}
                   type="button"
                   aria-pressed={active}
-                  className="inline-flex min-h-11 items-center md:min-h-8"
+                  className="inline-flex min-h-11 min-w-11 items-center justify-center md:min-h-8 md:min-w-8"
                   onClick={() => {
                     resetTo(setMatchInternal, filter.value);
                   }}
@@ -356,7 +356,7 @@ export function StagingLibrary({
             <button
               type="button"
               aria-pressed={missingTrailer}
-              className="inline-flex min-h-11 items-center md:min-h-8"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center md:min-h-8 md:min-w-8"
               onClick={() => {
                 resetTo(setMissingTrailer, !missingTrailer);
               }}

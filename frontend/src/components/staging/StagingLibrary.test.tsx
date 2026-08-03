@@ -162,10 +162,16 @@ describe("StagingLibrary", () => {
         name: /Identifiés|Non identifiés|À résoudre|Sans bande-annonce/,
       }),
     ].filter((b) => b.hasAttribute("aria-pressed"));
-    expect(chipButtons.length).toBeGreaterThanOrEqual(4);
+    // Exact inventory: the 3 plural match chips + « Sans bande-annonce ».
+    expect(chipButtons).toHaveLength(4);
     for (const chip of chipButtons) {
-      expect(chip.className).toContain("min-h-11");
-      expect(chip.className).toContain("md:min-h-8");
+      // Token-exact assertion: a substring check would let a stray responsive
+      // prefix (e.g. sm:min-h-11) reintroduce the mobile bug test-green.
+      const classes = chip.className.split(/\s+/);
+      expect(classes).toContain("min-h-11");
+      expect(classes).toContain("min-w-11");
+      expect(classes).toContain("md:min-h-8");
+      expect(classes).toContain("md:min-w-8");
     }
     // Density and sort toggles follow the same convention.
     for (const name of [
@@ -175,9 +181,11 @@ describe("StagingLibrary", () => {
       "Titre",
       "Taille",
     ]) {
-      const btn = screen.getByRole("button", { name });
-      expect(btn.className).toContain("min-h-11");
-      expect(btn.className).toContain("md:min-h-8");
+      const classes = screen
+        .getByRole("button", { name })
+        .className.split(/\s+/);
+      expect(classes).toContain("min-h-11");
+      expect(classes).toContain("md:min-h-8");
     }
   });
 
