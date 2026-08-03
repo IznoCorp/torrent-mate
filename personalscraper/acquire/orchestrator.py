@@ -68,6 +68,8 @@ from personalscraper.acquire._dedup import SearchOutcome, dedup
 from personalscraper.acquire._filters import apply_hard_filters, filter_to_episode, filter_to_season
 from personalscraper.acquire.events import GrabFailed, TrackerAuthFailed, WantedAbandoned
 from personalscraper.api._contracts import ApiError, MediaType
+from personalscraper.api.torrent._base import TorrentLimits
+from personalscraper.api.torrent._contracts import TorrentLimiter
 from personalscraper.api.tracker._errors import TorrentFetchError, TrackerAuthError
 from personalscraper.api.tracker._fetch import resolve_source
 from personalscraper.api.tracker._ranking import rank
@@ -83,6 +85,7 @@ if TYPE_CHECKING:
     from personalscraper.api.tracker._base import TrackerResult
     from personalscraper.api.tracker._ranking import RankingConfig
     from personalscraper.api.tracker._registry import TrackerRegistry
+    from personalscraper.conf.models.acquire import BandwidthConfig
     from personalscraper.core.event_bus import EventBus
     from personalscraper.core.identity import MediaRef
 
@@ -421,6 +424,31 @@ class GrabOutcome:
     found: int | None = None
 
 
+def _build_limits(bw: "BandwidthConfig", *, client_is_limiter: bool) -> "TorrentLimits | None":
+    """Build per-torrent limits from bandwidth config (O4).
+
+    Returns ``None`` when no caps are configured or the client lacks
+    :class:`TorrentLimiter` support — the caller handles the unsupported
+    warning (D4: one-shot logging at the grab site).
+
+    Args:
+        bw: Bandwidth config carrying per-torrent caps.
+        client_is_limiter: Whether the torrent client satisfies
+            :class:`TorrentLimiter` (``isinstance`` check already done).
+
+    Returns:
+        A :class:`TorrentLimits` instance, or ``None``.
+    """
+    if bw.per_torrent_down is None and bw.per_torrent_up is None:
+        return None
+    if not client_is_limiter:
+        return None
+    return TorrentLimits(
+        down_bytes_per_s=bw.per_torrent_down,
+        up_bytes_per_s=bw.per_torrent_up,
+    )
+
+
 class GrabOrchestrator:
     """Single-item grab chain (DESIGN §1) — narrow deps, no AppContext.
 
@@ -442,6 +470,11 @@ class GrabOrchestrator:
             crash.
         _event_bus: In-process event bus (fire-and-forget).
         _ranking: Ranking configuration for the soft-score sort.
+        _bandwidth: Per-torrent and global bandwidth caps (O4). Applied at
+            :meth:`grab` add-time (per-torrent) and at run start (global).
+        _limits_unsupported_warned: One-shot gate — set to ``True`` after
+            the first ``limits_unsupported`` warning so the log is not
+            flooded on every grab (D4).
     """
 
     def __init__(
@@ -454,6 +487,7 @@ class GrabOrchestrator:
         title_resolver: Callable[[WantedItem], str | None] | None = None,
         year_resolver: "Callable[[WantedItem], int | None] | None" = None,
         episode_count_resolver: "Callable[[WantedItem], int | None] | None" = None,
+        bandwidth: "BandwidthConfig",
     ) -> None:
         """Initialise the orchestrator with injected narrow deps.
 
@@ -483,6 +517,9 @@ class GrabOrchestrator:
                 catalog cache) so ``filter_to_season`` can verify a pack's
                 coverage (review F4). ``None`` (or a miss) makes the filter
                 reject any episode-marker release conservatively.
+            bandwidth: Per-torrent and global bandwidth caps for seed safety
+                (O4). Carries per-torrent limits applied at add time and
+                global limits re-asserted at run start.
         """
         self._tracker_registry = tracker_registry
         self._torrent_client = torrent_client
@@ -491,6 +528,8 @@ class GrabOrchestrator:
         self._title_resolver = title_resolver
         self._year_resolver = year_resolver
         self._episode_count_resolver = episode_count_resolver
+        self._bandwidth = bandwidth
+        self._limits_unsupported_warned = False
 
     # ------------------------------------------------------------------
     # Shared search→filter→rank chain
@@ -887,7 +926,22 @@ class GrabOrchestrator:
             # is exactly the orphan this closes).
             if on_intent is not None and top.info_hash:
                 on_intent(top.info_hash)
-            info_hash = self._torrent_client.add(source, category=None, tags=[top.provider])
+            # --- Apply per-torrent caps when configured (O4) ---
+            limits = _build_limits(
+                self._bandwidth,
+                client_is_limiter=isinstance(self._torrent_client, TorrentLimiter),
+            )
+            if (
+                limits is None
+                and (self._bandwidth.per_torrent_down is not None or self._bandwidth.per_torrent_up is not None)
+                and not self._limits_unsupported_warned
+            ):
+                self._limits_unsupported_warned = True
+                log.warning(
+                    "acquire.grab.limits_unsupported",
+                    client_type=type(self._torrent_client).__name__,
+                )
+            info_hash = self._torrent_client.add(source, category=None, tags=[top.provider], limits=limits)
         except CircuitOpenError:
             # Sibling of ApiError — MUST precede the ApiError clause.
             return self._retryable(media_ref, "circuit_open", chosen=top)

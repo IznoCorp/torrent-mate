@@ -174,6 +174,7 @@ def build_acquire_context(
             title_resolver=_title_resolver,
             year_resolver=_year_resolver,
             episode_count_resolver=_episode_count_resolver,
+            bandwidth=config.acquire.bandwidth,
         )
         service = AcquisitionService(
             store=store,

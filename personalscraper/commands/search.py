@@ -208,6 +208,7 @@ def _build_search_service(
         title_resolver=_title_resolver,
         year_resolver=_year_resolver,
         episode_count_resolver=_episode_count_resolver,
+        bandwidth=config.acquire.bandwidth,
     )
     return AcquisitionService(
         store=store,
