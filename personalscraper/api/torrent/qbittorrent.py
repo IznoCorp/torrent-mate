@@ -526,11 +526,22 @@ class QBitClient(
         Args:
             up_bytes_per_s: Global upload rate limit in bytes/sec. None is a no-op.
             down_bytes_per_s: Global download rate limit in bytes/sec. None is a no-op.
+
+        Raises:
+            ApiError: Provider-uniform error on auth/connection failure —
+                same broad translation as the sister mutation methods
+                (``resume`` / ``delete``): a bare ``APIConnectionError``
+                must surface as the repo :class:`ApiError` so the
+                orchestrator's fail-soft ``except ApiError`` catches it
+                (D5: a dead client never blocks the run).
         """
-        if down_bytes_per_s is not None:
-            self._client.transfer_set_download_limit(down_bytes_per_s)
-        if up_bytes_per_s is not None:
-            self._client.transfer_set_upload_limit(up_bytes_per_s)
+        try:
+            if down_bytes_per_s is not None:
+                self._client.transfer_set_download_limit(down_bytes_per_s)
+            if up_bytes_per_s is not None:
+                self._client.transfer_set_upload_limit(up_bytes_per_s)
+        except qbittorrentapi.APIError as exc:
+            raise _map_qbit_api_error("apply_global_limits", exc) from exc
 
     def add_tags(self, info_hash: str, tags: Sequence[str]) -> None:
         """Add tags to an existing torrent in qBittorrent (idempotent).

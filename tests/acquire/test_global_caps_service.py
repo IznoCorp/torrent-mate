@@ -99,6 +99,33 @@ def test_noop_when_client_none_or_unsupported() -> None:
     assert not hasattr(unsupported, "apply_global_limits")
 
 
+def test_fail_soft_on_qbit_connection_error_end_to_end() -> None:
+    """Regression (review BLOCKER): the REAL QBitClient's connection error never escapes apply_global_caps.
+
+    End-to-end through the real translation: ``QBitClient.apply_global_limits``
+    with a dead transport raises ``qbittorrentapi.APIConnectionError``, which the
+    client now translates to the repo :class:`ApiError` — the ONE exception type
+    ``apply_global_caps`` catches. Before the fix the raw connection error passed
+    through and crashed ``service.run()`` at entry.
+    """
+    import qbittorrentapi
+
+    from personalscraper.api.torrent.qbittorrent import QBitClient
+
+    client = QBitClient.__new__(QBitClient)
+    mock_api = MagicMock()
+    mock_api.transfer_set_download_limit.side_effect = qbittorrentapi.APIConnectionError("connection refused")
+    client._client = mock_api
+    bw = BandwidthConfig(global_down=5_000_000, global_up=1_000_000)
+    orch = _orchestrator(client, bw)
+
+    with patch("personalscraper.acquire.orchestrator.log") as mock_log:
+        orch.apply_global_caps()  # must NOT raise — nothing passes through anymore
+
+    mock_log.warning.assert_called_once()
+    assert mock_log.warning.call_args.args[0] == "acquire.global_limits.failed"
+
+
 def test_fail_soft_on_api_error() -> None:
     """ApiError from the client → warning logged, NO raise (D5: dead client never blocks the run)."""
     client = _supported_client()
