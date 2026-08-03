@@ -275,6 +275,9 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
             A :class:`RunSummary` of outcome counts.
         """
         self._grab_run_uid = run_uid  # F3: per-run grab-stage run stamp (see _persist_success)
+        # O4/D5: re-assert global transfer caps at every run start — idempotent,
+        # self-healing (a client restart that lost the limits gets them back here).
+        self._orchestrator.apply_global_caps()
         now = int(time.time())
         queue = self._build_queue(
             self._store.wanted.list_available(),

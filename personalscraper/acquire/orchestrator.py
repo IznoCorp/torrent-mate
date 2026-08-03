@@ -69,7 +69,7 @@ from personalscraper.acquire._filters import apply_hard_filters, filter_to_episo
 from personalscraper.acquire.events import GrabFailed, TrackerAuthFailed, WantedAbandoned
 from personalscraper.api._contracts import ApiError, MediaType
 from personalscraper.api.torrent._base import TorrentLimits
-from personalscraper.api.torrent._contracts import TorrentLimiter
+from personalscraper.api.torrent._contracts import GlobalRateLimiter, TorrentLimiter
 from personalscraper.api.tracker._errors import TorrentFetchError, TrackerAuthError
 from personalscraper.api.tracker._fetch import resolve_source
 from personalscraper.api.tracker._ranking import rank
@@ -530,6 +530,27 @@ class GrabOrchestrator:
         self._episode_count_resolver = episode_count_resolver
         self._bandwidth = bandwidth
         self._limits_unsupported_warned = False
+
+    def apply_global_caps(self) -> None:
+        """Re-assert global transfer limits from config (O4/D5).
+
+        No-op when no global cap is configured or the client is absent /
+        lacks :class:`GlobalRateLimiter`. Fail-soft on :exc:`ApiError`: warn
+        and continue — a dead client must never block the run.
+        """
+        bw = self._bandwidth
+        if bw.global_down is None and bw.global_up is None:
+            return
+        tc = self._torrent_client
+        if tc is None or not isinstance(tc, GlobalRateLimiter):
+            return
+        try:
+            tc.apply_global_limits(
+                down_bytes_per_s=bw.global_down,
+                up_bytes_per_s=bw.global_up,
+            )
+        except ApiError as exc:
+            log.warning("acquire.global_limits.failed", error=str(exc))
 
     # ------------------------------------------------------------------
     # Shared search→filter→rank chain
