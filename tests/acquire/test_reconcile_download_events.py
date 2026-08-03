@@ -257,3 +257,41 @@ def test_emit_after_persist_mark_survives_a_raising_bus(store: ConcreteAcquireSt
     mark = store.download_marks.get(_HASH)
     assert mark is not None, "the mark must persist even when the emit raised"
     assert mark.started_emitted is True
+
+
+def test_emit_after_persist_threshold_survives_a_raising_bus(store: ConcreteAcquireStore) -> None:
+    """Emit-after-persist pinned for Progressed (review MAJOR — only Started was pinned).
+
+    Started already emitted, progress 0.30, a raising bus: the 25 threshold
+    must be PERSISTED before the (failed) emit — a crash between persist and
+    emit loses that emit rather than duplicating it on the next pass.
+    """
+    _grabbed(store)
+    store.download_marks.upsert(_HASH, started=True)
+    bus = MagicMock(spec=EventBus)
+    bus.emit.side_effect = RuntimeError("subscriber exploded")
+
+    reconcile_wanted(store, _NoOwnership(), client_items={_HASH: _item(_HASH, 0.30)}, event_bus=bus)
+
+    bus.emit.assert_called_once()
+    mark = store.download_marks.get(_HASH)
+    assert mark is not None, "the mark must persist even when the emit raised"
+    assert mark.last_threshold == 25, "the crossed threshold must be persisted BEFORE the emit"
+
+
+def test_emit_after_persist_completed_survives_a_raising_bus(store: ConcreteAcquireStore) -> None:
+    """Emit-after-persist pinned for Completed (review MAJOR — only Started was pinned).
+
+    No mark, progress 1.0, a raising bus: ``completed_emitted`` must be
+    PERSISTED before the (failed) emit so the next pass never re-emits.
+    """
+    _grabbed(store)
+    bus = MagicMock(spec=EventBus)
+    bus.emit.side_effect = RuntimeError("subscriber exploded")
+
+    reconcile_wanted(store, _NoOwnership(), client_items={_HASH: _item(_HASH, 1.0)}, event_bus=bus)
+
+    bus.emit.assert_called_once()
+    mark = store.download_marks.get(_HASH)
+    assert mark is not None, "the mark must persist even when the emit raised"
+    assert mark.completed_emitted is True, "completion must be persisted BEFORE the emit"
