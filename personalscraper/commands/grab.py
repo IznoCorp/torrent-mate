@@ -29,6 +29,7 @@ from personalscraper.subscribers.redis_stream import build_redis_publisher
 if TYPE_CHECKING:
     from personalscraper.acquire.context import AcquireContext
     from personalscraper.acquire.reconcile import ReconcileSummary
+    from personalscraper.api.torrent._base import TorrentItem
     from personalscraper.core.event_bus import EventBus
 
 log = get_logger("cli.grab")
@@ -86,7 +87,7 @@ def grab(
                 # work the library owns close ``done``; rows whose torrent
                 # vanished from the client (and are unowned) requeue pending
                 # and re-enter this very run's queue.
-                reconcile = _reconcile_before_run(acquire, console)
+                reconcile = _reconcile_before_run(acquire, app_context.event_bus, console)
 
                 # reswitch #342 — AFTER reconcile (review ordering note): reconcile
                 # closes library-owned rows to ``done`` first, so reswitch only
@@ -129,17 +130,18 @@ def grab(
                 redis_publisher.close()
 
 
-def _reconcile_before_run(acquire: AcquireContext, console: Console) -> "ReconcileSummary":
+def _reconcile_before_run(acquire: AcquireContext, event_bus: "EventBus", console: Console) -> "ReconcileSummary":
     """Run the B.3 reconciliation pass ahead of a real grab run (fail-soft).
 
-    Gathers the torrent client's known info-hashes once for every OPEN row
-    carrying one (``None`` on any client error — the vanished-torrent requeue
-    and the intent confirmation are then skipped rather than firing blind) and
-    sweeps the open rows via
+    Gathers the torrent client's live items once for every OPEN row carrying a
+    hash (``None`` on any client error — the vanished-torrent requeue, the
+    intent confirmation and the download-event emission are then skipped
+    rather than firing blind) and sweeps the open rows via
     :func:`personalscraper.acquire.reconcile.reconcile_wanted`.
 
     Args:
         acquire: The live :class:`AcquireContext` (store + ownership + client).
+        event_bus: The app event bus (download events fire from the sweep).
         console: Rich console for the operator summary line.
 
     Returns:
@@ -152,7 +154,7 @@ def _reconcile_before_run(acquire: AcquireContext, console: Console) -> "Reconci
     if store is None:
         return ReconcileSummary()
 
-    client_hashes: set[str] | None = None
+    client_items: "dict[str, TorrentItem] | None" = None
     torrent_client = acquire.torrent_client
     if torrent_client is not None:
         try:
@@ -160,25 +162,23 @@ def _reconcile_before_run(acquire: AcquireContext, console: Console) -> "Reconci
             # since D2 a 'searching' row can hold a pre-add intent, and a hash
             # the client is never asked about would read as « vanished » — the
             # sweep would requeue a row whose torrent is alive and downloading.
+            # Full items, not bare hashes: the sweep reads ``progress`` to emit
+            # the download lifecycle events (seed-caps D9).
             in_flight = store.wanted.hashes_in_flight()
-            client_hashes = {t.hash.lower() for t in torrent_client.get_by_hashes(in_flight)}
+            client_items = {t.hash.lower(): t for t in torrent_client.get_by_hashes(in_flight)}
         except Exception as exc:  # noqa: BLE001 — fail-soft: skip the requeue half
             log.warning("cli.grab.reconcile_client_unavailable", error=str(exc))
-            client_hashes = None
+            client_items = None
 
     # D2 — a grab confirmed out of the add→confirm crash window never ran the
     # grab-time obligation writer; record it now, from the torrent's own tracker
     # tag. Absent authority (no store) → no recorder, the confirmation still runs.
     authority = acquire.delete_authority
-    record_obligation = authority.record_grab_obligation if authority is not None else None
+    recorder = authority.record_grab_obligation if authority is not None else None
+    ownership = acquire.ownership
 
     try:
-        summary = reconcile_wanted(
-            store,
-            acquire.ownership,
-            client_hashes,
-            record_obligation=record_obligation,
-        )
+        summary = reconcile_wanted(store, ownership, client_items, event_bus=event_bus, record_obligation=recorder)
     except Exception as exc:  # noqa: BLE001 — reconciliation must never abort the grab
         log.warning("cli.grab.reconcile_failed", error=str(exc))
         return ReconcileSummary()

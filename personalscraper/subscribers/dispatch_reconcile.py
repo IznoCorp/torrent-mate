@@ -104,7 +104,7 @@ class PostDispatchReconcileSubscriber:
                 fresh library through the ownership port).
         """
         try:
-            summary = reconcile_wanted(self._store, self._ownership, None)
+            summary = reconcile_wanted(self._store, self._ownership, client_items=None, event_bus=self._bus)
         except Exception as exc:  # noqa: BLE001 — fail-soft: never disrupt the scanner
             log.warning("acquire.post_dispatch_reconcile.failed", scan_mode=event.mode, error=str(exc))
             return

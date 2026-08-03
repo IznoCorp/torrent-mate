@@ -61,6 +61,7 @@ from pathlib import Path
 
 from personalscraper.acquire._aired_store import _AiredSubStore  # noqa: PLC0415
 from personalscraper.acquire._cross_seed_store import _CrossSeedSubStore  # noqa: PLC0415
+from personalscraper.acquire._download_marks import DownloadMarksStore  # noqa: PLC0415
 from personalscraper.acquire._provenance_store import _ProvenanceSubStore  # noqa: PLC0415
 from personalscraper.acquire._store_rows import (
     _media_ref_to_json,
@@ -716,6 +717,7 @@ class ConcreteAcquireStore:
         ratio: ``ratio_state`` sub-store (data-carrier, lazy).
         cross_seed: ``cross_seed_history`` + ``cross_seed_quota`` sub-store (lazy).
         watch: ``watch_state`` KV sub-store (watcher daemon state, lazy).
+        download_marks: ``download_marks`` advisory sub-store (O4/D7, lazy).
     """
 
     def __init__(self, db_path: Path) -> None:
@@ -738,6 +740,7 @@ class ConcreteAcquireStore:
         self._cross_seed: _CrossSeedSubStore | None = None
         self._watch: _WatchSubStore | None = None
         self._provenance: _ProvenanceSubStore | None = None
+        self._download_marks: DownloadMarksStore | None = None
 
     def _ensure_open(self) -> sqlite3.Connection:
         """Open the connection and migrate the schema on first access.
@@ -838,6 +841,14 @@ class ConcreteAcquireStore:
         if self._provenance is None:
             self._provenance = _ProvenanceSubStore(self._ensure_open(), _write_tx)
         return self._provenance
+
+    @property
+    def download_marks(self) -> DownloadMarksStore:
+        """``download_marks`` advisory sub-store (ensures the store is open)."""
+        conn = self._ensure_open()
+        if self._download_marks is None:
+            self._download_marks = DownloadMarksStore(conn)
+        return self._download_marks
 
     def close(self) -> None:
         """Close the connection if one was opened (fail-soft, idempotent).

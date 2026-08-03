@@ -35,11 +35,16 @@ from personalscraper.acquire.reconcile import reconcile_wanted
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
 from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.conf.models.api_config import TrackerEconomyConfig
+from personalscraper.core.event_bus import EventBus
 from personalscraper.core.identity import MediaRef
 
 _HASH = "abcd" * 10
 _TRACKER = "c411"
 _ECONOMY = {_TRACKER: TrackerEconomyConfig(target_ratio=2.0, min_ratio=1.0, min_seed_time=259_200)}
+
+# Subscriber-less sink: reconcile REQUIRES a bus (event_bus contract); these
+# tests pin the intent-hash recovery, not the download events.
+_BUS = EventBus()
 
 
 @pytest.fixture
@@ -74,6 +79,9 @@ def _torrent(hash_: str, *, tags: list[str]) -> MagicMock:
     item.name = "Some.Release.mkv"
     item.size_bytes = 1024
     item.tags = tags
+    # Deterministic mid-download progress: the reconcile sweep now reads it for
+    # the download-event emission (a bare MagicMock compares truthy vs 1.0).
+    item.progress = 0.5
     return item
 
 
@@ -178,12 +186,10 @@ class TestCrashWindowRecovery:
         # ... and the process died BEFORE mark_grabbed.
 
         authority = DeleteAuthority(store=store, torrent_client=client, economy=_ECONOMY)
-        summary = reconcile_wanted(
-            store,
-            _ownership(owns=False),
-            client_hashes={_HASH},
-            record_obligation=authority.record_grab_obligation,
-        )
+        items = {_HASH: _torrent(_HASH, tags=[_TRACKER])}
+        rec = authority.record_grab_obligation
+        owner = _ownership(owns=False)
+        summary = reconcile_wanted(store, owner, client_items=items, event_bus=_BUS, record_obligation=rec)
 
         row = store.wanted.get(rowid)
         assert row is not None
@@ -200,7 +206,7 @@ class TestCrashWindowRecovery:
         rowid = _searching_row(store)
         store.wanted.record_grab_intent(rowid, _HASH)
 
-        summary = reconcile_wanted(store, _ownership(owns=False), client_hashes=set())
+        summary = reconcile_wanted(store, _ownership(owns=False), client_items={}, event_bus=_BUS)
 
         row = store.wanted.get(rowid)
         assert row is not None
@@ -216,12 +222,11 @@ class TestCrashWindowRecovery:
         client.get_by_hashes.return_value = [_torrent(_HASH, tags=[_TRACKER])]
         authority = DeleteAuthority(store=store, torrent_client=client, economy=_ECONOMY)
 
-        first = reconcile_wanted(
-            store, _ownership(owns=False), {_HASH}, record_obligation=authority.record_grab_obligation
-        )
-        second = reconcile_wanted(
-            store, _ownership(owns=False), {_HASH}, record_obligation=authority.record_grab_obligation
-        )
+        items = {_HASH: _torrent(_HASH, tags=[_TRACKER])}
+        rec = authority.record_grab_obligation
+        owner = _ownership(owns=False)
+        first = reconcile_wanted(store, owner, client_items=items, event_bus=_BUS, record_obligation=rec)
+        second = reconcile_wanted(store, owner, client_items=items, event_bus=_BUS, record_obligation=rec)
 
         assert (first.confirmed_grabbed, second.confirmed_grabbed) == (1, 0)
         assert store.wanted.get(rowid).status == "grabbed"  # type: ignore[union-attr]
@@ -231,7 +236,7 @@ class TestCrashWindowRecovery:
         rowid = _searching_row(store)
         store.wanted.record_grab_intent(rowid, _HASH)
 
-        summary = reconcile_wanted(store, _ownership(owns=False), None)
+        summary = reconcile_wanted(store, _ownership(owns=False), client_items=None, event_bus=_BUS)
 
         row = store.wanted.get(rowid)
         assert row is not None

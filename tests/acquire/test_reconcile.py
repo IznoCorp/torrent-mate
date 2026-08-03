@@ -17,7 +17,9 @@ import pytest
 from personalscraper.acquire.domain import FollowedSeries, WantedItem
 from personalscraper.acquire.reconcile import reconcile_wanted
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
+from personalscraper.api.torrent._base import TorrentItem
 from personalscraper.conf.models.acquire import AcquireConfig
+from personalscraper.core.event_bus import EventBus
 from personalscraper.core.identity import MediaRef
 
 
@@ -36,6 +38,20 @@ class _ExplodingOwnership:
 
     def owns(self, media_ref: MediaRef, *, kind: str, season: int | None = None, episode: int | None = None) -> bool:
         raise RuntimeError("library.db is locked")
+
+
+# Subscriber-less sink: reconcile REQUIRES a bus (event_bus contract); these
+# tests assert row transitions, not download events (covered in
+# test_reconcile_download_events.py).
+_BUS = EventBus()
+
+
+def _items(*hashes: str, progress: float = 0.5) -> dict[str, TorrentItem]:
+    """Client items for *hashes* — presence in the client is what matters here."""
+    return {
+        h: TorrentItem(hash=h, name=f"release-{h}", size_bytes=1024, progress=progress, state="downloading")
+        for h in hashes
+    }
 
 
 @pytest.fixture
@@ -66,7 +82,7 @@ def test_owned_grabbed_row_closes_done(store: ConcreteAcquireStore) -> None:
     """A grabbed row whose episode the library owns closes ``done`` (the Silo case)."""
     wanted_id = _grabbed(store, season=3, episode=1, info_hash="f92c7b09")
 
-    summary = reconcile_wanted(store, _StubOwnership({(3, 1)}), {"f92c7b09"})
+    summary = reconcile_wanted(store, _StubOwnership({(3, 1)}), client_items=_items("f92c7b09"), event_bus=_BUS)
 
     assert summary.closed_owned == 1
     row = store.wanted.get(wanted_id)
@@ -77,7 +93,7 @@ def test_vanished_torrent_unowned_requeues_pending(store: ConcreteAcquireStore) 
     """Grabbed + hash absent from the client + unowned → back to pending, hash cleared."""
     wanted_id = _grabbed(store, season=3, episode=2, info_hash="deadbeef")
 
-    summary = reconcile_wanted(store, _StubOwnership(set()), set())
+    summary = reconcile_wanted(store, _StubOwnership(set()), client_items={}, event_bus=_BUS)
 
     assert summary.requeued_missing == 1
     row = store.wanted.get(wanted_id)
@@ -90,7 +106,7 @@ def test_torrent_still_in_client_stays_grabbed(store: ConcreteAcquireStore) -> N
     """Grabbed + hash still known to the client + unowned → left in flight."""
     wanted_id = _grabbed(store, season=3, episode=3, info_hash="cafebabe")
 
-    summary = reconcile_wanted(store, _StubOwnership(set()), {"cafebabe"})
+    summary = reconcile_wanted(store, _StubOwnership(set()), client_items=_items("cafebabe"), event_bus=_BUS)
 
     assert summary.still_in_flight == 1
     row = store.wanted.get(wanted_id)
@@ -101,7 +117,7 @@ def test_client_unavailable_never_requeues(store: ConcreteAcquireStore) -> None:
     """client_hashes=None (client outage) → the requeue half is skipped (fail-soft)."""
     wanted_id = _grabbed(store, season=3, episode=4, info_hash="deadbeef")
 
-    summary = reconcile_wanted(store, _StubOwnership(set()), None)
+    summary = reconcile_wanted(store, _StubOwnership(set()), client_items=None, event_bus=_BUS)
 
     assert summary.requeued_missing == 0
     assert summary.still_in_flight == 1
@@ -113,7 +129,7 @@ def test_ownership_error_fails_soft_per_row(store: ConcreteAcquireStore) -> None
     """An ownership exception leaves the row untouched — never aborts the sweep."""
     wanted_id = _grabbed(store, season=3, episode=5, info_hash="0badf00d")
 
-    summary = reconcile_wanted(store, _ExplodingOwnership(), {"0badf00d"})
+    summary = reconcile_wanted(store, _ExplodingOwnership(), client_items=_items("0badf00d"), event_bus=_BUS)
 
     assert summary.checked == 1
     assert summary.closed_owned == 0
@@ -126,8 +142,8 @@ def test_reconcile_is_idempotent(store: ConcreteAcquireStore) -> None:
     _grabbed(store, season=3, episode=6, info_hash="f92c7b09")
     ownership = _StubOwnership({(3, 6)})
 
-    first = reconcile_wanted(store, ownership, {"f92c7b09"})
-    second = reconcile_wanted(store, ownership, {"f92c7b09"})
+    first = reconcile_wanted(store, ownership, client_items=_items("f92c7b09"), event_bus=_BUS)
+    second = reconcile_wanted(store, ownership, client_items=_items("f92c7b09"), event_bus=_BUS)
 
     assert first.closed_owned == 1
     assert second.checked == 0
@@ -146,7 +162,7 @@ def test_owned_movie_row_closes_done(store: ConcreteAcquireStore) -> None:
     )
     store.wanted.mark_grabbed(wanted_id, "4bdfb777")
 
-    summary = reconcile_wanted(store, _StubOwnership({(None, None)}), {"4bdfb777"})
+    summary = reconcile_wanted(store, _StubOwnership({(None, None)}), client_items=_items("4bdfb777"), event_bus=_BUS)
 
     assert summary.closed_owned == 1
     row = store.wanted.get(wanted_id)
@@ -172,7 +188,7 @@ def test_owned_pending_row_closes_done(store: ConcreteAcquireStore) -> None:
         )
     )
 
-    summary = reconcile_wanted(store, _StubOwnership({(3, 3)}), set())
+    summary = reconcile_wanted(store, _StubOwnership({(3, 3)}), client_items={}, event_bus=_BUS)
 
     assert summary.closed_owned == 1
     row = store.wanted.get(wanted_id)
@@ -192,7 +208,7 @@ def test_unowned_pending_row_stays_pending(store: ConcreteAcquireStore) -> None:
         )
     )
 
-    summary = reconcile_wanted(store, _StubOwnership(set()), set())
+    summary = reconcile_wanted(store, _StubOwnership(set()), client_items={}, event_bus=_BUS)
 
     assert summary.closed_owned == 0
     assert summary.requeued_missing == 0
@@ -229,7 +245,7 @@ def test_closed_movie_followed_ids_surfaces_only_transitioned_movies(store: Conc
     store.wanted.mark_grabbed(movie_id, "aa11bb22")
     episode_id = _grabbed(store, season=3, episode=1, info_hash="cc33dd44")
 
-    summary = reconcile_wanted(store, _OwnsAllOwnership(), {"aa11bb22", "cc33dd44"})
+    summary = reconcile_wanted(store, _OwnsAllOwnership(), client_items=_items("aa11bb22", "cc33dd44"), event_bus=_BUS)
 
     assert summary.closed_owned == 2  # both rows close
     assert summary.closed_movie_followed_ids == (followed_id,)  # only the movie, and only its follow
@@ -240,7 +256,7 @@ def test_closed_movie_followed_ids_empty_when_nothing_transitions(store: Concret
     """No owned rows → the movie-followed-id tuple is empty (idempotent second pass)."""
     _grabbed(store, season=1, episode=1, info_hash="ee55ff66")
 
-    summary = reconcile_wanted(store, _StubOwnership(set()), {"ee55ff66"})
+    summary = reconcile_wanted(store, _StubOwnership(set()), client_items=_items("ee55ff66"), event_bus=_BUS)
 
     assert summary.closed_movie_followed_ids == ()
 
@@ -272,7 +288,7 @@ def test_owned_crash_window_row_closes_done(store: ConcreteAcquireStore) -> None
     """
     wanted_id = _crash_window(store, season=3, episode=7, info_hash="c0ffee01")
 
-    summary = reconcile_wanted(store, _StubOwnership({(3, 7)}), {"c0ffee01"})
+    summary = reconcile_wanted(store, _StubOwnership({(3, 7)}), client_items=_items("c0ffee01"), event_bus=_BUS)
 
     assert summary.closed_owned == 1
     row = store.wanted.get(wanted_id)
@@ -288,7 +304,7 @@ def test_vanished_crash_window_row_requeues_pending(store: ConcreteAcquireStore)
     """
     wanted_id = _crash_window(store, season=3, episode=8, info_hash="c0ffee02")
 
-    summary = reconcile_wanted(store, _StubOwnership(set()), set())
+    summary = reconcile_wanted(store, _StubOwnership(set()), client_items={}, event_bus=_BUS)
 
     assert summary.requeued_missing == 1
     row = store.wanted.get(wanted_id)
@@ -308,7 +324,7 @@ def test_crash_window_row_still_in_client_is_confirmed_grabbed(store: ConcreteAc
     """
     wanted_id = _crash_window(store, season=3, episode=9, info_hash="c0ffee03")
 
-    summary = reconcile_wanted(store, _StubOwnership(set()), {"c0ffee03"})
+    summary = reconcile_wanted(store, _StubOwnership(set()), client_items=_items("c0ffee03"), event_bus=_BUS)
 
     assert summary.confirmed_grabbed == 1
     assert summary.still_in_flight == 0
@@ -325,7 +341,7 @@ def test_grabbed_row_still_in_client_stays_in_flight(store: ConcreteAcquireStore
     """
     wanted_id = _grabbed(store, season=3, episode=10, info_hash="c0ffee0a")
 
-    summary = reconcile_wanted(store, _StubOwnership(set()), {"c0ffee0a"})
+    summary = reconcile_wanted(store, _StubOwnership(set()), client_items=_items("c0ffee0a"), event_bus=_BUS)
 
     assert summary.still_in_flight == 1
     assert summary.confirmed_grabbed == 0
@@ -344,7 +360,7 @@ def test_legacy_pending_row_with_a_stale_hash_is_requeued(store: ConcreteAcquire
     wanted_id = _grabbed(store, season=4, episode=1, info_hash="c0ffee04")
     store.wanted.set_status(wanted_id, "pending")  # the legacy shape
 
-    summary = reconcile_wanted(store, _StubOwnership(set()), set())
+    summary = reconcile_wanted(store, _StubOwnership(set()), client_items={}, event_bus=_BUS)
 
     assert summary.requeued_missing == 1
     row = store.wanted.get(wanted_id)
@@ -366,7 +382,7 @@ def test_unowned_hashless_pending_row_is_never_requeued(store: ConcreteAcquireSt
         )
     )
 
-    summary = reconcile_wanted(store, _StubOwnership(set()), set())
+    summary = reconcile_wanted(store, _StubOwnership(set()), client_items={}, event_bus=_BUS)
 
     assert summary.requeued_missing == 0
     assert summary.still_in_flight == 0
@@ -395,7 +411,7 @@ def test_owned_available_row_closes_done(store: ConcreteAcquireStore) -> None:
     store.wanted.record_search_outcome(wanted_id, "available", 4)
     store.wanted.set_status(wanted_id, "available")
 
-    summary = reconcile_wanted(store, _StubOwnership({(6, 1)}), set())
+    summary = reconcile_wanted(store, _StubOwnership({(6, 1)}), client_items={}, event_bus=_BUS)
 
     assert summary.closed_owned == 1
     row = store.wanted.get(wanted_id)
@@ -417,7 +433,7 @@ def test_unowned_available_row_stays_available(store: ConcreteAcquireStore) -> N
     store.wanted.record_search_outcome(wanted_id, "available", 4)
     store.wanted.set_status(wanted_id, "available")
 
-    summary = reconcile_wanted(store, _StubOwnership(set()), set())
+    summary = reconcile_wanted(store, _StubOwnership(set()), client_items={}, event_bus=_BUS)
 
     assert summary.closed_owned == 0
     assert summary.requeued_missing == 0
@@ -443,7 +459,7 @@ def test_owned_movie_available_row_surfaces_its_follow(store: ConcreteAcquireSto
     )
     store.wanted.set_status(wanted_id, "available")
 
-    summary = reconcile_wanted(store, _OwnsAllOwnership(), set())
+    summary = reconcile_wanted(store, _OwnsAllOwnership(), client_items={}, event_bus=_BUS)
 
     assert summary.closed_owned == 1
     assert summary.closed_movie_followed_ids == (followed_id,)
@@ -467,7 +483,7 @@ def test_season_row_without_followed_id_is_never_closed(store: ConcreteAcquireSt
         )
     )
 
-    reconcile_wanted(store, _StubOwnership({(3, None)}), set())
+    reconcile_wanted(store, _StubOwnership({(3, None)}), client_items={}, event_bus=_BUS)
 
     row = store.wanted.get(wanted_id)
     assert row is not None
@@ -530,7 +546,7 @@ def test_grabbed_season_all_aired_owned_closes_done(store: ConcreteAcquireStore)
     )
     wanted_id = _season_row(store, followed_id=followed_id, season=3, info_hash="5ea50e01")
 
-    summary = reconcile_wanted(store, _StubOwnership({(3, 1), (3, 2)}), {"5ea50e01"})
+    summary = reconcile_wanted(store, _StubOwnership({(3, 1), (3, 2)}), client_items=_items("5ea50e01"), event_bus=_BUS)
 
     assert summary.checked == 1
     assert summary.closed_owned == 1
@@ -549,7 +565,7 @@ def test_grabbed_season_partially_owned_stays_in_flight(store: ConcreteAcquireSt
     )
     wanted_id = _season_row(store, followed_id=followed_id, season=3, info_hash="5ea50e02")
 
-    summary = reconcile_wanted(store, _StubOwnership({(3, 1)}), {"5ea50e02"})
+    summary = reconcile_wanted(store, _StubOwnership({(3, 1)}), client_items=_items("5ea50e02"), event_bus=_BUS)
 
     assert summary.closed_owned == 0
     assert summary.still_in_flight == 1
@@ -571,7 +587,7 @@ def test_grabbed_season_vanished_torrent_requeues_pending(store: ConcreteAcquire
     )
     wanted_id = _season_row(store, followed_id=followed_id, season=3, info_hash="5ea50e03")
 
-    summary = reconcile_wanted(store, _StubOwnership({(3, 1)}), set())
+    summary = reconcile_wanted(store, _StubOwnership({(3, 1)}), client_items={}, event_bus=_BUS)
 
     assert summary.requeued_missing == 1
     row = store.wanted.get(wanted_id)
@@ -591,7 +607,7 @@ def test_searching_season_with_hash_in_client_is_confirmed(store: ConcreteAcquir
     wanted_id = _season_row(store, followed_id=followed_id, season=3, info_hash="5ea50e04")
     store.wanted.set_status(wanted_id, "searching")
 
-    summary = reconcile_wanted(store, _StubOwnership(set()), {"5ea50e04"})
+    summary = reconcile_wanted(store, _StubOwnership(set()), client_items=_items("5ea50e04"), event_bus=_BUS)
 
     assert summary.confirmed_grabbed == 1
     row = store.wanted.get(wanted_id)
@@ -609,7 +625,7 @@ def test_season_with_empty_aired_catalog_is_never_closed(store: ConcreteAcquireS
     followed_id = _followed_show(store)  # no aired catalog written
     wanted_id = _season_row(store, followed_id=followed_id, season=3, info_hash="5ea50e05")
 
-    summary = reconcile_wanted(store, _OwnsAllOwnership(), {"5ea50e05"})
+    summary = reconcile_wanted(store, _OwnsAllOwnership(), client_items=_items("5ea50e05"), event_bus=_BUS)
 
     assert summary.closed_owned == 0
     assert summary.still_in_flight == 1
