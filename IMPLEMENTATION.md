@@ -29,7 +29,7 @@
 | --- | ---------------------------------------------- | -------------------------------------- | ------ |
 | 1   | Backend removal + test rewrites + D2 regression | phase-01-backend-removal.md            | [x]    |
 | 2   | Web + frontend + config + docs                  | phase-02-web-frontend-config-docs.md   | [x]    |
-| 3   | ACCEPTANCE + full gate                          | phase-03-acceptance-full-gate.md       | [ ]    |
+| 3   | ACCEPTANCE + full gate                          | phase-03-acceptance-full-gate.md       | [x]    |
 
 ## Review cycles
 
@@ -37,4 +37,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to execute phase 3 (ACCEPTANCE + full gate).
+All phases complete — run `/implement:feature-pr`.
