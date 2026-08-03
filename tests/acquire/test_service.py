@@ -108,7 +108,7 @@ def _available_item(tvdb_id: int = 99, *, found: int = 5) -> WantedItem:
     )
 
 
-def _make_tracker_result(*, provider: str = "lacale", info_hash: str = "aaaa1234") -> TrackerResult:
+def _make_tracker_result(*, provider: str = "c411", info_hash: str = "aaaa1234") -> TrackerResult:
     """Build a minimal TrackerResult to stand in as the orchestrator's ``chosen``."""
     return TrackerResult(
         provider=provider,
@@ -550,14 +550,14 @@ def test_service_emits_grab_succeeded_after_persist_exact_payload(store: Concret
     rowid = store.wanted.add(_available_item())
     bus = MagicMock()
 
-    chosen = _make_tracker_result(provider="lacale")
+    chosen = _make_tracker_result(provider="c411")
     orch = MagicMock()
     orch.grab.return_value = GrabOutcome(
         disposition="success",
         info_hash="emit-once",
         chosen=chosen,
         category="movies",
-        tags=("lacale",),
+        tags=("c411",),
     )
     service = AcquisitionService(store=store, orchestrator=orch, event_bus=bus, config=_config())
 
@@ -572,9 +572,9 @@ def test_service_emits_grab_succeeded_after_persist_exact_payload(store: Concret
     ev = grab_succeeded[0]
     assert ev.media_ref == MediaRef(tvdb_id=99)
     assert ev.info_hash == "emit-once"
-    assert ev.source_tracker == "lacale"
+    assert ev.source_tracker == "c411"
     assert ev.category == "movies"
-    assert ev.tags == ("lacale",)
+    assert ev.tags == ("c411",)
 
 
 def test_hash_guard_no_double_emit_via_event_bus(store: ConcreteAcquireStore) -> None:
@@ -589,9 +589,9 @@ def test_hash_guard_no_double_emit_via_event_bus(store: ConcreteAcquireStore) ->
     rowid = store.wanted.add(_available_item())
     bus = MagicMock()
 
-    chosen = _make_tracker_result(provider="lacale")
+    chosen = _make_tracker_result(provider="c411")
     orch = MagicMock()
-    orch.grab.return_value = GrabOutcome(disposition="success", info_hash="emit-once", chosen=chosen, tags=("lacale",))
+    orch.grab.return_value = GrabOutcome(disposition="success", info_hash="emit-once", chosen=chosen, tags=("c411",))
     service = AcquisitionService(store=store, orchestrator=orch, event_bus=bus, config=_config())
 
     service.run(limit=10)
@@ -628,7 +628,7 @@ def test_section_11d_crash_window_never_double_emits_grab_succeeded(store: Concr
     rowid = store.wanted.add(_available_item())
 
     bus = MagicMock()
-    chosen = _make_tracker_result(provider="lacale")
+    chosen = _make_tracker_result(provider="c411")
     add_calls: list[str] = []
 
     def _grab(
@@ -645,7 +645,7 @@ def test_section_11d_crash_window_never_double_emits_grab_succeeded(store: Concr
         if on_intent is not None:
             on_intent("aaaa1234")
         add_calls.append("aaaa1234")
-        return GrabOutcome(disposition="success", info_hash="aaaa1234", chosen=chosen, tags=("lacale",))
+        return GrabOutcome(disposition="success", info_hash="aaaa1234", chosen=chosen, tags=("c411",))
 
     orch = MagicMock()
     orch.grab.side_effect = _grab
@@ -985,7 +985,7 @@ def test_not_found_reverts_to_pending_and_never_abandons(store: ConcreteAcquireS
 # ---------------------------------------------------------------------------
 
 
-def _config_with_economy(tracker: str = "lacale") -> MagicMock:
+def _config_with_economy(tracker: str = "c411") -> MagicMock:
     """Config stub whose tracker registry carries a real economy block."""
     from types import SimpleNamespace
 
@@ -1008,14 +1008,14 @@ def test_grab_success_records_seed_obligation(store: ConcreteAcquireStore) -> No
     correlation hits.
     """
     store.wanted.add(_available_item())
-    chosen = _make_tracker_result(provider="lacale")
+    chosen = _make_tracker_result(provider="c411")
     orch = MagicMock()
     orch.grab.return_value = GrabOutcome(
         disposition="success",
         info_hash="tvhash01",
         chosen=chosen,
         category="tv",
-        tags=("lacale",),
+        tags=("c411",),
     )
     service = AcquisitionService(store=store, orchestrator=orch, event_bus=MagicMock(), config=_config_with_economy())
 
@@ -1025,13 +1025,13 @@ def test_grab_success_records_seed_obligation(store: ConcreteAcquireStore) -> No
         "SELECT info_hash, source_tracker, dispatched_path, min_seed_time_s, min_ratio FROM seed_obligation"
     ).fetchone()
     assert row is not None, "a successful grab must record its seed obligation"
-    assert tuple(row) == ("tvhash01", "lacale", None, 259200, 1.0)
+    assert tuple(row) == ("tvhash01", "c411", None, 259200, 1.0)
 
 
 def test_grab_without_economy_records_nothing(store: ConcreteAcquireStore) -> None:
     """Activation-only trackers (no economy block) stay obligation-free."""
     store.wanted.add(_available_item())
-    chosen = _make_tracker_result(provider="lacale")
+    chosen = _make_tracker_result(provider="c411")
     orch = MagicMock()
     orch.grab.return_value = GrabOutcome(
         disposition="success", info_hash="nohash01", chosen=chosen, category="tv", tags=()
@@ -1050,7 +1050,7 @@ def test_grab_obligation_not_duplicated(store: ConcreteAcquireStore) -> None:
     """Two grabs resolving to the same info-hash keep a single active row."""
     store.wanted.add(_available_item())
     store.wanted.add(_available_item(tvdb_id=100))
-    chosen = _make_tracker_result(provider="lacale")
+    chosen = _make_tracker_result(provider="c411")
     orch = MagicMock()
     orch.grab.return_value = GrabOutcome(
         disposition="success", info_hash="duphash1", chosen=chosen, category="tv", tags=()

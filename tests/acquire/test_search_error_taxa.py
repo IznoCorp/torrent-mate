@@ -124,8 +124,8 @@ class TestRegistryTaxonomy:
         healthy = MagicMock()
         healthy.search.return_value = []
         registry = TrackerRegistry(
-            trackers={"c411": _RaisingTracker(_auth()), "lacale": healthy},  # type: ignore[dict-item]
-            priority=["c411", "lacale"],
+            trackers={"c411": _RaisingTracker(_auth()), "tr4ker": healthy},  # type: ignore[dict-item]
+            priority=["c411", "tr4ker"],
             ranking=RankingConfig(min_seeders=0),
         )
 

@@ -19,7 +19,7 @@ from personalscraper.core.identity import MediaRef
 def _result(title: str, seeders: int = 10) -> TrackerResult:
     """A TrackerResult with only the fields the filter reads (title)."""
     return TrackerResult(
-        provider="lacale",
+        provider="c411",
         tracker_id=title[:8],
         title=title,
         size=ByteSize(4_000_000_000),

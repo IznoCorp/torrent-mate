@@ -32,8 +32,8 @@ from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.conf.models.api_config import TrackerEconomyConfig
 from personalscraper.core.identity import MediaRef
 
-# A representative per-tracker economy: lacale, 72h min seed, ratio floor 1.0.
-_LACALE_ECONOMY = TrackerEconomyConfig(target_ratio=2.0, min_ratio=1.0, min_seed_time=259200)
+# A representative per-tracker economy: c411, 72h min seed, ratio floor 1.0.
+_C411_ECONOMY = TrackerEconomyConfig(target_ratio=2.0, min_ratio=1.0, min_seed_time=259200)
 
 
 @pytest.fixture
@@ -156,12 +156,12 @@ def test_record_dispatch_hit_writes_obligation(
     item = _torrent_item(
         name="MyShow.S01E01.mkv",
         size_bytes=2048,
-        tags=["lacale"],
+        tags=["c411"],
         info_hash="abc123def456",
     )
     client = _client([item], is_seeding=True)
 
-    auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
+    auth = DeleteAuthority(store=store, torrent_client=client, economy={"c411": _C411_ECONOMY})
     auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
 
     rows = _read_rows(tmp_path / "acquire.db")
@@ -169,7 +169,7 @@ def test_record_dispatch_hit_writes_obligation(
     row = rows[0]
     assert row["info_hash"] == "abc123def456"
     assert row["dispatched_path"] == str(dest)
-    assert row["source_tracker"] == "lacale"
+    assert row["source_tracker"] == "c411"
     assert row["min_seed_time_s"] == 259200
     assert row["min_ratio"] == 1.0
     assert "acquire.record_dispatch.hit" in caplog.text
@@ -193,9 +193,9 @@ def test_record_dispatch_stamps_dispatch_run_uid(store: ConcreteAcquireStore, tm
     )
     store.provenance.set_ingest("abc123def456", ingest_path=str(staging), ingested_at=2)
 
-    item = _torrent_item(name="MyShow.S01E01.mkv", size_bytes=2048, tags=["lacale"], info_hash="abc123def456")
+    item = _torrent_item(name="MyShow.S01E01.mkv", size_bytes=2048, tags=["c411"], info_hash="abc123def456")
     client = _client([item], is_seeding=True)
-    auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
+    auth = DeleteAuthority(store=store, torrent_client=client, economy={"c411": _C411_ECONOMY})
 
     run_uid = uuid4().hex
     token = current_pipeline_run_uid.set(run_uid)  # as Pipeline.run() binds it
@@ -221,10 +221,10 @@ def test_record_dispatch_hit_calls_is_seeding_with_item(store: ConcreteAcquireSt
     staging.write_bytes(b"x" * 512)
     dest = tmp_path / "library" / "Film.mkv"
 
-    item = _torrent_item(name="Film.mkv", size_bytes=512, tags=["lacale"])
+    item = _torrent_item(name="Film.mkv", size_bytes=512, tags=["c411"])
     client = _client([item], is_seeding=True)
 
-    auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
+    auth = DeleteAuthority(store=store, torrent_client=client, economy={"c411": _C411_ECONOMY})
     auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
 
     client.is_seeding.assert_called_once_with(item)
@@ -244,10 +244,10 @@ def test_record_dispatch_miss_not_seeding(
     staging.write_bytes(b"x" * 512)
     dest = tmp_path / "library" / "Film.mkv"
 
-    item = _torrent_item(name="Film.mkv", size_bytes=512, tags=["lacale"])
+    item = _torrent_item(name="Film.mkv", size_bytes=512, tags=["c411"])
     client = _client([item], is_seeding=False)
 
-    auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
+    auth = DeleteAuthority(store=store, torrent_client=client, economy={"c411": _C411_ECONOMY})
     auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
 
     assert _read_rows(tmp_path / "acquire.db") == []
@@ -265,10 +265,10 @@ def test_record_dispatch_miss_no_match(
     dest = tmp_path / "library" / "Film.mkv"
 
     # Different name AND different size.
-    other = _torrent_item(name="OtherFilm.mkv", size_bytes=999, tags=["lacale"])
+    other = _torrent_item(name="OtherFilm.mkv", size_bytes=999, tags=["c411"])
     client = _client([other], is_seeding=True)
 
-    auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
+    auth = DeleteAuthority(store=store, torrent_client=client, economy={"c411": _C411_ECONOMY})
     auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
 
     assert _read_rows(tmp_path / "acquire.db") == []
@@ -282,10 +282,10 @@ def test_record_dispatch_miss_size_mismatch(store: ConcreteAcquireStore, tmp_pat
     staging.write_bytes(b"x" * 512)
     dest = tmp_path / "library" / "Film.mkv"
 
-    item = _torrent_item(name="Film.mkv", size_bytes=4096, tags=["lacale"])  # wrong size
+    item = _torrent_item(name="Film.mkv", size_bytes=4096, tags=["c411"])  # wrong size
     client = _client([item], is_seeding=True)
 
-    auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
+    auth = DeleteAuthority(store=store, torrent_client=client, economy={"c411": _C411_ECONOMY})
     auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
 
     assert _read_rows(tmp_path / "acquire.db") == []
@@ -300,11 +300,11 @@ def test_record_dispatch_miss_ambiguous(
     staging.write_bytes(b"x" * 1000)
     dest = tmp_path / "library" / "Dup.mkv"
 
-    a = _torrent_item(name="Dup.mkv", size_bytes=1000, tags=["lacale"], info_hash="aaaa")
-    b = _torrent_item(name="Dup.mkv", size_bytes=1000, tags=["lacale"], info_hash="bbbb")
+    a = _torrent_item(name="Dup.mkv", size_bytes=1000, tags=["c411"], info_hash="aaaa")
+    b = _torrent_item(name="Dup.mkv", size_bytes=1000, tags=["c411"], info_hash="bbbb")
     client = _client([a, b], is_seeding=True)
 
-    auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
+    auth = DeleteAuthority(store=store, torrent_client=client, economy={"c411": _C411_ECONOMY})
     auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
 
     assert _read_rows(tmp_path / "acquire.db") == []
@@ -329,7 +329,7 @@ def test_record_dispatch_miss_tracker_unresolved(
     item = _torrent_item(name="Film.mkv", size_bytes=512, tags=["manual", "hd"])
     client = _client([item], is_seeding=True)
 
-    auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
+    auth = DeleteAuthority(store=store, torrent_client=client, economy={"c411": _C411_ECONOMY})
     auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
 
     assert _read_rows(tmp_path / "acquire.db") == []
@@ -345,7 +345,7 @@ def test_record_dispatch_miss_no_economy_configured(
     staging.write_bytes(b"x" * 512)
     dest = tmp_path / "library" / "Film.mkv"
 
-    item = _torrent_item(name="Film.mkv", size_bytes=512, tags=["lacale"])
+    item = _torrent_item(name="Film.mkv", size_bytes=512, tags=["c411"])
     client = _client([item], is_seeding=True)
 
     auth = DeleteAuthority(store=store, torrent_client=client, economy=None)
@@ -372,7 +372,7 @@ def test_record_dispatch_fail_soft_on_client_error(
     client = MagicMock()
     client.get_completed.side_effect = RuntimeError("client unreachable")
 
-    auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
+    auth = DeleteAuthority(store=store, torrent_client=client, economy={"c411": _C411_ECONOMY})
     # Must NOT raise.
     auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
 
@@ -386,7 +386,7 @@ def test_record_dispatch_no_client_is_noop(store: ConcreteAcquireStore, tmp_path
     staging.write_bytes(b"x" * 512)
     dest = tmp_path / "library" / "Film.mkv"
 
-    auth = DeleteAuthority(store=store, torrent_client=None, economy={"lacale": _LACALE_ECONOMY})
+    auth = DeleteAuthority(store=store, torrent_client=None, economy={"c411": _C411_ECONOMY})
     auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
 
     assert _read_rows(tmp_path / "acquire.db") == []
@@ -399,8 +399,8 @@ def test_record_dispatch_no_store_is_noop(tmp_path: Path) -> None:
     staging.write_bytes(b"x" * 512)
     dest = tmp_path / "library" / "Film.mkv"
 
-    client = _client([_torrent_item(name="Film.mkv", size_bytes=512, tags=["lacale"])])
-    auth = DeleteAuthority(store=None, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
+    client = _client([_torrent_item(name="Film.mkv", size_bytes=512, tags=["c411"])])
+    auth = DeleteAuthority(store=None, torrent_client=client, economy={"c411": _C411_ECONOMY})
     auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
 
     client.get_completed.assert_not_called()
@@ -411,10 +411,10 @@ def test_record_dispatch_stat_error_on_missing_file(store: ConcreteAcquireStore,
     staging = tmp_path / "staging" / "ghost.mkv"  # never created
     dest = tmp_path / "library" / "ghost.mkv"
 
-    item = _torrent_item(name="ghost.mkv", size_bytes=512, tags=["lacale"])
+    item = _torrent_item(name="ghost.mkv", size_bytes=512, tags=["c411"])
     client = _client([item], is_seeding=True)
 
-    auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
+    auth = DeleteAuthority(store=store, torrent_client=client, economy={"c411": _C411_ECONOMY})
     auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
 
     assert _read_rows(tmp_path / "acquire.db") == []
@@ -431,7 +431,7 @@ def test_mark_breach_stamps_descendant_obligation(store: ConcreteAcquireStore, t
     child = dest_dir / "x.mkv"
     ob = SeedObligation(
         info_hash="breach1",
-        source_tracker="lacale",
+        source_tracker="c411",
         min_seed_time_s=999999,
         min_ratio=1.0,
         added_at=int(time.time()),
@@ -514,12 +514,12 @@ def test_record_dispatch_hit_directory_recursive_size(
     item = _torrent_item(
         name="MyShow.S01",  # item.name == dir.name
         size_bytes=total,  # item.size_bytes == recursive total
-        tags=["lacale"],
+        tags=["c411"],
         info_hash="dir9001",
     )
     client = _client([item], is_seeding=True)
 
-    auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
+    auth = DeleteAuthority(store=store, torrent_client=client, economy={"c411": _C411_ECONOMY})
     auth.record_dispatch(staging_source=staging_dir, dispatched_dest=dest)
 
     rows = _read_rows(tmp_path / "acquire.db")
@@ -527,7 +527,7 @@ def test_record_dispatch_hit_directory_recursive_size(
     row = rows[0]
     assert row["info_hash"] == "dir9001"
     assert row["dispatched_path"] == str(dest)
-    assert row["source_tracker"] == "lacale"
+    assert row["source_tracker"] == "c411"
     assert "acquire.record_dispatch.hit" in caplog.text
 
 
@@ -543,10 +543,10 @@ def test_record_dispatch_directory_size_mismatch_miss(
     total = _build_dir_tree(staging_dir, files={"a.mkv": 1000, "b.mkv": 2000})
     dest = tmp_path / "library" / "MyShow.S02"
 
-    item = _torrent_item(name="MyShow.S02", size_bytes=total + 5000, tags=["lacale"])  # wrong total
+    item = _torrent_item(name="MyShow.S02", size_bytes=total + 5000, tags=["c411"])  # wrong total
     client = _client([item], is_seeding=True)
 
-    auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
+    auth = DeleteAuthority(store=store, torrent_client=client, economy={"c411": _C411_ECONOMY})
     auth.record_dispatch(staging_source=staging_dir, dispatched_dest=dest)
 
     assert _read_rows(tmp_path / "acquire.db") == []
@@ -573,12 +573,12 @@ def test_record_dispatch_fail_soft_on_is_seeding_error(
     staging.write_bytes(b"x" * 512)
     dest = tmp_path / "library" / "Film.mkv"
 
-    item = _torrent_item(name="Film.mkv", size_bytes=512, tags=["lacale"])
+    item = _torrent_item(name="Film.mkv", size_bytes=512, tags=["c411"])
     client = MagicMock()
     client.get_completed.return_value = [item]
     client.is_seeding.side_effect = RuntimeError("connection reset")
 
-    auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
+    auth = DeleteAuthority(store=store, torrent_client=client, economy={"c411": _C411_ECONOMY})
     # Must NOT raise.
     auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
 
@@ -603,10 +603,10 @@ def test_record_dispatch_fail_soft_on_store_write_error(
     staging.write_bytes(b"x" * 512)
     dest = tmp_path / "library" / "Film.mkv"
 
-    item = _torrent_item(name="Film.mkv", size_bytes=512, tags=["lacale"])
+    item = _torrent_item(name="Film.mkv", size_bytes=512, tags=["c411"])
     client = _client([item], is_seeding=True)
 
-    auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
+    auth = DeleteAuthority(store=store, torrent_client=client, economy={"c411": _C411_ECONOMY})
 
     with patch.object(store.seed, "add", side_effect=RuntimeError("db locked")):
         # Must NOT raise.
@@ -650,10 +650,10 @@ def test_record_dispatch_never_closes_wanted_row(store: ConcreteAcquireStore, tm
     staging.write_bytes(b"x" * 2048)
     dest = tmp_path / "library" / "Silo.S03E01.mkv"
 
-    item = _torrent_item(name="Silo.S03E01.mkv", size_bytes=2048, tags=["lacale"], info_hash="abc123def456")
+    item = _torrent_item(name="Silo.S03E01.mkv", size_bytes=2048, tags=["c411"], info_hash="abc123def456")
     client = _client([item], is_seeding=True)
 
-    auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
+    auth = DeleteAuthority(store=store, torrent_client=client, economy={"c411": _C411_ECONOMY})
     events = auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
 
     assert events == []  # the recorder announces nothing itself
@@ -684,7 +684,7 @@ def test_record_dispatch_no_correlation_leaves_wanted_untouched(store: ConcreteA
     dest = tmp_path / "library" / "Silo.S03E02.mkv"
 
     client = _client([], is_seeding=True)
-    auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
+    auth = DeleteAuthority(store=store, torrent_client=client, economy={"c411": _C411_ECONOMY})
     auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
 
     row = store.wanted.get(wanted_id)
@@ -711,7 +711,7 @@ def test_record_dispatch_hit_backfills_grab_time_obligation(store: ConcreteAcqui
     store.seed.add(
         SeedObligation(
             info_hash="abc123def456",
-            source_tracker="lacale",
+            source_tracker="c411",
             min_seed_time_s=259200,
             min_ratio=1.0,
             added_at=int(_time.time()),
@@ -723,10 +723,10 @@ def test_record_dispatch_hit_backfills_grab_time_obligation(store: ConcreteAcqui
     staging.parent.mkdir()
     staging.write_bytes(b"x" * 2048)
     dest = tmp_path / "library" / "MyShow.S01E01.mkv"
-    item = _torrent_item(name="MyShow.S01E01.mkv", size_bytes=2048, tags=["lacale"], info_hash="abc123def456")
+    item = _torrent_item(name="MyShow.S01E01.mkv", size_bytes=2048, tags=["c411"], info_hash="abc123def456")
     client = _client([item], is_seeding=True)
 
-    auth = DeleteAuthority(store=store, torrent_client=client, economy={"lacale": _LACALE_ECONOMY})
+    auth = DeleteAuthority(store=store, torrent_client=client, economy={"c411": _C411_ECONOMY})
     auth.record_dispatch(staging_source=staging, dispatched_dest=dest)
 
     rows = store._conn.execute("SELECT info_hash, dispatched_path FROM seed_obligation").fetchall()
