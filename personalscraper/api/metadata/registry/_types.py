@@ -35,7 +35,7 @@ from personalscraper.core._contracts import MediaType
 #
 # ``personalscraper.api._contracts.ProviderName``
 #     A closed ``str``-Enum of the real providers known to the transport-config
-#     world: TMDB, TVDB, OMDB, TRAKT, QBITTORRENT, TRANSMISSION, LACALE, C411,
+#     world: TMDB, TVDB, OMDB, TRAKT, QBITTORRENT, TRANSMISSION, C411,
 #     TELEGRAM, HEALTHCHECKS.  Code that builds ``Settings``, constructs an
 #     ``HttpTransport``, or dispatches on a fixed provider family uses this Enum.
 #

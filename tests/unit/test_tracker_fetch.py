@@ -348,7 +348,7 @@ class TestFetchTorrentSourceHashCrossCheck:
         assert source.file_bytes == raw
 
     def test_none_skips_cross_check(self) -> None:
-        """A None expected hash skips the check (LaCale may return None)."""
+        """A None expected hash skips the check (some trackers return no hash)."""
         raw, _ = _make_torrent()
         transport = _fake_transport()
         transport.get_bytes.return_value = raw
@@ -412,39 +412,39 @@ class TestResolveSource:
     """Provider routing over the transport map (D6/D8)."""
 
     def test_routes_c411_to_correct_transport(self) -> None:
-        """The c411 transport is used; the lacale transport is left untouched."""
+        """The c411 transport is used; the tr4ker transport is left untouched."""
         raw, _ = _make_torrent()
         c411 = _fake_transport("c411")
         c411.get_bytes.return_value = raw
-        lacale = _fake_transport("lacale")
-        transports = {"c411": c411, "lacale": lacale}
+        tr4ker = _fake_transport("tr4ker")
+        transports = {"c411": c411, "tr4ker": tr4ker}
         source = resolve_source(_result(provider="c411"), transports)
         assert source.file_bytes == raw
         c411.get_bytes.assert_called_once()
-        lacale.get_bytes.assert_not_called()
+        tr4ker.get_bytes.assert_not_called()
 
-    def test_routes_lacale_to_correct_transport(self) -> None:
-        """A relative download URL routes to the lacale transport."""
+    def test_routes_tr4ker_to_correct_transport(self) -> None:
+        """A relative download URL routes to the tr4ker transport."""
         raw, _ = _make_torrent()
-        lacale = _fake_transport("lacale")
-        lacale.get_bytes.return_value = raw
+        tr4ker = _fake_transport("tr4ker")
+        tr4ker.get_bytes.return_value = raw
         c411 = _fake_transport("c411")
-        transports = {"c411": c411, "lacale": lacale}
-        result = _result(provider="lacale", download_url="/api/download/abc")
+        transports = {"c411": c411, "tr4ker": tr4ker}
+        result = _result(provider="tr4ker", download_url="/api/download/abc")
         source = resolve_source(result, transports)
         assert source.file_bytes == raw
-        lacale.get_bytes.assert_called_once_with("/api/download/abc")
+        tr4ker.get_bytes.assert_called_once_with("/api/download/abc")
         c411.get_bytes.assert_not_called()
 
     def test_missing_provider_raises_torrent_fetch_error_with_available_keys(self) -> None:
         """An unmapped provider raises TorrentFetchError listing the missing + available keys."""
         c411 = _fake_transport("c411")
         transports = {"c411": c411}
-        result = _result(provider="lacale")
+        result = _result(provider="tr4ker")
         with pytest.raises(TorrentFetchError) as exc_info:
             resolve_source(result, transports)
         message = str(exc_info.value)
-        assert "lacale" in message  # the missing provider
+        assert "tr4ker" in message  # the missing provider
         assert "c411" in message  # the available key
 
     def test_missing_download_url_raises_torrent_fetch_error(self) -> None:

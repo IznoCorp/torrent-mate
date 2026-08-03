@@ -20,8 +20,9 @@ review). It is a plain :exc:`Exception`, NOT an :exc:`ApiError`, so it used to
 escape the per-tracker loop: an OPEN breaker on a LOW-priority tracker
 discarded the results the HIGH-priority trackers had already returned in the
 same call. That is the inverse of this class's documented contract, and it is
-not theoretical — ``config/tracker.json5`` still carries the operator's note
-that lacale was disabled outright "to stop CircuitOpenError crashing grab".
+not theoretical — the operator's ``tracker.json5`` once carried the note that
+a since-removed tracker was disabled outright "to stop CircuitOpenError
+crashing grab".
 :class:`TestOpenCircuitNeverDiscardsOtherTrackers` pins the ordering that
 exposes it (healthy tracker FIRST, open breaker SECOND) on BOTH search paths.
 """
@@ -83,8 +84,8 @@ class _OkTracker:
 @pytest.mark.parametrize(
     "exc",
     [
-        ApiError(provider="lacale", http_status=503, message="upstream down"),
-        CircuitOpenError("lacale", 287.4),
+        ApiError(provider="tr4ker", http_status=503, message="upstream down"),
+        CircuitOpenError("tr4ker", 287.4),
         requests.ConnectionError("dns failure"),
         requests.Timeout("read timeout"),
         ValueError("bad json"),
@@ -95,8 +96,8 @@ class _OkTracker:
 def test_operational_failure_is_swallowed(exc: BaseException) -> None:
     """Operational failures must not abort the multi-tracker search."""
     registry = TrackerRegistry(
-        trackers={"lacale": _RaisingTracker(exc), "c411": _OkTracker("c411")},  # type: ignore[dict-item]
-        priority=["lacale", "c411"],
+        trackers={"tr4ker": _RaisingTracker(exc), "c411": _OkTracker("c411")},  # type: ignore[dict-item]
+        priority=["tr4ker", "c411"],
         ranking=RankingConfig(min_seeders=0),
     )
 
@@ -121,8 +122,8 @@ def test_operational_failure_is_swallowed(exc: BaseException) -> None:
 def test_programming_error_propagates(exc_type: type[BaseException], exc_args: tuple[object, ...]) -> None:
     """Programming bugs (KeyError, AttributeError, RuntimeError…) must NOT be swallowed."""
     registry = TrackerRegistry(
-        trackers={"lacale": _RaisingTracker(exc_type(*exc_args))},  # type: ignore[dict-item]
-        priority=["lacale"],
+        trackers={"tr4ker": _RaisingTracker(exc_type(*exc_args))},  # type: ignore[dict-item]
+        priority=["tr4ker"],
         ranking=RankingConfig(min_seeders=0),
     )
 

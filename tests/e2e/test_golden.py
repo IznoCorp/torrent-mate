@@ -26,9 +26,9 @@ class TestNormalizeTorrentName:
     """Tests for _normalize_torrent_name."""
 
     def test_strip_release_group(self) -> None:
-        """Should strip [LaCale] and similar tags."""
-        result = _normalize_torrent_name("[LaCale]-Jumanji.1995.MULTi.VF2.1080p.BluRay.HDLight.DD5.1.x264-PopHD")
-        assert "lacale" not in result
+        """Should strip [C411] and similar tags."""
+        result = _normalize_torrent_name("[C411]-Jumanji.1995.MULTi.VF2.1080p.BluRay.HDLight.DD5.1.x264-PopHD")
+        assert "c411" not in result
         assert "pophd" not in result
         assert "jumanji" in result
         assert "1995" in result
@@ -48,7 +48,7 @@ class TestNormalizeTorrentName:
     def test_malcolm_torrent(self) -> None:
         """Should normalize Malcolm torrent name."""
         result = _normalize_torrent_name(
-            "[LaCale]-Malcolm In The Middle S01 Multi VFI NOST 1080p WEBRip NF x265 HEVC AAC 5.1-Papaya"
+            "[C411]-Malcolm In The Middle S01 Multi VFI NOST 1080p WEBRip NF x265 HEVC AAC 5.1-Papaya"
         )
         assert "malcolm" in result
         assert "middle" in result
@@ -128,7 +128,7 @@ class TestMatchTorrentToGolden:
         (golden_dir / "expected_nfo.json").write_text(json.dumps({"title": "Jumanji"}))
 
         with patch("tests.e2e.golden.EXPECTED_DIR", tmp_path):
-            gf = match_torrent_to_golden("[LaCale]-Jumanji.1995.MULTi.VF2.1080p.BluRay.HDLight.DD5.1.x264-PopHD")
+            gf = match_torrent_to_golden("[C411]-Jumanji.1995.MULTi.VF2.1080p.BluRay.HDLight.DD5.1.x264-PopHD")
 
         assert gf is not None
         assert gf.name == slug
@@ -142,7 +142,7 @@ class TestMatchTorrentToGolden:
 
         with patch("tests.e2e.golden.EXPECTED_DIR", tmp_path):
             gf = match_torrent_to_golden(
-                "[LaCale]-Malcolm In The Middle S01 Multi VFI NOST 1080p WEBRip NF x265 HEVC AAC 5.1-Papaya"
+                "[C411]-Malcolm In The Middle S01 Multi VFI NOST 1080p WEBRip NF x265 HEVC AAC 5.1-Papaya"
             )
 
         assert gf is not None

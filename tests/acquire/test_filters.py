@@ -21,7 +21,7 @@ def _result(
     tmdb_id: int | None = None,
 ) -> TrackerResult:
     return TrackerResult(
-        provider="lacale",
+        provider="c411",
         tracker_id="t1",
         title=title,
         size=ByteSize(1_000_000_000),
@@ -343,7 +343,7 @@ class TestTmdbIdentityFilter:
         assert survivors[0].tmdb_id == 2021
 
     def test_result_tmdb_none_is_kept(self) -> None:
-        """Result tmdb_id None (lacale/c411) + wanted tmdb set → KEPT (no disambiguation)."""
+        """Result tmdb_id None (c411/tr4ker) + wanted tmdb set → KEPT (no disambiguation)."""
         profile = QualityProfile()
         wanted = MediaRef(tmdb_id=2021)
         results = [_result("Dune 2021", tmdb_id=None)]

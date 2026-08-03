@@ -8,18 +8,21 @@ identity and group count, never just "no exception".
 
 Ground-truth sample provenance (verified against the fixtures):
 
-- ``docs/reference/_samples/lacale/search-inception.json``
 - ``docs/reference/_samples/c411/search-inception.xml``
+- a second tracker's live Inception capture (2026-05, tracker since
+  decommissioned and its JSON sample deleted) — the divergent-title pairs are
+  inlined below verbatim; the ``tr4ker`` provider label on those fixtures is
+  arbitrary (the dedup engine treats provider as an opaque string).
 
 Cross-tracker pair #1 (AAC, EXACT same size 4677887384, divergent info_hash):
-    lacale "Inception (2010) MULTi VFF 2160p 10bit 4KLight HDR BluRay x265 HE-AAC 5.1 - QTZ"
+    tr4ker "Inception (2010) MULTi VFF 2160p 10bit 4KLight HDR BluRay x265 HE-AAC 5.1 - QTZ"
            info_hash=41fa1a36… seeders=101
     c411   "Inception.2010.MULTI.VFF.2160p.BluRay.HDR10.AAC.5.1.x265-QTZ"
            info_hash=0450af2b… seeders=110
     → MUST merge (re-pack → divergent hash → caught by the fuzzy key).
 
 Cross-tracker pair #2 (DTS, ~0.6 % size diff — exercises the tolerance window):
-    lacale "Inception (2010) MULTi VFF 2160p 10bit 4KLight HDR BluRay x265 DTS 5.1 - QTZ"
+    tr4ker "Inception (2010) MULTi VFF 2160p 10bit 4KLight HDR BluRay x265 DTS 5.1 - QTZ"
            size=7352098468 info_hash=5a3b9563… seeders=175
     c411   "Inception.2010.MULTi.VFF.2160p.BluRay.4KLight.HDR.10bit.DTS.5.1.x265-QTZ"
            size=7396633907 info_hash=b08b70d0… seeders=141
@@ -83,8 +86,8 @@ def _make_result(
 # Real -QTZ sample objects (verified against the fixtures, real seeder counts)
 # ---------------------------------------------------------------------------
 
-_QTZ_AAC_LACALE = _make_result(
-    "lacale",
+_QTZ_AAC_TR4KER = _make_result(
+    "tr4ker",
     "Inception (2010) MULTi VFF 2160p 10bit 4KLight HDR BluRay x265 HE-AAC 5.1 - QTZ",
     4677887384,
     info_hash="41fa1a3678fc8100ecb29e020264015d9d781642",
@@ -99,8 +102,8 @@ _QTZ_AAC_C411 = _make_result(
     seeders=110,
     resolution="2160p",
 )
-_QTZ_DTS_LACALE = _make_result(
-    "lacale",
+_QTZ_DTS_TR4KER = _make_result(
+    "tr4ker",
     "Inception (2010) MULTi VFF 2160p 10bit 4KLight HDR BluRay x265 DTS 5.1 - QTZ",
     7352098468,
     info_hash="5a3b9563fe21c5a11b8feeb40c2c7f46a1a8b1a6",
@@ -124,10 +127,10 @@ _QTZ_DTS_C411 = _make_result(
 
 def test_search_candidates_happy_path() -> None:
     """A single healthy tracker → SearchOutcome with its results, 0 errored."""
-    result = _make_result("lacale", "Inception 2010", 1_000_000)
+    result = _make_result("tr4ker", "Inception 2010", 1_000_000)
     mock_client = MagicMock()
     mock_client.search.return_value = [result]
-    registry = _make_registry({"lacale": mock_client}, ["lacale"])
+    registry = _make_registry({"tr4ker": mock_client}, ["tr4ker"])
 
     outcome = registry.search_candidates("Inception", MediaType.MOVIE, 2010)
 
@@ -140,18 +143,18 @@ def test_search_candidates_happy_path() -> None:
 
 def test_search_candidates_merges_two_trackers_unranked() -> None:
     """Results from both trackers are concatenated in priority order, un-ranked."""
-    r_lacale = _make_result("lacale", "Inception 2010 lacale", 1_000_000, seeders=5)
+    r_tr4ker = _make_result("tr4ker", "Inception 2010 tr4ker", 1_000_000, seeders=5)
     r_c411 = _make_result("c411", "Inception 2010 c411", 2_000_000, seeders=500)
-    lacale = MagicMock()
-    lacale.search.return_value = [r_lacale]
+    tr4ker = MagicMock()
+    tr4ker.search.return_value = [r_tr4ker]
     c411 = MagicMock()
     c411.search.return_value = [r_c411]
-    registry = _make_registry({"lacale": lacale, "c411": c411}, ["lacale", "c411"])
+    registry = _make_registry({"tr4ker": tr4ker, "c411": c411}, ["tr4ker", "c411"])
 
     outcome = registry.search_candidates("Inception", MediaType.MOVIE, 2010)
 
-    # Un-ranked: lacale (priority 0, fewer seeders) appears before c411.
-    assert outcome.results == [r_lacale, r_c411]
+    # Un-ranked: tr4ker (priority 0, fewer seeders) appears before c411.
+    assert outcome.results == [r_tr4ker, r_c411]
     assert outcome.trackers_queried == 2
     assert outcome.trackers_errored == 0
 
@@ -159,8 +162,8 @@ def test_search_candidates_merges_two_trackers_unranked() -> None:
 def test_search_candidates_tracker_error_increments_errored() -> None:
     """An ApiError from one tracker is swallowed but counted; results survive."""
     mock_client = MagicMock()
-    mock_client.search.side_effect = ApiError(provider="lacale", http_status=500, message="down")
-    registry = _make_registry({"lacale": mock_client}, ["lacale"])
+    mock_client.search.side_effect = ApiError(provider="tr4ker", http_status=500, message="down")
+    registry = _make_registry({"tr4ker": mock_client}, ["tr4ker"])
 
     outcome = registry.search_candidates("Inception", MediaType.MOVIE, None)
 
@@ -172,8 +175,8 @@ def test_search_candidates_tracker_error_increments_errored() -> None:
 def test_search_candidates_all_errored_flag() -> None:
     """Every queried tracker errored → all_errored is True (retryable outage)."""
     mock_client = MagicMock()
-    mock_client.search.side_effect = ApiError(provider="lacale", http_status=503, message="down")
-    registry = _make_registry({"lacale": mock_client}, ["lacale"])
+    mock_client.search.side_effect = ApiError(provider="tr4ker", http_status=503, message="down")
+    registry = _make_registry({"tr4ker": mock_client}, ["tr4ker"])
 
     outcome = registry.search_candidates("Inception", MediaType.MOVIE, None)
 
@@ -194,22 +197,22 @@ def test_search_outcome_empty_is_not_all_errored() -> None:
 
 def test_normalize_strips_noise_tokens_real_qtz_dts_pair() -> None:
     """The real DTS -QTZ pair (divergent punctuation/order) → identical core."""
-    a = normalize_title_core(_QTZ_DTS_LACALE.title)
+    a = normalize_title_core(_QTZ_DTS_TR4KER.title)
     b = normalize_title_core(_QTZ_DTS_C411.title)
     assert a == b, f"Expected same core for the DTS -QTZ pair, got {sorted(a)!r} vs {sorted(b)!r}"
 
 
 def test_normalize_strips_noise_tokens_real_qtz_aac_pair() -> None:
     """The real AAC -QTZ pair (HE-AAC vs AAC, HDR10 vs HDR) → identical core."""
-    a = normalize_title_core(_QTZ_AAC_LACALE.title)
+    a = normalize_title_core(_QTZ_AAC_TR4KER.title)
     b = normalize_title_core(_QTZ_AAC_C411.title)
     assert a == b, f"Expected same core for the AAC -QTZ pair, got {sorted(a)!r} vs {sorted(b)!r}"
 
 
 def test_normalize_aac_core_differs_from_dts_core() -> None:
     """AAC and DTS variants have distinct cores — the audio token discriminates."""
-    aac = normalize_title_core(_QTZ_AAC_LACALE.title)
-    dts = normalize_title_core(_QTZ_DTS_LACALE.title)
+    aac = normalize_title_core(_QTZ_AAC_TR4KER.title)
+    dts = normalize_title_core(_QTZ_DTS_TR4KER.title)
     assert aac != dts
 
 
@@ -242,8 +245,8 @@ def test_normalize_order_independent() -> None:
 
 def test_dedup_same_info_hash_within_tracker_collapses() -> None:
     """PRIMARY key: identical info_hash → one survivor (within-tracker re-announce)."""
-    r1 = _make_result("lacale", "Movie 2020", 1_000_000, info_hash="AAAA", seeders=5)
-    r2 = _make_result("lacale", "Movie 2020 repack", 1_000_000, info_hash="aaaa", seeders=99)
+    r1 = _make_result("tr4ker", "Movie 2020", 1_000_000, info_hash="AAAA", seeders=5)
+    r2 = _make_result("tr4ker", "Movie 2020 repack", 1_000_000, info_hash="aaaa", seeders=99)
     survivors = dedup([r1, r2])
     assert len(survivors) == 1
     # Hash key is case-insensitive ("AAAA" == "aaaa") and best-provenance keeps r2.
@@ -252,7 +255,7 @@ def test_dedup_same_info_hash_within_tracker_collapses() -> None:
 
 def test_dedup_qtz_aac_pair_merges_exact_size() -> None:
     """LOAD-BEARING: the real AAC -QTZ pair (divergent hash, EXACT size) merges to 1."""
-    survivors = dedup([_QTZ_AAC_LACALE, _QTZ_AAC_C411])
+    survivors = dedup([_QTZ_AAC_TR4KER, _QTZ_AAC_C411])
     assert len(survivors) == 1, "AAC -QTZ cross-tracker pair must merge into 1 survivor, got " + str(
         [(r.provider, r.title[:48]) for r in survivors]
     )
@@ -263,13 +266,13 @@ def test_dedup_qtz_aac_pair_merges_exact_size() -> None:
 
 def test_dedup_qtz_dts_pair_merges_via_size_tolerance() -> None:
     """LOAD-BEARING: the real DTS -QTZ pair (~0.6 % size diff) merges via the 2 % window."""
-    survivors = dedup([_QTZ_DTS_LACALE, _QTZ_DTS_C411])
+    survivors = dedup([_QTZ_DTS_TR4KER, _QTZ_DTS_C411])
     assert len(survivors) == 1, (
         "DTS -QTZ cross-tracker pair must merge into 1 survivor (size within tolerance), got "
         + str([(r.provider, r.size.bytes) for r in survivors])
     )
-    # Best provenance: lacale has more seeders (175 > 141).
-    assert survivors[0].provider == "lacale"
+    # Best provenance: tr4ker has more seeders (175 > 141).
+    assert survivors[0].provider == "tr4ker"
     assert survivors[0].seeders == 175
 
 
@@ -279,7 +282,7 @@ def test_dedup_all_four_qtz_items_collapse_to_exactly_two_groups() -> None:
     NOT 1 (proves AAC ≠ DTS: 57 % size diff + different audio token), and
     NOT 4 (proves the cross-tracker merge genuinely fires on divergent titles).
     """
-    survivors = dedup([_QTZ_AAC_LACALE, _QTZ_AAC_C411, _QTZ_DTS_LACALE, _QTZ_DTS_C411])
+    survivors = dedup([_QTZ_AAC_TR4KER, _QTZ_AAC_C411, _QTZ_DTS_TR4KER, _QTZ_DTS_C411])
     assert len(survivors) == 2, "Expected exactly 2 groups (AAC + DTS), got " + str(
         [(r.provider, r.size.bytes, r.title[:40]) for r in survivors]
     )
@@ -288,13 +291,13 @@ def test_dedup_all_four_qtz_items_collapse_to_exactly_two_groups() -> None:
     assert sizes == [4677887384, 7352098468]
     providers = {r.size.bytes: r.provider for r in survivors}
     assert providers[4677887384] == "c411"  # AAC: c411 wins on seeders
-    assert providers[7352098468] == "lacale"  # DTS: lacale wins on seeders
+    assert providers[7352098468] == "tr4ker"  # DTS: tr4ker wins on seeders
 
 
 def test_dedup_vf_vs_vostfr_same_size_stays_distinct() -> None:
     """Language preservation: a VF cut and a VOSTFR cut never merge, even at equal size."""
     vff = _make_result(
-        "lacale",
+        "tr4ker",
         "Inception 2010 MULTi VFF 2160p BluRay x265 QTZ",
         7_000_000_000,
         resolution="2160p",
@@ -311,7 +314,7 @@ def test_dedup_vf_vs_vostfr_same_size_stays_distinct() -> None:
 
 def test_dedup_no_info_hash_uses_fuzzy_key() -> None:
     """Two hash-less results with matching fuzzy key + size → deduplicated."""
-    r1 = _make_result("lacale", "Movie 2020 1080p BluRay x265 GRP", 2_000_000_000)
+    r1 = _make_result("tr4ker", "Movie 2020 1080p BluRay x265 GRP", 2_000_000_000)
     r2 = _make_result("c411", "Movie.2020.1080p.BluRay.x265-GRP", 2_010_000_000)  # ~0.5 % diff
     survivors = dedup([r1, r2])
     assert len(survivors) == 1
@@ -324,7 +327,7 @@ def test_dedup_size_beyond_tolerance_stays_distinct() -> None:
     identical core tokens but a large size gap must NOT collapse.
     """
     small = _make_result(
-        "lacale",
+        "tr4ker",
         "Movie 2020 MULTi VFF 2160p BluRay x265 GRP",
         4_677_887_384,
         resolution="2160p",
@@ -342,7 +345,7 @@ def test_dedup_size_beyond_tolerance_stays_distinct() -> None:
 def test_dedup_best_provenance_freeleech_beats_seeders() -> None:
     """Provenance priority: freeleech outranks a higher seeder count."""
     free = _make_result(
-        "lacale",
+        "tr4ker",
         "Movie 2020 MULTi VFF 2160p BluRay x265 GRP",
         2_000_000_000,
         seeders=1,
@@ -359,4 +362,4 @@ def test_dedup_best_provenance_freeleech_beats_seeders() -> None:
     survivors = dedup([free, busy])
     assert len(survivors) == 1
     assert survivors[0].is_freeleech
-    assert survivors[0].provider == "lacale"
+    assert survivors[0].provider == "tr4ker"

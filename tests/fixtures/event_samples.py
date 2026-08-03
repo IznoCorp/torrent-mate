@@ -420,11 +420,11 @@ def make_wanted_abandoned() -> WantedAbandoned:
 
 @register_factory(GrabSucceeded)
 def make_grab_succeeded() -> GrabSucceeded:
-    """Realistic GrabSucceeded factory — lacale grab with tags."""
+    """Realistic GrabSucceeded factory — c411 grab with tags."""
     return GrabSucceeded(
         media_ref=_BREAKING_BAD_REF,
         info_hash="a" * 40,
-        source_tracker="lacale",
+        source_tracker="c411",
         category="tv_shows",
         tags=("freeleech", "hd"),
     )
@@ -435,7 +435,7 @@ def make_grab_failed() -> GrabFailed:
     """Realistic GrabFailed factory — network failure, no tracker resolved."""
     return GrabFailed(
         media_ref=None,
-        source_tracker="lacale",
+        source_tracker="c411",
         reason="ConnectionError: Max retries exceeded",
     )
 
@@ -455,7 +455,7 @@ def make_seed_obligation_recorded() -> SeedObligationRecorded:
     """Realistic SeedObligationRecorded factory."""
     return SeedObligationRecorded(
         info_hash="b" * 40,
-        source_tracker="lacale",
+        source_tracker="c411",
         min_seed_time_s=86400,
         dispatched_path="/Volumes/Disk1/TV Shows/Breaking Bad (2008)",
     )
@@ -466,7 +466,7 @@ def make_seed_obligation_breached() -> SeedObligationBreached:
     """Realistic SeedObligationBreached factory."""
     return SeedObligationBreached(
         info_hash="b" * 40,
-        source_tracker="lacale",
+        source_tracker="c411",
         dispatched_path="/Volumes/Disk1/TV Shows/Breaking Bad (2008)",
     )
 
@@ -476,15 +476,15 @@ def make_seed_obligation_satisfied() -> SeedObligationSatisfied:
     """Realistic SeedObligationSatisfied factory."""
     return SeedObligationSatisfied(
         info_hash="b" * 40,
-        source_tracker="lacale",
+        source_tracker="c411",
     )
 
 
 @register_factory(RatioMeasured)
 def make_ratio_measured() -> RatioMeasured:
-    """Realistic RatioMeasured factory — lacale ratio below target."""
+    """Realistic RatioMeasured factory — c411 ratio below target."""
     return RatioMeasured(
-        tracker="lacale",
+        tracker="c411",
         observed_ratio=0.87,
         target_ratio=1.0,
     )
@@ -492,9 +492,9 @@ def make_ratio_measured() -> RatioMeasured:
 
 @register_factory(TrackerAuthFailed)
 def make_tracker_auth_failed() -> TrackerAuthFailed:
-    """Realistic TrackerAuthFailed factory — lacale 401, Breaking Bad."""
+    """Realistic TrackerAuthFailed factory — c411 401, Breaking Bad."""
     return TrackerAuthFailed(
-        tracker="lacale",
+        tracker="c411",
         http_status=401,
         media_ref=_BREAKING_BAD_REF,
     )
@@ -502,7 +502,7 @@ def make_tracker_auth_failed() -> TrackerAuthFailed:
 
 @register_factory(CrossSeedInjected)
 def make_cross_seed_injected() -> CrossSeedInjected:
-    """Realistic CrossSeedInjected factory — cross-seeded to c411 from lacale source."""
+    """Realistic CrossSeedInjected factory — injected on c411 from the original source torrent."""
     return CrossSeedInjected(
         info_hash="d" * 40,
         source_tracker="c411",

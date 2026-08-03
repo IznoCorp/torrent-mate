@@ -96,7 +96,7 @@ class TrackerConfigIssue:
                 or an enabled provider has no client implementation registered.
             ``disabled_in_priority`` — disabled tracker referenced in priority
                 when ≥1 tracker is active (warning only).
-        provider: Tracker name (e.g. ``"lacale"``), or ``None`` for issues
+        provider: Tracker name (e.g. ``"c411"``), or ``None`` for issues
             not tied to a single provider.
         message: Human-readable description for operator logs / error output.
     """

@@ -158,7 +158,7 @@ class TestAcquireMigrations:
             conn.execute(
                 "INSERT INTO seed_obligation "
                 "(info_hash, source_tracker, min_seed_time_s, min_ratio, added_at) "
-                "VALUES ('abc', 'lacale', -1, 1.0, 1)"
+                "VALUES ('abc', 'c411', -1, 1.0, 1)"
             )
             conn.commit()
 
@@ -171,7 +171,7 @@ class TestAcquireMigrations:
             conn.execute(
                 "INSERT INTO seed_obligation "
                 "(info_hash, source_tracker, min_seed_time_s, min_ratio, added_at) "
-                "VALUES ('abc', 'lacale', 100, -0.5, 1)"
+                "VALUES ('abc', 'c411', 100, -0.5, 1)"
             )
             conn.commit()
 
@@ -183,7 +183,7 @@ class TestAcquireMigrations:
         conn.execute(
             "INSERT INTO seed_obligation "
             "(info_hash, source_tracker, min_seed_time_s, min_ratio, added_at) "
-            "VALUES ('abc', 'lacale', 0, 0.0, 1)"
+            "VALUES ('abc', 'c411', 0, 0.0, 1)"
         )
         conn.commit()
         count = conn.execute("SELECT COUNT(*) FROM seed_obligation").fetchone()[0]

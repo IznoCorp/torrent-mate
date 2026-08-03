@@ -60,7 +60,7 @@ class TrackerResult:
 
     Attributes:
         provider: Tracker provider name as the lowercase wire value
-            (e.g. "lacale", "c411"). This is the key used to look up the
+            (e.g. "c411", "tr4ker"). This is the key used to look up the
             matching transport in ``resolve_source``'s ``transports`` map.
         tracker_id: Provider-specific identifier for this torrent.
         title: Human-readable torrent title.
@@ -93,7 +93,8 @@ class TrackerResult:
             Torznab client maps the ``tmdbid`` attr (2026-07-28), so c411 and
             tr4ker both populate this whenever their indexer publishes it —
             which restores the TMDB identity hard-filter (the anti-remake
-            guard) that lost its only producer when torr9 was removed. A
+            guard) that lost its only producer when a legacy tracker was
+            decommissioned. A
             missing or non-numeric attr yields ``None``. The filter engages
             ONLY when the result AND the wanted item's ``media_ref`` both
             carry a TMDB id; either side ``None`` makes it a no-op, so an

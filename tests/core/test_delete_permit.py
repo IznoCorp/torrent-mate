@@ -33,9 +33,9 @@ def test_veto_carries_reason() -> None:
     """veto() returns a non-ALLOW decision whose string form includes the reason."""
     from personalscraper.core.delete_permit import veto
 
-    decision = veto("seeding: lacale min_seed_time not met")
+    decision = veto("seeding: c411 min_seed_time not met")
     assert decision is not ALLOW
-    assert "lacale" in str(decision)
+    assert "c411" in str(decision)
 
 
 def test_allow_all_permit_record_dispatch_is_noop(tmp_path: Path) -> None:

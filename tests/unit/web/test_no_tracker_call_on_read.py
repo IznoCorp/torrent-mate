@@ -329,7 +329,7 @@ def _install_tracker_guards(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     # registry would still be caught by layer 3).
     for tracker_mod in (
         "personalscraper.api.tracker.c411.C411Client.search",
-        "personalscraper.api.tracker.lacale.LaCaleClient.search",
+        "personalscraper.api.tracker.tr4ker.Tr4kerClient.search",
     ):
         try:
             monkeypatch.setattr(tracker_mod, _fail(tracker_mod))

@@ -238,7 +238,7 @@ class SeedObligation:
 
     Attributes:
         info_hash: Torrent info-hash (hex string).
-        source_tracker: Tracker name string (e.g. ``"lacale"``).
+        source_tracker: Tracker name string (e.g. ``"c411"``).
         min_seed_time_s: Minimum seed time in seconds (snapshot from TrackerEconomyConfig).
         min_ratio: Minimum ratio (snapshot).
         added_at: Unix epoch seconds when obligation was recorded.

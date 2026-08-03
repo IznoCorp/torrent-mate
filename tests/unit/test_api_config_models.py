@@ -119,9 +119,9 @@ class TestTrackerConfig:
 
     def test_priority_list(self) -> None:
         """Priority list is ordered."""
-        data = {"priority": ["lacale", "c411"]}
+        data = {"priority": ["tr4ker", "c411"]}
         cfg = TrackerConfig.model_validate(data)
-        assert cfg.priority == ["lacale", "c411"]
+        assert cfg.priority == ["tr4ker", "c411"]
 
 
 class TestNotifyConfig:

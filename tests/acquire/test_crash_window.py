@@ -47,9 +47,9 @@ from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.conf.models.api_config import TrackerEconomyConfig
 from personalscraper.core.delete_permit import ALLOW
 
-# Per-tracker economy matching the record_dispatch test pattern: lacale, 72h min
+# Per-tracker economy matching the record_dispatch test pattern: c411, 72h min
 # seed time, ratio floor 1.0.
-_LACALE_ECONOMY = TrackerEconomyConfig(target_ratio=2.0, min_ratio=1.0, min_seed_time=259200)
+_C411_ECONOMY = TrackerEconomyConfig(target_ratio=2.0, min_ratio=1.0, min_seed_time=259200)
 
 
 # ---------------------------------------------------------------------------
@@ -219,7 +219,7 @@ def test_scenario2_stale_obligation_inert_via_path_guard(store: ConcreteAcquireS
     item = _torrent_item(
         name="MyShow.S01E01.mkv",
         size_bytes=2048,
-        tags=["lacale"],
+        tags=["c411"],
         info_hash="abc123def456",
     )
     client = _client([item], is_seeding=True)
@@ -227,7 +227,7 @@ def test_scenario2_stale_obligation_inert_via_path_guard(store: ConcreteAcquireS
     auth = DeleteAuthority(
         store=store,
         torrent_client=client,
-        economy={"lacale": _LACALE_ECONOMY},
+        economy={"c411": _C411_ECONOMY},
     )
 
     # record_dispatch writes the obligation (write-before-move).
@@ -275,7 +275,7 @@ def test_scenario2_re_runnable_dispatch_after_crash(store: ConcreteAcquireStore,
     item = _torrent_item(
         name="Film.mkv",
         size_bytes=1024,
-        tags=["lacale"],
+        tags=["c411"],
         info_hash="hash111aaa",
     )
     client = _client([item], is_seeding=True)
@@ -283,7 +283,7 @@ def test_scenario2_re_runnable_dispatch_after_crash(store: ConcreteAcquireStore,
     auth = DeleteAuthority(
         store=store,
         torrent_client=client,
-        economy={"lacale": _LACALE_ECONOMY},
+        economy={"c411": _C411_ECONOMY},
     )
 
     # First dispatch attempt (crashes before move).
@@ -354,7 +354,7 @@ def test_scenario3_two_stores_same_db_no_deadlock(
         # Store A writes an obligation.
         ob_a = SeedObligation(
             info_hash="aaa111",
-            source_tracker="lacale",
+            source_tracker="c411",
             min_seed_time_s=999999,
             min_ratio=1.0,
             added_at=int(time.time()),
@@ -370,7 +370,7 @@ def test_scenario3_two_stores_same_db_no_deadlock(
         # Store B writes its own obligation (BEGIN IMMEDIATE + COMMIT).
         ob_b = SeedObligation(
             info_hash="bbb222",
-            source_tracker="lacale",
+            source_tracker="c411",
             min_seed_time_s=999999,
             min_ratio=1.0,
             added_at=int(time.time()),
@@ -413,7 +413,7 @@ def test_scenario4_write_before_move_ordering(store: ConcreteAcquireStore, tmp_p
     item = _torrent_item(
         name="Show.S01E01.mkv",
         size_bytes=4096,
-        tags=["lacale"],
+        tags=["c411"],
         info_hash="writebeforemove",
     )
     client = _client([item], is_seeding=True)
@@ -421,7 +421,7 @@ def test_scenario4_write_before_move_ordering(store: ConcreteAcquireStore, tmp_p
     auth = DeleteAuthority(
         store=store,
         torrent_client=client,
-        economy={"lacale": _LACALE_ECONOMY},
+        economy={"c411": _C411_ECONOMY},
     )
 
     auth.record_dispatch(staging_source=staging, dispatched_dest=dest)

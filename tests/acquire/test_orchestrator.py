@@ -77,7 +77,7 @@ def _make_result(
     info_hash: str | None = "aaaa1234",
 ) -> TrackerResult:
     return TrackerResult(
-        provider="lacale",
+        provider="c411",
         tracker_id="t1",
         title=title,
         size=ByteSize(5_000_000_000),
@@ -85,7 +85,7 @@ def _make_result(
         leechers=0,
         resolution=resolution,
         info_hash=info_hash,
-        download_url="https://lacale.test/torrent/1",
+        download_url="https://c411.test/torrent/1",
     )
 
 
@@ -123,7 +123,7 @@ def _make_orchestrator(
     registry = MagicMock()
     registry.search_candidates.return_value = search_outcome
 
-    transports = {"lacale": MagicMock()}
+    transports = {"c411": MagicMock()}
     # The orchestrator reads transports FRESH at grab time via the registry, so
     # the map is served from registry.transports() rather than a ctor snapshot.
     registry.transports.return_value = transports
@@ -200,9 +200,9 @@ def test_grab_happy_path_returns_success_outcome_with_exact_payload() -> None:
     assert outcome.disposition == "success"
     assert outcome.info_hash == "aaaa1234"
     assert outcome.reason is None
-    assert outcome.chosen is not None and outcome.chosen.provider == "lacale"
+    assert outcome.chosen is not None and outcome.chosen.provider == "c411"
     assert outcome.category is None
-    assert outcome.tags == ("lacale",)
+    assert outcome.tags == ("c411",)
 
     # add() was called exactly once carrying the provider tag ATOMICALLY, with
     # category=None (open item #8 FINAL: the tag rides the single add call — the
@@ -212,7 +212,7 @@ def test_grab_happy_path_returns_success_outcome_with_exact_payload() -> None:
     torrent_client.add.assert_called_once()
     _args, kwargs = torrent_client.add.call_args
     assert kwargs["category"] is None
-    assert kwargs["tags"] == ["lacale"]
+    assert kwargs["tags"] == ["c411"]
 
     # The former two-step is dead: the orchestrator no longer branches on
     # TorrentTagger nor calls add_tags() at grab time.
@@ -364,7 +364,7 @@ def test_circuit_open_error_caught_separately_retryable_not_crash() -> None:
     assert not issubclass(CircuitOpenError, ApiError)
 
     orchestrator, spy, registry, _tc, _seed = _make_orchestrator()
-    registry.search_candidates.side_effect = CircuitOpenError("lacale", 30.0)
+    registry.search_candidates.side_effect = CircuitOpenError("c411", 30.0)
 
     # Must NOT raise — a bare ``except ApiError`` would let this escape & crash.
     outcome = orchestrator.grab(_make_wanted(), QualityProfile())
@@ -389,7 +389,7 @@ def test_circuit_open_on_add_is_retryable_separately() -> None:
 
     assert outcome.disposition == "retryable"
     assert outcome.reason == "circuit_open"
-    assert outcome.chosen is not None and outcome.chosen.provider == "lacale"
+    assert outcome.chosen is not None and outcome.chosen.provider == "c411"
     assert [e for e in spy.events if isinstance(e, GrabFailed)]
 
 
@@ -397,7 +397,7 @@ def test_tracker_auth_error_terminal_no_add_call() -> None:
     """TrackerAuthError on resolve_source → TERMINAL tracker_auth, add() never called."""
     orchestrator, spy, _registry, torrent_client, _seed = _make_orchestrator()
     with patch(_RESOLVE) as mock_resolve:
-        mock_resolve.side_effect = TrackerAuthError(provider="lacale", http_status=403, message="forbidden")
+        mock_resolve.side_effect = TrackerAuthError(provider="c411", http_status=403, message="forbidden")
         outcome = orchestrator.grab(_make_wanted(), QualityProfile())
 
     assert outcome.disposition == "terminal"
@@ -414,7 +414,7 @@ def test_torrent_fetch_error_retryable() -> None:
     """TorrentFetchError on resolve_source → RETRYABLE fetch_failed."""
     orchestrator, spy, _registry, _tc, _seed = _make_orchestrator()
     with patch(_RESOLVE) as mock_resolve:
-        mock_resolve.side_effect = TorrentFetchError(provider="lacale", http_status=0, message="bad body")
+        mock_resolve.side_effect = TorrentFetchError(provider="c411", http_status=0, message="bad body")
         outcome = orchestrator.grab(_make_wanted(), QualityProfile())
 
     assert outcome.disposition == "retryable"
@@ -516,7 +516,7 @@ def test_no_torrent_client_retryable_no_crash() -> None:
 
     assert outcome.disposition == "retryable"
     assert outcome.reason == "no_torrent_client"
-    assert outcome.chosen is not None and outcome.chosen.provider == "lacale"
+    assert outcome.chosen is not None and outcome.chosen.provider == "c411"
     failed = [e for e in spy.events if isinstance(e, GrabFailed)]
     assert len(failed) == 1
     assert failed[0].reason == "no_torrent_client"
@@ -638,7 +638,7 @@ def test_search_available_states_takeable_count() -> None:
 
     assert (verdict.disposition, verdict.outcome, verdict.found) == ("available", "available", 2)
     assert verdict.chosen is not None
-    assert verdict.chosen.provider == "lacale"
+    assert verdict.chosen.provider == "c411"
     _assert_no_side_effects(spy, torrent_client)
 
 
@@ -650,7 +650,7 @@ def test_search_circuit_open_is_retryable_and_inconclusive() -> None:
     removes (panne ≠ absence).
     """
     orchestrator, spy, registry, torrent_client, _seed = _make_orchestrator()
-    registry.search_candidates.side_effect = CircuitOpenError("lacale", 30.0)
+    registry.search_candidates.side_effect = CircuitOpenError("c411", 30.0)
 
     verdict = orchestrator.search(_make_wanted(), QualityProfile())
 
@@ -662,7 +662,7 @@ def test_search_circuit_open_is_retryable_and_inconclusive() -> None:
 def test_search_api_error_is_retryable_and_inconclusive() -> None:
     """A generic ApiError during search → ('retryable', 'search_api_error', None)."""
     orchestrator, spy, registry, torrent_client, _seed = _make_orchestrator()
-    registry.search_candidates.side_effect = ApiError(provider="lacale", http_status=500, message="boom")
+    registry.search_candidates.side_effect = ApiError(provider="c411", http_status=500, message="boom")
 
     verdict = orchestrator.search(_make_wanted(), QualityProfile())
 
@@ -681,7 +681,7 @@ def test_search_tracker_auth_is_terminal() -> None:
     assert issubclass(TrackerAuthError, ApiError)  # the ordering hazard this test pins
 
     orchestrator, spy, registry, torrent_client, _seed = _make_orchestrator()
-    registry.search_candidates.side_effect = TrackerAuthError(provider="lacale", http_status=403, message="forbidden")
+    registry.search_candidates.side_effect = TrackerAuthError(provider="c411", http_status=403, message="forbidden")
 
     verdict = orchestrator.search(_make_wanted(), QualityProfile())
 
@@ -845,7 +845,7 @@ def test_grab_folds_a_search_time_auth_error_into_search_api_error() -> None:
     (``test_tracker_auth_error_terminal_no_add_call``).
     """
     orchestrator, spy, registry, torrent_client, _seed = _make_orchestrator()
-    registry.search_candidates.side_effect = TrackerAuthError(provider="lacale", http_status=401, message="nope")
+    registry.search_candidates.side_effect = TrackerAuthError(provider="c411", http_status=401, message="nope")
 
     outcome = orchestrator.grab(_make_wanted(), QualityProfile())
 
@@ -1032,7 +1032,7 @@ def test_search_pass_applies_movie_year_filter_and_query(followed_id: int = 7) -
     registry.search_candidates.return_value = SearchOutcome(
         results=[right, wrong], trackers_queried=1, trackers_errored=0
     )
-    registry.transports.return_value = {"lacale": MagicMock()}
+    registry.transports.return_value = {"c411": MagicMock()}
     orchestrator = GrabOrchestrator(
         tracker_registry=registry,
         torrent_client=None,
@@ -1112,7 +1112,7 @@ class TestMediaKindThreading:
         r = _make_result()
         registry = MagicMock()
         registry.search_candidates.return_value = SearchOutcome(results=[r], trackers_queried=1, trackers_errored=0)
-        registry.transports.return_value = {"lacale": MagicMock()}
+        registry.transports.return_value = {"c411": MagicMock()}
 
         ranking = self._make_ranking({"movie": self._MOVIE_TIERS})
         orchestrator = GrabOrchestrator(

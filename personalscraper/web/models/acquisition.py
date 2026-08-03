@@ -582,8 +582,7 @@ class RankingPreviewRelease(BaseModel):
 
     Attributes:
         title: Human-readable sample release title.
-        provider: Tracker wire name the sample stands for (``tr4ker`` / ``c411``
-            / ``lacale``).
+        provider: Tracker wire name the sample stands for (``tr4ker`` / ``c411``).
         resolution: Parsed resolution token (``2160p`` / ``1080p`` / …), if any.
         codec: Parsed video-codec token, if any.
         language: Parsed language / audio-track marker (``MULTI`` / ``VFF`` / …).
@@ -619,9 +618,9 @@ class RankingPreviewResponse(BaseModel):
             score first (excluded-by-min_seeders rows sink to the end, flagged).
         known_trackers: The app's tracker roster sourced from the hardcoded factory
             map (:data:`personalscraper.api.tracker._factory._TRACKER_CLASSES`),
-            excluding ``"lacale"`` (deprecated dead tracker).  Stable sorted order.
-            The frontend uses this to populate the tracker-criterion key select
-            so the operator picks from actual providers, not free-text.
+            in stable sorted order. The frontend uses this to populate the
+            tracker-criterion key select so the operator picks from actual
+            providers, not free-text.
     """
 
     ranked: list[RankingPreviewRelease] = []

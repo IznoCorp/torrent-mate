@@ -1053,7 +1053,7 @@ def test_seed_round_trip_and_marks(store: ConcreteAcquireStore) -> None:
     """A SeedObligation round-trips and find_by_dispatched_path resolves it."""
     obligation = SeedObligation(
         info_hash="abcdef0123456789",
-        source_tracker="lacale",
+        source_tracker="tr4ker",
         min_seed_time_s=259200,
         min_ratio=1.5,
         added_at=1_700_000_200,
@@ -1091,7 +1091,7 @@ def test_mark_breached_under_descendant_and_count(store: ConcreteAcquireStore) -
     """mark_breached_under breaches an active descendant obligation and returns the count."""
     obligation = SeedObligation(
         info_hash="under111",
-        source_tracker="lacale",
+        source_tracker="tr4ker",
         min_seed_time_s=999999,
         min_ratio=1.0,
         added_at=1_700_000_000,
@@ -1134,7 +1134,7 @@ def test_mark_breached_under_excludes_released(store: ConcreteAcquireStore) -> N
     """mark_breached_under skips already-released obligations (released_at IS NOT NULL)."""
     obligation = SeedObligation(
         info_hash="under333",
-        source_tracker="lacale",
+        source_tracker="tr4ker",
         min_seed_time_s=999999,
         min_ratio=1.0,
         added_at=1_700_000_002,
@@ -1151,7 +1151,7 @@ def test_mark_breached_under_idempotent_skips_already_breached(store: ConcreteAc
     """A second mark_breached_under on the same path is a no-op (idempotent count=0)."""
     obligation = SeedObligation(
         info_hash="under444",
-        source_tracker="lacale",
+        source_tracker="tr4ker",
         min_seed_time_s=999999,
         min_ratio=1.0,
         added_at=1_700_000_003,
@@ -1173,7 +1173,7 @@ def test_find_active_under_exact_match(store: ConcreteAcquireStore) -> None:
     """find_active_under returns an obligation whose dispatched_path exactly matches path."""
     obligation = SeedObligation(
         info_hash="aaa111",
-        source_tracker="lacale",
+        source_tracker="tr4ker",
         min_seed_time_s=100,
         min_ratio=1.0,
         added_at=1_700_000_000,
@@ -1215,7 +1215,7 @@ def test_find_active_under_no_sibling_prefix_match(store: ConcreteAcquireStore) 
     """
     obligation = SeedObligation(
         info_hash="ccc333",
-        source_tracker="lacale",
+        source_tracker="tr4ker",
         min_seed_time_s=300,
         min_ratio=1.0,
         added_at=1_700_000_002,
@@ -1254,7 +1254,7 @@ def test_find_active_under_returns_multiple_descendants(store: ConcreteAcquireSt
     obligations = [
         SeedObligation(
             info_hash="eee1",
-            source_tracker="lacale",
+            source_tracker="tr4ker",
             min_seed_time_s=100,
             min_ratio=1.0,
             added_at=1_700_000_100,
@@ -1262,7 +1262,7 @@ def test_find_active_under_returns_multiple_descendants(store: ConcreteAcquireSt
         ),
         SeedObligation(
             info_hash="eee2",
-            source_tracker="lacale",
+            source_tracker="tr4ker",
             min_seed_time_s=200,
             min_ratio=1.0,
             added_at=1_700_000_200,
@@ -1289,25 +1289,25 @@ def test_find_active_under_returns_multiple_descendants(store: ConcreteAcquireSt
 def test_ratio_upsert_round_trip(store: ConcreteAcquireStore) -> None:
     """ratio.upsert inserts then updates the same PK row (data-carrier)."""
     initial = RatioState(
-        tracker_name="lacale",
+        tracker_name="tr4ker",
         observed_ratio=1.2,
         accumulated_seed_time_s=3600,
         hnr_count=0,
         updated_at=1000,
     )
     store.ratio.upsert(initial)
-    assert store.ratio.get("lacale") == initial
+    assert store.ratio.get("tr4ker") == initial
 
     # Upsert again on the same PK must REPLACE, not duplicate.
     updated = RatioState(
-        tracker_name="lacale",
+        tracker_name="tr4ker",
         observed_ratio=1.9,
         accumulated_seed_time_s=7200,
         hnr_count=1,
         updated_at=2000,
     )
     store.ratio.upsert(updated)
-    assert store.ratio.get("lacale") == updated
+    assert store.ratio.get("tr4ker") == updated
 
 
 def test_ratio_get_missing_returns_none(store: ConcreteAcquireStore) -> None:

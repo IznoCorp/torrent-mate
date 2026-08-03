@@ -54,7 +54,7 @@ class TestC411Policy:
         assert policy.response_format == "xml"
 
     def test_policy_defensive_rate_limit(self) -> None:
-        """Rate limit set to 0.5 rps (same defensive default as LaCale)."""
+        """Rate limit set to 0.5 rps (the family's defensive default)."""
         assert C411Client.policy("k").rate_limit.requests_per_second == 0.5
 
     def test_required_creds(self) -> None:
@@ -82,7 +82,8 @@ class TestC411SearchAgainstLiveSamples:
         UNPINNED 2026-07-28, one field only: ``tmdb_id`` was ``None`` for c411
         until the generic Torznab client started mapping the ``tmdbid`` attr.
         The change restores the TMDB identity hard-filter (the anti-remake
-        guard), which lost its only producer when the torr9 client was removed.
+        guard), which lost its only producer when a legacy tracker client was
+        decommissioned.
         Every other assertion below is the untouched phase-1 pin.
         """
         client = _make_client()
@@ -106,7 +107,7 @@ class TestC411SearchAgainstLiveSamples:
         assert first.upload_date.year == 2026
 
     def test_quality_fields_extracted_from_title(self) -> None:
-        """Title regex (reused from LaCale) extracts resolution/codec/audio."""
+        """The shared ``_quality`` parser extracts resolution/codec/audio from the title."""
         client = _make_client()
         client._transport.get.return_value = _load_xml("search-inception.xml")  # type: ignore[attr-defined]
 

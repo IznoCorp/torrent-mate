@@ -58,7 +58,7 @@ def _obligation(
     min_seed_time_s: int = 999999,
     *,
     info_hash: str = "abc123def456",
-    source_tracker: str = "lacale",
+    source_tracker: str = "c411",
     added_at: int | None = None,
     **kwargs: object,
 ) -> SeedObligation:
@@ -237,7 +237,7 @@ def test_seedtime_not_met_veto(store: "ConcreteAcquireStore", tmp_path: Path) ->
         dispatched_path=str(path),
         min_seed_time_s=999999,
         info_hash="abc123def4567890",
-        source_tracker="lacale",
+        source_tracker="c411",
     )
     store.seed.add(ob)
 
@@ -246,7 +246,7 @@ def test_seedtime_not_met_veto(store: "ConcreteAcquireStore", tmp_path: Path) ->
 
     assert decision is not ALLOW
     reason_str = str(decision)
-    assert "lacale" in reason_str
+    assert "c411" in reason_str
     assert "abc123de" in reason_str  # info_hash[:8]...
 
 

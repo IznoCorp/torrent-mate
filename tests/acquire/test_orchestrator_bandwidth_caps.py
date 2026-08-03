@@ -33,7 +33,7 @@ from personalscraper.core.identity import MediaRef
 
 _RESOLVE = "personalscraper.acquire.orchestrator.resolve_source"
 
-TOP_PROVIDER = "lacale"
+TOP_PROVIDER = "c411"
 INFO_HASH = "cafe1234"
 
 

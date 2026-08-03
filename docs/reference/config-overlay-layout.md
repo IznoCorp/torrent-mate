@@ -120,7 +120,7 @@ Invalid strings raise `ValueError` at boot.
 Announce passkeys are **non-gating**: a missing `<TRACKER>_PASSKEY` never
 deactivates a tracker. Resolved via `resolve_optional_secret()` in
 `api/_activation.py` — never consulted by `resolve_active()`.
-See `.env.example` for variable names (`LACALE_PASSKEY`, `C411_PASSKEY`).
+See `.env.example` for variable names (`C411_PASSKEY`, `TR4KER_PASSKEY`).
 
 ## Programmatic writes (S4 config editor)
 

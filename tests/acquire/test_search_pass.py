@@ -69,7 +69,7 @@ def _pending_item(tvdb_id: int = 99) -> WantedItem:
 
 
 def _takeable_result(
-    provider: str = "lacale",
+    provider: str = "c411",
     info_hash: str = "aaaa1234",
     seeders: int = 50,
 ) -> TrackerResult:
@@ -229,7 +229,7 @@ def _episode_item(
 def _season_pack_result(title: str = "Show S03E01-E12 COMPLETE 1080p") -> TrackerResult:
     """A tracker result that ``filter_to_season`` keeps."""
     return TrackerResult(
-        provider="lacale",
+        provider="c411",
         tracker_id="t99",
         title=title,
         size=ByteSize(20_000_000_000),
@@ -237,7 +237,7 @@ def _season_pack_result(title: str = "Show S03E01-E12 COMPLETE 1080p") -> Tracke
         leechers=0,
         resolution="1080p",
         info_hash="seasonpack99",
-        download_url="https://lacale.test/torrent/99",
+        download_url="https://c411.test/torrent/99",
     )
 
 

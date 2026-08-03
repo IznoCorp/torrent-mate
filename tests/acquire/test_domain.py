@@ -53,7 +53,7 @@ def test_seed_obligation_fields() -> None:
     """SeedObligation nullable fields default to None."""
     so = SeedObligation(
         info_hash="abc123",
-        source_tracker="lacale",
+        source_tracker="c411",
         min_seed_time_s=72 * 3600,
         min_ratio=1.0,
         added_at=int(time.time()),
@@ -74,7 +74,7 @@ def test_seed_obligation_rejects_negative_min_seed_time() -> None:
     with pytest.raises(ValueError, match="min_seed_time_s"):
         SeedObligation(
             info_hash="abc123",
-            source_tracker="lacale",
+            source_tracker="c411",
             min_seed_time_s=-1,
             min_ratio=1.0,
             added_at=int(time.time()),
@@ -86,7 +86,7 @@ def test_seed_obligation_rejects_negative_min_ratio() -> None:
     with pytest.raises(ValueError, match="min_ratio"):
         SeedObligation(
             info_hash="abc123",
-            source_tracker="lacale",
+            source_tracker="c411",
             min_seed_time_s=72 * 3600,
             min_ratio=-0.5,
             added_at=int(time.time()),
@@ -97,7 +97,7 @@ def test_seed_obligation_accepts_zero_floors() -> None:
     """T1: zero is a valid (non-negative) floor — no exception."""
     so = SeedObligation(
         info_hash="abc123",
-        source_tracker="lacale",
+        source_tracker="c411",
         min_seed_time_s=0,
         min_ratio=0.0,
         added_at=int(time.time()),
@@ -109,7 +109,7 @@ def test_seed_obligation_accepts_zero_floors() -> None:
 def test_ratio_state_fields() -> None:
     """RatioState stores per-tracker ratio state."""
     rs = RatioState(
-        tracker_name="lacale",
+        tracker_name="c411",
         observed_ratio=1.2,
         accumulated_seed_time_s=100000,
         hnr_count=0,

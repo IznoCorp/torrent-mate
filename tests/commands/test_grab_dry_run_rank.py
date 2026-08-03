@@ -73,7 +73,7 @@ _SEEDER_RANKING = RankingConfig(
 # seeders ⇒ rank() scores it 0. This is the release the OLD (lying) dry-run
 # printed as "Top".
 _CANDIDATE_A = TrackerResult(
-    provider="lacale",
+    provider="c411",
     tracker_id="a1",
     title="Alpha 2024 MULTi 1080p WEB-DL x264-QTA",
     size=ByteSize(4_000_000_000),
@@ -81,14 +81,14 @@ _CANDIDATE_A = TrackerResult(
     leechers=0,
     resolution="1080p",
     info_hash="a1a1a1",
-    download_url="https://lacale.test/t/a",
+    download_url="https://c411.test/t/a",
 )
 
 # Candidate B — SECOND in the results, a distinct release (different codec +
 # group ⇒ different fuzzy key ⇒ no merge with A). 800 seeders ⇒ rank() scores
 # it 1000 and floats it to the top. This is the release the REAL grab acts on.
 _CANDIDATE_B = TrackerResult(
-    provider="lacale",
+    provider="c411",
     tracker_id="b2",
     title="Alpha 2024 MULTi 1080p BluRay x265-QTB",
     size=ByteSize(9_000_000_000),
@@ -96,7 +96,7 @@ _CANDIDATE_B = TrackerResult(
     leechers=0,
     resolution="1080p",
     info_hash="b2b2b2",
-    download_url="https://lacale.test/t/b",
+    download_url="https://c411.test/t/b",
 )
 
 

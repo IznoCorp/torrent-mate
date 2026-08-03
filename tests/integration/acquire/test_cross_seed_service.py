@@ -126,7 +126,7 @@ def make_torrent_bytes(
 # Config builder
 # ---------------------------------------------------------------------------
 
-_TRACKER_LACALE = "lacale"
+_TRACKER_C411 = "c411"
 _TRACKER_TR4KER = "tr4ker"
 
 _SOURCE_HASH = "abc123def4567890abc123def4567890abc123de"  # 40-char hex
@@ -196,11 +196,11 @@ def make_config(
 
     if tracker_providers is None:
         tracker_providers = {
-            _TRACKER_LACALE: _tracker_provider(),
+            _TRACKER_C411: _tracker_provider(),
             _TRACKER_TR4KER: _tracker_provider(),
         }
     if tracker_priority is None:
-        tracker_priority = [_TRACKER_LACALE, _TRACKER_TR4KER]
+        tracker_priority = [_TRACKER_C411, _TRACKER_TR4KER]
 
     return Config(
         paths=PathConfig(
@@ -595,7 +595,7 @@ def store(tmp_path: Path) -> Iterator[ConcreteAcquireStore]:
 
 
 # ---------------------------------------------------------------------------
-# Shared builder — CrossSeedService with two trackers (lacale origin, tr4ker target)
+# Shared builder — CrossSeedService with two trackers (c411 origin, tr4ker target)
 # ---------------------------------------------------------------------------
 
 
@@ -609,7 +609,7 @@ def _source_item(
 ) -> TorrentItem:
     """Build a completed source :class:`TorrentItem`."""
     if tags is None:
-        tags = [_TRACKER_LACALE]
+        tags = [_TRACKER_C411]
     return TorrentItem(
         hash=info_hash,
         name=name,
@@ -736,14 +736,14 @@ class TestCheckHappyPath:
             transport=fake_transport,
             results=[_candidate_result(download_url=candidate_url)],
         )
-        fake_lacale_tracker = FakeTracker(
-            provider=_TRACKER_LACALE,
+        fake_c411_tracker = FakeTracker(
+            provider=_TRACKER_C411,
             results=[],  # No candidates from origin tracker.
         )
 
         fake_registry = make_registry(
-            {_TRACKER_LACALE: fake_lacale_tracker, _TRACKER_TR4KER: fake_torrent_tracker},
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            {_TRACKER_C411: fake_c411_tracker, _TRACKER_TR4KER: fake_torrent_tracker},
+            priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
 
         injected_events: list[CrossSeedInjected] = []
@@ -753,10 +753,10 @@ class TestCheckHappyPath:
         cfg = make_config(
             tmp_path,
             tracker_providers={
-                _TRACKER_LACALE: _tracker_provider(),
+                _TRACKER_C411: _tracker_provider(),
                 _TRACKER_TR4KER: _tracker_provider(min_seed_time=86_400, min_ratio=1.5),
             },
-            tracker_priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            tracker_priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
 
         svc = _build_service(cfg, store, fake_client, fake_registry, event_bus=bus)
@@ -847,14 +847,14 @@ class TestCheckRecheckFails:
 
         fake_registry = make_registry(
             {
-                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
                 _TRACKER_TR4KER: FakeTracker(
                     provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
 
         cfg = make_config(tmp_path)
@@ -939,14 +939,14 @@ class TestCheckIdempotent:
 
         fake_registry = make_registry(
             {
-                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
                 _TRACKER_TR4KER: FakeTracker(
                     provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
 
         cfg = make_config(tmp_path, exclude_recent_search_days=3)
@@ -975,7 +975,7 @@ class TestCheckOriginExcluded:
         tmp_path: Path,
         store: ConcreteAcquireStore,
     ) -> None:
-        """Source from lacale → lacale candidates excluded, tr4ker candidate injected.
+        """Source from c411 → c411 candidates excluded, tr4ker candidate injected.
 
         The promised scenario from the phase-10 plan: the origin tracker has
         candidates (which must be excluded), AND an eligible other tracker has
@@ -984,7 +984,7 @@ class TestCheckOriginExcluded:
         trackers (the degenerate case tested before).
         """
         # -- Arrange ----------------------------------------------------------
-        item = _source_item(tags=[_TRACKER_LACALE])
+        item = _source_item(tags=[_TRACKER_C411])
         source_files = [("Movie.2024.1080p.BluRay.x264-GROUP.mkv", 2_000_000_000)]
 
         fake_client = FakeTorrentClient(completed=[item])
@@ -999,9 +999,9 @@ class TestCheckOriginExcluded:
         )
         injected_hash = _derive_injected_hash(candidate_torrent)
 
-        # lacale (origin) has candidates — must be excluded.
-        fake_lacale_transport = FakeTransport(provider_name=_TRACKER_LACALE)
-        lacale_results = [_candidate_result(provider=_TRACKER_LACALE, download_url="https://lacale.example.com/dl/1")]
+        # c411 (origin) has candidates — must be excluded.
+        fake_c411_transport = FakeTransport(provider_name=_TRACKER_C411)
+        c411_results = [_candidate_result(provider=_TRACKER_C411, download_url="https://c411.example.com/dl/1")]
 
         # tr4ker (eligible) has a structurally-matching candidate → should be injected.
         tr4ker_url = "https://tr4ker.example.com/dl/456"
@@ -1011,10 +1011,10 @@ class TestCheckOriginExcluded:
 
         fake_registry = make_registry(
             {
-                _TRACKER_LACALE: FakeTracker(
-                    provider=_TRACKER_LACALE,
-                    transport=fake_lacale_transport,
-                    results=lacale_results,
+                _TRACKER_C411: FakeTracker(
+                    provider=_TRACKER_C411,
+                    transport=fake_c411_transport,
+                    results=c411_results,
                 ),
                 _TRACKER_TR4KER: FakeTracker(
                     provider=_TRACKER_TR4KER,
@@ -1022,16 +1022,16 @@ class TestCheckOriginExcluded:
                     results=tr4ker_results,
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
 
         cfg = make_config(
             tmp_path,
             tracker_providers={
-                _TRACKER_LACALE: _tracker_provider(),
+                _TRACKER_C411: _tracker_provider(),
                 _TRACKER_TR4KER: _tracker_provider(min_seed_time=86_400, min_ratio=1.5),
             },
-            tracker_priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            tracker_priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
         svc = _build_service(cfg, store, fake_client, fake_registry)
 
@@ -1039,7 +1039,7 @@ class TestCheckOriginExcluded:
         result = svc.check(_SOURCE_HASH)
 
         # -- Assert -----------------------------------------------------------
-        # tr4ker candidate was injected (origin lacale excluded → not iterated).
+        # tr4ker candidate was injected (origin c411 excluded → not iterated).
         assert result.injected == [injected_hash]
         assert result.rejected == []
         assert result.skipped is False
@@ -1048,9 +1048,9 @@ class TestCheckOriginExcluded:
         assert injected_hash in fake_client.resumed
         assert SEED_PURE in fake_client.tags_added.get(injected_hash, set())
 
-        # Search history recorded for tr4ker only (lacale is origin → excluded).
+        # Search history recorded for tr4ker only (c411 is origin → excluded).
         assert store.cross_seed.was_searched_recently(_SOURCE_HASH, _TRACKER_TR4KER, days=3) is True
-        # lacale was never in remaining → no search recorded.
+        # c411 was never in remaining → no search recorded.
         obligations = store.seed.find_active_under(Path(item.save_path))
         assert len(obligations) == 1
         assert obligations[0].source_tracker == _TRACKER_TR4KER
@@ -1066,7 +1066,7 @@ class TestCheckSeedPureSkipped:
     ) -> None:
         """SEED_PURE-tagged torrent → skipped immediately."""
         # -- Arrange ----------------------------------------------------------
-        item = _source_item(tags=[_TRACKER_LACALE, SEED_PURE])
+        item = _source_item(tags=[_TRACKER_C411, SEED_PURE])
         fake_client = FakeTorrentClient(completed=[item])
 
         fake_registry = make_registry({})
@@ -1144,24 +1144,24 @@ class TestCheckCrossSeedDisabledTracker:
 
         fake_registry = make_registry(
             {
-                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
                 _TRACKER_TR4KER: FakeTracker(
                     provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url="https://tr4ker.example.com/dl/123")],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
 
         # tr4ker has cross_seed=False — should be excluded.
         cfg = make_config(
             tmp_path,
             tracker_providers={
-                _TRACKER_LACALE: _tracker_provider(cross_seed=True),
+                _TRACKER_C411: _tracker_provider(cross_seed=True),
                 _TRACKER_TR4KER: _tracker_provider(cross_seed=False),
             },
-            tracker_priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            tracker_priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
         svc = _build_service(cfg, store, fake_client, fake_registry)
 
@@ -1169,7 +1169,7 @@ class TestCheckCrossSeedDisabledTracker:
         result = svc.check(_SOURCE_HASH)
 
         # -- Assert -----------------------------------------------------------
-        # lacale is origin (excluded), tr4ker cross_seed=False (excluded) → no remaining.
+        # c411 is origin (excluded), tr4ker cross_seed=False (excluded) → no remaining.
         assert result.skipped is True
         assert result.injected == []
 
@@ -1195,7 +1195,7 @@ class TestSweepQuotaExhausted:
             _source_item(info_hash=f"hash{i:040d}", name=f"Movie.{i}.2024", save_path=f"/data/Movie.{i}.2024")
             for i in range(3)
         ]
-        # Items 0 and 1 tagged lacale (origin), item 2 tagged differently.
+        # Items 0 and 1 tagged c411 (origin), item 2 tagged differently.
         items[2] = _source_item(
             info_hash=f"hash{2:040d}",
             name=f"Movie.{2}.2024",
@@ -1230,10 +1230,10 @@ class TestSweepQuotaExhausted:
 
         fake_registry = make_registry(
             {
-                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
                 _TRACKER_TR4KER: fake_torrent_tracker,
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
 
         cfg = make_config(tmp_path, max_searches_per_day=2)
@@ -1277,14 +1277,14 @@ class TestSweepExcludeRecent:
 
         fake_registry = make_registry(
             {
-                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
                 _TRACKER_TR4KER: FakeTracker(
                     provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url="https://tr4ker.example.com/dl/123")],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
 
         cfg = make_config(tmp_path, max_searches_per_day=5, exclude_recent_search_days=3)
@@ -1350,10 +1350,10 @@ class TestSweepDelayRespected:
 
         fake_registry = make_registry(
             {
-                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
                 _TRACKER_TR4KER: fake_torrent_tracker,
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
 
         min_delay = 15
@@ -1426,14 +1426,14 @@ class TestPathFrameNormalization:
 
         fake_registry = make_registry(
             {
-                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
                 _TRACKER_TR4KER: FakeTracker(
                     provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
 
         cfg = make_config(tmp_path)
@@ -1487,14 +1487,14 @@ class TestPathFrameNormalization:
 
         fake_registry = make_registry(
             {
-                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
                 _TRACKER_TR4KER: FakeTracker(
                     provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
 
         cfg = make_config(tmp_path)
@@ -1543,14 +1543,14 @@ class TestPathFrameNormalization:
 
         fake_registry = make_registry(
             {
-                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
                 _TRACKER_TR4KER: FakeTracker(
                     provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
 
         cfg = make_config(tmp_path)
@@ -1600,14 +1600,14 @@ class TestPathFrameNormalization:
 
         fake_registry = make_registry(
             {
-                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
                 _TRACKER_TR4KER: FakeTracker(
                     provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
 
         cfg = make_config(tmp_path)
@@ -1660,14 +1660,14 @@ class TestCheckSelfCandidate:
 
         fake_registry = make_registry(
             {
-                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
                 _TRACKER_TR4KER: FakeTracker(
                     provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
 
         cfg = make_config(tmp_path)
@@ -1712,10 +1712,10 @@ class TestOriginUnresolvedWarning:
 
         fake_registry = make_registry(
             {
-                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
                 _TRACKER_TR4KER: FakeTracker(provider=_TRACKER_TR4KER, results=[]),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
 
         cfg = make_config(tmp_path)
@@ -1796,14 +1796,14 @@ class TestSelfDeleteAverted:
 
             fake_registry = make_registry(
                 {
-                    _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                    _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
                     _TRACKER_TR4KER: FakeTracker(
                         provider=_TRACKER_TR4KER,
                         transport=fake_transport,
                         results=[_candidate_result(download_url=candidate_url)],
                     ),
                 },
-                priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+                priority=[_TRACKER_C411, _TRACKER_TR4KER],
             )
 
             cfg = make_config(tmp_path)
@@ -1891,10 +1891,10 @@ class TestSweepInjectErrorIsolation:
 
         fake_registry = make_registry(
             {
-                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
                 _TRACKER_TR4KER: fake_torrent_tracker,
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
 
         # Make inject fail on the second call (item index 1).
@@ -1969,14 +1969,14 @@ class TestObligationWriteFailure:
 
         fake_registry = make_registry(
             {
-                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
                 _TRACKER_TR4KER: FakeTracker(
                     provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
 
         injected_events: list[CrossSeedInjected] = []
@@ -2048,14 +2048,14 @@ class TestResumeFailureKeepsObligation:
 
         fake_registry = make_registry(
             {
-                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
                 _TRACKER_TR4KER: FakeTracker(
                     provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
 
         injected_events: list[CrossSeedInjected] = []
@@ -2065,10 +2065,10 @@ class TestResumeFailureKeepsObligation:
         cfg = make_config(
             tmp_path,
             tracker_providers={
-                _TRACKER_LACALE: _tracker_provider(),
+                _TRACKER_C411: _tracker_provider(),
                 _TRACKER_TR4KER: _tracker_provider(min_seed_time=86_400, min_ratio=1.5),
             },
-            tracker_priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            tracker_priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
 
         # Override resume to raise.
@@ -2194,24 +2194,24 @@ class TestErroredTrackerNotRecorded:
         fake_client.seed_files(_SOURCE_HASH, source_files)
         fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
 
-        # tr4ker succeeds (has candidate), lacale errors.
+        # tr4ker succeeds (has candidate), c411 errors.
         candidate_url = "https://tr4ker.example.com/dl/123"
         fake_transport = FakeTransport(provider_name=_TRACKER_TR4KER)
         fake_transport.seed(candidate_url, candidate_torrent)
 
         fake_registry = make_registry(
             {
-                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
                 _TRACKER_TR4KER: FakeTracker(
                     provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
-        # lacale errors → no candidates from it, errored_names = ["lacale"].
-        fake_registry.seed_errored({_TRACKER_LACALE})
+        # c411 errors → no candidates from it, errored_names = ["c411"].
+        fake_registry.seed_errored({_TRACKER_C411})
 
         cfg = make_config(tmp_path)
         svc = _build_service(cfg, store, fake_client, fake_registry)
@@ -2226,8 +2226,8 @@ class TestErroredTrackerNotRecorded:
         # tr4ker (succeeded) IS recorded in search history.
         assert store.cross_seed.was_searched_recently(_SOURCE_HASH, _TRACKER_TR4KER, days=3) is True
 
-        # lacale (errored) is NOT recorded → retry possible next check.
-        assert store.cross_seed.was_searched_recently(_SOURCE_HASH, _TRACKER_LACALE, days=3) is False
+        # c411 (errored) is NOT recorded → retry possible next check.
+        assert store.cross_seed.was_searched_recently(_SOURCE_HASH, _TRACKER_C411, days=3) is False
 
 
 class TestVerifyTimeoutConfig:
@@ -2295,14 +2295,14 @@ class TestVerifyTimeoutConfig:
 
         fake_registry = make_registry(
             {
-                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
                 _TRACKER_TR4KER: FakeTracker(
                     provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
 
         # Use a non-default verify_timeout_s to prove the config value is read.
@@ -2388,14 +2388,14 @@ class TestCheckInjectApiError:
 
         fake_registry = make_registry(
             {
-                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
                 _TRACKER_TR4KER: FakeTracker(
                     provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
 
         rejected_events: list[CrossSeedRejected] = []
@@ -2464,14 +2464,14 @@ class TestCheckInjectValueError:
 
         fake_registry = make_registry(
             {
-                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
                 _TRACKER_TR4KER: FakeTracker(
                     provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
 
         rejected_events: list[CrossSeedRejected] = []
@@ -2517,10 +2517,10 @@ class TestCheckEmptyFileList:
 
         fake_registry = make_registry(
             {
-                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
                 _TRACKER_TR4KER: FakeTracker(provider=_TRACKER_TR4KER, results=[]),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
 
         cfg = make_config(tmp_path)
@@ -2581,14 +2581,14 @@ class TestObligationWriteFailSelfHash:
 
         fake_registry = make_registry(
             {
-                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
                 _TRACKER_TR4KER: FakeTracker(
                     provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
 
         cfg = make_config(tmp_path)
@@ -2639,12 +2639,12 @@ class TestTrackerAbsentFromRegistryNotRecorded:
         fake_client.seed_files(_SOURCE_HASH, source_files)
         fake_client.seed_properties(_SOURCE_HASH, {"piece_size": 262144})
 
-        # Only lacale is registered — tr4ker is absent (client None in
-        # FakeRegistry).  lacale is origin (excluded from remaining),
+        # Only c411 is registered — tr4ker is absent (client None in
+        # FakeRegistry).  c411 is origin (excluded from remaining),
         # tr4ker is in remaining but not in queried_names.
         fake_registry = make_registry(
-            {_TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[])},
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            {_TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[])},
+            priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
 
         cfg = make_config(tmp_path)
@@ -2662,8 +2662,8 @@ class TestTrackerAbsentFromRegistryNotRecorded:
             "tr4ker should NOT be recorded as searched — it was never queried (client None)"
         )
 
-        # lacale is origin → excluded from remaining → never recorded either.
-        assert store.cross_seed.was_searched_recently(_SOURCE_HASH, _TRACKER_LACALE, days=3) is False
+        # c411 is origin → excluded from remaining → never recorded either.
+        assert store.cross_seed.was_searched_recently(_SOURCE_HASH, _TRACKER_C411, days=3) is False
 
 
 # ===========================================================================
@@ -2720,10 +2720,10 @@ class TestSweepItemErrors:
 
         fake_registry = make_registry(
             {
-                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
                 _TRACKER_TR4KER: fake_torrent_tracker,
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
 
         # Make check() raise on the second call (item index 1).
@@ -2813,10 +2813,10 @@ class TestSweepItemErrors:
 
         fake_registry = make_registry(
             {
-                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
                 _TRACKER_TR4KER: fake_torrent_tracker,
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
 
         # Make every check() call raise.
@@ -2892,7 +2892,7 @@ class TestCheckMediaTypeQueryableScope:
 
         fake_registry = make_registry(
             {
-                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
                 _TRACKER_TR4KER: FakeTracker(
                     provider=_TRACKER_TR4KER,
                     transport=fake_transport,
@@ -2904,19 +2904,19 @@ class TestCheckMediaTypeQueryableScope:
                     results=[_candidate_result(provider="third", download_url=third_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER, "third"],
-            priority_by_media_type={"movie": [_TRACKER_LACALE, _TRACKER_TR4KER]},
+            priority=[_TRACKER_C411, _TRACKER_TR4KER, "third"],
+            priority_by_media_type={"movie": [_TRACKER_C411, _TRACKER_TR4KER]},
         )
 
         cfg = make_config(
             tmp_path,
             tracker_providers={
-                _TRACKER_LACALE: _tracker_provider(),
+                _TRACKER_C411: _tracker_provider(),
                 _TRACKER_TR4KER: _tracker_provider(),
                 "third": _tracker_provider(),
             },
-            tracker_priority=[_TRACKER_LACALE, _TRACKER_TR4KER, "third"],
-            tracker_priority_by_media_type={"movie": [_TRACKER_LACALE, _TRACKER_TR4KER]},
+            tracker_priority=[_TRACKER_C411, _TRACKER_TR4KER, "third"],
+            tracker_priority_by_media_type={"movie": [_TRACKER_C411, _TRACKER_TR4KER]},
         )
         svc = _build_service(cfg, store, fake_client, fake_registry)
 
@@ -2987,14 +2987,14 @@ class TestCheckMediaTypeQueryableScope:
         # Default config: no priority_by_media_type override.
         fake_registry = make_registry(
             {
-                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
                 _TRACKER_TR4KER: FakeTracker(
                     provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
 
         cfg = make_config(tmp_path)
@@ -3031,7 +3031,7 @@ class TestCheckNotQueryableForMediaType:
         queryable for this media type.
         """
         # -- Arrange ----------------------------------------------------------
-        item = _source_item()  # tagged lacale (origin)
+        item = _source_item()  # tagged c411 (origin)
         source_files = [("Movie.2024.1080p.BluRay.x264-GROUP.mkv", 2_000_000_000)]
 
         fake_client = FakeTorrentClient(completed=[item])
@@ -3052,12 +3052,12 @@ class TestCheckNotQueryableForMediaType:
         third_url = "https://third.example.com/dl/456"
         fake_third_transport = FakeTransport(provider_name="third")
 
-        # movie override = [lacale] only.  lacale is the origin → excluded
+        # movie override = [c411] only.  c411 is the origin → excluded
         # from eligible.  tr4ker + third are eligible but NOT queryable for
         # movies → remaining becomes empty at the media-type filter step.
         fake_registry = make_registry(
             {
-                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
                 _TRACKER_TR4KER: FakeTracker(
                     provider=_TRACKER_TR4KER,
                     transport=fake_transport,
@@ -3069,19 +3069,19 @@ class TestCheckNotQueryableForMediaType:
                     results=[_candidate_result(provider="third", download_url=third_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER, "third"],
-            priority_by_media_type={"movie": [_TRACKER_LACALE]},
+            priority=[_TRACKER_C411, _TRACKER_TR4KER, "third"],
+            priority_by_media_type={"movie": [_TRACKER_C411]},
         )
 
         cfg = make_config(
             tmp_path,
             tracker_providers={
-                _TRACKER_LACALE: _tracker_provider(),
+                _TRACKER_C411: _tracker_provider(),
                 _TRACKER_TR4KER: _tracker_provider(),
                 "third": _tracker_provider(),
             },
-            tracker_priority=[_TRACKER_LACALE, _TRACKER_TR4KER, "third"],
-            tracker_priority_by_media_type={"movie": [_TRACKER_LACALE]},
+            tracker_priority=[_TRACKER_C411, _TRACKER_TR4KER, "third"],
+            tracker_priority_by_media_type={"movie": [_TRACKER_C411]},
         )
         svc = _build_service(cfg, store, fake_client, fake_registry)
 

@@ -250,7 +250,7 @@ Load these docs on-demand based on your task — they are **not** auto-loaded:
 | API contracts, HttpTransport, TransportPolicy, family Protocols (`MetadataClient`, `TorrentClient`, …)                | `docs/reference/architecture.md` (api/)         |
 | TMDB / TVDB / OMDB / Trakt providers (auth, endpoints, response shape, particularities)                               | `docs/reference/<provider>-api.md`              |
 | qBittorrent / Transmission torrent clients (auth, endpoints, content_path, particularities)                           | `docs/reference/<provider>-api.md`              |
-| LaCale / C411 / Tr4ker trackers (search, ranking, samples, freeleech, passkey) + the generic Torznab engine           | `docs/reference/<tracker>-api.md`               |
+| C411 / Tr4ker trackers (search, ranking, samples, freeleech, passkey) + the generic Torznab engine                    | `docs/reference/<tracker>-api.md`               |
 | Telegram notifier / healthchecks (lifecycle, auth-in-URL, fail-soft contract)                                         | `docs/reference/<provider>-api.md`              |
 | Plex refresh after dispatch (X-Plex-Token header, partial scan, longest-prefix section, fail-soft)                    | `docs/reference/plex-api.md`                    |
 | Provider naming conventions — `ProviderName` Enum (transport) vs `RegistryProviderName` NewType (registry)            | `docs/archive/features/registry/DESIGN.md` §5.3 |

@@ -6,9 +6,9 @@ JSON/XML fields — so each must regex-extract them from the title. This module
 owns the single regex table and the parse function so every tracker extracts
 the *same* tokens.
 
-Before this module existed, ``lacale.py`` owned ``_TITLE_PATTERNS`` +
+Before this module existed, one tracker client owned ``_TITLE_PATTERNS`` +
 ``_parse_title``, ``c411.py`` reached across the family boundary to call
-``LaCaleClient._parse_title``, and a third client parsed nothing at all —
+that sibling's private method, and a third client parsed nothing at all —
 silently dropping the quality signal the ranker relies on
 (TORRENT-TRACKERS-03). Every client now calls :func:`parse_title_quality`.
 """

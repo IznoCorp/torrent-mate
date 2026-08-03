@@ -41,7 +41,7 @@ from personalscraper.core.identity import MediaRef
 
 _RESOLVE = "personalscraper.acquire.orchestrator.resolve_source"
 
-TOP_PROVIDER = "lacale"
+TOP_PROVIDER = "c411"
 INFO_HASH = "bbbb5678"
 WANTED_TVDB_ID = 11111
 EXPECTED_MEDIA_REF = MediaRef(tvdb_id=WANTED_TVDB_ID)

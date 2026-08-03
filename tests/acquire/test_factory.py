@@ -197,7 +197,7 @@ class TestBuildAcquireContext:
         issue = TrackerConfigIssue(
             severity="error",
             code="missing_credentials",
-            provider="lacale",
+            provider="tr4ker",
             message="no key",
         )
         with patch(
@@ -227,7 +227,7 @@ class TestBuildAcquireContext:
 
         config = self._minimal_config(tmp_path)
         # Real ProviderConfig-shaped tracker providers: one with economy, one None.
-        config.tracker.providers = {"lacale": with_econ, "c411": without_econ}
+        config.tracker.providers = {"tr4ker": with_econ, "c411": without_econ}
         settings = MagicMock()
         event_bus = MagicMock()
         cb_policy = MagicMock()
@@ -238,5 +238,5 @@ class TestBuildAcquireContext:
 
         # Only the economy-bearing tracker is present; the value is the exact
         # TrackerEconomyConfig instance from the provider config.
-        assert ctx.delete_authority._economy == {"lacale": econ}
+        assert ctx.delete_authority._economy == {"tr4ker": econ}
         assert "c411" not in ctx.delete_authority._economy

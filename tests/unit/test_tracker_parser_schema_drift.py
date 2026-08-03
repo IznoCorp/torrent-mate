@@ -1,4 +1,4 @@
-"""Regression tests for c411 / lacale parser schema-drift wrapping.
+"""Regression tests for tracker parser schema-drift wrapping.
 
 PR #19 review finding I: the registry's narrowed except-tuple does NOT catch
 ``KeyError`` / ``IndexError`` / ``AttributeError`` (those are programming bugs
@@ -8,9 +8,9 @@ exceptions when an upstream provider changes its response shape — which is an
 each tracker's ``search()`` and re-raise as ``ApiError`` so the registry can
 swallow it and other trackers' results still rank.
 
-This file pins both halves of the contract for c411 and lacale (the generic
-Torznab engine behind c411 is covered the same way in
-``test_torznab_client.py``):
+This file pins both halves of the contract for the live tracker clients
+(c411 and tr4ker; the generic Torznab engine behind them is covered the same
+way in ``test_torznab_client.py``):
 1. Schema drift surfacing as KeyError/IndexError/TypeError/AttributeError must
    become ``ApiError`` carrying provider name and a useful message.
 2. The wrapped ApiError must be in the registry's swallow tuple — i.e. the
@@ -30,7 +30,7 @@ from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.tracker._ranking import RankingConfig
 from personalscraper.api.tracker._registry import TrackerRegistry
 from personalscraper.api.tracker.c411 import C411Client
-from personalscraper.api.tracker.lacale import LaCaleClient
+from personalscraper.api.tracker.tr4ker import Tr4kerClient
 
 # -- C411 -----------------------------------------------------------------
 
@@ -86,40 +86,24 @@ class TestC411SchemaDriftReRaisedAsApiError:
         assert "shape drift" in exc.value.message
 
 
-# -- LaCale ---------------------------------------------------------------
+# -- Tr4ker ---------------------------------------------------------------
 
 
-class TestLaCaleSchemaDriftReRaisedAsApiError:
-    """lacale.search() must re-raise parser exceptions as ApiError."""
+class TestTr4kerSchemaDriftReRaisedAsApiError:
+    """tr4ker.search() must re-raise parser exceptions as ApiError."""
 
-    def test_response_not_a_list(self) -> None:
-        """LaCale always returns a JSON array; receiving a dict surfaces as ApiError."""
+    def test_response_root_shape_drift(self) -> None:
+        """A non-dict RSS envelope surfaces as ApiError, not raw TypeError/AttributeError."""
         transport = MagicMock()
-        # LaCale parser expects list[dict]; receiving a dict triggers AttributeError
-        # in [self._parse_item(item) for item in items] when item is the str key.
-        transport.get.return_value = {"unexpected": "shape"}
-        client = LaCaleClient(transport)
+        transport.get.return_value = {"rss": "not-a-dict"}
+        client = Tr4kerClient(transport)
 
         with pytest.raises(ApiError) as exc:
             client.search("inception")
 
-        assert exc.value.provider == "lacale"
+        assert exc.value.provider == "tr4ker"
         assert exc.value.http_status == 0
         assert "shape drift" in exc.value.message
-
-    def test_item_missing_required_field(self) -> None:
-        """Item with a structurally wrong sub-field surfaces as ApiError."""
-        # 'size' is iterated through int/float/str; passing an object that
-        # int() rejects after isinstance triggers a ValueError inside _parse_item.
-        bad_items = [{"title": "x", "size": "not-a-number", "guid": "g"}]
-        transport = MagicMock()
-        transport.get.return_value = bad_items
-        client = LaCaleClient(transport)
-
-        with pytest.raises(ApiError) as exc:
-            client.search("inception")
-
-        assert exc.value.provider == "lacale"
 
 
 # -- Registry-level integration ------------------------------------------
@@ -154,34 +138,34 @@ def test_c411_schema_drift_does_not_abort_multi_tracker_search() -> None:
     transport = MagicMock()
     transport.get.return_value = {"rss": "not-a-dict"}
     bad_c411 = C411Client(transport)
-    good = _OkTracker("lacale")
+    good = _OkTracker("tr4ker")
 
     registry = TrackerRegistry(
-        trackers={"c411": bad_c411, "lacale": good},  # type: ignore[dict-item]
-        priority=["c411", "lacale"],
+        trackers={"c411": bad_c411, "tr4ker": good},  # type: ignore[dict-item]
+        priority=["c411", "tr4ker"],
         ranking=RankingConfig(min_seeders=0),
     )
 
     ranked = registry.search_all("Inception")
 
-    assert len(ranked) == 1, f"Expected lacale's result to survive c411 schema drift; got {ranked!r}"
-    assert ranked[0][0].provider == "lacale"
+    assert len(ranked) == 1, f"Expected tr4ker's result to survive c411 schema drift; got {ranked!r}"
+    assert ranked[0][0].provider == "tr4ker"
 
 
-def test_lacale_schema_drift_does_not_abort_multi_tracker_search() -> None:
-    """End-to-end: lacale parser blowing up must not kill other trackers' results."""
+def test_tr4ker_schema_drift_does_not_abort_multi_tracker_search() -> None:
+    """End-to-end: tr4ker parser blowing up must not kill other trackers' results."""
     transport = MagicMock()
-    transport.get.return_value = {"unexpected": "shape"}
-    bad_lacale = LaCaleClient(transport)
+    transport.get.return_value = {"rss": "not-a-dict"}
+    bad_tr4ker = Tr4kerClient(transport)
     good = _OkTracker("c411")
 
     registry = TrackerRegistry(
-        trackers={"lacale": bad_lacale, "c411": good},  # type: ignore[dict-item]
-        priority=["lacale", "c411"],
+        trackers={"tr4ker": bad_tr4ker, "c411": good},  # type: ignore[dict-item]
+        priority=["tr4ker", "c411"],
         ranking=RankingConfig(min_seeders=0),
     )
 
     ranked = registry.search_all("Inception")
 
-    assert len(ranked) == 1, f"Expected c411's result to survive lacale schema drift; got {ranked!r}"
+    assert len(ranked) == 1, f"Expected c411's result to survive tr4ker schema drift; got {ranked!r}"
     assert ranked[0][0].provider == "c411"

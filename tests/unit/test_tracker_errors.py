@@ -21,7 +21,7 @@ class TestTrackerAuthError:
 
     def test_is_tracker_auth_error(self) -> None:
         """Isinstance check works for the concrete type."""
-        err = TrackerAuthError(provider="lacale", http_status=403, provider_code=0, message="Forbidden")
+        err = TrackerAuthError(provider="c411", http_status=403, provider_code=0, message="Forbidden")
         assert isinstance(err, TrackerAuthError)
 
     def test_http_status_preserved(self) -> None:
@@ -36,7 +36,7 @@ class TestTrackerAuthError:
 
     def test_403_also_valid(self) -> None:
         """403 Forbidden is a valid auth failure status."""
-        err = TrackerAuthError(provider="lacale", http_status=403, provider_code=0, message="Forbidden")
+        err = TrackerAuthError(provider="c411", http_status=403, provider_code=0, message="Forbidden")
         assert err.http_status == 403
 
 
@@ -50,7 +50,7 @@ class TestTorrentFetchError:
 
     def test_is_torrent_fetch_error(self) -> None:
         """Isinstance check works for the concrete type."""
-        err = TorrentFetchError(provider="lacale", http_status=200, provider_code=0, message="not a torrent")
+        err = TorrentFetchError(provider="c411", http_status=200, provider_code=0, message="not a torrent")
         assert isinstance(err, TorrentFetchError)
 
     def test_message_preserved(self) -> None:

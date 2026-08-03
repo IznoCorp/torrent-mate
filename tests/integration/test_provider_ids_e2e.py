@@ -52,7 +52,7 @@ from personalscraper.api.torrent._contracts import (
 from personalscraper.api.torrent.qbittorrent import QBitClient
 from personalscraper.api.tracker._contracts import CategoryListable, TorrentSearchable
 from personalscraper.api.tracker.c411 import C411Client
-from personalscraper.api.tracker.lacale import LaCaleClient
+from personalscraper.api.tracker.tr4ker import Tr4kerClient
 from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.scanner._modes.backfill_ids import run_backfill_ids
@@ -403,11 +403,11 @@ def test_e2e_rt_facade_satisfies_rating_only() -> None:
 
 
 def test_e2e_tracker_clients_compose_capabilities() -> None:
-    """Both LaCale and C411 satisfy TorrentSearchable + CategoryListable."""
+    """Both Tr4ker and C411 satisfy TorrentSearchable + CategoryListable."""
     transport = MagicMock()
-    lacale = LaCaleClient(transport=transport)
+    tr4ker = Tr4kerClient(transport=transport)
     c411 = C411Client(transport=transport)
-    for client in (lacale, c411):
+    for client in (tr4ker, c411):
         assert isinstance(client, TorrentSearchable)
         assert isinstance(client, CategoryListable)
 

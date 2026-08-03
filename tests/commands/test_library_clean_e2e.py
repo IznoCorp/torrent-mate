@@ -328,7 +328,7 @@ def _seed_unmet_obligation(acquire_db_path: Path, dispatched_path: Path) -> None
         store.seed.add(
             SeedObligation(
                 info_hash="c2deadbeef0001",
-                source_tracker="lacale",
+                source_tracker="c411",
                 min_seed_time_s=999_999_999,  # never elapses → obligation unmet
                 min_ratio=1.0,
                 added_at=int(time.time()),

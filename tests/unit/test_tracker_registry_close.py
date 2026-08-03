@@ -75,11 +75,11 @@ class TestTrackerRegistryClose:
 
     def test_close_calls_transport_close_on_each_client(self) -> None:
         """close() must call transport.close() for every client in the registry."""
-        lacale = _stub_client("lacale")
+        tr4ker = _stub_client("tr4ker")
         c411 = _stub_client("c411")
-        registry = _make_registry({"lacale": lacale, "c411": c411})
+        registry = _make_registry({"tr4ker": tr4ker, "c411": c411})
         registry.close()
-        lacale._open_transport.close.assert_called_once()
+        tr4ker._open_transport.close.assert_called_once()
         c411._open_transport.close.assert_called_once()
 
     def test_client_without_transport_is_skipped(self) -> None:
@@ -95,19 +95,19 @@ class TestTrackerRegistryClose:
 
     def test_transport_close_exception_is_swallowed(self) -> None:
         """If transport.close() raises, the exception must not propagate."""
-        client = _stub_client("lacale")
+        client = _stub_client("tr4ker")
         client._open_transport.close.side_effect = RuntimeError("session already closed")
-        registry = _make_registry({"lacale": client})
+        registry = _make_registry({"tr4ker": client})
         registry.close()  # must not raise
 
     def test_all_transports_closed_even_when_one_raises(self) -> None:
         """A failing close on client A must not prevent client B from being closed."""
-        lacale = _stub_client("lacale")
-        lacale._open_transport.close.side_effect = RuntimeError("boom")
+        tr4ker = _stub_client("tr4ker")
+        tr4ker._open_transport.close.side_effect = RuntimeError("boom")
         c411 = _stub_client("c411")
-        registry = _make_registry({"lacale": lacale, "c411": c411})
+        registry = _make_registry({"tr4ker": tr4ker, "c411": c411})
         registry.close()
-        # c411 must still have been closed despite lacale raising:
+        # c411 must still have been closed despite tr4ker raising:
         c411._open_transport.close.assert_called_once()
 
     def test_existing_dict_ctor_still_works(self) -> None:
@@ -117,12 +117,12 @@ class TestTrackerRegistryClose:
         stub = MM()
         stub.search = MM(return_value=[])
         r = TrackerRegistry(
-            trackers={"lacale": stub},
-            priority=["lacale"],
+            trackers={"tr4ker": stub},
+            priority=["tr4ker"],
             ranking=RankingConfig(),
-            priority_by_media_type={"movie": ["lacale"]},
+            priority_by_media_type={"movie": ["tr4ker"]},
         )
-        assert r._priority == ["lacale"]
+        assert r._priority == ["tr4ker"]
 
     def test_non_callable_close_attr_is_skipped(self) -> None:
         """A non-callable `close` attr is skipped by the callable() guard WITHOUT entering try/except.
@@ -137,7 +137,7 @@ class TestTrackerRegistryClose:
         transport.close = 5  # present but NOT callable
         client._transport = transport
         client._open_transport = transport
-        registry = _make_registry({"lacale": client})
+        registry = _make_registry({"tr4ker": client})
 
         with patch("personalscraper.api.tracker._registry.log") as mock_log:
             registry.close()  # must not raise
@@ -156,8 +156,8 @@ class TestTrackerRegistryClose:
         plain-attribute clients are STILL closed.
         """
         lazy = _NotLoggedInClient()
-        healthy = _stub_client("lacale")
-        registry = _make_registry({"lazy": lazy, "lacale": healthy})
+        healthy = _stub_client("tr4ker")
+        registry = _make_registry({"lazy": lazy, "tr4ker": healthy})
 
         registry.close()  # must NOT raise and must NOT access lazy._transport
 

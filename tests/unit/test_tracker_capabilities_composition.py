@@ -3,7 +3,7 @@
 The historical monolithic ``TrackerClient`` Protocol was retired in
 sub-phase 11.1 ; each concrete client now satisfies only the atomic
 capabilities it actually implements (DESIGN §4). These tests pin the
-``isinstance`` contract for ``LaCaleClient``, ``C411Client`` and
+``isinstance`` contract for ``C411Client`` and
 ``Tr4kerClient``. Since the login-style tracker was removed, NO client
 implements ``FreeleechAware`` or ``TorrentDetailsProvider`` — the negative
 assertions below are what keeps that honest.
@@ -20,13 +20,7 @@ from personalscraper.api.tracker._contracts import (
     TorrentSearchable,
 )
 from personalscraper.api.tracker.c411 import C411Client
-from personalscraper.api.tracker.lacale import LaCaleClient
 from personalscraper.api.tracker.tr4ker import Tr4kerClient
-
-
-def _lacale() -> LaCaleClient:
-    transport = MagicMock()
-    return LaCaleClient(transport=transport)
 
 
 def _c411() -> C411Client:
@@ -62,16 +56,6 @@ def test_tr4ker_client_not_freeleech_aware_isinstance() -> None:
 def test_tr4ker_client_not_details_provider_isinstance() -> None:
     """``Tr4kerClient`` deliberately does not implement ``TorrentDetailsProvider``."""
     assert not isinstance(_tr4ker(), TorrentDetailsProvider)
-
-
-def test_lacale_client_is_torrent_searchable_isinstance() -> None:
-    """``LaCaleClient`` satisfies the ``TorrentSearchable`` capability."""
-    assert isinstance(_lacale(), TorrentSearchable)
-
-
-def test_lacale_client_is_category_listable_isinstance() -> None:
-    """``LaCaleClient`` satisfies the ``CategoryListable`` capability."""
-    assert isinstance(_lacale(), CategoryListable)
 
 
 def test_c411_client_is_torrent_searchable_isinstance() -> None:

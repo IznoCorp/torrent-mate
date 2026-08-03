@@ -38,7 +38,7 @@ from personalscraper.core.identity import MediaRef
 _RESOLVE = "personalscraper.acquire.orchestrator.resolve_source"
 
 # Constants used across tests — pin to expected values in assertions.
-TOP_PROVIDER = "lacale"
+TOP_PROVIDER = "c411"
 WANTED_TVDB_ID = 99999
 EXPECTED_MEDIA_REF = MediaRef(tvdb_id=WANTED_TVDB_ID)
 

@@ -22,7 +22,7 @@ EXPECTED_DIR = Path(__file__).parents[2] / "assets" / "torrents" / "expected"
 
 # Regex to strip release group tags and technical info from torrent names
 _STRIP_PATTERNS = [
-    r"\[.*?\]",  # [LaCale], [720p], etc.
+    r"\[.*?\]",  # [C411], [720p], etc.
     r"\b\d{3,4}p\b",  # 720p, 1080p
     r"\bBluRay\b",
     r"\bWEBRip\b",
@@ -136,7 +136,7 @@ def match_torrent_to_golden(torrent_name: str) -> GoldenFile | None:
     release tags, codecs, and resolution info.
 
     Args:
-        torrent_name: Raw torrent filename (e.g. "[LaCale]-Jumanji.1995...").
+        torrent_name: Raw torrent filename (e.g. "[C411]-Jumanji.1995...").
 
     Returns:
         GoldenFile if matched (score >= 80), None if no golden file exists.

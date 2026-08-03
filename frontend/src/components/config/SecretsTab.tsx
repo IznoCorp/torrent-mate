@@ -44,7 +44,6 @@ const FR_DESCRIPTIONS: Record<string, string> = {
   OMDB_API_KEY: "Clé API OMDb",
   WEB_PASSWORD_HASH: "Hash du mot de passe web (scrypt)",
   WEB_JWT_SECRET: "Clé secrète pour les jetons JWT (HS256)",
-  LACALE_PASSKEY: "Passkey LaCale",
   C411_PASSKEY: "Passkey C411",
 };
 
