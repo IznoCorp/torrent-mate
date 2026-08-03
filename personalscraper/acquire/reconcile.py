@@ -212,6 +212,14 @@ def _emit_for_row(
             log.info("acquire.reconcile.download_completed", wanted_id=row.id, info_hash=row_hash)
         return
 
+    # A completed mark is FINAL. A qBittorrent recheck routinely drops the
+    # observed progress back below 1.0 while the row is still open, and the
+    # completed branch never advances ``last_threshold`` — without this guard
+    # the sweep emitted phantom Started/Progressed AFTER the Completed (up to
+    # one per remaining threshold). Completion is the last word (D7).
+    if completed:
+        return
+
     if not started:
         marks.upsert(row_hash, started=True)
         event_bus.emit(DownloadStarted(info_hash=row_hash, title=title, provider=provider, kind=row.kind))

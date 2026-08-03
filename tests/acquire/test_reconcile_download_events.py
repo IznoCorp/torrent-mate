@@ -181,6 +181,26 @@ def test_big_jump_emits_only_the_highest_crossed_threshold(store: ConcreteAcquir
     assert progressed.threshold_pct == 50
 
 
+def test_completed_mark_never_reemits_started_or_progressed(store: ConcreteAcquireStore) -> None:
+    """Regression (review MAJOR): a completed mark is FINAL — no phantom Progressed.
+
+    A qBittorrent recheck drops the observed progress below 1.0 while the row
+    is still open. The completed branch never advanced ``last_threshold``, so
+    the sweep emitted Progressed events AFTER the Completed. With the guard,
+    a completed mark at progress 0.55 emits exactly NOTHING.
+    """
+    _grabbed(store)
+    store.download_marks.upsert(_HASH, started=True, completed=True)
+    bus = EventBus()
+    events = _collector(bus)
+
+    reconcile_wanted(store, _NoOwnership(), client_items={_HASH: _item(_HASH, 0.55)}, event_bus=bus)
+
+    assert events == [], "a completed mark must never re-emit Started/Progressed on a recheck regression"
+    mark = store.download_marks.get(_HASH)
+    assert mark is not None and mark.completed_emitted is True
+
+
 def test_progress_regression_never_reemits(store: ConcreteAcquireStore) -> None:
     """QBit recheck 0.80 → 0.20 with last_threshold=75 → zero emits, mark untouched."""
     _grabbed(store)
