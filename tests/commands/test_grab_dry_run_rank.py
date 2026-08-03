@@ -27,6 +27,7 @@ from personalscraper.acquire._filters import apply_hard_filters
 from personalscraper.acquire.desired import QualityProfile
 from personalscraper.acquire.domain import WantedItem
 from personalscraper.acquire.store import build_acquire_store
+from personalscraper.api._contracts import MediaType
 from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.tracker._ranking import (
@@ -165,6 +166,61 @@ def test_grab_dry_run_top_is_real_ranked_candidate(tmp_path: Path, monkeypatch) 
     assert "800 seeders" in result.output, f"F4: expected B's seeder count; got:\n{result.output}"
     assert "x264-QTA" not in result.output, (
         f"F4: dry-run must NOT present the unranked dedup[0] (A) as Top; got:\n{result.output}"
+    )
+
+    test_store.close()
+
+
+def test_grab_dry_run_season_previews_as_tv(tmp_path: Path, monkeypatch) -> None:
+    """A ``season`` row must preview as TV — not as a movie.
+
+    Regression guard for the Pan Am 103 incident. ``media_type`` is what tells
+    the tracker client whether the year may be appended to ``q``: a season row
+    classified as MOVIE gets « {title} S01 {year} », the exact query that
+    returned 0 result on the live trackers. The orchestrator already said
+    ``kind in ("episode", "season")``; this preview said ``== "episode"``, so
+    the two disagreed on every season row — and a preview that queries
+    differently from the real grab is the very lie F4 was about.
+    """
+    media_ref = MediaRef(tvdb_id=456595)
+
+    db_path = tmp_path / "acquire.db"
+    cfg = AcquireConfig(db_path=db_path)
+    seed_store = build_acquire_store(cfg)
+    seed_store.wanted.add(
+        WantedItem(
+            media_ref=media_ref,
+            kind="season",
+            season=1,
+            status="pending",
+            enqueued_at=int(time.time()),
+        )
+    )
+    seed_store.close()
+
+    mock_registry = MagicMock()
+    mock_registry.search_candidates.return_value = SearchOutcome(results=[], trackers_queried=1, trackers_errored=0)
+    mock_registry.ranking = _SEEDER_RANKING
+
+    test_store = build_acquire_store(cfg)
+    from personalscraper.acquire.context import AcquireContext
+
+    mock_acquire = AcquireContext(tracker_registry=mock_registry, store=test_store, grab=None)
+    mock_app_ctx = _make_mock_app_context(acquire=mock_acquire)
+
+    @contextmanager
+    def _fake_boundary(config, settings, *, build_torrent_client=False):
+        yield mock_app_ctx
+
+    monkeypatch.setattr("personalscraper.commands.grab.per_step_boundary", _fake_boundary)
+
+    result = runner.invoke(app, ["grab", "--dry-run"])
+    assert result.exit_code == 0, f"expected exit 0; got {result.exit_code}:\n{result.output}"
+
+    # media_type is the 2nd positional arg of search_candidates(query, media_type, year).
+    assert mock_registry.search_candidates.called, "the preview must reach the search"
+    assert mock_registry.search_candidates.call_args.args[1] == MediaType.TV, (
+        "a season row must preview as TV, else the year is appended to q and the search returns nothing"
     )
 
     test_store.close()

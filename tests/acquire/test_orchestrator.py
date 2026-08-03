@@ -59,7 +59,11 @@ from personalscraper.core.identity import MediaRef
 _RESOLVE = "personalscraper.acquire.orchestrator.resolve_source"
 
 
-def _make_wanted(kind: 'Literal["movie", "episode"]' = "movie", tvdb_id: int = 12345) -> WantedItem:
+def _make_wanted(
+    kind: 'Literal["movie", "episode", "season"]' = "movie",
+    tvdb_id: int = 12345,
+    season: int | None = None,
+) -> WantedItem:
     """Build a claimed WantedItem (phase 4a: no ``id`` field yet)."""
     return WantedItem(
         media_ref=MediaRef(tvdb_id=tvdb_id),
@@ -67,6 +71,7 @@ def _make_wanted(kind: 'Literal["movie", "episode"]' = "movie", tvdb_id: int = 1
         status="searching",
         enqueued_at=1_700_000_000,
         attempts=1,
+        season=season,
     )
 
 
@@ -233,6 +238,21 @@ def test_episode_kind_searches_with_tv_media_type() -> None:
         orchestrator.grab(_make_wanted(kind="episode"), QualityProfile())
     _args, kwargs = registry.search_candidates.call_args
     # media_type is the 2nd positional arg (query, media_type, year)
+    assert registry.search_candidates.call_args.args[1] == MediaType.TV
+
+
+def test_season_kind_searches_with_tv_media_type() -> None:
+    """A ``season`` item searches with MediaType.TV — like an episode.
+
+    Regression guard for the Pan Am 103 incident: the media type is what tells
+    the tracker client whether the year may be appended to ``q``. A season row
+    classified as MOVIE gets « {title} S01 {year} » — the exact query that
+    returned 0 result on the live trackers. The orchestrator was already right;
+    the grab preview was not, and nothing pinned either at THIS level.
+    """
+    orchestrator, _spy, registry, _tc, _seed = _make_orchestrator()
+    with patch(_RESOLVE):
+        orchestrator.grab(_make_wanted(kind="season", season=1), QualityProfile())
     assert registry.search_candidates.call_args.args[1] == MediaType.TV
 
 

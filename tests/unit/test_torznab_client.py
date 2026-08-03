@@ -111,6 +111,84 @@ class _OkTracker:
         return {}
 
 
+class TestQueryYearHandling:
+    """The ``year`` must never poison a TV query, nor land twice on a movie.
+
+    Regression suite for the production incident of 2026-08-03: the client
+    appended the year to EVERY query. Measured live that day,
+    ``"L'Attentat du vol Pan Am 103 S01 2025"`` returned 0 result while the same
+    query without the year returned 5 (incl. a conforming season pack) — the
+    follow sat « En cours d'acquisition » for 31 h with nothing downloading. The
+    same bug halved unrelated TV searches and produced ``q=Wicker+2026+2026``
+    for movies (the caller already embeds the year for a movie query).
+    """
+
+    def _q_sent(self, client: TorznabClient) -> str:
+        """Return the ``q`` parameter of the last request the client issued."""
+        kwargs = client._transport.get.call_args.kwargs  # type: ignore[attr-defined]
+        return str(kwargs["params"]["q"])
+
+    def test_tv_search_never_appends_the_year(self) -> None:
+        """A TV query keeps its SxxEyy discriminator and NOTHING else."""
+        client = _client(C411_DESCRIPTOR)
+        client._transport.get.return_value = _rss()  # type: ignore[attr-defined]
+
+        client.search("L'Attentat du vol Pan Am 103 S01", media_type="tv", year=2025)
+
+        # The exact string that returned 0 result in production.
+        assert self._q_sent(client) == "L'Attentat du vol Pan Am 103 S01"
+        assert "2025" not in self._q_sent(client)
+
+    def test_tv_episode_search_never_appends_the_year(self) -> None:
+        """Same guarantee for a single-episode query."""
+        client = _client(OTHER_DESCRIPTOR)
+        client._transport.get.return_value = _rss()  # type: ignore[attr-defined]
+
+        client.search("Silo S03E05", media_type="tv", year=2023)
+
+        assert self._q_sent(client) == "Silo S03E05"
+
+    def test_movie_search_appends_the_year_once(self) -> None:
+        """A movie query DOES get the year — that is what disambiguates it."""
+        client = _client(C411_DESCRIPTOR)
+        client._transport.get.return_value = _rss()  # type: ignore[attr-defined]
+
+        client.search("Dune", media_type="movie", year=2021)
+
+        assert self._q_sent(client) == "Dune 2021"
+
+    def test_movie_search_never_doubles_an_embedded_year(self) -> None:
+        """The caller already embeds the year for a movie — never append twice.
+
+        ``build_search_query`` returns ``"{title} {year}"`` for a movie and the
+        callers pass ``year`` on top; production logged ``q=Wicker+2026+2026``.
+        """
+        client = _client(C411_DESCRIPTOR)
+        client._transport.get.return_value = _rss()  # type: ignore[attr-defined]
+
+        client.search("Wicker 2026", media_type="movie", year=2026)
+
+        assert self._q_sent(client) == "Wicker 2026"
+
+    def test_default_endpoint_search_ignores_the_year(self) -> None:
+        """Neither movie nor tv (cross-seed by release name) → query untouched."""
+        client = _client(C411_DESCRIPTOR)
+        client._transport.get.return_value = _rss()  # type: ignore[attr-defined]
+
+        client.search("Some.Release.Name-GRP", media_type="other", year=2024)  # type: ignore[arg-type]
+
+        assert self._q_sent(client) == "Some.Release.Name-GRP"
+
+    def test_no_year_leaves_the_query_untouched(self) -> None:
+        """The common case: no year given, query passes through verbatim."""
+        client = _client(C411_DESCRIPTOR)
+        client._transport.get.return_value = _rss()  # type: ignore[attr-defined]
+
+        client.search("Inception", media_type="movie")
+
+        assert self._q_sent(client) == "Inception"
+
+
 class TestDescriptorDrivesTheRequest:
     """Two descriptors, one engine — the request must follow the descriptor."""
 
