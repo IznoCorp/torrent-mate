@@ -45,7 +45,9 @@ class TestPreviewRankingLogic:
         assert top.provider == "tr4ker"
         assert top.language == "MULTI"
         assert len(resp.known_trackers) >= 1, "known_trackers must not be empty"
-        assert "lacale" not in resp.known_trackers, "lacale is deprecated, must be excluded"
+        # Exact-roster pin: the response exposes the factory roster and NOTHING
+        # else — removed trackers must never resurface in the select options.
+        assert resp.known_trackers == ["c411", "tr4ker"]
         assert all(r.leechers >= 0 for r in resp.ranked), "leechers must be >= 0"
 
     def test_min_seeders_flags_but_never_drops(self) -> None:
@@ -102,7 +104,8 @@ class TestPreviewRankingRoute:
         # known_trackers asserted.
         assert isinstance(data["known_trackers"], list)
         assert len(data["known_trackers"]) >= 1, "known_trackers must not be empty"
-        assert "lacale" not in data["known_trackers"], "lacale is deprecated"
+        # Exact-roster pin: only live factory trackers, removed ones stay gone.
+        assert data["known_trackers"] == ["c411", "tr4ker"]
         # Every release carries leechers.
         assert all("leechers" in r and isinstance(r["leechers"], int) for r in data["ranked"])
 

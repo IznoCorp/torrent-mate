@@ -93,9 +93,9 @@ def _ranking_preview_samples() -> list["TrackerResult"]:
             language="TRUEFRENCH",
         ),
         TrackerResult(
-            provider="lacale",
+            provider="c411",
             tracker_id="s5",
-            title="Sample.2024.VOSTFR.720p.HDTV.x264 — lacale",
+            title="Sample.2024.VOSTFR.720p.HDTV.x264 — c411",
             size=ByteSize(1_500_000_000),
             seeders=15,
             leechers=0,
@@ -105,9 +105,9 @@ def _ranking_preview_samples() -> list["TrackerResult"]:
             language="VOSTFR",
         ),
         TrackerResult(
-            provider="lacale",
+            provider="tr4ker",
             tracker_id="s6",
-            title="Sample.2024.MULTi.2160p.BluRay.x265 — lacale (low seed)",
+            title="Sample.2024.MULTi.2160p.BluRay.x265 — tr4ker (low seed)",
             size=ByteSize(16_000_000_000),
             seeders=3,
             leechers=0,
@@ -241,9 +241,9 @@ def preview_ranking(body: RankingConfig) -> RankingPreviewResponse:
     ]
     # Excluded rows sink to the end; within each group keep the score order.
     rows.sort(key=lambda r: (r.excluded, -r.score))
-    # known_trackers: the hardcoded factory roster minus lacale (deprecated).
+    # known_trackers: the hardcoded factory roster, sorted for a stable order.
     # No torznab generic engine key exists in _TRACKER_CLASSES (ticket 374 check).
     from personalscraper.api.tracker._factory import _TRACKER_CLASSES
 
-    known = sorted(k for k in _TRACKER_CLASSES if k != "lacale")
+    known = sorted(_TRACKER_CLASSES)
     return RankingPreviewResponse(ranked=rows, known_trackers=known)
