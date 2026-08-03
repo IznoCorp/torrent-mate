@@ -10,7 +10,7 @@
 **PR merge**: auto — standing operator contract: adversarial review(s) + tests before merge.
 **PR**: _(created after last phase)_
 **Design**: docs/features/seed-caps/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/seed-caps/plan/INDEX.md
 
 ## Non-negotiable invariants (DESIGN D1-D10, frozen)
 
@@ -28,7 +28,12 @@
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                                                        | File                                        | Status |
+| --- | ------------------------------------------------------------ | ------------------------------------------- | ------ |
+| 1   | Config foundations + migration 014 + download_marks store    | phase-01-config-migration-marks.md          | [ ]    |
+| 2   | Per-torrent caps + global caps (protocol, qBit impl, wiring) | phase-02-caps-orchestrator-global.md        | [ ]    |
+| 3   | Events catalogue + reconcile signature change + emission     | phase-03-events-reconcile-emission.md       | [ ]    |
+| 4   | Subscribers + frontend labels + ACCEPTANCE + full gate       | phase-04-subscribers-frontend-acceptance.md | [ ]    |
 
 ## Review cycles
 
@@ -36,4 +41,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` to execute phase 1.
