@@ -16,6 +16,8 @@ Two rules, tested independently, because either alone leaks:
 
 from __future__ import annotations
 
+import logging
+
 import pytest
 
 from personalscraper.logger import redact_secrets
@@ -136,3 +138,89 @@ class TestSecretFieldNames:
         """Nested secret field names are redacted too."""
         out = _redact(config={"providers": [{"tmdb_api_key": "SECRETVALUE"}]})
         assert "SECRETVALUE" not in str(out)
+
+
+class TestTheRealWritePath:
+    """Through ``configure_logging`` and out to the FILE — not the unit alone.
+
+    The blind spot that let three separate leaks survive: every earlier test
+    called ``redact_secrets`` directly, so nothing proved the processor was
+    actually wired into the paths that write to disk. It was not — stdlib
+    records bypassed it entirely, and ``exc_info`` was rendered after it.
+    """
+
+    @staticmethod
+    def _configured(tmp_path: object) -> object:
+        """Point the logger at a temp dir and configure it; return the log file."""
+        import personalscraper.logger as lg
+
+        lg.LOGS_DIR = tmp_path  # type: ignore[assignment]
+        lg.configure_logging()
+        return tmp_path / "personalscraper.json"  # type: ignore[operator]
+
+    def test_structlog_event_is_redacted_in_the_file(self, tmp_path) -> None:
+        """The baseline: our own logger writes a redacted line."""
+        import personalscraper.logger as lg
+
+        path = self._configured(tmp_path)
+        lg.get_logger("t").warning("api_error", url=LEAKED_URL)
+        logging.shutdown()
+        assert "SUPERSECRETKEY123" not in path.read_text()  # type: ignore[attr-defined]
+
+    def test_stdlib_record_is_redacted_in_the_file(self, tmp_path) -> None:
+        """Redact stdlib records too.
+
+        urllib3 & friends never touch structlog's processors, yet urllib3 logs
+        the full URL at WARNING on every retry.
+        """
+        path = self._configured(tmp_path)
+        logging.getLogger("urllib3.connectionpool").warning("Retrying %s", LEAKED_URL)
+        logging.shutdown()
+        assert "SUPERSECRETKEY123" not in path.read_text()  # type: ignore[attr-defined]
+
+    def test_exception_field_is_redacted_in_the_file(self, tmp_path) -> None:
+        """Redact the rendered traceback.
+
+        ``format_exc_info`` turns ``exc_info`` into a string, so the redaction
+        must run AFTER it or the traceback text leaks verbatim.
+        """
+        import personalscraper.logger as lg
+
+        path = self._configured(tmp_path)
+        try:
+            raise RuntimeError(f"Max retries exceeded with url: {LEAKED_URL}")
+        except RuntimeError:
+            lg.get_logger("t").error("api_call_failed", exc_info=True)
+        logging.shutdown()
+        assert "SUPERSECRETKEY123" not in path.read_text()  # type: ignore[attr-defined]
+
+    def test_registered_secret_value_is_redacted_anywhere(self, tmp_path) -> None:
+        """Catch a secret echoed back in an unforeseen shape.
+
+        Here an XML error body — no ``?``, no ``&``: only value matching sees it.
+        """
+        import personalscraper.logger as lg
+
+        path = self._configured(tmp_path)
+        lg.register_secret_values("tr4k_ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+        lg.get_logger("t").warning(
+            "api_error_body_unparsable",
+            body_preview='<error code="100" description="bad apikey tr4k_ABCDEFGHIJKLMNOPQRSTUVWXYZ"/>',
+        )
+        logging.shutdown()
+        assert "tr4k_ABCDEFGHIJKLMNOPQRSTUVWXYZ" not in path.read_text()  # type: ignore[attr-defined]
+
+    def test_a_non_string_dict_key_does_not_crash_the_log_call(self) -> None:
+        """Never let a log call raise.
+
+        An int key (a season number) used to blow up ``re.match`` in the redactor.
+        """
+        assert _redact(per_season={1: "ok", 2: "ok"})["per_season"] == {1: "ok", 2: "ok"}
+
+    def test_secrets_in_a_tuple_are_redacted(self) -> None:
+        """Walk tuples.
+
+        A stdlib record's ``args`` IS a tuple — the shape of every
+        ``logger.warning("%s", url)``.
+        """
+        assert "SUPERSECRETKEY123" not in str(_redact(args=(LEAKED_URL,)))
