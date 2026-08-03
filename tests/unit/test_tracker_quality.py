@@ -129,6 +129,44 @@ class TestLanguageParsing:
         assert parse_title_quality("Film.2023.TRUEFRENCH.MULTi.1080p")["language"] == "MULTI"
 
 
+class TestLiveReleaseTitleSamples:
+    """Shared parser against live release-title captures (2026-05-07).
+
+    These titles were captured from a real tracker's search payloads; they pin
+    the parser against genuine French-scene release naming (VFF/HDLight/MA.5.1
+    noise between the markers), not synthetic fixtures.
+    """
+
+    def test_full_quality_title(self) -> None:
+        """Live title with resolution+codec+source+audio markers extracts all four."""
+        out = parse_title_quality("Inception.2010.MULTi.TRUEFRENCH.HDR.2160p.UHD.BluRay.DTS-HD.MA.5.1.H265-XANTAR")
+        assert out["resolution"] == "2160p"
+        assert out["codec"] == "H265"
+        assert out["source"] is not None
+        assert "bluray" in out["source"].lower()
+        assert out["audio"] == "DTS-HD"
+
+    def test_minimal_title_returns_nones(self) -> None:
+        """A title without recognizable quality markers yields None fields."""
+        out = parse_title_quality("Random.title.no.metadata")
+        assert out["resolution"] is None
+        assert out["codec"] is None
+        assert out["source"] is None
+        assert out["audio"] is None
+        assert out["format"] is None
+
+    def test_no_freeleech_keys_in_output(self) -> None:
+        """Phase 18 revisit: the parser no longer returns freeleech flags."""
+        out = parse_title_quality("[FreeLeech] Movie.1080p.x264")
+        assert "is_freeleech" not in out
+        assert "is_silverleech" not in out
+
+    def test_format_extension_optional(self) -> None:
+        """Live scene titles do NOT carry a file extension — format is None."""
+        out = parse_title_quality("Inception.2010.MULTi.VFF.1080p.HDLight.DTS.5.1.x264-PATOMiEL")
+        assert out["format"] is None
+
+
 class TestTrackerQualitySymmetry:
     """lacale/c411/tr4ker surface the SAME quality tokens on a shared title."""
 
