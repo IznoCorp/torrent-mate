@@ -12,6 +12,9 @@ from pathlib import Path
 
 from pydantic import Field, field_validator, model_validator
 
+# Intentional, documented upward dependency: BandwidthConfig parses byte-size
+# strings (e.g. "5MB") at validation time and reuses the canonical ByteSize
+# parser from api/_units — same boundary as conf/models/_ranking.py (D10).
 from personalscraper.api._units import ByteSize  # layering: allow
 from personalscraper.conf.models import paths as _paths_model
 from personalscraper.conf.models._base import _StrictModel
