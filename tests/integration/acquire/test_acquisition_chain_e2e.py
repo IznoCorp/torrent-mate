@@ -42,7 +42,7 @@ from personalscraper.api.torrent._base import TorrentSource
 from personalscraper.api.torrent._contracts import TorrentAdder
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.tracker._ranking import RankingConfig
-from personalscraper.conf.models.acquire import AcquireConfig, CadenceConfig
+from personalscraper.conf.models.acquire import AcquireConfig, BandwidthConfig, CadenceConfig
 from personalscraper.core.event_bus import Event, EventBus
 from personalscraper.core.identity import MediaRef
 
@@ -149,6 +149,7 @@ def _real_orchestrator(
         ranking=RankingConfig(min_seeders=0),
         title_resolver=title_resolver,
         year_resolver=year_resolver,
+        bandwidth=BandwidthConfig(),
     )
 
 

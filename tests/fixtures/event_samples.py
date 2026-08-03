@@ -354,6 +354,9 @@ def make_registry_boot_validated() -> RegistryBootValidated:
 from personalscraper.acquire.events import (  # noqa: E402, PLC0415
     CrossSeedInjected,
     CrossSeedRejected,
+    DownloadCompleted,
+    DownloadProgressed,
+    DownloadStarted,
     FilmAcquired,
     GrabFailed,
     GrabReswitched,
@@ -544,6 +547,44 @@ def make_season_fell_back_to_episodes() -> SeasonFellBackToEpisodes:
         media_ref=_BREAKING_BAD_REF,
         season=5,
         reenqueued_count=3,
+    )
+
+
+# ---------------------------------------------------------------------------
+# seed-caps feature (O4) — 3 download lifecycle event factories
+# ---------------------------------------------------------------------------
+
+
+@register_factory(DownloadStarted)
+def make_download_started() -> DownloadStarted:
+    """Realistic DownloadStarted factory — Breaking Bad S05E01 starts downloading."""
+    return DownloadStarted(
+        info_hash="f" * 40,
+        title="Breaking Bad S05E01",
+        provider="c411",
+        kind="episode",
+    )
+
+
+@register_factory(DownloadProgressed)
+def make_download_progressed() -> DownloadProgressed:
+    """Realistic DownloadProgressed factory — 50 % threshold crossed."""
+    return DownloadProgressed(
+        info_hash="f" * 40,
+        title="Breaking Bad S05E01",
+        progress=0.55,
+        threshold_pct=50,
+    )
+
+
+@register_factory(DownloadCompleted)
+def make_download_completed() -> DownloadCompleted:
+    """Realistic DownloadCompleted factory — Breaking Bad S05E01 fully downloaded."""
+    return DownloadCompleted(
+        info_hash="f" * 40,
+        title="Breaking Bad S05E01",
+        provider="c411",
+        kind="episode",
     )
 
 

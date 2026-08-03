@@ -35,6 +35,7 @@ from personalscraper.api.torrent._base import TorrentSource
 from personalscraper.api.torrent._contracts import TorrentAdder, TorrentTagger
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.tracker._ranking import RankingConfig
+from personalscraper.conf.models.acquire import BandwidthConfig
 from personalscraper.core.event_bus import Event, EventBus
 from personalscraper.core.identity import MediaRef
 
@@ -174,6 +175,7 @@ def _make_orchestrator(torrent_client) -> tuple[GrabOrchestrator, _EventSpy]:
         torrent_client=torrent_client,
         event_bus=bus,
         ranking=RankingConfig(min_seeders=0),
+        bandwidth=BandwidthConfig(),
     )
     return orchestrator, spy
 

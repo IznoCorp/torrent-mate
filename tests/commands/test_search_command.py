@@ -399,7 +399,7 @@ def test_search_real_run_never_builds_torrent_client(tmp_path: Path, monkeypatch
     )
     monkeypatch.setattr(
         "personalscraper.commands.search._reconcile_before_search",
-        lambda acquire, console: ReconcileSummary(),
+        lambda acquire, event_bus, console: ReconcileSummary(),
     )
 
     result = runner.invoke(app, ["search"])
@@ -471,7 +471,7 @@ def test_search_reports_summary_counts(tmp_path: Path, monkeypatch) -> None:
 
     monkeypatch.setattr(
         "personalscraper.commands.search._reconcile_before_search",
-        lambda acquire, console: ReconcileSummary(),
+        lambda acquire, event_bus, console: ReconcileSummary(),
     )
 
     result = runner.invoke(app, ["search"])
@@ -503,7 +503,7 @@ def test_search_forwards_limit_and_followed_id_to_service(tmp_path: Path, monkey
     )
     monkeypatch.setattr(
         "personalscraper.commands.search._reconcile_before_search",
-        lambda acquire, console: ReconcileSummary(),
+        lambda acquire, event_bus, console: ReconcileSummary(),
     )
 
     result = runner.invoke(app, ["search", "--limit", "3", "--followed-id", "9"])

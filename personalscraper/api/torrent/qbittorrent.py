@@ -4,7 +4,7 @@ Wraps qbittorrentapi.Client with anti-ban protection (lockout file, pre-check)
 and maps qBit API responses to TorrentItem dataclasses. Composes
 :class:`TorrentLister`, :class:`TorrentInspector`, :class:`AuthenticatedClient`,
 :class:`TorrentStateInspector`, :class:`TorrentController`, :class:`TorrentAdder`,
-:class:`TorrentLimiter`, :class:`TorrentTagger`, and :class:`TorrentInjector` from
+:class:`TorrentLimiter`, :class:`GlobalRateLimiter`, :class:`TorrentTagger`, and :class:`TorrentInjector` from
 :mod:`personalscraper.api.torrent._contracts` (DESIGN §4 — phase 13, D1/D2/D8).
 
 Provider-specific exceptions (QBitAuthLockoutError, LoginFailed, Forbidden403Error,
@@ -27,6 +27,7 @@ from personalscraper.api._contracts import ApiError, ProviderName
 from personalscraper.api.torrent._base import TorrentItem, TorrentLimits, TorrentSource, _bencode_info_hash
 from personalscraper.api.torrent._contracts import (
     AuthenticatedClient,
+    GlobalRateLimiter,
     TorrentAdder,
     TorrentController,
     TorrentInjector,
@@ -77,6 +78,7 @@ class QBitClient(
     TorrentController,
     TorrentAdder,
     TorrentLimiter,
+    GlobalRateLimiter,
     TorrentTagger,
     TorrentInjector,
 ):
@@ -86,7 +88,8 @@ class QBitClient(
     (:class:`TorrentLister`, :class:`TorrentInspector`,
     :class:`AuthenticatedClient`, :class:`TorrentStateInspector`,
     :class:`TorrentController`, :class:`TorrentAdder`,
-    :class:`TorrentLimiter`, :class:`TorrentTagger`,
+    :class:`TorrentLimiter`, :class:`GlobalRateLimiter`,
+    :class:`TorrentTagger`,
     :class:`TorrentInjector`). Login is handled by :func:`build_client` —
     this class assumes an already-authenticated underlying client.
     """
@@ -512,6 +515,33 @@ class QBitClient(
             self._client.torrents_set_upload_limit(torrent_hashes=info_hash, limit=limits.up_bytes_per_s)
         if limits.down_bytes_per_s is not None:
             self._client.torrents_set_download_limit(torrent_hashes=info_hash, limit=limits.down_bytes_per_s)
+
+    def apply_global_limits(
+        self,
+        up_bytes_per_s: int | None = None,
+        down_bytes_per_s: int | None = None,
+    ) -> None:
+        """Set global transfer limits via qBittorrent API (O4/D5).
+
+        Args:
+            up_bytes_per_s: Global upload rate limit in bytes/sec. None is a no-op.
+            down_bytes_per_s: Global download rate limit in bytes/sec. None is a no-op.
+
+        Raises:
+            ApiError: Provider-uniform error on auth/connection failure —
+                same broad translation as the sister mutation methods
+                (``resume`` / ``delete``): a bare ``APIConnectionError``
+                must surface as the repo :class:`ApiError` so the
+                orchestrator's fail-soft ``except ApiError`` catches it
+                (D5: a dead client never blocks the run).
+        """
+        try:
+            if down_bytes_per_s is not None:
+                self._client.transfer_set_download_limit(down_bytes_per_s)
+            if up_bytes_per_s is not None:
+                self._client.transfer_set_upload_limit(up_bytes_per_s)
+        except qbittorrentapi.APIError as exc:
+            raise _map_qbit_api_error("apply_global_limits", exc) from exc
 
     def add_tags(self, info_hash: str, tags: Sequence[str]) -> None:
         """Add tags to an existing torrent in qBittorrent (idempotent).

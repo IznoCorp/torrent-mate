@@ -51,6 +51,7 @@ from personalscraper.api.torrent._contracts import TorrentAdder
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.tracker._errors import TorrentFetchError, TrackerAuthError
 from personalscraper.api.tracker._ranking import RankingConfig, RankingCriterion, ThresholdEntry
+from personalscraper.conf.models.acquire import BandwidthConfig
 from personalscraper.core._contracts import CircuitOpenError
 from personalscraper.core.event_bus import Event, EventBus
 from personalscraper.core.identity import MediaRef
@@ -146,6 +147,7 @@ def _make_orchestrator(
         torrent_client=torrent_client,
         event_bus=bus,
         ranking=ranking if ranking is not None else RankingConfig(min_seeders=0),
+        bandwidth=BandwidthConfig(),
     )
     seed_spy = MagicMock()
     return orchestrator, spy, registry, torrent_client, seed_spy
@@ -308,6 +310,7 @@ def test_transports_resolved_fresh_at_grab_not_boot_snapshot() -> None:
         torrent_client=torrent_client,
         event_bus=bus,
         ranking=RankingConfig(min_seeders=0),
+        bandwidth=BandwidthConfig(),
     )
 
     # Simulate the boot moment the OLD code snapshotted at: the FIRST
@@ -920,6 +923,7 @@ def test_on_intent_fires_before_add_with_the_chosen_hash() -> None:
         torrent_client=torrent_client,
         event_bus=EventBus(),
         ranking=RankingConfig(min_seeders=0),
+        bandwidth=BandwidthConfig(),
     )
 
     with patch(_RESOLVE, return_value=MagicMock(spec=TorrentSource)):
@@ -961,6 +965,7 @@ def test_intent_hook_failure_prevents_the_add() -> None:
         torrent_client=torrent_client,
         event_bus=EventBus(),
         ranking=RankingConfig(min_seeders=0),
+        bandwidth=BandwidthConfig(),
     )
 
     def _boom(_hash: str) -> None:
@@ -996,6 +1001,7 @@ def test_grab_without_the_hook_still_adds() -> None:
         torrent_client=torrent_client,
         event_bus=EventBus(),
         ranking=RankingConfig(min_seeders=0),
+        bandwidth=BandwidthConfig(),
     )
 
     with patch(_RESOLVE, return_value=MagicMock(spec=TorrentSource)):
@@ -1034,6 +1040,7 @@ def test_search_pass_applies_movie_year_filter_and_query(followed_id: int = 7) -
         ranking=RankingConfig(min_seeders=0),
         title_resolver=lambda _i: "Wicker",
         year_resolver=lambda _i: 2026,
+        bandwidth=BandwidthConfig(),
     )
 
     verdict = orchestrator.search(item, QualityProfile())
@@ -1113,6 +1120,7 @@ class TestMediaKindThreading:
             torrent_client=MagicMock(spec=TorrentAdder),
             event_bus=EventBus(),
             ranking=ranking,
+            bandwidth=BandwidthConfig(),
         )
 
         with patch(_RESOLVE, return_value=MagicMock(spec=TorrentSource)):

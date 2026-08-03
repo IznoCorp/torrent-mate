@@ -40,6 +40,7 @@ from personalscraper.acquire.reconcile import reconcile_wanted
 from personalscraper.acquire.service import AcquisitionService
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
 from personalscraper.conf.models.acquire import AcquireConfig
+from personalscraper.core.event_bus import EventBus
 from personalscraper.core.identity import MediaRef
 
 _HASH = "beef" * 10
@@ -260,7 +261,7 @@ class TestTheRowStaysReachableAfterAFailedAdd:
         service.run()
         calls_before = orchestrator.grab.call_count
         # The client is unreachable: reconciliation can decide nothing.
-        reconcile_wanted(store, ownership, client_hashes=None)
+        reconcile_wanted(store, ownership, client_items=None, event_bus=EventBus())
         service.run()
 
         row = store.wanted.get(rowid)

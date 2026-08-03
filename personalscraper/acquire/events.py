@@ -390,9 +390,82 @@ class CrossSeedRejected(Event):
     source_hash: str
 
 
+@dataclass(frozen=True, kw_only=True)
+class DownloadStarted(Event):
+    """A wanted item's torrent was first observed downloading in the client.
+
+    Emitted by the reconcile sweep (O4) when a hash-carrying OPEN wanted row
+    is first observed in the torrent client with ``progress < 1.0``. Fires at
+    most once per info-hash — the ``download_marks`` table persists the mark
+    BEFORE the emit (exactly-once, emit-after-persist convention).
+
+    Attributes:
+        info_hash: Torrent info-hash (hex string).
+        title: Human-readable title of the wanted item (for the feed/toast).
+        provider: Tracker wire name the release was grabbed from
+            (e.g. ``"c411"``, lowercase), snapshot from the wanted row.
+        kind: Wanted kind — ``"movie"``, ``"episode"`` or ``"season"``.
+    """
+
+    info_hash: str
+    title: str
+    provider: str
+    kind: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class DownloadProgressed(Event):
+    """A downloading torrent crossed a 25/50/75 % progress threshold.
+
+    Emitted by the reconcile sweep (O4) when the observed progress crosses a
+    milestone. Only the HIGHEST threshold crossed per reconcile pass fires
+    (D8 anti-spam): a 0 → 0.60 jump emits ONE event with ``threshold_pct=50``,
+    never two. Progress regressions (e.g. a qBittorrent recheck dropping
+    0.80 → 0.20) never re-emit lower thresholds — the persisted
+    ``last_threshold`` mark only moves forward.
+
+    Attributes:
+        info_hash: Torrent info-hash (hex string).
+        title: Human-readable title of the wanted item (for the feed/toast).
+        progress: Observed completion ratio at emission time (``0.0``–``1.0``).
+        threshold_pct: The milestone crossed — ``25``, ``50`` or ``75``.
+    """
+
+    info_hash: str
+    title: str
+    progress: float
+    threshold_pct: int
+
+
+@dataclass(frozen=True, kw_only=True)
+class DownloadCompleted(Event):
+    """A wanted item's torrent was first observed fully downloaded.
+
+    Emitted by the reconcile sweep (O4) on the first observation with
+    ``progress >= 1.0``. A torrent already complete on its first sighting
+    emits ONLY this event — no synthetic ``DownloadStarted`` /
+    ``DownloadProgressed`` backfill (events are observations, not history).
+
+    Attributes:
+        info_hash: Torrent info-hash (hex string).
+        title: Human-readable title of the wanted item (for the feed/toast).
+        provider: Tracker wire name the release was grabbed from
+            (e.g. ``"c411"``, lowercase), snapshot from the wanted row.
+        kind: Wanted kind — ``"movie"``, ``"episode"`` or ``"season"``.
+    """
+
+    info_hash: str
+    title: str
+    provider: str
+    kind: str
+
+
 __all__ = [
     "CrossSeedInjected",
     "CrossSeedRejected",
+    "DownloadCompleted",
+    "DownloadProgressed",
+    "DownloadStarted",
     "FilmAcquired",
     "GrabFailed",
     "GrabSucceeded",

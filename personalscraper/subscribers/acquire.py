@@ -1,6 +1,6 @@
 """Muted Telegram subscriber for acquisition events (RP4).
 
-Subscribes to 12 acquisition events from :mod:`personalscraper.acquire.events`.
+Subscribes to 13 acquisition events from :mod:`personalscraper.acquire.events`.
 Each handler formats a human-readable message and emits a structlog line.
 Network send is dispatched on a fire-and-forget daemon thread only when
 ``enabled=True`` (default ``False`` — muted until wave-4/5 producers are active).
@@ -17,6 +17,7 @@ import threading
 from typing import TYPE_CHECKING
 
 from personalscraper.acquire.events import (
+    DownloadCompleted,
     GrabFailed,
     GrabSucceeded,
     RatioMeasured,
@@ -42,8 +43,11 @@ log = get_logger(__name__)
 class AcquisitionTelegramSubscriber:
     """Formats and (optionally) sends Telegram alerts for acquisition events.
 
-    Subscribes to 12 acquisition event types defined in
-    :mod:`personalscraper.acquire.events`. Each handler formats a short message
+    Subscribes to 13 acquisition event types defined in
+    :mod:`personalscraper.acquire.events`. Per D8 (anti-spam), only
+    ``DownloadCompleted`` among the download lifecycle events is subscribed —
+    ``DownloadStarted`` and ``DownloadProgressed`` deliberately are not.
+    Each handler formats a short message
     and emits a structlog line at ``INFO`` level with the static key
     ``acquire.notify.event`` and an ``acquire_event`` discriminator field.
     When ``enabled=True`` the message is also sent via ``notifier`` on a
@@ -91,12 +95,13 @@ class AcquisitionTelegramSubscriber:
             bus.subscribe(SeedObligationSatisfied, self._on_seed_obligation_satisfied),
             bus.subscribe(RatioMeasured, self._on_ratio_measured),
             bus.subscribe(TrackerAuthFailed, self._on_tracker_auth_failed),
+            bus.subscribe(DownloadCompleted, self._on_download_completed),
         ]
 
     def close(self) -> None:
         """Unsubscribe every stored token. Idempotent.
 
-        Releases all 12 subscriptions registered in ``__init__``.
+        Releases all 13 subscriptions registered in ``__init__``.
         """
         for token in self._tokens:
             self._bus.unsubscribe(token)
@@ -228,3 +233,8 @@ class AcquisitionTelegramSubscriber:
         """
         msg = f"🔐 Tracker auth failed on {event.tracker} (HTTP {event.http_status}) — credential needs fixing"
         self._dispatch(msg, "tracker_auth_failed")
+
+    def _on_download_completed(self, event: DownloadCompleted) -> None:
+        """Handle DownloadCompleted — format + dispatch."""
+        msg = f"✅ Téléchargement terminé : {event.title} ({event.provider} · {event.kind})"
+        self._dispatch(msg, "download_completed")

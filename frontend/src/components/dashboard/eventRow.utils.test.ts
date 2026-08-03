@@ -22,6 +22,20 @@ describe("eventTypeLabel (F4)", () => {
   });
 });
 
+describe("download event labels (seed-caps)", () => {
+  it("renders DownloadStarted with French label", () => {
+    expect(eventTypeLabel("DownloadStarted")).toBe("Téléchargement démarré");
+  });
+
+  it("renders DownloadProgressed with French label", () => {
+    expect(eventTypeLabel("DownloadProgressed")).toBe("Téléchargement en cours");
+  });
+
+  it("renders DownloadCompleted with French label", () => {
+    expect(eventTypeLabel("DownloadCompleted")).toBe("Téléchargement terminé");
+  });
+});
+
 describe("eventSummary (F4)", () => {
   it("condenses salient payload fields instead of dumping raw JSON", () => {
     const summary = eventSummary({
@@ -38,6 +52,40 @@ describe("eventSummary (F4)", () => {
   it("falls back to compact key: value, then a dash", () => {
     expect(eventSummary({ foo: "bar" })).toBe("foo: bar");
     expect(eventSummary({})).toBe("—");
+  });
+
+  it("renders a download threshold crossing as title — pct %", () => {
+    const summary = eventSummary({
+      info_hash: "abc123",
+      title: "Breaking Bad S05E01",
+      progress: 0.52,
+      threshold_pct: 50,
+    });
+    expect(summary).toBe("Breaking Bad S05E01 — 50 %");
+    // Never the raw JSON braces.
+    expect(summary).not.toContain("{");
+  });
+
+  it("renders a download start/finish payload as title (provider)", () => {
+    expect(
+      eventSummary({
+        info_hash: "abc123",
+        title: "Dune",
+        provider: "c411",
+        kind: "movie",
+      }),
+    ).toBe("Dune (c411)");
+  });
+
+  it("omits an unknown provider gracefully", () => {
+    expect(
+      eventSummary({
+        info_hash: "abc123",
+        title: "Dune",
+        provider: "unknown",
+        kind: "movie",
+      }),
+    ).toBe("Dune");
   });
 });
 

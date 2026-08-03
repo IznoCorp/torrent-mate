@@ -12,6 +12,10 @@ from pathlib import Path
 
 from pydantic import Field, field_validator, model_validator
 
+# Intentional, documented upward dependency: BandwidthConfig parses byte-size
+# strings (e.g. "5MB") at validation time and reuses the canonical ByteSize
+# parser from api/_units — same boundary as conf/models/_ranking.py (D10).
+from personalscraper.api._units import ByteSize  # layering: allow
 from personalscraper.conf.models import paths as _paths_model
 from personalscraper.conf.models._base import _StrictModel
 
@@ -99,6 +103,77 @@ class CadenceConfig(_StrictModel):
         return self
 
 
+class BandwidthConfig(_StrictModel):
+    """Per-torrent and global bandwidth caps for seed safety (O4).
+
+    Values are in bytes per second.  Human-readable strings like ``"5MB"`` are
+    coerced via :class:`ByteSize`.  ``None`` means "leave the current client
+    setting untouched" (D2: zero is NOT the unlimited sentinel — it is rejected).
+
+    Attributes:
+        per_torrent_down: Per-torrent download cap, bytes/s. ``None`` = no cap.
+        per_torrent_up: Per-torrent upload cap, bytes/s. ``None`` = no cap.
+        global_down: Global download cap applied to the client, bytes/s.
+            ``None`` = leave the current qBittorrent setting alone.
+        global_up: Global upload cap applied to the client, bytes/s.
+            ``None`` = leave the current qBittorrent setting alone.
+    """
+
+    per_torrent_down: int | None = None
+    per_torrent_up: int | None = None
+    global_down: int | None = None
+    global_up: int | None = None
+
+    @field_validator(
+        "per_torrent_down",
+        "per_torrent_up",
+        "global_down",
+        "global_up",
+        mode="before",
+    )
+    @classmethod
+    def _coerce_bytesize(cls, v: object) -> object:
+        """Coerce human-readable byte-size strings to integer bytes.
+
+        Delegates to :class:`ByteSize.parse` for string values; passes integers
+        and ``None`` through unchanged (D10).
+
+        Args:
+            v: Raw value from config — can be ``str``, ``int``, or ``None``.
+
+        Returns:
+            Integer byte count, or ``None``.
+        """
+        if isinstance(v, str):
+            return ByteSize.parse(v).bytes
+        return v
+
+    @field_validator("per_torrent_down", "per_torrent_up", "global_down", "global_up")
+    @classmethod
+    def _reject_zero(cls, v: int | None) -> int | None:
+        """Reject zero and negative values.
+
+        Zero is NOT the unlimited sentinel — unlimited is expressed by omitting
+        the key (D2).  The qBittorrent wire value 0 is produced only by the
+        mapper, never written by the operator.
+
+        Args:
+            v: The value after coercion.
+
+        Returns:
+            The value unchanged if valid.
+
+        Raises:
+            ValueError: If the value is ``<= 0``.
+        """
+        if v is not None and v <= 0:
+            raise ValueError(
+                f"Bandwidth cap must be > 0 (None = no cap); got {v}. "
+                "Use None or omit the key to leave the client setting untouched."
+            )
+        return v
+
+
 class AcquireConfig(_StrictModel):
     """Configuration for the acquire lobe SQLite store.
 
@@ -109,6 +184,8 @@ class AcquireConfig(_StrictModel):
         db_path: Path to the acquire SQLite database. ``None`` = auto-derive.
         cadence: Global Hot/Warm/Cold cadence policy (DESIGN §3). Defaults to
             the canonical policy via :class:`CadenceConfig`.
+        bandwidth: Per-torrent and global bandwidth caps for seed safety (O4).
+            Defaults to all-``None`` (no caps).
 
     Raises:
         ValueError: If ``db_path`` resolves to a WAL-unsafe filesystem
@@ -121,6 +198,7 @@ class AcquireConfig(_StrictModel):
         description="Path to acquire.db. None = auto-derive from paths.data_dir.",
     )
     cadence: CadenceConfig = Field(default_factory=CadenceConfig)
+    bandwidth: BandwidthConfig = Field(default_factory=BandwidthConfig)
 
     @field_validator("db_path", mode="after")
     @classmethod
@@ -178,4 +256,4 @@ class AcquireConfig(_StrictModel):
         return resolved
 
 
-__all__ = ["AcquireConfig", "CadenceConfig", "CadenceTierConfig"]
+__all__ = ["AcquireConfig", "BandwidthConfig", "CadenceConfig", "CadenceTierConfig"]

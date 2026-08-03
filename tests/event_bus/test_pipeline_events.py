@@ -107,7 +107,7 @@ def test_every_event_has_factory() -> None:
 
 
 def test_event_registry_has_all_v1_events() -> None:
-    """The catalog is pinned at 44 events.
+    """The catalog is pinned at 47 events.
 
     Phase 5 acceptance landed at 13 ; the ``provider-ids`` feature
     (sub-phase 8.4) added 4 ``Backfill*`` events for the IDs/ratings
@@ -138,14 +138,17 @@ def test_event_registry_has_all_v1_events() -> None:
     The ``season-grab`` feature adds ``SeasonAbsorbedEpisodes`` and
     ``SeasonFellBackToEpisodes`` — season wanted lifecycle events for R5
     absorption and R6 fallback (→ 44).
+    The ``seed-caps`` feature (O4) adds ``DownloadStarted``,
+    ``DownloadProgressed`` and ``DownloadCompleted`` — download lifecycle
+    observations emitted by the reconcile sweep (→ 47).
     The literal count guards against silent
     additions that bypass the documented event catalog in
     ``docs/reference/event-bus.md``.
     """
     import personalscraper.events  # noqa: F401 — eager-import side effect
 
-    assert len(_EVENT_CLASS_REGISTRY) == 44, (
-        f"Expected 44 events (42 existing + 2 season-grab SeasonAbsorbedEpisodes/SeasonFellBackToEpisodes), "
+    assert len(_EVENT_CLASS_REGISTRY) == 47, (
+        f"Expected 47 events (44 existing + 3 seed-caps DownloadStarted/DownloadProgressed/DownloadCompleted), "
         f"found {len(_EVENT_CLASS_REGISTRY)}: {sorted(_EVENT_CLASS_REGISTRY)}"
     )
 

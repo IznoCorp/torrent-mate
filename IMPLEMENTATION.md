@@ -1,47 +1,44 @@
-# Implementation Progress — season-grab
+# Implementation Progress — seed-caps
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: Season Grab — whole-season acquisition (ticket #378): WantedKind "season",
-auto trigger (last episode aired ≥1 week AND ≤ half owned), episode→season conversion
-when a pack exists but the episode doesn't, absorption of episode wanteds, cutoff
-fallback to episodes, manual per-season grab button, season ranking tiers (#376) live.
+**Feature**: [O4] Seed Safety — download events + bandwidth caps (ticket #177)
 **Type**: feat
-**Version bump**: 0.74.1 → 0.75.0 (minor)
-**Branch**: feat/season-grab
-**Ticket**: #378 — claimed (card in Brainstorming → advance per phase)
+**Version bump**: 0.75.2 → 0.76.0 (minor)
+**Branch**: feat/seed-caps
+**Ticket**: #177 — claimed (heartbeat live)
 **PR merge**: auto — standing operator contract: adversarial review(s) + tests before merge.
 **PR**: _(created after last phase)_
-**Design**: docs/features/season-grab/DESIGN.md
-**Master plan**: docs/features/season-grab/plan/INDEX.md
+**Design**: docs/features/seed-caps/DESIGN.md
+**Master plan**: docs/features/seed-caps/plan/INDEX.md
 
-## Non-negotiable invariants (operator rules R1-R6 — DESIGN §2, frozen)
+## Non-negotiable invariants (DESIGN D1-D10, frozen)
 
-- R1 auto trigger: last episode aired ≥ 1 WEEK ago AND owned ≤ HALF the season.
-- R2 conversion: episode search 0-exact + season pack present → season wanted, absorb.
-- R3 uniformity: grabbing a season replaces ALL owned episodes (existing dispatch TV
-  merge rule delivers it — no dispatch change).
-- R5 absorption: absorbed episode wanteds get a dedicated traceable status, never
-  searched again. R6 fallback at cutoff re-enqueues MISSING episodes only.
-- Single-season packs only (v1). No triage changes (#213 owns the split).
-- Web: staging-guarded typed route via guarded_api; OpenAPI regen committed.
-- event_bus stays a REQUIRED parameter at any new emission site (project contract).
+- Scope = bandwidth caps + download events ONLY. `ratio`/`seed_time_minutes` share
+  limits stay None — they belong to #173/#174.
+- `None` config field = touch nothing (never reset an operator-set qBittorrent limit).
+- A cap must never block a grab: clients without `TorrentLimiter` → warn once, add uncapped.
+- Global caps re-asserted at run start, fail-soft on ApiError (run continues).
+- Download events exactly-once via `download_marks` (migration 014), persist-before-emit
+  (a crash loses the emit rather than duplicating it — advisory events).
+- `DownloadProgressed` on 25/50/75 crossings only; Telegram subscribes DownloadCompleted
+  ONLY; the web event feed shows all three (French labels, X7 no-raw-enum).
+- `reconcile_wanted` gains REQUIRED `event_bus` + `client_items` dict — ALL callers updated
+  (event_bus project contract).
 
 ## Phases
 
-| #   | Phase                                           | File                            | Status |
-| --- | ----------------------------------------------- | ------------------------------- | ------ |
-| 1   | Domain + store (season kind, absorbed/fallback) | phase-01-domain-store.md        | [x]    |
-| 2   | filter_to_season + season search query + rank   | phase-02-filter-to-season.md    | [x]    |
-| 3   | Auto detection R1 + absorption R5               | phase-03-detection-auto-r1.md   | [x]    |
-| 4   | Episode→season conversion R2 + fallback R6      | phase-04-conversion-fallback.md | [x]    |
-| 5   | Web API (grab endpoint) + frontend              | phase-05-web-api-frontend.md    | [x]    |
-| 6   | ACCEPTANCE.md + full gate                       | phase-06-acceptance.md          | [x]    |
+| #   | Phase                                                        | File                                        | Status |
+| --- | ------------------------------------------------------------ | ------------------------------------------- | ------ |
+| 1   | Config foundations + migration 014 + download_marks store    | phase-01-config-migration-marks.md          | [x]    |
+| 2   | Per-torrent caps + global caps (protocol, qBit impl, wiring) | phase-02-caps-orchestrator-global.md        | [x]    |
+| 3   | Events catalogue + reconcile signature change + emission     | phase-03-events-reconcile-emission.md       | [x]    |
+| 4   | Subscribers + frontend labels + ACCEPTANCE + full gate       | phase-04-subscribers-frontend-acceptance.md | [x]    |
 
 ## Review cycles
 
-_(filled by implement:pr-review)_
+_(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+All phases complete — run `/implement:feature-pr`.

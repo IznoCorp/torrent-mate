@@ -32,6 +32,7 @@ from personalscraper.api._contracts import ApiError, CircuitOpenError, MediaType
 from personalscraper.api.tracker._errors import TrackerAuthError
 from personalscraper.api.tracker._ranking import RankingConfig
 from personalscraper.api.tracker._registry import TrackerRegistry
+from personalscraper.conf.models.acquire import BandwidthConfig
 from personalscraper.core.event_bus import Event, EventBus
 from personalscraper.core.identity import MediaRef
 
@@ -145,6 +146,7 @@ class TestSearchVerdictFromTaxa:
             torrent_client=None,
             event_bus=bus or EventBus(),
             ranking=RankingConfig(min_seeders=0),
+            bandwidth=BandwidthConfig(),
         )
         return orchestrator.search(_item(), QualityProfile())
 
@@ -217,6 +219,7 @@ class TestGrabDispositionsUnchanged:
             torrent_client=MagicMock(),
             event_bus=EventBus(),
             ranking=RankingConfig(min_seeders=0),
+            bandwidth=BandwidthConfig(),
         )
         return orchestrator.grab(_item(), QualityProfile())
 

@@ -14,5 +14,15 @@
       ],
       cutoff_days: 30,
     },
+    // ── Bandwidth caps (O4 seed safety) ──────────────────────────────
+    // Per-torrent AND global limits, in bytes/s. Humanized strings
+    // accepted ("5MB", "1GB"). Omit a key (or set null) to leave the
+    // current qBittorrent setting untouched.
+    // "bandwidth": {
+    //   "per_torrent_down": null,
+    //   "per_torrent_up": null,
+    //   "global_down": null,
+    //   "global_up": null,
+    // },
   },
 }

@@ -23,11 +23,12 @@ domain VOs + stdlib — never from triage packages (layering, RP5c D3).
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
+    from personalscraper.acquire._download_marks import DownloadMark
     from personalscraper.acquire._provenance_store import ProvenanceRow
 
 from personalscraper.acquire.domain import (
@@ -436,6 +437,11 @@ class AcquireStore(Protocol):
         """``staging_provenance`` advisory registry sub-store (opens on access)."""
         ...
 
+    @property
+    def download_marks(self) -> DownloadMarksSubStore:
+        """``download_marks`` advisory sub-store (opens on access)."""
+        ...
+
     def close(self) -> None:
         """Release all resources held by the store (fail-soft — never raises)."""
         ...
@@ -557,10 +563,54 @@ class AiredSubStore(Protocol):
         ...
 
 
+@runtime_checkable
+class DownloadMarksSubStore(Protocol):
+    """Reader + writer for the ``download_marks`` advisory table (O4/D7).
+
+    One row per grabbed torrent info-hash, recording which download-progress
+    transitions the reconcile sweep has already emitted (started / 25-50-75
+    thresholds / completed) for exactly-once event semantics. Marks are
+    persisted BEFORE the emit (emit-after-persist) and pruned when the hash no
+    longer belongs to any OPEN wanted row.
+    """
+
+    def get(self, info_hash: str) -> DownloadMark | None:
+        """Return the mark for *info_hash* (stored lowercase), or ``None``."""
+        ...
+
+    def upsert(
+        self,
+        info_hash: str,
+        *,
+        started: bool | None = None,
+        threshold: int | None = None,
+        completed: bool | None = None,
+    ) -> None:
+        """Insert or partially update a mark (only non-None keywords written)."""
+        ...
+
+    def try_mark_started(self, info_hash: str) -> bool:
+        """Claim the Started emission; ``True`` iff THIS call won the transition."""
+        ...
+
+    def try_mark_completed(self, info_hash: str) -> bool:
+        """Claim the Completed emission; ``True`` iff THIS call won the transition."""
+        ...
+
+    def try_advance_threshold(self, info_hash: str, threshold: int) -> bool:
+        """Advance ``last_threshold`` forward-only; ``True`` iff THIS call advanced it."""
+        ...
+
+    def prune_stale(self, active_hashes: Iterable[str]) -> int:
+        """Delete marks whose hash is not in *active_hashes*; return the count."""
+        ...
+
+
 __all__ = [
     "AcquireStore",
     "AiredSubStore",
     "CrossSeedSubStore",
+    "DownloadMarksSubStore",
     "FollowSubStore",
     "RatioSubStore",
     "SeedSubStore",

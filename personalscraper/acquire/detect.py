@@ -206,9 +206,10 @@ class DetectService:
         if not dry_run:
             # P0-B.3 — reconcile grabbed rows against the library BEFORE the
             # enqueue pass (detect has no torrent client, so the vanished-torrent
-            # requeue is left to the grab cron).
+            # requeue — like the download-event emission — is left to the grab cron).
             try:
-                closed_owned = reconcile_wanted(self._store, self._ownership, None).closed_owned
+                sweep = reconcile_wanted(self._store, self._ownership, client_items=None, event_bus=self._event_bus)
+                closed_owned = sweep.closed_owned
             except Exception as exc:  # noqa: BLE001 — reconciliation must never abort detect
                 log.warning("acquire.detect.reconcile_failed", error=str(exc))
 

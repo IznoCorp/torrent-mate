@@ -110,7 +110,7 @@ def search(
             else:
                 # Reconcile before searching: an item already in the médiathèque
                 # closes ``done`` instead of costing a tracker query.
-                reconcile = _reconcile_before_search(acquire, console)
+                reconcile = _reconcile_before_search(acquire, app_context.event_bus, console)
 
                 summary = service.run_search(limit=limit, followed_id=followed_id)
                 console.print(
@@ -208,6 +208,7 @@ def _build_search_service(
         title_resolver=_title_resolver,
         year_resolver=_year_resolver,
         episode_count_resolver=_episode_count_resolver,
+        bandwidth=config.acquire.bandwidth,
     )
     return AcquisitionService(
         store=store,
@@ -220,25 +221,27 @@ def _build_search_service(
 # ── Reconcile ────────────────────────────────────────────────────────────────────
 
 
-def _reconcile_before_search(acquire: "AcquireContext", console: Console) -> "ReconcileSummary":
+def _reconcile_before_search(acquire: "AcquireContext", event_bus: "EventBus", console: Console) -> "ReconcileSummary":
     """Run the ownership reconcile sweep ahead of a real search run (fail-soft).
 
     Mirrors ``grab.py``'s ``_reconcile_before_run`` guard choice.  That sweep has
     two halves: close the rows whose media the library already owns, and requeue a
     row whose torrent vanished from the client — the second half firing ONLY when
-    the client's info-hashes could actually be read (``client_hashes=None`` means
+    the client's live items could actually be read (``client_items=None`` means
     « blind spot », and grab never requeues on a blind spot).
 
     On this command the blind spot is structural, not accidental: the search
     boundary is opened with ``build_torrent_client=False``, so there is no client
-    to interrogate and ``client_hashes`` is always ``None``.  The ownership half
-    therefore runs and the requeue half is skipped by construction — the same
-    behaviour grab falls back to, reached without ever contacting the daemon
-    (NE-DOIT-PAS-8).  ``follow.py``'s detect sweep passes ``None`` for the same
-    reason.
+    to interrogate and ``client_items`` is always ``None``.  The ownership half
+    therefore runs and the requeue half — like the download-event emission — is
+    skipped by construction, the same behaviour grab falls back to, reached
+    without ever contacting the daemon (NE-DOIT-PAS-8).  ``follow.py``'s detect
+    sweep passes ``None`` for the same reason.
 
     Args:
         acquire: The live ``AcquireContext`` (store + ownership).
+        event_bus: The app event bus (REQUIRED by the sweep; zero download
+            events fire here — no client items, no observation).
         console: Rich console for the operator summary line.
 
     Returns:
@@ -252,8 +255,8 @@ def _reconcile_before_search(acquire: "AcquireContext", console: Console) -> "Re
         return ReconcileSummary()
 
     try:
-        # client_hashes=None → ownership half only (see docstring).
-        summary = reconcile_wanted(store, acquire.ownership, None)
+        # client_items=None → ownership half only (see docstring).
+        summary = reconcile_wanted(store, acquire.ownership, client_items=None, event_bus=event_bus)
     except Exception as exc:  # noqa: BLE001 — reconciliation must never abort the search
         log.warning("cli.search.reconcile_failed", error=str(exc))
         return ReconcileSummary()

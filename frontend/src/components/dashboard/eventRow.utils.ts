@@ -49,6 +49,9 @@ const EVENT_TYPE_LABEL: Record<string, string> = {
   CircuitBreakerClosed: "Circuit rétabli",
   CircuitBreakerHalfOpened: "Circuit en test",
   RegistryFanOutCompleted: "Interrogation des fournisseurs",
+  DownloadStarted: "Téléchargement démarré",
+  DownloadProgressed: "Téléchargement en cours",
+  DownloadCompleted: "Téléchargement terminé",
 };
 
 /**
@@ -96,6 +99,11 @@ const SUMMARY_KEYS = [
  * JSON: the first few salient fields joined by " · " (F4). Falls back to a
  * compact ``key: value`` of the first primitive fields, then ``"—"``.
  *
+ * Download payloads (seed-caps) get a dedicated rendering: a threshold
+ * crossing (``threshold_pct``) reads ``{title} — {pct} %``; a start/finish
+ * payload (``title``/``provider``/``kind``) reads ``{title} ({provider})``,
+ * with an ``"unknown"`` provider omitted gracefully.
+ *
  * Args:
  *   data: The event payload object.
  *
@@ -103,6 +111,21 @@ const SUMMARY_KEYS = [
  *   A short summary string (never raw JSON).
  */
 export function eventSummary(data: Record<string, unknown>): string {
+  const title = data.title;
+  if (typeof title === "string" && title.trim() !== "") {
+    // DownloadProgressed carries the milestone crossed (25/50/75).
+    const thresholdPct = data.threshold_pct;
+    if (typeof thresholdPct === "number") {
+      return `${title} — ${String(thresholdPct)} %`;
+    }
+    // DownloadStarted / DownloadCompleted carry title + provider + kind.
+    const provider = data.provider;
+    if (typeof provider === "string" && typeof data.kind === "string") {
+      return provider === "unknown" || provider.trim() === ""
+        ? title
+        : `${title} (${provider})`;
+    }
+  }
   const parts: string[] = [];
   for (const key of SUMMARY_KEYS) {
     const value = data[key];

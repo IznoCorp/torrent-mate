@@ -17,6 +17,7 @@ interface :
 | ``delete()``                     | :class:`TorrentController`   |
 | ``add()``                        | :class:`TorrentAdder`        |
 | ``apply_limits()``               | :class:`TorrentLimiter`      |
+| ``apply_global_limits()``        | :class:`GlobalRateLimiter`   |
 
 Composition under DESIGN §4 :
 
@@ -183,6 +184,27 @@ class TorrentLimiter(Protocol):
 
 
 @runtime_checkable
+class GlobalRateLimiter(Protocol):
+    """Capability -- apply global transfer limits (O4/D5).
+
+    Composed by QBitClient only. Transmission deliberately omits this.
+    Callers gate via ``isinstance(client, GlobalRateLimiter)``.
+    """
+
+    def apply_global_limits(
+        self,
+        up_bytes_per_s: int | None = None,
+        down_bytes_per_s: int | None = None,
+    ) -> None:
+        """Set the client's global transfer limits.
+
+        A ``None`` field is a no-op -- the current client setting is left
+        untouched (D2: never reset limits the operator set by hand).
+        """
+        ...
+
+
+@runtime_checkable
 class TorrentTagger(Protocol):
     """Capability — add or remove tags on an existing torrent.
 
@@ -284,6 +306,7 @@ class TorrentInjector(Protocol):
 
 __all__ = [
     "AuthenticatedClient",
+    "GlobalRateLimiter",
     "TorrentAdder",
     "TorrentController",
     "TorrentInjector",
