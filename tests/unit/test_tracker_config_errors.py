@@ -29,7 +29,7 @@ class TestTrackerErrorBase:
         issue = TrackerConfigIssue(
             severity="error",
             code="missing_credentials",
-            provider="lacale",
+            provider="c411",
             message="no key",
         )
         err = TrackerConfigError([issue])
@@ -51,8 +51,8 @@ class TestTrackerConfigIssue:
         issue = TrackerConfigIssue(
             severity="error",
             code="missing_credentials",
-            provider="lacale",
-            message="LACALE_API_KEY absent",
+            provider="c411",
+            message="C411_API_KEY absent",
         )
         with pytest.raises(Exception):
             issue.severity = "warning"  # type: ignore[misc]
@@ -62,7 +62,7 @@ class TestTrackerConfigIssue:
         issue = TrackerConfigIssue(
             severity="warning",
             code="disabled_in_priority",
-            provider="lacale",
+            provider="c411",
             message="disabled but in priority",
         )
         assert issue.severity == "warning"
@@ -102,7 +102,7 @@ class TestTrackerConfigError:
             TrackerConfigIssue(
                 severity="error",
                 code="missing_credentials",
-                provider="lacale",
+                provider="c411",
                 message="no key",
             ),
             TrackerConfigIssue(
@@ -126,7 +126,7 @@ class TestTrackerConfigError:
         warn = TrackerConfigIssue(
             severity="warning",
             code="disabled_in_priority",
-            provider="lacale",
+            provider="c411",
             message="x",
         )
         with pytest.raises(ValueError):
@@ -149,7 +149,7 @@ class TestTrackerConfigError:
         issue = TrackerConfigIssue(
             severity="error",
             code="missing_credentials",
-            provider="lacale",
+            provider="c411",
             message="no key",
         )
         with pytest.raises(TrackerError):

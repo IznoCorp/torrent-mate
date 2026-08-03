@@ -91,7 +91,7 @@ class TestProviderCreds:
         façades over the OMDb HTTP backend introduced by the
         ``provider-ids`` feature ; they share OMDb's credential.
         """
-        assert len(PROVIDER_CREDS) == 13
+        assert len(PROVIDER_CREDS) == 12
 
     def test_known_providers(self) -> None:
         """Expected provider keys are present."""
@@ -104,7 +104,6 @@ class TestProviderCreds:
             "trakt",
             "qbittorrent",
             "transmission",
-            "lacale",
             "c411",
             "tr4ker",
             "telegram",
@@ -143,9 +142,9 @@ class TestResolveOptionalSecret:
         """Provider not in PROVIDER_OPTIONAL_SECRETS → empty dict."""
         assert resolve_optional_secret("tmdb", env={}) == {}
 
-    def test_lacale_passkey_absent(self) -> None:
-        """Lacale with no passkey → {'LACALE_PASSKEY': None}."""
-        assert resolve_optional_secret("lacale", env={}) == {"LACALE_PASSKEY": None}
+    def test_tr4ker_passkey_absent(self) -> None:
+        """Tr4ker with no passkey → {'TR4KER_PASSKEY': None}."""
+        assert resolve_optional_secret("tr4ker", env={}) == {"TR4KER_PASSKEY": None}
 
     def test_resolve_active_unaffected_by_missing_passkey(self) -> None:
         """NON-GATING PROOF: resolve_active() ignores PROVIDER_OPTIONAL_SECRETS.

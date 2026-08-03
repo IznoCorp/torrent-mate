@@ -31,7 +31,6 @@ PROVIDER_CREDS: dict[str, list[str]] = {
     "trakt": ["TRAKT_CLIENT_ID"],
     "qbittorrent": ["QBIT_USERNAME", "QBIT_PASSWORD"],
     "transmission": ["TRANSMISSION_USERNAME", "TRANSMISSION_PASSWORD"],
-    "lacale": ["LACALE_API_KEY"],
     "c411": ["C411_API_KEY"],
     # Tr4ker separates its two secrets, like every other api-key tracker here:
     # ``TR4KER_API_KEY`` authenticates API requests (sent as the Torznab
@@ -97,7 +96,6 @@ PROVIDER_OPTIONAL_SECRETS: dict[str, list[str]] = {
     # Announce passkeys — never consulted by resolve_active(); a missing
     # passkey never deactivates a tracker. Consumers (Vague 5 Ratio C1,
     # Seed-Safety O2) decide what to do with a missing value.
-    "lacale": ["LACALE_PASSKEY"],
     "c411": ["C411_PASSKEY"],
     # Tr4ker's passkey is the announce credential embedded in its .torrent files
     # (it identifies the account, it does NOT authenticate the search API — that
@@ -120,7 +118,7 @@ def resolve_optional_secret(
     future consumer is not surprised by an empty string slipping through.
 
     Args:
-        provider: Provider name (e.g. ``"lacale"``, ``"c411"``).
+        provider: Provider name (e.g. ``"c411"``, ``"tr4ker"``).
         env: Secret source (defaults to ``os.environ``; injectable for testing).
 
     Returns:

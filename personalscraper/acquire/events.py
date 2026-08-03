@@ -158,7 +158,7 @@ class GrabSucceeded(Event):
         media_ref: Provider-ID key; ``None`` when the grab is unbound to a
             specific media item (e.g. manual grab or freeleech sweep).
         info_hash: Torrent info-hash (hex string).
-        source_tracker: Tracker name (e.g. ``"lacale"``).
+        source_tracker: Tracker name (e.g. ``"c411"``).
         category: Category ID string (``None`` if unknown at grab time).
         tags: Ordered tuple of tracker-assigned tags.
     """
@@ -220,7 +220,7 @@ class SeedObligationRecorded(Event):
 
     Attributes:
         info_hash: Torrent info-hash (hex string).
-        source_tracker: Tracker name (e.g. ``"lacale"``).
+        source_tracker: Tracker name (e.g. ``"c411"``).
         min_seed_time_s: Minimum seed time in seconds (snapshot from economy config).
         dispatched_path: Absolute path of the dispatched media; ``None`` until move.
     """
@@ -240,7 +240,7 @@ class SeedObligationBreached(Event):
 
     Attributes:
         info_hash: Torrent info-hash (hex string).
-        source_tracker: Tracker name (e.g. ``"lacale"``).
+        source_tracker: Tracker name (e.g. ``"c411"``).
         dispatched_path: Absolute path of the dispatched media; ``None`` if unset.
     """
 
@@ -257,7 +257,7 @@ class SeedObligationSatisfied(Event):
 
     Attributes:
         info_hash: Torrent info-hash (hex string).
-        source_tracker: Tracker name (e.g. ``"lacale"``).
+        source_tracker: Tracker name (e.g. ``"c411"``).
     """
 
     info_hash: str
@@ -271,7 +271,7 @@ class RatioMeasured(Event):
     Emitted by Ratio C1 after each ratio poll cycle.
 
     Attributes:
-        tracker: Tracker identifier string (e.g. ``"lacale"``).
+        tracker: Tracker identifier string (e.g. ``"c411"``).
         observed_ratio: Latest measured upload/download ratio.
         target_ratio: Configured minimum ratio threshold.
     """

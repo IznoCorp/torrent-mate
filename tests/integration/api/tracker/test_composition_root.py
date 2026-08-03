@@ -63,8 +63,8 @@ class TestBuildAppContextTrackerWiring:
         issue = TrackerConfigIssue(
             severity="error",
             code="missing_credentials",
-            provider="lacale",
-            message="LACALE_API_KEY absent",
+            provider="c411",
+            message="C411_API_KEY absent",
         )
 
         with (

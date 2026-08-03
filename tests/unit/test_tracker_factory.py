@@ -119,7 +119,7 @@ class TestMissingCredentials:
 
     def test_enabled_tracker_no_key_raises(self) -> None:
         """A tracker enabled without its API key must raise TrackerConfigError."""
-        cfg = _cfg({"lacale": True}, priority=["lacale"])
+        cfg = _cfg({"tr4ker": True}, priority=["tr4ker"])
 
         with pytest.raises(TrackerConfigError) as exc_info:
             build_tracker_registry(
@@ -136,7 +136,7 @@ class TestMissingCredentials:
 
     def test_error_names_the_provider(self) -> None:
         """The error issue must mention the provider that was missing credentials."""
-        cfg = _cfg({"lacale": True}, priority=["lacale"])
+        cfg = _cfg({"tr4ker": True}, priority=["tr4ker"])
 
         with pytest.raises(TrackerConfigError) as exc_info:
             build_tracker_registry(
@@ -149,7 +149,7 @@ class TestMissingCredentials:
             )
 
         providers = [i.provider for i in exc_info.value.issues]
-        assert "lacale" in providers
+        assert "tr4ker" in providers
 
     def test_error_names_the_missing_key(self) -> None:
         """The error message must name the missing env var."""
@@ -179,8 +179,8 @@ class TestUnknownProvider:
     def test_ghost_in_priority_raises(self) -> None:
         """A name in priority that is absent from providers must raise TrackerConfigError."""
         cfg = TrackerConfig(
-            providers={"lacale": TrackerProviderConfig(enabled=False)},
-            priority=["lacale", "ghost"],
+            providers={"tr4ker": TrackerProviderConfig(enabled=False)},
+            priority=["tr4ker", "ghost"],
         )
 
         with pytest.raises(TrackerConfigError) as exc_info:
@@ -209,12 +209,12 @@ class TestProtocolMismatch:
 
     def test_non_searchable_client_raises(self) -> None:
         """A client that fails isinstance(client, TorrentSearchable) must raise."""
-        cfg = _cfg({"lacale": True}, priority=["lacale"])
+        cfg = _cfg({"tr4ker": True}, priority=["tr4ker"])
 
         with (
             patch(
                 "personalscraper.api.tracker._factory._TRACKER_CLASSES",
-                {"lacale": "tests.unit.test_tracker_factory:_NotSearchable"},
+                {"tr4ker": "tests.unit.test_tracker_factory:_NotSearchable"},
             ),
             patch("personalscraper.api.transport._http.HttpTransport"),
         ):
@@ -225,7 +225,7 @@ class TestProtocolMismatch:
                     settings=_settings(),
                     event_bus=EventBus(),
                     cb_policy=_policy(),
-                    env=_env("LACALE_API_KEY"),
+                    env=_env("TR4KER_API_KEY"),
                 )
 
         codes = [i.code for i in exc_info.value.issues]
@@ -242,7 +242,7 @@ class TestAllDisabled:
 
     def test_all_disabled_returns_empty_registry(self) -> None:
         """When all trackers are disabled, an empty TrackerRegistry is returned."""
-        cfg = _cfg({"lacale": False, "c411": False}, priority=[])
+        cfg = _cfg({"tr4ker": False, "c411": False}, priority=[])
 
         registry = build_tracker_registry(
             cfg,
@@ -260,10 +260,10 @@ class TestAllDisabled:
         """disabled_in_priority must NOT be emitted when zero trackers are active."""
         cfg = TrackerConfig(
             providers={
-                "lacale": TrackerProviderConfig(enabled=False),
+                "tr4ker": TrackerProviderConfig(enabled=False),
                 "c411": TrackerProviderConfig(enabled=False),
             },
-            priority=["lacale", "c411"],
+            priority=["tr4ker", "c411"],
         )
 
         with caplog.at_level("WARNING"):
@@ -292,17 +292,17 @@ class TestDisabledInPriority:
         """disabled_in_priority is a warning; boot must succeed."""
         cfg = TrackerConfig(
             providers={
-                "lacale": TrackerProviderConfig(enabled=True),
+                "tr4ker": TrackerProviderConfig(enabled=True),
                 "c411": TrackerProviderConfig(enabled=False),
             },
-            priority=["lacale", "c411"],
+            priority=["tr4ker", "c411"],
         )
 
         with (
             patch(
                 "personalscraper.api.tracker._factory._TRACKER_CLASSES",
                 {
-                    "lacale": "tests.unit.test_tracker_factory:_StubSearchable",
+                    "tr4ker": "tests.unit.test_tracker_factory:_StubSearchable",
                     "c411": "tests.unit.test_tracker_factory:_StubSearchable",
                 },
             ),
@@ -314,27 +314,27 @@ class TestDisabledInPriority:
                 settings=_settings(),
                 event_bus=EventBus(),
                 cb_policy=_policy(),
-                env=_env("LACALE_API_KEY"),
+                env=_env("TR4KER_API_KEY"),
             )
 
         assert isinstance(registry, TrackerRegistry)
-        assert "lacale" in registry._trackers
+        assert "tr4ker" in registry._trackers
         assert "c411" not in registry._trackers
 
     def test_disabled_in_priority_only_active_tracker_built(self) -> None:
         """Only the enabled tracker is present in the returned registry."""
         cfg = TrackerConfig(
             providers={
-                "lacale": TrackerProviderConfig(enabled=True),
+                "tr4ker": TrackerProviderConfig(enabled=True),
                 "c411": TrackerProviderConfig(enabled=False),
             },
-            priority=["lacale", "c411"],
+            priority=["tr4ker", "c411"],
         )
 
         with (
             patch(
                 "personalscraper.api.tracker._factory._TRACKER_CLASSES",
-                {"lacale": "tests.unit.test_tracker_factory:_StubSearchable"},
+                {"tr4ker": "tests.unit.test_tracker_factory:_StubSearchable"},
             ),
             patch("personalscraper.api.transport._http.HttpTransport"),
         ):
@@ -344,25 +344,25 @@ class TestDisabledInPriority:
                 settings=_settings(),
                 event_bus=EventBus(),
                 cb_policy=_policy(),
-                env=_env("LACALE_API_KEY"),
+                env=_env("TR4KER_API_KEY"),
             )
 
-        assert list(registry._trackers) == ["lacale"]
+        assert list(registry._trackers) == ["tr4ker"]
 
     def test_disabled_in_priority_warning_is_emitted(self) -> None:
         """The disabled_in_priority warning IS logged when >=1 tracker is active."""
         cfg = TrackerConfig(
             providers={
-                "lacale": TrackerProviderConfig(enabled=True),
+                "tr4ker": TrackerProviderConfig(enabled=True),
                 "c411": TrackerProviderConfig(enabled=False),
             },
-            priority=["lacale", "c411"],
+            priority=["tr4ker", "c411"],
         )
 
         with (
             patch(
                 "personalscraper.api.tracker._factory._TRACKER_CLASSES",
-                {"lacale": "tests.unit.test_tracker_factory:_StubSearchable"},
+                {"tr4ker": "tests.unit.test_tracker_factory:_StubSearchable"},
             ),
             patch("personalscraper.api.transport._http.HttpTransport"),
             patch("personalscraper.api.tracker._factory.log") as mock_log,
@@ -373,7 +373,7 @@ class TestDisabledInPriority:
                 settings=_settings(),
                 event_bus=EventBus(),
                 cb_policy=_policy(),
-                env=_env("LACALE_API_KEY"),
+                env=_env("TR4KER_API_KEY"),
             )
 
         warn_codes = [c.kwargs.get("code") for c in mock_log.warning.call_args_list]
@@ -390,7 +390,7 @@ class TestSeveritySplit:
 
     def test_error_severity_raises_tracker_config_error(self) -> None:
         """Missing key → error severity → TrackerConfigError raised."""
-        cfg = _cfg({"lacale": True}, priority=["lacale"])
+        cfg = _cfg({"tr4ker": True}, priority=["tr4ker"])
 
         with pytest.raises(TrackerConfigError):
             build_tracker_registry(
@@ -406,16 +406,16 @@ class TestSeveritySplit:
         """disabled_in_priority → warning severity → no exception."""
         cfg = TrackerConfig(
             providers={
-                "lacale": TrackerProviderConfig(enabled=True),
+                "tr4ker": TrackerProviderConfig(enabled=True),
                 "c411": TrackerProviderConfig(enabled=False),
             },
-            priority=["lacale", "c411"],
+            priority=["tr4ker", "c411"],
         )
 
         with (
             patch(
                 "personalscraper.api.tracker._factory._TRACKER_CLASSES",
-                {"lacale": "tests.unit.test_tracker_factory:_StubSearchable"},
+                {"tr4ker": "tests.unit.test_tracker_factory:_StubSearchable"},
             ),
             patch("personalscraper.api.transport._http.HttpTransport"),
         ):
@@ -426,7 +426,7 @@ class TestSeveritySplit:
                 settings=_settings(),
                 event_bus=EventBus(),
                 cb_policy=_policy(),
-                env=_env("LACALE_API_KEY"),
+                env=_env("TR4KER_API_KEY"),
             )
 
         assert isinstance(registry, TrackerRegistry)
@@ -442,7 +442,7 @@ class TestErrorAggregation:
 
     def test_multiple_missing_credentials_aggregated(self) -> None:
         """Two enabled, keyless trackers → TrackerConfigError carries BOTH issues."""
-        cfg = _cfg({"lacale": True, "c411": True}, priority=["lacale", "c411"])
+        cfg = _cfg({"tr4ker": True, "c411": True}, priority=["tr4ker", "c411"])
 
         with pytest.raises(TrackerConfigError) as exc_info:
             build_tracker_registry(
@@ -457,7 +457,7 @@ class TestErrorAggregation:
         issues = exc_info.value.issues
         assert len(issues) == 2
         providers = {i.provider for i in issues}
-        assert providers == {"lacale", "c411"}
+        assert providers == {"tr4ker", "c411"}
 
 
 # ---------------------------------------------------------------------------
@@ -470,13 +470,13 @@ class TestHappyPath:
 
     def test_two_credentialed_trackers_returns_registry_with_both(self) -> None:
         """2 enabled+credentialed trackers → TrackerRegistry with 2 entries."""
-        cfg = _cfg({"lacale": True, "c411": True}, priority=["lacale", "c411"])
+        cfg = _cfg({"tr4ker": True, "c411": True}, priority=["tr4ker", "c411"])
 
         with (
             patch(
                 "personalscraper.api.tracker._factory._TRACKER_CLASSES",
                 {
-                    "lacale": "tests.unit.test_tracker_factory:_StubSearchable",
+                    "tr4ker": "tests.unit.test_tracker_factory:_StubSearchable",
                     "c411": "tests.unit.test_tracker_factory:_StubSearchable",
                 },
             ),
@@ -488,12 +488,12 @@ class TestHappyPath:
                 settings=_settings(),
                 event_bus=EventBus(),
                 cb_policy=_policy(),
-                env=_env("LACALE_API_KEY", "C411_API_KEY"),
+                env=_env("TR4KER_API_KEY", "C411_API_KEY"),
             )
 
         assert isinstance(registry, TrackerRegistry)
         assert len(registry._trackers) == 2
-        assert "lacale" in registry._trackers
+        assert "tr4ker" in registry._trackers
         assert "c411" in registry._trackers
 
 
@@ -510,13 +510,13 @@ class TestDictCtorRegressionGuard:
         stub = MagicMock()
         stub.search = MagicMock(return_value=[])
         r = TrackerRegistry(
-            trackers={"lacale": stub},
-            priority=["lacale"],
+            trackers={"tr4ker": stub},
+            priority=["tr4ker"],
             ranking=RankingConfig(),
-            priority_by_media_type={"movie": ["lacale"]},
+            priority_by_media_type={"movie": ["tr4ker"]},
         )
-        assert r._priority == ["lacale"]
-        assert r._priority_by_media_type == {"movie": ["lacale"]}
+        assert r._priority == ["tr4ker"]
+        assert r._priority_by_media_type == {"movie": ["tr4ker"]}
 
 
 # ---------------------------------------------------------------------------
@@ -529,18 +529,17 @@ class TestTrackerConstructibleConformance:
 
     The factory dispatches construction UNIFORMLY through
     ``TrackerConstructible.from_env`` (no provider-name literal, no cred-style
-    branch). All three concrete clients must therefore expose a callable
+    branch). Every concrete client must therefore expose a callable
     ``from_env`` classmethod — a conformance guard so a future client that
     forgets it is caught here rather than at boot.
     """
 
     def test_all_real_clients_expose_from_env(self) -> None:
-        """Lacale / c411 / tr4ker all expose a callable from_env classmethod."""
+        """c411 / tr4ker both expose a callable from_env classmethod."""
         from personalscraper.api.tracker.c411 import C411Client  # noqa: PLC0415
-        from personalscraper.api.tracker.lacale import LaCaleClient  # noqa: PLC0415
         from personalscraper.api.tracker.tr4ker import Tr4kerClient  # noqa: PLC0415
 
-        for cls in (LaCaleClient, C411Client, Tr4kerClient):
+        for cls in (C411Client, Tr4kerClient):
             assert hasattr(cls, "from_env"), f"{cls.__name__} missing from_env"
             assert callable(cls.from_env)
 
@@ -592,15 +591,15 @@ class TestTrackerConstructibleConformance:
         assert [i.code for i in exc_info.value.issues] == ["missing_credentials"]
 
     def test_api_key_client_from_env_builds_instance(self) -> None:
-        """LaCaleClient.from_env builds a real client from a single API key (no network)."""
-        from personalscraper.api.tracker.lacale import LaCaleClient  # noqa: PLC0415
+        """C411Client.from_env builds a real client from a single API key (no network)."""
+        from personalscraper.api.tracker.c411 import C411Client  # noqa: PLC0415
 
-        with patch("personalscraper.api.tracker.lacale.HttpTransport") as mock_transport:
-            client = LaCaleClient.from_env(
-                env={"LACALE_API_KEY": "secret"},
+        with patch("personalscraper.api.tracker.torznab.HttpTransport") as mock_transport:
+            client = C411Client.from_env(
+                env={"C411_API_KEY": "secret"},
                 event_bus=EventBus(),
-                required=["LACALE_API_KEY"],
+                required=["C411_API_KEY"],
                 provider_cfg=TrackerProviderConfig(enabled=True),
             )
-        assert isinstance(client, LaCaleClient)
+        assert isinstance(client, C411Client)
         mock_transport.assert_called_once()

@@ -64,7 +64,7 @@ class _LoggedInClient:
 
 
 class _PlainTransportClient:
-    """lacale/c411-style client: ``_open_transport`` returns the always-materialized ``_transport``."""
+    """c411/tr4ker-style client: ``_open_transport`` returns the always-materialized ``_transport``."""
 
     def __init__(self) -> None:
         self._transport = MagicMock()
@@ -80,11 +80,11 @@ class TestTrackerRegistryTransports:
     def test_plain_client_transport_included(self) -> None:
         """A plain api-key client (always materialized) is present in the map."""
         client = _PlainTransportClient()
-        registry = _make_registry({"lacale": client})
+        registry = _make_registry({"c411": client})
 
         result = registry.transports()
 
-        assert result == {"lacale": client._transport}
+        assert result == {"c411": client._transport}
 
     def test_not_logged_in_client_is_omitted_without_triggering_login(self) -> None:
         """A not-logged-in login-style client is omitted AND its _transport is never accessed.
@@ -111,9 +111,9 @@ class TestTrackerRegistryTransports:
     def test_not_logged_in_client_does_not_drop_a_logged_in_sibling(self) -> None:
         """A not-logged-in tracker must not stop a logged-in sibling from being included."""
         healthy = _PlainTransportClient()
-        registry = _make_registry({"lazy": _NotLoggedInClient(), "lacale": healthy})
+        registry = _make_registry({"lazy": _NotLoggedInClient(), "c411": healthy})
 
         result = registry.transports()
 
         assert "lazy" not in result
-        assert result["lacale"] is healthy._transport
+        assert result["c411"] is healthy._transport

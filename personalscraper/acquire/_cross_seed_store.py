@@ -54,7 +54,7 @@ class _CrossSeedSubStore:
 
         Args:
             source_hash: Torrent info-hash of the source (hex string).
-            tracker: Tracker identifier string (e.g. ``"lacale"``).
+            tracker: Tracker identifier string (e.g. ``"c411"``).
         """
         now = time.time()
         with self._write_tx(self._conn):

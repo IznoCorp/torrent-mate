@@ -159,9 +159,9 @@ class TrackerRegistry:
                 # open breaker on a LOW-priority tracker escaped this loop and
                 # discarded the results already collected from the healthy
                 # HIGH-priority ones — the exact opposite of this method's
-                # fail-soft contract, and the reason lacale once had to be
-                # disabled outright ("disabled to stop CircuitOpenError crashing
-                # grab" in tracker.json5).
+                # fail-soft contract, and the reason a since-removed tracker
+                # once had to be disabled outright ("disabled to stop
+                # CircuitOpenError crashing grab" in tracker.json5).
                 # Programming errors (KeyError, AttributeError, …) are *not*
                 # caught here — they indicate a code bug that must surface.
                 # See ``TorrentSearchable`` Protocol docstring for the parse-drift

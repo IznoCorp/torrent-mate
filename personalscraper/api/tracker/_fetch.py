@@ -127,7 +127,7 @@ def fetch_torrent_source(
             GET and as the source of the provider name embedded in errors.
         expected_info_hash: Optional info_hash to cross-check against the
             fetched file. ``None`` or ``""`` skips the check (C411 may return
-            ``""``, LaCale may return ``None``).
+            ``""``; some trackers return ``None``).
 
     Returns:
         The validated :class:`TorrentSource`.
@@ -235,7 +235,7 @@ def resolve_source(
     """Resolve a :class:`TrackerResult` to a :class:`TorrentSource` (D6/D8).
 
     Routes by ``result.provider`` (the lowercase wire key, e.g. ``"c411"`` /
-    ``"lacale"``) over a caller-supplied transport map, then delegates to
+    ``"tr4ker"``) over a caller-supplied transport map, then delegates to
     :func:`fetch_torrent_source`.
 
     Resolution order:

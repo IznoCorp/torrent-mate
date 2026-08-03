@@ -27,7 +27,6 @@ if TYPE_CHECKING:
 log = get_logger("api.tracker.factory")
 
 _TRACKER_CLASSES: dict[str, str] = {
-    "lacale": "personalscraper.api.tracker.lacale:LaCaleClient",
     "c411": "personalscraper.api.tracker.c411:C411Client",
     "tr4ker": "personalscraper.api.tracker.tr4ker:Tr4kerClient",
 }
@@ -37,7 +36,7 @@ def _resolve_tracker_class(name: str) -> type:
     """Import and return the tracker client class for *name*.
 
     Args:
-        name: Tracker name key (e.g. ``"lacale"``).
+        name: Tracker name key (e.g. ``"c411"``).
 
     Returns:
         The concrete client class.
@@ -116,7 +115,7 @@ def build_tracker_registry(
         # Uniform construction contract (TrackerConstructible.from_env): every
         # tracker builds itself from resolved env creds + its provider config.
         # No provider-name literal, no cred-style branch — every current tracker
-        # (lacale/c411/tr4ker) is api-key style and builds a single-key transport
+        # (c411/tr4ker) is api-key style and builds a single-key transport
         # eagerly. The contract also covers a login-style tracker that would
         # self-build its authed transport lazily and read extra options off
         # provider_cfg; none is wired today.

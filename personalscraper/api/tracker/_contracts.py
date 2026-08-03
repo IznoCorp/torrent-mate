@@ -6,7 +6,6 @@ Decomposes the historical monolithic ``TrackerClient`` Protocol
 the capabilities it actually implements (DESIGN §4 "Composition par
 client") :
 
-- ``LaCaleClient(TorrentSearchable, CategoryListable)``
 - ``C411Client(TorrentSearchable, CategoryListable)`` — and every other
   Torznab config, through ``TorznabClient``
 
@@ -31,9 +30,9 @@ type would duplicate without value. If a future tracker needs to
 distinguish a search result from a detail-page payload, the split can
 happen at that point.
 
-Phase 1.3 ships only the contracts. ``LaCaleClient`` and ``C411Client``
-keep their current shape (extending the monolithic ``TrackerClient``
-Protocol) ; phase 11 refactors them to compose the atomic capabilities
+Phase 1.3 shipped only the contracts; the concrete clients kept their
+then-current shape (extending the monolithic ``TrackerClient`` Protocol)
+until phase 11 refactored them to compose the atomic capabilities
 declared here.
 """
 

@@ -46,7 +46,6 @@ class ProviderName(str, Enum):
     TRAKT = "trakt"
     QBITTORRENT = "qbittorrent"
     TRANSMISSION = "transmission"
-    LACALE = "lacale"
     C411 = "c411"
     TR4KER = "tr4ker"
     TELEGRAM = "telegram"

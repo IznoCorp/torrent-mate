@@ -58,11 +58,17 @@ from personalscraper.acquire.delete_authority import DeleteAuthority, build_dele
 from personalscraper.acquire.domain import RatioState, SeedObligation
 from personalscraper.acquire.service import AcquisitionService
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
+from personalscraper.api._activation import PROVIDER_CREDS, resolve_optional_secret
 from personalscraper.api._contracts import ProviderName
+from personalscraper.api.tracker._errors import TrackerConfigError
+from personalscraper.api.tracker._factory import build_tracker_registry
+from personalscraper.api.tracker._ranking import RankingConfig
+from personalscraper.api.transport._policy import CircuitPolicy
 from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.conf.models.api_config import TrackerConfig, TrackerEconomyConfig, TrackerProviderConfig
 from personalscraper.config import Settings
 from personalscraper.core.delete_permit import ALLOW
+from personalscraper.core.event_bus import EventBus
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.web.auth.tokens import create_session_token
 from tests.web._web_harness import web_client
@@ -139,15 +145,57 @@ def _torrent_item(*, name: str, size_bytes: int, tags: list[str]) -> MagicMock:
     return item
 
 
-def test_enum_no_longer_carries_the_removed_tracker() -> None:
-    """Precondition: torr9 is really gone from ``ProviderName``.
+def test_enum_no_longer_carries_the_removed_tracker(removed: str) -> None:
+    """Precondition: the tracker is really gone from ``ProviderName``.
 
     Everything below is only meaningful because coercing the stored name would
     now raise — which is exactly why no read path may coerce it.
     """
-    assert not hasattr(ProviderName, "TORR9")
-    with pytest.raises(ValueError, match="torr9"):
-        ProviderName("torr9")
+    assert not hasattr(ProviderName, removed.upper())
+    with pytest.raises(ValueError, match=removed):
+        ProviderName(removed)
+
+
+def test_activation_maps_no_longer_know_the_removed_tracker(removed: str) -> None:
+    """The removed tracker is a stranger to the activation maps.
+
+    ``PROVIDER_CREDS`` no longer gates it, and :func:`resolve_optional_secret`
+    treats it like any unknown provider — empty dict, even when a stale secret
+    is still exported in the environment.
+    """
+    assert removed not in PROVIDER_CREDS
+    stale_env = {
+        f"{removed.upper()}_API_KEY": "stale",
+        f"{removed.upper()}_PASSKEY": "stale",
+    }
+    assert resolve_optional_secret(removed, env=stale_env) == {}
+
+
+def test_factory_rejects_the_removed_tracker_as_unknown(removed: str) -> None:
+    """Re-enabling the removed tracker in config is a loud unknown-provider boot error.
+
+    The factory's standard contract for a name without a client implementation
+    applies: ``unknown_provider``, never a silent skip and never a resurrected
+    client.
+    """
+    cfg = TrackerConfig(
+        providers={removed: TrackerProviderConfig(enabled=True)},
+        priority=[removed],
+    )
+
+    with pytest.raises(TrackerConfigError) as exc_info:
+        build_tracker_registry(
+            cfg,
+            RankingConfig(),
+            settings=MagicMock(),
+            event_bus=EventBus(),
+            cb_policy=CircuitPolicy(failure_threshold=5, cooldown_seconds=1.0),
+            env={},
+        )
+
+    issues = exc_info.value.issues
+    assert [i.code for i in issues] == ["unknown_provider"]
+    assert issues[0].provider == removed
 
 
 def test_obligation_round_trips_verbatim(store: ConcreteAcquireStore, tmp_path: Path, removed: str) -> None:

@@ -49,56 +49,56 @@ def _make_side_effect(call_log: list[str], name: str) -> Callable[..., list[Any]
 def test_registry_uses_per_media_type_priority_when_match() -> None:
     """When the media type matches an override, that order is used."""
     call_log: list[str] = []
-    lacale = _make_tracker("lacale")
+    tr4ker = _make_tracker("tr4ker")
     c411 = _make_tracker("c411")
-    lacale.search.side_effect = _make_side_effect(call_log, "lacale")
+    tr4ker.search.side_effect = _make_side_effect(call_log, "tr4ker")
     c411.search.side_effect = _make_side_effect(call_log, "c411")
 
     registry = TrackerRegistry(
-        trackers={"lacale": lacale, "c411": c411},
-        priority=["lacale", "c411"],
+        trackers={"tr4ker": tr4ker, "c411": c411},
+        priority=["tr4ker", "c411"],
         ranking=_make_ranking(),
-        priority_by_media_type={"movie": ["c411", "lacale"]},
+        priority_by_media_type={"movie": ["c411", "tr4ker"]},
     )
     registry.search_all("query", media_type=MediaType.MOVIE)
-    assert call_log == ["c411", "lacale"]
+    assert call_log == ["c411", "tr4ker"]
 
 
 def test_registry_falls_back_to_global_when_media_type_unmapped() -> None:
     """A media type with no override entry uses ``priority``."""
     call_log: list[str] = []
-    lacale = _make_tracker("lacale")
+    tr4ker = _make_tracker("tr4ker")
     c411 = _make_tracker("c411")
-    lacale.search.side_effect = _make_side_effect(call_log, "lacale")
+    tr4ker.search.side_effect = _make_side_effect(call_log, "tr4ker")
     c411.search.side_effect = _make_side_effect(call_log, "c411")
 
     registry = TrackerRegistry(
-        trackers={"lacale": lacale, "c411": c411},
-        priority=["lacale", "c411"],
+        trackers={"tr4ker": tr4ker, "c411": c411},
+        priority=["tr4ker", "c411"],
         ranking=_make_ranking(),
         priority_by_media_type={"tv": ["c411"]},
     )
     # MediaType.MOVIE has no override → fall back to global order.
     registry.search_all("query", media_type=MediaType.MOVIE)
-    assert call_log == ["lacale", "c411"]
+    assert call_log == ["tr4ker", "c411"]
 
 
 def test_registry_default_priority_when_map_is_none() -> None:
     """``priority_by_media_type=None`` keeps the original behaviour intact."""
     call_log: list[str] = []
-    lacale = _make_tracker("lacale")
+    tr4ker = _make_tracker("tr4ker")
     c411 = _make_tracker("c411")
-    lacale.search.side_effect = _make_side_effect(call_log, "lacale")
+    tr4ker.search.side_effect = _make_side_effect(call_log, "tr4ker")
     c411.search.side_effect = _make_side_effect(call_log, "c411")
 
     registry = TrackerRegistry(
-        trackers={"lacale": lacale, "c411": c411},
-        priority=["lacale", "c411"],
+        trackers={"tr4ker": tr4ker, "c411": c411},
+        priority=["tr4ker", "c411"],
         ranking=_make_ranking(),
         # ``priority_by_media_type`` defaults to ``None`` ; no kwarg passed.
     )
     registry.search_all("query", media_type=MediaType.MOVIE)
-    assert call_log == ["lacale", "c411"]
+    assert call_log == ["tr4ker", "c411"]
 
 
 def test_queryable_for_matches_search_candidates_queried_names() -> None:
@@ -110,21 +110,21 @@ def test_queryable_for_matches_search_candidates_queried_names() -> None:
     the ``queried_names`` produced by ``search_candidates`` — the invariant the
     two share per DESIGN §6.4/6.7.
     """
-    lacale = _make_tracker("lacale")
+    c411 = _make_tracker("c411")
     tr4ker = _make_tracker("tr4ker")
 
     # "fourth" appears in priority + the movie override but is NOT in the
     # trackers dict — simulates a client-None entry that both queryable_for
     # and search_candidates must skip.
     registry = TrackerRegistry(
-        trackers={"lacale": lacale, "tr4ker": tr4ker},
-        priority=["lacale", "tr4ker", "fourth"],
+        trackers={"c411": c411, "tr4ker": tr4ker},
+        priority=["c411", "tr4ker", "fourth"],
         ranking=_make_ranking(),
-        priority_by_media_type={"movie": ["lacale", "tr4ker", "fourth"]},
+        priority_by_media_type={"movie": ["c411", "tr4ker", "fourth"]},
     )
 
     # queryable_for: intersects priority with non-None trackers.
-    assert registry.queryable_for("movie") == {"lacale", "tr4ker"}
+    assert registry.queryable_for("movie") == {"c411", "tr4ker"}
 
     # search_candidates: queried_names must match queryable_for exactly.
     outcome = registry.search_candidates("test", MediaType.MOVIE)

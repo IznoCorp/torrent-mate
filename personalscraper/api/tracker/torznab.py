@@ -361,8 +361,9 @@ class TorznabClient(TorrentSearchable, CategoryListable):
         Newznab subcat IDs collide across parents (e.g. multiple `4050`),
         so we key the dict by the unique ``description`` (per parent label,
         which is the actual native subcategory name) → ``id`` of the
-        Newznab class. The shape follows LaCale's ``slug → human`` contract
-        modulo "id is a numeric Newznab class, not a slug".
+        Newznab class. The shape keeps the tracker family's historical
+        ``slug → human`` contract modulo "id is a numeric Newznab class,
+        not a slug".
 
         Returns:
             Mapping ``description → newznab_id`` (e.g. ``"Animation": "2060"``).
