@@ -305,6 +305,101 @@ def test_grab_dry_run_wires_publisher_and_closes(tmp_path: Path, monkeypatch) ->
     mock_publisher.close.assert_called_once()
 
 
+def test_grab_wires_acquisition_telegram_subscriber_when_configured(monkeypatch, test_config) -> None:
+    """Regression (review MAJOR / D8): grab builds the acquisition Telegram subscriber.
+
+    The reconcile pass of ``grab`` is the ONLY caller of ``reconcile_wanted``
+    that emits ``DownloadCompleted``, yet the subscriber was only ever built by
+    the pipeline command — the D8 deliverable was unreachable. Same gates as
+    ``commands/pipeline.py``: ``TelegramNotifier.is_configured`` gates the
+    construction, ``notify.acquire_notify_enabled`` rides into the subscriber,
+    and ``close()`` runs at command end.
+    """
+    from unittest.mock import patch
+
+    from personalscraper.acquire.context import AcquireContext
+    from personalscraper.api.notify.telegram import TelegramNotifier
+
+    # Real is_configured path: non-empty credentials (overrides the autouse
+    # neutralization fixture for this test only). ``get_settings`` is
+    # ``@lru_cache``d, so drop the cache before AND after — otherwise another
+    # test's cached (empty) Settings wins here, and ours would leak onward.
+    from personalscraper.config import get_settings
+    from personalscraper.core.app_context import AppContext
+    from personalscraper.core.event_bus import EventBus
+
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:test-token")
+    monkeypatch.setenv("TELEGRAM_CHAT_ID", "424242")
+    get_settings.cache_clear()
+
+    event_bus = EventBus()
+    mock_acquire = AcquireContext(tracker_registry=MagicMock(), store=None, grab=None)
+    app_ctx = AppContext(
+        config=MagicMock(),
+        settings=MagicMock(),
+        event_bus=event_bus,
+        provider_registry=MagicMock(),
+        acquire=mock_acquire,
+    )
+
+    @contextmanager
+    def _fake_boundary(config, settings, *, build_torrent_client=False):
+        yield app_ctx
+
+    monkeypatch.setattr("personalscraper.commands.grab.per_step_boundary", _fake_boundary)
+
+    try:
+        with patch("personalscraper.subscribers.acquire.AcquisitionTelegramSubscriber") as mock_sub_cls:
+            result = runner.invoke(app, ["grab", "--dry-run"])
+    finally:
+        # Never leak the configured Settings to later tests on this worker.
+        get_settings.cache_clear()
+
+    assert result.exit_code == 0, f"Expected exit 0; got:\n{result.output}"
+    mock_sub_cls.assert_called_once()
+    # Same wiring as pipeline.py: the app bus, a real notifier, the config flag.
+    assert mock_sub_cls.call_args.args[0] is app_ctx.event_bus
+    assert isinstance(mock_sub_cls.call_args.kwargs["notifier"], TelegramNotifier)
+    assert mock_sub_cls.call_args.kwargs["enabled"] is test_config.notify.acquire_notify_enabled
+    mock_sub_cls.return_value.close.assert_called_once()
+
+
+def test_grab_no_telegram_subscriber_when_not_configured(monkeypatch) -> None:
+    """Telegram not configured (empty credentials) → the subscriber is never built."""
+    from unittest.mock import patch
+
+    from personalscraper.acquire.context import AcquireContext
+
+    # The autouse _neutralize_external_notify_creds fixture already empties the
+    # credentials — is_configured answers False through the real path. Drop the
+    # lru_cache so THIS test reads the neutralized env, not a stale cache.
+    from personalscraper.config import get_settings
+    from personalscraper.core.app_context import AppContext
+    from personalscraper.core.event_bus import EventBus
+
+    get_settings.cache_clear()
+    mock_acquire = AcquireContext(tracker_registry=MagicMock(), store=None, grab=None)
+    app_ctx = AppContext(
+        config=MagicMock(),
+        settings=MagicMock(),
+        event_bus=EventBus(),
+        provider_registry=MagicMock(),
+        acquire=mock_acquire,
+    )
+
+    @contextmanager
+    def _fake_boundary(config, settings, *, build_torrent_client=False):
+        yield app_ctx
+
+    monkeypatch.setattr("personalscraper.commands.grab.per_step_boundary", _fake_boundary)
+
+    with patch("personalscraper.subscribers.acquire.AcquisitionTelegramSubscriber") as mock_sub_cls:
+        result = runner.invoke(app, ["grab", "--dry-run"])
+
+    assert result.exit_code == 0, f"Expected exit 0; got:\n{result.output}"
+    mock_sub_cls.assert_not_called()
+
+
 def test_grab_dry_run_no_close_when_publisher_is_none(tmp_path: Path, monkeypatch) -> None:
     """When ``build_redis_publisher`` returns None, no .close() is attempted."""
     from unittest.mock import patch

@@ -30,9 +30,53 @@ if TYPE_CHECKING:
     from personalscraper.acquire.context import AcquireContext
     from personalscraper.acquire.reconcile import ReconcileSummary
     from personalscraper.api.torrent._base import TorrentItem
+    from personalscraper.conf.models.config import Config
+    from personalscraper.config import Settings
     from personalscraper.core.event_bus import EventBus
+    from personalscraper.subscribers.acquire import AcquisitionTelegramSubscriber
 
 log = get_logger("cli.grab")
+
+
+def _build_acq_telegram_subscriber(
+    config: "Config",
+    settings: "Settings",
+    event_bus: "EventBus",
+) -> "AcquisitionTelegramSubscriber | None":
+    """Build the acquisition Telegram subscriber for a grab run (D8).
+
+    Mirrors EXACTLY the gates of the ``run`` command's wiring
+    (``commands/pipeline.py``): construction is gated on
+    ``TelegramNotifier.is_configured(settings)``, and actual sends are gated
+    inside the subscriber by ``config.notify.acquire_notify_enabled``. Without
+    this wiring the D8 deliverable was unreachable from ``grab`` — the only
+    command whose reconcile pass emits ``DownloadCompleted``.
+
+    Args:
+        config: Loaded application config (``notify.acquire_notify_enabled``).
+        settings: Env-backed settings carrying the Telegram credentials.
+        event_bus: The app bus the subscriber self-registers on.
+
+    Returns:
+        The constructed subscriber (caller owns ``close()``), or ``None``
+        when Telegram is not configured.
+    """
+    from personalscraper.api.notify.telegram import TelegramNotifier  # noqa: PLC0415
+    from personalscraper.api.transport._http import HttpTransport  # noqa: PLC0415
+    from personalscraper.subscribers.acquire import AcquisitionTelegramSubscriber  # noqa: PLC0415
+
+    if not TelegramNotifier.is_configured(settings):
+        return None
+    tg_transport = HttpTransport(
+        TelegramNotifier.policy(settings.telegram_bot_token),
+        event_bus=event_bus,
+    )
+    tg_notifier = TelegramNotifier(tg_transport, settings.telegram_chat_id)
+    return AcquisitionTelegramSubscriber(
+        event_bus,
+        notifier=tg_notifier,
+        enabled=config.notify.acquire_notify_enabled,
+    )
 
 
 @command_with_telemetry("grab")
@@ -67,6 +111,10 @@ def grab(
         per_step_boundary(config, settings, build_torrent_client=not dry_run) as app_context,
     ):
         redis_publisher = build_redis_publisher(app_context.event_bus, config.web)
+        # D8 — the reconcile pass below emits DownloadCompleted; without this
+        # subscriber the event had no Telegram consumer on the grab path (the
+        # pipeline command wires it, but never calls reconcile_wanted).
+        acq_telegram_subscriber = _build_acq_telegram_subscriber(config, settings, app_context.event_bus)
         try:
             acquire = app_context.acquire
             if acquire is None:
@@ -126,6 +174,8 @@ def grab(
                     }
                 )
         finally:
+            if acq_telegram_subscriber is not None:
+                acq_telegram_subscriber.close()
             if redis_publisher is not None:
                 redis_publisher.close()
 
