@@ -204,6 +204,34 @@ describe("FollowedPanel — compact rows (Phase 02)", () => {
     ).toBeInTheDocument();
   });
 
+  it("donne au bouton Actions le minimum tactile mobile min-h-11 (X4, ticket 250)", () => {
+    renderPanel([makeItem()]);
+
+    // The icon trigger is size-8 on desktop; below md it must stretch to the
+    // touch minimum. Token-exact assertions: a substring check would let a
+    // stray responsive prefix (e.g. sm:min-h-11) reintroduce the mobile bug.
+    const classes = screen
+      .getByRole("button", { name: "Actions pour House of the Dragon" })
+      .className.split(/\s+/);
+    expect(classes).toContain("min-h-11");
+    expect(classes).toContain("min-w-11");
+    expect(classes).toContain("md:min-h-8");
+    expect(classes).toContain("md:min-w-8");
+  });
+
+  it("donne au toggle Séries/Films le minimum tactile mobile min-h-11 (X4, ticket 250)", () => {
+    renderPanel([makeItem()]);
+
+    // Same segmented-toggle motif as the density/sort groups: 44px below md.
+    for (const name of [/^Séries \(/, /^Films \(/]) {
+      const classes = screen
+        .getByRole("button", { name })
+        .className.split(/\s+/);
+      expect(classes).toContain("min-h-11");
+      expect(classes).toContain("md:min-h-8");
+    }
+  });
+
   it("renders the CompletenessAccordion below a series row", () => {
     renderPanel([makeItem({ kind: "show" })]);
 

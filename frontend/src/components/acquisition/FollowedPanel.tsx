@@ -183,7 +183,7 @@ export function FollowedPanel({
             type="button"
             aria-pressed={kindTab === k}
             size="sm"
-            className="flex-1 sm:flex-none"
+            className="min-h-11 flex-1 sm:flex-none md:min-h-8"
             variant={kindTab === k ? "default" : "ghost"}
             onClick={() => {
               setKindTab(k);
@@ -319,7 +319,7 @@ export function FollowedPanel({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="size-8 shrink-0"
+                      className="size-8 min-h-11 min-w-11 shrink-0 md:min-h-8 md:min-w-8"
                       aria-label={`Actions pour ${item.title}`}
                     >
                       <MoreHorizontal className="size-4" />

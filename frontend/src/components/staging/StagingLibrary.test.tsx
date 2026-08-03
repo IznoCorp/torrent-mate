@@ -151,6 +151,44 @@ describe("StagingLibrary", () => {
     );
   });
 
+  it("donne aux chips et contrôles de filtre le minimum tactile mobile min-h-11 (X4, ticket 250)", () => {
+    renderLib();
+    // Identification chips (match filters + « Sans bande-annonce ») are bare
+    // <button>-wrapped Badges: without the min-h they collapse to the Badge
+    // height, far below the mobile touch minimum. Regression guard for the
+    // 390px mobile-truth audit.
+    const chipButtons = [
+      ...screen.getAllByRole("button", {
+        name: /Identifiés|Non identifiés|À résoudre|Sans bande-annonce/,
+      }),
+    ].filter((b) => b.hasAttribute("aria-pressed"));
+    // Exact inventory: the 3 plural match chips + « Sans bande-annonce ».
+    expect(chipButtons).toHaveLength(4);
+    for (const chip of chipButtons) {
+      // Token-exact assertion: a substring check would let a stray responsive
+      // prefix (e.g. sm:min-h-11) reintroduce the mobile bug test-green.
+      const classes = chip.className.split(/\s+/);
+      expect(classes).toContain("min-h-11");
+      expect(classes).toContain("min-w-11");
+      expect(classes).toContain("md:min-h-8");
+      expect(classes).toContain("md:min-w-8");
+    }
+    // Density and sort toggles follow the same convention.
+    for (const name of [
+      "Confortable",
+      "Compact",
+      "Récents",
+      "Titre",
+      "Taille",
+    ]) {
+      const classes = screen
+        .getByRole("button", { name })
+        .className.split(/\s+/);
+      expect(classes).toContain("min-h-11");
+      expect(classes).toContain("md:min-h-8");
+    }
+  });
+
   it("gives the 'À résoudre' chip a warning tone when ambiguities are pending (C18)", () => {
     stagingMock.mockReturnValue({
       data: response([

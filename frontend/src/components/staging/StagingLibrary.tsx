@@ -281,6 +281,7 @@ export function StagingLibrary({
                   size="sm"
                   variant={density === opt.value ? "default" : "ghost"}
                   aria-pressed={density === opt.value}
+                  className="min-h-11 md:min-h-8"
                   onClick={() => {
                     setDensity(opt.value);
                   }}
@@ -300,6 +301,7 @@ export function StagingLibrary({
                   type="button"
                   size="sm"
                   variant={sort === opt.value ? "default" : "ghost"}
+                  className="min-h-11 md:min-h-8"
                   onClick={() => {
                     resetTo(setSort, opt.value);
                   }}
@@ -334,6 +336,7 @@ export function StagingLibrary({
                   key={filter.value}
                   type="button"
                   aria-pressed={active}
+                  className="inline-flex min-h-11 min-w-11 items-center justify-center md:min-h-8 md:min-w-8"
                   onClick={() => {
                     resetTo(setMatchInternal, filter.value);
                   }}
@@ -353,6 +356,7 @@ export function StagingLibrary({
             <button
               type="button"
               aria-pressed={missingTrailer}
+              className="inline-flex min-h-11 min-w-11 items-center justify-center md:min-h-8 md:min-w-8"
               onClick={() => {
                 resetTo(setMissingTrailer, !missingTrailer);
               }}
