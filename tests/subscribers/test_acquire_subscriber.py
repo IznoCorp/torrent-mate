@@ -8,7 +8,7 @@ Tests verify:
 4. Fail-soft guards: _send handles False return / None notifier (synchronous),
    and _spawn worker-crashed WARNING (daemon thread, poll-based).
 5. Regression: WantedEnqueued season=0 formats S00E05, not '?'.
-6. close() unsubscribes all 12 subscriptions — emit post-close is a no-op.
+6. close() unsubscribes all 13 subscriptions — emit post-close is a no-op.
 7. Counter-review F-C: SeasonFellBackToEpisodes reaches the notifier (DESIGN §2 R6).
 """
 
@@ -21,6 +21,7 @@ import pytest
 
 import personalscraper.events  # noqa: F401 — eager-import acquire events
 from personalscraper.acquire.events import (
+    DownloadCompleted,
     GrabFailed,
     GrabSucceeded,
     RatioMeasured,
@@ -54,6 +55,7 @@ _ALL_ACQUIRE_EVENT_CLASSES = [
     SeedObligationSatisfied,
     RatioMeasured,
     TrackerAuthFailed,
+    DownloadCompleted,
 ]
 
 
@@ -274,10 +276,10 @@ def test_season_fell_back_to_episodes_notifies_operator() -> None:
 
 
 def test_close_unsubscribes_all() -> None:
-    """close() unregisters all 12 subscriptions."""
+    """close() unregisters all 13 subscriptions."""
     bus = EventBus()
     sub = AcquisitionTelegramSubscriber(bus, enabled=False)
-    assert len(sub._tokens) == 12
+    assert len(sub._tokens) == 13
     sub.close()
     assert len(sub._tokens) == 0
     # Emit after close — notifier.send must not be called (no subscriptions)
