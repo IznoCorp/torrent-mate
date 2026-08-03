@@ -39,7 +39,7 @@ _SECRET_KEY_COMPOUND_RE = re.compile(
 # SHAPE of a secret cannot see a key echoed back by a server inside an XML error
 # body, embedded in a URL PATH, or dumped by a third-party library in a format
 # nobody anticipated. Matching the value itself covers all of those at once.
-# Populated from Settings — never hard-coded, never logged.
+# Populated from os.environ — never hard-coded, never logged.
 _SECRET_VALUES: set[str] = set()
 # Below this length a "secret" is not distinctive enough to blind-replace
 # (an 8-char token is already unlikely to occur by accident in a log line).
@@ -185,37 +185,29 @@ def redact_secrets(
 
 LOGS_DIR = Path(__file__).resolve().parent.parent / "logs"
 
-# Settings fields whose VALUE is a credential. Kept as names (never values) so
-# this module imports nothing at module scope and stays safe to import anywhere.
-_SETTINGS_SECRET_FIELDS = (
-    "qbit_password",
-    "tmdb_api_key",
-    "tvdb_api_key",
-    "youtube_api_key",
-    "telegram_bot_token",
-    "plex_token",
-    "web_password_hash",
-    "web_jwt_secret",
-)
-
 
 def _register_settings_secrets() -> None:
     """Feed the process's real credentials to the value-based redactor.
 
-    Fail-soft by construction: logging must never be the thing that breaks a
-    command. If settings cannot be loaded (no ``.env``, partial environment),
-    the shape-based rules still apply — only the value-based safety net is
-    unavailable.
-    """
-    try:
-        from personalscraper.config import get_settings  # noqa: PLC0415 — avoid an import cycle at module scope
+    Scans ``os.environ`` for every variable whose NAME matches the secret-key
+    regexes and registers its VALUE.  This is the ONLY source of credential
+    registration — it MUST NOT call ``personalscraper.config.get_settings()``
+    because that function is ``@lru_cache``'d.  Calling it during logging setup
+    primes the cache with the ambient ``.env`` credentials BEFORE the test-suite
+    fixture ``_neutralize_external_notify_creds`` can blank them, which would
+    cause the pipeline to build a REAL ``TelegramNotifier`` and attempt a real
+    send during tests (the "phantom Telegram reports on every git push" incident
+    this repo already fixed once).
 
-        settings = get_settings()
-    except Exception:  # noqa: BLE001 — logging setup must never raise
-        return
-    register_secret_values(*(getattr(settings, name, None) for name in _SETTINGS_SECRET_FIELDS))
-    # Per-provider tracker credentials live in the environment under their own
-    # names (C411_API_KEY, TR4KER_API_KEY/PASSKEY…), not on Settings.
+    Every ``.env`` credential is already in ``os.environ`` by the time this runs
+    — ``personalscraper/__init__.py`` calls ``_load_dotenv()`` at package import,
+    so TMDB_API_KEY, TR4KER_API_KEY, TELEGRAM_BOT_TOKEN, QBIT_PASSWORD, and all
+    tracker credentials are present under their own names.
+
+    Fail-soft by construction: logging must never be the thing that breaks a
+    command. If the environment is empty or partial, the shape-based rules still
+    apply — only the value-based safety net is unavailable.
+    """
     for env_name, env_value in os.environ.items():
         if _SECRET_KEY_EXACT_RE.match(env_name) or _SECRET_KEY_COMPOUND_RE.search(env_name):
             register_secret_values(env_value)
