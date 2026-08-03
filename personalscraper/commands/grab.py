@@ -315,7 +315,12 @@ def _run_dry(
     registry = acquire.tracker_registry
     for item in pending:
         console.print(f"\n[bold]Item:[/bold] {item.media_ref} ({item.kind})")
-        media_type = MediaType.TV if item.kind == "episode" else MediaType.MOVIE
+        # A `season` row is TV too — it was classified as MOVIE here while the
+        # orchestrator (orchestrator.py) says `in ("episode", "season")`. The
+        # preview therefore hit the movie endpoint AND, once the year stopped
+        # being appended to TV queries, kept appending it to season queries:
+        # exactly the « … S01 2025 » → 0 result that stranded Pan Am 103.
+        media_type = MediaType.TV if item.kind in ("episode", "season") else MediaType.MOVIE
         # Follow D3: same title + year resolution as the real grab (see
         # build_search_query) so the preview reflects the ACTUAL query the
         # trackers receive — for a movie that means « {title} {year} » (#28,
