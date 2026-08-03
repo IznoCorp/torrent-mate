@@ -82,11 +82,19 @@ pytest tests/api/torrent/test_global_rate_limiter.py -v   # all pass
 ### Files
 - **Modify**: `personalscraper/acquire/orchestrator.py` — `__init__` accepts `BandwidthConfig`, apply at add time
 - **Modify**: `personalscraper/acquire/_factory.py:169` — wire `config.acquire.bandwidth` into constructor
+- **Modify**: `personalscraper/commands/search.py:203` — same wiring (second ctor site, torrent_client=None)
 - **Create**: `tests/acquire/test_orchestrator_bandwidth_caps.py`
 
 ### Implementation
 
 In `orchestrator.py.__init__`, add parameter `bandwidth: BandwidthConfig` (required), store as `self._bandwidth`, add flag `self._limits_unsupported_warned = False` (D4).
+
+ANCHOR CORRECTIONS (verified 2026-08-03): `orchestrator.py` already has a module-level
+`log = get_logger("acquire.orchestrator")` (personalscraper.logger — the repo FORBIDS
+direct `structlog.get_logger`, enforced by `scripts/check_logging.py`). Use `log.warning(...)`.
+ALSO: `GrabOrchestrator` is constructed at TWO sites — `_factory.py:169` AND
+`commands/search.py:203` (search pass, `torrent_client=None`). BOTH must gain
+`bandwidth=config.acquire.bandwidth` or the required param breaks the search command.
 
 In the add path (around line 890), before `self._torrent_client.add(...)`, build `TorrentLimits` when caps configured:
 
@@ -105,7 +113,7 @@ if bw.per_torrent_down is not None or bw.per_torrent_up is not None:
         )
     elif not self._limits_unsupported_warned:
         self._limits_unsupported_warned = True
-        structlog.get_logger(__name__).warning(
+        log.warning(
             "acquire.grab.limits_unsupported",
             client_type=type(self._torrent_client).__name__,
         )
@@ -143,35 +151,49 @@ make lint                                                       # zero errors
 
 ### Implementation
 
-In `service.py`, at the top of the acquire run entry method, add (D5):
+ANCHOR CORRECTION (verified 2026-08-03): `AcquisitionService` does NOT hold the torrent
+client — the orchestrator does (`__init__(store, orchestrator, event_bus, config)`;
+run entry = `run()` at service.py:242). Reaching through `self._orchestrator._torrent_client`
+would cross a private boundary. Instead:
+
+1. Add a public method on `GrabOrchestrator` (it already holds BOTH the client and
+   `self._bandwidth` after 2.2):
 
 ```python
-bw = self._config.acquire.bandwidth
-if bw.global_down is not None or bw.global_up is not None:
-    from personalscraper.api.torrent._contracts import GlobalRateLimiter
+def apply_global_caps(self) -> None:
+    """Re-assert global transfer limits from config (O4/D5).
 
-    tc = self._torrent_client  # or stored reference from orchestrator
-    if isinstance(tc, GlobalRateLimiter):
-        try:
-            tc.apply_global_limits(
-                down_bytes_per_s=bw.global_down,
-                up_bytes_per_s=bw.global_up,
-            )
-        except ApiError as exc:
-            structlog.get_logger(__name__).warning(
-                "acquire.global_limits.failed", error=str(exc),
-            )
+    No-op when no global cap is configured or the client is absent /
+    lacks GlobalRateLimiter. Fail-soft on ApiError: warn and continue —
+    a dead client must never block the run.
+    """
+    bw = self._bandwidth
+    if bw.global_down is None and bw.global_up is None:
+        return
+    tc = self._torrent_client
+    if tc is None or not isinstance(tc, GlobalRateLimiter):
+        return
+    try:
+        tc.apply_global_limits(
+            down_bytes_per_s=bw.global_down,
+            up_bytes_per_s=bw.global_up,
+        )
+    except ApiError as exc:
+        log.warning("acquire.global_limits.failed", error=str(exc))
 ```
 
-Note: The exact torrent client reference access depends on how `AcquisitionService` holds it. Use the stored reference; if it's via `self._orchestrator._torrent_client`, access it there.
+2. In `service.py` `run()` (line ~279, right after the `self._grab_run_uid = run_uid`
+   stamp), call `self._orchestrator.apply_global_caps()` (D5 — re-asserted at every
+   grab run start, idempotent, self-healing).
 
 ### Tests
 
-In `tests/acquire/test_global_caps_service.py`, extract `_apply_global_caps(client, bw)` and test:
-- Applies when client supports `GlobalRateLimiter` and caps configured
+In `tests/acquire/test_global_caps_service.py`, test `GrabOrchestrator.apply_global_caps()` directly:
+- Applies when client supports `GlobalRateLimiter` and caps configured (mock client asserts call args)
 - Noop when no caps configured (all None)
-- Noop when client unsupported (no crash — D4/D5)
-- Fail-soft on `ApiError` (no raise — D5)
+- Noop when client is None or unsupported (no crash — D4/D5)
+- Fail-soft on `ApiError` (no raise, warning logged — D5)
+- Service-level: `AcquisitionService.run()` calls `apply_global_caps()` once at entry (mock orchestrator)
 
 ### Gate
 ```bash
