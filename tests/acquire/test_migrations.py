@@ -28,8 +28,8 @@ from personalscraper.core.sqlite import apply_migrations
 
 MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "acquire" / "migrations"
 
-# Expected tables after the full migration chain (001 → 004) is applied.
-_LATEST_VERSION = 13
+# Expected tables after the full migration chain (001 → 014) is applied.
+_LATEST_VERSION = 14
 
 _EXPECTED_TABLES = {
     "followed_series",
@@ -41,6 +41,7 @@ _EXPECTED_TABLES = {
     "watch_state",
     "aired_episode",
     "staging_provenance",
+    "download_marks",
     "schema_version",
 }
 
