@@ -76,7 +76,7 @@ function makeObligation(
 ): ObligationItem {
   return {
     info_hash: "abcdef1234567890abcdef1234567890abcdef12",
-    source_tracker: "lacale",
+    source_tracker: "c411",
     dispatched_path: "/movies/Top Chef",
     min_seed_time_s: 86400,
     min_ratio: 1.0,
@@ -244,10 +244,10 @@ describe("ObligationsPanel — hash copy button", () => {
 describe("ObligationsPanel — tracker/ratio/seed-time columns preserved", () => {
   it("renders the Tracker column", () => {
     renderPanel({
-      items: [makeObligation({ source_tracker: "lacale" })],
+      items: [makeObligation({ source_tracker: "tr4ker" })],
     });
 
-    expect(screen.getByText("lacale")).toBeInTheDocument();
+    expect(screen.getByText("tr4ker")).toBeInTheDocument();
   });
 
   it("renders the Ratio min column", () => {

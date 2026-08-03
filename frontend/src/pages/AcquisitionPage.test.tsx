@@ -137,7 +137,7 @@ function makeFollowed(overrides: Record<string, unknown> = {}) {
 function makeObligation(overrides: Record<string, unknown> = {}) {
   return {
     info_hash: "abcdef1234567890abcdef1234567890abcdef12",
-    source_tracker: "lacale",
+    source_tracker: "c411",
     dispatched_path: "/movies/Top Chef",
     min_seed_time_s: 86400,
     min_ratio: 1.0,
@@ -811,7 +811,7 @@ describe("AcquisitionPage", () => {
         items: [
           makeObligation({
             info_hash: "aaaa1111222233334444aaaa1111222233334444",
-            source_tracker: "lacale",
+            source_tracker: "tr4ker",
             satisfied_at: 1_719_800_000,
           }),
           makeObligation({
@@ -826,7 +826,7 @@ describe("AcquisitionPage", () => {
     renderPage();
     fireEvent.click(screen.getByRole("tab", { name: "Obligations" }));
 
-    expect(screen.getByText("lacale")).toBeInTheDocument();
+    expect(screen.getByText("tr4ker")).toBeInTheDocument();
     expect(screen.getByText("c411")).toBeInTheDocument();
     // Derived status badges.
     expect(screen.getByText("Respectée")).toBeInTheDocument();

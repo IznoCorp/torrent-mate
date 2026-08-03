@@ -108,7 +108,7 @@ const OBLIGATIONS = {
   items: [
     {
       info_hash: "abc123def456",
-      source_tracker: "lacale",
+      source_tracker: "c411",
       min_ratio: 1.0,
       min_seed_time_s: 86400,
       added_at: 1_750_000_000,
