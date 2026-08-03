@@ -26,16 +26,15 @@ Telegram subscriber for `DownloadCompleted` (13th in `AcquisitionTelegramSubscri
 bus.subscribe(DownloadCompleted, self._on_download_completed),
 ```
 
-**Handler** (follow the pattern of `_on_grab_succeeded`):
+**Handler** — ANCHOR CORRECTION (verified 2026-08-03): the real send helper is
+`self._dispatch(msg, "snake_name")` (see `_on_grab_succeeded` at subscribers/acquire.py:188);
+`_log_and_maybe_send` does not exist. Follow the house one-liner style:
 
 ```python
 def _on_download_completed(self, event: DownloadCompleted) -> None:
-    """Handle DownloadCompleted — notify via Telegram (O4/D8)."""
-    message = (
-        f"\u2705 Téléchargement terminé : {event.title}\n"
-        f"_provider: {event.provider} · {event.kind}_"
-    )
-    self._log_and_maybe_send(event, message)
+    """Handle DownloadCompleted — format + dispatch."""
+    msg = f"✅ Téléchargement terminé : {event.title} ({event.provider} · {event.kind})"
+    self._dispatch(msg, "download_completed")
 ```
 
 ### Tests
@@ -69,7 +68,11 @@ DownloadProgressed: "Téléchargement en cours",
 DownloadCompleted: "Téléchargement terminé",
 ```
 
-For `DownloadProgressed`, the render component (EventRow/RecentEventsTable) appends the threshold percentage at display time (e.g. `"Téléchargement en cours (50 %)"`). The label map stores only the base text.
+For `DownloadProgressed`, the percentage comes from `eventSummary(data)`
+(eventRow.utils.ts:105 — the payload-condensing helper), NOT from the label map.
+Extend `eventSummary` with a branch for download payloads (threshold_pct / progress /
+title) so the summary reads e.g. « Breaking Bad S05E01 — 50 % » ; the label map stores
+only the base text. Add vitest coverage for that branch too.
 
 ### Vitest
 
