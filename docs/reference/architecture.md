@@ -86,13 +86,12 @@ staging/
 │   │   │   ├── _factory.py           # build_client, build_active_torrent_client
 │   │   │   ├── qbittorrent.py        # QBitClient (Adder + Limiter)
 │   │   │   └── transmission.py       # TransmissionClient (Adder only)
-│   │   ├── tracker/             # TrackerClient + ranking engine — lacale, c411, tr4ker
+│   │   ├── tracker/             # TrackerClient + ranking engine — c411, tr4ker
 │   │   │   ├── torznab.py            # GENERIC Torznab/Newznab engine: TorznabDescriptor (dataclass)
 │   │   │   │                         # + TorznabClient (HTTP, XML parse, torznab:attr flattening,
 │   │   │   │                         # caps, error taxonomy). A new Torznab tracker = descriptor + thin class
 │   │   │   ├── c411.py               # C411Client — first named config of torznab.py (descriptor only)
 │   │   │   ├── tr4ker.py             # Tr4kerClient — second named config (descriptor only)
-│   │   │   ├── lacale.py             # LaCaleClient — bespoke JSON client (not Torznab)
 │   │   │   ├── _errors.py            # TrackerAuthError, TorrentFetchError (tracker-family errors)
 │   │   │   └── _fetch.py             # fetch boundary (RP1a): TrackerResult → TorrentSource
 │   │   │                             # via HttpTransport.get_bytes (dedicated download circuit, D3);
@@ -653,7 +652,7 @@ lobe's role, boundaries and seams.
   boundary.
 - **Composition root**: `_build_app_context(config, settings)` (the same
   `cli_helpers` root every command uses) builds the context; `create_app(config,
-  settings)` (`web/app.py`) receives the already-built context and stores it on
+settings)` (`web/app.py`) receives the already-built context and stores it on
   `app.state`. This is the AppContext boundary rule — routes read `app.state`, they
   never rebuild a context.
 

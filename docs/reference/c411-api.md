@@ -163,7 +163,7 @@ GET /api?t=tvsearch&q=<query>&apikey=<key>       (tv scope)
 | -------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
 | —                                            | `provider`                                         | Constant `"c411"`                                                                                            |
 | `<guid>`                                     | `tracker_id`                                       | **40-char infohash** (confirmed live). Equal to `torznab:attr[infohash]` and to the path segment in `<link>` |
-| `<title>`                                    | `title`                                            | Used as input for `_parse_title()` (shared helper)                                                           |
+| `<title>`                                    | `title`                                            | Used as input for `parse_title_quality()` (shared `_quality.py` helper)                                      |
 | `enclosure[@length]` or `torznab:attr[size]` | `size` (`ByteSize`)                                | Bytes (string in XML) → `ByteSize.parse(int(value))`                                                         |
 | `torznab:attr[seeders]`                      | `seeders`                                          | Direct int                                                                                                   |
 | `max(0, peers - seeders)`                    | `leechers`                                         | C411 emits `peers == seeders` when no leechers; clamp to 0                                                   |
@@ -174,7 +174,7 @@ GET /api?t=tvsearch&q=<query>&apikey=<key>       (tv scope)
 | `<pubDate>`                                  | `upload_date`                                      | RFC 2822 (`Sun, 12 Jan 2025 10:00:00 +0000`); parse with `email.utils.parsedate_to_datetime`                 |
 | `torznab:attr[downloadvolumefactor]`         | `is_freeleech`                                     | `True` if `value == "0"`                                                                                     |
 | `torznab:attr[downloadvolumefactor]`         | `is_silverleech`                                   | `True` if `value == "0.5"`                                                                                   |
-| _(derived from title)_                       | `format`, `codec`, `source`, `resolution`, `audio` | Reuse LaCale's `_parse_title` (titles encode same fields)                                                    |
+| _(derived from title)_                       | `format`, `codec`, `source`, `resolution`, `audio` | `parse_title_quality()` from the shared `personalscraper/api/tracker/_quality.py` (titles encode the fields) |
 
 ---
 
@@ -248,7 +248,7 @@ GET /api?t=caps&apikey=<key>
 | 4050       | Jeux PC        | (not mapped)                  |
 
 `get_categories()` flattens the caps tree to `id (str) → name (str)` (numeric IDs
-preserved as strings for consistency with the LaCale shape).
+preserved as strings for consistency across the tracker family).
 
 ---
 
@@ -267,12 +267,12 @@ C411 API documentation does not publish hard rate limits. The 5-min server-side
 cache on Torznab feeds and the Prowlarr-recommended 15-60 min RSS interval imply
 the tracker is not hostile to polling. Defensive policy:
 
-| Setting             | Value | Rationale                                                 |
-| ------------------- | ----- | --------------------------------------------------------- |
-| `rps`               | `0.5` | Same as LaCale — 1 req per 2s comfortably under cache TTL |
-| `burst`             | `2`   | Allow short bursts when iterating categories              |
-| `retry_max`         | `2`   | Transient failures only                                   |
-| `circuit_threshold` | `3`   | Open circuit after 3 consecutive 5xx                      |
+| Setting             | Value | Rationale                                                                 |
+| ------------------- | ----- | ------------------------------------------------------------------------- |
+| `rps`               | `0.5` | Family-default defensive rate — 1 req per 2s, comfortably under cache TTL |
+| `burst`             | `2`   | Allow short bursts when iterating categories                              |
+| `retry_max`         | `2`   | Transient failures only                                                   |
+| `circuit_threshold` | `3`   | Open circuit after 3 consecutive 5xx                                      |
 
 Tunable via `config/tracker.json5` per-provider override.
 
@@ -313,12 +313,11 @@ at Phase 20 start, defaults stand.
    requires bypassing the XML transport. If one surfaces during implementation, we
    revisit.
 
-2. **Title parsing**: Reuse `LaCaleClient._parse_title` — both trackers encode quality
-   markers (resolution, codec, source, audio, format) inside the torrent title with
-   the same conventions. Phase 20 extracts `_parse_title` to a shared helper or
-   imports it directly from `lacale.py` (decision: **import directly** from
-   `personalscraper.api.tracker.lacale` to avoid premature abstraction; promote to a
-   shared `_title_parser.py` only if a third tracker reuses it).
+2. **Title parsing**: All trackers encode quality markers (resolution, codec,
+   source, audio, format) inside the torrent title with the same conventions.
+   Parsing lives in the shared `personalscraper/api/tracker/_quality.py`
+   (`parse_title_quality`) — the single regex table for the whole tracker
+   family (TORRENT-TRACKERS-03); the C411 client calls it on every `<title>`.
 
 3. **Category normalization**: `get_categories()` returns a flat
    `description (slug) → human label` map. Because Newznab `id` collides across native
@@ -335,7 +334,7 @@ at Phase 20 start, defaults stand.
    `t=movie` / `t=tvsearch` when `media_type` is supplied (the latter accept
    `imdbid`/`tmdbid`/`tvdbid` for ID-based lookups in a follow-up). Phase 20
    wires a `media_type → endpoint` decision at the top of `search()`.
-6. **Default rate limit**: `rps=0.5`, `burst=2` (defensive, same as LaCale).
+6. **Default rate limit**: `rps=0.5`, `burst=2` (defensive family default).
 7. **Sample fixtures**: live samples captured 2026-05-07 in
    `docs/reference/_samples/c411/`:
    - `caps.xml` — Torznab capabilities + categories
@@ -352,7 +351,7 @@ at Phase 20 start, defaults stand.
 
 ```python
 # personalscraper/api/tracker/c411.py
-from personalscraper.api.tracker.lacale import LaCaleClient  # for _parse_title reuse
+from personalscraper.api.tracker._quality import parse_title_quality  # shared title parsing
 
 class C411Client:
     provider_name: str = "c411"
