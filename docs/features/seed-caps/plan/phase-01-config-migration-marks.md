@@ -13,8 +13,10 @@
 **Commit**: `feat(seed-caps): add BandwidthConfig model with ByteSize coercion`
 
 ### Files
+
 - **Modify**: `personalscraper/conf/models/acquire.py` — add `BandwidthConfig` class + field on `AcquireConfig`
-- **Create**: `tests/conf/models/test_bandwidth_config.py`
+- **Create**: `tests/conf/test_bandwidth_config.py` (NOTE: conf tests live FLAT in
+  `tests/conf/` — there is no `tests/conf/models/` directory; verified 2026-08-03)
 
 ### Implementation
 
@@ -22,15 +24,16 @@ In `personalscraper/conf/models/acquire.py`, add import and class after `Cadence
 
 ### Tests
 
-In `tests/conf/models/test_bandwidth_config.py`, write unit tests covering:
+In `tests/conf/test_bandwidth_config.py`, write unit tests covering:
 
 1. **Defaults**: `BandwidthConfig()` → all four fields are `None`.
 2. **ByteSize coercion**: Parametrized test — `"5MB"` → `5_000_000`, `"1GB"` → `1_000_000_000`, `"10MiB"` → `10_485_760`, etc. Int passthrough. None passthrough.
 3. **Validation**: Zero rejected (`ValueError`). Negative rejected. Garbage string rejected.
 
 ### Gate
+
 ```bash
-pytest tests/conf/models/test_bandwidth_config.py -v   # all pass
+pytest tests/conf/test_bandwidth_config.py -v   # all pass
 ```
 
 ---
@@ -40,6 +43,7 @@ pytest tests/conf/models/test_bandwidth_config.py -v   # all pass
 **Commit**: `chore(seed-caps): add bandwidth block to config.example/acquire.json5`
 
 ### Files
+
 - **Modify**: `config.example/acquire.json5`
 
 ### Implementation
@@ -62,6 +66,7 @@ In `config.example/acquire.json5`, add a commented block after the `cadence` sec
 All values commented out and `null`.
 
 ### Gate
+
 ```bash
 python -c "from personalscraper.conf.loader import load_config; c=load_config(); assert c.acquire.bandwidth.per_torrent_down is None; print('OK')"
 ```
@@ -73,6 +78,7 @@ python -c "from personalscraper.conf.loader import load_config; c=load_config();
 **Commit**: `feat(seed-caps): add migration 014 download_marks table + store`
 
 ### Files
+
 - **Create**: `personalscraper/acquire/migrations/014_download_marks.sql`
 - **Create**: `personalscraper/acquire/_download_marks.py`
 - **Create**: `tests/acquire/test_download_marks.py`
@@ -92,8 +98,14 @@ CREATE TABLE IF NOT EXISTS download_marks (
     updated_at          REAL NOT NULL DEFAULT (CAST(strftime('%s', 'now') AS REAL))
 );
 
-INSERT OR IGNORE INTO schema_version (version) VALUES (14);
+PRAGMA user_version = 14;
 ```
+
+(Repo convention — verified against `012_provenance_run_linkage.sql:33` and
+`013_season_kind.sql:83`: the script itself bumps `PRAGMA user_version` so the DDL
+and the version commit land in the same `executescript` transaction. There is NO
+`schema_version` table in this schema; the runner `core/sqlite/_migrate.py` only
+READS `PRAGMA user_version` to pick pending scripts.)
 
 ### Marks store (`_download_marks.py`)
 
@@ -106,6 +118,7 @@ Module `personalscraper.acquire._download_marks` with two classes:
 ### Tests (`test_download_marks.py`)
 
 In-memory SQLite with the migration DDL. Test cases:
+
 - `get` on nonexistent returns `None`
 - `upsert` insert then `get` returns correct mark
 - `upsert` partial update (bump threshold only, started unchanged)
@@ -114,6 +127,7 @@ In-memory SQLite with the migration DDL. Test cases:
 - `prune_stale` with empty active set deletes all
 
 ### Gate
+
 ```bash
 pytest tests/acquire/test_download_marks.py -v      # all pass
 make lint                                             # zero errors
@@ -126,7 +140,7 @@ python -c "import personalscraper"                    # smoke test
 
 ```bash
 make lint
-pytest tests/conf/models/test_bandwidth_config.py tests/acquire/test_download_marks.py -v
+pytest tests/conf/test_bandwidth_config.py tests/acquire/test_download_marks.py -v
 python -c "import personalscraper"
 ```
 
