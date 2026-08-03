@@ -1,16 +1,16 @@
 {
-  // PROVIDER_CREDS (activation-gating): lacale → LACALE_API_KEY, c411 → C411_API_KEY
+  // PROVIDER_CREDS (activation-gating): c411 → C411_API_KEY
   // PROVIDER_CREDS (activation-gating): tr4ker → TR4KER_API_KEY — the profile API
   //   key (Mon compte → Paramètres), sent as the Torznab `apikey=` query param.
   //   It authenticates API requests. The announce passkey is a DIFFERENT secret
   //   (see below) and never authenticates the search API.
-  // PROVIDER_OPTIONAL_SECRETS (non-gating, RP2): lacale → LACALE_PASSKEY,
-  //   c411 → C411_PASSKEY, tr4ker → TR4KER_PASSKEY (embedded in the .torrent
-  //   files, identifies the account; future RSS freeleech radar)
+  // PROVIDER_OPTIONAL_SECRETS (non-gating, RP2): c411 → C411_PASSKEY,
+  //   tr4ker → TR4KER_PASSKEY (embedded in the .torrent files, identifies the
+  //   account; future RSS freeleech radar)
   // A missing passkey never deactivates a tracker (DESIGN §Non-Goals, D3).
   tracker: {
     providers: {
-      lacale: {
+      c411: {
         enabled: false,
         cross_seed: false,
         // economy: {
@@ -18,16 +18,6 @@
         //   min_ratio: 1.0,           // deletion floor (O2)
         //   min_seed_time: "72h",     // humanized: s/m/h/d/w → stored as seconds
         //   hit_and_run_grace: "48h", // grace after download before H&R counting
-        // },
-      },
-      c411: {
-        enabled: false,
-        cross_seed: false,
-        // economy: {
-        //   target_ratio: 2.0,
-        //   min_ratio: 1.0,
-        //   min_seed_time: "72h",
-        //   hit_and_run_grace: "48h",
         // },
       },
       tr4ker: {
@@ -41,10 +31,10 @@
         // },
       },
     },
-    priority: ["lacale", "c411", "tr4ker"],
+    priority: ["c411", "tr4ker"],
     priority_by_media_type: {
-      // movie: ["c411", "tr4ker", "lacale"],
-      // tv:    ["c411", "tr4ker", "lacale"],
+      // movie: ["c411", "tr4ker"],
+      // tv:    ["c411", "tr4ker"],
     },
     max_total_results: 50,
     max_per_tracker: 30,
