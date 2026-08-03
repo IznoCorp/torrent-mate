@@ -32,7 +32,7 @@
 | --- | ------------------------------------------------------------ | ------------------------------------------- | ------ |
 | 1   | Config foundations + migration 014 + download_marks store    | phase-01-config-migration-marks.md          | [x]    |
 | 2   | Per-torrent caps + global caps (protocol, qBit impl, wiring) | phase-02-caps-orchestrator-global.md        | [x]    |
-| 3   | Events catalogue + reconcile signature change + emission     | phase-03-events-reconcile-emission.md       | [ ]    |
+| 3   | Events catalogue + reconcile signature change + emission     | phase-03-events-reconcile-emission.md       | [x]    |
 | 4   | Subscribers + frontend labels + ACCEPTANCE + full gate       | phase-04-subscribers-frontend-acceptance.md | [ ]    |
 
 ## Review cycles
@@ -41,4 +41,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to execute phase 3 (events + reconcile emission).
+Run `/implement:phase` to execute phase 4 (subscribers + frontend + ACCEPTANCE).
