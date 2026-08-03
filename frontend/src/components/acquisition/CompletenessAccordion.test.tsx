@@ -569,7 +569,7 @@ describe("CompletenessAccordion — season grab button (R4)", () => {
     expect(btn).not.toBeDisabled();
   });
 
-  it("disables the grab button when the season is fully owned", () => {
+  it("does NOT render the grab button when the season is fully owned", () => {
     mockCompleteness(
       makeCompleteness({
         seasons: [
@@ -599,8 +599,14 @@ describe("CompletenessAccordion — season grab button (R4)", () => {
     );
     renderOpen();
 
-    const btn = screen.getByRole("button", { name: /Récupérer la saison/ });
-    expect(btn).toBeDisabled();
+    // « 2/2 en médiathèque » must not offer « Récupérer la saison » AT ALL —
+    // a greyed-out button still proposes work that does not exist. It was
+    // merely `disabled` before the operator flagged it.
+    expect(
+      screen.queryByRole("button", { name: /Récupérer la saison/ }),
+    ).not.toBeInTheDocument();
+    // The season's own readout is still there — only the dead action is gone.
+    expect(screen.getByText("2/2 en médiathèque")).toBeInTheDocument();
   });
 
   it("disables the button while the mutation is pending", async () => {
@@ -780,8 +786,8 @@ describe("CompletenessAccordion — season grab button (R4)", () => {
   });
 
   it("does NOT render grab button when total is 0 (empty season)", () => {
-    // total==0 means no aired episodes — render the button but it should
-    // be disabled because owned>=total (0>=0). The season has nothing to grab.
+    // total==0 means no aired episode — there is nothing to grab, so the
+    // button is not rendered at all (it used to render, merely disabled).
     mockCompleteness(
       makeCompleteness({
         seasons: [
@@ -798,7 +804,8 @@ describe("CompletenessAccordion — season grab button (R4)", () => {
     );
     renderOpen();
 
-    const btn = screen.getByRole("button", { name: /Récupérer la saison/ });
-    expect(btn).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: /Récupérer la saison/ }),
+    ).not.toBeInTheDocument();
   });
 });

@@ -146,25 +146,31 @@ function SeasonRow({ season, followedId }: SeasonRowProps): ReactElement {
         </p>
       ))}
 
-      {/* Per-season grab: enqueue a season wanted (R4). Disabled when the
-          season is fully owned (nothing to grab) or while the mutation is
-          in flight. The backend is idempotent (returns the existing row on
-          duplicate), so a double-click is harmless. */}
-      <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={nothingToGrab || grabSeasonMutation.isPending}
-          onClick={() => {
-            grabSeasonMutation.mutate();
-          }}
-        >
-          <Download className="mr-1 h-4 w-4" aria-hidden="true" />
-          {grabSeasonMutation.isPending
-            ? "Mise en file…"
-            : "Récupérer la saison"}
-        </Button>
-      </div>
+      {/* Per-season grab: enqueue a season wanted (R4). NOT RENDERED AT ALL
+          when there is nothing to grab — a fully-owned season (« 10/10 en
+          médiathèque ») offering « Récupérer la saison », even greyed out,
+          proposes work that does not exist (DOIT-6: an action is offered where
+          it has something to claim). It was merely `disabled` before. Still
+          disabled while the mutation is in flight; the backend is idempotent
+          (returns the existing row on duplicate), so a double-click is
+          harmless. */}
+      {!nothingToGrab && (
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={grabSeasonMutation.isPending}
+            onClick={() => {
+              grabSeasonMutation.mutate();
+            }}
+          >
+            <Download className="mr-1 h-4 w-4" aria-hidden="true" />
+            {grabSeasonMutation.isPending
+              ? "Mise en file…"
+              : "Récupérer la saison"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

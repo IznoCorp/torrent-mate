@@ -50,21 +50,27 @@
   --danger-foreground: oklch(0.97 0.01 24);
   --danger-muted: oklch(0.32 0.09 24);
 
-  --info: oklch(0.68 0.135 235); /* scraping / metadata / info */
-  --info-foreground: oklch(0.18 0.04 235);
-  --info-muted: oklch(0.3 0.06 235);
+  --info: oklch(0.68 0.14 215); /* scraping / metadata / in progress */
+  --info-foreground: oklch(0.18 0.04 215);
+  --info-muted: oklch(0.3 0.06 215);
 
-  --upcoming: oklch(0.72 0.15 300); /* announced / not-yet-aired (future) */
-  --upcoming-foreground: oklch(0.18 0.05 300);
-  --upcoming-muted: oklch(0.3 0.07 300);
+  --upcoming: oklch(0.72 0.15 275); /* announced / not-yet-aired (future) */
+  --upcoming-foreground: oklch(0.18 0.05 275);
+  --upcoming-muted: oklch(0.3 0.07 275);
 
-  /* « En attente de torrent » — searched, nothing conforming yet. Its own TEAL
-     hue: the state used to share the neutral grey with « Non vérifié », then the
-     info blue with « En cours d'acquisition ». Sitting at 195 it collides with
-     neither (blue is 235, and the legend never places the two side by side). */
-  --waiting: oklch(0.75 0.115 195);
-  --waiting-foreground: oklch(0.18 0.03 195);
-  --waiting-muted: oklch(0.3 0.05 195);
+  /* « En attente de torrent » — searched, nothing conforming yet.
+     ROSE, deliberately far from the cool cluster. The state has now been moved
+     twice: it shared the neutral grey with « Non vérifié », then took a teal at
+     195 — which left green (152) / teal (195) / blue (235) reading as one
+     family, the operator's second complaint. The whole signal set was
+     re-optimised for maximum MINIMUM perceptual distance (CIEDE2000, dark
+     theme, alpha-composited): the three flagged pairs went from 20.6 / 22.8 /
+     44.2 to 52.8 / 75.1 / 36.4, and the palette-wide minimum from 20.6 to 23.9.
+     Rose sits at 340, clear of the 24 reserved for danger — a « waiting » chip
+     must never read as an error. */
+  --waiting: oklch(0.7 0.15 340);
+  --waiting-foreground: oklch(0.18 0.04 340);
+  --waiting-muted: oklch(0.3 0.06 340);
 
   --neutral-signal: oklch(0.62 0.01 286); /* idle / skipped / disabled */
 
@@ -137,15 +143,15 @@
   --danger: oklch(0.58 0.215 25);
   --danger-foreground: oklch(0.99 0.01 25);
   --danger-muted: oklch(0.93 0.05 25);
-  --info: oklch(0.58 0.14 235);
-  --info-foreground: oklch(0.99 0.01 235);
-  --info-muted: oklch(0.93 0.04 235);
-  --upcoming: oklch(0.55 0.17 300);
-  --upcoming-foreground: oklch(0.99 0.01 300);
-  --upcoming-muted: oklch(0.93 0.05 300);
-  --waiting: oklch(0.55 0.11 195);
-  --waiting-foreground: oklch(0.99 0.01 195);
-  --waiting-muted: oklch(0.93 0.04 195);
+  --info: oklch(0.58 0.14 215);
+  --info-foreground: oklch(0.99 0.01 215);
+  --info-muted: oklch(0.93 0.04 215);
+  --upcoming: oklch(0.55 0.17 275);
+  --upcoming-foreground: oklch(0.99 0.01 275);
+  --upcoming-muted: oklch(0.93 0.05 275);
+  --waiting: oklch(0.55 0.15 340);
+  --waiting-foreground: oklch(0.99 0.01 340);
+  --waiting-muted: oklch(0.93 0.05 340);
   --neutral-signal: oklch(0.62 0.01 286);
 
   --temp-hot: oklch(0.58 0.205 30);
