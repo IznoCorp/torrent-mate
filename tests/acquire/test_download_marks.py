@@ -146,6 +146,55 @@ class TestUpsert:
         assert mark.completed_emitted is False
 
 
+class TestGuardedTransitions:
+    """try_* transitions follow the mark_done rowcount discipline (review MINOR-6).
+
+    The plain ``upsert`` is unconditional: two concurrent passes that both
+    read « no mark » would both write and both emit. The guarded writers
+    answer ``True`` to exactly ONE caller per transition.
+    """
+
+    def test_try_mark_started_first_wins_second_loses(self, store: DownloadMarksStore) -> None:
+        """First claim returns True; the second attempt returns False."""
+        assert store.try_mark_started("aaaa0001") is True
+        assert store.try_mark_started("aaaa0001") is False
+        mark = store.get("aaaa0001")
+        assert mark is not None and mark.started_emitted is True
+
+    def test_try_mark_started_creates_the_row_when_absent(self, store: DownloadMarksStore) -> None:
+        """The guard materialises a fresh row (INSERT OR IGNORE) before claiming."""
+        assert store.get("fresh001") is None
+        assert store.try_mark_started("fresh001") is True
+        mark = store.get("fresh001")
+        assert mark is not None
+        assert mark.started_emitted is True
+        assert mark.last_threshold == 0
+        assert mark.completed_emitted is False
+
+    def test_try_mark_completed_first_wins_second_loses(self, store: DownloadMarksStore) -> None:
+        """First claim returns True (and subsumes started); the second returns False."""
+        assert store.try_mark_completed("bbbb0002") is True
+        assert store.try_mark_completed("bbbb0002") is False
+        mark = store.get("bbbb0002")
+        assert mark is not None
+        assert mark.completed_emitted is True
+        assert mark.started_emitted is True, "completion subsumes the start"
+
+    def test_try_advance_threshold_forward_only(self, store: DownloadMarksStore) -> None:
+        """Advance claims move forward only; repeats and regressions answer False."""
+        assert store.try_advance_threshold("cccc0003", 25) is True
+        assert store.try_advance_threshold("cccc0003", 25) is False, "same threshold twice must lose"
+        assert store.try_advance_threshold("cccc0003", 50) is True
+        assert store.try_advance_threshold("cccc0003", 25) is False, "the mark never moves backwards"
+        mark = store.get("cccc0003")
+        assert mark is not None and mark.last_threshold == 50
+
+    def test_guards_are_case_insensitive(self, store: DownloadMarksStore) -> None:
+        """Claims normalise the hash to lowercase like every other accessor."""
+        assert store.try_mark_started("DDDD0004") is True
+        assert store.try_mark_started("dddd0004") is False
+
+
 class TestPruneStale:
     """prune_stale removes marks not in the active set."""
 

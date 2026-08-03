@@ -54,9 +54,11 @@ class DownloadMarksStore:
     """Advisory store for download-progress emission marks (O4/D7).
 
     One row per grabbed torrent info-hash. The reconcile pass reads the mark
-    before emitting any download event to ensure exactly-once semantics: it
-    emits the next valid transition, then persists it so a crash never
-    duplicates an event.
+    before emitting any download event to ensure exactly-once semantics: the
+    guarded ``try_*`` transitions persist the mark FIRST and answer whether
+    THIS caller won the transition (rowcount discipline, like
+    ``mark_done``) — so a crash never duplicates an event and two concurrent
+    passes can never double-emit.
 
     Writes are wrapped in explicit ``BEGIN IMMEDIATE`` / ``COMMIT`` /
     ``ROLLBACK`` transactions, matching the acquire sub-store convention.
@@ -158,6 +160,103 @@ class DownloadMarksStore:
             raise
         else:
             self._conn.execute("COMMIT")
+
+    def _claim(self, info_hash: str, update_sql: str, params: tuple[object, ...]) -> bool:
+        """Run one guarded transition: ensure the row exists, then the guarded UPDATE.
+
+        The ``INSERT OR IGNORE`` materialises a default row (all flags 0) so
+        the guarded UPDATE always has a target; the UPDATE's ``WHERE`` clause
+        carries the transition guard and its ``rowcount`` is the verdict —
+        exactly ONE caller can win a given transition (mark_done rowcount
+        discipline). Runs in a single ``BEGIN IMMEDIATE`` transaction so two
+        concurrent passes serialize on the write.
+
+        Args:
+            info_hash: Torrent info-hash, already lowercased by the caller.
+            update_sql: Guarded UPDATE statement (must touch ``updated_at``).
+            params: Parameters for *update_sql*.
+
+        Returns:
+            ``True`` iff the guarded UPDATE changed exactly one row.
+        """
+        self._conn.execute("BEGIN IMMEDIATE")
+        try:
+            self._conn.execute("INSERT OR IGNORE INTO download_marks (info_hash) VALUES (?)", (info_hash,))
+            cur = self._conn.execute(update_sql, params)
+            claimed = cur.rowcount == 1
+        except BaseException:
+            self._conn.execute("ROLLBACK")
+            raise
+        else:
+            self._conn.execute("COMMIT")
+        return claimed
+
+    def try_mark_started(self, info_hash: str) -> bool:
+        """Atomically claim the ``DownloadStarted`` emission for *info_hash*.
+
+        Guarded on ``started_emitted = 0``: of two concurrent passes that both
+        read « no mark », only the one whose UPDATE lands emits — the loser
+        gets ``False`` and stays silent (exactly-once under concurrency).
+
+        Args:
+            info_hash: Torrent info-hash (case-insensitive — stored lowercase).
+
+        Returns:
+            ``True`` iff THIS call transitioned ``started_emitted`` 0 → 1.
+        """
+        h = info_hash.lower()
+        return self._claim(
+            h,
+            "UPDATE download_marks SET started_emitted = 1, "
+            "updated_at = CAST(strftime('%s', 'now') AS REAL) "
+            "WHERE info_hash = ? AND started_emitted = 0",
+            (h,),
+        )
+
+    def try_mark_completed(self, info_hash: str) -> bool:
+        """Atomically claim the ``DownloadCompleted`` emission for *info_hash*.
+
+        Guarded on ``completed_emitted = 0``; also sets ``started_emitted``
+        (completion subsumes the start, matching the upsert the emission pass
+        previously wrote).
+
+        Args:
+            info_hash: Torrent info-hash (case-insensitive — stored lowercase).
+
+        Returns:
+            ``True`` iff THIS call transitioned ``completed_emitted`` 0 → 1.
+        """
+        h = info_hash.lower()
+        return self._claim(
+            h,
+            "UPDATE download_marks SET started_emitted = 1, completed_emitted = 1, "
+            "updated_at = CAST(strftime('%s', 'now') AS REAL) "
+            "WHERE info_hash = ? AND completed_emitted = 0",
+            (h,),
+        )
+
+    def try_advance_threshold(self, info_hash: str, threshold: int) -> bool:
+        """Atomically advance ``last_threshold`` to *threshold* (forward only).
+
+        Guarded on ``last_threshold < threshold``: a concurrent pass that
+        already advanced to (or past) *threshold* makes this call answer
+        ``False``, and the mark can never move backwards.
+
+        Args:
+            info_hash: Torrent info-hash (case-insensitive — stored lowercase).
+            threshold: The crossed threshold to claim (25/50/75).
+
+        Returns:
+            ``True`` iff THIS call advanced the threshold.
+        """
+        h = info_hash.lower()
+        return self._claim(
+            h,
+            "UPDATE download_marks SET last_threshold = ?, "
+            "updated_at = CAST(strftime('%s', 'now') AS REAL) "
+            "WHERE info_hash = ? AND last_threshold < ?",
+            (threshold, h, threshold),
+        )
 
     def prune_stale(self, active_hashes: Iterable[str]) -> int:
         """Delete marks whose info-hash is not in *active_hashes*.

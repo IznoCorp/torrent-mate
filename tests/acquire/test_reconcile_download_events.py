@@ -14,10 +14,11 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.acquire._download_marks import DownloadMark
 from personalscraper.acquire.domain import FollowedSeries, SeedObligation, WantedItem
 from personalscraper.acquire.events import DownloadCompleted, DownloadProgressed, DownloadStarted
 from personalscraper.acquire.reconcile import reconcile_wanted
@@ -242,6 +243,73 @@ def test_row_close_prunes_the_mark(store: ConcreteAcquireStore) -> None:
 
     assert store.download_marks.get(_HASH) is None, "a closed row's mark must be pruned in the same sweep"
     assert events == [], "a row closed by THIS sweep must not fire download events on its way out"
+
+
+def test_stale_read_concurrent_pass_never_double_emits_started(store: ConcreteAcquireStore) -> None:
+    """MINOR-6: a pass whose mark READ predates another pass's write emits nothing.
+
+    Concurrent shape: pass A claims Started (its write lands); pass B read the
+    marks BEFORE that write (stale « no mark »). The unconditional upsert let
+    B re-emit; the guarded ``try_mark_started`` answers False and B stays
+    silent. The stale read is simulated by patching ``get`` to return None.
+    """
+    _grabbed(store)
+    assert store.download_marks.try_mark_started(_HASH) is True, "pass A claims Started"
+    bus = EventBus()
+    events = _collector(bus)
+
+    with patch.object(store.download_marks, "get", return_value=None):
+        reconcile_wanted(store, _NoOwnership(), client_items={_HASH: _item(_HASH, 0.10)}, event_bus=bus)
+
+    assert events == [], "the losing pass must not emit a second DownloadStarted"
+
+
+def test_stale_read_concurrent_pass_never_double_emits_completed(store: ConcreteAcquireStore) -> None:
+    """MINOR-6: same guarded arbitration for Completed — the losing pass is silent."""
+    _grabbed(store)
+    assert store.download_marks.try_mark_completed(_HASH) is True, "pass A claims Completed"
+    bus = EventBus()
+    events = _collector(bus)
+
+    with patch.object(store.download_marks, "get", return_value=None):
+        reconcile_wanted(store, _NoOwnership(), client_items={_HASH: _item(_HASH, 1.0)}, event_bus=bus)
+
+    assert events == [], "the losing pass must not emit a second DownloadCompleted"
+
+
+def test_stale_read_concurrent_pass_never_double_emits_progressed(store: ConcreteAcquireStore) -> None:
+    """MINOR-6: a threshold already advanced by a concurrent pass is never re-emitted."""
+    _grabbed(store)
+    store.download_marks.upsert(_HASH, started=True)
+    assert store.download_marks.try_advance_threshold(_HASH, 50) is True, "pass A claims the 50 crossing"
+    stale_mark = DownloadMark(info_hash=_HASH, started_emitted=True, last_threshold=0, completed_emitted=False)
+    bus = EventBus()
+    events = _collector(bus)
+
+    with patch.object(store.download_marks, "get", return_value=stale_mark):
+        reconcile_wanted(store, _NoOwnership(), client_items={_HASH: _item(_HASH, 0.55)}, event_bus=bus)
+
+    assert events == [], "the losing pass must not emit a second DownloadProgressed(50)"
+    mark = store.download_marks.get(_HASH)
+    assert mark is not None and mark.last_threshold == 50
+
+
+def test_blind_pass_still_prunes_mark_of_closed_row(store: ConcreteAcquireStore) -> None:
+    """MINOR-5: client_items=None + ownership closes the row → the mark is pruned.
+
+    The emission pass is skipped on a client blind spot, but the prune is not:
+    a row the sweep closes ``done`` leaves the open set, so its mark must go
+    even when the client was unreachable this pass.
+    """
+    _grabbed(store)
+    store.download_marks.upsert(_HASH, started=True)
+    bus = EventBus()
+    events = _collector(bus)
+
+    reconcile_wanted(store, _OwnsAllOwnership(), client_items=None, event_bus=bus)
+
+    assert store.download_marks.get(_HASH) is None, "the closed row's mark must be pruned on a blind pass too"
+    assert events == [], "a blind pass must not emit download events"
 
 
 def test_emit_after_persist_mark_survives_a_raising_bus(store: ConcreteAcquireStore) -> None:

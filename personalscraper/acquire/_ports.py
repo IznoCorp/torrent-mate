@@ -589,6 +589,18 @@ class DownloadMarksSubStore(Protocol):
         """Insert or partially update a mark (only non-None keywords written)."""
         ...
 
+    def try_mark_started(self, info_hash: str) -> bool:
+        """Claim the Started emission; ``True`` iff THIS call won the transition."""
+        ...
+
+    def try_mark_completed(self, info_hash: str) -> bool:
+        """Claim the Completed emission; ``True`` iff THIS call won the transition."""
+        ...
+
+    def try_advance_threshold(self, info_hash: str, threshold: int) -> bool:
+        """Advance ``last_threshold`` forward-only; ``True`` iff THIS call advanced it."""
+        ...
+
     def prune_stale(self, active_hashes: Iterable[str]) -> int:
         """Delete marks whose hash is not in *active_hashes*; return the count."""
         ...

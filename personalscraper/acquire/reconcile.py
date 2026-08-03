@@ -173,12 +173,19 @@ def _emit_for_row(
 
     Reads the row's :class:`~personalscraper.acquire._download_marks.DownloadMark`,
     compares the observed :attr:`TorrentItem.progress` against it and, for each
-    transition not yet emitted, persists the mark FIRST then emits
-    (emit-after-persist — exactly-once across passes, D7):
+    transition not yet emitted, CLAIMS the transition through the store's
+    guarded ``try_*`` writers (rowcount discipline) and emits only when the
+    claim landed. The claim persists the mark FIRST (emit-after-persist —
+    exactly-once across passes, D7) AND arbitrates concurrency: two passes
+    that both read « no mark » race on the same guarded UPDATE, and only the
+    winner emits.
 
     - ``progress >= 1.0`` and not yet completed → ``DownloadCompleted`` only.
       An already-complete first sighting gets NO synthetic Started/Progressed
       backfill (events are observations, not history).
+    - A completed mark is FINAL: a qBittorrent recheck can drop the observed
+      progress below 1.0 while the row is still open — no Started/Progressed
+      is ever emitted after the Completed.
     - Otherwise: ``DownloadStarted`` if not yet started, then at most ONE
       ``DownloadProgressed`` for the highest 25/50/75 crossing above the
       persisted ``last_threshold`` (D8). Progress regressions (qBittorrent
@@ -205,9 +212,12 @@ def _emit_for_row(
         title = item.name
     provider = _resolve_provider(store, row_hash)
 
+    # Each transition below is CLAIMED through a guarded write (INSERT OR
+    # IGNORE + UPDATE ... WHERE <not yet done>, rowcount == 1) — the ``not
+    # started`` / ``not completed`` reads are only fast-paths; the guard is
+    # what makes two concurrent passes that both read « no mark » emit ONCE.
     if item.progress >= 1.0:
-        if not completed:
-            marks.upsert(row_hash, started=True, completed=True)
+        if not completed and marks.try_mark_completed(row_hash):
             event_bus.emit(DownloadCompleted(info_hash=row_hash, title=title, provider=provider, kind=row.kind))
             log.info("acquire.reconcile.download_completed", wanted_id=row.id, info_hash=row_hash)
         return
@@ -220,8 +230,7 @@ def _emit_for_row(
     if completed:
         return
 
-    if not started:
-        marks.upsert(row_hash, started=True)
+    if not started and marks.try_mark_started(row_hash):
         event_bus.emit(DownloadStarted(info_hash=row_hash, title=title, provider=provider, kind=row.kind))
         log.info("acquire.reconcile.download_started", wanted_id=row.id, info_hash=row_hash)
 
@@ -229,8 +238,7 @@ def _emit_for_row(
         (t for t in _PROGRESS_THRESHOLDS if item.progress * 100.0 >= t and t > last_threshold),
         None,
     )
-    if crossed is not None:
-        marks.upsert(row_hash, threshold=crossed)
+    if crossed is not None and marks.try_advance_threshold(row_hash, crossed):
         event_bus.emit(
             DownloadProgressed(info_hash=row_hash, title=title, progress=item.progress, threshold_pct=crossed)
         )
