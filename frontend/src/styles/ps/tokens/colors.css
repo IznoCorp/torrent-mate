@@ -50,13 +50,13 @@
   --danger-foreground: oklch(0.97 0.01 24);
   --danger-muted: oklch(0.32 0.09 24);
 
-  --info: oklch(0.68 0.14 215); /* scraping / metadata / in progress */
-  --info-foreground: oklch(0.18 0.04 215);
-  --info-muted: oklch(0.3 0.06 215);
+  --info: oklch(0.68 0.125 225); /* scraping / metadata / in progress */
+  --info-foreground: oklch(0.18 0.04 225);
+  --info-muted: oklch(0.3 0.06 225);
 
-  --upcoming: oklch(0.72 0.15 275); /* announced / not-yet-aired (future) */
-  --upcoming-foreground: oklch(0.18 0.05 275);
-  --upcoming-muted: oklch(0.3 0.07 275);
+  --upcoming: oklch(0.72 0.145 285); /* announced / not-yet-aired (future) */
+  --upcoming-foreground: oklch(0.18 0.05 285);
+  --upcoming-muted: oklch(0.3 0.07 285);
 
   /* « En attente de torrent » — searched, nothing conforming yet.
      ROSE, deliberately far from the cool cluster. The state has now been moved
@@ -64,13 +64,17 @@
      195 — which left green (152) / teal (195) / blue (235) reading as one
      family, the operator's second complaint. The whole signal set was
      re-optimised for maximum MINIMUM perceptual distance (CIEDE2000, dark
-     theme, alpha-composited): the three flagged pairs went from 20.6 / 22.8 /
-     44.2 to 52.8 / 75.1 / 36.4, and the palette-wide minimum from 20.6 to 23.9.
-     Rose sits at 340, clear of the 24 reserved for danger — a « waiting » chip
-     must never read as an error. */
-  --waiting: oklch(0.7 0.15 340);
-  --waiting-foreground: oklch(0.18 0.04 340);
-  --waiting-muted: oklch(0.3 0.06 340);
+     theme, on the RAW token colours — not the composited chip fills): the three
+     flagged pairs went from 20.6 / 22.8 / 44.2 to 54.3 / 76.1 / 39.9, and the
+     palette-wide minimum from 20.6 to 23.4. The optimisation is constrained:
+     every token stays INSIDE the sRGB gamut (else the browser paints a colour
+     the measurement never saw), and « En attente » keeps ≥ 26 ΔE00 from
+     `--danger` — a waiting chip must never read as an error. `--upcoming` and
+     `--info` moved too: spreading one state only would have traded the
+     operator's collision for a new one between « Annoncé » and « En cours ». */
+  --waiting: oklch(0.74 0.16 345);
+  --waiting-foreground: oklch(0.18 0.04 345);
+  --waiting-muted: oklch(0.3 0.06 345);
 
   --neutral-signal: oklch(0.62 0.01 286); /* idle / skipped / disabled */
 
@@ -143,15 +147,15 @@
   --danger: oklch(0.58 0.215 25);
   --danger-foreground: oklch(0.99 0.01 25);
   --danger-muted: oklch(0.93 0.05 25);
-  --info: oklch(0.58 0.14 215);
-  --info-foreground: oklch(0.99 0.01 215);
-  --info-muted: oklch(0.93 0.04 215);
-  --upcoming: oklch(0.55 0.17 275);
-  --upcoming-foreground: oklch(0.99 0.01 275);
-  --upcoming-muted: oklch(0.93 0.05 275);
-  --waiting: oklch(0.55 0.15 340);
-  --waiting-foreground: oklch(0.99 0.01 340);
-  --waiting-muted: oklch(0.93 0.05 340);
+  --info: oklch(0.62 0.115 225);
+  --info-foreground: oklch(0.99 0.01 225);
+  --info-muted: oklch(0.93 0.04 225);
+  --upcoming: oklch(0.55 0.16 290);
+  --upcoming-foreground: oklch(0.99 0.01 290);
+  --upcoming-muted: oklch(0.93 0.05 290);
+  --waiting: oklch(0.65 0.14 345);
+  --waiting-foreground: oklch(0.99 0.01 345);
+  --waiting-muted: oklch(0.93 0.05 345);
   --neutral-signal: oklch(0.62 0.01 286);
 
   --temp-hot: oklch(0.58 0.205 30);

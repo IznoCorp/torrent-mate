@@ -19,21 +19,60 @@
 
 /// <reference types="node" />
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 // Read the SHIPPED stylesheet, not a copy: a test that restated the values
 // would pass while the app drifted. (`?raw` is not an option — vitest routes
-// .css through its CSS transform, which strips the declarations.)
-const CSS = readFileSync(
+// .css through its CSS transform, which strips the declarations.) The path is
+// resolved by probing both plausible roots, so the suite behaves the same
+// whether vitest is driven from `frontend/` (as CI does) or from the repo root.
+const CSS_PATH = [
   join(process.cwd(), "src/styles/ps/tokens/colors.css"),
-  "utf8",
-);
+  join(process.cwd(), "frontend/src/styles/ps/tokens/colors.css"),
+].find((candidate) => existsSync(candidate));
+if (CSS_PATH === undefined) throw new Error("colors.css not found from " + process.cwd());
+const CSS = readFileSync(CSS_PATH, "utf8");
 
-/** Minimum CIEDE2000 distance any two status colours must keep. */
-const MIN_DELTA_E = 15;
+/**
+ * Slice one theme block out of the stylesheet.
+ *
+ * Load-bearing: without it, a regex run over the WHOLE file silently falls
+ * through to the `.light` declaration whenever the dark one stops matching —
+ * deleted, reordered, or merely written with an alpha channel. An adversarial
+ * review proved all three cases passing green while measuring the wrong theme.
+ * A guard whose failure mode is a wrong answer is worse than no guard.
+ *
+ * Args:
+ *   selector: The block's selector, e.g. `":root"` or `".light"`.
+ *
+ * Returns:
+ *   The block's body.
+ */
+function themeBlock(selector: string): string {
+  const re = new RegExp(`${selector.replace(".", "\\.")}\\s*\\{([^}]*)\\}`);
+  const m = re.exec(CSS);
+  if (!m?.[1]) throw new Error(`no ${selector} block in colors.css`);
+  return m[1];
+}
+
+/**
+ * Minimum CIEDE2000 distance any two status colours must keep, per theme.
+ *
+ * The dark floor is EMPIRICAL, not a round number: the operator sent back a
+ * palette whose closest pairs measured 20.6 and 22.8, so anything at or under
+ * 23 is a known-rejected distance. A previous floor of 15 had no teeth — the
+ * rejected palette passed every one of its assertions. Ratchet this up when
+ * the palette improves; never down.
+ *
+ * The light theme is NOT shipped (no toggle, no `prefers-color-scheme` — its
+ * only definition is the `.light` block) and its lower lightness range
+ * compresses the achievable distances, so it carries a looser floor: enough to
+ * catch a genuine collision, not a promise the theme cannot keep today.
+ */
+const MIN_DELTA_E: Readonly<Record<string, number>> = { ":root": 23, ".light": 20 };
 
 /** The status colours that share the completeness matrix and its legend. */
 const STATUS_TOKENS = [
@@ -93,6 +132,30 @@ function oklchToLab([L, C, H]: readonly [number, number, number]): Lab {
   return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
 }
 
+/**
+ * Report whether an OKLCH triple lands inside sRGB without clipping.
+ *
+ * Args:
+ *   lch: The `[L, C, H]` triple.
+ *
+ * Returns:
+ *   ``true`` when every linear-sRGB channel stays within [0, 1].
+ */
+function inSrgbGamut([L, C, H]: readonly [number, number, number]): boolean {
+  const h = (H * Math.PI) / 180;
+  const a = C * Math.cos(h);
+  const bb = C * Math.sin(h);
+  const l_ = (L + 0.3963377774 * a + 0.2158037573 * bb) ** 3;
+  const m_ = (L - 0.1055613458 * a - 0.0638541728 * bb) ** 3;
+  const s_ = (L - 0.0894841775 * a - 1.291485548 * bb) ** 3;
+  const channels = [
+    4.0767416621 * l_ - 3.3077115913 * m_ + 0.2309699292 * s_,
+    -1.2684380046 * l_ + 2.6097574011 * m_ - 0.3413193965 * s_,
+    -0.0041960863 * l_ - 0.7034186147 * m_ + 1.707614701 * s_,
+  ];
+  return channels.every((v) => v >= -1e-6 && v <= 1 + 1e-6);
+}
+
 /** CIEDE2000 colour difference between two Lab colours. */
 function ciede2000(lab1: Lab, lab2: Lab): number {
   const [L1, a1, b1] = lab1;
@@ -144,34 +207,47 @@ function ciede2000(lab1: Lab, lab2: Lab): number {
   );
 }
 
-describe("acquisition status palette — perceptual separation", () => {
+describe.each([":root", ".light"])("status palette — %s", (selector) => {
+  const block = themeBlock(selector);
+  const floor = MIN_DELTA_E[selector] ?? 20;
+  const de = (a: string, b: string): number =>
+    ciede2000(oklchToLab(readOklch(block, a)), oklchToLab(readOklch(block, b)));
+
   it.each(
     STATUS_TOKENS.flatMap((a, i) =>
       STATUS_TOKENS.slice(i + 1).map((b) => [a, b] as const),
     ),
   )("keeps --%s and --%s visibly apart", (a, b) => {
-    const d = ciede2000(oklchToLab(readOklch(CSS, a)), oklchToLab(readOklch(CSS, b)));
+    const d = de(a, b);
     expect(
       d,
-      `--${a} vs --${b}: ΔE00 ${d.toFixed(1)} — below the ${String(MIN_DELTA_E)} floor, ` +
-        "these two statuses would read as the same colour",
-    ).toBeGreaterThanOrEqual(MIN_DELTA_E);
+      `--${a} vs --${b} in ${selector}: ΔE00 ${d.toFixed(1)} — below the ` +
+        `${String(floor)} floor, these two statuses would read as the same colour`,
+    ).toBeGreaterThanOrEqual(floor);
   });
 
   it("keeps the three states the operator flagged far apart", () => {
     // « En attente de torrent » / « En cours d'acquisition » / « En médiathèque »
     // were teal / blue / green — one family. They now sit in three different
     // regions of the hue circle.
-    const de = (a: string, b: string): number =>
-      ciede2000(oklchToLab(readOklch(CSS, a)), oklchToLab(readOklch(CSS, b)));
     expect(de("waiting", "info")).toBeGreaterThan(40);
     expect(de("waiting", "success")).toBeGreaterThan(40);
     expect(de("info", "success")).toBeGreaterThan(30);
   });
 
   it("keeps « En attente » clear of the danger hue", () => {
-    // A waiting chip must never read as an error: rose, not red.
-    const d = ciede2000(oklchToLab(readOklch(CSS, "waiting")), oklchToLab(readOklch(CSS, "danger")));
-    expect(d).toBeGreaterThan(MIN_DELTA_E);
+    // A waiting chip must never read as an error: rose, not red. The margin is
+    // pinned well above the palette floor — this is the one pair where being
+    // merely « distinguishable » is not enough, it must not even suggest one.
+    expect(de("waiting", "danger")).toBeGreaterThan(25);
+  });
+
+  it("keeps every status colour inside the sRGB gamut", () => {
+    // Out-of-gamut OKLCH is clipped by the measurement here and chroma-mapped
+    // by the browser — the two disagree, so the guard would be measuring a
+    // colour the operator never sees.
+    for (const token of STATUS_TOKENS) {
+      expect(inSrgbGamut(readOklch(block, token)), `--${token} in ${selector}`).toBe(true);
+    }
   });
 });
