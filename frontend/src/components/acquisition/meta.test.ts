@@ -13,6 +13,7 @@ import type { EpisodeCompleteness } from "@/api/acquisition";
 
 import {
   DEFERRED_REASON_LABEL,
+  EPISODE_LEGEND_ORDER,
   EPISODE_STATE_HINT,
   EPISODE_STATE_LABEL,
   EPISODE_STATE_TONE,
@@ -139,6 +140,36 @@ describe("EPISODE state vocabulary", () => {
       expect(Object.keys(EPISODE_STATE_LABEL)).not.toContain(dead);
       expect(Object.keys(EPISODE_STATE_TONE)).not.toContain(dead);
     }
+  });
+
+  it("aliases absorbed onto en_acquisition — same label AND same tone", () => {
+    // An absorbed episode IS an episode being acquired (the backend already
+    // reads it that way: states.py maps absorbed -> en_acquisition). The alias
+    // is the whole point of the fix — pin it, or a future edit silently brings
+    // « Absorbé (saison) » back without a single red test.
+    expect(EPISODE_STATE_LABEL.absorbed).toBe(EPISODE_STATE_LABEL.en_acquisition);
+    expect(EPISODE_STATE_TONE.absorbed).toBe(EPISODE_STATE_TONE.en_acquisition);
+    expect(STATUS_LABEL.absorbed).toBe(EPISODE_STATE_LABEL.en_acquisition);
+    expect(STATUS_TONE.absorbed).toBe(EPISODE_STATE_TONE.en_acquisition);
+  });
+
+  it("never claims a torrent was taken in the absorbed hint", () => {
+    // Absorption happens when the SEASON row is ENQUEUED (pending), before any
+    // search runs — claiming « Torrent pris » would be false for as long as the
+    // season row is still looking (and forever if it is abandoned).
+    const hint = EPISODE_STATE_HINT.absorbed;
+    expect(hint).toBeTruthy();
+    expect(hint.toLowerCase()).not.toContain("torrent pris");
+    expect(hint).toContain("saison");
+  });
+
+  it("covers every episode state between the legend and its alias", () => {
+    // The legend is now an explicit list, so it can no longer drift by
+    // construction — this is what replaces that guarantee: legend + the
+    // deliberately-aliased `absorbed` must together cover the WHOLE enum.
+    expect(new Set([...EPISODE_LEGEND_ORDER, "absorbed"])).toEqual(
+      new Set(EPISODE_STATES),
+    );
   });
 
   it("gives each of the six live-flow states a DISTINCT tone (operator #9)", () => {

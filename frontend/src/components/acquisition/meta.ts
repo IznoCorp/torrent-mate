@@ -561,8 +561,13 @@ export const EPISODE_STATE_HINT: Record<EpisodeState, string> = {
     "Recherché sur les trackers : rien de conforme au profil pour l'instant.",
   non_verifie:
     "Pas encore vérifié sur les trackers — aucune conclusion à ce jour.",
+  // NEVER claim a torrent was taken here: absorption happens when the SEASON
+  // row is enqueued (`pending`), before any search has run — an absorbed
+  // episode can sit here with nothing taken at all (and stays if the season row
+  // is abandoned without an R6 fallback). The hint says what is true: the
+  // acquisition of this episode is carried by a season row.
   absorbed:
-    "Torrent pris — le pipeline le porte jusqu'à la médiathèque (via un pack de saison).",
+    "Récupération portée par un pack de saison — suivez la ligne « saison » dans la file.",
 };
 
 /**

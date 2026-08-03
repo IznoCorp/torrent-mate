@@ -73,7 +73,12 @@ function ResolutionChip({ j }: { j: JourneyItem }): ReactElement | null {
     );
   }
   return (
-    <Badge tone="muted" className="self-start">
+    // `neutral`, not `muted`: « Résolu » / « Écarté » are SETTLED verdicts, and
+    // the dashed no-fill `muted` chip now means « je ne sais pas » (it lost its
+    // tint when « Non vérifié » moved onto it). `neutral` is exactly the settled
+    // low-salience grey — it was freed when « En attente de torrent » took its
+    // own teal tone.
+    <Badge tone="neutral" className="self-start">
       {state === "resolved" ? "Résolu" : "Écarté"}
     </Badge>
   );
