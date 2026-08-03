@@ -319,7 +319,7 @@ export function FollowedPanel({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="size-8 shrink-0"
+                      className="size-8 min-h-11 min-w-11 shrink-0 md:min-h-8 md:min-w-8"
                       aria-label={`Actions pour ${item.title}`}
                     >
                       <MoreHorizontal className="size-4" />

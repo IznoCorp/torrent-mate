@@ -204,6 +204,20 @@ describe("FollowedPanel — compact rows (Phase 02)", () => {
     ).toBeInTheDocument();
   });
 
+  it("donne au bouton Actions le minimum tactile mobile min-h-11 (X4, ticket 250)", () => {
+    renderPanel([makeItem()]);
+
+    // The icon trigger is size-8 on desktop; below md it must stretch to the
+    // touch minimum. Regression guard for the 390px mobile-truth audit.
+    const trigger = screen.getByRole("button", {
+      name: "Actions pour House of the Dragon",
+    });
+    expect(trigger.className).toContain("min-h-11");
+    expect(trigger.className).toContain("min-w-11");
+    expect(trigger.className).toContain("md:min-h-8");
+    expect(trigger.className).toContain("md:min-w-8");
+  });
+
   it("renders the CompletenessAccordion below a series row", () => {
     renderPanel([makeItem({ kind: "show" })]);
 
