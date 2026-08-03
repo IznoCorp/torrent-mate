@@ -23,7 +23,49 @@ _SECRET_KEY_EXACT_RE = re.compile(r"^(api[_-]?key|authorization|cookie|secret|to
 # ``cookie_count``, ``token_count``, ``secret_count`` and ``password_count``,
 # which are legitimate integer fields that must NOT be redacted.
 _SECRET_KEY_COMPOUND_RE = re.compile(r"(?i)(^|[_\-])(api[_\-]?key|authorization|cookies?[_\-]file)($|[_\-])")
-_URL_KEY_PARAM_RE = re.compile(r"([?&])key=[^&]*")
+
+# Secret-bearing QUERY PARAMETERS inside a URL-ish string.
+#
+# The previous form was ``([?&])key=[^&]*`` — it required the separator to sit
+# IMMEDIATELY before ``key=``, so ``?apikey=<secret>`` never matched (the char
+# before ``key`` is an ``i``). That is exactly how four tr4ker API keys reached
+# the production log in clear text on 2026-08-02, inside the ``url`` field of an
+# ``api_error_body_unparsable`` event.
+#
+# This form matches the parameter NAME as a whole and redacts its value:
+#   * the name may carry a prefix/suffix segment (``tmdb_api_key``, ``key_2``)
+#     but the secret word must sit on a segment boundary, so ``monkey=`` and
+#     ``turnkey_count=`` are NOT redacted (same over-matching lesson as above);
+#   * separators and ``=`` are accepted percent-encoded (``%3F``/``%26``/``%3D``)
+#     because a magnet's ``tr=`` payload carries its announce URL encoded, which
+#     is where a tracker passkey hides;
+#   * the parameter name is KEPT — a log line saying WHICH secret was elided is
+#     useful; the value is what must never land on disk.
+_URL_SECRET_PARAM_RE = re.compile(
+    r"(?i)([?&]|%3F|%26)"
+    r"((?:[a-z0-9]+[_\-])?(?:api[_\-]?key|passkey|key|token|secret|password|authorization|signature)(?:[_\-][a-z0-9]+)?)"
+    r"(=|%3D)[^&\s\"'\\]*"
+)
+# ``scheme://user:password@host`` — the other classic in-URL credential.
+_URL_USERINFO_RE = re.compile(r"(//[^/:@\s]+):([^@/\s]+)@")
+
+
+def _redact_in_url(value: str) -> str:
+    """Redact credentials embedded in a URL-ish string.
+
+    Covers secret-bearing query parameters (plain or percent-encoded) and
+    ``user:password@`` userinfo. Applied to EVERY string in the event dict —
+    a secret does not announce itself by the name of the field carrying it (the
+    production leak rode in a field simply called ``url``).
+
+    Args:
+        value: Any string from the event dict.
+
+    Returns:
+        The string with credential values replaced by ``"***REDACTED***"``.
+    """
+    out = _URL_SECRET_PARAM_RE.sub(r"\1\2\3***REDACTED***", value)
+    return _URL_USERINFO_RE.sub(r"\1:***REDACTED***@", out)
 
 
 def redact_secrets(
@@ -33,8 +75,11 @@ def redact_secrets(
 ) -> MutableMapping[str, Any]:
     """Recursively redact secret-looking values from the event dict.
 
-    Also strips the ``key=<value>`` query parameter from any string field
-    that looks like a URL (contains ``?key=`` or ``&key=``).
+    Two independent layers, because either alone has a hole: secret-looking
+    FIELD NAMES are redacted wholesale, and every string is additionally
+    scrubbed for credentials embedded in a URL (see :func:`_redact_in_url`) —
+    which is how an API key reached the production log inside a field named
+    ``url``.
 
     Args:
         _logger: Unused — required by the structlog processor interface.
@@ -55,8 +100,8 @@ def redact_secrets(
             }
         if isinstance(obj, list):
             return [_walk(x) for x in obj]
-        if isinstance(obj, str) and "key=" in obj and ("?" in obj or "&" in obj):
-            return _URL_KEY_PARAM_RE.sub(r"\1key=***REDACTED***", obj)
+        if isinstance(obj, str):
+            return _redact_in_url(obj)
         return obj
 
     result: dict[str, Any] = _walk(event_dict)
