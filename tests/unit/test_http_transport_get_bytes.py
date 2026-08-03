@@ -105,17 +105,17 @@ class TestGetBytesUrlHandling:
 
         Design: docs/features/torrent-fetch/DESIGN.md (§5.1, D10)
         Contract: ``get_bytes('/api/download/abc123?token=jwt')`` with
-        ``base_url='https://lacale.io'`` reaches the session as the full
-        ``https://lacale.io/api/download/abc123?token=jwt``.
+        ``base_url='https://c411.io'`` reaches the session as the full
+        ``https://c411.io/api/download/abc123?token=jwt``.
         """
-        transport = _make_transport(base_url="https://lacale.io")
+        transport = _make_transport(base_url="https://c411.io")
         request_mock = MagicMock(return_value=_fake_response())
         transport._session.request = request_mock  # type: ignore[method-assign]
 
         transport.get_bytes("/api/download/abc123?token=jwt")
 
         called_url = request_mock.call_args.args[1]
-        assert called_url == "https://lacale.io/api/download/abc123?token=jwt"
+        assert called_url == "https://c411.io/api/download/abc123?token=jwt"
 
 
 class TestGetBytesNoAuthRemerge:

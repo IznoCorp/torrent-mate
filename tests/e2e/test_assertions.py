@@ -455,7 +455,7 @@ class TestFindDispatchResult:
         r1 = MagicMock()
         r1.source = Path("/staging/Jumanji")
 
-        result = find_dispatch_result([r1], "[LaCale]-Jumanji.1995.BluRay")
+        result = find_dispatch_result([r1], "[C411]-Jumanji.1995.BluRay")
         assert result is r1
 
     def test_not_found_returns_none(self):

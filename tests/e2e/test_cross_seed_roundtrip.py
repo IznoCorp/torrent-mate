@@ -36,7 +36,7 @@ from personalscraper.core.event_bus import EventBus
 from personalscraper.core.tags import SEED_PURE
 from tests.integration.acquire.test_cross_seed_service import (
     _SOURCE_HASH,
-    _TRACKER_LACALE,
+    _TRACKER_C411,
     _TRACKER_TR4KER,
     FakeTorrentClient,
     FakeTracker,
@@ -123,14 +123,14 @@ class TestCrossSeedRoundtrip:
         # Fake tracker returning one candidate.
         fake_registry = make_registry(
             {
-                _TRACKER_LACALE: FakeTracker(provider=_TRACKER_LACALE, results=[]),
+                _TRACKER_C411: FakeTracker(provider=_TRACKER_C411, results=[]),
                 _TRACKER_TR4KER: FakeTracker(
                     provider=_TRACKER_TR4KER,
                     transport=fake_transport,
                     results=[_candidate_result(download_url=candidate_url)],
                 ),
             },
-            priority=[_TRACKER_LACALE, _TRACKER_TR4KER],
+            priority=[_TRACKER_C411, _TRACKER_TR4KER],
         )
 
         injected_events: list[CrossSeedInjected] = []

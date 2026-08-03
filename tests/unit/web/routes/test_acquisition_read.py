@@ -418,9 +418,9 @@ class TestObligationsEndpoint:
         acquire_path = tmp_path / "acquire.db"
         conn = sqlite3.connect(str(acquire_path))
         apply_pragmas(conn)
-        _seed_obligation(conn, "a1b2c3", "lacale")
+        _seed_obligation(conn, "a1b2c3", "tr4ker")
         _seed_obligation(conn, "d4e5f6", "c411")
-        _seed_ratio(conn, "lacale", 2.5, 200000)
+        _seed_ratio(conn, "tr4ker", 2.5, 200000)
         conn.commit()
         conn.close()
 
@@ -430,10 +430,10 @@ class TestObligationsEndpoint:
         items = data["items"]
         assert len(items) == 2
 
-        # lacale has ratio_state → observed_ratio populated.
-        lacale = next(it for it in items if it["source_tracker"] == "lacale")
-        assert lacale["observed_ratio"] == 2.5
-        assert lacale["accumulated_seed_time_s"] == 200000
+        # tr4ker has ratio_state → observed_ratio populated.
+        tr4ker = next(it for it in items if it["source_tracker"] == "tr4ker")
+        assert tr4ker["observed_ratio"] == 2.5
+        assert tr4ker["accumulated_seed_time_s"] == 200000
 
         # c411 has NO ratio_state → fields are null.
         c411 = next(it for it in items if it["source_tracker"] == "c411")
@@ -445,7 +445,7 @@ class TestObligationsEndpoint:
         acquire_path = tmp_path / "acquire.db"
         conn = sqlite3.connect(str(acquire_path))
         apply_pragmas(conn)
-        _seed_obligation(conn, "a1b2c3", "lacale")  # pending
+        _seed_obligation(conn, "a1b2c3", "tr4ker")  # pending
         _seed_obligation(conn, "d4e5f6", "c411", satisfied_at=1000)  # satisfied
         _seed_obligation(conn, "g7h8i9", "c411", breached_at=2000)  # breached
         conn.commit()
@@ -475,7 +475,7 @@ class TestObligationsEndpoint:
             "VALUES (?, ?, 'episode', 1, 2, 'grabbed', ?, 1, ?)",
             (fid, '{"tvdb_id": 81189}', now, "aaabbb001"),
         )
-        _seed_obligation(conn, "aaabbb001", "lacale")
+        _seed_obligation(conn, "aaabbb001", "tr4ker")
         conn.commit()
         conn.close()
 
@@ -540,7 +540,7 @@ class TestObligationsEndpoint:
         conn.execute(
             "INSERT INTO seed_obligation (info_hash, source_tracker, dispatched_path, "
             "min_seed_time_s, min_ratio, added_at) VALUES (?, ?, ?, 86400, 1.5, ?)",
-            ("miss001", "lacale", "/media/tv/Murder.Mindfully.S01E01.mkv", now),
+            ("miss001", "tr4ker", "/media/tv/Murder.Mindfully.S01E01.mkv", now),
         )
         conn.commit()
         conn.close()
@@ -556,7 +556,7 @@ class TestObligationsEndpoint:
         acquire_path = tmp_path / "acquire.db"
         conn = sqlite3.connect(str(acquire_path))
         apply_pragmas(conn)
-        _seed_obligation(conn, "nomatch01", "lacale")
+        _seed_obligation(conn, "nomatch01", "tr4ker")
         conn.commit()
         conn.close()
 
@@ -577,7 +577,7 @@ class TestObligationsEndpoint:
         conn.execute(
             "INSERT INTO seed_obligation (info_hash, source_tracker, dispatched_path, "
             "min_seed_time_s, min_ratio, added_at) VALUES (?, ?, ?, 86400, 1.5, ?)",
-            ("boom001", "lacale", "/corrupt/path/file.mkv", now),
+            ("boom001", "tr4ker", "/corrupt/path/file.mkv", now),
         )
         conn.commit()
         conn.close()
@@ -625,7 +625,7 @@ class TestObligationsEndpoint:
             "VALUES (?, ?, 'episode', 3, 4, 'grabbed', ?, 1, ?)",
             (fid, '{"tvdb_id": 81189}', now, "ABCDEF012345"),
         )
-        _seed_obligation(conn, "abcdef012345", "lacale")
+        _seed_obligation(conn, "abcdef012345", "tr4ker")
         conn.commit()
         conn.close()
 
@@ -651,7 +651,7 @@ class TestObligationsEndpoint:
         conn.execute(
             "INSERT INTO seed_obligation (info_hash, source_tracker, dispatched_path, "
             "min_seed_time_s, min_ratio, added_at) VALUES (?, ?, ?, 86400, 1.5, ?)",
-            ("corrupt01", "lacale", "/corrupt/path/broken.mkv", now),
+            ("corrupt01", "tr4ker", "/corrupt/path/broken.mkv", now),
         )
         # Row 2: joinable (added_at=now-100 → second).
         conn.execute(
@@ -707,7 +707,7 @@ class TestObligationsEndpoint:
         conn.execute(
             "INSERT INTO seed_obligation (info_hash, source_tracker, dispatched_path, "
             "min_seed_time_s, min_ratio, added_at) VALUES (?, ?, ?, 86400, 1.5, ?)",
-            ("dir001", "lacale", "/media/tv/Some.Show.S01", now),
+            ("dir001", "tr4ker", "/media/tv/Some.Show.S01", now),
         )
         conn.commit()
         conn.close()

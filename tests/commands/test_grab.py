@@ -77,7 +77,7 @@ def test_grab_dry_run_prints_top_candidate(tmp_path: Path, monkeypatch) -> None:
 
     # 2. Build a mock tracker registry that returns one candidate.
     mock_result = TrackerResult(
-        provider="lacale",
+        provider="c411",
         tracker_id="t1",
         title="Movie 2020 MULTi 1080p BluRay x265-GRP",
         size=ByteSize(5_000_000_000),
@@ -85,7 +85,7 @@ def test_grab_dry_run_prints_top_candidate(tmp_path: Path, monkeypatch) -> None:
         leechers=0,
         resolution="1080p",
         info_hash="abc123",
-        download_url="https://lacale.test/t/1",
+        download_url="https://c411.test/t/1",
     )
     mock_outcome = SearchOutcome(results=[mock_result], trackers_queried=1, trackers_errored=0)
 
@@ -216,7 +216,7 @@ def test_grab_dry_run_respects_limit(tmp_path: Path, monkeypatch) -> None:
     seed_store.close()
 
     mock_result = TrackerResult(
-        provider="lacale",
+        provider="c411",
         tracker_id="t1",
         title="Limited Movie 2024 1080p x265-GRP",
         size=ByteSize(3_000_000_000),
@@ -224,7 +224,7 @@ def test_grab_dry_run_respects_limit(tmp_path: Path, monkeypatch) -> None:
         leechers=0,
         resolution="1080p",
         info_hash="def456",
-        download_url="https://lacale.test/t/2",
+        download_url="https://c411.test/t/2",
     )
     mock_outcome = SearchOutcome(results=[mock_result], trackers_queried=1, trackers_errored=0)
 

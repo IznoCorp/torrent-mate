@@ -4,7 +4,7 @@ Two new categorical axes ship with the ranking editor:
 
   * ``language`` — the marker parsed off the release title (MULTI/VFF/VOSTFR),
     so the operator's « prefer Multi » preference is expressible; and
-  * ``provider`` — the tracker wire name (tr4ker/c411/lacale), so a healthy-ratio
+  * ``provider`` — the tracker wire name (tr4ker/c411/c411), so a healthy-ratio
     tracker (tr4ker ~5.17, freeleech) can be favoured over a poorer one (c411).
 
 Both are config-only on the engine side (``field`` is a free string; the engine
@@ -29,7 +29,7 @@ from personalscraper.api.tracker._ranking import (
 
 def _result(
     *,
-    provider: str = "lacale",
+    provider: str = "c411",
     language: str | None = None,
     is_freeleech: bool = False,
     tid: str = "t",
@@ -115,7 +115,7 @@ class TestCaseInsensitiveCategoricalLookup:
             min_seeders=1,
         )
         result = TrackerResult(
-            provider="lacale",
+            provider="c411",
             tracker_id="t",
             title="Film 2024 dts-hd",
             size=ByteSize(4_000_000_000),
@@ -133,7 +133,7 @@ class TestCaseInsensitiveCategoricalLookup:
             min_seeders=1,
         )
         result = TrackerResult(
-            provider="lacale",
+            provider="c411",
             tracker_id="t",
             title="Film 2024 X265",
             size=ByteSize(4_000_000_000),

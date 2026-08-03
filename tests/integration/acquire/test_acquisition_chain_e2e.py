@@ -97,7 +97,7 @@ def _config() -> SimpleNamespace:
 def _movie_result(title: str, info_hash: str, seeders: int = 50) -> TrackerResult:
     """A conforming 1080p movie release from a fake tracker."""
     return TrackerResult(
-        provider="lacale",
+        provider="c411",
         tracker_id=info_hash,
         title=title,
         size=ByteSize(5_000_000_000),
@@ -105,7 +105,7 @@ def _movie_result(title: str, info_hash: str, seeders: int = 50) -> TrackerResul
         leechers=0,
         resolution="1080p",
         info_hash=info_hash,
-        download_url=f"https://lacale.test/torrent/{info_hash}",
+        download_url=f"https://c411.test/torrent/{info_hash}",
     )
 
 
@@ -113,7 +113,7 @@ def _fake_registry(results: list[TrackerResult]) -> MagicMock:
     """A registry that returns canned results and one transport (fresh at grab)."""
     registry = MagicMock()
     registry.search_candidates.return_value = SearchOutcome(results=results, trackers_queried=1, trackers_errored=0)
-    registry.transports.return_value = {"lacale": MagicMock()}
+    registry.transports.return_value = {"c411": MagicMock()}
     return registry
 
 

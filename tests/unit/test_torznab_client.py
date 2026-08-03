@@ -38,7 +38,7 @@ from tests.unit.test_c411_client import _load_xml  # shared live XML fixtures â€
 # member, so an existing one stands in as the identity â€” only the descriptor
 # under test matters here, not the real tracker it names.
 OTHER_DESCRIPTOR = TorznabDescriptor(
-    provider=ProviderName.LACALE,
+    provider=ProviderName.TR4KER,
     display_name="Other",
     base_url="https://other.example",
     api_path="/api/torznab",
@@ -191,8 +191,8 @@ class TestDescriptorDrivesTheRequest:
         client = _client(OTHER_DESCRIPTOR)
         client._transport.get.return_value = _rss(_item())  # type: ignore[attr-defined]
 
-        assert client.provider_name == "lacale"
-        assert client.search("Inception")[0].provider == "lacale"
+        assert client.provider_name == "tr4ker"
+        assert client.search("Inception")[0].provider == "tr4ker"
 
 
 class TestPolicyFromDescriptor:
@@ -202,7 +202,7 @@ class TestPolicyFromDescriptor:
         """Base URL, timeout and api-key parameter follow the descriptor."""
         policy = _OtherClient.policy("k")
 
-        assert policy.provider_name == "lacale"
+        assert policy.provider_name == "tr4ker"
         assert policy.base_url == "https://other.example"
         assert policy.timeout_seconds == 42
         assert isinstance(policy.auth, ApiKeyAuth)
@@ -407,7 +407,7 @@ class TestDialectQuirks:
         with pytest.raises(ApiError) as exc_info:
             client.search("x")
 
-        assert exc_info.value.provider == "lacale"
+        assert exc_info.value.provider == "tr4ker"
         assert exc_info.value.http_status == 100
         assert exc_info.value.message == "Other error"
 
@@ -441,7 +441,7 @@ class TestFailSoftContract:
         with pytest.raises(ApiError) as exc_info:
             client.search("Inception")
 
-        assert exc_info.value.provider == "lacale"
+        assert exc_info.value.provider == "tr4ker"
         assert exc_info.value.http_status == 0
         assert "shape drift" in exc_info.value.message
 
@@ -467,8 +467,8 @@ class TestFailSoftContract:
             broken._transport.get.return_value = failure  # type: ignore[attr-defined]
 
         registry = TrackerRegistry(
-            trackers={"lacale": broken, "c411": _OkTracker("c411")},  # type: ignore[dict-item]
-            priority=["lacale", "c411"],
+            trackers={"tr4ker": broken, "c411": _OkTracker("c411")},  # type: ignore[dict-item]
+            priority=["tr4ker", "c411"],
             ranking=RankingConfig(min_seeders=0),
         )
 

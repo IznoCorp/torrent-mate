@@ -1,11 +1,11 @@
-"""Shared tracker title-quality parser — symmetry across lacale/c411/tr4ker.
+"""Shared tracker title-quality parser — symmetry across c411/tr4ker.
 
 TORRENT-TRACKERS-03: every tracker client encodes quality markers
 (resolution, codec, source, audio, container format) in the release *title*,
 not as structured fields. They all feed the single shared parser
 :func:`personalscraper.api.tracker._quality.parse_title_quality`. Before this,
 one client parsed nothing (all quality fields left ``None``) and c411 reached
-across the family boundary into ``LaCaleClient._parse_title``.
+across the family boundary into a sibling client's private ``_parse_title``.
 
 These tests prove (a) the parser extracts the expected tokens and (b) each
 client's ``_parse_item`` surfaces the SAME tokens on a shared title fixture —
@@ -20,7 +20,6 @@ import pytest
 
 from personalscraper.api.tracker._quality import parse_title_quality
 from personalscraper.api.tracker.c411 import C411Client
-from personalscraper.api.tracker.lacale import LaCaleClient
 from personalscraper.api.tracker.tr4ker import Tr4kerClient
 
 # Shared title fixtures spanning the token families the ranker consumes.
@@ -40,12 +39,6 @@ _QUALITY_FIELDS = ("resolution", "codec", "source", "audio", "language", "format
 def _tr4ker_result_quality(title: str) -> dict[str, str | None]:
     client = Tr4kerClient(MagicMock())
     r = client._parse_item({"title": title, "guid": "hash"})
-    return {f: getattr(r, f) for f in _QUALITY_FIELDS}
-
-
-def _lacale_result_quality(title: str) -> dict[str, str | None]:
-    client = LaCaleClient(MagicMock())
-    r = client._parse_item({"title": title, "guid": "g", "size": 100})
     return {f: getattr(r, f) for f in _QUALITY_FIELDS}
 
 
@@ -168,14 +161,13 @@ class TestLiveReleaseTitleSamples:
 
 
 class TestTrackerQualitySymmetry:
-    """lacale/c411/tr4ker surface the SAME quality tokens on a shared title."""
+    """c411/tr4ker surface the SAME quality tokens on a shared title."""
 
     @pytest.mark.parametrize("title", _SHARED_TITLES)
-    def test_all_three_clients_agree_with_shared_parser(self, title: str) -> None:
+    def test_all_clients_agree_with_shared_parser(self, title: str) -> None:
         """Each client's _parse_item surfaces the same tokens as the shared parser."""
         expected = {f: parse_title_quality(title).get(f) for f in _QUALITY_FIELDS}
         assert _tr4ker_result_quality(title) == expected
-        assert _lacale_result_quality(title) == expected
         assert _c411_result_quality(title) == expected
 
     def test_every_client_parses_quality_tokens(self) -> None:
