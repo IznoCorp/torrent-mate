@@ -48,6 +48,10 @@ class TestPreviewRankingLogic:
         # Exact-roster pin: the response exposes the factory roster and NOTHING
         # else — removed trackers must never resurface in the select options.
         assert resp.known_trackers == ["c411", "tr4ker"]
+        # The samples themselves may only advertise live trackers: relabelling
+        # one onto a removed tracker keeps the count and the roster intact, so
+        # only this set pin catches it.
+        assert {r.provider for r in resp.ranked} == {"c411", "tr4ker"}
         assert all(r.leechers >= 0 for r in resp.ranked), "leechers must be >= 0"
 
     def test_min_seeders_flags_but_never_drops(self) -> None:

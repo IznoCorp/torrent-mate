@@ -21,23 +21,28 @@
 
 ## ACC-01 — lacale zero-hit grep (D10)
 
-**What**: Zero `lacale` remnants (case-insensitive) across backend, tests,
-frontend sources, config example, reference docs, root CLAUDE.md and
-`.env.example`. Single exemption: the removed-tracker regression suite, which
+**What**: Zero `lacale` remnants (case-insensitive, incl. the `la-cale` /
+`la_cale` spellings) across backend, tests, frontend sources, config example,
+reference docs (JSON capture samples included), root `CLAUDE.md`,
+`CONFIGURATION.md` and `.env.example`. Single exemption: the removed-tracker regression suite, which
 pins the name on purpose. `docs/archive/**` and `docs/features/rm-lacale/**`
 (D10's other stated exemptions) are outside the scanned paths by construction;
 historical `docs/analysis/` files are untracked.
 **Scope**: DESIGN D10 (residual-import gate — the deletion IS the feature).
 
 ```bash
-rg -i "lacale" -g '*.py' -g '*.ts' -g '*.tsx' -g '*.json5' -g '*.md' -g '!tests/acquire/test_removed_tracker_history.py' personalscraper/ tests/ frontend/src/ config.example/ docs/reference/ CLAUDE.md .env.example
+rg -i "lacale|la-cale|la_cale" -g '*.py' -g '*.ts' -g '*.tsx' -g '*.json5' -g '*.json' -g '*.md' -g '!tests/acquire/test_removed_tracker_history.py' personalscraper/ tests/ frontend/src/ config.example/ docs/reference/ CLAUDE.md CONFIGURATION.md .env.example
 # Expected: no output, exit 1
 ```
 
 **Status**: PASS (exercised 2026-08-03 — observed no output, exit 1.
 Non-vacuity check same day: dropping the exclusion glob, the exempted file
 `tests/acquire/test_removed_tracker_history.py` yields 6 matches — the grep
-form does catch py hits.)
+form does catch py hits. **Re-exercised 2026-08-03 after the post-review
+widening** — `-g '*.json'` + `CONFIGURATION.md` added to the scope and the
+`la-cale`/`la_cale` spellings to the pattern, after an adversarial review found
+17 remnants in `CONFIGURATION.md` and a dead tracker host in the qBittorrent
+capture sample; both purged/scrubbed, grep re-run: no output, exit 1.)
 
 ---
 
@@ -51,11 +56,12 @@ exemption: the regression suite pins torr9 absence + historic readability
 **Scope**: DESIGN D8 (Torr9 executable proof, per operator ask).
 
 ```bash
-rg -i "torr9" -g '*.py' -g '*.ts' -g '*.tsx' -g '*.json5' -g '*.md' -g '!tests/acquire/test_removed_tracker_history.py' personalscraper/ tests/ frontend/src/ config.example/ docs/reference/
+rg -i "torr9" -g '*.py' -g '*.ts' -g '*.tsx' -g '*.json5' -g '*.json' -g '*.md' -g '!tests/acquire/test_removed_tracker_history.py' personalscraper/ tests/ frontend/src/ config.example/ docs/reference/ CLAUDE.md CONFIGURATION.md .env.example
 # Expected: no output, exit 1
 ```
 
-**Status**: PASS (exercised 2026-08-03 — observed no output, exit 1)
+**Status**: PASS (exercised 2026-08-03 — observed no output, exit 1;
+re-exercised same day with the widened scope above: no output, exit 1)
 
 ---
 

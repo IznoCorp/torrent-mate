@@ -302,18 +302,18 @@ Bloc `providers`, indexé par nom de Protocole de capacité → `dict[provider, 
 (plus petit = prioritaire). `extra="forbid"` ; priorités dupliquées dans une même section
 = erreur. Toutes les sections défaut `{}`.
 
-| Section                  | Valeur template                                         |
-| ------------------------ | ------------------------------------------------------- |
-| `Searchable`             | `{tvdb:1, tmdb:2}`                                      |
-| `MovieDetailsProvider`   | `{tmdb:1, tvdb:2}`                                      |
-| `TvDetailsProvider`      | `{tvdb:1, tmdb:2}`                                      |
-| `EpisodeFetcher`         | `{tvdb:1, tmdb:2}`                                      |
-| `RatingProvider`         | `{}` (ajouter imdb/rotten_tomatoes avec `OMDB_API_KEY`) |
-| `ArtworkProvider`        | `{tmdb:1, tvdb:2}`                                      |
+| Section                  | Valeur template                                                                          |
+| ------------------------ | ---------------------------------------------------------------------------------------- |
+| `Searchable`             | `{tvdb:1, tmdb:2}`                                                                       |
+| `MovieDetailsProvider`   | `{tmdb:1, tvdb:2}`                                                                       |
+| `TvDetailsProvider`      | `{tvdb:1, tmdb:2}`                                                                       |
+| `EpisodeFetcher`         | `{tvdb:1, tmdb:2}`                                                                       |
+| `RatingProvider`         | `{}` (ajouter imdb/rotten_tomatoes avec `OMDB_API_KEY`)                                  |
+| `ArtworkProvider`        | `{tmdb:1, tvdb:2}`                                                                       |
 | `KeywordProvider`        | `{}` (tvdb ne l'implémente pas ; capacité verrouillée, aucune traduction inter-provider) |
-| `VideoProvider`          | `{tmdb:1, tvdb:2}`                                      |
-| `RecommendationProvider` | `{}` (seul trakt)                                       |
-| `IDValidator`            | `{}` (seul imdb/OMDb)                                   |
+| `VideoProvider`          | `{tmdb:1, tvdb:2}`                                                                       |
+| `RecommendationProvider` | `{}` (seul trakt)                                                                        |
+| `IDValidator`            | `{}` (seul imdb/OMDb)                                                                    |
 
 ---
 
@@ -341,14 +341,14 @@ Par client : `enabled` (défaut `true`), `host` (défaut `localhost`), `port` (d
 
 Bloc `tracker`.
 
-| Clé                      | Type                             | Défaut (template)                  | Rôle                                  |
-| ------------------------ | -------------------------------- | ---------------------------------- | ------------------------------------- |
-| `providers`              | dict[str, TrackerProviderConfig] | `{}` (lacale, c411, torr9)         | Config par tracker                    |
-| `priority`               | list[str]                        | `[]` (`["lacale","c411","torr9"]`) | Ordre de fallback                     |
-| `priority_by_media_type` | dict[str, list[str]]             | `{}`                               | Surcharge par type de média (validée) |
-| `max_total_results`      | int                              | `50`                               | Cap global de résultats               |
-| `max_per_tracker`        | int                              | `30`                               | Cap par tracker                       |
-| `timeout_per_tracker`    | int                              | `15`                               | Timeout HTTP par tracker (s)          |
+| Clé                      | Type                             | Défaut (template)          | Rôle                                  |
+| ------------------------ | -------------------------------- | -------------------------- | ------------------------------------- |
+| `providers`              | dict[str, TrackerProviderConfig] | `{}` (c411, tr4ker)        | Config par tracker                    |
+| `priority`               | list[str]                        | `[]` (`["c411","tr4ker"]`) | Ordre de fallback                     |
+| `priority_by_media_type` | dict[str, list[str]]             | `{}`                       | Surcharge par type de média (validée) |
+| `max_total_results`      | int                              | `50`                       | Cap global de résultats               |
+| `max_per_tracker`        | int                              | `30`                       | Cap par tracker                       |
+| `timeout_per_tracker`    | int                              | `15`                       | Timeout HTTP par tracker (s)          |
 
 Par provider (TrackerProviderConfig) : `enabled` (défaut `false`), `cross_seed`
 (`false`), `enrich_seeders` (`false`), `enrich_seeders_top_k` (`10`), `economy`
@@ -358,9 +358,8 @@ Par provider (TrackerProviderConfig) : `enabled` (défaut `false`), `cross_seed`
 `min_seed_time` (requis ; durées humanisées `72h`/`3d` → secondes), `hit_and_run_grace`
 (`0`, humanisé). Validé : `target_ratio ≥ min_ratio`, valeurs finies et ≥0.
 
-**Credentials `.env`** (gating) : `LACALE_API_KEY`, `C411_API_KEY`,
-`TORR9_USERNAME`+`TORR9_PASSWORD`. Passkeys optionnels **non-gating** : `LACALE_PASSKEY`,
-`C411_PASSKEY`, `TORR9_PASSKEY`.
+**Credentials `.env`** (gating) : `C411_API_KEY`, `TR4KER_API_KEY`. Passkeys optionnels
+**non-gating** : `C411_PASSKEY`, `TR4KER_PASSKEY`.
 
 ---
 
@@ -597,27 +596,24 @@ QBIT_PASSWORD=mon_mot_de_passe
 
 ---
 
-## 3. Trackers (LaCale / C411 / torr9)
+## 3. Trackers (C411 / Tr4ker)
 
 Les clés API sont **gating** (une clé manquante désactive le tracker) ; les passkeys sont
 **optionnels et non-gating** (jamais désactivants — usage seeding Vague-5 à venir).
 
-| Variable         | Tracker | Requis                     | Rôle                                                          |
-| ---------------- | ------- | -------------------------- | ------------------------------------------------------------- |
-| `LACALE_API_KEY` | LaCale  | Requis pour activer LaCale | Clé API de recherche (distincte du passkey announce)          |
-| `LACALE_PASSKEY` | LaCale  | Optionnel (non-gating)     | Passkey announce BitTorrent (commenté dans `.env.example`)    |
-| `C411_API_KEY`   | C411    | Requis pour activer C411   | Clé API de recherche                                          |
-| `C411_PASSKEY`   | C411    | Optionnel (non-gating)     | Passkey announce (commenté dans `.env.example`)               |
-| `TORR9_USERNAME` | torr9   | Requis pour activer torr9  | Login (tracker style JWT)                                     |
-| `TORR9_PASSWORD` | torr9   | Requis pour activer torr9  | Mot de passe                                                  |
-| `TORR9_PASSKEY`  | torr9   | Optionnel (non-gating)     | Passkey RSS freeleech (documenté dans `config/tracker.json5`) |
+| Variable         | Tracker | Requis                     | Rôle                                            |
+| ---------------- | ------- | -------------------------- | ----------------------------------------------- |
+| `C411_API_KEY`   | C411    | Requis pour activer C411   | Clé API de recherche                            |
+| `C411_PASSKEY`   | C411    | Optionnel (non-gating)     | Passkey announce (commenté dans `.env.example`) |
+| `TR4KER_API_KEY` | Tr4ker  | Requis pour activer Tr4ker | Clé API (envoyée en paramètre Torznab `apikey`) |
+| `TR4KER_PASSKEY` | Tr4ker  | Optionnel (non-gating)     | Passkey announce/RSS                            |
 
 > Ces clés proviennent de votre compte sur chaque tracker (page API/profil). Elles ne sont
 > lues que si le tracker est `enabled: true` dans `config/tracker.json5`.
 
-> **Absentes du template `.env.example`** (comme `TRANSMISSION_USERNAME`) : `LACALE_API_KEY`,
-> `C411_API_KEY`, `TORR9_USERNAME`, `TORR9_PASSWORD`, `TORR9_PASSKEY` — à ajouter manuellement
-> au `.env`. (Seuls `LACALE_PASSKEY` / `C411_PASSKEY` figurent, commentés, dans le template.)
+> **Absentes du template `.env.example`** (comme `TRANSMISSION_USERNAME`) : `C411_API_KEY`,
+> `TR4KER_API_KEY` — à ajouter manuellement au `.env`. (Seuls `C411_PASSKEY` /
+> `TR4KER_PASSKEY` figurent, commentés, dans le template.)
 
 ---
 
@@ -721,10 +717,8 @@ OMDB_API_KEY=xxxxxxxx
 TRAKT_CLIENT_ID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 # ── Trackers (optionnel, gating si enabled) ─────────
-# LACALE_API_KEY=...
 # C411_API_KEY=...
-# TORR9_USERNAME=...
-# TORR9_PASSWORD=...
+# TR4KER_API_KEY=...
 
 # ── Notifications (optionnel) ───────────────────────
 TELEGRAM_BOT_TOKEN=123456789:ABCDefGhIjKlMnOpQrStUvWxYz

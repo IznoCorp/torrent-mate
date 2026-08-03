@@ -184,6 +184,9 @@ deferred`. The `genre` criterion is a user-configurable encoding-rule field
   reached across into another client's private static method
   (`lacale.py:205 def _parse_title`). `_base.py` already exists in `api/tracker/` as a clean
   landing zone for extraction.
+  **CADUC — absorbé par rm-lacale (#156, 0.77.0)**: the LaCale client is deleted; c411 now
+  calls the shared `api/tracker/_quality.py` parser. This item and its ACC-14 criterion
+  below no longer have a target.
 
 ### 3.7 Adjacent ceiling pressure (do NOT inline into these)
 
