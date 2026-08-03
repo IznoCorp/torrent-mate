@@ -242,39 +242,36 @@ def test_grab_passes_none_limits_when_no_caps_configured() -> None:
 
 
 class TestGrabOrchestratorLimitsWarning:
-    """One-shot warning gate — only warns ONCE (D4)."""
+    """One-shot warning gate — only warns ONCE (D4).
 
-    def test_warns_once_then_silent(self):
-        """First unsupported grab warns; second is silent."""
-        from personalscraper.acquire.orchestrator import GrabOrchestrator
+    Regression (review MAJOR): the previous test set the one-shot flag
+    ITSELF and never called ``grab()`` — it proved nothing about the gate.
+    This one drives two REAL consecutive grabs on a non-limiter client with
+    caps configured and counts the actual ``limits_unsupported`` warning.
+    """
 
-        # Mocks: minimal deps to reach the limits block in grab().
-        registry = MagicMock()
-        client = MagicMock()
-        event_bus = MagicMock()
-        ranking = MagicMock()
-        bw = BandwidthConfig(per_torrent_down=1_000_000, per_torrent_up=None)
+    def test_warns_once_then_silent(self) -> None:
+        """Two grabs on an adder-only client + caps → exactly ONE warning."""
+        client = _AdderOnlyClient()
+        assert not isinstance(client, TorrentLimiter), "the fake must FAIL the runtime TorrentLimiter gate"
+        orch = _make_grab_orchestrator(client, BandwidthConfig(per_torrent_down=1_000_000))
 
-        orch = GrabOrchestrator(
-            tracker_registry=registry,
-            torrent_client=client,
-            event_bus=event_bus,
-            ranking=ranking,
-            bandwidth=bw,
-        )
-        # Verify initial state
-        assert orch._limits_unsupported_warned is False
+        with (
+            patch(_RESOLVE) as mock_resolve,
+            patch("personalscraper.acquire.orchestrator.log") as mock_log,
+        ):
+            mock_resolve.return_value = MagicMock(spec=TorrentSource)
+            first = orch.grab(_make_wanted(), QualityProfile())
+            second = orch.grab(_make_wanted(), QualityProfile())
 
-        # First call: unsupported client + caps configured → should warn
-        # (we just check the flag state after the grab path encounters
-        # an unsupported client — the actual grab would fail earlier on
-        # the search stage, but _build_limits + the warning gate are
-        # verified indirectly through the flag)
-        orch._limits_unsupported_warned = True
-        # After the flag is set, _build_limits still returns None for
-        # unsupported client — no crash, no repeated log spam.
-        result = _build_limits(bw, client_is_limiter=False)
-        assert result is None  # D4: no crash, no exception
+        # Both grabs really ran to the add stage (the warning gate sits there).
+        assert first.disposition == "success"
+        assert second.disposition == "success"
+        assert len(client.add_calls) == 2
+
+        # Exactly ONE limits_unsupported warning across the two grabs (D4).
+        mock_log.warning.assert_called_once()
+        assert mock_log.warning.call_args.args[0] == "acquire.grab.limits_unsupported"
 
 
 # ── TorrentLimits fields invariant ─────────────────────────────────────────────
