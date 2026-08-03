@@ -10,15 +10,24 @@ import { cn } from "@/lib/utils";
  * a dimmer « unknown » muted, and the violet « upcoming » for a future item).
  * Excludes presentational-only tones (``"solid"``, ``"outline"``).
  *
- * ``muted`` and ``upcoming`` were added for the episode-states matrix so its six
- * per-episode states each read as a DISTINCT tone (operator #9 « une couleur par
- * statut »): ``muted`` is the dashed « je ne sais pas » of ``non_verifie`` —
- * a faint INFO-blue tint (#24), a clearly different COLOUR from the solid
- * neutral-grey of « en attente », not merely a dashed grey — and ``upcoming``
- * is the accent of an announced, not-yet-aired episode.
+ * ``muted``, ``waiting`` and ``upcoming`` were added for the episode-states
+ * matrix so its six per-episode states each read as a DISTINCT tone (operator
+ * #9 « une couleur par statut ») : ``muted`` is the colourless dashed ghost of
+ * ``non_verifie`` (« je ne sais pas »), ``waiting`` the teal of « En attente de
+ * torrent » (searched, nothing conforming yet), and ``upcoming`` the violet
+ * accent of an announced, not-yet-aired episode. The three cannot collide with
+ * ``info`` (« En cours d'acquisition ») nor with each other — no two states
+ * share a hue, and ``muted`` has none at all.
  */
 export type BadgeTone =
-  "success" | "danger" | "warning" | "info" | "neutral" | "muted" | "upcoming";
+  | "success"
+  | "danger"
+  | "warning"
+  | "info"
+  | "neutral"
+  | "muted"
+  | "waiting"
+  | "upcoming";
 
 /** Props for {@link Badge}. */
 export interface BadgeProps

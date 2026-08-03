@@ -13,16 +13,19 @@ import type { ReactElement } from "react";
 
 import { Badge } from "@/components/ui/badge";
 
-import { EPISODE_STATE_LABEL, EPISODE_STATE_TONE } from "./meta";
+import {
+  EPISODE_LEGEND_ORDER,
+  EPISODE_STATE_LABEL,
+  EPISODE_STATE_TONE,
+} from "./meta";
 
 /**
- * The states in the label map's declaration order (`annonce` first, then the
- * owned/action states). Derived from the map's keys so the legend can never
- * list a state the maps do not define; the order is a display concern only.
+ * The states in lifecycle order, as the operator walks them: unknown →
+ * announced → searched-but-nothing → takeable → being taken → owned. Declared
+ * once in `meta.ts` (never `Object.keys`, whose order is an accident of
+ * declaration) and shared with the tests that pin it.
  */
-const LEGEND_ORDER = Object.keys(
-  EPISODE_STATE_LABEL,
-) as (keyof typeof EPISODE_STATE_LABEL)[];
+const LEGEND_ORDER = EPISODE_LEGEND_ORDER;
 
 /**
  * EpisodeStateLegende — the per-state colour legend.

@@ -58,6 +58,14 @@
   --upcoming-foreground: oklch(0.18 0.05 300);
   --upcoming-muted: oklch(0.3 0.07 300);
 
+  /* « En attente de torrent » — searched, nothing conforming yet. Its own TEAL
+     hue: the state used to share the neutral grey with « Non vérifié », then the
+     info blue with « En cours d'acquisition ». Sitting at 195 it collides with
+     neither (blue is 235, and the legend never places the two side by side). */
+  --waiting: oklch(0.75 0.115 195);
+  --waiting-foreground: oklch(0.18 0.03 195);
+  --waiting-muted: oklch(0.3 0.05 195);
+
   --neutral-signal: oklch(0.62 0.01 286); /* idle / skipped / disabled */
 
   /* ============================================================
@@ -135,6 +143,9 @@
   --upcoming: oklch(0.55 0.17 300);
   --upcoming-foreground: oklch(0.99 0.01 300);
   --upcoming-muted: oklch(0.93 0.05 300);
+  --waiting: oklch(0.55 0.11 195);
+  --waiting-foreground: oklch(0.99 0.01 195);
+  --waiting-muted: oklch(0.93 0.04 195);
   --neutral-signal: oklch(0.62 0.01 286);
 
   --temp-hot: oklch(0.58 0.205 30);

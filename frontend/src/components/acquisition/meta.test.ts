@@ -61,7 +61,7 @@ describe("FOLLOW status vocabulary", () => {
     ["verification_en_cours", "Vérification en cours", "info"],
     ["a_recuperer", "À récupérer", "warning"],
     ["en_acquisition", "En cours d'acquisition", "info"],
-    ["en_attente", "En attente", "neutral"],
+    ["en_attente", "En attente de torrent", "waiting"],
     ["non_verifie", "Non vérifié", "muted"],
     ["a_jour", "À jour", "success"],
   ])("maps %s to its série label and tone", (status, label, tone) => {
@@ -115,7 +115,7 @@ describe("EPISODE state vocabulary", () => {
     ["en_mediatheque", "En médiathèque", "success"],
     ["a_recuperer", "À récupérer", "warning"],
     ["en_acquisition", "En cours d'acquisition", "info"],
-    ["en_attente", "En attente", "neutral"],
+    ["en_attente", "En attente de torrent", "waiting"],
     ["non_verifie", "Non vérifié", "muted"],
     ["annonce", "Annoncé", "upcoming"],
   ])("maps %s to its label and tone", (state, label, tone) => {
@@ -146,9 +146,10 @@ describe("EPISODE state vocabulary", () => {
     // BadgeTone, else the matrix would paint two states the same colour. This
     // is the regression guard for the two collisions that existed at phase-1
     // end (annonce=en_acquisition=info, en_attente=non_verifie=neutral).
-    // Documented concession (season-grab): the terminal low-salience
-    // "absorbed" state shares "muted" — all 7 BadgeTones are taken and the
-    // only free one (danger) would misread; its distinct LABEL carries it.
+    // "absorbed" is excluded on purpose: it is not a state of its own for the
+    // operator — it renders EXACTLY like en_acquisition (same tone, same
+    // label), because an absorbed episode is simply being acquired inside a
+    // season pack.
     const liveFlow = EPISODE_STATES.filter((s) => s !== "absorbed");
     const tones = liveFlow.map((s) => EPISODE_STATE_TONE[s]);
     expect(new Set(tones).size).toBe(liveFlow.length);
@@ -177,7 +178,7 @@ describe("WANTED-QUEUE status vocabulary (review F8)", () => {
   });
 
   it.each([
-    ["absorbed", "Absorbé (saison)", "muted"],
+    ["absorbed", "En cours d'acquisition", "info"],
     ["fallback_episodes", "Reporté en épisodes", "warning"],
   ])("maps the season-grab status %s", (status, label, tone) => {
     expect(STATUS_LABEL[status]).toBe(label);
@@ -186,7 +187,10 @@ describe("WANTED-QUEUE status vocabulary (review F8)", () => {
 
   it("lets the queue filter select the season-grab statuses", () => {
     const values = WANTED_STATUS_OPTIONS.map((o) => o.value);
-    expect(values).toContain("absorbed");
+    // `absorbed` is deliberately NOT offered: an absorbed row simply reads
+    // « En cours d'acquisition », so a filter on it would ask the operator to
+    // reason about plumbing (season pack vs episode) that changes nothing.
+    expect(values).not.toContain("absorbed");
     expect(values).toContain("fallback_episodes");
     // Every option carries French wording, never the raw slug.
     for (const opt of WANTED_STATUS_OPTIONS) {
