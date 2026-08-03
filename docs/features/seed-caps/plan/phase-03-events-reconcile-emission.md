@@ -43,7 +43,15 @@ pytest tests/acquire/test_download_events.py -v   # all pass
 
 ---
 
-## Sub-phase 3.2: Reconcile signature change + emission logic
+## Sub-phase 3.2: Reconcile signature change + emission logic + ALL callers
+
+ORCHESTRATOR CORRECTION (2026-08-03): sub-phases 3.2 and 3.3 are MERGED into this
+single unit. Changing the signature (REQUIRED event_bus) without updating the
+callers in the same commit leaves the tree red between commits — that violates
+the green-tree rule and the event_bus project contract (all callers updated
+together). The caller work below (former 3.3) is part of THIS sub-phase; both
+commits land in the same dispatch, each leaving the tree green (recommended:
+one single commit covering reconcile + callers + fixtures).
 
 **Commit**: `feat(seed-caps): add download event emission to reconcile_wanted`
 
@@ -87,9 +95,9 @@ pytest tests/acquire/test_reconcile_download_events.py tests/acquire/test_downlo
 
 ---
 
-## Sub-phase 3.3: Caller updates (grab.py + search.py + test fixtures)
+## Former sub-phase 3.3 — FOLDED INTO 3.2 (see correction above; kept for its content)
 
-**Commit**: `feat(seed-caps): update reconcile_wanted callers for new signature`
+**Commit**: (folded into the 3.2 commit)
 
 ### Files
 - **Modify**: `personalscraper/commands/grab.py:155-184` — pass `client_items` dict + `event_bus`
