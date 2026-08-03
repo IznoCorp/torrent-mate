@@ -134,6 +134,38 @@ def _parse_optional_int(value: str | None) -> int | None:
         return None
 
 
+def _build_q(query: str, media_type: MediaType, year: int | None) -> str:
+    """Build the Torznab ``q=`` value, appending the year only when it helps.
+
+    The year disambiguates a MOVIE title (« Dune 2021 » vs « Dune 1984 »). On a
+    TV search it is poison: the discriminator is already the ``SxxEyy`` / ``Sxx``
+    marker, and release names essentially never carry the year — indexers that
+    AND their tokens then match nothing. Measured on live trackers 2026-08-03:
+    ``"L'Attentat du vol Pan Am 103 S01 2025"`` → 0 result, the same query
+    without the year → 5 (incl. a conforming season pack, 28 seeders). It also
+    silently degraded every other TV search (``Silo S03E05``: 18 vs 39).
+
+    Nor is the year appended when the caller already embedded it: for a movie,
+    :func:`~personalscraper.acquire.orchestrator.build_search_query` returns
+    ``"{title} {year}"`` and the callers pass ``year`` on top, which produced
+    ``q=Wicker+2026+2026`` in production.
+
+    Args:
+        query: The free-text query as built by the caller.
+        media_type: The search's media type.
+        year: Optional release year.
+
+    Returns:
+        The ``q`` value to send: ``"{query} {year}"`` only for a movie search
+        whose query does not already carry that year, else ``query`` unchanged.
+    """
+    if year is None or media_type != MediaType.MOVIE:
+        return query
+    if str(year) in query:
+        return query
+    return f"{query} {year}"
+
+
 def _parse_rfc2822(value: Any) -> datetime | None:
     """Parse an RFC 2822 timestamp (``<pubDate>``)."""
     if not isinstance(value, str):
@@ -332,7 +364,9 @@ class TorznabClient(TorrentSearchable, CategoryListable):
         Args:
             query: Free-text search query.
             media_type: ``"movie"``, ``"tv"``, or any other value (→ default endpoint).
-            year: Optional release year — appended to ``q`` when given.
+            year: Optional release year — appended to ``q`` ONLY for a movie
+                search that does not already carry it (see :func:`_build_q`);
+                ignored entirely on a TV search.
 
         Returns:
             List of TrackerResult ordered as the indexer returned them.
@@ -343,7 +377,7 @@ class TorznabClient(TorrentSearchable, CategoryListable):
             "tv": descriptor.tv_endpoint,
         }.get(media_type, descriptor.default_endpoint)
 
-        q = f"{query} {year}" if year is not None else query
+        q = _build_q(query, media_type, year)
         params: dict[str, Any] = {"t": endpoint, "q": q}
         category = descriptor.search_categories.get(str(media_type))
         if category:
