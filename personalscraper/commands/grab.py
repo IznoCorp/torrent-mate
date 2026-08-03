@@ -113,9 +113,12 @@ def grab(
         redis_publisher = build_redis_publisher(app_context.event_bus, config.web)
         # D8 — the reconcile pass below emits DownloadCompleted; without this
         # subscriber the event had no Telegram consumer on the grab path (the
-        # pipeline command wires it, but never calls reconcile_wanted).
-        acq_telegram_subscriber = _build_acq_telegram_subscriber(config, settings, app_context.event_bus)
+        # pipeline command wires it, but never calls reconcile_wanted). Built
+        # INSIDE the try (pipeline.py pattern) so a construction failure still
+        # reaches the finally and closes the redis publisher.
+        acq_telegram_subscriber: "AcquisitionTelegramSubscriber | None" = None
         try:
+            acq_telegram_subscriber = _build_acq_telegram_subscriber(config, settings, app_context.event_bus)
             acquire = app_context.acquire
             if acquire is None:
                 console.print("[red]AcquireContext not available.[/red]")

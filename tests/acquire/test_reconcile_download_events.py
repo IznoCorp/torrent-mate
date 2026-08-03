@@ -277,6 +277,30 @@ def test_stale_read_concurrent_pass_never_double_emits_completed(store: Concrete
     assert events == [], "the losing pass must not emit a second DownloadCompleted"
 
 
+def test_stale_read_after_completed_never_emits_progressed(store: ConcreteAcquireStore) -> None:
+    """Regression (counter-review): a completed mark is FINAL even under a stale read.
+
+    Pass A claims Completed (and emits). Pass B read the marks BEFORE A's
+    write (stale « no mark ») and observed progress 0.55: ``try_mark_started``
+    is blocked (completion subsumes the start) but ``try_advance_threshold``
+    had NO completed guard — ``last_threshold`` is still 0 after completion,
+    so the losing pass landed the 50 claim and emitted a phantom
+    ``DownloadProgressed`` AFTER the ``DownloadCompleted``.
+    """
+    _grabbed(store)
+    assert store.download_marks.try_mark_completed(_HASH) is True, "pass A claims Completed"
+    bus = EventBus()
+    events = _collector(bus)
+
+    with patch.object(store.download_marks, "get", return_value=None):
+        reconcile_wanted(store, _NoOwnership(), client_items={_HASH: _item(_HASH, 0.55)}, event_bus=bus)
+
+    assert events == [], "no Started/Progressed may ever follow a claimed Completed"
+    mark = store.download_marks.get(_HASH)
+    assert mark is not None
+    assert mark.last_threshold == 0, "the threshold claim must not land on a completed mark"
+
+
 def test_stale_read_concurrent_pass_never_double_emits_progressed(store: ConcreteAcquireStore) -> None:
     """MINOR-6: a threshold already advanced by a concurrent pass is never re-emitted."""
     _grabbed(store)

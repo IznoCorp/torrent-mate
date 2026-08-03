@@ -194,6 +194,22 @@ class TestGuardedTransitions:
         assert store.try_mark_started("DDDD0004") is True
         assert store.try_mark_started("dddd0004") is False
 
+    def test_try_advance_threshold_refuses_after_completed(self, store: DownloadMarksStore) -> None:
+        """Regression (counter-review): a completed mark is FINAL — no threshold claim can land.
+
+        Probe shape: pass A claims Completed (``last_threshold`` stays 0 —
+        completion never advances it); pass B, acting on a stale « no mark »
+        read, tries to claim the 50 crossing. Without the
+        ``completed_emitted = 0`` guard that claim WON and the sweep emitted a
+        phantom ``DownloadProgressed`` AFTER the ``DownloadCompleted``.
+        """
+        assert store.try_mark_completed("eeee0005") is True
+        assert store.try_advance_threshold("eeee0005", 50) is False, "no threshold claim after Completed"
+        mark = store.get("eeee0005")
+        assert mark is not None
+        assert mark.last_threshold == 0, "the refused claim must not touch the mark"
+        assert mark.completed_emitted is True
+
 
 class TestPruneStale:
     """prune_stale removes marks not in the active set."""

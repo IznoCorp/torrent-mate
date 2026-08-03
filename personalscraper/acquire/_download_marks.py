@@ -238,9 +238,14 @@ class DownloadMarksStore:
     def try_advance_threshold(self, info_hash: str, threshold: int) -> bool:
         """Atomically advance ``last_threshold`` to *threshold* (forward only).
 
-        Guarded on ``last_threshold < threshold``: a concurrent pass that
-        already advanced to (or past) *threshold* makes this call answer
-        ``False``, and the mark can never move backwards.
+        Guarded on ``last_threshold < threshold`` AND ``completed_emitted = 0``:
+        a concurrent pass that already advanced to (or past) *threshold* — or
+        that already claimed the Completed emission — makes this call answer
+        ``False``. The mark never moves backwards, and a completed mark is
+        FINAL even under a stale concurrent read: completion never advances
+        ``last_threshold``, so without the completed guard a pass acting on a
+        stale « no mark » read could land a threshold claim and emit a phantom
+        ``DownloadProgressed`` AFTER the ``DownloadCompleted``.
 
         Args:
             info_hash: Torrent info-hash (case-insensitive — stored lowercase).
@@ -254,7 +259,7 @@ class DownloadMarksStore:
             h,
             "UPDATE download_marks SET last_threshold = ?, "
             "updated_at = CAST(strftime('%s', 'now') AS REAL) "
-            "WHERE info_hash = ? AND last_threshold < ?",
+            "WHERE info_hash = ? AND last_threshold < ? AND completed_emitted = 0",
             (threshold, h, threshold),
         )
 
