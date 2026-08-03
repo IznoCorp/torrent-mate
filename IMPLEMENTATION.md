@@ -10,7 +10,7 @@
 **PR merge**: auto — standing operator contract: adversarial review(s) + tests before merge.
 **PR**: _(created after last phase)_
 **Design**: docs/features/rm-lacale/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/rm-lacale/plan/INDEX.md
 
 ## Non-negotiable invariants (DESIGN D1-D10, frozen)
 
@@ -25,7 +25,11 @@
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                                          | File                                   | Status |
+| --- | ---------------------------------------------- | -------------------------------------- | ------ |
+| 1   | Backend removal + test rewrites + D2 regression | phase-01-backend-removal.md            | [ ]    |
+| 2   | Web + frontend + config + docs                  | phase-02-web-frontend-config-docs.md   | [ ]    |
+| 3   | ACCEPTANCE + full gate                          | phase-03-acceptance-full-gate.md       | [ ]    |
 
 ## Review cycles
 
@@ -33,4 +37,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` to execute phase 1.
