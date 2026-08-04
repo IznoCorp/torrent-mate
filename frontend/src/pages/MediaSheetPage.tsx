@@ -44,5 +44,11 @@ export default function MediaSheetPage(): ReactElement {
     );
   }
 
-  return <MediaSheet provider={provider} providerId={providerId} kind={kind} />;
+  return (
+    <MediaSheet
+      provider={provider}
+      providerId={providerId}
+      {...(kind !== undefined ? { kind } : {})}
+    />
+  );
 }

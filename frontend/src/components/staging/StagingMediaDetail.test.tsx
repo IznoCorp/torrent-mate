@@ -8,6 +8,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactElement } from "react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { StagingMediaItem } from "@/api/staging";
@@ -103,10 +104,12 @@ function renderDetail(
   });
   const tree: ReactElement = (
     <QueryClientProvider client={qc}>
-      <StagingMediaDetail
-        item={item}
-        {...(onResolve !== undefined ? { onResolve } : {})}
-      />
+      <MemoryRouter>
+        <StagingMediaDetail
+          item={item}
+          {...(onResolve !== undefined ? { onResolve } : {})}
+        />
+      </MemoryRouter>
     </QueryClientProvider>
   );
   render(tree);

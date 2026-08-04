@@ -316,7 +316,9 @@ describe("§11 constitution — « Tout média est consultable »", () => {
       fireEvent.click(card);
 
       expect(navigateMock).toHaveBeenCalledTimes(1);
-      const href = navigateMock.mock.calls[0][0] as string;
+      const firstCall = navigateMock.mock.calls[0];
+      if (!firstCall) throw new Error("unreachable: navigate was not called");
+      const href = firstCall[0] as string;
       expect(href).toMatch(/^\/media\/tmdb\/27205/);
       // The kind hint avoids a wasted provider round-trip (phase-2 call contract).
       expect(href).toContain("kind=movie");
@@ -360,7 +362,9 @@ describe("§11 constitution — « Tout média est consultable »", () => {
       fireEvent.click(menuItem);
 
       expect(navigateMock).toHaveBeenCalledTimes(1);
-      const href = navigateMock.mock.calls[0][0] as string;
+      const firstCall = navigateMock.mock.calls[0];
+      if (!firstCall) throw new Error("unreachable: navigate was not called");
+      const href = firstCall[0] as string;
       expect(href).toMatch(/^\/media\/tvdb\/371572/);
       expect(href).toContain("kind=tv");
     });

@@ -225,7 +225,12 @@ export function MediaSheet({
 }: MediaSheetProps): ReactElement {
   const query = useQuery({
     queryKey: ["media", "sheet", provider, providerId, kind],
-    queryFn: () => getMediaSheet(provider, providerId, { kind }),
+    queryFn: () =>
+      getMediaSheet(
+        provider,
+        providerId,
+        { ...(kind !== undefined ? { kind } : {}) },
+      ),
   });
 
   // --- Loading ---
@@ -252,7 +257,24 @@ export function MediaSheet({
     );
   }
 
+  // --- Undefined (idle / paused — after loading+error guards, TanStack Query
+  //     still types data as TData | undefined because isLoading is false on idle.
+  //     Narrow honestly rather than asserting or casting.)
   const data = query.data;
+  if (data === undefined) {
+    return (
+      <div data-testid="media-sheet" className="mx-auto max-w-4xl p-4">
+        <ErrorState
+          title="Impossible de charger la fiche"
+          message="La requête est dans un état inattendu — aucune donnée reçue."
+          onRetry={() => {
+            void query.refetch();
+          }}
+        />
+      </div>
+    );
+  }
+
   const degraded = data.degraded_reason !== null;
   const series = data.kind === "tv";
 
@@ -270,7 +292,7 @@ export function MediaSheet({
           <MediaPoster
             title={data.title}
             src={data.poster_url}
-            kind={data.kind ?? undefined}
+            {...(data.kind !== null ? { kind: data.kind } : {})}
           />
         </div>
 

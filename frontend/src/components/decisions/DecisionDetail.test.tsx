@@ -15,6 +15,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import type { ReactElement } from "react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/api/client";
@@ -154,7 +155,9 @@ function renderDetail(decision: DecisionDetailType, onHandled = vi.fn()): void {
 
   const tree: ReactElement = (
     <QueryClientProvider client={qc}>
-      <DecisionDetail decision={decision} onDecisionHandled={onHandled} />
+      <MemoryRouter>
+        <DecisionDetail decision={decision} onDecisionHandled={onHandled} />
+      </MemoryRouter>
     </QueryClientProvider>
   );
   render(tree);
