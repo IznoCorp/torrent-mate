@@ -242,3 +242,133 @@ def _media_router():
     from personalscraper.web.routes.media import router
 
     return router
+
+
+class TestMediaSheetKindHint:
+    """Regression tests for the *kind* query parameter (Defect 1 fix)."""
+
+    def test_kind_movie_skips_get_tv(self, test_config):
+        """When kind='movie', get_tv is never called — no circuit failure risk."""
+        details = _make_details_movie()
+        fake = MagicMock()
+        fake.provider_name = "tmdb"
+        fake.get_movie.return_value = details
+        fake.get_tv = MagicMock()
+
+        with (
+            patch("personalscraper.web.routes.media._build_tmdb_client", return_value=fake),
+            patch("personalscraper.web.routes.media._build_ownership_block", return_value=None),
+        ):
+            client = _make_authenticated_client(test_config)
+            resp = client.get("/api/media/tmdb/550?kind=movie")
+            assert resp.status_code == 200
+            assert fake.get_tv.call_count == 0
+            assert fake.get_movie.call_count == 1
+            data = resp.json()
+            assert data["title"] == "Fight Club"
+
+    def test_kind_tv_skips_get_movie(self, test_config):
+        """When kind='tv', get_movie is never called."""
+        details = _make_details_tv()
+        fake = MagicMock()
+        fake.provider_name = "tvdb"
+        fake.get_tv.return_value = details
+        fake.get_movie = MagicMock()
+
+        with (
+            patch("personalscraper.web.routes.media._build_tvdb_client", return_value=fake),
+            patch("personalscraper.web.routes.media._build_ownership_block", return_value=None),
+        ):
+            client = _make_authenticated_client(test_config)
+            resp = client.get("/api/media/tvdb/255968?kind=tv")
+            assert resp.status_code == 200
+            assert fake.get_movie.call_count == 0
+            assert fake.get_tv.call_count == 1
+
+    def test_invalid_kind_returns_422(self, test_config):
+        """An invalid kind value is rejected by FastAPI validation."""
+        client = _make_authenticated_client(test_config)
+        resp = client.get("/api/media/tmdb/550?kind=unknown")
+        assert resp.status_code == 422
+
+    def test_circuit_open_error_degrades_no_fallback(self, test_config):
+        """CircuitOpenError from get_tv must NOT trigger get_movie — degrade immediately."""
+        from personalscraper.core._contracts import CircuitOpenError
+
+        fake = MagicMock()
+        fake.provider_name = "tmdb"
+        fake.get_tv.side_effect = CircuitOpenError("TMDB", 120.0)
+        fake.get_movie = MagicMock()
+
+        with patch("personalscraper.web.routes.media._build_tmdb_client", return_value=fake):
+            client = _make_authenticated_client(test_config)
+            resp = client.get("/api/media/tmdb/999")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["degraded_reason"] is not None
+            assert "n'a pas repondu" in data["degraded_reason"]
+            # Crucially: get_movie was NEVER called.
+            fake.get_movie.assert_not_called()
+
+    def test_api_404_triggers_movie_fallback(self, test_config):
+        """A genuine 404 from get_tv triggers get_movie — this is the no-hint fallback."""
+        from personalscraper.core._contracts import ApiError
+
+        movie_details = _make_details_movie()
+        fake = MagicMock()
+        fake.provider_name = "tmdb"
+        fake.get_tv.side_effect = ApiError(provider="TMDB", http_status=404, message="Not Found")
+        fake.get_movie.return_value = movie_details
+
+        with (
+            patch("personalscraper.web.routes.media._build_tmdb_client", return_value=fake),
+            patch("personalscraper.web.routes.media._build_ownership_block", return_value=None),
+        ):
+            client = _make_authenticated_client(test_config)
+            resp = client.get("/api/media/tmdb/550")
+            assert resp.status_code == 200
+            assert fake.get_tv.call_count == 1
+            assert fake.get_movie.call_count == 1
+            assert resp.json()["title"] == "Fight Club"
+
+    def test_api_401_degrades_no_fallback(self, test_config):
+        """Auth error (401) from get_tv degrades — no get_movie call."""
+        from personalscraper.core._contracts import ApiError
+
+        fake = MagicMock()
+        fake.provider_name = "tmdb"
+        fake.get_tv.side_effect = ApiError(provider="TMDB", http_status=401, message="Unauthorized")
+        fake.get_movie = MagicMock()
+
+        with patch("personalscraper.web.routes.media._build_tmdb_client", return_value=fake):
+            client = _make_authenticated_client(test_config)
+            resp = client.get("/api/media/tmdb/999")
+            assert resp.status_code == 200
+            assert resp.json()["degraded_reason"] is not None
+            fake.get_movie.assert_not_called()
+
+
+class TestMediaSheetCacheBound:
+    """Regression tests for cache bounding (Defect 2 fix)."""
+
+    def test_cache_never_exceeds_max(self, test_config):
+        """Inserting _CACHE_MAX + 10 keys leaves at most _CACHE_MAX entries."""
+        from personalscraper.web.routes import media as media_routes
+
+        details = _make_details_movie()
+        cache_max = media_routes._CACHE_MAX
+        fake = MagicMock()
+        fake.provider_name = "tmdb"
+        fake.get_tv.side_effect = Exception("not TV")
+        fake.get_movie.return_value = details
+
+        with (
+            patch("personalscraper.web.routes.media._build_tmdb_client", return_value=fake),
+            patch("personalscraper.web.routes.media._build_ownership_block", return_value=None),
+        ):
+            client = _make_authenticated_client(test_config)
+            for i in range(cache_max + 10):
+                resp = client.get(f"/api/media/tmdb/{i}")
+                assert resp.status_code == 200
+
+        assert len(media_routes._cache) <= cache_max

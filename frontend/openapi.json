@@ -6532,7 +6532,7 @@
     },
     "/api/media/{provider}/{provider_id}": {
       "get": {
-        "description": "Return a full media sheet for a provider-identified media item.\n\nFetches metadata from the live provider API (with a short in-memory cache),\ncrosses the local library for ownership, and returns typed data.  When the\nprovider is unreachable, the response carries a French degraded_reason\nrather than a 500 - the identity fields are always present (DESIGN D9).\n\nArgs:\n    provider: Provider name - \"tmdb\" or \"tvdb\".\n    provider_id: Provider-specific media identifier.\n    request: The incoming FastAPI request.\n\nReturns:\n    A MediaSheetResponse.\n\nRaises:\n    HTTPException: 400 when *provider* is not \"tmdb\" / \"tvdb\".",
+        "description": "Return a full media sheet for a provider-identified media item.\n\nFetches metadata from the live provider API (with a short in-memory cache),\ncrosses the local library for ownership, and returns typed data.  When the\nprovider is unreachable, the response carries a French degraded_reason\nrather than a 500 - the identity fields are always present (DESIGN D9).\n\nArgs:\n    provider: Provider name - \"tmdb\" or \"tvdb\".\n    provider_id: Provider-specific media identifier.\n    request: The incoming FastAPI request.\n    kind: Optional media kind hint (``\"movie\"`` or ``\"tv\"``).  When supplied,\n        only the matching provider method is called \u2014 no probing, no risk of\n        recording a circuit failure on a doomed lookup.  Callers always know\n        the kind (search results, followed rows, decision candidates); this\n        parameter exists so a read-only detail page never opens the provider\n        circuit breaker.  Omit for hand-typed URLs (no-hint fallback).\n\nReturns:\n    A MediaSheetResponse.\n\nRaises:\n    HTTPException: 400 when *provider* is not \"tmdb\" / \"tvdb\".",
         "operationId": "get_media_sheet_api_media__provider___provider_id__get",
         "parameters": [
           {
@@ -6551,6 +6551,28 @@
             "schema": {
               "title": "Provider Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "Media kind hint to avoid probing",
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "movie",
+                    "tv"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Media kind hint to avoid probing",
+              "title": "Kind"
             }
           }
         ],

@@ -1501,6 +1501,12 @@ export interface paths {
          *         provider: Provider name - "tmdb" or "tvdb".
          *         provider_id: Provider-specific media identifier.
          *         request: The incoming FastAPI request.
+         *         kind: Optional media kind hint (``"movie"`` or ``"tv"``).  When supplied,
+         *             only the matching provider method is called — no probing, no risk of
+         *             recording a circuit failure on a doomed lookup.  Callers always know
+         *             the kind (search results, followed rows, decision candidates); this
+         *             parameter exists so a read-only detail page never opens the provider
+         *             circuit breaker.  Omit for hand-typed URLs (no-hint fallback).
          *
          *     Returns:
          *         A MediaSheetResponse.
@@ -6393,7 +6399,10 @@ export interface operations {
     };
     get_media_sheet_api_media__provider___provider_id__get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Media kind hint to avoid probing */
+                kind?: ("movie" | "tv") | null;
+            };
             header?: never;
             path: {
                 provider: string;

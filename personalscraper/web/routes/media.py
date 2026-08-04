@@ -13,12 +13,14 @@ and no pipeline.lock.
 from __future__ import annotations
 
 import time
+from collections import OrderedDict
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 
 from personalscraper.api._contracts import ProviderName
+from personalscraper.core._contracts import ApiError, CircuitOpenError
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.identity import MediaRef
 from personalscraper.logger import get_logger
@@ -32,12 +34,13 @@ router = APIRouter(prefix="/api/media", tags=["media"])
 log = get_logger(__name__)
 
 # ---------------------------------------------------------------------------
-# In-memory cache (DESIGN D6) - low-traffic endpoint, simple TTL dict.
+# In-memory LRU cache (DESIGN D6) — bounded, TTL-expiring OrderedDict.
 # Keyed on (provider, provider_id); value is (response_dict, expiry_ts).
-# No eviction in v1 - add LRU if usage grows.
+# Oldest entry evicted when len(_cache) > _CACHE_MAX.
 # ---------------------------------------------------------------------------
 _CACHE_TTL = 300  # seconds
-_cache: dict[tuple[str, str], tuple[dict[str, Any], float]] = {}
+_CACHE_MAX = 256
+_cache: OrderedDict[tuple[str, str], tuple[dict[str, Any], float]] = OrderedDict()
 
 
 def _build_tmdb_client(api_key: str) -> Any:
@@ -220,11 +223,50 @@ def _build_ownership_block(
         checker.close()
 
 
+def _maybe_evict_cache() -> None:
+    """Evict oldest entry when the cache exceeds _CACHE_MAX."""
+    while len(_cache) > _CACHE_MAX:
+        _cache.popitem(last=False)
+
+
+def _is_not_found(exc: ApiError) -> bool:
+    """Return True when *exc* is a genuine 404 — not a circuit/auth failure.
+
+    Args:
+        exc: An ApiError instance.
+
+    Returns:
+        True when ``http_status`` is 404 and it is not an auth error.
+    """
+    return exc.http_status == 404 and exc.http_status not in (401, 403)
+
+
+def _is_blocking_error(exc: BaseException) -> bool:
+    """Return True when *exc* must NOT trigger a fallback call.
+
+    CircuitOpenError: the provider is unavailable — a second call doubles the
+    damage. Auth errors (401/403 ApiError): credentials are wrong — a second
+    call to the same provider fails the same way.
+
+    Args:
+        exc: The exception caught during the first provider call.
+
+    Returns:
+        True when the caller must degrade immediately rather than try a fallback.
+    """
+    if isinstance(exc, CircuitOpenError):
+        return True
+    if isinstance(exc, ApiError) and exc.http_status in (401, 403):
+        return True
+    return False
+
+
 @router.get("/{provider}/{provider_id}", response_model=MediaSheetResponse)
 def get_media_sheet(
     provider: str,
     provider_id: str,
     request: Request,
+    kind: Literal["movie", "tv"] | None = Query(None, description="Media kind hint to avoid probing"),
 ) -> MediaSheetResponse:
     """Return a full media sheet for a provider-identified media item.
 
@@ -237,6 +279,12 @@ def get_media_sheet(
         provider: Provider name - "tmdb" or "tvdb".
         provider_id: Provider-specific media identifier.
         request: The incoming FastAPI request.
+        kind: Optional media kind hint (``"movie"`` or ``"tv"``).  When supplied,
+            only the matching provider method is called — no probing, no risk of
+            recording a circuit failure on a doomed lookup.  Callers always know
+            the kind (search results, followed rows, decision candidates); this
+            parameter exists so a read-only detail page never opens the provider
+            circuit breaker.  Omit for hand-typed URLs (no-hint fallback).
 
     Returns:
         A MediaSheetResponse.
@@ -258,6 +306,8 @@ def get_media_sheet(
         cached_data, expiry = _cache[cache_key]
         if now < expiry:
             log.debug("media_sheet_cache_hit", provider=provider, provider_id=provider_id)
+            # Move to end to preserve LRU order on hit.
+            _cache.move_to_end(cache_key)
             return MediaSheetResponse(**cached_data)
 
     # Step 3: Build provider client
@@ -269,20 +319,51 @@ def get_media_sheet(
             detail=f"Le fournisseur {provider} n'est pas configure (cle API absente).",
         )
 
-    # Step 4: Fetch from provider
+    # Step 4: Fetch from provider.
+    # When *kind* is supplied the caller knows the media type — call only the
+    # matching method so a doomed lookup (e.g. get_tv for a movie) never records
+    # a circuit failure.  The no-hint fallback probes TV first, but restricts the
+    # fallback: only a genuine 404 justifies trying get_movie; any blocking error
+    # (circuit open, auth failure) degrades immediately.
     degraded_reason: str | None = None
     details: Any = None
     is_tv: bool | None = None
 
     try:
         client = _provider_from_name(provider, api_key)
-        # Try TV first (more common and informative), fall back to movie.
-        try:
-            details = client.get_tv(provider_id)
-            is_tv = True
-        except Exception:
-            details = client.get_movie(provider_id)
-            is_tv = False
+
+        if kind is not None:
+            # Directed lookup — no probing, no doomed call.  A single method
+            # call; if it fails the whole request degrades (D9).
+            if kind == "tv":
+                details = client.get_tv(provider_id)
+                is_tv = True
+            else:
+                details = client.get_movie(provider_id)
+                is_tv = False
+        else:
+            # No-hint fallback: probe TV first, then movie on genuine 404 only.
+            # CAUTION: the TV probe costs ONE recorded circuit failure when it
+            # 404s — this is why callers pass *kind*.  Blocking errors (circuit
+            # open, 401/403) must NOT trigger a fallback call.
+            try:
+                details = client.get_tv(provider_id)
+                is_tv = True
+            except CircuitOpenError:
+                raise  # re-raised → caught by outer except → degraded response
+            except ApiError as exc:
+                if _is_not_found(exc):
+                    # Genuine 404 — this is a movie, not TV.  Try get_movie.
+                    details = client.get_movie(provider_id)
+                    is_tv = False
+                elif _is_blocking_error(exc):
+                    raise  # auth error — degrade, don't double-call
+                else:
+                    raise  # unexpected API error — degrade
+            except Exception:
+                # Non-API error (network, timeout, etc.) — try movie.
+                details = client.get_movie(provider_id)
+                is_tv = False
     except Exception as exc:
         # Provider fully unreachable -> partial response with degraded_reason.
         degraded_reason = f"{provider.upper()} n'a pas repondu : {exc}"
@@ -334,6 +415,9 @@ def get_media_sheet(
         degraded_reason=degraded_reason,
     )
 
-    # Cache and return
+    # Cache (LRU eviction) and return
     _cache[cache_key] = (response.model_dump(), now + _CACHE_TTL)
+    _maybe_evict_cache()
+    # Move to end so recently-inserted entries don't get evicted prematurely.
+    _cache.move_to_end(cache_key)
     return response
