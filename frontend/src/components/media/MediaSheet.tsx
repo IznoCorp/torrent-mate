@@ -183,7 +183,7 @@ function OwnershipSection({
                         label={
                           complete
                             ? "Complète"
-                            : `${pct}%`
+                            : `${String(pct)}%`
                         }
                       />
                     </td>
@@ -307,7 +307,7 @@ export function MediaSheet({
           <div>
             <span className="text-xs text-muted-foreground">Réalisateur</span>
             <p className="text-sm">
-              {data.director !== null ? data.director : "Réalisateur inconnu"}
+              {data.director ?? "Réalisateur inconnu"}
             </p>
           </div>
 
