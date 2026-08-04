@@ -254,9 +254,12 @@ class TestMediaSheetEmptyTitle:
     """Fix 4a: an empty provider title sets degraded_reason so the banner appears."""
 
     def test_empty_title_sets_degraded_reason(self, test_config):
-        """Provider responds successfully but returns an empty title — the response
-        is marked degraded so the UI shows the warning banner alongside the fallback,
-        never a confident card with a raw id as its heading (§8)."""
+        """An empty provider title marks the response degraded.
+
+        The provider responds successfully but returns an empty title, so the UI
+        shows the warning banner alongside the fallback — never a confident card
+        with a raw id as its heading (product-intent §8).
+        """
         details = MediaDetails(
             provider="tmdb",
             provider_id="12345",

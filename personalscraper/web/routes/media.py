@@ -382,7 +382,8 @@ def get_media_sheet(
         return MediaSheetResponse(
             provider=provider,
             provider_id=provider_id,
-            title=f"Fiche indisponible ({provider.upper()} {provider_id})",  # explicit synthetic label — never a bare id masquerading as a real title (§8)
+            # Explicit synthetic label — never a bare id masquerading as a real title (§8).
+            title=f"Fiche indisponible ({provider.upper()} {provider_id})",
             year=None,
             poster_url="",
             overview="",
@@ -406,8 +407,7 @@ def get_media_sheet(
     # as degraded so the warning banner appears alongside the fallback.
     if not details.title:
         degraded_reason = (
-            f"Le fournisseur {provider.upper()} n'a pas retourne de titre "
-            f"pour l'identifiant {provider_id}."
+            f"Le fournisseur {provider.upper()} n'a pas retourne de titre pour l'identifiant {provider_id}."
         )
 
     ownership = _build_ownership_block(details, request, provider, provider_id, is_tv=is_tv)
