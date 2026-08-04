@@ -269,7 +269,5 @@ Also check archived alpha versions under `docs/archive/legacy-alpha/` and archiv
 
 ## Current Feature
 
-**Feature**: _(awaiting /implement:feature)_
-**Branch**: _(to be defined)_
-**Design**: _(to be defined)_
-**Plan**: _(to be defined)_
+Tracked in `IMPLEMENTATION.md` at the repo root — feature, branch, phases, PR and next
+action. Read that file, not this section: a copy here goes stale and contradicts it.
