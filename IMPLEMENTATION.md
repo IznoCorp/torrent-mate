@@ -43,11 +43,11 @@ Points de collision connus avec cette feature concurrente, à re-vérifier avant
 
 | #   | Phase                                                    | File                                     | Défaut | Status |
 | --- | -------------------------------------------------------- | ---------------------------------------- | ------ | ------ |
-| 1   | Propager le bus du processus dans le scan post-dispatch   | phase-01-event-bus-propagation.md        | D4     | [ ]    |
-| 2   | `trackers_degraded` — une panne n'est pas une absence     | phase-02-trackers-degraded.md            | D2     | [ ]    |
-| 3   | Escalade épisode→saison sur l'évidence d'échec            | phase-03-starvation-escalation.md        | D1     | [ ]    |
-| 4   | Extraction de la route season-grab (comportement constant)| phase-04-extract-season-grab-route.md    | —      | [ ]    |
-| 5   | L'action opérateur déclenche la passe                     | phase-05-operator-trigger.md             | D3     | [ ]    |
+| 1   | Propager le bus du processus dans le scan post-dispatch   | phase-01-event-bus-propagation.md        | D4     | [x]    |
+| 2   | `trackers_degraded` — une panne n'est pas une absence     | phase-02-trackers-degraded.md            | D2     | [x]    |
+| 3   | Escalade épisode→saison sur l'évidence d'échec            | phase-03-starvation-escalation.md        | D1     | [x]    |
+| 4   | Extraction de la route season-grab (comportement constant)| phase-04-extract-season-grab-route.md    | —      | [x]    |
+| 5   | L'action opérateur déclenche la passe                     | phase-05-operator-trigger.md             | D3     | [x]    |
 
 L'ordre porte du sens : D4 masque l'effet observable de tout le reste ; D2 change la sémantique
 d'`attempts` dont dépend D1 ; l'extraction dégage la marge que D3 exige sous le plafond de 1000.
@@ -65,6 +65,12 @@ comportement supplémentaire qui n'a pas été validé.
 
 _(filled by implement:pr-review — max 3 cycles)_
 
+## ACCEPTANCE
+
+Exercised 2026-08-04 — see `docs/features/acq-escalade/ACCEPTANCE.md` for the pasted output
+of all 7 criteria. ACC-01 (coherence guard) exit 0, ACC-07 (dated real run proving the
+escalation) PASS.
+
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Push the branch and open the PR (`/implement:feature-pr`), then adversarial PR review.
