@@ -27,6 +27,7 @@ from personalscraper.acquire.events import (
     WantedAbandoned,
     WantedEnqueued,
 )
+from personalscraper.acquire.orchestrator import INCONCLUSIVE_OUTCOMES
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -75,6 +76,17 @@ SEARCH_OUTCOME_STATUS: dict[str, str] = {
 #: the reset free: any other verdict in between breaks the streak.
 _DEBOUNCED_TERMINAL_OUTCOMES: frozenset[str] = frozenset({"tracker_auth"})
 
+#: Outcomes whose attempt is REFUNDED — re-exported from the orchestrator rather
+#: than restated, so the two can never drift into disagreeing about what « did
+#: not conclude » means.
+#:
+#: ``claim_for_search`` increments ``attempts`` before the verdict is known, so a
+#: search that never concluded would otherwise count. It must not: ``attempts``
+#: is « recherches CONCLUES », the counter the starvation escalation reads, and a
+#: week of tracker outages must never push an episode toward (or past) a
+#: threshold it never actually earned.
+_REFUNDED_OUTCOMES = INCONCLUSIVE_OUTCOMES
+
 #: Concluded not_found verdicts that can arm the starvation escalation (D1).
 #: Both mean « the trackers answered and carried nothing for THIS episode »; the
 #: difference is only whether the query returned raw results the episode filter
@@ -85,8 +97,9 @@ _STARVATION_OUTCOMES: frozenset[str] = frozenset({"no_candidates", "no_matching_
 #:
 #: Two, not one: a single failure can still be an unlucky tracker moment, and one
 #: extra season query per starved episode would be paid on every first miss. Two
-#: is honest here because a degraded (partial-outage) search refunds its attempt
-#: — see ``refund_search_attempt`` — so this counter is not inflated by outages.
+#: is honest here because EVERY inconclusive search refunds its attempt (see
+#: :data:`_REFUNDED_OUTCOMES`), so this counter is never inflated by an outage —
+#: it really does mean « twice, the trackers answered and had nothing ».
 _STARVATION_THRESHOLD = 2
 
 
@@ -339,12 +352,12 @@ class SearchPassMixin(PassGatesMixin):
 
         self._store.wanted.set_status(wanted_id, "pending")
 
-        # A degraded search never concluded: give back the attempt claim_for_search
+        # A search that never concluded gives back the attempt claim_for_search
         # consumed BEFORE the verdict was known, so ``attempts`` keeps meaning
         # « searches that concluded » — the counter the starvation escalation reads.
         # After the status write, so a crash in between leaves the row queued with a
         # fresh verdict rather than a silently discounted one.
-        if verdict.outcome == "trackers_degraded":
+        if verdict.outcome in _REFUNDED_OUTCOMES:
             self._store.wanted.refund_search_attempt(wanted_id)
 
         # not_found concluded « nothing yet » (waiting); everything else did not

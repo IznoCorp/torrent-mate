@@ -169,6 +169,36 @@ fiche — la surface doit alors mener à la **résolution**, jamais à un lien m
 
 ---
 
+## §12 — Mobile first
+
+L'interface est **pensée pour le mobile d'abord**. Le téléphone n'est pas une adaptation du
+poste de travail : c'est **le** poste de travail. Toute surface se conçoit à la largeur d'un
+téléphone, puis se laisse respirer sur grand écran — jamais l'inverse. Le desktop doit rester
+pleinement fonctionnel, mais il n'est pas le point de départ du dessin.
+
+Ce que cela impose concrètement :
+
+- **La largeur est la ressource rare.** Sur un téléphone, tout ce qui partage une ligne se
+  dispute la même poignée de pixels. Une information essentielle (le **titre** d'un média)
+  ne partage pas sa ligne avec des informations secondaires : elle prend la ligne entière,
+  les qualificatifs descendent en dessous.
+- **Rien d'essentiel n'est tronqué.** Un titre coupé en « A Knight of the Seven King… » n'est
+  pas un titre : c'est une devinette. Si la place manque, c'est la mise en page qui change,
+  pas le contenu qui disparaît.
+- **Pas de redondance qui coûte de la place.** Une information déjà portée par le contexte
+  (un onglet « Séries » actif) ne se répète pas sur chaque carte : elle vole de la largeur à
+  ce qui compte.
+- **L'ordre suit la lecture réelle.** Ce que l'opérateur cherche en premier vient en premier
+  (pour un média suivi : le titre, puis l'avancement chiffré, puis l'état).
+- **Au doigt, sans scroll horizontal.** Cibles tactiles atteignables, aucune surface ne
+  déborde latéralement à la largeur d'un téléphone.
+
+**Une maquette validée uniquement sur grand écran ne vaut rien.** Toute évolution d'interface
+se vérifie à la largeur réelle d'un téléphone (§méthode : la preuve est un déroulé exécuté,
+pas une intention).
+
+---
+
 ## Ce que l'interface DOIT faire (DOIT-1 … DOIT-11)
 
 1. **DOIT-1 — Tout montrer, en français clair.** Chaque média a un état compréhensible sans être
@@ -188,8 +218,10 @@ fiche — la surface doit alors mener à la **résolution**, jamais à un lien m
 7. **DOIT-7 — Une porte de sortie à chaque impasse.** Non identifié → candidats ; zéro candidat →
    recherche manuelle pré-remplie. Jamais de cul-de-sac ni d'écran vide.
 8. **DOIT-8 — Confirmation avant remplacement** d'un film déjà en médiathèque.
-9. **DOIT-9 — Pilotable au téléphone.** Largeur réelle, au doigt, sans scroll horizontal — le
-   mobile est le poste principal.
+9. **DOIT-9 — Pensée pour le téléphone d'abord (§12).** Largeur réelle, au doigt, sans scroll
+   horizontal — le mobile est le poste principal, pas une adaptation. Une information
+   essentielle ne partage pas sa ligne ni ne se fait tronquer ; le desktop reste
+   pleinement fonctionnel mais n'est pas le point de départ du dessin.
 10. **DOIT-10 — Retrouvable.** Chaque détail a son URL ; Retour ferme ce qu'il doit fermer.
 11. **DOIT-11 — Être consultable.** Tout média affiché ouvre sa fiche détail ; la fiche dit ce qu'est le média (titre, année, synopsis, réalisateur, bande-annonce ; pour une série : saisons, épisodes, statut) **et** où il en est chez nous (possédé ou non, complétude par saison). La fiche est atteignable par un lien stable (`/media/:provider/:id`).
 

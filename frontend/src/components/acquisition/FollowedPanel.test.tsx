@@ -664,3 +664,81 @@ describe("FollowedPanel — imdb-only item has no sheet link (§11 exception)", 
     expect(screen.queryByText("Voir la fiche")).not.toBeInTheDocument();
   });
 });
+
+// ── Mobile-first card layout (§12) ─────────────────────────────────────
+
+describe("FollowedPanel — la carte est lisible sur mobile (§12)", () => {
+  /** Walk up from a node to the nearest ancestor that is a flex ROW. */
+  function nearestRow(el: HTMLElement): HTMLElement | null {
+    let cur: HTMLElement | null = el.parentElement;
+    while (cur != null) {
+      if (cur.className.includes("flex") && !cur.className.includes("flex-col")) {
+        return cur;
+      }
+      cur = cur.parentElement;
+    }
+    return null;
+  }
+
+  it("donne au titre sa PROPRE ligne — rien d'autre à côté", () => {
+    // Le titre partageait sa ligne avec le statut et le type, donc il était
+    // tronqué dès qu'il était un peu long sur un écran de téléphone. Il occupe
+    // désormais toute la largeur.
+    renderPanel([
+      makeItem({
+        title: "A Knight of the Seven Kingdoms: The Hedge Knight",
+        status: "a_recuperer",
+        aired_count: 12,
+        owned_count: 10,
+        a_recuperer_count: 2,
+      }),
+    ]);
+
+    const title = screen.getByText(
+      "A Knight of the Seven Kingdoms: The Hedge Knight",
+    );
+    // Le conteneur IMMÉDIAT du titre ne porte que le titre : rien ne partage
+    // sa ligne. (La rangée englobante contient évidemment tout le reste — c'est
+    // la ligne du titre qui doit être exclusive, pas la carte.)
+    expect(title.parentElement?.textContent).toBe(
+      "A Knight of the Seven Kingdoms: The Hedge Knight",
+    );
+  });
+
+  it("met le nombre d'épisodes AVANT le statut sur la ligne du dessous", () => {
+    renderPanel([
+      makeItem({
+        title: "Silo",
+        status: "a_recuperer",
+        aired_count: 12,
+        owned_count: 10,
+        a_recuperer_count: 2,
+      }),
+    ]);
+
+    const fraction = screen.getByText("10/12");
+    const status = screen.getByText("À récupérer");
+    // Même ligne, et la fraction vient en premier.
+    expect(nearestRow(fraction)).toBe(nearestRow(status));
+    expect(
+      fraction.compareDocumentPosition(status) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("n'affiche plus « Série » / « Film » — les onglets le disent déjà", () => {
+    // L'étiquette de type dupliquait l'onglet actif et volait de la largeur au
+    // titre, sur l'écran où la largeur est la ressource rare.
+    renderPanel([makeItem({ title: "Silo", kind: "show" })]);
+
+    // Les onglets portent « Séries (1) » ; aucune étiquette « Série » nue ne
+    // doit subsister sur la carte.
+    expect(screen.queryByText("Série")).not.toBeInTheDocument();
+  });
+
+  it("n'affiche pas « Film » non plus sur une carte de film", () => {
+    renderPanel([makeItem({ title: "Margin Call", kind: "movie" })]);
+
+    expect(screen.queryByText("Film")).not.toBeInTheDocument();
+  });
+});

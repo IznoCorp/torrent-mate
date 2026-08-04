@@ -236,3 +236,77 @@ class TestDegradedSearchDoesNotBurnAnAttempt:
             "a search that never concluded must not consume an attempt: it is the counter "
             "the starvation escalation reads"
         )
+
+
+class TestEveryInconclusiveSearchRefundsItsAttempt:
+    """``attempts`` must mean « recherches CONCLUES » — nothing else.
+
+    Operator decision (2026-08-04): the refund was initially limited to
+    ``trackers_degraded``, which left ``attempts`` meaning « concluded searches
+    PLUS full-outage searches ». That is not a counter anyone can reason about,
+    and it is the counter the starvation escalation reads. Every outcome the
+    module itself classifies as INCONCLUSIVE now refunds.
+    """
+
+    @pytest.mark.parametrize(
+        "outcome",
+        ["trackers_degraded", "trackers_unavailable", "circuit_open", "search_api_error", "no_seeders"],
+    )
+    def test_inconclusive_outcome_does_not_consume_an_attempt(self, store: ConcreteAcquireStore, outcome: str) -> None:
+        """A search that did not conclude leaves ``attempts`` where it started."""
+        from unittest.mock import MagicMock as MM
+
+        from personalscraper.acquire.orchestrator import SearchVerdict
+        from personalscraper.acquire.service import AcquisitionService
+
+        wid = store.wanted.add(_item())
+        before = store.wanted.get(wid).attempts
+
+        orch = MM()
+        orch.search.return_value = SearchVerdict(disposition="retryable", outcome=outcome, found=None)
+        config = MM()
+        config.acquire = AcquireConfig()
+        AcquisitionService(
+            store=store,  # type: ignore[arg-type]
+            orchestrator=orch,
+            event_bus=MM(),
+            config=config,
+        ).run_search()
+
+        row = store.wanted.get(wid)
+        assert row.status == "pending"
+        assert row.attempts == before, f"{outcome} did not conclude — it must not consume an attempt"
+
+    @pytest.mark.parametrize(
+        "outcome",
+        ["no_candidates", "no_matching_episode", "no_matching_season", "all_filtered"],
+    )
+    def test_concluded_not_found_still_consumes_its_attempt(self, store: ConcreteAcquireStore, outcome: str) -> None:
+        """A search that DID conclude « nothing takeable » counts — that is the point."""
+        from unittest.mock import MagicMock as MM
+
+        from personalscraper.acquire.orchestrator import SearchVerdict
+        from personalscraper.acquire.service import AcquisitionService
+
+        wid = store.wanted.add(_item())
+        before = store.wanted.get(wid).attempts
+
+        orch = MM()
+        orch.search.return_value = SearchVerdict(disposition="not_found", outcome=outcome, found=0)
+        config = MM()
+        config.acquire = AcquireConfig()
+        AcquisitionService(
+            store=store,  # type: ignore[arg-type]
+            orchestrator=orch,
+            event_bus=MM(),
+            config=config,
+        ).run_search()
+
+        assert store.wanted.get(wid).attempts == before + 1, f"{outcome} concluded — it must count"
+
+    def test_the_refunded_set_is_exactly_the_declared_inconclusive_set(self) -> None:
+        """No second list to drift: the refund reads INCONCLUSIVE_OUTCOMES itself."""
+        from personalscraper.acquire._search_pass import _REFUNDED_OUTCOMES
+        from personalscraper.acquire.orchestrator import INCONCLUSIVE_OUTCOMES
+
+        assert _REFUNDED_OUTCOMES is INCONCLUSIVE_OUTCOMES
