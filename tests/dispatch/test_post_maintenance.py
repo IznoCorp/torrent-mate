@@ -14,12 +14,18 @@ import pytest
 # requires the module to already be in sys.modules as an attribute of
 # the commands package.
 import personalscraper.indexer.cli  # noqa: F401  # needed for mock patch path
+from personalscraper.core.event_bus import EventBus
 from personalscraper.dispatch._types import DispatchResult
 from personalscraper.dispatch.post_maintenance import (
     collect_touched_disks,
     run_post_dispatch_maintenance,
 )
 from personalscraper.models import StepReport
+
+#: Shared bus instance for the call-shape assertions below. The production code now
+#: REQUIRES an event_bus (D4): the post-dispatch scan must emit where the reconcile
+#: subscriber is listening, so these tests assert the exact object is forwarded.
+_BUS = EventBus()
 
 # The migrated ``dispatch`` command runs inside the ``cli_helpers.boundary``
 # scaffold, which enters ``per_step_boundary`` + takes the lock from its OWN
@@ -85,7 +91,7 @@ def test_empty_touched_disks_no_op(mock_config: MagicMock) -> None:
         patch("personalscraper.dispatch.post_maintenance._run_relink") as mock_relink,
         patch("personalscraper.dispatch.post_maintenance._run_fix_season_counts") as mock_fix,
     ):
-        run_post_dispatch_maintenance(mock_config, set(), enabled=True)
+        run_post_dispatch_maintenance(mock_config, set(), event_bus=_BUS, enabled=True)
         mock_scan.assert_not_called()
         mock_relink.assert_not_called()
         mock_fix.assert_not_called()
@@ -98,7 +104,7 @@ def test_disabled_no_op(mock_config: MagicMock) -> None:
         patch("personalscraper.dispatch.post_maintenance._run_relink") as mock_relink,
         patch("personalscraper.dispatch.post_maintenance._run_fix_season_counts") as mock_fix,
     ):
-        run_post_dispatch_maintenance(mock_config, {"disk_1", "disk_2"}, enabled=False)
+        run_post_dispatch_maintenance(mock_config, {"disk_1", "disk_2"}, event_bus=_BUS, enabled=False)
         mock_scan.assert_not_called()
         mock_relink.assert_not_called()
         mock_fix.assert_not_called()
@@ -115,11 +121,11 @@ def test_sequential_per_disk_scan(mock_config: MagicMock) -> None:
         ),
         patch("personalscraper.dispatch.post_maintenance._run_fix_season_counts", return_value=0),
     ):
-        run_post_dispatch_maintenance(mock_config, touched, enabled=True)
+        run_post_dispatch_maintenance(mock_config, touched, event_bus=_BUS, enabled=True)
         assert mock_scan.call_count == 2
         # Verify per-disk calls (sorted order)
-        mock_scan.assert_any_call(mock_config, "disk_1")
-        mock_scan.assert_any_call(mock_config, "disk_2")
+        mock_scan.assert_any_call(mock_config, "disk_1", event_bus=_BUS)
+        mock_scan.assert_any_call(mock_config, "disk_2", event_bus=_BUS)
 
 
 def test_relink_and_fix_called_after_scans(mock_config: MagicMock) -> None:
@@ -132,7 +138,7 @@ def test_relink_and_fix_called_after_scans(mock_config: MagicMock) -> None:
         ) as mock_relink,
         patch("personalscraper.dispatch.post_maintenance._run_fix_season_counts", return_value=5) as mock_fix,
     ):
-        run_post_dispatch_maintenance(mock_config, {"disk_1"}, enabled=True)
+        run_post_dispatch_maintenance(mock_config, {"disk_1"}, event_bus=_BUS, enabled=True)
         mock_scan.assert_called_once()
         mock_relink.assert_called_once()
         mock_fix.assert_called_once()
@@ -152,7 +158,7 @@ def test_fail_soft_scan_exception_swallowed(mock_config: MagicMock) -> None:
         patch("personalscraper.dispatch.post_maintenance._run_fix_season_counts", return_value=0),
     ):
         # Must not raise
-        run_post_dispatch_maintenance(mock_config, {"disk_1"}, enabled=True)
+        run_post_dispatch_maintenance(mock_config, {"disk_1"}, event_bus=_BUS, enabled=True)
 
 
 def test_fail_soft_relink_exception_swallowed(mock_config: MagicMock) -> None:
@@ -162,7 +168,7 @@ def test_fail_soft_relink_exception_swallowed(mock_config: MagicMock) -> None:
         patch("personalscraper.dispatch.post_maintenance._run_relink", side_effect=RuntimeError("boom")),
         patch("personalscraper.dispatch.post_maintenance._run_fix_season_counts", return_value=0),
     ):
-        run_post_dispatch_maintenance(mock_config, {"disk_1"}, enabled=True)
+        run_post_dispatch_maintenance(mock_config, {"disk_1"}, event_bus=_BUS, enabled=True)
 
 
 def test_fail_soft_fix_exception_swallowed(mock_config: MagicMock) -> None:
@@ -175,7 +181,7 @@ def test_fail_soft_fix_exception_swallowed(mock_config: MagicMock) -> None:
         ),
         patch("personalscraper.dispatch.post_maintenance._run_fix_season_counts", side_effect=RuntimeError("boom")),
     ):
-        run_post_dispatch_maintenance(mock_config, {"disk_1"}, enabled=True)
+        run_post_dispatch_maintenance(mock_config, {"disk_1"}, event_bus=_BUS, enabled=True)
 
 
 # ── Fail-soft surfacing (DESIGN Decision #2) ──
@@ -191,7 +197,7 @@ def test_relink_exception_surfaces_post_maintenance_incomplete(
         patch("personalscraper.dispatch.post_maintenance._run_fix_season_counts", return_value=0),
         caplog.at_level(logging.WARNING),
     ):
-        run_post_dispatch_maintenance(mock_config, {"disk_1"}, enabled=True)
+        run_post_dispatch_maintenance(mock_config, {"disk_1"}, event_bus=_BUS, enabled=True)
 
     assert any("post_maintenance_incomplete" in r.message for r in caplog.records), (
         "post_maintenance_incomplete warning should be emitted when relink throws"
@@ -211,7 +217,7 @@ def test_fix_exception_surfaces_post_maintenance_incomplete(
         patch("personalscraper.dispatch.post_maintenance._run_fix_season_counts", side_effect=RuntimeError("fix boom")),
         caplog.at_level(logging.WARNING),
     ):
-        run_post_dispatch_maintenance(mock_config, {"disk_1"}, enabled=True)
+        run_post_dispatch_maintenance(mock_config, {"disk_1"}, event_bus=_BUS, enabled=True)
 
     assert any("post_maintenance_incomplete" in r.message for r in caplog.records), (
         "post_maintenance_incomplete warning should be emitted when fix_season_counts throws"
@@ -231,7 +237,7 @@ def test_scan_failure_surfaces_post_maintenance_incomplete(
         patch("personalscraper.dispatch.post_maintenance._run_fix_season_counts", return_value=0),
         caplog.at_level(logging.WARNING),
     ):
-        run_post_dispatch_maintenance(mock_config, {"disk_1"}, enabled=True)
+        run_post_dispatch_maintenance(mock_config, {"disk_1"}, event_bus=_BUS, enabled=True)
 
     assert any("post_maintenance_incomplete" in r.message for r in caplog.records), (
         "post_maintenance_incomplete warning should be emitted when a scan fails"
@@ -253,7 +259,7 @@ def test_no_scan_failure_fallback_omits_full_scan(mock_config: MagicMock, caplog
         patch("personalscraper.dispatch.post_maintenance._run_fix_season_counts", return_value=0),
         caplog.at_level(logging.WARNING),
     ):
-        run_post_dispatch_maintenance(mock_config, {"disk_1"}, enabled=True)
+        run_post_dispatch_maintenance(mock_config, {"disk_1"}, event_bus=_BUS, enabled=True)
 
     assert any("post_maintenance_incomplete" in r.message for r in caplog.records), (
         "post_maintenance_incomplete warning should be emitted when relink has errors"
@@ -451,7 +457,7 @@ def test_maybe_run_triggers_when_touched_and_not_dry_run(mock_config: MagicMock)
     from personalscraper.dispatch.post_maintenance import maybe_run_post_dispatch_maintenance
 
     with patch("personalscraper.dispatch.post_maintenance.run_post_dispatch_maintenance") as mock_run:
-        maybe_run_post_dispatch_maintenance(mock_config, [_moved_result()], dry_run=False)
+        maybe_run_post_dispatch_maintenance(mock_config, [_moved_result()], dry_run=False, event_bus=_BUS)
 
     mock_run.assert_called_once()
     args, kwargs = mock_run.call_args
@@ -465,7 +471,7 @@ def test_maybe_run_dry_run_skips(mock_config: MagicMock) -> None:
     from personalscraper.dispatch.post_maintenance import maybe_run_post_dispatch_maintenance
 
     with patch("personalscraper.dispatch.post_maintenance.run_post_dispatch_maintenance") as mock_run:
-        maybe_run_post_dispatch_maintenance(mock_config, [_moved_result()], dry_run=True)
+        maybe_run_post_dispatch_maintenance(mock_config, [_moved_result()], dry_run=True, event_bus=_BUS)
 
     mock_run.assert_not_called()
 
@@ -476,7 +482,7 @@ def test_maybe_run_no_touched_disks_skips(mock_config: MagicMock) -> None:
 
     skipped = [DispatchResult(source=Path("/src/a"), disk=None, action="skipped")]
     with patch("personalscraper.dispatch.post_maintenance.run_post_dispatch_maintenance") as mock_run:
-        maybe_run_post_dispatch_maintenance(mock_config, skipped, dry_run=False)
+        maybe_run_post_dispatch_maintenance(mock_config, skipped, dry_run=False, event_bus=_BUS)
 
     mock_run.assert_not_called()
 
@@ -491,7 +497,9 @@ def test_maybe_run_no_post_maintenance_flag_calls_with_enabled_false(mock_config
     from personalscraper.dispatch.post_maintenance import maybe_run_post_dispatch_maintenance
 
     with patch("personalscraper.dispatch.post_maintenance.run_post_dispatch_maintenance") as mock_run:
-        maybe_run_post_dispatch_maintenance(mock_config, [_moved_result()], dry_run=False, no_post_maintenance=True)
+        maybe_run_post_dispatch_maintenance(
+            mock_config, [_moved_result()], dry_run=False, event_bus=_BUS, no_post_maintenance=True
+        )
 
     mock_run.assert_called_once()
     assert mock_run.call_args.kwargs["enabled"] is False
@@ -503,7 +511,7 @@ def test_maybe_run_config_disabled_calls_with_enabled_false(mock_config: MagicMo
 
     mock_config.indexer.post_dispatch_maintenance.enabled = False
     with patch("personalscraper.dispatch.post_maintenance.run_post_dispatch_maintenance") as mock_run:
-        maybe_run_post_dispatch_maintenance(mock_config, [_moved_result()], dry_run=False)
+        maybe_run_post_dispatch_maintenance(mock_config, [_moved_result()], dry_run=False, event_bus=_BUS)
 
     mock_run.assert_called_once()
     assert mock_run.call_args.kwargs["enabled"] is False
@@ -520,7 +528,7 @@ def test_maybe_run_forwards_touched_destinations(mock_config: MagicMock) -> None
     from personalscraper.dispatch.post_maintenance import maybe_run_post_dispatch_maintenance
 
     with patch("personalscraper.dispatch.post_maintenance.run_post_dispatch_maintenance") as mock_run:
-        maybe_run_post_dispatch_maintenance(mock_config, [result], dry_run=False)
+        maybe_run_post_dispatch_maintenance(mock_config, [result], dry_run=False, event_bus=_BUS)
 
     assert mock_run.call_args.kwargs["destinations"] == {"disk_1": {Path("/Volumes/Disk1/medias/A")}}
 
@@ -551,7 +559,9 @@ def test_both_paths_route_through_single_owner_identically(test_config) -> None:
     step_results = [_moved_result("disk_1")]
     captured_step: dict[str, object] = {}
 
-    def _capture_step(config: object, results: object, *, dry_run: bool, no_post_maintenance: bool) -> None:
+    def _capture_step(
+        config: object, results: object, *, dry_run: bool, event_bus: object, no_post_maintenance: bool
+    ) -> None:
         captured_step.update(config=config, results=results, dry_run=dry_run, no_post_maintenance=no_post_maintenance)
 
     app = SimpleNamespace(
@@ -587,7 +597,9 @@ def test_both_paths_route_through_single_owner_identically(test_config) -> None:
     cli_results = [_moved_result("disk_1")]
     captured_cli: dict[str, object] = {}
 
-    def _capture_cli(config: object, results: object, *, dry_run: bool, no_post_maintenance: bool) -> None:
+    def _capture_cli(
+        config: object, results: object, *, dry_run: bool, event_bus: object, no_post_maintenance: bool
+    ) -> None:
         captured_cli.update(config=config, results=results, dry_run=dry_run, no_post_maintenance=no_post_maintenance)
 
     @contextmanager

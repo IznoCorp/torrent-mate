@@ -410,24 +410,31 @@ def dispatch(
             event_bus=app_context.event_bus,
             **resolve_dispatch_authority(app_context),
         )
+
+        # Post-dispatch index maintenance runs through the single owner
+        # shared with the full-run DispatchStep (PIPELINE-CORE-01): the
+        # enablement resolution, touched-disk collection, and dry-run guard
+        # live in one place so both entry points behave identically.
+        #
+        # D4 — INSIDE the try on purpose: this call's incremental scan is what
+        # indexes the freshly dispatched files, so its LibraryScanCompleted is the
+        # one the reconcile subscriber must hear. Running it after the ``finally``
+        # closed that subscriber is half of why owned wanted rows stayed 'grabbed'.
+        from personalscraper.dispatch.post_maintenance import maybe_run_post_dispatch_maintenance
+
+        maybe_run_post_dispatch_maintenance(
+            config,
+            results,
+            dry_run=dry_run,
+            # D4 — the process bus: a fresh EventBus() reaches nobody.
+            event_bus=app_context.event_bus,
+            no_post_maintenance=no_post_maintenance,
+        )
     finally:
         if reconcile_sub is not None:
             reconcile_sub.close()
         if plex_subscriber is not None:
             plex_subscriber.close()
-
-    # Post-dispatch index maintenance runs through the single owner
-    # shared with the full-run DispatchStep (PIPELINE-CORE-01): the
-    # enablement resolution, touched-disk collection, and dry-run guard
-    # live in one place so both entry points behave identically.
-    from personalscraper.dispatch.post_maintenance import maybe_run_post_dispatch_maintenance
-
-    maybe_run_post_dispatch_maintenance(
-        config,
-        results,
-        dry_run=dry_run,
-        no_post_maintenance=no_post_maintenance,
-    )
 
     console.print(
         f"[bold]Dispatch:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
