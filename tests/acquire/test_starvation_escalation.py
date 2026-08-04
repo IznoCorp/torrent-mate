@@ -285,3 +285,49 @@ class TestRegressionAmericanDadS15E21:
         assert season_row is not None, "S15 must escalate to the season pack"
         assert store.wanted.get(ep_id).status == "absorbed"
         assert any(isinstance(c[0][0], SeasonEscalatedAfterEpisodeFailures) for c in event_bus.emit.call_args_list)
+
+
+class TestMalformedCatalogNeverKillsThePass:
+    """A bad air_date must not abort the whole search pass.
+
+    ``AiredEpisodeRow.air_date`` is a plain ``str`` from an ADVISORY cache table, and
+    this feature is the first code to parse it. ``run_search`` isolates only
+    ``sqlite3.OperationalError`` and ``json.JSONDecodeError``, so a ``ValueError``
+    escaping the date parse would propagate out of the loop and leave every
+    remaining item unsearched — one malformed row silencing the whole queue.
+    """
+
+    def test_unparseable_air_date_is_read_as_not_fully_aired(self, store: ConcreteAcquireStore) -> None:
+        """A malformed date answers « coverage unknown » — no crash, no escalation."""
+        store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=_TVDB), title="Test Show", added_at=1))
+        store.aired.replace_for_followed(
+            _FOLLOWED_ID,
+            [(3, 1, "E01", "2023-01-29"), (3, 2, "E02", "TBA")],
+            now=1_700_000_000,
+        )
+        store.wanted.add(_starved_episode(attempts=1))
+
+        orch, _bus = _run(store, [_NO_CANDIDATES])
+
+        assert store.wanted.find(followed_id=_FOLLOWED_ID, kind="season", season=3, episode=None) is None
+        assert orch.search.call_count == 1, "unknown coverage must not be probed"
+
+    def test_pass_completes_and_still_searches_later_items(self, store: ConcreteAcquireStore) -> None:
+        """The item AFTER the malformed-catalog one is still searched.
+
+        This is the load-bearing half: a crash here would abort the loop, and the
+        summary would never fire.
+        """
+        store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=_TVDB), title="Test Show", added_at=1))
+        store.aired.replace_for_followed(
+            _FOLLOWED_ID,
+            [(3, 5, "E05", "not-a-date")],
+            now=1_700_000_000,
+        )
+        store.wanted.add(_starved_episode(episode=5, attempts=1))
+        second_id = store.wanted.add(_starved_episode(episode=6, attempts=1))
+
+        orch, _bus = _run(store, [_NO_CANDIDATES, _NO_CANDIDATES])
+
+        assert orch.search.call_count == 2, "the pass must keep going after a bad catalog row"
+        assert store.wanted.get(second_id).last_search_outcome == "no_candidates"

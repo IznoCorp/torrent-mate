@@ -525,19 +525,42 @@ class SearchPassMixin(PassGatesMixin):
         An empty catalog answers False — unknown coverage is never treated as
         complete, the same conservative reading ``filter_to_season`` applies.
 
+        ``AiredEpisodeRow.air_date`` is a plain ``str`` from an ADVISORY cache
+        table, so an unparseable value is possible and must NOT escape: this runs
+        inside the per-item search loop, whose isolation only catches
+        ``sqlite3.OperationalError`` and ``json.JSONDecodeError``. A ``ValueError``
+        here would abort the entire pass and leave every remaining item
+        unsearched — one malformed row silencing the whole queue. It is therefore
+        read fail-closed, as « coverage unknown » (no probe, no escalation), which
+        is the same answer an empty catalog gives.
+
         Args:
             followed_id: FK to the ``followed_series`` row.
             season: Season number to test.
             today: Reference date (injected — no hidden clock).
 
         Returns:
-            True iff the catalog lists at least one episode for the season and
-            none of them airs after *today*.
+            True iff the catalog lists at least one episode for the season, every
+            air date parses, and none of them airs after *today*.
         """
         rows = [r for r in self._store.aired.list_for_followed(followed_id) if r.season == season]
         if not rows:
             return False
-        return all(date.fromisoformat(str(r.air_date)) <= today for r in rows)
+        for row in rows:
+            try:
+                aired_on = date.fromisoformat(str(row.air_date))
+            except ValueError:
+                log.warning(
+                    "acquire.service.unparseable_air_date",
+                    followed_id=followed_id,
+                    season=season,
+                    episode=row.episode,
+                    air_date=str(row.air_date),
+                )
+                return False
+            if aired_on > today:
+                return False
+        return True
 
     def _probe_season_pack(self, episode_item: WantedItem, profile: QualityProfile) -> bool:
         """Ask the trackers whether a COVERING season pack exists for this season.
