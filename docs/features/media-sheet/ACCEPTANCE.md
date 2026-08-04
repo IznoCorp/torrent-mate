@@ -118,14 +118,14 @@ True Fiche indisponible (TMDB 99999999)
 ## ACC-06 — Frontend route renders the media sheet page
 
 The frontend is a Vite SPA — `curl` returns the static `index.html` shell, never
-client-rendered markup.  Prove the route exists via the route-mirror test, which
+client-rendered markup. Prove the route exists via the route-mirror test, which
 mounts the component in jsdom:
 
 ```bash
 cd frontend && npx vitest run src/router.test.tsx -t "fiche média"
 ```
 
-**Expected output** (1 passed, the describe block is named ``router``):
+**Expected output** (1 passed, the describe block is named `router`):
 
 ```
  RUN  v4.1.9 /Users/izno/dev/PersonalScraper/frontend
@@ -180,13 +180,13 @@ all sections visible.
 
 ## Exercise log
 
-| ACC    | Date | Result | Notes                              |
-| ------ | ---- | ------ | ---------------------------------- |
-| ACC-01 |      |        |                                    |
-| ACC-02 |      |        |                                    |
-| ACC-03 |      |        |                                    |
-| ACC-04 |      |        |                                    |
-| ACC-05 |      |        |                                    |
-| ACC-06 |      |        |                                    |
-| ACC-07 |      |        |                                    |
-| ACC-08 |      |        | MANUAL — screenshot proof required |
+| ACC    | Date       | Result              | Notes                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ------ | ---------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ACC-01 | 2026-08-04 | PASS                | `director: str \| None`, `series_status: str \| None`, `episode_count: int \| None`, `trailer_url: str \| None` — PEP 604 output as documented                                                                                                                                                                                                                                                                              |
+| ACC-02 | 2026-08-04 | PASS                | tmdb 27205 → « Inception », 2010, kind=movie, réalisateur « Christopher Nolan », genres FR [Action, Science-Fiction, Aventure], trailer YouTube présent, ownership croisée, degraded_reason=None                                                                                                                                                                                                                            |
+| ACC-03 | 2026-08-04 | PASS                | tvdb 255968 → « Top Chef (FR) », kind=tv, 18 saisons, ownership.owned=True, 45 épisodes possédés (S15/S16/S17 : 15 chacune). ⚠ a révélé le statut en anglais brut « Continuing » — corrigé par ce commit                                                                                                                                                                                                                    |
+| ACC-04 | 2026-08-04 | PASS                | 3 appels successifs sur `/api/media/tmdb/155?kind=movie` : 219 ms puis 19 ms puis 20 ms — le cache sert les appels 2 et 3 (~11× plus rapide), un seul aller-retour provider                                                                                                                                                                                                                                                 |
+| ACC-05 | 2026-08-04 | PASS                | tmdb 99999999 → **HTTP 200** (jamais 500), titre « Fiche indisponible (TMDB 99999999) », degraded_reason « TMDB n'a pas repondu : tmdb API 404 provider_code=34: … », kind=None, identité (provider, provider_id) conservée                                                                                                                                                                                                 |
+| ACC-06 | 2026-08-04 | PASS                | test miroir de route : 1 passed                                                                                                                                                                                                                                                                                                                                                                                             |
+| ACC-07 | 2026-08-04 | PASS                | §11 / DOIT-11 / NE-DOIT-PAS-9 présents (1, 1, 1)                                                                                                                                                                                                                                                                                                                                                                            |
+| ACC-08 | 2026-08-04 | PASS (à re-exercer) | harnais iframe 390 px, 3 routes (film, série 18 saisons, dégradé) : `scrollWidth == clientWidth == 386`, **zéro** élément débordant, fiche rendue sur les trois. 18/18 saisons affichent « Épisodes inconnus », **0** « Complète » — TVDB renvoie `episode_count: 0` sur toutes ses saisons, donc l'ancienne logique aurait affiché 18 badges verts « Complète » mensongers. Posters provider chargés (780×1170, 680×1000). |

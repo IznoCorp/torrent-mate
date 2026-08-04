@@ -36,21 +36,45 @@ export interface MediaSheetProps {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Map a provider's series status string to a French label + signal tone. */
+/**
+ * Map a provider's series status string to a French label + signal tone.
+ *
+ * Covers both TMDB vocabulary (``"Returning Series"``, ``"Ended"``,
+ * ``"Canceled"``) and TVDB vocabulary (``"Continuing"``, ``"Ended"``,
+ * ``"Upcoming"``).  Matching is case-insensitive so a casing change upstream
+ * does not silently fall through to the unknown state.
+ *
+ * An unrecognised value does NOT print raw English (product-intent
+ * NE-DOIT-PAS-4) — it returns an explicit French unknown label instead.
+ */
 function seriesStatusLabel(status: string): {
   label: string;
   tone: "success" | "info" | "danger" | "neutral";
 } {
-  switch (status) {
-    case "Returning Series":
-      return { label: "En cours", tone: "success" };
-    case "Ended":
-      return { label: "Terminée", tone: "info" };
-    case "Canceled":
-      return { label: "Annulée", tone: "danger" };
-    default:
-      return { label: status, tone: "neutral" };
+  const key = status.toLowerCase();
+  // TVDB: Continuing  /  TMDB: Returning Series
+  if (key === "continuing" || key === "returning series") {
+    return { label: "En cours", tone: "success" };
   }
+  // Both providers share "Ended".
+  if (key === "ended") {
+    return { label: "Terminée", tone: "info" };
+  }
+  // TMDB: Canceled  /  alt spelling: Cancelled
+  if (key === "canceled" || key === "cancelled") {
+    return { label: "Annulée", tone: "danger" };
+  }
+  // TVDB: Upcoming  /  TMDB: Planned, In Production, Pilot
+  if (
+    key === "upcoming" ||
+    key === "planned" ||
+    key === "in production" ||
+    key === "pilot"
+  ) {
+    return { label: "À venir", tone: "neutral" };
+  }
+  // Unrecognised — §8: do not pass raw provider English through.
+  return { label: "Statut inconnu", tone: "neutral" };
 }
 
 // ---------------------------------------------------------------------------
@@ -170,8 +194,16 @@ function OwnershipSection({
                     <td className="py-1.5 pr-3">{s.owned_count}</td>
                     <td className="py-1.5">
                       <StatusBadge
-                        tone={unknown ? "neutral" : complete ? "success" : "warning"}
-                        label={unknown ? "Épisodes inconnus" : complete ? "Complète" : `${String(pct)}%`}
+                        tone={
+                          unknown ? "neutral" : complete ? "success" : "warning"
+                        }
+                        label={
+                          unknown
+                            ? "Épisodes inconnus"
+                            : complete
+                              ? "Complète"
+                              : `${String(pct)}%`
+                        }
                       />
                     </td>
                   </tr>
@@ -232,11 +264,9 @@ export function MediaSheet({
   const query = useQuery({
     queryKey: ["media", "sheet", provider, providerId, kind],
     queryFn: () =>
-      getMediaSheet(
-        provider,
-        providerId,
-        { ...(kind !== undefined ? { kind } : {}) },
-      ),
+      getMediaSheet(provider, providerId, {
+        ...(kind !== undefined ? { kind } : {}),
+      }),
   });
 
   // --- Loading ---

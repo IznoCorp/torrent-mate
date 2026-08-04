@@ -461,6 +461,56 @@ describe("MediaSheet", () => {
     ).toBeInTheDocument();
   });
 
+  // --- Series status mapping (TMDB + TVDB vocabularies) ---
+
+  it.each([
+    // TMDB vocabulary.
+    ["Returning Series", "En cours"],
+    ["Ended", "Terminée"],
+    ["Canceled", "Annulée"],
+    ["Planned", "À venir"],
+    ["In Production", "À venir"],
+    ["Pilot", "À venir"],
+    // TVDB vocabulary — "Continuing" is the value observed live on staging.
+    ["Continuing", "En cours"],
+    ["Upcoming", "À venir"],
+    // Alternate spellings.
+    ["Cancelled", "Annulée"],
+    // Case-insensitive — mixed-case input must match.
+    ["returning series", "En cours"],
+    ["CONTINUING", "En cours"],
+    ["eNdEd", "Terminée"],
+  ])(
+    "mappe le statut fournisseur %s vers le label français « %s »",
+    async (providerStatus: string, expectedLabel: string) => {
+      getMediaSheetMock.mockResolvedValue(
+        tvResponse({ series_status: providerStatus }),
+      );
+      renderSheet(sheetProps({ provider: "tmdb", providerId: "1399" }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId("media-sheet")).toBeInTheDocument();
+      });
+
+      expect(screen.getByText(expectedLabel)).toBeInTheDocument();
+    },
+  );
+
+  it("affiche « Statut inconnu » pour une valeur non reconnue, jamais le texte brut", async () => {
+    // §8 + NE-DOIT-PAS-4: an unmapped provider string must NOT be printed raw.
+    getMediaSheetMock.mockResolvedValue(
+      tvResponse({ series_status: "SomeUnknownStatus" }),
+    );
+    renderSheet(sheetProps({ provider: "tmdb", providerId: "1399" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("media-sheet")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Statut inconnu")).toBeInTheDocument();
+    expect(screen.queryByText("SomeUnknownStatus")).not.toBeInTheDocument();
+  });
+
   it("affiche « Possédé » pour un film avec kind='movie'", async () => {
     getMediaSheetMock.mockResolvedValue(
       movieResponse({
