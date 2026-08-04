@@ -127,6 +127,37 @@ class SeasonAbsorbedEpisodes(Event):
 
 
 @dataclass(frozen=True, kw_only=True)
+class SeasonEscalatedAfterEpisodeFailures(Event):
+    """A season pack was enqueued because the per-episode route provably failed (D1).
+
+    Distinct from :class:`SeasonAbsorbedEpisodes`, which says WHAT happened but not
+    WHY. The operator UI needs the reason to state, in plain French, that the
+    episodes do not exist separately and the whole-season pack is being taken
+    instead (product-intent §2 — every state carries a clear label).
+
+    Emitted only on the starvation path: an episode row that concluded a
+    ``not_found`` search at least twice, on a fully-aired season, for which a
+    covering season pack was then found. The calendar/ownership detection path
+    (R4) emits :class:`WantedEnqueued` + :class:`SeasonAbsorbedEpisodes` alone.
+
+    Attributes:
+        season_wanted_id: Rowid of the season ``wanted`` row that now carries the work.
+        media_ref: Provider-ID key of the parent series.
+        season: Season number that was escalated.
+        trigger_outcome: The episode verdict that armed the escalation —
+            ``'no_candidates'`` or ``'no_matching_episode'``.
+        starved_episode_ids: Rowids of the episode rows whose repeated concluded
+            failure motivated the escalation.
+    """
+
+    season_wanted_id: int
+    media_ref: MediaRef
+    season: int
+    trigger_outcome: str
+    starved_episode_ids: tuple[int, ...]
+
+
+@dataclass(frozen=True, kw_only=True)
 class SeasonFellBackToEpisodes(Event):
     """A season wanted fell back to per-episode retry (R6).
 
@@ -471,6 +502,7 @@ __all__ = [
     "GrabSucceeded",
     "RatioMeasured",
     "SeasonAbsorbedEpisodes",
+    "SeasonEscalatedAfterEpisodeFailures",
     "SeasonFellBackToEpisodes",
     "SeedObligationBreached",
     "SeedObligationRecorded",

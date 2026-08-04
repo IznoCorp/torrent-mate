@@ -16,19 +16,25 @@ moved bodies keep resolving ``self._store`` / ``self._orchestrator`` /
 from __future__ import annotations
 
 import time
+from datetime import date
 from typing import TYPE_CHECKING
 
 from personalscraper.acquire._pass_gates import PassGatesMixin
 from personalscraper.acquire.domain import OPEN_WANTED_STATUSES, WantedItem
-from personalscraper.acquire.events import SeasonAbsorbedEpisodes, WantedAbandoned, WantedEnqueued
+from personalscraper.acquire.events import (
+    SeasonAbsorbedEpisodes,
+    SeasonEscalatedAfterEpisodeFailures,
+    WantedAbandoned,
+    WantedEnqueued,
+)
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
     from personalscraper.acquire._ports import AcquireStore
     from personalscraper.acquire.cadence import Cadence
+    from personalscraper.acquire.desired import QualityProfile
     from personalscraper.acquire.orchestrator import GrabOrchestrator, SearchVerdict
     from personalscraper.acquire.service import _SearchItemOutcome
-    from personalscraper.api.tracker._base import TrackerResult
     from personalscraper.core.event_bus import EventBus
 
 log = get_logger("acquire.service")
@@ -69,6 +75,20 @@ SEARCH_OUTCOME_STATUS: dict[str, str] = {
 #: the reset free: any other verdict in between breaks the streak.
 _DEBOUNCED_TERMINAL_OUTCOMES: frozenset[str] = frozenset({"tracker_auth"})
 
+#: Concluded not_found verdicts that can arm the starvation escalation (D1).
+#: Both mean « the trackers answered and carried nothing for THIS episode »; the
+#: difference is only whether the query returned raw results the episode filter
+#: then dropped. The season pack is the answer to either.
+_STARVATION_OUTCOMES: frozenset[str] = frozenset({"no_candidates", "no_matching_episode"})
+
+#: Concluded searches an episode must burn before it probes for a season pack.
+#:
+#: Two, not one: a single failure can still be an unlucky tracker moment, and one
+#: extra season query per starved episode would be paid on every first miss. Two
+#: is honest here because a degraded (partial-outage) search refunds its attempt
+#: — see ``refund_search_attempt`` — so this counter is not inflated by outages.
+_STARVATION_THRESHOLD = 2
+
 
 class SearchPassMixin(PassGatesMixin):
     """The search pass: one item in, one persisted verdict out."""
@@ -77,7 +97,14 @@ class SearchPassMixin(PassGatesMixin):
     _orchestrator: GrabOrchestrator
     _event_bus: EventBus
 
-    def _search_item(self, item: WantedItem, now: int, *, cadence: Cadence) -> _SearchItemOutcome:
+    def _search_item(
+        self,
+        item: WantedItem,
+        now: int,
+        *,
+        cadence: Cadence,
+        season_probed: set[tuple[int, int]],
+    ) -> _SearchItemOutcome:
         """Gate, claim and search ONE queued item, persisting its verdict.
 
         Extracted so :meth:`run_search` can wrap each item in error isolation
@@ -92,6 +119,10 @@ class SearchPassMixin(PassGatesMixin):
             now: Unix epoch seconds (stamps the atomic claim; also the cadence
                 reference clock).
             cadence: Effective cadence policy for this item.
+            season_probed: Per-PASS memo of ``(followed_id, season)`` pairs already
+                probed for a season pack. Bounds the starvation escalation (D1) to
+                ONE extra tracker query per season per pass — ten starved siblings
+                must not produce ten identical season searches.
 
         Returns:
             A one-word outcome tag mapped onto a :class:`SearchRunSummary`
@@ -162,13 +193,8 @@ class SearchPassMixin(PassGatesMixin):
                 # (review F12). ``found`` is 0 — 'no_matching_episode' is a
                 # concluded not_found, never an outage.
                 self._store.wanted.record_search_outcome(wanted_id, verdict.outcome, 0)
-                converted = self._enqueue_season_from_conversion(
-                    current,
-                    list(verdict.raw_results),
-                    season_packs,
-                    now,
-                )
-                if converted:
+                converted = self._enqueue_season_from_conversion(current, now)
+                if converted is not None:
                     # The episode row is absorbed into the season row (R5); the
                     # season is enqueued/reused pending.
                     # _enqueue_season_from_conversion emits WantedEnqueued (if
@@ -177,6 +203,56 @@ class SearchPassMixin(PassGatesMixin):
                 # Conversion refused (terminal season row — post-R6 fallback):
                 # fall through to the ordinary verdict path so the episode row
                 # records its verdict and stays live.
+
+        # --- D1: starvation escalation ---
+        # R2 above only fires when the EPISODE query returned something
+        # (``no_matching_episode``). When the trackers carry no per-episode release
+        # at all the search exits earlier on ``no_candidates`` and R2 is
+        # unreachable — which is exactly the case where the season pack IS the
+        # answer (American Dad! S15E21: episode query raw=0, season query 4 packs,
+        # 17 fruitless attempts over 20 days).
+        #
+        # Armed by evidence rather than by the calendar, so it deliberately bypasses
+        # the DETECT gates ``last_air >= 7 days`` and ``owned <= total/2`` — both
+        # provably blocking on the real cases, the latter anti-correlated with the
+        # need (the more episodes you own, the more it forbids the pack).
+        if (
+            verdict.outcome in _STARVATION_OUTCOMES
+            and current.kind == "episode"
+            and current.season is not None
+            and current.followed_id is not None
+            and current.attempts >= _STARVATION_THRESHOLD
+        ):
+            key = (current.followed_id, current.season)
+            if key not in season_probed:
+                season_probed.add(key)
+                if self._season_fully_aired(
+                    current.followed_id, current.season, date.fromtimestamp(now)
+                ) and self._probe_season_pack(current, profile):
+                    starved_id = current.id
+                    # Verdict BEFORE status (the #320 order): an absorbed episode
+                    # must still state WHY its own search concluded.
+                    self._store.wanted.record_search_outcome(wanted_id, verdict.outcome, 0)
+                    season_wid = self._enqueue_season_from_conversion(current, now)
+                    if season_wid is not None:
+                        self._event_bus.emit(
+                            SeasonEscalatedAfterEpisodeFailures(
+                                season_wanted_id=season_wid,
+                                media_ref=current.media_ref,
+                                season=current.season,
+                                trigger_outcome=verdict.outcome,
+                                starved_episode_ids=(starved_id,) if starved_id is not None else (),
+                            ),
+                        )
+                        log.info(
+                            "acquire.service.starvation_escalated",
+                            wanted_id=wanted_id,
+                            season=current.season,
+                            season_wanted_id=season_wid,
+                            trigger=verdict.outcome,
+                            attempts=current.attempts,
+                        )
+                        return "waiting"
 
         return self._apply_search_verdict(current, verdict)
 
@@ -279,18 +355,16 @@ class SearchPassMixin(PassGatesMixin):
     # R2: Episode→Season Conversion
     # ------------------------------------------------------------------
 
-    def _enqueue_season_from_conversion(
-        self,
-        episode_item: WantedItem,
-        raw_results: list[TrackerResult],
-        season_packs: list[TrackerResult],
-        now: int,
-    ) -> bool:
-        """Enqueue/reuse a season wanted for the episode's season (R2).
+    def _enqueue_season_from_conversion(self, episode_item: WantedItem, now: int) -> int | None:
+        """Enqueue/reuse a season wanted for the episode's season (R2 and D1).
 
-        Called from :meth:`_search_item` when a ``no_matching_episode`` verdict
-        reveals a whole-season pack in the raw results. Absorption is idempotent
-        — if an OPEN season wanted already exists, only absorption runs.
+        Called from :meth:`_search_item` on both season-escalation paths: the R2
+        conversion (a ``no_matching_episode`` verdict revealed a pack in the raw
+        results) and the D1 starvation escalation (repeated concluded failures plus
+        a positive season probe). Both have ALREADY established that a covering pack
+        exists, so this method only owns the enqueue + absorption; it does not
+        re-examine candidates. Absorption is idempotent — if an OPEN season wanted
+        already exists, only absorption runs.
 
         The dedup consults the LIVE season row FIRST (counter-review F-A):
         the status-agnostic ``find()`` returns the OLDEST row, so a stale
@@ -311,15 +385,13 @@ class SearchPassMixin(PassGatesMixin):
         Args:
             episode_item: The episode wanted whose search zeroed on
                 ``filter_to_episode``.
-            raw_results: The raw tracker results (for logging, unused here).
-            season_packs: The results that survived ``filter_to_season``.
             now: Unix epoch seconds (stamps ``enqueued_at``).
 
         Returns:
-            ``True`` when the conversion ran (season enqueued/reused and
-            absorption attempted); ``False`` when it was refused because the
-            existing season row is terminal — the caller then applies the
-            ordinary search verdict so the episode stays live.
+            The season ``wanted`` rowid when the conversion ran (season
+            enqueued/reused and absorption attempted); ``None`` when it was refused
+            because the existing season row is terminal — the caller then applies
+            the ordinary search verdict so the episode stays live.
         """
         assert episode_item.followed_id is not None  # noqa: S101
         assert episode_item.season is not None  # noqa: S101
@@ -355,7 +427,7 @@ class SearchPassMixin(PassGatesMixin):
                     status=terminal.status,
                     season=season_num,
                 )
-                return False
+                return None
         season_wid = existing.id if existing is not None else None
 
         if season_wid is None:
@@ -423,7 +495,7 @@ class SearchPassMixin(PassGatesMixin):
                 episode_count=len(live_episode_ids),
             )
 
-        return True
+        return season_wid
 
     def _aired_episodes_for_season(self, followed_id: int, season: int) -> list[int]:
         """Return episode numbers of aired episodes for the given follow+season.
@@ -440,6 +512,62 @@ class SearchPassMixin(PassGatesMixin):
         """
         aired_rows = self._store.aired.list_for_followed(followed_id)
         return [int(r.episode) for r in aired_rows if r.season == season]
+
+    def _season_fully_aired(self, followed_id: int, season: int, today: date) -> bool:
+        """Return True when every catalogued episode of the season has aired.
+
+        A season with a future episode cannot be covered by a complete pack, so
+        probing for one would be wasted and could grab a partial release. Mirrors
+        DETECT gate (a), deliberately WITHOUT its calendar quarantine (b) and
+        ownership gate (c): this path is armed by proven search failure, and those
+        two gates are exactly what blocked the four real cases.
+
+        An empty catalog answers False — unknown coverage is never treated as
+        complete, the same conservative reading ``filter_to_season`` applies.
+
+        Args:
+            followed_id: FK to the ``followed_series`` row.
+            season: Season number to test.
+            today: Reference date (injected — no hidden clock).
+
+        Returns:
+            True iff the catalog lists at least one episode for the season and
+            none of them airs after *today*.
+        """
+        rows = [r for r in self._store.aired.list_for_followed(followed_id) if r.season == season]
+        if not rows:
+            return False
+        return all(date.fromisoformat(str(r.air_date)) <= today for r in rows)
+
+    def _probe_season_pack(self, episode_item: WantedItem, profile: QualityProfile) -> bool:
+        """Ask the trackers whether a COVERING season pack exists for this season.
+
+        Runs ONE season-scoped search through the ordinary orchestrator path, using
+        a transient (never persisted) season-shaped item so the query builder, the
+        aired-count resolver and ``filter_to_season`` all behave exactly as they
+        would for a real season row. Nothing is written and nothing is grabbed — the
+        verdict only decides whether enqueuing a season row is worthwhile.
+
+        Args:
+            episode_item: The starved episode row (supplies media_ref, followed_id,
+                season and the enqueue clock).
+            profile: The effective quality profile for the search.
+
+        Returns:
+            True iff the season search concluded ``available`` — at least one pack
+            survived coverage verification, hard filters and ranking.
+        """
+        probe = WantedItem(
+            media_ref=episode_item.media_ref,
+            kind="season",
+            status="pending",
+            enqueued_at=episode_item.enqueued_at,
+            followed_id=episode_item.followed_id,
+            season=episode_item.season,
+            episode=None,
+        )
+        verdict = self._orchestrator.search(probe, profile)
+        return verdict.outcome == "available"
 
 
 __all__ = ["SEARCH_OUTCOME_STATUS", "SearchPassMixin"]
