@@ -7,6 +7,8 @@ and an optional ``degraded_reason`` when the provider is unreachable.
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel
 
 
@@ -68,6 +70,9 @@ class MediaSheetResponse(BaseModel):
         director: Director name, or ``None`` when unknown.
         genres: List of genre names.
         trailer_url: YouTube trailer URL, or ``None``.
+        kind: The media kind the provider lookup resolved —
+            ``"movie"``, ``"tv"``, or ``None`` on a degraded response where
+            no provider method succeeded (the honest answer is "we don't know").
         series_status: TV series production status, or ``None`` for movies.
         episode_count: Total episode count for a TV series, or ``None``
             for movies (from the provider's series-level metadata).
@@ -87,6 +92,7 @@ class MediaSheetResponse(BaseModel):
     director: str | None
     genres: list[str]
     trailer_url: str | None
+    kind: Literal["movie", "tv"] | None
     series_status: str | None
     episode_count: int | None = None
     seasons: list[SeasonEntry]

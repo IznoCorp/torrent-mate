@@ -37,9 +37,10 @@ export interface MediaSheetProps {
 // ---------------------------------------------------------------------------
 
 /** Map a provider's series status string to a French label + signal tone. */
-function seriesStatusLabel(
-  status: string,
-): { label: string; tone: "success" | "info" | "danger" | "neutral" } {
+function seriesStatusLabel(status: string): {
+  label: string;
+  tone: "success" | "info" | "danger" | "neutral";
+} {
   switch (status) {
     case "Returning Series":
       return { label: "En cours", tone: "success" };
@@ -52,25 +53,13 @@ function seriesStatusLabel(
   }
 }
 
-/** True when the response carries enough TV-series signals. */
-function isTv(data: MediaSheetResponse): boolean {
-  return (
-    data.series_status !== null ||
-    data.episode_count !== null ||
-    data.seasons.length > 0
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Loading skeleton
 // ---------------------------------------------------------------------------
 
 function MediaSheetSkeleton(): ReactElement {
   return (
-    <div
-      className="mx-auto max-w-4xl p-4"
-      data-testid="media-sheet-loading"
-    >
+    <div className="mx-auto max-w-4xl p-4" data-testid="media-sheet-loading">
       <div className="flex flex-col gap-6 md:flex-row">
         {/* Poster skeleton */}
         <Skeleton className="aspect-[2/3] w-full shrink-0 rounded-md md:w-64 lg:w-72" />
@@ -94,11 +83,7 @@ function MediaSheetSkeleton(): ReactElement {
 // Degraded warning banner
 // ---------------------------------------------------------------------------
 
-function DegradedBanner({
-  reason,
-}: {
-  readonly reason: string;
-}): ReactElement {
+function DegradedBanner({ reason }: { readonly reason: string }): ReactElement {
   return (
     <div
       role="alert"
@@ -117,10 +102,10 @@ function DegradedBanner({
 
 function OwnershipSection({
   ownership,
-  isSeries,
+  kind,
 }: {
   readonly ownership: MediaSheetResponse["ownership"];
-  readonly isSeries: boolean;
+  readonly kind: MediaSheetResponse["kind"];
 }): ReactElement {
   if (ownership === null) {
     return (
@@ -147,7 +132,7 @@ function OwnershipSection({
         <StatusBadge tone={ownedTone} label={ownedLabel} />
       </div>
 
-      {isSeries && ownership.seasons.length > 0 && (
+      {kind === "tv" && ownership.seasons.length > 0 && (
         <div className="mt-3 overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
@@ -180,11 +165,7 @@ function OwnershipSection({
                     <td className="py-1.5">
                       <StatusBadge
                         tone={complete ? "success" : "warning"}
-                        label={
-                          complete
-                            ? "Complète"
-                            : `${String(pct)}%`
-                        }
+                        label={complete ? "Complète" : `${String(pct)}%`}
                       />
                     </td>
                   </tr>
@@ -195,11 +176,27 @@ function OwnershipSection({
         </div>
       )}
 
-      {!isSeries && (
+      {kind === "movie" && (
         <p className="mt-1 text-xs text-muted-foreground">
           {ownership.owned
             ? "Ce film est présent dans la médiathèque."
             : "Ce film n'est pas encore dans la médiathèque."}
+        </p>
+      )}
+
+      {kind === null && (
+        <p className="mt-1 text-xs text-muted-foreground">
+          {ownership.owned
+            ? "Ce média est présent dans la médiathèque."
+            : "Ce média n'est pas encore dans la médiathèque."}
+        </p>
+      )}
+
+      {kind === "tv" && ownership.seasons.length === 0 && (
+        <p className="mt-1 text-xs text-muted-foreground">
+          {ownership.owned
+            ? "Au moins un épisode de cette série est présent dans la médiathèque."
+            : "Cette série n'est pas encore dans la médiathèque."}
         </p>
       )}
     </div>
@@ -257,13 +254,10 @@ export function MediaSheet({
 
   const data = query.data;
   const degraded = data.degraded_reason !== null;
-  const series = isTv(data);
+  const series = data.kind === "tv";
 
   return (
-    <div
-      data-testid="media-sheet"
-      className="mx-auto max-w-4xl p-4"
-    >
+    <div data-testid="media-sheet" className="mx-auto max-w-4xl p-4">
       {/* --- Degraded warning --- */}
       {degraded && data.degraded_reason !== null && (
         <DegradedBanner reason={data.degraded_reason} />
@@ -276,7 +270,7 @@ export function MediaSheet({
           <MediaPoster
             title={data.title}
             src={data.poster_url}
-            kind={series ? "tv" : "movie"}
+            kind={data.kind ?? undefined}
           />
         </div>
 
@@ -306,9 +300,7 @@ export function MediaSheet({
           {/* Director */}
           <div>
             <span className="text-xs text-muted-foreground">Réalisateur</span>
-            <p className="text-sm">
-              {data.director ?? "Réalisateur inconnu"}
-            </p>
+            <p className="text-sm">{data.director ?? "Réalisateur inconnu"}</p>
           </div>
 
           {/* Genres */}
@@ -395,7 +387,7 @@ export function MediaSheet({
           )}
 
           {/* Ownership (D5) */}
-          <OwnershipSection ownership={data.ownership} isSeries={series} />
+          <OwnershipSection ownership={data.ownership} kind={data.kind} />
         </div>
       </div>
     </div>

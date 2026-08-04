@@ -107,6 +107,7 @@ class TestMediaSheetEndpoint:
             # D4: movie has no series_status
             assert data["series_status"] is None
             assert data["year"] == 1999
+            assert data["kind"] == "movie"
 
     def test_full_tv_response(self, test_config):
         """200 with full TV metadata including series_status."""
@@ -130,6 +131,7 @@ class TestMediaSheetEndpoint:
             assert len(data["seasons"]) == 2
             assert data["seasons"][0]["season_number"] == 1
             assert data["seasons"][0]["episode_count"] == 12
+            assert data["kind"] == "tv"
 
     def test_degraded_response_on_provider_failure(self, test_config):
         """DESIGN D9: provider failure returns 200 with degraded_reason, NEVER 500."""
@@ -148,6 +150,8 @@ class TestMediaSheetEndpoint:
             # Identity fields still present (D9)
             assert data["provider"] == "tmdb"
             assert data["provider_id"] == "999"
+            # kind is None — the provider never responded, so we honestly don't know.
+            assert data["kind"] is None
 
     def test_cache_hit_calls_provider_once(self, test_config):
         """DESIGN D6: two consecutive requests hit the provider ONCE."""
@@ -430,3 +434,82 @@ class TestMediaSheetOwnershipTvEmptyCatalog:
             assert data["ownership"]["seasons"] == []
             # owned is True because owned_pairs returned data.
             assert data["ownership"]["owned"] is True
+
+
+class TestMediaSheetResolvedKind:
+    """Defect: the server exposes the resolved media kind, not a client-side guess.
+
+    The provider method that succeeded (get_tv vs get_movie) is the ground truth.
+    The frontend must never infer this from signals like seasons length or
+    series_status — those can all be empty/null for a real TV series.
+    """
+
+    def test_tv_zero_signals_returns_kind_tv(self, test_config):
+        """TV with no season catalog, no status, no episode count → kind == "tv".
+
+        Top Chef Le Concours Parallele (TVDB 475278) is the real instance:
+        0 episodes, 0 seasons, and no series_status in the provider payload.
+        The old client-side heuristic (data.series_status !== null || …) would
+        return false and render the series as a film.
+        """
+        details = MediaDetails(
+            provider="tvdb",
+            provider_id="475278",
+            title="Top Chef Le Concours Parallele",
+            year=2024,
+            overview="",
+            director=None,
+            genres=["Reality"],
+            trailer_url=None,
+            series_status=None,  # absent from provider
+            episode_count=None,  # absent from provider
+            external_ids={"tmdb": "315820"},
+            seasons=[],  # empty catalog
+        )
+        fake = MagicMock()
+        fake.provider_name = "tvdb"
+        fake.get_tv.return_value = details
+
+        with (
+            patch("personalscraper.web.routes.media._build_tvdb_client", return_value=fake),
+            patch("personalscraper.web.routes.media._build_ownership_block", return_value=None),
+        ):
+            client = _make_authenticated_client(test_config)
+            resp = client.get("/api/media/tvdb/475278?kind=tv")
+            assert resp.status_code == 200
+            data = resp.json()
+            # The SERVER knows this is a TV series — get_tv succeeded.
+            assert data["kind"] == "tv"
+            # All heuristic signals are absent — proving the client can't infer.
+            assert data["series_status"] is None
+            assert data["episode_count"] is None
+            assert data["seasons"] == []
+
+    def test_movie_returns_kind_movie(self, test_config):
+        """A movie lookup (get_movie succeeded) returns kind == "movie"."""
+        details = _make_details_movie()
+        fake = MagicMock()
+        fake.provider_name = "tmdb"
+        fake.get_movie.return_value = details
+        fake.get_tv = MagicMock()
+
+        with (
+            patch("personalscraper.web.routes.media._build_tmdb_client", return_value=fake),
+            patch("personalscraper.web.routes.media._build_ownership_block", return_value=None),
+        ):
+            client = _make_authenticated_client(test_config)
+            resp = client.get("/api/media/tmdb/550?kind=movie")
+            assert resp.status_code == 200
+            assert resp.json()["kind"] == "movie"
+
+    def test_degraded_returns_kind_none(self, test_config):
+        """Provider failure → kind is None (honest "we don't know")."""
+        fake = _fake_tmdb_client(None)
+        fake.get_movie.side_effect = Exception("Connection refused")
+        with patch("personalscraper.web.routes.media._build_tmdb_client", return_value=fake):
+            client = _make_authenticated_client(test_config)
+            resp = client.get("/api/media/tmdb/999")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["degraded_reason"] is not None
+            assert data["kind"] is None

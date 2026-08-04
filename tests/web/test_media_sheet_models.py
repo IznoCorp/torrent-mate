@@ -110,6 +110,7 @@ class TestMediaSheetResponse:
             director="David Fincher",
             genres=["Drama", "Thriller"],
             trailer_url=None,
+            kind="movie",
             series_status=None,
             seasons=[],
             ownership=OwnershipBlock(owned=True),
@@ -122,6 +123,7 @@ class TestMediaSheetResponse:
         # DESIGN D4/D9: movie has no series_status
         assert resp.series_status is None
         assert resp.trailer_url is None
+        assert resp.kind == "movie"
 
     def test_full_tv_response(self) -> None:
         """A TV show response with seasons and ownership."""
@@ -135,6 +137,7 @@ class TestMediaSheetResponse:
             director=None,
             genres=["Reality"],
             trailer_url=None,
+            kind="tv",
             series_status="Returning Series",
             seasons=[
                 SeasonEntry(season_number=1, episode_count=12),
@@ -168,6 +171,7 @@ class TestMediaSheetResponse:
         assert resp.ownership.owned is True
         assert len(resp.ownership.seasons) == 2
         assert resp.ownership.seasons[1].owned_count == 8
+        assert resp.kind == "tv"
 
     def test_director_none_not_empty_string(self) -> None:
         """DESIGN D4/D9: unknown director is None, never an empty string."""
@@ -181,6 +185,7 @@ class TestMediaSheetResponse:
             director=None,
             genres=[],
             trailer_url=None,
+            kind=None,
             series_status=None,
             seasons=[],
             ownership=None,
@@ -202,6 +207,7 @@ class TestMediaSheetResponse:
             director=None,
             genres=[],
             trailer_url=None,
+            kind=None,
             series_status=None,
             seasons=[],
             ownership=None,
@@ -225,6 +231,7 @@ class TestMediaSheetResponse:
             director="David Fincher",
             genres=["Drama"],
             trailer_url=None,
+            kind="movie",
             series_status=None,
             seasons=[],
             ownership=None,
@@ -244,6 +251,7 @@ class TestMediaSheetResponse:
             director="Christopher Nolan",
             genres=["Action", "Science Fiction", "Thriller"],
             trailer_url="https://www.youtube.com/watch?v=YoHD9XEInc0",
+            kind="movie",
             series_status=None,
             seasons=[],
             ownership=OwnershipBlock(owned=True),
@@ -272,9 +280,70 @@ class TestMediaSheetResponse:
             director="Christopher Nolan",
             genres=["Action"],
             trailer_url=None,
+            kind="movie",
             series_status=None,
             seasons=[],
             ownership=OwnershipBlock(owned=False),
             degraded_reason=None,
         )
         assert resp.degraded_reason is None
+
+    def test_kind_movie(self) -> None:
+        """Movie response carries kind == "movie"."""
+        resp = MediaSheetResponse(
+            provider="tmdb",
+            provider_id="550",
+            title="Inception",
+            year=2010,
+            poster_url="https://image.tmdb.org/t/p/w500/inc.jpg",
+            overview="...",
+            director="Christopher Nolan",
+            genres=["Action"],
+            trailer_url=None,
+            kind="movie",
+            series_status=None,
+            seasons=[],
+            ownership=None,
+            degraded_reason=None,
+        )
+        assert resp.kind == "movie"
+
+    def test_kind_tv(self) -> None:
+        """TV response carries kind == "tv"."""
+        resp = MediaSheetResponse(
+            provider="tvdb",
+            provider_id="255968",
+            title="Top Chef",
+            year=2010,
+            poster_url="...",
+            overview="...",
+            director=None,
+            genres=["Reality"],
+            trailer_url=None,
+            kind="tv",
+            series_status="Returning Series",
+            seasons=[SeasonEntry(season_number=1, episode_count=12)],
+            ownership=None,
+            degraded_reason=None,
+        )
+        assert resp.kind == "tv"
+
+    def test_kind_none_on_degraded(self) -> None:
+        """Degraded response carries kind is None (honest "we don't know")."""
+        resp = MediaSheetResponse(
+            provider="tmdb",
+            provider_id="999",
+            title="999",
+            year=None,
+            poster_url="",
+            overview="",
+            director=None,
+            genres=[],
+            trailer_url=None,
+            kind=None,
+            series_status=None,
+            seasons=[],
+            ownership=None,
+            degraded_reason="TMDB n'a pas repondu.",
+        )
+        assert resp.kind is None

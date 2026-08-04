@@ -3595,6 +3595,9 @@ export interface components {
          *         director: Director name, or ``None`` when unknown.
          *         genres: List of genre names.
          *         trailer_url: YouTube trailer URL, or ``None``.
+         *         kind: The media kind the provider lookup resolved —
+         *             ``"movie"``, ``"tv"``, or ``None`` on a degraded response where
+         *             no provider method succeeded (the honest answer is "we don't know").
          *         series_status: TV series production status, or ``None`` for movies.
          *         episode_count: Total episode count for a TV series, or ``None``
          *             for movies (from the provider's series-level metadata).
@@ -3613,6 +3616,8 @@ export interface components {
             episode_count?: number | null;
             /** Genres */
             genres: string[];
+            /** Kind */
+            kind: ("movie" | "tv") | null;
             /** Overview */
             overview: string;
             ownership: components["schemas"]["OwnershipBlock"] | null;

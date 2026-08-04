@@ -1,14 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  cleanup,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { MediaSheetResponse } from "@/api/media";
-import { MediaSheet, type MediaSheetProps } from "@/components/media/MediaSheet";
+import {
+  MediaSheet,
+  type MediaSheetProps,
+} from "@/components/media/MediaSheet";
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -41,6 +39,7 @@ function movieResponse(
     director: "Christopher Nolan",
     genres: ["Action", "Science Fiction", "Thriller"],
     trailer_url: "https://www.youtube.com/watch?v=YoHD9XEInc0",
+    kind: "movie",
     series_status: null,
     episode_count: null,
     seasons: [],
@@ -68,6 +67,7 @@ function tvResponse(
     director: null,
     genres: ["Sci-Fi & Fantasy", "Drama", "Action & Adventure"],
     trailer_url: "https://www.youtube.com/watch?v=KPLWWIOCOOQ",
+    kind: "tv",
     series_status: "Ended",
     episode_count: 73,
     seasons: [
@@ -145,9 +145,7 @@ describe("MediaSheet", () => {
 
   it("affiche le skeleton pendant le chargement", () => {
     // A promise that never resolves keeps the query in loading state.
-    getMediaSheetMock.mockImplementation(
-      () => new Promise(() => undefined),
-    );
+    getMediaSheetMock.mockImplementation(() => new Promise(() => undefined));
     renderSheet(sheetProps());
 
     expect(screen.getByTestId("media-sheet-loading")).toBeInTheDocument();
@@ -228,9 +226,7 @@ describe("MediaSheet", () => {
     expect(screen.getByText("Thriller")).toBeInTheDocument();
 
     // Synopsis.
-    expect(
-      screen.getByText(/dream-sharing technology/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/dream-sharing technology/i)).toBeInTheDocument();
 
     // Trailer link.
     expect(screen.getByText("Voir sur YouTube")).toBeInTheDocument();
@@ -297,9 +293,7 @@ describe("MediaSheet", () => {
   // --- No trailer ---
 
   it("n'affiche PAS la section bande-annonce quand trailer_url est absent", async () => {
-    getMediaSheetMock.mockResolvedValue(
-      movieResponse({ trailer_url: null }),
-    );
+    getMediaSheetMock.mockResolvedValue(movieResponse({ trailer_url: null }));
     renderSheet(sheetProps());
 
     await waitFor(() => {
@@ -313,9 +307,7 @@ describe("MediaSheet", () => {
   // --- Ownership null (library unreachable, D5) ---
 
   it("affiche « État inconnu » quand ownership est null (pas « non possédé »)", async () => {
-    getMediaSheetMock.mockResolvedValue(
-      movieResponse({ ownership: null }),
-    );
+    getMediaSheetMock.mockResolvedValue(movieResponse({ ownership: null }));
     renderSheet(sheetProps());
 
     await waitFor(() => {
@@ -358,5 +350,90 @@ describe("MediaSheet", () => {
     expect(getMediaSheetMock).toHaveBeenCalledWith("tmdb", "27205", {
       kind: "movie",
     });
+  });
+
+  // --- kind field controls series vs movie rendering ---
+
+  it("traite une série avec catalog vide comme une série (pas comme un film)", async () => {
+    // Top Chef Le Concours Parallèle scenario: kind="tv" but seasons=[],
+    // series_status=null, episode_count=null. The old heuristic would guess
+    // "movie" and print "Ce film n'est pas encore dans la médiathèque."
+    getMediaSheetMock.mockResolvedValue(
+      tvResponse({
+        kind: "tv",
+        series_status: null,
+        episode_count: null,
+        seasons: [],
+        ownership: { owned: false, seasons: [] },
+      }),
+    );
+    renderSheet(sheetProps({ provider: "tvdb", providerId: "475278" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("media-sheet")).toBeInTheDocument();
+    });
+
+    // Must NOT say "Ce film" — this is a series, not a film.
+    expect(
+      screen.queryByText(/ce film n'est pas encore/i),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/ce film est présent/i)).not.toBeInTheDocument();
+
+    // The ownership block renders the series case with empty seasons.
+    expect(
+      screen.getByText(/cette série n'est pas encore dans la médiathèque/i),
+    ).toBeInTheDocument();
+  });
+
+  it("un kind=null n'affiche ni « film » ni série", async () => {
+    // Degraded response — the server honestly says it doesn't know the kind.
+    getMediaSheetMock.mockResolvedValue(
+      movieResponse({
+        kind: null,
+        director: null,
+        overview: "",
+        genres: [],
+        trailer_url: null,
+        ownership: { owned: false, seasons: [] },
+      }),
+    );
+    renderSheet(sheetProps());
+
+    await waitFor(() => {
+      expect(screen.getByTestId("media-sheet")).toBeInTheDocument();
+    });
+
+    // Must NOT claim "film".
+    expect(
+      screen.queryByText(/ce film n'est pas encore/i),
+    ).not.toBeInTheDocument();
+
+    // Must NOT show the series section — kind is unknown.
+    expect(screen.queryByText("Statut")).not.toBeInTheDocument();
+    expect(screen.queryByText("Épisodes")).not.toBeInTheDocument();
+
+    // The unknown-kind message uses the neutral "ce média".
+    expect(
+      screen.getByText(/ce média n'est pas encore dans la médiathèque/i),
+    ).toBeInTheDocument();
+  });
+
+  it("affiche « Possédé » pour un film avec kind='movie'", async () => {
+    getMediaSheetMock.mockResolvedValue(
+      movieResponse({
+        kind: "movie",
+        ownership: { owned: true, seasons: [] },
+      }),
+    );
+    renderSheet(sheetProps());
+
+    await waitFor(() => {
+      expect(screen.getByTestId("media-sheet")).toBeInTheDocument();
+    });
+
+    // The movie sentence uses "Ce film".
+    expect(
+      screen.getByText(/ce film est présent dans la médiathèque/i),
+    ).toBeInTheDocument();
   });
 });

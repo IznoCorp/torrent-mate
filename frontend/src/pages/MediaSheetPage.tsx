@@ -12,6 +12,7 @@ import type { ReactElement } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { MediaSheet } from "@/components/media/MediaSheet";
+import { ErrorState } from "@/components/ds/ErrorState";
 
 /**
  * MediaSheetPage — the route-level entry for ``/media/:provider/:providerId``.
@@ -32,12 +33,16 @@ export default function MediaSheetPage(): ReactElement {
     kindParam === "movie" || kindParam === "tv" ? kindParam : undefined;
 
   // Params are guaranteed present by the route pattern; this is a defensive
-  // gate only — a malformed URL reaching here would crash anyway.
+  // gate only — a malformed URL without provider or providerId cannot render
+  // a meaningful sheet.
   if (provider === undefined || providerId === undefined) {
-    return <div data-testid="media-sheet" />;
+    return (
+      <ErrorState
+        title="URL incomplète"
+        message="Les paramètres 'provider' et 'providerId' sont requis dans l'URL."
+      />
+    );
   }
 
-  return (
-    <MediaSheet provider={provider} providerId={providerId} kind={kind} />
-  );
+  return <MediaSheet provider={provider} providerId={providerId} kind={kind} />;
 }

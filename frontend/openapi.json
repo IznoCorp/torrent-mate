@@ -2341,7 +2341,7 @@
         "type": "object"
       },
       "MediaSheetResponse": {
-        "description": "Full media sheet returned by ``GET /api/media/{provider}/{provider_id}``.\n\nIdentity fields (provider, provider_id, title) are always present \u2014 even\nunder degradation they survive because they come from the call parameters or\na partial provider response.  Metadata fields are ``None`` when the provider\ndoes not supply them (DESIGN D4/D9 \u2014 never an empty string).\n\nAttributes:\n    provider: Provider name (``\"tmdb\"`` / ``\"tvdb\"``).\n    provider_id: Provider-specific media identifier.\n    title: Display title.\n    year: Release year, or ``None``.\n    poster_url: Full URL to the poster image.\n    overview: Full plot summary.\n    director: Director name, or ``None`` when unknown.\n    genres: List of genre names.\n    trailer_url: YouTube trailer URL, or ``None``.\n    series_status: TV series production status, or ``None`` for movies.\n    episode_count: Total episode count for a TV series, or ``None``\n        for movies (from the provider's series-level metadata).\n    seasons: Season catalog (season number \u2192 episode count per season).\n    ownership: Library ownership block, or ``None`` when the library\n        database is unavailable (fail-soft).\n    degraded_reason: French human-readable reason when the provider was\n        unreachable and the response is partial. ``None`` on a full response.",
+        "description": "Full media sheet returned by ``GET /api/media/{provider}/{provider_id}``.\n\nIdentity fields (provider, provider_id, title) are always present \u2014 even\nunder degradation they survive because they come from the call parameters or\na partial provider response.  Metadata fields are ``None`` when the provider\ndoes not supply them (DESIGN D4/D9 \u2014 never an empty string).\n\nAttributes:\n    provider: Provider name (``\"tmdb\"`` / ``\"tvdb\"``).\n    provider_id: Provider-specific media identifier.\n    title: Display title.\n    year: Release year, or ``None``.\n    poster_url: Full URL to the poster image.\n    overview: Full plot summary.\n    director: Director name, or ``None`` when unknown.\n    genres: List of genre names.\n    trailer_url: YouTube trailer URL, or ``None``.\n    kind: The media kind the provider lookup resolved \u2014\n        ``\"movie\"``, ``\"tv\"``, or ``None`` on a degraded response where\n        no provider method succeeded (the honest answer is \"we don't know\").\n    series_status: TV series production status, or ``None`` for movies.\n    episode_count: Total episode count for a TV series, or ``None``\n        for movies (from the provider's series-level metadata).\n    seasons: Season catalog (season number \u2192 episode count per season).\n    ownership: Library ownership block, or ``None`` when the library\n        database is unavailable (fail-soft).\n    degraded_reason: French human-readable reason when the provider was\n        unreachable and the response is partial. ``None`` on a full response.",
         "properties": {
           "degraded_reason": {
             "anyOf": [
@@ -2382,6 +2382,21 @@
             },
             "title": "Genres",
             "type": "array"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "movie",
+                  "tv"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
           },
           "overview": {
             "title": "Overview",
@@ -2464,6 +2479,7 @@
           "director",
           "genres",
           "trailer_url",
+          "kind",
           "series_status",
           "seasons",
           "ownership",

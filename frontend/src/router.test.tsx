@@ -160,6 +160,7 @@ beforeEach(() => {
           director: "Christopher Nolan",
           genres: ["Action"],
           trailer_url: "https://www.youtube.com/watch?v=YoHD9XEInc0",
+          kind: "movie",
           series_status: null,
           episode_count: null,
           seasons: [],
