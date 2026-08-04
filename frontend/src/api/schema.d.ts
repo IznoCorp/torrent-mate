@@ -3612,7 +3612,7 @@ export interface components {
          */
         MediaSheetResponse: {
             /** Creator */
-            creator: string | null;
+            creator?: string | null;
             /** Degraded Reason */
             degraded_reason: string | null;
             /** Director */

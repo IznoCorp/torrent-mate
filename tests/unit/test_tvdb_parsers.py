@@ -244,7 +244,16 @@ class TestParseMediaDetails:
         assert set(numbers) == distinct_numbers
 
     def test_seasons_without_type_field_still_deduped(self) -> None:
-        """A response with no order-type info dedupes by number (first wins)."""
+        """A response with no order-type info dedupes by number (first wins).
+
+        NOTE: ``episodeCount`` on a season object is NOT what the live TVDB
+        API returns — the real payload omits that key (live dump confirmed
+        keys: companies, id, image, imageType, lastUpdated, nameTranslations,
+        number, overviewTranslations, seriesId, type). This fixture is an
+        older/invented shape. The real-world path uses the counts derived
+        from the root ``episodes`` array (see the golden fixture captured
+        with ``meta=episodes`` at SAMPLES/series_extended.json).
+        """
         raw = {
             "id": 1,
             "name": "X",

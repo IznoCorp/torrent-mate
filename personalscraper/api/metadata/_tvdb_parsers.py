@@ -390,10 +390,24 @@ def parse_media_details(raw: dict[str, Any], provider: str) -> MediaDetails:
         if not isinstance(s_num, int) or s_num in seen_numbers:
             continue
         seen_numbers.add(s_num)
+        # Episode count per season: prefer the count derived from the
+        # root ``episodes`` array (real-world path — the live API does
+        # NOT send ``episodeCount`` on season objects). Fall back to
+        # the season's own ``episodeCount`` when the episodes array is
+        # absent AND the season carries that key (legacy fixtures,
+        # other API shapes). Otherwise 0 (honest unknown).
+        ep_count = 0
+        derived = episode_counts_by_season.get(s_num)
+        if derived is not None:
+            ep_count = derived
+        else:
+            sc = s.get("episodeCount")
+            if isinstance(sc, int) and sc > 0:
+                ep_count = sc
         seasons.append(
             SeasonInfo(
                 season_number=s_num,
-                episode_count=episode_counts_by_season.get(s_num, 0),
+                episode_count=ep_count,
                 overview=s.get("overview") or "",
                 poster_url=s.get("image") or "",
             )
