@@ -32,8 +32,7 @@ import type { StagingMediaItem } from "@/api/staging";
 const navigateMock = vi.fn();
 const searchParamsMock = new URLSearchParams();
 vi.mock("react-router-dom", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("react-router-dom")>();
+  const actual = await importOriginal<typeof import("react-router-dom")>();
   return {
     ...actual,
     useNavigate: () => navigateMock,
@@ -87,6 +86,21 @@ vi.mock("sonner", () => ({
 }));
 
 // ---------------------------------------------------------------------------
+// Stub getJourneys for ParcoursPanel.
+// ---------------------------------------------------------------------------
+
+const { getJourneysMock } = vi.hoisted(() => ({
+  getJourneysMock: vi.fn(),
+}));
+vi.mock("@/api/acquisition", async () => {
+  const actual =
+    await vi.importActual<typeof import("@/api/acquisition")>(
+      "@/api/acquisition",
+    );
+  return { ...actual, getJourneys: getJourneysMock };
+});
+
+// ---------------------------------------------------------------------------
 // Stub the staging-media hook used by StagingLibrary.
 // ---------------------------------------------------------------------------
 
@@ -106,6 +120,7 @@ import { CandidateCard } from "@/components/decisions/CandidateCard";
 import { StagingLibrary } from "@/components/staging/StagingLibrary";
 import { ATraiterList } from "@/components/controle/ATraiterList";
 import { StageMediaList } from "@/components/staging/StageMediaList";
+import { ParcoursPanel } from "@/components/acquisition/ParcoursPanel";
 
 // ---------------------------------------------------------------------------
 // Enforcement: every surface that displays media cards MUST be listed here.
@@ -118,6 +133,7 @@ const WIRED_SURFACES = [
   "StagingLibrary",
   "ATraiterList",
   "StageMediaList",
+  "ParcoursPanel",
 ] as const;
 type WiredSurface = (typeof WIRED_SURFACES)[number];
 
@@ -426,7 +442,10 @@ describe("§11 constitution — « Tout média est consultable »", () => {
       render(
         <MemoryRouter>
           <CandidateCard
-            candidate={movieCandidate({ provider: "tvdb", provider_id: 255968 })}
+            candidate={movieCandidate({
+              provider: "tvdb",
+              provider_id: 255968,
+            })}
             isSelected={false}
             onClick={vi.fn()}
           />
@@ -643,10 +662,7 @@ describe("§11 constitution — « Tout média est consultable »", () => {
       render(
         <MemoryRouter>
           <QueryClientProvider client={makeQueryClient()}>
-            <StageMediaList
-              stageKey="arrival"
-              onOpenMedia={onOpenMedia}
-            />
+            <StageMediaList stageKey="arrival" onOpenMedia={onOpenMedia} />
           </QueryClientProvider>
         </MemoryRouter>,
       );
@@ -658,6 +674,118 @@ describe("§11 constitution — « Tout média est consultable »", () => {
       const button = screen.getByText("Ouvrir la fiche média");
       fireEvent.click(button);
       expect(onOpenMedia).toHaveBeenCalledWith("blocked-sm");
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // SURFACE 7 — ParcoursPanel (provenance F1 — acquisition journey cards).
+  //
+  // Each journey card renders the follow_title (or hash/id fallback) and,
+  // when the media_ref carries a tvdb_id or tmdb_id, wraps it in a sheet
+  // link.  An unidentified journey (no tvdb_id, no tmdb_id) renders a plain
+  // span — the §11 exception.
+  // -----------------------------------------------------------------------
+
+  describe("ParcoursPanel", () => {
+    coveredSurfaces.add("ParcoursPanel");
+
+    function renderParcours(): void {
+      const qc = makeQueryClient();
+      render(
+        <QueryClientProvider client={qc}>
+          <MemoryRouter>
+            <ParcoursPanel />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+    }
+
+    it("renders a sheet link for an identified journey with tvdb_id (priority tvdb > tmdb, with kind hint)", async () => {
+      getJourneysMock.mockResolvedValue({
+        journeys: [
+          {
+            info_hash: "abcd1234",
+            kind: "episode",
+            media_ref: { tvdb_id: 382389, tmdb_id: null, imdb_id: null },
+            scraped_ref: null,
+            followed_id: 12,
+            follow_title: "Star Trek: SNW",
+            status: "ingested",
+            ingest_path: "/stage/Star Trek",
+            current_path: "/stage/Star Trek",
+            dispatch_path: null,
+            grabbed_at: 1_700_000_000,
+            ingested_at: 1_700_000_100,
+            scraped_at: null,
+            dispatched_at: null,
+          },
+        ],
+      });
+      renderParcours();
+      const title = await screen.findByText("Star Trek: SNW");
+      // tvdb_id wins; kind "episode" → hint "tv".
+      expect(title.closest("a")).not.toBeNull();
+      expect(title.closest("a")?.getAttribute("href")).toBe(
+        "/media/tvdb/382389?kind=tv",
+      );
+    });
+
+    it("falls back to tmdb href when only tmdb_id is present (priority proven, not assumed)", async () => {
+      getJourneysMock.mockResolvedValue({
+        journeys: [
+          {
+            info_hash: "abcd1234",
+            kind: "movie",
+            media_ref: { tvdb_id: null, tmdb_id: 27205, imdb_id: null },
+            scraped_ref: null,
+            followed_id: null,
+            follow_title: "Inception",
+            status: "ingested",
+            ingest_path: "/stage/Inception",
+            current_path: "/stage/Inception",
+            dispatch_path: null,
+            grabbed_at: 1_700_000_000,
+            ingested_at: 1_700_000_100,
+            scraped_at: null,
+            dispatched_at: null,
+          },
+        ],
+      });
+      renderParcours();
+      const title = await screen.findByText("Inception");
+      expect(title.closest("a")).not.toBeNull();
+      expect(title.closest("a")?.getAttribute("href")).toBe(
+        "/media/tmdb/27205?kind=movie",
+      );
+    });
+
+    it("renders NO link for an unidentified journey (no tvdb_id, no tmdb_id — §11 exception)", async () => {
+      getJourneysMock.mockResolvedValue({
+        journeys: [
+          {
+            info_hash: "feedbeef00112233445566778899aabbccddeeff",
+            kind: "movie",
+            media_ref: { tvdb_id: null, tmdb_id: null, imdb_id: null },
+            scraped_ref: null,
+            followed_id: null,
+            follow_title: null,
+            status: "grabbed",
+            ingest_path: null,
+            current_path: null,
+            dispatch_path: null,
+            grabbed_at: 1_700_000_000,
+            ingested_at: null,
+            scraped_at: null,
+            dispatched_at: null,
+          },
+        ],
+      });
+      renderParcours();
+      // journeyTitle falls back to the first 8 chars of the hash since there
+      // is no follow_title and no provider id.
+      const title = await screen.findByText("feedbeef");
+      // Must NOT be wrapped in an anchor — §11 forbids a dead link.
+      expect(title.closest("a")).toBeNull();
     });
   });
 

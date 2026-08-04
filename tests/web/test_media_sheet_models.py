@@ -288,62 +288,15 @@ class TestMediaSheetResponse:
         )
         assert resp.degraded_reason is None
 
-    def test_kind_movie(self) -> None:
-        """Movie response carries kind == "movie"."""
-        resp = MediaSheetResponse(
-            provider="tmdb",
-            provider_id="550",
-            title="Inception",
-            year=2010,
-            poster_url="https://image.tmdb.org/t/p/w500/inc.jpg",
-            overview="...",
-            director="Christopher Nolan",
-            genres=["Action"],
-            trailer_url=None,
-            kind="movie",
-            series_status=None,
-            seasons=[],
-            ownership=None,
-            degraded_reason=None,
-        )
-        assert resp.kind == "movie"
-
-    def test_kind_tv(self) -> None:
-        """TV response carries kind == "tv"."""
-        resp = MediaSheetResponse(
-            provider="tvdb",
-            provider_id="255968",
-            title="Top Chef",
-            year=2010,
-            poster_url="...",
-            overview="...",
-            director=None,
-            genres=["Reality"],
-            trailer_url=None,
-            kind="tv",
-            series_status="Returning Series",
-            seasons=[SeasonEntry(season_number=1, episode_count=12)],
-            ownership=None,
-            degraded_reason=None,
-        )
-        assert resp.kind == "tv"
-
-    def test_kind_none_on_degraded(self) -> None:
-        """Degraded response carries kind is None (honest "we don't know")."""
-        resp = MediaSheetResponse(
-            provider="tmdb",
-            provider_id="999",
-            title="999",
-            year=None,
-            poster_url="",
-            overview="",
-            director=None,
-            genres=[],
-            trailer_url=None,
-            kind=None,
-            series_status=None,
-            seasons=[],
-            ownership=None,
-            degraded_reason="TMDB n'a pas repondu.",
-        )
-        assert resp.kind is None
+    # The ``kind`` contract is behavioural (endpoint → response shape), not a model
+    # invariant.  Assigning ``kind="movie"`` and asserting ``resp.kind == "movie"`` is
+    # tautological — it cannot fail for any business-logic reason (change the endpoint
+    # to return the WRONG kind and these model-only tests still pass green).  The real
+    # coverage lives in the endpoint tests:
+    #
+    #   test_full_movie_response          → kind=movie on a full TMDB response (L87)
+    #   test_movie_returns_kind_movie     → kind=movie from TMDB movie endpoint (L534)
+    #   test_tv_zero_signals_returns_kind_tv  → kind=tv from TMDB TV endpoint (L493)
+    #   test_degraded_returns_kind_none   → kind=None on provider failure (L551)
+    #   test_kind_movie_skips_get_tv      → movie kind skips TV probe (L300)
+    #   test_kind_tv_skips_get_movie      → tv kind skips movie probe (L320)

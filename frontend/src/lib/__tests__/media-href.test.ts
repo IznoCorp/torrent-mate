@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { mediaSheetHref, type MediaRef } from "@/lib/media-href";
+import { mediaSheetHref } from "@/lib/media-href";
 
 describe("mediaSheetHref", () => {
   it("construit l'URL de base avec provider et providerId", () => {
@@ -36,10 +36,16 @@ describe("mediaSheetHref", () => {
     expect(href).toBe("/media/tvdb/789");
   });
 
-  it("encode le paramètre kind s'il contient des caractères réservés (défensif)", () => {
-    // kind values are limited to "movie" | "tv" by the type, but URI-encoding
-    // is still applied defensively.
-    const ref: MediaRef = { provider: "tmdb", providerId: "1", kind: "movie" };
-    expect(mediaSheetHref(ref)).toBe("/media/tmdb/1?kind=movie");
+  it("encode les caractères réservés d'URI (?, #, &) dans les segments du chemin", () => {
+    // providerId comes from API data and route params — it can carry
+    // characters that MUST be percent-encoded in a URI path segment.
+    // Removing encodeURIComponent from the path segments in media-href.ts
+    // MUST make this test fail (mutation proof).
+    expect(
+      mediaSheetHref({
+        provider: "tmdb",
+        providerId: "tt?key=val#frag&more",
+      }),
+    ).toBe("/media/tmdb/tt%3Fkey%3Dval%23frag%26more");
   });
 });
