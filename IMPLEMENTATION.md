@@ -33,11 +33,11 @@
 
 ## Phases
 
-| #   | Phase | File | Status |
-| --- | --- | --- | --- |
-| 1   | Modele + parseurs | phase-01-metadata-model-parsers.md | [x]    |
-| 2   | Endpoint + cache + croisement mediatheque | phase-02-endpoint-cache-ownership.md | [ ]    |
-| 3   | Composant + page + route + helper | phase-03-component-page-route.md | [ ]    |
+| #   | Phase                                                | File                                       | Status |
+| --- | ---------------------------------------------------- | ------------------------------------------ | ------ |
+| 1   | Modele + parseurs                                    | phase-01-metadata-model-parsers.md         | [x]    |
+| 2   | Endpoint + cache + croisement mediatheque            | phase-02-endpoint-cache-ownership.md       | [x]    |
+| 3   | Composant + page + route + helper                    | phase-03-component-page-route.md           | [ ]    |
 | 4   | Cablage des surfaces + S11 constitution + ACCEPTANCE | phase-04-wiring-constitution-acceptance.md | [ ]    |
 
 ## Review cycles
@@ -46,4 +46,9 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to execute phase 2 (endpoint + cache + croisement médiathèque).
+Run `/implement:phase` to execute phase 3 (composant + page + route + helper).
+
+**Contrat d'appel figé en phase 2 — à respecter en phase 3/4** : l'endpoint accepte
+`?kind=movie|tv`. Les quatre surfaces connaissent le type ; `mediaSheetHref` **doit** le
+porter, sinon chaque fiche de film paie un aller-retour provider inutile (et la sonde
+sans indice reste le cas de repli d'une URL tapée à la main).
