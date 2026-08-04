@@ -2340,6 +2340,128 @@
         "title": "MediaSearchResult",
         "type": "object"
       },
+      "MediaSheetResponse": {
+        "description": "Full media sheet returned by ``GET /api/media/{provider}/{provider_id}``.\n\nIdentity fields (provider, provider_id, title) are always present \u2014 even\nunder degradation they survive because they come from the call parameters or\na partial provider response.  Metadata fields are ``None`` when the provider\ndoes not supply them (DESIGN D4/D9 \u2014 never an empty string).\n\nAttributes:\n    provider: Provider name (``\"tmdb\"`` / ``\"tvdb\"``).\n    provider_id: Provider-specific media identifier.\n    title: Display title.\n    year: Release year, or ``None``.\n    poster_url: Full URL to the poster image.\n    overview: Full plot summary.\n    director: Director name, or ``None`` when unknown.\n    genres: List of genre names.\n    trailer_url: YouTube trailer URL, or ``None``.\n    series_status: TV series production status, or ``None`` for movies.\n    seasons: Season catalog (season number \u2192 episode count per season).\n    ownership: Library ownership block, or ``None`` when the library\n        database is unavailable (fail-soft).\n    degraded_reason: French human-readable reason when the provider was\n        unreachable and the response is partial. ``None`` on a full response.",
+        "properties": {
+          "degraded_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Degraded Reason"
+          },
+          "director": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Director"
+          },
+          "genres": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Genres",
+            "type": "array"
+          },
+          "overview": {
+            "title": "Overview",
+            "type": "string"
+          },
+          "ownership": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OwnershipBlock"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "poster_url": {
+            "title": "Poster Url",
+            "type": "string"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "provider_id": {
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "seasons": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Seasons",
+            "type": "array"
+          },
+          "series_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Series Status"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "trailer_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trailer Url"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
+          }
+        },
+        "required": [
+          "provider",
+          "provider_id",
+          "title",
+          "year",
+          "poster_url",
+          "overview",
+          "director",
+          "genres",
+          "trailer_url",
+          "series_status",
+          "seasons",
+          "ownership",
+          "degraded_reason"
+        ],
+        "title": "MediaSheetResponse",
+        "type": "object"
+      },
       "MovieFacts": {
         "description": "The single unit's facts a followed FILM derives its card status from.\n\nA film has no aired catalog (``aired_count`` stays ``None`` on its card), so\ninstead of episode counts it carries the raw facts of its one ``wanted`` row\nplus library ownership \u2014 the exact arguments\n:func:`~personalscraper.web.acquisition.states.derive_episode_state` takes.\nExposing the facts rather than a pre-chewed label keeps the derivation in the\nsingle states module and lets the UI explain WHY a film reads as it does.\n\nAttributes:\n    owned: The library holds a live file for this film (disk presence by\n        provider id). Beats a stale ``grabbed`` row.\n    wanted_status: The film's ``wanted`` row status, or ``None`` when it has\n        no row (never enqueued, or the row could not be read).\n    last_search_outcome: Named outcome of its last search pass, or ``None``\n        when never searched.\n    last_search_found: Takeable candidates the last search reported, or\n        ``None`` when the search did not conclude.",
         "properties": {
@@ -2546,6 +2668,28 @@
           "items"
         ],
         "title": "ObligationsResponse",
+        "type": "object"
+      },
+      "OwnershipBlock": {
+        "description": "Library ownership status for a media item.\n\nAttributes:\n    owned: ``True`` when at least one file for this media is locally owned.\n    seasons: Per-season breakdown for TV shows; empty for movies.",
+        "properties": {
+          "owned": {
+            "title": "Owned",
+            "type": "boolean"
+          },
+          "seasons": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/SeasonOwnership"
+            },
+            "title": "Seasons",
+            "type": "array"
+          }
+        },
+        "required": [
+          "owned"
+        ],
+        "title": "OwnershipBlock",
         "type": "object"
       },
       "PipelineOutcome": {
@@ -3547,6 +3691,35 @@
           "absorbed_count"
         ],
         "title": "SeasonGrabResponse",
+        "type": "object"
+      },
+      "SeasonOwnership": {
+        "description": "Ownership breakdown for one season of a TV show.\n\nAttributes:\n    season_number: Season number (1-based; 0 for specials).\n    episode_count: Total episodes in this season per the provider catalog.\n    owned_count: How many episodes of this season are locally owned.\n    aired_count: How many episodes have aired/released (provider catalog count).",
+        "properties": {
+          "aired_count": {
+            "title": "Aired Count",
+            "type": "integer"
+          },
+          "episode_count": {
+            "title": "Episode Count",
+            "type": "integer"
+          },
+          "owned_count": {
+            "title": "Owned Count",
+            "type": "integer"
+          },
+          "season_number": {
+            "title": "Season Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "season_number",
+          "episode_count",
+          "owned_count",
+          "aired_count"
+        ],
+        "title": "SeasonOwnership",
         "type": "object"
       },
       "SecretEntry": {
@@ -6354,6 +6527,58 @@
         "summary": "Get Schedulers",
         "tags": [
           "maintenance"
+        ]
+      }
+    },
+    "/api/media/{provider}/{provider_id}": {
+      "get": {
+        "description": "Return a full media sheet for a provider-identified media item.\n\nFetches metadata from the live provider API (with a short in-memory cache),\ncrosses the local library for ownership, and returns typed data.  When the\nprovider is unreachable, the response carries a French degraded_reason\nrather than a 500 - the identity fields are always present (DESIGN D9).\n\nArgs:\n    provider: Provider name - \"tmdb\" or \"tvdb\".\n    provider_id: Provider-specific media identifier.\n    request: The incoming FastAPI request.\n\nReturns:\n    A MediaSheetResponse.\n\nRaises:\n    HTTPException: 400 when *provider* is not \"tmdb\" / \"tvdb\".",
+        "operationId": "get_media_sheet_api_media__provider___provider_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "title": "Provider",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "title": "Provider Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaSheetResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Media Sheet",
+        "tags": [
+          "media"
         ]
       }
     },
