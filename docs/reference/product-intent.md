@@ -197,6 +197,43 @@ Ce que cela impose concrètement :
 se vérifie à la largeur réelle d'un téléphone (§méthode : la preuve est un déroulé exécuté,
 pas une intention).
 
+### Composition d'une carte média (règle gravée)
+
+Une carte de média suit **cet ordre, une information par rôle** :
+
+1. **Ligne 1 — le titre, seul.** Il occupe toute la largeur disponible. Rien ne le partage.
+2. **Ligne 2 — l'avancement chiffré d'abord** (`10/12`), **puis l'état** (`À jour`,
+   `En cours d'acquisition`, …), puis le reste (échéance, compteurs, actions).
+3. **Pas d'étiquette de type** (« Série » / « Film ») : l'onglet actif la porte déjà.
+
+Toute carte qui remet le titre en concurrence avec autre chose sur sa ligne est **non
+conforme**.
+
+---
+
+## §13 — L'interface reflète l'état réel des données
+
+L'interface **garantit** de montrer l'état réel des données — **acquisitions**, **staging**,
+**médiathèque**. Elle n'a pas d'état à elle : tout ce qu'elle affiche est dérivé des données,
+et cette dérivation doit être **vérifiable par les données**.
+
+- **Aucun état affiché n'est une constante.** Un libellé qui ne peut pas changer quand la
+  réalité change est un mensonge en attente. Un état qui *pointe* vers autre chose (un épisode
+  « absorbé » par une saison) doit **suivre le pointeur**, jamais le rapporter tel quel.
+- **Une seule dérivation par question.** Deux surfaces qui répondent à la même question
+  (« où en est cet épisode ? ») lisent le **même** code. Deux implémentations de la même règle,
+  c'est la garantie qu'elles divergeront — et que l'opérateur verra deux vérités.
+- **La vérification est exécutable.** « L'interface dit vrai » n'est recevable que prouvé par
+  un contrôle croisé données ↔ affichage, à zéro anomalie
+  (`scripts/check-acquisition-coherence.py`). Une relecture de code n'est pas une preuve.
+- **Après un bug, l'état est corrigé — systématiquement.** Un correctif qui empêche le bug de
+  se reproduire mais laisse les données qu'il a faussées est un travail **inachevé**. Toute
+  correction se termine par : (1) le code corrigé, (2) **l'état existant réparé**, (3) le
+  contrôle exécutable à zéro anomalie. Les trois, ou rien.
+
+**Corollaire** : aucun verdict « c'est conforme » sans avoir *regardé les données* après le
+correctif.
+
 ---
 
 ## Ce que l'interface DOIT faire (DOIT-1 … DOIT-11)

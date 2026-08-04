@@ -147,3 +147,44 @@ class TestTriedHashesStore:
         store.wanted.mark_grabbed(rowid, "cafef00d")
         store.wanted.requeue_for_reswitch(rowid, "cafef00d", 1_800_000_100)
         assert store.wanted.list_tried_hashes(rowid) == ("deadbeef", "cafef00d")
+
+
+class TestRequeueClearsTheStaleVerdict:
+    """A requeued row must not keep the dead release's verdict (§2).
+
+    Live incident 2026-08-04: the reswitch requeued American Dad S15/S17 to
+    ``pending`` but left ``last_search_outcome='grabbed'`` / ``last_search_found=4``
+    behind — the verdict of the release it had just declared DEAD and excluded.
+
+    Any surface deriving state from that row would read « À récupérer », i.e.
+    « a takeable candidate is known », when the only one ever tried is now on the
+    exclusion list. The module's own discipline elsewhere is that status and verdict
+    stay in sync; the requeue was the one place that broke it.
+    """
+
+    def test_reswitch_requeue_clears_outcome_and_found(self, store) -> None:
+        """After the requeue the row states « nothing concluded since », not a stale hit."""
+        wid = store.wanted.add(
+            WantedItem(
+                media_ref=MediaRef(tvdb_id=73141),
+                kind="season",
+                status="pending",
+                enqueued_at=1_700_000_000,
+                season=15,
+            )
+        )
+        store.wanted.record_search_outcome(wid, "grabbed", 4)
+        store.wanted.mark_grabbed(wid, "deadbeef" * 5)
+        before = store.wanted.get(wid)
+        assert before.last_search_outcome == "grabbed"
+        assert before.last_search_found == 4
+
+        assert store.wanted.requeue_for_reswitch(wid, "deadbeef" * 5, 1_700_003_600) is True
+
+        row = store.wanted.get(wid)
+        assert row.status == "pending"
+        assert row.grabbed_hash is None
+        assert row.last_search_outcome is None, "the dead release's verdict must not survive its own exclusion"
+        assert row.last_search_found is None, "found=4 counted the release just declared dead"
+        # The exclusion itself is preserved — that is the loop guard.
+        assert ("deadbeef" * 5) in store.wanted.list_tried_hashes(wid)

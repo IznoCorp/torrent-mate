@@ -668,6 +668,12 @@ class _WantedSubStore:
         back to the same dead release). ``tried_hashes`` is preserved across the
         requeue; only ``grabbed_hash`` is cleared.
 
+        The VERDICT is cleared too (``last_search_outcome`` / ``last_search_found``
+        to NULL): it described the release just declared DEAD and excluded, so
+        keeping it would let a surface read « À récupérer » — « a takeable candidate
+        is known » — about the one candidate that is now on the exclusion list.
+        Status and verdict stay in sync, as everywhere else.
+
         The cadence clock is RESET (``enqueued_at = now``, ``attempts = 0``,
         ``last_search_at = NULL``) — like :meth:`resurrect` — because the original
         clock is no longer fair: without it the cutoff gate would abandon a
@@ -702,7 +708,8 @@ class _WantedSubStore:
             merged = existing if (not normalized or normalized in existing) else (*existing, normalized)
             cur = self._conn.execute(
                 f"UPDATE wanted SET status = 'pending', grabbed_hash = NULL, tried_hashes_json = ?, "  # noqa: S608
-                f"enqueued_at = ?, attempts = 0, last_search_at = NULL "
+                f"enqueued_at = ?, attempts = 0, last_search_at = NULL, "
+                f"last_search_outcome = NULL, last_search_found = NULL "
                 f"WHERE id = ? AND status IN ({placeholders}) AND grabbed_hash IS NOT NULL",
                 (json.dumps(list(merged)), now, wanted_id, *open_statuses),
             )
