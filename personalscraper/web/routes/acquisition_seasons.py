@@ -205,16 +205,18 @@ def grab_season(
         # rather than failing an enqueue that DID happen. Its own idempotence guard
         # is the only refusal §6 permits — a duplicate of the same action on the
         # same target — so this route never answers 409.
-        prime_outcome = enqueue_prime_run(config.indexer.db_path, followed.id)
+        prime = enqueue_prime_run(config.indexer.db_path, followed.id)
 
         return SeasonGrabResponse(
             season_wanted_id=season_wid,
             season=season,
             absorbed_count=len(absorbed_ids),
             reused=False,
-            # Mirror create_follow's mapping so both operator entry points report
-            # a started run identically.
-            run_started=prime_outcome in ("spawned", "already_running"),
+            # Mirror create_follow so both operator entry points report identically.
+            run_started=prime.started,
+            # §5 — the uid is what makes the run SHOWABLE: the UI polls it to its
+            # numbered result instead of toasting a blind success on the 201.
+            run_uid=prime.run_uid,
         )
     finally:
         store.close()

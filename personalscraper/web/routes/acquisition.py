@@ -836,14 +836,14 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
             _write_follow_metadata(store, existing.id, metadata)
             # Reactivating re-primes: the catalog and the queue are as stale as
             # they were the day the follow was paused (plan §6 idempotence).
-            prime_outcome = enqueue_prime_run(config.indexer.db_path, existing.id)
+            prime = enqueue_prime_run(config.indexer.db_path, existing.id)
             reactivated = store.follow.get(existing.id)
             assert reactivated is not None  # noqa: S101 — just wrote it
             item = _item_from_followed(reactivated)
             item.poster_url = metadata.poster_url
             item.overview = metadata.overview
             item.year = metadata.year
-            if prime_outcome in ("spawned", "already_running"):
+            if prime.started:
                 item.priming_running = True
             return item
 
@@ -893,12 +893,12 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
         # Amorce: catalog + queue + first search run NOW, through the existing
         # run authority — a fresh follow is never left idle until the 03:00
         # cron (the founding incident: a grab over an empty queue, rc=0).
-        prime_outcome = enqueue_prime_run(config.indexer.db_path, new_id)
+        prime = enqueue_prime_run(config.indexer.db_path, new_id)
         item = _item_from_followed(created)
         item.poster_url = metadata.poster_url
         item.overview = metadata.overview
         item.year = metadata.year
-        if prime_outcome in ("spawned", "already_running"):
+        if prime.started:
             item.priming_running = True
         return item
     finally:

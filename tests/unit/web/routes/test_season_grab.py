@@ -19,6 +19,7 @@ from fastapi.testclient import TestClient
 from personalscraper.config import Settings
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.web.auth.tokens import create_session_token
+from personalscraper.web.routes.acquisition_triggers import PrimeResult
 from tests.web._web_harness import web_client
 
 # ---------------------------------------------------------------------------
@@ -527,9 +528,9 @@ class TestSeasonGrabTriggersARun:
         """Creating the season row also enqueues the scoped run, and says so."""
         calls: list[int] = []
 
-        def _fake_enqueue(db_path: object, followed_id: int) -> str:
+        def _fake_enqueue(db_path: object, followed_id: int) -> PrimeResult:
             calls.append(followed_id)
-            return "spawned"
+            return PrimeResult(outcome="spawned", run_uid="run-abc")
 
         monkeypatch.setattr(
             "personalscraper.web.routes.acquisition_seasons.enqueue_prime_run",
@@ -566,7 +567,9 @@ class TestSeasonGrabTriggersARun:
         calls: list[int] = []
         monkeypatch.setattr(
             "personalscraper.web.routes.acquisition_seasons.enqueue_prime_run",
-            lambda db_path, followed_id: (calls.append(followed_id), "spawned")[1],
+            lambda db_path, followed_id: (calls.append(followed_id), PrimeResult(outcome="spawned", run_uid="run-abc"))[
+                1
+            ],
         )
 
         acquire_path = tmp_path / "acquire.db"
@@ -611,7 +614,7 @@ class TestSeasonGrabConstitutionSix:
         """
         monkeypatch.setattr(
             "personalscraper.web.routes.acquisition_seasons.enqueue_prime_run",
-            lambda db_path, followed_id: "already_running",
+            lambda db_path, followed_id: PrimeResult(outcome="already_running", run_uid="run-live"),
         )
 
         acquire_path = tmp_path / "acquire.db"
@@ -644,7 +647,7 @@ class TestSeasonGrabConstitutionSix:
         """
         monkeypatch.setattr(
             "personalscraper.web.routes.acquisition_seasons.enqueue_prime_run",
-            lambda db_path, followed_id: "failed",
+            lambda db_path, followed_id: PrimeResult(outcome="failed", run_uid=None),
         )
 
         acquire_path = tmp_path / "acquire.db"
@@ -663,3 +666,112 @@ class TestSeasonGrabConstitutionSix:
         assert resp.status_code == 201, resp.text
         assert resp.json()["run_started"] is False
         assert resp.json()["season_wanted_id"] > 0, "the row is enqueued even when the spawn fails"
+
+
+# ---------------------------------------------------------------------------
+# §5 — the manual trigger must SHOW the run, not just claim it started
+# ---------------------------------------------------------------------------
+
+
+class TestSeasonGrabExposesTheRunUid:
+    """« Le déclenchement manuel montre le run » (§5) needs the run's identity.
+
+    A boolean « a run started » cannot be followed to its numbered result. The
+    response must carry the ``run_uid`` so the UI can poll it to completion and
+    report « X détectés, Y disponibles, Z récupérés » — or the real error.
+    """
+
+    def test_fresh_grab_returns_the_spawned_run_uid(
+        self,
+        client: TestClient,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """The response carries the uid of the run this call spawned."""
+        from personalscraper.web.routes.acquisition_triggers import PrimeResult
+
+        monkeypatch.setattr(
+            "personalscraper.web.routes.acquisition_seasons.enqueue_prime_run",
+            lambda db_path, followed_id: PrimeResult(outcome="spawned", run_uid="deadbeef"),
+        )
+
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        fid = _seed_followed(conn, 1, "Test Show")
+        conn.commit()
+        conn.close()
+
+        resp = client.post(
+            f"/api/acquisition/follows/{fid}/seasons/1/grab",
+            cookies=_auth_cookies(),
+            headers=_xrw_headers(),
+        )
+
+        assert resp.status_code == 201, resp.text
+        assert resp.json()["run_uid"] == "deadbeef"
+        assert resp.json()["run_started"] is True
+
+    def test_already_running_returns_the_live_run_uid(
+        self,
+        client: TestClient,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """An in-flight prime hands back ITS uid — the operator follows that run.
+
+        §6: the action is not refused, it joins the run already doing the work.
+        Returning no uid here would leave the UI unable to show anything.
+        """
+        from personalscraper.web.routes.acquisition_triggers import PrimeResult
+
+        monkeypatch.setattr(
+            "personalscraper.web.routes.acquisition_seasons.enqueue_prime_run",
+            lambda db_path, followed_id: PrimeResult(outcome="already_running", run_uid="live123"),
+        )
+
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        fid = _seed_followed(conn, 1, "Test Show")
+        conn.commit()
+        conn.close()
+
+        resp = client.post(
+            f"/api/acquisition/follows/{fid}/seasons/1/grab",
+            cookies=_auth_cookies(),
+            headers=_xrw_headers(),
+        )
+
+        assert resp.json()["run_uid"] == "live123"
+        assert resp.json()["run_started"] is True
+
+    def test_failed_enqueue_returns_no_run_uid(
+        self,
+        client: TestClient,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A dead spawn carries no uid — there is no run to show (§5)."""
+        from personalscraper.web.routes.acquisition_triggers import PrimeResult
+
+        monkeypatch.setattr(
+            "personalscraper.web.routes.acquisition_seasons.enqueue_prime_run",
+            lambda db_path, followed_id: PrimeResult(outcome="failed", run_uid=None),
+        )
+
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        fid = _seed_followed(conn, 1, "Test Show")
+        conn.commit()
+        conn.close()
+
+        resp = client.post(
+            f"/api/acquisition/follows/{fid}/seasons/1/grab",
+            cookies=_auth_cookies(),
+            headers=_xrw_headers(),
+        )
+
+        assert resp.json()["run_uid"] is None
+        assert resp.json()["run_started"] is False

@@ -3721,7 +3721,7 @@
         "type": "object"
       },
       "SeasonGrabResponse": {
-        "description": "Response for a season grab request (R4).\n\nAttributes:\n    season_wanted_id: Rowid of the season wanted row (new or existing).\n    season: Season number (1-based).\n    absorbed_count: Number of episode rows absorbed by this season wanted.\n    reused: ``True`` when an existing LIVE season row was returned (HTTP\n        200) instead of a freshly created one (HTTP 201).\n    run_started: Whether a scoped acquisition run was actually queued by this\n        call. Reports the REAL outcome of the enqueue (\u00a75 \u2014 a success toast\n        over a dead run is forbidden): ``False`` when the indexer is\n        unconfigured, the spawn failed, or the row was merely reused. The\n        season row exists either way and the next cron will pick it up.",
+        "description": "Response for a season grab request (R4).\n\nAttributes:\n    season_wanted_id: Rowid of the season wanted row (new or existing).\n    season: Season number (1-based).\n    absorbed_count: Number of episode rows absorbed by this season wanted.\n    reused: ``True`` when an existing LIVE season row was returned (HTTP\n        200) instead of a freshly created one (HTTP 201).\n    run_started: Whether a scoped acquisition run was actually queued by this\n        call. Reports the REAL outcome of the enqueue (\u00a75 \u2014 a success toast\n        over a dead run is forbidden): ``False`` when the indexer is\n        unconfigured, the spawn failed, or the row was merely reused. The\n        season row exists either way and the next cron will pick it up.\n    run_uid: Identifier of the run to follow \u2014 freshly spawned, or the\n        in-flight one this call joined. ``None`` when nothing runs. \u00a75\n        requires the manual trigger to SHOW the run: the UI polls this uid to\n        its numbered result (\u00ab X d\u00e9tect\u00e9s, Y disponibles, Z r\u00e9cup\u00e9r\u00e9s \u00bb) or\n        to the real error, instead of toasting a blind success on the 201.",
         "properties": {
           "absorbed_count": {
             "title": "Absorbed Count",
@@ -3736,6 +3736,17 @@
             "default": false,
             "title": "Run Started",
             "type": "boolean"
+          },
+          "run_uid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Uid"
           },
           "season": {
             "title": "Season",

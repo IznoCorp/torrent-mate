@@ -730,6 +730,11 @@ class SeasonGrabResponse(BaseModel):
             over a dead run is forbidden): ``False`` when the indexer is
             unconfigured, the spawn failed, or the row was merely reused. The
             season row exists either way and the next cron will pick it up.
+        run_uid: Identifier of the run to follow — freshly spawned, or the
+            in-flight one this call joined. ``None`` when nothing runs. §5
+            requires the manual trigger to SHOW the run: the UI polls this uid to
+            its numbered result (« X détectés, Y disponibles, Z récupérés ») or
+            to the real error, instead of toasting a blind success on the 201.
     """
 
     season_wanted_id: int
@@ -737,3 +742,4 @@ class SeasonGrabResponse(BaseModel):
     absorbed_count: int
     reused: bool = False
     run_started: bool = False
+    run_uid: str | None = None

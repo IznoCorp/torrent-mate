@@ -15,6 +15,7 @@ import sys
 import uuid
 from collections.abc import Callable
 from contextlib import closing
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, cast
 
@@ -35,6 +36,31 @@ logger = get_logger(__name__)
 #: priming run in flight (spawned / already running) is « vérification en
 #: cours », a failed enqueue leaves the card on its derived (honest) state.
 PrimeOutcome = Literal["spawned", "already_running", "failed"]
+
+
+@dataclass(frozen=True)
+class PrimeResult:
+    """Outcome of an amorce enqueue, WITH the run it points at.
+
+    The outcome alone cannot satisfy §5 (« le déclenchement manuel montre le
+    run »): a caller that only learns « something started » has nothing to poll.
+    Carrying the uid lets every manual entry point follow its run to the real,
+    numbered result — or to the real error.
+
+    Attributes:
+        outcome: What the enqueue did (``spawned`` / ``already_running`` /
+            ``failed``).
+        run_uid: The run to follow — freshly spawned, or the in-flight one this
+            call joined. ``None`` only when nothing runs (``failed``).
+    """
+
+    outcome: PrimeOutcome
+    run_uid: str | None
+
+    @property
+    def started(self) -> bool:
+        """Whether a run is actually in flight for this call."""
+        return self.outcome in ("spawned", "already_running")
 
 
 # ── POST /api/acquisition/followed/{id}/search — per-series manual grab (OBJ3) ──
@@ -75,8 +101,8 @@ def pid_is_alive(pid: int | None) -> bool:
     return True
 
 
-def _has_live_run(db_path: Path, command: str, options_json: str) -> bool:
-    """Report whether an acquisition run with the same scope is still in flight.
+def _live_run_uid(db_path: Path, command: str, options_json: str) -> str | None:
+    """Return the uid of an in-flight acquisition run with the same scope, if any.
 
     Scans ``pipeline_run`` for an un-ended row of the given *command* whose
     ``options_json`` matches (same followed series / same detect scope) and
@@ -92,24 +118,31 @@ def _has_live_run(db_path: Path, command: str, options_json: str) -> bool:
         options_json: The canonical options string for the run scope.
 
     Returns:
-        ``True`` when a live matching run exists, ``False`` otherwise (also on
-        a missing DB or an unreadable ``pipeline_run`` — the guard fails open
+        The live run's ``run_uid``, or ``None`` when none matches (also on a
+        missing DB or an unreadable ``pipeline_run`` — the guard fails open
         rather than blocking a legitimate action).
+
+        The uid, not a bool: §5 requires the manual trigger to SHOW the run, and
+        an operator who joins a run already in flight must be able to follow THAT
+        run to its numbered result. A boolean cannot be polled.
     """
     if not db_path.exists():
-        return False
+        return None
     try:
         with closing(sqlite3.connect(str(db_path))) as conn:
             apply_pragmas(conn)
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
-                "SELECT pid FROM pipeline_run WHERE command = ? AND ended_at IS NULL AND options_json = ?",
+                "SELECT run_uid, pid FROM pipeline_run WHERE command = ? AND ended_at IS NULL AND options_json = ?",
                 (command, options_json),
             ).fetchall()
     except sqlite3.Error:
         logger.warning("grab_guard_query_failed", command=command, exc_info=True)
-        return False
-    return any(pid_is_alive(row["pid"]) for row in rows)
+        return None
+    for row in rows:
+        if pid_is_alive(row["pid"]):
+            return str(row["run_uid"])
+    return None
 
 
 def _guard_no_running_grab(db_path: Path, options_json: str, command: str = "grab") -> None:
@@ -123,7 +156,7 @@ def _guard_no_running_grab(db_path: Path, options_json: str, command: str = "gra
     Raises:
         HTTPException: 409 when a live matching run is already running.
     """
-    if _has_live_run(db_path, command, options_json):
+    if _live_run_uid(db_path, command, options_json) is not None:
         raise HTTPException(status_code=409, detail="A matching acquisition run is already in flight")
 
 
@@ -179,7 +212,7 @@ def _spawn_prime_runner(run_uid: str, followed_id: int) -> int:
     return proc.pid
 
 
-def enqueue_prime_run(db_path: Path | None, followed_id: int) -> PrimeOutcome:
+def enqueue_prime_run(db_path: Path | None, followed_id: int) -> PrimeResult:
     """Enqueue the amorce of a freshly followed (or reactivated) series.
 
     Reserves a ``pipeline_run`` row (``kind='maintenance'``, ``command='prime'``)
@@ -198,17 +231,21 @@ def enqueue_prime_run(db_path: Path | None, followed_id: int) -> PrimeOutcome:
         followed_id: Rowid of the ``followed_series`` row to prime.
 
     Returns:
-        ``'spawned'`` when a new priming run started, ``'already_running'``
-        when one was already in flight, ``'failed'`` when nothing runs.
+        A :class:`PrimeResult` carrying what happened AND the run to follow:
+        ``spawned`` with the fresh uid, ``already_running`` with the in-flight
+        run's uid (the caller joins it, §6), or ``failed`` with ``None``.
     """
     if db_path is None:
         logger.warning("prime_enqueue_no_db_path", followed_id=followed_id)
-        return "failed"
+        return PrimeResult(outcome="failed", run_uid=None)
 
     options_json = prime_options_json(followed_id)
-    if _has_live_run(db_path, "prime", options_json):
-        logger.info("prime_already_running", followed_id=followed_id)
-        return "already_running"
+    live_uid = _live_run_uid(db_path, "prime", options_json)
+    if live_uid is not None:
+        logger.info("prime_already_running", followed_id=followed_id, run_uid=live_uid)
+        # §6: not a refusal — the operator joins the run already doing the work,
+        # and gets ITS uid so the UI can follow it to its numbered result (§5).
+        return PrimeResult(outcome="already_running", run_uid=live_uid)
 
     run_uid = uuid.uuid4().hex
     writer = PipelineRunWriter(db_path)
@@ -231,7 +268,7 @@ def enqueue_prime_run(db_path: Path | None, followed_id: int) -> PrimeOutcome:
         # Report it like every other amorce failure — with the follow it
         # concerns and the reason.
         logger.warning("prime_reserve_failed", run_uid=run_uid, followed_id=followed_id, error=str(exc))
-        return "failed"
+        return PrimeResult(outcome="failed", run_uid=None)
     try:
         pid = _spawn_prime_runner(run_uid, followed_id)
     except Exception as exc:  # noqa: BLE001 — the 201 must never depend on the amorce
@@ -242,7 +279,7 @@ def enqueue_prime_run(db_path: Path | None, followed_id: int) -> PrimeOutcome:
         except sqlite3.Error:
             logger.warning("prime_finalize_failed", run_uid=run_uid, followed_id=followed_id)
         logger.warning("prime_spawn_failed", run_uid=run_uid, followed_id=followed_id, error=str(exc))
-        return "failed"
+        return PrimeResult(outcome="failed", run_uid=None)
 
     try:
         writer.update_pid(run_uid, pid)
@@ -251,7 +288,7 @@ def enqueue_prime_run(db_path: Path | None, followed_id: int) -> PrimeOutcome:
         # liveness guard reads that pid, so a row stuck on the web process's
         # pid is a fact the operator may need.
         logger.warning("prime_update_pid_failed", run_uid=run_uid, followed_id=followed_id, pid=pid)
-    return "spawned"
+    return PrimeResult(outcome="spawned", run_uid=run_uid)
 
 
 @router.post(

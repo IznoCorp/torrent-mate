@@ -643,11 +643,17 @@ describe("CompletenessAccordion — season grab button (R4)", () => {
     expect(screen.getByRole("button", { name: /Mise en file/ })).toBeDisabled();
   });
 
-  it("calls grabSeason with correct payload and toasts on success", async () => {
+  // §5 (acq-run-visible): the 201 no longer toasts SUCCESS. Enqueuing a row is
+  // not an acquisition; the success line belongs to the run's real, numbered
+  // result. The launch is announced as information and the run is then followed.
+  it("calls grabSeason with correct payload and ANNOUNCES the launch", async () => {
     grabSeasonMock.mockResolvedValue({
       season_wanted_id: 42,
       season: 1,
       absorbed_count: 3,
+      reused: false,
+      run_started: true,
+      run_uid: "run-xyz",
     });
 
     mockCompleteness(
@@ -677,10 +683,11 @@ describe("CompletenessAccordion — season grab button (R4)", () => {
     });
 
     await waitFor(() => {
-      expect(toastSuccessMock).toHaveBeenCalledWith(
-        expect.stringContaining("Saison 1 mise en file"),
+      expect(toastInfoMock).toHaveBeenCalledWith(
+        expect.stringContaining("Saison 1 lancée"),
       );
     });
+    expect(toastSuccessMock).not.toHaveBeenCalled();
   });
 
   it("toasts an informational « déjà en file » when the season row is reused", async () => {
@@ -750,11 +757,16 @@ describe("CompletenessAccordion — season grab button (R4)", () => {
     });
   });
 
-  it("shows absorbed count in the success toast when episodes were absorbed", async () => {
+  // §5 (acq-run-visible): the absorbed count belongs to the LAUNCH line, which
+  // is informational — the success line is reserved for the run's real result.
+  it("shows absorbed count in the launch toast when episodes were absorbed", async () => {
     grabSeasonMock.mockResolvedValue({
       season_wanted_id: 7,
       season: 2,
       absorbed_count: 5,
+      reused: false,
+      run_started: true,
+      run_uid: "run-xyz",
     });
 
     mockCompleteness(
@@ -779,10 +791,11 @@ describe("CompletenessAccordion — season grab button (R4)", () => {
     fireEvent.click(btn);
 
     await waitFor(() => {
-      expect(toastSuccessMock).toHaveBeenCalledWith(
-        "Saison 2 mise en file — 5 épisodes absorbés",
+      expect(toastInfoMock).toHaveBeenCalledWith(
+        expect.stringContaining("Saison 2 lancée — 5 épisodes absorbés"),
       );
     });
+    expect(toastSuccessMock).not.toHaveBeenCalled();
   });
 
   it("does NOT render grab button when total is 0 (empty season)", () => {
@@ -807,5 +820,182 @@ describe("CompletenessAccordion — season grab button (R4)", () => {
     expect(
       screen.queryByRole("button", { name: /Récupérer la saison/ }),
     ).not.toBeInTheDocument();
+  });
+});
+
+// ── §5 — « le déclenchement manuel montre le run » ─────────────────────
+
+describe("CompletenessAccordion — le run manuel est montré (§5)", () => {
+  /** Mock the tracked run the season grab hands back. */
+  function mockTrackedRun(
+    run: { ended_at?: number | null; outcome?: string; result?: Record<string, number> | null } | undefined,
+  ): void {
+    vi.spyOn(hooks, "useTrackedAcquisitionRun").mockReturnValue(
+      run as unknown as ReturnType<typeof hooks.useTrackedAcquisitionRun>,
+    );
+  }
+
+  const oneSeason = () =>
+    makeCompleteness({
+      seasons: [
+        {
+          season: 1,
+          owned: 0,
+          queued: 0,
+          total: 5,
+          announced: 0,
+          episodes: [
+            { episode: 1, state: "en_attente", title: null, air_date: null },
+          ],
+        },
+      ],
+    });
+
+  it("annonce le lancement sans promettre le succès, puis suit le run", async () => {
+    // §5 : un toast de SUCCÈS sur un 201 est un succès promis avant que le run
+    // ait produit quoi que ce soit. Au lancement on informe ; le succès n'arrive
+    // qu'avec le résultat chiffré.
+    grabSeasonMock.mockResolvedValue({
+      season_wanted_id: 42,
+      season: 1,
+      absorbed_count: 3,
+      reused: false,
+      run_started: true,
+      run_uid: "run-abc",
+    });
+    mockTrackedRun(undefined); // le run n'a pas encore fini
+    mockCompleteness(oneSeason());
+    renderOpen();
+
+    fireEvent.click(screen.getByRole("button", { name: /Récupérer la saison/ }));
+
+    await waitFor(() => {
+      expect(toastInfoMock).toHaveBeenCalledWith(
+        expect.stringContaining("Saison 1 lancée"),
+      );
+    });
+    expect(toastSuccessMock).not.toHaveBeenCalled();
+  });
+
+  it("montre « Acquisition en cours… » tant que le run tourne", async () => {
+    grabSeasonMock.mockResolvedValue({
+      season_wanted_id: 42,
+      season: 1,
+      absorbed_count: 0,
+      reused: false,
+      run_started: true,
+      run_uid: "run-abc",
+    });
+    mockTrackedRun(undefined);
+    mockCompleteness(oneSeason());
+    renderOpen();
+
+    fireEvent.click(screen.getByRole("button", { name: /Récupérer la saison/ }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /Acquisition en cours/ }),
+      ).toBeDisabled();
+    });
+  });
+
+  it("toaste le résultat CHIFFRÉ quand le run se termine", async () => {
+    grabSeasonMock.mockResolvedValue({
+      season_wanted_id: 42,
+      season: 1,
+      absorbed_count: 2,
+      reused: false,
+      run_started: true,
+      run_uid: "run-abc",
+    });
+    // Le run est déjà terminé au premier rendu : le composant doit lire SON
+    // résultat, pas répéter une promesse.
+    mockTrackedRun({
+      ended_at: 1_751_000_100,
+      outcome: "success",
+      result: { detected: 5, available: 3, grabbed: 2 },
+    });
+    mockCompleteness(oneSeason());
+    renderOpen();
+
+    fireEvent.click(screen.getByRole("button", { name: /Récupérer la saison/ }));
+
+    await waitFor(() => {
+      expect(toastSuccessMock).toHaveBeenCalledWith(
+        expect.stringMatching(/Saison 1 terminée — .*5.*3.*2/),
+      );
+    });
+  });
+
+  it("dit « rien de nouveau » plutôt que d'inventer un succès", async () => {
+    grabSeasonMock.mockResolvedValue({
+      season_wanted_id: 42,
+      season: 1,
+      absorbed_count: 0,
+      reused: false,
+      run_started: true,
+      run_uid: "run-abc",
+    });
+    mockTrackedRun({ ended_at: 1_751_000_100, outcome: "success", result: {} });
+    mockCompleteness(oneSeason());
+    renderOpen();
+
+    fireEvent.click(screen.getByRole("button", { name: /Récupérer la saison/ }));
+
+    await waitFor(() => {
+      expect(toastSuccessMock).toHaveBeenCalledWith(
+        expect.stringContaining("rien de nouveau"),
+      );
+    });
+  });
+
+  it("remonte bruyamment un run mort — jamais un toast de succès", async () => {
+    // §5 : « un toast de succès sur un run mort est interdit ; l'échec remonte
+    // bruyamment ».
+    grabSeasonMock.mockResolvedValue({
+      season_wanted_id: 42,
+      season: 1,
+      absorbed_count: 0,
+      reused: false,
+      run_started: true,
+      run_uid: "run-abc",
+    });
+    mockTrackedRun({ ended_at: 1_751_000_100, outcome: "error", result: null });
+    mockCompleteness(oneSeason());
+    renderOpen();
+
+    fireEvent.click(screen.getByRole("button", { name: /Récupérer la saison/ }));
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        expect.stringContaining("Saison 1"),
+      );
+    });
+    expect(toastSuccessMock).not.toHaveBeenCalled();
+  });
+
+  it("le dit quand AUCUN run n'a démarré — pas de run fantôme à suivre", async () => {
+    // run_started=false : la ligne saison existe, mais rien ne tourne. Prétendre
+    // le contraire serait exactement le mensonge que le §2 interdit.
+    grabSeasonMock.mockResolvedValue({
+      season_wanted_id: 42,
+      season: 1,
+      absorbed_count: 0,
+      reused: false,
+      run_started: false,
+      run_uid: null,
+    });
+    mockTrackedRun(undefined);
+    mockCompleteness(oneSeason());
+    renderOpen();
+
+    fireEvent.click(screen.getByRole("button", { name: /Récupérer la saison/ }));
+
+    await waitFor(() => {
+      expect(toastInfoMock).toHaveBeenCalledWith(
+        expect.stringContaining("prochaine passe"),
+      );
+    });
+    expect(toastSuccessMock).not.toHaveBeenCalled();
   });
 });
