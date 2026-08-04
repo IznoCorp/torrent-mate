@@ -71,6 +71,30 @@ class TestMapLanguage:
         """Unknown code falls back to eng."""
         assert map_language("xx") == "eng"
 
+    def test_locale_fr_fr_maps_to_fra(self) -> None:
+        """Regression: fr-FR must map to fra, not eng."""
+        assert map_language("fr-FR") == "fra"
+
+    def test_locale_underscore_fr_fr_maps_to_fra(self) -> None:
+        """fr_FR (underscore variant) → fra."""
+        assert map_language("fr_FR") == "fra"
+
+    def test_locale_mixed_case_fr_fr_maps_to_fra(self) -> None:
+        """FR-fr (mixed case) → fra."""
+        assert map_language("FR-fr") == "fra"
+
+    def test_locale_pt_br_maps_to_por(self) -> None:
+        """pt-BR → por."""
+        assert map_language("pt-BR") == "por"
+
+    def test_3char_passthrough(self) -> None:
+        """3-char codes pass through unchanged."""
+        assert map_language("fra") == "fra"
+
+    def test_unknown_locale_falls_back_to_eng(self) -> None:
+        """Unknown locale (xx-YY) still falls back to eng."""
+        assert map_language("xx-YY") == "eng"
+
 
 class TestParseSearchResult:
     """Search result parsing from golden samples."""

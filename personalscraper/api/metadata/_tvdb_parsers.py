@@ -49,19 +49,27 @@ _LANG_MAP: dict[str, str] = {
 
 
 def map_language(pipeline_code: str) -> str:
-    """Map a 2-char pipeline language code to a 3-char TVDB code.
+    """Map a pipeline language code to a 3-char TVDB code.
 
-    3-char codes pass through unchanged.
+    3-char codes pass through unchanged.  Locale strings (``"fr-FR"``,
+    ``"fr_FR"``) are normalised to their primary subtag before lookup
+    so that ``"fr-FR"`` → ``"fra"`` instead of falling through to
+    ``"eng"`` — a silent regression that affected every caller passing
+    a locale (the web sheet endpoint, the scraper factory, and every
+    NFO written since the media-sheet shipped).
 
     Args:
-        pipeline_code: 2-char ISO code (e.g. "fr", "en") or 3-char code.
+        pipeline_code: 2-char ISO code (e.g. ``"fr"``, ``"en"``),
+            3-char code (e.g. ``"fra"``), or locale (e.g. ``"fr-FR"``).
 
     Returns:
-        3-char TVDB code, falling back to "eng" for unknown codes.
+        3-char TVDB code, falling back to ``"eng"`` for unknown codes.
     """
     if len(pipeline_code) == 3:
         return pipeline_code
-    return _LANG_MAP.get(pipeline_code, "eng")
+    # Normalise locale strings: "fr-FR", "fr_FR", "FR-fr" → "fr"
+    primary = pipeline_code.lower().replace("_", "-").split("-")[0]
+    return _LANG_MAP.get(primary, "eng")
 
 
 # -- Envelope handling -------------------------------------------------------
