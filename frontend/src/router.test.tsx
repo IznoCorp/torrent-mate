@@ -148,6 +148,26 @@ beforeEach(() => {
     if (url.includes("/api/maintenance/schedulers")) {
       return Promise.resolve(buildResponse(200, { schedulers: [] }));
     }
+    if (url.includes("/api/media")) {
+      return Promise.resolve(
+        buildResponse(200, {
+          provider: "tmdb",
+          provider_id: "27205",
+          title: "Inception",
+          year: 2010,
+          poster_url: "https://image.tmdb.org/t/p/w500/inception.jpg",
+          overview: "A dream within a dream.",
+          director: "Christopher Nolan",
+          genres: ["Action"],
+          trailer_url: "https://www.youtube.com/watch?v=YoHD9XEInc0",
+          series_status: null,
+          episode_count: null,
+          seasons: [],
+          ownership: { owned: true, seasons: [] },
+          degraded_reason: null,
+        }),
+      );
+    }
     // Unmocked endpoints: an honest 404 — panels show their error state
     // instead of crashing on a fake 200 with a non-contract body.
     return Promise.resolve(buildResponse(404, { detail: "not mocked" }));
@@ -638,5 +658,20 @@ describe("router", () => {
       expect(router.state.location.pathname).toBe("/login");
       expect(router.state.location.search).toBe("?redirect=/pipeline");
     });
+  });
+
+  // --- Media sheet route mirror test (DESIGN D7/D8) ---
+
+  it("monte la fiche média sur « /media/tmdb/27205 »", async () => {
+    renderAt("/media/tmdb/27205");
+
+    // The media sheet resolves and renders its root testid.
+    expect(
+      await screen.findByTestId("media-sheet"),
+    ).toBeInTheDocument();
+    // Title is rendered inside the sheet.
+    expect(
+      await screen.findByRole("heading", { name: "Inception" }),
+    ).toBeInTheDocument();
   });
 });
