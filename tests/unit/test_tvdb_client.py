@@ -395,6 +395,79 @@ class TestGetSeriesAndMovie:
         assert md.title == "Breaking Bad"
 
 
+# ── Episode counts from episodes array ─────────────────────────────────
+# Regression (2026-08-04): the client was calling ``/series/{id}/extended``
+# WITHOUT ``?meta=episodes``, so TVDB returned ``episodes: null`` and the
+# per-season episode-count grouping had nothing to group — every season
+# showed zero.  The fix adds ``include_episodes: bool`` to ``get_series``
+# and only the media-sheet path (``get_tv``) enables it.
+
+
+class TestEpisodeCountsFromSeriesExtended:
+    """Tests for deriving per-season episode counts from the ``episodes`` array."""
+
+    def test_include_episodes_passes_meta_param(self, client: TVDBClient, transport: MagicMock) -> None:
+        """``get_series(id, include_episodes=True)`` passes ``?meta=episodes``."""
+        extended = _load("series_extended.json")
+        translation = {
+            "status": "success",
+            "data": {"name": "", "overview": "", "language": "fra"},
+        }
+        transport.get.side_effect = [extended, translation]
+        client.get_series(81189, include_episodes=True)
+        first_call_kwargs = transport.get.call_args_list[0].kwargs
+        assert first_call_kwargs.get("params") == {"meta": "episodes"}, (
+            f"Expected params={{'meta': 'episodes'}}, got {first_call_kwargs.get('params')}"
+        )
+
+    def test_episode_counts_from_golden_fixture_with_episodes(self) -> None:
+        """Golden fixture with ``?meta=episodes``: 256 episodes, per-season counts verified."""
+        raw = _load("series_extended_with_episodes.json")["data"]
+        from personalscraper.api.metadata._tvdb_parsers import parse_media_details
+
+        md = parse_media_details(raw, "tvdb")
+        assert md.episode_count == 256, f"Expected 256 total, got {md.episode_count}"
+
+        expected = {
+            0: 22,
+            1: 7,
+            2: 10,
+            3: 11,
+            4: 13,
+            5: 14,
+            6: 12,
+            7: 13,
+            8: 13,
+            9: 13,
+            10: 14,
+            11: 18,
+            12: 18,
+            13: 18,
+            14: 15,
+            15: 15,
+            16: 15,
+            17: 15,
+        }
+        for season in md.seasons:
+            expected_count = expected.get(season.season_number)
+            assert expected_count is not None, f"Unexpected season {season.season_number}"
+            assert season.episode_count == expected_count, (
+                f"Season {season.season_number}: expected {expected_count}, got {season.episode_count}"
+            )
+
+    def test_episode_counts_none_when_episodes_null(self) -> None:
+        """When ``episodes`` is ``null``, total is ``None`` and every season shows ``0``."""
+        raw = _load("series_extended.json")["data"]
+        from personalscraper.api.metadata._tvdb_parsers import parse_media_details
+
+        md = parse_media_details(raw, "tvdb")
+        assert md.episode_count is None, f"Expected None (no episode data), got {md.episode_count}"
+        for season in md.seasons:
+            assert season.episode_count == 0, (
+                f"Season {season.season_number}: expected 0 (no data), got {season.episode_count}"
+            )
+
+
 # ── get_artwork_urls (already partly covered in test_tvdb_artwork_endpoint) ──
 
 

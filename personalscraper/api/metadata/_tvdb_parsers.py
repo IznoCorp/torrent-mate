@@ -49,19 +49,27 @@ _LANG_MAP: dict[str, str] = {
 
 
 def map_language(pipeline_code: str) -> str:
-    """Map a 2-char pipeline language code to a 3-char TVDB code.
+    """Map a pipeline language code to a 3-char TVDB code.
 
-    3-char codes pass through unchanged.
+    3-char codes pass through unchanged.  Locale strings (``"fr-FR"``,
+    ``"fr_FR"``) are normalised to their primary subtag before lookup
+    so that ``"fr-FR"`` → ``"fra"`` instead of falling through to
+    ``"eng"`` — a silent regression that affected every caller passing
+    a locale (the web sheet endpoint, the scraper factory, and every
+    NFO written since the media-sheet shipped).
 
     Args:
-        pipeline_code: 2-char ISO code (e.g. "fr", "en") or 3-char code.
+        pipeline_code: 2-char ISO code (e.g. ``"fr"``, ``"en"``),
+            3-char code (e.g. ``"fra"``), or locale (e.g. ``"fr-FR"``).
 
     Returns:
-        3-char TVDB code, falling back to "eng" for unknown codes.
+        3-char TVDB code, falling back to ``"eng"`` for unknown codes.
     """
     if len(pipeline_code) == 3:
         return pipeline_code
-    return _LANG_MAP.get(pipeline_code, "eng")
+    # Normalise locale strings: "fr-FR", "fr_FR", "FR-fr" → "fr"
+    primary = pipeline_code.lower().replace("_", "-").split("-")[0]
+    return _LANG_MAP.get(primary, "eng")
 
 
 # -- Envelope handling -------------------------------------------------------
@@ -341,8 +349,15 @@ def parse_media_details(raw: dict[str, Any], provider: str) -> MediaDetails:
             origin_countries.append(normalised)
 
     # Seasons summary (TVDB extended series response has ``seasons[*]``
-    # with ``number`` / ``episodeCount`` / ``image``). For movies this
-    # field is absent; the loop below produces an empty list.
+    # with ``number`` and ``image``, but NO ``episodeCount`` — the
+    # media-sheet shipped with every season showing 0 because the parser
+    # was reading a key that does not exist). For movies this field is
+    # absent; the loop below produces an empty list.
+    #
+    # Derive per-season counts from the ``episodes`` array (same response),
+    # grouping on ``seasonNumber``.  When the array is absent (trimmed
+    # golden fixture, edge-case series), leave counts at 0 so the UI can
+    # say « inconnu » honestly.
     #
     # TVDB v4 lists one season record per (number × order type): official
     # (aired), dvd, absolute, alternate… Keeping them all duplicated every
@@ -351,10 +366,21 @@ def parse_media_details(raw: dict[str, Any], provider: str) -> MediaDetails:
     # per-season API calls. Keep the official order when present, and dedupe
     # by number regardless (first record wins).
     raw_seasons = [s for s in (raw.get("seasons", []) or []) if isinstance(s, dict)]
+    raw_episodes = raw.get("episodes") or []
 
     def _order_type(entry: dict[str, Any]) -> str | None:
         entry_type = entry.get("type")
         return entry_type.get("type") if isinstance(entry_type, dict) else None
+
+    # Group episodes by season number to derive per-season counts.
+    episode_counts_by_season: dict[int, int] = {}
+    if isinstance(raw_episodes, list):
+        for ep in raw_episodes:
+            if not isinstance(ep, dict):
+                continue
+            sn = ep.get("seasonNumber")
+            if isinstance(sn, int):
+                episode_counts_by_season[sn] = episode_counts_by_season.get(sn, 0) + 1
 
     official = [s for s in raw_seasons if _order_type(s) == "official"]
     seasons: list[SeasonInfo] = []
@@ -364,10 +390,24 @@ def parse_media_details(raw: dict[str, Any], provider: str) -> MediaDetails:
         if not isinstance(s_num, int) or s_num in seen_numbers:
             continue
         seen_numbers.add(s_num)
+        # Episode count per season: prefer the count derived from the
+        # root ``episodes`` array (real-world path — the live API does
+        # NOT send ``episodeCount`` on season objects). Fall back to
+        # the season's own ``episodeCount`` when the episodes array is
+        # absent AND the season carries that key (legacy fixtures,
+        # other API shapes). Otherwise 0 (honest unknown).
+        ep_count = 0
+        derived = episode_counts_by_season.get(s_num)
+        if derived is not None:
+            ep_count = derived
+        else:
+            sc = s.get("episodeCount")
+            if isinstance(sc, int) and sc > 0:
+                ep_count = sc
         seasons.append(
             SeasonInfo(
                 season_number=s_num,
-                episode_count=int(s.get("episodeCount") or 0),
+                episode_count=ep_count,
                 overview=s.get("overview") or "",
                 poster_url=s.get("image") or "",
             )
@@ -417,9 +457,12 @@ def parse_media_details(raw: dict[str, Any], provider: str) -> MediaDetails:
                     director = person_name
                     break
 
-    # Episode count: TVDB series extended response does not carry a single
-    # ``number_of_episodes`` field. Leave ``None`` (D4/D9: never invent).
+    # Episode count: derived from the episodes array (not a single top-level
+    # field — TVDB extended does not carry ``number_of_episodes``).  When the
+    # episodes array is absent, stay None so the UI can say « inconnu ».
     episode_count: int | None = None
+    if episode_counts_by_season:
+        episode_count = sum(episode_counts_by_season.values())
 
     # Trailer URL: TVDB does not provide YouTube trailers in a structured
     # form compatible with the media-sheet. Leave ``None``.
@@ -446,6 +489,7 @@ def parse_media_details(raw: dict[str, Any], provider: str) -> MediaDetails:
         series_status=series_status,
         episode_count=episode_count,
         trailer_url=trailer_url,
+        creator=None,  # TVDB has no created_by — the sheet endpoint crosses TMDB
     )
 
 

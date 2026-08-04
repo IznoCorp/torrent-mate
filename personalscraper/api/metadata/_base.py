@@ -147,6 +147,10 @@ class MediaDetails:
         trailer_url: YouTube URL of the first official trailer
             (``"https://www.youtube.com/watch?v=<key>"``).
             ``None`` when no trailer is available.
+        creator: Series creator name (from TMDB ``created_by[0]["name"]``).
+            ``None`` for movies, when the provider does not supply it, or
+            when the cross-provider lookup fails — never an empty string
+            (operator arbitration 2026-08-04: cross TMDB for TVDB series).
     """
 
     provider: str
@@ -169,6 +173,7 @@ class MediaDetails:
     series_status: str | None = None
     episode_count: int | None = None
     trailer_url: str | None = None
+    creator: str | None = None
 
 
 @dataclass(frozen=True)

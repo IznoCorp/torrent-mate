@@ -60,10 +60,58 @@ class TestTVDBSeriesMediaSheet:
         assert isinstance(md.series_status, str)
         assert md.series_status != ""
 
-    def test_episode_count_none_tvdb_no_single_field(self) -> None:
-        """TVDB extended lacks a single number_of_episodes — stays None."""
+    def test_episode_count_none_when_episodes_absent(self) -> None:
+        """When the episodes array is absent/null, episode_count stays None."""
         data = _load_unwrapped("series_extended.json")
         md = parse_media_details(data, "tvdb")
+        assert md.episode_count is None
+
+    def test_episode_counts_derived_from_episodes_array(self) -> None:
+        """Per-season counts and series total derived from episodes[].seasonNumber."""
+        md = parse_media_details(
+            {
+                "id": 81189,
+                "name": "Breaking Bad",
+                "firstAired": "2008-01-20",
+                "status": {"id": 2, "name": "Ended"},
+                "seasons": [
+                    {"number": 1, "type": {"type": "official"}},
+                    {"number": 2, "type": {"type": "official"}},
+                ],
+                "episodes": [
+                    {"seasonNumber": 1, "number": 1, "name": "Pilot"},
+                    {"seasonNumber": 1, "number": 2, "name": "Cat's in the Bag..."},
+                    {"seasonNumber": 1, "number": 3, "name": "And the Bag's in the River"},
+                    {"seasonNumber": 2, "number": 1, "name": "Seven Thirty-Seven"},
+                    {"seasonNumber": 2, "number": 2, "name": "Grilled"},
+                ],
+            },
+            "tvdb",
+        )
+        # Per-season counts
+        assert len(md.seasons) == 2
+        s1 = next(s for s in md.seasons if s.season_number == 1)
+        s2 = next(s for s in md.seasons if s.season_number == 2)
+        assert s1.episode_count == 3
+        assert s2.episode_count == 2
+        # Series total
+        assert md.episode_count == 5
+
+    def test_season_episode_count_zero_when_episodes_absent(self) -> None:
+        """When episodes are absent, per-season counts are 0 (honest default)."""
+        md = parse_media_details(
+            {
+                "id": 99999,
+                "name": "No Episodes Show",
+                "firstAired": "2020-01-01",
+                "seasons": [
+                    {"number": 1, "type": {"type": "official"}},
+                ],
+            },
+            "tvdb",
+        )
+        assert len(md.seasons) == 1
+        assert md.seasons[0].episode_count == 0
         assert md.episode_count is None
 
     def test_trailer_url_none_tvdb_no_structured_trailer(self) -> None:

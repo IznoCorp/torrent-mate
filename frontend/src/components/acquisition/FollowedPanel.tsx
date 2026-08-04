@@ -271,22 +271,50 @@ export function FollowedPanel({
             <div key={`f-${String(item.id)}`} className="flex flex-col">
               {/* Compact row */}
               <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-2">
-                {/* Poster thumb (~72 px height, 2:3 ratio) — DS MediaPoster
-                    handles the image + graceful initials fallback. */}
-                <div className="shrink-0">
-                  <MediaPoster
-                    title={item.title}
-                    src={item.poster_url ?? null}
-                    className="w-[48px]"
-                  />
-                </div>
+                {/* Poster thumb — clickable when a media sheet is available (§11). */}
+                {sheetHref !== null ? (
+                  <button
+                    type="button"
+                    className="shrink-0"
+                    onClick={() => {
+                      void navigate(sheetHref);
+                    }}
+                    aria-label={`Fiche de ${item.title}`}
+                  >
+                    <MediaPoster
+                      title={item.title}
+                      src={item.poster_url ?? null}
+                      className="w-[48px]"
+                    />
+                  </button>
+                ) : (
+                  <div className="shrink-0">
+                    <MediaPoster
+                      title={item.title}
+                      src={item.poster_url ?? null}
+                      className="w-[48px]"
+                    />
+                  </div>
+                )}
 
                 {/* Title + metadata */}
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-medium">
-                      {item.title}
-                    </span>
+                    {sheetHref !== null ? (
+                      <button
+                        type="button"
+                        className="truncate text-sm font-medium hover:underline"
+                        onClick={() => {
+                          void navigate(sheetHref);
+                        }}
+                      >
+                        {item.title}
+                      </button>
+                    ) : (
+                      <span className="truncate text-sm font-medium">
+                        {item.title}
+                      </span>
+                    )}
                     {/* Status chip: pure mapping of the SERVER state — no
                         client-side derivation. The wrapper's title spells the
                         state out so « En attente » and « Non vérifié », which

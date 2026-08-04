@@ -429,16 +429,24 @@ class TVDBClient(
             raw["overview"] = overview
         return raw
 
-    def get_series(self, series_id: int) -> MediaDetails:
+    def get_series(self, series_id: int, *, include_episodes: bool = False) -> MediaDetails:
         """Fetch extended series details (configured-language title/overview).
 
         Args:
             series_id: TVDB series ID.
+            include_episodes: When ``True``, passes ``?meta=episodes`` so the
+                response includes the full ``episodes`` array (otherwise the
+                key is ``null``).  Only enable this on paths that actually
+                consume the episode counts (e.g. the media-sheet); the
+                payload is significantly larger.
 
         Returns:
             Populated MediaDetails.
         """
-        raw = self._get_dict(f"/series/{series_id}/extended")
+        params: dict[str, object] | None = None
+        if include_episodes:
+            params = {"meta": "episodes"}
+        raw = self._get_dict(f"/series/{series_id}/extended", params=params)
         raw = self._apply_translation(raw, f"/series/{series_id}/translations/{self._tvdb_lang}")
         return parse_media_details(raw, "tvdb")
 
@@ -466,7 +474,7 @@ class TVDBClient(
                 http_status=0,
                 message=f"Non-numeric TVDB id rejected: {provider_id!r}",
             ) from exc
-        return self.get_series(numeric_id)
+        return self.get_series(numeric_id, include_episodes=True)
 
     def get_movie(self, movie_id: str | int) -> MediaDetails:
         """Fetch extended movie details.

@@ -37,6 +37,7 @@ function movieResponse(
     overview:
       "A thief who steals corporate secrets through dream-sharing technology...",
     director: "Christopher Nolan",
+    creator: null,
     genres: ["Action", "Science Fiction", "Thriller"],
     trailer_url: "https://www.youtube.com/watch?v=YoHD9XEInc0",
     kind: "movie",
@@ -65,6 +66,7 @@ function tvResponse(
     overview:
       "Seven noble families fight for control of the mythical land of Westeros.",
     director: null,
+    creator: "David Benioff",
     genres: ["Sci-Fi & Fantasy", "Drama", "Action & Adventure"],
     trailer_url: "https://www.youtube.com/watch?v=KPLWWIOCOOQ",
     kind: "tv",
@@ -320,9 +322,9 @@ describe("MediaSheet", () => {
     expect(completeBadges).toHaveLength(1); // only S01
   });
 
-  // --- Missing director ---
+  // --- Director / Creator (operator arbitration 2026-08-04) ---
 
-  it("affiche « Réalisateur inconnu » quand le réalisateur est absent", async () => {
+  it("affiche « Réalisateur inconnu » quand le réalisateur est absent (film)", async () => {
     getMediaSheetMock.mockResolvedValue(movieResponse({ director: null }));
     renderSheet(sheetProps());
 
@@ -331,6 +333,46 @@ describe("MediaSheet", () => {
     });
 
     expect(screen.getByText("Réalisateur inconnu")).toBeInTheDocument();
+  });
+
+  it("affiche le créateur pour une série (pas le réalisateur)", async () => {
+    getMediaSheetMock.mockResolvedValue(
+      tvResponse({ creator: "David Benioff" }),
+    );
+    renderSheet(sheetProps({ provider: "tmdb", providerId: "1399" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("media-sheet")).toBeInTheDocument();
+    });
+
+    // Must show « Créateur », not « Réalisateur ».
+    expect(screen.getByText("Créateur")).toBeInTheDocument();
+    expect(screen.getByText("David Benioff")).toBeInTheDocument();
+    expect(screen.queryByText("Réalisateur")).not.toBeInTheDocument();
+  });
+
+  it("affiche « Créateur inconnu » pour une série sans créateur", async () => {
+    getMediaSheetMock.mockResolvedValue(tvResponse({ creator: null }));
+    renderSheet(sheetProps({ provider: "tmdb", providerId: "1399" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("media-sheet")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Créateur inconnu")).toBeInTheDocument();
+  });
+
+  it("un film affiche bien « Réalisateur » et jamais « Créateur »", async () => {
+    getMediaSheetMock.mockResolvedValue(movieResponse());
+    renderSheet(sheetProps());
+
+    await waitFor(() => {
+      expect(screen.getByTestId("media-sheet")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Réalisateur")).toBeInTheDocument();
+    expect(screen.getByText("Christopher Nolan")).toBeInTheDocument();
+    expect(screen.queryByText("Créateur")).not.toBeInTheDocument();
   });
 
   // --- No trailer ---
