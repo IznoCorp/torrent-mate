@@ -140,7 +140,27 @@ Plus la ligne correspondante dans « Ce que l'interface DOIT faire » (DOIT-11).
 4. **Câblage des surfaces + § constitution + ACCEPTANCE + gate complet** : les 4 surfaces,
    le nouveau §11 dans `product-intent.md`, le test anti-dérive, preuve mobile.
 
-## 7. Hors périmètre (explicite)
+## 7. Conformité §11 — écarts connus (2026-08-04)
+
+Deux surfaces affichent des médias identifiés sans chemin vers leur fiche. Les câbler
+demande une modification du modèle backend — hors périmètre de cette PR.
+
+| Surface              | Composant source                     | Champ manquant                                      | Ce qui fermerait l'écart                                                                   |
+| -------------------- | ------------------------------------ | --------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| **ObligationsPanel** | `ObligationItem` (openapi.json)      | Aucun `provider_id` (ni `tvdb_id`, ni `tmdb_id`)    | Ajouter `media_ref: {tvdb_id, tmdb_id, imdb_id}` au read-model `ObligationItem` backend    |
+| **RecentResolutions** | `DecisionListItem` (openapi.json)   | Aucun `provider_id` (ni `tvdb_id`, ni `tmdb_id`)    | Ajouter `media_ref` ou un `provider_id` résolu au read-model `DecisionListItem` backend    |
+
+`ObligationItem` porte uniquement `['accumulated_seed_time_s','added_at','breached_at',
+'dispatched_path','hnr_count','info_hash','min_ratio','min_seed_time_s','observed_ratio',
+'released_at','satisfied_at','source_tracker','title']` — **aucun identifiant provider**.
+
+`DecisionListItem` porte `['candidates_count','created_at','extracted_title','extracted_year',
+'id','media_kind','staging_path','status','trigger']` — **aucun identifiant provider**.
+
+Aucun hack côté frontend (lookup par titre, devinette) n'est acceptable (§8). Ces deux
+surfaces restent **non câblées** jusqu'à ce que le backend expose les identifiants.
+
+## 8. Hors périmètre (explicite)
 
 - Streaming du fichier de bande-annonce local (route dédiée + disque monté) — le lien
   YouTube suffit en v1.

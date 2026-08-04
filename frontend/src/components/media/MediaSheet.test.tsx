@@ -277,6 +277,49 @@ describe("MediaSheet", () => {
     expect(screen.getAllByText("Complète").length).toBeGreaterThanOrEqual(1);
   });
 
+  // --- TV season with unknown episode count (§8) ---
+
+  it("affiche « Épisodes inconnus » pour une saison avec episode_count === 0, jamais « Complète »", async () => {
+    // A season with episode_count === 0 has no known catalog data (unaired /
+    // future season).  owned_count >= 0 would trivially compute as "complete",
+    // which is a confident label for data we do not have (§8).
+    getMediaSheetMock.mockResolvedValue(
+      tvResponse({
+        ownership: {
+          owned: true,
+          seasons: [
+            {
+              season_number: 1,
+              episode_count: 10,
+              owned_count: 10,
+              aired_count: 10,
+            },
+            {
+              season_number: 2,
+              episode_count: 0, // ← the key case
+              owned_count: 0,
+              aired_count: 0,
+            },
+          ],
+        },
+      }),
+    );
+    renderSheet(sheetProps({ provider: "tmdb", providerId: "1399" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("media-sheet")).toBeInTheDocument();
+    });
+
+    // S01 is complete (10/10).
+    expect(screen.getByText("Complète")).toBeInTheDocument();
+
+    // S02 has 0 episodes → "Épisodes inconnus", never "Complète".
+    expect(screen.getByText("Épisodes inconnus")).toBeInTheDocument();
+    // Confidence check: the neutral badge must NOT claim "Complète" for S02.
+    const completeBadges = screen.getAllByText("Complète");
+    expect(completeBadges).toHaveLength(1); // only S01
+  });
+
   // --- Missing director ---
 
   it("affiche « Réalisateur inconnu » quand le réalisateur est absent", async () => {

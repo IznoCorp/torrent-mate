@@ -150,6 +150,8 @@ class TestMediaSheetEndpoint:
             # Identity fields still present (D9)
             assert data["provider"] == "tmdb"
             assert data["provider_id"] == "999"
+            # §8: the degraded title is an explicit French label, never a bare id.
+            assert data["title"] == "Fiche indisponible (TMDB 999)"
             # kind is None — the provider never responded, so we honestly don't know.
             assert data["kind"] is None
 
@@ -246,6 +248,47 @@ def _media_router():
     from personalscraper.web.routes.media import router
 
     return router
+
+
+class TestMediaSheetEmptyTitle:
+    """Fix 4a: an empty provider title sets degraded_reason so the banner appears."""
+
+    def test_empty_title_sets_degraded_reason(self, test_config):
+        """Provider responds successfully but returns an empty title — the response
+        is marked degraded so the UI shows the warning banner alongside the fallback,
+        never a confident card with a raw id as its heading (§8)."""
+        details = MediaDetails(
+            provider="tmdb",
+            provider_id="12345",
+            title="",  # empty title — the key case
+            year=None,
+            overview="",
+            director=None,
+            genres=[],
+            trailer_url=None,
+            series_status=None,
+            episode_count=None,
+            external_ids={},
+            seasons=[],
+        )
+        fake = MagicMock()
+        fake.provider_name = "tmdb"
+        fake.get_movie.return_value = details
+        fake.get_tv = MagicMock()
+
+        with (
+            patch("personalscraper.web.routes.media._build_tmdb_client", return_value=fake),
+            patch("personalscraper.web.routes.media._build_ownership_block", return_value=None),
+        ):
+            client = _make_authenticated_client(test_config)
+            resp = client.get("/api/media/tmdb/12345?kind=movie")
+            assert resp.status_code == 200
+            data = resp.json()
+            # degraded_reason is set because the title is empty.
+            assert data["degraded_reason"] is not None
+            assert "n'a pas retourne de titre" in data["degraded_reason"]
+            # The title is the fallback (bare id) but the banner IS present.
+            assert data["title"] == "12345"
 
 
 class TestMediaSheetKindHint:

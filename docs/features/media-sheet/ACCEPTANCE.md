@@ -107,12 +107,12 @@ curl --connect-timeout 10 --max-time 30 -s \
   | python -c "import json,sys; d=json.load(sys.stdin); print('degraded_reason' in d and d['degraded_reason'] is not None, d.get('title','N/A'))"
 ```
 
-**Expected output** (degraded path — nonexistent TMDB id falls back to the provider id
-as title when a real provider outage is in effect; the key assertion is `degraded_reason`
-is a non-empty truthy string and the status is 200):
+**Expected output** (degraded path — the key assertion is `degraded_reason`
+is a non-empty truthy French string and the status is 200; the title is an
+explicit synthetic label, never a bare id masquerading as a real title — §8):
 
 ```
-True 99999999
+True Fiche indisponible (TMDB 99999999)
 ```
 
 ## ACC-06 — Frontend route renders the media sheet page
@@ -125,15 +125,15 @@ mounts the component in jsdom:
 cd frontend && npx vitest run src/router.test.tsx -t "fiche média"
 ```
 
-**Expected output** (1 passed, the route mounts `MediaSheet` and renders its
-skeleton — the test is in the route-mirror suite):
+**Expected output** (1 passed, the describe block is named ``router``):
 
 ```
- RUN  v… /Users/izno/dev/PersonalScraper/frontend
+ RUN  v4.1.9 /Users/izno/dev/PersonalScraper/frontend
 
- ✓ src/router.test.tsx > App routes mirror … > monte la fiche média sur « /media/tmdb/27205 »
+ ✓ src/router.test.tsx > router > monte la fiche média sur « /media/tmdb/27205 » 101ms
+
  Test Files  1 passed (1)
-      Tests  1 passed | … skipped (…)
+      Tests  1 passed | 20 skipped (21)
 ```
 
 ## ACC-07 — product-intent.md carries §11

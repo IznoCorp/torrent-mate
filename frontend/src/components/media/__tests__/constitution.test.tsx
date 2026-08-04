@@ -104,6 +104,8 @@ import { MediaSearchAdd } from "@/components/acquisition/MediaSearchAdd";
 import { FollowedPanel } from "@/components/acquisition/FollowedPanel";
 import { CandidateCard } from "@/components/decisions/CandidateCard";
 import { StagingLibrary } from "@/components/staging/StagingLibrary";
+import { ATraiterList } from "@/components/controle/ATraiterList";
+import { StageMediaList } from "@/components/staging/StageMediaList";
 
 // ---------------------------------------------------------------------------
 // Enforcement: every surface that displays media cards MUST be listed here.
@@ -114,6 +116,8 @@ const WIRED_SURFACES = [
   "FollowedPanel",
   "CandidateCard",
   "StagingLibrary",
+  "ATraiterList",
+  "StageMediaList",
 ] as const;
 type WiredSurface = (typeof WIRED_SURFACES)[number];
 
@@ -549,6 +553,111 @@ describe("§11 constitution — « Tout média est consultable »", () => {
 
       const link = screen.getByText("Voir la fiche");
       expect(link.getAttribute("href")).toBe("/media/tvdb/12345?kind=tv");
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // SURFACE 5 — ATraiterList (indirect: « Résoudre → » opens the staging
+  // drawer at /medias?media=<id>, whose « Voir la fiche » button is the
+  // second hop to the sheet — covered by StagingLibrary above).
+  // -----------------------------------------------------------------------
+
+  describe("ATraiterList", () => {
+    coveredSurfaces.add("ATraiterList");
+
+    it("renders a resolve link to the staging drawer for an identified blocked item", () => {
+      const blocked = identifiedStagingItem({
+        id: "blocked-at",
+        position_state: "blocked",
+        match: "matched",
+        title: "Inception",
+      });
+      stagingMediaMock.mockReturnValue({
+        data: {
+          items: [blocked],
+          counts: {
+            total: 1,
+            matched: 1,
+            ambiguous: 0,
+            absent: 0,
+            with_trailer: 0,
+          },
+          total: 1,
+          page: 1,
+          page_size: 100,
+        },
+        isLoading: false,
+        isError: false,
+      });
+
+      render(
+        <MemoryRouter>
+          <QueryClientProvider client={makeQueryClient()}>
+            <ATraiterList />
+          </QueryClientProvider>
+        </MemoryRouter>,
+      );
+
+      // « Résoudre → » links to the staging drawer — the indirect §11 path.
+      const link = screen.getByText("Résoudre →");
+      expect(link.tagName).toBe("A");
+      expect(link.getAttribute("href")).toBe("/medias?media=blocked-at");
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // SURFACE 6 — StageMediaList (indirect: « Ouvrir la fiche média » button
+  // fires onOpenMedia, which the host opens the staging drawer — same
+  // two-hop contract as ATraiterList).
+  // -----------------------------------------------------------------------
+
+  describe("StageMediaList", () => {
+    coveredSurfaces.add("StageMediaList");
+
+    it("renders 'Ouvrir la fiche média' button for a blocked identified item", () => {
+      const onOpenMedia = vi.fn();
+      const blocked = identifiedStagingItem({
+        id: "blocked-sm",
+        position_state: "blocked",
+        match: "matched",
+        title: "Fight Club",
+      });
+      stagingMediaMock.mockReturnValue({
+        data: {
+          items: [blocked],
+          counts: {
+            total: 1,
+            matched: 1,
+            ambiguous: 0,
+            absent: 0,
+            with_trailer: 0,
+          },
+          total: 1,
+          page: 1,
+          page_size: 50,
+        },
+        isLoading: false,
+        isError: false,
+      });
+
+      render(
+        <MemoryRouter>
+          <QueryClientProvider client={makeQueryClient()}>
+            <StageMediaList
+              stageKey="arrival"
+              onOpenMedia={onOpenMedia}
+            />
+          </QueryClientProvider>
+        </MemoryRouter>,
+      );
+
+      // Open the accordion to reveal the action button.
+      const trigger = screen.getByText("Fight Club");
+      fireEvent.click(trigger);
+
+      const button = screen.getByText("Ouvrir la fiche média");
+      fireEvent.click(button);
+      expect(onOpenMedia).toHaveBeenCalledWith("blocked-sm");
     });
   });
 

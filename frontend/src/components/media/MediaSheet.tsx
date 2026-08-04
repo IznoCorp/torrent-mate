@@ -145,11 +145,17 @@ function OwnershipSection({
             </thead>
             <tbody>
               {ownership.seasons.map((s) => {
+                // §8 — episode_count === 0 means the provider has no catalog
+                // data for this season (unaired / future season).  owned_count
+                // >= 0 is trivially true here, so « Complète » would be a
+                // confident label for data we do not have.  Render an explicit
+                // unknown state instead, neutral tone.
+                const unknown = s.episode_count === 0;
                 const pct =
                   s.episode_count > 0
                     ? Math.round((s.owned_count / s.episode_count) * 100)
                     : 0;
-                const complete = s.owned_count >= s.episode_count;
+                const complete = !unknown && s.owned_count >= s.episode_count;
                 return (
                   <tr
                     key={s.season_number}
@@ -164,8 +170,8 @@ function OwnershipSection({
                     <td className="py-1.5 pr-3">{s.owned_count}</td>
                     <td className="py-1.5">
                       <StatusBadge
-                        tone={complete ? "success" : "warning"}
-                        label={complete ? "Complète" : `${String(pct)}%`}
+                        tone={unknown ? "neutral" : complete ? "success" : "warning"}
+                        label={unknown ? "Épisodes inconnus" : complete ? "Complète" : `${String(pct)}%`}
                       />
                     </td>
                   </tr>

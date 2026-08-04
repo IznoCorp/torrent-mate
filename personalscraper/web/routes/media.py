@@ -382,7 +382,7 @@ def get_media_sheet(
         return MediaSheetResponse(
             provider=provider,
             provider_id=provider_id,
-            title=provider_id,  # best-effort title
+            title=f"Fiche indisponible ({provider.upper()} {provider_id})",  # explicit synthetic label — never a bare id masquerading as a real title (§8)
             year=None,
             poster_url="",
             overview="",
@@ -399,6 +399,17 @@ def get_media_sheet(
     # Step 5: Cross library ownership
     assert details is not None  # guaranteed by the try/except early-return above
     assert is_tv is not None  # guaranteed by the try/except early-return above
+
+    # §8 — a synthetic title (bare provider id) presented without a degradation
+    # banner is dishonest: the user sees a confident card whose heading is a raw
+    # number.  When the provider responds but returns no title, mark the response
+    # as degraded so the warning banner appears alongside the fallback.
+    if not details.title:
+        degraded_reason = (
+            f"Le fournisseur {provider.upper()} n'a pas retourne de titre "
+            f"pour l'identifiant {provider_id}."
+        )
+
     ownership = _build_ownership_block(details, request, provider, provider_id, is_tv=is_tv)
 
     # Step 6: Build response
