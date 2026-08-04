@@ -227,6 +227,48 @@ def parse_media_details(raw: dict[str, Any], provider: str) -> MediaDetails:
         except (ValueError, TypeError):
             year = None
 
+    # -- Media-sheet fields (DESIGN D4/D9) ----------------------------------
+    # Director: movies → first crew member with job == "Director";
+    #           TV     → created_by[0]["name"] if present.
+    director: str | None = None
+    if is_tv:
+        created_by = raw.get("created_by") or []
+        if created_by and isinstance(created_by[0], dict):
+            director = created_by[0].get("name") or None
+    else:
+        crew = (raw.get("credits") or {}).get("crew") or []
+        for person in crew:
+            if isinstance(person, dict) and person.get("job") == "Director":
+                director = person.get("name") or None
+                break
+
+    # Series status: TV only; movie stays None.
+    series_status: str | None = None
+    if is_tv:
+        raw_status = raw.get("status")
+        if isinstance(raw_status, str) and raw_status:
+            series_status = raw_status
+
+    # Episode count: TV only; movie stays None.
+    episode_count: int | None = None
+    if is_tv:
+        raw_episodes = raw.get("number_of_episodes")
+        if isinstance(raw_episodes, int):
+            episode_count = raw_episodes
+
+    # Trailer URL: first YouTube trailer from videos.results.
+    trailer_url: str | None = None
+    videos_raw = raw.get("videos") or {}
+    for video in videos_raw.get("results") or []:
+        if (
+            isinstance(video, dict)
+            and video.get("type") == "Trailer"
+            and video.get("site") == "YouTube"
+            and video.get("key")
+        ):
+            trailer_url = f"https://www.youtube.com/watch?v={video['key']}"
+            break
+
     return MediaDetails(
         provider=provider,
         provider_id=str(raw["id"]),
@@ -244,6 +286,10 @@ def parse_media_details(raw: dict[str, Any], provider: str) -> MediaDetails:
         origin_countries=origin_countries,
         production_countries=production_countries,
         primary_backdrop_url=primary_backdrop_url,
+        director=director,
+        series_status=series_status,
+        episode_count=episode_count,
+        trailer_url=trailer_url,
     )
 
 

@@ -16,6 +16,7 @@ import {
   within,
 } from "@testing-library/react";
 import type { ReactElement } from "react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { DecisionCandidate, DecisionListItem } from "@/api/decisions";
@@ -127,9 +128,11 @@ function renderDeck(initialDecisionId?: number): void {
   });
   const tree: ReactElement = (
     <QueryClientProvider client={qc}>
-      <ResolutionDeck
-        {...(initialDecisionId != null ? { initialDecisionId } : {})}
-      />
+      <MemoryRouter>
+        <ResolutionDeck
+          {...(initialDecisionId != null ? { initialDecisionId } : {})}
+        />
+      </MemoryRouter>
     </QueryClientProvider>
   );
   render(tree);

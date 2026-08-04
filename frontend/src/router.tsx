@@ -27,6 +27,7 @@ import { RouterBridge } from "@/components/RouterBridge";
 import AcquisitionPage from "@/pages/AcquisitionPage";
 import Dashboard from "@/pages/Dashboard";
 import Login from "@/pages/Login";
+import MediaSheetPage from "@/pages/MediaSheetPage";
 import Medias from "@/pages/Medias";
 import Config from "@/pages/Config";
 import NotFound from "@/pages/NotFound";
@@ -80,6 +81,10 @@ export const routes: RouteObject[] = [
               {
                 path: "acquisition",
                 element: <AcquisitionPage />,
+              },
+              {
+                path: "media/:provider/:providerId",
+                element: <MediaSheetPage />,
               },
             ],
           },

@@ -250,6 +250,9 @@ def create_app(config: Config, settings: Settings) -> FastAPI:
     from personalscraper.web.routes.staging import router as staging_router
 
     guarded_api.include_router(staging_router)
+    from personalscraper.web.routes.media import router as media_router
+
+    guarded_api.include_router(media_router)
     app.include_router(guarded_api)
 
     # Capture config file hashes at startup so /status detects

@@ -1,7 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactElement } from "react";
 import { toast } from "sonner";
-import { MoreHorizontal } from "lucide-react";
+import { ExternalLink, MoreHorizontal } from "lucide-react";
+import { Link } from "react-router-dom";
 
 import { getPipelineHistory } from "@/api/pipeline";
 import { enqueueStagingDecision, type StagingMediaItem } from "@/api/staging";
@@ -19,6 +20,7 @@ import {
   kindLabel,
   matchBadge,
   posterKind,
+  stagingMediaSheetHref,
 } from "@/components/staging/meta";
 import { Button } from "@/components/ui/button";
 import {
@@ -221,10 +223,25 @@ export function StagingMediaDetail({
             )}
           </div>
           {Object.keys(item.provider_ids).length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
               {Object.entries(item.provider_ids).map(([family, id]) => (
                 <IdChip key={family} family={family} id={id} />
               ))}
+              {/* §11 constitution: every identified media must lead to its sheet.
+                  The sheet lives inside the detail drawer — the operator opens the
+                  drawer first, then sees a visible « Voir la fiche » button. */}
+              {(() => {
+                const sheetHref = stagingMediaSheetHref(item);
+                if (sheetHref == null) return null;
+                return (
+                  <Button asChild variant="outline" size="sm">
+                    <Link to={sheetHref}>
+                      <ExternalLink className="size-4" aria-hidden="true" />
+                      Voir la fiche
+                    </Link>
+                  </Button>
+                );
+              })()}
             </div>
           )}
         </div>

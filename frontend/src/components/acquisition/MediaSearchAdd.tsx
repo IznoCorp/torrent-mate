@@ -10,8 +10,10 @@
 
 import { Check, ChevronDown, Search } from "lucide-react";
 import { useState, type ReactElement, type SyntheticEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
+import { mediaSheetHref } from "@/lib/media-href";
 import { cn } from "@/lib/utils";
 
 import type { CreateFollowRequest, MediaSearchResult } from "@/api/acquisition";
@@ -63,6 +65,7 @@ function toFollowBody(result: MediaSearchResult): CreateFollowRequest {
  *   The add-by-search element.
  */
 export function MediaSearchAdd(): ReactElement {
+  const navigate = useNavigate();
   const [draft, setDraft] = useState("");
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<KindFilter>("all");
@@ -342,6 +345,15 @@ export function MediaSearchAdd(): ReactElement {
                 kind={result.kind === "tv" ? "tv" : "movie"}
                 posterUrl={result.poster_url ?? null}
                 overview={result.overview ?? null}
+                onOpen={() => {
+                  void navigate(
+                    mediaSheetHref({
+                      provider: result.provider,
+                      providerId: String(result.provider_id),
+                      kind: result.kind === "tv" ? "tv" : "movie",
+                    }),
+                  );
+                }}
                 footer={
                   <div className="flex w-full flex-col gap-1">
                     {result.already_owned && (

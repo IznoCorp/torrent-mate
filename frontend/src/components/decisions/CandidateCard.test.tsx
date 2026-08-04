@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactElement } from "react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CandidateCard } from "@/components/decisions/CandidateCard";
@@ -31,11 +32,13 @@ function renderCard(
   onClick = vi.fn(),
 ): void {
   const tree: ReactElement = (
-    <CandidateCard
-      candidate={candidate}
-      isSelected={isSelected}
-      onClick={onClick}
-    />
+    <MemoryRouter>
+      <CandidateCard
+        candidate={candidate}
+        isSelected={isSelected}
+        onClick={onClick}
+      />
+    </MemoryRouter>
   );
   render(tree);
 }

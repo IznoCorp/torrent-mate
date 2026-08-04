@@ -1481,6 +1481,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/media/{provider}/{provider_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Media Sheet
+         * @description Return a full media sheet for a provider-identified media item.
+         *
+         *     Fetches metadata from the live provider API (with a short in-memory cache),
+         *     crosses the local library for ownership, and returns typed data.  When the
+         *     provider is unreachable, the response carries a French degraded_reason
+         *     rather than a 500 - the identity fields are always present (DESIGN D9).
+         *
+         *     Args:
+         *         provider: Provider name - "tmdb" or "tvdb".
+         *         provider_id: Provider-specific media identifier.
+         *         request: The incoming FastAPI request.
+         *         kind: Optional media kind hint (``"movie"`` or ``"tv"``).  When supplied,
+         *             only the matching provider method is called — no probing, no wasted
+         *             provider round-trip and quota token for a doomed cross-kind lookup.
+         *             Callers always know the kind (search results, followed rows,
+         *             decision candidates); this parameter exists so a read-only detail
+         *             page avoids unnecessary API calls and keeps the degraded reason
+         *             pointing at the real first failure.  Omit for hand-typed URLs
+         *             (no-hint fallback).
+         *
+         *     Returns:
+         *         A MediaSheetResponse.
+         *
+         *     Raises:
+         *         HTTPException: 400 when *provider* is not "tmdb" / "tvdb".
+         */
+        get: operations["get_media_sheet_api_media__provider___provider_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/pipeline/history": {
         parameters: {
             query?: never;
@@ -3533,6 +3577,68 @@ export interface components {
             year?: number | null;
         };
         /**
+         * MediaSheetResponse
+         * @description Full media sheet returned by ``GET /api/media/{provider}/{provider_id}``.
+         *
+         *     Identity fields (provider, provider_id, title) are always present — even
+         *     under degradation they survive because they come from the call parameters or
+         *     a partial provider response.  Metadata fields are ``None`` when the provider
+         *     does not supply them (DESIGN D4/D9 — never an empty string).
+         *
+         *     Attributes:
+         *         provider: Provider name (``"tmdb"`` / ``"tvdb"``).
+         *         provider_id: Provider-specific media identifier.
+         *         title: Display title.
+         *         year: Release year, or ``None``.
+         *         poster_url: Full URL to the poster image.
+         *         overview: Full plot summary.
+         *         director: Director name, or ``None`` when unknown.
+         *         genres: List of genre names.
+         *         trailer_url: YouTube trailer URL, or ``None``.
+         *         kind: The media kind the provider lookup resolved —
+         *             ``"movie"``, ``"tv"``, or ``None`` on a degraded response where
+         *             no provider method succeeded (the honest answer is "we don't know").
+         *         series_status: TV series production status, or ``None`` for movies.
+         *         episode_count: Total episode count for a TV series, or ``None``
+         *             for movies (from the provider's series-level metadata).
+         *         seasons: Season catalog (season number → episode count per season).
+         *         ownership: Library ownership block, or ``None`` when the library
+         *             database is unavailable (fail-soft).
+         *         degraded_reason: French human-readable reason when the provider was
+         *             unreachable and the response is partial. ``None`` on a full response.
+         */
+        MediaSheetResponse: {
+            /** Degraded Reason */
+            degraded_reason: string | null;
+            /** Director */
+            director: string | null;
+            /** Episode Count */
+            episode_count?: number | null;
+            /** Genres */
+            genres: string[];
+            /** Kind */
+            kind: ("movie" | "tv") | null;
+            /** Overview */
+            overview: string;
+            ownership: components["schemas"]["OwnershipBlock"] | null;
+            /** Poster Url */
+            poster_url: string;
+            /** Provider */
+            provider: string;
+            /** Provider Id */
+            provider_id: string;
+            /** Seasons */
+            seasons: components["schemas"]["SeasonEntry"][];
+            /** Series Status */
+            series_status: string | null;
+            /** Title */
+            title: string;
+            /** Trailer Url */
+            trailer_url: string | null;
+            /** Year */
+            year: number | null;
+        };
+        /**
          * MovieFacts
          * @description The single unit's facts a followed FILM derives its card status from.
          *
@@ -3628,6 +3734,23 @@ export interface components {
         ObligationsResponse: {
             /** Items */
             items: components["schemas"]["ObligationItem"][];
+        };
+        /**
+         * OwnershipBlock
+         * @description Library ownership status for a media item.
+         *
+         *     Attributes:
+         *         owned: ``True`` when at least one file for this media is locally owned.
+         *         seasons: Per-season breakdown for TV shows; empty for movies.
+         */
+        OwnershipBlock: {
+            /** Owned */
+            owned: boolean;
+            /**
+             * Seasons
+             * @default []
+             */
+            seasons: components["schemas"]["SeasonOwnership"][];
         };
         /**
          * PipelineOutcome
@@ -4300,6 +4423,20 @@ export interface components {
             total: number;
         };
         /**
+         * SeasonEntry
+         * @description One season entry in the media sheet season catalog.
+         *
+         *     Attributes:
+         *         season_number: Season number (1-based; 0 for specials).
+         *         episode_count: Number of episodes in this season per the provider catalog.
+         */
+        SeasonEntry: {
+            /** Episode Count */
+            episode_count: number;
+            /** Season Number */
+            season_number: number;
+        };
+        /**
          * SeasonGrabResponse
          * @description Response for a season grab request (R4).
          *
@@ -4322,6 +4459,26 @@ export interface components {
             season: number;
             /** Season Wanted Id */
             season_wanted_id: number;
+        };
+        /**
+         * SeasonOwnership
+         * @description Ownership breakdown for one season of a TV show.
+         *
+         *     Attributes:
+         *         season_number: Season number (1-based; 0 for specials).
+         *         episode_count: Total episodes in this season per the provider catalog.
+         *         owned_count: How many episodes of this season are locally owned.
+         *         aired_count: How many episodes have aired/released (provider catalog count).
+         */
+        SeasonOwnership: {
+            /** Aired Count */
+            aired_count: number;
+            /** Episode Count */
+            episode_count: number;
+            /** Owned Count */
+            owned_count: number;
+            /** Season Number */
+            season_number: number;
         };
         /**
          * SecretEntry
@@ -6259,6 +6416,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SchedulersResponse"];
+                };
+            };
+        };
+    };
+    get_media_sheet_api_media__provider___provider_id__get: {
+        parameters: {
+            query?: {
+                /** @description Media kind hint to skip wasted probing */
+                kind?: ("movie" | "tv") | null;
+            };
+            header?: never;
+            path: {
+                provider: string;
+                provider_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaSheetResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

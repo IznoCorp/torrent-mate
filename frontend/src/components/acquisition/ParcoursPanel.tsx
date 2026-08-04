@@ -25,6 +25,7 @@ import { relativeTime } from "@/components/acquisition/meta";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { mediaSheetHref } from "@/lib/media-href";
 
 /**
  * The four pipeline stages, in order — each keyed by its provenance timestamp field
@@ -43,6 +44,43 @@ function journeyTitle(j: JourneyItem): string {
   const id = j.media_ref.tvdb_id ?? j.media_ref.tmdb_id;
   if (id != null) return `#${String(id)}`;
   return j.info_hash.slice(0, 8);
+}
+
+/**
+ * Build the media-sheet href for a journey item, or ``null`` when the item has
+ * no provider id (§11 exception — no link for an unidentified item).
+ *
+ * Priority tvdb > tmdb, exactly as the other wired surfaces.  The journey's
+ * ``kind`` field maps to the sheet ``kind`` hint (``"episode"`` → ``"tv"``).
+ */
+function journeySheetHref(
+  j: JourneyItem,
+): { to: string } | null {
+  const tvdbId = j.media_ref.tvdb_id;
+  const tmdbId = j.media_ref.tmdb_id;
+  const kind =
+    j.kind === "movie" ? ("movie" as const)
+    : j.kind === "episode" ? ("tv" as const)
+    : undefined;
+  if (tvdbId != null) {
+    return {
+      to: mediaSheetHref({
+        provider: "tvdb",
+        providerId: String(tvdbId),
+        ...(kind !== undefined ? { kind } : {}),
+      }),
+    };
+  }
+  if (tmdbId != null) {
+    return {
+      to: mediaSheetHref({
+        provider: "tmdb",
+        providerId: String(tmdbId),
+        ...(kind !== undefined ? { kind } : {}),
+      }),
+    };
+  }
+  return null;
 }
 
 /**
@@ -221,21 +259,32 @@ export function ParcoursPanel(): ReactElement {
           className="flex flex-col gap-2 rounded-lg border border-border p-3"
         >
           <div className="flex items-center justify-between gap-2">
-            {/* X5 — id/hash fallbacks are machine tokens: mono + full hash in
-                title (the resolved follow title stays proportional). */}
-            <span
-              className={
-                j.follow_title
-                  ? "min-w-0 flex-1 truncate text-sm font-medium"
-                  : "min-w-0 flex-1 truncate font-mono text-sm font-medium"
-              }
+            {/* §11 — an identified media MUST have a visible path to its sheet
+                (DESIGN D8: single link builder). Priority tvdb > tmdb; the
+                journey's kind provides the hint. No provider id → no link
+                (the single §11 exception). */}
+            {(() => {
+              const href = journeySheetHref(j);
+              const className = j.follow_title
+                ? "min-w-0 flex-1 truncate text-sm font-medium"
+                : "min-w-0 flex-1 truncate font-mono text-sm font-medium";
               // Truthiness (not ??) on purpose: an empty follow_title falls
               // back to the hash, mirroring journeyTitle().
               // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-              title={j.follow_title || j.info_hash}
-            >
-              {journeyTitle(j)}
-            </span>
+              const title = j.follow_title || j.info_hash;
+              if (href !== null) {
+                return (
+                  <Link to={href.to} className={className} title={title}>
+                    {journeyTitle(j)}
+                  </Link>
+                );
+              }
+              return (
+                <span className={className} title={title}>
+                  {journeyTitle(j)}
+                </span>
+              );
+            })()}
             {/* ACQUISITION-5: copy the full info_hash (the visible title may
                 be a truncated fallback of it). X4: 44px touch minimum below
                 md, compact on desktop — the icons stay size-3, only the hit

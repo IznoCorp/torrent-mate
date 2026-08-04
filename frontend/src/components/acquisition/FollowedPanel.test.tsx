@@ -59,6 +59,11 @@ vi.mock("@/hooks/useSchedulers", () => ({
   useSchedulers: () => ({ data: undefined }),
 }));
 
+const navigateMock = vi.fn();
+vi.mock("react-router-dom", () => ({
+  useNavigate: () => navigateMock,
+}));
+
 import { FollowedPanel } from "./FollowedPanel";
 
 /** A fully-typed followed item, with the five-state counters nulled (no catalog). */
@@ -638,5 +643,24 @@ describe("FollowedPanel — séries / films sub-tabs (#20)", () => {
     fireEvent.click(screen.getByRole("button", { name: /Films/ }));
     expect(screen.getByText("Suivis retirés (1)")).toBeInTheDocument();
     expect(screen.getByText("Retired Film")).toBeInTheDocument();
+  });
+});
+
+describe("FollowedPanel — imdb-only item has no sheet link (§11 exception)", () => {
+  it("renders NO « Voir la fiche » for an item with only an imdb_id", () => {
+    renderPanel([
+      makeItem({
+        media_ref: { tvdb_id: null, tmdb_id: null, imdb_id: "tt0903747" },
+      }),
+    ]);
+
+    // Open the row's ⋯ dropdown so we can inspect its menu items.
+    fireEvent.pointerDown(
+      screen.getByRole("button", { name: "Actions pour House of the Dragon" }),
+    );
+
+    // The « Voir la fiche » menuitem must NOT appear — imdb-only items have
+    // no backend sheet route, and §11 forbids a dead link.
+    expect(screen.queryByText("Voir la fiche")).not.toBeInTheDocument();
   });
 });
