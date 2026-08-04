@@ -24,6 +24,7 @@ from personalscraper.acquire.store import build_acquire_store
 from personalscraper.logger import get_logger
 from personalscraper.web.deps import require_not_staging, require_x_requested_with
 from personalscraper.web.models.acquisition import SeasonGrabResponse
+from personalscraper.web.routes.acquisition_triggers import enqueue_prime_run
 
 if TYPE_CHECKING:
     from personalscraper.acquire.store import ConcreteAcquireStore
@@ -109,6 +110,11 @@ def grab_season(
     the manual escape hatch after an R6 fallback, so it must be able to
     re-enqueue the season (201, new row).
 
+    A FRESH grab also starts the acquisition pass for that follow (D3), exactly as
+    ``create_follow`` does — the operator's action must produce an observable run
+    rather than waiting up to 12 h for the next cron. ``run_started`` reports what
+    actually happened (§5: no success toast over a dead run).
+
     Web mutations deliberately emit NO domain event: the web layer has no
     event bus, and provenance comes from the store rows themselves.
 
@@ -120,7 +126,8 @@ def grab_season(
 
     Returns:
         The created (201) or reused live (200) season wanted with absorption
-        count and the ``reused`` flag.
+        count, the ``reused`` flag, and ``run_started`` telling whether this call
+        actually queued an acquisition run.
 
     Raises:
         HTTPException: 404 if the followed_id does not exist.
@@ -189,11 +196,25 @@ def grab_season(
             season_wid,
         )
 
+        # D3 — the operator's action must START, not wait up to 12 h for the next
+        # cron (search 10 3,15 / grab 20 3,15). Same amorce ``create_follow``
+        # already uses: detect → search → grab, scoped to this follow.
+        #
+        # Fire-and-forget by contract: ``enqueue_prime_run`` logs and swallows every
+        # failure and never raises, so a dead spawn degrades to ``run_started=False``
+        # rather than failing an enqueue that DID happen. Its own idempotence guard
+        # is the only refusal §6 permits — a duplicate of the same action on the
+        # same target — so this route never answers 409.
+        prime_outcome = enqueue_prime_run(config.indexer.db_path, followed.id)
+
         return SeasonGrabResponse(
             season_wanted_id=season_wid,
             season=season,
             absorbed_count=len(absorbed_ids),
             reused=False,
+            # Mirror create_follow's mapping so both operator entry points report
+            # a started run identically.
+            run_started=prime_outcome in ("spawned", "already_running"),
         )
     finally:
         store.close()

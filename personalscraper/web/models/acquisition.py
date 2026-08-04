@@ -725,9 +725,15 @@ class SeasonGrabResponse(BaseModel):
         absorbed_count: Number of episode rows absorbed by this season wanted.
         reused: ``True`` when an existing LIVE season row was returned (HTTP
             200) instead of a freshly created one (HTTP 201).
+        run_started: Whether a scoped acquisition run was actually queued by this
+            call. Reports the REAL outcome of the enqueue (§5 — a success toast
+            over a dead run is forbidden): ``False`` when the indexer is
+            unconfigured, the spawn failed, or the row was merely reused. The
+            season row exists either way and the next cron will pick it up.
     """
 
     season_wanted_id: int
     season: int
     absorbed_count: int
     reused: bool = False
+    run_started: bool = False
