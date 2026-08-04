@@ -135,6 +135,18 @@ class MediaDetails:
         primary_backdrop_url: Provider's top-level backdrop URL, used as
             a last-resort fallback when ``images`` contains no
             ``backdrop`` entries.
+        director: Director name (movies: first crew member with
+            ``job == "Director"``; TV: ``created_by[0]["name"]``).
+            ``None`` when the provider does not supply it — never an
+            empty string (DESIGN D4/D9).
+        series_status: For TV shows, the production status string
+            (e.g. ``"Ended"``, ``"Returning Series"``, ``"Canceled"``).
+            ``None`` for movies or when unknown.
+        episode_count: Total episode count for a TV series.
+            ``None`` for movies or when unknown.
+        trailer_url: YouTube URL of the first official trailer
+            (``"https://www.youtube.com/watch?v=<key>"``).
+            ``None`` when no trailer is available.
     """
 
     provider: str
@@ -153,6 +165,10 @@ class MediaDetails:
     origin_countries: list[str] = field(default_factory=list)
     production_countries: list[str] = field(default_factory=list)
     primary_backdrop_url: str = ""
+    director: str | None = None
+    series_status: str | None = None
+    episode_count: int | None = None
+    trailer_url: str | None = None
 
 
 @dataclass(frozen=True)

@@ -238,7 +238,7 @@ class TMDBClient(
         """
         params: dict[str, object] = {
             "language": self._language,
-            "append_to_response": "videos,images,keywords,external_ids",
+            "append_to_response": "videos,images,keywords,external_ids,credits",
             "include_image_language": f"{self._language},{self._fallback_language},en,null",
         }
         raw = self._transport.get(f"/movie/{movie_id}", params=params)
@@ -259,7 +259,7 @@ class TMDBClient(
         """
         params: dict[str, object] = {
             "language": self._language,
-            "append_to_response": "videos,images,keywords,external_ids",
+            "append_to_response": "videos,images,keywords,external_ids,aggregate_credits",
             "include_image_language": f"{self._language},{self._fallback_language},en,null",
         }
         raw = self._transport.get(f"/tv/{tv_id}", params=params)

@@ -389,6 +389,42 @@ def parse_media_details(raw: dict[str, Any], provider: str) -> MediaDetails:
 
     title = raw.get("name", "") or ""
 
+    # -- Media-sheet fields (DESIGN D4/D9) ----------------------------------
+    # Series status: TVDB status.name for series; None for movies.
+    series_status: str | None = None
+    if not is_movie:
+        raw_status = raw.get("status")
+        if isinstance(raw_status, dict):
+            status_name = raw_status.get("name")
+            if isinstance(status_name, str) and status_name:
+                series_status = status_name
+
+    # Director: TVDB series extended response may include a ``characters``
+    # array. Attempt to extract the first person with a director-type role.
+    # TVDB v4 character records vary in shape across API revisions — the
+    # ``personType`` / ``peopleType`` field naming has changed. We try both
+    # known keys and fall back to ``None`` rather than guessing (D4/D9).
+    director: str | None = None
+    characters = raw.get("characters") or []
+    if isinstance(characters, list):
+        for char in characters:
+            if not isinstance(char, dict):
+                continue
+            person_type = char.get("peopleType") or char.get("personType") or ""
+            if isinstance(person_type, str) and person_type.lower() == "director":
+                person_name = char.get("personName") or char.get("name") or ""
+                if person_name:
+                    director = person_name
+                    break
+
+    # Episode count: TVDB series extended response does not carry a single
+    # ``number_of_episodes`` field. Leave ``None`` (D4/D9: never invent).
+    episode_count: int | None = None
+
+    # Trailer URL: TVDB does not provide YouTube trailers in a structured
+    # form compatible with the media-sheet. Leave ``None``.
+    trailer_url: str | None = None
+
     return MediaDetails(
         provider=provider,
         provider_id=str(raw.get("id", "")),
@@ -406,6 +442,10 @@ def parse_media_details(raw: dict[str, Any], provider: str) -> MediaDetails:
         origin_countries=origin_countries,
         production_countries=[],
         primary_backdrop_url=primary_backdrop_url,
+        director=director,
+        series_status=series_status,
+        episode_count=episode_count,
+        trailer_url=trailer_url,
     )
 
 
