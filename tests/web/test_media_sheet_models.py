@@ -9,6 +9,7 @@ from __future__ import annotations
 from personalscraper.web.models.media import (
     MediaSheetResponse,
     OwnershipBlock,
+    SeasonEntry,
     SeasonOwnership,
 )
 
@@ -136,8 +137,8 @@ class TestMediaSheetResponse:
             trailer_url=None,
             series_status="Returning Series",
             seasons=[
-                {"season_number": 1, "episode_count": 12},
-                {"season_number": 2, "episode_count": 14},
+                SeasonEntry(season_number=1, episode_count=12),
+                SeasonEntry(season_number=2, episode_count=14),
             ],
             ownership=OwnershipBlock(
                 owned=True,
@@ -160,8 +161,8 @@ class TestMediaSheetResponse:
         )
         assert resp.series_status == "Returning Series"
         assert resp.seasons == [
-            {"season_number": 1, "episode_count": 12},
-            {"season_number": 2, "episode_count": 14},
+            SeasonEntry(season_number=1, episode_count=12),
+            SeasonEntry(season_number=2, episode_count=14),
         ]
         assert resp.ownership is not None
         assert resp.ownership.owned is True

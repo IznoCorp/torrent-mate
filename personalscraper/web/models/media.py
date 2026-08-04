@@ -7,9 +7,19 @@ and an optional ``degraded_reason`` when the provider is unreachable.
 
 from __future__ import annotations
 
-from typing import Any
-
 from pydantic import BaseModel
+
+
+class SeasonEntry(BaseModel):
+    """One season entry in the media sheet season catalog.
+
+    Attributes:
+        season_number: Season number (1-based; 0 for specials).
+        episode_count: Number of episodes in this season per the provider catalog.
+    """
+
+    season_number: int
+    episode_count: int
 
 
 class SeasonOwnership(BaseModel):
@@ -59,6 +69,8 @@ class MediaSheetResponse(BaseModel):
         genres: List of genre names.
         trailer_url: YouTube trailer URL, or ``None``.
         series_status: TV series production status, or ``None`` for movies.
+        episode_count: Total episode count for a TV series, or ``None``
+            for movies (from the provider's series-level metadata).
         seasons: Season catalog (season number → episode count per season).
         ownership: Library ownership block, or ``None`` when the library
             database is unavailable (fail-soft).
@@ -76,6 +88,7 @@ class MediaSheetResponse(BaseModel):
     genres: list[str]
     trailer_url: str | None
     series_status: str | None
-    seasons: list[dict[str, Any]]
+    episode_count: int | None = None
+    seasons: list[SeasonEntry]
     ownership: OwnershipBlock | None
     degraded_reason: str | None

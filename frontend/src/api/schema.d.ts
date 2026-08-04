@@ -1502,11 +1502,13 @@ export interface paths {
          *         provider_id: Provider-specific media identifier.
          *         request: The incoming FastAPI request.
          *         kind: Optional media kind hint (``"movie"`` or ``"tv"``).  When supplied,
-         *             only the matching provider method is called — no probing, no risk of
-         *             recording a circuit failure on a doomed lookup.  Callers always know
-         *             the kind (search results, followed rows, decision candidates); this
-         *             parameter exists so a read-only detail page never opens the provider
-         *             circuit breaker.  Omit for hand-typed URLs (no-hint fallback).
+         *             only the matching provider method is called — no probing, no wasted
+         *             provider round-trip and quota token for a doomed cross-kind lookup.
+         *             Callers always know the kind (search results, followed rows,
+         *             decision candidates); this parameter exists so a read-only detail
+         *             page avoids unnecessary API calls and keeps the degraded reason
+         *             pointing at the real first failure.  Omit for hand-typed URLs
+         *             (no-hint fallback).
          *
          *     Returns:
          *         A MediaSheetResponse.
@@ -3594,6 +3596,8 @@ export interface components {
          *         genres: List of genre names.
          *         trailer_url: YouTube trailer URL, or ``None``.
          *         series_status: TV series production status, or ``None`` for movies.
+         *         episode_count: Total episode count for a TV series, or ``None``
+         *             for movies (from the provider's series-level metadata).
          *         seasons: Season catalog (season number → episode count per season).
          *         ownership: Library ownership block, or ``None`` when the library
          *             database is unavailable (fail-soft).
@@ -3605,6 +3609,8 @@ export interface components {
             degraded_reason: string | null;
             /** Director */
             director: string | null;
+            /** Episode Count */
+            episode_count?: number | null;
             /** Genres */
             genres: string[];
             /** Overview */
@@ -3617,9 +3623,7 @@ export interface components {
             /** Provider Id */
             provider_id: string;
             /** Seasons */
-            seasons: {
-                [key: string]: unknown;
-            }[];
+            seasons: components["schemas"]["SeasonEntry"][];
             /** Series Status */
             series_status: string | null;
             /** Title */
@@ -4412,6 +4416,20 @@ export interface components {
             season: number;
             /** Total */
             total: number;
+        };
+        /**
+         * SeasonEntry
+         * @description One season entry in the media sheet season catalog.
+         *
+         *     Attributes:
+         *         season_number: Season number (1-based; 0 for specials).
+         *         episode_count: Number of episodes in this season per the provider catalog.
+         */
+        SeasonEntry: {
+            /** Episode Count */
+            episode_count: number;
+            /** Season Number */
+            season_number: number;
         };
         /**
          * SeasonGrabResponse
@@ -6400,7 +6418,7 @@ export interface operations {
     get_media_sheet_api_media__provider___provider_id__get: {
         parameters: {
             query?: {
-                /** @description Media kind hint to avoid probing */
+                /** @description Media kind hint to skip wasted probing */
                 kind?: ("movie" | "tv") | null;
             };
             header?: never;

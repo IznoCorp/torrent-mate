@@ -20,6 +20,7 @@ from typing import Any, Literal
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from personalscraper.api._contracts import ProviderName
+from personalscraper.api.metadata._base import MediaDetails
 from personalscraper.core._contracts import ApiError, CircuitOpenError
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.identity import MediaRef
@@ -27,6 +28,7 @@ from personalscraper.logger import get_logger
 from personalscraper.web.models.media import (
     MediaSheetResponse,
     OwnershipBlock,
+    SeasonEntry,
     SeasonOwnership,
 )
 
@@ -99,7 +101,7 @@ def _safe_int(value: str) -> int | None:
         return None
 
 
-def _build_media_ref(details: Any, provider: str, provider_id: str) -> MediaRef | None:
+def _build_media_ref(details: MediaDetails, provider: str, provider_id: str) -> MediaRef | None:
     """Build a MediaRef from provider details for ownership lookup.
 
     Args:
@@ -115,7 +117,7 @@ def _build_media_ref(details: Any, provider: str, provider_id: str) -> MediaRef 
     tmdb_id: int | None = None
     imdb_id: str | None = None
 
-    external_ids: dict[str, str] = getattr(details, "external_ids", {}) or {}
+    external_ids = details.external_ids
 
     # TMDB external_ids dict carries tvdb_id + imdb_id as strings
     if provider == "tmdb":
@@ -146,7 +148,7 @@ def _build_media_ref(details: Any, provider: str, provider_id: str) -> MediaRef 
         return None
 
 
-def _build_seasons_list(details: Any) -> list[dict[str, Any]]:
+def _build_seasons_list(details: MediaDetails) -> list[SeasonEntry]:
     """Build the seasons list from provider details.
 
     Args:
@@ -154,17 +156,18 @@ def _build_seasons_list(details: Any) -> list[dict[str, Any]]:
             SeasonInfo dataclass instances.
 
     Returns:
-        A list of dicts with season_number and episode_count keys.
+        A list of SeasonEntry models with season_number and episode_count.
     """
-    seasons_attr = getattr(details, "seasons", None) or []
-    return [{"season_number": s.season_number, "episode_count": s.episode_count} for s in seasons_attr]
+    seasons_attr = details.seasons or []
+    return [SeasonEntry(season_number=s.season_number, episode_count=s.episode_count) for s in seasons_attr]
 
 
 def _build_ownership_block(
-    details: Any,
+    details: MediaDetails,
     request: Request,
     provider: str,
     provider_id: str,
+    is_tv: bool,
 ) -> OwnershipBlock | None:
     """Cross the library for ownership info, returning None on any failure (fail-soft).
 
@@ -173,6 +176,9 @@ def _build_ownership_block(
         request: The incoming FastAPI request (for app.state.config).
         provider: Provider name.
         provider_id: Provider-specific id.
+        is_tv: Whether the returned details are for a TV series (from the
+            provider method that succeeded — not from the season catalog,
+            which may be empty for a real TV series).
 
     Returns:
         An OwnershipBlock when the library is reachable, or None.
@@ -188,12 +194,9 @@ def _build_ownership_block(
     if media_ref is None:
         return None
 
-    seasons_catalog = getattr(details, "seasons", None) or []
-    has_seasons = len(seasons_catalog) > 0
-
     checker = IndexerOwnershipChecker(Path(db_path))
     try:
-        if has_seasons:
+        if is_tv:
             # TV show: use owned_pairs for per-season breakdown.
             owned_pairs = checker.owned_pairs(media_ref)
             owned = len(owned_pairs) > 0
@@ -203,6 +206,7 @@ def _build_ownership_block(
                 owned_by_season[season_num] = owned_by_season.get(season_num, 0) + 1
             # Build per-season ownership blocks.
             season_blocks: list[SeasonOwnership] = []
+            seasons_catalog = details.seasons or []
             for si in seasons_catalog:
                 sn = si.season_number
                 ec = si.episode_count
@@ -331,7 +335,7 @@ def get_media_sheet(
     # 404 justifies trying get_movie; any blocking error (circuit open, auth
     # failure) degrades immediately.
     degraded_reason: str | None = None
-    details: Any = None
+    details: MediaDetails | None = None
     is_tv: bool | None = None
 
     try:
@@ -392,31 +396,35 @@ def get_media_sheet(
         )
 
     # Step 5: Cross library ownership
-    ownership = _build_ownership_block(details, request, provider, provider_id)
+    assert details is not None  # guaranteed by the try/except early-return above
+    assert is_tv is not None  # guaranteed by the try/except early-return above
+    ownership = _build_ownership_block(details, request, provider, provider_id, is_tv=is_tv)
 
     # Step 6: Build response
     seasons_list = _build_seasons_list(details)
-    series_status = getattr(details, "series_status", None) if is_tv else None
+    series_status = details.series_status if is_tv else None
+    episode_count = details.episode_count if is_tv else None
 
     # Determine poster URL: use the first poster from images.
     poster_url = ""
-    images = getattr(details, "images", None) or []
-    for img in images:
-        if getattr(img, "type", "") == "poster" and getattr(img, "url", ""):
+    images_list = details.images or []
+    for img in images_list:
+        if img.type == "poster" and img.url:
             poster_url = img.url
             break
 
     response = MediaSheetResponse(
         provider=provider,
         provider_id=provider_id,
-        title=getattr(details, "title", "") or provider_id,
-        year=getattr(details, "year", None),
+        title=details.title or provider_id,
+        year=details.year,
         poster_url=poster_url,
-        overview=getattr(details, "overview", "") or "",
-        director=getattr(details, "director", None),
-        genres=getattr(details, "genres", None) or [],
-        trailer_url=getattr(details, "trailer_url", None),
+        overview=details.overview or "",
+        director=details.director,
+        genres=details.genres or [],
+        trailer_url=details.trailer_url,
         series_status=series_status,
+        episode_count=episode_count,
         seasons=seasons_list,
         ownership=ownership,
         degraded_reason=degraded_reason,

@@ -372,3 +372,61 @@ class TestMediaSheetCacheBound:
                 assert resp.status_code == 200
 
         assert len(media_routes._cache) <= cache_max
+
+
+class TestMediaSheetOwnershipTvEmptyCatalog:
+    """Defect 3 regression: TV series with empty seasons catalog uses owned_pairs.
+
+    Not owns(kind='movie') — the provider method that succeeded (not the
+    catalog length) decides the ownership kind.
+    """
+
+    def test_tv_empty_catalog_uses_owned_pairs(self, test_config):
+        """TV with seasons=[] calls owned_pairs, never owns(kind='movie')."""
+        details = MediaDetails(
+            provider="tvdb",
+            provider_id="475278",
+            title="Top Chef Le Concours Parallele",
+            year=2024,
+            overview="",
+            director=None,
+            genres=["Reality"],
+            trailer_url=None,
+            series_status="Returning Series",
+            episode_count=0,
+            external_ids={"tmdb": "315820"},
+            seasons=[],  # EMPTY catalog — the key case
+        )
+        fake = MagicMock()
+        fake.provider_name = "tvdb"
+        fake.get_tv.return_value = details
+
+        # Create a fake library.db so the existence check passes.
+        db_path = test_config.indexer.db_path
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        db_path.touch()
+
+        mock_checker = MagicMock()
+        mock_checker.owned_pairs.return_value = {(1, 1), (1, 2)}
+
+        with (
+            patch("personalscraper.web.routes.media._build_tvdb_client", return_value=fake),
+            patch(
+                "personalscraper.indexer.ownership.IndexerOwnershipChecker",
+                return_value=mock_checker,
+            ),
+        ):
+            client = _make_authenticated_client(test_config)
+            resp = client.get("/api/media/tvdb/475278?kind=tv")
+            assert resp.status_code == 200
+
+            # owned_pairs was called (TV path).
+            mock_checker.owned_pairs.assert_called_once()
+            # owns(kind="movie") was NEVER called.
+            mock_checker.owns.assert_not_called()
+
+            data = resp.json()
+            # Empty seasons list but ownership block exists.
+            assert data["ownership"]["seasons"] == []
+            # owned is True because owned_pairs returned data.
+            assert data["ownership"]["owned"] is True
