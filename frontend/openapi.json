@@ -3721,7 +3721,7 @@
         "type": "object"
       },
       "SeasonGrabResponse": {
-        "description": "Response for a season grab request (R4).\n\nAttributes:\n    season_wanted_id: Rowid of the season wanted row (new or existing).\n    season: Season number (1-based).\n    absorbed_count: Number of episode rows absorbed by this season wanted.\n    reused: ``True`` when an existing LIVE season row was returned (HTTP\n        200) instead of a freshly created one (HTTP 201).",
+        "description": "Response for a season grab request (R4).\n\nAttributes:\n    season_wanted_id: Rowid of the season wanted row (new or existing).\n    season: Season number (1-based).\n    absorbed_count: Number of episode rows absorbed by this season wanted.\n    reused: ``True`` when an existing LIVE season row was returned (HTTP\n        200) instead of a freshly created one (HTTP 201).\n    run_started: Whether a scoped acquisition run was actually queued by this\n        call. Reports the REAL outcome of the enqueue (\u00a75 \u2014 a success toast\n        over a dead run is forbidden): ``False`` when the indexer is\n        unconfigured, the spawn failed, or the row was merely reused. The\n        season row exists either way and the next cron will pick it up.",
         "properties": {
           "absorbed_count": {
             "title": "Absorbed Count",
@@ -3730,6 +3730,11 @@
           "reused": {
             "default": false,
             "title": "Reused",
+            "type": "boolean"
+          },
+          "run_started": {
+            "default": false,
+            "title": "Run Started",
             "type": "boolean"
           },
           "season": {
@@ -5258,7 +5263,7 @@
     },
     "/api/acquisition/follows/{followed_id}/seasons/{season}/grab": {
       "post": {
-        "description": "Manually enqueue a season wanted for a followed series (R4).\n\nCreates a ``WantedItem(kind='season', season=N, episode=None)`` and\nabsorbs every live episode wanted for that season (R5). Idempotent on the\nLIVE row only: an existing OPEN season row is reused (HTTP 200,\n``reused=True``); a terminal row (``fallback_episodes`` / ``done`` /\n``abandoned``) is history and never blocks a fresh grab \u2014 this endpoint is\nthe manual escape hatch after an R6 fallback, so it must be able to\nre-enqueue the season (201, new row).\n\nWeb mutations deliberately emit NO domain event: the web layer has no\nevent bus, and provenance comes from the store rows themselves.\n\nArgs:\n    request: The incoming FastAPI request.\n    response: The outgoing response (status downgraded to 200 on reuse).\n    followed_id: Rowid of the ``followed_series`` row.\n    season: Season number (1-based).\n\nReturns:\n    The created (201) or reused live (200) season wanted with absorption\n    count and the ``reused`` flag.\n\nRaises:\n    HTTPException: 404 if the followed_id does not exist.\n    HTTPException: 400 if season < 1 or the follow is not a show.",
+        "description": "Manually enqueue a season wanted for a followed series (R4).\n\nCreates a ``WantedItem(kind='season', season=N, episode=None)`` and\nabsorbs every live episode wanted for that season (R5). Idempotent on the\nLIVE row only: an existing OPEN season row is reused (HTTP 200,\n``reused=True``); a terminal row (``fallback_episodes`` / ``done`` /\n``abandoned``) is history and never blocks a fresh grab \u2014 this endpoint is\nthe manual escape hatch after an R6 fallback, so it must be able to\nre-enqueue the season (201, new row).\n\nA FRESH grab also starts the acquisition pass for that follow (D3), exactly as\n``create_follow`` does \u2014 the operator's action must produce an observable run\nrather than waiting up to 12 h for the next cron. ``run_started`` reports what\nactually happened (\u00a75: no success toast over a dead run).\n\nWeb mutations deliberately emit NO domain event: the web layer has no\nevent bus, and provenance comes from the store rows themselves.\n\nArgs:\n    request: The incoming FastAPI request.\n    response: The outgoing response (status downgraded to 200 on reuse).\n    followed_id: Rowid of the ``followed_series`` row.\n    season: Season number (1-based).\n\nReturns:\n    The created (201) or reused live (200) season wanted with absorption\n    count, the ``reused`` flag, and ``run_started`` telling whether this call\n    actually queued an acquisition run.\n\nRaises:\n    HTTPException: 404 if the followed_id does not exist.\n    HTTPException: 400 if season < 1 or the follow is not a show.",
         "operationId": "grab_season_api_acquisition_follows__followed_id__seasons__season__grab_post",
         "parameters": [
           {

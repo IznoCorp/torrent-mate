@@ -12,7 +12,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.dispatch.post_maintenance import run_post_dispatch_maintenance
+
+#: Shared bus instance for the call-shape assertions below. The production code now
+#: REQUIRES an event_bus (D4): the post-dispatch scan must emit where the reconcile
+#: subscriber is listening, so these tests assert the exact object is forwarded.
+_BUS = EventBus()
 
 
 @pytest.fixture
@@ -160,7 +166,7 @@ def test_integration_media_file_linked_after_maintenance(tmp_path: Path, temp_li
         "personalscraper.dispatch.post_maintenance._scan_disk_incremental",
         return_value=0,
     ):
-        run_post_dispatch_maintenance(mock_config, touched_disks, enabled=True)
+        run_post_dispatch_maintenance(mock_config, touched_disks, event_bus=_BUS, enabled=True)
 
     # Verify: the media_file now has a non-NULL release_id.
     conn = sqlite3.connect(str(temp_library_db))
@@ -190,7 +196,7 @@ def test_integration_noop_when_all_files_linked(tmp_path: Path, temp_library_db:
         "personalscraper.dispatch.post_maintenance._scan_disk_incremental",
         return_value=0,
     ):
-        run_post_dispatch_maintenance(mock_config, {"disk_1"}, enabled=True)
+        run_post_dispatch_maintenance(mock_config, {"disk_1"}, event_bus=_BUS, enabled=True)
 
     # Verify: no change — release_id still 1.
     conn = sqlite3.connect(str(temp_library_db))

@@ -363,23 +363,32 @@ class DispatchStep:
                 recover_orphans=False,
                 **resolve_dispatch_authority(ctx.app),
             )
+
+            # Post-dispatch index maintenance (DESIGN index-sync) is triggered
+            # through the single owner shared with the standalone
+            # ``personalscraper dispatch`` CLI command (PIPELINE-CORE-01): the
+            # enablement resolution, touched-disk collection, and dry-run guard live
+            # in one place so both entry points behave identically.
+            #
+            # D4 — this call is INSIDE the try on purpose. Its incremental scan is
+            # what actually indexes the freshly dispatched files (the earlier
+            # in-dispatch enrich scan completes before the outbox move lands), so it
+            # is the scan whose LibraryScanCompleted must reach the reconcile
+            # subscriber. Running it after the ``finally`` unsubscribed that
+            # subscriber, which is half of why owned wanted rows stayed 'grabbed'.
+            from personalscraper.dispatch.post_maintenance import maybe_run_post_dispatch_maintenance
+
+            maybe_run_post_dispatch_maintenance(
+                ctx.app.config,
+                results,
+                dry_run=ctx.dry_run,
+                # D4 — the process bus: a fresh EventBus() reaches nobody.
+                event_bus=ctx.app.event_bus,
+                no_post_maintenance=bool(ctx.extras.get("no_post_maintenance", False)),
+            )
         finally:
             if reconcile_sub is not None:
                 reconcile_sub.close()
-
-        # Post-dispatch index maintenance (DESIGN index-sync) is triggered
-        # through the single owner shared with the standalone
-        # ``personalscraper dispatch`` CLI command (PIPELINE-CORE-01): the
-        # enablement resolution, touched-disk collection, and dry-run guard live
-        # in one place so both entry points behave identically.
-        from personalscraper.dispatch.post_maintenance import maybe_run_post_dispatch_maintenance
-
-        maybe_run_post_dispatch_maintenance(
-            ctx.app.config,
-            results,
-            dry_run=ctx.dry_run,
-            no_post_maintenance=bool(ctx.extras.get("no_post_maintenance", False)),
-        )
 
         return report
 

@@ -102,6 +102,7 @@ SEARCH_OUTCOMES: frozenset[str] = frozenset(
         "no_matching_season",
         "all_filtered",
         "trackers_unavailable",
+        "trackers_degraded",
         "circuit_open",
         "search_api_error",
         "no_seeders",
@@ -114,6 +115,7 @@ SEARCH_OUTCOMES: frozenset[str] = frozenset(
 INCONCLUSIVE_OUTCOMES: frozenset[str] = frozenset(
     {
         "trackers_unavailable",
+        "trackers_degraded",
         "circuit_open",
         "search_api_error",
         "no_seeders",
@@ -674,6 +676,13 @@ class GrabOrchestrator:
         if outcome.all_errored:
             return _SearchChainResult(exit_path=_all_errored_exit_path(outcome), ranked=[], top=None)
         if not outcome.results:
+            # A PARTIAL outage is not an absence. ``all_errored`` (handled above)
+            # only catches a unanimous failure; with one tracker rate-limited and
+            # the other legitimately empty, the empty set used to be persisted as
+            # « I looked, there is nothing » — false, and it burned an attempt.
+            # Only a fully-healthy, fully-empty search may conclude no_candidates.
+            if outcome.trackers_errored > 0:
+                return _SearchChainResult(exit_path="trackers_degraded", ranked=[], top=None)
             return _SearchChainResult(exit_path="no_candidates", ranked=[], top=None)
 
         # --- Episode-exactness (BEFORE hard-filter): the title query returns
@@ -754,6 +763,7 @@ class GrabOrchestrator:
         ``TrackerAuthError``           ``terminal``    ``tracker_auth``      None
         ``ApiError``                   ``retryable``   ``search_api_error``  None
         ``all_errored``                ``retryable``   ``trackers_unavail.`` None
+        Empty + SOME tracker errored   ``retryable``   ``trackers_degraded`` None
         No results                     ``not_found``   ``no_candidates``     0
         ``filter_to_episode`` empty    ``not_found``   ``no_matching_ep.``   0
         ``filter_to_season`` empty     ``not_found``   ``no_matching_sea.``  0
@@ -794,6 +804,7 @@ class GrabOrchestrator:
             "tracker_auth": ("terminal", "tracker_auth", None),
             "search_api_error": ("retryable", "search_api_error", None),
             "trackers_unavailable": ("retryable", "trackers_unavailable", None),
+            "trackers_degraded": ("retryable", "trackers_degraded", None),
             "no_candidates": ("not_found", "no_candidates", 0),
             "no_matching_episode": ("not_found", "no_matching_episode", 0),
             "no_matching_season": ("not_found", "no_matching_season", 0),

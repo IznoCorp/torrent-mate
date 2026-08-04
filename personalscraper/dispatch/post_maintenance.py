@@ -17,6 +17,7 @@ from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
+    from personalscraper.core.event_bus import EventBus
     from personalscraper.dispatch._types import DispatchResult
 
 _log = get_logger("dispatch.post_maintenance")
@@ -163,7 +164,7 @@ def _invalidate_dispatched_subtrees(config: Config, destinations: dict[str, set[
     return invalidated
 
 
-def _scan_disk_incremental(config: Config, disk: str) -> int:
+def _scan_disk_incremental(config: Config, disk: str, *, event_bus: EventBus) -> int:
     """Run ``library-index --mode incremental --disk D --no-budget``.
 
     Uses the programmatic entry point rather than shelling out.
@@ -171,6 +172,12 @@ def _scan_disk_incremental(config: Config, disk: str) -> int:
     Args:
         config: Validated application Config.
         disk: Disk label (e.g. ``"disk_1"``) — must exist in ``config.disks``.
+        event_bus: The CALLER's process bus, forwarded verbatim to the scan so its
+            ``LibraryScanCompleted`` reaches the live subscribers — notably
+            ``PostDispatchReconcileSubscriber``, which closes owned ``wanted`` rows.
+            Required, never defaulted: this function used to build a fresh
+            ``EventBus()`` here, and that throwaway bus silently swallowed every
+            post-dispatch reconciliation (D4).
 
     Returns:
         Exit code (0 = success, non-zero = failure).
@@ -179,7 +186,6 @@ def _scan_disk_incremental(config: Config, disk: str) -> int:
     # fails in a cold process (scan.py:13 ↔ cli.py:21 circular dependency).
     import personalscraper.indexer.cli as _cli  # noqa: F401
     from personalscraper.conf.loader import resolve_config_path
-    from personalscraper.core.event_bus import EventBus
     from personalscraper.indexer.commands.scan import library_index_command
 
     _log.info("post_maintenance_scan_start", disk=disk)
@@ -187,7 +193,7 @@ def _scan_disk_incremental(config: Config, disk: str) -> int:
         mode="incremental",
         disk=disk,
         no_budget=True,
-        event_bus=EventBus(),
+        event_bus=event_bus,
         config_path=resolve_config_path(),
         # wait_for_lock: 0 means fail immediately if locked — consistent
         # with the CLI default. The dispatch command already holds
@@ -357,6 +363,7 @@ def run_post_dispatch_maintenance(
     config: Config,
     touched_disks: set[str],
     *,
+    event_bus: EventBus,
     destinations: dict[str, set[Path]] | None = None,
     enabled: bool = True,
 ) -> None:
@@ -371,6 +378,10 @@ def run_post_dispatch_maintenance(
         config: Validated application Config.
         touched_disks: Distinct, non-None disk labels from ``DispatchResult.disk``
             for items whose action was ``moved | merged | replaced``.
+        event_bus: The caller's process bus, forwarded to every per-disk scan so
+            ``LibraryScanCompleted`` reaches live subscribers. Required (D4) — a
+            defaulted bus reaches nobody and silently disables post-dispatch
+            reconciliation.
         destinations: Dispatched destination paths per disk
             (:func:`collect_touched_destinations`) — their subtrees are
             invalidated so the incremental scan re-walks them even when the
@@ -403,7 +414,7 @@ def run_post_dispatch_maintenance(
     scan_failures: list[str] = []
     for disk in sorted(touched_disks):
         try:
-            rc = _scan_disk_incremental(config, disk)
+            rc = _scan_disk_incremental(config, disk, event_bus=event_bus)
             if rc != 0:
                 scan_failures.append(disk)
         except Exception as exc:
@@ -468,6 +479,7 @@ def maybe_run_post_dispatch_maintenance(
     results: list[DispatchResult],
     *,
     dry_run: bool,
+    event_bus: EventBus,
     no_post_maintenance: bool = False,
 ) -> None:
     """Resolve the post-dispatch maintenance policy from *results*, then run it.
@@ -494,6 +506,9 @@ def maybe_run_post_dispatch_maintenance(
         results: Raw per-item dispatch results from :func:`run_dispatch`.
         dry_run: When True the maintenance is skipped entirely — a preview must
             never mutate the index.
+        event_bus: The caller's process bus, forwarded to
+            :func:`run_post_dispatch_maintenance` and on to every disk scan so
+            ``LibraryScanCompleted`` reaches live subscribers. Required (D4).
         no_post_maintenance: Operator opt-out flag (``--no-post-maintenance`` /
             ``ctx.extras['no_post_maintenance']``). Defaults to False.
     """
@@ -506,6 +521,7 @@ def maybe_run_post_dispatch_maintenance(
         run_post_dispatch_maintenance(
             config,
             touched_disks,
+            event_bus=event_bus,
             destinations=collect_touched_destinations(results),
             enabled=maintenance_enabled,
         )

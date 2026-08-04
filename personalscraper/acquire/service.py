@@ -396,6 +396,11 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
 
         available = waiting = unverified = abandoned = skipped = 0
 
+        # D1 — per-PASS memo bounding the starvation season probe to ONE extra
+        # tracker query per (follow, season). Ten starved siblings of the same
+        # season would otherwise fire ten identical season searches, every pass.
+        season_probed: set[tuple[int, int]] = set()
+
         for item in queue:
             assert item.id is not None  # noqa: S101 — ensured by the SELECTs above
             wanted_id = item.id
@@ -406,7 +411,7 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
             # item's store/decode failure must never abort the pass — the
             # search_run_complete summary MUST still fire.
             try:
-                outcome_tag = self._search_item(item, now, cadence=cadence)
+                outcome_tag = self._search_item(item, now, cadence=cadence, season_probed=season_probed)
             except sqlite3.OperationalError as exc:
                 # DB lock (RETRYABLE, §6.2): leave the row for the stale-searching
                 # sweep to recover (do NOT abort the pass). Count as skipped.

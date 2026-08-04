@@ -501,3 +501,165 @@ class TestSeasonGrab:
         assert data["season"] == 2
         assert data["season_wanted_id"] > 0
         assert data["absorbed_count"] == 0
+
+
+# ---------------------------------------------------------------------------
+# acq-escalade D3 — the operator's action must START, not wait for cron
+# ---------------------------------------------------------------------------
+
+
+class TestSeasonGrabTriggersARun:
+    """A manual season grab must start the pass, not wait up to 12 h for cron (D3).
+
+    ``create_follow`` has always primed the chain; ``grab_season`` did not, so the
+    operator's click produced a queued row and no observable run — the UI said
+    « en cours d'acquisition » about work nothing had scheduled (product-intent §2).
+    Crons are ``search 10 3,15`` / ``grab 20 3,15``: a row created at 12:36 waited
+    until 15:10.
+    """
+
+    def test_fresh_season_grab_enqueues_a_prime_run(
+        self,
+        client: TestClient,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Creating the season row also enqueues the scoped run, and says so."""
+        calls: list[int] = []
+
+        def _fake_enqueue(db_path: object, followed_id: int) -> str:
+            calls.append(followed_id)
+            return "spawned"
+
+        monkeypatch.setattr(
+            "personalscraper.web.routes.acquisition_seasons.enqueue_prime_run",
+            _fake_enqueue,
+        )
+
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        fid = _seed_followed(conn, 1, "Test Show")
+        conn.commit()
+        conn.close()
+
+        resp = client.post(
+            f"/api/acquisition/follows/{fid}/seasons/1/grab",
+            cookies=_auth_cookies(),
+            headers=_xrw_headers(),
+        )
+
+        assert resp.status_code == 201, resp.text
+        assert calls == [fid], "the operator action must start the pass"
+        assert resp.json()["run_started"] is True
+
+    def test_reused_live_row_does_not_double_enqueue(
+        self,
+        client: TestClient,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """An existing LIVE season row is reused (200) and must not re-spawn a run.
+
+        Re-spawning would be the duplicate-of-the-same-action §6 forbids.
+        """
+        calls: list[int] = []
+        monkeypatch.setattr(
+            "personalscraper.web.routes.acquisition_seasons.enqueue_prime_run",
+            lambda db_path, followed_id: (calls.append(followed_id), "spawned")[1],
+        )
+
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        fid = _seed_followed(conn, 1, "Test Show")
+        conn.commit()
+        conn.close()
+
+        client.post(
+            f"/api/acquisition/follows/{fid}/seasons/1/grab",
+            cookies=_auth_cookies(),
+            headers=_xrw_headers(),
+        )
+        calls.clear()
+
+        resp = client.post(
+            f"/api/acquisition/follows/{fid}/seasons/1/grab",
+            cookies=_auth_cookies(),
+            headers=_xrw_headers(),
+        )
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["reused"] is True
+        assert calls == [], "the reused path must not queue a second identical run"
+        assert resp.json()["run_started"] is False
+
+
+class TestSeasonGrabConstitutionSix:
+    """§6 — a legitimate operator action never answers « occupé »."""
+
+    def test_never_returns_409_when_a_run_is_already_in_flight(
+        self,
+        client: TestClient,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """An already-running prime yields a normal response, never a 409.
+
+        The only refusal §6 permits is idempotence — which ``enqueue_prime_run``
+        already implements internally by not duplicating an in-flight prime.
+        """
+        monkeypatch.setattr(
+            "personalscraper.web.routes.acquisition_seasons.enqueue_prime_run",
+            lambda db_path, followed_id: "already_running",
+        )
+
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        fid = _seed_followed(conn, 1, "Test Show")
+        conn.commit()
+        conn.close()
+
+        resp = client.post(
+            f"/api/acquisition/follows/{fid}/seasons/1/grab",
+            cookies=_auth_cookies(),
+            headers=_xrw_headers(),
+        )
+
+        assert resp.status_code != 409, "§6: a legitimate action is never refused as « occupé »"
+        assert resp.status_code == 201, resp.text
+        assert resp.json()["run_started"] is True
+
+    def test_failed_enqueue_is_reported_not_hidden(
+        self,
+        client: TestClient,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A dead enqueue is visible in the payload — no success toast on a dead run (§5).
+
+        The season row still exists (the next cron will pick it up), but the
+        response must not claim a run started when none did.
+        """
+        monkeypatch.setattr(
+            "personalscraper.web.routes.acquisition_seasons.enqueue_prime_run",
+            lambda db_path, followed_id: "failed",
+        )
+
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        fid = _seed_followed(conn, 1, "Test Show")
+        conn.commit()
+        conn.close()
+
+        resp = client.post(
+            f"/api/acquisition/follows/{fid}/seasons/1/grab",
+            cookies=_auth_cookies(),
+            headers=_xrw_headers(),
+        )
+
+        assert resp.status_code == 201, resp.text
+        assert resp.json()["run_started"] is False
+        assert resp.json()["season_wanted_id"] > 0, "the row is enqueued even when the spawn fails"

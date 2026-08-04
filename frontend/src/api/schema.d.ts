@@ -298,6 +298,11 @@ export interface paths {
          *     the manual escape hatch after an R6 fallback, so it must be able to
          *     re-enqueue the season (201, new row).
          *
+         *     A FRESH grab also starts the acquisition pass for that follow (D3), exactly as
+         *     ``create_follow`` does — the operator's action must produce an observable run
+         *     rather than waiting up to 12 h for the next cron. ``run_started`` reports what
+         *     actually happened (§5: no success toast over a dead run).
+         *
          *     Web mutations deliberately emit NO domain event: the web layer has no
          *     event bus, and provenance comes from the store rows themselves.
          *
@@ -309,7 +314,8 @@ export interface paths {
          *
          *     Returns:
          *         The created (201) or reused live (200) season wanted with absorption
-         *         count and the ``reused`` flag.
+         *         count, the ``reused`` flag, and ``run_started`` telling whether this call
+         *         actually queued an acquisition run.
          *
          *     Raises:
          *         HTTPException: 404 if the followed_id does not exist.
@@ -4451,6 +4457,11 @@ export interface components {
          *         absorbed_count: Number of episode rows absorbed by this season wanted.
          *         reused: ``True`` when an existing LIVE season row was returned (HTTP
          *             200) instead of a freshly created one (HTTP 201).
+         *         run_started: Whether a scoped acquisition run was actually queued by this
+         *             call. Reports the REAL outcome of the enqueue (§5 — a success toast
+         *             over a dead run is forbidden): ``False`` when the indexer is
+         *             unconfigured, the spawn failed, or the row was merely reused. The
+         *             season row exists either way and the next cron will pick it up.
          */
         SeasonGrabResponse: {
             /** Absorbed Count */
@@ -4460,6 +4471,11 @@ export interface components {
              * @default false
              */
             reused: boolean;
+            /**
+             * Run Started
+             * @default false
+             */
+            run_started: boolean;
             /** Season */
             season: number;
             /** Season Wanted Id */

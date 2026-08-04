@@ -198,6 +198,35 @@ class _WantedSubStore:
             )
             return cur.rowcount == 1
 
+    def refund_search_attempt(self, wanted_id: int) -> bool:
+        """Give back the attempt consumed by a claim whose search never concluded.
+
+        :meth:`claim_for_search` stamps ``attempts + 1`` atomically with the transition
+        to 'searching', i.e. BEFORE the verdict is known. A search that ends on a
+        tracker outage must not count toward the starvation-escalation threshold, so
+        the attempt is refunded explicitly here rather than conditionally skipped at
+        claim time (which would reopen the TOCTOU race the atomic claim closed).
+
+        Clamped at zero: a refund never drives ``attempts`` negative, whatever the
+        interleaving.
+
+        Args:
+            wanted_id: Rowid of the ``wanted`` row.
+
+        Returns:
+            ``True`` if the row existed and was updated; ``False`` otherwise.
+        """
+        with self._write_tx(self._conn):
+            cur = self._conn.execute(
+                """
+                UPDATE wanted
+                SET attempts = MAX(attempts - 1, 0)
+                WHERE id = ?
+                """,
+                (wanted_id,),
+            )
+            return cur.rowcount == 1
+
     def claim_for_grab(self, wanted_id: int, now: int) -> bool:
         """Atomically claim an AVAILABLE item for grabbing.
 

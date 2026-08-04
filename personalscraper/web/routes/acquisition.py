@@ -32,12 +32,12 @@ from contextlib import closing
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from personalscraper.acquire._provenance_store import STUCK_IDLE_SECONDS, provenance_row_is_stuck
 from personalscraper.acquire.cadence import Cadence
 from personalscraper.acquire.desired import cadence_from_config, cadence_from_json, effective_cadence
-from personalscraper.acquire.domain import OPEN_WANTED_STATUSES, FollowedSeries
+from personalscraper.acquire.domain import FollowedSeries
 from personalscraper.acquire.metadata_enrich import FollowMetadata, enrich_follow_metadata
 from personalscraper.acquire.store import build_acquire_store
 from personalscraper.core.identity import MediaRef
@@ -76,7 +76,6 @@ from personalscraper.web.models.acquisition import (
     MediaSearchResponse,
     ObligationItem,
     ObligationsResponse,
-    SeasonGrabResponse,
     UpdateFollowRequest,
     WantedItemResponse,
     WantedResponse,
@@ -975,175 +974,5 @@ def delete_follow(request: Request, followed_id: int) -> None:
         if existing is None:
             raise HTTPException(status_code=404, detail="Followed series not found")
         store.follow.set_active(followed_id, False)
-    finally:
-        store.close()
-
-
-# ── Season Grab (R4 / R5) ────────────────────────────────────────────────
-
-
-def _count_absorbed_for_season(
-    store: "ConcreteAcquireStore",
-    followed_id: int,
-    season: int,
-) -> int:
-    """Count episode rows already absorbed for a season by a season wanted.
-
-    Args:
-        store: An open acquire store.
-        followed_id: FK to ``followed_series``.
-        season: Season number (1-based).
-
-    Returns:
-        Number of episode rows with ``status='absorbed'`` for the follow+season.
-    """
-    store.wanted._conn.row_factory = sqlite3.Row
-    row = store.wanted._conn.execute(
-        "SELECT COUNT(*) AS cnt FROM wanted "
-        "WHERE followed_id IS ? AND kind = 'episode' "
-        "AND season = ? AND status = 'absorbed'",
-        (followed_id, season),
-    ).fetchone()
-    return int(row["cnt"]) if row else 0
-
-
-def _absorb_live_episodes_for_season(
-    store: "ConcreteAcquireStore",
-    followed_id: int,
-    season: int,
-    season_wanted_id: int,
-) -> list[int]:
-    """Absorb all live episode wanted rows for a season (R5).
-
-    Args:
-        store: An open acquire store.
-        followed_id: FK to ``followed_series``.
-        season: Season number (1-based).
-        season_wanted_id: Rowid of the season wanted to absorb into.
-
-    Returns:
-        The list of episode rowids that were absorbed.
-    """
-    store.wanted._conn.row_factory = sqlite3.Row
-    rows = store.wanted._conn.execute(
-        "SELECT id FROM wanted "
-        "WHERE followed_id IS ? AND kind = 'episode' "
-        "AND season = ? AND status IN ('pending', 'searching', 'available')",
-        (followed_id, season),
-    ).fetchall()
-    episode_ids = tuple(int(r["id"]) for r in rows)
-    if episode_ids:
-        store.wanted.absorb_episodes(season_wanted_id, episode_ids)
-    return list(episode_ids)
-
-
-@router.post(
-    "/follows/{followed_id}/seasons/{season}/grab",
-    status_code=201,
-    response_model=SeasonGrabResponse,
-    dependencies=[Depends(require_not_staging), Depends(require_x_requested_with)],
-)
-def grab_season(
-    request: Request,
-    response: Response,
-    followed_id: int,
-    season: int,
-) -> SeasonGrabResponse:
-    """Manually enqueue a season wanted for a followed series (R4).
-
-    Creates a ``WantedItem(kind='season', season=N, episode=None)`` and
-    absorbs every live episode wanted for that season (R5). Idempotent on the
-    LIVE row only: an existing OPEN season row is reused (HTTP 200,
-    ``reused=True``); a terminal row (``fallback_episodes`` / ``done`` /
-    ``abandoned``) is history and never blocks a fresh grab — this endpoint is
-    the manual escape hatch after an R6 fallback, so it must be able to
-    re-enqueue the season (201, new row).
-
-    Web mutations deliberately emit NO domain event: the web layer has no
-    event bus, and provenance comes from the store rows themselves.
-
-    Args:
-        request: The incoming FastAPI request.
-        response: The outgoing response (status downgraded to 200 on reuse).
-        followed_id: Rowid of the ``followed_series`` row.
-        season: Season number (1-based).
-
-    Returns:
-        The created (201) or reused live (200) season wanted with absorption
-        count and the ``reused`` flag.
-
-    Raises:
-        HTTPException: 404 if the followed_id does not exist.
-        HTTPException: 400 if season < 1 or the follow is not a show.
-    """
-    if season < 1:
-        raise HTTPException(status_code=400, detail="Season must be >= 1")
-
-    config = request.app.state.config
-    store = build_acquire_store(config.acquire)
-    try:
-        followed = store.follow.get(followed_id)
-        if followed is None:
-            raise HTTPException(status_code=404, detail="Followed series not found")
-        if followed.kind != "show":
-            raise HTTPException(
-                status_code=400,
-                detail="Season grab only applies to TV shows (kind='show')",
-            )
-
-        # Dedup: one LIVE season wanted per follow+season. Status-scoped to the
-        # open statuses — a terminal row (fallback_episodes/done/abandoned)
-        # must not be « reused »: that answered 201 with nothing enqueued,
-        # closing the only manual escape hatch after a fallback (review F5).
-        existing = store.wanted.find(
-            followed_id=followed_id,
-            kind="season",
-            season=season,
-            episode=None,
-            statuses=tuple(sorted(OPEN_WANTED_STATUSES)),
-        )
-        if existing is not None:
-            # Count already-absorbed episodes for a truthful response.
-            absorbed = _count_absorbed_for_season(store, followed_id, season)
-            response.status_code = 200
-            return SeasonGrabResponse(
-                season_wanted_id=existing.id or 0,
-                season=season,
-                absorbed_count=absorbed,
-                reused=True,
-            )
-
-        assert followed.id is not None  # noqa: S101 — get() sets id
-        now = int(time.time())
-
-        from personalscraper.acquire.domain import WantedItem
-
-        # Enqueue the season wanted
-        season_wid = store.wanted.add(
-            WantedItem(
-                media_ref=followed.media_ref,
-                kind="season",
-                status="pending",
-                enqueued_at=now,
-                followed_id=followed.id,
-                season=season,
-                episode=None,
-            )
-        )
-
-        # Absorb live episode wanteds for this season
-        absorbed_ids = _absorb_live_episodes_for_season(
-            store,
-            followed.id,
-            season,
-            season_wid,
-        )
-
-        return SeasonGrabResponse(
-            season_wanted_id=season_wid,
-            season=season,
-            absorbed_count=len(absorbed_ids),
-            reused=False,
-        )
     finally:
         store.close()

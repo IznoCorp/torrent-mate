@@ -147,8 +147,8 @@ def test_event_registry_has_all_v1_events() -> None:
     """
     import personalscraper.events  # noqa: F401 — eager-import side effect
 
-    assert len(_EVENT_CLASS_REGISTRY) == 47, (
-        f"Expected 47 events (44 existing + 3 seed-caps DownloadStarted/DownloadProgressed/DownloadCompleted), "
+    assert len(_EVENT_CLASS_REGISTRY) == 48, (
+        f"Expected 48 events (47 existing + acq-escalade SeasonEscalatedAfterEpisodeFailures), "
         f"found {len(_EVENT_CLASS_REGISTRY)}: {sorted(_EVENT_CLASS_REGISTRY)}"
     )
 

@@ -363,6 +363,7 @@ from personalscraper.acquire.events import (  # noqa: E402, PLC0415
     GrabSucceeded,
     RatioMeasured,
     SeasonAbsorbedEpisodes,
+    SeasonEscalatedAfterEpisodeFailures,
     SeasonFellBackToEpisodes,
     SeedObligationBreached,
     SeedObligationRecorded,
@@ -536,6 +537,18 @@ def make_season_absorbed_episodes() -> SeasonAbsorbedEpisodes:
         media_ref=_BREAKING_BAD_REF,
         season=5,
         absorbed_ids=(10, 11, 12),
+    )
+
+
+@register_factory(SeasonEscalatedAfterEpisodeFailures)
+def make_season_escalated_after_episode_failures() -> SeasonEscalatedAfterEpisodeFailures:
+    """Realistic factory — Breaking Bad S05E13 starved, the whole-season pack taken instead."""
+    return SeasonEscalatedAfterEpisodeFailures(
+        season_wanted_id=42,
+        media_ref=_BREAKING_BAD_REF,
+        season=5,
+        trigger_outcome="no_candidates",
+        starved_episode_ids=(13,),
     )
 
 

@@ -535,9 +535,16 @@ def library_refresh_path(
         return
 
     console.print(f"Refreshing index for [bold]{target}[/bold] (disk {owning_label})…")
+    # This command IS a composition root: it owns its bus, and no acquire subscriber
+    # is wired on this path (a targeted manual re-index must not gain a reconciliation
+    # side effect). Constructing the bus here is therefore correct — the D4 defect was
+    # a bus built INSIDE a call chain that already carried one, hiding live subscribers.
+    from personalscraper.core.event_bus import EventBus  # noqa: PLC0415
+
     run_post_dispatch_maintenance(
         cfg,
         {owning_label},
+        event_bus=EventBus(),
         destinations={owning_label: {target}},
         enabled=True,
     )
