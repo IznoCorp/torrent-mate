@@ -21,7 +21,11 @@ import { ErrorState } from "@/components/ds/ErrorState";
 import { MediaCard } from "@/components/ds/MediaCard";
 import { StatusBadge } from "@/components/ds/StatusBadge";
 import { StagingMediaDetail } from "@/components/staging/StagingMediaDetail";
-import { matchBadge, posterKind } from "@/components/staging/meta";
+import {
+  matchBadge,
+  posterKind,
+  stagingMediaSheetHref,
+} from "@/components/staging/meta";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -437,6 +441,25 @@ export function StagingLibrary({
                           {seasonCount} saison{seasonCount > 1 ? "s" : ""}
                         </span>
                       )}
+                      {/* §11 constitution: every identified media links to its sheet.
+                          Uses an <a> so it does not interfere with the card's onOpen
+                          (the detail drawer) — clicking the link navigates to the
+                          media sheet; clicking anywhere else opens the drawer. */}
+                      {(() => {
+                        const sheetHref = stagingMediaSheetHref(item);
+                        if (sheetHref == null) return null;
+                        return (
+                          <a
+                            href={sheetHref}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                            }}
+                            className="ml-auto text-xs text-primary hover:underline"
+                          >
+                            Voir la fiche
+                          </a>
+                        );
+                      })()}
                     </>
                   }
                 />

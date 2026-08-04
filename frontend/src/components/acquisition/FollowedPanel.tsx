@@ -12,15 +12,18 @@
 import {
   Clock,
   Download,
+  ExternalLink,
   MoreHorizontal,
   Power,
   Search,
   Trash2,
 } from "lucide-react";
 import { useState, type ReactElement } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { type FollowedSeriesItem } from "@/api/acquisition";
 import { MediaPoster } from "@/components/ds/MediaPoster";
+import { mediaSheetHref } from "@/lib/media-href";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -76,12 +79,54 @@ export interface FollowedPanelProps {
  * Returns:
  *   The followed panel element.
  */
+/**
+ * Derive a {@link MediaRef} from a followed item's provider ids.
+ *
+ * Priority: tvdb > tmdb > imdb (imdb has no sheet route, but the helper
+ * encodes the id honestly — the backend handles the resolution).
+ *
+ * Args:
+ *   item: A followed series or film.
+ *
+ * Returns:
+ *   A media sheet href, or ``null`` when no provider id is known.
+ */
+function followMediaRef(item: FollowedSeriesItem): string | null {
+  const ref = item.media_ref;
+  // tvdb first — primary provider for series.
+  if (ref.tvdb_id != null) {
+    return mediaSheetHref({
+      provider: "tvdb",
+      providerId: String(ref.tvdb_id),
+      kind: item.kind === "movie" ? "movie" : "tv",
+    });
+  }
+  // tmdb second — universal provider.
+  if (ref.tmdb_id != null) {
+    return mediaSheetHref({
+      provider: "tmdb",
+      providerId: String(ref.tmdb_id),
+      kind: item.kind === "movie" ? "movie" : "tv",
+    });
+  }
+  // imdb last — info-only, no sheet route, but encode honestly.
+  if (ref.imdb_id != null) {
+    return mediaSheetHref({
+      provider: "imdb",
+      providerId: ref.imdb_id,
+      kind: item.kind === "movie" ? "movie" : "tv",
+    });
+  }
+  return null;
+}
+
 export function FollowedPanel({
   data,
   isLoading,
   isError,
   error,
 }: FollowedPanelProps): ReactElement {
+  const navigate = useNavigate();
   const {
     grabSchedule,
     triggerSearch,
@@ -326,6 +371,18 @@ export function FollowedPanel({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    {/* §11 constitution: every identified media must lead to its sheet. */}
+                    {followMediaRef(item) != null && (
+                      <DropdownMenuItem
+                        onSelect={() => {
+                          const href = followMediaRef(item);
+                          if (href != null) void navigate(href);
+                        }}
+                      >
+                        <ExternalLink className="size-4" aria-hidden="true" />
+                        Voir la fiche
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem
                       disabled={!item.active || isSearching}
                       onSelect={() => {

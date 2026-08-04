@@ -21,6 +21,11 @@ vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
 }));
 
+const navigateMock = vi.fn();
+vi.mock("react-router-dom", () => ({
+  useNavigate: () => navigateMock,
+}));
+
 import { MediaSearchAdd } from "@/components/acquisition/MediaSearchAdd";
 import { toast } from "sonner";
 

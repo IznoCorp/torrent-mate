@@ -19,6 +19,7 @@ import {
   kindLabel,
   matchBadge,
   posterKind,
+  stagingMediaSheetHref,
 } from "@/components/staging/meta";
 import { Button } from "@/components/ui/button";
 import {
@@ -221,10 +222,20 @@ export function StagingMediaDetail({
             )}
           </div>
           {Object.keys(item.provider_ids).length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
               {Object.entries(item.provider_ids).map(([family, id]) => (
                 <IdChip key={family} family={family} id={id} />
               ))}
+              {/* §11 constitution: every identified media must lead to its sheet. */}
+              {(() => {
+                const sheetHref = stagingMediaSheetHref(item);
+                if (sheetHref == null) return null;
+                return (
+                  <a href={sheetHref} className="text-xs text-primary hover:underline">
+                    Voir la fiche
+                  </a>
+                );
+              })()}
             </div>
           )}
         </div>

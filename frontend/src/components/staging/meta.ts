@@ -7,6 +7,7 @@
 
 import type { StagingMediaItem } from "@/api/staging";
 import type { StatusTone } from "@/components/ds/StatusBadge";
+import { mediaSheetHref } from "@/lib/media-href";
 
 /** Matching verdict → status chip tone + French label. */
 export function matchBadge(
@@ -64,3 +65,46 @@ export function dispatchLabel(
 // Compact byte-size formatter — re-exported from the single `lib/format`
 // owner (ACC-10).
 export { formatSize } from "@/lib/format";
+
+/**
+ * Derive a media-sheet href from a staged media item's provider ids.
+ *
+ * Priority: tvdb > tmdb.  Returns ``null`` when no provider id is known
+ * (§11 exception — an unidentified media must lead to resolution, never a
+ * dead link).
+ *
+ * Args:
+ *   item: A staged media read-model item.
+ *
+ * Returns:
+ *   A media sheet href, or ``null`` when ``provider_ids`` is empty or has no
+ *   recognised provider.
+ */
+export function stagingMediaSheetHref(
+  item: StagingMediaItem,
+): string | null {
+  const ids = item.provider_ids;
+  if (Object.keys(ids).length === 0) return null;
+  const kind =
+    item.media_kind === "movie"
+      ? ("movie" as const)
+      : item.media_kind === "tvshow"
+        ? ("tv" as const)
+        : undefined;
+  // Priority: tvdb > tmdb (imdb has no sheet route).
+  if (ids.tvdb) {
+    return mediaSheetHref({
+      provider: "tvdb",
+      providerId: ids.tvdb,
+      ...(kind !== undefined ? { kind } : {}),
+    });
+  }
+  if (ids.tmdb) {
+    return mediaSheetHref({
+      provider: "tmdb",
+      providerId: ids.tmdb,
+      ...(kind !== undefined ? { kind } : {}),
+    });
+  }
+  return null;
+}

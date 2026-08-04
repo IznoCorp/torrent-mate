@@ -59,6 +59,11 @@ vi.mock("@/hooks/useSchedulers", () => ({
   useSchedulers: () => ({ data: undefined }),
 }));
 
+const navigateMock = vi.fn();
+vi.mock("react-router-dom", () => ({
+  useNavigate: () => navigateMock,
+}));
+
 import { FollowedPanel } from "./FollowedPanel";
 
 /** A fully-typed followed item, with the five-state counters nulled (no catalog). */

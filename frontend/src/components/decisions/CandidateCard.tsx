@@ -13,6 +13,7 @@ import type { DecisionCandidate } from "@/api/decisions";
 import { MediaPoster } from "@/components/ds/MediaPoster";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { mediaSheetHref } from "@/lib/media-href";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -123,7 +124,10 @@ export function CandidateCard({
     >
       <CardContent className="flex flex-col gap-3 p-3">
         {/* Poster — via the DS MediaPoster (lazy load, branded fallback, alt). */}
-        <MediaPoster title={candidate.title} src={candidate.poster_url ?? null} />
+        <MediaPoster
+          title={candidate.title}
+          src={candidate.poster_url ?? null}
+        />
 
         {/* Title + year */}
         <div className="flex flex-col gap-0.5">
@@ -160,9 +164,21 @@ export function CandidateCard({
           </div>
         </div>
 
-        {/* Provider badge */}
+        {/* Provider badge + media sheet link (§11 constitution). */}
         <div className="flex items-center justify-between">
           <Badge tone="neutral">{providerLabel}</Badge>
+          <a
+            href={mediaSheetHref({
+              provider: candidate.provider,
+              providerId: String(candidate.provider_id),
+            })}
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+            className="text-xs text-primary hover:underline"
+          >
+            Voir la fiche
+          </a>
         </div>
       </CardContent>
     </Card>
