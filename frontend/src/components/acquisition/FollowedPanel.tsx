@@ -49,7 +49,6 @@ import { useFollowedPanel } from "@/hooks/useFollowedPanel";
 import { CompletenessAccordion } from "./CompletenessAccordion";
 import {
   canGrabNow,
-  FOLLOW_KIND_LABEL,
   FOLLOW_STATUS_TONE,
   followCountsCaption,
   followFraction,
@@ -297,13 +296,19 @@ export function FollowedPanel({
                   </div>
                 )}
 
-                {/* Title + metadata */}
+                {/* Title + metadata — MOBILE FIRST (§12): on a phone the width is
+                    the scarce resource, so the title gets a line of its own and
+                    everything that qualifies it drops to the line below. Sharing
+                    that line (title + statut + type) truncated real titles to
+                    « A Knight of the Seven King… » on the screen the operator
+                    actually uses. */}
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <div className="flex items-center gap-2">
+                  {/* Line 1 — the title, alone. */}
+                  <div className="min-w-0">
                     {sheetHref !== null ? (
                       <button
                         type="button"
-                        className="truncate text-sm font-medium hover:underline"
+                        className="block w-full truncate text-left text-sm font-medium hover:underline"
                         onClick={() => {
                           void navigate(sheetHref);
                         }}
@@ -311,9 +316,21 @@ export function FollowedPanel({
                         {item.title}
                       </button>
                     ) : (
-                      <span className="truncate text-sm font-medium">
+                      <span className="block w-full truncate text-sm font-medium">
                         {item.title}
                       </span>
+                    )}
+                  </div>
+                  {/* Line 2 — completeness FIRST (the number the operator scans
+                      for), then the status, then the rest. The kind label
+                      (« Série » / « Film ») is gone: the Séries/Films sub-tabs
+                      already say it, and on a phone a redundant word costs
+                      width the title needs. */}
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                    {/* Completeness: NN/NN in font-mono tabular-nums, "—" when
+                        a série has no catalog, nothing at all for a film. */}
+                    {fraction != null && (
+                      <span className="font-mono tabular-nums">{fraction}</span>
                     )}
                     {/* Status chip: pure mapping of the SERVER state — no
                         client-side derivation. The wrapper's title spells the
@@ -335,17 +352,6 @@ export function FollowedPanel({
                           Sans ID TVDB
                         </Badge>
                       </span>
-                    )}
-                    {/* Kind label — kept as a subtle hint for disambiguation. */}
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      {FOLLOW_KIND_LABEL[item.kind] ?? "Série"}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
-                    {/* Completeness: NN/NN in font-mono tabular-nums, "—" when
-                        a série has no catalog, nothing at all for a film. */}
-                    {fraction != null && (
-                      <span className="font-mono tabular-nums">{fraction}</span>
                     )}
                     {/* Next due. */}
                     {item.next_search_at != null && (
