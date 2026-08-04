@@ -3592,7 +3592,10 @@ export interface components {
          *         year: Release year, or ``None``.
          *         poster_url: Full URL to the poster image.
          *         overview: Full plot summary.
-         *         director: Director name, or ``None`` when unknown.
+         *         director: Director name (movies), or ``None`` when unknown.
+         *         creator: Series creator name (TV only — crossed from TMDB when the
+         *             primary provider is TVDB and does not supply it). ``None`` for
+         *             movies or when the cross-provider lookup fails.
          *         genres: List of genre names.
          *         trailer_url: YouTube trailer URL, or ``None``.
          *         kind: The media kind the provider lookup resolved —
@@ -3608,6 +3611,8 @@ export interface components {
          *             unreachable and the response is partial. ``None`` on a full response.
          */
         MediaSheetResponse: {
+            /** Creator */
+            creator: string | null;
             /** Degraded Reason */
             degraded_reason: string | null;
             /** Director */

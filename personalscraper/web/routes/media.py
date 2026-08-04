@@ -388,6 +388,7 @@ def get_media_sheet(
             poster_url="",
             overview="",
             director=None,
+            creator=None,
             genres=[],
             trailer_url=None,
             kind=None,
@@ -412,6 +413,28 @@ def get_media_sheet(
 
     ownership = _build_ownership_block(details, request, provider, provider_id, is_tv=is_tv)
 
+    # Step 5b: Cross TMDB for creator when the primary provider is TVDB and
+    # the media is a TV series.  TVDB does not supply a series creator
+    # (its characters array has no Director peopleType for series), so the
+    # operator arbitrated (2026-08-04): cross TMDB and show « Créateur ».
+    # Fail-soft — a failed cross leaves creator=None, never a 500.
+    creator: str | None = details.creator
+    if is_tv and not creator:
+        tmdb_id_str = (details.external_ids or {}).get("tmdb", "").strip()
+        if tmdb_id_str and tmdb_id_str != "0":
+            try:
+                tmdb_client = _build_tmdb_client(settings.tmdb_api_key)
+                tmdb_details: MediaDetails = tmdb_client.get_tv(tmdb_id_str)
+                creator = tmdb_details.creator
+            except Exception:
+                log.debug(
+                    "media_sheet_creator_cross_failed",
+                    provider=provider,
+                    provider_id=provider_id,
+                    tmdb_id=tmdb_id_str,
+                    exc_info=True,
+                )
+
     # Step 6: Build response
     seasons_list = _build_seasons_list(details)
     series_status = details.series_status if is_tv else None
@@ -433,6 +456,7 @@ def get_media_sheet(
         poster_url=poster_url,
         overview=details.overview or "",
         director=details.director,
+        creator=creator,
         genres=details.genres or [],
         trailer_url=details.trailer_url,
         kind="tv" if is_tv else "movie",

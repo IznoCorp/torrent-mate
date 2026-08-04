@@ -355,11 +355,21 @@ export function MediaSheet({
             </div>
           )}
 
-          {/* Director */}
-          <div>
-            <span className="text-xs text-muted-foreground">Réalisateur</span>
-            <p className="text-sm">{data.director ?? "Réalisateur inconnu"}</p>
-          </div>
+          {/* Director (movies) / Creator (TV) — operator arbitration 2026-08-04:
+              series show « Créateur », not « Réalisateur » (TVDB has no director). */}
+          {series ? (
+            <div>
+              <span className="text-xs text-muted-foreground">Créateur</span>
+              <p className="text-sm">{data.creator ?? "Créateur inconnu"}</p>
+            </div>
+          ) : (
+            <div>
+              <span className="text-xs text-muted-foreground">Réalisateur</span>
+              <p className="text-sm">
+                {data.director ?? "Réalisateur inconnu"}
+              </p>
+            </div>
+          )}
 
           {/* Genres */}
           {data.genres.length > 0 && (

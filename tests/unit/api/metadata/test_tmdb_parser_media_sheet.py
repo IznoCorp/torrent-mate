@@ -76,12 +76,15 @@ class TestTMDBTVMediaSheet:
         assert md.series_status != ""
 
     def test_director_from_created_by(self) -> None:
-        """For TV, director comes from created_by[0]['name']."""
+        """For TV, director AND creator come from created_by[0]['name']."""
         raw = _load("tv_details.json")
         md = parse_media_details(raw, "tmdb")
         assert md.director == "Vince Gilligan"
         assert isinstance(md.director, str)
         assert md.director != ""
+        # Creator is also populated for TV (operator arbitration 2026-08-04).
+        assert md.creator == "Vince Gilligan"
+        assert isinstance(md.creator, str)
 
     def test_episode_count_from_number_of_episodes(self) -> None:
         """episode_count comes from raw['number_of_episodes']."""
@@ -132,7 +135,7 @@ class TestAbsentFieldsNeverEmptyString:
         assert md.director is None
 
     def test_tv_without_created_by_director_none(self) -> None:
-        """A TV response without 'created_by' → director is None."""
+        """A TV response without 'created_by' → director AND creator are None."""
         md = parse_media_details(
             {
                 "id": 3,
@@ -142,6 +145,7 @@ class TestAbsentFieldsNeverEmptyString:
             "tmdb",
         )
         assert md.director is None
+        assert md.creator is None
 
     def test_movie_without_video_results_trailer_none(self) -> None:
         """videos.results without any Trailer → trailer_url is None."""

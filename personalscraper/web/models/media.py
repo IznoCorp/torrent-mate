@@ -67,7 +67,10 @@ class MediaSheetResponse(BaseModel):
         year: Release year, or ``None``.
         poster_url: Full URL to the poster image.
         overview: Full plot summary.
-        director: Director name, or ``None`` when unknown.
+        director: Director name (movies), or ``None`` when unknown.
+        creator: Series creator name (TV only — crossed from TMDB when the
+            primary provider is TVDB and does not supply it). ``None`` for
+            movies or when the cross-provider lookup fails.
         genres: List of genre names.
         trailer_url: YouTube trailer URL, or ``None``.
         kind: The media kind the provider lookup resolved —
@@ -90,6 +93,7 @@ class MediaSheetResponse(BaseModel):
     poster_url: str
     overview: str
     director: str | None
+    creator: str | None = None
     genres: list[str]
     trailer_url: str | None
     kind: Literal["movie", "tv"] | None

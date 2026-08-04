@@ -231,10 +231,15 @@ def parse_media_details(raw: dict[str, Any], provider: str) -> MediaDetails:
     # Director: movies → first crew member with job == "Director";
     #           TV     → created_by[0]["name"] if present.
     director: str | None = None
+    # Creator: TV only → created_by[0]["name"] (operator arbitration
+    # 2026-08-04: series show « Créateur », not « Réalisateur »).
+    creator: str | None = None
     if is_tv:
         created_by = raw.get("created_by") or []
         if created_by and isinstance(created_by[0], dict):
-            director = created_by[0].get("name") or None
+            name = created_by[0].get("name") or None
+            director = name
+            creator = name
     else:
         crew = (raw.get("credits") or {}).get("crew") or []
         for person in crew:
@@ -290,6 +295,7 @@ def parse_media_details(raw: dict[str, Any], provider: str) -> MediaDetails:
         series_status=series_status,
         episode_count=episode_count,
         trailer_url=trailer_url,
+        creator=creator,
     )
 
 

@@ -475,6 +475,7 @@ def parse_media_details(raw: dict[str, Any], provider: str) -> MediaDetails:
         series_status=series_status,
         episode_count=episode_count,
         trailer_url=trailer_url,
+        creator=None,  # TVDB has no created_by — the sheet endpoint crosses TMDB
     )
 
 
