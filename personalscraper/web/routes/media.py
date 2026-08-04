@@ -230,15 +230,15 @@ def _maybe_evict_cache() -> None:
 
 
 def _is_not_found(exc: ApiError) -> bool:
-    """Return True when *exc* is a genuine 404 — not a circuit/auth failure.
+    """Return True when *exc* is a genuine 404.
 
     Args:
         exc: An ApiError instance.
 
     Returns:
-        True when ``http_status`` is 404 and it is not an auth error.
+        True when ``http_status`` is 404.
     """
-    return exc.http_status == 404 and exc.http_status not in (401, 403)
+    return exc.http_status == 404
 
 
 def _is_blocking_error(exc: BaseException) -> bool:
@@ -266,7 +266,7 @@ def get_media_sheet(
     provider: str,
     provider_id: str,
     request: Request,
-    kind: Literal["movie", "tv"] | None = Query(None, description="Media kind hint to avoid probing"),
+    kind: Literal["movie", "tv"] | None = Query(None, description="Media kind hint to skip wasted probing"),
 ) -> MediaSheetResponse:
     """Return a full media sheet for a provider-identified media item.
 
@@ -280,11 +280,13 @@ def get_media_sheet(
         provider_id: Provider-specific media identifier.
         request: The incoming FastAPI request.
         kind: Optional media kind hint (``"movie"`` or ``"tv"``).  When supplied,
-            only the matching provider method is called — no probing, no risk of
-            recording a circuit failure on a doomed lookup.  Callers always know
-            the kind (search results, followed rows, decision candidates); this
-            parameter exists so a read-only detail page never opens the provider
-            circuit breaker.  Omit for hand-typed URLs (no-hint fallback).
+            only the matching provider method is called — no probing, no wasted
+            provider round-trip and quota token for a doomed cross-kind lookup.
+            Callers always know the kind (search results, followed rows,
+            decision candidates); this parameter exists so a read-only detail
+            page avoids unnecessary API calls and keeps the degraded reason
+            pointing at the real first failure.  Omit for hand-typed URLs
+            (no-hint fallback).
 
     Returns:
         A MediaSheetResponse.
@@ -321,10 +323,13 @@ def get_media_sheet(
 
     # Step 4: Fetch from provider.
     # When *kind* is supplied the caller knows the media type — call only the
-    # matching method so a doomed lookup (e.g. get_tv for a movie) never records
-    # a circuit failure.  The no-hint fallback probes TV first, but restricts the
-    # fallback: only a genuine 404 justifies trying get_movie; any blocking error
-    # (circuit open, auth failure) degrades immediately.
+    # matching method.  A doomed cross-kind lookup (e.g. get_tv for a movie)
+    # wastes a provider round-trip and a quota token; it does NOT record a
+    # circuit failure — 4xx responses are explicitly excluded from the
+    # failure count (see CircuitBreaker._is_circuit_error).  The no-hint
+    # fallback probes TV first, but restricts the fallback: only a genuine
+    # 404 justifies trying get_movie; any blocking error (circuit open, auth
+    # failure) degrades immediately.
     degraded_reason: str | None = None
     details: Any = None
     is_tv: bool | None = None
@@ -343,9 +348,11 @@ def get_media_sheet(
                 is_tv = False
         else:
             # No-hint fallback: probe TV first, then movie on genuine 404 only.
-            # CAUTION: the TV probe costs ONE recorded circuit failure when it
-            # 404s — this is why callers pass *kind*.  Blocking errors (circuit
-            # open, 401/403) must NOT trigger a fallback call.
+            # CAUTION: the TV probe wastes a provider round-trip and quota
+            # token on a doomed lookup — this is why callers pass *kind*.
+            # (A 404 does not record a circuit failure — 4xx errors are
+            # excluded per CircuitBreaker._is_circuit_error.)  Blocking
+            # errors (circuit open, 401/403) must NOT trigger a fallback call.
             try:
                 details = client.get_tv(provider_id)
                 is_tv = True

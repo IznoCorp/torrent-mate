@@ -248,7 +248,7 @@ class TestMediaSheetKindHint:
     """Regression tests for the *kind* query parameter (Defect 1 fix)."""
 
     def test_kind_movie_skips_get_tv(self, test_config):
-        """When kind='movie', get_tv is never called — no circuit failure risk."""
+        """When kind='movie', get_tv is never called — avoids wasted round-trip."""
         details = _make_details_movie()
         fake = MagicMock()
         fake.provider_name = "tmdb"
