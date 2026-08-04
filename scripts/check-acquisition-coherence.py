@@ -20,6 +20,12 @@ Ownership and queue shape:
 
 - GRABBED_OWNED       — wanted 'grabbed' whose work IS owned (phantom in-flight;
   reconciliation should have closed it).
+- UI_ACQUIRING_NO_TORRENT — an episode the INTERFACE reports « En cours d'acquisition »
+  with no live torrent behind it. This rule runs the SAME derivation the web read
+  model runs, then confronts it with the torrent client: it is the executable form
+  of §13 (« l'interface reflète l'état réel des données »). It is what would have
+  caught the 2026-08-04 incident, where four absorbed American Dad episodes kept
+  reading « En cours d'acquisition » after the reswitch had emptied the client.
 - GRABBED_HASH_MISSING — wanted 'grabbed' whose grabbed_hash the torrent client
   does not know AND not owned (lost grab; should be requeued).
 - PENDING_OWNED       — wanted 'pending'/'searching' whose work IS owned
@@ -79,6 +85,10 @@ from dataclasses import asdict, dataclass, field
 from personalscraper.acquire.domain import OPEN_WANTED_STATUSES
 from personalscraper.acquire.orchestrator import INCONCLUSIVE_OUTCOMES
 from personalscraper.indexer.ownership import is_owned, owned_episode_pairs
+from personalscraper.web.acquisition.states import (
+    derive_episode_state,
+    governing_facts_by_episode,
+)
 
 # Statuses that mean "the queue still intends to fetch this in the future".
 _FUTURE_STATUSES = ("pending", "searching")
@@ -269,7 +279,7 @@ def collect_anomalies(
 
     wanted_rows = acquire_conn.execute(
         "SELECT id, followed_id, media_ref_json, kind, season, episode, status, grabbed_hash, "
-        "last_search_at, last_search_outcome, last_search_found FROM wanted ORDER BY id"
+        "last_search_at, last_search_outcome, last_search_found, absorbed_by FROM wanted ORDER BY id"
     ).fetchall()
 
     aired_keys: set[tuple[int, int, int]] = set()
@@ -286,6 +296,84 @@ def collect_anomalies(
     def _title_of(followed_id: int | None) -> str:
         row = followed.get(followed_id) if followed_id is not None else None
         return row["title"] if row is not None else "(no follow)"
+
+    # ------------------------------------------------------------------
+    # Rule 0 — §13: what the INTERFACE says, confronted with the torrent client
+    # ------------------------------------------------------------------
+    # Runs the read model's OWN derivation (same seam the card and the matrix use)
+    # and asks the only question a screen cannot answer for itself: is there really
+    # a torrent behind « En cours d'acquisition »? A UI state is a claim about
+    # reality; this is where the claim is checked against it.
+    if client_hashes is not None:
+        by_follow_ep: dict[int, list] = {}
+        by_follow_se: dict[int, list] = {}
+        hash_of_row: dict[int, str | None] = {}
+        for w in wanted_rows:
+            hash_of_row[w["id"]] = (w["grabbed_hash"] or "").lower() or None
+            if w["kind"] == "episode" and w["season"] is not None and w["episode"] is not None:
+                by_follow_ep.setdefault(w["followed_id"], []).append(
+                    (
+                        w["id"],
+                        w["season"],
+                        w["episode"],
+                        w["status"],
+                        w["last_search_outcome"],
+                        w["last_search_found"],
+                        w["absorbed_by"],
+                    )
+                )
+            elif w["kind"] == "season":
+                by_follow_se.setdefault(w["followed_id"], []).append(
+                    (w["id"], w["status"], w["last_search_outcome"], w["last_search_found"])
+                )
+        for followed_id, eps in by_follow_ep.items():
+            facts = governing_facts_by_episode(eps, by_follow_se.get(followed_id, []))
+            fref = _parse_ref(followed[followed_id]["media_ref_json"]) if followed_id in followed else None
+            # Which row ends up governing decides which hash must back the claim.
+            season_hash = {sid: hash_of_row.get(sid) for sid, *_ in by_follow_se.get(followed_id, [])}
+            for (season, episode), (status, outcome, found) in facts.items():
+                owned_ep = ownership.owned("episode", fref, season, episode) if fref else False
+                state = derive_episode_state(
+                    owned=owned_ep,
+                    wanted_status=status,
+                    last_search_outcome=outcome,
+                    last_search_found=found,
+                )
+                # BOTH states read « En cours d'acquisition » on screen: ``absorbed``
+                # is the season-carried variant, and the card sums the two
+                # (truth.py: en_acquisition + absorbed). Checking only the literal
+                # ``en_acquisition`` would leave the exact shape of the 2026-08-04
+                # incident invisible — the rule must read what the OPERATOR reads.
+                if state not in ("en_acquisition", "absorbed"):
+                    continue
+                live = [
+                    h
+                    for h in (
+                        *season_hash.values(),
+                        *(hash_of_row[e[0]] for e in eps if e[1] == season and e[2] == episode),
+                    )
+                    if h
+                ]
+                # A row that HAS a hash the client lost is GRABBED_HASH_MISSING's
+                # failure mode — one rule per mode, no double-reporting. What only
+                # THIS rule can see is the screen claiming an acquisition with NO
+                # hash anywhere behind it: the absorbed episode whose season row was
+                # requeued and now carries nothing at all (the 2026-08-04 shape).
+                if not live:
+                    anomalies.append(
+                        Anomaly(
+                            rule="UI_ACQUIRING_NO_TORRENT",
+                            severity="error",
+                            title=_title_of(followed_id),
+                            kind="episode",
+                            season=season,
+                            episode=episode,
+                            explanation=(
+                                "the interface reports « En cours d'acquisition » but no live "
+                                "torrent backs it (§13: the UI must reflect the real data)"
+                            ),
+                        )
+                    )
 
     # ------------------------------------------------------------------
     # Rules 1-4 — per wanted row

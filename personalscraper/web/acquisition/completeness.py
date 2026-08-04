@@ -39,7 +39,12 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 from personalscraper.logger import get_logger
-from personalscraper.web.acquisition.states import derive_episode_state, select_wanted_facts
+from personalscraper.web.acquisition.states import (
+    NO_WANTED_FACTS,
+    WantedFacts,
+    derive_episode_state,
+    governing_facts_by_episode,
+)
 from personalscraper.web.models.acquisition import (
     CompletenessResponse,
     EpisodeCompleteness,
@@ -56,35 +61,38 @@ logger = get_logger(__name__)
 _WantedRow = tuple[int, str | None, str | None, int | None]
 
 
-def _wanted_rows_by_episode(store: object, followed_id: int) -> dict[tuple[int, int], list[_WantedRow]]:
-    """Read the follow's episode queue once and index it by ``(season, episode)``.
+def _governing_facts(store: object, followed_id: int) -> dict[tuple[int, int], WantedFacts]:
+    """Read this follow's queue once and hand it to the single governing-facts seam.
 
-    ONE query for the whole follow rather than a lookup per episode, and the
-    closed rows come back too: filtering them is the shared selector's job, not
-    a WHERE clause this module would own alone.
+    TWO queries for the whole follow (episodes + seasons) rather than a lookup per
+    episode, and the closed rows come back too: deciding WHICH row speaks is
+    :func:`~personalscraper.web.acquisition.states.governing_facts_by_episode`'s
+    job, never a WHERE clause this module would own alone. The season rows are
+    loaded because an absorbed episode's acquisition is carried by its season row —
+    this module reads, it does not re-derive.
 
     Args:
         store: The acquire store.
         followed_id: The ``followed_series`` row id.
 
     Returns:
-        ``(season, episode)`` → its rows as ``(id, status, outcome, found)``
-        tuples, oldest first. Empty on a read error — an unreadable queue reads
-        as « never searched », never as « rien à prendre ».
+        ``(season, episode)`` → its governing facts. Empty on a read error — an
+        unreadable queue reads as « never searched », never as « rien à prendre ».
     """
-    by_episode: dict[tuple[int, int], list[_WantedRow]] = {}
     try:
         rows = store.wanted.list_for_followed(followed_id, kind="episode")  # type: ignore[attr-defined]
+        season_rows = store.wanted.list_for_followed(followed_id, kind="season")  # type: ignore[attr-defined]
     except Exception as exc:  # noqa: BLE001 — fail-soft: no queue knowledge, not a 500
         logger.debug("completeness_wanted_error", followed_id=followed_id, error=str(exc))
-        return by_episode
-    for row in rows:
-        if row.season is None or row.episode is None:
-            continue
-        by_episode.setdefault((row.season, row.episode), []).append(
-            (row.id or 0, row.status, row.last_search_outcome, row.last_search_found)
-        )
-    return by_episode
+        return {}
+    return governing_facts_by_episode(
+        [
+            (r.id or 0, r.season, r.episode, r.status, r.last_search_outcome, r.last_search_found, r.absorbed_by)
+            for r in rows
+            if r.season is not None and r.episode is not None
+        ],
+        [(r.id or 0, r.status, r.last_search_outcome, r.last_search_found) for r in season_rows],
+    )
 
 
 def _parse_iso(value: str | None) -> date | None:
@@ -180,7 +188,7 @@ def compute_completeness(
         unique.setdefault((row.season, row.episode), row)
     refreshed_at = float(max(r.updated_at for r in cached))
 
-    wanted_rows = _wanted_rows_by_episode(store, followed.id)
+    facts_by_episode = _governing_facts(store, followed.id)
 
     by_season: dict[int, list[EpisodeCompleteness]] = {}
     for (season, episode), row in sorted(unique.items()):
@@ -197,9 +205,7 @@ def compute_completeness(
         # the card read the same row for the same episode (open rows only,
         # latest wins). An episode with only a closed row therefore reads
         # « never searched », not that row's stale verdict.
-        wanted_status, last_search_outcome, last_search_found = select_wanted_facts(
-            wanted_rows.get((season, episode), ())
-        )
+        wanted_status, last_search_outcome, last_search_found = facts_by_episode.get((season, episode), NO_WANTED_FACTS)
 
         by_season.setdefault(season, []).append(
             EpisodeCompleteness(

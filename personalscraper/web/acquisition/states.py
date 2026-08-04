@@ -31,7 +31,7 @@ copied here.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from datetime import date
 from typing import Literal
 
@@ -138,6 +138,104 @@ def select_wanted_facts(rows: Iterable[tuple[int, str | None, str | None, int | 
             governing_id = row_id
             facts = (status, outcome, found)
     return facts
+
+
+#: One episode ``wanted`` row as the read paths load it:
+#: ``(id, season, episode, status, last_search_outcome, last_search_found, absorbed_by)``.
+EpisodeWantedRow = tuple[int, int, int, str | None, str | None, int | None, int | None]
+
+#: One season ``wanted`` row: ``(id, status, last_search_outcome, last_search_found)``.
+SeasonWantedRow = tuple[int, str | None, str | None, int | None]
+
+
+def governing_facts_by_episode(
+    episode_rows: Iterable[EpisodeWantedRow],
+    season_rows: Iterable[SeasonWantedRow],
+) -> dict[tuple[int, int], WantedFacts]:
+    """Return the facts that GOVERN each episode, absorption already resolved.
+
+    The single answer to « which ``wanted`` row speaks for this episode ». Every
+    acquisition surface calls THIS: the card counts
+    (:mod:`~personalscraper.web.acquisition.truth`) and the per-season matrix
+    (:mod:`~personalscraper.web.acquisition.completeness`). They legitimately
+    differ in how they READ their rows (one holds the store, the other a raw
+    connection), but the RULE lives here once — two implementations of it is how
+    the card and the matrix come to disagree about the same episode.
+
+    Two things happen, in order:
+
+    1. **Absorption is followed, not reported.** ``absorbed`` is not a state of the
+       episode; it is a pointer to the season ``wanted`` row that carries its
+       acquisition (season-grab R5). An absorbed row therefore takes its season's
+       facts. Reporting the pointer instead of following it made four American Dad
+       episodes claim « En cours d'acquisition » on 2026-08-04 while the reswitch
+       had already requeued their season and emptied the torrent client (§2).
+       A pointer that resolves to nothing (``None``, or a season row this caller
+       did not load — ``absorbed_by`` carries no FK) keeps its ``absorbed`` facts:
+       a dangling link is ignorance, and downgrading a season that IS being
+       grabbed would trade one lie for another.
+    2. **The governing row is selected** by :func:`select_wanted_facts` — open rows
+       only, highest id wins — so a re-enqueued episode still outranks the older
+       absorbed row it replaced (R6 fallback).
+
+    Args:
+        episode_rows: Every ``kind='episode'`` row of ONE follow, any order.
+        season_rows: Every ``kind='season'`` row of the SAME follow.
+
+    Returns:
+        ``(season, episode)`` → its governing :data:`WantedFacts`. Episodes with no
+        row at all are ABSENT from the mapping — the caller decides what « no row »
+        means for its surface (it reads « jamais cherché »).
+    """
+    season_facts: dict[int, WantedFacts] = {
+        season_id: (status, outcome, found) for season_id, status, outcome, found in season_rows
+    }
+    grouped: dict[tuple[int, int], list[tuple[int, str | None, str | None, int | None, int | None]]] = {}
+    for row_id, season, episode, status, outcome, found, absorbed_by in episode_rows:
+        grouped.setdefault((season, episode), []).append((row_id, status, outcome, found, absorbed_by))
+    return {key: select_wanted_facts(substitute_absorbed_facts(rows, season_facts)) for key, rows in grouped.items()}
+
+
+def substitute_absorbed_facts(
+    rows: Iterable[tuple[int, str | None, str | None, int | None, int | None]],
+    season_facts: Mapping[int, WantedFacts],
+) -> list[tuple[int, str | None, str | None, int | None]]:
+    """Redirect every ``absorbed`` row onto the season row that carries it.
+
+    ``absorbed`` is not a state of the EPISODE — it is a pointer to the ``wanted``
+    row that owns its acquisition (season-grab R5). Reading the pointer instead of
+    following it made an absorbed episode claim « En cours d'acquisition » for as
+    long as the row existed, whatever the season was doing.
+
+    That produced a live lie on 2026-08-04: the reswitch declared both American Dad
+    season packs dead, deleted them from the client and requeued the season rows to
+    ``pending`` — and the four absorbed episodes went on reading « En cours
+    d'acquisition » with nothing in flight (§2: never assert progress that is not
+    happening).
+
+    A row whose link is unknown (``None``, or pointing at a season row this caller
+    did not load — ``absorbed_by`` carries no FK, the table is advisory) keeps its
+    ``absorbed`` facts: a dangling pointer is ignorance, and silently downgrading a
+    season that IS being grabbed would trade one lie for another.
+
+    Args:
+        rows: ``(id, status, last_search_outcome, last_search_found, absorbed_by)``
+            tuples of one unit's ``wanted`` rows.
+        season_facts: ``{season_wanted_id: WantedFacts}`` for the season rows of the
+            same follow.
+
+    Returns:
+        The same rows, shaped for :func:`select_wanted_facts` (the ``absorbed_by``
+        column dropped), with absorbed rows carrying their season's facts.
+    """
+    resolved: list[tuple[int, str | None, str | None, int | None]] = []
+    for row_id, status, outcome, found, absorbed_by in rows:
+        if status == "absorbed" and absorbed_by is not None and absorbed_by in season_facts:
+            season_status, season_outcome, season_found = season_facts[absorbed_by]
+            resolved.append((row_id, season_status, season_outcome, season_found))
+        else:
+            resolved.append((row_id, status, outcome, found))
+    return resolved
 
 
 def derive_episode_state(
@@ -328,6 +426,8 @@ __all__ = [
     "FollowStatus",
     "WantedFacts",
     "derive_episode_state",
+    "governing_facts_by_episode",
+    "substitute_absorbed_facts",
     "derive_follow_status",
     "derive_movie_status",
     "select_wanted_facts",

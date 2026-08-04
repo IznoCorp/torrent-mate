@@ -28,7 +28,15 @@ from datetime import date
 from typing import TYPE_CHECKING
 
 from personalscraper.logger import get_logger
-from personalscraper.web.acquisition.states import EpisodeState, derive_episode_state, select_wanted_facts
+from personalscraper.web.acquisition.states import (
+    NO_WANTED_FACTS,
+    EpisodeState,
+    derive_episode_state,
+    governing_facts_by_episode,
+    # A FILM is never absorbed (only episode rows are), so its single unit reads
+    # the plain selector — no season row can carry a movie's acquisition.
+    select_wanted_facts,
+)
 from personalscraper.web.models.acquisition import MovieFacts
 
 if TYPE_CHECKING:
@@ -133,19 +141,44 @@ def compute_follow_truth(
     # WHICH row governs is decided by the shared selector below, never by a
     # WHERE clause private to this module (that private clause is exactly how
     # the card and the completeness panel could pick different rows).
-    rows_by_episode: dict[tuple[int, int], list[tuple[int, str | None, str | None, int | None]]] = {}
+    # Deciding WHICH row speaks for an episode is NOT this module's job: it hands
+    # its rows to the single governing-facts seam, exactly like the completeness
+    # matrix does, so the card and the matrix can never answer differently about
+    # the same episode. The SEASON rows are loaded because an absorbed episode's
+    # acquisition is carried by the season row that absorbed it.
+    episode_rows: list[tuple[int, int, int, str | None, str | None, int | None, int | None]] = []
+    season_rows: list[tuple[int, str | None, str | None, int | None]] = []
     try:
-        for r in acquire_conn.execute(
-            "SELECT id, season, episode, status, last_search_outcome, last_search_found FROM wanted "
-            "WHERE followed_id = ? AND kind = 'episode' "
-            "AND season IS NOT NULL AND episode IS NOT NULL "
-            "ORDER BY id",
-            (followed_id,),
-        ).fetchall():
-            found = None if r[5] is None else int(r[5])
-            rows_by_episode.setdefault((int(r[1]), int(r[2])), []).append((int(r[0]), r[3], r[4], found))
+        season_rows = [
+            (int(r[0]), r[1], r[2], None if r[3] is None else int(r[3]))
+            for r in acquire_conn.execute(
+                "SELECT id, status, last_search_outcome, last_search_found FROM wanted "
+                "WHERE followed_id = ? AND kind = 'season'",
+                (followed_id,),
+            ).fetchall()
+        ]
+        episode_rows = [
+            (
+                int(r[0]),
+                int(r[1]),
+                int(r[2]),
+                r[3],
+                r[4],
+                None if r[5] is None else int(r[5]),
+                None if r[6] is None else int(r[6]),
+            )
+            for r in acquire_conn.execute(
+                "SELECT id, season, episode, status, last_search_outcome, last_search_found, absorbed_by "
+                "FROM wanted "
+                "WHERE followed_id = ? AND kind = 'episode' "
+                "AND season IS NOT NULL AND episode IS NOT NULL "
+                "ORDER BY id",
+                (followed_id,),
+            ).fetchall()
+        ]
     except sqlite3.Error as exc:
         logger.debug("acquisition_truth_wanted_read_failed", followed_id=followed_id, error=str(exc))
+    facts_by_episode = governing_facts_by_episode(episode_rows, season_rows)
 
     counts: dict[EpisodeState, int] = {
         "en_mediatheque": 0,
@@ -156,7 +189,7 @@ def compute_follow_truth(
         "absorbed": 0,
     }
     for pair in aired:
-        status, outcome, found = select_wanted_facts(rows_by_episode.get(pair, ()))
+        status, outcome, found = facts_by_episode.get(pair, NO_WANTED_FACTS)
         state = derive_episode_state(
             owned=pair in owned,
             wanted_status=status,

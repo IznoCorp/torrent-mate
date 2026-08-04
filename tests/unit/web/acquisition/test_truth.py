@@ -517,3 +517,63 @@ def test_only_future_episodes_read_non_verifie(acquire_conn: sqlite3.Connection)
     )
 
     assert truth == FollowTruth(), "only-future cache is no aired catalog → all-None sentinel"
+
+
+# ── acq-escalade / incident 2026-08-04 — l'épisode absorbé suit SA saison ──
+
+
+def _seed_season_and_absorb(
+    conn: sqlite3.Connection,
+    season: int,
+    episodes: list[int],
+    *,
+    season_status: str,
+    outcome: str | None = None,
+    found: int | None = None,
+) -> None:
+    """Create a season wanted and absorb *episodes* onto it, as R5 does."""
+    cur = conn.execute(
+        "INSERT INTO wanted (followed_id, media_ref_json, kind, season, episode, status, enqueued_at, "
+        "last_search_outcome, last_search_found) "
+        "VALUES (1, '{\"tvdb_id\": 403245}', 'season', ?, NULL, ?, 1750000000, ?, ?)",
+        (season, season_status, outcome, found),
+    )
+    season_id = cur.lastrowid
+    for ep in episodes:
+        conn.execute(
+            "INSERT INTO wanted (followed_id, media_ref_json, kind, season, episode, status, enqueued_at, "
+            "absorbed_by) VALUES (1, '{\"tvdb_id\": 403245}', 'episode', ?, ?, 'absorbed', 1750000000, ?)",
+            (season, ep, season_id),
+        )
+    conn.commit()
+
+
+def test_absorbed_episodes_count_as_acquiring_while_the_season_is_grabbed(
+    acquire_conn: sqlite3.Connection,
+) -> None:
+    """A season actually downloading ⇒ its absorbed episodes ARE in acquisition."""
+    _seed_aired(acquire_conn, [(15, 21), (15, 22)])
+    _seed_season_and_absorb(acquire_conn, 15, [21, 22], season_status="grabbed", outcome="grabbed", found=4)
+
+    truth = compute_follow_truth(acquire_conn, _StubChecker(set()), followed_id=1, media_ref=REF)
+
+    assert truth.en_acquisition_count == 2
+
+
+def test_absorbed_episodes_stop_claiming_acquisition_once_the_season_is_requeued(
+    acquire_conn: sqlite3.Connection,
+) -> None:
+    """REGRESSION 2026-08-04 — the reswitch requeued the season; nothing is in flight.
+
+    The operator saw « source bloquée, bascule vers une autre release » and then no
+    change at all: the four absorbed American Dad episodes kept reading « En cours
+    d'acquisition » because the card never looked at the season row. A requeued
+    season means « on cherche à nouveau », not « en cours » (§2).
+    """
+    _seed_aired(acquire_conn, [(15, 21), (15, 22)])
+    _seed_season_and_absorb(acquire_conn, 15, [21, 22], season_status="pending", outcome=None, found=None)
+
+    truth = compute_follow_truth(acquire_conn, _StubChecker(set()), followed_id=1, media_ref=REF)
+
+    assert truth.en_acquisition_count == 0, "nothing is downloading — the card must not say it is"
+    assert truth.non_verifie_count == 2, "a requeued season has concluded nothing yet"
