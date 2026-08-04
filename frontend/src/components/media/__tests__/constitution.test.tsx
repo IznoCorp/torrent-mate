@@ -367,17 +367,62 @@ describe("§11 constitution — « Tout média est consultable »", () => {
   describe("FollowedPanel", () => {
     coveredSurfaces.add("FollowedPanel");
 
-    it("navigates to the media sheet from the dropdown's « Voir la fiche »", () => {
+    it("navigates to the media sheet when clicking the card poster", () => {
       renderPanel([followedItem()]);
 
-      // Open the row's ⋯ dropdown so the menu items are visible.
+      // The poster is wrapped in a button with aria-label "Fiche de ...".
+      const posterBtn = screen.getByRole("button", {
+        name: "Fiche de House of the Dragon",
+      });
+      fireEvent.click(posterBtn);
+
+      expect(navigateMock).toHaveBeenCalledTimes(1);
+      const firstCall = navigateMock.mock.calls[0];
+      if (!firstCall) throw new Error("unreachable: navigate was not called");
+      const href = firstCall[0] as string;
+      expect(href).toMatch(/^\/media\/tvdb\/371572/);
+      expect(href).toContain("kind=tv");
+    });
+
+    it("navigates to the media sheet when clicking the card title", () => {
+      renderPanel([followedItem()]);
+
+      // The title text is itself a button.
+      const titleBtn = screen.getByRole("button", {
+        name: "House of the Dragon",
+      });
+      fireEvent.click(titleBtn);
+
+      expect(navigateMock).toHaveBeenCalledTimes(1);
+      const firstCall = navigateMock.mock.calls[0];
+      if (!firstCall) throw new Error("unreachable: navigate was not called");
+      const href = firstCall[0] as string;
+      expect(href).toMatch(/^\/media\/tvdb\/371572/);
+      expect(href).toContain("kind=tv");
+    });
+
+    it("the card poster is NOT a button for an imdb-only item (§11)", () => {
+      renderPanel([
+        followedItem({
+          media_ref: { tvdb_id: null, tmdb_id: null, imdb_id: "tt0903747" },
+        }),
+      ]);
+
+      // The poster must NOT be a button — no sheet route for imdb-only items.
+      expect(
+        screen.queryByRole("button", { name: "Fiche de House of the Dragon" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("the dropdown « Voir la fiche » still navigates (menu item preserved)", () => {
+      renderPanel([followedItem()]);
+
       fireEvent.pointerDown(
         screen.getByRole("button", {
           name: "Actions pour House of the Dragon",
         }),
       );
 
-      // Click « Voir la fiche » — it fires navigate(sheetHref).
       const menuItem = screen.getByText("Voir la fiche");
       fireEvent.click(menuItem);
 

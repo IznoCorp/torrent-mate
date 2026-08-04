@@ -195,6 +195,47 @@ class TestMediaSheetResponse:
         # The field is None, not an empty string — these are different facts.
         assert resp.director != ""
 
+    def test_creator_defaults_to_none(self) -> None:
+        """Creator defaults to None when not passed (optional field)."""
+        resp = MediaSheetResponse(
+            provider="tvdb",
+            provider_id="255968",
+            title="Top Chef",
+            year=2010,
+            poster_url="...",
+            overview="...",
+            director=None,
+            genres=["Reality"],
+            trailer_url=None,
+            kind="tv",
+            series_status="Returning Series",
+            seasons=[],
+            ownership=None,
+            degraded_reason=None,
+        )
+        assert resp.creator is None
+
+    def test_creator_explicit_value(self) -> None:
+        """Creator is preserved when explicitly set (TV cross-provider case)."""
+        resp = MediaSheetResponse(
+            provider="tvdb",
+            provider_id="255968",
+            title="Top Chef",
+            year=2010,
+            poster_url="...",
+            overview="...",
+            director=None,
+            creator="Stéphane Rotenberg",
+            genres=["Reality"],
+            trailer_url=None,
+            kind="tv",
+            series_status="Returning Series",
+            seasons=[],
+            ownership=None,
+            degraded_reason=None,
+        )
+        assert resp.creator == "Stéphane Rotenberg"
+
     def test_degraded_reason_when_set(self) -> None:
         """degraded_reason is populated when the provider failed."""
         resp = MediaSheetResponse(
