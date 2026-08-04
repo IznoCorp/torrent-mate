@@ -226,14 +226,21 @@ export function StagingMediaDetail({
               {Object.entries(item.provider_ids).map(([family, id]) => (
                 <IdChip key={family} family={family} id={id} />
               ))}
-              {/* §11 constitution: every identified media must lead to its sheet. */}
+              {/* §11 constitution: every identified media must lead to its sheet.
+                  The sheet lives inside the detail drawer — the operator opens the
+                  drawer first, then sees a visible « Voir la fiche » control. */}
               {(() => {
                 const sheetHref = stagingMediaSheetHref(item);
                 if (sheetHref == null) return null;
                 return (
-                  <a href={sheetHref} className="text-xs text-primary hover:underline">
-                    Voir la fiche
-                  </a>
+                  <Button
+                    asChild
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 text-xs"
+                  >
+                    <a href={sheetHref}>Voir la fiche</a>
+                  </Button>
                 );
               })()}
             </div>

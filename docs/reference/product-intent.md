@@ -17,7 +17,8 @@
 > **v3** — §4 « la chaîne va jusqu'à la visibilité Plex » + §5 « identité conservée au scraping »,
 > dictée par l'opérateur le 2026-07-31 ;
 > **v4** — §11 « Tout média est consultable » + DOIT-11 + NE-DOIT-PAS-9, dictée par
-> l'opérateur le 2026-08-04 (feature media-sheet, DESIGN §4).
+> l'opérateur le 2026-08-04 (feature media-sheet, DESIGN §4) ; NE-DOIT-PAS-9 ajusté
+> le 2026-08-04 pour exiger un chemin atteignable, pas un lien sur la vignette.
 > **Seul l'opérateur amende ce document.**
 
 ---
@@ -208,9 +209,11 @@ fiche — la surface doit alors mener à la **résolution**, jamais à un lien m
 8. **NE-DOIT-PAS-8 — Maltraiter les dépendances.** Pas de rafales vers qBittorrent / trackers —
    se faire bannir prive l'opérateur de son outil.
 9. **NE-DOIT-PAS-9 — Afficher un média sans chemin vers sa fiche.** Un média identifié (avec
-   ID provider) doit avoir un lien vers `/media/:provider/:id` sur chaque surface qui
-   l'affiche. Seule exception : un média non identifié (aucun ID provider connu) — la surface
-   doit alors mener à la **résolution**, jamais à un lien mort ni à une fiche inexistante.
+   ID provider) doit offrir un chemin vers `/media/:provider/:id` depuis la surface qui
+   l'affiche — lien direct sur la vignette, ou action explicite dans le détail qu'elle
+   ouvre. Ce chemin doit être visible, pas deviné. Seule exception : un média non
+   identifié (aucun ID provider connu) — la surface doit alors mener à la **résolution**,
+   jamais à un lien mort ni à une fiche inexistante.
 
 ## En une phrase
 

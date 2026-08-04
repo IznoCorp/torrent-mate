@@ -82,14 +82,15 @@ export interface FollowedPanelProps {
 /**
  * Derive a {@link MediaRef} from a followed item's provider ids.
  *
- * Priority: tvdb > tmdb > imdb (imdb has no sheet route, but the helper
- * encodes the id honestly — the backend handles the resolution).
+ * Priority: tvdb > tmdb.  imdb has no sheet route on the backend and is
+ * skipped — an imdb-only item has no media sheet (§11 exception: unidentified
+ * media must lead to resolution, never a dead link).
  *
  * Args:
  *   item: A followed series or film.
  *
  * Returns:
- *   A media sheet href, or ``null`` when no provider id is known.
+ *   A media sheet href, or ``null`` when no tvdb/tmdb id is known.
  */
 function followMediaRef(item: FollowedSeriesItem): string | null {
   const ref = item.media_ref;
@@ -106,14 +107,6 @@ function followMediaRef(item: FollowedSeriesItem): string | null {
     return mediaSheetHref({
       provider: "tmdb",
       providerId: String(ref.tmdb_id),
-      kind: item.kind === "movie" ? "movie" : "tv",
-    });
-  }
-  // imdb last — info-only, no sheet route, but encode honestly.
-  if (ref.imdb_id != null) {
-    return mediaSheetHref({
-      provider: "imdb",
-      providerId: ref.imdb_id,
       kind: item.kind === "movie" ? "movie" : "tv",
     });
   }
@@ -272,6 +265,7 @@ export function FollowedPanel({
           const isSearching = triggerPendingId === item.id;
           const isGrabbing = grabPendingId === item.id;
           const isQueued = isGrabQueued(item.id);
+          const sheetHref = followMediaRef(item);
 
           return (
             <div key={`f-${String(item.id)}`} className="flex flex-col">
@@ -372,11 +366,10 @@ export function FollowedPanel({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     {/* §11 constitution: every identified media must lead to its sheet. */}
-                    {followMediaRef(item) != null && (
+                    {sheetHref != null && (
                       <DropdownMenuItem
                         onSelect={() => {
-                          const href = followMediaRef(item);
-                          if (href != null) void navigate(href);
+                          void navigate(sheetHref);
                         }}
                       >
                         <ExternalLink className="size-4" aria-hidden="true" />

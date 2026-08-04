@@ -350,7 +350,7 @@ export function MediaSearchAdd(): ReactElement {
                     mediaSheetHref({
                       provider: result.provider,
                       providerId: String(result.provider_id),
-                      kind: result.kind as "movie" | "tv",
+                      kind: result.kind === "tv" ? "tv" : "movie",
                     }),
                   );
                 }}

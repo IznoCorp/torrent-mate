@@ -15,16 +15,12 @@
  * a hand-built ``/media/...`` string would bypass D8 but still pass a
  * pattern-match check.  For surfaces that use ``<a>`` tags we check the href
  * attribute; for surfaces that use ``useNavigate`` + ``onOpen`` we check the
- * navigation call.
+ * navigation call; for surfaces whose sheet access is via a detail drawer,
+ * we open the drawer first and then assert the drawer's control.
  */
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { DecisionCandidate } from "@/api/decisions";
@@ -103,7 +99,9 @@ function movieResult() {
 }
 
 /** A fully-typed DecisionCandidate. */
-function movieCandidate(overrides: Partial<DecisionCandidate> = {}): DecisionCandidate {
+function movieCandidate(
+  overrides: Partial<DecisionCandidate> = {},
+): DecisionCandidate {
   return {
     provider: "tmdb",
     provider_id: 123,
@@ -164,13 +162,27 @@ function unidentifiedStagingItem(
 beforeEach(() => {
   vi.clearAllMocks();
   navigateMock.mockReset();
+  // Reset the shared search-params mock so no test leaks ?media= into the next.
+  searchParamsMock.delete("media");
   searchResultsMock.mockReturnValue({
     data: undefined,
     isLoading: false,
     isError: false,
   });
   stagingMediaMock.mockReturnValue({
-    data: { items: [], counts: { total: 0, matched: 0, ambiguous: 0, absent: 0, with_trailer: 0 }, total: 0, page: 1, page_size: 24 },
+    data: {
+      items: [],
+      counts: {
+        total: 0,
+        matched: 0,
+        ambiguous: 0,
+        absent: 0,
+        with_trailer: 0,
+      },
+      total: 0,
+      page: 1,
+      page_size: 24,
+    },
     isLoading: false,
     isError: false,
   });
@@ -264,15 +276,28 @@ describe("§11 constitution — « Tout média est consultable »", () => {
   });
 
   // -----------------------------------------------------------------------
-  // SURFACE 3 — StagingLibrary (<a> tag in badges, + detail header)
+  // SURFACE 3 — StagingLibrary (detail drawer button, not card badge)
+  //
+  // The staging card opens a detail drawer on click; the « Voir la fiche »
+  // button lives INSIDE that drawer (operator arbitration 2026-08-04).
+  // The test must open the drawer to see it.
   // -----------------------------------------------------------------------
 
   describe("StagingLibrary", () => {
-    it("renders a « Voir la fiche » link in card badges for an identified item", () => {
+    it("renders « Voir la fiche » in the detail drawer for an identified item", () => {
+      // Open the drawer on the identified item so the detail (and its button)
+      // renders.
+      searchParamsMock.set("media", "abc123");
       stagingMediaMock.mockReturnValue({
         data: {
           items: [identifiedStagingItem()],
-          counts: { total: 1, matched: 1, ambiguous: 0, absent: 0, with_trailer: 0 },
+          counts: {
+            total: 1,
+            matched: 1,
+            ambiguous: 0,
+            absent: 0,
+            with_trailer: 0,
+          },
           total: 1,
           page: 1,
           page_size: 24,
@@ -287,23 +312,23 @@ describe("§11 constitution — « Tout média est consultable »", () => {
         </QueryClientProvider>,
       );
 
-      // The card renders TWO "Voir la fiche" links — one in the badges, one in
-      // the detail drawer's header (which is closed by default).  Find the one
-      // inside the card (visible).
-      const links = screen.getAllByText("Voir la fiche");
-      // At least one is visible (the card badge).
-      const visibleLink = links.find(
-        (el) => el.tagName === "A" && el.getAttribute("href") !== null,
-      );
-      expect(visibleLink).toBeDefined();
-      expect(visibleLink?.getAttribute("href")).toBe("/media/tmdb/550?kind=movie");
+      // The drawer is open — one « Voir la fiche » button inside it.
+      const link = screen.getByText("Voir la fiche");
+      expect(link.tagName).toBe("A");
+      expect(link.getAttribute("href")).toBe("/media/tmdb/550?kind=movie");
     });
 
-    it("renders NO « Voir la fiche » link when provider_ids is empty (§11 exception)", () => {
+    it("renders NO « Voir la fiche » when provider_ids is empty (§11 exception)", () => {
       stagingMediaMock.mockReturnValue({
         data: {
           items: [unidentifiedStagingItem()],
-          counts: { total: 1, matched: 0, ambiguous: 0, absent: 1, with_trailer: 0 },
+          counts: {
+            total: 1,
+            matched: 0,
+            ambiguous: 0,
+            absent: 1,
+            with_trailer: 0,
+          },
           total: 1,
           page: 1,
           page_size: 24,
@@ -318,10 +343,13 @@ describe("§11 constitution — « Tout média est consultable »", () => {
         </QueryClientProvider>,
       );
 
+      // Neither the card badge nor the drawer (closed) shows the link.
       expect(screen.queryByText("Voir la fiche")).not.toBeInTheDocument();
     });
 
-    it("picks tvdb over tmdb when both are present", () => {
+    it("picks tvdb over tmdb when both are present (drawer button)", () => {
+      // Open the drawer so the drawer's button is visible.
+      searchParamsMock.set("media", "abc123");
       stagingMediaMock.mockReturnValue({
         data: {
           items: [
@@ -331,7 +359,13 @@ describe("§11 constitution — « Tout média est consultable »", () => {
               seasons: [{ season: 1, label: "Saison 1", episode_count: 10 }],
             }),
           ],
-          counts: { total: 1, matched: 1, ambiguous: 0, absent: 0, with_trailer: 0 },
+          counts: {
+            total: 1,
+            matched: 1,
+            ambiguous: 0,
+            absent: 0,
+            with_trailer: 0,
+          },
           total: 1,
           page: 1,
           page_size: 24,
@@ -346,13 +380,8 @@ describe("§11 constitution — « Tout média est consultable »", () => {
         </QueryClientProvider>,
       );
 
-      const links = screen.getAllByText("Voir la fiche");
-      const cardLink = links.find(
-        (el) => el.tagName === "A" && el.getAttribute("href") !== null,
-      );
-      expect(cardLink).toBeDefined();
-      // tvdb priority.
-      expect(cardLink?.getAttribute("href")).toBe("/media/tvdb/12345?kind=tv");
+      const link = screen.getByText("Voir la fiche");
+      expect(link.getAttribute("href")).toBe("/media/tvdb/12345?kind=tv");
     });
   });
 });
