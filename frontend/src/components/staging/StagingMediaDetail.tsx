@@ -1,7 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactElement } from "react";
 import { toast } from "sonner";
-import { MoreHorizontal } from "lucide-react";
+import { ExternalLink, MoreHorizontal } from "lucide-react";
+import { Link } from "react-router-dom";
 
 import { getPipelineHistory } from "@/api/pipeline";
 import { enqueueStagingDecision, type StagingMediaItem } from "@/api/staging";
@@ -228,18 +229,16 @@ export function StagingMediaDetail({
               ))}
               {/* §11 constitution: every identified media must lead to its sheet.
                   The sheet lives inside the detail drawer — the operator opens the
-                  drawer first, then sees a visible « Voir la fiche » control. */}
+                  drawer first, then sees a visible « Voir la fiche » button. */}
               {(() => {
                 const sheetHref = stagingMediaSheetHref(item);
                 if (sheetHref == null) return null;
                 return (
-                  <Button
-                    asChild
-                    variant="link"
-                    size="sm"
-                    className="h-auto p-0 text-xs"
-                  >
-                    <a href={sheetHref}>Voir la fiche</a>
+                  <Button asChild variant="outline" size="sm">
+                    <Link to={sheetHref}>
+                      <ExternalLink className="size-4" aria-hidden="true" />
+                      Voir la fiche
+                    </Link>
                   </Button>
                 );
               })()}

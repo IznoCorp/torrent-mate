@@ -21,13 +21,14 @@ for name in ('director', 'series_status', 'episode_count', 'trailer_url'):
     print(f'{name}: {fields.get(name, \"MISSING\")}')"
 ```
 
-**Expected output**:
+**Expected output** (PEP 604 union syntax — `_base.py` has `from __future__ import
+annotations`, so `dataclasses.fields()` yields string annotations):
 
 ```
-director: typing.Optional[str]
-series_status: typing.Optional[str]
-episode_count: typing.Optional[int]
-trailer_url: typing.Optional[str]
+director: str | None
+series_status: str | None
+episode_count: int | None
+trailer_url: str | None
 ```
 
 ## ACC-02 — Endpoint serves a movie sheet (authenticated)
@@ -91,14 +92,13 @@ within the cache TTL reuses the cached result.
 
 ## ACC-05 — Degraded response when provider fails
 
-OPERATOR — requires temporarily disabling network or pointing to an unreachable
-provider. Hard to automate; the manual proof:
+OPERATOR — requires temporarily disabling the TMDB API (e.g. point to an unreachable
+host, or restart staging with a bogus TMDB API key).
 
-1. Make a provider unreachable (e.g. `iptables` drop on the TMDB API IP, or stop the
-   staging process and restart it with a bogus TMDB API key).
+1. Make the provider unreachable.
 2. Call the endpoint for any provider id.
 3. Verify the response is `200` (never 500), `degraded_reason` is a non-empty French
-   string, and identity fields (provider, provider_id, title) are still present.
+   string, and identity fields (provider, provider_id, title) are present.
 
 ```bash
 curl --connect-timeout 10 --max-time 30 -s \
@@ -107,25 +107,34 @@ curl --connect-timeout 10 --max-time 30 -s \
   | python -c "import json,sys; d=json.load(sys.stdin); print('degraded_reason' in d and d['degraded_reason'] is not None, d.get('title','N/A'))"
 ```
 
-**Expected output** (when provider fails; exact `title` depends on fallback data):
+**Expected output** (degraded path — nonexistent TMDB id falls back to the provider id
+as title when a real provider outage is in effect; the key assertion is `degraded_reason`
+is a non-empty truthy string and the status is 200):
 
 ```
-True Top Chef
+True 99999999
 ```
 
 ## ACC-06 — Frontend route renders the media sheet page
 
-OPERATOR — load the page in staging and verify the DOM.
+The frontend is a Vite SPA — `curl` returns the static `index.html` shell, never
+client-rendered markup.  Prove the route exists via the route-mirror test, which
+mounts the component in jsdom:
 
 ```bash
-curl --connect-timeout 10 --max-time 30 -s \
-  -H "Cookie: torrentmate_session=$SESSION_COOKIE" \
-  "https://tm-staging.iznogoudatall.xyz/media/tmdb/27205" \
-  | grep -o 'data-testid="[^"]*"' | head -5
+cd frontend && npx vitest run src/router.test.tsx -t "fiche média"
 ```
 
-**Expected output**: the page HTML contains data-testid attributes from the
-`MediaSheet` component (title, poster region, overview block).
+**Expected output** (1 passed, the route mounts `MediaSheet` and renders its
+skeleton — the test is in the route-mirror suite):
+
+```
+ RUN  v… /Users/izno/dev/PersonalScraper/frontend
+
+ ✓ src/router.test.tsx > App routes mirror … > monte la fiche média sur « /media/tmdb/27205 »
+ Test Files  1 passed (1)
+      Tests  1 passed | … skipped (…)
+```
 
 ## ACC-07 — product-intent.md carries §11
 

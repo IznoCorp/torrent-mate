@@ -8,6 +8,7 @@
  */
 
 import { type ReactElement } from "react";
+import { Link } from "react-router-dom";
 
 import type { DecisionCandidate } from "@/api/decisions";
 import { MediaPoster } from "@/components/ds/MediaPoster";
@@ -167,8 +168,8 @@ export function CandidateCard({
         {/* Provider badge + media sheet link (§11 constitution). */}
         <div className="flex items-center justify-between">
           <Badge tone="neutral">{providerLabel}</Badge>
-          <a
-            href={mediaSheetHref({
+          <Link
+            to={mediaSheetHref({
               provider: candidate.provider,
               providerId: String(candidate.provider_id),
             })}
@@ -178,7 +179,7 @@ export function CandidateCard({
             className="text-xs text-primary hover:underline"
           >
             Voir la fiche
-          </a>
+          </Link>
         </div>
       </CardContent>
     </Card>
