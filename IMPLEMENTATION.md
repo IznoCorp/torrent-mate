@@ -10,7 +10,7 @@
 **PR merge**: auto — standing operator contract: adversarial review(s) + tests before merge.
 **PR**: _(created after last phase)_
 **Design**: docs/features/media-sheet/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/media-sheet/plan/INDEX.md
 
 ## Non-negotiable invariants (DESIGN D1-D10, frozen)
 
@@ -33,7 +33,12 @@
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase | File | Status |
+| --- | --- | --- | --- |
+| 1   | Modele + parseurs | phase-01-metadata-model-parsers.md | [ ]    |
+| 2   | Endpoint + cache + croisement mediatheque | phase-02-endpoint-cache-ownership.md | [ ]    |
+| 3   | Composant + page + route + helper | phase-03-component-page-route.md | [ ]    |
+| 4   | Cablage des surfaces + S11 constitution + ACCEPTANCE | phase-04-wiring-constitution-acceptance.md | [ ]    |
 
 ## Review cycles
 
@@ -41,4 +46,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` to execute phase 1.
