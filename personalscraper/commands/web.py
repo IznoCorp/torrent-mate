@@ -138,6 +138,11 @@ def web(
             create_app(config, settings),
             host=bind_host,
             port=bind_port,
+            # ``log_config=None`` keeps uvicorn from installing its OWN logging
+            # config: its default sets ``propagate=False`` on ``uvicorn.access``
+            # / ``uvicorn.error``, which would route those records around our
+            # handlers — and therefore around the secret redaction.
+            log_config=None,
         )
     finally:
         app_context.provider_registry.close()

@@ -1,14 +1,16 @@
 """Structured logging module — dual output (console + JSON file) via structlog."""
 
+import io
 import logging
 import logging.config
+import os
 import re
 from collections.abc import MutableMapping
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, TextIO, cast
 
 import structlog
-from structlog.types import Processor
+from structlog.types import ExcInfo, Processor
 
 # Top-level exact-match for short, well-known secret field names.
 _SECRET_KEY_EXACT_RE = re.compile(r"^(api[_-]?key|authorization|cookie|secret|token|password)$", re.IGNORECASE)
@@ -22,8 +24,112 @@ _SECRET_KEY_EXACT_RE = re.compile(r"^(api[_-]?key|authorization|cookie|secret|to
 # bare alternations caused over-matching on compound counters such as
 # ``cookie_count``, ``token_count``, ``secret_count`` and ``password_count``,
 # which are legitimate integer fields that must NOT be redacted.
-_SECRET_KEY_COMPOUND_RE = re.compile(r"(?i)(^|[_\-])(api[_\-]?key|authorization|cookies?[_\-]file)($|[_\-])")
-_URL_KEY_PARAM_RE = re.compile(r"([?&])key=[^&]*")
+# Compound FIELD names. ``(?!count)`` keeps the hard-won exclusion of legitimate
+# counters (``token_count``, ``secret_count``…) while covering the names the
+# process actually holds: qbit_password, telegram_bot_token, plex_token,
+# web_jwt_secret, tr4ker_passkey, access_token…
+_SECRET_KEY_COMPOUND_RE = re.compile(
+    r"(?i)(^|[_\-])(api[_\-]?key|authorization|cookies?[_\-]file|passkey|password|token|secret|credentials?)"
+    r"($|[_\-](?!count\b))"
+)
+
+# Known secret VALUES, registered at logging-configuration time.
+#
+# The last line of defence, and the only one that can work: a rule matching the
+# SHAPE of a secret cannot see a key echoed back by a server inside an XML error
+# body, embedded in a URL PATH, or dumped by a third-party library in a format
+# nobody anticipated. Matching the value itself covers all of those at once.
+# Populated from os.environ — never hard-coded, never logged.
+_SECRET_VALUES: set[str] = set()
+# Below this length a "secret" is not distinctive enough to blind-replace
+# (an 8-char token is already unlikely to occur by accident in a log line).
+_MIN_SECRET_VALUE_LEN = 8
+
+# Secret-bearing QUERY PARAMETERS inside a URL-ish string.
+#
+# The previous form was ``([?&])key=[^&]*`` — it required the separator to sit
+# IMMEDIATELY before ``key=``, so ``?apikey=<secret>`` never matched (the char
+# before ``key`` is an ``i``). That is exactly how four tr4ker API keys reached
+# the production log in clear text on 2026-08-02, inside the ``url`` field of an
+# ``api_error_body_unparsable`` event.
+#
+# This form matches the parameter NAME as a whole and redacts its value:
+#   * the name may carry a prefix/suffix segment (``tmdb_api_key``, ``key_2``)
+#     but the secret word must sit on a segment boundary, so ``monkey=`` and
+#     ``turnkey_count=`` are NOT redacted (same over-matching lesson as above);
+#   * separators and ``=`` are accepted percent-encoded (``%3F``/``%26``/``%3D``)
+#     because a magnet's ``tr=`` payload carries its announce URL encoded, which
+#     is where a tracker passkey hides;
+#   * the parameter name is KEPT — a log line saying WHICH secret was elided is
+#     useful; the value is what must never land on disk.
+_URL_SECRET_PARAM_RE = re.compile(
+    r"(?i)([?&#;]|%3F|%26|%23)"
+    r"((?:[a-z0-9]+[_\-])?"
+    r"(?:api[_\-]?key|authkey|passkey|torrent[_\-]?pass|key|token|secret|password|authorization|auth|"
+    r"signature|sig|session|sid)"
+    r"(?:[_\-]?[a-z0-9]+)?)"
+    r"(=|%3D)[^&\s\"'\\;#]*"
+)
+# ``scheme://user:password@host`` — the other classic in-URL credential.
+_URL_USERINFO_RE = re.compile(r"(//[^/:@\s]+):([^@/\s]+)@")
+
+
+def _redact_in_url(value: str) -> str:
+    """Redact credentials embedded in a URL-ish string.
+
+    Covers secret-bearing query parameters (plain or percent-encoded) and
+    ``user:password@`` userinfo. Applied to EVERY string in the event dict —
+    a secret does not announce itself by the name of the field carrying it (the
+    production leak rode in a field simply called ``url``).
+
+    Args:
+        value: Any string from the event dict.
+
+    Returns:
+        The string with credential values replaced by ``"***REDACTED***"``.
+    """
+    out = _URL_SECRET_PARAM_RE.sub(r"\1\2\3***REDACTED***", value)
+    out = _URL_USERINFO_RE.sub(r"\1:***REDACTED***@", out)
+    # Value-based pass LAST: catches what no shape rule can — a key echoed back
+    # in a server error body, sitting in a URL path segment, or dumped by a
+    # third-party library in an unforeseen format.
+    for secret in _SECRET_VALUES:
+        if secret in out:
+            out = out.replace(secret, "***REDACTED***")
+    return out
+
+
+class _RedactingTracebackFormatter:
+    """Render a rich traceback, then scrub credentials from the text.
+
+    structlog ConsoleRenderer formats exceptions itself, bypassing the processor
+    chain so this is the only place console tracebacks can be redacted.
+    show_locals=False additionally stops the frame-locals dump that leaked
+    merged_params to PM2 in production.
+    """
+
+    def __init__(self) -> None:
+        self._inner = structlog.dev.RichTracebackFormatter(show_locals=False)
+
+    def __call__(self, sio: TextIO, exc_info: ExcInfo) -> None:
+        buf = io.StringIO()
+        self._inner(buf, exc_info)
+        sio.write(_redact_in_url(buf.getvalue()))
+
+
+def register_secret_values(*values: str | None) -> None:
+    """Register secret values to blind-replace in every logged string.
+
+    Call once at configuration time with the process's real credentials. Values
+    shorter than :data:`_MIN_SECRET_VALUE_LEN` are ignored — replacing a short
+    string everywhere would mangle unrelated log lines for no security gain.
+
+    Args:
+        *values: Candidate secret values; ``None``/empty/short ones are skipped.
+    """
+    for value in values:
+        if value and len(value) >= _MIN_SECRET_VALUE_LEN:
+            _SECRET_VALUES.add(value)
 
 
 def redact_secrets(
@@ -33,8 +139,11 @@ def redact_secrets(
 ) -> MutableMapping[str, Any]:
     """Recursively redact secret-looking values from the event dict.
 
-    Also strips the ``key=<value>`` query parameter from any string field
-    that looks like a URL (contains ``?key=`` or ``&key=``).
+    Two independent layers, because either alone has a hole: secret-looking
+    FIELD NAMES are redacted wholesale, and every string is additionally
+    scrubbed for credentials embedded in a URL (see :func:`_redact_in_url`) —
+    which is how an API key reached the production log inside a field named
+    ``url``.
 
     Args:
         _logger: Unused — required by the structlog processor interface.
@@ -45,18 +154,29 @@ def redact_secrets(
         A new dict with secret values replaced by ``"***REDACTED***"``.
     """
 
+    def _is_secret_key(key: Any) -> bool:
+        # A non-str key (an int season number, say) cannot be a secret NAME —
+        # and must never reach the regexes: ``re.match`` raises TypeError on it,
+        # which would turn a log call into a crash.
+        if not isinstance(key, str):
+            return False
+        return bool(_SECRET_KEY_EXACT_RE.match(key) or _SECRET_KEY_COMPOUND_RE.search(key))
+
     def _walk(obj: Any) -> Any:
         if isinstance(obj, dict):
-            return {
-                k: (
-                    "***REDACTED***" if _SECRET_KEY_EXACT_RE.match(k) or _SECRET_KEY_COMPOUND_RE.search(k) else _walk(v)
-                )
-                for k, v in obj.items()
-            }
+            return {k: ("***REDACTED***" if _is_secret_key(k) else _walk(v)) for k, v in obj.items()}
+        # Tuples and sets carry secrets too — a stdlib record's ``args`` IS a
+        # tuple, and that is the shape every ``logger.warning("%s", url)`` takes.
+        if isinstance(obj, tuple):
+            return tuple(_walk(x) for x in obj)
+        if isinstance(obj, (set, frozenset)):
+            return {_walk(x) for x in obj}
         if isinstance(obj, list):
             return [_walk(x) for x in obj]
-        if isinstance(obj, str) and "key=" in obj and ("?" in obj or "&" in obj):
-            return _URL_KEY_PARAM_RE.sub(r"\1key=***REDACTED***", obj)
+        if isinstance(obj, str):
+            return _redact_in_url(obj)
+        if isinstance(obj, bytes):
+            return _redact_in_url(obj.decode("utf-8", "replace")).encode()
         return obj
 
     result: dict[str, Any] = _walk(event_dict)
@@ -64,6 +184,33 @@ def redact_secrets(
 
 
 LOGS_DIR = Path(__file__).resolve().parent.parent / "logs"
+
+
+def _register_settings_secrets() -> None:
+    """Feed the process's real credentials to the value-based redactor.
+
+    Scans ``os.environ`` for every variable whose NAME matches the secret-key
+    regexes and registers its VALUE.  This is the ONLY source of credential
+    registration — it MUST NOT call ``personalscraper.config.get_settings()``
+    because that function is ``@lru_cache``'d.  Calling it during logging setup
+    primes the cache with the ambient ``.env`` credentials BEFORE the test-suite
+    fixture ``_neutralize_external_notify_creds`` can blank them, which would
+    cause the pipeline to build a REAL ``TelegramNotifier`` and attempt a real
+    send during tests (the "phantom Telegram reports on every git push" incident
+    this repo already fixed once).
+
+    Every ``.env`` credential is already in ``os.environ`` by the time this runs
+    — ``personalscraper/__init__.py`` calls ``_load_dotenv()`` at package import,
+    so TMDB_API_KEY, TR4KER_API_KEY, TELEGRAM_BOT_TOKEN, QBIT_PASSWORD, and all
+    tracker credentials are present under their own names.
+
+    Fail-soft by construction: logging must never be the thing that breaks a
+    command. If the environment is empty or partial, the shape-based rules still
+    apply — only the value-based safety net is unavailable.
+    """
+    for env_name, env_value in os.environ.items():
+        if _SECRET_KEY_EXACT_RE.match(env_name) or _SECRET_KEY_COMPOUND_RE.search(env_name):
+            register_secret_values(env_value)
 
 
 def configure_logging(verbose: bool = False, quiet: bool = False) -> None:
@@ -77,6 +224,7 @@ def configure_logging(verbose: bool = False, quiet: bool = False) -> None:
         quiet: If True, set log level to WARNING. Ignored if verbose is True.
     """
     LOGS_DIR.mkdir(exist_ok=True)
+    _register_settings_secrets()
 
     if verbose:
         log_level = "DEBUG"
@@ -103,17 +251,40 @@ def configure_logging(verbose: bool = False, quiet: bool = False) -> None:
                     "processors": [
                         structlog.stdlib.ProcessorFormatter.remove_processors_meta,
                         structlog.processors.format_exc_info,
+                        # AFTER format_exc_info, never before: that processor
+                        # renders the traceback into an ``exception`` STRING, so
+                        # a redaction running earlier never sees it. A live path
+                        # proves it matters — ``acquire/airing.py`` logs with
+                        # ``exc_info=True`` and ``api/transport/_http.py``
+                        # re-raises ``requests.RequestException`` verbatim, whose
+                        # message carries « Max retries exceeded with url:
+                        # …&apikey=<secret> ».
+                        redact_secrets,
                         structlog.processors.JSONRenderer(),
                     ],
-                    "foreign_pre_chain": shared_processors,
+                    # Redaction MUST be in the foreign chain too: a stdlib record
+                    # (urllib3, requests, qbittorrentapi, httpx) never goes
+                    # through ``structlog.configure``'s processors, so without
+                    # this it reaches the file in clear text. urllib3 logs the
+                    # full URL at WARNING on retry — no -v needed.
+                    "foreign_pre_chain": [*shared_processors, redact_secrets],
                 },
                 "colored": {
                     "()": structlog.stdlib.ProcessorFormatter,
                     "processors": [
                         structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-                        structlog.dev.ConsoleRenderer(colors=True),
+                        redact_secrets,
+                        # ``show_locals=False``: structlog's rich traceback dumps
+                        # every local of every frame by default — including
+                        # ``merged_params = {'apikey': …}`` inside the transport.
+                        # The console is captured by PM2, so those locals land in
+                        # a file on disk. Six such leaks were found live.
+                        structlog.dev.ConsoleRenderer(
+                            colors=True,
+                            exception_formatter=_RedactingTracebackFormatter(),
+                        ),
                     ],
-                    "foreign_pre_chain": shared_processors,
+                    "foreign_pre_chain": [*shared_processors, redact_secrets],
                 },
             },
             "handlers": {
