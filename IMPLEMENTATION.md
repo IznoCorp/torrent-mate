@@ -35,7 +35,7 @@
 
 | #   | Phase | File | Status |
 | --- | --- | --- | --- |
-| 1   | Modele + parseurs | phase-01-metadata-model-parsers.md | [ ]    |
+| 1   | Modele + parseurs | phase-01-metadata-model-parsers.md | [x]    |
 | 2   | Endpoint + cache + croisement mediatheque | phase-02-endpoint-cache-ownership.md | [ ]    |
 | 3   | Composant + page + route + helper | phase-03-component-page-route.md | [ ]    |
 | 4   | Cablage des surfaces + S11 constitution + ACCEPTANCE | phase-04-wiring-constitution-acceptance.md | [ ]    |
@@ -46,4 +46,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to execute phase 1.
+Run `/implement:phase` to execute phase 2 (endpoint + cache + croisement médiathèque).
