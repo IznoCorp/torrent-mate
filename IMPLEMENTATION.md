@@ -38,7 +38,7 @@
 | 1   | Modele + parseurs                                    | phase-01-metadata-model-parsers.md         | [x]    |
 | 2   | Endpoint + cache + croisement mediatheque            | phase-02-endpoint-cache-ownership.md       | [x]    |
 | 3   | Composant + page + route + helper                    | phase-03-component-page-route.md           | [x]    |
-| 4   | Cablage des surfaces + S11 constitution + ACCEPTANCE | phase-04-wiring-constitution-acceptance.md | [ ]    |
+| 4   | Cablage des surfaces + S11 constitution + ACCEPTANCE | phase-04-wiring-constitution-acceptance.md | [x]    |
 
 ## Review cycles
 
@@ -46,7 +46,7 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to execute phase 4 (cablage des surfaces + §11 constitution + ACCEPTANCE).
+Toutes les phases sont `[x]`. Gate complet vert le 2026-08-04 : `make lint`, `make test` (10277 passed), `make check` (exit 0), `tsc -b --noEmit`, `eslint`, `lint:ds`, `vitest` (1209 passed), `npm run build`, zero derive OpenAPI, audit_design_coverage --strict 0 finding. Prochaine etape : PR + CI + reviews adversariales + merge.
 
 **Contrat d'appel figé en phase 2 — à respecter en phase 3/4** : l'endpoint accepte
 `?kind=movie|tv`. Les quatre surfaces connaissent le type ; `mediaSheetHref` **doit** le
