@@ -24,7 +24,10 @@ import {
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCompleteness } from "@/hooks/useAcquisition";
+import {
+  useCompleteness,
+  useTrackedAcquisitionRun,
+} from "@/hooks/useAcquisition";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Download } from "lucide-react";
 import { toast } from "sonner";
@@ -35,6 +38,7 @@ import {
   EPISODE_STATE_HINT,
   EPISODE_STATE_LABEL,
   EPISODE_STATE_TONE,
+  formatRunResult,
   searchOutcomeReason,
   waitingGroups,
 } from "./meta";
@@ -58,6 +62,40 @@ function SeasonRow({ season, followedId }: SeasonRowProps): ReactElement {
   // at all (total 0) — both disable the per-season grab button.
   const nothingToGrab = season.total === 0 || season.owned >= season.total;
 
+  // §5 — « le déclenchement manuel MONTRE le run : lancé → en cours → résultat
+  // chiffré ». The 201 only says the row was enqueued; it promises nothing about
+  // the acquisition itself. So the launch toasts INFO, the run is followed to its
+  // end, and only then is a real, numbered outcome reported. Same launch-202 →
+  // poll → terminal machine the followed-panel triggers use.
+  const [trackedRun, setTrackedRun] = useState<string | null>(null);
+  const finishedRun = useTrackedAcquisitionRun(trackedRun);
+
+  const invalidateAcquisitionViews = (): void => {
+    void queryClient.invalidateQueries({
+      queryKey: acqKeys.completeness(followedId),
+    });
+    void queryClient.invalidateQueries({ queryKey: acqKeys.wanted() });
+    void queryClient.invalidateQueries({ queryKey: acqKeys.followed() });
+  };
+
+  // Terminal readout, evaluated on the render that observes ``ended_at`` (the
+  // shape useFollowedPanel already uses). A success toast may only be spoken
+  // HERE — never on the 201 — because only here is there a result to speak of
+  // (§5: « un toast de succès sur un run mort est interdit »).
+  if (finishedRun?.ended_at != null && trackedRun != null) {
+    if (finishedRun.outcome === "success") {
+      toast.success(
+        `Saison ${String(season.season)} terminée — ${formatRunResult(finishedRun.result)}`,
+      );
+    } else {
+      toast.error(
+        `Saison ${String(season.season)} — l'exécution a échoué, voir les exécutions récentes.`,
+      );
+    }
+    setTrackedRun(null);
+    invalidateAcquisitionViews();
+  }
+
   const grabSeasonMutation = useMutation({
     mutationFn: () => grabSeason(followedId, season.season),
     onSuccess: (result: SeasonGrabResponse) => {
@@ -66,24 +104,34 @@ function SeasonRow({ season, followedId }: SeasonRowProps): ReactElement {
         // new was enqueued, so an informational toast — never a success one
         // claiming a fresh grab (review F8).
         toast.info(`Saison ${String(season.season)} déjà en file`);
+      } else if (result.run_uid != null) {
+        const absorbed =
+          result.absorbed_count > 0
+            ? ` — ${String(result.absorbed_count)} épisode${result.absorbed_count > 1 ? "s" : ""} absorbé${result.absorbed_count > 1 ? "s" : ""}`
+            : "";
+        toast.info(
+          `Saison ${String(season.season)} lancée${absorbed} — catalogue, trackers, puis récupération…`,
+        );
+        setTrackedRun(result.run_uid);
       } else {
-        toast.success(
-          `Saison ${String(season.season)} mise en file` +
-            (result.absorbed_count > 0
-              ? ` — ${String(result.absorbed_count)} épisode${result.absorbed_count > 1 ? "s" : ""} absorbé${result.absorbed_count > 1 ? "s" : ""}`
-              : ""),
+        // The row IS enqueued but nothing runs (indexer unconfigured, spawn
+        // failed). Saying « lancée » here would be the §2 lie: claiming progress
+        // that is not happening. Say what is true — the cron will take it.
+        toast.info(
+          `Saison ${String(season.season)} mise en file — reprise à la prochaine passe automatique.`,
         );
       }
-      void queryClient.invalidateQueries({
-        queryKey: acqKeys.completeness(followedId),
-      });
-      void queryClient.invalidateQueries({ queryKey: acqKeys.wanted() });
-      void queryClient.invalidateQueries({ queryKey: acqKeys.followed() });
+      invalidateAcquisitionViews();
     },
     onError: (err: Error) => {
       toast.error(err.message);
     },
   });
+
+  // Disabled while the request is in flight AND while its run is still going:
+  // the button is the run's readout, so it must not offer to relaunch what is
+  // already running (§6 — the only refusal is the duplicate of the same action).
+  const runInFlight = trackedRun != null;
 
   return (
     <div className="flex flex-col gap-1.5 border-t border-border py-2 first:border-t-0">
@@ -159,15 +207,17 @@ function SeasonRow({ season, followedId }: SeasonRowProps): ReactElement {
           <Button
             variant="outline"
             size="sm"
-            disabled={grabSeasonMutation.isPending}
+            disabled={grabSeasonMutation.isPending || runInFlight}
             onClick={() => {
               grabSeasonMutation.mutate();
             }}
           >
             <Download className="mr-1 h-4 w-4" aria-hidden="true" />
-            {grabSeasonMutation.isPending
-              ? "Mise en file…"
-              : "Récupérer la saison"}
+            {runInFlight
+              ? "Acquisition en cours…"
+              : grabSeasonMutation.isPending
+                ? "Mise en file…"
+                : "Récupérer la saison"}
           </Button>
         </div>
       )}
