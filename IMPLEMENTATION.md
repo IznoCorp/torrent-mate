@@ -37,7 +37,7 @@
 | --- | ---------------------------------------------------- | ------------------------------------------ | ------ |
 | 1   | Modele + parseurs                                    | phase-01-metadata-model-parsers.md         | [x]    |
 | 2   | Endpoint + cache + croisement mediatheque            | phase-02-endpoint-cache-ownership.md       | [x]    |
-| 3   | Composant + page + route + helper                    | phase-03-component-page-route.md           | [ ]    |
+| 3   | Composant + page + route + helper                    | phase-03-component-page-route.md           | [x]    |
 | 4   | Cablage des surfaces + S11 constitution + ACCEPTANCE | phase-04-wiring-constitution-acceptance.md | [ ]    |
 
 ## Review cycles
@@ -46,7 +46,7 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to execute phase 3 (composant + page + route + helper).
+Run `/implement:phase` to execute phase 4 (cablage des surfaces + §11 constitution + ACCEPTANCE).
 
 **Contrat d'appel figé en phase 2 — à respecter en phase 3/4** : l'endpoint accepte
 `?kind=movie|tv`. Les quatre surfaces connaissent le type ; `mediaSheetHref` **doit** le
