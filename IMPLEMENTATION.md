@@ -9,7 +9,7 @@
 **PR merge**: auto — standing operator contract: adversarial review(s) + tests before merge.
 **PR**: _(created after last phase)_
 **Design**: docs/features/acq-escalade/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/acq-escalade/plan/INDEX.md
 
 ## Contexte d'exécution
 
@@ -41,7 +41,25 @@ Points de collision connus avec cette feature concurrente, à re-vérifier avant
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                                                    | File                                     | Défaut | Status |
+| --- | -------------------------------------------------------- | ---------------------------------------- | ------ | ------ |
+| 1   | Propager le bus du processus dans le scan post-dispatch   | phase-01-event-bus-propagation.md        | D4     | [ ]    |
+| 2   | `trackers_degraded` — une panne n'est pas une absence     | phase-02-trackers-degraded.md            | D2     | [ ]    |
+| 3   | Escalade épisode→saison sur l'évidence d'échec            | phase-03-starvation-escalation.md        | D1     | [ ]    |
+| 4   | Extraction de la route season-grab (comportement constant)| phase-04-extract-season-grab-route.md    | —      | [ ]    |
+| 5   | L'action opérateur déclenche la passe                     | phase-05-operator-trigger.md             | D3     | [ ]    |
+
+L'ordre porte du sens : D4 masque l'effet observable de tout le reste ; D2 change la sémantique
+d'`attempts` dont dépend D1 ; l'extraction dégage la marge que D3 exige sous le plafond de 1000.
+
+## Point ouvert (décision opérateur en attente)
+
+La phase 2 rembourse l'essai **uniquement** sur `trackers_degraded`. Les autres verdicts non
+conclus (`trackers_unavailable`, `circuit_open`, `search_api_error`) continuent de consommer un
+essai — comportement préexistant, non modifié faute d'arbitrage. Conséquence : après la phase 2,
+`attempts` signifie « recherches conclues + recherches en panne totale ». Étendre le
+remboursement à toute la famille panne rendrait le compteur exact, mais c'est un changement de
+comportement supplémentaire qui n'a pas été validé.
 
 ## Review cycles
 
