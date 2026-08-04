@@ -130,6 +130,14 @@ class WantedSubStore(Protocol):
         """Atomically claim a pending item; return ``True`` iff this call won."""
         ...
 
+    def refund_search_attempt(self, wanted_id: int) -> bool:
+        """Give back the attempt a claim consumed when the search never concluded.
+
+        ``claim_for_search`` increments ``attempts`` before the verdict is known, so a
+        tracker outage would otherwise count as a concluded search. Clamped at zero.
+        """
+        ...
+
     def claim_for_grab(self, wanted_id: int, now: int) -> bool:
         """Atomically claim an ``available`` item; return ``True`` iff this call won.
 

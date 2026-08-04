@@ -48,6 +48,7 @@ SEARCH_OUTCOME_STATUS: dict[str, str] = {
     "no_matching_season": "pending",
     "all_filtered": "pending",
     "trackers_unavailable": "pending",
+    "trackers_degraded": "pending",
     "circuit_open": "pending",
     "search_api_error": "pending",
     "no_seeders": "pending",
@@ -261,6 +262,15 @@ class SearchPassMixin(PassGatesMixin):
             return "available"
 
         self._store.wanted.set_status(wanted_id, "pending")
+
+        # A degraded search never concluded: give back the attempt claim_for_search
+        # consumed BEFORE the verdict was known, so ``attempts`` keeps meaning
+        # « searches that concluded » — the counter the starvation escalation reads.
+        # After the status write, so a crash in between leaves the row queued with a
+        # fresh verdict rather than a silently discounted one.
+        if verdict.outcome == "trackers_degraded":
+            self._store.wanted.refund_search_attempt(wanted_id)
+
         # not_found concluded « nothing yet » (waiting); everything else did not
         # conclude at all (unverified) — never merge the two.
         return "waiting" if verdict.disposition == "not_found" else "unverified"

@@ -10,12 +10,13 @@ Load-bearing tests called out explicitly:
     * ``TrackerAuthError`` → TERMINAL ``tracker_auth`` (no add() call).
     * idempotent Conflict (add returns same hash) → still ONE success.
     * all trackers errored → RETRYABLE ``trackers_unavailable`` (NOT abandoned).
+    * SOME trackers errored + zero hits → RETRYABLE ``trackers_degraded``.
     * clean zero hits → TERMINAL ``no_candidates``.
     * zero survivors after hard-filter → TERMINAL ``all_filtered``.
     * ``torrent_client is None`` → RETRYABLE ``no_torrent_client`` (no crash).
 - NEGATIVE seed-write assert (load-bearing): a seed-obligation spy's
   ``record_dispatch`` / ``seed.add`` ``call_count == 0`` across a full success.
-- SEARCH exit paths (acq-states phase 2): all NINE contract paths forced
+- SEARCH exit paths (acq-states phase 2 + acq-escalade D2): all declared paths forced
   through the real chain, asserting the ``SearchVerdict`` triple
   ``(disposition, outcome, found)`` plus the two negative invariants — no
   ``add()`` and no event emitted. ``found`` is ``None`` on every inconclusive
@@ -724,6 +725,24 @@ def test_search_all_trackers_errored_is_retryable_and_inconclusive() -> None:
     _assert_no_side_effects(spy, torrent_client)
 
 
+def test_search_partial_outage_is_retryable_and_inconclusive() -> None:
+    """SOME trackers errored + zero hits → ('retryable', 'trackers_degraded', None).
+
+    The gap between ``all_errored`` and a clean empty search (D2): with one
+    tracker rate-limited and the other legitimately empty, the empty set is NOT
+    evidence of absence. Persisting ``no_candidates`` / 0 here is the lie that
+    froze real rows — c411 answered HTTP 429 for ``Widow's Bay S01E10`` on
+    2026-08-04 while the releases existed.
+    """
+    partial = SearchOutcome(results=[], trackers_queried=2, trackers_errored=1)
+    orchestrator, spy, _registry, torrent_client, _seed = _make_orchestrator(search_outcome=partial)
+
+    verdict = orchestrator.search(_make_wanted(), QualityProfile())
+
+    assert (verdict.disposition, verdict.outcome, verdict.found) == ("retryable", "trackers_degraded", None)
+    _assert_no_side_effects(spy, torrent_client)
+
+
 def test_search_no_candidates_concludes_zero() -> None:
     """Clean search, zero hits → ('not_found', 'no_candidates', 0).
 
@@ -880,7 +899,7 @@ def test_grab_folds_a_search_time_auth_error_into_search_api_error() -> None:
 
 
 def test_search_covers_every_declared_outcome() -> None:
-    """The ten cases above exercise EXACTLY the declared ``SEARCH_OUTCOMES``.
+    """The eleven cases above exercise EXACTLY the declared ``SEARCH_OUTCOMES``.
 
     Exhaustiveness backstop at the orchestrator level: a new declared outcome
     with no forcing test above fails here, so an exit path can never ship
@@ -895,6 +914,7 @@ def test_search_covers_every_declared_outcome() -> None:
         "search_api_error",
         "tracker_auth",
         "trackers_unavailable",
+        "trackers_degraded",
         "no_candidates",
         "no_matching_episode",
         "no_matching_season",
