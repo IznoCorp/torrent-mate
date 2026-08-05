@@ -1,77 +1,42 @@
-# Implementation Progress — spine-truth
+# Implementation Progress — recherche-juste
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: La spine de provenance ne perd plus aucun parcours (§13)
+**Feature**: La recherche des Acquisitions trouve ce qu'on lui demande
 **Type**: fix
-**Version bump**: 0.79.2 → 0.80.0 (minor — migration + nouvelle règle de garde + backfill)
-**Branch**: `fix/spine-truth`
-**Design**: `docs/features/spine-truth/DESIGN.md`
-**Diagnostic source**: `docs/analysis/2026-08-05-provenance-spine-hole-handoff.md`
+**Version bump**: 0.84.0 → 0.85.0 (minor — nouveau moteur de ranking + pagination API + champs provider)
+**Branch**: `fix/recherche-juste`
+**PR merge**: auto
+**PR**: _(created after last phase)_
+**Design**: `docs/features/recherche-juste/DESIGN.md`
+**Diagnostic source**: `docs/analysis/2026-08-05-acquisition-search-relevance-diagnosis.md`
+**Ticket**: KanbanMate #409
 
 ## Contexte d'exécution
 
-Worktree isolé `.claude/worktrees/acq-escalade`, branché sur `origin/main` (`821009d7`).
+Worktree isolé `.claude/worktrees/acq-search-relevance`, branché sur `origin/main` (`207abc25`).
 **Jamais de `pip install -e .`** ici : le package est résolu par cwd, l'install editable globale
-et les crons prod restent intacts.
+et les crons prod restent intacts. Baseline à la création : 10429 passed, 7 skipped, 0 failed.
 
-## Invariants non négociables (DESIGN §7, gelés)
+## Invariants non négociables (DESIGN §2, gelés)
 
-- La spine reste **advisory** : aucune écriture de provenance ne fait échouer une étape.
-  Ce qui change est la **visibilité** de l'échec, jamais sa gravité.
-- Le chemin redevient une **entrée de recherche** ; l'écriture est keyée sur `info_hash`.
-- Le backfill **n'invente rien** : `ingest_path` / `current_path` / `scraped_at` restent NULL.
-- Une règle de garde = **un** mode de défaillance (pas de doublon avec `GRABBED_HASH_MISSING`).
-- Aucun verdict « conforme » sans `scripts/check-acquisition-coherence.py` à exit 0 sur les
-  données réelles, **après** déploiement.
+- Le chemin de scrape ne bouge pas : `_match_score.py`, `_match_movie.py`, `_match_tv.py`,
+  `scraper/movie_service.py` **strictement inchangés** (ACC-01 le prouve).
+- TVDB reste canonique pour les séries **dans le scrape** ; l'union TVDB ∪ TMDB ne concerne
+  que les surfaces de recherche interactive.
+- L'id de suivi d'une série reste l'**id TVDB**, même quand la ligne vient de TMDB (§5).
+- La page ne scrolle jamais latéralement (§12) : le carrousel scrolle dans **son** conteneur.
+- Rien en silence (§8) : `total` reflète le nombre réel de candidats, jamais la taille de page.
+- Les pondérations du score sont **calibrées par le jeu golden**, jamais figées à la main.
 
 ## Phases
 
-| #   | Phase                                                          | Défaut visé | Status |
-| --- | -------------------------------------------------------------- | ----------- | ------ |
-| 1   | Migration 015 — `CHECK kind` accepte `'season'` + garde G1      | Cause A     | [x]    |
-| 2   | `move_path` de sous-arbre + dispatch corrélé par `info_hash`    | Cause B     | [x]    |
-| 3   | Le rejet d'écriture n'est plus muet + gardes G2/G3              | le trou     | [x]    |
-| 4   | §12 — les 3 `<Link>` en `block h-full` + test                   | Cause C     | [x]    |
-| 5   | Backfill §13 — reconstruire les lignes perdues                  | l'état      | [x]    |
-| 6   | Gates, PR, CI, merge, déploiement, vérification réelle + 390px  | —           | [x]    |
+_(filled by /implement:plan)_
 
-L'ordre porte du sens : la migration doit précéder tout test qui écrit un `kind='season'` ;
-la corrélation doit précéder les gardes qui l'auditent ; le backfill vient en dernier parce
-qu'il s'appuie sur la table migrée.
+## Review cycles
 
-## Mutation-check des gardes (exécuté 2026-08-05)
-
-Chaque garde a été confrontée à l'implémentation fautive qu'elle prétend attraper — une
-garde qui passe sur le code cassé ne garde rien.
-
-| Mutation appliquée | Garde | Résultat |
-| --- | --- | --- |
-| `CHECK` remis à `('movie','episode')` | G1 égalité `kind` | **1 failed** ✅ |
-| contenance remise à l'égalité de chemin | corrélation dispatch | **8 failed** ✅ |
-| `log.error` remis à `log.warning` | rejet non muet | **1 failed** ✅ |
-| branche `SPINE_ROW_MISSING` neutralisée | G2 | **2 failed** ✅ |
-| branche `SPINE_DISPATCH_MISSING` neutralisée | G3 | **1 failed** ✅ |
-| `h-full` retiré d'une seule tuile | §12 hauteurs égales | **1 failed** ✅ |
-| backfill écrivant un `current_path` inventé | §13 « ne rien inventer » | **1 failed** ✅ |
-| backfill déclarant `dispatched` sans preuve | §13 statut prouvé | **2 failed** ✅ |
-| `--apply` ignoré (dry-run qui écrit) | dry-run par défaut | **1 failed** ✅ |
-
-## ACCEPTANCE
-
-Déroulé exécuté le **2026-08-05 après déploiement** — voir
-`docs/features/spine-truth/ACCEPTANCE.md` pour les sorties collées des 5 critères.
-
-- ACC-01 migration 015 appliquée sur la base réelle (`user_version` 15, CHECK élargi, 2 index) ;
-- ACC-02 le garde-fou CRIE sur l'état fautif : **57 anomalies** `SPINE_ROW_MISSING` ;
-- ACC-03 état réparé : 57 parcours reconstruits, spine 1 → **58 lignes** (56 `dispatched`) ;
-- ACC-04 `check-acquisition-coherence.py` → **exit 0**, zéro anomalie ;
-- ACC-05 à **390 px** : « Dispatchés » = **56** (lisait 1), ancres `block` couvrant la carte,
-  rangées régulières, aucun débordement horizontal.
-
-Prod sert `0.80.0` @ `1a717ef7` ; `personalscraper-watch` relancé explicitement (l'autodeploy
-ne le redémarre pas), après vérification qu'aucun run n'était en vol.
+_(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Feature terminée. Deux ouverts assumés, non introduits par elle, listés en fin d'ACCEPTANCE.
+Run `/implement:plan` to generate the phase plan from the design doc.
