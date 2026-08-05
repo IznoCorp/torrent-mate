@@ -295,6 +295,51 @@ describe("ParcoursPanel", () => {
     expect(screen.getByText(/Voir tous les parcours/)).toBeInTheDocument();
   });
 
+  it("§12/DOIT-1 — deux acquisitions d'une même série sont DISTINGUABLES", async () => {
+    // Quatre parcours « Silo » partageaient l'identité de la SÉRIE et rien d'autre :
+    // quatre cartes rigoureusement identiques, dont certaines datées et d'autres non.
+    // L'opérateur les a lues comme des doublons, et il avait raison de le croire.
+    getJourneysMock.mockResolvedValue({
+      journeys: [
+        {
+          ...TROIS_PARCOURS.journeys[0],
+          info_hash: "silo0305",
+          follow_title: "Silo",
+          season: 3,
+          episode: 5,
+        },
+        {
+          ...TROIS_PARCOURS.journeys[0],
+          info_hash: "silo0306",
+          follow_title: "Silo",
+          season: 3,
+          episode: 6,
+        },
+      ],
+    });
+    renderPanel();
+    expect(await screen.findByText(/S03E05/)).toBeInTheDocument();
+    expect(screen.getByText(/S03E06/)).toBeInTheDocument();
+  });
+
+  it("un film ne se voit pas coller un numéro d'épisode", async () => {
+    getJourneysMock.mockResolvedValue({
+      journeys: [
+        {
+          ...TROIS_PARCOURS.journeys[0],
+          info_hash: "film0001",
+          kind: "movie",
+          follow_title: "Marjorie Prime",
+          season: null,
+          episode: null,
+        },
+      ],
+    });
+    renderPanel();
+    expect(await screen.findByText("Marjorie Prime")).toBeInTheDocument();
+    expect(screen.queryByText(/S\d\dE\d\d/)).toBeNull();
+  });
+
   it("shows an empty state when there are no journeys", async () => {
     getJourneysMock.mockResolvedValue({ journeys: [] });
     renderPanel();

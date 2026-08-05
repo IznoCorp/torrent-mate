@@ -746,6 +746,8 @@ def get_journeys(
                     dispatch_run_uid=row.dispatch_run_uid,
                     stuck=stuck,
                     reconstructed_at=row.reconstructed_at,
+                    season=row.season,
+                    episode=row.episode,
                 )
             )
         return JourneysResponse(journeys=items)

@@ -3335,6 +3335,8 @@ export interface components {
          *         reconstructed_at: Epoch at which this journey was REBUILT from the surviving
          *             databases (§14.3), or None for a journey the pipeline wrote itself. On a
          *             rebuilt row an absent stage timestamp means « unknown », not « not reached ».
+         *         season / episode: Which episode this acquisition is — the only thing that tells
+         *             two journeys of the same series apart on screen. None for a movie.
          */
         JourneyItem: {
             /** Current Path */
@@ -3347,6 +3349,8 @@ export interface components {
             dispatch_run_uid?: string | null;
             /** Dispatched At */
             dispatched_at?: number | null;
+            /** Episode */
+            episode?: number | null;
             /** Follow Title */
             follow_title?: string | null;
             /** Followed Id */
@@ -3377,6 +3381,8 @@ export interface components {
             /** Scraped At */
             scraped_at?: number | null;
             scraped_ref?: components["schemas"]["MediaRefResponse"] | null;
+            /** Season */
+            season?: number | null;
             /** Status */
             status?: string | null;
             /**

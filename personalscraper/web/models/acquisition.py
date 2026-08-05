@@ -656,6 +656,8 @@ class JourneyItem(BaseModel):
         reconstructed_at: Epoch at which this journey was REBUILT from the surviving
             databases (§14.3), or None for a journey the pipeline wrote itself. On a
             rebuilt row an absent stage timestamp means « unknown », not « not reached ».
+        season / episode: Which episode this acquisition is — the only thing that tells
+            two journeys of the same series apart on screen. None for a movie.
     """
 
     info_hash: str
@@ -688,6 +690,10 @@ class JourneyItem(BaseModel):
     # ingest/sort/scrape by definition (§14.2). The UI reads this to say « inconnue »
     # instead of drawing a path that cannot exist.
     reconstructed_at: int | None = None
+    #: Identité AFFICHABLE du parcours (017) — sans elle, deux acquisitions d'une même
+    #: série donnent deux cartes identiques, que l'opérateur lit comme des doublons.
+    season: int | None = None
+    episode: int | None = None
 
 
 class JourneysResponse(BaseModel):

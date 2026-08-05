@@ -293,6 +293,10 @@ class GrabPassMixin(PassGatesMixin):
                 media_ref=item.media_ref,
                 kind=item.kind,
                 grabbed_at=int(time.time()),
+                # Identité AFFICHABLE (017) : sans elle, deux épisodes du même feuilleton
+                # donnent deux cartes identiques dans « Parcours ».
+                season=item.season,
+                episode=item.episode,
                 # F3: the grab command's OWN pipeline_run.run_uid (from its CliRunRecorder,
                 # NOT the ContextVar — grab's correlation is a misaligned fresh uuid). None
                 # when grab runs with no run row.

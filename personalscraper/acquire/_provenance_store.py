@@ -152,6 +152,12 @@ class ProvenanceRow:
     # reconstruction simply cannot date those steps. Every journey the pipeline wrote
     # itself carries None here.
     reconstructed_at: int | None = None
+    # Identité AFFICHABLE du parcours (017). ``media_ref`` ne porte que l'œuvre (l'id de
+    # série) : sans saison/épisode, quatre acquisitions de la même série sont quatre
+    # cartes identiques à l'écran — ce que l'opérateur lit comme des doublons. NULL pour
+    # un film, et pour un parcours dont l'épisode n'a jamais été connu.
+    season: int | None = None
+    episode: int | None = None
 
 
 def _row_to_provenance(row: sqlite3.Row) -> ProvenanceRow:
@@ -187,6 +193,9 @@ def _row_to_provenance(row: sqlite3.Row) -> ProvenanceRow:
         dispatch_run_uid=row["dispatch_run_uid"] if "dispatch_run_uid" in keys else None,
         # Rebuild marker (016) — tolerate a pre-016 row shape, like the F2/F3 columns.
         reconstructed_at=row["reconstructed_at"] if "reconstructed_at" in keys else None,
+        # Identité affichable (017) — tolère une forme de ligne antérieure.
+        season=row["season"] if "season" in keys else None,
+        episode=row["episode"] if "episode" in keys else None,
     )
 
 
@@ -241,6 +250,8 @@ class _ProvenanceSubStore:
         kind: str | None,
         grabbed_at: int,
         run_uid: str | None = None,
+        season: int | None = None,
+        episode: int | None = None,
     ) -> None:
         """Create/refresh the row for a FOLLOW-DRIVEN grab (the identity seed).
 
@@ -252,15 +263,18 @@ class _ProvenanceSubStore:
         self._safe_write(
             """
             INSERT INTO staging_provenance
-              (info_hash, followed_id, media_ref_json, kind, grabbed_at, status, grab_run_uid)
-            VALUES (?, ?, ?, ?, ?, 'grabbed', ?)
+              (info_hash, followed_id, media_ref_json, kind, grabbed_at, status, grab_run_uid,
+               season, episode)
+            VALUES (?, ?, ?, ?, ?, 'grabbed', ?, ?, ?)
             ON CONFLICT(info_hash) DO UPDATE SET
               followed_id    = excluded.followed_id,
               media_ref_json = excluded.media_ref_json,
               kind           = excluded.kind,
               grabbed_at     = excluded.grabbed_at,
               status         = 'grabbed',
-              grab_run_uid   = excluded.grab_run_uid
+              grab_run_uid   = excluded.grab_run_uid,
+              season         = excluded.season,
+              episode        = excluded.episode
             """,
             (
                 info_hash.lower(),
@@ -269,6 +283,8 @@ class _ProvenanceSubStore:
                 kind,
                 grabbed_at,
                 run_uid,
+                season,
+                episode,
             ),
         )
 
