@@ -34,7 +34,7 @@ et les crons prod restent intacts.
 | 3   | Le rejet d'écriture n'est plus muet + gardes G2/G3              | le trou     | [x]    |
 | 4   | §12 — les 3 `<Link>` en `block h-full` + test                   | Cause C     | [x]    |
 | 5   | Backfill §13 — reconstruire les lignes perdues                  | l'état      | [x]    |
-| 6   | Gates, PR, CI, merge, déploiement, vérification réelle + 390px  | —           | [ ]    |
+| 6   | Gates, PR, CI, merge, déploiement, vérification réelle + 390px  | —           | [x]    |
 
 L'ordre porte du sens : la migration doit précéder tout test qui écrit un `kind='season'` ;
 la corrélation doit précéder les gardes qui l'auditent ; le backfill vient en dernier parce
@@ -59,14 +59,19 @@ garde qui passe sur le code cassé ne garde rien.
 
 ## ACCEPTANCE
 
-_(rempli en phase 6 — déroulé daté sur données réelles après déploiement, §méthode règle 2)_
+Déroulé exécuté le **2026-08-05 après déploiement** — voir
+`docs/features/spine-truth/ACCEPTANCE.md` pour les sorties collées des 5 critères.
 
-Répétition à blanc du backfill sur les bases RÉELLES (2026-08-05, lecture seule) :
-**57 parcours** reconstruits — 55 `dispatched` avec leur chemin de médiathèque réel,
-2 arrêtés à `grabbed` (les deux packs American Dad encore en vol : `wanted.status='grabbed'`,
-donc aucun atterrissage à prouver).
+- ACC-01 migration 015 appliquée sur la base réelle (`user_version` 15, CHECK élargi, 2 index) ;
+- ACC-02 le garde-fou CRIE sur l'état fautif : **57 anomalies** `SPINE_ROW_MISSING` ;
+- ACC-03 état réparé : 57 parcours reconstruits, spine 1 → **58 lignes** (56 `dispatched`) ;
+- ACC-04 `check-acquisition-coherence.py` → **exit 0**, zéro anomalie ;
+- ACC-05 à **390 px** : « Dispatchés » = **56** (lisait 1), ancres `block` couvrant la carte,
+  rangées régulières, aucun débordement horizontal.
+
+Prod sert `0.80.0` @ `1a717ef7` ; `personalscraper-watch` relancé explicitement (l'autodeploy
+ne le redémarre pas), après vérification qu'aucun run n'était en vol.
 
 ## Next action
 
-Phase 6 — PR, CI verte, merge, déploiement, puis migration + backfill `--apply` sur les
-bases réelles, `check-acquisition-coherence.py` à exit 0, et la Vue d'ensemble à 390px.
+Feature terminée. Deux ouverts assumés, non introduits par elle, listés en fin d'ACCEPTANCE.
