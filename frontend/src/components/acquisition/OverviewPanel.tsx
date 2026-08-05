@@ -66,7 +66,7 @@ function StalledGrabsAlert({ count }: { count: number }): ReactElement | null {
               une bande originale FLAC du film homonyme. « inconnue » quand elle
               ne peut pas être connue, jamais un titre de média à sa place. */}
             <span className="block truncate font-mono text-muted-foreground" title={it.release_name ?? undefined}>
-              {it.release_name ?? "Release inconnue"}
+              {it.release_name ?? "Nom de release non enregistré"}
             </span>
           </li>
         ))}

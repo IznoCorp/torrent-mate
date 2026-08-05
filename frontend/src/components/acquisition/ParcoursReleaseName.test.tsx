@@ -91,7 +91,7 @@ describe("ParcoursPanel — nom de release", () => {
     renderPanel();
 
     await waitFor(() => {
-      expect(screen.getByText("Release inconnue")).toBeInTheDocument();
+      expect(screen.getByText("Nom de release non enregistré")).toBeInTheDocument();
     });
   });
 });

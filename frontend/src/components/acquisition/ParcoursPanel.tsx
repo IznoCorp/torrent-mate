@@ -418,14 +418,18 @@ export function ParcoursPanel(): ReactElement {
               « Spider-Man : Brand New Day — Ingéré », indiscernable du film.
 
               §14.3 — quand le nom ne peut pas être connu (parcours ancien sans chemin
-              enregistré), on le DIT. « Release inconnue » est une information ; un titre
-              de média affiché à la place de la release serait une fausse information.
+              enregistré), on le DIT. Un titre de média affiché à la place de la release
+              serait une fausse information.
+
+              Le mot « inconnue » est RÉSERVÉ au vocabulaire des étapes (une étape dont
+              l'instant n'est pas connu) : le réutiliser ici ferait lire un défaut de
+              parcours là où il n'y a qu'un nom non enregistré.
             */}
             <p
               className="min-w-0 truncate font-mono text-xs text-muted-foreground"
               title={j.release_name ?? undefined}
             >
-              {j.release_name ?? "Release inconnue"}
+              {j.release_name ?? "Nom de release non enregistré"}
             </p>
             <ol className="flex flex-wrap gap-1.5">
               {STAGES.map((stage) => {
