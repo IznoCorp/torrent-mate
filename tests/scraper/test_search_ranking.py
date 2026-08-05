@@ -390,3 +390,50 @@ class TestYearAgreement:
         exact = rank_search_results("Alpha", lot, kind="movie", now_year=NOW_YEAR, query_year=2001)
         far = rank_search_results("Alpha", lot, kind="movie", now_year=NOW_YEAR, query_year=2010)
         assert exact[0].score > far[0].score
+
+
+class TestCrossKindComparability:
+    """Movies and shows are ranked together — their scores must be comparable.
+
+    Popularity is normalised against the most popular candidate in the lot. When
+    each kind was ranked in its own call, the normalisation ran twice on two
+    different maxima and produced two incomparable 1.000s, which were then sorted
+    against each other. Measured in production on 2026-08-05: 'monarch' in « Tout »
+    put *Monarch City* (popularity 2.19, top of a weak movie lot) ahead of
+    *Monarch: Legacy of Monsters* (popularity 34.45) — a 16× popularity gap
+    erased, and recency broke the tie the wrong way.
+    """
+
+    @staticmethod
+    def _mixed() -> list[SearchResult]:
+        """A weak-but-recent film alongside a genuinely popular show."""
+        return [
+            SearchResult(
+                provider="tmdb",
+                provider_id="1469143",
+                title="Monarch City",
+                year=2025,
+                media_type="movie",
+                popularity=2.19,
+            ),
+            SearchResult(
+                provider="tvdb",
+                provider_id="422598",
+                title="Monarch: Legacy of Monsters",
+                year=2023,
+                media_type="tv",
+                popularity=34.45,
+            ),
+        ]
+
+    def test_popular_show_outranks_obscure_recent_film(self) -> None:
+        """One ranking pass over the union — the 16× popularity gap must survive."""
+        ranked = rank_search_results("monarch", self._mixed(), kind="all", now_year=NOW_YEAR)
+        assert ranked[0].result.provider_id == "422598"
+
+    def test_normalisation_uses_the_whole_lot(self) -> None:
+        """The weak candidate must NOT normalise to 1.0 just for topping its kind."""
+        ranked = rank_search_results("monarch", self._mixed(), kind="all", now_year=NOW_YEAR)
+        city = next(r for r in ranked if r.result.provider_id == "1469143")
+        show = next(r for r in ranked if r.result.provider_id == "422598")
+        assert show.score > city.score

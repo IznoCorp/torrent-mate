@@ -970,6 +970,59 @@ class TestSearchEndpoint:
         assert body["results"] == []
         assert body["total"] == 1
 
+    def test_all_kinds_share_one_popularity_scale(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        """« Tout » must rank films and shows on ONE scale, not two.
+
+        Popularity is normalised against the most popular candidate in the lot.
+        Ranking each kind in its own pass ran that normalisation twice, on two
+        different maxima, producing two incomparable 1.000s that were then sorted
+        against each other. Measured in production 2026-08-05: 'monarch' put
+        *Monarch City* (popularity 2.19, merely the best of a weak film lot) ahead
+        of *Monarch: Legacy of Monsters* (popularity 34.45).
+        """
+        from personalscraper.api.metadata._base import SearchResult
+
+        weak_film = SearchResult(
+            provider="tmdb",
+            provider_id="1469143",
+            title="Monarch City",
+            year=2025,
+            media_type="movie",
+            popularity=2.19,
+        )
+        popular_show = SearchResult(
+            provider="tmdb",
+            provider_id="202411",
+            title="Monarch: Legacy of Monsters",
+            year=2023,
+            media_type="tv",
+            popularity=34.45,
+        )
+        self._patch_clients(monkeypatch, [weak_film], [popular_show])
+
+        body = client.get("/api/acquisition/search?q=monarch", cookies=_make_auth_cookie()).json()
+        assert body["results"][0]["title"] == "Monarch: Legacy of Monsters"
+        assert body["results"][0]["kind"] == "tv"
+
+    def test_kind_tag_follows_the_media_type_not_the_chain(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """With one ranking pass, each row is tagged from its own media_type."""
+        from personalscraper.api.metadata._base import SearchResult
+
+        film = SearchResult(
+            provider="tmdb", provider_id="1", title="Dune", year=2021, media_type="movie", popularity=50.0
+        )
+        show = SearchResult(
+            provider="tvdb", provider_id="2", title="Dune Prophecy", year=2024, media_type="tv", popularity=5.0
+        )
+        self._patch_clients(monkeypatch, [film], [show])
+
+        body = client.get("/api/acquisition/search?q=dune", cookies=_make_auth_cookie()).json()
+        by_id = {r["provider_id"]: r["kind"] for r in body["results"]}
+        assert by_id[1] == "movie"
+        assert by_id[2] == "tv"
+
     def test_limit_out_of_bounds_is_rejected(self, client: TestClient) -> None:
         """An absurd limit is a 422, never a silent clamp that hammers providers."""
         assert client.get("/api/acquisition/search?q=dune&limit=100000", cookies=_make_auth_cookie()).status_code == 422
