@@ -1,0 +1,646 @@
+{
+ "data": [
+  {
+   "country": "usa",
+   "first_air_time": "2008-05-22",
+   "id": "series-83093",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/83093-1.jpg",
+   "name": "Italian Spiderman",
+   "network": "YouTube",
+   "objectID": "series-83093",
+   "overview": "The series operates on the fictitious premise that Italian Spiderman was a 1968 Italian action-adventure film made by Alrugo Entertainment. \r\n\r\nIn the middle of a party, an asteroid from a distant galaxy falls to Earth and is taken by professor Bernardi (Carmine Russo) for research. He discovers the asteroid has a substance that can create duplicates from any living being and decides that Italian Spiderman (Franco Franchetti), a fat, rude and powerful superhero, is the only man capable to have custody of the valuable asteroid. As soon Professor Bernardi gives Italian Spiderman the asteroid, he is attacked by the terrible Captain Maximum (Leombruno Tosca) who is interested in using the asteroid for his own evil plans...",
+   "overviews": {
+    "eng": "The series operates on the fictitious premise that Italian Spiderman was a 1968 Italian action-adventure film made by Alrugo Entertainment. \r\n\r\nIn the middle of a party, an asteroid from a distant galaxy falls to Earth and is taken by professor Bernardi (Carmine Russo) for research. He discovers the asteroid has a substance that can create duplicates from any living being and decides that Italian Spiderman (Franco Franchetti), a fat, rude and powerful superhero, is the only man capable to have custody of the valuable asteroid. As soon Professor Bernardi gives Italian Spiderman the asteroid, he is attacked by the terrible Captain Maximum (Leombruno Tosca) who is interested in using the asteroid for his own evil plans...",
+    "ita": "Durante lo svolgimento di una festa, un asteroide proveniente da una lontana galassia precipita a terra e viene preso dal professor Bernardi (Carmine Russo). Egli scopre che l'asteroide contiene una sostanza che può creare duplicati di qualsiasi essere vivente e decide che Italian Spiderman (Franco Franchetti), un supereroe grasso, rude e potente, è l'unico uomo a cui poter affidare il prezioso asteroide. Appena il professor Bernardi consegna l'asteroide a Italian Spiderman, viene attaccato dal terribile Captain Maximum (Leombruno Tosca), interessato ad utilizzare l'asteroide per i suoi piani malvagi. Non riuscendo a rubarlo a Bernardi, trasforma il professore in un serpente. Captain Maximum riesce comunque ad intercettare Italian Spiderman e a rubargli l'asteroide, anche se da ad Italian Spiderman la possibilità di riottenerlo nel caso riesca a batterlo in una gara di surf. Captain Maximum si accorge ben presto della superiore bravura di Italian Spiderman, e tenta di vincere barando. I suoi sforzi risultano tuttavia vani e Italian Spiderman, che chiama in aiuto dei pinguini che si lanciano addosso a Captain Maximum ad alle sue aiutanti, vince la gara. Tornato a casa, Italian Spiderman viene nuovamente attaccato dagli uomini di Captain Maximum, che riescono ad addormentarlo con un dardo tranquillante. Svegliatosi nel covo di Captain Maximum, scopre che il professor Bernardi è costretto a utilizzare i poteri di duplicazione dell'asteroide su uno degli scagnozzi di Captain Maximum. Italian Spiderman è costretto a guardare mentre il professore viene colpito da Captain Maximum. Il furioso Italian Spiderman attacca quindi gli scagnozzi di Captain Maximum, uccidendone molti durante una sequenza di combattimento sorprendentemente violenta. Nonostante gli sforzi di Italian Spiderman il professore muore, ma nei suoi ultimi istanti di vita consegna a Italian Spiderman una pozione. Italian Spiderman attacca nuovamente la base di Captain Maximum. Pur avendo la pozione, Ita",
+    "rus": "Сериал снят на 16-миллиметровую плёнку старой кинокамерой, чтобы воспроизвести эффект фильмов середины 20-го века."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt2705436",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "1281218",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "12061",
+     "sourceName": "TV Maze",
+     "type": 19
+    }
+   ],
+   "slug": "italian-spiderman",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/83093-1_t.jpg",
+   "translations": {
+    "eng": "Italian Spiderman",
+    "ita": "Italian Spiderman",
+    "rus": "Итальянский Человек-Паук"
+   },
+   "tvdb_id": "83093",
+   "type": "series",
+   "year": "2008"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2016-02-06",
+   "id": "series-351759",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/5b7aee845d5a2.jpg",
+   "name": "Podel's GTA IV: SPIDERMAN",
+   "network": "YouTube",
+   "objectID": "series-351759",
+   "overview": "Follow Manspider living his shit life , who cares\r\n",
+   "overviews": {
+    "eng": "Follow Manspider living his shit life , who cares\r\n"
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "slug": "podels-gta-iv-spiderman",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/5b7aee845d5a2_t.jpg",
+   "translations": {
+    "eng": "Podel's GTA IV: SPIDERMAN"
+   },
+   "tvdb_id": "351759",
+   "type": "series",
+   "year": "2016"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2008-07-01",
+   "id": "series-281254",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/5b1a1389e0612.jpg",
+   "name": "Baman Piderman",
+   "network": "YouTube",
+   "objectID": "series-281254",
+   "overview": "Two slightly overweight, rubbery parodies of the DC superhero Batman and Marvel superhero Spiderman. Along with their friends Pumkin and Tuba, the two animated inanimate objects, the two go on unrealistic, comedic adventures during the course of each episode.",
+   "overviews": {
+    "eng": "Two slightly overweight, rubbery parodies of the DC superhero Batman and Marvel superhero Spiderman. Along with their friends Pumkin and Tuba, the two animated inanimate objects, the two go on unrealistic, comedic adventures during the course of each episode."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt2458462",
+     "sourceName": "IMDB",
+     "type": 2
+    }
+   ],
+   "slug": "baman-piderman",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/5b1a1389e0612_t.jpg",
+   "translations": {
+    "eng": "Baman Piderman"
+   },
+   "tvdb_id": "281254",
+   "type": "series",
+   "year": "2008"
+  },
+  {
+   "aliases": [
+    "Spiderman 5000"
+   ],
+   "country": "usa",
+   "first_air_time": "1981-09-12",
+   "id": "series-77686",
+   "image_url": "https://artworks.thetvdb.com/banners/series/77686/posters/5ffd2a4aafdc6.jpg",
+   "name": "Spider-Man (1981)",
+   "objectID": "series-77686",
+   "overview": "Peter Parker battles crime in New York City as Spider-Man while balancing being a university student, working as a photographer for The Daily Bugle.",
+   "overviews": {
+    "deu": "Als Student wurde Peter Parker während eines Experimentes von einer radioaktiv verseuchten Spinne gebissen. Seitdem entwickelte er ungewöhnliche Fähigkeiten: Er kann Wände hochklettern und sich an jeder Zimmerdecke festhalten. Von nun an macht er es sich zur Aufgabe, die Welt vor Kriminellen zu beschützen, doch auch ein Spiderman ist nicht perfekt und Peter kommt manchmal nur schwer aus brenzligen Situationen ungeschoren heraus.\r\nStan Lee führte zusammen mit Avi Arad Regie in dieser Version des Superhelden. Auch produzierte Lee sämtliche vorausgehende Spiderman-Serien. Im Kreise der Comicfreaks ist er wahrlich kein Unbekannter. Lee katapultierte als Geschäftsführer bei Marvel Media das Unternehmen an die Spitze der Comic-Heft-Industrie. Zum kreativen Kopf bei Marvel aufgestiegen, leitete er das neue Vorhaben, die Comics in Samstagvormittag-Serien zu etablieren. Das war 1981. Fünf Jahre später gingen Marvel Comics und Produktion an New World Entertainment.",
+    "eng": "Peter Parker battles crime in New York City as Spider-Man while balancing being a university student, working as a photographer for The Daily Bugle.",
+    "hun": "A sorozatban Peter Parkernek szembe kellett néznie alteregója bűnözésével egyetemi hallgatóként, a Daily Bugle részmunkaidős fotósaként és idős May Parker nénijével való gondozásával.",
+    "ita": "L'Uomo Ragno è una serie TV di cartoni animati prodotta nel 1981 dai Marvel Studios, da Krantz Animation e da SuperHero Productions. È stata originariamente in syndication ed è basata sul personaggio dei fumetti della Marvel Comics. Si compone di 26 episodi in un'unica stagione.\r\nQuesta serie si presenta come molto più fedele al fumetto rispetto alla precedente (L'Uomo ragno (1967)), come si evince subito dallo stile di disegno ispirato alle tavole di John Romita Sr., e alla maggiore accuratezza del costume del supereroe. Anche le storie sono più legate all'universo Marvel, con la comparsa di personaggi come il Dottor Destino, Lizard, l'Uomo Sabbia, Mysterio, Kraven il cacciatore, il Dottor Octopus, la Gatta Nera, Magneto e Goblin.\r\n\r\nA causa di contrasti con il network e con le associazioni dei genitori, si impiegò una certa cura per evitare scene di violenza, e perciò in questa serie l'Uomo Ragno non fa uso di pugni contro i suoi avversari. Questa serie non ebbe un grande successo e fu messa in ombra rispetto alla precedente, più o meno dello stesso periodo, dal titolo \"L'Uomo Ragno e i suoi fantastici amici\" che, invece, era una serie meno fedele al fumetto.\r\n",
+    "rus": "Питер Паркер, став в один прекрасный день супер-героем в результате мутации, начавшейся из-за укуса радиоактивного паука, облучённого в процессе эксперимента, проводимого в научной школе, снова борется за справедливость со своими давними врагами, такими, как доктор Октопус или Зелёный Гоблин... Но у него появляются и новые соперники.. Например - доктор Дум, Хамелеон...",
+    "spa": "Spider-Man (Las Nuevas Aventuras del Hombre Araña) es la segunda serie de dibujos animados de Spider-Man en aparecer después de la serie clásica de 1967. Se emitió en Estados Unidos en una única temporada durante los años 1981 y 1982. Sus historias están basadas libremente en los cómics de aquella época.\r\nLa serie presentaba al joven Peter Parker teniendo que equilibrar su lucha contra el crimen mediante su identidad alter-ego, con sus responsabilidades como estudiante universitario, fotógrafo de medio tiempo para el Daily Bugle y cuidar de su anciana tía May Parker."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt0081938",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "3973",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "spider-man-1981",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/series/77686/posters/5ffd2a4aafdc6_t.jpg",
+   "translations": {
+    "deu": "Spider-Man",
+    "eng": "Spider-Man (1981)",
+    "hun": "Pókember",
+    "ita": "Spider-Man (1981)",
+    "rus": "Человек-Паук (1981)",
+    "spa": "Spider-Man (Las Nuevas Aventuras del Hombre Araña)"
+   },
+   "tvdb_id": "77686",
+   "type": "series",
+   "year": "1981"
+  },
+  {
+   "aliases": [
+    "Spider-Man (1999)",
+    "Spiderman Unlimited"
+   ],
+   "country": "usa",
+   "first_air_time": "1999-10-02",
+   "id": "series-73560",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/73560-2.jpg",
+   "name": "Spider-Man Unlimited",
+   "network": "FOX",
+   "objectID": "series-73560",
+   "overview": "Hijacking a space shuttle to help up John Jameson against Venom and Carnage, Spider-Man ends up stuck on Counter-Earth, an Earth like planet in the same orbit on other side of the sun. There he finds a high tech society where humanoid animals, the beastials, rule under the leadership of the High Evolutionary, while humans are seen as second class citizens.",
+   "overviews": {
+    "ces": "John Jameson plánuje vesmírnou misi na planetu podobnou Zemi (zvanou Counter-Earth), která je za odvrácenou stranou Slunce. Spider-Man chce odlet zastavit, protože se padouši Venom a Carnage vetřeli na loď. Loď ale odletí s nimi i Jamesonem a ztratí kontakt se Zemí. Spider-Man je pronásledován kvůli údajnému úmrtí Jamesona, a tak předstírá svou vlastní smrt, aby se mohl připravit na záchranou misi. S pomocí nejnovější technologie se Spider-Man vydává na Counter-Earth. Zjistí, že se Jameson přidal k bojovníkům za svobodu a odmítá odletět, dokud boj nevyhrají. Spider-Man se k nim přidává.\r\n",
+    "eng": "Hijacking a space shuttle to help up John Jameson against Venom and Carnage, Spider-Man ends up stuck on Counter-Earth, an Earth like planet in the same orbit on other side of the sun. There he finds a high tech society where humanoid animals, the beastials, rule under the leadership of the High Evolutionary, while humans are seen as second class citizens.",
+    "fin": "Peter Parkerin uskotaan kuolleen tämän pelastaessa ihmisiä tulipalosta, joten hän käyttää tilaisuutta hyväkseen ja pyrkii hakemaan John Jamesonin vastakkaismaaplaneetalta. Kiinnittäkää turvavyönne Spider-Man Unlimited varten!",
+    "fra": "Des recherches spatiales ont permis à l’humanité de découvrir l’Autre-Terre, réplique de notre planète. Alors que l’astronaute John Jameson décolle pour un portail de transport, Peter Parker surprend Venom et Carnage en train de monter à bord de la navette. Pour sauver Jameson, Spider-Man décide de se rendre à son tour sur l’Autre-Terre, équipé d’un nouveau costume conçu par Red Richards.\r\nArrivé à destination, Peter découvre un monde dirigé par un être nommé le Maître de l’Évolution, qui a transformé une partie de la population en hybrides mi-humains mi-animaux. Le reste de l’humanité vit souvent dans la pauvreté. Spider-Man rejoint alors les rebelles humains pour mettre fin au règne du Maître de l’Évolution et stopper les symbiotes, qui ont leurs propres plans.",
+    "heb": "בנו של ג'יי ג'ונה ג'יימסון, חושף תוכנית סודית לשיגור מעבורת לחלל. במהלך השיגור מנסים ונום וקארנג' לחבל בטיסה וספיידרמן, שמנסה לעצור אותם, מושלך מסיפון המעבורת בעוד שהם מתרסקים לתוך שער השיגור. כעת העולם חושב שספיידרמן הוא היה זה שחיבל בטיסה. ג'יי ג'ונה ג'יימסון מציע פרס כספי על ראשו של ספיידרמן שמחליט לפרוש מחייו כספיידרמן לטובת חיי משפחה, אך לאחר חצי שנה הוא מחליט לצאת לחלל עם חליפה חדשה יחד עם מעבורת חילוץ, כאשר השאלה שנשאלת היא \"האם הוא יוכל להחזיר את בנו של ג'יימסון לכדור הארץ?\".",
+    "ita": "Questa serie è ambientata nella Contro-Terra, un mondo uguale alla Terra ma posto in un'altra dimensione, accessibile tramite un portale nello spazio extraterrestre. In questo mondo appaiono diversi nemici classici dell'Uomo Ragno, in versione locale.\r\n\r\nPeter Parker e J. Jonah Jameson si trovano, insieme ad una robusta folla, nelle vicinanze di una piattaforma di lancio di uno Space Shuttle; è questo un lancio importante per il direttore del Daily Bugle: suo figlio John sta per partire per una missione nello spazio, per esplorare il passaggio dimensionale vicino alla Terra recentemente scoperto, e il pianeta al quale conduce. Una missione molto delicata, dal momento che nessuna delle sonde inviate è riuscita a fare ritorno. Peter sta scattando alcune foto, quando scorge la terribile coppia Venom e Carnage risalire a tutta lena la piattaforma di lancio; Peter lascia perdere le foto, si defila, indossa il costume dell'Uomo Ragno, e si getta all'inseguimento dei due simbioti; riesce a raggiungerli sullo scafo dell'astronave in partenza, ma viene miseramente sconfitto, e precipita. Poco dopo il segnale dell'astronave si smorza e tutti danno la colpa della scomparsa di John Jameson al malconcio Uomo Ragno. Viene poi organizzato in tutta fretta un altro lancio per indagare sull'accaduto; Peter vuole assolutamente fermare Venom e Carnage, indossa così un nuovo costume dotato di un'elevata tecnologia, e così \"armato\" si impossessa di questo secondo Shuttle, con la complicità di Nick Fury, che finge di non notarlo. Prima di partire l'Uomo Ragno mente al microfono d'avere con sé il fotografo Peter Parker, per documentare le sue buone intenzioni, e parte per il portale dimensionale.\r\n\r\nLo Shuttle dell'Uomo Ragno viene subito attaccato dai sistemi difensivi della Contro-Terra e precipita; lo stesso Uomo Ragno è subito oggetto di caccia da parte di strane creature antropomorfe su delle moto volanti, che si fanno chiamare Cavalieri di Wandagor. Dopo numerosi volteggi a d",
+    "por": "Peter Parker, já casado com Mary Jane, se vê num meio de um dilema terrível, depois de ter abandonado definitivamente a identidade de Homem-Aranha: o astronauta Jonh Jameson, filho do J.J., penetra num portal que acaba levando-o para a Contraterra, uma nova versão de nosso mundo criada pelo Alto Evolucionário, na qual os Homens-Fera (neste desenho, chamados de Bestiais) é que são a raça dominante, oprimindo os seres humanos. O mais bizarro é que Venom e Carnage acabam sendo compelidos mentalmente a segui-lo através do portal, graças a uma colônia de simbiontes que quer dominar a Contraterra. Depois de ver uma mensagem de socorro de Jonh, a única que ele conseguira enviar da Contraterra, Peter resolveu resgatá-lo, voltando pela milésima vez a ser o Homem-Aranha. Usando um modernoso uniforme feito a partir de nanotecnologia e criado por Reed Richards, o Aranha partiu em direção a este novo mundo...e o portal atrás de si fechou-se.",
+    "pt": "Peter Parker, já casado com Mary Jane, se vê num meio de um dilema terrível, depois de ter abandonado definitivamente a identidade de Homem-Aranha: O astronauta Jonh Jameson, filho do J.J., penetra num portal que acaba levando-o para a Contraterra, uma nova versão de nosso mundo criada pelo Alto Evolucionário, na qual os Homens-Fera (neste desenho, chamados de Bestiais) é que são a raça dominante, oprimindo os seres humanos. O mais bizarro é que Venom e Carnage acabam sendo compelidos mentalmente a segui-lo através do portal, graças a uma colônia de simbiontes que quer dominar a Contraterra. Depois de ver uma mensagem de socorro de Jonh, a única que ele conseguira enviar da Contraterra, Peter resolveu resgatá-lo, voltando pela milésima vez a ser o Homem-Aranha. Usando um modernoso uniforme feito a partir de nanotecnologia e criada por Reed Richards, o Aranha partiu em direção a este novo mundo... E o portal atrás de si fechou-se.",
+    "ron": "Deturnând o navetă spațială pentru a-l ajuta pe John Jameson să lupte împotriva lui Venom și Carnage, Spider-Man ajunge să fie blocat pe Counter-Earth, o planetă asemănătoare cu Pământul, aflată pe aceeași orbită, de cealaltă parte a Soarelui. Acolo găsește o societate de intelect înalt, în care animalele umanoide, bestiile, conduc sub conducerea Înaltului Evoluționar, în timp ce oamenii sunt văzuți ca cetățeni de mâna a doua.",
+    "rus": "Человек-паук, созданный Стан Ли в 60-ые годы на основе комиксов 30-х, является одним из самых популярных супергероев. Он бросается в бой, сражаясь с самыми ужасными злодеями и с самыми неумолимыми врагами. В этом сериале вам предстоит познакомиться с новыми приключениями и подвигами Человека-паука, известного также под именем Питера Паркера, стеснительного и интеллигентного молодого человека, фотографа газеты. Питер Паркер, находясь на космодроме, замечает своих заклятых врагов...",
+    "spa": "La serie tiene lugar en la Contra Tierra, un planeta creado en los cómics por el Alto Evolucionador. El hijo de J. Jonah Jameson, John Jameson Jr, viaja en una nave espacial, pero los simbiontes Venom y Carnage llegan hasta la nave, donde lo secuestran.Mientras tanto, Spider-Man es acosado por la prensa y finge su propia muerte. Tras este hecho decide viajar en otra nave a la Contra Tierra con un traje nuevo, que Reed Richards (de los 4 Fantásticos) aparentemente creó para él, basado en la nanotecnología. Cuando logra llegar, se encuentra a una sociedad donde unos híbridos animales y humanos (Bestials) dominan sobre los seres humanos que son rechazados por ser diferentes."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt0207120",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "10079",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "spider-man-unlimited",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/73560-2_t.jpg",
+   "translations": {
+    "ces": "Spiderman bez hranic",
+    "eng": "Spider-Man Unlimited",
+    "fra": "Les Nouvelles Aventures de Spider-Man",
+    "heb": "ספיידרמן ללא גבולות",
+    "ita": "Spider-Man unlimited",
+    "por": "Homem-Aranha Sem Limites",
+    "pt": "Homem-Aranha: Ação Sem Limites",
+    "ron": "Omul-Păianjen Nelimitat",
+    "rus": "Непобедимый Человек-Паук",
+    "spa": "Spiderman Unlimited"
+   },
+   "tvdb_id": "73560",
+   "type": "series",
+   "year": "1999"
+  },
+  {
+   "aliases": [
+    "スパイダーマン (東映)",
+    "Toei Spider-Man",
+    "Marvel to Toei no Supaidâ-Man",
+    "Japanese Spider-Man",
+    "Supaidâman"
+   ],
+   "country": "jpn",
+   "first_air_time": "1978-05-17",
+   "id": "series-147681",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/147681/posters/63a49879d2d50.jpg",
+   "name": "スパイダーマン",
+   "network": "TV Tokyo",
+   "objectID": "series-147681",
+   "overview": "『スパイダーマン』は、東映が製作した日本の実写特撮テレビシリーズであり、マーベル・コミックの同名のキャラクターをベースとしている[1]。 1978年5月17日から1979年3月14日まで、東京12チャンネル（テレビ東京）の毎週水曜19時30分から、全41話が放送された。1978年7月22日に開催された「東映まんがまつり」では、劇場用エピソードが上映された。通称は「スパイダーマン 東映TVシリーズ」。",
+   "overviews": {
+    "eng": "Motorcycle racer Takuya Yamashiro gains amazing abilities from the last survivor of the planet Spider and uses them and the giant robot Leopardon to battle Professor Monster and his evil Iron Cross Army as Spider-man!\r\nCreated from a deal between TOEI Company and Marvel Comics, Spider-man's origin was radically altered after sponsor Bandai demanded the addition of a giant robot. It proved popular enough that the series lasted 41 episodes and even spawned a movie.",
+    "jpn": "『スパイダーマン』は、東映が製作した日本の実写特撮テレビシリーズであり、マーベル・コミックの同名のキャラクターをベースとしている[1]。 1978年5月17日から1979年3月14日まで、東京12チャンネル（テレビ東京）の毎週水曜19時30分から、全41話が放送された。1978年7月22日に開催された「東映まんがまつり」では、劇場用エピソードが上映された。通称は「スパイダーマン 東映TVシリーズ」。",
+    "rus": "Мотогонщик Такуя Ямасиро получает удивительную способность от последнего выжившего с планеты Спайдер — становиться Человеком-пауком! Используя её и гигантского робота Леопардона, Такуя вступает в битву с профессором Монстром и его армией Железного Креста.",
+    "spa": "El joven motociclista Takuya Yamashiro ve cómo un ovni cae cerca de donde él se encuentra. Junto a su padre, -un arqueoastrónomo- van a investigar, pero el padre de Takuya es asesinado al momento de dar con la nave. En la cueva encuentra al alienígena Garia -del planeta Spider- quien le explica que estaba tras la pista del malvado Profesor Monster y su diabólico Ejército de la Cruz de Hierro, un grupo extraterrestre que desea conquistar el universo, pero que ahora necesita ayuda; así que Garia inyecta a Takuya un poco de su propia sangre, la cual le da poderes arácnidos y un brazalete que le permite activar su traje y lanzar telarañas. Además controla la nave alienígena “Marveller“, que puede transformarse en el poderoso robot Leopardon."
+   },
+   "primary_language": "jpn",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt0185116",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "2640",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "spider-man-1978",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/147681/posters/63a49879d2d50_t.jpg",
+   "translations": {
+    "eng": "Spider-Man (1978)",
+    "jpn": "スパイダーマン",
+    "rus": "Человек-Паук (1978)",
+    "spa": "Toei's Spiderman (Supaidaman)",
+    "zho": "Supaidaman"
+   },
+   "tvdb_id": "147681",
+   "type": "series",
+   "year": "1978"
+  },
+  {
+   "aliases": [
+    "Spider-Man (1967)"
+   ],
+   "country": "usa",
+   "first_air_time": "1967-09-09",
+   "id": "series-72739",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/72739-4.jpg",
+   "name": "Spider-Man",
+   "network": "ABC (US)",
+   "objectID": "series-72739",
+   "overview": "Marvel Comics' most memorable character, Spider-Man (Spidey for short), got the star treatment in animation in 1967. This cartoon premiered at around the same time as The Fantastic Four and the Marvel Superheroes Hour. The theme song is one of the most memorable television theme songs ever, and has been re-recorded plenty of times. When high school student Peter Parker is bitten by a radioactive spider at a lab demonstration, he finds himself owner of some new powers, namely the proportionate strength, speed, and agility of a natural spider, plus a sixth \"spider\"-sense that enables him to sense danger, and the ability to climb on walls.",
+   "overviews": {
+    "eng": "Marvel Comics' most memorable character, Spider-Man (Spidey for short), got the star treatment in animation in 1967. This cartoon premiered at around the same time as The Fantastic Four and the Marvel Superheroes Hour. The theme song is one of the most memorable television theme songs ever, and has been re-recorded plenty of times. When high school student Peter Parker is bitten by a radioactive spider at a lab demonstration, he finds himself owner of some new powers, namely the proportionate strength, speed, and agility of a natural spider, plus a sixth \"spider\"-sense that enables him to sense danger, and the ability to climb on walls.",
+    "fra": "Le personnage de l'Araignée a paru dans les bandes dessinées Marvel en 1962. La première saison du dessin animé reprend les personnages de méchants présents dans la BD (le Docteur Octopus, le Bouffon Vert) mais des nouveaux ennemis de l'Araignée sont inventés pour la série, tels que Parafino, le Docteur Magnéto ou le Docteur Pétrolum. Les saisons suivantes comporteront uniquement des « méchants » inédits dans la bande dessinée. La plupart du temps, à de très rares exceptions près, lorsque ce n'est pas le cas, les méchants du comic book, quand ils reviennent dans la saison 3, n'apparaîtront que dans des épisodes montages… Par exemple, l’épisode Les reptiles de Connors est en fait un remontage de l’épisode 3 de la saison 1 Dans le domaine des caïmans avec quelques coupures et de nouveaux dialogues pour faire croire à un nouvel épisode inédit.",
+    "ita": "L'Uomo Ragno (Spider-Man), noto anche come Classic Spider-Man, è una serie televisiva di cartoni animati prodotta dai Marvel Enterprises e realizzata dallo studio Grantray-Lawrence Animation nel 1967. La serie è basata sulla famosa serie a fumetti dell'Uomo Ragno e pubblicata dalla Marvel Comics.\r\n\r\nÈ stata la prima serie animata dedicata al personaggio; nel 1979 ne verrà prodotto uno spin-off: Spider-Woman.\r\n\r\nParticolarmente celebre è diventata anche la sigla del cartone animato, composta da Paul Francis Webster e Bob Harris, al punto di diventare nel corso degli anni un vero e proprio standard musicale, interpretato da numerosi artisti come Michael Bublé, gli Aerosmith e i Ramones nonché nella trilogia cinematografica dedicata all'eroe.",
+    "por": "O personagem mais memorável da Marvel Comics, o Homem-Aranha, obteve tratamento de estrela na animação de 1967. Este desenho animado estreou ao mesmo tempo que Os Quatro Fantásticos e Desenhos Desanimados da Marvel. A música-tema é uma das músicas de televisão mais memoráveis do mundo, e foi regravada muitas vezes. Quando o estudante do ensino médio Peter Parker é mordido por uma aranha radioativa em uma demonstração de laboratório, ele se torna dono de novos poderes que são: a força proporcional, a velocidade e a agilidade de uma aranha natural, além de um sexto sentido de \"aranha\" que o permite perceber o perigo, e a capacidade de escalar as paredes.",
+    "pt": "Peter Parker é um jovem muito tímido, órfão de pai e mãe, ele vive com os seus tios Ben e May. Ao visitar um laboratório onde ocorre uma experiência, ele acaba sendo picado por uma aranha que acidentalmente foi exposta a radiação, concedendo-lhe incríveis poderes",
+    "rus": "В начале 1960-х скромный производитель комиксов Marvel с трудом конкурировал с компанией DC Comics, которой принадлежали права на Бэтмена и Супермена. Ситуацию круто изменил график Стэн Ли, который, как из черного ящика, извлек \"Человека-Паука\", \"Невероятного Халка\", \"Людей Икс\" и \"Сорви-голову\". Такого взлета популярности комиксов не было с конца тридцатых годов.\r\nПричем если тогда в ходу были сюжеты о героях, от природы наделенных сверхъестественными способностями.",
+    "spa": "Esta fue la primera adaptación animada del cómic Spider-Man, creado por Stan Lee y Steve Ditko. La serie se desenvuelve alrededor del joven Peter Parker, quien, después de ser mordido por una araña radioactiva, desarrolla una impresionante potencia y poderes arácnidos. El decide combatir al crimen vestido como un superhéroe, a su vez lidiando con sus problemas personales, siendo él un adolescente.Su tío muere a manos de un delincuente que él mismo pudo detener, sin embargo esto no lo supo hasta que se hizo con él persiguiéndolo por la muerte de su tío. A partir de esto, Spider-Man se dedica a combatir el asalto."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt0061301",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "EP00510594",
+     "sourceName": "TMS (Zap2It)",
+     "type": 3
+    },
+    {
+     "id": "1482",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "1482",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "spider-man",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/72739-4_t.jpg",
+   "translations": {
+    "deu": "Spider-Man",
+    "eng": "Spider-Man",
+    "fra": "Spider-Man (1967)",
+    "ita": "Spider-Man (1967)",
+    "pt": "Homem-Aranha (1967)",
+    "rus": "Человек-Паук (1967)",
+    "spa": "SpiderMan (1967)"
+   },
+   "tvdb_id": "72739",
+   "type": "series",
+   "year": "1967"
+  },
+  {
+   "aliases": [
+    "Ultimate Spider-Man",
+    "Marvel's Ultimate Spider-Man: Web-Warriors",
+    "Marvel's Ultimate Spider-Man vs the Sinister 6",
+    "Великий Человек-паук",
+    "الرجل العنكبوت الأخير (2012)",
+    "Ο Απόλυτος Σπάιντερ-Μαν"
+   ],
+   "country": "usa",
+   "first_air_time": "2012-04-01",
+   "id": "series-257645",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/257645-5.jpg",
+   "name": "Marvel's Ultimate Spider-Man",
+   "network": "Disney XD",
+   "objectID": "series-257645",
+   "overview": "Peter Parker became Spider-Man two years ago and Nick Fury, Director of SHIELD, offers Peter the chance to train and become “The Ultimate Spider-Man” while working alongside four fellow teenage superheroes.",
+   "overviews": {
+    "ara": "مر عام بعد اليوم الذي أصبح فيه (بيتر باركر) سبايدرمان، وما زال يتعلم أسلوب الأبطال الخارقين. في يوم من الأيام، يزوره (نيك فيوري) مدير (شيلد) ليقدم له فرصة ليصبح بطل خارق حقيقي.",
+    "deu": "Seit einem Jahr versucht Peter Parker als maskierter Spider-Man, New York vor fiesen Schurken zu beschützen. Nicht immer findet der Highschool-Schüler die Balance zwischen einem Dasein als Superheld und dem normalen Leben eines Teenagers. Wenn sich der eher ungeschickte Weltenretter nicht durch die Wolkenkratzerschluchten Manhattans schwingt, erledigt er seine Hausaufgaben oder verbringt Zeit mit seinen besten Freunden Mary-Jane und Harry.\r\n\r\nEin Angebot Nick Furys ändert alles: Der Direktor der Geheimdienstorganisation S.H.I.E.L.D. rät Peter, an einem Ausbildungsprogramm für junge Superhelden teilzunehmen. Dort soll der Fassadenkletterer seine Fähigkeiten verbessern - und dadurch zum ultimativen Superhelden avancieren. Peter, der eigentlich ein Einzelkämpfer ist, nimmt Furys Angebot schließlich an. So verwandelt sich seine Highschool unter dem wachsamen Auge Furys und des neuen Schuldirektors Agent Coulson in eine geheime Basisstation für Superhelden.\r\n\r\nAuf seinen Missionen für S.H.I.E.L.D. trifft Spider-Man auf bekannte Figuren des Marvel-Universums wie Nova, White Tiger, Power Man und Iron Fist, begegnet neuen Bösewichten und muss sich seinem bisher größten Widersacher stellen.",
+    "ell": "Ο Πίτερ Πάρκερ έγινε Spider-Man πριν δύο χρόνια. Έσωσε ζωές και πάλεψε με υπερκακούς, αλλά ακόμα μαθαίνει πώς να είναι υπερήρωας. Ο Νικ Φιούρι, επικεφαλής της Α.Σ.Π.Ι.Δ.Α., δίνει στον Πίτερ την ευκαιρία να εκπαιδευτεί και να γίνει \"Ο Απόλυτος Spider-Man” ενώνοντας τις δυνάμεις του με άλλους τέσσερις έφηβους υπερήρωες. Μέσα από αυτήν την ιστορία ενηλικίωσης, ο Πίτερ θα χρειαστεί να διαχειριστεί τις περίπλοκες σχέσεις με τους μέντορες και συνεργάτες του αποκτώντας βαθύτερη κατανόηση του πεπρωμένου του.",
+    "eng": "Peter Parker became Spider-Man two years ago and Nick Fury, Director of SHIELD, offers Peter the chance to train and become “The Ultimate Spider-Man” while working alongside four fellow teenage superheroes.",
+    "fin": "Toiminnantäyteinen animaatiosarja, joka kertoo nuoresta Peteristä, Spider-Manista, josta ollaan kouluttamassa Ultimate Spider-Mania. Vaikka teini-ikäinen Peter on pelastanut monia, hän vasta opettelee supersankarina oloa.",
+    "fra": "Un an après s'être fait mordre par une araignée génétiquement modifiée dans les entreprises de Osborn, Peter Parker, alias Spider-Man, se fait recruter par Nick Fury du S.H.I.E.L.D. pour être un super-héros plus fort et plus responsable et devenir Ultimate Spider-man. Cependant, Peter devra apprendre à travailler avec une équipe de quatre autres super-héros adolescents. Le jeune héros Spider-Man fera équipe avec Nova, Tigre blanc, Iron Fist et Power Man.",
+    "heb": "במרכז העלילה עומד פיטר פארקר, אשר נעקץ ע\"י עכביש רדיואקטיבי והופך לספיידרמן, פיטר פארקר מתפקד כשנה כספיידרמן עד שיום אחד מגיע אליו ניק פיורי שמציע לו הצעה אולטימטיבית, להפוך לגיבור על טוב יותר. ספיידרמן בהתחלה מהסס אך מסכים בסוף. בעזרת פיורי והטכנולוגיה של \"מגן\" הוא משתפר, מכיר גיבורי על חדשים ולומד את הדבר שידע תמיד \"עם כוח גדול באה אחריות גדולה\".",
+    "hun": "Peter Parker még csak egy éve éli Pókember életét. Megmentett már sok-sok embert, legyőzött jó pár gonosztevőt, de még mindig csak tanulja, hogyan legyen igazi szuperhős. Nick Fury, a csodaügynök egy lehetőséget kínál Peternek: valódi szuperhőst farag belőle, hogy ő lehessen a tökéletes Pókember.",
+    "ita": "E' trascorso un anno da quando Peter Parker ha acquisito i suoi poteri e ha dato vita all'Uomo Ragno. Nick Fury della SHIELD offre a Peter la possibilità di allenarsi a diventare un vero supereroe ma prima dovrà imparare a combattere in gruppo con l'arrivo di Nova, White Tiger, Iron Fist e Power Man.",
+    "pol": "Animowany serial od Marvela opowiada o losach Petera Parkera, który w momencie jego rozpoczęcia, już przez rok był Spider-Manem. Walczył ze złoczyńcami i ratował ludzkie życia, ale wciąż musi się uczyć bycia superbohaterem. Nick Fury daje Peterowi okazję wskoczenia na wyższy poziom – treningu na prawdziwego superbohatera i zostania ostatecznym Spider-Manem. Ale zanim to się stanie, Peter będzie musiał nauczyć się współdziałania z innymi nastoletnimi superbohaterami.",
+    "por": "Nova série animada do Homem-Aranha, baseada no Universo Ultimate da Marvel. A animação é focada nas aventuras de um Peter Parker adolescente.",
+    "pt": "Peter Parker tornou-se Homem-Aranha há dois anos, e Nick Fury, diretor da S.H.I.E.L.D., oferece a Peter a chance de treinar e se tornar o \"Ultimate Homem-Aranha\", trabalhando ao lado de quatro colegas super-heróis adolescentes.",
+    "rus": "Совершенный Человек-Паук - новая интерпретация потрясающих приключений знаменитого и всеми любимого супергероя Человека-паука из комиксов MARVEL. В один прекрасный день Ник Фьюри приходит к пауку и предлагает ему обучаться по его технике. Согласился ли он? Смотрите новые приключения в захватывающих сериях!",
+    "spa": "Peter Parker ha sido Spider-Man solo un año.\r\nÉl ha salvado vidas y luchando con supervillanos, pero aún está en proceso de aprender a ser un superhéroe. Nick Fury de S.H.I.E.L.D. le ofrece a Peter la oportunidad de entrenar para ser un superhéroe para conviertirse en \"The Ultimate Spider-Man\". Sin embargo, de antemano Peter tendrá que aprender a trabajar con un equipo de compañeros de superhéroes adolescentes.\r\nEsos heroes son White Tiger (Ava Ayala), Powerman (Luke Cage), Puño de hierro (Daniel Rand) y Nova (Sam Alexander).\r\nEllos irán con él a la escuela con su identidad civil.",
+    "swe": "Följ med Peter Parker i \"Ultimate Spider-Man\" där han kämpar med vardagen i skolan och med de svåra utmaningar det innebär att vara en superhjälte. Nick Fury bjuder in Parker för att träna med sin organisation S.H.I.E.L.D, där Peters alter ego, Spider-Man, slår sig ihop med fyra andra brottsbekämpande tonåringar, superhjältarna Nova, White Tiger, Power Man och Iron Fist, i det största actionäventyret någonsin när de tillsammans blir de Ultimata Superhjältarna."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt1722512",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "EP01521960",
+     "sourceName": "TMS (Zap2It)",
+     "type": 3
+    },
+    {
+     "id": "34391",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "10.5240/B406-0EF6-5551-B16E-E95D-L",
+     "sourceName": "EIDR",
+     "type": 13
+    }
+   ],
+   "slug": "ultimate-spider-man",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/257645-5_t.jpg",
+   "translations": {
+    "ara": "الرجل العنكبوت الأخير",
+    "deu": "Der ultimative Spider-Man",
+    "ell": "Ο Απόλυτος Spider-Man",
+    "eng": "Marvel's Ultimate Spider-Man",
+    "fin": "Ultimate Spider-Man",
+    "fra": "Ultimate Spider-Man",
+    "heb": "ספיידרמן: איש העכביש",
+    "hun": "Pókember elképesztő kalandjai",
+    "ita": "Ultimate Spider-man",
+    "nld": "Ultimate Spiderman",
+    "pol": "Mega Spider-Man",
+    "por": "Ultimate Homem Aranha",
+    "pt": "Ultimate Homem-Aranha",
+    "rus": "Совершенный Человек-Паук",
+    "spa": "Ultimate Spiderman",
+    "swe": "Ultimate Spider-Man",
+    "zho": "终极蜘蛛侠"
+   },
+   "tvdb_id": "257645",
+   "type": "series",
+   "year": "2012"
+  },
+  {
+   "country": "aus",
+   "first_air_time": "2021-07-20",
+   "id": "series-410494",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/410494/posters/672ad2795548a.jpg",
+   "name": "The Disappearance of William Tyrrell",
+   "objectID": "series-410494",
+   "overview": "He's the little boy in the spider man suit whose disappearance sparked one of the biggest manhunts in living memory. Yet it remains unsolved, and William Tyrrell is still missing.",
+   "overviews": {
+    "deu": "Kendall, ein winziges Dorf in der Mitte der Nordküste von New South Wales, Australien: Bei einem Urlaubsbesuch bei Verwandten verschwindet der dreijährige William Tyrrell plötzlich spurlos. In einem Moment noch spielt er im Spiderman-Kostüm im Garten, im nächsten fehlt jede Spur von ihm. Zunächst befürchtete man, der kleine Junge hat sich im nahegelegenen Wald verlaufen. Doch auch Tage später gibt es keine Hinweise auf seinen Verbleib...",
+    "eng": "He's the little boy in the spider man suit whose disappearance sparked one of the biggest manhunts in living memory. Yet it remains unsolved, and William Tyrrell is still missing.",
+    "spa": "La desaparición de William Tyrrell es quizás el caso más misterioso y aterrador de Australia. El hecho es que nadie sabe dónde está William, ni si está vivo o muerto."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt26679211",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "205564",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "the-disappearance-of-william-tyrrell",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/410494/posters/672ad2795548a_t.jpg",
+   "translations": {
+    "deu": "The Disappearance of William Tyrrell - Der Junge im Spiderman Kostüm",
+    "eng": "The Disappearance of William Tyrrell",
+    "spa": "La desaparición de William Tyrrell"
+   },
+   "tvdb_id": "410494",
+   "type": "series",
+   "year": "2021"
+  },
+  {
+   "aliases": [
+    "Spider-Man (2008)",
+    "Spectacular Spider Man"
+   ],
+   "country": "usa",
+   "first_air_time": "2008-03-08",
+   "id": "series-81494",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/81494-5.jpg",
+   "name": "The Spectacular Spider-Man",
+   "network": "The CW",
+   "objectID": "series-81494",
+   "overview": "The 10th television series about Spider-Man picks up the original web-slinger's mythology at the beginning of his hero's journey, as a not so typical 16-year-old entering his junior year of high school.\r\n\r\nHaving spent the summer engaging common criminals with his new-found powers, Peter Parker must conceal his secret identity and battle super-villains in the real world.",
+   "overviews": {
+    "ara": "تحكي قصة تحول شاب يدعى بيتر باركر من مجرد شابٍ عادي إلى بطل خارق هو الرجل العنكبوت، يخوض صراعًا قويًا مع الأشرار الوحش الشرير نورمان الذي يسعى للسيطرة على العالم.\r\nيكتشف الفتى بيتر باركر ما يتمتع به من قدراتٍ خارقة تُمكّنه من حماية مدينته من الأشرار، ويخفي ذلك السر عن الجميع، وعن صديقتة ماري، وبمرور الوقت يزداد الأشرار الذين يكون على الرجل العنكبوت مواجهتهم.\r\nيحاول بيتر باركر أن يوازن بين حياته العادية، وبين واجبه في إنقاذ المدينة وتسخير قوته للخير، في مواجهة الاشرار.",
+    "ces": "Peter Parker je docela obyčejný mladík, dokud ho nekousne geneticky upravený pavouk. V té chvíli získá nadlidské schopnosti a je rozhodnutý použít je proti všem, kteří ohrozí jeho přátele nebo páchají nebezpečné zločiny!",
+    "deu": "Auf den ersten Blick ist Peter Parker ein ganz normaler Teenager. Er geht zur Schule, trifft sich mit Freunden und himmelt die hübsche Sally an. Doch hinter der unscheinbaren Fassade verbirgt sich ein ganz anderes Wesen: Spider-Man, der blau-rote Freeclimber mit tierischen Talenten. Die erstmals im deutschen TV ausgestrahlte Comicserie zeigt, wie alles begann.\r\n\r\n\"The Spectacular Spider-Man\" setzt die Reihe erfolgreicher Zeichentrickserien der legendären Heldenfigur aus den Marvel-Comics fort. Bereits Ende der Sechziger wurde mit \"The Amazing Spider-Man\" erstmals ein Spider-Man-Zeichentrickfilm umgesetzt. Im Mittelpunkt der 2008 von Culver Entertainment produzierten Trickfilmserie stehen der 16-jährige Peter Parker und der Ursprung von Spider-Man. Neben der von Stan Lee und Steve Ditko verfassten originalen Comicvorlage bezieht \"The Spectacular Spider-Man\" auch andere Quellen wie die \"Ultimate Spider-Man\"-Comics mit ein.\r\n(Max H. aka hudemx)",
+    "eng": "The 10th television series about Spider-Man picks up the original web-slinger's mythology at the beginning of his hero's journey, as a not so typical 16-year-old entering his junior year of high school.\r\n\r\nHaving spent the summer engaging common criminals with his new-found powers, Peter Parker must conceal his secret identity and battle super-villains in the real world.",
+    "fra": "C'est la rentrée des cours pour Peter Benjamin Parker, âgé de 16 ans et très doué en sciences mais également l'objet de risée dans son école. Ce que tous ignorent toutefois, c'est que quelques mois auparavant, Peter Parker s'est fait mordre par une araignée génétiquement modifiée, ce qui lui a conféré des super-pouvoirs. C'est ainsi que suite au meurtre de son oncle Ben il est devenu Spider-Man, un super-héros qui a promis de lutter contre le mal dans la ville de New York.",
+    "heb": "הסידרה חוזרת להיסטוריה ולשורשים של הקומיקס המקורי, ומציגה את סיפוריו של פיטר פארקר/ספיידרמן, מתחילת דרכו, כשעוד היה תלמיד תיכון בן 16 וקיבל את כוחות העכביש. האנימציה היא קרטונית ופחות ראליסטית מהסדרות הקודמות של ספיידרמן, הדמויות מתאפיינות בעיניים גדולות במיוחד, והסגנון עצמו מזכיר מעט את סגנון הציור של \"הבאטמן\", ושל סדרות גיבורים נוספות ששודרו לאחרונה בערוץ הילדים של וורנר ברוס. שיר הפתיחה דומה לפתיחה של הסדרה משנות ה-80 והסדרה כולה מלאה קריצות לספיידרמן הקלאסי והישן.",
+    "ita": "The Spectacular Spider-Man è una serie a cartoni animati dell'Uomo Ragno realizzata dai Marvel Studios e dalla Sony Pictures Television, prodotta dal 2008. Sono state realizzate due stagioni della serie animata.\r\n\r\nPer stile e tono, la serie sviluppata da Greg Weisman e Victor Cook, la seria animata unisce le storie classiche di Stan Lee ai quelli della serie Ultimate Spider-Man di Brian Michael Bendis.\r\n\r\nIn usa la serie animata è stata trasmessa prima da Kids' WB!, poi da Disney XD. In Italia è stata trasmessa da Nickelodeon, appartenente al bouquet Sky. Nell'estate 2009 la serie è andata in onda anche su Rai 2.\r\n\r\nLa serie è stata cancellata nel 2010 dopo solo due stagioni.",
+    "por": "A série apresenta Peter Parker, que começou o seu primeiro ano na secundária, tendo adquirido os seus poderes de Homem-Aranha há apenas 6 meses. Enquanto sofre bullying na escola, especialmente pela estrela do futebol Flash Thompson, Peter tem uma estreita amizade com os seus colegas Gwen Stacy e Harry Osborn. A fim de ajudar a sua Tia May, após a morte do seu Tio Ben, Peter começa a trabalhar como fotografo no Daily Bugle, dirigido por J. Jonah Jameson, fotografando o seu alter-ego em ação para que Jameson possa levar a cabo a sua difamação contra o herói.",
+    "pt": "Esta série recria as façanhas de Peter Parker, um garoto que é picado por uma aranha radioativa e passa a ter superpoderes, tornando-se o Homem-Aranha.",
+    "rus": "Случайный укус радиоактивного паука на научной выставке даровал нескладному школьнику Питеру Паркеру невероятные паучьи способности. Когда грабитель убил его любимого дядю Бена, Питер решает использовать свои удивительные силы, что бы защищать людей. Он навсегда запомнил слова своего дяди: Чем больше сила, тем больше и ответственность!. Он становится Человеком-Пауком, бесстрашным героем в маске.",
+    "spa": "La décima serie de televisión sobre Spiderman recoge la mitología sobre el original lanza telarañas al principio de su aventura como héroe, como un joven algo especial de 16 años que inicia sus estudios de secundaria.\r\n\r\nHabiendo pasado el verano luchando contra criminales comunes con sus recién encontrados poderes, Peter Parker debe guardar su identidad secreta y enfrentarse a los nuevos super-villanos."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt0976192",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "3854",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "EP01032383",
+     "sourceName": "TMS (Zap2It)",
+     "type": 3
+    }
+   ],
+   "slug": "the-spectacular-spider-man",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/81494-5_t.jpg",
+   "translations": {
+    "ara": "الرجل العنكبوت المذهل",
+    "ces": "Senzační Spiderman",
+    "deu": "The Spectacular Spider-Man",
+    "eng": "The Spectacular Spider-Man",
+    "fra": "The Spectacular Spider-Man",
+    "heb": "ספיידר-מן",
+    "hun": "A Pókember legújabb kalandjai",
+    "ita": "The Spectacular Spider-Man",
+    "por": "O Incrível Homem-Aranha",
+    "pt": "O Espetacular Homem-Aranha",
+    "rus": "Грандиозный Человек-Паук",
+    "spa": "El espectacular Spider-Man"
+   },
+   "tvdb_id": "81494",
+   "type": "series",
+   "year": "2008"
+  },
+  {
+   "aliases": [
+    "Spider-Man (1994)",
+    "Spider Man TAS"
+   ],
+   "country": "usa",
+   "first_air_time": "1994-11-19",
+   "id": "series-73750",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/73750-5.jpg",
+   "name": "Spider-Man: The Animated Series",
+   "network": "FOX",
+   "objectID": "series-73750",
+   "overview": "Imagine being able to sense danger, crawl any wall, be strong enough to bend steel, and have more agility than any other human?  For Peter Parker, this is a fact.  Except he doesn't think of it as a gift. In his final year of High School, Peter Parker was bitten by an irradiated spider.  After brief hallucinations, Peter wakes up with incredible powers--much like that of a spider.  Thus, to make some extra cash, Peter takes on the persona of Spider-Man, and tries to pursue a career as a pro wrestler.  When he witnesses a robbery, he lets the criminal escape, simply because \"it's not his problem\".  Then, when his dear Uncle Ben is killed, Peter finds that the murderer is none other than the criminal he failed to stop before. Now, Peter uses his powers to stop crime, as he learns that \"With great power, comes great responsibility\".",
+   "overviews": {
+    "ces": "Petera Parkera na výstavě vědeckých novinek pokouše pavouk a tak se z něho stává \"pavoučí muž\", který v noci bojuje jako superhrdina proti největším zločincům New Yorku, slézá stěny mrakodrapů a vrhá na zloduchy síťě. Ovšem ráno se přemění na plachého studenta Petera Parkera, kterého trápí běžné lidské problémy.",
+    "deu": "Als Student wurde Peter Parker während eines Experimentes von einer radioaktiv verseuchten Spinne gebissen. Seitdem entwickelte er ungewöhnliche Fähigkeiten: Er kann Wände hochklettern und sich an jeder Zimmerdecke festhalten. Von nun an macht er es sich zur Aufgabe, die Welt vor Kriminellen zu beschützen, doch auch ein Spiderman ist nicht perfekt und Peter kommt manchmal nur schwer aus brenzligen Situationen ungeschoren heraus.\r\n",
+    "eng": "Imagine being able to sense danger, crawl any wall, be strong enough to bend steel, and have more agility than any other human?  For Peter Parker, this is a fact.  Except he doesn't think of it as a gift. In his final year of High School, Peter Parker was bitten by an irradiated spider.  After brief hallucinations, Peter wakes up with incredible powers--much like that of a spider.  Thus, to make some extra cash, Peter takes on the persona of Spider-Man, and tries to pursue a career as a pro wrestler.  When he witnesses a robbery, he lets the criminal escape, simply because \"it's not his problem\".  Then, when his dear Uncle Ben is killed, Peter finds that the murderer is none other than the criminal he failed to stop before. Now, Peter uses his powers to stop crime, as he learns that \"With great power, comes great responsibility\".",
+    "fin": "Peter Parker saa hämähäkinpureman seurauksena käyttöönsä supervoimat ja hyödyntää niitä maineen ja mammonan tavoittelemiseen muista piittaamatta. Hän kuitenkin aiheuttaa setänsä kuoleman kieltäytyessään auttamasta poliisia karanneen rikollisen nappaamisessa. Nöyrtynyt mies alkaa käyttää voimia rikosten torjumiseen, ja hänestä tulee supersankari nimeltä Hämähäkkimies. Pahisten jahtaamisen lisäksi Peter yrittää omistaa aikaa tyttöystävälleen Mary Janelle ja valokuvaajantyölleen Daily Buglessa. Kaiken lisäksi hänen päätoimittajansa uskoo Hämähäkkimiehen olevan rikollinen, joka täytyy pysäyttää.",
+    "fra": "Cette version moderne des aventures du célèbre homme-araignée réussit l’exploit de résumer en 65 épisodes les 40 ans de continuité du premier chapitre (1962 - 1999) du comic book de Spider-man.\r\nC’est ainsi qu’apparaissent les amis de Peter, absents de la vieille série des années 60, baptisée simplement L'Araignée (comme Harry, Flash, la chatte noire...) et les ennemis qui étaient encore inédits comme Vénom ou le Super Bouffon. Tous les autres personnages classiques de l’univers du tisseur sont là : du tyrannique Jameson au tentaculaire Docteur Octopus, en passant par le lézard, Daredevil ou le bouffon vert.\r\nLa série possède un découpage intelligent, mêlant plusieurs intrigues et un scénario progressif qui détaille la vie privée de Peter Parker, son évolution et ses rapports avec ses amis et ennemis.",
+    "heb": "פיטר פארקר היה תלמיד תיכון חולמני, בחור צעיר, ביישן ואינטליגנטי, עם בעיות רבות בחיים; הוא גר עם דודתו האלמנה ומנסה לנהל מערכת יחסים עם חברתו, פלישיה הארדי. הכל משתנה כשהוא נעקץ על ידי עכביש מהונדס גנטית ובעקבות זאת זוכה בכוחות-על של עכביש, שכוללים את היכולת לטפס על קירות ולרחף על קורים. בנוסף, הוא ניחן ב-\"חושי עכביש\" המאפשרים לו לחוש בסכנה לפני שהיא מכה. עם כוחות העל שלו, הוא יוצא להילחם בכל הרשעים המסוכנים ביותר של העיר ניו יורק, ביניהם: קינגפין האכזרי, ששולט בכל העולם התחתון של העיר, ד\"ר אוקטופוס, שמשתמש בידיו הרובוטיות הרבות לגנוב כל דבר, ונום הרשע וכמובן הגובלין - כולם מנסים להשמיד את ספיידרמן, שמתערב להם ללא הרף בתוכניות הרשע שלהם. למרות שדמותו העכבישית מצילה את העיר בלילה, פיטר פארקר עדיין חייב למצוא דרכים כדי ללהטט בין חייו הליליים כגיבור על, ובין האחריות הרבה שיש לו כלפי החברים והמשפחה.",
+    "ita": "Spider-Man: The Animated Series è una serie animata realizzata dai Marvel Studios e prodotta dal 1994 al 1998. Sono stati realizzati 65 episodi, autoconclusivi o suddivisi in minisaghe, distribuiti in cinque stagioni. I fan considerano questa serie la più fedele al fumetto originale della Marvel Comics.",
+    "pol": "Spider-Man (ang. Spider-Man: The Animated Series) – amerykański serial animowany, który swą premierę w Stanach Zjednoczonych miał 19 listopada 1994, a ostatni odcinek wyemitowano 31 stycznia 1998. Scenariusz został napisany przez Johna Sempera Jr., a producentem było Marvel Films Animation. Jest to ekranizacja przygód jednej z postaci z komiksów Marvela – Spider-Mana. Seria ta jest powiązana z serią komiksów o nazwie Untold Tales of Spider-man, która nawiązuje do perypetii bohatera z serialu.\r\n\r\nSerial opowiada o przygodach dziewiętnastoletniego Petera Parkera, który działa również jako Spider-Man. Historia zaczyna się, kiedy bohater posiada już swoje moce oraz pracuje na pół etatu jako fotograf w redakcji Daily Bugle w Nowym Jorku. Animacja przedstawia klasycznych wrogów Człowieka-Pająka, jak m.in.: Chameleon, Dr Octopus, Green Goblin, Hobgoblin, Hydro-Man, Lizard, Rhino, Scorpion, Shocker, Venom.",
+    "por": "O Homem-Aranha (Spider-Man em inglês) é um personagem fictício da Marvel Comics. É um dos mais importantes e populares super-heróis das histórias em quadrinhos, séries animadas, filmes e outras formas de mídia. Suas revistas estão entre as mais vendidas do gênero no mundo há décadas. É a identidade secreta de Peter Parker. Foi criado por um dos mais bem-sucedido criadores moderno de histórias em quadrinhos, Stan Lee e por seu grande parceiro, Steve Ditko. Até muito antes da publicação de Homem-Aranha no meio da década de 60, os heróis seguiam um padrão mais ou menos uniforme de rigidez moral e retidão, tanto em suas vidas normais quanto quando travestidos em seus alter-egos. Além disso foi o primeiro herói a ganhar dinheiro com o uso de seus poderes: Peter Parker vende fotos do Homem-Aranha para o Clarim Diário. Seus motivos, porém, são altruístas: ele ajuda a tia viúva e idosa a pagar as contas, principalmente o aluguel. É, portanto, um dos super-heróis mais humanizados das histórias em quadrinhos, o que o levou a um sucesso estrondoso e a uma competição direta de popularidade com ícones do nível de Superman e Batman.",
+    "pt": "Após ser mordido por uma aranha radioativa, a vida de Peter Parker (Christopher Daniel Barnes) nunca mais foi a mesma. Com poderes extraordinários, este jovem tenta conciliar a vida pessoal com os desafios de manter sua cidade em segurança. No entanto, enfrentar vilões como o Duende Verde, Venom, Mystério, Doutor Octopus não será uma tarefa fácil.",
+    "rus": "Сериал повествует историю о девятнадцатилетнем студенте Питере Паркере, учащимся на первом курсе в государственном университете, и о его тайном альтер эго - Человеке-пауке. Поскольку история начинается уже с того, как Питер получил свои способности, мы не сразу узнаем, как именно обычный студент превратился в сверхчеловека. Он подрабатывает фотографом у Джей Джоны Джеймсона в редакции Дэйли Бьюгл. История показывает большинство классических злодеев Человека-паука (особенно из Amazing Spider-Man), включая Амбала, Зелёного Гоблина, Ящера, Скорпиона, Доктора Осьминога, Мистерио, Носорога, Шокера, Стервятника и Хамелеона. Так же есть и более новые злодеи, такие как Веном, Карнаж и Хобгоблин. В течение всех приключений Питер Паркер завязывает романтические отношения с Мэри Джейн Уотсон и Фелицией Харди (она же Чёрная Кошка).\r\nБолее подробную информацию о сериале можно найти в следующих статьях.",
+    "spa": "¿Imaginas ser capaz de sentir el peligro, subir cualquier pared, ser lo suficientemente fuerte como para doblar el acero, y tener más agilidad que cualquier otro ser humano? Para Peter Parker es un hecho. Excepto que él no piensa que es un regalo. En su último año de instituto, Peter Parker fue mordido por una araña radioactiva. Después de breves alucinaciones, Peter se despierta con poderes increíbles - muy parecidos a los de una araña. Por lo tanto, para hacer algo de dinero extra, Peter toma el personaje de Spider-Man, y trata de seguir una carrera como luchador profesional. Cuando es testigo de un robo, permite que el criminal escape simplemente porque \"no es su problema\". Luego, cuando su querido tío Ben es asesinado, Peter descubre que el asesino no es otro que el criminal que no detuvo anteriormente. Ahora, Peter usa sus poderes para detener el crimen porque \"un gran poder conlleva una gran responsabilidad\".",
+    "swe": "Efter ett bett från en radioaktiv spindel inser Peter Parker att han nu har spindelliknande superkrafter. I hopp om att använda sina nya förmågor för rikedom och berömmelse väljer han sitt ego framför andras behov, och orsakar indirekt sin farbrors död då han vägrar hjälpa polisen att fånga en brottsling. Förödmjukad av sitt misslyckande beslutar han sig för att använda sina talanger för att bekämpa brott och blir superhjälten Spider-Man. Samtidigt balanserar han sitt privatliv, inklusive sin flickvän, jobbet på Daily Bugle, och en redaktör som är övertygad om att Spider-Man är en brottsling."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt0112175",
+     "sourceName": "IMDB",
+     "type": 2
+    }
+   ],
+   "slug": "spider-man-1994",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/73750-5_t.jpg",
+   "translations": {
+    "ces": "Spiderman (1994)",
+    "deu": "Spider-Man: The Animated Series",
+    "eng": "Spider-Man: The Animated Series",
+    "fra": "Spider-Man, l'homme-araignée",
+    "heb": "ספיידרמן",
+    "hun": "Pókember",
+    "ita": "Spider-Man: The Animated Series",
+    "kor": "스파이더맨 : TAS",
+    "pol": "Spider-Man",
+    "por": "Homem-Aranha: A Série Animada",
+    "pt": "Homem-Aranha: A Série Animada",
+    "rus": "Человек-паук (1994)",
+    "spa": "Spider-Man: La Serie Animada",
+    "swe": "Spindelmannen"
+   },
+   "tvdb_id": "73750",
+   "type": "series",
+   "year": "1994"
+  },
+  {
+   "aliases": [
+    "Homem-Aranha e Seus Fantásticos Amigos"
+   ],
+   "country": "usa",
+   "first_air_time": "1981-09-12",
+   "id": "series-71880",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/71880-2.jpg",
+   "name": "Spider-Man and His Amazing Friends",
+   "network": "NBC",
+   "objectID": "series-71880",
+   "overview": "Originally run as an NBC Saturday morning cartoon in 1981. Peter Parker (Spider-Man), Bobby Drake (Iceman), and Angelica Jones (Firestar) are all college students at Empire State University. After working together to defeat the Beetle and recovering the \"Power Booster\" he stole from Tony Stark (a.k.a. Iron Man) the trio decide to team-up permanently as the Spider-Friends.",
+   "overviews": {
+    "deu": "Spider-Man – alias Peter Parker – ist Collegestudent an der Empire State Universität von New York City. Sein Studium finanziert er sich nebenbei durch den Job als Fotograf beim Daily Bugle, wobei er natürlich öfters Bilder von Spider-Man an den cholerischen Verleger J. Jonah Jameson verkauft. Nebenbei geht er natürlich noch seiner Beschäftigung als Superheld nach und kümmert sich um seine alte Tante May, bei der er auch wohnt. Während des Studiums lernt er die Studenten Bobby Drake und Angelica Jones kennen, ohne jedoch zu ahnen, dass die beiden Mutanten sind und als Iceman und Firestar ebenfalls das Verbrechen bekämpfen. Nachdem die drei gegenseitig ihre geheimen Identitäten aufgedeckt haben, beschließen sie ein Superheldenteam – die „Spider-Freunde“ – zu werden. In ihrer ersten gemeinsamen Aktion helfen sie erfolgreich Unternehmer Tony Stark (alias Ironman), der ihnen zum Dank in Tante Mays Haus ein hoch technisiertes Labor einrichtet. Bobby, Angelica und ihr Hund Miss Lion ziehen daraufhin bei Peter ein. Nur Tante May darf nichts von ihren Superkräften wissen. Während ihres Kampfes begegnen Spider-Man, Iceman und Firestar den bekannten Schurken aus dem Marvel-Universum, wie z.B. dem Grünen Kobold, Doktor Octopus, Mysterio, Kingpin, dem Sandman oder Kraven dem Jäger. Einige der Folgen werden sogar von Erfinder Stan Lee persönlich aus dem Off kommentiert.",
+    "eng": "Originally run as an NBC Saturday morning cartoon in 1981. Peter Parker (Spider-Man), Bobby Drake (Iceman), and Angelica Jones (Firestar) are all college students at Empire State University. After working together to defeat the Beetle and recovering the \"Power Booster\" he stole from Tony Stark (a.k.a. Iron Man) the trio decide to team-up permanently as the Spider-Friends.",
+    "fin": "Hämähäkkimies taistelee rikollisuutta vastaan New Yorkin kaupungissa yhdessä Jäämiehen ja Tulitähden kanssa.",
+    "fra": "Peter Parker (Spider-Man), Bobby Drake (Iceberg) et Angelica Jones (Firestar) sont trois étudiants à l’Empire State University. Ils combattent dans le premier épisode le Scarabée et, après leur victoire, ils décident de former une équipe nommée les « Spider-Friends ». Ils vivent ensemble chez May la tante de Peter. Ensemble, ils combattent de nombreux super-vilains.",
+    "heb": "פיטר פארקר, בובי דרייק ואנג'ליקה ג'ונס הם שלושה סטודנטים באוניברסיטת אמפייר סטייט שמנהלים חיים כפולים\r\nבתור ספיידרמן, איש הקרח וכוכב האש. ביחד הם נלחמים בפשע ברחובות ניו יורק.",
+    "ita": "Questa serie viene distribuita poco dopo la precedente (la serie del 1981) ma è poco fedele al fumetto. La trama non si limita a seguire le imprese del solo Uomo Ragno, ma anche dei suoi due partner, i \"fantastici\" supereroi Uomo Ghiaccio (IceMan) e Stella di Fuoco (Firestar), con i quali forma una affiatata squadra che combatte contro il crimine e le forze del male.",
+    "por": "Originalmente Homem-Aranha e Seus Fantásticos Amigos, e na nova dublagem da Fox Kids, Homem-Aranha e Seus Incríveis Amigos, é uma série de animação produzida pela Marvel Productions, em 1981 com os personagens dos quadrinhos Homem-Aranha, Homem de Gelo e a Estrela de Fogo original.",
+    "pt": "No desenho o fotógrafo Peter Parker continua morando com sua tia May e a cadelinha dela de estimação Lady Lion, até que conhece na Empire State University dois mutantes poderosos, Bobby Drake (Homem de Gelo) e Angelica Jones (Estrela de Fogo), e os convida a dividir os quarto com ele. Os três passam a morar na casa da tia May e ainda por cima pagar aluguel. O grupo de amigos poderosos viviam dividindo os seus dias entre cursar faculdade, trabalhar e combater o crime.",
+    "rus": "В этом сериале Человек-паук создаёт команду из своих друзей для борьбы со злом во всех его проявлениях! Кроме него в команду входят его удивительные друзья - Ледяной Человек и Огненная Звезда. Эта замечательная компания может победить любого злодея...",
+    "spa": "Nueva Serie de Spiderman o el Hombre Araña, tal y como es conocido en Latinoamérica. Serie estrenada en la NBC el 12 de Septiembre de 1981 y finalizada el 10 de Septiembre de 1983, constó de 24 episodios divididos en 3 temporadas. Posteriormente sería emitida en España a finales de los 90 y principios de los años 2000. En esta nueva serie se nos relata como Spiderman conoce a dos ex miembros de los X-Men: el Hombre de Hielo y Estrella de Fuego (personaje que fue creado exclusivamente para la serie). Juntos combatirán en numerosas aventuras a villanos como el Camaleón, el Conde Drácula, Electro, Shocker, Magneto, el Duende Verde, el hombre de Arena, Kraven y muchos más, dónde también harán cameos algunos personajes más de Marvel cómo los demás personajes de los X-Men, el Doctor Misterio, etc..."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt0083481",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "EP00507138",
+     "sourceName": "TMS (Zap2It)",
+     "type": 3
+    },
+    {
+     "id": "1269",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "1269",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "spider-man-and-his-amazing-friends",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/71880-2_t.jpg",
+   "translations": {
+    "dan": "Edderkopmanden og hans venner",
+    "deu": "Spider-Man und seine außergewöhnlichen Freunde",
+    "eng": "Spider-Man and His Amazing Friends",
+    "fra": "Spider-man et ses Amis Extraordinaires",
+    "heb": "ספיידרמן וחבריו המופלאים",
+    "ita": "L'uomo ragno e i suoi fantastici amici",
+    "por": "Homem-Aranha e Seus Incríveis Amigos",
+    "pt": "Homem-Aranha e Seus Incríveis Amigos",
+    "rus": "Человек-Паук и его удивительные друзья",
+    "spa": "Spiderman y sus Increíbles Amigos"
+   },
+   "tvdb_id": "71880",
+   "type": "series",
+   "year": "1981"
+  }
+ ],
+ "links": {
+  "next": null,
+  "page_size": 50,
+  "prev": null,
+  "self": "https://api4.thetvdb.com/v4/search?query=spiderman&type=series&limit=50&page=0",
+  "total_items": 12
+ },
+ "status": "success"
+}

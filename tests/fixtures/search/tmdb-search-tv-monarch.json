@@ -1,0 +1,421 @@
+{
+ "page": 1,
+ "results": [
+  {
+   "adult": false,
+   "backdrop_path": "/n5FGEUmId87nZAdFiOFmCKXynmT.jpg",
+   "first_air_date": "2023-11-16",
+   "genre_ids": [
+    10765,
+    18,
+    10759
+   ],
+   "id": 202411,
+   "name": "Monarch: Legacy of Monsters",
+   "origin_country": [
+    "US"
+   ],
+   "original_language": "en",
+   "original_name": "Monarch: Legacy of Monsters",
+   "overview": "Après avoir survécu à l'attaque de Godzilla sur San Francisco, Cate découvre un nouveau terrible secret. Face à la menace des monstres, elle se lance dans une aventure à travers le monde pour découvrir la vérité sur sa famille et sur une mystérieuse organisation, connue sous le nom de Monarch.",
+   "popularity": 34.4486,
+   "poster_path": "/gD06JrUVAVQIE0eRUfkxCKY1RZF.jpg",
+   "softcore": false,
+   "vote_average": 7.736,
+   "vote_count": 1368
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/ALDagpwdbiz2430X6ZY3pKwF6e.jpg",
+   "first_air_date": "2022-09-11",
+   "genre_ids": [
+    18
+   ],
+   "id": 125713,
+   "name": "Monarch",
+   "origin_country": [
+    "US"
+   ],
+   "original_language": "en",
+   "original_name": "Monarch",
+   "overview": "",
+   "popularity": 4.2448,
+   "poster_path": "/gwF3jnxoRhnp0D1alh5UgopnlW2.jpg",
+   "softcore": false,
+   "vote_average": 6.9,
+   "vote_count": 22
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/bgTm5TTI6uoY0RbLA3Fbl5z32JG.jpg",
+   "first_air_date": "2020-04-17",
+   "genre_ids": [
+    10765,
+    18
+   ],
+   "id": 93846,
+   "name": "The King : Eternal Monarch",
+   "origin_country": [
+    "KR"
+   ],
+   "original_language": "ko",
+   "original_name": "더 킹 : 영원의 군주",
+   "overview": "Le Diable est relâché dans le monde des humains et ouvre une porte vers un monde parallèle. Le Diable se demande s'il pourrait vivre une meilleure vie dans l'autre monde. Pour éviter cela, l'empereur coréen Lee Gon essaye de ferme la porte qui mène vers le monde parallèle avec l'aide de l'inspectrice coréenne Jung Tae-Eul qui essaye de protéger la vie des gens et la personne qu'elle aime.",
+   "popularity": 10.215,
+   "poster_path": "/iPQmB32MCKs6GPUYyX44K5P1Pux.jpg",
+   "softcore": false,
+   "vote_average": 8.2,
+   "vote_count": 911
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/ecxni5kM5664x1cy4Hdi2WB1Zdy.jpg",
+   "first_air_date": "2000-02-27",
+   "genre_ids": [
+    18,
+    35
+   ],
+   "id": 2215,
+   "name": "Monarch of the Glen",
+   "origin_country": [
+    "GB"
+   ],
+   "original_language": "en",
+   "original_name": "Monarch of the Glen",
+   "overview": "",
+   "popularity": 10.3129,
+   "poster_path": "/jeMhROvJWKTQuwSip5z5RsNPyfU.jpg",
+   "softcore": false,
+   "vote_average": 7.292,
+   "vote_count": 24
+  },
+  {
+   "adult": false,
+   "backdrop_path": null,
+   "first_air_date": "2006-11-04",
+   "genre_ids": [],
+   "id": 10634,
+   "name": "Monarch Cove",
+   "origin_country": [
+    "US"
+   ],
+   "original_language": "en",
+   "original_name": "Monarch Cove",
+   "overview": "",
+   "popularity": 2.5747,
+   "poster_path": null,
+   "softcore": false,
+   "vote_average": 9.5,
+   "vote_count": 2
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/vTdgVj4ICUbjVOFAfoWmZxcwxrT.jpg",
+   "first_air_date": "2020-10-14",
+   "genre_ids": [
+    99
+   ],
+   "id": 111913,
+   "name": "Henry VIII: Man Monarch Monster",
+   "origin_country": [],
+   "original_language": "en",
+   "original_name": "Henry VIII: Man Monarch Monster",
+   "overview": "",
+   "popularity": 1.0102,
+   "poster_path": "/rBuqakSexTJ0nUdt6ow7dJTNkc5.jpg",
+   "softcore": false,
+   "vote_average": 0.0,
+   "vote_count": 0
+  },
+  {
+   "adult": false,
+   "backdrop_path": null,
+   "first_air_date": "2026-12-31",
+   "genre_ids": [],
+   "id": 304929,
+   "name": "Monarch of the Glen",
+   "origin_country": [
+    "GB"
+   ],
+   "original_language": "en",
+   "original_name": "Monarch of the Glen",
+   "overview": "",
+   "popularity": 0.3088,
+   "poster_path": null,
+   "softcore": false,
+   "vote_average": 0.0,
+   "vote_count": 0
+  },
+  {
+   "adult": false,
+   "backdrop_path": null,
+   "first_air_date": "2008-07-07",
+   "genre_ids": [
+    99
+   ],
+   "id": 252407,
+   "name": "The Real Monarch of The Glen",
+   "origin_country": [
+    "GB"
+   ],
+   "original_language": "en",
+   "original_name": "The Real Monarch of The Glen",
+   "overview": "",
+   "popularity": 0.9655,
+   "poster_path": null,
+   "softcore": false,
+   "vote_average": 0.0,
+   "vote_count": 0
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/pELREuYZcfFP9ExxAkl75DGxonc.jpg",
+   "first_air_date": "2023-08-05",
+   "genre_ids": [
+    99
+   ],
+   "id": 232388,
+   "name": "Elizabeth II: Making of a Monarch",
+   "origin_country": [
+    "GB"
+   ],
+   "original_language": "en",
+   "original_name": "Elizabeth II: Making of a Monarch",
+   "overview": "",
+   "popularity": 0.3934,
+   "poster_path": "/oaHGcGb1z6PZP00SmNz7C6uYp4x.jpg",
+   "softcore": false,
+   "vote_average": 0.0,
+   "vote_count": 0
+  },
+  {
+   "adult": false,
+   "backdrop_path": null,
+   "first_air_date": "",
+   "genre_ids": [],
+   "id": 19770,
+   "name": "Britain's Real Monarch",
+   "origin_country": [],
+   "original_language": "en",
+   "original_name": "Britain's Real Monarch",
+   "overview": "",
+   "popularity": 0.2545,
+   "poster_path": "/gsEeVmRKomLyoz25XAZicSdZszt.jpg",
+   "softcore": false,
+   "vote_average": 0.0,
+   "vote_count": 0
+  },
+  {
+   "adult": false,
+   "backdrop_path": null,
+   "first_air_date": "2014-11-13",
+   "genre_ids": [],
+   "id": 221136,
+   "name": "Queen Victorias Letters A Monarch Unveiled",
+   "origin_country": [
+    "US"
+   ],
+   "original_language": "en",
+   "original_name": "Queen Victorias Letters A Monarch Unveiled",
+   "overview": "",
+   "popularity": 0.2674,
+   "poster_path": "/pkPoP3PkgxBMyc8iBnnAeWWfSSc.jpg",
+   "softcore": false,
+   "vote_average": 10.0,
+   "vote_count": 1
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/uNa8ycUXDWjAm26yDQB4izb9Sgh.jpg",
+   "first_air_date": "2009-11-29",
+   "genre_ids": [
+    99,
+    18
+   ],
+   "id": 40532,
+   "name": "The Queen",
+   "origin_country": [
+    "GB"
+   ],
+   "original_language": "en",
+   "original_name": "The Queen",
+   "overview": "The Queen était un documentaire dramatique britannique de 2009 montrant la reine Elizabeth II à différents moments de sa vie. Diffusée sur Channel 4 pendant cinq nuits consécutives à partir du 29 novembre 2009, The Queen a été interprétée par une actrice différente dans chaque épisode. La reine a été représentée par Emilia Fox, Samantha Bond, Susan Jameson, Barbara Flynn et Diana Quick. Katie McGrath a joué Princess Margaret dans le premier épisode et Lesley Manville a joué Margaret Thatcher dans le troisième épisode.",
+   "popularity": 2.9573,
+   "poster_path": "/wHBV2SaM6JVdLmewCIVsb4yG4h3.jpg",
+   "softcore": false,
+   "vote_average": 7.0,
+   "vote_count": 2
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/pTkyb04JX6ZbnxHXeQUm9umpXG9.jpg",
+   "first_air_date": "2012-01-03",
+   "genre_ids": [
+    99
+   ],
+   "id": 130087,
+   "name": "King George and Queen Mary: The Royals Who Rescued the Monarchy",
+   "origin_country": [
+    "GB"
+   ],
+   "original_language": "en",
+   "original_name": "King George and Queen Mary: The Royals Who Rescued the Monarchy",
+   "overview": "",
+   "popularity": 0.8189,
+   "poster_path": "/pJh0yn9TsIZhxDe77UeHbRMo1Mm.jpg",
+   "softcore": false,
+   "vote_average": 0.0,
+   "vote_count": 0
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/A3qVk5YtTEZkdchAk6msAdt63u7.jpg",
+   "first_air_date": "2004-10-18",
+   "genre_ids": [
+    99
+   ],
+   "id": 9484,
+   "name": "Monarchy",
+   "origin_country": [
+    "GB"
+   ],
+   "original_language": "en",
+   "original_name": "Monarchy",
+   "overview": "",
+   "popularity": 1.9373,
+   "poster_path": "/vM7fICn3GlE9carVIx45EWkhdrp.jpg",
+   "softcore": false,
+   "vote_average": 7.833,
+   "vote_count": 12
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/lMOSCDpjnkiExeqoYHHVcv9suhb.jpg",
+   "first_air_date": "2021-01-09",
+   "genre_ids": [
+    18,
+    10768
+   ],
+   "id": 116293,
+   "name": "上阳赋",
+   "origin_country": [
+    "CN"
+   ],
+   "original_language": "zh",
+   "original_name": "上阳赋",
+   "overview": "",
+   "popularity": 8.3263,
+   "poster_path": "/5uxvKDipwMhCzppLjufwxS8hTJp.jpg",
+   "softcore": false,
+   "vote_average": 7.2,
+   "vote_count": 13
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/rABByNhnjBkrx0JuHQdUV45Ndzk.jpg",
+   "first_air_date": "2025-12-02",
+   "genre_ids": [
+    99
+   ],
+   "id": 306218,
+   "name": "What's the Monarchy For?",
+   "origin_country": [
+    "GB"
+   ],
+   "original_language": "en",
+   "original_name": "What's the Monarchy For?",
+   "overview": "",
+   "popularity": 1.3618,
+   "poster_path": "/4RQi6AAvjPRYFbJUMpUpISH6WAk.jpg",
+   "softcore": false,
+   "vote_average": 0.0,
+   "vote_count": 1
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/ttYYDNWX0asSrzGz8yaXsEBRitA.jpg",
+   "first_air_date": "2020-12-20",
+   "genre_ids": [
+    99
+   ],
+   "id": 116140,
+   "name": "Les Monarchies face à Hitler",
+   "origin_country": [
+    "BE"
+   ],
+   "original_language": "fr",
+   "original_name": "Les Monarchies face à Hitler",
+   "overview": "Devant la montée des périls, les monarchies européennes, toutes unies les unes aux autres par des liens familiaux , sont terrorisées par la menace communiste. Le fascisme et le nazisme semblent être la solution. Volontairement ou involontairement, les maisons royales européennes, se retrouvent au centre de l’échiquier politique d’Hitler. Après de longs atermoiements, lorsque la seconde guerre mondiale éclate, ces maisons royales ont finalement dû prendre une décision cruciale pour leur pays : résister ou collaborer ?",
+   "popularity": 1.4861,
+   "poster_path": "/uLexHRMAgbJCz9FBAJXPpNCD8Sd.jpg",
+   "softcore": false,
+   "vote_average": 8.2,
+   "vote_count": 5
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/tpdCFAmmRyfVckrdpxGMZUiWfU8.jpg",
+   "first_air_date": "2025-11-19",
+   "genre_ids": [],
+   "id": 281610,
+   "name": "말단 병사에서 군주까지",
+   "origin_country": [
+    "KR"
+   ],
+   "original_language": "ko",
+   "original_name": "말단 병사에서 군주까지",
+   "overview": "",
+   "popularity": 0.8886,
+   "poster_path": "/1eIL9pAuwNHwBqARpjuoKf1tImM.jpg",
+   "softcore": false,
+   "vote_average": 0.0,
+   "vote_count": 0
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/pczvlrFgUMwxYd4HZFKMovKYLNj.jpg",
+   "first_air_date": "2024-01-24",
+   "genre_ids": [
+    16,
+    10765,
+    10759
+   ],
+   "id": 244182,
+   "name": "异人君莫邪",
+   "origin_country": [
+    "CN"
+   ],
+   "original_language": "zh",
+   "original_name": "异人君莫邪",
+   "overview": "",
+   "popularity": 2.1404,
+   "poster_path": "/mIOTJ1p3ZPlGtuCZOv27okrf826.jpg",
+   "softcore": false,
+   "vote_average": 8.5,
+   "vote_count": 2
+  },
+  {
+   "adult": false,
+   "backdrop_path": null,
+   "first_air_date": "2022-02-04",
+   "genre_ids": [
+    99
+   ],
+   "id": 195771,
+   "name": "Mythos Henry VIII.",
+   "origin_country": [
+    "GB"
+   ],
+   "original_language": "de",
+   "original_name": "Mythos Henry VIII.",
+   "overview": "",
+   "popularity": 0.2807,
+   "poster_path": null,
+   "softcore": false,
+   "vote_average": 0.0,
+   "vote_count": 0
+  }
+ ],
+ "total_pages": 2,
+ "total_results": 32
+}

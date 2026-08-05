@@ -1,0 +1,2052 @@
+{
+ "data": [
+  {
+   "country": "usa",
+   "first_air_time": "2022-09-11",
+   "id": "series-402376",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/402376/posters/6303b89ca70ab.jpg",
+   "name": "Monarch",
+   "network": "FOX",
+   "objectID": "series-402376",
+   "overview": "The Romans have created a country music dynasty, but when their reign as country royalty is put in jeopardy, Nicolette will stop at nothing to protect her family's legacy.",
+   "overviews": {
+    "eng": "The Romans have created a country music dynasty, but when their reign as country royalty is put in jeopardy, Nicolette will stop at nothing to protect her family's legacy.",
+    "fin": "Kun Roman-suvun valtakausi countrymusiikin eliitissä vaarantuu, Nicky Roman, kruununperijä, on valmis tekemään mitä tahansa suojellakseen perheensä perintöä.",
+    "fra": "À la tête d'un empire dans l'industrie de la musique au Texas, les Roman sont incroyablement talentueux. Mais si leur nom demeure une référence, le fondement même de leur succès est un mensonge. Lorsque leur règne est mis en péril, Nicky Roman, l’héritière du clan, qui lutte déjà contre de redoutables concurrents, ne recule devant rien pour protéger l’héritage de sa famille.",
+    "ita": "Susan Sarandon nella prima stagione di una serie drama ricca di colpi di scena. Texas: i coniugi Roman hanno creato un impero della musica country, ma alla base del successo c'e' una bugia.",
+    "nld": "De familie Roman zijn succesvolle countrymuzikanten, maar de basis van hun succes is een leugen. Nu hun imago in gevaar is, doet dochter Nicky Roman er alles aan om de erfenis van de familie veilig te stellen.",
+    "spa": "Un drama musical épico y multigeneracional sobre la primera familia de música country de Estados Unidos. Los romanos son apasionados y ferozmente talentosos, pero aunque su nombre es sinónimo de honestidad, la base misma del éxito de esta familia es una mentira. Cuando salen a la superficie peligrosas verdades, el reinado de los romanos como realeza del país está en peligro. Nicky Roman, la brillante y feroz heredera de la corona, que ya lucha contra una industria y un mundo en su contra, no se detendrá ante nada para proteger el legado de su familia. Finalmente es su turno. Pero, ¿es demasiado tarde?"
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "10.5240/B64E-4D0A-FC68-D718-05C9-V",
+     "sourceName": "EIDR",
+     "type": 13
+    },
+    {
+     "id": "MonarchonFOX/",
+     "sourceName": "Facebook",
+     "type": 5
+    },
+    {
+     "id": "tt11091696",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "monarchonfox",
+     "sourceName": "Instagram",
+     "type": 9
+    },
+    {
+     "id": "https://www.fox.com/monarch/",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "125713",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "55160",
+     "sourceName": "TV Maze",
+     "type": 19
+    },
+    {
+     "id": "@MonarchonFOX",
+     "sourceName": "X (Twitter)",
+     "type": 6
+    },
+    {
+     "id": "Monarch_(American_TV_series)",
+     "sourceName": "Wikipedia",
+     "type": 24
+    }
+   ],
+   "slug": "monarch",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/402376/posters/6303b89ca70ab_t.jpg",
+   "translations": {
+    "eng": "Monarch",
+    "fin": "Monarch",
+    "fra": "Monarch",
+    "ita": "Monarch - La musica è un affare di famiglia",
+    "nld": "Monarch",
+    "spa": "Monarch"
+   },
+   "tvdb_id": "402376",
+   "type": "series",
+   "year": "2022"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2006-11-04",
+   "id": "series-259171",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/259171-1.jpg",
+   "name": "Monarch Cove",
+   "network": "Lifetime",
+   "objectID": "series-259171",
+   "overview": "After being wrongfully convicted of her father's murder and subsequently spending six years in prison, Bianca Foster (Williams) returns home to a new set of family problems. Determined to help, she takes a job at a resort, only to become romantically involved with business's engaged heir (Hutchinson).",
+   "overviews": {
+    "eng": "After being wrongfully convicted of her father's murder and subsequently spending six years in prison, Bianca Foster (Williams) returns home to a new set of family problems. Determined to help, she takes a job at a resort, only to become romantically involved with business's engaged heir (Hutchinson).",
+    "fra": "Après avoir passé 6 ans derrières les barreaux pour un meurtre qu'elle n'a pas commis, Bianca Foster entend mener une vie tranquille à Monarch Cove. Mais son retour au sein de sa famille n'est pas de tout repos. Derrière une apparence idyllique, la ville regorge de sombres secrets et de scandales...",
+    "ita": "La serie, prodotta dalla Fremantle Media, trasmessa negli Stati Uniti dal 4 novembre 2006 e in Italia dal canale di Sky Italia SKY Vivo dal 4 settembre 2007, è basata sulla soap opera tedesca Bianca di cui ricalca parte della trama: il ritorno alla nativa cittadina Monarch Cove della protagonista Bianca Foster (l'attrice Virginia Williams) dopo aver scontato sei anni di carcere ingiustamente accusata dell'omicidio del padre.\r\n\r\nNel cast si segnala la presenza dell'attore Simon Rex già vj di MTV e protagonista di Scary Movie 3.\r\n\r\n"
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt0829471",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "10634",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "259171-show",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/259171-1_t.jpg",
+   "translations": {
+    "eng": "Monarch Cove",
+    "fra": "Monarch Cove",
+    "ita": "Monarch Cove"
+   },
+   "tvdb_id": "259171",
+   "type": "series",
+   "year": "2006"
+  },
+  {
+   "aliases": [
+    "Monarch : L'héritage des monstres"
+   ],
+   "country": "usa",
+   "first_air_time": "2023-11-17",
+   "id": "series-422598",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/422598/posters/652989feed722.jpg",
+   "name": "Monarch: Legacy of Monsters",
+   "network": "Apple TV",
+   "objectID": "series-422598",
+   "overview": "Follow one family’s journey to uncover its buried secrets and a legacy linking them to the secret organization known as Monarch in the aftermath of the thunderous battle between Godzilla and the Titans that leveled San Francisco and the shocking new reality that monsters are real.",
+   "overviews": {
+    "ara": "بعد النجاة من هجوم \"غودزيلا\" على \"سان فرانسيسكو\"، تُصدم \"كايت\" مرة أخرى بسر مروع. وسط التهديدات الوحشية، تخوض مغامرة حول العالم لتكتشف الحقيقة عن عائلتها، والمنظمة الغامضة باسم \"مونارك\".",
+    "ces": "Poté co přežila útok Godzilly na San Francisco Cate šokuje další skandální tajemství. Obklopená řadou hrozeb se vydává na dobrodružné pátrání po celém světě za pravdou o své rodině a tajuplné organizaci zvané Monarch. (Apple TV+)",
+    "dan": "Efter at have overlevet Godzillas angreb på San Francisco rystes Cate på ny af en chokerende hemmelighed. Blandt uhyrlige farer drager hun ud på et storslået eventyr for at finde ud af sandheden om sin familie – og om den mystiske organisation Monarch.",
+    "deu": "Die Handlung der „Monsterverse“-Serie setzt nach den Geschehnissen in „Godzilla II – King of the Monsters“ ein: San Francisco liegt nach der Schlacht zwischen Godzilla und den anderen Monstern in Schutt und Asche. Im Zentrum steht der Überlebenskampf einer Familie, die nicht nur damit klarkommen muss, dass es Monster tatsächlich gibt, sondern dass sie ein altes Familiengeheimnis mit der geheimnisvollen Organisation Monarch verbindet.",
+    "ell": "Έχοντας επιβιώσει από την επίθεση του Γκοτζίλα στο Σαν Φρανσίσκο, η Κέιτ συνταράσσεται και πάλι από ένα συγκλονιστικό μυστικό. Εν μέσω τερατωδών απειλών, ρίχνεται σε μια περιπέτεια ανά τον κόσμο για να μάθει την αλήθεια για την οικογένειά της και τη μυστηριώδη οργάνωση γνωστή ως Μόναρκ.",
+    "eng": "Follow one family’s journey to uncover its buried secrets and a legacy linking them to the secret organization known as Monarch in the aftermath of the thunderous battle between Godzilla and the Titans that leveled San Francisco and the shocking new reality that monsters are real.",
+    "fin": "Cate on selviytynyt Godzillan hyökkäyksestä San Franciscoon mutta järkyttyy uudelleen yllättävän salaisuuden paljastuessa. Hän lähtee seikkailemaan maailmalle hirvittävien uhkien keskellä selvittääkseen totuuden perheestään ja salaperäisestä Monarch-järjestöstä.",
+    "fra": "Après avoir survécu à l'attaque de Godzilla sur San Francisco, Cate découvre un nouveau terrible secret. Face à la menace des monstres, elle se lance dans une aventure à travers le monde pour découvrir la vérité sur sa famille et sur une mystérieuse organisation, connue sous le nom de Monarch.",
+    "heb": "סדרת אסונות של אפל-טיוי, בכיכובם של האב והבן קורט ו-וויאט ראסל, המגלמים את אותה דמות בהפרש של עשורים. אחר שקרב סוער בין גודזילה לטיטאנים החריב את סן פרנסיסקו וגרם לאנושות להתוודע לכך שמפלצות הן אמיתיות, שני אחים פוסעים בעקבות אביהם כדי לחשוף את הקשר של משפחתם לארגון סודי ידוע בשם \"מונרך\". הרמזים מובילים אותם אל קצין צבאי בשם לי שו (בגילומם של הראסלים) – גם בשנות ה-50 וגם חצי מאה לאחר מכן, בשלב שבו \"מונרך\" מאוים ממה ששו יודע.",
+    "hin": "सैन फ़्रांसिस्को पर गॉडज़िला के हमले से बचने के बाद, केट एक बार फिर एक चौंकाने वाले रहस्य से हिल जाती है। भयानक ख़तरों के बीच, अपने परिवार—और मॉनार्क नामक रहस्यमयी संगठन के बारे में सच्चाई जानने के लिए वह एक साहसिक वैश्विक यात्रा पर निकल पड़ती है।",
+    "hun": "Godzilla és a Titánok közötti csata után játszódó sorozat, amely során kiderül, hogy a szörnyek valósak. Egy család útját követhetjük nyomon, ahogy feltárják eltemetett titkaikat és a Monarchhoz kötődő örökségüket.",
+    "ind": "Setelah selamat dari serangan Godzilla di San Francisco, Cate sekali lagi diguncang oleh rahasia yang mengejutkan. Di tengah ancaman mengerikan, dia memulai petualangan keliling dunia untuk mempelajari kebenaran tentang keluarganya, dan organisasi misterius yang dikenal sebagai Monarch.",
+    "ita": "Segui il viaggio di una famiglia per scoprire i suoi segreti sepolti e un'eredità che la collega all'organizzazione segreta conosciuta come Monarch all'indomani della fragorosa battaglia tra Godzilla e i Titani che ha raso al suolo San Francisco e la nuova scioccante realtà che i mostri sono reali.",
+    "jpn": "ゴジラのサンフランシスコ襲来を生き延びたケイトだったが、その後、驚くべき秘密に触れ、更なる衝撃を受ける。迫り来る危機に怯えながら、自身の家族の真実、そしてモナークという秘密に満ちた組織の実態を知ろうと、世界を駆けるケイトの旅が始まった。",
+    "kor": "샌프란시스코에서 고질라의 공격에서 살아남은 케이트는 충격적인 비밀에 크게 동요한다. 무시무시한 위협 가운데 케이트는 가족과 '모나크'라는 비밀 조직의 비밀을 알아내기 위해 세계 곳곳으로 모험을 떠난다.",
+    "nld": "Een enorm gevecht tussen Godzilla en de titanen heeft San Francisco met de grond gelijk gemaakt. Na de schokkende onthulling dat monsters echt zijn, trachten twee kinderen in de voetsporen van hun vader te treden om de connectie van hun familie met de geheimzinnige organisatie Monarch te ontdekken. Aanwijzingen leiden hen in de wereld van monsters en uiteindelijk in het konijnenhol naar legerofficier Lee Shaw. In de jaren 50 kwam hij voor het eerst in contact met Monarch. Een halve eeuw later wordt de Japanse-Amerikaanse instantie bedreigd door wat Shaw weet.",
+    "pol": "Cate udaje się przetrwać atak Godzilli na San Francisco, po czym przeżywa kolejny wstrząs, gdy odkrywa szokujący sekret. Stawiając czoła potwornym zagrożeniom, wyrusza w pełną przygód podróż, aby poznać prawdę o swojej rodzinie i tajemniczej organizacji zwanej Monarch.",
+    "por": "Depois de sobreviver ao ataque do Godzilla em São Francisco, Cate volta a ficar abalada com um segredo chocante. Entre ameaças monstruosas, ela embarca numa aventura pelo mundo para saber a verdade sobre a sua família e sobre a organização misteriosa conhecida como Monarch.",
+    "pt": "Após sobreviver ao ataque do Godzilla em São Francisco, Cate é abalada novamente por um segredo chocante. Em meio a ameaças monstruosas, ela embarca em uma aventura pelo mundo para descobrir a verdade sobre sua família – e a organização misteriosa conhecida como Monarch.",
+    "rus": "Пережив нападение Годзиллы на Сан-Франциско, Кейт в очередной раз потрясена шокирующей тайной. Она отправляется в путешествие по миру, чтобы узнать правду о своей семье и таинственной организации, известной как «Монарх».",
+    "spa": "Tras sobrevivir al ataque de Godzilla en San Francisco, un espeluznante secreto vuelve a sobrecoger a Cate. En medio de amenazas monstruosas, se embarca en una aventura por todo el mundo para descubrir la verdad sobre su familia y la misteriosa organización conocida como Monarca.",
+    "srp": "Након битке између Годзиле и Титана која је срушила Сан Франциско и открила да су чудовишта стварна, серија прати брата и сестру док покушавају да открију повезаност своје породице са мистериозном организацијом познатом као Монарх.",
+    "zho": "在经历了哥斯拉对旧金山的袭击后，凯特再次被一个惊人的秘密震撼。在巨大的威胁面前，她踏上环球冒险之旅，以了解关于她的家庭和神秘帝王组织的真相。"
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt17220216",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "https://tv.apple.com/show/umc.cmc.62l8x0ixrhyq3yaqa5y8yo7ew",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "202411",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "60090",
+     "sourceName": "TV Maze",
+     "type": 19
+    },
+    {
+     "id": "Q113114887",
+     "sourceName": "Wikidata",
+     "type": 18
+    },
+    {
+     "id": "Monarch:_Legacy_of_Monsters",
+     "sourceName": "Wikipedia",
+     "type": 24
+    }
+   ],
+   "slug": "godzilla-and-the-titans",
+   "status": "Continuing",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/422598/posters/652989feed722_t.jpg",
+   "translations": {
+    "ara": "مونارك: إرث الوحوش",
+    "ces": "Monarch: Odkaz monster",
+    "dan": "Monarch: Legacy of Monsters",
+    "deu": "Monarch: Legacy of Monsters",
+    "ell": "Monarch: Legacy of Monsters",
+    "eng": "Monarch: Legacy of Monsters",
+    "fin": "Monarch: Legacy of Monsters",
+    "fra": "Monarch : L'héritage des monstres",
+    "heb": "מונרך: מורשת של מפלצות",
+    "hin": "मॉनार्क : लेगसी ऑफ़ मॉन्सटर्स",
+    "hun": "Monarch: A szörnyek hagyatéka",
+    "ind": "Monarch: Legacy of Monsters",
+    "ita": "Monarch: Legacy of Monsters",
+    "jpn": "モナーク：レガシー・オブ・モンスターズ",
+    "kor": "모나크: 레거시 오브 몬스터즈",
+    "nld": "Monarch: Legacy of Monsters",
+    "pol": "Monarch: Dziedzictwo potworòw",
+    "por": "Monarch: Legado de Monstros",
+    "pt": "Monarch: Legado de Monstros",
+    "rus": "«Монарх»: Наследие монстров",
+    "spa": "Monarch: El legado de los monstruos",
+    "srp": "Монарх: Завештање чудовишта",
+    "zho": "帝王计划：怪兽遗产"
+   },
+   "tvdb_id": "422598",
+   "type": "series",
+   "year": "2023"
+  },
+  {
+   "country": "gbr",
+   "first_air_time": "2000-02-27",
+   "id": "series-77589",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/77589-2.jpg",
+   "name": "Monarch of the Glen",
+   "network": "BBC One",
+   "objectID": "series-77589",
+   "overview": "Inspired by the highland novels of Compton Mackenzie, this show follows Archie MacDonald as he finds himself thrown into the role of the new Laird of Glenbogle, his family's financially failing  Scottish estate. With the help, and sometimes hinderance, of his family and faithful retainers he works to get the noble estate back on its feet.",
+   "overviews": {
+    "ces": "Archie MacDonald, mladý restauratér, je povolán zpět do svého dětského domova Glenbogle, kde je mu řečeno, že je to nový Lord z Glenbogle.",
+    "eng": "Inspired by the highland novels of Compton Mackenzie, this show follows Archie MacDonald as he finds himself thrown into the role of the new Laird of Glenbogle, his family's financially failing  Scottish estate. With the help, and sometimes hinderance, of his family and faithful retainers he works to get the noble estate back on its feet.",
+    "fin": "Laakson kuningas -draamasarjassa Alastair Mackenzien esittämän ravintolanomistaja Archie MacDonaldin elämä muuttuu lopullisesti. Hän palaa lapsuudenkotiinsa Skotlannin ylämaille ja saa tietää, että hän ottaa kartanonherran roolin suvun ränsistyneellä tilalla. Sarja perustuu löyhästi Sir Compton Mackenzien Highland Novels -kirjasarjaan.",
+    "fra": "Heureux de vivre son rêve à Londres avec sa petite amie, Archie MacDonald s'estime chanceux d'avoir quitté son Ecosse natale pour tenir un restaurant dans la capitale anglaise. Malheureusement, sa mère Molly a d'autres projets pour lui. De retour au manoir familial, Archie devient le propriétaire du domaine. Le jeune aristocrate doit désormais éviter la faillite et gérer ses parents excentriques, une gouvernante amoureuse et d'autres personnages encore plus déjantés."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt0238793",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "SH366167",
+     "sourceName": "TMS (Zap2It)",
+     "type": 3
+    },
+    {
+     "id": "2215",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "monarch-of-the-glen",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/77589-2_t.jpg",
+   "translations": {
+    "ces": "Monarch of the Glen",
+    "eng": "Monarch of the Glen",
+    "fin": "Laakson kuningas",
+    "swe": "Karl för sin kilt"
+   },
+   "tvdb_id": "77589",
+   "type": "series",
+   "year": "2000"
+  },
+  {
+   "country": "jpn",
+   "first_air_time": "2016-11-05",
+   "id": "series-330176",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/330176-1.jpg",
+   "name": "The Arrival of the Monarch",
+   "network": "Anime OAV",
+   "objectID": "series-330176",
+   "overview": "In a day like any other, Cao Xiao Man's brother, Xiao Bei, is stabbed by a man after defending a mysterious girl. Due to the incident, and to buy medicine for his brother, Cao Xiao Man decides to earn money in a rather strange way: cross-dressing as a girl and seducing men. When he arrives to his client's house everything seems to go as planned, but the client soon discovers that Cao Xiao Man is, in fact, a boy. He decides to put Cao Xiao Man in a game where he is turned into a girl. In order for Cao Xiao Man to go back to being a boy he needs to complete the game and find the 7 Loyalties located all over the country.",
+   "overviews": {
+    "eng": "In a day like any other, Cao Xiao Man's brother, Xiao Bei, is stabbed by a man after defending a mysterious girl. Due to the incident, and to buy medicine for his brother, Cao Xiao Man decides to earn money in a rather strange way: cross-dressing as a girl and seducing men. When he arrives to his client's house everything seems to go as planned, but the client soon discovers that Cao Xiao Man is, in fact, a boy. He decides to put Cao Xiao Man in a game where he is turned into a girl. In order for Cao Xiao Man to go back to being a boy he needs to complete the game and find the 7 Loyalties located all over the country."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "slug": "the-arrival-of-the-monarch",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/330176-1_t.jpg",
+   "translations": {
+    "eng": "The Arrival of the Monarch"
+   },
+   "tvdb_id": "330176",
+   "type": "series",
+   "year": "2016"
+  },
+  {
+   "country": "gbr",
+   "first_air_time": "2020-10-14",
+   "id": "series-390180",
+   "image_url": "https://artworks.thetvdb.com/banners/series/390180/posters/5fa66250b59af.jpg",
+   "name": "Henry VIII: Man, Monarch, Monster",
+   "network": "5",
+   "objectID": "series-390180",
+   "overview": "Three-part drama-documentary series revealing the truth about England's most infamous King, King Henry VIII. Filming in historic locations including Hampton Court, Windsor Castle and the Vatican and unearthing new documents never seen before on TV, a team of Tudor experts uncover the real Henry, and explore how his complex personality fundamentally shaped the nation. In the first episode, experts examine how Henry VIII's traumatic childhood affected his personality, from the death of his older brother to the tragic early death of his beloved mother. Narrated by Jason Isaacs.\r\n",
+   "overviews": {
+    "deu": "Englands König Heinrich VIII. – als Kind wird der Zweitgeborene verwöhnt, doch der Tod seines älteren Bruders macht ihn mit gerade einmal zehn Jahren zum Thronfolger. Nur wenig später stirbt auch seine Mutter. Der junge Thronerbe wächst von nun an in einer Welt voller Intrigen und Verschwörungen auf. Bekannt für seine Kontrollsucht, seine Unberechenbarkeit und seine sechs Ehefrauen, umgeben ihn bis heute zahlreiche Mythen.",
+    "eng": "Three-part drama-documentary series revealing the truth about England's most infamous King, King Henry VIII. Filming in historic locations including Hampton Court, Windsor Castle and the Vatican and unearthing new documents never seen before on TV, a team of Tudor experts uncover the real Henry, and explore how his complex personality fundamentally shaped the nation. In the first episode, experts examine how Henry VIII's traumatic childhood affected his personality, from the death of his older brother to the tragic early death of his beloved mother. Narrated by Jason Isaacs.\r\n",
+    "fin": "Kolmiosainen yltäkylläinen draamadokumentti esittää Henrikin täysin uudessa valossa. Tunnettujen Tudor-asiantuntijoiden tiimi etsii miestä myytin takana."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "111913",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "tt10619810",
+     "sourceName": "IMDB",
+     "type": 2
+    }
+   ],
+   "slug": "henry-viii-rise-of-a-tyrant",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/series/390180/posters/5fa66250b59af_t.jpg",
+   "translations": {
+    "deu": "Mythos Heinrich VIII",
+    "eng": "Henry VIII: Man, Monarch, Monster",
+    "fin": "Henrik VIII: Mies, monarkki, hirviö"
+   },
+   "tvdb_id": "390180",
+   "type": "series",
+   "year": "2020"
+  },
+  {
+   "country": "gbr",
+   "id": "series-477384",
+   "image_url": "https://artworks.thetvdb.com/banners/images/missing/series.jpg",
+   "name": "Monarch of the Glen (2027)",
+   "network": "5",
+   "objectID": "series-477384",
+   "overview": "It follows high-flying London lawyer Isla Campbell, who finds herself back at her family’s crumbling Highland estate for her estranged father’s funeral and discovers she has inherited a million-pound debt, a bank closing in, and a brother who refuses to let go of their ancestral home. Under the same roof for the first time in years, they have to find a way to save the struggling estate before time runs out.",
+   "overviews": {
+    "eng": "It follows high-flying London lawyer Isla Campbell, who finds herself back at her family’s crumbling Highland estate for her estranged father’s funeral and discovers she has inherited a million-pound debt, a bank closing in, and a brother who refuses to let go of their ancestral home. Under the same roof for the first time in years, they have to find a way to save the struggling estate before time runs out."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "https://deadline.com/2026/04/monarch-of-the-glen-masterpiece-channel-5-reboot-1236875764/",
+     "sourceName": "Fan Site",
+     "type": 8
+    },
+    {
+     "id": "https://deadline.com/2026/04/monarch-of-the-glen-masterpiece-channel-5-reboot-1236875764/",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "tt42207022",
+     "sourceName": "IMDB",
+     "type": 2
+    }
+   ],
+   "slug": "monarch-of-the-glen-2026",
+   "status": "Upcoming",
+   "translations": {
+    "eng": "Monarch of the Glen (2027)"
+   },
+   "tvdb_id": "477384",
+   "type": "series"
+  },
+  {
+   "aliases": [
+    "Bouba, le petit ourson",
+    "Jacky e Jill"
+   ],
+   "country": "jpn",
+   "first_air_time": "1977-06-07",
+   "id": "series-83629",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/5b75b696936b9.jpg",
+   "name": "Monarch: The Big Bear of Tallac",
+   "network": "Fuji TV",
+   "objectID": "series-83629",
+   "overview": "Little Senda lives on the Canadian prairie with his father. One day he finds two grizzly cubs whom he names Jackie and Nuca. The two bears immediately become Senda's inseparable friends and playmates, but one terrible day he learns that he must help return them to the wild.",
+   "overviews": {
+    "deu": "Die zwei Bärenkinder Jackie und Jill leben zusammen mit ihrer Mutter im Wald, am Berg Tarak. Der Indianderjunge Ran schließt Freundschaft mit den Bären. Als die zwei Bären ihre Mutter verlieren, nimmt Ran sie bei sich zu Hause auf.",
+    "eng": "Little Senda lives on the Canadian prairie with his father. One day he finds two grizzly cubs whom he names Jackie and Nuca. The two bears immediately become Senda's inseparable friends and playmates, but one terrible day he learns that he must help return them to the wild.",
+    "fra": "Dans les montagnes de Tallac, une ourse a donné naissance à deux adorables oursons : Bouba et sa soeur Frisquette.\r\n\r\nPassant des jours paisibles, tous deux découvrent en même temps le monde, toujours bien surveillés par leur mère. Jusqu'au jour où des chasseurs, effrayés par leur mère, l'abattent, laissant les deux oursons orphelins.\r\n\r\nPerdus et affamés, ces derniers sont recueillis par Moy, un jeune Indien, qui décide de les adopter, malgré l'avis des chasseurs. Une fantastique histoire d'amitié commence...\r\n\r\n",
+    "ita": "Jacky, l'orso del monte Tallac (シートン動物記くまの子ジャッキー Seaton dobutsuki kuma No ko Jackie?) è un anime giapponese in 26 episodi prodotto nel 1977 dalla Nippon Animation e ispirato al romanzo del 1904 Monarch, The Big Bear of Tallac dello scrittore Ernest Thompson Seton.\r\n\r\nIl piccolo Senda è un pellerossa che assieme al padre vive nelle praterie del Canada. Un giorno trova due cuccioli di grizzly ai quali e dà i nomi di Jackie e Nuca. I due orsetti diventano subito suoi inseparabili amici e compagni di giochi, ma un brutto giorno il padre di Senda uccide mamma orsa per salvare un uomo che aveva preso parte ad una battuta di caccia per ucciderla. Senda convince quindi il padre a prenderli con sé per proteggerli ma una volta che i grizzly diventeranno adulti, dovrà farli ritornare nell'ambiente selvaggio che appartiene loro.",
+    "por": "Nas montanhas de Tallac, a ursa Grisle/Pinto dá à luz dois ursinhos, Jacky e a sua irmã Nuca/Jill.\r\nUm certo dia Jacky conhece Senda/Ron um pequeno índio, e os dois ficam amigos. Mas pouco tempo depois os dois ursinhos ficam órfãos e Senda/Ron adota-os.\r\nEm Portugal a série foi emitida pela RTP em 1979 com dobragem portuguesa adaptada da dobragem espanhola com o título de Jacky, O Urso de Tallac. Mais tarde em 1997 a série foi emitida pela SIC com outra dobragem portuguesa adaptada da dobragem alemã com o título de Jacky e Jill.",
+    "spa": "El bosque de Tallac, basado en la novela ‘Monach, el gran oso de Tallac’ de Ernest Thompson, nos cuenta las aventuras de los oseznos Jackie y Nuca, que viven junto a su madre, Grisly, en la montaña Tallac, de Sierra Nevada. Un día se hacen amigos del joven indio Senda y de Olga, la hija de un granjero. Los cuatro vivirán muchas aventuras impidiendo que el malvado Sr. Forrester y Bonani, cacen a los osos de Tallac."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt0298695",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "52270",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "jacky-and-jill",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/5b75b696936b9_t.jpg",
+   "translations": {
+    "ara": "لوز وسكر",
+    "deu": "Jackie und Jill: Die Bärenkinder vom Berg Tarak",
+    "eng": "Monarch: The Big Bear of Tallac",
+    "fra": "Bouba",
+    "ita": "Jacky, l'orso del monte Tallac",
+    "jpn": "シートン動物記 くまの子ジャッキー",
+    "pol": "Mali mieszkańcy wielkich gór",
+    "por": "Jacky, O Urso de Tallac",
+    "rus": "Seton Doubutsu",
+    "spa": "El bosque de Tallac: Jackie y Nuca"
+   },
+   "tvdb_id": "83629",
+   "type": "series",
+   "year": "1977"
+  },
+  {
+   "country": "gbr",
+   "first_air_time": "2014-11-13",
+   "id": "series-288516",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/288516/posters/626c90ca890b6.jpg",
+   "name": "Queen Victoria's Letters: A Monarch Unveiled",
+   "network": "BBC Four",
+   "objectID": "series-288516",
+   "overview": "Biographer A.N. Wilson uncovers the intriguing personal life of Queen Victoria through her journals and letters in this psychological portrait of Britain's longest reigning monarch.",
+   "overviews": {
+    "eng": "Biographer A.N. Wilson uncovers the intriguing personal life of Queen Victoria through her journals and letters in this psychological portrait of Britain's longest reigning monarch.",
+    "rus": "Королева Виктория пробыла на троне 63 года и 7 месяцев - больше, чем любой другой британский монарх. Ведение дневника являлось ее большой страстью, иногда она писала до 2500 слов в день. Виктория изливала на бумаге все: государственные дела, семейные сплетни, свои чувства и эмоции. Ее близкие переживали, что подобные записи могут оказаться достоянием публики и привести к скандалам. Большинство рукописей Виктории было уничтожено после ее смерти, а ее личный дневник был отредактирован ее дочерью. Однако те записи, которые дошли до нас, рисуют нам совсем другого монарха, нежели мы себе представляли. Биограф А. Н. Уилсон представит нашему вниманию дневники, личные записи, неопубликованные письма и расскажет о факторах, которые сформировали личность королевы: в частности, о ее непростых отношениях с матерью, а затем с деспотичными мужчинами, к которым ее тянуло в поисках человека, обладающего авторитетом отца."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt4232344",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "794661",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "7946",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "queen-victorias-letters-a-monarch-unveiled",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/288516/posters/626c90ca890b6_t.jpg",
+   "translations": {
+    "eng": "Queen Victoria's Letters: A Monarch Unveiled",
+    "rus": "Письма королевы Виктории"
+   },
+   "tvdb_id": "288516",
+   "type": "series",
+   "year": "2014"
+  },
+  {
+   "country": "gbr",
+   "first_air_time": "2023-08-05",
+   "id": "series-438033",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/438033/posters/678ebd38bb6ab.jpg",
+   "name": "Elizabeth II: Making of a Monarch",
+   "network": "Channel 4",
+   "objectID": "series-438033",
+   "overview": "Told through a selection of rare and never-before-seen photographs, video archive and expert testimony, this documentary offers a compelling view of Queen Elizabeth II's early life",
+   "overviews": {
+    "eng": "Told through a selection of rare and never-before-seen photographs, video archive and expert testimony, this documentary offers a compelling view of Queen Elizabeth II's early life",
+    "fra": "Héritière du trône britannique, Elizabeth suit dès son plus jeune âge un cursus éducatif sur mesure. Au-delà des enseignements classiques partagés avec sa soeur Margaret, arts, langues et disciplines académiques, elle se forme aux enjeux constitutionnels et juridiques essentiels à sa future fonction. Son parcours éducatif, débuté en 1926, s'achève par une formation militaire au sein de l'ATS à 19 ans.",
+    "spa": "Esta fascinante serie logra un acceso exclusivo a un archivo fotográfico de la reina Isabel II, revelando detalles íntimos de su vida y explorando los primeros años que moldearon su personalidad, transformándola en la influyente monarca que llegó a ser."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "232388",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "tt27694292",
+     "sourceName": "IMDB",
+     "type": 2
+    }
+   ],
+   "slug": "elizabeth-ii-making-of-a-monarch",
+   "status": "Continuing",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/438033/posters/678ebd38bb6ab_t.jpg",
+   "translations": {
+    "eng": "Elizabeth II: Making of a Monarch",
+    "fra": "Elizabeth II : création d'une reine",
+    "spa": "Isabel II: una vida en fotos"
+   },
+   "tvdb_id": "438033",
+   "type": "series",
+   "year": "2023"
+  },
+  {
+   "country": "mex",
+   "first_air_time": "2019-09-13",
+   "id": "series-369014",
+   "image_url": "https://artworks.thetvdb.com/banners/series/369014/posters/5ff63475dfe56.jpg",
+   "name": "Monarca",
+   "network": "Netflix",
+   "objectID": "series-369014",
+   "overview": "Ana María regresa a México para reclamar el control del emporio tequilero de su familia, pero, para conseguirlo, debe sobrevivir a un mundo de secretos y corrupción.",
+   "overviews": {
+    "deu": "Nach 20 Jahren kehrt Ana María nach Mexiko zurück und buhlt um die Leitung des Tequila-Konzerns ihrer Familie, der unter Korruption und Geheimnissen einzustürzen droht.",
+    "eng": "After 20 years, Ana Maria returns to Mexico and vies for control of her family's tequila empire as it threatens to crumble under corruption and secrets.",
+    "fin": "Ana María palaa Meksikoon 20 vuoden jälkeen ottaakseen sukunsa korruption ja salaisuuksien heikentämän tequila-imperiumin johtoonsa.",
+    "fra": "Après 20 ans d'absence, Ana María rentre au Mexique pour reprendre les rênes de l'empire familial qui menace de s'effondrer sous le poids de la corruption et des secrets.",
+    "heb": "אנה מריה חוזרת למקסיקו אחרי עשרים שנה כדי לתבוע את השליטה באימפריית הטקילה של משפחתה, הכורעת תחת משא של סודות ומעשי שחיתות.",
+    "ita": "Dopo vent'anni, Ana María torna in Messico e cerca di assumere il controllo dell'azienda di tequila della sua famiglia, che rischia di crollare tra corruzione e segreti.",
+    "kor": "20년 만에 멕시코로 돌아온 아나 마리아. 하지만 그녀의 가문이 세운 테킬라 제국은 이미 무너지고 있다. 부패와 비밀로 오염된 땅에서, 그녀의 싸움이 시작된다.\r\n\r\n주연:이레네 아수엘라, 후안 마누엘 베르날, 오스발도 베나비데스\r\n제작자:디에고 구티에레스",
+    "por": "Uma mulher luta pelo controlo do império de tequila da sua família, um negócio que parece estar destinado a ruir sob o peso da corrupção e dos segredos.",
+    "pt": "Depois de 20 anos, Ana María volta ao México para reivindicar o controle dos negócios da família, mas encontra um mundo de segredos e corrupção no império da tequila.",
+    "rus": "Спустя 20 лет Ана Мария возвращается в Мексику и борется за контроль над принадлежащей на протяжении нескольких поколений её семье бизнес-империей текилы, которой грозит крушение из-за коррупции и множества грязных тайн.\r\n",
+    "spa": "Ana María regresa a México para reclamar el control del emporio tequilero de su familia, pero, para conseguirlo, debe sobrevivir a un mundo de secretos y corrupción.",
+    "zhtw": "時隔 20 年，安娜·瑪莉亞回到墨西哥，正當她家族的龍舌蘭酒帝國在腐敗與秘密盤根錯節的險境中岌岌可危，她出手爭奪帝國的主導權。\r\n"
+   },
+   "primary_language": "spa",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "https://www.netflix.com/title/80211572",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "93297",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "tt8655736",
+     "sourceName": "IMDB",
+     "type": 2
+    }
+   ],
+   "slug": "monarca",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/series/369014/posters/5ff63475dfe56_t.jpg",
+   "translations": {
+    "deu": "Monarca",
+    "eng": "Monarca",
+    "fin": "Monarca",
+    "fra": "Monarca",
+    "heb": "מלכת הטקילה",
+    "ita": "Monarca",
+    "kor": "모나르카",
+    "por": "Monarca",
+    "pt": "Monarca",
+    "rus": "Монархиня",
+    "spa": "Monarca",
+    "zhtw": "酒莊春秋"
+   },
+   "tvdb_id": "369014",
+   "type": "series",
+   "year": "2019"
+  },
+  {
+   "country": "gbr",
+   "first_air_time": "2004-10-18",
+   "id": "series-80833",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/80833-3.jpg",
+   "name": "Monarchy",
+   "network": "Channel 4",
+   "objectID": "series-80833",
+   "overview": "Monarchy is a Channel 4 British TV series, 2004-2007, by British academic David Starkey, charting the political and ideological history of the English monarchy (later British), from the Saxon period to modern times. The show also aired on PBS stations throughout the United States, courtesy of the television station WNET.",
+   "overviews": {
+    "eng": "Monarchy is a Channel 4 British TV series, 2004-2007, by British academic David Starkey, charting the political and ideological history of the English monarchy (later British), from the Saxon period to modern times. The show also aired on PBS stations throughout the United States, courtesy of the television station WNET."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt0431550",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "9484",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "monarchy",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/80833-3_t.jpg",
+   "translations": {
+    "eng": "Monarchy"
+   },
+   "tvdb_id": "80833",
+   "type": "series",
+   "year": "2004"
+  },
+  {
+   "country": "gbr",
+   "first_air_time": "2013-03-17",
+   "id": "series-366410",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/5d1efe3aa8dac.jpg",
+   "name": "Our Queen. A Momentous Year For a Busy Monarch",
+   "network": "ITV1",
+   "objectID": "series-366410",
+   "overview": "An in-depth portrait of the worlds most famous woman by award-winning producer and director Michael Waldman and bestselling royal writer Robert Hardman. Our Queen charts an extraordinary year in the life of Her Majesty, Queen Elizabeth II. With unique access to her family, to her staff, to her prime ministers and to her palaces during the triumphal Diamond Jubilee year, Our Queen is an enthralling study of the Sovereign today. A world leader since the age of 25, how does she retain her hold on the nations affections when political and social currents have transformed so much around her? How does she stay true to the past, yet adapt to the present? This fascinating, two-part observational documentary series is a study of leadership, judgement and character, of spectacular pageantry but also of great warmth and poignancy as it shows what this truly modern monarch means to Britain and the world. As seen on ITV.",
+   "overviews": {
+    "eng": "An in-depth portrait of the worlds most famous woman by award-winning producer and director Michael Waldman and bestselling royal writer Robert Hardman. Our Queen charts an extraordinary year in the life of Her Majesty, Queen Elizabeth II. With unique access to her family, to her staff, to her prime ministers and to her palaces during the triumphal Diamond Jubilee year, Our Queen is an enthralling study of the Sovereign today. A world leader since the age of 25, how does she retain her hold on the nations affections when political and social currents have transformed so much around her? How does she stay true to the past, yet adapt to the present? This fascinating, two-part observational documentary series is a study of leadership, judgement and character, of spectacular pageantry but also of great warmth and poignancy as it shows what this truly modern monarch means to Britain and the world. As seen on ITV.",
+    "pol": "Dokument o jednym z najdłużej panujących monarchów w Wielkiej Brytanii - królowej Elżbiecie II, jej rodzinie i służbie. Przyjazd któregoś ze światowych przywódców zawsze jest sprawdzianem dla dworu."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt5589756",
+     "sourceName": "IMDB",
+     "type": 2
+    }
+   ],
+   "slug": "our-queen",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/5d1efe3aa8dac_t.jpg",
+   "translations": {
+    "eng": "Our Queen. A Momentous Year For a Busy Monarch",
+    "pol": "Nasza królowa Elżbieta"
+   },
+   "tvdb_id": "366410",
+   "type": "series",
+   "year": "2013"
+  },
+  {
+   "country": "gbr",
+   "first_air_time": "1992-05-15",
+   "id": "series-427544",
+   "image_url": "https://artworks.thetvdb.com/banners/images/missing/series.jpg",
+   "name": "The Monarchy",
+   "objectID": "series-427544",
+   "overview": "A documentary series which takes a searching look at the public and private lives of the British Royal Family. The programmes offer a revealing insight into the world's most famous family looking at how the monarchy works, how it has evolved over the centuries and the challenges it faces in the present and the future.",
+   "overviews": {
+    "eng": "A documentary series which takes a searching look at the public and private lives of the British Royal Family. The programmes offer a revealing insight into the world's most famous family looking at how the monarchy works, how it has evolved over the centuries and the challenges it faces in the present and the future."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt3198930",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "10.5240/C616-49EA-568F-1473-AF61-Y",
+     "sourceName": "EIDR",
+     "type": 13
+    }
+   ],
+   "slug": "the-monarchy",
+   "status": "Ended",
+   "translations": {
+    "eng": "The Monarchy"
+   },
+   "tvdb_id": "427544",
+   "type": "series",
+   "year": "1992"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2022-01-14",
+   "id": "series-415050",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/415050/posters/61f06ba7e3361.jpg",
+   "name": "March",
+   "network": "The CW",
+   "objectID": "series-415050",
+   "overview": "Follows the dedicated group of college students at Prairie View A&M University, their pressure-filled journey to become the highest ranked HBCU band, sharing the personal and unique stories of individual members and staff.",
+   "overviews": {
+    "eng": "Follows the dedicated group of college students at Prairie View A&M University, their pressure-filled journey to become the highest ranked HBCU band, sharing the personal and unique stories of individual members and staff."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "155528",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "tt16310620",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "155528",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "march",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/415050/posters/61f06ba7e3361_t.jpg",
+   "translations": {
+    "eng": "March"
+   },
+   "tvdb_id": "415050",
+   "type": "series",
+   "year": "2022"
+  },
+  {
+   "country": "swe",
+   "first_air_time": "1968-02-09",
+   "id": "series-268784",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/268784-1.jpg",
+   "name": "Mosebacke monarki",
+   "network": "SVT",
+   "objectID": "series-268784",
+   "overview": "Nyheter och bullentiner från Mosebacke monarki var ett satiriskt humorprogram av Hans Alfredson och Tage Danielsson, som sändes 1968. Det var en fortsättning på radioprogramet Mosebacke monarki som sänts första gången 1958.",
+   "overviews": {
+    "swe": "Nyheter och bullentiner från Mosebacke monarki var ett satiriskt humorprogram av Hans Alfredson och Tage Danielsson, som sändes 1968. Det var en fortsättning på radioprogramet Mosebacke monarki som sänts första gången 1958."
+   },
+   "primary_language": "swe",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt1280622",
+     "sourceName": "IMDB",
+     "type": 2
+    }
+   ],
+   "slug": "mosebacke-monarki",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/268784-1_t.jpg",
+   "translations": {
+    "eng": "Mosebacke monarki",
+    "swe": "Mosebacke monarki"
+   },
+   "tvdb_id": "268784",
+   "type": "series",
+   "year": "1968"
+  },
+  {
+   "aliases": [
+    "České země a Habsburská monarchie",
+    "The Czech Lands and The Habsburg Monarchy"
+   ],
+   "country": "cze",
+   "first_air_time": "2005-03-10",
+   "id": "series-250871",
+   "image_url": "https://artworks.thetvdb.com/banners/images/missing/series.jpg",
+   "name": "Habsburská monarchie",
+   "network": "Česká televize",
+   "objectID": "series-250871",
+   "overview": "\"Když už má monarchie zaniknout, tak tedy důstojně!\" - prohlásil císař František Josef I. na konci své dlouhé vlády.",
+   "overviews": {
+    "ces": "\"Když už má monarchie zaniknout, tak tedy důstojně!\" - prohlásil císař František Josef I. na konci své dlouhé vlády.",
+    "eng": "\"If the monarchy is to disappear, then with dignity!\" - said Emperor Francis Joseph I at the end of his long reign."
+   },
+   "primary_language": "ces",
+   "primary_type": "series",
+   "slug": "250871-show",
+   "status": "Ended",
+   "translations": {
+    "ces": "Habsburská monarchie",
+    "eng": "Habsburg Monarchy"
+   },
+   "tvdb_id": "250871",
+   "type": "series",
+   "year": "2005"
+  },
+  {
+   "country": "aut",
+   "first_air_time": "2023-05-25",
+   "id": "series-439650",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/439650/posters/6507061b841ef.jpg",
+   "name": "Monaco Inside",
+   "network": "Puls 4",
+   "objectID": "series-439650",
+   "overview": "Wir liefern einen Access All Areas in den Mikrokosmos des Spielplatzes für Milliardäre und Superstars. Helikopter! Megayachten! Grenzenloser Reichtum! Wie lebt es sich am teuersten Ort der Welt? „Too much is never enough!“ Streng gehütete Insider-Geheimnisse werden aufgedeckt – Licht und Schatten liegen sehr nah zusammen.",
+   "overviews": {
+    "deu": "Wir liefern einen Access All Areas in den Mikrokosmos des Spielplatzes für Milliardäre und Superstars. Helikopter! Megayachten! Grenzenloser Reichtum! Wie lebt es sich am teuersten Ort der Welt? „Too much is never enough!“ Streng gehütete Insider-Geheimnisse werden aufgedeckt – Licht und Schatten liegen sehr nah zusammen.",
+    "eng": "The four-part “Joyn Exclusive” report shows what it’s like to live in one of the most expensive places in the world. Life in the principality is viewed, among other things, from the perspective of the Austrian emigrant Gerhard Kilian, who came to Monaco 39 years ago and runs a café here. His guests and acquaintances include: B. the family of Formula 1 driver Charles Leclerc, whom Kilian has known since his childhood. Over the years he has gotten to know the beautiful and rich, but also knows the city's dark side. (Text: BK)"
+   },
+   "primary_language": "deu",
+   "primary_type": "series",
+   "slug": "monaco-inside",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/439650/posters/6507061b841ef_t.jpg",
+   "translations": {
+    "deu": "Monaco Inside",
+    "eng": "Monaco Inside"
+   },
+   "tvdb_id": "439650",
+   "type": "series",
+   "year": "2023"
+  },
+  {
+   "aliases": [
+    "アスコーマーチ"
+   ],
+   "country": "jpn",
+   "first_air_time": "2011-04-24",
+   "id": "series-249671",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/249671-1.jpg",
+   "name": "Asuko March!",
+   "network": "TV Asahi",
+   "objectID": "series-249671",
+   "overview": "Takei plays Yoshino Nao, a girl who fails the entrance exams of her target high school. She winds up enrolling in a technical high school called Kenritsu Asuka Kougyou Koukou, also known by the nickname \"Asuko.\" Out of the 148 entering freshmen, only three are girls, and Nao is the only one in her class.",
+   "overviews": {
+    "eng": "Takei plays Yoshino Nao, a girl who fails the entrance exams of her target high school. She winds up enrolling in a technical high school called Kenritsu Asuka Kougyou Koukou, also known by the nickname \"Asuko.\" Out of the 148 entering freshmen, only three are girls, and Nao is the only one in her class.",
+    "fra": "Après avoir raté son examen d'entrée dans le lycée qu'elle convoitait, Nao Yoshino est contrainte de se réorienter vers un lycée technique appelé Kenritsu Asuka Kougyou Koukou, connu sous le nom de \"Asukou\".\r\n\r\nIl s'avère que ce lycée est presque uniquement peuplé d'élèves masculins. En effet, sur les 148 étudiants de 1ère année entrants, seulement trois sont des filles, dont Nao.\r\nDans sa classe, où elle est la seule fille, Nao est entourée de Yujin Yokoyama et de Makoto Tamaki.\r\n\r\nElle se sent d'abord très seule puisqu'elle est la seule fille, mais très vite, naissent des sentiments d'amitié et d'amour chez la jeune fille...",
+    "jpn": "第一志望の女子校に落ちて、\r\n\r\n仕方なく男ばかりの工業高校に入学してきたひとりの女の子。\r\n周りはむさくるしい男ばかりで理想とは違いすぎる高校生活に戸惑い、\r\n\r\n反発しながらも、徐々に大切な仲間と、恋に学業に実習に奮闘しながら成長していきます・・・。\r\n初めは現実と向き合うことが出来ず、クラスメイトの男子たちのことも見下していた彼女が、\r\n\r\n周囲を理解し、そして理解され、次第に前向きに成長していく姿はきっと週末の夜に元気をくれるはず。",
+    "kor": "1지망이었던 여자고등학교에 떨어진 여자 주인공이 어쩔 수 없이 남자들뿐인 공업고등학교에 입학을 하면서 벌어지는 이야기.",
+    "rus": "Нао — главная героиня этой дорамы. Провалив вступительные экзамены в женскую школу о которой она так мечтала, ей приходиться согласиться на предложенную своим дедушкой школу «Асуко» с техническим уклоном. Поначалу Нао чувствует себя одиноко, ведь она единственная девушка в своем классе, но уже скоро понимает, что её одноклассники не так плохи, как кажутся…"
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt1860389",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "45827",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "asuko-march",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/249671-1_t.jpg",
+   "translations": {
+    "eng": "Asuko March!",
+    "fra": "Asuko March!",
+    "jpn": "アスコーマーチ 〜明日香工業高校物語〜",
+    "kor": "아스코마치~아스카 공업고교 이야기~",
+    "rus": "Весна в Асуко",
+    "zho": "明日香高工進行曲"
+   },
+   "tvdb_id": "249671",
+   "type": "series",
+   "year": "2011"
+  },
+  {
+   "country": "gbr",
+   "first_air_time": "2025-12-02",
+   "id": "series-470747",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/470747/posters/693020debec4c.jpg",
+   "name": "What's the Monarchy For?",
+   "network": "BBC One",
+   "objectID": "series-470747",
+   "overview": "Power, money and influence - the monarchy is at the heart of our national life. David Dimbleby takes a personal look at its role and its future in a changing world.",
+   "overviews": {
+    "eng": "Power, money and influence - the monarchy is at the heart of our national life. David Dimbleby takes a personal look at its role and its future in a changing world."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt39089869",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "306218",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "whats-the-monarchy-for",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/470747/posters/693020debec4c_t.jpg",
+   "translations": {
+    "eng": "What's the Monarchy For?"
+   },
+   "tvdb_id": "470747",
+   "type": "series",
+   "year": "2025"
+  },
+  {
+   "country": "jpn",
+   "first_air_time": "2003-02-06",
+   "id": "series-79046",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/79046-1.jpg",
+   "name": "Gunparade March",
+   "network": "CTC (JA)",
+   "objectID": "series-79046",
+   "overview": "In 1945, World War II abruptly ended when an alien race appeared on Earth and began to slaughter the human population. The year is 1999 - 54 years later, mankind is still fighting to survive against the alien forces. Earth forces now use advanced mecha called Humanoid Walking Tanks (HWTs) to combat the invaders, but throughout the ordeal, far too many pilots have been killed in action. As a result, high school students are now recruited to become HWT pilots. Gunparade March follows the lives of the 5121st Platoon, who have just added a mysterious girl named Mai Shibamura to their ranks.",
+   "overviews": {
+    "deu": "Es ist ungefähr 50 Jahre her, als ein geheimnisvoller Feind namens \"Genjuu\" am Himmel erschien. Die Vernichtung der Menschheit zeichnete sich durch die tobenden Schlachten von Genjuu gegen die Menschen allmählich ab.\r\n\r\nDie Japanische Regierung sitzt im Dilemma - sie entschied sich eine handvoll ausgewählter Jugendlicher Frauen und Männer auf das Schlachtfeld zu schicken. Und so wurde der 14 Jahre alte Atsushi Hayami im Kampf gegen Genjuu ein Mitglied der \"5121 Force\". Als Pilot einer menschenähnlichen Kriegsmaschinerie HTW wurde er an der Front im Kampf gegen den Feind, Japans Trumpfkarte. Doch welches Schicksal ist für Atsushi und seine Freunde vorausbestimmt!?\r\n\r\n(Quelle: anisearch.de)",
+    "eng": "In 1945, World War II abruptly ended when an alien race appeared on Earth and began to slaughter the human population. The year is 1999 - 54 years later, mankind is still fighting to survive against the alien forces. Earth forces now use advanced mecha called Humanoid Walking Tanks (HWTs) to combat the invaders, but throughout the ordeal, far too many pilots have been killed in action. As a result, high school students are now recruited to become HWT pilots. Gunparade March follows the lives of the 5121st Platoon, who have just added a mysterious girl named Mai Shibamura to their ranks.",
+    "fra": "En 1945, des extraterrestres nommés Phantom Beasts envahissent la planète. Les nations décident de faire front commun afin de mettre un terme à la menace. Cinquante ans plus tard, les dégâts sont considérables et le mal continue de s’étendre. Au Japon, on prépare depuis quelques années déjà une armée de méchas, pilotés par de jeunes étudiants, capables de combattre au corps à corps et d’approcher le Brain , source de puissance de l’ennemi. Nous suivons donc le quotidien de l’Unité 5121, jeunes étudiants de Tokyo, que l’arrivée de Shibamura Maï, jeune pilote surdouée mais introvertie, va bouleverser, surtout celle de Hayami Atsushi, garçon timide, qui se retrouvera vite propulser copilote de la belle à bord du dernier modèle de robot.",
+    "jpn": "50年前に突如現れた正体不明にして人類史上最悪の敵「幻獣」との戦いは熾烈を極め、疲弊した人類はまだ年端もゆかぬ少年少女をも戦場へと送り出さざるを得ない状況にあった。そして時は1999年。主人公・速水厚志は「5121」部隊の一員として、人型戦車「ＨＷＴ」を駆り最前線に立つ。果たして彼らを待つ未来とは？",
+    "kor": "50 년 전에 갑자기 나타난 정체 불명의 인류 사상 최악의 적 '환수'. 환수와의 싸움은 치열했고 피폐해진 인류는 아직 성장하지 못한 소년, 소녀 또한 전장으로 보낼 수밖에 없는 상황에 놓여 있었다. 그리고 때는 1999 년. 주인공 하야미 아츠시는 \"5121\"부대의 일원으로서 인간형 전차 'HWT'를 몰아 선두에 선다. 과연 그들을 기다리는 미래는?",
+    "spa": "En contra de lo que se pensaba hasta ahora, el final de la 2ª Guerra Mundial vino provocado por la aparición de un demoledor alienígena que desde entonces no ha parado de aniquilar a la humanidad. A las puertas del s. XXI, y después de muchos intentos frustrados, los ejércitor comienzan a escasear y los gobiernos se ven en la obligación de reclutar a estudiantes para que piloten los robots que se enfrentan al enemigo alienígena. Una de estas secciones juveniles es la protagonista de \"Gunparade March\", un anime de última generación.\r\n",
+    "zho": "為了打倒侵襲熊本市之大型幻獻〞主腦〞，軍方將使用PBE(特殊爆彈）來迎擊。為支援此行動而出擊的5121部隊對幻獻側邊展開的襲擊作戰失敗。然而軍方卻又派遺5121部隊擔任新的PBE小組，要求其再次出擊…"
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "42702",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "gunparade-march",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/79046-1_t.jpg",
+   "translations": {
+    "deu": "Gunparade March",
+    "eng": "Gunparade March",
+    "fra": "Gunparade March: The New War Song",
+    "jpn": "ガンパレード・マーチ 〜新たなる行軍歌〜",
+    "kor": "건퍼레이드 마치 ~새로운 행군가~",
+    "spa": "Gunparade March",
+    "zho": "高機動幻想 ～嶄新之行軍歌～"
+   },
+   "tvdb_id": "79046",
+   "type": "series",
+   "year": "2003"
+  },
+  {
+   "country": "sgp",
+   "first_air_time": "2023-10-14",
+   "id": "series-441146",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/441146/posters/6533ed78b8286.jpg",
+   "name": "Shermin's March",
+   "network": "Channel News Asia",
+   "objectID": "series-441146",
+   "overview": "Shermin is a 30-something writer-producer who has never had a boyfriend. To end her singlehood, she embarks on a journey to find THE ONE. Armed with tips and advice from dating coaches, professors and even friends and family, she fine-tunes her online dating strategies in the hope of finding her prince charming.",
+   "overviews": {
+    "eng": "Shermin is a 30-something writer-producer who has never had a boyfriend. To end her singlehood, she embarks on a journey to find THE ONE. Armed with tips and advice from dating coaches, professors and even friends and family, she fine-tunes her online dating strategies in the hope of finding her prince charming."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "237768",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "shermins-march",
+   "status": "Continuing",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/441146/posters/6533ed78b8286_t.jpg",
+   "translations": {
+    "eng": "Shermin's March"
+   },
+   "tvdb_id": "441146",
+   "type": "series",
+   "year": "2023"
+  },
+  {
+   "country": "gbr",
+   "first_air_time": "2017-10-27",
+   "id": "series-338047",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/338047-1.jpg",
+   "name": "Private Lives of the Monarchs",
+   "network": "U&Yesterday",
+   "objectID": "series-338047",
+   "overview": "Yesterday takes a trip back through time to examine the lives of some of the grandest and most notorious figures in British history.\r\n\r\nIn carefully-arranged poses, the Kings and Queens of history still look down upon us today and are powerful symbols of bygone ages. Their iconic images, captured in famous portraits and paintings, are part of the very fabric of national culture.\r\n\r\nBut what lay behind the pomp and ceremony, the crowns and the courts?\r\n\r\nEach one possessed the same foibles, bad habits and weaknesses as the rest of us. Historian Tracy Borman investigates the hidden histories of our monarchs, examining the very colourful private lives of Charles II, Queen Victoria, Louis IV, George III and the Prince Regent and Henry VIII.",
+   "overviews": {
+    "eng": "Yesterday takes a trip back through time to examine the lives of some of the grandest and most notorious figures in British history.\r\n\r\nIn carefully-arranged poses, the Kings and Queens of history still look down upon us today and are powerful symbols of bygone ages. Their iconic images, captured in famous portraits and paintings, are part of the very fabric of national culture.\r\n\r\nBut what lay behind the pomp and ceremony, the crowns and the courts?\r\n\r\nEach one possessed the same foibles, bad habits and weaknesses as the rest of us. Historian Tracy Borman investigates the hidden histories of our monarchs, examining the very colourful private lives of Charles II, Queen Victoria, Louis IV, George III and the Prince Regent and Henry VIII.",
+    "fin": "Kuninkaallisten palatsien pääkuraattori Tracy Borman vie ohjelman palatsien makuukammareihin ja takaportaikkoihin tutkimaan kuninkaallisten yksityiselämän koukeroita.",
+    "hun": "Figyelmünket a világtörténelem leghatalmasabb és legellentmondásosabb alakjai felé fordítjuk. Tracy Borman utazik és vizsgálódik, hogy sikerüljön feltárni az embereket a személyiségek mögött.",
+    "rus": "Жизнь монархов укутана тайнами, несмотря на то, что эти личности нередко выходят в свет. Главные герои этого проекта - люди, которые стоят во главе своих государств. Символы прошлого, единоличные правители, которые держат под своим контролем всю страну. Долгие годы власть в ведущих государствах мира принадлежала монархом, однако сегодня в мире встречаются единичные случаи, когда король или император решает судьбу государства. Историк Трейси Борман приглашает зрителей в большое путешествие по миру личных историй таких известных правителей, как Джордж Третий, Людовик Четвертый, королева Виктория, Карл Второй и многих других."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "89592",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "private-lives-of-the-monarchs",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/338047-1_t.jpg",
+   "translations": {
+    "eng": "Private Lives of the Monarchs",
+    "fin": "Kuninkaallisten salatut yksityiselämät",
+    "hun": "Magánéletek",
+    "rus": "Частная жизнь коронованных особ"
+   },
+   "tvdb_id": "338047",
+   "type": "series",
+   "year": "2017"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2013-04-22",
+   "id": "series-367372",
+   "image_url": "https://artworks.thetvdb.com/banners/images/missing/series.jpg",
+   "name": "Minecraft na Modach",
+   "network": "YouTube",
+   "objectID": "series-367372",
+   "overview": "Minecraft, ale wypróbowaliśmy najbardziej szalone mody, ponieważ kiedy szukamy modów, możemy znaleźć najlepsze mody Minecraft, przydatne i zabawne mody, ale możemy również znaleźć najgorsze mody, takie jak szalone mody Minecraft, absurdalne i bezużyteczne mody. Więc dzisiaj przetestujemy najbardziej szalone mody ze wszystkich Minecraft !.\r\n",
+   "overviews": {
+    "eng": "Minecraft but we tried the craziest mods because when we look for mods we can find the best minecraft mods, useful and fun mods but we can also find the worst mods as crazy minecraft mods, absurd and useless mods. So today we will test the craziest mods of all minecraft!.\r\n",
+    "pol": "Minecraft, ale wypróbowaliśmy najbardziej szalone mody, ponieważ kiedy szukamy modów, możemy znaleźć najlepsze mody Minecraft, przydatne i zabawne mody, ale możemy również znaleźć najgorsze mody, takie jak szalone mody Minecraft, absurdalne i bezużyteczne mody. Więc dzisiaj przetestujemy najbardziej szalone mody ze wszystkich Minecraft !.\r\n"
+   },
+   "primary_language": "pol",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "UCLLNPuvRGKxSczJcxlOiMXg",
+     "sourceName": "Youtube",
+     "type": 11
+    }
+   ],
+   "slug": "minecraft-na-modach",
+   "status": "Ended",
+   "translations": {
+    "eng": "Minecraft on Mods",
+    "pol": "Minecraft na Modach"
+   },
+   "tvdb_id": "367372",
+   "type": "series",
+   "year": "2013"
+  },
+  {
+   "country": "gbr",
+   "first_air_time": "2013-07-20",
+   "id": "series-271696",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/271696-1.jpg",
+   "name": "David Starkey's Music and Monarchy",
+   "network": "BBC Two",
+   "objectID": "series-271696",
+   "overview": "David Starkey explores how the story of British music has been shaped by the monarchy.",
+   "overviews": {
+    "eng": "David Starkey explores how the story of British music has been shaped by the monarchy."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "https://www.bbc.co.uk/programmes/p018rf83",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "tt3521212",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "57116",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "57116",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "david-starkeys-music-and-monarchy",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/271696-1_t.jpg",
+   "translations": {
+    "eng": "David Starkey's Music and Monarchy"
+   },
+   "tvdb_id": "271696",
+   "type": "series",
+   "year": "2013"
+  },
+  {
+   "country": "irl",
+   "first_air_time": "2019-07-25",
+   "id": "series-378405",
+   "image_url": "https://artworks.thetvdb.com/banners/images/missing/series.jpg",
+   "name": "Beidh Aonach Amárach",
+   "network": "TG4",
+   "objectID": "series-378405",
+   "overview": "Witness the excitement, tension and fun as we join the competitors going for glory at Ireland's country shows and fairs. With 140 agricultural shows across Ireland, this scene is hugely popular with competitors and spectators. Each year thousands of people spend months preparing before travelling to take part in the competitions every weekend. We join the army of volunteers who organise and judge these events.",
+   "overviews": {
+    "gle": "Witness the excitement, tension and fun as we join the competitors going for glory at Ireland's country shows and fairs. With 140 agricultural shows across Ireland, this scene is hugely popular with competitors and spectators. Each year thousands of people spend months preparing before travelling to take part in the competitions every weekend. We join the army of volunteers who organise and judge these events."
+   },
+   "primary_language": "gle",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "https://www.tg4.ie/en/player/categories/top-documentaries/?series=Beidh%20Aonach%20Am%C3%A1rach&genr",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "tt12795562",
+     "sourceName": "IMDB",
+     "type": 2
+    }
+   ],
+   "slug": "beidh-aonach-amarach",
+   "status": "Ended",
+   "translations": {
+    "gle": "Beidh Aonach Amárach"
+   },
+   "tvdb_id": "378405",
+   "type": "series",
+   "year": "2019"
+  },
+  {
+   "aliases": [
+    "Deo King: Yeongwoneui Gunju",
+    "The King: Monarch of Eternity",
+    "The King: Forever Sovereign",
+    "The King: Youngwonui Gunjoo",
+    "Deo King: Yeongwoneui Gunju",
+    "El rey: eterno monarca",
+    "The King: Monarch of Eternity",
+    "The King: The Eternal Monarch",
+    "El Rey Eterno Monarca",
+    "پادشاه ابدی"
+   ],
+   "country": "kor",
+   "first_air_time": "2020-04-17",
+   "id": "series-377559",
+   "image_url": "https://artworks.thetvdb.com/banners/series/377559/posters/5e955134d43c9.jpg",
+   "name": "더 킹: 영원의 군주",
+   "network": "SBS",
+   "objectID": "series-377559",
+   "overview": "악마에 맞서 차원의 문(門)을 닫으려는 이과(理科) 형 대한 제국 황제와 누군가의 삶·사람·사랑을 지키려는 문과(文科) 형 대한민국 형사의 공조를 통해 차원이 다른 로맨스를 그린 드라마.",
+   "overviews": {
+    "ara": "يعبر إمبراطور كوري مُعاصر من خلال بوّابة غامضة وينتقل إلى عالم موازٍ، حيث يقابل محقّقة شرطة متّقدة الحماسة... فمن شرّع الأبواب بين العالمين؟",
+    "deu": "Ein koreanischer Kaiser aus der heutigen Zeit gelangt durch ein rätselhaftes Portal in eine Parallelwelt, in der er auf eine temperamentvolle Kriminalpolizistin stößt.",
+    "eng": "A modern-day Korean emperor passes through a mysterious portal and into a parallel world, where he encounters a feisty police detective.",
+    "fas": "در شبی برادر پادشاه برای به دست اوردن فلوت جادویی که خیر و برکت می اورد و دروازه ای جادویی برای رفتن به دنیایی موازی را باز می کند برادر خود را می کشد.شاهزاده با کمک یک افسر پلیس از این سو قصد زنده می ماند و ...",
+    "fin": "Nykyajassa elävä korealainen keisari astuu salaperäisestä portista rinnakkaismaailmaan, missä hän kohtaa pippurisen poliisin.",
+    "fra": "L'histoire est celle d'un empereur coréen Lee Gon qui tente de fermer les portes d'un monde parallèle ouvert par des démons qui ont été déchaînés par une divinité dans le monde humain, et d'un détective Jung Tae-eul qui tente de protéger le peuple et celui qu'il aime.",
+    "heb": "קיסר קוריאני בן זמננו עובר ליקום מקביל דרך שער מסתורי, ופוגש בלשית משטרה נמרצת.",
+    "ita": "Un imperatore dell'attuale Corea attraversa un portale misterioso che conduce a un mondo parallelo, dove incontra una esuberante detective.",
+    "jpn": "並行する2つの世界をつなぐ門をくぐり、別世界から現代の韓国へとやってきた若き皇帝。そこで待ち受けていたのは、強さを内に秘めた女性刑事との運命の出会い。",
+    "kor": "악마에 맞서 차원의 문(門)을 닫으려는 이과(理科) 형 대한 제국 황제와 누군가의 삶·사람·사랑을 지키려는 문과(文科) 형 대한민국 형사의 공조를 통해 차원이 다른 로맨스를 그린 드라마.",
+    "por": "Um imperador coreano dos tempos modernos passa por um portal misterioso e entra num mundo paralelo, onde conhece uma detetive aguerrida.",
+    "pt": "Um imperador coreano passa por um portal misterioso e entra em um mundo paralelo onde conhece uma detetive obstinada.",
+    "rus": "Дорама \"Король: Правитель вечности\" - фантастическая романтическая дорама о двух параллельных вселенных. Одна вселенная напоминает современную Корею, какой мы ее знаем и любим. Тут развиты технологии, люди привыкли существовать в медиа-пространстве, а жизнь безумна в своём скоростном потоке. Альтернативная вселенная - это империя, управляемая одним монархом. Чтобы бороться со злом и закрыть дверь между двумя мирами, правитель Корейской империи Ли Гон объединяет силы с детективом Тхэ Иль, живущей в современной Корее. Сумеют ли они закрыть врата, открытые Дьяволом, и спасти миры от опасности?",
+    "spa": "Un drama de fantasía y romance en el que una deidad ha desencadenado un demonio al mundo de los humanos, y ese demonio ha abierto la puerta a un mundo paralelo. Uno se parece a la Corea moderna tal como la conocemos, mientras que el otro es un universo alternativo en el que Corea es un imperio gobernado por un solo monarca. Para luchar contra el mal y cerrar la puerta entre sus dos mundos, el gobernante del Imperio coreano, Lee Gon, termina uniendo fuerzas con la detective Jung Tae Eul, que reside en la actual Corea.",
+    "tha": "จักรพรรดิเกาหลีแห่งโลกปัจจุบันผ่านประตูมิติลึกลับและหลุดเข้าไปในโลกคู่ขนาน จนได้มาเจอกับตำรวจสืบสวนสาวจอมเฮี้ยว",
+    "vie": "Cánh cổng kì bí đưa vị đế vương Hàn Quốc thời hiện đại đến một thế giới song song. Ở thế giới ấy, anh gặp cô nàng thanh tra cảnh sát đầy nhiệt huyết.\r\n\r\nHoàng đế Lee Gon, tình cờ lạc đến thế giới hiện đại qua cánh cửa liên thông hai thế giới do Ác Quỷ mở ra. Tại đây anh gặp được nữ cảnh sát Jung Tae Eul (Kim Go Eun) - người có diện mạo giống hệt nữ tội phạm Luna trong thế giới của Lee Gon. Họ cần phải hợp tác đóng lại cánh cửa để bảo vệ cả hai thế giới.",
+    "yue": "一名現代韓國皇帝穿越神秘之門來到平行世界，遇上一位強悍果敢的警探。",
+    "zho": "该剧以\"平行世界\"为背景，上帝把恶魔释放到了人间，恶魔打开了平行世界的大门。如果另一个世界有比\"我\"生活得更好的\"我\"，你会跟他改变你的生活吗？面对恶魔抛出的这些问题，欲关上平行世界之门的理科型大韩帝国皇帝李坤，和为了守护爱情的文科型韩国刑警郑泰乙，通过跨世界互助演绎出时而激动、时而酸涩，层次不同的罗曼史。"
+   },
+   "primary_language": "kor",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt11228748",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "https://programs.sbs.co.kr/drama/theking/",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "93846",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "the-king",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/series/377559/posters/5e955134d43c9_t.jpg",
+   "translations": {
+    "ara": "الملك الخالد",
+    "deu": "The King: Eternal Monarch",
+    "eng": "The King: Eternal Monarch",
+    "fas": "سلطنت ابدی",
+    "fin": "The King: Eternal Monarch",
+    "fra": "The King: Eternal Monarch",
+    "heb": "המלך, תמיד",
+    "ita": "The King: Eternal Monarch",
+    "jpn": "ザ・キング: 永遠の君主",
+    "kor": "더 킹: 영원의 군주",
+    "por": "The King: Eternal Monarch",
+    "pt": "O Rei Eterno",
+    "rus": "Король: Правитель вечности",
+    "spa": "El Rey: Eterno Monarca",
+    "tha": "จอมราชันบัลลังก์อมตะ",
+    "vie": "Quân Vương Bất Diệt - The King Eternal Monarch",
+    "yue": "The King：永遠的君主",
+    "zho": "国王：永远的君主"
+   },
+   "tvdb_id": "377559",
+   "type": "series",
+   "year": "2020"
+  },
+  {
+   "country": "aus",
+   "first_air_time": "2018-04-24",
+   "id": "series-346757",
+   "image_url": "https://artworks.thetvdb.com/banners/images/missing/series.jpg",
+   "name": "Monash and Me",
+   "network": "ABC TV",
+   "objectID": "series-346757",
+   "overview": "Walkley award-winning investigative journalist and war correspondent Peter Greste embarks on a journey to demystify the story of Australia's Great War hero, Sir John Monash.",
+   "overviews": {
+    "eng": "Walkley award-winning investigative journalist and war correspondent Peter Greste embarks on a journey to demystify the story of Australia's Great War hero, Sir John Monash."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "slug": "346757-show",
+   "status": "Ended",
+   "translations": {
+    "eng": "Monash and Me"
+   },
+   "tvdb_id": "346757",
+   "type": "series",
+   "year": "2018"
+  },
+  {
+   "country": "gbr",
+   "first_air_time": "2007-11-26",
+   "id": "series-81136",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/81136-1.jpg",
+   "name": "Monarchy: The Royal Family at Work",
+   "network": "BBC",
+   "objectID": "series-81136",
+   "overview": "A fascinating insight into the life and work of the Queen and Royal Family over the course of a year. Discover how the Royal Family fulfils its duties at home and abroad.",
+   "overviews": {
+    "deu": "\"Ein Jahr mit der Queen - wie das Königshaus arbeitet\" bietet einen außergewöhnlichen Einblick in die Arbeit der britischen Königin und ihrer Familie. Von großen Staatsbesuchen und königlichen Stippvisiten bis hin zu Treffen im kleinen Kreis zeichnet die dreiteilige Dokumentarreihe ein beeindruckendes Bild davon, wie die britische Monarchie funktioniert.\r\n\r\nText: ZDF",
+    "eng": "A fascinating insight into the life and work of the Queen and Royal Family over the course of a year. Discover how the Royal Family fulfils its duties at home and abroad.",
+    "spa": "Esta serie documental acompaña durante un año a la Reina de Inglaterra y a la familia real británica. Muestra cómo cumplen con sus responsabilidades diarias y cómo afrontan sus viajes oficiales al extranjero, ofreciendo una visión íntima de sus vidas dentro y fuera de palacio."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt1148714",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "34324",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "monarchy-the-royal-family-at-work",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/81136-1_t.jpg",
+   "translations": {
+    "deu": "Ein Jahr mit der Queen",
+    "eng": "Monarchy: The Royal Family at Work",
+    "spa": "La Familia Real Británica"
+   },
+   "tvdb_id": "81136",
+   "type": "series",
+   "year": "2007"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2026-04-04",
+   "id": "series-475967",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/475967/posters/69ccdcbd8a168.jpg",
+   "name": "Made for March",
+   "network": "Paramount+",
+   "objectID": "series-475967",
+   "overview": "There are 357 Division I men’s basketball programs in the United States. 68 teams qualify for the NCAA tournament. But only one will be crowned champion. With unprecedented access, experience the thrilling season-long journey of heartbreak and triumph like never before as two of college basketball’s elite programs chase a chance at sports immortality. ",
+   "overviews": {
+    "eng": "There are 357 Division I men’s basketball programs in the United States. 68 teams qualify for the NCAA tournament. But only one will be crowned champion. With unprecedented access, experience the thrilling season-long journey of heartbreak and triumph like never before as two of college basketball’s elite programs chase a chance at sports immortality. "
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "https://www.paramountplus.com/shows/made-for-march/",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "313854",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "tt39822465",
+     "sourceName": "IMDB",
+     "type": 2
+    }
+   ],
+   "slug": "made-for-march",
+   "status": "Continuing",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/475967/posters/69ccdcbd8a168_t.jpg",
+   "translations": {
+    "eng": "Made for March"
+   },
+   "tvdb_id": "475967",
+   "type": "series",
+   "year": "2026"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2016-06-25",
+   "id": "series-389534",
+   "image_url": "https://artworks.thetvdb.com/banners/images/missing/series.jpg",
+   "name": "The Wedding March",
+   "network": "Hallmark Channel",
+   "objectID": "series-389534",
+   "overview": "After two decades apart, college sweethearts Olivia and Mick are reunited when Mick is booked as the singer at Olivia's wedding to another man.",
+   "overviews": {
+    "eng": "After two decades apart, college sweethearts Olivia and Mick are reunited when Mick is booked as the singer at Olivia's wedding to another man.",
+    "fra": "Après deux décennies de séparation, les amoureux de l'université Olivia et Mick sont réunis lorsque Mick est réservé comme chanteur au mariage d'Olivia avec un autre homme."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "https://www.hallmarkchannel.com/the-wedding-march",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "42537",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "the-wedding-march",
+   "status": "Ended",
+   "translations": {
+    "eng": "The Wedding March",
+    "fra": "En route vers le mariage",
+    "rus": "Свадебный марш"
+   },
+   "tvdb_id": "389534",
+   "type": "series",
+   "year": "2016"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2014-12-25",
+   "id": "series-289792",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/289792-1.jpg",
+   "name": "The March Family Letters",
+   "network": "YouTube",
+   "objectID": "series-289792",
+   "overview": "Ever since its publication, readers have fallen in love with the hilarious and heart-warming story of the March family. Featuring relatable conflicts and strong female characters, the tale of four sisters growing up under the guidance of their mother resonates as much today as it did nearly 150 years ago. With The March Family Letters, viewers will finally be able to interact with these beloved characters on a new and exciting level.",
+   "overviews": {
+    "eng": "Ever since its publication, readers have fallen in love with the hilarious and heart-warming story of the March family. Featuring relatable conflicts and strong female characters, the tale of four sisters growing up under the guidance of their mother resonates as much today as it did nearly 150 years ago. With The March Family Letters, viewers will finally be able to interact with these beloved characters on a new and exciting level."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "slug": "the-march-family-letters",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/289792-1_t.jpg",
+   "translations": {
+    "eng": "The March Family Letters"
+   },
+   "tvdb_id": "289792",
+   "type": "series",
+   "year": "2014"
+  },
+  {
+   "country": "deu",
+   "first_air_time": "1983-03-03",
+   "id": "series-83327",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/83327-3.jpg",
+   "name": "Monaco Franze – Der ewige Stenz",
+   "network": "BR",
+   "objectID": "series-83327",
+   "overview": "Franz Münchinger ist „Monaco Franze“, ein Kind aus dem kleinbürgerlichen Münchner Westend, inzwischen erfolgreicher Kriminalkommissar und verheiratet mit Annette von Soettingen, einer Dame von Welt. Beide sind zwei grundverschiedene Menschen – und dennoch: Sie brauchen und lieben sich. Mit Lokalkolorit liebevoll in Szene gesetzt, erzählen zehn Episoden von den Großstadtabenteuern eines ganz normalen Mannes und einer trotz Kapriolen glücklichen Ehe. Monaco ermittelt allerdings zum Leidwesen seiner Frau und seines Kollegen Manni Kopfeck gerne auch nach Feierabend, denn so sehr er den Hafen der Ehe schätzt, lockt stets die holde Weiblichkeit, welche dem überzeugten Wiederholungstäter die ein oder andere heikle Situation beschehrt. So ist auch hier das Glück nur von begrenzter Dauer und so erfährt der Monaco nach endgültiger Trennung seiner Frau den freien Fall vom Lebemann zum mittellosen Alkoholiker, um schließlich in den Trümmern seiner Existenz zu seinem „Spatzl“ zurückzufinden.",
+   "overviews": {
+    "deu": "Franz Münchinger ist „Monaco Franze“, ein Kind aus dem kleinbürgerlichen Münchner Westend, inzwischen erfolgreicher Kriminalkommissar und verheiratet mit Annette von Soettingen, einer Dame von Welt. Beide sind zwei grundverschiedene Menschen – und dennoch: Sie brauchen und lieben sich. Mit Lokalkolorit liebevoll in Szene gesetzt, erzählen zehn Episoden von den Großstadtabenteuern eines ganz normalen Mannes und einer trotz Kapriolen glücklichen Ehe. Monaco ermittelt allerdings zum Leidwesen seiner Frau und seines Kollegen Manni Kopfeck gerne auch nach Feierabend, denn so sehr er den Hafen der Ehe schätzt, lockt stets die holde Weiblichkeit, welche dem überzeugten Wiederholungstäter die ein oder andere heikle Situation beschehrt. So ist auch hier das Glück nur von begrenzter Dauer und so erfährt der Monaco nach endgültiger Trennung seiner Frau den freien Fall vom Lebemann zum mittellosen Alkoholiker, um schließlich in den Trümmern seiner Existenz zu seinem „Spatzl“ zurückzufinden.",
+    "eng": "Franz Muenchinger, called \"Monaco\", is married to Annete von Soettingen. But he can't take his eyes of young girls and as a police officer he often goes out for \"Fahndung\". Always at his side is Manni Kopfeck, also policeman and always hoping that one of the girls Franz gets will be left for him.",
+    "fra": "Franz Münchinger, surnommé Monaco, est un détective d'une cinquantaine d'années, marié à Annette. Facétieux, bon vivant, il mène néanmoins ses enquêtes avec rigueur."
+   },
+   "primary_language": "deu",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt0085058",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "41003",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "monaco-franze",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/83327-3_t.jpg",
+   "translations": {
+    "deu": "Monaco Franze – Der ewige Stenz",
+    "eng": "Monaco Franze",
+    "fra": "Monaco Franze - Der ewige Stenz"
+   },
+   "tvdb_id": "83327",
+   "type": "series",
+   "year": "1983"
+  },
+  {
+   "country": "deu",
+   "first_air_time": "2022-05-09",
+   "id": "series-420000",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/420000/posters/6388cd1dc5cf2.jpg",
+   "name": "Davina & Shania – We Love Monaco",
+   "network": "RTL+",
+   "objectID": "series-420000",
+   "overview": "Doku-Soap über Davina Shakira und Shania Tyra, den beiden Töchtern von Robert und Carmen Geiss. Im Spin-Off der „Geissens“ werden Davina und Shania flügge und wollen ihr eigenes Apartment in der besten Gegend des Fürstentums Monacos beziehen. Endlich können die beiden Geiss-Töchter selbst entscheiden, was unternommen wird. Papa Robert und Mama Carmen sind allerdings nicht komplett abgeschrieben: Der Bal de Noël steht vor der Tür. Gemeinsam bereitet sich die Luxus-Familie im elterlichen Apartment darauf vor – Robert und Carmen sind schließlich erfahrene Ballbesucher und können ihren Töchtern daher Beistand leisten. (Text: GR)",
+   "overviews": {
+    "deu": "Doku-Soap über Davina Shakira und Shania Tyra, den beiden Töchtern von Robert und Carmen Geiss. Im Spin-Off der „Geissens“ werden Davina und Shania flügge und wollen ihr eigenes Apartment in der besten Gegend des Fürstentums Monacos beziehen. Endlich können die beiden Geiss-Töchter selbst entscheiden, was unternommen wird. Papa Robert und Mama Carmen sind allerdings nicht komplett abgeschrieben: Der Bal de Noël steht vor der Tür. Gemeinsam bereitet sich die Luxus-Familie im elterlichen Apartment darauf vor – Robert und Carmen sind schließlich erfahrene Ballbesucher und können ihren Töchtern daher Beistand leisten. (Text: GR)",
+    "eng": "Documentary soap about Davina Shakira and Shania Tyra, the two daughters of Robert and Carmen Geiss. In the Geissens spin-off, Davina and Shania are fully fledged and want to move into their own apartment in the best part of the Principality of Monaco. Finally the two Geiss daughters can decide for themselves what to do. However, Papa Robert and Mama Carmen are not completely written off: the Bal de Noël is just around the corner. The luxury family prepares together in their parents' apartment - after all, Robert and Carmen are experienced ball-goers and can therefore offer their daughters support. (Text: GR)"
+   },
+   "primary_language": "deu",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "213595",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "davina-shania-we-love-monaco",
+   "status": "Continuing",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/420000/posters/6388cd1dc5cf2_t.jpg",
+   "translations": {
+    "deu": "Davina & Shania – We Love Monaco",
+    "eng": "Davina & Shania – We Love Monaco"
+   },
+   "tvdb_id": "420000",
+   "type": "series",
+   "year": "2022"
+  },
+  {
+   "aliases": [
+    "Monaco 110"
+   ],
+   "country": "deu",
+   "first_air_time": "2014-03-26",
+   "id": "series-279748",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/279748-2.jpg",
+   "name": "Heiter bis tödlich - Monaco 110",
+   "network": "Das Erste",
+   "objectID": "series-279748",
+   "overview": "Die Geschichten des „Schmunzelkrimis“ drehen sich vor allem um das brenzlige Verhältnis zwischen der Polizeihauptmeisterin Inge Aschenbrenner (Monika Baumgartner) und ihrem Sohn ‚Bubi‘ Thomas (Marcus Brandl), das sich dramatisch verändert, als er plötzlich ihr Chef wird. Zuvor machte sich Inge vor allem um die Gesundheit ihres Mopses namens Buzzi Gedanken und fragte sich, wann ihr ‚Bubi‘ endlich die temperamentvolle Feinkostladen-Besitzerin Gianna Bertuzzi (Isabel Scholz) heiraten wird. Die neue Autoritätenverteilung auf der Polizeiwache führt nun zu allerhand Turbulenzen. Alina Sokar übernimmt außerdem die Rolle der Polizeipraktikantin Cornelia Ringlstetter, die nicht davor zurückschreckt, ihren betrunkenen Kollegen nach einer gemeinsamen Liebesnacht einer Alkoholkontrolle zu unterziehen.",
+   "overviews": {
+    "deu": "Die Geschichten des „Schmunzelkrimis“ drehen sich vor allem um das brenzlige Verhältnis zwischen der Polizeihauptmeisterin Inge Aschenbrenner (Monika Baumgartner) und ihrem Sohn ‚Bubi‘ Thomas (Marcus Brandl), das sich dramatisch verändert, als er plötzlich ihr Chef wird. Zuvor machte sich Inge vor allem um die Gesundheit ihres Mopses namens Buzzi Gedanken und fragte sich, wann ihr ‚Bubi‘ endlich die temperamentvolle Feinkostladen-Besitzerin Gianna Bertuzzi (Isabel Scholz) heiraten wird. Die neue Autoritätenverteilung auf der Polizeiwache führt nun zu allerhand Turbulenzen. Alina Sokar übernimmt außerdem die Rolle der Polizeipraktikantin Cornelia Ringlstetter, die nicht davor zurückschreckt, ihren betrunkenen Kollegen nach einer gemeinsamen Liebesnacht einer Alkoholkontrolle zu unterziehen."
+   },
+   "primary_language": "deu",
+   "primary_type": "series",
+   "slug": "monaco-110",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/279748-2_t.jpg",
+   "translations": {
+    "deu": "Heiter bis tödlich - Monaco 110",
+    "eng": "Monaco 110"
+   },
+   "tvdb_id": "279748",
+   "type": "series",
+   "year": "2014"
+  },
+  {
+   "aliases": [
+    "A Cursed Monarchy"
+   ],
+   "country": "fra",
+   "first_air_time": "2005-07-11",
+   "id": "series-80362",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/80362-1.jpg",
+   "name": "Les Rois maudits (2005)",
+   "network": "France 2",
+   "objectID": "series-80362",
+   "overview": "\"Tous maudits, jusqu'à la septième génération !\" telle est la funeste malédiction que le chef des Templiers, depuis les flammes du bûcher, lance au visage de Philippe le Bel, Roi de France.\r\n\r\nNous sommes en 1314 à la veille de la Guerre de Cent ans et la prophétie va se réaliser : pendant plus d´un demi-siècle, les rois se succèdent sur le trône de France, mais n´y restent jamais bien longtemps. D´intrigues de palais en morts subites, de révolutions dynastiques en guerres meurtrières, c´est la valse des Rois Maudits...",
+   "overviews": {
+    "ces": "Svědectví jedné epochy, která ovlivnila celý evropský kontinent. Na začátku čtrnáctého století vládl Francii železnou rukou legendární král Filip IV. Krásný. Zatímco jeho tři synové jsou odhodláni pokračovat ve stopách svého otce, jeho jediná dcera se vydává za krále Anglie Eduarda II. Aby si Filip mohl posílit svůj hospodářský a politický vliv, musí porazit ještě jednoho významného nepřítele, který na něj může zaútočit ve středověku nebývalým způsobem. Jaké nepohodlné se mu zdají myšlenky nejen papeže, ale i významného templářského řádu. Pouze několik hodin času zabere ozbrojeným mužem uvěznění templářů. Dlouhých sedm let trvá nerovný zápas, na jehož konci velký mistr templářů v plamenech na hranici vyřkl kletbu, která poznamená dějiny. Nepotrvá dlouho a Evropě vypukne stoletá válka ...",
+    "eng": "It is the early 1300's and the treasury of France, under the rule of Philippe IV (Philippe le Bel or Philippe the Beautiful), is empty. The king decides the only solution is to raid the treasures of the Knights Templar (amongst others) and concocts various charges of treason, heresy and deviance against the Knights and their Grand Master Jacques de Molay. Having confessed under torture to the crimes of which he is accused, de Molay is condemned to be burned at the stake. With his dying breath he curses the king, the king's advisor (Guillaume de Nogaret), the pope (Pope Clement V) and the thirteen succeeding generations of their families. There follows one of the most dramatic periods in French history, half a century of political intrigue, murder, treason, war and famine, which ultimately culminates in the 100 Years War.",
+    "fra": "\"Tous maudits, jusqu'à la septième génération !\" telle est la funeste malédiction que le chef des Templiers, depuis les flammes du bûcher, lance au visage de Philippe le Bel, Roi de France.\r\n\r\nNous sommes en 1314 à la veille de la Guerre de Cent ans et la prophétie va se réaliser : pendant plus d´un demi-siècle, les rois se succèdent sur le trône de France, mais n´y restent jamais bien longtemps. D´intrigues de palais en morts subites, de révolutions dynastiques en guerres meurtrières, c´est la valse des Rois Maudits...",
+    "ita": "La maledizione lanciata da Jacques de Molay, gran maestro del Tempio, tra le fiamme del rogo dove brucia su ordine del re di Francia, percorre questa storia come un filo conduttore incandescente: :Maledetti! Siate tutti maledetti fino alla tredicesima generazione della vostra stirpe!: Attraverso i personaggi del racconto si manifestano tutti i colori dell:anima, grazie anche alle scenografie di Philippe Druillet, autore cult di fumetti: dal nero più scuro al bianco più puro, passando per il rosso sangue che è anche il colore emblematico di uno dei due eroi di questa storia, Roberto d:Artois.",
+    "pol": "Jest rok 1307 r. Pod rządami króla Filipa IV Pięknego rośnie siła Francji, jednak lud cierpi. Wiele wojen opróżnia skarbiec, choć władca nakłada na poddanych nowe obciążenia. Zaciąga też liczne pożyczki u bogatego zakonu templariuszy. Lecz gdy zwraca się o kolejną, mającą sfinansować roczną działalność państwa, wielki mistrz zakonu Jakub de Molay stanowczo odmawia. Król Filip wydaje więc rozkaz zniszczenia zakonu. Hrabia Robert d'Artois, pozbawiony przez podstępną ciotkę Mahaut należnego mu dziedzictwa, poprzysięga krewnej zemstę.",
+    "por": "\"Todos amaldiçoados, até a sétima geração!\" É esta a funesta maldição que o Grão-Mestre dos Templários coloca sobre Felipe, o Belo, Rei da França. Estamos em 1314, à véspera da Guerra dos Cem anos e a profecia se realizará.",
+    "rus": "Франция, 1313 год. Взойдя на костер, Великий магистр Ордена тамплиеров Жак де Молэ проклял своих палачей — Папу Климента V, короля Филиппа Красивого, его министра Гийома Ногарэ и все их потомство до тринадцатого колена. Так начался один из самых драматичных периодов французской истории — полвека интриг, заговоров, убийств, предательств и голода, закончившиеся Столетней войной… Экранизация одноименной книги Мориса Дрюона «Проклятые короли»."
+   },
+   "primary_language": "fra",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt0429046",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "69405",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "the-accursed-kings-2005",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/80362-1_t.jpg",
+   "translations": {
+    "ces": "Prokletí králové",
+    "eng": "The Accursed Kings (2005)",
+    "fra": "Les Rois maudits (2005)",
+    "ita": "La Maledizione dei Templari",
+    "pol": "Królowie przeklęci",
+    "por": "Os Reis Malditos",
+    "rus": "Проклятые короли",
+    "spa": "Los Reyes Malditos"
+   },
+   "tvdb_id": "80362",
+   "type": "series",
+   "year": "2005"
+  },
+  {
+   "aliases": [
+    "Inside Monaco Adel, Geld und Glamour"
+   ],
+   "country": "gbr",
+   "first_air_time": "2020-06-08",
+   "id": "series-383136",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/383136/posters/61b1245ed4b5c.jpg",
+   "name": "Inside Monaco: Playground of the Rich",
+   "network": "BBC Two",
+   "objectID": "series-383136",
+   "overview": "Goes behind the scenes at the Royal palace and follows the life of Prince Albert II, who rules this unique sovereign state. Monaco is known as the playground of the super-rich, and we meet some of its millionaire residents - alongside the workers who deliver their luxury lifestyle.",
+   "overviews": {
+    "deu": "Trotz seiner überschaubaren Größe präsentiert sich das Fürstentum Monaco als Welthauptstadt des Glamours. Auf diesem exklusiven Spielplatz der Superreichen tummeln sich Milliardäre – und Menschen, die ihnen das Leben schön machen.",
+    "eng": "Goes behind the scenes at the Royal palace and follows the life of Prince Albert II, who rules this unique sovereign state. Monaco is known as the playground of the super-rich, and we meet some of its millionaire residents - alongside the workers who deliver their luxury lifestyle."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "https://www.bbc.co.uk/programmes/m000jykc",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "tt14814642",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "104886",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "inside-monaco-playground-of-the-rich",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/383136/posters/61b1245ed4b5c_t.jpg",
+   "translations": {
+    "deu": "Inside Monaco - Adel, Geld und Glamour",
+    "eng": "Inside Monaco: Playground of the Rich"
+   },
+   "tvdb_id": "383136",
+   "type": "series",
+   "year": "2020"
+  },
+  {
+   "country": "pol",
+   "first_air_time": "2011-10-05",
+   "id": "series-375603",
+   "image_url": "https://artworks.thetvdb.com/banners/images/missing/series.jpg",
+   "name": "Zagrajmy w Minecraft na modach",
+   "network": "YouTube",
+   "objectID": "series-375603",
+   "overview": "Zagrajmy w Minecraft produkcji Reziego",
+   "overviews": {
+    "eng": "Let's play Minecraft by Rezi.\r\n",
+    "pol": "Zagrajmy w Minecraft produkcji Reziego"
+   },
+   "primary_language": "pol",
+   "primary_type": "series",
+   "slug": "zagrajmy-w-minecraft-na-modach",
+   "status": "Ended",
+   "translations": {
+    "eng": "Let's Play Minecraft on Mods",
+    "pol": "Zagrajmy w Minecraft na modach"
+   },
+   "tvdb_id": "375603",
+   "type": "series",
+   "year": "2011"
+  },
+  {
+   "aliases": [
+    "Monarch Industry",
+    "Emperor Phoenix",
+    "Shang Yang Fu"
+   ],
+   "country": "chn",
+   "first_air_time": "2021-01-09",
+   "id": "series-394885",
+   "image_url": "https://artworks.thetvdb.com/banners/series/394885/posters/5ffacfa100bd3.jpg",
+   "name": "上阳赋",
+   "network": "Youku",
+   "objectID": "series-394885",
+   "overview": "上阳郡主王儇出身望族，拥有令人艳羡的容貌与才情，却被无奈卷入棋局博弈，数次被当做交换筹码。王儇被迫放弃青梅竹马，嫁于手握重兵的豫章王萧綦，两人经历贺兰箴之难、宁朔之劫、晖州兵变等，从最初的互不信任逐步发展为灵魂相托的伴侣。经历诸多变故的王儇始终坚守“心怀天下”初衷，与萧綦并肩守护百姓家园。",
+   "overviews": {
+    "eng": "Intense power play between the royals as they all fight for a better kingdom for everyone.",
+    "fra": "La jeune et naïve Wang Xuan, fille du Premier ministre, se voit contrainte par son père de se marier au général Xiao Qi. Le soir de leur mariage, Xiao Qi quitte la capitale. Sur le chemin, elle se fait kidnapper par le prince He Lan afin de se venger de Xiao Qi. Sans le savoir, c'est cet évènement qui va rapprocher le jeune couple marié.\r\n\r\nAlors que Wang Xuan et Xiao Qi tombent amoureux l'un de l'autre, ils se retrouvent séparés à cause de la lutte pour le pouvoir entre les clans Wang et Xie. Tandis que la guerre approche, ils n'auront pas d'autres choix que de surmonter les différentes épreuves dans l'espoir de se retrouver un jour.",
+    "rus": "Достигнув совершеннолетия, дочь канцлера оказывается в пучине дворцовых интриг и заговоров. Предстоящий брак с принцем, которого девушка обожает, отменяется, и теперь она должна выйти замуж за безродного, но могущественного генерала. Вместе с ним она пройдет долгий путь от ненависти до любви.",
+    "zho": "上阳郡主王儇出身望族，拥有令人艳羡的容貌与才情，却被无奈卷入棋局博弈，数次被当做交换筹码。王儇被迫放弃青梅竹马，嫁于手握重兵的豫章王萧綦，两人经历贺兰箴之难、宁朔之劫、晖州兵变等，从最初的互不信任逐步发展为灵魂相托的伴侣。经历诸多变故的王儇始终坚守“心怀天下”初衷，与萧綦并肩守护百姓家园。"
+   },
+   "primary_language": "zho",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "https://mydramalist.com/28037-emperor-phoenix",
+     "sourceName": "Fan Site",
+     "type": 8
+    },
+    {
+     "id": "tt13795432",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "116293",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "the-rebel-princess",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/series/394885/posters/5ffacfa100bd3_t.jpg",
+   "translations": {
+    "eng": "The Rebel Princess",
+    "fra": "The Rebel Princess",
+    "rus": "Поэма о Шанъян",
+    "zho": "上阳赋",
+    "zhtw": "上陽賦"
+   },
+   "tvdb_id": "394885",
+   "type": "series",
+   "year": "2021"
+  },
+  {
+   "country": "gbr",
+   "first_air_time": "1956-02-22",
+   "id": "series-78711",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/78711-2.jpg",
+   "name": "Colonel March of Scotland Yard",
+   "objectID": "series-78711",
+   "overview": "Colonel March of Scotland Yard is based on the character created by John Dickson Carr under the pen name Carter Dickson.  Boris Karloff, famous for his affiliation with Universal Studios during the \"Golden Age of Hollywood Horror Movies,\" portrays Colonel March, of the Department of Queer Complaints who investigates unusual cases, locked-room murders, and mysteries concerning the supernatural. The British series was filmed at Southhall Studios, Middlesex, England from December 1954 - Spring  1955. Boris, 65 years old at the time, as Colonel March is not afraid to get right into the thick of things, often confronting the perpetrators directly. In 1953, a film called Colonel March Investigates was made by Fountain Films Production.  It combined three episodes (Hot Money, Death in the Dressing Room, and The New Invisible Man) Karloff narrates the three segments and stars as the lead.",
+   "overviews": {
+    "eng": "Colonel March of Scotland Yard is based on the character created by John Dickson Carr under the pen name Carter Dickson.  Boris Karloff, famous for his affiliation with Universal Studios during the \"Golden Age of Hollywood Horror Movies,\" portrays Colonel March, of the Department of Queer Complaints who investigates unusual cases, locked-room murders, and mysteries concerning the supernatural. The British series was filmed at Southhall Studios, Middlesex, England from December 1954 - Spring  1955. Boris, 65 years old at the time, as Colonel March is not afraid to get right into the thick of things, often confronting the perpetrators directly. In 1953, a film called Colonel March Investigates was made by Fountain Films Production.  It combined three episodes (Hot Money, Death in the Dressing Room, and The New Invisible Man) Karloff narrates the three segments and stars as the lead.",
+    "fra": "Cette série met en scène les enquêtes du colonel Perceval March, chargé des « affaires non classées », au sein de Scotland Yard. Ce détective hors pair, et borgne, est confronté à des créatures étranges : abominable homme des neiges, homme invisible, extraterrestres..."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt0046588",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "21150",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "colonel-march-of-scotland-yard",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/78711-2_t.jpg",
+   "translations": {
+    "eng": "Colonel March of Scotland Yard",
+    "fin": "Eversti March",
+    "fra": "Les aventures du Colonel March"
+   },
+   "tvdb_id": "78711",
+   "type": "series",
+   "year": "1956"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2017-03-01",
+   "id": "series-323673",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/323673-1.jpg",
+   "name": "UConn: The March to Madness",
+   "network": "HBO",
+   "objectID": "series-323673",
+   "overview": "Just as there’s no such thing as a sure thing in sports, there’s an exception to every rule. Witness the University of Connecticut women’s basketball program: The team has won four consecutive NCAA champions and 10 since 2000. The March to Madness spotlights the players, coaches and support personnel, chronicling the hard work and high expectations game-by-game in the American Athletic Conference. Scheduled to run through the conclusion of the Huskies’ season, the show features exclusive behind-the-scenes footage, offering a unique look at the personalities who shape the powerhouse program headquartered in Storrs, Conn.",
+   "overviews": {
+    "eng": "Just as there’s no such thing as a sure thing in sports, there’s an exception to every rule. Witness the University of Connecticut women’s basketball program: The team has won four consecutive NCAA champions and 10 since 2000. The March to Madness spotlights the players, coaches and support personnel, chronicling the hard work and high expectations game-by-game in the American Athletic Conference. Scheduled to run through the conclusion of the Huskies’ season, the show features exclusive behind-the-scenes footage, offering a unique look at the personalities who shape the powerhouse program headquartered in Storrs, Conn."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt7242398",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "EP02575441",
+     "sourceName": "TMS (Zap2It)",
+     "type": 3
+    },
+    {
+     "id": "129354",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "uconn-the-march-to-madness",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/323673-1_t.jpg",
+   "translations": {
+    "eng": "UConn: The March to Madness"
+   },
+   "tvdb_id": "323673",
+   "type": "series",
+   "year": "2017"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2016-02-16",
+   "id": "series-307253",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/307253-1.jpg",
+   "name": "Gonzaga: The March to Madness",
+   "network": "HBO",
+   "objectID": "series-307253",
+   "overview": "Gonzaga: The March to Madness features exclusive behind-the-scenes footage of the Gonzaga Bulldogs basketball team, offering a unique look at the personalities behind the powerhouse program and revealing how a small college nestled in Spokane, Wash. has achieved success against all odds.",
+   "overviews": {
+    "eng": "Gonzaga: The March to Madness features exclusive behind-the-scenes footage of the Gonzaga Bulldogs basketball team, offering a unique look at the personalities behind the powerhouse program and revealing how a small college nestled in Spokane, Wash. has achieved success against all odds."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "65530",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "gonzaga-the-march-to-madness",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/307253-1_t.jpg",
+   "translations": {
+    "eng": "Gonzaga: The March to Madness"
+   },
+   "tvdb_id": "307253",
+   "type": "series",
+   "year": "2016"
+  },
+  {
+   "country": "fra",
+   "first_air_time": "2025-09-23",
+   "id": "series-468181",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/468181/posters/6914ec49a5e78.jpg",
+   "name": "Monaco, la grande histoire d’un micro-État",
+   "network": "Arte",
+   "objectID": "series-468181",
+   "overview": "À Monaco, un habitant sur deux est millionnaire. Mais derrière le faste, le Rocher cache une histoire de révoltes étouffées, d’alliances lucratives et d’intrigues politiques. En trois épisodes, cette série dévoile les coulisses d’une principauté façonnée par la famille Grimaldi depuis sept siècles, le poids des alliances et les zones d’ombre d’un Etat minuscule devenu l’un des épicentres mondiaux de la finance.",
+   "overviews": {
+    "deu": "Jahrhundertelang herrschte die Adelsfamilie Grimaldi nicht nur über Monaco, sondern auch über weite Teile Frankreichs. Heute liegt der nur 20 Hektar große Zwergstaat im Spannungsfeld mächtiger europäischer, politischer, diplomatischer und finanzieller Interessen. Zwischen Operettenkulisse, dynastischen Intrigen und den stillen Fluren von Kanzleien und Banken erzählt diese dreiteilige Serie die große Geschichte eines der kleinsten Staaten der Welt.",
+    "fra": "À Monaco, un habitant sur deux est millionnaire. Mais derrière le faste, le Rocher cache une histoire de révoltes étouffées, d’alliances lucratives et d’intrigues politiques. En trois épisodes, cette série dévoile les coulisses d’une principauté façonnée par la famille Grimaldi depuis sept siècles, le poids des alliances et les zones d’ombre d’un Etat minuscule devenu l’un des épicentres mondiaux de la finance."
+   },
+   "primary_language": "fra",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "300890",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "tt38489862",
+     "sourceName": "IMDB",
+     "type": 2
+    }
+   ],
+   "slug": "monaco-la-grande-histoire-dun-micro-etat",
+   "status": "Continuing",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/468181/posters/6914ec49a5e78_t.jpg",
+   "translations": {
+    "deu": "Monaco - Zwergstaat mit großer Geschichte",
+    "fra": "Monaco, la grande histoire d’un micro-État"
+   },
+   "tvdb_id": "468181",
+   "type": "series",
+   "year": "2025"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2014-05-13",
+   "id": "series-279957",
+   "image_url": "https://artworks.thetvdb.com/banners/images/missing/series.jpg",
+   "name": "Inside: US Soccer's March to Brazil",
+   "network": "ESPN",
+   "objectID": "series-279957",
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt4246822",
+     "sourceName": "IMDB",
+     "type": 2
+    }
+   ],
+   "slug": "inside-us-soccers-march-to-brazil",
+   "status": "Ended",
+   "translations": {
+    "eng": "Inside: US Soccer's March to Brazil"
+   },
+   "tvdb_id": "279957",
+   "type": "series",
+   "year": "2014"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2016-04-09",
+   "id": "series-375714",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/375714/posters/64afbaba4d3dd.jpg",
+   "name": "March to Victory: Road to Berlin",
+   "objectID": "series-375714",
+   "overview": "The Road To Berlin details Adolf Hitler’s ascension to power in Germany, the beginning of the war in Europe, the subjugation of virtually all of Europe by Germany, the Battle of Britain and the Battle of the Atlantic; the German invasion of Russia and the Allies eventual counterattacks on the Eastern Front and the D-Day invasion that ultimately led to the liberation of Europe, the destruction of Hitler’s Reich and Germany’s surrender.",
+   "overviews": {
+    "eng": "The Road To Berlin details Adolf Hitler’s ascension to power in Germany, the beginning of the war in Europe, the subjugation of virtually all of Europe by Germany, the Battle of Britain and the Battle of the Atlantic; the German invasion of Russia and the Allies eventual counterattacks on the Eastern Front and the D-Day invasion that ultimately led to the liberation of Europe, the destruction of Hitler’s Reich and Germany’s surrender.",
+    "pt": "Os filmes de Hollywood nunca poderiam transmitir realmente o que aconteceu entre 1939 a 1945. Para entender, é preciso ver as imagens e ouvir as vozes dos homens que sobreviveram. Filmagens raras e entrevistas exclusivas captaram as sensações daquele inferno na Terra."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "281812",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "road-to-berlin",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/375714/posters/64afbaba4d3dd_t.jpg",
+   "translations": {
+    "eng": "March to Victory: Road to Berlin",
+    "pt": "Marcha para Vitória - A Caminho de Berlim"
+   },
+   "tvdb_id": "375714",
+   "type": "series",
+   "year": "2016"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2006-02-10",
+   "id": "series-425021",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/425021/posters/6496f73fcf305.jpg",
+   "name": "March to Victory: Road to Rome",
+   "objectID": "series-425021",
+   "overview": "All roads lead to Rome and for the men of the Allied forces, it was a long and bloody one. It is estimated that between 1943 and 1945 some 90,000 Allied and 110,000 German soldiers died in Italy. No Campaign in the West cost the infantry more than Italy – in lives lost and wounds suffered. This remarkable 5 DVD set in the story of the men and the battles, portrays some of the most savage on any front of the Second World War.",
+   "overviews": {
+    "eng": "All roads lead to Rome and for the men of the Allied forces, it was a long and bloody one. It is estimated that between 1943 and 1945 some 90,000 Allied and 110,000 German soldiers died in Italy. No Campaign in the West cost the infantry more than Italy – in lives lost and wounds suffered. This remarkable 5 DVD set in the story of the men and the battles, portrays some of the most savage on any front of the Second World War."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "slug": "march-to-victory-road-to-rome",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/425021/posters/6496f73fcf305_t.jpg",
+   "translations": {
+    "eng": "March to Victory: Road to Rome"
+   },
+   "tvdb_id": "425021",
+   "type": "series",
+   "year": "2006"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2006-02-07",
+   "id": "series-425020",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/425020/posters/6417c5fcda17c.jpg",
+   "name": "March to Victory: Road to Tokyo",
+   "network": "Tubi",
+   "objectID": "series-425020",
+   "overview": "The war in the Pacific Theater of World War II was unlike any ever fought. It was savage, no-holds-barred conflict, fought in dense jungles and on barren volcanic islands where fighting was savage and often hand-to-hand. This remarkable collection is the uncensored story of that land war against Japan.",
+   "overviews": {
+    "eng": "The war in the Pacific Theater of World War II was unlike any ever fought. It was savage, no-holds-barred conflict, fought in dense jungles and on barren volcanic islands where fighting was savage and often hand-to-hand. This remarkable collection is the uncensored story of that land war against Japan."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "slug": "march-to-victory-road-to-tokyo",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/425020/posters/6417c5fcda17c_t.jpg",
+   "translations": {
+    "eng": "March to Victory: Road to Tokyo"
+   },
+   "tvdb_id": "425020",
+   "type": "series",
+   "year": "2006"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "1959-12-24",
+   "id": "series-456318",
+   "image_url": "https://artworks.thetvdb.com/banners/images/missing/series.jpg",
+   "name": "Fredric March Presents Tales from Dickens",
+   "objectID": "series-456318",
+   "overview": "An anthology series bringing Charles Dickens’ classic stories to life, with Fredric March hosting adaptations of beloved works like A Christmas Carol and Great Expectations, capturing the essence of Dickens’ characters and themes.\r\n\r\n\r\n\r\n\r\n",
+   "overviews": {
+    "eng": "An anthology series bringing Charles Dickens’ classic stories to life, with Fredric March hosting adaptations of beloved works like A Christmas Carol and Great Expectations, capturing the essence of Dickens’ characters and themes.\r\n\r\n\r\n\r\n\r\n"
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt0166463",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "155345",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "fredric-march-presents-tales-from-dickens",
+   "status": "Ended",
+   "translations": {
+    "eng": "Fredric March Presents Tales from Dickens"
+   },
+   "tvdb_id": "456318",
+   "type": "series",
+   "year": "1959"
+  },
+  {
+   "aliases": [
+    "Death March Rhapsody",
+    "Death March kara Hajimaru Isekai Kyousoukyoku",
+    "Death March Kara Hajimaru Isekai Kyōsōkyoku",
+    "Death March kara Hajimaru Isekai Kyousoukyoku",
+    "Марш смерти в рапсодию параллельного мирa",
+    "Death March kara Hajimaru Isekai Kyousoukyoku",
+    "Death March to the Parallel World Rhapsody"
+   ],
+   "country": "jpn",
+   "first_air_time": "2018-01-11",
+   "id": "series-336404",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/336404-2.jpg",
+   "name": "デスマーチからはじまる異世界狂想曲",
+   "network": "AT-X",
+   "objectID": "series-336404",
+   "overview": "デスマーチ真っ最中のプログラマー“サトゥー”こと鈴木一郎。仮眠を取っていたはずが、気が付くと異世界に…!?\r\n視界の端には、仮眠前に作っていたゲームを思わせるメニュー画面。\r\nレベル１の初期状態。ただし初心者救済策として実装したばかりの「全マップ探査」とマップ殲滅ボム「流星雨」×３付。目の前には蜥蜴人の大軍が!\r\n助かるために「流星雨」を使用したサトゥーは、その結果レベルが310となり莫大な財宝を手に入れる―。\r\n夢か現か、ここにサトゥーの旅が始まる!",
+   "overviews": {
+    "ara": "\"ساتو\" أو كما يُسمّى إتشيرو سوزوكي، مبرمجٌ في خضم مسيرة الموت. كان يُفترض به أن يأخذ قيلولةً لكنّه يستيقظ ليجد نفسه وسط عالمٍ آخر بطريقةٍ ما.... ما يقع نصب عينيه يشبه واجهة قائمة اللعبة التي كان يعمل عليها قبل قيلولته. كما أنّه في مرحلة المبتدئ ومستواه هو 1. لكن، بحوزته ثلاثة من \"النيازك الساقطة\" والتي يمكن أن تغطّي خريطةً بأكملها. فجأةً، ظهر مجموعة من الرجال السحالي أمامه ولأجل البقاء، يستخدم ساتو النيازك الساقطة، فإذ بمستواه يتحوّل إلى 310 وأصبح فاحش الثراء. سواء أكان حلمًا أم حقيقة، بدأت رحلة ساتو الآن.",
+    "deu": "Eines Tages wird der 29-jährige Programmierer Suzuki Ichirou urplötzlich in ein Fantasy-RPG versetzt, in dem er sich als 14 Jahre jüngerer Teenager wiederfindet. Nun unter dem Namen Satou, besitzt er unglaubliche Kräfte, auf deren Limit er jedoch Acht geben muss. Nachdem Satou eine ganze Armee von Eidechsen-Männern ausgelöscht hat, beschließt er, seine Fähigkeit geheim zu halten und als Abenteurer ein friedliches Leben zu führen. Doch so war es im Spiel nicht vorgesehen und schon bald tauchen zahlreiche Bedrohungen auf, die sich ihm in den Weg stellen.\r\n",
+    "eng": "29-year-old programmer Suzuki Ichirou finds himself transported into a fantasy RPG. Within the game, he's a 15-year-old named Satou. At first he thinks he's dreaming, but his experiences seem very real. Due to a powerful ability he possesses with limited use, he ends up wiping out an army of lizard men and becomes a high leveled adventurer. Satou decides to hide his level, and plans to live peacefully and meet new people. However, developments in the game's story, such as the return of a demon king, may cause a nuisance to Satou's plans.",
+    "fra": "Suzuki Ichirou, un programmeur âgé de 29 ans se retrouve transporté dans le jeu qu'il était en train de créer.\r\n\r\nDans \"le jeu\", ce dernier se nomme Satou et est âgé de 15 ans. Bien qu'au départ il pensait être en train de rêver, il se rend compte que son jeu est un peu trop réel.\r\n\r\nDû à sa puissance démesurée, il peut décimer une armée d'homme lézard en un instant.\r\n\r\nIl prend la décision de cacher son pouvoir pour rencontrer et vivre en paix avec les différents habitants de ce monde, cependant, des événements prévus à l'avance dans son jeu (comme le retour du roi démon) vont se mettre au travers de sa route.",
+    "ita": "Ichirou Suzuki è un programmatore di ventinove anni impegnato in una “Death March”, un termine inglese che indica quando un team di programmazione è impegnato più che assiduamente a un progetto destinato con ampia probabilità a fallire.\r\nSotto i colpi della stanchezza, Ichiro si mette a schiacciare un pisolino ma poi si risveglia in uno strano luogo. È nei panni di un 15enne di nome Satou, ha abiti normali e un livello pari a 1, per cui crede di stare sognando di essere in un RPG fantasy. Le sensazioni però sembrano davvero molto vivide.\r\nDopo aver usato un potere speciale (Meteor Shower) per neutralizzare l’attacco di un esercito di uomini lucertola, sale abbondantemente di livello, ma decide di nasconderlo per poter vivere tranquillamente l’avventura e incontrare nuove persone. Purtroppo però, grossi guai interferiranno nel suo cammino…",
+    "jpn": "デスマーチ真っ最中のプログラマー“サトゥー”こと鈴木一郎。仮眠を取っていたはずが、気が付くと異世界に…!?\r\n視界の端には、仮眠前に作っていたゲームを思わせるメニュー画面。\r\nレベル１の初期状態。ただし初心者救済策として実装したばかりの「全マップ探査」とマップ殲滅ボム「流星雨」×３付。目の前には蜥蜴人の大軍が!\r\n助かるために「流星雨」を使用したサトゥーは、その結果レベルが310となり莫大な財宝を手に入れる―。\r\n夢か現か、ここにサトゥーの旅が始まる!",
+    "kor": "스물아홉 살의 온라인 게임 프로그래머 스즈키. \r\n과로 상태에서 잠깐 눈을 붙였다가 마치 자신이 만들던 게임 같은 이세계의 캐릭터로서 눈을 뜨게 되고. \r\n그 앞에 나타난 엄청난 숫자의 몬스터 대군에게 초심자 지원용으로 지급된 맵 섬멸 폭탄 '유성우'를 사용한다. \r\n그 결과 대량의 몬스터와 함께 용신마저 쓰러트린 그는 단숨에 무적에 가까운 LV310까지 레벨업을 하고. \r\n막대한 재산과 용신이 지배하던 지역까지 손에 넣게 되는데...",
+    "pol": "29-letni programista Suzuki Ichirō uczestniczy w \"pochodzie śmierci\" - zbliża się deadline, termin oddania pracy. Po pewnej drzemce, budzi się w innym świecie jako 15-latek imieniem Satō. Dzięki swojej specjalnej mocy deszcz meteorytów ściera z powierzchni ziemi armię jaszczurowatych i zdobywa ogromne bogactwa, a przy okazji bardzo wysoki poziom. Jednakże nie afiszuje się z tym i planuje żyć spokojnie, zwiedzając krainę...",
+    "pt": "“Satou,” também conhecido como Ichiro Suzuki, é um programador no meio de uma marcha da morte. Ele só foi tirar um cochilo, mas sem querer acordou em outro mundo... Diante da tela de menu do jogo no qual ele estava trabalhando antes de adormecer. Ele é um personagem completamente novo, ainda no nivel 1. De repente, um grupo numeroso de homens-lagarto aparece diante dele. Para sobreviver, Satou usa uma Chuva de Meteoro - e com isso, sobe para o nível 310 e fica cheio da grana. Seja sonho ou realidade, a jornada de Satou está só começando.",
+    "rus": "29-летний программист Сузуки Ичиро находит себя перенесенным в фантастический РПГ. В игре, он 15-летний по имени Сато. Сначала он думает, что он спит, но его опыт кажется очень реальным. Из-за мощной способности он  уничтожает армию ящериц и становится высокого уровня . Сато решает скрыть его уровня, а планирует жить мирно и познакомиться с новыми людьми. Однако развитие событий в сюжете игры, например, возвращение короля демонов, могут принести неудобства в планы Сато.",
+    "spa": "El programador de videojuegos de 29 años Suzuki Ichirou es transportado a un juego de rol de fantasía en el cual se encontraba trabajando.\r\n\r\nDebido a una poderosa habilidad que posee con un uso limitado, termina eliminando a un ejército de hombres lagarto y se convierte en un aventurero de alto nivel y, aunque al principio piensa que está soñando, pero sus experiencias son tan realistas que se empieza a dar cuenta de que todo podría no ser el sueño que él creía.\r\n\r\nSatou decide ocultar su nivel, y planea vivir en paz y conocer gente nueva. Sin embargo, los desarrollos en la historia del juego, como el regreso de un rey demonio, pueden causar molestias a los planes de Satou.",
+    "zho": "　　正在爆肝加班当中的程式设计师，游戏中名为“佐藤”的铃木一郎（29岁）。 \r\n　　原本应该在小睡片刻的他，回过神竟发现自己被放逐到了陌生的异世界。 \r\n　　连慌乱的闲暇都没有，一大群从未见过的怪物逼近眼前，流星雨自天空倾盆而降—— \r\n　　然后转眼间，最强等级的力量和巨额财富都得手了。 \r\n　　就这样，佐藤“温馨，时而严肃，并兼具后宫”的异世界冒险故事就此展开。"
+   },
+   "primary_language": "jpn",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "10.5240/8E19-DADB-831E-ED4D-5D75-B",
+     "sourceName": "EIDR",
+     "type": 13
+    },
+    {
+     "id": "tt7712706",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "https://deathma-anime.com/",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "76122",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "deathma_anime",
+     "sourceName": "X (Twitter)",
+     "type": 6
+    }
+   ],
+   "slug": "death-march-to-the-parallel-world-rhapsody",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/336404-2_t.jpg",
+   "translations": {
+    "ara": "مسيرة الموت التي تبدأ بسيمفونية العالم الآخر",
+    "deu": "Death March to the Parallel World Rhapsody",
+    "eng": "Death March to the Parallel World Rhapsody",
+    "fra": "Death March to the Parallel World Rhapsody",
+    "ita": "Death March to the Parallel World Rhapsody",
+    "jpn": "デスマーチからはじまる異世界狂想曲",
+    "kor": "데스마치에서 시작되는 이세계 광상곡",
+    "pol": "Death March kara Hajimaru Isekai Kyousoukyoku",
+    "pt": "Death March to the Parallel World Rhapsody",
+    "rus": "Марш смерти под рапсодию параллельного мира",
+    "spa": "Death March kara Hajimaru Isekai Kyousoukyoku",
+    "zho": "爆肝工程师的异世界狂想曲"
+   },
+   "tvdb_id": "336404",
+   "type": "series",
+   "year": "2018"
+  },
+  {
+   "aliases": [
+    "Road to Rome",
+    "The Great Battles of WW2 - Road To Rome"
+   ],
+   "country": "usa",
+   "first_air_time": "2008-05-08",
+   "id": "series-280455",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/280455-1.jpg",
+   "name": "March to Victory: Road to Rome (2008)",
+   "objectID": "series-280455",
+   "overview": "All roads lead to Rome and for the men of the Allied forces, it was a long and bloody one. It is estimated that between 1943 and 1945 some 90,000 Allied and 110,000 German soldiers died in Italy. No Campaign in the West cost the infantry more than Italy – in lives lost and wounds suffered.",
+   "overviews": {
+    "eng": "All roads lead to Rome and for the men of the Allied forces, it was a long and bloody one. It is estimated that between 1943 and 1945 some 90,000 Allied and 110,000 German soldiers died in Italy. No Campaign in the West cost the infantry more than Italy – in lives lost and wounds suffered.",
+    "swe": "Mellan 1943 och 1945 beräknas ca 90 000 allierade och 110 000 tyska soldater ha dött i Italien. Detta var krigets avgörande skede och med Rom i sikte rusade de amerikanska och brittiska styrkorna för de sista konfrontationerna.\r\n\r\nDenna serie berättar om de män som slogs i några av andra världskrigets viktigaste strider och skildrar hur de allierade sakta närmade sig seger."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "slug": "road-to-rome",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/280455-1_t.jpg",
+   "translations": {
+    "eng": "March to Victory: Road to Rome (2008)",
+    "swe": "The Great Battles of WW2 - Road To Rome"
+   },
+   "tvdb_id": "280455",
+   "type": "series",
+   "year": "2008"
+  }
+ ],
+ "links": {
+  "next": "https://api4.thetvdb.com/v4/search?query=monarch&type=series&limit=50&page=1",
+  "page_size": 50,
+  "prev": null,
+  "self": "https://api4.thetvdb.com/v4/search?query=monarch&type=series&limit=50&page=0",
+  "total_items": 62
+ },
+ "status": "success"
+}

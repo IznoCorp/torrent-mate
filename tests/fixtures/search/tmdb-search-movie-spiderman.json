@@ -1,0 +1,417 @@
+{
+ "page": 1,
+ "results": [
+  {
+   "adult": false,
+   "backdrop_path": "/qeQJx07rK2xm8SD2sJxFKhE7gs0.jpg",
+   "genre_ids": [
+    878,
+    28,
+    12
+   ],
+   "id": 969681,
+   "original_language": "en",
+   "original_title": "Spider-Man: Brand New Day",
+   "overview": "Quatre ans se sont écoulés, Peter, désormais adulte, vit seul, s'est volontairement effacé de la vie et des souvenirs de ses proches. Luttant contre le crime dans un New York qui ne le reconnaît plus, il se consacre entièrement à la protection de la ville - un Spider-Man à plein temps - mais à mesure que les responsabilités s'intensifient, la pression provoque une transformation physique surprenante qui menace son existence, tandis qu'une étrange nouvelle vague de crimes donne naissance à l'une des menaces les plus redoutables qu'il ait jamais affrontées.",
+   "popularity": 1990.6295,
+   "poster_path": "/yikio8CfJxIA7faZxgvB9FGXy6u.jpg",
+   "release_date": "2026-07-28",
+   "softcore": false,
+   "title": "Spider-Man : Brand New Day",
+   "video": false,
+   "vote_average": 7.988,
+   "vote_count": 946
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/14QbnygCuTO0vl7CAFmPf1fgZfV.jpg",
+   "genre_ids": [
+    28,
+    12,
+    878
+   ],
+   "id": 634649,
+   "original_language": "en",
+   "original_title": "Spider-Man: No Way Home",
+   "overview": "Après les événements liés à l'affrontement avec Mysterio, l'identité secrète de Spider-Man a été révélée. Il est poursuivi par le gouvernement américain, qui l'accuse du meurtre de Mysterio, et traqué par les médias. Cet événement a également des conséquences terribles sur la vie de sa petite-amie M.J. et de son meilleur ami Ned. Désemparé, Peter Parker demande alors de l'aide au docteur Strange. Ce dernier lance un sort pour que tout le monde oublie que Peter est Spider-Man. Mais les choses ne se passent pas comme prévu, et cette action altère la stabilité de l'espace-temps. Cela ouvre le « multivers », un concept terrifiant dont ils ne savent quasiment rien...",
+   "popularity": 520.8023,
+   "poster_path": "/jwfDFqzxBkXC5bERBZrCEfK9iii.jpg",
+   "release_date": "2021-12-15",
+   "softcore": false,
+   "title": "Spider-Man : No Way Home",
+   "video": false,
+   "vote_average": 7.936,
+   "vote_count": 22475
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/fn4n6uOYcB6Uh89nbNPoU2w80RV.jpg",
+   "genre_ids": [
+    28,
+    12,
+    878
+   ],
+   "id": 315635,
+   "original_language": "en",
+   "original_title": "Spider-Man: Homecoming",
+   "overview": "Après ses spectaculaires débuts dans Captain America : Civil War, le jeune Peter Parker découvre peu à peu sa nouvelle identité, celle de Spider-Man, le super-héros lanceur de toile. Galvanisé par son expérience avec les Avengers, Peter rentre chez lui auprès de sa tante May, sous l’œil attentif de son nouveau mentor, Tony Stark. Il s’efforce de reprendre sa vie d’avant, mais au fond de lui, Peter rêve de se prouver qu’il est plus que le sympathique super héros du quartier. L’apparition d’un nouvel ennemi, le Vautour, va mettre en danger tout ce qui compte pour lui...",
+   "popularity": 192.4217,
+   "poster_path": "/wFNNv1ZHglNdXJLYiEgpLY5sa9S.jpg",
+   "release_date": "2017-07-05",
+   "softcore": false,
+   "title": "Spider-Man : Homecoming",
+   "video": false,
+   "vote_average": 7.3,
+   "vote_count": 23481
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/zQ8AxTPiCiS5nnwXpwTBPBHSaa5.jpg",
+   "genre_ids": [
+    28,
+    878
+   ],
+   "id": 557,
+   "original_language": "en",
+   "original_title": "Spider-Man",
+   "overview": "Orphelin, Peter Parker est élevé par sa tante May et son oncle Ben dans le quartier Queens de New York. Tout en poursuivant ses études de biophysique à l'université, il trouve un emploi de photographe au journal Daily Bugle. Cependant, après avoir été mordu par une araignée radioactive, ce dernier est sujet à des transformations physiques : son agilité et sa force se sont accrues, et il se voit doter de pouvoirs surnaturels. Peter décide alors de participer à un combat de catch qu'il remporte avec une facilité déconcertante. Mais l'organisateur du spectacle, décrétant qu'il y a eu tricherie, refuse de lui remettre le prix de 3 000 dollars qui lui revient de droit. Au même moment, l'homme d'affaires mégalomane Norman Osborn expérimente sur lui-même de dangereuses solutions chimiques. Des mutations s'opèrent bientôt sur son corps et son esprit. Il se transforme alors en Bouffon Vert.",
+   "popularity": 191.869,
+   "poster_path": "/pNz1NREgddPdlzytlR8mW4B26fW.jpg",
+   "release_date": "2002-05-01",
+   "softcore": false,
+   "title": "Spider-Man",
+   "video": false,
+   "vote_average": 7.3,
+   "vote_count": 21016
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/vamhMTvh9m9zFHDoR0v1nRtf6T4.jpg",
+   "genre_ids": [
+    28,
+    12,
+    878
+   ],
+   "id": 429617,
+   "original_language": "en",
+   "original_title": "Spider-Man: Far From Home",
+   "overview": "Peter et ses amis passent leurs vacances d’été en Europe. Mais ils n’auront pas vraiment l’occasion de se reposer puisque Peter accepte d’aider Nick Fury pour débusquer les mystérieuses créatures qui sont la cause des catastrophes naturelles qui frappent le continent.",
+   "popularity": 117.4955,
+   "poster_path": "/9FkewgPxlMPjgKhFN7LaRJEqmCI.jpg",
+   "release_date": "2019-06-28",
+   "softcore": false,
+   "title": "Spider-Man : Far From Home",
+   "video": false,
+   "vote_average": 7.395,
+   "vote_count": 17257
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/HVcza6tJtWFrLriuh3Ano4Vt46.jpg",
+   "genre_ids": [
+    28,
+    12,
+    878
+   ],
+   "id": 1930,
+   "original_language": "en",
+   "original_title": "The Amazing Spider-Man",
+   "overview": "Abandonné par ses parents lorsqu’il était enfant, Peter Parker a été élevé par son oncle Ben et sa tante May. Il est aujourd’hui au lycée, mais il a du mal à s’intégrer. Comme la plupart des adolescents de son âge, Peter essaie de comprendre qui il est et d’accepter son parcours. Amoureux pour la première fois, lui et Gwen Stacy découvrent les sentiments, l’engagement et les secrets. En retrouvant une mystérieuse mallette ayant appartenu à son père, Peter entame une quête pour élucider la disparition de ses parents, ce qui le conduit rapidement à Oscorp et au laboratoire du docteur Curt Connors, l’ancien associé de son père. Spider-Man va bientôt se retrouver face au Lézard, l’alter ego de Connors. En décidant d’utiliser ses pouvoirs, il va choisir son destin…",
+   "popularity": 86.2993,
+   "poster_path": "/gsIkMf1VErbF0xtrgXEZXqLgsBG.jpg",
+   "release_date": "2012-06-23",
+   "softcore": false,
+   "title": "The Amazing Spider-Man",
+   "video": false,
+   "vote_average": 6.746,
+   "vote_count": 18789
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/k0hlAzTryCYX1O1LyC6P8tAa8s0.jpg",
+   "genre_ids": [
+    28,
+    12,
+    878
+   ],
+   "id": 102382,
+   "original_language": "en",
+   "original_title": "The Amazing Spider-Man 2",
+   "overview": "Peter Parker a une vie très occupée partagée entre son combat contre les vilains et la personne qu’il aime, Gwen. Il attend donc son diplôme de fin de lycée avec impatience. Peter n’a pas oublié la promesse qu’il a faite au père de Gwen : la protéger en restant hors de son existence. Une promesse qu’il ne peut pas tenir. Les choses vont changer pour Peter quand un nouveau vilain fait son apparition, Electro, quand un vieil ami fait son retour, Harry Osborn, et quand Peter découvre de nouveaux indices sur son passé.",
+   "popularity": 83.9205,
+   "poster_path": "/rZ47R21ZGNTGr5ORxdMmxQWdcFn.jpg",
+   "release_date": "2014-04-16",
+   "softcore": false,
+   "title": "The Amazing Spider-Man : Le Destin d'un héros",
+   "video": false,
+   "vote_average": 6.55,
+   "vote_count": 14478
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/w1oD1MzHjnBJc5snKupIQaSBLIh.jpg",
+   "genre_ids": [
+    28,
+    12,
+    878
+   ],
+   "id": 559,
+   "original_language": "en",
+   "original_title": "Spider-Man 3",
+   "overview": "Peter Parker a retrouvé un équilibre de vie et souhaite épouser Mary Jane. Lors d'une nuit au parc, alors que Peter et Mary Jane sont ensemble, une petite météorite tombe près du lieu où ils se trouvent. Celle-ci laisse échapper une matière visqueuse qui s'attache discrètement à la mobylette de Peter. Pendant ce temps, Flint Marko s'échappe de prison. Lors de sa fuite, il tombe dans un accélérateur de particules qui fond son corps avec le sable. Le meilleur ami de Peter, Harry Osborn, veut venger la mort de son père, croyant que Spider-Man est responsable de son décès, il l'attaque.",
+   "popularity": 76.1226,
+   "poster_path": "/hPkfodeYB0ZqBjxaynsEdXl0bbR.jpg",
+   "release_date": "2007-05-01",
+   "softcore": false,
+   "title": "Spider-Man 3",
+   "video": false,
+   "vote_average": 6.47,
+   "vote_count": 15468
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/kVd3a9YeLGkoeR50jGEXM6EqseS.jpg",
+   "genre_ids": [
+    16,
+    28,
+    12,
+    878
+   ],
+   "id": 569094,
+   "original_language": "en",
+   "original_title": "Spider-Man: Across the Spider-Verse",
+   "overview": "Après avoir retrouvé Gwen Stacy, Spider-Man, le sympathique héros originaire de Brooklyn, est catapulté à travers le Multivers, où il rencontre une équipe de Spider-Héros chargée d'en protéger l'existence. Mais lorsque les héros s'opposent sur la façon de gérer une nouvelle menace, Miles se retrouve confronté à eux et doit redéfinir ce que signifie être un héros afin de sauver les personnes qu'il aime le plus.",
+   "popularity": 64.552,
+   "poster_path": "/hvfwCeSTgsExmz9l31dKkfR83DH.jpg",
+   "release_date": "2023-05-31",
+   "softcore": false,
+   "title": "Spider-Man : Across the Spider-Verse",
+   "video": false,
+   "vote_average": 8.341,
+   "vote_count": 8911
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/8mnXR9rey5uQ08rZAvzojKWbDQS.jpg",
+   "genre_ids": [
+    16,
+    28,
+    12,
+    878
+   ],
+   "id": 324857,
+   "original_language": "en",
+   "original_title": "Spider-Man: Into the Spider-Verse",
+   "overview": "Spider-Man : New Generation suit les aventures de Miles Morales, un adolescent afro-américain et portoricain qui vit à Brooklyn et s’efforce de s’intégrer dans son nouveau collège à Manhattan. Mais la vie de Miles se complique quand il se fait mordre par une araignée radioactive et se découvre des super-pouvoirs : il est désormais capable d’empoisonner ses adversaires, de se camoufler, de coller littéralement aux murs et aux plafonds ; son ouïe est démultipliée... Dans le même temps, le plus redoutable cerveau criminel de la ville, le Caïd, a mis au point un accélérateur de particules nucléaires capable d’ouvrir un portail sur d’autres univers. Son invention va provoquer l’arrivée de plusieurs autres versions de Spider-Man dans le monde de Miles, dont un Peter Parker plus âgé, Spider-Gwen, Spider-Man Noir, Spider-Cochon et Peni Parker, venue d’un dessin animé japonais.",
+   "popularity": 69.5475,
+   "poster_path": "/3bSWpsB2PqoTrJhW9cM6tJMDxIm.jpg",
+   "release_date": "2018-12-06",
+   "softcore": false,
+   "title": "Spider-Man : New Generation",
+   "video": false,
+   "vote_average": 8.393,
+   "vote_count": 17541
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/6al048Lat3eLVQOuKtc9h6Tu94d.jpg",
+   "genre_ids": [
+    28,
+    12,
+    878
+   ],
+   "id": 558,
+   "original_language": "en",
+   "original_title": "Spider-Man 2",
+   "overview": "2 ans après avoir choisi sa vie de super-héros, Peter Parker ne parvient plus à gérer sa double vie. Il perd son boulot, Mary-Jane sait qu'elle ne peut plus compter sur lui, et ses études prennent le même chemin. Il décide de raccrocher le costume de Spiderman. Son ami Harry lui présente un ami de son professeur de science, le bienveillant docteur Otto Octavius sur lequel il doit rédiger un mémoire. Celui-ci travaille sur la fusion qu'il croit pouvoir contrôler. Mais une démonstration de ses recherches tourne mal, et le docteur se voit doter de 4 membres mécaniques supplémentaires greffés sur sa colonne vertébrale et qui prennent le contrôle de son esprit…",
+   "popularity": 38.7703,
+   "poster_path": "/m8X5HdADsW5YdmVNjwTOArMOUoL.jpg",
+   "release_date": "2004-06-25",
+   "softcore": false,
+   "title": "Spider-Man 2",
+   "video": false,
+   "vote_average": 7.321,
+   "vote_count": 16622
+  },
+  {
+   "adult": false,
+   "backdrop_path": null,
+   "genre_ids": [],
+   "id": 1536316,
+   "original_language": "en",
+   "original_title": "Spiderman",
+   "overview": "",
+   "popularity": 0.6593,
+   "poster_path": "/gYbqtHXJpcsHBMH8iNcVfK0lZo8.jpg",
+   "release_date": "2015-01-01",
+   "softcore": false,
+   "title": "Spiderman",
+   "video": false,
+   "vote_average": 0.0,
+   "vote_count": 0
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/zlpZzccypkAYFZIyYLQcchl90ZC.jpg",
+   "genre_ids": [
+    878,
+    28,
+    80
+   ],
+   "id": 225914,
+   "original_language": "en",
+   "original_title": "Spider-Man",
+   "overview": "Peter Parker, photographe amateur qui rêve de devenir un reporter de renom, s'adonne à des expériences scientifiques. Un jour, une araignée malencontreusement tombée dans un élément radio-actif, lui pique la main. Cet accident révèle en lui des qualités insoupçonnées...",
+   "popularity": 5.0156,
+   "poster_path": "/fXVzi3TgbDZ3C8aa5yMzvrELgyj.jpg",
+   "release_date": "1977-09-14",
+   "softcore": false,
+   "title": "L'Homme araignée",
+   "video": false,
+   "vote_average": 6.335,
+   "vote_count": 215
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/gT4YKbY2oqjRoxO77Swev1fXPtt.jpg",
+   "genre_ids": [
+    99
+   ],
+   "id": 181508,
+   "original_language": "en",
+   "original_title": "Spider-Man Tech",
+   "overview": "",
+   "popularity": 0.972,
+   "poster_path": "/z3kMwcCN14W7p43pJ7ehXJcRIrZ.jpg",
+   "release_date": "2007-05-02",
+   "softcore": false,
+   "title": "Spider-Man Tech",
+   "video": false,
+   "vote_average": 7.7,
+   "vote_count": 10
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/i1YUqwaHkTUGkf2o62a9osPGcaL.jpg",
+   "genre_ids": [
+    878,
+    28
+   ],
+   "id": 1686424,
+   "original_language": "en",
+   "original_title": "Spider-Man",
+   "overview": "",
+   "popularity": 0.9045,
+   "poster_path": "/bFpldGrK3E0kgCoauYB5Ntbx4vK.jpg",
+   "release_date": "1969-01-01",
+   "softcore": false,
+   "title": "Spider-Man",
+   "video": false,
+   "vote_average": 0.0,
+   "vote_count": 0
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/7tT2w75p69nll5PvALpWFCYx5dU.jpg",
+   "genre_ids": [
+    28,
+    12,
+    16,
+    878
+   ],
+   "id": 911916,
+   "original_language": "en",
+   "original_title": "Spider-Man: Beyond the Spider-Verse",
+   "overview": "",
+   "popularity": 11.8327,
+   "poster_path": "/9KAe39xqyZnv9J4W3DRGdQqX82h.jpg",
+   "release_date": "2027-06-17",
+   "softcore": false,
+   "title": "Spider-Man: Beyond the Spider-Verse",
+   "video": false,
+   "vote_average": 0.0,
+   "vote_count": 0
+  },
+  {
+   "adult": false,
+   "backdrop_path": null,
+   "genre_ids": [
+    28,
+    18
+   ],
+   "id": 1341771,
+   "original_language": "es",
+   "original_title": "Spider-Man!",
+   "overview": "",
+   "popularity": 1.8808,
+   "poster_path": "/lvXFC3xpMdaIqjFMVEfjpSrelPm.jpg",
+   "release_date": "1993-10-01",
+   "softcore": false,
+   "title": "Spider-Man!",
+   "video": false,
+   "vote_average": 10.0,
+   "vote_count": 6
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/cuUkziBI41HwelOEhKxCHCZcNxB.jpg",
+   "genre_ids": [
+    16,
+    28,
+    878
+   ],
+   "id": 50410,
+   "original_language": "en",
+   "original_title": "Spider-Man: The Venom Saga",
+   "overview": "Le docteur Connors ayant perdu un bras, il doit abandonner sa profession de médecin. Il décide de se tourner vers l'étude des reptiles qui ont la capacité de régénérer leur membre. Après des années de recherche, il élabore une potion pour faire pousser son bras et la teste sur lui même. Il se transforme alors en reptile puissant et assoiffé de sang et deviendra l'un des pires ennemis de Spider-Man...",
+   "popularity": 2.7185,
+   "poster_path": "/pc56JbMONmjmNnwTtLsvZu8cCzW.jpg",
+   "release_date": "2005-06-07",
+   "softcore": false,
+   "title": "Spider-Man - La saga Venom",
+   "video": true,
+   "vote_average": 7.005,
+   "vote_count": 95
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/yuhqpZNJoV5XwS2m5znlNtruJ9m.jpg",
+   "genre_ids": [
+    99
+   ],
+   "id": 1732051,
+   "original_language": "en",
+   "original_title": "Generations: The Evolution of Spider-Man",
+   "overview": "",
+   "popularity": 3.382,
+   "poster_path": "/mnwmqcbjbP9Pu9S74GJxFuE1OUJ.jpg",
+   "release_date": "2026-07-15",
+   "softcore": false,
+   "title": "Generations: The Evolution of Spider-Man",
+   "video": false,
+   "vote_average": 0.0,
+   "vote_count": 0
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/tObVe1R7JnO3VXBvAOWTEPmmegu.jpg",
+   "genre_ids": [
+    99
+   ],
+   "id": 961651,
+   "original_language": "en",
+   "original_title": "Spider-Man: All Roads Lead to No Way Home",
+   "overview": "Afin de célébrer les 20 ans de sortie du premier film Spider-Man de Sam Raimi, Sony Pictures a préparé une forme de rétrospective documentaire intitulée Spider-Man : All Roads Lead to No Way Home -- une façon, quelque part de réécrire un peu l'histoire du studio comme si le dernier film produit avec Marvel Studios avait été une évidence depuis le début (ce qui : n'est pas vrai). Pour le plaisir de tout le monde, le studio a mis en ligne le documentaire à disposition de tous et toutes.",
+   "popularity": 4.2966,
+   "poster_path": "/e2LLmI5wKIrWGAy9Of3yyWu7Szn.jpg",
+   "release_date": "2022-05-03",
+   "softcore": false,
+   "title": "Spider-Man : Tous les chemins mènent à No Way Home",
+   "video": false,
+   "vote_average": 6.8,
+   "vote_count": 94
+  }
+ ],
+ "total_pages": 5,
+ "total_results": 81
+}

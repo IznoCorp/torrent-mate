@@ -1,0 +1,398 @@
+{
+ "page": 1,
+ "results": [
+  {
+   "adult": false,
+   "backdrop_path": "/tlm8UkiQsitc8rSuIAscQDCnP8d.jpg",
+   "genre_ids": [
+    28,
+    878
+   ],
+   "id": 603,
+   "original_language": "en",
+   "original_title": "The Matrix",
+   "overview": "Programmeur anonyme dans un service administratif le jour, Thomas Anderson devient Neo la nuit venue. Sous ce pseudonyme, il est l'un des pirates les plus recherchés du cyber‐espace. À cheval entre deux mondes, Neo est assailli par d'étranges songes et des messages cryptés provenant d'un certain Morpheus. Celui‐ci l'exhorte à aller au‐delà des apparences et à trouver la réponse à la question qui hante constamment ses pensées : qu'est‐ce que la Matrice ? Nul ne le sait, et aucun homme n'est encore parvenu à en percer les défenses. Mais Morpheus est persuadé que Neo est l'Élu, le libérateur mythique de l'humanité annoncé selon la prophétie. Ensemble, ils se lancent dans une lutte sans retour contre la Matrice et ses terribles agents…",
+   "popularity": 46.3964,
+   "poster_path": "/pEoqbqtLc4CcwDUDqxmEDSWpWTZ.jpg",
+   "release_date": "1999-03-31",
+   "softcore": false,
+   "title": "Matrix",
+   "video": false,
+   "vote_average": 8.253,
+   "vote_count": 28345
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/533xAMhhVyjTy8hwMUFEt5TuDfR.jpg",
+   "genre_ids": [
+    12,
+    28,
+    53,
+    878
+   ],
+   "id": 605,
+   "original_language": "en",
+   "original_title": "The Matrix Revolutions",
+   "overview": "La longue quête de liberté des rebelles culmine en une bataille finale explosive. Tandis que l'armée des Machines sème la désolation sur Sion, ses citoyens organisent une défense acharnée. Mais pourront-ils retenir les nuées implacables des Sentinelles en attendant que Neo s'approprie l'ensemble de ses pouvoirs et mette fin à la guerre ? L'agent Smith est quant à lui parvenu à prendre possession de l'esprit de Bane, l'un des membres de l'équipage de l'aéroglisseur. De plus en plus puissant, il est désormais incontrôlable et n'obéit plus aux Machines : il menace de détruire leur empire ainsi que le monde réel et la Matrice…",
+   "popularity": 16.0241,
+   "poster_path": "/xOCeckuZDzqydvt3vLlzftZkef1.jpg",
+   "release_date": "2003-11-05",
+   "softcore": false,
+   "title": "Matrix Revolutions",
+   "video": false,
+   "vote_average": 6.756,
+   "vote_count": 10977
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/ihOJcrorpDQtHTzIOrobbOhpJsj.jpg",
+   "genre_ids": [
+    12,
+    28,
+    53,
+    878
+   ],
+   "id": 604,
+   "original_language": "en",
+   "original_title": "The Matrix Reloaded",
+   "overview": "Neo apprend à mieux contrôler ses dons naturels, alors même que Sion s'apprête à tomber sous l'assaut de l'Armée des Machines. D'ici quelques heures, 250 000 Sentinelles programmées pour anéantir notre espèce envahiront la dernière enclave humaine de la Terre. Mais Morpheus galvanise les citoyens de Sion en leur rappelant la Parole de l'Oracle : il est encore temps pour l’Élu d'arrêter la guerre contre les Machines. Tous les espoirs se reportent dès lors sur Neo. Au long de sa périlleuse plongée au sein de la Matrice et de sa propre destinée, ce dernier sera confronté à une résistance croissante, une vérité encore plus aveuglante, un choix encore plus douloureux que tout ce qu'il avait jamais imaginé.",
+   "popularity": 17.3679,
+   "poster_path": "/lF5HiiRmBlL3mc5SnO4QsdmlvOb.jpg",
+   "release_date": "2003-05-15",
+   "softcore": false,
+   "title": "Matrix Reloaded",
+   "video": false,
+   "vote_average": 7.084,
+   "vote_count": 12138
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/eNI7PtK6DEYgZmHWP9gQNuff8pv.jpg",
+   "genre_ids": [
+    878,
+    28,
+    12
+   ],
+   "id": 624860,
+   "original_language": "en",
+   "original_title": "The Matrix Resurrections",
+   "overview": "Dix-huit ans après les événements de Matrix Revolutions, Thomas A. Anderson (alias Neo) ne se souvient plus de rien et mène une vie d'apparence normale à San Francisco. Il se rend régulièrement chez un psychiatre à qui il raconte ses rêves étranges et qui lui prescrit des pilules bleues. Après la réapparition de visages familiers et en quête de réponses, Neo repart à la recherche du lapin blanc. Il rencontre un certain Morpheus, qui lui offre le choix entre rester dans la Matrice et prendre son envol.",
+   "popularity": 12.4757,
+   "poster_path": "/kCF43aQ77ShTfKyY8vAJBVHN5j3.jpg",
+   "release_date": "2021-12-16",
+   "softcore": false,
+   "title": "Matrix Resurrections",
+   "video": false,
+   "vote_average": 6.321,
+   "vote_count": 6598
+  },
+  {
+   "adult": false,
+   "backdrop_path": null,
+   "genre_ids": [
+    878,
+    10749
+   ],
+   "id": 51767,
+   "original_language": "en",
+   "original_title": "Sexual Matrix",
+   "overview": "",
+   "popularity": 1.2546,
+   "poster_path": "/vmhBIPKyYCWlp2PrIIc6EXZlP9Z.jpg",
+   "release_date": "2000-04-01",
+   "softcore": false,
+   "title": "Sexual Matrix",
+   "video": false,
+   "vote_average": 6.413,
+   "vote_count": 23
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/lBdXACywnLwKUZmZkZ87djDQBeV.jpg",
+   "genre_ids": [
+    99
+   ],
+   "id": 14543,
+   "original_language": "en",
+   "original_title": "The Matrix Revisited",
+   "overview": "Un nouveau regard sur Matrix : de la conception au phénomêne.",
+   "popularity": 1.8384,
+   "poster_path": "/fNG2JOskhQnttmAaj2knM5h59Io.jpg",
+   "release_date": "2001-11-19",
+   "softcore": false,
+   "title": "The Matrix Revisited",
+   "video": false,
+   "vote_average": 6.915,
+   "vote_count": 212
+  },
+  {
+   "adult": false,
+   "backdrop_path": null,
+   "genre_ids": [
+    16
+   ],
+   "id": 790345,
+   "original_language": "en",
+   "original_title": "Dinosaur Matrix",
+   "overview": "",
+   "popularity": 0.54,
+   "poster_path": "/22AwsGF9PXc2cq72kH9P3mNzHGY.jpg",
+   "release_date": "1985-01-01",
+   "softcore": false,
+   "title": "Dinosaur Matrix",
+   "video": false,
+   "vote_average": 0.0,
+   "vote_count": 0
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/sxuGFodklW2heRH5lx6AlP0R75E.jpg",
+   "genre_ids": [
+    16,
+    878,
+    53
+   ],
+   "id": 33322,
+   "original_language": "ja",
+   "original_title": "アミテージ・ザ・サード POLY-MATRIX",
+   "overview": "En ce milieu du XXIème siècle, l'Humanité habite Mars dont l'aménagement et la terraformation purent être menés en un temps record par l'utilisation intensive de la main-d'œuvre robotique. Le détective Ross Sylibus est transféré sur la planète rouge après que sa fiancée ait été tuée sur Terre par un robot dysfonctionnel ; lui-même n'a pu survivre que grâce à l'implantation de prothèses artificielles et il garde comme séquelle une haine viscérale pour les robots… Sentiment assez courant sur Mars car ces machines y sont particulièrement dépréciées à cause du taux important de chômage qu'elles provoquent. Et pour couronner le tout, un robot se retrouve impliqué dans la toute première affaire à laquelle est confronté Sylibus dès son arrivée à l'aéroport martien : Kelly Mac Cannon, une chanteuse de country et star interplanétaire par dessus le marché, qui se trouvait à bord du même vol que lui, est assassinée, mais pas par un robot car c'est elle le robot…",
+   "popularity": 2.5188,
+   "poster_path": "/7sUCRdjGe7VggDCGIHywfguYdAK.jpg",
+   "release_date": "1996-06-25",
+   "softcore": false,
+   "title": "Armitage III: Poly-Matrix",
+   "video": false,
+   "vote_average": 6.458,
+   "vote_count": 71
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/2JCUdkC84MWnRQzOEMDO2i37tZy.jpg",
+   "genre_ids": [
+    16
+   ],
+   "id": 411948,
+   "original_language": "en",
+   "original_title": "Matrix",
+   "overview": "",
+   "popularity": 1.0048,
+   "poster_path": "/wwGvUPEM6MRiXv3gRNaVUlUCHiT.jpg",
+   "release_date": "1971-05-18",
+   "softcore": false,
+   "title": "Matrix",
+   "video": false,
+   "vote_average": 7.3,
+   "vote_count": 3
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/eCJ7a1ndfdkfkziDAA2OvOsNbsz.jpg",
+   "genre_ids": [
+    35
+   ],
+   "id": 141225,
+   "original_language": "hu",
+   "original_title": "Buhera mátrix",
+   "overview": "",
+   "popularity": 1.7797,
+   "poster_path": "/mSA91zntAssOuzGiakE3foA1MM0.jpg",
+   "release_date": "2007-03-29",
+   "softcore": false,
+   "title": "Buhera mátrix",
+   "video": false,
+   "vote_average": 6.125,
+   "vote_count": 4
+  },
+  {
+   "adult": false,
+   "backdrop_path": null,
+   "genre_ids": [],
+   "id": 373223,
+   "original_language": "en",
+   "original_title": "Matrix",
+   "overview": "",
+   "popularity": 0.96,
+   "poster_path": "/wx2s9xYeC6uP2auuuVg99yl4RpU.jpg",
+   "release_date": "1973-09-06",
+   "softcore": false,
+   "title": "Matrix",
+   "video": false,
+   "vote_average": 6.4,
+   "vote_count": 22
+  },
+  {
+   "adult": false,
+   "backdrop_path": null,
+   "genre_ids": [],
+   "id": 775293,
+   "original_language": "en",
+   "original_title": "Matrix",
+   "overview": "",
+   "popularity": 0.3797,
+   "poster_path": "/frDqG8rmqKUg4HzQ604LZo8VLHB.jpg",
+   "release_date": "1973-01-01",
+   "softcore": false,
+   "title": "Matrix",
+   "video": false,
+   "vote_average": 6.8,
+   "vote_count": 25
+  },
+  {
+   "adult": false,
+   "backdrop_path": null,
+   "genre_ids": [],
+   "id": 555879,
+   "original_language": "en",
+   "original_title": "Matrix",
+   "overview": "",
+   "popularity": 0.6006,
+   "poster_path": "/AfFD10ZqEx2vkxM2yvRZkybsGB7.jpg",
+   "release_date": "1998-12-31",
+   "softcore": false,
+   "title": "Matrix",
+   "video": false,
+   "vote_average": 7.1,
+   "vote_count": 51
+  },
+  {
+   "adult": false,
+   "backdrop_path": null,
+   "genre_ids": [
+    99,
+    878
+   ],
+   "id": 221495,
+   "original_language": "en",
+   "original_title": "The Matrix Recalibrated",
+   "overview": "",
+   "popularity": 1.1617,
+   "poster_path": "/gRni1Q651AZPnLqZczmahiIxG0s.jpg",
+   "release_date": "2004-04-06",
+   "softcore": false,
+   "title": "The Matrix Recalibrated",
+   "video": true,
+   "vote_average": 6.904,
+   "vote_count": 57
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/2P3FyI9ZTe9duRIGpGPiDC3mQMf.jpg",
+   "genre_ids": [
+    99,
+    10770
+   ],
+   "id": 1217455,
+   "original_language": "fr",
+   "original_title": "Matrix génération",
+   "overview": "Dès sa sortie, Matrix a eu une influence considérable sur la pop culture mondiale, mais aussi sur de nombreux aspects de nos vies. Ce film précurseur continue d’alimenter d’importants débats sociétaux, notamment sur l’usage des technologies numériques, les questions de genre et l’anticapitalisme.",
+   "popularity": 1.8192,
+   "poster_path": "/jSmzYl9PQLZu4ZnumDBHNRGLF4s.jpg",
+   "release_date": "2023-12-13",
+   "softcore": false,
+   "title": "Matrix génération",
+   "video": false,
+   "vote_average": 6.9,
+   "vote_count": 24
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/4FuxMYW1E1LHqSkWov2YwaziID3.jpg",
+   "genre_ids": [
+    99
+   ],
+   "id": 684431,
+   "original_language": "en",
+   "original_title": "Making \"The Matrix\"",
+   "overview": "",
+   "popularity": 0.8011,
+   "poster_path": "/m2yIfRJYwpCgHON1Ig1pNKMWTxp.jpg",
+   "release_date": "1999-09-21",
+   "softcore": false,
+   "title": "Making \"The Matrix\"",
+   "video": false,
+   "vote_average": 7.327,
+   "vote_count": 52
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/n6ta4FMNdZojoLTwe4cUMN5eqwS.jpg",
+   "genre_ids": [
+    53,
+    36
+   ],
+   "id": 452828,
+   "original_language": "de",
+   "original_title": "Die Luther Matrix",
+   "overview": "",
+   "popularity": 0.5911,
+   "poster_path": "/7RFxQOYXPgqBY0E2yuDqkTT2Y0z.jpg",
+   "release_date": "2017-04-11",
+   "softcore": false,
+   "title": "Die Luther Matrix",
+   "video": false,
+   "vote_average": 4.0,
+   "vote_count": 1
+  },
+  {
+   "adult": false,
+   "backdrop_path": null,
+   "genre_ids": [
+    99
+   ],
+   "id": 591955,
+   "original_language": "en",
+   "original_title": "The Matrix Reloaded Revisited",
+   "overview": "",
+   "popularity": 1.373,
+   "poster_path": "/gb7C4oRzYWXWCuZMR1cwtHa53Pz.jpg",
+   "release_date": "2004-12-07",
+   "softcore": false,
+   "title": "The Matrix Reloaded Revisited",
+   "video": true,
+   "vote_average": 6.8,
+   "vote_count": 29
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/2nOjWSRPBqAhZZnRmNHUzqT7XX7.jpg",
+   "genre_ids": [
+    99
+   ],
+   "id": 1456523,
+   "original_language": "en",
+   "original_title": "Matrix II",
+   "overview": "",
+   "popularity": 0.5509,
+   "poster_path": "/8KCbKg3de6GmdN8osCDuDc6yH0m.jpg",
+   "release_date": "1974-01-01",
+   "softcore": false,
+   "title": "Matrix II",
+   "video": false,
+   "vote_average": 0.0,
+   "vote_count": 0
+  },
+  {
+   "adult": false,
+   "backdrop_path": null,
+   "genre_ids": [
+    28,
+    12,
+    878
+   ],
+   "id": 1268926,
+   "original_language": "en",
+   "original_title": "The Matrix 5",
+   "overview": "",
+   "popularity": 0.7533,
+   "poster_path": null,
+   "release_date": "",
+   "softcore": false,
+   "title": "The Matrix 5",
+   "video": false,
+   "vote_average": 0.0,
+   "vote_count": 0
+  }
+ ],
+ "total_pages": 5,
+ "total_results": 92
+}
