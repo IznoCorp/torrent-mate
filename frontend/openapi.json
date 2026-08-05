@@ -1811,7 +1811,7 @@
         "type": "object"
       },
       "JourneyItem": {
-        "description": "One acquisition's journey through the pipeline (provenance F1, kanban #358).\n\nRead straight off the F0 provenance registry (``staging_provenance``), joined\nwith the follow title. The per-stage timestamps + ``status`` make the journey\ngrabbed \u2192 ingested \u2192 scraped \u2192 dispatched legible in the \u00ab Parcours \u00bb view.\n\nAttributes:\n    info_hash: The grabbed torrent hash (the journey key).\n    kind: ``movie`` / ``episode`` (None when unknown).\n    media_ref: Identity KNOWN at grab (the deterministic scrape seed).\n    scraped_ref: Identity actually scraped, when recorded (audit / drift).\n    followed_id: The follow this acquisition came from, if any.\n    follow_title: The follow's title (joined) \u2014 the human-readable label.\n    status: Journey status: grabbed / ingested / scraped / dispatched / reconciled.\n    ingest_path: Staging folder created at ingest.\n    current_path: Live staging folder (updated through sort/scrape rename).\n    dispatch_path: Final destination after dispatch, when reached.\n    grabbed_at / ingested_at / scraped_at / dispatched_at: Unix-epoch stage\n        timestamps (None until that stage is reached).\n    resolution_state: The scrape-arbiter projection (decisions-spine F2) \u2014\n        ``awaiting`` / ``resolved`` / ``dismissed``, or None when no decision\n        was raised (a confident scrape).\n    decision_id: The linked ``scrape_decision.id`` (deep-link target), if any.\n    resolution_trigger: Why the item was enqueued (``below_threshold`` /\n        ``mid_band`` / ``ambiguous``), for display.",
+        "description": "One acquisition's journey through the pipeline (provenance F1, kanban #358).\n\nRead straight off the F0 provenance registry (``staging_provenance``), joined\nwith the follow title. The per-stage timestamps + ``status`` make the journey\ngrabbed \u2192 ingested \u2192 scraped \u2192 dispatched legible in the \u00ab Parcours \u00bb view.\n\nAttributes:\n    info_hash: The grabbed torrent hash (the journey key).\n    kind: ``movie`` / ``episode`` (None when unknown).\n    media_ref: Identity KNOWN at grab (the deterministic scrape seed).\n    scraped_ref: Identity actually scraped, when recorded (audit / drift).\n    followed_id: The follow this acquisition came from, if any.\n    follow_title: The follow's title (joined) \u2014 the human-readable label.\n    status: Journey status: grabbed / ingested / scraped / dispatched / reconciled.\n    ingest_path: Staging folder created at ingest.\n    current_path: Live staging folder (updated through sort/scrape rename).\n    dispatch_path: Final destination after dispatch, when reached.\n    grabbed_at / ingested_at / scraped_at / dispatched_at: Unix-epoch stage\n        timestamps (None until that stage is reached).\n    resolution_state: The scrape-arbiter projection (decisions-spine F2) \u2014\n        ``awaiting`` / ``resolved`` / ``dismissed``, or None when no decision\n        was raised (a confident scrape).\n    decision_id: The linked ``scrape_decision.id`` (deep-link target), if any.\n    resolution_trigger: Why the item was enqueued (``below_threshold`` /\n        ``mid_band`` / ``ambiguous``), for display.\n    reconstructed_at: Epoch at which this journey was REBUILT from the surviving\n        databases (\u00a714.3), or None for a journey the pipeline wrote itself. On a\n        rebuilt row an absent stage timestamp means \u00ab unknown \u00bb, not \u00ab not reached \u00bb.",
         "properties": {
           "current_path": {
             "anyOf": [
@@ -1962,6 +1962,17 @@
           },
           "media_ref": {
             "$ref": "#/components/schemas/MediaRefResponse"
+          },
+          "reconstructed_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reconstructed At"
           },
           "resolution_state": {
             "anyOf": [

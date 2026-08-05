@@ -198,3 +198,36 @@ class TestMigration015:
             assert conn.execute("SELECT kind FROM staging_provenance WHERE info_hash='s1'").fetchone()[0] == "season"
         finally:
             conn.close()
+
+
+class TestReconstructedJourneysAreMarked:
+    """§14.3 — « un parcours n'a pas de trou » : une étape inconnue se DIT inconnue."""
+
+    def test_a_reconstructed_row_carries_its_marker(self, store: ConcreteAcquireStore) -> None:
+        """Une ligne reconstruite est reconnaissable en tant que telle.
+
+        Un média rangé est forcément passé par l'ingestion, le tri, l'identification et le
+        scraping — c'est le workflow §14.2. Une reconstruction ne connaît pas ces instants
+        et les laisse NULL ; sans marqueur, l'interface lit ces NULL comme « étape pas
+        faite » et dessine un chemin qui n'a jamais existé. Le marqueur est ce qui permet
+        de dire « inconnue » plutôt que « pas faite ».
+        """
+        conn = store._ensure_open()  # noqa: SLF001 — the test reaches the migrated schema
+        conn.execute(
+            "INSERT INTO staging_provenance (info_hash, kind, grabbed_at, dispatch_path, "
+            "dispatched_at, status, reconstructed_at) VALUES ('rec1','episode',10,'/disk/x',20,"
+            "'dispatched',999)"
+        )
+        conn.commit()
+        row = store.provenance.by_hash("rec1")
+        assert row is not None
+        assert row.reconstructed_at == 999
+        assert row.ingested_at is None and row.scraped_at is None
+
+    def test_a_normal_journey_carries_no_marker(self, store: ConcreteAcquireStore) -> None:
+        """Le chemin nominal n'est jamais étiqueté « reconstruit » — sinon le marqueur ment."""
+        store.provenance.upsert_grab(
+            "live1", followed_id=None, media_ref=MediaRef(tvdb_id=1), kind="episode", grabbed_at=1
+        )
+        row = store.provenance.by_hash("live1")
+        assert row is not None and row.reconstructed_at is None

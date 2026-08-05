@@ -95,6 +95,72 @@ describe("ParcoursPanel", () => {
     expect(screen.getByText("Rangé")).toBeInTheDocument(); // not reached → bare label, no timestamp
   });
 
+  it("§14.3 — a rebuilt journey says 'inconnue', never 'not done'", async () => {
+    // Un média rangé est FORCÉMENT passé par l'ingestion et le scraping (§14.2). Le
+    // backfill §13 ne connaît pas ces instants et les laisse NULL ; sans distinction,
+    // le stepper les éteint et dessine un chemin qui ne peut pas exister — « Rangé »
+    // posé sur « Ingéré » et « Scrapé » éteints, ce que l'opérateur a vu.
+    getJourneysMock.mockResolvedValue({
+      journeys: [
+        {
+          info_hash: "5ea50n",
+          kind: "season",
+          media_ref: { tvdb_id: 73141, tmdb_id: null, imdb_id: null },
+          scraped_ref: null,
+          followed_id: 4,
+          follow_title: "American Dad!",
+          status: "dispatched",
+          ingest_path: null,
+          current_path: null,
+          dispatch_path: "/Volumes/Disk2/series/American Dad! (2005)",
+          grabbed_at: 1_700_000_000,
+          ingested_at: null,
+          scraped_at: null,
+          dispatched_at: 1_700_000_900,
+          reconstructed_at: 1_785_900_000,
+        },
+      ],
+    });
+    renderPanel();
+    expect(await screen.findByText("American Dad!")).toBeInTheDocument();
+    // Les étapes non datées se DISENT inconnues…
+    expect(screen.getByText(/Ingéré · inconnue/)).toBeInTheDocument();
+    expect(screen.getByText(/Scrapé · inconnue/)).toBeInTheDocument();
+    // …et le parcours annonce qu'il a été reconstruit.
+    expect(screen.getByText(/parcours reconstruit/i)).toBeInTheDocument();
+  });
+
+  it("a normal journey still shows an unreached stage as unreached", async () => {
+    // Le contre-cas : sans lui, « inconnue » pourrait s'afficher partout et le stepper
+    // ne dirait plus rien du tout.
+    getJourneysMock.mockResolvedValue({
+      journeys: [
+        {
+          info_hash: "abcd1234",
+          kind: "episode",
+          media_ref: { tvdb_id: 1, tmdb_id: null, imdb_id: null },
+          scraped_ref: null,
+          followed_id: 1,
+          follow_title: "En cours",
+          status: "ingested",
+          ingest_path: "/stage/x",
+          current_path: "/stage/x",
+          dispatch_path: null,
+          grabbed_at: 1_700_000_000,
+          ingested_at: 1_700_000_100,
+          scraped_at: null,
+          dispatched_at: null,
+          reconstructed_at: null,
+        },
+      ],
+    });
+    renderPanel();
+    expect(await screen.findByText("En cours")).toBeInTheDocument();
+    expect(screen.getByText("Rangé")).toBeInTheDocument();
+    expect(screen.queryByText(/inconnue/)).toBeNull();
+    expect(screen.queryByText(/parcours reconstruit/i)).toBeNull();
+  });
+
   it("shows an empty state when there are no journeys", async () => {
     getJourneysMock.mockResolvedValue({ journeys: [] });
     renderPanel();

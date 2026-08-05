@@ -653,6 +653,9 @@ class JourneyItem(BaseModel):
         decision_id: The linked ``scrape_decision.id`` (deep-link target), if any.
         resolution_trigger: Why the item was enqueued (``below_threshold`` /
             ``mid_band`` / ``ambiguous``), for display.
+        reconstructed_at: Epoch at which this journey was REBUILT from the surviving
+            databases (§14.3), or None for a journey the pipeline wrote itself. On a
+            rebuilt row an absent stage timestamp means « unknown », not « not reached ».
     """
 
     info_hash: str
@@ -679,6 +682,12 @@ class JourneyItem(BaseModel):
     # F4 (spine-actions): True when this in-flight item is stuck (folder still on disk,
     # no stage advanced it past the idle horizon) — the UI flags it as actionable.
     stuck: bool = False
+    # §14.3: non-None when this journey was REBUILT from the surviving databases instead
+    # of written by the pipeline as it happened. On such a row a NULL stage timestamp
+    # means « unknown », never « stage not reached » — a dispatched media went through
+    # ingest/sort/scrape by definition (§14.2). The UI reads this to say « inconnue »
+    # instead of drawing a path that cannot exist.
+    reconstructed_at: int | None = None
 
 
 class JourneysResponse(BaseModel):

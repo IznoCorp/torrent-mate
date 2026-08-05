@@ -52,6 +52,7 @@ import argparse
 import json
 import sqlite3
 import sys
+import time
 from dataclasses import asdict, dataclass
 
 #: Queue statuses that mean the acquisition is closed — the only ones for which a proven
@@ -208,7 +209,11 @@ def _landing(indexer_conn: sqlite3.Connection, item_id: int, *, kind: str, seaso
 
 
 def backfill_spine(
-    acquire_conn: sqlite3.Connection, indexer_conn: sqlite3.Connection, *, apply: bool
+    acquire_conn: sqlite3.Connection,
+    indexer_conn: sqlite3.Connection,
+    *,
+    apply: bool,
+    now: int | None = None,
 ) -> list[RebuiltRow]:
     """Rebuild every missing provenance journey; write them only when *apply*.
 
@@ -220,11 +225,15 @@ def backfill_spine(
         indexer_conn: Open connection to ``library.db`` (read access only is used).
         apply: When True, INSERT the rebuilt rows. When False, compute and return them
             without touching the database.
+        now: Epoch stamped into ``reconstructed_at`` on every rebuilt row (§14.3 — a
+            rebuilt journey says so, which is what lets the interface render an unknown
+            stage as « inconnue » rather than « pas faite »). Defaults to the wall clock.
 
     Returns:
         The rebuilt rows, ordered by grab instant then hash. Empty when the spine has no
         hole to fill.
     """
+    stamped_at = int(time.time()) if now is None else now
     acquire_conn.row_factory = sqlite3.Row
     existing = {
         (r["info_hash"] or "").lower() for r in acquire_conn.execute("SELECT info_hash FROM staging_provenance")
@@ -288,10 +297,20 @@ def backfill_spine(
     if apply and rebuilt:
         acquire_conn.executemany(
             "INSERT INTO staging_provenance "
-            "(info_hash, followed_id, media_ref_json, kind, grabbed_at, dispatch_path, dispatched_at, status) "
-            "VALUES (?,?,?,?,?,?,?,?)",
+            "(info_hash, followed_id, media_ref_json, kind, grabbed_at, dispatch_path, dispatched_at, "
+            "status, reconstructed_at) VALUES (?,?,?,?,?,?,?,?,?)",
             [
-                (r.info_hash, r.followed_id, r.media_ref_json, r.kind, r.grabbed_at, r.dispatch_path, r.dispatched_at, r.status)
+                (
+                    r.info_hash,
+                    r.followed_id,
+                    r.media_ref_json,
+                    r.kind,
+                    r.grabbed_at,
+                    r.dispatch_path,
+                    r.dispatched_at,
+                    r.status,
+                    stamped_at,
+                )
                 for r in rebuilt
             ],
         )

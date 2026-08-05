@@ -236,9 +236,7 @@ class _OwnsNothingThenEverything:
 class TestSettleClosesWhatTheScanRaceMissed:
     """§14.3 — « la fermeture suit la médiathèque, pas une horloge »."""
 
-    def test_settle_closes_a_row_the_scan_completed_sweep_could_not(
-        self, store: ConcreteAcquireStore
-    ) -> None:
+    def test_settle_closes_a_row_the_scan_completed_sweep_could_not(self, store: ConcreteAcquireStore) -> None:
         """Un second passage DÉTERMINISTE, après que la médiathèque s'est stabilisée.
 
         Le passage sur ``LibraryScanCompleted`` tombe pendant la ré-indexation et ne peut
@@ -292,9 +290,7 @@ class TestSettleClosesWhatTheScanRaceMissed:
         bus = EventBus()
         exploding = MagicMock()
         exploding.owns.side_effect = RuntimeError("library exploded")
-        followed_id = store.follow.add(
-            FollowedSeries(media_ref=MediaRef(tvdb_id=1), title="X", added_at=1)
-        )
+        followed_id = store.follow.add(FollowedSeries(media_ref=MediaRef(tvdb_id=1), title="X", added_at=1))
         wanted_id = store.wanted.add(
             WantedItem(
                 media_ref=MediaRef(tvdb_id=1),

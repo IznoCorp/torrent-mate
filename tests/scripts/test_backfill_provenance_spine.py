@@ -372,6 +372,26 @@ def test_running_it_twice_changes_nothing(tmp_path: Path) -> None:
     assert dict(_spine_rows(acquire)["aabb11"]) == before
 
 
+def test_every_rebuilt_row_is_marked_as_rebuilt(tmp_path: Path) -> None:
+    """§14.3 — une ligne reconstruite le DIT, pour que l'interface distingue les NULL.
+
+    Sans ce marqueur, les instants d'ingestion et de scraping laissés NULL (honnêtement,
+    puisqu'ils sont perdus) se lisent « étape pas faite » : un média « Rangé » posé sur des
+    étapes éteintes, un chemin qui ne peut pas exister. Le marqueur est ce qui permet de
+    dire « inconnue ».
+    """
+    acquire, indexer = _acquire_db(tmp_path), _indexer_db(tmp_path)
+    _follow(acquire, 1)
+    _wanted(acquire, 1, followed_id=1, season=1, episode=1, grabbed_hash="AABB11")
+    _own_episode(indexer, tvdb_id=555, season=1, episode=1)
+
+    backfill_spine(acquire, indexer, apply=True, now=1_785_900_000)
+
+    row = _spine_rows(acquire)["aabb11"]
+    assert row["reconstructed_at"] == 1_785_900_000
+    assert row["ingested_at"] is None and row["scraped_at"] is None
+
+
 def test_the_backfill_takes_the_coherence_guard_from_firing_to_silent(tmp_path: Path) -> None:
     """§13 closed: code corrigé, état réparé, contrôle exécutable à zéro anomalie.
 
