@@ -74,9 +74,7 @@ class TestKindDomainEquality:
         Without this the migration could 'pass' G1 by removing the constraint entirely,
         which would trade a loud rejection for a silent corruption of the registry.
         """
-        store.provenance.upsert_grab(
-            "bogus", followed_id=None, media_ref=None, kind="chapter", grabbed_at=1
-        )
+        store.provenance.upsert_grab("bogus", followed_id=None, media_ref=None, kind="chapter", grabbed_at=1)
         assert store.provenance.by_hash("bogus") is None
 
 
@@ -94,9 +92,7 @@ class TestRejectedWriteIsNotSilent:
         it must carry the constraint that refused it.
         """
         caplog.set_level(logging.WARNING)
-        store.provenance.upsert_grab(
-            "refused", followed_id=None, media_ref=None, kind="chapter", grabbed_at=1
-        )
+        store.provenance.upsert_grab("refused", followed_id=None, media_ref=None, kind="chapter", grabbed_at=1)
 
         failures = [r for r in caplog.records if "acquire.provenance.write_failed" in r.getMessage()]
         assert failures, "a refused provenance write must be logged"

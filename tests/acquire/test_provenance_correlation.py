@@ -148,7 +148,7 @@ class TestDispatchCorrelatesByHash:
         assert row.dispatched_at == 10
 
     def test_containment_matches_across_unicode_normalisation(self, store: ConcreteAcquireStore) -> None:
-        """macOS stores NFD, callers often hold NFC — the containment test sees through it."""
+        """The FS stores NFD, callers often hold NFC — the containment test sees through it."""
         nfd_show = unicodedata.normalize("NFD", "/stage/002-TVSHOWS/Café Society (2016)")
         nfc_show = unicodedata.normalize("NFC", "/stage/002-TVSHOWS/Café Society (2016)")
         assert nfd_show != nfc_show
@@ -164,9 +164,7 @@ class TestDispatchCorrelatesByHash:
 class TestScrapeStampRepointsToTheLiveFolder:
     """The scrape stamp is the moment the item's live location becomes the media folder."""
 
-    def test_scrape_stamp_collapses_a_nested_row_onto_the_scraped_folder(
-        self, store: ConcreteAcquireStore
-    ) -> None:
+    def test_scrape_stamp_collapses_a_nested_row_onto_the_scraped_folder(self, store: ConcreteAcquireStore) -> None:
         """No rename happened (the show folder was already canonical) — the row still follows.
 
         Without this, a release nested under an ALREADY-canonical show folder keeps pointing
