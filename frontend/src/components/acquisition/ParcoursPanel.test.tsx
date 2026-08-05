@@ -47,16 +47,73 @@ vi.mock("@/api/acquisition", async () => {
 
 import { ParcoursPanel } from "./ParcoursPanel";
 
-function renderPanel(): void {
+function renderPanel(initialUrl = "/acquisition?tab=parcours"): void {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[initialUrl]}>
         <ParcoursPanel />
       </MemoryRouter>
     </QueryClientProvider>,
   );
 }
+
+/** Trois parcours, un par étape, pour éprouver le filtre `?etape=`. */
+const TROIS_PARCOURS = {
+  journeys: [
+    {
+      info_hash: "range01",
+      kind: "movie",
+      media_ref: { tvdb_id: null, tmdb_id: 1, imdb_id: null },
+      scraped_ref: null,
+      followed_id: 1,
+      follow_title: "Déjà rangé",
+      status: "dispatched",
+      ingest_path: "/s/a",
+      current_path: "/s/a",
+      dispatch_path: "/disk/a",
+      grabbed_at: 1_700_000_000,
+      ingested_at: 1_700_000_100,
+      scraped_at: 1_700_000_200,
+      dispatched_at: 1_700_000_300,
+      stuck: false,
+    },
+    {
+      info_hash: "envol01",
+      kind: "episode",
+      media_ref: { tvdb_id: 2, tmdb_id: null, imdb_id: null },
+      scraped_ref: null,
+      followed_id: 2,
+      follow_title: "Encore en vol",
+      status: "ingested",
+      ingest_path: "/s/b",
+      current_path: "/s/b",
+      dispatch_path: null,
+      grabbed_at: 1_700_000_000,
+      ingested_at: 1_700_000_100,
+      scraped_at: null,
+      dispatched_at: null,
+      stuck: false,
+    },
+    {
+      info_hash: "bloque01",
+      kind: "episode",
+      media_ref: { tvdb_id: 3, tmdb_id: null, imdb_id: null },
+      scraped_ref: null,
+      followed_id: 3,
+      follow_title: "Bloqué depuis longtemps",
+      status: "scraped",
+      ingest_path: "/s/c",
+      current_path: "/s/c",
+      dispatch_path: null,
+      grabbed_at: 1_700_000_000,
+      ingested_at: 1_700_000_100,
+      scraped_at: 1_700_000_200,
+      dispatched_at: null,
+      stuck: true,
+    },
+  ],
+};
 
 describe("ParcoursPanel", () => {
   beforeEach(() => {
@@ -190,6 +247,52 @@ describe("ParcoursPanel", () => {
     expect(screen.getByText("Rangé")).toBeInTheDocument();
     expect(screen.queryByText(/inconnue/)).toBeNull();
     expect(screen.queryByText(/parcours reconstruit/i)).toBeNull();
+  });
+
+  it("§2 — ?etape=ranges ne montre QUE les acquisitions rangées", async () => {
+    // Une tuile qui annonce « 56 rangés » doit ouvrir ces 56, pas les 58 de la liste.
+    getJourneysMock.mockResolvedValue(TROIS_PARCOURS);
+    renderPanel("/acquisition?tab=parcours&etape=ranges");
+    expect(await screen.findByText("Déjà rangé")).toBeInTheDocument();
+    expect(screen.queryByText("Encore en vol")).toBeNull();
+    expect(screen.queryByText("Bloqué depuis longtemps")).toBeNull();
+  });
+
+  it("§2 — ?etape=en-vol ne montre que ce qui n'est pas encore rangé", async () => {
+    getJourneysMock.mockResolvedValue(TROIS_PARCOURS);
+    renderPanel("/acquisition?tab=parcours&etape=en-vol");
+    expect(await screen.findByText("Encore en vol")).toBeInTheDocument();
+    expect(screen.getByText("Bloqué depuis longtemps")).toBeInTheDocument();
+    expect(screen.queryByText("Déjà rangé")).toBeNull();
+  });
+
+  it("§2 — ?etape=bloques ne montre que les items bloqués", async () => {
+    getJourneysMock.mockResolvedValue(TROIS_PARCOURS);
+    renderPanel("/acquisition?tab=parcours&etape=bloques");
+    expect(
+      await screen.findByText("Bloqué depuis longtemps"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Encore en vol")).toBeNull();
+    expect(screen.queryByText("Déjà rangé")).toBeNull();
+  });
+
+  it("sans ?etape, la liste reste entière — le filtre n'est jamais implicite", async () => {
+    getJourneysMock.mockResolvedValue(TROIS_PARCOURS);
+    renderPanel();
+    expect(await screen.findByText("Déjà rangé")).toBeInTheDocument();
+    expect(screen.getByText("Encore en vol")).toBeInTheDocument();
+    expect(screen.getByText("Bloqué depuis longtemps")).toBeInTheDocument();
+  });
+
+  it("un filtre qui ne laisse rien le DIT, et offre la sortie (§7)", async () => {
+    getJourneysMock.mockResolvedValue({
+      journeys: [TROIS_PARCOURS.journeys[0]],
+    });
+    renderPanel("/acquisition?tab=parcours&etape=bloques");
+    expect(
+      await screen.findByText(/Aucun parcours à cette étape/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Voir tous les parcours/)).toBeInTheDocument();
   });
 
   it("shows an empty state when there are no journeys", async () => {

@@ -10,7 +10,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Copy } from "lucide-react";
 import { useCallback, useState, type ReactElement } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import { ApiError } from "@/api/client";
@@ -37,6 +37,29 @@ const STAGES = [
   { key: "scraped_at", label: "Scrapé", runKey: "scrape_run_uid" },
   { key: "dispatched_at", label: "Rangé", runKey: "dispatch_run_uid" },
 ] as const;
+
+/**
+ * The `?etape=` filters — what each « Vue d'ensemble » tile actually counts.
+ *
+ * §2 / DOIT-10 : une tuile qui annonce « 56 rangés » doit ouvrir CES 56, par une URL
+ * partageable — pas la liste entière à charge pour l'opérateur de retrouver lesquels.
+ * Chaque prédicat lit exactement le champ que la tuile compte : `Dispatchés` compte les
+ * statuts terminaux, `Bloqués` le drapeau F4, `En vol` le complément des deux.
+ */
+const ETAPE_FILTRES: Record<
+  string,
+  { label: string; garde: (j: JourneyItem) => boolean }
+> = {
+  ranges: {
+    label: "rangés",
+    garde: (j) => j.status === "dispatched" || j.status === "reconciled",
+  },
+  bloques: { label: "bloqués", garde: (j) => j.stuck },
+  "en-vol": {
+    label: "en vol",
+    garde: (j) => j.status !== "dispatched" && j.status !== "reconciled",
+  },
+};
 
 /** A human-readable label for a journey: the follow title, else an id, else the hash. */
 function journeyTitle(j: JourneyItem): string {
@@ -204,6 +227,12 @@ function JourneyActions({ j }: { j: JourneyItem }): ReactElement | null {
  *   The Parcours tab: one card per acquisition with its stage stepper.
  */
 export function ParcoursPanel(): ReactElement {
+  // L'étape est portée par l'URL (source unique, DOIT-10 : le lien est partageable et
+  // Retour revient à la vue non filtrée). Une valeur inconnue n'invente pas de filtre.
+  const [searchParams] = useSearchParams();
+  const etape = searchParams.get("etape");
+  const filtre = etape != null ? ETAPE_FILTRES[etape] : undefined;
+
   const query = useQuery({
     queryKey: [...acqKeys.all, "journeys"],
     queryFn: getJourneys,
@@ -241,7 +270,26 @@ export function ParcoursPanel(): ReactElement {
     );
   }
 
-  const journeys = query.data?.journeys ?? [];
+  const toutes = query.data?.journeys ?? [];
+  const journeys = filtre ? toutes.filter(filtre.garde) : toutes;
+  // §7 — une impasse a toujours une porte de sortie : un filtre qui ne laisse rien le
+  // dit, et rend le chemin vers la liste entière.
+  if (journeys.length === 0 && filtre) {
+    return (
+      <EmptyState
+        title={`Aucun parcours à cette étape (${filtre.label})`}
+        description="Aucune acquisition ne se trouve à cette étape en ce moment."
+        action={
+          <Link
+            to="/acquisition?tab=parcours"
+            className="text-sm font-medium text-primary hover:underline"
+          >
+            Voir tous les parcours
+          </Link>
+        }
+      />
+    );
+  }
   if (journeys.length === 0) {
     return (
       <EmptyState

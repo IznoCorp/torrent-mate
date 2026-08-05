@@ -62,6 +62,10 @@ export function OverviewPanel(): ReactElement {
   return (
     <div className="flex flex-col gap-3">
       {/*
+        §2/DOIT-10 — les QUATRE tuiles mènent à LEURS items, par une URL partageable :
+        une tuile qui annonce 56 sans donner accès à ces 56 est un cul-de-sac
+        (NE-DOIT-PAS-9), et « Dispatchés » n'avait aucun lien du tout.
+
         §12 — au doigt : chaque tuile actionnable est cliquable ENTIÈREMENT. `<Link>` rend
         un `<a>` `display:inline`, dont la boîte se réduit au contenu : sans `block h-full`
         la cible tactile n'était qu'une fraction de la carte, et la carte ne s'étirait pas
@@ -71,7 +75,7 @@ export function OverviewPanel(): ReactElement {
       */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Link
-          to="/acquisition?tab=parcours"
+          to="/acquisition?tab=parcours&etape=en-vol"
           aria-label="Voir les parcours en vol"
           className="block h-full"
         >
@@ -83,7 +87,7 @@ export function OverviewPanel(): ReactElement {
           />
         </Link>
         <Link
-          to="/acquisition?tab=parcours"
+          to="/acquisition?tab=parcours&etape=bloques"
           aria-label="Voir les items bloqués"
           className="block h-full"
         >
@@ -106,12 +110,18 @@ export function OverviewPanel(): ReactElement {
             secondary={d.awaiting_resolution > 0 ? "à résoudre" : "aucune"}
           />
         </Link>
-        <StatPanel
-          className="h-full"
-          label="Dispatchés"
-          value={dispatched}
-          secondary="rangés"
-        />
+        <Link
+          to="/acquisition?tab=parcours&etape=ranges"
+          aria-label="Voir les acquisitions rangées"
+          className="block h-full"
+        >
+          <StatPanel
+            className="h-full"
+            label="Dispatchés"
+            value={dispatched}
+            secondary="rangés"
+          />
+        </Link>
       </div>
       <p className="text-xs text-muted-foreground">
         {d.watcher_enabled ? "Veille active" : "Veille en pause"}
