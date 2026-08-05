@@ -57,10 +57,10 @@ describe("OverviewPanel", () => {
     expect(screen.getByText("En attente de résolution")).toBeInTheDocument();
     expect(screen.getByText("Dispatchés")).toBeInTheDocument();
 
-    // The « Bloqués » tile deep-links to the Parcours detail.
+    // The « Bloqués » tile deep-links to the Parcours detail, FILTERED to the stuck ones.
     expect(
       screen.getByLabelText("Voir les items bloqués").closest("a"),
-    ).toHaveAttribute("href", "/acquisition?tab=parcours");
+    ).toHaveAttribute("href", "/acquisition?tab=parcours&etape=bloques");
     // « En attente de résolution » deep-links to the decisions deck.
     expect(
       screen.getByLabelText("Voir les décisions en attente").closest("a"),
@@ -120,6 +120,39 @@ describe("OverviewPanel", () => {
     expect(tiles).toHaveLength(4);
     for (const tile of tiles) {
       expect(tile).toHaveClass("h-full");
+    }
+  });
+
+  it("§2/DOIT-10 — les QUATRE tuiles mènent à LEURS items, par une URL", async () => {
+    // « Dispatchés » n'avait aucun lien : une tuile qui annonce 56 sans donner accès à
+    // ces 56 est un cul-de-sac (NE-DOIT-PAS-9), et les trois autres pointaient vers la
+    // liste ENTIÈRE — cliquer « Bloqués · 1 » ouvrait 58 cartes indifférenciées.
+    getOverviewMock.mockResolvedValue({
+      by_status: { grabbed: 2, ingested: 1, scraped: 0, dispatched: 56 },
+      in_flight: 3,
+      stuck: 1,
+      awaiting_resolution: 2,
+      watcher_enabled: true,
+      last_successful_run_at: 1_700_000_000,
+    });
+    renderPanel();
+
+    const attendus: [string, string][] = [
+      ["Voir les parcours en vol", "/acquisition?tab=parcours&etape=en-vol"],
+      ["Voir les items bloqués", "/acquisition?tab=parcours&etape=bloques"],
+      ["Voir les décisions en attente", "/medias"],
+      [
+        "Voir les acquisitions rangées",
+        "/acquisition?tab=parcours&etape=ranges",
+      ],
+    ];
+    for (const [label, href] of attendus) {
+      const anchor = (await screen.findByLabelText(label)).closest("a");
+      expect(anchor).not.toBeNull();
+      expect(anchor).toHaveAttribute("href", href);
+      // La tuile entière reste la cible tactile (§12).
+      expect(anchor).toHaveClass("block", "h-full");
+      expect(anchor?.querySelector(".ps-stat")).not.toBeNull();
     }
   });
 
