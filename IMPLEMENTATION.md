@@ -34,7 +34,7 @@ et les crons prod restent intacts. Baseline à la création : 10429 passed, 7 sk
 
 | #   | Phase                                                   | Fichier plan                          | Cause visée | Status |
 | --- | ------------------------------------------------------- | ------------------------------------- | ----------- | ------ |
-| 1   | Porter le signal de popularité sur `SearchResult`       | `phase-01-popularity-signal.md`       | RC4 (prérequis) | [ ] |
+| 1   | Porter le signal de popularité sur `SearchResult`       | `phase-01-popularity-signal.md`       | RC4 (prérequis) | [x] |
 | 2   | Le moteur de ranking + le jeu golden (test-first)       | `phase-02-search-ranking-engine.md`   | RC1, RC2, RC4   | [ ] |
 | 3   | Recherche TV — union TVDB ∪ TMDB par `remote_ids`       | `phase-03-tv-union.md`                | RC5             | [ ] |
 | 4   | Pagination API + branchement des deux surfaces          | `phase-04-api-pagination-surfaces.md` | RC3, RC6        | [ ] |
@@ -51,4 +51,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to execute phase 1 (`phase-01-popularity-signal.md`).
+Phase 2 (`phase-02-search-ranking-engine.md`) — le moteur de ranking, jeu golden en premier.
