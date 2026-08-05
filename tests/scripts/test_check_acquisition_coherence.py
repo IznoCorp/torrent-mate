@@ -26,6 +26,14 @@ should stay quiet:
 - AVAILABLE_VERDICT_DESYNC fires on a disagreeing verdict AND on a missing one.
 - AVAILABLE_STALE fires past the 24h hand-off window, as a counted WARNING.
 - FOLLOW_MISSING_POSTER fires for an active follow with no poster_url.
+
+Plus the two provenance-spine rules (spine-truth), each with its violating fixture,
+its silent counterpart, AND the proof that they never report the same row:
+
+- SPINE_ROW_MISSING fires when a grab left no journey row at all, and stays silent
+  on a seeded row (case-insensitively) and on rows that were never grabbed.
+- SPINE_DISPATCH_MISSING fires on a 'done' acquisition whose journey never reached
+  the library, and stays silent on dispatched/reconciled rows and on open ones.
 """
 
 from __future__ import annotations
@@ -155,6 +163,25 @@ def _insert_aired(conn: sqlite3.Connection, followed_id: int, season: int, episo
     )
 
 
+def _insert_spine(
+    conn: sqlite3.Connection,
+    info_hash: str,
+    *,
+    status: str = "dispatched",
+    kind: str = "episode",
+) -> None:
+    """Insert one ``staging_provenance`` row for *info_hash* (the acquisition's journey).
+
+    Every follow-driven grab writes one, so any fixture that sets a ``grabbed_hash``
+    must seed it too — otherwise SPINE_ROW_MISSING correctly fires on that fixture.
+    """
+    conn.execute(
+        "INSERT INTO staging_provenance (info_hash, kind, grabbed_at, status) VALUES (?,?,?,?)",
+        (info_hash.lower(), kind, NOW, status),
+    )
+    conn.commit()
+
+
 def _external_ids_json(*, tvdb_id: int | None = None, tmdb_id: int | None = None) -> str:
     """Build the hierarchical external_ids_json payload (migration 005 shape)."""
     payload: dict[str, dict[str, str | None]] = {}
@@ -241,6 +268,7 @@ def test_standard_seed_fires_exactly_grabbed_owned_duplicate_and_abandoned(tmp_p
     _insert_wanted(acquire, 12, followed_id=1, season=1, episode=3, status="pending")
     _insert_wanted(acquire, 13, followed_id=1, season=1, episode=2, status="abandoned")
     acquire.commit()
+    _insert_spine(acquire, "aaaa", status="grabbed")  # every grab has its journey row
 
     _own_episode(indexer, tvdb_id=555, season=1, episode=1)
 
@@ -268,6 +296,7 @@ def test_grabbed_hash_missing_fires_with_client_and_skips_without(tmp_path: Path
     _insert_aired(acquire, 1, 1, 4)
     _insert_wanted(acquire, 20, followed_id=1, season=1, episode=4, status="grabbed", grabbed_hash="deadbeef")
     acquire.commit()
+    _insert_spine(acquire, "deadbeef", status="grabbed")  # the grab landed on the spine
 
     with_client = collect_anomalies(acquire, indexer, client_hashes={"otherhash"})
     assert [a.rule for a in with_client] == ["GRABBED_HASH_MISSING"]
@@ -331,6 +360,7 @@ def test_coherent_state_yields_zero_anomalies(tmp_path: Path) -> None:
     _insert_wanted(acquire, 41, followed_id=1, season=1, episode=2, status="done")
     _insert_wanted(acquire, 42, followed_id=1, season=1, episode=99, status="abandoned")  # never aired
     acquire.commit()
+    _insert_spine(acquire, "ABCD12", status="grabbed")  # hash matching is case-insensitive
 
     anomalies = collect_anomalies(acquire, indexer, client_hashes={"abcd12"})
     assert anomalies == []
@@ -679,3 +709,102 @@ def test_counted_is_derived_from_severity_and_cannot_be_overridden() -> None:
     assert Anomaly(rule="R", **common).severity == "error", "error is the default severity"
     with pytest.raises(TypeError):
         Anomaly(rule="R", severity="info", counted=True, **common)  # type: ignore[call-arg]
+
+
+# ---------------------------------------------------------------------------
+# The provenance spine (spine-truth) — the two shapes that erased 57 journeys
+# ---------------------------------------------------------------------------
+
+
+def test_spine_row_missing_fires_when_a_grab_left_no_provenance_row(tmp_path: Path) -> None:
+    """G2 — a wanted row carrying a hash with NO spine row at all.
+
+    The exact shape produced by the swallowed CHECK rejection: ``upsert_grab`` was called,
+    the write was refused, the error was logged at warning level and the acquisition simply
+    never existed on the spine. This rule is the executable form of « le rejet d'écriture
+    n'est plus muet » — it would have screamed on 2026-08-02 instead of hiding four days.
+    """
+    acquire, indexer = _acquire_db(tmp_path), _indexer_db(tmp_path)
+    _insert_follow(acquire, 1)
+    _insert_wanted(acquire, 1, followed_id=1, kind="season", season=15, status="grabbed", grabbed_hash="DEADBEEF")
+    acquire.commit()
+
+    assert "SPINE_ROW_MISSING" in _rules(acquire, indexer)
+
+
+def test_spine_row_missing_stays_silent_when_the_row_exists(tmp_path: Path) -> None:
+    """A grab whose spine row landed is not an anomaly — even matched case-insensitively."""
+    acquire, indexer = _acquire_db(tmp_path), _indexer_db(tmp_path)
+    _insert_follow(acquire, 1)
+    _insert_wanted(acquire, 1, followed_id=1, kind="season", season=15, status="grabbed", grabbed_hash="DEADBEEF")
+    acquire.commit()
+    _insert_spine(acquire, "DEADBEEF", status="grabbed", kind="season")
+
+    assert "SPINE_ROW_MISSING" not in _rules(acquire, indexer)
+
+
+def test_spine_row_missing_ignores_rows_that_were_never_grabbed(tmp_path: Path) -> None:
+    """No hash, no spine row expected — the rule must not fire on the whole queue."""
+    acquire, indexer = _acquire_db(tmp_path), _indexer_db(tmp_path)
+    _insert_follow(acquire, 1)
+    _insert_wanted(acquire, 1, followed_id=1, season=1, episode=1, status="pending")
+    _insert_wanted(acquire, 2, followed_id=1, season=1, episode=2, status="abandoned")
+    acquire.commit()
+
+    assert "SPINE_ROW_MISSING" not in _rules(acquire, indexer)
+
+
+def test_spine_dispatch_missing_fires_on_a_journey_that_never_completed(tmp_path: Path) -> None:
+    """G3 — a closed acquisition whose spine row never reached ``dispatched``.
+
+    The exact shape of cause B: the media landed in the library (the wanted row closed
+    ``done``) but the dispatch could not correlate the folder back to the grab, so the
+    journey stopped mid-spine. « Dispatchés » under-counts by exactly these rows.
+    """
+    acquire, indexer = _acquire_db(tmp_path), _indexer_db(tmp_path)
+    _insert_follow(acquire, 1)
+    _insert_wanted(acquire, 1, followed_id=1, season=1, episode=1, status="done", grabbed_hash="AABB11")
+    acquire.commit()
+    _insert_spine(acquire, "AABB11", status="scraped")
+
+    assert "SPINE_DISPATCH_MISSING" in _rules(acquire, indexer)
+
+
+def test_spine_dispatch_missing_stays_silent_on_a_completed_journey(tmp_path: Path) -> None:
+    """A dispatched spine row is the healthy case, and a reconciled one too."""
+    acquire, indexer = _acquire_db(tmp_path), _indexer_db(tmp_path)
+    _insert_follow(acquire, 1)
+    _insert_wanted(acquire, 1, followed_id=1, season=1, episode=1, status="done", grabbed_hash="AABB11")
+    _insert_wanted(acquire, 2, followed_id=1, season=1, episode=2, status="done", grabbed_hash="CCDD22")
+    acquire.commit()
+    _insert_spine(acquire, "AABB11", status="dispatched")
+    _insert_spine(acquire, "CCDD22", status="reconciled")
+
+    assert "SPINE_DISPATCH_MISSING" not in _rules(acquire, indexer)
+
+
+def test_spine_dispatch_missing_ignores_a_still_open_acquisition(tmp_path: Path) -> None:
+    """An in-flight grab has not landed yet — an un-dispatched spine row is correct there."""
+    acquire, indexer = _acquire_db(tmp_path), _indexer_db(tmp_path)
+    _insert_follow(acquire, 1)
+    _insert_wanted(acquire, 1, followed_id=1, season=1, episode=1, status="grabbed", grabbed_hash="AABB11")
+    acquire.commit()
+    _insert_spine(acquire, "AABB11", status="ingested")
+
+    assert "SPINE_DISPATCH_MISSING" not in _rules(acquire, indexer)
+
+
+def test_the_two_spine_rules_never_report_the_same_row(tmp_path: Path) -> None:
+    """One rule = one failure mode: a missing row is G2's, never also G3's.
+
+    Without the split, a wiped registry would be reported twice per acquisition and the
+    exit code would say twice the truth.
+    """
+    acquire, indexer = _acquire_db(tmp_path), _indexer_db(tmp_path)
+    _insert_follow(acquire, 1)
+    _insert_wanted(acquire, 1, followed_id=1, season=1, episode=1, status="done", grabbed_hash="AABB11")
+    acquire.commit()
+
+    fired = _rules(acquire, indexer)
+    assert "SPINE_ROW_MISSING" in fired
+    assert "SPINE_DISPATCH_MISSING" not in fired

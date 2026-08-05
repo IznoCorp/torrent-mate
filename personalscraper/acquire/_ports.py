@@ -493,18 +493,22 @@ class ProvenanceSubStore(Protocol):
         """Record the final destination at dispatch (no-op if untracked)."""
         ...
 
+    def hashes_under(self, folder: str) -> list[str]:
+        """Resolve a staging folder → the info-hashes of the OPEN rows it holds."""
+        ...
+
     def move_path(self, old_path: str, new_path: str) -> None:
-        """Re-point a tracked folder old_path → new_path (path-keyed sort/rename)."""
+        """Re-point the tracked SUBTREE at old_path onto new_path (a directory move)."""
         ...
 
     def set_scrape_run(self, staging_path: str, *, run_uid: str | None, scraped_at: int) -> None:
-        """Record the scrape stage (status='scraped' + scraped_at) + the run (path-keyed, F3)."""
+        """Stamp the scrape stage + run on everything *staging_path* holds, and re-point it (F3)."""
         ...
 
     def record_dispatch_by_path(
         self, staging_path: str, *, dispatch_path: str, dispatched_at: int, run_uid: str | None = None
     ) -> None:
-        """Record the dispatch of the folder currently at *staging_path* (path-keyed)."""
+        """Record the dispatch of every open row the folder at *staging_path* holds."""
         ...
 
     def set_resolution(

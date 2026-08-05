@@ -27,6 +27,7 @@ import unicodedata
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
+from pathlib import PurePosixPath
 
 from personalscraper.acquire._store_rows import _media_ref_from_json, _media_ref_to_json
 from personalscraper.core.identity import MediaRef
@@ -47,6 +48,35 @@ def _path_key_forms(path: str) -> tuple[str, str]:
     the behaviour of the (ASCII) paths that shipped in F0.
     """
     return unicodedata.normalize("NFC", path), unicodedata.normalize("NFD", path)
+
+
+#: Statuses that close a journey. A terminal row is an AUDIT RECORD: no later staging move,
+#: scrape or dispatch of the same folder may rewrite it (a subsequent run legitimately
+#: recreates the very same show folder for a NEW episode).
+_TERMINAL_STATUSES = ("dispatched", "reconciled")
+
+
+def _path_parts(path: str) -> tuple[str, ...]:
+    """Split *path* into NFC-normalized components for containment tests.
+
+    Comparing whole strings would make ``American Dad 2`` look like a child of
+    ``American Dad``; comparing components cannot. Normalising to NFC makes the test
+    immune to the macOS NFD/NFC split that already forced ``_path_key_forms`` to exist.
+    """
+    return PurePosixPath(unicodedata.normalize("NFC", path)).parts
+
+
+def _is_within(candidate: str, root: str) -> bool:
+    """Return True when *candidate* IS *root* or lives underneath it.
+
+    The relation the pipeline actually has between a dispatched folder and the items it
+    holds: ``sort`` nests a TV release under its show folder
+    (``002-TVSHOWS/{show}/{release}``), and the dispatch works on the SHOW folder. An
+    equality test — what the spine used until 0.80.0 — sees no relation at all there,
+    which is precisely how 47 episode journeys were lost.
+    """
+    root_parts = _path_parts(root)
+    return _path_parts(candidate)[: len(root_parts)] == root_parts
 
 
 # An in-flight item (not yet dispatched/reconciled) can get STUCK mid-pipeline (F4): its
@@ -171,12 +201,27 @@ class _ProvenanceSubStore:
     # -- writes (best-effort: an error NEVER escapes to the pipeline step) -------
 
     def _safe_write(self, sql: str, params: tuple[object, ...]) -> None:
-        """Run one write in its own transaction, swallowing any error (advisory)."""
+        """Run one write in its own transaction, swallowing any error (advisory).
+
+        Swallowed, but **not silent**. This is where cause A hid for four days: a
+        ``kind='season'`` refused by the table's CHECK was reported at ``warning`` — the
+        level the pipeline uses for expected, benign degradations — and drowned among
+        them, so every season acquisition vanished from the spine unnoticed. A write the
+        database REFUSES is a defect, so it is logged at ``error`` with the failing
+        statement's target table and the constraint that refused it. The write itself
+        stays advisory: no exception ever reaches the grab/ingest/scrape/dispatch step.
+        """
         try:
             with self._write_tx(self._conn):
                 self._conn.execute(sql, params)
         except Exception as exc:  # noqa: BLE001 — advisory: a provenance write never fails a step
-            log.warning("acquire.provenance.write_failed", error=str(exc))
+            log.error(  # noqa: TRY400 — the traceback is carried by exc_info, not by log.exception's level
+                "acquire.provenance.write_failed",
+                error=str(exc),
+                error_type=type(exc).__name__,
+                operation=sql.split(maxsplit=1)[0].upper(),
+                exc_info=True,
+            )
 
     def upsert_grab(
         self,
@@ -258,50 +303,104 @@ class _ProvenanceSubStore:
 
     # -- path-keyed writes (pipeline steps work on folders, not hashes) ---------
 
-    def move_path(self, old_path: str, new_path: str) -> None:
-        """Re-point a tracked folder from *old_path* to *new_path* (sort/rename).
+    def hashes_under(self, folder: str) -> list[str]:
+        """Resolve a staging folder → the ``info_hash`` of every OPEN row it holds.
 
-        Keyed on ``current_path`` so a pipeline step that only knows the folder
-        (not the hash) keeps the join key live across a move. UPDATE-only — a
-        no-op when the moved folder is untracked (a manual/direct item).
+        The one place a path is turned into the spine's stable key. A row qualifies when
+        its ``current_path`` **is** *folder* or lives **underneath** it, and its journey is
+        not already terminal. Fail-soft: an empty list on any error (the caller then writes
+        nothing, exactly as an unmatched UPDATE did before).
+
+        Containment — not equality — is the relation the pipeline actually has: ``sort``
+        nests a TV release under its show folder and the later stages act on the SHOW
+        folder. It also means a stage that FORGOT to re-point a row still gets that row's
+        journey closed, instead of leaving it to be pruned as an orphan.
+
+        Args:
+            folder: The staging folder a pipeline stage is acting on.
+
+        Returns:
+            The lowercase info-hashes to write, ordered by hash for a stable write order.
         """
-        nfc_old, nfd_old = _path_key_forms(old_path)
+        try:
+            self._conn.row_factory = sqlite3.Row
+            rows = self._conn.execute(
+                "SELECT info_hash, current_path FROM staging_provenance "
+                "WHERE current_path IS NOT NULL AND (status IS NULL OR status NOT IN (?, ?))",
+                _TERMINAL_STATUSES,
+            ).fetchall()
+        except Exception as exc:  # noqa: BLE001 — fail-soft: a read error resolves to no hashes
+            log.warning("acquire.provenance.resolve_failed", error=str(exc))
+            return []
+        return sorted(r["info_hash"] for r in rows if _is_within(r["current_path"], folder))
+
+    def _write_by_hashes(self, set_clause: str, params: tuple[object, ...], hashes: list[str]) -> None:
+        """Run one hash-keyed UPDATE over *hashes* (a no-op on an empty list).
+
+        Args:
+            set_clause: The ``SET`` body (without the keyword), with ``?`` placeholders.
+            params: Bind values for *set_clause*, in order.
+            hashes: The target info-hashes — the STABLE key every spine write uses.
+        """
+        if not hashes:
+            return
+        placeholders = ", ".join("?" * len(hashes))
         self._safe_write(
-            "UPDATE staging_provenance SET current_path = ? WHERE current_path IN (?, ?)",
-            (new_path, nfc_old, nfd_old),
+            f"UPDATE staging_provenance SET {set_clause} WHERE info_hash IN ({placeholders})",  # noqa: S608
+            (*params, *hashes),
         )
+
+    def move_path(self, old_path: str, new_path: str) -> None:
+        """Re-point the tracked SUBTREE at *old_path* onto *new_path* (sort/rename).
+
+        A directory move, not a string swap: every open row whose ``current_path`` is
+        *old_path* **or lives under it** now lives at *new_path*. The collapse of a nested
+        row onto the new root is not an approximation — by the time the scrape reports the
+        rename it has already flattened the release folders into ``Saison NN/`` and deleted
+        them, so the renamed media folder IS the item's live location. Writing anything
+        else would be inventing a path that no longer exists.
+
+        Resolves by path, writes by ``info_hash``. UPDATE-only — a no-op when the moved
+        folder holds no tracked item (a manual/direct item).
+        """
+        self._write_by_hashes("current_path = ?", (new_path,), self.hashes_under(old_path))
 
     def record_dispatch_by_path(
         self, staging_path: str, *, dispatch_path: str, dispatched_at: int, run_uid: str | None = None
     ) -> None:
-        """Record the dispatch of the folder currently at *staging_path* (UPDATE-only).
+        """Record the dispatch of everything the folder at *staging_path* holds.
 
-        Keyed on ``current_path`` (the live staging folder) so dispatch needs no
-        hash. No-op when untracked. ``run_uid`` (F3) is the dispatching run's
-        ``pipeline_run.run_uid`` (hex), or None.
+        Dispatching ``002-TVSHOWS/American Dad! (2005)`` dispatches every season pack merged
+        into it, so every open row that folder contains is closed — each by its own
+        ``info_hash``, the key that does not move. ``run_uid`` (F3) is the dispatching run's
+        ``pipeline_run.run_uid`` (hex), or None. No-op when the folder holds nothing tracked.
         """
-        nfc, nfd = _path_key_forms(staging_path)
-        self._safe_write(
-            "UPDATE staging_provenance SET dispatch_path = ?, dispatched_at = ?, "
-            "status = 'dispatched', dispatch_run_uid = ? WHERE current_path IN (?, ?)",
-            (dispatch_path, dispatched_at, run_uid, nfc, nfd),
+        self._write_by_hashes(
+            "dispatch_path = ?, dispatched_at = ?, status = 'dispatched', dispatch_run_uid = ?",
+            (dispatch_path, dispatched_at, run_uid),
+            self.hashes_under(staging_path),
         )
 
     def set_scrape_run(self, staging_path: str, *, run_uid: str | None, scraped_at: int) -> None:
         """Record the scrape STAGE for the folder at *staging_path* (F3, UPDATE-only).
 
-        Advances the row to ``status='scraped'`` + ``scraped_at`` (so the journey stepper
-        lights up the « Scrapé » stage) and stamps ``scrape_run_uid`` (the scraping run —
-        None outside a run). Path-keyed on ``current_path`` (NFC/NFD-robust), so the scrape
-        orchestrator — which works on folders, not hashes — records the stage without a hash
-        lookup. Called once per CONFIDENTLY-scraped item; an ambiguous item awaiting
-        resolution is NOT marked scraped. No-op when untracked. Advisory: never raises.
+        Advances every open row that folder holds to ``status='scraped'`` + ``scraped_at``
+        (so the journey stepper lights up the « Scrapé » stage), stamps ``scrape_run_uid``
+        (None outside a run), **and re-points ``current_path`` onto the scraped folder**.
+
+        That last part is what keeps the registry truthful when NO rename happened — a
+        release sorted under an ALREADY-canonical show folder is flattened into
+        ``Saison NN/`` without any ``move_path`` call, so without this the row would keep
+        pointing at a directory the scrape just deleted and ``prune_stale`` would erase the
+        journey before the dispatch could close it.
+
+        Called once per CONFIDENTLY-scraped item; an ambiguous item awaiting resolution is
+        NOT marked scraped. No-op when untracked. Advisory: never raises.
         """
-        nfc, nfd = _path_key_forms(staging_path)
-        self._safe_write(
-            "UPDATE staging_provenance SET scraped_at = ?, status = 'scraped', scrape_run_uid = ? "
-            "WHERE current_path IN (?, ?)",
-            (scraped_at, run_uid, nfc, nfd),
+        self._write_by_hashes(
+            "current_path = ?, scraped_at = ?, status = 'scraped', scrape_run_uid = ?",
+            (staging_path, scraped_at, run_uid),
+            self.hashes_under(staging_path),
         )
 
     def set_resolution(

@@ -61,12 +61,22 @@ export function OverviewPanel(): ReactElement {
 
   return (
     <div className="flex flex-col gap-3">
+      {/*
+        §12 — au doigt : chaque tuile actionnable est cliquable ENTIÈREMENT. `<Link>` rend
+        un `<a>` `display:inline`, dont la boîte se réduit au contenu : sans `block h-full`
+        la cible tactile n'était qu'une fraction de la carte, et la carte ne s'étirait pas
+        à sa piste de grille — d'où la rangée inégale à côté de « Dispatchés », la seule
+        tuile sans lien. `h-full` sur l'ancre porte la hauteur de piste, `h-full` sur la
+        tuile la transmet jusqu'à la carte.
+      */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Link
           to="/acquisition?tab=parcours"
           aria-label="Voir les parcours en vol"
+          className="block h-full"
         >
           <StatPanel
+            className="h-full"
             label="En vol"
             value={d.in_flight}
             secondary={`${String(grabbed)} récupérés · ${String(ingested)} ingérés · ${String(scraped)} scrapés`}
@@ -75,21 +85,33 @@ export function OverviewPanel(): ReactElement {
         <Link
           to="/acquisition?tab=parcours"
           aria-label="Voir les items bloqués"
+          className="block h-full"
         >
           <StatPanel
+            className="h-full"
             label="Bloqués"
             value={d.stuck}
             secondary={d.stuck > 0 ? "à reprendre" : "aucun"}
           />
         </Link>
-        <Link to="/medias" aria-label="Voir les décisions en attente">
+        <Link
+          to="/medias"
+          aria-label="Voir les décisions en attente"
+          className="block h-full"
+        >
           <StatPanel
+            className="h-full"
             label="En attente de résolution"
             value={d.awaiting_resolution}
             secondary={d.awaiting_resolution > 0 ? "à résoudre" : "aucune"}
           />
         </Link>
-        <StatPanel label="Dispatchés" value={dispatched} secondary="rangés" />
+        <StatPanel
+          className="h-full"
+          label="Dispatchés"
+          value={dispatched}
+          secondary="rangés"
+        />
       </div>
       <p className="text-xs text-muted-foreground">
         {d.watcher_enabled ? "Veille active" : "Veille en pause"}
