@@ -372,6 +372,119 @@ def test_running_it_twice_changes_nothing(tmp_path: Path) -> None:
     assert dict(_spine_rows(acquire)["aabb11"]) == before
 
 
+def _run_row(
+    conn: sqlite3.Connection,
+    run_uid: str,
+    *,
+    ingest_reasons: list[str],
+    ingest_ended: float,
+    scrape_ended: float | None = None,
+    dispatch_ended: float | None = None,
+) -> None:
+    """Insert one ``pipeline_run`` whose steps_json names the releases it ingested.
+
+    That ``reasons`` list is what ties a torrent name back to the run that carried it —
+    and therefore to the instants of that run's scrape and dispatch steps.
+    """
+    steps: list[dict[str, object]] = [
+        {"name": "ingest", "ended_at": ingest_ended, "reasons": ingest_reasons},
+    ]
+    if scrape_ended is not None:
+        steps.append({"name": "scrape", "ended_at": scrape_ended, "reasons": []})
+    if dispatch_ended is not None:
+        steps.append({"name": "dispatch", "ended_at": dispatch_ended, "reasons": []})
+    conn.execute(
+        "INSERT INTO pipeline_run (run_uid, trigger, dry_run, started_at, ended_at, outcome, steps_json) "
+        "VALUES (?,?,0,?,?, 'success', ?)",
+        (run_uid, "completion", ingest_ended - 100, dispatch_ended or ingest_ended, json.dumps(steps)),
+    )
+    conn.commit()
+
+
+def test_the_ingest_instant_is_recovered_from_the_ingest_tracker(tmp_path: Path) -> None:
+    """« inconnue » n'est légitime que pour ce qui l'est vraiment.
+
+    ``ingested_torrents.json`` porte la date d'ingestion EXACTE, par hash. La déclarer
+    perdue sans l'avoir regardée, puis afficher « Ingéré · inconnue », c'est renoncer à
+    une donnée qui existe — l'inverse de §13.
+    """
+    acquire, indexer = _acquire_db(tmp_path), _indexer_db(tmp_path)
+    _follow(acquire, 1)
+    _wanted(acquire, 1, followed_id=1, season=1, episode=1, grabbed_hash="AABB11")
+    _own_episode(indexer, tvdb_id=555, season=1, episode=1)
+    tracker = {"AABB11": {"name": "Show.S01E01-GRP", "action": "copied", "date": "2026-08-05T03:42:47.238007"}}
+
+    backfill_spine(acquire, indexer, apply=True, now=1_785_900_000, ingest_tracker=tracker)
+
+    row = _spine_rows(acquire)["aabb11"]
+    assert row["ingested_at"] == int(
+        __import__("datetime").datetime.fromisoformat("2026-08-05T03:42:47.238007").timestamp()
+    )
+
+
+def test_the_scrape_instant_and_run_links_come_from_the_run_journal(tmp_path: Path) -> None:
+    """Le journal des runs rattache une release à SON run — donc au scraping de ce run.
+
+    L'étape d'ingestion d'un run nomme les releases qu'elle a copiées ; le même run a
+    scrapé puis dispatché ces mêmes items. C'est une jointure, pas une supposition.
+    """
+    acquire, indexer = _acquire_db(tmp_path), _indexer_db(tmp_path)
+    _follow(acquire, 1)
+    _wanted(acquire, 1, followed_id=1, season=1, episode=1, grabbed_hash="AABB11")
+    _own_episode(indexer, tvdb_id=555, season=1, episode=1)
+    _run_row(
+        indexer,
+        "f7162f2c" + "0" * 24,
+        ingest_reasons=["Show.S01E01-GRP → copied"],
+        ingest_ended=1_785_886_000.0,
+        scrape_ended=1_785_886_396.5,
+        dispatch_ended=1_785_886_900.0,
+    )
+    tracker = {"AABB11": {"name": "Show.S01E01-GRP", "action": "copied", "date": "2026-08-05T03:42:47.238007"}}
+
+    backfill_spine(acquire, indexer, apply=True, now=1_785_900_000, ingest_tracker=tracker)
+
+    row = _spine_rows(acquire)["aabb11"]
+    assert row["scraped_at"] == 1_785_886_396
+    assert row["ingest_run_uid"] == "f7162f2c" + "0" * 24
+    assert row["scrape_run_uid"] == "f7162f2c" + "0" * 24
+
+
+def test_what_is_genuinely_unrecoverable_stays_null(tmp_path: Path) -> None:
+    """Aucune source, aucun instant : la ligne reste honnêtement muette.
+
+    Le contre-cas qui empêche la récupération de dégénérer en invention.
+    """
+    acquire, indexer = _acquire_db(tmp_path), _indexer_db(tmp_path)
+    _follow(acquire, 1)
+    _wanted(acquire, 1, followed_id=1, season=1, episode=1, grabbed_hash="AABB11")
+    _own_episode(indexer, tvdb_id=555, season=1, episode=1)
+
+    backfill_spine(acquire, indexer, apply=True, now=1_785_900_000, ingest_tracker={})
+
+    row = _spine_rows(acquire)["aabb11"]
+    assert row["ingested_at"] is None
+    assert row["scraped_at"] is None
+    assert row["reconstructed_at"] == 1_785_900_000
+
+
+def test_a_tracker_date_that_cannot_be_parsed_is_ignored_not_guessed(tmp_path: Path) -> None:
+    """Une date illisible ne devient pas « maintenant » : elle reste inconnue."""
+    acquire, indexer = _acquire_db(tmp_path), _indexer_db(tmp_path)
+    _follow(acquire, 1)
+    _wanted(acquire, 1, followed_id=1, season=1, episode=1, grabbed_hash="AABB11")
+    _own_episode(indexer, tvdb_id=555, season=1, episode=1)
+
+    backfill_spine(
+        acquire,
+        indexer,
+        apply=True,
+        now=1_785_900_000,
+        ingest_tracker={"AABB11": {"name": "X", "date": "pas une date"}},
+    )
+    assert _spine_rows(acquire)["aabb11"]["ingested_at"] is None
+
+
 def test_every_rebuilt_row_is_marked_as_rebuilt(tmp_path: Path) -> None:
     """§14.3 — une ligne reconstruite le DIT, pour que l'interface distingue les NULL.
 

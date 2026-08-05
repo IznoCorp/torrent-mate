@@ -49,6 +49,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import datetime as _dt
 import json
 import sqlite3
 import sys
@@ -74,6 +75,10 @@ class RebuiltRow:
         followed_id: The follow the acquisition belongs to, or None.
         media_ref_json: The identity known at grab time, verbatim from the wanted row.
         grabbed_at: Epoch of the grab, or None when no seed obligation recorded it.
+        ingested_at: Epoch the ingest copied this torrent into staging, or None.
+        scraped_at: Epoch the run that carried it finished scraping, or None.
+        ingest_run_uid / scrape_run_uid / dispatch_run_uid: The pipeline run that
+            advanced this acquisition at each stage, or None when unidentified.
         dispatch_path: The folder the media landed in, or None when unprovable.
         dispatched_at: Epoch the library last verified the landed file, or None.
         status: ``dispatched`` or ``grabbed`` — the furthest stage that can be PROVEN.
@@ -89,6 +94,11 @@ class RebuiltRow:
     dispatched_at: int | None
     status: str
     title: str
+    ingested_at: int | None = None
+    scraped_at: int | None = None
+    ingest_run_uid: str | None = None
+    scrape_run_uid: str | None = None
+    dispatch_run_uid: str | None = None
 
     def line(self) -> str:
         """Render the row as one human report line."""
@@ -154,7 +164,9 @@ def _find_item_id(
     return None
 
 
-def _landing(indexer_conn: sqlite3.Connection, item_id: int, *, kind: str, season: int | None) -> tuple[str | None, int | None]:
+def _landing(
+    indexer_conn: sqlite3.Connection, item_id: int, *, kind: str, season: int | None
+) -> tuple[str | None, int | None]:
     """Return ``(dispatch_path, dispatched_at)`` for a landed work, or ``(None, None)``.
 
     ``dispatch_path`` is read from ``item_attribute`` — the value the DISPATCHER itself
@@ -208,12 +220,86 @@ def _landing(indexer_conn: sqlite3.Connection, item_id: int, *, kind: str, seaso
     return (dispatch_path, dispatched_at) if dispatched_at is not None else (None, None)
 
 
+def _epoch_from_iso(raw: object) -> int | None:
+    """Parse an ISO-8601 timestamp into an epoch, or None when it cannot be read.
+
+    An unreadable date stays **unknown**: it never degrades into « now », which would
+    turn a missing fact into a fabricated one.
+
+    Args:
+        raw: The ``date`` field of an ingest-tracker entry (expected ISO-8601 text).
+
+    Returns:
+        The epoch seconds, or None when *raw* is absent or unparseable.
+    """
+    if not isinstance(raw, str):
+        return None
+    try:
+        return int(_dt.datetime.fromisoformat(raw).timestamp())
+    except ValueError:
+        return None
+
+
+def _runs_by_release(indexer_conn: sqlite3.Connection) -> dict[str, tuple[str, dict[str, int]]]:
+    """Index ``pipeline_run`` as ``{release name: (run_uid, {stage: epoch})}``.
+
+    Each run's INGEST step records, in its ``reasons``, the exact release names it copied
+    into staging — and the very same run then sorted, scraped and dispatched those items.
+    So a torrent name resolves to its run, and the run's per-step ``ended_at`` gives the
+    instants that item passed each stage. This is a join over facts the pipeline wrote as
+    it worked, not an inference about what probably happened.
+
+    A name seen in several runs keeps the FIRST (oldest) run: that is the one that
+    actually ingested it; a later run re-listing it would be a re-processing.
+
+    Args:
+        indexer_conn: Open connection to ``library.db``.
+
+    Returns:
+        The release-name index; empty on any read error (fail-soft — the caller then
+        simply recovers less).
+    """
+    index: dict[str, tuple[str, dict[str, int]]] = {}
+    try:
+        rows = indexer_conn.execute(
+            "SELECT run_uid, steps_json, started_at FROM pipeline_run "
+            "WHERE steps_json IS NOT NULL ORDER BY started_at ASC"
+        ).fetchall()
+    except sqlite3.Error:
+        return index
+    for run_uid, steps_json, _started in rows:
+        try:
+            steps = json.loads(steps_json)
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(steps, list):
+            continue
+        stages: dict[str, int] = {}
+        reasons: list[str] = []
+        for step in steps:
+            if not isinstance(step, dict):
+                continue
+            ended = step.get("ended_at")
+            if isinstance(ended, (int, float)):
+                stages[str(step.get("name"))] = int(ended)
+            if step.get("name") == "ingest":
+                reasons = [str(r) for r in (step.get("reasons") or [])]
+        for reason in reasons:
+            # « <release name> → copied » / « <release name>: <error> » — the name is the
+            # stable prefix, so index on it rather than on the whole formatted line.
+            name = reason.split(" \u2192 ")[0].split(":")[0].strip()
+            if name:
+                index.setdefault(name, (str(run_uid), stages))
+    return index
+
+
 def backfill_spine(
     acquire_conn: sqlite3.Connection,
     indexer_conn: sqlite3.Connection,
     *,
     apply: bool,
     now: int | None = None,
+    ingest_tracker: dict[str, dict[str, object]] | None = None,
 ) -> list[RebuiltRow]:
     """Rebuild every missing provenance journey; write them only when *apply*.
 
@@ -228,12 +314,19 @@ def backfill_spine(
         now: Epoch stamped into ``reconstructed_at`` on every rebuilt row (§14.3 — a
             rebuilt journey says so, which is what lets the interface render an unknown
             stage as « inconnue » rather than « pas faite »). Defaults to the wall clock.
+        ingest_tracker: The parsed ``ingested_torrents.json`` (``{hash: {name, date}}``),
+            or None. It holds the EXACT per-hash ingest instant, and its ``name`` is the
+            key that ties a torrent to the pipeline run that carried it. « Inconnue » is
+            only legitimate for what genuinely is: whatever these sources can prove is
+            recovered rather than left blank.
 
     Returns:
         The rebuilt rows, ordered by grab instant then hash. Empty when the spine has no
         hole to fill.
     """
     stamped_at = int(time.time()) if now is None else now
+    tracker = {k.lower(): v for k, v in (ingest_tracker or {}).items()}
+    runs_by_release = _runs_by_release(indexer_conn)
     acquire_conn.row_factory = sqlite3.Row
     existing = {
         (r["info_hash"] or "").lower() for r in acquire_conn.execute("SELECT info_hash FROM staging_provenance")
@@ -278,8 +371,31 @@ def backfill_spine(
         # row AND the library holds a live file for it. Anything less stops at 'grabbed' —
         # the stage the grab itself proves.
         landed = dispatched_at is not None and w["status"] in _CLOSED_WANTED_STATUSES
+
+        # Recover the intermediate stages instead of declaring them lost. The tracker
+        # dates the ingest of THIS hash exactly; its release name resolves the run that
+        # carried the item, whose per-step instants date the scrape (and re-link every
+        # stage to its run, so the journey chips deep-link again).
+        entry = tracker.get(info_hash) or {}
+        ingested_at = _epoch_from_iso(entry.get("date"))
+        release_name = entry.get("name")
+        run_uid: str | None = None
+        stages: dict[str, int] = {}
+        if isinstance(release_name, str):
+            resolved = runs_by_release.get(release_name)
+            if resolved is not None:
+                run_uid, stages = resolved
+        # The tracker's per-item date beats the run's per-STEP end when both exist.
+        ingested_at = ingested_at if ingested_at is not None else stages.get("ingest")
+        scraped_at = stages.get("scrape")
+
         rebuilt.append(
             RebuiltRow(
+                ingested_at=ingested_at,
+                scraped_at=scraped_at,
+                ingest_run_uid=run_uid if ingested_at is not None else None,
+                scrape_run_uid=run_uid if scraped_at is not None else None,
+                dispatch_run_uid=run_uid if landed and "dispatch" in stages else None,
                 info_hash=info_hash,
                 kind=w["kind"],
                 followed_id=w["followed_id"],
@@ -297,8 +413,9 @@ def backfill_spine(
     if apply and rebuilt:
         acquire_conn.executemany(
             "INSERT INTO staging_provenance "
-            "(info_hash, followed_id, media_ref_json, kind, grabbed_at, dispatch_path, dispatched_at, "
-            "status, reconstructed_at) VALUES (?,?,?,?,?,?,?,?,?)",
+            "(info_hash, followed_id, media_ref_json, kind, grabbed_at, ingested_at, scraped_at, "
+            "dispatch_path, dispatched_at, status, reconstructed_at, ingest_run_uid, scrape_run_uid, "
+            "dispatch_run_uid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             [
                 (
                     r.info_hash,
@@ -306,10 +423,15 @@ def backfill_spine(
                     r.media_ref_json,
                     r.kind,
                     r.grabbed_at,
+                    r.ingested_at,
+                    r.scraped_at,
                     r.dispatch_path,
                     r.dispatched_at,
                     r.status,
                     stamped_at,
+                    r.ingest_run_uid,
+                    r.scrape_run_uid,
+                    r.dispatch_run_uid,
                 )
                 for r in rebuilt
             ],
@@ -353,10 +475,20 @@ def main() -> int:
         print(f"library.db not found ({indexer_path})", file=sys.stderr)
         return 2
 
+    # The ingest tracker dates each torrent's ingest exactly; without it those instants
+    # would read « inconnue » on a journey that in fact left a trace. Fail-soft: an absent
+    # or unreadable file simply recovers less, never blocks the repair.
+    tracker: dict[str, dict[str, object]] = {}
+    tracker_path = config.paths.data_dir / "ingested_torrents.json"
+    try:
+        tracker = json.loads(tracker_path.read_text())
+    except (OSError, ValueError) as exc:
+        print(f"ingest tracker unreadable ({tracker_path}): {exc}", file=sys.stderr)
+
     acquire_conn = sqlite3.connect(str(acquire_path)) if args.apply else _open_ro(str(acquire_path))
     indexer_conn = _open_ro(str(indexer_path))
     try:
-        rebuilt = backfill_spine(acquire_conn, indexer_conn, apply=args.apply)
+        rebuilt = backfill_spine(acquire_conn, indexer_conn, apply=args.apply, ingest_tracker=tracker)
     finally:
         acquire_conn.close()
         indexer_conn.close()
@@ -367,8 +499,14 @@ def main() -> int:
         for r in rebuilt:
             print(r.line())
         landed = sum(1 for r in rebuilt if r.status == "dispatched")
+        with_ingest = sum(1 for r in rebuilt if r.ingested_at is not None)
+        with_scrape = sum(1 for r in rebuilt if r.scraped_at is not None)
         verb = "rebuilt" if args.apply else "would rebuild"
         print(f"\n{verb} {len(rebuilt)} journey(s) — {landed} dispatched, {len(rebuilt) - landed} stopped at grabbed.")
+        print(
+            f"stages recovered: ingest {with_ingest}/{len(rebuilt)}, scrape {with_scrape}/{len(rebuilt)} "
+            "— the rest stay honestly unknown."
+        )
         if not args.apply:
             print("Dry run: nothing written. Re-run with --apply to persist.")
     return 0
