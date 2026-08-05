@@ -51,6 +51,11 @@ class SearchResult:
             ignores it. None means "not measured" — never "measured as zero".
         vote_count: Number of provider-side votes backing the popularity, or
             None when unavailable. Same provider caveats as ``popularity``.
+        external_ids: Cross-provider identifiers this result names, keyed by short
+            provider name (``{"tmdb": "202411", "imdb": "tt17220216"}``). TVDB's
+            search response carries these inline, which lets the interactive TV
+            search correlate a TVDB row with its TMDB counterpart at zero extra
+            API cost. Empty for providers (and rows) that name none.
     """
 
     provider: str
@@ -64,6 +69,8 @@ class SearchResult:
     aliases: tuple[str, ...] = ()
     popularity: float | None = None
     vote_count: int | None = None
+    # Mapping is mutable, so a default_factory is required on a frozen dataclass.
+    external_ids: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

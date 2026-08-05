@@ -26,10 +26,14 @@ Nothing in this module is imported by the scrape path.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from typing import Any
 
 from personalscraper.api.metadata._base import SearchResult
+from personalscraper.logger import get_logger
 from personalscraper.text_utils import media_processor
+
+log = get_logger("search_ranking")
 
 # ── Scoring weights ───────────────────────────────────────────────────────────
 # Calibrated against the golden set in tests/scraper/test_search_ranking.py — every
@@ -230,3 +234,129 @@ def rank_search_results(
     ]
     scored.sort(key=lambda item: item.score, reverse=True)
     return scored
+
+
+def _correlation_keys(result: SearchResult) -> list[str]:
+    """Build the keys under which a TV result can be recognised across providers.
+
+    Two keys, in decreasing order of trust:
+
+    - the TMDB id the row names via ``external_ids`` (TVDB search publishes it
+      inline, so correlating costs no extra API call);
+    - normalised title + year, the fallback for the ~20% of live TVDB rows that
+      carry no ``remote_ids``.
+
+    Args:
+        result: The candidate.
+
+    Returns:
+        Correlation keys, most trustworthy first.
+    """
+    keys: list[str] = []
+    tmdb_id = result.external_ids.get("tmdb") if result.external_ids else None
+    if result.provider == "tmdb":
+        tmdb_id = result.provider_id
+    if tmdb_id:
+        keys.append(f"tmdb:{tmdb_id}")
+    title = media_processor(result.title)
+    if title and result.year is not None:
+        keys.append(f"title:{title}:{result.year}")
+    return keys
+
+
+def merge_tv_results(
+    tvdb_results: list[SearchResult],
+    tmdb_results: list[SearchResult],
+) -> list[SearchResult]:
+    """Merge TVDB and TMDB TV search results into one candidate set.
+
+    The scrape path consults TMDB for a show only when TVDB is entirely silent, and
+    TVDB counts as "speaking" as soon as it returns any row at all — even one
+    scoring zero. For identification that rule is right (TVDB is canonical). For a
+    SEARCH it is what hid the answer: on 'monarch', one junk TVDB row was enough to
+    suppress TMDB, which ranked the wanted show first.
+
+    So the search merges both. TVDB keeps the identity, because the follow id must
+    remain the TVDB id (§5 — the media is scraped by the id chosen at add time),
+    while TMDB contributes the popularity TVDB does not publish.
+
+    A row that correlates with nothing is KEPT rather than dropped: an operator can
+    arbitrate between two candidates on screen, but not between one and one that
+    silently vanished.
+
+    Args:
+        tvdb_results: TVDB search results (may be empty).
+        tmdb_results: TMDB TV search results (may be empty).
+
+    Returns:
+        Merged candidates: correlated pairs collapsed onto the TVDB row enriched
+        with TMDB's popularity, then the TMDB rows TVDB did not know.
+    """
+    merged: list[SearchResult] = []
+    tmdb_by_key: dict[str, SearchResult] = {}
+    for candidate in tmdb_results:
+        for key in _correlation_keys(candidate):
+            tmdb_by_key.setdefault(key, candidate)
+
+    consumed: set[str] = set()
+    for tvdb_row in tvdb_results:
+        match: SearchResult | None = None
+        for key in _correlation_keys(tvdb_row):
+            found = tmdb_by_key.get(key)
+            if found is not None:
+                match = found
+                break
+        if match is None:
+            merged.append(tvdb_row)
+            continue
+        consumed.add(match.provider_id)
+        # Graft ONLY the signals TVDB lacks. Identity, title and artwork stay TVDB's.
+        merged.append(
+            replace(
+                tvdb_row,
+                popularity=match.popularity,
+                vote_count=match.vote_count,
+                overview=tvdb_row.overview or match.overview,
+                external_ids={**match.external_ids, **tvdb_row.external_ids, "tmdb": match.provider_id},
+            )
+        )
+
+    merged.extend(row for row in tmdb_results if row.provider_id not in consumed)
+    return merged
+
+
+def gather_tv_candidates(
+    tvdb_client: Any,
+    tmdb_client: Any,
+    query: str,
+    *,
+    year: int | None = None,
+) -> list[SearchResult]:
+    """Query both TV providers and merge, degrading when one of them fails.
+
+    A search must not die because a provider coughs: whichever side answers is
+    served. But the failure is LOGGED rather than swallowed (§8, nothing in
+    silence) — a search quietly running on half its sources looks identical to a
+    healthy one, and that is precisely how a degraded result set gets mistaken for
+    the truth.
+
+    Args:
+        tvdb_client: Client exposing ``search_series(query, year)``.
+        tmdb_client: Client exposing ``search_tv(query, year)``.
+        query: The operator query.
+        year: Optional year hint forwarded to both providers.
+
+    Returns:
+        Merged candidates; empty only when BOTH providers yielded nothing.
+    """
+    tvdb_rows: list[SearchResult] = []
+    tmdb_rows: list[SearchResult] = []
+    try:
+        tvdb_rows = list(tvdb_client.search_series(query, year))
+    except Exception as exc:  # noqa: BLE001 — provider adapters raise a mixed bag
+        log.warning("search_tv_provider_degraded", provider="tvdb", query=query, error=str(exc))
+    try:
+        tmdb_rows = list(tmdb_client.search_tv(query, year))
+    except Exception as exc:  # noqa: BLE001 — same contract
+        log.warning("search_tv_provider_degraded", provider="tmdb", query=query, error=str(exc))
+    return merge_tv_results(tvdb_rows, tmdb_rows)

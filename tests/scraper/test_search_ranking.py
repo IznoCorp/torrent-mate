@@ -24,7 +24,11 @@ from personalscraper.api.metadata._base import SearchResult
 from personalscraper.api.metadata._tmdb_parsers import parse_search_result as parse_tmdb
 from personalscraper.api.metadata._tvdb_parsers import parse_search_result as parse_tvdb
 from personalscraper.api.metadata._tvdb_parsers import unwrap
-from personalscraper.scraper.search_ranking import merge_tv_results, rank_search_results
+from personalscraper.scraper.search_ranking import (
+    gather_tv_candidates,
+    merge_tv_results,
+    rank_search_results,
+)
 
 FIXTURES = Path("tests/fixtures/search")
 
@@ -302,3 +306,48 @@ class TestUnionRanking:
     def test_empty_both_sides(self) -> None:
         """No candidates anywhere yields no rows, not an exception."""
         assert merge_tv_results([], []) == []
+
+
+class TestProviderFailSoft:
+    """One provider failing degrades the search; it never kills it — and it is logged."""
+
+    class _Boom:
+        """A client whose search always raises."""
+
+        def search_series(self, query: str, year: int | None) -> list[SearchResult]:
+            raise RuntimeError("tvdb down")
+
+        def search_tv(self, query: str, year: int | None) -> list[SearchResult]:
+            raise RuntimeError("tmdb down")
+
+    class _Ok:
+        """A client returning one canned row."""
+
+        def __init__(self, row: SearchResult) -> None:
+            self.row = row
+
+        def search_series(self, query: str, year: int | None) -> list[SearchResult]:
+            return [self.row]
+
+        def search_tv(self, query: str, year: int | None) -> list[SearchResult]:
+            return [self.row]
+
+    def test_tvdb_failure_still_serves_tmdb(self, caplog: pytest.LogCaptureFixture) -> None:
+        """TVDB down: the TMDB rows are still served, and the failure is logged."""
+        row = SearchResult(provider="tmdb", provider_id="1", title="Monarch", year=2023, media_type="tv")
+        with caplog.at_level("WARNING"):
+            out = gather_tv_candidates(self._Boom(), self._Ok(row), "monarch")
+        assert [r.provider for r in out] == ["tmdb"]
+        assert "search_tv_provider_degraded" in caplog.text
+
+    def test_tmdb_failure_still_serves_tvdb(self, caplog: pytest.LogCaptureFixture) -> None:
+        """TMDB down: the TVDB rows are still served, and the failure is logged."""
+        row = SearchResult(provider="tvdb", provider_id="2", title="Monarch", year=2023, media_type="tv")
+        with caplog.at_level("WARNING"):
+            out = gather_tv_candidates(self._Ok(row), self._Boom(), "monarch")
+        assert [r.provider for r in out] == ["tvdb"]
+        assert "search_tv_provider_degraded" in caplog.text
+
+    def test_both_down_returns_empty_without_raising(self) -> None:
+        """Total provider outage yields no candidates — never an exception."""
+        assert gather_tv_candidates(self._Boom(), self._Boom(), "monarch") == []
