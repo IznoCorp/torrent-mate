@@ -86,6 +86,57 @@ def _build_authenticated_client_with_decisions(
 # ── DB helpers ─────────────────────────────────────────────────────────────────
 
 
+def _sr(provider: str, provider_id: str, title: str, year: int, media_type: str):
+    """Build a provider SearchResult for the deck-search tests.
+
+    Args:
+        provider: Provider name.
+        provider_id: Provider id as a string (the SearchResult shape).
+        title: Media title.
+        year: Release / first-air year.
+        media_type: "movie" or "tv".
+
+    Returns:
+        A SearchResult ready to be served by a fake client.
+    """
+    from personalscraper.api.metadata._base import SearchResult
+
+    return SearchResult(
+        provider=provider,
+        provider_id=provider_id,
+        title=title,
+        year=year,
+        media_type=media_type,  # type: ignore[arg-type]
+    )
+
+
+def _fake_clients(*, movies: list = None, shows: list = None):
+    """Build a (tmdb, tvdb) pair serving canned rows and never touching the network.
+
+    Args:
+        movies: Rows returned by ``search_movie``.
+        shows: Rows returned by ``search_tv`` / ``search_series``.
+
+    Returns:
+        The ``(tmdb_client, tvdb_client)`` pair build_provider_clients returns.
+    """
+    movie_rows = movies or []
+    show_rows = shows or []
+
+    class _Tmdb:
+        def search_movie(self, title, year=None, **_kw):
+            return movie_rows
+
+        def search_tv(self, title, year=None, **_kw):
+            return [r for r in show_rows if r.provider == "tmdb"]
+
+    class _Tvdb:
+        def search_series(self, title, year=None, **_kw):
+            return [r for r in show_rows if r.provider == "tvdb"]
+
+    return (_Tmdb(), _Tvdb())
+
+
 def _create_library_db(db_path: Path) -> sqlite3.Connection:
     """Create a minimal ``library.db`` with ``pipeline_run`` and ``scrape_decision`` tables.
 
@@ -684,17 +735,17 @@ class TestSearchDecision:
         _seed_decision(conn, decision_id=1, media_kind="movie")
         conn.close()
 
-        from personalscraper.scraper.decision_candidate import DecisionCandidate
-
-        dummy = [DecisionCandidate(provider="tmdb", provider_id=550, title="Fight Club", year=1999, score=0.95)]
-
         client = _build_authenticated_client_with_decisions(
             test_config, tmp_path, indexer=test_config.indexer.model_copy(update={"db_path": db_path})
         )
 
+        # Patch the CLIENT seam, not a matcher: the deck ranks provider rows with
+        # search_ranking now. Patching here also guarantees the test never reaches
+        # a real provider (a stale patch point silently turned these into live API
+        # calls — green on a machine with keys, 502 in CI).
         with patch(
-            "personalscraper.scraper.confidence.match_movie_detailed",
-            return_value=(None, dummy),
+            "personalscraper.web.decisions.search.build_provider_clients",
+            return_value=_fake_clients(movies=[_sr("tmdb", "550", "Fight Club", 1999, "movie")]),
         ):
             resp = client.post(
                 "/api/decisions/1/search",
@@ -717,17 +768,13 @@ class TestSearchDecision:
         _seed_decision(conn, decision_id=1, media_kind="tvshow", extracted_title="Breaking Bad")
         conn.close()
 
-        from personalscraper.scraper.decision_candidate import DecisionCandidate
-
-        dummy = [DecisionCandidate(provider="tvdb", provider_id=81189, title="Breaking Bad", year=2008, score=0.98)]
-
         client = _build_authenticated_client_with_decisions(
             test_config, tmp_path, indexer=test_config.indexer.model_copy(update={"db_path": db_path})
         )
 
         with patch(
-            "personalscraper.scraper.confidence.match_tvshow_detailed",
-            return_value=(None, dummy),
+            "personalscraper.web.decisions.search.build_provider_clients",
+            return_value=_fake_clients(shows=[_sr("tvdb", "81189", "Breaking Bad", 2008, "tv")]),
         ):
             resp = client.post(
                 "/api/decisions/1/search",
@@ -1393,18 +1440,14 @@ class TestStagingReadOnly:
         _seed_decision(conn, decision_id=1, media_kind="movie")
         conn.close()
 
-        from personalscraper.scraper.decision_candidate import DecisionCandidate
-
-        dummy = [DecisionCandidate(provider="tmdb", provider_id=1, title="T", year=None, score=1.0)]
-
         client = _build_authenticated_client_with_decisions(
             test_config, tmp_path, indexer=test_config.indexer.model_copy(update={"db_path": db_path})
         )
 
         monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
         with patch(
-            "personalscraper.scraper.confidence.match_movie_detailed",
-            return_value=(None, dummy),
+            "personalscraper.web.decisions.search.build_provider_clients",
+            return_value=_fake_clients(movies=[_sr("tmdb", "550", "Test", 2020, "movie")]),
         ):
             resp = client.post(
                 "/api/decisions/1/search",
