@@ -93,8 +93,20 @@ export function useFollowed(params: FollowedParams = {}) {
 /**
  * Rows fetched per search page. Large enough that the carousel has somewhere to
  * scroll before the next request lands, small enough not to stall on providers.
+ * Paging is cheap since the backend caches the ranked lot per (query, kind), so
+ * every page after the first costs no provider call at all.
  */
-export const SEARCH_PAGE_SIZE = 20;
+export const SEARCH_PAGE_SIZE = 30;
+
+/**
+ * How long a search result set stays fresh in the client cache.
+ *
+ * Matches the backend's own lot TTL: re-running a search the operator just ran —
+ * clearing the box and retyping, or coming back to the tab — should be instant
+ * rather than a second full round-trip. The global default is 5 s, which is far
+ * too short for a provider-backed search.
+ */
+const SEARCH_STALE_MS = 5 * 60 * 1000;
 
 /**
  * Search live providers for media to follow (add-by-search, OBJ3).
@@ -126,6 +138,7 @@ export function useMediaSearch(q: string, kind?: "movie" | "tv") {
       const seen = lastPage.offset + lastPage.results.length;
       return seen < lastPage.total ? seen : undefined;
     },
+    staleTime: SEARCH_STALE_MS,
     enabled: trimmed.length > 0,
   });
 }

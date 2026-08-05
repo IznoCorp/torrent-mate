@@ -7,6 +7,7 @@ subset of tests is collected (e.g. ``pytest tests/sorter/`` in isolation).
 
 import inspect
 import os
+from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import patch
 
@@ -492,3 +493,22 @@ def _fresh_web_torrent_session() -> None:
     from personalscraper.web.torrent_session import invalidate_torrent_session
 
     invalidate_torrent_session()
+
+
+@pytest.fixture(autouse=True)
+def _reset_search_cache() -> "Iterator[None]":
+    """Empty the process-wide search cache around every test.
+
+    ``SEARCH_CACHE`` is a module-level singleton, which is exactly right for a
+    single-worker web process and exactly wrong for a test session: one test's
+    cached lot is served to the next test that happens to use the same query,
+    making assertions pass or fail on execution ORDER rather than on behaviour.
+
+    Clearing on both sides keeps each test honest whether or not it knows the
+    cache exists.
+    """
+    from personalscraper.web.acquisition.search_cache import SEARCH_CACHE
+
+    SEARCH_CACHE.clear()
+    yield
+    SEARCH_CACHE.clear()
