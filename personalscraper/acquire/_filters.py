@@ -125,6 +125,49 @@ def _passes_resolution(result: TrackerResult, profile: QualityProfile) -> bool:
     return parsed >= profile.min_resolution
 
 
+#: Newznab category classes (``id // 1000``) that are positively NOT video.
+#: 1=Console, 3=Audio, 4=PC, 7=Books. Every ``wanted.kind`` is video
+#: (``movie``/``episode``/``season``), so a result in one of these classes can
+#: never satisfy a wanted item — whichever tracker published it.
+#:
+#: Deliberately a REJECT list, not an accept list: the video classes (2=Movies,
+#: 5=TV) are not the only ones a video release may legitimately carry (6=XXX,
+#: 8=Other/Misc), and an accept list would silently drop them. Only what we
+#: positively know is non-video gets dropped.
+_NON_VIDEO_CATEGORY_CLASSES = frozenset({1, 3, 4, 7})
+
+
+def _passes_video_category(result: TrackerResult) -> bool:
+    """Return True unless the result's Newznab category is positively non-video.
+
+    The tracker's category is authoritative metadata — unlike a title heuristic,
+    it cannot be fooled by an artist prefix or a "Motion Picture" token. It is
+    the field that would have caught the Spider-Man soundtrack: the album was
+    tagged Audio (c411 ``3010``, tr4ker ``3000``) while the title guard scored
+    96/100 against the wanted film and the resolution filter failed open.
+
+    Provider-agnostic: the rule keys on the Newznab class shared by every
+    Torznab indexer, never on which tracker sent the result.
+
+    FAIL-OPEN on anything unparseable — an absent category or a slug-based
+    dialect (``"films"``) leaves the result in play. A tracker that publishes no
+    category must never have its whole result set silently wiped.
+
+    Args:
+        result: Candidate torrent result.
+
+    Returns:
+        ``True`` when the result should survive the category filter.
+    """
+    raw = result.category
+    if raw is None:
+        return True
+    text = raw.strip()
+    if not text.isdigit():
+        return True
+    return int(text) // 1000 not in _NON_VIDEO_CATEGORY_CLASSES
+
+
 def _passes_not_3d(result: TrackerResult, profile: QualityProfile) -> bool:
     """Return True unless *result* is a stereoscopic-3D encode the profile drops.
 
@@ -173,6 +216,10 @@ def apply_hard_filters(
        e.g. a 1984 vs 2021 same-title film). Engages ONLY when both the result
        and ``media_ref`` carry a ``tmdb_id``; otherwise it is a no-op (can't
        disambiguate). Cheapest and most decisive, so it runs first.
+    0b. Video category — drops a result whose Newznab category is positively
+       non-video (Audio / Console / PC / Books). Unconditional: every
+       ``wanted.kind`` is video, so no wanted item can ever be satisfied by an
+       album or a game. Fail-open on an absent or non-numeric category.
     1. Resolution floor (fail-open on unrecognised tokens).
     2. Stereoscopic-3D exclusion (Side-By-Side / Over-Under) — on by default,
        a 2D library never wants a 3D encode.
@@ -205,6 +252,14 @@ def apply_hard_filters(
                 title=r.title,
                 result_tmdb=r.tmdb_id,
                 wanted_tmdb=media_ref.tmdb_id,
+            )
+            continue
+        if not _passes_video_category(r):
+            log.debug(
+                "acquire.filter.non_video_category_dropped",
+                title=r.title,
+                category=r.category,
+                provider=r.provider,
             )
             continue
         if not _passes_resolution(r, profile):
