@@ -430,6 +430,16 @@ def dispatch(
             event_bus=app_context.event_bus,
             no_post_maintenance=no_post_maintenance,
         )
+
+        # §14.3 — « la fermeture suit la médiathèque, pas une horloge ». Le balayage
+        # déclenché par LibraryScanCompleted part du ``finally`` du scan lui-même : il
+        # peut donc tomber pendant que la médiathèque est encore réécrite (un dispatch
+        # qui FUSIONNE une série renomme tous les épisodes en conflit, et la réponse de
+        # possession d'une saison est tout-ou-rien). Ce second passage est
+        # DÉTERMINISTE : toute la maintenance post-dispatch a rendu la main, la
+        # médiathèque est stable par construction et non par chance.
+        if reconcile_sub is not None:
+            reconcile_sub.settle()
     finally:
         if reconcile_sub is not None:
             reconcile_sub.close()

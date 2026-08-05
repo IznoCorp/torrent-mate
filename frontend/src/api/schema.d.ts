@@ -3329,6 +3329,9 @@ export interface components {
          *         decision_id: The linked ``scrape_decision.id`` (deep-link target), if any.
          *         resolution_trigger: Why the item was enqueued (``below_threshold`` /
          *             ``mid_band`` / ``ambiguous``), for display.
+         *         reconstructed_at: Epoch at which this journey was REBUILT from the surviving
+         *             databases (§14.3), or None for a journey the pipeline wrote itself. On a
+         *             rebuilt row an absent stage timestamp means « unknown », not « not reached ».
          */
         JourneyItem: {
             /** Current Path */
@@ -3360,6 +3363,8 @@ export interface components {
             /** Kind */
             kind?: string | null;
             media_ref: components["schemas"]["MediaRefResponse"];
+            /** Reconstructed At */
+            reconstructed_at?: number | null;
             /** Resolution State */
             resolution_state?: string | null;
             /** Resolution Trigger */

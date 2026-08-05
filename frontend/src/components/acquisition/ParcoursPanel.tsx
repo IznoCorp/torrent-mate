@@ -53,15 +53,15 @@ function journeyTitle(j: JourneyItem): string {
  * Priority tvdb > tmdb, exactly as the other wired surfaces.  The journey's
  * ``kind`` field maps to the sheet ``kind`` hint (``"episode"`` → ``"tv"``).
  */
-function journeySheetHref(
-  j: JourneyItem,
-): { to: string } | null {
+function journeySheetHref(j: JourneyItem): { to: string } | null {
   const tvdbId = j.media_ref.tvdb_id;
   const tmdbId = j.media_ref.tmdb_id;
   const kind =
-    j.kind === "movie" ? ("movie" as const)
-    : j.kind === "episode" ? ("tv" as const)
-    : undefined;
+    j.kind === "movie"
+      ? ("movie" as const)
+      : j.kind === "episode"
+        ? ("tv" as const)
+        : undefined;
   if (tvdbId != null) {
     return {
       to: mediaSheetHref({
@@ -253,105 +253,128 @@ export function ParcoursPanel(): ReactElement {
 
   return (
     <ul className="flex flex-col gap-2">
-      {journeys.map((j) => (
-        <li
-          key={j.info_hash}
-          className="flex flex-col gap-2 rounded-lg border border-border p-3"
-        >
-          <div className="flex items-center justify-between gap-2">
-            {/* §11 — an identified media MUST have a visible path to its sheet
+      {journeys.map((j) => {
+        // §14.3 — un parcours RECONSTRUIT (§13, backfill) ne connaît pas les instants
+        // des étapes intermédiaires : leurs NULL veulent dire « inconnue », jamais
+        // « pas faite ». Le drapeau est lu une fois pour toute la carte.
+        const rebuilt = j.reconstructed_at != null;
+        return (
+          <li
+            key={j.info_hash}
+            className="flex flex-col gap-2 rounded-lg border border-border p-3"
+          >
+            <div className="flex items-center justify-between gap-2">
+              {/* §11 — an identified media MUST have a visible path to its sheet
                 (DESIGN D8: single link builder). Priority tvdb > tmdb; the
                 journey's kind provides the hint. No provider id → no link
                 (the single §11 exception). */}
-            {(() => {
-              const href = journeySheetHref(j);
-              const className = j.follow_title
-                ? "min-w-0 flex-1 truncate text-sm font-medium"
-                : "min-w-0 flex-1 truncate font-mono text-sm font-medium";
-              // Truthiness (not ??) on purpose: an empty follow_title falls
-              // back to the hash, mirroring journeyTitle().
-              // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-              const title = j.follow_title || j.info_hash;
-              if (href !== null) {
+              {(() => {
+                const href = journeySheetHref(j);
+                const className = j.follow_title
+                  ? "min-w-0 flex-1 truncate text-sm font-medium"
+                  : "min-w-0 flex-1 truncate font-mono text-sm font-medium";
+                // Truthiness (not ??) on purpose: an empty follow_title falls
+                // back to the hash, mirroring journeyTitle().
+                // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+                const title = j.follow_title || j.info_hash;
+                if (href !== null) {
+                  return (
+                    <Link to={href.to} className={className} title={title}>
+                      {journeyTitle(j)}
+                    </Link>
+                  );
+                }
                 return (
-                  <Link to={href.to} className={className} title={title}>
+                  <span className={className} title={title}>
                     {journeyTitle(j)}
-                  </Link>
+                  </span>
                 );
-              }
-              return (
-                <span className={className} title={title}>
-                  {journeyTitle(j)}
-                </span>
-              );
-            })()}
-            {/* ACQUISITION-5: copy the full info_hash (the visible title may
+              })()}
+              {/* ACQUISITION-5: copy the full info_hash (the visible title may
                 be a truncated fallback of it). X4: 44px touch minimum below
                 md, compact on desktop — the icons stay size-3, only the hit
                 target grows. */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="min-h-11 min-w-11 shrink-0 md:min-h-8 md:min-w-8"
-              aria-label={`Copier le hash ${j.info_hash}`}
-              onClick={() => {
-                handleCopyHash(j.info_hash);
-              }}
-            >
-              {copiedHash === j.info_hash ? (
-                <Check className="size-3 text-success" />
-              ) : (
-                <Copy className="size-3" />
-              )}
-            </Button>
-            <Badge tone="neutral" className="shrink-0">
-              {j.kind === "movie"
-                ? "Film"
-                : j.kind === "episode"
-                  ? "Série"
-                  : "—"}
-            </Badge>
-          </div>
-          <ol className="flex flex-wrap gap-1.5">
-            {STAGES.map((stage) => {
-              const at = j[stage.key];
-              const done = at != null;
-              const runUid = j[stage.runKey];
-              const badge = (
-                <Badge tone={done ? "success" : "muted"}>
-                  {stage.label}
-                  {done ? ` · ${relativeTime(at)}` : ""}
-                </Badge>
-              );
-              return (
-                <li key={stage.key}>
-                  {/* F3: a completed stage with a known run deep-links to that run. */}
-                  {done && runUid != null ? (
-                    <Link
-                      to={`/pipeline?run=${encodeURIComponent(runUid)}`}
-                      title="Voir le run qui a effectué cette étape"
-                    >
-                      {badge}
-                    </Link>
-                  ) : (
-                    badge
-                  )}
-                </li>
-              );
-            })}
-          </ol>
-          <ResolutionChip j={j} />
-          <JourneyActions j={j} />
-          {j.dispatch_path != null && (
-            <p
-              className="truncate text-xs text-muted-foreground"
-              title={j.dispatch_path}
-            >
-              → {j.dispatch_path}
-            </p>
-          )}
-        </li>
-      ))}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="min-h-11 min-w-11 shrink-0 md:min-h-8 md:min-w-8"
+                aria-label={`Copier le hash ${j.info_hash}`}
+                onClick={() => {
+                  handleCopyHash(j.info_hash);
+                }}
+              >
+                {copiedHash === j.info_hash ? (
+                  <Check className="size-3 text-success" />
+                ) : (
+                  <Copy className="size-3" />
+                )}
+              </Button>
+              <Badge tone="neutral" className="shrink-0">
+                {j.kind === "movie"
+                  ? "Film"
+                  : j.kind === "episode"
+                    ? "Série"
+                    : "—"}
+              </Badge>
+            </div>
+            <ol className="flex flex-wrap gap-1.5">
+              {STAGES.map((stage) => {
+                const at = j[stage.key];
+                const done = at != null;
+                const runUid = j[stage.runKey];
+                // §14.3 — « si une étape n'est pas connue, l'interface dit INCONNUE, jamais
+                // PAS FAITE ». Sur un parcours reconstruit (§13), une étape sans horodatage
+                // n'a pas été sautée : un média rangé est passé par l'ingestion et le
+                // scraping par définition (§14.2), c'est l'instant qui est perdu. L'éteindre
+                // dessinerait un chemin qui ne peut pas exister.
+                const unknown = !done && rebuilt;
+                const badge = (
+                  <Badge tone={done ? "success" : "muted"}>
+                    {stage.label}
+                    {done
+                      ? ` · ${relativeTime(at)}`
+                      : unknown
+                        ? " · inconnue"
+                        : ""}
+                  </Badge>
+                );
+                return (
+                  <li key={stage.key}>
+                    {/* F3: a completed stage with a known run deep-links to that run. */}
+                    {done && runUid != null ? (
+                      <Link
+                        to={`/pipeline?run=${encodeURIComponent(runUid)}`}
+                        title="Voir le run qui a effectué cette étape"
+                      >
+                        {badge}
+                      </Link>
+                    ) : (
+                      badge
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+            {rebuilt && (
+              <p className="text-xs text-muted-foreground">
+                Parcours reconstruit : le média est bien rangé, mais les
+                dossiers de transit ayant été supprimés, les instants des étapes
+                intermédiaires ne sont plus connus.
+              </p>
+            )}
+            <ResolutionChip j={j} />
+            <JourneyActions j={j} />
+            {j.dispatch_path != null && (
+              <p
+                className="truncate text-xs text-muted-foreground"
+                title={j.dispatch_path}
+              >
+                → {j.dispatch_path}
+              </p>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }

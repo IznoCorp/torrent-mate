@@ -808,3 +808,60 @@ def test_the_two_spine_rules_never_report_the_same_row(tmp_path: Path) -> None:
     fired = _rules(acquire, indexer)
     assert "SPINE_ROW_MISSING" in fired
     assert "SPINE_DISPATCH_MISSING" not in fired
+
+
+# ---------------------------------------------------------------------------
+# §14.3 — un garde-fou couvre les DEUX workflows en entier, saisons comprises
+# ---------------------------------------------------------------------------
+
+
+def test_grabbed_owned_sees_a_season_row_whose_season_is_owned(tmp_path: Path) -> None:
+    """La règle voit une ligne `season` possédée — pas seulement les épisodes.
+
+    Forme réelle du 2026-08-05 : les packs American Dad S15/S17 avaient atterri en
+    médiathèque et la file affichait encore « récupéré » huit heures plus tard. Aucune
+    règle n'a crié, parce que la possession d'une ligne `season` n'avait pas de réponse :
+    la voie épisode exige un numéro d'épisode, qu'une ligne saison n'a pas. §14.3 : une
+    règle qui ne voit qu'un genre de ligne laisse passer ce qu'elle prétend garder.
+    """
+    acquire, indexer = _acquire_db(tmp_path), _indexer_db(tmp_path)
+    _insert_follow(acquire, 1)
+    for episode in (1, 2):
+        _insert_aired(acquire, 1, 15, episode)
+    _insert_wanted(acquire, 1, followed_id=1, kind="season", season=15, status="grabbed", grabbed_hash="5EA50N")
+    acquire.commit()
+    _insert_spine(acquire, "5EA50N", status="dispatched", kind="season")
+    for episode in (1, 2):
+        _own_episode(indexer, tvdb_id=555, season=15, episode=episode)
+
+    assert "GRABBED_OWNED" in _rules(acquire, indexer)
+
+
+def test_a_season_only_partly_owned_is_not_reported_as_owned(tmp_path: Path) -> None:
+    """Tout-ou-rien : un seul épisode diffusé manquant, et la saison n'est PAS possédée.
+
+    Sans ce contre-cas la règle fermerait des saisons incomplètes — exactement le
+    mensonge inverse.
+    """
+    acquire, indexer = _acquire_db(tmp_path), _indexer_db(tmp_path)
+    _insert_follow(acquire, 1)
+    for episode in (1, 2, 3):
+        _insert_aired(acquire, 1, 15, episode)
+    _insert_wanted(acquire, 1, followed_id=1, kind="season", season=15, status="grabbed", grabbed_hash="5EA50N")
+    acquire.commit()
+    _insert_spine(acquire, "5EA50N", status="grabbed", kind="season")
+    for episode in (1, 2):  # le 3 manque
+        _own_episode(indexer, tvdb_id=555, season=15, episode=episode)
+
+    assert "GRABBED_OWNED" not in _rules(acquire, indexer)
+
+
+def test_a_season_with_an_empty_catalog_is_never_declared_owned(tmp_path: Path) -> None:
+    """Zéro connaissance n'est pas une possession : un catalogue vide ne ferme rien."""
+    acquire, indexer = _acquire_db(tmp_path), _indexer_db(tmp_path)
+    _insert_follow(acquire, 1)
+    _insert_wanted(acquire, 1, followed_id=1, kind="season", season=15, status="grabbed", grabbed_hash="5EA50N")
+    acquire.commit()
+    _insert_spine(acquire, "5EA50N", status="grabbed", kind="season")
+
+    assert "GRABBED_OWNED" not in _rules(acquire, indexer)

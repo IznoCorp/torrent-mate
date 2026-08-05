@@ -145,6 +145,13 @@ class ProvenanceRow:
     ingest_run_uid: str | None = None
     scrape_run_uid: str | None = None
     dispatch_run_uid: str | None = None
+    # Rebuild marker (§14.3). Non-None when this journey was RECONSTRUCTED from the
+    # surviving databases rather than written by the pipeline as it happened. On such a
+    # row a NULL stage timestamp means « unknown », NOT « stage never reached »: a
+    # dispatched media went through ingest/sort/scrape by definition (§14.2), the
+    # reconstruction simply cannot date those steps. Every journey the pipeline wrote
+    # itself carries None here.
+    reconstructed_at: int | None = None
 
 
 def _row_to_provenance(row: sqlite3.Row) -> ProvenanceRow:
@@ -178,6 +185,8 @@ def _row_to_provenance(row: sqlite3.Row) -> ProvenanceRow:
         ingest_run_uid=row["ingest_run_uid"] if "ingest_run_uid" in keys else None,
         scrape_run_uid=row["scrape_run_uid"] if "scrape_run_uid" in keys else None,
         dispatch_run_uid=row["dispatch_run_uid"] if "dispatch_run_uid" in keys else None,
+        # Rebuild marker (016) — tolerate a pre-016 row shape, like the F2/F3 columns.
+        reconstructed_at=row["reconstructed_at"] if "reconstructed_at" in keys else None,
     )
 
 

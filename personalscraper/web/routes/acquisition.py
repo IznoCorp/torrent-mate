@@ -745,6 +745,7 @@ def get_journeys(
                     scrape_run_uid=row.scrape_run_uid,
                     dispatch_run_uid=row.dispatch_run_uid,
                     stuck=stuck,
+                    reconstructed_at=row.reconstructed_at,
                 )
             )
         return JourneysResponse(journeys=items)
