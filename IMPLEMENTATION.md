@@ -33,10 +33,26 @@ depuis #398 mais la file n'y a jamais été convertie.
 
 | #  | Phase                                                  | Plan                                             | Status |
 | -- | ------------------------------------------------------ | ------------------------------------------------ | ------ |
-| 01 | Backend — la route suit le pointeur                    | `plan/phase-01-backend-resolution.md`            | [ ]    |
-| 02 | Frontend — filtre JS résolu + vocabulaire corrigé      | `plan/phase-02-frontend-filtre.md`               | [ ]    |
-| 03 | Garde — `QUEUE_ABSORBED_DANGLING`                      | `plan/phase-03-garde.md`                         | [ ]    |
+| 01 | Backend — la route suit le pointeur                    | `plan/phase-01-backend-resolution.md`            | [x]    |
+| 02 | Frontend — filtre JS résolu + vocabulaire corrigé      | `plan/phase-02-frontend-filtre.md`               | [x]    |
+| 03 | Garde — `QUEUE_ABSORBED_DANGLING`                      | `plan/phase-03-garde.md`                         | [x]    |
 | 04 | Gates, PR, CI, merge, preuve sur données réelles       | `plan/phase-04-gates-preuve.md`                  | [ ]    |
+
+## Preuves déjà exécutées (datées)
+
+- **2026-08-05 20:36** — résolution confrontée à une **copie des données réelles** (94 lignes) :
+  les **31** lignes `absorbed` servies `done`, dont #5/#6/#7/#8 (les 4 du rapport) ; aucune ligne
+  non-absorbée altérée ; aucune ligne sans statut servi.
+- **2026-08-05 20:36** — mutation-check : la route remise à `status=row["status"]` fait **rougir
+  5 tests** ; les 3 survivants sont ceux qui doivent survivre (pointeur pendant, lignes ordinaires).
+- **2026-08-05 20:47** — `scripts/check-acquisition-coherence.py` (garde étendue) : **0 anomalie**
+  sur les données réelles.
+- **2026-08-05 20:55** — `make check` **vert** après rebase sur `origin/main` (`e1bd6956`) :
+  10380 passed / 3 skipped / 2 xfailed, front 1275 passed, OpenAPI sans dérive, bump 0.85.1 → 0.85.2.
+
+Reste dû par la phase 04 (§13 : rien de tout cela ne se remplace par une relecture) : preuve
+écran à 390 px, filtre « Terminé » sur l'UI déployée, et re-passage de la garde **après**
+déploiement.
 
 ## Review cycles
 
@@ -44,4 +60,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Phase 04 — pousser, PR, CI, merge, puis vérification sur l'interface déployée.
