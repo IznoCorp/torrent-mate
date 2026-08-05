@@ -127,6 +127,19 @@ class TestParseSearchResult:
         items = unwrap(data)
         assert items == []
 
+    def test_search_has_no_popularity_signal(self) -> None:
+        """TVDB /search carries no popularity — the absence must be explicit.
+
+        Verified against the live payload: a TVDB search item has no
+        ``popularity``/``score`` key at all. ``None`` is the honest value; a
+        0.0 default would make every TVDB result look measured-and-unpopular
+        and would silently sink them all under any TMDB candidate.
+        """
+        data = _load("search_series.json")
+        r = parse_search_result(unwrap(data)[0], "tvdb")
+        assert r.popularity is None
+        assert r.vote_count is None
+
 
 class TestParseArtwork:
     """Artwork type mapping."""

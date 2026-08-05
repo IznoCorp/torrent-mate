@@ -65,6 +65,46 @@ class TestParseSearchResult:
         assert r.title != ""
         assert r.year is not None
 
+    def test_movie_search_carries_popularity_and_vote_count(self) -> None:
+        """TMDB returns popularity/vote_count on every search item — carry both.
+
+        Dropping them is why the acquisition search could not rank by relevance:
+        four unknown same-title films tied at the top with nothing to separate
+        them (RC4).
+        """
+        data = _load("search_movie.json")
+        raw = data["results"][0]
+        r = parse_search_result(raw, "tmdb")
+        assert r.popularity == raw["popularity"]
+        assert r.vote_count == raw["vote_count"]
+
+    def test_tv_search_carries_popularity_and_vote_count(self) -> None:
+        """The TV search payload carries the same two fields."""
+        data = _load("search_tv.json")
+        raw = data["results"][0]
+        r = parse_search_result(raw, "tmdb")
+        assert r.popularity == raw["popularity"]
+        assert r.vote_count == raw["vote_count"]
+
+    def test_absent_popularity_is_none_not_zero(self) -> None:
+        """A missing field yields None — never 0.0.
+
+        0.0 would be a lie: it says "measured, and unpopular" where the truth is
+        "not measured". The ranking must be able to tell those apart.
+        """
+        r = parse_search_result({"id": 1, "title": "X", "release_date": "2020-01-01"}, "tmdb")
+        assert r.popularity is None
+        assert r.vote_count is None
+
+    def test_malformed_popularity_degrades_to_none(self) -> None:
+        """A non-numeric value must not raise — this parser is on the scrape path."""
+        r = parse_search_result(
+            {"id": 1, "title": "X", "popularity": "nope", "vote_count": []},
+            "tmdb",
+        )
+        assert r.popularity is None
+        assert r.vote_count is None
+
 
 class TestParseArtwork:
     """Image array merging from golden movie_details."""
