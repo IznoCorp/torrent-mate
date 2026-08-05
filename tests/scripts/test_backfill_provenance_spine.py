@@ -533,3 +533,76 @@ def test_the_backfill_takes_the_coherence_guard_from_firing_to_silent(tmp_path: 
     after = {a.rule for a in collect_anomalies(acquire, indexer, client_hashes=None)}
     assert "SPINE_ROW_MISSING" not in after
     assert "SPINE_DISPATCH_MISSING" not in after
+
+
+def test_the_grab_instant_falls_back_to_the_search_that_produced_it(tmp_path: Path) -> None:
+    """Sans obligation de seed, la recherche qui a grabbé date le grab.
+
+    23 parcours sur 59 affichaient « Récupéré · inconnue » — l'étape la plus absurde à
+    laisser vide, puisqu'un parcours commence par là. L'obligation de seed n'existe que
+    depuis 2026-07-15 ; ``wanted.last_search_at`` couvre les autres, à 25 s près (écart
+    maximal mesuré sur les 35 lignes où les deux sources coexistent).
+    """
+    acquire, indexer = _acquire_db(tmp_path), _indexer_db(tmp_path)
+    _follow(acquire, 1)
+    acquire.execute(
+        "INSERT INTO wanted (id, followed_id, media_ref_json, kind, season, episode, status, enqueued_at, "
+        "grabbed_hash, last_search_at) VALUES (1,1,?,'episode',3,7,'done',?,'AABB11',?)",
+        (_REF_SHOW, NOW, 1_785_800_000),
+    )
+    acquire.commit()
+    _own_episode(indexer, tvdb_id=555, season=3, episode=7)
+
+    backfill_spine(acquire, indexer, apply=True, now=1_785_900_000)
+
+    assert _spine_rows(acquire)["aabb11"]["grabbed_at"] == 1_785_800_000
+
+
+def test_the_seed_obligation_still_wins_when_both_exist(tmp_path: Path) -> None:
+    """La source posée AU grab prime sur celle qui l'approche — jamais l'inverse."""
+    acquire, indexer = _acquire_db(tmp_path), _indexer_db(tmp_path)
+    _follow(acquire, 1)
+    acquire.execute(
+        "INSERT INTO wanted (id, followed_id, media_ref_json, kind, season, episode, status, enqueued_at, "
+        "grabbed_hash, last_search_at) VALUES (1,1,?,'episode',3,7,'done',?,'AABB11',?)",
+        (_REF_SHOW, NOW, 1_785_800_000),
+    )
+    acquire.commit()
+    _obligation(acquire, "aabb11", added_at=1_785_800_025)
+    _own_episode(indexer, tvdb_id=555, season=3, episode=7)
+
+    backfill_spine(acquire, indexer, apply=True, now=1_785_900_000)
+
+    assert _spine_rows(acquire)["aabb11"]["grabbed_at"] == 1_785_800_025
+
+
+def test_each_rebuilt_journey_carries_its_episode(tmp_path: Path) -> None:
+    """Différenciable : deux acquisitions d'une même série ne sont pas la même carte.
+
+    Quatre parcours « Silo » partageaient exactement la même identité affichable (l'id de
+    série), donc quatre cartes identiques — que l'opérateur a lues comme des doublons.
+    """
+    acquire, indexer = _acquire_db(tmp_path), _indexer_db(tmp_path)
+    _follow(acquire, 1)
+    _wanted(acquire, 1, followed_id=1, season=3, episode=5, grabbed_hash="AABB11")
+    _wanted(acquire, 2, followed_id=1, season=3, episode=6, grabbed_hash="CCDD22")
+    _own_episode(indexer, tvdb_id=555, season=3, episode=5)
+
+    backfill_spine(acquire, indexer, apply=True, now=1_785_900_000)
+
+    rows = _spine_rows(acquire)
+    assert (rows["aabb11"]["season"], rows["aabb11"]["episode"]) == (3, 5)
+    assert (rows["ccdd22"]["season"], rows["ccdd22"]["episode"]) == (3, 6)
+
+
+def test_a_movie_carries_no_episode_identity(tmp_path: Path) -> None:
+    """Le contre-cas : un film n'a pas d'épisode, et on n'en invente pas."""
+    acquire, indexer = _acquire_db(tmp_path), _indexer_db(tmp_path)
+    _follow(acquire, 2, ref=_REF_MOVIE, kind="movie")
+    _wanted(acquire, 1, followed_id=2, ref=_REF_MOVIE, kind="movie", grabbed_hash="M0V1E0")
+    _own_movie(indexer, tmdb_id=777)
+
+    backfill_spine(acquire, indexer, apply=True, now=1_785_900_000)
+
+    row = _spine_rows(acquire)["m0v1e0"]
+    assert row["season"] is None and row["episode"] is None

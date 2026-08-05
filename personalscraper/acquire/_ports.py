@@ -482,6 +482,8 @@ class ProvenanceSubStore(Protocol):
         kind: str | None,
         grabbed_at: int,
         run_uid: str | None = None,
+        season: int | None = None,
+        episode: int | None = None,
     ) -> None:
         """Create/refresh the row for a follow-driven grab (the identity seed)."""
         ...

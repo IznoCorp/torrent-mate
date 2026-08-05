@@ -74,7 +74,12 @@ class RebuiltRow:
         kind: ``movie`` / ``episode`` / ``season``, from the wanted row.
         followed_id: The follow the acquisition belongs to, or None.
         media_ref_json: The identity known at grab time, verbatim from the wanted row.
-        grabbed_at: Epoch of the grab, or None when no seed obligation recorded it.
+        grabbed_at: Epoch of the grab. Taken from the seed obligation written at grab
+            time; failing that, from ``wanted.last_search_at`` — the grab happens
+            immediately after the search that produced it (measured within 25 s on the
+            35 rows where both sources exist).
+        season / episode: The DISPLAYABLE identity. Without it, four acquisitions of one
+            series render as four identical cards and read as duplicates.
         ingested_at: Epoch the ingest copied this torrent into staging, or None.
         scraped_at: Epoch the run that carried it finished scraping, or None.
         ingest_run_uid / scrape_run_uid / dispatch_run_uid: The pipeline run that
@@ -99,6 +104,8 @@ class RebuiltRow:
     ingest_run_uid: str | None = None
     scrape_run_uid: str | None = None
     dispatch_run_uid: str | None = None
+    season: int | None = None
+    episode: int | None = None
 
     def line(self) -> str:
         """Render the row as one human report line."""
@@ -345,8 +352,8 @@ def backfill_spine(
     # grab, hence one journey.
     by_hash: dict[str, sqlite3.Row] = {}
     for w in acquire_conn.execute(
-        "SELECT id, followed_id, media_ref_json, kind, season, episode, status, grabbed_hash "
-        "FROM wanted WHERE grabbed_hash IS NOT NULL AND grabbed_hash != '' ORDER BY id"
+        "SELECT id, followed_id, media_ref_json, kind, season, episode, status, grabbed_hash, "
+        "last_search_at FROM wanted WHERE grabbed_hash IS NOT NULL AND grabbed_hash != '' ORDER BY id"
     ):
         info_hash = w["grabbed_hash"].lower()
         if info_hash in existing:
@@ -400,7 +407,12 @@ def backfill_spine(
                 kind=w["kind"],
                 followed_id=w["followed_id"],
                 media_ref_json=w["media_ref_json"],
-                grabbed_at=grabbed_at_by_hash.get(info_hash),
+                # L'obligation de seed d'abord (posée AU grab) ; sinon la recherche qui
+                # l'a produit — le grab la suit immédiatement. Ne rien mettre serait
+                # renoncer à une donnée qui existe.
+                grabbed_at=grabbed_at_by_hash.get(info_hash) or w["last_search_at"],
+                season=w["season"],
+                episode=w["episode"],
                 dispatch_path=dispatch_path if landed else None,
                 dispatched_at=dispatched_at if landed else None,
                 status="dispatched" if landed else "grabbed",
@@ -415,7 +427,7 @@ def backfill_spine(
             "INSERT INTO staging_provenance "
             "(info_hash, followed_id, media_ref_json, kind, grabbed_at, ingested_at, scraped_at, "
             "dispatch_path, dispatched_at, status, reconstructed_at, ingest_run_uid, scrape_run_uid, "
-            "dispatch_run_uid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "dispatch_run_uid, season, episode) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             [
                 (
                     r.info_hash,
@@ -432,6 +444,8 @@ def backfill_spine(
                     r.ingest_run_uid,
                     r.scrape_run_uid,
                     r.dispatch_run_uid,
+                    r.season,
+                    r.episode,
                 )
                 for r in rebuilt
             ],

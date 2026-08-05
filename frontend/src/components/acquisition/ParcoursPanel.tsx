@@ -63,10 +63,23 @@ const ETAPE_FILTRES: Record<
 
 /** A human-readable label for a journey: the follow title, else an id, else the hash. */
 function journeyTitle(j: JourneyItem): string {
-  if (j.follow_title) return j.follow_title;
-  const id = j.media_ref.tvdb_id ?? j.media_ref.tmdb_id;
-  if (id != null) return `#${String(id)}`;
-  return j.info_hash.slice(0, 8);
+  const base =
+    j.follow_title || (j.media_ref.tvdb_id ?? j.media_ref.tmdb_id) != null
+      ? (j.follow_title ??
+        `#${String(j.media_ref.tvdb_id ?? j.media_ref.tmdb_id)}`)
+      : j.info_hash.slice(0, 8);
+  // §12 / DOIT-1 — le repère qui rend DEUX acquisitions d'une même série distinctes.
+  // Sans lui, quatre parcours « Silo » sont quatre cartes rigoureusement identiques,
+  // dont certaines datées et d'autres non : illisible, et lu comme des doublons.
+  return `${base}${episodeTag(j)}`;
+}
+
+/** ` · S03E05` / ` · Saison 3` pour une série, chaîne vide pour un film. */
+function episodeTag(j: JourneyItem): string {
+  if (j.season == null) return "";
+  const s = String(j.season).padStart(2, "0");
+  if (j.episode == null) return ` · Saison ${String(j.season)}`;
+  return ` · S${s}E${String(j.episode).padStart(2, "0")}`;
 }
 
 /**
