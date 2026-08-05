@@ -113,28 +113,25 @@ export function FileDAcquisitionPanel(): ReactElement {
   /** Hard cap on locally accumulated items for the grouped view. */
   const HARD_CAP = 1000;
 
-  // Fetch ALL wanted items for grouping (loop pages up to HARD_CAP). The status
-  // filter drives the query key → a filter change re-fetches all pages.
+  // Fetch ALL wanted items for grouping (loop pages up to HARD_CAP), ALWAYS
+  // unfiltered. The status filter is applied client-side, below, on the status
+  // the backend already RESOLVED (an absorbed row carries its season's status —
+  // §13, the pointer is followed, not reported). Filtering server-side instead
+  // would mean re-implementing that resolution in SQL, and two implementations
+  // of one rule is exactly how a filter and a badge come to disagree. So the
+  // query key deliberately does NOT depend on `status`: changing the filter
+  // re-filters what we hold, it does not re-fetch.
   const wantedQuery = useQuery({
-    queryKey: ["acquisition", "wanted", "all", status] as const,
+    queryKey: ["acquisition", "wanted", "all"] as const,
     queryFn: async () => {
-      const statusParam = status !== "all" ? status : undefined;
-      const first = await getWanted({
-        ...(statusParam !== undefined ? { status: statusParam } : {}),
-        page: 1,
-        page_size: ALL_PAGE_SIZE,
-      });
+      const first = await getWanted({ page: 1, page_size: ALL_PAGE_SIZE });
       const total = first.total;
       const items = [...first.items];
 
       const capped = Math.min(total, HARD_CAP);
       const pages = Math.ceil(capped / ALL_PAGE_SIZE);
       for (let p = 2; p <= pages; p++) {
-        const page = await getWanted({
-          ...(statusParam !== undefined ? { status: statusParam } : {}),
-          page: p,
-          page_size: ALL_PAGE_SIZE,
-        });
+        const page = await getWanted({ page: p, page_size: ALL_PAGE_SIZE });
         items.push(...page.items);
       }
 
@@ -142,12 +139,26 @@ export function FileDAcquisitionPanel(): ReactElement {
     },
   });
 
-  const wantedItems = wantedQuery.data?.items ?? [];
-  const totalItems = wantedQuery.data?.total ?? 0;
-  const capped = totalItems > HARD_CAP;
+  const loadedItems = wantedQuery.data?.items;
+  const wantedItems = useMemo(() => {
+    const items = loadedItems ?? [];
+    return status === "all"
+      ? items
+      : items.filter((item) => item.status === status);
+  }, [loadedItems, status]);
+  // `capped` speaks about what the SERVER holds vs what we could load — it must
+  // keep reading the unfiltered total, or a narrow filter would silently claim
+  // the truncation went away.
+  const loadedTotal = wantedQuery.data?.total ?? 0;
+  const capped = loadedTotal > HARD_CAP;
+  // The count next to the filter is what the operator SEES, so it follows the
+  // filter; unfiltered, it is the server's own total (which may exceed HARD_CAP).
+  // The truncation notice must NOT use this one — with a filter active it would
+  // read « limité aux 1000 premières (37 au total) », which contradicts itself.
+  const totalItems = status === "all" ? loadedTotal : wantedItems.length;
   const grouped = useMemo(
-    () => groupByTitleSeason(wantedQuery.data?.items ?? []),
-    [wantedQuery.data?.items],
+    () => groupByTitleSeason(wantedItems),
+    [wantedItems],
   );
 
   // ---- Downloads section state ---------------------------------------------
@@ -198,7 +209,7 @@ export function FileDAcquisitionPanel(): ReactElement {
             className="mb-3 rounded bg-warning/10 px-2 py-1 text-xs text-warning"
           >
             Affichage limité aux {String(HARD_CAP)} premières recherches (
-            {String(totalItems)} au total).
+            {String(loadedTotal)} au total).
           </p>
         )}
 

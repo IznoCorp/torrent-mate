@@ -42,20 +42,29 @@ CREATE TABLE IF NOT EXISTS followed_series (
     added_at             INTEGER NOT NULL
 );
 
+-- Kept in sync with the MIGRATED schema (001_init + 002-018), not with 001 alone:
+-- the routes read `w.*`, so a column missing here is a fixture that lies about the
+-- table the route actually meets in production.
 CREATE TABLE IF NOT EXISTS wanted (
     id              INTEGER PRIMARY KEY,
     followed_id     INTEGER REFERENCES followed_series(id) ON DELETE SET NULL,
     media_ref_json  TEXT    NOT NULL,
-    kind            TEXT    NOT NULL CHECK (kind IN ('movie', 'episode')),
+    kind            TEXT    NOT NULL CHECK (kind IN ('movie', 'episode', 'season')),
     season          INTEGER,
     episode         INTEGER,
     status          TEXT    NOT NULL DEFAULT 'pending'
-                    CHECK (status IN ('pending', 'searching', 'grabbed', 'done', 'abandoned')),
+                    CHECK (status IN ('pending', 'searching', 'available',
+                                      'grabbed', 'done', 'abandoned',
+                                      'absorbed', 'fallback_episodes')),
     criteria_json   TEXT,
     enqueued_at     INTEGER NOT NULL,
     last_search_at  INTEGER,
     attempts        INTEGER NOT NULL DEFAULT 0,
-    grabbed_hash    TEXT
+    grabbed_hash    TEXT,
+    last_search_outcome TEXT,
+    last_search_found   INTEGER,
+    tried_hashes_json   TEXT,
+    absorbed_by     INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS seed_obligation (

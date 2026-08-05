@@ -207,30 +207,98 @@ describe("FileDAcquisitionPanel", () => {
     expect(screen.getByRole("combobox")).toBeInTheDocument();
   });
 
-  it("calls getWanted with new status when filter changes", async () => {
+  it("filters client-side — never re-fetches, never sends a status param (ticket 411)", async () => {
+    // The queue filters on the RESOLVED status the backend serves (an absorbed
+    // row carries its season's status, §13). Asking the server to filter instead
+    // would mean re-implementing that resolution in SQL — two implementations of
+    // one rule, i.e. a filter and a badge that eventually disagree. So the fetch
+    // is unfiltered and happens ONCE.
     mockEmpty();
     renderPanel();
 
-    // Open the Select dropdown.
+    await waitFor(() => {
+      expect(getWantedMock).toHaveBeenCalled();
+    });
+    const callsBefore = getWantedMock.mock.calls.length;
+
     const trigger = screen.getByRole("combobox");
     fireEvent.click(trigger);
-
-    // Select "Abandonné" from the dropdown.
     const abandonedOption = await screen.findByRole("option", {
       name: "Abandonné",
     });
     fireEvent.click(abandonedOption);
 
-    // getWanted should have been called with the new status filter.
     await waitFor(() => {
-      expect(getWantedMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          status: "abandoned",
-          page: 1,
-          page_size: 200,
-        }),
-      );
+      expect(
+        screen.getByText(/Aucune recherche avec le statut « Abandonné »/),
+      ).toBeInTheDocument();
     });
+
+    // No extra network call, and no call ever carried a status param.
+    expect(getWantedMock.mock.calls.length).toBe(callsBefore);
+    for (const call of getWantedMock.mock.calls) {
+      expect(call[0]).not.toHaveProperty("status");
+    }
+  });
+
+  it("a resolved absorbed row reads its season and answers the « Terminé » filter (ticket 411)", async () => {
+    // The 2026-08-05 report: S15E21/E22 absorbed by a DONE season kept reading
+    // « En cours d'acquisition ». The backend now serves them `done`; the queue
+    // must render « Terminé » AND return them under the « Terminé » filter —
+    // badge and filter reading the same value is the whole point.
+    mockEmpty();
+    mockWantedItems(
+      [
+        makeWanted({
+          id: 88,
+          title: "American Dad!",
+          kind: "season",
+          season: 15,
+          episode: null,
+          status: "done",
+        }),
+        makeWanted({
+          id: 5,
+          title: "American Dad!",
+          kind: "episode",
+          season: 15,
+          episode: 21,
+          status: "done",
+        }),
+        makeWanted({
+          id: 9,
+          title: "American Dad!",
+          kind: "episode",
+          season: 22,
+          episode: 5,
+          status: "pending",
+        }),
+      ],
+      3,
+    );
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: /American Dad/ }));
+
+    // Unfiltered: the resolved row reads « Terminé », never « En cours ».
+    await waitFor(() => {
+      expect(screen.getByText("S15E21")).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByText("En cours d'acquisition"),
+    ).not.toBeInTheDocument();
+
+    // Filter on « Terminé »: the absorbed-then-resolved row is returned, the
+    // pending one is gone, and the count follows.
+    fireEvent.click(screen.getByRole("combobox"));
+    fireEvent.click(await screen.findByRole("option", { name: "Terminé" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("2 résultats")).toBeInTheDocument();
+    });
+    // The accordion stays expanded across the filter change (same group key).
+    expect(await screen.findByText("S15E21")).toBeInTheDocument();
+    expect(screen.queryByText("S22E05")).not.toBeInTheDocument();
   });
 
   // ── Recherches section — grouped accordion ──────────────────────────────
@@ -622,6 +690,47 @@ describe("FileDAcquisitionPanel", () => {
     expect(screen.queryByText(/Affichage limité/)).not.toBeInTheDocument();
   });
 
+  it("the cap notice keeps quoting the UNFILTERED total under a filter", async () => {
+    // Regression: once the filter moved client-side, the notice interpolated the
+    // FILTERED count and read « limité aux 1000 premières (1 au total) » — a
+    // sentence that contradicts itself. The notice speaks about what the SERVER
+    // holds versus what we could load; the filter has no business in it.
+    // total=1500 makes the panel loop pages; only page 1 carries rows, so the
+    // filtered count stays predictable.
+    getWantedMock.mockImplementation((params: { page?: number }) =>
+      Promise.resolve(
+        wantedPage(
+          params.page === 1
+            ? [
+                makeWanted({ id: 1, title: "Top Chef", season: 16, episode: 1 }),
+                makeWanted({
+                  id: 2,
+                  title: "Koh-Lanta",
+                  season: 30,
+                  episode: 1,
+                  status: "abandoned",
+                }),
+              ]
+            : [],
+          1500,
+        ),
+      ),
+    );
+    renderPanel();
+
+    await screen.findByText(/Affichage limité aux 1000 premières recherches/);
+
+    fireEvent.click(screen.getByRole("combobox"));
+    fireEvent.click(await screen.findByRole("option", { name: "Abandonné" }));
+
+    // The visible result count follows the filter…
+    await waitFor(() => {
+      expect(screen.getByText("1 résultat")).toBeInTheDocument();
+    });
+    // …but the truncation notice still states the server's own total.
+    expect(screen.getByText(/1500 au total/)).toBeInTheDocument();
+  });
+
   // ── Pagination controls absent ───────────────────────────────────────────
 
   it("does not render any pagination controls in the grouped view", async () => {
@@ -773,7 +882,13 @@ describe("FileDAcquisitionPanel", () => {
     expect(screen.getByText("En attente")).toBeInTheDocument();
   });
 
-  it("renders an absorbed episode row as « En cours d'acquisition »", async () => {
+  it("renders a row whose absorption pointer DANGLES as « En cours d'acquisition »", async () => {
+    // Since ticket 411 the backend resolves absorption before serving, so a row still
+    // carrying `absorbed` is one whose pointer could not be followed (absorbed_by
+    // NULL, or a season row that no longer exists). We know a season carries it,
+    // not where that season stands — « En cours d'acquisition » is the arbitrated
+    // reading of that unknown. This test does NOT sanction rendering a RESOLVED
+    // absorbed row that way: see the « follows its season » test below.
     mockEmpty();
     mockWantedItems(
       [
@@ -793,8 +908,7 @@ describe("FileDAcquisitionPanel", () => {
     // Expand the accordion.
     fireEvent.click(await screen.findByRole("button", { name: /Koh-Lanta/ }));
 
-    // An absorbed episode IS being acquired — the badge says exactly that, and
-    // never the raw "absorbed" token nor the season-pack plumbing behind it.
+    // The badge never shows the raw "absorbed" token nor the season-pack plumbing.
     expect(screen.getByText("En cours d'acquisition")).toBeInTheDocument();
     expect(screen.queryByText(/Absorb/)).not.toBeInTheDocument();
     expect(screen.queryByText("absorbed")).not.toBeInTheDocument();

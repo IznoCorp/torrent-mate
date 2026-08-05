@@ -1,50 +1,58 @@
-# Implementation Progress — recherche-juste
+# Implementation Progress — file-absorbee
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: La recherche des Acquisitions trouve ce qu'on lui demande
+**Feature**: La file d'acquisition suit le pointeur d'absorption
 **Type**: fix
-**Version bump**: 0.84.0 → 0.85.0 (minor — nouveau moteur de ranking + pagination API + champs provider)
-**Branch**: `fix/recherche-juste`
+**Version bump**: 0.86.0 → 0.86.1 (bugfix)
+**Branch**: `fix/file-absorbee`
 **PR merge**: auto
 **PR**: _(created after last phase)_
-**Design**: `docs/features/recherche-juste/DESIGN.md`
-**Master plan**: `docs/features/recherche-juste/plan/INDEX.md`
-**Diagnostic source**: `docs/analysis/2026-08-05-acquisition-search-relevance-diagnosis.md`
-**Ticket**: KanbanMate #409
+**Design**: `docs/features/file-absorbee/DESIGN.md`
+**Ticket**: #411
 
-## Contexte d'exécution
+## Contexte
 
-Worktree isolé `.claude/worktrees/acq-search-relevance`, branché sur `origin/main` (`207abc25`).
-**Jamais de `pip install -e .`** ici : le package est résolu par cwd, l'install editable globale
-et les crons prod restent intacts. Baseline à la création : 10429 passed, 7 skipped, 0 failed.
+La file d'acquisition affiche « En cours d'acquisition » sur 31 lignes (sur 94) dont
+l'acquisition est terminée : elle **rapporte le pointeur d'absorption au lieu de le suivre**,
+la prohibition littérale de la §13. Le seam de vérité (`substitute_absorbed_facts`) existe
+depuis #398 mais la file n'y a jamais été convertie.
 
-## Invariants non négociables (DESIGN §2, gelés)
+## Invariants non négociables (DESIGN §2, arbitrés par l'opérateur)
 
-- Le chemin de scrape ne bouge pas : `_match_score.py`, `_match_movie.py`, `_match_tv.py`,
-  `scraper/movie_service.py` **strictement inchangés** (ACC-01 le prouve).
-- TVDB reste canonique pour les séries **dans le scrape** ; l'union TVDB ∪ TMDB ne concerne
-  que les surfaces de recherche interactive.
-- L'id de suivi d'une série reste l'**id TVDB**, même quand la ligne vient de TMDB (§5).
-- La page ne scrolle jamais latéralement (§12) : le carrousel scrolle dans **son** conteneur.
-- Rien en silence (§8) : `total` reflète le nombre réel de candidats, jamais la taille de page.
-- Les pondérations du score sont **calibrées par le jeu golden**, jamais figées à la main.
+- La résolution passe par le **seam partagé** `substitute_absorbed_facts` — jamais une
+  seconde implémentation de la règle (ni en SQL, ni en Python, ni en TypeScript).
+- Pointeur pendant (`absorbed_by` NULL / saison absente) → la ligne **garde** `absorbed`.
+- Le filtre statut est résolu **en JavaScript**, sur la valeur déjà résolue par le backend.
+- Aucun verdict « conforme » sans `scripts/check-acquisition-coherence.py` à 0 anomalie sur
+  les **données réelles**, après correctif, et sans preuve écran à 390 px.
+
+**Master plan**: `docs/features/file-absorbee/plan/INDEX.md`
 
 ## Phases
 
-| #   | Phase                                                   | Fichier plan                          | Cause visée | Status |
-| --- | ------------------------------------------------------- | ------------------------------------- | ----------- | ------ |
-| 1   | Porter le signal de popularité sur `SearchResult`       | `phase-01-popularity-signal.md`       | RC4 (prérequis) | [x] |
-| 2   | Le moteur de ranking + le jeu golden (test-first)       | `phase-02-search-ranking-engine.md`   | RC1, RC2, RC4   | [x] |
-| 3   | Recherche TV — union TVDB ∪ TMDB par `remote_ids`       | `phase-03-tv-union.md`                | RC5             | [x] |
-| 4   | Pagination API + branchement des deux surfaces          | `phase-04-api-pagination-surfaces.md` | RC3, RC6        | [x] |
-| 5   | UI carrousel mobile-first + preuve 390 px               | `phase-05-ui-carousel-mobile.md`      | §12             | [x] |
-| 6   | Portes, PR, CI, merge, déploiement, vérification réelle | `phase-06-gates-pr-deploy.md`         | —               | [ ] |
-| 7   | Filtre par nom sur les suivis (demande opérateur)       | `phase-07-followed-name-filter.md`    | §12, §8         | [x] |
+| #  | Phase                                                  | Plan                                             | Status |
+| -- | ------------------------------------------------------ | ------------------------------------------------ | ------ |
+| 01 | Backend — la route suit le pointeur                    | `plan/phase-01-backend-resolution.md`            | [x]    |
+| 02 | Frontend — filtre JS résolu + vocabulaire corrigé      | `plan/phase-02-frontend-filtre.md`               | [x]    |
+| 03 | Garde — `QUEUE_ABSORBED_DANGLING`                      | `plan/phase-03-garde.md`                         | [x]    |
+| 04 | Gates, PR, CI, merge, preuve sur données réelles       | `plan/phase-04-gates-preuve.md`                  | [ ]    |
 
-L'ordre porte du sens : le signal de popularité doit exister avant le moteur qui le consomme ;
-le moteur doit être prouvé isolément avant d'être branché sur deux surfaces ; l'UI vient après
-une API qui pagine réellement.
+## Preuves déjà exécutées (datées)
+
+- **2026-08-05 20:36** — résolution confrontée à une **copie des données réelles** (94 lignes) :
+  les **31** lignes `absorbed` servies `done`, dont #5/#6/#7/#8 (les 4 du rapport) ; aucune ligne
+  non-absorbée altérée ; aucune ligne sans statut servi.
+- **2026-08-05 20:36** — mutation-check : la route remise à `status=row["status"]` fait **rougir
+  5 tests** ; les 3 survivants sont ceux qui doivent survivre (pointeur pendant, lignes ordinaires).
+- **2026-08-05 20:47** — `scripts/check-acquisition-coherence.py` (garde étendue) : **0 anomalie**
+  sur les données réelles.
+- **2026-08-05 20:55** — `make check` **vert** après rebase sur `origin/main` (`e1bd6956`) :
+  10380 passed / 3 skipped / 2 xfailed, front 1275 passed, OpenAPI sans dérive, bump 0.85.1 → 0.85.2.
+
+Reste dû par la phase 04 (§13 : rien de tout cela ne se remplace par une relecture) : preuve
+écran à 390 px, filtre « Terminé » sur l'UI déployée, et re-passage de la garde **après**
+déploiement.
 
 ## Review cycles
 
@@ -52,10 +60,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phase 6 (`phase-06-gates-pr-deploy.md`) — portes, PR, CI, merge, déploiement, vérification réelle.
-
-ACC-05 (preuve 390 px) et ACC-03/ACC-04 (données live) sont exécutés APRÈS déploiement — déclarés
-différés, non cochés d'avance.
-
-Relevé de calibrage : `docs/features/recherche-juste/CALIBRATION.md` (pondérations du DESIGN
-conservées ; observation sur la redondance du terme « titre exact » à porter au corps de PR).
+Phase 04 — pousser, PR, CI, merge, puis vérification sur l'interface déployée.

@@ -34,6 +34,12 @@ its silent counterpart, AND the proof that they never report the same row:
   on a seeded row (case-insensitively) and on rows that were never grabbed.
 - SPINE_DISPATCH_MISSING fires on a 'done' acquisition whose journey never reached
   the library, and stays silent on dispatched/reconciled rows and on open ones.
+
+Plus the queue's own surface rule (file-absorbee, ticket 411):
+
+- QUEUE_ABSORBED_DANGLING fires when an ``absorbed`` row's pointer is NULL or names a
+  missing row, stays SILENT on the resolvable pointer (the shape of the 31 live rows),
+  and is a ``warning`` — an unsupported claim is not a proven lie.
 """
 
 from __future__ import annotations
@@ -132,12 +138,13 @@ def _insert_wanted(
     last_search_at: int | None = None,
     last_search_outcome: str | None = None,
     last_search_found: int | None = None,
+    absorbed_by: int | None = None,
 ) -> None:
     """Insert one wanted row."""
     conn.execute(
         "INSERT INTO wanted (id, followed_id, media_ref_json, kind, season, episode, status, enqueued_at,"
-        " grabbed_hash, last_search_at, last_search_outcome, last_search_found)"
-        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        " grabbed_hash, last_search_at, last_search_outcome, last_search_found, absorbed_by)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (
             wanted_id,
             followed_id,
@@ -151,6 +158,7 @@ def _insert_wanted(
             last_search_at,
             last_search_outcome,
             last_search_found,
+            absorbed_by,
         ),
     )
 
@@ -865,3 +873,65 @@ def test_a_season_with_an_empty_catalog_is_never_declared_owned(tmp_path: Path) 
     _insert_spine(acquire, "5EA50N", status="grabbed", kind="season")
 
     assert "GRABBED_OWNED" not in _rules(acquire, indexer)
+
+
+# ---------------------------------------------------------------------------
+# QUEUE_ABSORBED_DANGLING — the absorption pointer must be followable (#411)
+# ---------------------------------------------------------------------------
+
+
+def test_absorbed_dangling_fires_when_the_pointer_is_null(tmp_path: Path) -> None:
+    """``absorbed`` with no ``absorbed_by``: nothing to follow, so the queue claims blind.
+
+    The queue resolves an absorbed row onto the season wanted carrying its acquisition.
+    With a NULL pointer that resolution cannot happen and the row keeps reading
+    « En cours d'acquisition » — an assertion with nothing behind it.
+    """
+    acquire, indexer = _acquire_db(tmp_path), _indexer_db(tmp_path)
+    _insert_follow(acquire, 1)
+    _insert_wanted(acquire, 1, followed_id=1, season=15, episode=21, status="absorbed", absorbed_by=None)
+    acquire.commit()
+
+    assert "QUEUE_ABSORBED_DANGLING" in _rules(acquire, indexer)
+
+
+def test_absorbed_dangling_fires_when_the_pointer_names_a_missing_row(tmp_path: Path) -> None:
+    """``absorbed_by`` naming a row that does not exist — the column carries no FK."""
+    acquire, indexer = _acquire_db(tmp_path), _indexer_db(tmp_path)
+    _insert_follow(acquire, 1)
+    _insert_wanted(acquire, 1, followed_id=1, season=15, episode=21, status="absorbed", absorbed_by=9999)
+    acquire.commit()
+
+    assert "QUEUE_ABSORBED_DANGLING" in _rules(acquire, indexer)
+
+
+def test_absorbed_dangling_silent_when_the_season_row_exists(tmp_path: Path) -> None:
+    """A resolvable pointer is the NORMAL case — the rule must stay quiet.
+
+    This is the shape of the 31 live rows on 2026-08-05: every one of them points at a
+    season row that exists and is ``done``. A rule that shouted here would take the guard
+    from mute to deafening, which is just as unusable.
+    """
+    acquire, indexer = _acquire_db(tmp_path), _indexer_db(tmp_path)
+    _insert_follow(acquire, 1)
+    _insert_wanted(acquire, 88, followed_id=1, kind="season", season=15, status="done")
+    _insert_wanted(acquire, 5, followed_id=1, season=15, episode=21, status="absorbed", absorbed_by=88)
+    _insert_wanted(acquire, 6, followed_id=1, season=15, episode=22, status="absorbed", absorbed_by=88)
+    acquire.commit()
+
+    assert "QUEUE_ABSORBED_DANGLING" not in _rules(acquire, indexer)
+
+
+def test_absorbed_dangling_is_a_warning_not_an_error(tmp_path: Path) -> None:
+    """Severity is deliberate: the carrying season MIGHT be in flight.
+
+    An unsupported claim is not a proven lie, and the exit code must not treat it as one.
+    """
+    acquire, indexer = _acquire_db(tmp_path), _indexer_db(tmp_path)
+    _insert_follow(acquire, 1)
+    _insert_wanted(acquire, 1, followed_id=1, season=15, episode=21, status="absorbed", absorbed_by=None)
+    acquire.commit()
+
+    fired = [a for a in collect_anomalies(acquire, indexer, client_hashes=set()) if a.rule == "QUEUE_ABSORBED_DANGLING"]
+    assert len(fired) == 1
+    assert fired[0].severity == "warning"
