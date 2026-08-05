@@ -113,7 +113,7 @@
         "type": "object"
       },
       "AcquisitionOverviewResponse": {
-        "description": "The \u00ab \u00e9tat de la machine \u00bb rollup (F5 capstone) \u2014 one page over the F0\u2013F4 spine.\n\nAggregates the four pillars: acquisitions (``by_status`` / ``in_flight``), en-attente\n(``stuck``), d\u00e9cisions (``awaiting_resolution``), and the watcher/last-run context.\nEvery count is an UNCAPPED SQL aggregate (never a frontend count over the 200-capped\njourney list \u2014 product-intent \u00a7m\u00e9thode rule 6).\n\nAttributes:\n    by_status: ``{status: count}`` over the spine (grabbed/ingested/scraped/dispatched/reconciled).\n    in_flight: Non-terminal total = grabbed + ingested + scraped.\n    stuck: In-flight items stuck on disk past the idle horizon (F4 FS-truth).\n    awaiting_resolution: The AUTHORITATIVE ``scrape_decision`` pending count.\n    watcher_enabled: Whether the acquisition watcher is running (not paused).\n    last_successful_run_at: Unix-epoch of the last successful pipeline run, or None.",
+        "description": "The \u00ab \u00e9tat de la machine \u00bb rollup (F5 capstone) \u2014 one page over the F0\u2013F4 spine.\n\nAggregates the four pillars: acquisitions (``by_status`` / ``in_flight``), en-attente\n(``stuck``), d\u00e9cisions (``awaiting_resolution``), and the watcher/last-run context.\nEvery count is an UNCAPPED SQL aggregate (never a frontend count over the 200-capped\njourney list \u2014 product-intent \u00a7m\u00e9thode rule 6).\n\nAttributes:\n    by_status: ``{status: count}`` over the spine (grabbed/ingested/scraped/dispatched/reconciled).\n    in_flight: Non-terminal total = grabbed + ingested + scraped.\n    stuck: In-flight items stuck on disk past the idle horizon (F4 FS-truth).\n    awaiting_resolution: The AUTHORITATIVE ``scrape_decision`` pending count.\n    watcher_enabled: Whether the acquisition watcher is running (not paused).\n    last_successful_run_at: Unix-epoch of the last successful pipeline run, or None.\n    pending_run: What the watcher is waiting for right now (\u00a78 / DOIT-2), or None\n        when the daemon has published nothing \u2014 never started, or unreadable store.",
         "properties": {
           "awaiting_resolution": {
             "default": 0,
@@ -143,6 +143,16 @@
               }
             ],
             "title": "Last Successful Run At"
+          },
+          "pending_run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PendingRunResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "stuck": {
             "default": 0,
@@ -2738,6 +2748,36 @@
           "owned"
         ],
         "title": "OwnershipBlock",
+        "type": "object"
+      },
+      "PendingRunResponse": {
+        "description": "What the watcher is waiting for, as it last published it (\u00a78 / DOIT-2).\n\nThe watcher daemon is a SEPARATE process from this server: without this snapshot the\ninterface cannot say why nothing is happening, and a silent wait reads exactly like a\nbreakdown \u2014 which is what it read like on 2026-08-05.\n\nAttributes:\n    fires_at: Epoch the grace counter expires and the pipeline starts, or None when\n        no counter is running.\n    active_downloads: Torrents still downloading. Non-zero is the REASON the counter\n        is not running: the pipeline waits for the batch to finish arriving (\u00a714.3).\n    updated_at: Epoch of the daemon cycle that published this. Lets the interface\n        tell \u00ab waiting \u00bb from \u00ab the watcher itself stopped \u00bb.",
+        "properties": {
+          "active_downloads": {
+            "default": 0,
+            "title": "Active Downloads",
+            "type": "integer"
+          },
+          "fires_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fires At"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "number"
+          }
+        },
+        "required": [
+          "updated_at"
+        ],
+        "title": "PendingRunResponse",
         "type": "object"
       },
       "PipelineOutcome": {

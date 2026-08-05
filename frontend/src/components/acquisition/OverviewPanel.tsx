@@ -7,13 +7,69 @@
  * détail est adressable par URL »). Read-only; fail-soft (em-dash / EmptyState).
  */
 
-import { type ReactElement } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import { Link } from "react-router-dom";
 
 import { relativeTime } from "@/components/acquisition/meta";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { StatPanel } from "@/components/ds/StatPanel";
 import { useOverview } from "@/hooks/useAcquisition";
+
+/**
+ * PendingRunLine — ce que le watcher attend, en une phrase (§8 / DOIT-2).
+ *
+ * Le watcher est un process séparé : sans cette ligne, l'écran reste identique qu'il
+ * temporise ou qu'il soit mort, et une attente muette se lit comme une panne — le péché
+ * originel du post-mortem #249. Deux situations, deux phrases, et RIEN quand le daemon
+ * n'a rien publié : on ne raconte pas une attente qu'on ne connaît pas.
+ *
+ * @param pending - L'attente publiée par le daemon, ou null/undefined.
+ * @returns La ligne d'explication, ou null.
+ */
+function PendingRunLine({
+  pending,
+}: {
+  pending:
+    | {
+        fires_at?: number | null;
+        active_downloads?: number;
+        updated_at: number;
+      }
+    | null
+    | undefined;
+}): ReactElement | null {
+  // Le compte à rebours doit VIVRE : une échéance figée à l'affichage vieillirait en
+  // silence jusqu'au prochain rafraîchissement de la requête.
+  const [now, setNow] = useState(() => Date.now() / 1000);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setNow(Date.now() / 1000);
+    }, 1000);
+    return () => {
+      clearInterval(id);
+    };
+  }, []);
+
+  if (pending == null) return null;
+  const actifs = pending.active_downloads ?? 0;
+  if (actifs > 0) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        {actifs} téléchargement{actifs > 1 ? "s" : ""} en cours · l'ingestion
+        démarrera une fois le dernier terminé
+      </p>
+    );
+  }
+  if (pending.fires_at != null) {
+    const restant = Math.max(0, Math.round(pending.fires_at - now));
+    return (
+      <p className="text-xs text-muted-foreground">
+        Ingestion dans {restant} s · toute nouvelle arrivée relance le délai
+      </p>
+    );
+  }
+  return null;
+}
 
 /**
  * OverviewPanel — the machine-state rollup tab.
@@ -123,6 +179,7 @@ export function OverviewPanel(): ReactElement {
           />
         </Link>
       </div>
+      <PendingRunLine pending={d.pending_run} />
       <p className="text-xs text-muted-foreground">
         {d.watcher_enabled ? "Veille active" : "Veille en pause"}
         {d.last_successful_run_at != null

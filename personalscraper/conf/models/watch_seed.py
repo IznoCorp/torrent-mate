@@ -15,7 +15,10 @@ class WatchConfig(_StrictModel):
         enabled: Global kill-switch for the watcher daemon. When False,
             ``personalscraper watch`` exits immediately.
         poll_interval_s: Seconds between poll cycles (default 60).
-        debounce_s: Quiet window after a pipeline trigger — new completions
+        debounce_s: GRACE delay, counted only while NOTHING is downloading — a new
+            download resets it (product-intent §14.3 quiescence gate). Default 60 s:
+            the counter measures silence since the last arrival, so it no longer needs
+            to be long enough to cover a whole batch. Also the quiet window after a
             do not fire another run during this window (default 900 = 15 min).
         safety_net_hours: If no successful pipeline run for this many hours,
             fire a safety-net run regardless of debounce (default 24).
@@ -23,7 +26,7 @@ class WatchConfig(_StrictModel):
 
     enabled: bool = False
     poll_interval_s: int = Field(default=60, ge=10, le=3600)
-    debounce_s: int = Field(default=900, ge=60, le=86400)
+    debounce_s: int = Field(default=60, ge=10, le=86400)
     safety_net_hours: int = Field(default=24, ge=1, le=168)
 
 

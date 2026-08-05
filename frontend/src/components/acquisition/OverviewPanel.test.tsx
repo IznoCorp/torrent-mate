@@ -156,6 +156,60 @@ describe("OverviewPanel", () => {
     }
   });
 
+  it("§8/DOIT-2 — une attente due aux téléchargements DIT sa raison", async () => {
+    // Le péché originel (post-mortem #249) : une attente muette se lit comme une panne.
+    getOverviewMock.mockResolvedValue({
+      by_status: { grabbed: 1, ingested: 0, scraped: 0, dispatched: 56 },
+      in_flight: 1,
+      stuck: 0,
+      awaiting_resolution: 0,
+      watcher_enabled: true,
+      last_successful_run_at: 1_700_000_000,
+      pending_run: {
+        fires_at: null,
+        active_downloads: 3,
+        updated_at: Date.now() / 1000,
+      },
+    });
+    renderPanel();
+    expect(
+      await screen.findByText(/3 téléchargements en cours/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/ingestion démarrera/i)).toBeInTheDocument();
+  });
+
+  it("§8/DOIT-2 — un compte à rebours en cours DIT son échéance", async () => {
+    const now = Date.now() / 1000;
+    getOverviewMock.mockResolvedValue({
+      by_status: { grabbed: 1, ingested: 0, scraped: 0, dispatched: 56 },
+      in_flight: 1,
+      stuck: 0,
+      awaiting_resolution: 0,
+      watcher_enabled: true,
+      last_successful_run_at: 1_700_000_000,
+      pending_run: { fires_at: now + 45, active_downloads: 0, updated_at: now },
+    });
+    renderPanel();
+    expect(await screen.findByText(/Ingestion dans/)).toBeInTheDocument();
+  });
+
+  it("sans attente publiée, l'interface ne raconte rien", async () => {
+    // Le contre-cas : pas de daemon, pas de phrase inventée.
+    getOverviewMock.mockResolvedValue({
+      by_status: { grabbed: 0, ingested: 0, scraped: 0, dispatched: 56 },
+      in_flight: 0,
+      stuck: 0,
+      awaiting_resolution: 0,
+      watcher_enabled: true,
+      last_successful_run_at: 1_700_000_000,
+      pending_run: null,
+    });
+    renderPanel();
+    expect(await screen.findByText("Dispatchés")).toBeInTheDocument();
+    expect(screen.queryByText(/Ingestion/)).toBeNull();
+    expect(screen.queryByText(/téléchargements en cours/)).toBeNull();
+  });
+
   it("shows an empty state when EVERY pillar is zero", async () => {
     getOverviewMock.mockResolvedValue({
       by_status: {},

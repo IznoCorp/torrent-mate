@@ -83,7 +83,8 @@ class TestWatchConfig:
         cfg = WatchConfig()
         assert cfg.enabled is False
         assert cfg.poll_interval_s == 60
-        assert cfg.debounce_s == 900
+        # §14.3 — délai de GRÂCE, compté seulement dans le silence : 60 s suffisent.
+        assert cfg.debounce_s == 60
         assert cfg.safety_net_hours == 24
 
     def test_poll_interval_below_min_rejected(self):

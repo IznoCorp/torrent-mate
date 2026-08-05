@@ -82,6 +82,12 @@ class WatcherInput:
             still cross-seed (a completed torrent is seedable regardless) and
             re-enter the trigger set the moment their condition clears —
             nothing is ever marked done, so no media can be lost.
+        downloading_count: How many torrents are still ACTIVELY downloading
+            (not complete, not paused, not errored). The grace counter only
+            runs when this is zero — see :meth:`WatcherService.evaluate`
+            branch 3. A paused or errored torrent is deliberately NOT counted:
+            it will never finish on its own, so counting it would hold the
+            pipeline for ever.
     """
 
     completed_hashes: frozenset[str]
@@ -91,6 +97,7 @@ class WatcherInput:
     pipeline_lock_held: bool
     now: float
     deferred_hashes: frozenset[str] = frozenset()
+    downloading_count: int = 0
 
 
 @dataclass
@@ -204,6 +211,23 @@ class WatcherService:
         # re-enter automatically once their condition clears.
         pipeline_work = work_set - inp.deferred_hashes
         if pipeline_work:
+            # 3-gate. QUIESCENCE: the grace counter only runs once NOTHING is
+            # downloading any more. While media is still arriving, firing would
+            # ingest half a batch and leave the rest for a second run — and the
+            # old timer did exactly that, because it started at the FIRST
+            # completion and ran regardless of what was still in flight.
+            #
+            # Clearing the window (rather than freezing it) is load-bearing: a
+            # download that starts with 20 s left must restart the FULL grace
+            # delay, not resume at 20 s. The delay measures silence SINCE the
+            # last arrival, so it can only ever be counted from a quiet client.
+            if inp.downloading_count > 0:
+                if state.debounce_until is None:
+                    return WatcherOutput(decision=WatcherDecision.IDLE, new_state=state)
+                return WatcherOutput(
+                    decision=WatcherDecision.IDLE,
+                    new_state=dataclasses.replace(state, debounce_until=None),
+                )
             if state.debounce_until is None:
                 # 3a. Start a fresh debounce window.
                 new_state = dataclasses.replace(

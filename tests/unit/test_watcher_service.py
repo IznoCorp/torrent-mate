@@ -32,6 +32,7 @@ def _inp(
     sentinel: bool = False,
     lock_held: bool = False,
     deferred: set[str] | None = None,
+    downloading: int = 0,
 ) -> WatcherInput:
     """Build a WatcherInput with sensible defaults for concise test setup.
 
@@ -43,6 +44,7 @@ def _inp(
         sentinel: Whether ``watch.trigger`` exists.
         lock_held: Whether the pipeline lock file exists.
         deferred: Info-hashes transiently deferred (ingest would re-skip).
+        downloading: How many torrents are still actively downloading.
 
     Returns:
         A new WatcherInput frozen snapshot.
@@ -55,6 +57,7 @@ def _inp(
         pipeline_lock_held=lock_held,
         now=now,
         deferred_hashes=frozenset(deferred or set()),
+        downloading_count=downloading,
     )
 
 
@@ -680,3 +683,198 @@ class TestDeferredHashes:
         inp = _inp(completed={"abc", "def"}, ingested=set(), deferred={"abc"}, now=1_000_000.0)
         out = svc.evaluate(inp, state)
         assert out.decision == WatcherDecision.START_DEBOUNCE
+
+
+class TestQuiescenceGate:
+    """Le compteur ne tourne que quand PLUS RIEN ne télécharge (règle opérateur).
+
+    Le débounce d'origine était une simple minuterie : elle partait à la première
+    complétion et le pipeline démarrait au bout, qu'il reste ou non des téléchargements
+    en cours. La règle demandée inverse la logique — on attend le **silence**, puis on
+    laisse passer un court délai de grâce :
+
+      « le compteur ne se lance que si je n'ai plus de téléchargement en cours, et si un
+        téléchargement se relance on reset les 60 s »
+
+    Le cross-seed (branche 2) se déclenche AVANT cette garde et une fois par hash neuf ;
+    les états de départ le portent donc déjà consommé, sauf là où c'est justement le sujet.
+    """
+
+    @staticmethod
+    def _svc(debounce: int = 60) -> WatcherService:
+        """Build a service with the short grace delay the operator asked for."""
+        return WatcherService(WatchConfig(enabled=True, poll_interval_s=60, debounce_s=debounce, safety_net_hours=24))
+
+    @staticmethod
+    def _seen(*hashes: str, **kwargs: object) -> WatcherState:
+        """A state whose cross-seed pass already consumed *hashes*."""
+        return WatcherState(cross_seed_dispatched=frozenset(hashes), **kwargs)  # type: ignore[arg-type]
+
+    def test_the_counter_does_not_start_while_something_is_downloading(self) -> None:
+        """T1 terminé, T2 et T3 encore en cours → aucune fenêtre ne s'ouvre."""
+        out = self._svc().evaluate(
+            _inp(completed={"t1"}, ingested=set(), now=1000.0, downloading=2),
+            self._seen("t1"),
+        )
+        assert out.decision is WatcherDecision.IDLE
+        assert out.new_state.debounce_until is None, "aucun compte à rebours ne doit courir"
+
+    def test_the_counter_starts_when_the_last_download_finishes(self) -> None:
+        """T3 termine : plus rien ne télécharge → la fenêtre de 60 s s'ouvre."""
+        out = self._svc().evaluate(
+            _inp(completed={"t1", "t2", "t3"}, ingested=set(), now=1000.0, downloading=0),
+            self._seen("t1", "t2", "t3"),
+        )
+        assert out.decision is WatcherDecision.START_DEBOUNCE
+        assert out.new_state.debounce_until == 1060.0
+
+    def test_a_new_download_resets_the_running_counter_and_holds_it(self) -> None:
+        """À 20 s de la fin, T4 démarre : le compteur est remis à zéro ET suspendu.
+
+        C'est le cœur de la règle : ce n'est pas une pause (qui reprendrait à 20 s), c'est
+        un reset — le délai de grâce entier doit s'écouler APRÈS la dernière arrivée.
+        """
+        state = self._seen("t1", "t2", "t3", debounce_until=1060.0)
+        out = self._svc().evaluate(
+            _inp(completed={"t1", "t2", "t3"}, ingested=set(), now=1040.0, downloading=1),
+            state,
+        )
+        assert out.decision is WatcherDecision.IDLE
+        assert out.new_state.debounce_until is None, "le compteur est remis à zéro, pas figé"
+
+    def test_the_counter_restarts_from_scratch_once_the_new_download_finishes(self) -> None:
+        """T4 termine à t=1100 : la fenêtre repart de 60 s pleines, pas des 20 s restantes."""
+        out = self._svc().evaluate(
+            _inp(completed={"t1", "t2", "t3", "t4"}, ingested=set(), now=1100.0, downloading=0),
+            self._seen("t1", "t2", "t3", "t4"),
+        )
+        assert out.decision is WatcherDecision.START_DEBOUNCE
+        assert out.new_state.debounce_until == 1160.0
+
+    def test_the_pipeline_fires_when_the_counter_ends_in_silence(self) -> None:
+        """Le compteur va au bout sans nouvelle arrivée → le pipeline part."""
+        out = self._svc().evaluate(
+            _inp(completed={"t1", "t2", "t3", "t4"}, ingested=set(), now=1160.0, downloading=0),
+            self._seen("t1", "t2", "t3", "t4", debounce_until=1160.0),
+        )
+        assert out.decision is WatcherDecision.FIRE_RUN
+        assert out.run_reason == "completion"
+
+    def test_the_full_operator_scenario_end_to_end(self) -> None:
+        """Le scénario dicté, joué cycle par cycle sur une seule machine.
+
+        Une seule décision par cycle, comme la vraie boucle : un hash neuf consomme son
+        cycle en cross-seed, la garde tranche au cycle suivant.
+        """
+        svc = self._svc()
+        state = WatcherState()
+        journal: list[str] = []
+
+        def cycle(now: float, completed: set[str], downloading: int) -> None:
+            nonlocal state
+            out = svc.evaluate(_inp(completed=completed, ingested=set(), now=now, downloading=downloading), state)
+            state = out.new_state
+            journal.append(out.decision.name)
+
+        cycle(1000.0, {"t1"}, 2)  # T1 fini (T2+T3 en cours) → cross-seed de t1
+        cycle(1060.0, {"t1"}, 2)  # rien de neuf : la garde tient, aucun compteur
+        cycle(1120.0, {"t1", "t2"}, 1)  # T2 fini → cross-seed de t2
+        cycle(1180.0, {"t1", "t2"}, 1)  # T3 en cours : toujours rien
+        cycle(1240.0, {"t1", "t2", "t3"}, 0)  # T3 fini → cross-seed de t3
+        cycle(1300.0, {"t1", "t2", "t3"}, 0)  # silence → le compteur part (→ 1360)
+        cycle(1340.0, {"t1", "t2", "t3"}, 1)  # T4 démarre à 20 s de la fin → RESET
+        cycle(1400.0, {"t1", "t2", "t3", "t4"}, 0)  # T4 fini → cross-seed de t4
+        cycle(1460.0, {"t1", "t2", "t3", "t4"}, 0)  # silence → le compteur repart (→ 1520)
+        cycle(1520.0, {"t1", "t2", "t3", "t4"}, 0)  # 60 s de silence tenues → feu
+
+        assert journal == [
+            "FIRE_CROSS_SEED",
+            "IDLE",
+            "FIRE_CROSS_SEED",
+            "IDLE",
+            "FIRE_CROSS_SEED",
+            "START_DEBOUNCE",
+            "IDLE",
+            "FIRE_CROSS_SEED",
+            "START_DEBOUNCE",
+            "FIRE_RUN",
+        ], journal
+
+    def test_a_manual_poke_ignores_the_gate_entirely(self) -> None:
+        """La sentinelle passe devant : une action opérateur ne s'aligne sur rien (§6)."""
+        out = self._svc().evaluate(
+            _inp(completed={"t1"}, ingested=set(), now=1000.0, downloading=3, sentinel=True),
+            self._seen("t1"),
+        )
+        assert out.decision is WatcherDecision.FIRE_RUN
+        assert out.run_reason == "manual"
+
+    def test_cross_seed_still_fires_while_downloads_run(self) -> None:
+        """Le cross-seed ne dépend pas du silence : un torrent fini est semable tout de suite."""
+        out = self._svc().evaluate(
+            _inp(completed={"t1"}, ingested=set(), now=1000.0, downloading=2),
+            WatcherState(),
+        )
+        assert out.decision is WatcherDecision.FIRE_CROSS_SEED
+
+    def test_a_paused_download_must_not_hold_the_pipeline_for_ever(self) -> None:
+        """Contrat du compteur : ``downloading_count`` ne compte QUE ce qui progresse.
+
+        La garde est littérale — zéro signifie feu vert. C'est au producteur du compte
+        d'exclure ce qui ne finira jamais seul (pause, erreur) ; sans quoi un torrent en
+        pause bloquerait le pipeline jusqu'au filet de sécurité de 24 h.
+        """
+        out = self._svc().evaluate(
+            _inp(completed={"t1"}, ingested=set(), now=1000.0, downloading=0),
+            self._seen("t1"),
+        )
+        assert out.decision is WatcherDecision.START_DEBOUNCE
+
+
+class TestActiveDownloadPredicate:
+    """Ce qui compte comme « téléchargement en cours » — et ce qui n'en est pas un.
+
+    La garde de quiescence est littérale : ``downloading_count == 0`` déclenche le
+    compteur. Toute la prudence est donc ici. Un torrent en PAUSE ou en ERREUR ne
+    finira jamais tout seul : le compter bloquerait le pipeline jusqu'au filet de
+    sécurité de 24 h, pour une raison que l'opérateur ne verrait nulle part.
+    """
+
+    @staticmethod
+    def _item(state: str, progress: float) -> object:
+        """A minimal TorrentItem stand-in carrying only what the predicate reads."""
+        from personalscraper.api.torrent._base import TorrentItem
+
+        return TorrentItem(
+            hash="h",
+            name="n",
+            size_bytes=1,
+            progress=progress,
+            state=state,
+            content_path="/x",
+            category=None,
+        )
+
+    @pytest.mark.parametrize(
+        "state",
+        ["downloading", "stalledDL", "metaDL", "queuedDL", "forcedDL", "checkingDL", "downloading (slow)"],
+    )
+    def test_an_unfinished_active_torrent_counts(self, state: str) -> None:
+        """Tout ce qui n'est pas fini et n'est pas arrêté compte comme en cours."""
+        from personalscraper.commands.watch import _is_actively_downloading
+
+        assert _is_actively_downloading(self._item(state, 0.42)) is True
+
+    @pytest.mark.parametrize("state", ["pausedDL", "stoppedDL", "paused", "stopped", "error", "missingFiles", "moving"])
+    def test_a_stopped_or_broken_torrent_never_counts(self, state: str) -> None:
+        """Il ne progressera pas seul : le compter, c'est bloquer le pipeline sans le dire."""
+        from personalscraper.commands.watch import _is_actively_downloading
+
+        assert _is_actively_downloading(self._item(state, 0.42)) is False
+
+    def test_a_finished_torrent_never_counts(self) -> None:
+        """Un torrent complet qui essaime n'est plus un téléchargement."""
+        from personalscraper.commands.watch import _is_actively_downloading
+
+        assert _is_actively_downloading(self._item("uploading", 1.0)) is False
+        assert _is_actively_downloading(self._item("stalledUP", 1.0)) is False
