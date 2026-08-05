@@ -24,7 +24,7 @@ from personalscraper.api.metadata._base import SearchResult
 from personalscraper.api.metadata._tmdb_parsers import parse_search_result as parse_tmdb
 from personalscraper.api.metadata._tvdb_parsers import parse_search_result as parse_tvdb
 from personalscraper.api.metadata._tvdb_parsers import unwrap
-from personalscraper.scraper.search_ranking import rank_search_results
+from personalscraper.scraper.search_ranking import merge_tv_results, rank_search_results
 
 FIXTURES = Path("tests/fixtures/search")
 
@@ -226,3 +226,79 @@ class TestEdgeCases:
         """Ranking reorders; it never drops. Truncation is the caller's decision."""
         lot = _load("tmdb-search-movie-spiderman")
         assert len(rank_search_results("spiderman", lot, kind="movie", now_year=NOW_YEAR)) == len(lot)
+
+
+class TestUnionRanking:
+    """TV search merges TVDB and TMDB — TVDB alone cannot rank (RC5).
+
+    ``match_tvshow_detailed`` returns as soon as TVDB yields anything, and the TVDB
+    branch takes ``scored[0]`` with no threshold — so a single junk TVDB row blocked
+    TMDB entirely. On 'monarch' that cost the operator the right answer: TMDB ranked
+    *Monarch: Legacy of Monsters* first (popularity 34.4, 1368 votes) while TVDB,
+    which publishes no popularity at all, could only offer title similarity.
+    """
+
+    def test_union_puts_the_target_first(self) -> None:
+        """Merged, the target takes first place — neither provider does alone."""
+        merged = merge_tv_results(_load("tvdb-search-monarch"), _load("tmdb-search-tv-monarch"))
+        ranked = rank_search_results("monarch", merged, kind="tv", now_year=NOW_YEAR)
+        assert ranked[0].result.title.startswith("Monarch: Legacy of Monsters")
+
+    def test_merged_target_keeps_the_tvdb_identity(self) -> None:
+        """The follow id must stay TVDB (§5: identity is the id chosen at add time)."""
+        merged = merge_tv_results(_load("tvdb-search-monarch"), _load("tmdb-search-tv-monarch"))
+        ranked = rank_search_results("monarch", merged, kind="tv", now_year=NOW_YEAR)
+        assert ranked[0].result.provider == "tvdb"
+        assert ranked[0].result.provider_id == "422598"
+
+    def test_merged_target_carries_the_tmdb_popularity(self) -> None:
+        """The TVDB row is grafted with TMDB's popularity — that is the whole point."""
+        merged = merge_tv_results(_load("tvdb-search-monarch"), _load("tmdb-search-tv-monarch"))
+        target = next(r for r in merged if r.provider_id == "422598")
+        assert target.popularity is not None
+        assert target.popularity > 0.0
+
+    def test_dedup_by_external_id_yields_one_row(self) -> None:
+        """remote_ids names the TMDB counterpart — one media, one row."""
+        merged = merge_tv_results(_load("tvdb-search-monarch"), _load("tmdb-search-tv-monarch"))
+        assert sum(1 for r in merged if "Legacy of Monsters" in r.title) == 1
+
+    def test_dedup_by_title_and_year_when_external_id_absent(self) -> None:
+        """10 of 50 live TVDB rows carry no remote_ids — fall back to title+year."""
+        tvdb = [SearchResult(provider="tvdb", provider_id="9", title="Monarch", year=2022, media_type="tv")]
+        tmdb = [
+            SearchResult(
+                provider="tmdb",
+                provider_id="125713",
+                title="Monarch",
+                year=2022,
+                media_type="tv",
+                popularity=4.2,
+            )
+        ]
+        merged = merge_tv_results(tvdb, tmdb)
+        assert len(merged) == 1
+        assert merged[0].provider == "tvdb"
+        assert merged[0].popularity == 4.2
+
+    def test_unmatched_rows_are_kept_not_dropped(self) -> None:
+        """When nothing correlates, show both. Losing a row is worse than showing two.
+
+        The operator can arbitrate between two candidates on screen; they cannot
+        arbitrate one that silently vanished.
+        """
+        tvdb = [SearchResult(provider="tvdb", provider_id="9", title="Alpha", year=2001, media_type="tv")]
+        tmdb = [SearchResult(provider="tmdb", provider_id="8", title="Beta", year=2015, media_type="tv")]
+        merged = merge_tv_results(tvdb, tmdb)
+        assert len(merged) == 2
+
+    def test_tmdb_only_series_survives_with_tmdb_identity(self) -> None:
+        """A show TVDB does not know is better followed by TMDB id than invisible."""
+        tmdb = [SearchResult(provider="tmdb", provider_id="777", title="Gamma", year=2024, media_type="tv")]
+        merged = merge_tv_results([], tmdb)
+        assert len(merged) == 1
+        assert merged[0].provider == "tmdb"
+
+    def test_empty_both_sides(self) -> None:
+        """No candidates anywhere yields no rows, not an exception."""
+        assert merge_tv_results([], []) == []
