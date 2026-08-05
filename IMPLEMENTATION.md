@@ -4,7 +4,7 @@
 
 **Feature**: La file d'acquisition suit le pointeur d'absorption
 **Type**: fix
-**Version bump**: 0.85.1 → 0.85.2 (bugfix)
+**Version bump**: 0.86.0 → 0.86.1 (bugfix)
 **Branch**: `fix/file-absorbee`
 **PR merge**: auto
 **PR**: _(created after last phase)_
