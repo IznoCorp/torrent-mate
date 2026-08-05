@@ -32,6 +32,16 @@ Ownership and queue shape:
   (needless future grab).
 - ABANDONED_MISSING   — wanted 'abandoned' episode, present in the aired-episode
   cache, NOT owned (an aired episode nobody will ever fetch).
+- QUEUE_ABSORBED_DANGLING — an ``absorbed`` row whose ``absorbed_by`` is NULL or names
+  a row that does not exist. ``absorbed`` is a POINTER to the season wanted carrying the
+  acquisition, and the queue follows it (#411); a pointer it cannot follow leaves the row
+  reading « En cours d'acquisition » on an ignorance. Severity ``warning``: the carrying
+  season might genuinely be in flight, so this is an unsupported claim, not a proven lie.
+  The column carries no FK — the table is advisory — so dangling is a real possibility.
+  NOTE the deliberate absence of a « the queue claims an acquisition with no torrent »
+  rule: once the pointer is followed, the only in-flight readings left are ``grabbed``
+  (already GRABBED_HASH_MISSING) and this one. A rule that can only ever duplicate another
+  is a false witness — it suggests coverage it does not provide.
 - DUPLICATE_WANTED    — two or more wanted rows sharing
   (followed_id, kind, season, episode) — NULL-safe grouping.
 - FOLLOW_NO_REF       — a follow whose media_ref_json has no tvdb/tmdb/imdb id
@@ -326,6 +336,9 @@ def collect_anomalies(
         "SELECT id, followed_id, media_ref_json, kind, season, episode, status, grabbed_hash, "
         "last_search_at, last_search_outcome, last_search_found, absorbed_by FROM wanted ORDER BY id"
     ).fetchall()
+    #: Every wanted id that EXISTS — the referent set an ``absorbed_by`` pointer is
+    #: checked against (the column carries no FK; the table is advisory).
+    known_wanted_ids = {row["id"] for row in wanted_rows}
 
     aired_keys: set[tuple[int, int, int]] = set()
     aired_count: dict[int, int] = {}
@@ -490,6 +503,27 @@ def collect_anomalies(
                     **common,
                 )
             )
+
+        # The absorption pointer must be FOLLOWABLE. The queue resolves an
+        # absorbed row onto the season wanted that carries its acquisition
+        # (#411); when the pointer leads nowhere, the resolution cannot happen
+        # and the row goes on reading « En cours d'acquisition » — a claim with
+        # nothing behind it. Checked here, outside the OPEN-rows section below,
+        # because `absorbed` is precisely NOT an open status.
+        if w["status"] == "absorbed":
+            carrier = w["absorbed_by"]
+            if carrier is None or carrier not in known_wanted_ids:
+                shown = "NULL" if carrier is None else f"#{carrier} (absent)"
+                anomalies.append(
+                    Anomaly(
+                        rule="QUEUE_ABSORBED_DANGLING",
+                        severity="warning",
+                        explanation=f"absorbed_by={shown}: the absorption pointer cannot be followed, "
+                        "so the queue reports « En cours d'acquisition » on an ignorance "
+                        "(§13: follow the pointer, never report it)",
+                        **common,
+                    )
+                )
 
         # --------------------------------------------------------------
         # Rules 8-11 — the search-verdict columns (acq-states phase 9).
