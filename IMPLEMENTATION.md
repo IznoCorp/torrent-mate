@@ -36,7 +36,7 @@ et les crons prod restent intacts. Baseline à la création : 10429 passed, 7 sk
 | --- | ------------------------------------------------------- | ------------------------------------- | ----------- | ------ |
 | 1   | Porter le signal de popularité sur `SearchResult`       | `phase-01-popularity-signal.md`       | RC4 (prérequis) | [x] |
 | 2   | Le moteur de ranking + le jeu golden (test-first)       | `phase-02-search-ranking-engine.md`   | RC1, RC2, RC4   | [x] |
-| 3   | Recherche TV — union TVDB ∪ TMDB par `remote_ids`       | `phase-03-tv-union.md`                | RC5             | [ ] |
+| 3   | Recherche TV — union TVDB ∪ TMDB par `remote_ids`       | `phase-03-tv-union.md`                | RC5             | [x] |
 | 4   | Pagination API + branchement des deux surfaces          | `phase-04-api-pagination-surfaces.md` | RC3, RC6        | [ ] |
 | 5   | UI carrousel mobile-first + preuve 390 px               | `phase-05-ui-carousel-mobile.md`      | §12             | [ ] |
 | 6   | Portes, PR, CI, merge, déploiement, vérification réelle | `phase-06-gates-pr-deploy.md`         | —               | [ ] |
@@ -51,7 +51,7 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phase 3 (`phase-03-tv-union.md`) — union TVDB ∪ TMDB pour la recherche TV.
+Phase 4 (`phase-04-api-pagination-surfaces.md`) — pagination API + branchement des deux surfaces.
 
 Relevé de calibrage : `docs/features/recherche-juste/CALIBRATION.md` (pondérations du DESIGN
 conservées ; observation sur la redondance du terme « titre exact » à porter au corps de PR).
