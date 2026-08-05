@@ -352,41 +352,38 @@ def run_media_search(
     Raises:
         HTTPException: 502 on provider API failure.
     """
+    from personalscraper.api.metadata._base import SearchResult
     from personalscraper.scraper.search_ranking import (
         gather_tv_candidates,
         rank_search_results,
     )
 
     now_year = datetime.now(tz=UTC).year
-    ranked: list[tuple[float, MediaSearchResult]] = []
+    candidates: list[SearchResult] = []
 
     if kind in (None, "movie"):
         try:
-            movie_rows = tmdb_client.search_movie(q, None)  # type: ignore[attr-defined]
+            candidates.extend(tmdb_client.search_movie(q, None))  # type: ignore[attr-defined]
         except Exception as exc:
             logger.error("acquisition_search_movie_failed", error=str(exc))
             raise HTTPException(status_code=502, detail=f"Movie search failed: {exc}") from exc
-        ranked.extend(
-            (item.score, _to_search_result(item, "movie"))
-            for item in rank_search_results(q, list(movie_rows), kind="movie", now_year=now_year)
-        )
 
     if kind in (None, "tv"):
         # Both TV providers, merged: TVDB alone cannot rank (it publishes no
         # popularity), and the scrape rule "TMDB only when TVDB is silent" hid the
         # right answer whenever TVDB returned any row at all.
-        tv_rows = gather_tv_candidates(tvdb_client, tmdb_client, q)
-        ranked.extend(
-            (item.score, _to_search_result(item, "tv"))
-            for item in rank_search_results(q, tv_rows, kind="tv", now_year=now_year)
-        )
+        candidates.extend(gather_tv_candidates(tvdb_client, tmdb_client, q))
 
-    # One ordering across both kinds, so "Tout" is a real merge and not two
-    # independently-truncated lists stapled together.
-    ranked.sort(key=lambda pair: pair[0], reverse=True)
+    # ONE ranking pass over the union — never one per kind. Popularity is
+    # normalised against the most popular candidate in the lot, so ranking each
+    # kind separately runs that normalisation on two different maxima and yields
+    # two incomparable 1.000s. Measured in production 2026-08-05: 'monarch' put
+    # « Monarch City » (popularity 2.19, merely the best of a weak film lot) ahead
+    # of « Monarch: Legacy of Monsters » (popularity 34.45) — a 16× gap erased,
+    # with recency then breaking the tie the wrong way.
+    ranked = rank_search_results(q, candidates, kind=kind or "all", now_year=now_year)
     total = len(ranked)
-    page = [item for _, item in ranked[offset : offset + limit]]
-    results = page
+    results = [_to_search_result(item) for item in ranked[offset : offset + limit]]
 
     # §5 replacement confirmation: flag movie results already owned in the
     # library (by provider id, live files only) so the UI can ask before
@@ -413,12 +410,16 @@ def run_media_search(
 # ── /api/acquisition/followed (write) ─────────────────────────────────────
 
 
-def _to_search_result(candidate: "RankedResult", kind: str) -> MediaSearchResult:
+def _to_search_result(candidate: "RankedResult") -> MediaSearchResult:
     """Map a scored :class:`RankedResult` to a :class:`MediaSearchResult`.
+
+    The ``kind`` tag is read off the candidate's own ``media_type`` rather than
+    from the chain that produced it: films and shows are now ranked in a single
+    pass over the union, so there is no per-chain context left to inherit — and
+    the provider's own classification is the more honest source anyway.
 
     Args:
         candidate: The ranked provider candidate.
-        kind: ``"movie"`` or ``"tv"`` (which search chain produced it).
 
     Returns:
         The tagged search result.
@@ -435,7 +436,7 @@ def _to_search_result(candidate: "RankedResult", kind: str) -> MediaSearchResult
         provider_id=provider_id,
         title=result.title,
         year=result.year,
-        kind=kind,
+        kind="tv" if str(result.media_type) == "tv" else "movie",
         poster_url=result.poster_url or None,
         overview=result.overview or None,
         score=candidate.score,
