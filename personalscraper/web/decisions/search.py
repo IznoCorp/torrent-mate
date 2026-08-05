@@ -17,16 +17,48 @@ failure. Each caller decides what that means:
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from personalscraper.logger import get_logger
+from personalscraper.scraper.decision_candidate import DecisionCandidate
 
 if TYPE_CHECKING:
     from fastapi import Request
 
-    from personalscraper.scraper.decision_candidate import DecisionCandidate
+    from personalscraper.scraper.search_ranking import RankedResult
 
 logger = get_logger(__name__)
+
+#: How many proposals the resolution deck shows. The deck is a pick-one selector,
+#: not a browsable list — more rows would be noise, and unlike the acquisition
+#: search it has no pagination to fall back on.
+_DECK_CANDIDATE_LIMIT = 5
+
+
+def _to_candidate(ranked: RankedResult) -> DecisionCandidate:
+    """Map a ranked search result to the deck's candidate shape.
+
+    Args:
+        ranked: The ranked provider result.
+
+    Returns:
+        The deck candidate.
+    """
+    result = ranked.result
+    try:
+        provider_id = int(result.provider_id)
+    except (TypeError, ValueError):
+        provider_id = 0
+    return DecisionCandidate(
+        provider=result.provider,  # type: ignore[arg-type]  # "tmdb"|"tvdb" in practice
+        provider_id=provider_id,
+        title=result.title,
+        year=result.year,
+        score=ranked.score,
+        poster_url=result.poster_url or None,
+        overview=result.overview or None,
+    )
 
 
 class ProviderSearchError(Exception):
@@ -105,23 +137,30 @@ def search_candidates(
     Raises:
         ProviderSearchError: On client-build failure or a provider search error.
     """
+    from personalscraper.scraper.search_ranking import (
+        gather_tv_candidates,
+        rank_search_results,
+    )
+
     tmdb_client, tvdb_client = build_provider_clients(request)
+    now_year = datetime.now(tz=UTC).year
 
     if media_kind == "movie":
-        from personalscraper.scraper.confidence import match_movie_detailed
-
         try:
-            _, candidates = match_movie_detailed(tmdb_client, title, year)
+            # build_provider_clients is typed as returning bare objects (it avoids a
+            # circular import on the concrete client classes); the capability is
+            # guaranteed by the registry, not by the annotation.
+            rows = list(tmdb_client.search_movie(title, year))  # type: ignore[attr-defined]
         except Exception as exc:
             logger.error("decisions_search_movie_failed", error=str(exc))
             raise ProviderSearchError(f"TMDB search failed: {exc}") from exc
+        ranked = rank_search_results(title, rows, kind="movie", now_year=now_year, query_year=year)
     else:
-        from personalscraper.scraper.confidence import match_tvshow_detailed
-
         try:
-            _, candidates = match_tvshow_detailed(tvdb_client, tmdb_client, title, year)
+            rows = gather_tv_candidates(tvdb_client, tmdb_client, title, year=year)
         except Exception as exc:
             logger.error("decisions_search_tvshow_failed", error=str(exc))
             raise ProviderSearchError(f"Provider search failed: {exc}") from exc
+        ranked = rank_search_results(title, rows, kind="tv", now_year=now_year, query_year=year)
 
-    return candidates
+    return [_to_candidate(item) for item in ranked[:_DECK_CANDIDATE_LIMIT]]

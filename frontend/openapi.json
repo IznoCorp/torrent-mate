@@ -2306,14 +2306,29 @@
         "type": "object"
       },
       "MediaSearchResponse": {
-        "description": "Response for GET /api/acquisition/search.\n\nAttributes:\n    results: The scored matches across the requested kind(s), best first.",
+        "description": "Response for GET /api/acquisition/search.\n\nAttributes:\n    results: The scored matches for the requested page, best first.\n    total: The TOTAL number of ranked candidates, not the size of this page.\n        The distinction is the point: serving five rows out of eighty-one with\n        no total told the operator they had seen everything (\u00a78, nothing in\n        silence) \u2014 which is how a mainstream film could look genuinely absent.\n    offset: Zero-based index of the first row in ``results``.\n    limit: Maximum number of rows this page may carry.",
         "properties": {
+          "limit": {
+            "default": 0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "default": 0,
+            "title": "Offset",
+            "type": "integer"
+          },
           "results": {
             "items": {
               "$ref": "#/components/schemas/MediaSearchResult"
             },
             "title": "Results",
             "type": "array"
+          },
+          "total": {
+            "default": 0,
+            "title": "Total",
+            "type": "integer"
           }
         },
         "required": [
@@ -5662,7 +5677,7 @@
     },
     "/api/acquisition/search": {
       "get": {
-        "description": "Search live providers for media to follow (add-by-search, OBJ3).\n\nRead-only: builds per-request provider clients and delegates to the same\ndetailed confidence matchers the decisions search uses, tagging each result\nwith its ``kind``. Results are merged across the requested kind(s) and\nsorted best-score-first.\n\nArgs:\n    request: The incoming FastAPI request.\n    q: The title to search for.\n    kind: Optional ``\"movie\"``/``\"tv\"`` restriction (both when omitted).\n\nReturns:\n    A :class:`MediaSearchResponse` with the scored matches.\n\nRaises:\n    HTTPException: 502 on provider registry build or provider API failure.",
+        "description": "Search live providers for media to follow (add-by-search, OBJ3).\n\nRead-only: builds per-request provider clients and ranks their results with the\nRETRIEVAL engine (:mod:`personalscraper.scraper.search_ranking`) \u2014 not the\nscrape matcher, whose anti-false-positive guards are correct for identifying a\nrelease folder and wrong for a keyword query.\n\nThe response carries the TOTAL number of ranked candidates alongside the page,\nso the caller can tell \"these are all of them\" from \"these are the first few\".\n\nArgs:\n    request: The incoming FastAPI request.\n    q: The title to search for.\n    kind: Optional ``\"movie\"``/``\"tv\"`` restriction (both when omitted).\n    offset: Zero-based index of the first result to return.\n    limit: Maximum number of results to return (1-100).\n\nReturns:\n    A :class:`MediaSearchResponse` with the requested page and the total.\n\nRaises:\n    HTTPException: 502 on provider registry build or provider API failure.",
         "operationId": "search_media_api_acquisition_search_get",
         "parameters": [
           {
@@ -5697,6 +5712,33 @@
               ],
               "description": "Restrict to movies or TV; omit to search both.",
               "title": "Kind"
+            }
+          },
+          {
+            "description": "Zero-based index of the first result.",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based index of the first result.",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Maximum results to return.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Maximum results to return.",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
             }
           }
         ],

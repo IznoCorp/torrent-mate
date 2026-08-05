@@ -188,12 +188,55 @@ def _exact_title_component(query: str, result: SearchResult) -> float:
     return 1.0 if any(media_processor(t) == normalised_query for t in _candidate_titles(result)) else 0.0
 
 
+def _clamp(value: float) -> float:
+    """Bound a composite score to [0.0, 1.0].
+
+    Needed because the year-agreement term is signed: without clamping, a
+    disagreeing year could push a weak candidate below zero and re-create the
+    zero-score tie block this module exists to eliminate.
+
+    Args:
+        value: The raw composite score.
+
+    Returns:
+        The value bounded to [0.0, 1.0].
+    """
+    return max(0.0, min(1.0, value))
+
+
+def _year_agreement(result: SearchResult, query_year: int | None) -> float:
+    """Adjustment in [-0.15, +0.15] for how well the candidate's year matches.
+
+    Only the resolution deck supplies a year (it reads one off the release folder);
+    the acquisition search passes None and this term vanishes. Unlike the scrape
+    matcher's year handling, a mismatch DEMOTES rather than rejects — a keyword
+    search must still be able to surface a remake the operator did not expect.
+
+    Args:
+        result: The candidate.
+        query_year: The year the caller is looking for, or None.
+
+    Returns:
+        A signed adjustment; 0.0 when either year is unknown.
+    """
+    if query_year is None or result.year is None:
+        return 0.0
+    delta = abs(result.year - query_year)
+    if delta == 0:
+        return 0.15
+    if delta <= 1:
+        # Late-year releases routinely straddle a year boundary between regions.
+        return 0.0
+    return -0.15
+
+
 def rank_search_results(
     query: str,
     results: list[SearchResult],
     *,
     kind: str,
     now_year: int,
+    query_year: int | None = None,
 ) -> list[RankedResult]:
     """Rank provider search results by relevance to an operator query.
 
@@ -207,6 +250,9 @@ def rank_search_results(
         kind: ``"movie"`` or ``"tv"`` — carried for the caller's tagging; the score
             itself is kind-agnostic.
         now_year: Reference year for the recency component.
+        query_year: Year the caller is looking for, when known (the resolution deck
+            reads one off the release folder). Agreement boosts, disagreement
+            demotes — it never rejects.
 
     Returns:
         Every input result, wrapped with its score, best first. Ties keep provider
@@ -222,12 +268,12 @@ def rank_search_results(
     scored = [
         RankedResult(
             result=result,
-            score=min(
-                1.0,
+            score=_clamp(
                 WEIGHT_TITLE * _title_similarity(query, result)
                 + WEIGHT_POPULARITY * _popularity_component(result, log_max)
                 + WEIGHT_RECENCY * _recency_component(result, now_year)
-                + WEIGHT_EXACT * _exact_title_component(query, result),
+                + WEIGHT_EXACT * _exact_title_component(query, result)
+                + _year_agreement(result, query_year)
             ),
         )
         for result in results

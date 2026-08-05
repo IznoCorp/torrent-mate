@@ -324,10 +324,19 @@ class MediaSearchResponse(BaseModel):
     """Response for GET /api/acquisition/search.
 
     Attributes:
-        results: The scored matches across the requested kind(s), best first.
+        results: The scored matches for the requested page, best first.
+        total: The TOTAL number of ranked candidates, not the size of this page.
+            The distinction is the point: serving five rows out of eighty-one with
+            no total told the operator they had seen everything (§8, nothing in
+            silence) — which is how a mainstream film could look genuinely absent.
+        offset: Zero-based index of the first row in ``results``.
+        limit: Maximum number of rows this page may carry.
     """
 
     results: list[MediaSearchResult]
+    total: int = 0
+    offset: int = 0
+    limit: int = 0
 
 
 # ── Request models (write routes) ────────────────────────────────────────

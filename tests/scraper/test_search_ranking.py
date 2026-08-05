@@ -351,3 +351,42 @@ class TestProviderFailSoft:
     def test_both_down_returns_empty_without_raising(self) -> None:
         """Total provider outage yields no candidates — never an exception."""
         assert gather_tv_candidates(self._Boom(), self._Boom(), "monarch") == []
+
+
+class TestYearAgreement:
+    """The resolution deck knows a year; the acquisition search does not (DESIGN §8)."""
+
+    @staticmethod
+    def _pair() -> list[SearchResult]:
+        """Two same-title films a decade apart."""
+        return [
+            SearchResult(provider="tmdb", provider_id="1", title="Alpha", year=1999, media_type="movie"),
+            SearchResult(provider="tmdb", provider_id="2", title="Alpha", year=2011, media_type="movie"),
+        ]
+
+    def test_matching_year_wins(self) -> None:
+        """With a year in hand, the matching release comes first."""
+        ranked = rank_search_results("Alpha", self._pair(), kind="movie", now_year=NOW_YEAR, query_year=1999)
+        assert ranked[0].result.provider_id == "1"
+
+    def test_without_a_year_recency_decides(self) -> None:
+        """No year supplied: the term vanishes and the newer release leads."""
+        ranked = rank_search_results("Alpha", self._pair(), kind="movie", now_year=NOW_YEAR)
+        assert ranked[0].result.provider_id == "2"
+
+    def test_year_mismatch_demotes_but_never_rejects(self) -> None:
+        """A wrong year must not delete a candidate — a remake stays findable.
+
+        This is the deliberate difference from the scrape matcher, where a year
+        mismatch is grounds for rejection because identity is the question.
+        """
+        ranked = rank_search_results("Alpha", self._pair(), kind="movie", now_year=NOW_YEAR, query_year=1999)
+        assert len(ranked) == 2
+        assert all(item.score > 0.0 for item in ranked)
+
+    def test_off_by_one_year_is_neutral(self) -> None:
+        """Regional release dates straddle year boundaries; ±1 must not penalise."""
+        lot = [SearchResult(provider="tmdb", provider_id="1", title="Alpha", year=2000, media_type="movie")]
+        exact = rank_search_results("Alpha", lot, kind="movie", now_year=NOW_YEAR, query_year=2001)
+        far = rank_search_results("Alpha", lot, kind="movie", now_year=NOW_YEAR, query_year=2010)
+        assert exact[0].score > far[0].score

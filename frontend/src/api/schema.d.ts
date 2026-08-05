@@ -519,18 +519,23 @@ export interface paths {
          * Search Media
          * @description Search live providers for media to follow (add-by-search, OBJ3).
          *
-         *     Read-only: builds per-request provider clients and delegates to the same
-         *     detailed confidence matchers the decisions search uses, tagging each result
-         *     with its ``kind``. Results are merged across the requested kind(s) and
-         *     sorted best-score-first.
+         *     Read-only: builds per-request provider clients and ranks their results with the
+         *     RETRIEVAL engine (:mod:`personalscraper.scraper.search_ranking`) — not the
+         *     scrape matcher, whose anti-false-positive guards are correct for identifying a
+         *     release folder and wrong for a keyword query.
+         *
+         *     The response carries the TOTAL number of ranked candidates alongside the page,
+         *     so the caller can tell "these are all of them" from "these are the first few".
          *
          *     Args:
          *         request: The incoming FastAPI request.
          *         q: The title to search for.
          *         kind: Optional ``"movie"``/``"tv"`` restriction (both when omitted).
+         *         offset: Zero-based index of the first result to return.
+         *         limit: Maximum number of results to return (1-100).
          *
          *     Returns:
-         *         A :class:`MediaSearchResponse` with the scored matches.
+         *         A :class:`MediaSearchResponse` with the requested page and the total.
          *
          *     Raises:
          *         HTTPException: 502 on provider registry build or provider API failure.
@@ -3552,11 +3557,32 @@ export interface components {
          * @description Response for GET /api/acquisition/search.
          *
          *     Attributes:
-         *         results: The scored matches across the requested kind(s), best first.
+         *         results: The scored matches for the requested page, best first.
+         *         total: The TOTAL number of ranked candidates, not the size of this page.
+         *             The distinction is the point: serving five rows out of eighty-one with
+         *             no total told the operator they had seen everything (§8, nothing in
+         *             silence) — which is how a mainstream film could look genuinely absent.
+         *         offset: Zero-based index of the first row in ``results``.
+         *         limit: Maximum number of rows this page may carry.
          */
         MediaSearchResponse: {
+            /**
+             * Limit
+             * @default 0
+             */
+            limit: number;
+            /**
+             * Offset
+             * @default 0
+             */
+            offset: number;
             /** Results */
             results: components["schemas"]["MediaSearchResult"][];
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
         };
         /**
          * MediaSearchResult
@@ -5741,6 +5767,10 @@ export interface operations {
                 q: string;
                 /** @description Restrict to movies or TV; omit to search both. */
                 kind?: ("movie" | "tv") | null;
+                /** @description Zero-based index of the first result. */
+                offset?: number;
+                /** @description Maximum results to return. */
+                limit?: number;
             };
             header?: never;
             path?: never;
