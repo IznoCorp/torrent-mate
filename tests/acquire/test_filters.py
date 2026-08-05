@@ -453,3 +453,112 @@ class TestTmdbIdentityFilterEndToEndFromATracker:
         survivors = apply_hard_filters(results, QualityProfile(), MediaRef(tmdb_id=2021))
 
         assert [r.tmdb_id for r in survivors] == [2021, None]
+
+
+# ---------------------------------------------------------------------------
+# Video-category filter (Spider-Man soundtrack regression)
+# ---------------------------------------------------------------------------
+
+
+class TestVideoCategoryFilter:
+    r"""Regression: a FLAC soundtrack must never satisfy a video wanted item.
+
+    Live incident 2026-08-05 20:35:58 — wanted #95 "Spider-Man : Brand New Day"
+    (movie, tmdb 969681) grabbed the Michael Giacchino SOUNDTRACK album. The
+    title guard passed (rapidfuzz token_set_ratio 96 — an artist prefix costs
+    nothing) and the year matched (2026), while the resolution filter fails open
+    on a release that carries no resolution. Nothing in the chain ever asked
+    whether the release was VIDEO at all.
+
+    The trackers had said so all along, in the one field that is authoritative
+    tracker metadata rather than a title heuristic: the Newznab category. Both
+    live results were tagged Audio.
+    """
+
+    #: The two results the live search actually returned, provider-agnostic:
+    #: the filter keys on the Newznab class, not on which tracker sent it.
+    SOUNDTRACKS = [
+        ("c411", "3010", "Michael.Giacchino.Spider-Man.Brand.New.Day.2026.FLAC.[16bit.44.1kHz]-SDB"),
+        (
+            "tr4ker",
+            "3000",
+            "Michael.Giacchino.Spider-Man.Brand.New.Day.Original.Motion.Picture."
+            "Soundtrack.24BIT.44.1KHZ.WEB.FLAC.2026.TEAM-EICHBAUM",
+        ),
+    ]
+
+    @staticmethod
+    def _categorised(provider: str, category: str | None, title: str) -> TrackerResult:
+        """Build a result carrying a Newznab category, as every Torznab tracker does."""
+        return TrackerResult(
+            provider=provider,
+            tracker_id="t1",
+            title=title,
+            size=ByteSize(700_000_000),
+            seeders=10,
+            leechers=0,
+            resolution=None,
+            category=category,
+        )
+
+    def test_live_soundtracks_are_dropped_for_every_tracker(self) -> None:
+        """Both real Audio-category results are dropped, whichever tracker sent them."""
+        results = [self._categorised(*row) for row in self.SOUNDTRACKS]
+
+        survivors = apply_hard_filters(results, QualityProfile())
+
+        assert survivors == []
+
+    def test_video_categories_survive(self) -> None:
+        """Movies (2xxx) AND TV (5xxx) survive — C411 files both under « Films & Vidéos ».
+
+        LOAD-BEARING: a movie search on C411 legitimately returns 5xxx subcats
+        (5000 « Série TV », 5070 « Animation Série ») because they sit under the
+        2000 parent. Narrowing a movie wanted to 2xxx would drop real releases.
+        """
+        results = [
+            self._categorised("c411", "2030", "Spider-Man Brand New Day 2026 1080p WEB-DL"),
+            self._categorised("c411", "2060", "Some Animated Movie 2026 1080p"),
+            self._categorised("c411", "5000", "Some Show S01E01 1080p"),
+            self._categorised("c411", "5070", "Some Anime S01E01 1080p"),
+        ]
+
+        survivors = apply_hard_filters(results, QualityProfile())
+
+        assert [r.category for r in survivors] == ["2030", "2060", "5000", "5070"]
+
+    def test_other_non_video_classes_are_dropped(self) -> None:
+        """Console (1xxx), PC (4xxx) and Books (7xxx) can never satisfy a video wanted.
+
+        Every ``wanted.kind`` is movie/episode/season, so the acquisition lobe
+        never wants a game, an application or an ebook.
+        """
+        results = [
+            self._categorised("c411", "1000", "Marvels.Spider-Man.2.v1.526.0.FRENCH-Mephisto"),
+            self._categorised("c411", "4000", "Some.App.v1.2-GRP"),
+            self._categorised("c411", "7000", "Some.Ebook.epub"),
+        ]
+
+        survivors = apply_hard_filters(results, QualityProfile())
+
+        assert survivors == []
+
+    def test_missing_category_fails_open(self) -> None:
+        """LOAD-BEARING: no category → keep.
+
+        A tracker that publishes none must not have its whole result set
+        silently wiped.
+        """
+        results = [self._categorised("other", None, "Spider-Man Brand New Day 2026 1080p")]
+
+        survivors = apply_hard_filters(results, QualityProfile())
+
+        assert len(survivors) == 1
+
+    def test_non_numeric_category_fails_open(self) -> None:
+        """A slug-based dialect ('films') is not a Newznab class — keep, never guess."""
+        results = [self._categorised("other", "films", "Spider-Man Brand New Day 2026 1080p")]
+
+        survivors = apply_hard_filters(results, QualityProfile())
+
+        assert len(survivors) == 1
