@@ -41,6 +41,16 @@ class SearchResult:
             translated title (e.g. 'Murder Mindfully' for the German-primary
             'Achtsam Morden') still matches. Empty for providers that do not
             surface alternates.
+        popularity: Provider-side popularity metric, or None when the provider
+            does not expose one. Semantics differ per provider and the values
+            are NOT comparable across providers — TMDB returns an unbounded
+            float spanning three orders of magnitude, while TVDB's ``/search``
+            carries no popularity at all (hence None for every TVDB result).
+            Consumed only by the interactive search ranking
+            (:mod:`personalscraper.scraper.search_ranking`); the scrape matcher
+            ignores it. None means "not measured" — never "measured as zero".
+        vote_count: Number of provider-side votes backing the popularity, or
+            None when unavailable. Same provider caveats as ``popularity``.
     """
 
     provider: str
@@ -52,6 +62,8 @@ class SearchResult:
     poster_url: str = ""
     original_title: str = ""
     aliases: tuple[str, ...] = ()
+    popularity: float | None = None
+    vote_count: int | None = None
 
 
 @dataclass(frozen=True)
