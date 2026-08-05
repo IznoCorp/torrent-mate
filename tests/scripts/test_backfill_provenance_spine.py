@@ -606,3 +606,85 @@ def test_a_movie_carries_no_episode_identity(tmp_path: Path) -> None:
 
     row = _spine_rows(acquire)["m0v1e0"]
     assert row["season"] is None and row["episode"] is None
+
+
+class TestEstimatedStages:
+    """Arbitrage opérateur : plutôt une date cohérente que rien — mais jamais un mensonge.
+
+    Les deux bornes sont exactes (le grab et le rangement) et §14.2 garantit l'ordre des
+    étapes entre elles. Une valeur répartie dans cet intervalle est donc COHÉRENTE. Elle
+    n'est pas mesurée pour autant : ``estimated_stages`` la nomme, pour que l'interface
+    puisse l'afficher en le disant et qu'aucun lecteur futur ne prenne l'interpolation
+    pour une observation.
+    """
+
+    def test_a_stage_with_no_source_gets_a_coherent_instant(self, tmp_path: Path) -> None:
+        """Répartis entre le grab et le rangement, dans l'ordre du workflow."""
+        acquire, indexer = _acquire_db(tmp_path), _indexer_db(tmp_path)
+        _follow(acquire, 1)
+        _wanted(acquire, 1, followed_id=1, season=1, episode=1, grabbed_hash="AABB11")
+        _obligation(acquire, "aabb11", added_at=1_000)
+        _own_episode(indexer, tvdb_id=555, season=1, episode=1, verified_at=1_900)
+
+        backfill_spine(acquire, indexer, apply=True, now=9_999)
+
+        row = _spine_rows(acquire)["aabb11"]
+        assert row["grabbed_at"] == 1_000
+        assert row["dispatched_at"] == 1_900
+        assert row["grabbed_at"] < row["ingested_at"] < row["scraped_at"] < row["dispatched_at"]
+        assert row["estimated_stages"] == "ingested,scraped"
+
+    def test_an_observed_instant_is_never_overwritten_nor_flagged(self, tmp_path: Path) -> None:
+        """Ce qui a été mesuré reste mesuré : l'estimation ne comble que les trous.
+
+        Sans ce contre-cas, l'interpolation écraserait des faits par des approximations —
+        exactement l'inverse du but.
+        """
+        acquire, indexer = _acquire_db(tmp_path), _indexer_db(tmp_path)
+        _follow(acquire, 1)
+        _wanted(acquire, 1, followed_id=1, season=1, episode=1, grabbed_hash="AABB11")
+        _obligation(acquire, "aabb11", added_at=1_000)
+        _own_episode(indexer, tvdb_id=555, season=1, episode=1, verified_at=1_900)
+        tracker = {"AABB11": {"name": "S.S01E01-GRP", "date": "2026-08-05T03:42:47"}}
+        _run_row(
+            indexer,
+            "r" + "0" * 31,
+            ingest_reasons=["S.S01E01-GRP → copied"],
+            ingest_ended=1_200.0,
+            scrape_ended=1_400.0,
+        )
+
+        backfill_spine(acquire, indexer, apply=True, now=9_999, ingest_tracker=tracker)
+
+        row = _spine_rows(acquire)["aabb11"]
+        assert row["scraped_at"] == 1_400, "l'instant observé est conservé tel quel"
+        assert row["estimated_stages"] is None or "scraped" not in row["estimated_stages"]
+
+    def test_a_journey_that_never_landed_is_not_interpolated(self, tmp_path: Path) -> None:
+        """Sans borne de fin, il n'y a pas d'intervalle — donc rien à répartir."""
+        acquire, indexer = _acquire_db(tmp_path), _indexer_db(tmp_path)
+        _follow(acquire, 1)
+        _wanted(acquire, 1, followed_id=1, season=1, episode=1, status="grabbed", grabbed_hash="AABB11")
+        _obligation(acquire, "aabb11", added_at=1_000)
+
+        backfill_spine(acquire, indexer, apply=True, now=9_999)
+
+        row = _spine_rows(acquire)["aabb11"]
+        assert row["ingested_at"] is None and row["scraped_at"] is None
+        assert row["estimated_stages"] is None
+
+    def test_a_degenerate_interval_still_keeps_the_order_strict(self, tmp_path: Path) -> None:
+        """Grab et rangement collés : l'ordre reste strict, jamais deux instants égaux.
+
+        Un stepper qui afficherait « ingéré » après « rangé » serait pire que rien.
+        """
+        acquire, indexer = _acquire_db(tmp_path), _indexer_db(tmp_path)
+        _follow(acquire, 1)
+        _wanted(acquire, 1, followed_id=1, season=1, episode=1, grabbed_hash="AABB11")
+        _obligation(acquire, "aabb11", added_at=1_000)
+        _own_episode(indexer, tvdb_id=555, season=1, episode=1, verified_at=1_001)
+
+        backfill_spine(acquire, indexer, apply=True, now=9_999)
+
+        row = _spine_rows(acquire)["aabb11"]
+        assert row["grabbed_at"] <= row["ingested_at"] <= row["scraped_at"] <= row["dispatched_at"]

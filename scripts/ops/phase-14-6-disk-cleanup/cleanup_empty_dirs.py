@@ -146,12 +146,15 @@ def cleanup_walk_up(starts: list[Path], max_up: int, apply: bool) -> tuple[int, 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--starts-from", nargs="*", type=Path,
-                        help="Paths to start walking up from (typically just-deleted items' parents)")
+    parser.add_argument(
+        "--starts-from",
+        nargs="*",
+        type=Path,
+        help="Paths to start walking up from (typically just-deleted items' parents)",
+    )
     parser.add_argument("--apply", action="store_true", help="Actually remove dirs (default: dry-run)")
     parser.add_argument("--max-up", type=int, default=3, help="Max walk-up levels (default 3)")
-    parser.add_argument("--full-scan", action="store_true",
-                        help="Scan all 4 disks for empty leaf dirs (slow)")
+    parser.add_argument("--full-scan", action="store_true", help="Scan all 4 disks for empty leaf dirs (slow)")
     args = parser.parse_args()
 
     mode = "APPLY" if args.apply else "DRY-RUN"

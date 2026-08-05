@@ -80,10 +80,7 @@ def _build_minimal_config(tmpdir: Path) -> Config:
                 categories=list(CID.BUILTIN_CATEGORY_IDS),
             ),
         ],
-        categories={
-            cid: CategoryConfig(folder_name=f"cat_{cid}")
-            for cid in CID.BUILTIN_CATEGORY_IDS
-        },
+        categories={cid: CategoryConfig(folder_name=f"cat_{cid}") for cid in CID.BUILTIN_CATEGORY_IDS},
         category_rules=[
             CategoryRule(
                 tmdb_genre_contains="animation",

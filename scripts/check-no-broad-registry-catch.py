@@ -12,6 +12,7 @@ exits 0 otherwise.
 
 Usage: python3 scripts/check-no-broad-registry-catch.py
 """
+
 from __future__ import annotations
 
 import ast

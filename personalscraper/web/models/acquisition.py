@@ -694,6 +694,10 @@ class JourneyItem(BaseModel):
     #: série donnent deux cartes identiques, que l'opérateur lit comme des doublons.
     season: int | None = None
     episode: int | None = None
+    #: Étapes dont l'instant a été CALCULÉ entre le grab et le rangement, jamais observé
+    #: (« ingested,scraped »). L'interface affiche alors la date en la disant approchée :
+    #: c'est ce qui sépare une estimation d'un mensonge (§13).
+    estimated_stages: str | None = None
 
 
 class JourneysResponse(BaseModel):

@@ -46,6 +46,7 @@ def build_smoke_pool() -> dict[Path, tuple[int, int] | None]:
     changes signature OR disappears between batches → abort cleanup.
     """
     import random
+
     random.seed(2026)
     pool: list[Path] = []
 
@@ -184,15 +185,19 @@ def run_batch(batch_no: int, total_batches: int, batch: list[Path], log) -> tupl
 
     class LogPrint:
         """Redirect cleanup_walk_up print output to log."""
+
         def __init__(self, real_log):
             self.log = real_log
+
         def write(self, s):
             self.log.write(s)
+
         def flush(self):
             self.log.flush()
 
     # cleanup_walk_up uses print(), capture via stdout swap
     import io
+
     captured = io.StringIO()
     old_stdout = sys.stdout
     sys.stdout = captured
@@ -231,8 +236,7 @@ def main() -> int:
         print(f"  [WARN] expected {TOTAL_EXPECTED}, got {actual_count}")
 
     batches = split_batches(targets, BATCH_SIZE, LAST_BATCH_SIZE)
-    print(f"  Splitting into {len(batches)} batches: " +
-          ", ".join(str(len(b)) for b in batches))
+    print(f"  Splitting into {len(batches)} batches: " + ", ".join(str(len(b)) for b in batches))
 
     # Build smoke pool (verified between every batch)
     print("\n=== Building smoke pool ===")
@@ -261,8 +265,10 @@ def main() -> int:
             total_elapsed = time.time() - start_time
             avg_per_item = total_elapsed / max(total_deleted + total_skipped, 1)
             eta_remaining = (actual_count - (total_deleted + total_skipped)) * avg_per_item
-            print(f"  deleted={deleted}, skipped={skipped}, empty_removed={empty} "
-                  f"({elapsed:.1f}s, total {total_elapsed:.0f}s, ETA {eta_remaining:.0f}s)")
+            print(
+                f"  deleted={deleted}, skipped={skipped}, empty_removed={empty} "
+                f"({elapsed:.1f}s, total {total_elapsed:.0f}s, ETA {eta_remaining:.0f}s)"
+            )
             log.write(f"# batch_{i}: deleted={deleted}, skipped={skipped}, empty={empty}, time={elapsed:.1f}s\n")
             log.flush()
 

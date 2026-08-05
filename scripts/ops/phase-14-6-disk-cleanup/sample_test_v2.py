@@ -204,12 +204,14 @@ def main() -> int:
     # 1. Build sample
     ad = select_appledouble(30)
     safe = select_safe_torrent()
-    actors = select_actors({
-        Path("/Volumes/Disk1/medias"): 15,
-        Path("/Volumes/Disk2/medias"): 5,
-        Path("/Volumes/Disk3/medias"): 15,
-        Path("/Volumes/Disk4/medias"): 5,
-    })
+    actors = select_actors(
+        {
+            Path("/Volumes/Disk1/medias"): 15,
+            Path("/Volumes/Disk2/medias"): 5,
+            Path("/Volumes/Disk3/medias"): 15,
+            Path("/Volumes/Disk4/medias"): 5,
+        }
+    )
 
     targets = ad + safe + actors
     deletion_parents = {t.parent for t in targets if t.is_file()} | {t for t in targets if t.is_dir()}
@@ -343,8 +345,10 @@ def main() -> int:
         print("  Restored")
         return 1
 
-    print(f"\n=== ALL PASSED: {len(deleted)} deletions + {removed} empty dirs, "
-          f"all {len(controls)} controls intact, {sum(len(v) for v in snapshot.values())} neighbors unchanged ===")
+    print(
+        f"\n=== ALL PASSED: {len(deleted)} deletions + {removed} empty dirs, "
+        f"all {len(controls)} controls intact, {sum(len(v) for v in snapshot.values())} neighbors unchanged ==="
+    )
     return 0
 
 

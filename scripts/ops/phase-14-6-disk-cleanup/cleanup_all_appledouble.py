@@ -75,6 +75,7 @@ def file_signature(path: Path) -> tuple[int, int] | None:
 def build_smoke_pool(disks: list[Path], pool_size: int = 50) -> dict[Path, tuple[int, int] | None]:
     """Pick `pool_size` real video files to verify between batches."""
     import random
+
     random.seed(2026)
     candidates: list[Path] = []
     for d in disks:
@@ -107,8 +108,7 @@ def verify_smoke_pool(pool: dict[Path, tuple[int, int] | None]) -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--apply", action="store_true", help="Real deletes (default: dry-run)")
-    parser.add_argument("--disk", type=Path, default=None,
-                        help="Limit to one disk root (e.g. /Volumes/Disk4/medias)")
+    parser.add_argument("--disk", type=Path, default=None, help="Limit to one disk root (e.g. /Volumes/Disk4/medias)")
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
     args = parser.parse_args()
 
@@ -190,8 +190,10 @@ def main() -> int:
             total_elapsed = time.time() - start
             done = deleted + errors
             eta = (total - done) / max(done, 1) * total_elapsed
-            print(f"  batch {i + 1}/{n_batches}: {len(batch)} items in {elapsed:.1f}s  "
-                  f"(total {total_elapsed:.0f}s, ETA {eta:.0f}s) ✓ smoke OK")
+            print(
+                f"  batch {i + 1}/{n_batches}: {len(batch)} items in {elapsed:.1f}s  "
+                f"(total {total_elapsed:.0f}s, ETA {eta:.0f}s) ✓ smoke OK"
+            )
             log.write(f"# batch_{i + 1}: deleted={deleted}, errors={errors}, time={elapsed:.1f}s\n")
 
     print("\n=== FINAL ===")

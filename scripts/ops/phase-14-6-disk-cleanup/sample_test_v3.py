@@ -267,12 +267,14 @@ def main() -> int:
     # 1. Build sample
     print("=== Building v3 sample ===")
     ad = select_appledouble(60)
-    actors = select_actors({
-        Path("/Volumes/Disk1/medias"): 35,
-        Path("/Volumes/Disk2/medias"): 15,
-        Path("/Volumes/Disk3/medias"): 25,
-        Path("/Volumes/Disk4/medias"): 15,
-    })
+    actors = select_actors(
+        {
+            Path("/Volumes/Disk1/medias"): 35,
+            Path("/Volumes/Disk2/medias"): 15,
+            Path("/Volumes/Disk3/medias"): 25,
+            Path("/Volumes/Disk4/medias"): 15,
+        }
+    )
     targets = ad + actors
     deletion_parents = {t.parent for t in targets if t.is_file()} | {t for t in targets if t.is_dir()}
     controls = select_controls({t.parent for t in targets if t.is_file()})

@@ -184,6 +184,14 @@ def collect_gaps(
         if row["scraped_at"] is None and "scrape" in stages:
             gaps.append(Gap(h, title, "scraped_at", "pipeline_run (étape scrape)"))
 
+        # L'ORDRE du workflow (§14.2) : un instant, mesuré ou estimé, ne peut pas
+        # contredire la séquence. Une estimation qui placerait l'ingestion après le
+        # rangement serait pire que le vide qu'elle remplace.
+        suite = [row["grabbed_at"], row["ingested_at"], row["scraped_at"], row["dispatched_at"]]
+        connus = [v for v in suite if v is not None]
+        if connus != sorted(connus):
+            gaps.append(Gap(h, title, "ordre", "les instants contredisent la séquence du workflow"))
+
         # « Différenciable » : une série dont la ligne wanted porte une saison DOIT la
         # porter aussi, sinon deux acquisitions du même feuilleton sont indiscernables.
         if w is not None and w["season"] is not None:

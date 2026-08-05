@@ -748,6 +748,7 @@ def get_journeys(
                     reconstructed_at=row.reconstructed_at,
                     season=row.season,
                     episode=row.episode,
+                    estimated_stages=row.estimated_stages,
                 )
             )
         return JourneysResponse(journeys=items)
