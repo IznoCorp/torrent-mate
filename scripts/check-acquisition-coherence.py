@@ -40,6 +40,18 @@ Ownership and queue shape:
   (completeness falls back to live provider calls) — severity ``info``, not
   counted in the exit code.
 
+The provenance spine (spine-truth) — every grab owes a journey. The spine's writes
+are ADVISORY and swallow their errors, so both halves of the invariant broke in
+silence for four days and the « Dispatchés » tile read 1 while dozens of items had
+landed. One rule per failure mode; they never report the same row:
+
+- SPINE_ROW_MISSING   — a wanted row carrying a ``grabbed_hash`` with NO
+  ``staging_provenance`` row at all: the grab's provenance write never landed (the
+  shape a rejected INSERT produces, e.g. a ``kind`` the table's CHECK refused).
+- SPINE_DISPATCH_MISSING — a wanted row closed ``done`` with a ``grabbed_hash``
+  whose spine row exists but never reached ``dispatched``/``reconciled``: the media
+  is in the library but the journey stopped mid-pipeline.
+
 The five states (acq-states phase 9) — every rule below audits the columns the
 state derivation reads, on OPEN wanted rows only (a closed row is history, and
 :func:`~personalscraper.web.acquisition.states.select_wanted_facts` ignores it):
@@ -528,6 +540,66 @@ def collect_anomalies(
                     explanation=f"{len(ids)} wanted rows share (followed_id, kind, season, episode)",
                 )
             )
+
+    # ------------------------------------------------------------------
+    # Rules 14-15 — the provenance spine: every grab must have a journey
+    # ------------------------------------------------------------------
+    # ``_grab_pass`` writes a ``staging_provenance`` row for every FOLLOW-DRIVEN grab,
+    # which is exactly the population of ``wanted``. So the invariant is total: a wanted
+    # row carrying a ``grabbed_hash`` HAS a spine row, and once that acquisition closes
+    # ``done`` the row HAS reached ``dispatched``. Both halves were broken in silence
+    # until 0.80.0 — the writes are advisory and swallow their errors — and the « Vue
+    # d'ensemble » tile read 1 while dozens of items had landed.
+    #
+    # Two rules, two failure modes, never both on the same row:
+    #   SPINE_ROW_MISSING     — the grab's write never landed (a rejected INSERT).
+    #   SPINE_DISPATCH_MISSING — it landed but the journey stopped mid-pipeline
+    #                            (the dispatch could not correlate the folder back).
+    spine_status: dict[str, str | None] = {}
+    try:
+        for row in acquire_conn.execute("SELECT info_hash, status FROM staging_provenance"):
+            spine_status[(row["info_hash"] or "").lower()] = row["status"]
+    except sqlite3.Error:
+        # A database predating migration 010 has no spine at all — skip both rules
+        # rather than report every grab ever made as an anomaly.
+        spine_status = {}
+        spine_available = False
+    else:
+        spine_available = True
+
+    if spine_available:
+        for w in wanted_rows:
+            grabbed_hash = (w["grabbed_hash"] or "").lower()
+            if not grabbed_hash:
+                continue
+            common = {
+                "title": _title_of(w["followed_id"]),
+                "kind": w["kind"],
+                "season": w["season"],
+                "episode": w["episode"],
+                "wanted_ids": [w["id"]],
+                "followed_id": w["followed_id"],
+            }
+            if grabbed_hash not in spine_status:
+                anomalies.append(
+                    Anomaly(
+                        rule="SPINE_ROW_MISSING",
+                        explanation=f"grabbed_hash {grabbed_hash[:12]}… has no staging_provenance row — "
+                        "the grab's provenance write never landed (advisory writes swallow their "
+                        "errors, so a rejected INSERT is invisible without this rule)",
+                        **common,
+                    )
+                )
+            elif w["status"] == "done" and spine_status[grabbed_hash] not in ("dispatched", "reconciled"):
+                anomalies.append(
+                    Anomaly(
+                        rule="SPINE_DISPATCH_MISSING",
+                        explanation=f"the acquisition closed 'done' but its spine row is "
+                        f"'{spine_status[grabbed_hash]}' — the journey never reached the "
+                        "library, so « Dispatchés » under-counts it (§13)",
+                        **common,
+                    )
+                )
 
     # ------------------------------------------------------------------
     # Rules 6-7 + 12-13 — per followed row

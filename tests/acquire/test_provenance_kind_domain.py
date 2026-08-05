@@ -14,6 +14,7 @@ record.
 
 from __future__ import annotations
 
+import logging
 import shutil
 import sqlite3
 from collections.abc import Iterator
@@ -77,6 +78,36 @@ class TestKindDomainEquality:
             "bogus", followed_id=None, media_ref=None, kind="chapter", grabbed_at=1
         )
         assert store.provenance.by_hash("bogus") is None
+
+
+class TestRejectedWriteIsNotSilent:
+    """A refused provenance write stays advisory, but it stops being invisible."""
+
+    def test_a_refused_write_is_logged_as_an_error_with_its_cause(
+        self, store: ConcreteAcquireStore, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """The rejection that hid the bug four days now logs at ERROR, naming the failure.
+
+        ``log.warning`` is what the pipeline emits for expected, benign degradations; it
+        drowns among them. A write the database REFUSES is a defect, and the operator's
+        first move on any incident is to grep the logs — so it must stand out there, and
+        it must carry the constraint that refused it.
+        """
+        caplog.set_level(logging.WARNING)
+        store.provenance.upsert_grab(
+            "refused", followed_id=None, media_ref=None, kind="chapter", grabbed_at=1
+        )
+
+        failures = [r for r in caplog.records if "acquire.provenance.write_failed" in r.getMessage()]
+        assert failures, "a refused provenance write must be logged"
+        assert all(r.levelno >= logging.ERROR for r in failures), "a refused write is not a warning"
+        assert any("CHECK constraint failed" in r.getMessage() for r in failures)
+
+    def test_the_write_is_still_advisory_and_never_raises(self, store: ConcreteAcquireStore) -> None:
+        """Louder, not fatal: a provenance write must never break a grab/ingest/dispatch."""
+        store.provenance.upsert_grab("refused2", followed_id=None, media_ref=None, kind="chapter", grabbed_at=1)
+        store.provenance.record_dispatch_by_path("/nowhere", dispatch_path="/x", dispatched_at=1)
+        assert store.provenance.by_hash("refused2") is None
 
 
 class TestMigration015:

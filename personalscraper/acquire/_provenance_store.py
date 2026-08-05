@@ -201,12 +201,27 @@ class _ProvenanceSubStore:
     # -- writes (best-effort: an error NEVER escapes to the pipeline step) -------
 
     def _safe_write(self, sql: str, params: tuple[object, ...]) -> None:
-        """Run one write in its own transaction, swallowing any error (advisory)."""
+        """Run one write in its own transaction, swallowing any error (advisory).
+
+        Swallowed, but **not silent**. This is where cause A hid for four days: a
+        ``kind='season'`` refused by the table's CHECK was reported at ``warning`` — the
+        level the pipeline uses for expected, benign degradations — and drowned among
+        them, so every season acquisition vanished from the spine unnoticed. A write the
+        database REFUSES is a defect, so it is logged at ``error`` with the failing
+        statement's target table and the constraint that refused it. The write itself
+        stays advisory: no exception ever reaches the grab/ingest/scrape/dispatch step.
+        """
         try:
             with self._write_tx(self._conn):
                 self._conn.execute(sql, params)
         except Exception as exc:  # noqa: BLE001 — advisory: a provenance write never fails a step
-            log.warning("acquire.provenance.write_failed", error=str(exc))
+            log.error(  # noqa: TRY400 — the traceback is carried by exc_info, not by log.exception's level
+                "acquire.provenance.write_failed",
+                error=str(exc),
+                error_type=type(exc).__name__,
+                operation=sql.split(maxsplit=1)[0].upper(),
+                exc_info=True,
+            )
 
     def upsert_grab(
         self,
