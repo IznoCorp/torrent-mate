@@ -20,7 +20,7 @@ import { useOverview } from "@/hooks/useAcquisition";
  *
  * Le watcher est un process séparé : sans cette ligne, l'écran reste identique qu'il
  * temporise ou qu'il soit mort, et une attente muette se lit comme une panne — le péché
- * originel du post-mortem #249. Deux situations, deux phrases, et RIEN quand le daemon
+ * originel du post-mortem fondateur. Deux situations, deux phrases, et RIEN si le daemon
  * n'a rien publié : on ne raconte pas une attente qu'on ne connaît pas.
  *
  * @param pending - L'attente publiée par le daemon, ou null/undefined.
