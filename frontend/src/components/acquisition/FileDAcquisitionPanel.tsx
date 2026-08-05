@@ -153,6 +153,8 @@ export function FileDAcquisitionPanel(): ReactElement {
   const capped = loadedTotal > HARD_CAP;
   // The count next to the filter is what the operator SEES, so it follows the
   // filter; unfiltered, it is the server's own total (which may exceed HARD_CAP).
+  // The truncation notice must NOT use this one — with a filter active it would
+  // read « limité aux 1000 premières (37 au total) », which contradicts itself.
   const totalItems = status === "all" ? loadedTotal : wantedItems.length;
   const grouped = useMemo(
     () => groupByTitleSeason(wantedItems),
@@ -207,7 +209,7 @@ export function FileDAcquisitionPanel(): ReactElement {
             className="mb-3 rounded bg-warning/10 px-2 py-1 text-xs text-warning"
           >
             Affichage limité aux {String(HARD_CAP)} premières recherches (
-            {String(totalItems)} au total).
+            {String(loadedTotal)} au total).
           </p>
         )}
 

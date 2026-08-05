@@ -690,6 +690,47 @@ describe("FileDAcquisitionPanel", () => {
     expect(screen.queryByText(/Affichage limité/)).not.toBeInTheDocument();
   });
 
+  it("the cap notice keeps quoting the UNFILTERED total under a filter", async () => {
+    // Regression: once the filter moved client-side, the notice interpolated the
+    // FILTERED count and read « limité aux 1000 premières (1 au total) » — a
+    // sentence that contradicts itself. The notice speaks about what the SERVER
+    // holds versus what we could load; the filter has no business in it.
+    // total=1500 makes the panel loop pages; only page 1 carries rows, so the
+    // filtered count stays predictable.
+    getWantedMock.mockImplementation((params: { page?: number }) =>
+      Promise.resolve(
+        wantedPage(
+          params.page === 1
+            ? [
+                makeWanted({ id: 1, title: "Top Chef", season: 16, episode: 1 }),
+                makeWanted({
+                  id: 2,
+                  title: "Koh-Lanta",
+                  season: 30,
+                  episode: 1,
+                  status: "abandoned",
+                }),
+              ]
+            : [],
+          1500,
+        ),
+      ),
+    );
+    renderPanel();
+
+    await screen.findByText(/Affichage limité aux 1000 premières recherches/);
+
+    fireEvent.click(screen.getByRole("combobox"));
+    fireEvent.click(await screen.findByRole("option", { name: "Abandonné" }));
+
+    // The visible result count follows the filter…
+    await waitFor(() => {
+      expect(screen.getByText("1 résultat")).toBeInTheDocument();
+    });
+    // …but the truncation notice still states the server's own total.
+    expect(screen.getByText(/1500 au total/)).toBeInTheDocument();
+  });
+
   // ── Pagination controls absent ───────────────────────────────────────────
 
   it("does not render any pagination controls in the grouped view", async () => {
