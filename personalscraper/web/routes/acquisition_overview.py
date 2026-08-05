@@ -22,7 +22,7 @@ from fastapi import APIRouter, Request
 from personalscraper.acquire._provenance_store import STUCK_IDLE_SECONDS
 from personalscraper.acquire.store import build_acquire_store
 from personalscraper.core.sqlite._pragmas import apply_pragmas
-from personalscraper.web.models.acquisition import AcquisitionOverviewResponse
+from personalscraper.web.models.acquisition import AcquisitionOverviewResponse, PendingRunResponse
 
 router = APIRouter(prefix="/api/acquisition", tags=["acquisition"])
 
@@ -80,6 +80,13 @@ def get_overview(request: Request) -> AcquisitionOverviewResponse:
         by_status = store.provenance.stage_counts()
         now = int(time.time())
         stuck = len(store.provenance.list_stuck(older_than=now - STUCK_IDLE_SECONDS, exists_fn=os.path.exists))
+        # §8 / DOIT-2 — the watcher's own wait, published by the daemon each cycle.
+        # Fail-soft: an unreadable snapshot yields None, i.e. the interface says nothing
+        # rather than inventing a countdown.
+        try:
+            pending = store.watch.get_pending_run()
+        except Exception:  # noqa: BLE001 — fail-soft: a read error is silence, never a crash
+            pending = None
     finally:
         store.close()
 
@@ -91,4 +98,13 @@ def get_overview(request: Request) -> AcquisitionOverviewResponse:
         awaiting_resolution=_count_pending_decisions(config.indexer.db_path),
         watcher_enabled=not (config.paths.data_dir / "watcher.paused").exists(),
         last_successful_run_at=_read_last_successful_run_at(config.acquire.db_path),
+        pending_run=(
+            PendingRunResponse(
+                fires_at=pending.fires_at,
+                active_downloads=pending.active_downloads,
+                updated_at=pending.updated_at,
+            )
+            if pending is not None
+            else None
+        ),
     )

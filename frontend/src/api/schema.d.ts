@@ -2195,6 +2195,8 @@ export interface components {
          *         awaiting_resolution: The AUTHORITATIVE ``scrape_decision`` pending count.
          *         watcher_enabled: Whether the acquisition watcher is running (not paused).
          *         last_successful_run_at: Unix-epoch of the last successful pipeline run, or None.
+         *         pending_run: What the watcher is waiting for right now (§8 / DOIT-2), or None
+         *             when the daemon has published nothing — never started, or unreadable store.
          */
         AcquisitionOverviewResponse: {
             /**
@@ -2216,6 +2218,7 @@ export interface components {
             in_flight: number;
             /** Last Successful Run At */
             last_successful_run_at?: number | null;
+            pending_run?: components["schemas"]["PendingRunResponse"] | null;
             /**
              * Stuck
              * @default 0
@@ -3767,6 +3770,33 @@ export interface components {
              * @default []
              */
             seasons: components["schemas"]["SeasonOwnership"][];
+        };
+        /**
+         * PendingRunResponse
+         * @description What the watcher is waiting for, as it last published it (§8 / DOIT-2).
+         *
+         *     The watcher daemon is a SEPARATE process from this server: without this snapshot the
+         *     interface cannot say why nothing is happening, and a silent wait reads exactly like a
+         *     breakdown — which is what it read like on 2026-08-05.
+         *
+         *     Attributes:
+         *         fires_at: Epoch the grace counter expires and the pipeline starts, or None when
+         *             no counter is running.
+         *         active_downloads: Torrents still downloading. Non-zero is the REASON the counter
+         *             is not running: the pipeline waits for the batch to finish arriving (§14.3).
+         *         updated_at: Epoch of the daemon cycle that published this. Lets the interface
+         *             tell « waiting » from « the watcher itself stopped ».
+         */
+        PendingRunResponse: {
+            /**
+             * Active Downloads
+             * @default 0
+             */
+            active_downloads: number;
+            /** Fires At */
+            fires_at?: number | null;
+            /** Updated At */
+            updated_at: number;
         };
         /**
          * PipelineOutcome

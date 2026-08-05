@@ -238,6 +238,67 @@ def _poll_completed(torrent_client: TorrentLister) -> list[TorrentItem] | None:
         return None
 
 
+#: Torrent states that mean « this will NOT progress on its own »: paused, stopped,
+#: errored, or mid-move. They are deliberately excluded from the active-download count
+#: (product-intent §14.3 quiescence gate): a torrent paused by the operator, or broken
+#: because its data vanished, would otherwise hold the pipeline until the 24 h safety
+#: net — a wait with no cause the operator could see. Matched on a lowercase substring
+#: so both clients' vocabularies are covered (qBittorrent ``pausedDL`` / ``stoppedDL`` /
+#: ``missingFiles``, Transmission ``stopped``).
+_INERT_STATE_MARKERS: tuple[str, ...] = ("paused", "stopped", "error", "missingfiles", "moving")
+
+
+def _is_actively_downloading(item: TorrentItem) -> bool:
+    """Return True when *item* is a download still genuinely in progress.
+
+    The quiescence gate reads a COUNT of these: while it is non-zero the grace counter
+    cannot run, and any new one resets it (see ``WatcherService.evaluate`` branch 3).
+    So the predicate decides how long the pipeline waits — hence the two exclusions:
+
+    * a finished torrent (``progress >= 1``) is a seed, not a download;
+    * an inert one (paused / stopped / errored / moving) will never finish by itself.
+
+    Anything else that is unfinished counts, including a stalled or queued download: it
+    may still complete, and the operator asked to wait for the batch to be over.
+
+    Args:
+        item: A torrent as reported by the client.
+
+    Returns:
+        True when the torrent is an in-progress download.
+    """
+    if item.progress >= 1.0:
+        return False
+    state = (item.state or "").lower()
+    return not any(marker in state for marker in _INERT_STATE_MARKERS)
+
+
+def _poll_active_downloads(torrent_client: TorrentLister, completed_hashes: frozenset[str]) -> int | None:
+    """Count the torrents still actively downloading, or None on a client error.
+
+    Reads the client's full hash set, subtracts what is already complete, and inspects
+    only the remainder. Mirrors :func:`_poll_completed`'s W1 guard: a listing error
+    yields ``None`` and the caller SKIPS the cycle rather than deciding blind — firing
+    a pipeline run while the client is unreachable would ignore the very gate this
+    count exists to enforce.
+
+    Args:
+        torrent_client: The active torrent client.
+        completed_hashes: Hashes already known complete this cycle.
+
+    Returns:
+        The count of in-progress downloads, or None when the cycle must be skipped.
+    """
+    try:
+        pending = {h for h in torrent_client.get_all_hashes() if h not in completed_hashes}
+        if not pending:
+            return 0
+        return sum(1 for t in torrent_client.get_by_hashes(pending) if _is_actively_downloading(t))
+    except TORRENT_LISTING_ERRORS:
+        log.warning("watcher_active_downloads_poll_error", exc_info=True)
+        return None
+
+
 def _poll_deferrals(
     completed: list[TorrentItem],
     exclude_hashes: frozenset[str],
@@ -330,6 +391,14 @@ def _poll(
 
     # 3. Hash sets for the decision engine.
     completed_hashes = frozenset(t.hash for t in completed)
+
+    # 3a. Quiescence gate input (§14.3): how many downloads are still running. Same W1
+    #     guard as the completed listing — deciding on a blind count would defeat the
+    #     gate on the exact cycle the client hiccups.
+    downloading_count = _poll_active_downloads(torrent_client, completed_hashes)
+    if downloading_count is None:
+        return None, last_deferred
+
     seed_pure_hashes = frozenset(t.hash for t in completed if SEED_PURE in (t.tags or []))
 
     # 3b. Transient-skip deferrals (live, self-healing, nothing persisted).
@@ -352,6 +421,7 @@ def _poll(
         pipeline_lock_held=is_lock_held(data_dir / "pipeline.lock"),
         now=now,
         deferred_hashes=frozenset(deferred),
+        downloading_count=downloading_count,
     )
     return inp, last_deferred
 
@@ -664,6 +734,21 @@ def watch(ctx: typer.Context) -> None:
             # DECIDE — consult the (pure) decision engine.
             out = svc.evaluate(inp, state)
             state = out.new_state
+
+            # PUBLISH — §8 / DOIT-2: the web process cannot see this daemon's memory, so
+            # every cycle writes down what it is waiting for. Without it the operator
+            # faces a still screen and concludes the pipeline never started — which is
+            # exactly what happened on 2026-08-05. Fail-soft: a publication error must
+            # never break the daemon, it only costs visibility for one cycle.
+            if store is not None:
+                try:
+                    store.watch.set_pending_run(
+                        fires_at=state.debounce_until,
+                        active_downloads=inp.downloading_count,
+                        now=inp.now,
+                    )
+                except Exception:  # noqa: BLE001 — advisory: visibility never breaks the watch
+                    log.warning("watcher_pending_run_publish_failed", exc_info=True)
 
             # TRIGGER — execute the decision, then reap the tracked run handle.
             state, tracked_run = _trigger(out, state, tracked_run, config, data_dir, cross_seed_failures)

@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 if TYPE_CHECKING:
     from personalscraper.acquire._download_marks import DownloadMark
     from personalscraper.acquire._provenance_store import ProvenanceRow
+    from personalscraper.acquire._watch_store import PendingRun
 
 from personalscraper.acquire.domain import (
     AiredEpisodeRow,
@@ -368,6 +369,14 @@ class WatchSubStore(Protocol):
 
     def set_last_successful_run_at(self, ts: float) -> None:
         """Persist the ``last_successful_run_at`` timestamp (upsert)."""
+        ...
+
+    def get_pending_run(self) -> "PendingRun | None":
+        """Return the watcher's last published wait, or None (§8 / DOIT-2)."""
+        ...
+
+    def set_pending_run(self, *, fires_at: float | None, active_downloads: int, now: float) -> None:
+        """Publish this cycle's wait so the web process can show it (§8 / DOIT-2)."""
         ...
 
 
