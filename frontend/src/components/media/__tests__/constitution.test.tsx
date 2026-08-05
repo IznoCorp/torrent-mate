@@ -320,9 +320,15 @@ describe("§11 constitution — « Tout média est consultable »", () => {
 
     it("navigates to the media sheet when clicking an identified result card", () => {
       searchResultsMock.mockReturnValue({
-        data: { results: [movieResult()] },
+        // useInfiniteQuery shape (the search paginates since recherche-juste).
+        data: {
+          pages: [{ total: 1, offset: 0, limit: 20, results: [movieResult()] }],
+        },
         isLoading: false,
         isError: false,
+        hasNextPage: false,
+        isFetchingNextPage: false,
+        fetchNextPage: vi.fn(),
       });
 
       render(<MediaSearchAdd />);
@@ -346,9 +352,12 @@ describe("§11 constitution — « Tout média est consultable »", () => {
 
     it("does not navigate when there are no search results (no card rendered)", () => {
       searchResultsMock.mockReturnValue({
-        data: { results: [] },
+        data: { pages: [{ total: 0, offset: 0, limit: 20, results: [] }] },
         isLoading: false,
         isError: false,
+        hasNextPage: false,
+        isFetchingNextPage: false,
+        fetchNextPage: vi.fn(),
       });
 
       render(<MediaSearchAdd />);

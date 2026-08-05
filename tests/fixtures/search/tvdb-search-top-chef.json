@@ -1,0 +1,2060 @@
+{
+ "data": [
+  {
+   "aliases": [
+    "Top Chef France",
+    "Top Chef Français",
+    "Top Chef France"
+   ],
+   "country": "fra",
+   "first_air_time": "2010-02-22",
+   "id": "series-255968",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/5c8bb954a6f35.jpg",
+   "name": "Top Chef",
+   "network": "M6",
+   "objectID": "series-255968",
+   "overview": "Un grand casting national a permis de jeunes espoirs de la cuisine française. Ces candidats  concourent pour décrocher le titre de ''top chef'' et empocher la somme de 100.000 euros. Pendant plusieurs semaines, quatre chefs de renom jugent leur travail.",
+   "overviews": {
+    "eng": "Twelve young hopeful French chefs compete to win the title of \"Top Chef,\" 100,000 euros. and be judged by the best in the business.",
+    "fra": "Un grand casting national a permis de jeunes espoirs de la cuisine française. Ces candidats  concourent pour décrocher le titre de ''top chef'' et empocher la somme de 100.000 euros. Pendant plusieurs semaines, quatre chefs de renom jugent leur travail."
+   },
+   "primary_language": "fra",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "topchef.m6/",
+     "sourceName": "Facebook",
+     "type": 5
+    },
+    {
+     "id": "tt3632140",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "https://www.6play.fr/top-chef-p_872",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "54493",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "67065",
+     "sourceName": "TV Maze",
+     "type": 19
+    },
+    {
+     "id": "Q66504196",
+     "sourceName": "Wikidata",
+     "type": 18
+    }
+   ],
+   "slug": "top-chef-france",
+   "status": "Continuing",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/5c8bb954a6f35_t.jpg",
+   "translations": {
+    "eng": "Top Chef (FR)",
+    "fra": "Top Chef"
+   },
+   "tvdb_id": "255968",
+   "type": "series",
+   "year": "2010"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2006-03-08",
+   "id": "series-79313",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/79313-4.jpg",
+   "name": "Top Chef",
+   "network": "Bravo",
+   "objectID": "series-79313",
+   "overview": "Top Chef is a reality show unlike any other while it searches for the world's next Top Chef. Each week this talented group of chefs, professionally trained and self-taught, will be challenged and judged by some of the best known chefs in the industry. Over the course of the season and endless challenges one chef a week is asked to \"pack their knives and go\" until there is only one left standing as the ultimate Top Chef.",
+   "overviews": {
+    "eng": "Top Chef is a reality show unlike any other while it searches for the world's next Top Chef. Each week this talented group of chefs, professionally trained and self-taught, will be challenged and judged by some of the best known chefs in the industry. Over the course of the season and endless challenges one chef a week is asked to \"pack their knives and go\" until there is only one left standing as the ultimate Top Chef.",
+    "fin": "Nuoret ja lahjakkaat keittiömestarit laittavat kokkaustaitonsa todelliseen painetestiin kisassa, jossa voittajasta kruunataan Top Chef. Top Chef on suosittu, kulinarismia juhliva realitysarja, jossa kurkistetaan maailmanluokan keittiöiden maailmaan ja ravintola-alan huipulle. Tunnin mittaisissa jaksoissa nähdään menestystä jahtaavia kokkeja, jotka tavoittelevat arvostettua Top Chefin titteliä.",
+    "por": "Este reality show vencedor dos Emmys acompanha os dramas que despontam na cozinha onde, numa competição aguerrida, um grupo de chefs cozinha de alma e coração.",
+    "spa": "Es un impactante concurso donde quince aspirantes a chef pondrán a prueba sus cualidades culinarias.\r\n\r\nVivirán y respirarán el tipo de tensión al que se someten los verdaderos chefs. Cada semana los jueces decidirán quién abandona el concurso. Al final, uno de ellos logrará el título \"Top Chef\", 100.000$ destinados a promover su carrera profesional y obtendrá una mención en la revista Food & Wine."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt0765425",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "https://www.bravotv.com/top-chef",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "41822",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "EP00812758",
+     "sourceName": "TMS (Zap2It)",
+     "type": 3
+    }
+   ],
+   "slug": "top-chef",
+   "status": "Continuing",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/79313-4_t.jpg",
+   "translations": {
+    "eng": "Top Chef",
+    "fin": "Top Chef",
+    "por": "Top Chef: EUA"
+   },
+   "tvdb_id": "79313",
+   "type": "series",
+   "year": "2006"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2009-06-10",
+   "id": "series-98821",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/98821-1.jpg",
+   "name": "Top Chef: Masters",
+   "network": "Bravo",
+   "objectID": "series-98821",
+   "overview": "Bravo’s Top Chef Masters returns for a fifth season with 13 new award-winning chefs ready to compete for bragging rights, the title of ‘Top Chef Master’ and $100,000 for their charity.  In a new twist this season, each Master will have his or her sous chef compete in an online competition, “Battle of the Sous Chefs,” hosted by Hugh Acheson. The results of each online episode directly impacts the Masters, awarding them advantages, such as immunity (the winner of each battle earns the Top Chef Master immunity), and sometimes, disadvantages, depending on their sous chef’s performance (the chefs who perform the worst always earn obstacles for their Top Chef Master). Every episode of “Battle of the Sous Chefs” leads up to the next episode of Top Chef Masters, and explores the uniquely interdependent relationship between a Master chef and his or her sous chef.\r\n\r\nCelebrity chef Curtis Stone is back as series host alongside new head critic Gail Simmons, with returning judges James Oseland, Ruth Reichl, and Francis Lam, and new judge, food and dining editor Lesley Suter. The chefs face off in some of the most difficult and unique challenges seen thus far -- and they’re serving up food for some top entertainers and celebrity guest judges including: Busy Philipps, Kathie Lee Gifford, Lindsay Price, the cast of Days Of our Lives, Ali Larter, the cast of Yo Gabba Gabba, LA Cult Favorites Lucha Va Voom among others.\r\n\r\nTo date, Top Chef Masters has given over 1 million dollars to charities with this season increasing that total to over 1.25 million dollars. The series pits 13 world-renowned chefs against each other to see how well they fare in fierce culinary competition. Each week will whittle down the chefs until the finale where one winner is crowned “Top Chef Master” and receives the grand prize of $100,000 for their charity.",
+   "overviews": {
+    "eng": "Bravo’s Top Chef Masters returns for a fifth season with 13 new award-winning chefs ready to compete for bragging rights, the title of ‘Top Chef Master’ and $100,000 for their charity.  In a new twist this season, each Master will have his or her sous chef compete in an online competition, “Battle of the Sous Chefs,” hosted by Hugh Acheson. The results of each online episode directly impacts the Masters, awarding them advantages, such as immunity (the winner of each battle earns the Top Chef Master immunity), and sometimes, disadvantages, depending on their sous chef’s performance (the chefs who perform the worst always earn obstacles for their Top Chef Master). Every episode of “Battle of the Sous Chefs” leads up to the next episode of Top Chef Masters, and explores the uniquely interdependent relationship between a Master chef and his or her sous chef.\r\n\r\nCelebrity chef Curtis Stone is back as series host alongside new head critic Gail Simmons, with returning judges James Oseland, Ruth Reichl, and Francis Lam, and new judge, food and dining editor Lesley Suter. The chefs face off in some of the most difficult and unique challenges seen thus far -- and they’re serving up food for some top entertainers and celebrity guest judges including: Busy Philipps, Kathie Lee Gifford, Lindsay Price, the cast of Days Of our Lives, Ali Larter, the cast of Yo Gabba Gabba, LA Cult Favorites Lucha Va Voom among others.\r\n\r\nTo date, Top Chef Masters has given over 1 million dollars to charities with this season increasing that total to over 1.25 million dollars. The series pits 13 world-renowned chefs against each other to see how well they fare in fierce culinary competition. Each week will whittle down the chefs until the finale where one winner is crowned “Top Chef Master” and receives the grand prize of $100,000 for their charity.",
+    "por": "Top Chef Masters é uma rica disputa entre chefs de cozinha já consagrados e bem sucedidos. Em cada desafio, além de reconhecimento e fama, os vencedores arrecadarão uma quantia em dinheiro que será doada para uma instituição de caridade.",
+    "swe": "\"Top Chef Masters\" gropar 24 världsberömda kockar mot varandra för att se hur väl de står sig i beprövade format \"Top Chef\". I varje episod, är pengar på spel för kockar, med vinnarna av elimineringar att tilldelas pengar donationer för sina välgörenhetsorganisationer. De första sex avsnitten består av fyra kockar tävlar mot varandra för att nämna en vinnare. De sex vinnarna i varje episod möter sedan upp för de fyra sista veckorna när en person kommer att få bort varje episod tills finalen där en vinnare är krönt Top Chef Master. Den vinnande kocken får $ 100.000 för den välgörenhet de önskar."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "19356",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "tt1427816",
+     "sourceName": "IMDB",
+     "type": 2
+    }
+   ],
+   "slug": "top-chef-masters",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/98821-1_t.jpg",
+   "translations": {
+    "eng": "Top Chef: Masters",
+    "por": "Top Chef Masters",
+    "swe": "Top Chef Masters"
+   },
+   "tvdb_id": "98821",
+   "type": "series",
+   "year": "2009"
+  },
+  {
+   "country": "fra",
+   "first_air_time": "2014-11-10",
+   "id": "series-307434",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/307434-1.jpg",
+   "name": "Objectif Top Chef",
+   "network": "M6",
+   "objectID": "series-307434",
+   "overview": "Philippe Etchebest sillonne les routes de France à la rencontre de quelque 90 apprentis cuisiniers. Après des défis culinaires basés sur les produits de leur région, il sélectionne le meilleur d'entre eux qui rejoindra les candidats professionnels de la nouvelle promotion de «Top Chef».",
+   "overviews": {
+    "eng": "Philippe Etchebest travels the roads of France to meet some 90 apprentice cooks. After culinary challenges based on the products of their region, he selects the best of them who will join the professional candidates of the new promotion of \"Top Chef\".",
+    "fra": "Philippe Etchebest sillonne les routes de France à la rencontre de quelque 90 apprentis cuisiniers. Après des défis culinaires basés sur les produits de leur région, il sélectionne le meilleur d'entre eux qui rejoindra les candidats professionnels de la nouvelle promotion de «Top Chef»."
+   },
+   "primary_language": "fra",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "104030",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "307434-show",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/307434-1_t.jpg",
+   "translations": {
+    "eng": "Objectif Top Chef",
+    "fra": "Objectif Top Chef"
+   },
+   "tvdb_id": "307434",
+   "type": "series",
+   "year": "2014"
+  },
+  {
+   "country": "bra",
+   "first_air_time": "2019-04-03",
+   "id": "series-360983",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/360983/posters/63c46a9daeb7c.jpg",
+   "name": "Top Chef Brasil",
+   "network": "Record",
+   "objectID": "series-360983",
+   "overview": "No reality show gastronômico, 15 chefs profissionais chegam com tudo para mais uma série de desafios na cozinha em busca de um prêmio de R$ 300 mil e o título de Top Chef Brasil. Os jurados Felipe Bronze, a crítica de gastronomia Ailin Aleixo e o chef Emmanuel Bassoleil estarão ainda mais exigentes durante a avaliação dos pratos.\r\n",
+   "overviews": {
+    "eng": "In the gastronomic reality show, 15 professional chefs arrive with everything they need for another series of challenges in the kitchen in search of a R$ 300 thousand prize and the title of Top Chef Brasil. Judges Felipe Bronze, gastronomy critic Ailin Aleixo and chef Emmanuel Bassoleil will be even more demanding when evaluating the dishes.",
+    "por": "No reality show gastronômico, 15 chefs profissionais chegam com tudo para mais uma série de desafios na cozinha em busca de um prêmio de R$ 300 mil e o título de Top Chef Brasil. Os jurados Felipe Bronze, a crítica de gastronomia Ailin Aleixo e o chef Emmanuel Bassoleil estarão ainda mais exigentes durante a avaliação dos pratos.\r\n",
+    "pt": "No reality show gastronômico, 15 chefs profissionais chegam com tudo para mais uma série de desafios na cozinha em busca de um prêmio de R$ 300 mil e o título de Top Chef Brasil. Os jurados Felipe Bronze, a crítica de gastronomia Ailin Aleixo e o chef Emmanuel Bassoleil estarão ainda mais exigentes durante a avaliação dos pratos.\r\n",
+    "spa": "En el reality gastronómico, 15 chefs profesionales llegan con todo lo necesario para otra serie de desafíos en la cocina en busca de un premio de R $ 300 mil y el título de Top Chef Brasil. Los jueces Felipe Bronze, el crítico gastronómico Ailin Aleixo y el chef Emmanuel Bassoleil serán aún más exigentes a la hora de valorar los platos."
+   },
+   "primary_language": "pt",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "topchefbrasil",
+     "sourceName": "Facebook",
+     "type": 5
+    },
+    {
+     "id": "tt26245944",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "topchefbrasil",
+     "sourceName": "Instagram",
+     "type": 9
+    },
+    {
+     "id": "https://recordtv.r7.com/topchef-brasil-3",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "88165",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "topchefbrasil",
+     "sourceName": "X (Twitter)",
+     "type": 6
+    },
+    {
+     "id": "topchefbrasil",
+     "sourceName": "Youtube",
+     "type": 11
+    }
+   ],
+   "slug": "top-chef-brasil",
+   "status": "Continuing",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/360983/posters/63c46a9daeb7c_t.jpg",
+   "translations": {
+    "eng": "Top Chef Brasil",
+    "por": "Top Chef Brasil",
+    "pt": "Top Chef Brasil",
+    "spa": "Top Chef Brasil"
+   },
+   "tvdb_id": "360983",
+   "type": "series",
+   "year": "2019"
+  },
+  {
+   "country": "esp",
+   "first_air_time": "2013-10-02",
+   "id": "series-275388",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/275388-1.jpg",
+   "name": "Top Chef España",
+   "network": "Antena 3",
+   "objectID": "series-275388",
+   "overview": "Los concursantes deben superar distintos retos y pruebas que son valoradas por los jueces. Cada semana, uno de los participantes abandona el programa, hasta que uno de ellos consigue el título de \"Top Chef España\". Alberto Chicote, Ángel León y Susi Díaz son los jueces del programa de Atresmedia TV 'Top Chef'.. Género: Reality show",
+   "overviews": {
+    "spa": "Los concursantes deben superar distintos retos y pruebas que son valoradas por los jueces. Cada semana, uno de los participantes abandona el programa, hasta que uno de ellos consigue el título de \"Top Chef España\". Alberto Chicote, Ángel León y Susi Díaz son los jueces del programa de Atresmedia TV 'Top Chef'.. Género: Reality show"
+   },
+   "primary_language": "spa",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt3266094",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "102851",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "top-chef-es",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/275388-1_t.jpg",
+   "translations": {
+    "eng": "Top Chef (ES)",
+    "spa": "Top Chef España"
+   },
+   "tvdb_id": "275388",
+   "type": "series",
+   "year": "2013"
+  },
+  {
+   "country": "can",
+   "first_air_time": "2011-04-11",
+   "id": "series-246941",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/246941/posters/662d210059d11.jpg",
+   "name": "Top Chef Canada",
+   "network": "Flavour Network",
+   "objectID": "series-246941",
+   "overview": "In this high stakes competition series, audiences get to see 16 up-and-coming Canadian chefs battle it out to win a $100,000 cash prize, a GE Monogram Kitchen valued at over $30,000, and the coveted title of Canada’s Top Chef.",
+   "overviews": {
+    "eng": "In this high stakes competition series, audiences get to see 16 up-and-coming Canadian chefs battle it out to win a $100,000 cash prize, a GE Monogram Kitchen valued at over $30,000, and the coveted title of Canada’s Top Chef.",
+    "fra": "Chaque semaine, les chefs concurrents rivalisent les uns contre les autres dans des défis culinaires. Les candidats sont jugés par un panel de chefs professionnels et autres notables de l'industrie culinaire, avec un ou plusieurs candidats éliminés chaque semaine."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt1784288",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "37649",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "EP01391859",
+     "sourceName": "TMS (Zap2It)",
+     "type": 3
+    }
+   ],
+   "slug": "top-chef-canada",
+   "status": "Continuing",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/246941/posters/662d210059d11_t.jpg",
+   "translations": {
+    "eng": "Top Chef Canada",
+    "fra": "Top Chef Canada"
+   },
+   "tvdb_id": "246941",
+   "type": "series",
+   "year": "2011"
+  },
+  {
+   "aliases": [
+    "Top Chef Jr."
+   ],
+   "country": "usa",
+   "first_air_time": "2017-10-13",
+   "id": "series-336676",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/336676-1.jpg",
+   "name": "Top Chef Junior",
+   "network": "Universal Kids",
+   "objectID": "series-336676",
+   "overview": "12 young chefs battle it out for $50,000 and the title of Top Chef Jr.",
+   "overviews": {
+    "eng": "12 young chefs battle it out for $50,000 and the title of Top Chef Jr."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt7497272",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "34778",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "EP02768558",
+     "sourceName": "TMS (Zap2It)",
+     "type": 3
+    },
+    {
+     "id": "33716",
+     "sourceName": "TV Maze",
+     "type": 19
+    },
+    {
+     "id": "Q48739383",
+     "sourceName": "Wikidata",
+     "type": 18
+    },
+    {
+     "id": "Top Chef Junior",
+     "sourceName": "Wikipedia",
+     "type": 24
+    }
+   ],
+   "slug": "top-chef-jr",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/336676-1_t.jpg",
+   "translations": {
+    "eng": "Top Chef Junior"
+   },
+   "tvdb_id": "336676",
+   "type": "series",
+   "year": "2017"
+  },
+  {
+   "country": "pol",
+   "first_air_time": "2014-03-05",
+   "id": "series-279336",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/5bbd24884f353.jpg",
+   "name": "Top Chef Polska",
+   "network": "Polsat",
+   "objectID": "series-279336",
+   "overview": "Top Chef – polski program typu reality show, w którym kucharze - profesjonaliści rywalizują między sobą w zadaniach kulinarnych. Program powstał na licencji amerykańskiego programu o tej samej nazwie, nadawanego w kablowej telewizji Bravo, którego gospodarzem jest Padma Lakshmi. Polska adaptacja emitowana jest w telewizji Polsat począwszy od 11 września 2013 roku.",
+   "overviews": {
+    "eng": "Top Chef – a Polish reality show where professional chefs compete against each other in culinary challenges. The program is based on the American show of the same name, aired on Bravo cable TV and hosted by Padma Lakshmi. The Polish adaptation has been broadcast on Polsat TV since September 11, 2013.",
+    "pol": "Top Chef – polski program typu reality show, w którym kucharze - profesjonaliści rywalizują między sobą w zadaniach kulinarnych. Program powstał na licencji amerykańskiego programu o tej samej nazwie, nadawanego w kablowej telewizji Bravo, którego gospodarzem jest Padma Lakshmi. Polska adaptacja emitowana jest w telewizji Polsat począwszy od 11 września 2013 roku."
+   },
+   "primary_language": "pol",
+   "primary_type": "series",
+   "slug": "top-chef-poland",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/5bbd24884f353_t.jpg",
+   "translations": {
+    "eng": "Top Chef Poland",
+    "pol": "Top Chef Polska"
+   },
+   "tvdb_id": "279336",
+   "type": "series",
+   "year": "2014"
+  },
+  {
+   "country": "ita",
+   "first_air_time": "2016-09-14",
+   "id": "series-317030",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/317030-1.jpg",
+   "name": "Top Chef Italia",
+   "network": "NOVE",
+   "objectID": "series-317030",
+   "overview": "Top Chef Italia: Il talent show di cucina più stellato di sempre sbarca in Italia: nella cucina di Top Chef si sfideranno 15 chef professionisti selezionati tra i migliori del Paese. Sono unici, agguerriti, creativi, esperti e hanno alle spalle una tecnica e una professionalità che spinge la sfida a livelli altissimi. Nella cucina di top Chef italia non c'è spazio per i dilettanti! Una giuria d'eccezione sovrintende alla gara: Annie Feolde, Giuliano Baldessarri, Moreno Cedroni e Mauro Colagreco. Chi sarà il primo Top Chef italiano?",
+   "overviews": {
+    "ita": "Top Chef Italia: Il talent show di cucina più stellato di sempre sbarca in Italia: nella cucina di Top Chef si sfideranno 15 chef professionisti selezionati tra i migliori del Paese. Sono unici, agguerriti, creativi, esperti e hanno alle spalle una tecnica e una professionalità che spinge la sfida a livelli altissimi. Nella cucina di top Chef italia non c'è spazio per i dilettanti! Una giuria d'eccezione sovrintende alla gara: Annie Feolde, Giuliano Baldessarri, Moreno Cedroni e Mauro Colagreco. Chi sarà il primo Top Chef italiano?"
+   },
+   "primary_language": "ita",
+   "primary_type": "series",
+   "slug": "317030-show",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/317030-1_t.jpg",
+   "translations": {
+    "eng": "Top Chef (IT)",
+    "ita": "Top Chef Italia"
+   },
+   "tvdb_id": "317030",
+   "type": "series",
+   "year": "2016"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2021-07-01",
+   "id": "series-403454",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/403454/posters/60d609a221299.jpg",
+   "name": "Top Chef Amateurs",
+   "network": "Bravo",
+   "objectID": "series-403454",
+   "overview": "Two home cooks will compete against one another, duel-style, in famous challenges.",
+   "overviews": {
+    "eng": "Two home cooks will compete against one another, duel-style, in famous challenges."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "https://www.bravotv.com/top-chef-amateurs",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "tt13434040",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "127839",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "top-chef-amateurs",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/403454/posters/60d609a221299_t.jpg",
+   "translations": {
+    "eng": "Top Chef Amateurs"
+   },
+   "tvdb_id": "403454",
+   "type": "series",
+   "year": "2021"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2014-08-06",
+   "id": "series-282438",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/282438-1.jpg",
+   "name": "Top Chef Duels",
+   "network": "Bravo",
+   "objectID": "series-282438",
+   "overview": "In each episode, two chefs will face-off in three rounds of head-to-head battles testing their skill, creativity and speed. Rivalries will be intensified as Top Chef Duels ups the ante and allows the competing chefs to each pick one mini-duel based on the other’s perceived weaknesses in the kitchen. The third and final challenge of each episode will decide who moves on to compete in the ultimate high-stakes season finale where 10 chefs will be confronted with split second decisions as they lay it all on the line in the greatest challenge of their careers. In the end, only one chef will earn bragging rights and win the $100,000 grand prize and a culinary adventure that will be featured in Food and Wine magazine.",
+   "overviews": {
+    "eng": "In each episode, two chefs will face-off in three rounds of head-to-head battles testing their skill, creativity and speed. Rivalries will be intensified as Top Chef Duels ups the ante and allows the competing chefs to each pick one mini-duel based on the other’s perceived weaknesses in the kitchen. The third and final challenge of each episode will decide who moves on to compete in the ultimate high-stakes season finale where 10 chefs will be confronted with split second decisions as they lay it all on the line in the greatest challenge of their careers. In the end, only one chef will earn bragging rights and win the $100,000 grand prize and a culinary adventure that will be featured in Food and Wine magazine."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt3778478",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "131455",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "top-chef-duels",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/282438-1_t.jpg",
+   "translations": {
+    "eng": "Top Chef Duels"
+   },
+   "tvdb_id": "282438",
+   "type": "series",
+   "year": "2014"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2022-08-09",
+   "id": "series-422758",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/422758/posters/641a6cdce0f28.jpg",
+   "name": "Top Chef VIP",
+   "network": "Telemundo",
+   "objectID": "series-422758",
+   "overview": "Dieciséis celebridades ponen a prueba sus habilidades culinarias y son juzgadas por un panel de chefs profesionales con un concursante eliminado en cada episodio. El ganador recibirá 100.000 dólares estadounidenses.",
+   "overviews": {
+    "eng": "Sixteen celebrities put their cooking skills to the test and are judged by a panel of professional chefs with one contestant eliminated in each episode. The winner will receive $100,000.",
+    "spa": "Dieciséis celebridades ponen a prueba sus habilidades culinarias y son juzgadas por un panel de chefs profesionales con un concursante eliminado en cada episodio. El ganador recibirá 100.000 dólares estadounidenses."
+   },
+   "primary_language": "spa",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt21959284",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "209374",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "top-chef-vip",
+   "status": "Continuing",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/422758/posters/641a6cdce0f28_t.jpg",
+   "translations": {
+    "eng": "Top Chef VIP",
+    "spa": "Top Chef VIP"
+   },
+   "tvdb_id": "422758",
+   "type": "series",
+   "year": "2022"
+  },
+  {
+   "country": "fin",
+   "first_air_time": "2011-01-26",
+   "id": "series-266346",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/266346-1.jpg",
+   "name": "Top Chef Suomi",
+   "network": "MTV3",
+   "objectID": "series-266346",
+   "overview": "Top Chef Suomi on suomalainen versio yhdysvaltalaisesta Top Chef -tositelevisioformaatista, jossa kokit kilpailevat toisiaan vastaan ruoanlaittoon liittyvissä haasteissa. Ohjelmaan pääsevät kilpailemaan vain alan ammattilaiset. Ohjelman päätuomari on kokki Hans Välimäki. Juontaja-tuomarina toimii entinen malli ja nykyinen kokki Pipsa Hurmerinta",
+   "overviews": {
+    "fin": "Top Chef Suomi on suomalainen versio yhdysvaltalaisesta Top Chef -tositelevisioformaatista, jossa kokit kilpailevat toisiaan vastaan ruoanlaittoon liittyvissä haasteissa. Ohjelmaan pääsevät kilpailemaan vain alan ammattilaiset. Ohjelman päätuomari on kokki Hans Välimäki. Juontaja-tuomarina toimii entinen malli ja nykyinen kokki Pipsa Hurmerinta"
+   },
+   "primary_language": "fin",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt2396148",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "33853",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "top-chef-suomi",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/266346-1_t.jpg",
+   "translations": {
+    "eng": "Top Chef Suomi",
+    "fin": "Top Chef Suomi"
+   },
+   "tvdb_id": "266346",
+   "type": "series",
+   "year": "2011"
+  },
+  {
+   "country": "grc",
+   "first_air_time": "2010-10-17",
+   "id": "series-409596",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/409596/posters/6a0580d45313c.jpg",
+   "name": "Top Chef (GR)",
+   "network": "ANT1",
+   "objectID": "series-409596",
+   "overview": "Το «Top Chef», το δημοφιλέστερο show μαγειρικής είναι στον ΣΚΑΪ και μας ξεναγεί στον γοητευτικό αλλά απαιτητικό κόσμο της υψηλής γαστρονομίας. 15 επαγγελματίες σεφ που έχουν κοινό χαρακτηριστικό το πάθος για τη γαστρονομία αναμετρώνται καθημερινά μεταξύ τους, αλλά και με τον εαυτό τους. Στόχος να ξεχωρίσουν, να αναδειχθούν και να κατακτήσουν την κορυφή: μια θέση στα διασημότερα εστιατόρια του κόσμου, τον τίτλο του Top Chef και το μεγάλο έπαθλο. Ο Γιώργος Βενιέρης, ο Γκίκας Ξενάκης, και ο Αστέριος Κουστούδης, τρεις καταξιωμένοι σεφ που έχουν διακριθεί στο χώρο της γαστρονομίας, αξιολογούν τους 15 υποψήφιους Top Chef και κρίνουν το μέλλον τους στον διαγωνισμό.",
+   "overviews": {
+    "ell": "Το «Top Chef», το δημοφιλέστερο show μαγειρικής είναι στον ΣΚΑΪ και μας ξεναγεί στον γοητευτικό αλλά απαιτητικό κόσμο της υψηλής γαστρονομίας. 15 επαγγελματίες σεφ που έχουν κοινό χαρακτηριστικό το πάθος για τη γαστρονομία αναμετρώνται καθημερινά μεταξύ τους, αλλά και με τον εαυτό τους. Στόχος να ξεχωρίσουν, να αναδειχθούν και να κατακτήσουν την κορυφή: μια θέση στα διασημότερα εστιατόρια του κόσμου, τον τίτλο του Top Chef και το μεγάλο έπαθλο. Ο Γιώργος Βενιέρης, ο Γκίκας Ξενάκης, και ο Αστέριος Κουστούδης, τρεις καταξιωμένοι σεφ που έχουν διακριθεί στο χώρο της γαστρονομίας, αξιολογούν τους 15 υποψήφιους Top Chef και κρίνουν το μέλλον τους στον διαγωνισμό.",
+    "eng": "\"Top Chef\", the most popular cooking show is on SKAI and guides us to the charming but demanding world of haute cuisine. 15 professional chefs who have in common the passion for gastronomy face each other every day, but also with themselves. Aim to stand out, stand out and conquer the top: a place in the most famous restaurants in the world, the title of Top Chef and the grand prize. Giorgos Venieris, Gikas Xenakis, and Asterios Koustoudis, three renowned chefs who have distinguished themselves in the field of gastronomy, evaluate the 15 Top Chef candidates and judge their future in the competition."
+   },
+   "primary_language": "ell",
+   "primary_type": "series",
+   "slug": "top-chef-gr",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/409596/posters/6a0580d45313c_t.jpg",
+   "translations": {
+    "ell": "Top Chef (GR)",
+    "eng": "Top Chef (GR)"
+   },
+   "tvdb_id": "409596",
+   "type": "series",
+   "year": "2010"
+  },
+  {
+   "country": "tha",
+   "first_air_time": "2017-03-25",
+   "id": "series-434855",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/434855/posters/648618db164c0.jpg",
+   "name": "TOP CHEF Thailand",
+   "network": "One 31",
+   "objectID": "series-434855",
+   "overview": "ศึกแห่งศักดิ์ศรีของเชฟมืออาชีพที่ยิ่งใหญ่ระดับโลก ! กับการรวบรวมสุดยอดเชฟมากฝีมือ เพื่อเข้าสู่สังเวียนการแข่งขันสุดโหด และการอยู่รอดของพวกเขาจะถูกตัดสินด้วยกรรมการทั้ง 4 คือ เชฟอาร์ท เชฟแพม เชฟต้น และเชฟวิลแมน",
+   "overviews": {
+    "tha": "ศึกแห่งศักดิ์ศรีของเชฟมืออาชีพที่ยิ่งใหญ่ระดับโลก ! กับการรวบรวมสุดยอดเชฟมากฝีมือ เพื่อเข้าสู่สังเวียนการแข่งขันสุดโหด และการอยู่รอดของพวกเขาจะถูกตัดสินด้วยกรรมการทั้ง 4 คือ เชฟอาร์ท เชฟแพม เชฟต้น และเชฟวิลแมน"
+   },
+   "primary_language": "tha",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "topchefth",
+     "sourceName": "Facebook",
+     "type": 5
+    },
+    {
+     "id": "topchefthailand",
+     "sourceName": "Instagram",
+     "type": 9
+    },
+    {
+     "id": "https://www.heliconiahgroup.com/tv_business_food/top-chef-thailand/",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "topchefth",
+     "sourceName": "X (Twitter)",
+     "type": 6
+    },
+    {
+     "id": "UC48SZLSdauZtNea5geTxN8w",
+     "sourceName": "Youtube",
+     "type": 11
+    },
+    {
+     "id": "43485",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "top-chef-thailand",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/434855/posters/648618db164c0_t.jpg",
+   "translations": {
+    "eng": "TOP CHEF Thailand",
+    "tha": "TOP CHEF Thailand"
+   },
+   "tvdb_id": "434855",
+   "type": "series",
+   "year": "2017"
+  },
+  {
+   "aliases": [
+    "Top Chef Norge",
+    "Top Chef Norway",
+    "Top Chef Norway"
+   ],
+   "country": "nor",
+   "first_air_time": "2016-01-25",
+   "id": "series-308630",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/308630/posters/6a0748cae6b31.jpg",
+   "name": "Top Chef (NO)",
+   "network": "TV 2 (NO)",
+   "objectID": "series-308630",
+   "overview": "12 toppkokker konkurrerer mot hverandre i ulike kulinariske oppgaver.",
+   "overviews": {
+    "eng": "12 top chefs compete against each other in various culinary tasks.",
+    "nor": "12 toppkokker konkurrerer mot hverandre i ulike kulinariske oppgaver."
+   },
+   "primary_language": "nor",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt7054964",
+     "sourceName": "IMDB",
+     "type": 2
+    }
+   ],
+   "slug": "308630-show",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/308630/posters/6a0748cae6b31_t.jpg",
+   "translations": {
+    "eng": "Top Chef (NO)",
+    "nor": "Top Chef (NO)"
+   },
+   "tvdb_id": "308630",
+   "type": "series",
+   "year": "2016"
+  },
+  {
+   "country": "vnm",
+   "id": "series-450322",
+   "image_url": "https://artworks.thetvdb.com/banners/images/missing/series.jpg",
+   "name": "Top Chef (VN)",
+   "objectID": "series-450322",
+   "overview": "Chuyên gia ẩm thực đã nỗ lực hết mình để trở thành Đầu bếp hàng đầu tiếp theo.",
+   "overviews": {
+    "eng": "Culinary experts who put it all on the line to become the next Top Chef.",
+    "vie": "Chuyên gia ẩm thực đã nỗ lực hết mình để trở thành Đầu bếp hàng đầu tiếp theo."
+   },
+   "primary_language": "vie",
+   "primary_type": "series",
+   "slug": "top-chef-vn",
+   "status": "Continuing",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/450322/posters/6a15ac6313fc4_t.jpg",
+   "translations": {
+    "eng": "Top Chef (VN)",
+    "vie": "Top Chef (VN)"
+   },
+   "tvdb_id": "450322",
+   "type": "series"
+  },
+  {
+   "country": "fra",
+   "first_air_time": "2002-06-04",
+   "id": "series-417058",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/417058/posters/6a045d854601f.jpg",
+   "name": "Top chef : le chef des chefs",
+   "network": "M6",
+   "objectID": "series-417058",
+   "overview": "Vingt-quatre anciens candidats emblématiques de l’émission Top Chef s’affrontent dans un tournoi organisé par François-Régis Gaudry, critique culinaire de renom. Chaque semaine, lors d’un duel, deux candidats devront montrer toute l’étendue de leur créativité pour sublimer des produits et relever des défis originaux, pour vaincre leur adversaire et tenter de devenir le chef des chefs",
+   "overviews": {
+    "eng": "Twenty-four former emblematic candidates from the Top Chef show compete in a tournament organized by François-Régis Gaudry, a renowned food critic. Each week, during a duel, two candidates will have to show the full extent of their creativity to sublimate products and take up original challenges, to defeat their opponent and try to become the chef of chefs.",
+    "fra": "Vingt-quatre anciens candidats emblématiques de l’émission Top Chef s’affrontent dans un tournoi organisé par François-Régis Gaudry, critique culinaire de renom. Chaque semaine, lors d’un duel, deux candidats devront montrer toute l’étendue de leur créativité pour sublimer des produits et relever des défis originaux, pour vaincre leur adversaire et tenter de devenir le chef des chefs"
+   },
+   "primary_language": "fra",
+   "primary_type": "series",
+   "slug": "top-chef-le-chef-des-chefs",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/417058/posters/6a045d854601f_t.jpg",
+   "translations": {
+    "eng": "Top Chef: The Chef of Chefs",
+    "fra": "Top chef : le chef des chefs"
+   },
+   "tvdb_id": "417058",
+   "type": "series",
+   "year": "2002"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2010-09-15",
+   "id": "series-186171",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/186171-2.jpg",
+   "name": "Top Chef: Just Desserts",
+   "network": "Bravo",
+   "objectID": "series-186171",
+   "overview": "Top Chef: Just Desserts is an American reality competition show, spun off from the popular Top Chef.  Chefs compete against each other in culinary challenges, focusing on pastries and desserts.",
+   "overviews": {
+    "eng": "Top Chef: Just Desserts is an American reality competition show, spun off from the popular Top Chef.  Chefs compete against each other in culinary challenges, focusing on pastries and desserts."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt1720607",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "EP01316729",
+     "sourceName": "TMS (Zap2It)",
+     "type": 3
+    },
+    {
+     "id": "31877",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "top-chef-just-desserts",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/186171-2_t.jpg",
+   "translations": {
+    "eng": "Top Chef: Just Desserts"
+   },
+   "tvdb_id": "186171",
+   "type": "series",
+   "year": "2010"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2021-09-09",
+   "id": "series-402813",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/402813/posters/613b8663cd1d6.jpg",
+   "name": "Top Chef Family Style",
+   "network": "Peacock",
+   "objectID": "series-402813",
+   "overview": "Top Chef Family Style is another spinoff of the long-running Bravo cooking competition, which will feature young competitors paired up with adult family members. Meghan Trainor, who once sang, “I never learned to cook / But I can write a hook” on her 2014 song “Dear Future Husband,” will host, alongside Top Chef Masters winner Marcus Samuelsson as head judge",
+   "overviews": {
+    "eng": "Top Chef Family Style is another spinoff of the long-running Bravo cooking competition, which will feature young competitors paired up with adult family members. Meghan Trainor, who once sang, “I never learned to cook / But I can write a hook” on her 2014 song “Dear Future Husband,” will host, alongside Top Chef Masters winner Marcus Samuelsson as head judge",
+    "fin": "Nuoret lahjakkaat kokit testaavat yhdessä perheenjäsenensä kanssa kulinaarisia taitojaan. He kilpailevat jännittävissä haasteissa ja taistelevat Top Chef -tittelistä.",
+    "spa": "Este emocionante nuevo concurso culinario está diseñado especialmente para familias, donde jóvenes chefs de gran talento se unirán a un miembro adulto de su familia como compañero de equipo. Juntos, competirán en una serie de desafíos culinarios con el objetivo de ser coronados como campeones. Este programa único resalta el vínculo familiar y promueve la colaboración, la creatividad y el amor por la cocina. A lo largo de la competencia, los participantes demostrarán sus habilidades culinarias, su pasión por la gastronomía y la conexión especial que comparten con sus seres queridos. ¡Prepárate para vivir momentos emocionantes y descubrir nuevos talentos en la cocina!"
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt1527425",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "133059",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "top-chef-family-style",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/402813/posters/613b8663cd1d6_t.jpg",
+   "translations": {
+    "eng": "Top Chef Family Style",
+    "spa": "Top Chef: Family"
+   },
+   "tvdb_id": "402813",
+   "type": "series",
+   "year": "2021"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2012-10-03",
+   "id": "series-262592",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/262592-1.jpg",
+   "name": "Life After Top Chef",
+   "network": "Bravo",
+   "objectID": "series-262592",
+   "overview": "Have you ever wondered what happens to the \"cheftestants\" after their time in the \"Top Chef\" kitchen is done? This series follows some of the show's most-popular former contestants as they reach milestones in their personal lives and culinary careers, including opening new restaurants, expanding franchises and establishing themselves as leaders in the culinary world. Among the chefs featured are \"Top Chef All-Stars\" winner Richard Blais, who struggles between his kitchen ambitions and being at home for his family, and fan favorite Fabio Viviani, who hopes to build an empire and become the \"male Martha Stewart.\"",
+   "overviews": {
+    "eng": "Have you ever wondered what happens to the \"cheftestants\" after their time in the \"Top Chef\" kitchen is done? This series follows some of the show's most-popular former contestants as they reach milestones in their personal lives and culinary careers, including opening new restaurants, expanding franchises and establishing themselves as leaders in the culinary world. Among the chefs featured are \"Top Chef All-Stars\" winner Richard Blais, who struggles between his kitchen ambitions and being at home for his family, and fan favorite Fabio Viviani, who hopes to build an empire and become the \"male Martha Stewart.\""
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt2342847",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "EP01554325",
+     "sourceName": "TMS (Zap2It)",
+     "type": 3
+    }
+   ],
+   "slug": "life-after-top-chef",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/262592-1_t.jpg",
+   "translations": {
+    "eng": "Life After Top Chef"
+   },
+   "tvdb_id": "262592",
+   "type": "series",
+   "year": "2012"
+  },
+  {
+   "aliases": [
+    "Last Chance Kitchen"
+   ],
+   "country": "usa",
+   "first_air_time": "2011-11-09",
+   "id": "series-274886",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/274886-1.jpg",
+   "name": "Top Chef: Last Chance Kitchen",
+   "network": "Bravo",
+   "objectID": "series-274886",
+   "overview": "Last Chance Kitchen takes Top Chef and strips it down. Ousted chefs from Top Chef compete head to head for the chance to, not only redeem themselves, but to possibly return to Top Chef, and win. In each episode, two or more chefs are pitted against each other in a single challenge, with judgment placed solely on Tom Collicchio.",
+   "overviews": {
+    "eng": "Last Chance Kitchen takes Top Chef and strips it down. Ousted chefs from Top Chef compete head to head for the chance to, not only redeem themselves, but to possibly return to Top Chef, and win. In each episode, two or more chefs are pitted against each other in a single challenge, with judgment placed solely on Tom Collicchio."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt8105326",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "https://www.bravotv.com/last-chance-kitchen",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "91851",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "top-chef-last-chance-kitchen",
+   "status": "Continuing",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/274886-1_t.jpg",
+   "translations": {
+    "eng": "Top Chef: Last Chance Kitchen"
+   },
+   "tvdb_id": "274886",
+   "type": "series",
+   "year": "2011"
+  },
+  {
+   "aliases": [
+    "Top Chef : Le concours parallèle"
+   ],
+   "country": "fra",
+   "first_air_time": "2023-03-08",
+   "id": "series-432208",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/432208/posters/640ad4112e2cc.jpg",
+   "name": "Top Chef : La brigade Cachée",
+   "network": "M6",
+   "objectID": "series-432208",
+   "overview": "Au cours de la dernière épreuve, les candidats qui n’ont pas encore intégré de brigade vont s'affronter pour tenter de décrocher leur place dans le concours. Cette fois, c'est à l'aveugle que les chefs vont choisir leur assiette préférée. Ils sélectionneront donc un ultime candidat pour leur brigade, sans savoir de qui il s'agit. Attention, l’enjeu est crucial car les candidats qui ne seront pas retenus risquent l’élimination…",
+   "overviews": {
+    "eng": "During the last round, candidates who have not yet joined a brigade will compete to try to win their place in the competition. This time, the chefs will choose their favorite dish blind. They will therefore select an ultimate candidate for their brigade, without knowing who it is. Attention, the stake is crucial because the candidates who are not selected risk elimination...",
+    "fra": "Au cours de la dernière épreuve, les candidats qui n’ont pas encore intégré de brigade vont s'affronter pour tenter de décrocher leur place dans le concours. Cette fois, c'est à l'aveugle que les chefs vont choisir leur assiette préférée. Ils sélectionneront donc un ultime candidat pour leur brigade, sans savoir de qui il s'agit. Attention, l’enjeu est crucial car les candidats qui ne seront pas retenus risquent l’élimination…"
+   },
+   "primary_language": "fra",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "https://www.6play.fr/top-chef-la-brigade-cachee-p_16435",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "221936",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "top-chef-la-brigade-cache",
+   "status": "Continuing",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/432208/posters/640ad4112e2cc_t.jpg",
+   "translations": {
+    "eng": "Top Chef: Hidden Brigade",
+    "fra": "Top Chef : La brigade Cachée"
+   },
+   "tvdb_id": "432208",
+   "type": "series",
+   "year": "2023"
+  },
+  {
+   "country": "esp",
+   "first_air_time": "2026-02-15",
+   "id": "series-470565",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/470565/posters/6968e7a0e46e4.jpg",
+   "name": "Top Chef: Dulces y Famosos",
+   "network": "La 1",
+   "objectID": "series-470565",
+   "overview": "Con talento, creatividad y espíritu de competición, deberán elaborar postres de todo tipo, desde grandes clásicos de la pastelería hasta propuestas innovadoras y arriesgadas, superando pruebas individuales y por equipos llenas de giros inesperados.\r\n\r\nA lo largo del concurso aprenderán técnicas profesionales, pondrán a prueba su intuición y su destreza y mostrarán sus estrategias de juego, alianzas y rivalidades, mientras son evaluados por un exigente jurado compuesto por Paco Rocero, Eva Arguiñano y Osvaldo Gross. Su criterio marcará su camino hacia la gran final.",
+   "overviews": {
+    "spa": "Con talento, creatividad y espíritu de competición, deberán elaborar postres de todo tipo, desde grandes clásicos de la pastelería hasta propuestas innovadoras y arriesgadas, superando pruebas individuales y por equipos llenas de giros inesperados.\r\n\r\nA lo largo del concurso aprenderán técnicas profesionales, pondrán a prueba su intuición y su destreza y mostrarán sus estrategias de juego, alianzas y rivalidades, mientras son evaluados por un exigente jurado compuesto por Paco Rocero, Eva Arguiñano y Osvaldo Gross. Su criterio marcará su camino hacia la gran final."
+   },
+   "primary_language": "spa",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt39367723",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "https://www.rtve.es/play/videos/top-chef-dulces-y-famosos/",
+     "sourceName": "Official Website",
+     "type": 4
+    }
+   ],
+   "slug": "top-chef-dulces-y-famosos",
+   "status": "Continuing",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/470565/posters/6968e7a0e46e4_t.jpg",
+   "translations": {
+    "spa": "Top Chef: Dulces y Famosos"
+   },
+   "tvdb_id": "470565",
+   "type": "series",
+   "year": "2026"
+  },
+  {
+   "country": "fra",
+   "first_air_time": "2026-03-04",
+   "id": "series-475278",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/475278/posters/69b051e6ef330.jpg",
+   "name": "Top Chef: Le Concours Parallèle",
+   "network": "M6+",
+   "objectID": "series-475278",
+   "overview": "Le concours parallèle de Top Chef voit s'affronter chaque semaine les cuisiniers éliminés du concours. À l'issue de cette compétition secrète, deux d'entre eux feront leur retour dans Top Chef. © STUDIO 89",
+   "overviews": {
+    "eng": "The Top Chef parallel competition pits eliminated chefs against each other each week. At the end of this secret competition, two of them will return to Top Chef. © STUDIO 89",
+    "fra": "Le concours parallèle de Top Chef voit s'affronter chaque semaine les cuisiniers éliminés du concours. À l'issue de cette compétition secrète, deux d'entre eux feront leur retour dans Top Chef. © STUDIO 89"
+   },
+   "primary_language": "fra",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "315820",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "top-chef-le-concours-parallele",
+   "status": "Continuing",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/475278/posters/69b051e6ef330_t.jpg",
+   "translations": {
+    "eng": "Top Chef: The Parallel Competition",
+    "fra": "Top Chef: Le Concours Parallèle"
+   },
+   "tvdb_id": "475278",
+   "type": "series",
+   "year": "2026"
+  },
+  {
+   "country": "fra",
+   "first_air_time": "2020-02-26",
+   "id": "series-377761",
+   "image_url": "https://artworks.thetvdb.com/banners/series/377761/posters/62100358.jpg",
+   "name": "Top chef : les grands duels",
+   "network": "M6",
+   "objectID": "series-377761",
+   "overview": "Cette année, dans «TOP CHEF : Les Grands Duels», d'anciens candidats emblématiques de \"Top Chef\" devenus chefs incontestés s'affronteront. Chaque semaine, ils devront sublimer deux produits de notre terroir et proposer deux assiettes gourmandes et gastronomiques. Ils seront jugés par un célèbre journaliste gastronomique, François-Régis Gaudry, mais également par les producteurs.",
+   "overviews": {
+    "eng": "This year, in \"TOP CHEF: The Great Duels\", former emblematic candidates of \"Top Chef\" who have become undisputed chefs will compete against each other. Each week, they will have to sublimate two products of our soil and propose two gourmet and gastronomic plates. They will be judged by a famous gastronomic journalist, François-Régis Gaudry, but also by the producers.",
+    "fra": "Cette année, dans «TOP CHEF : Les Grands Duels», d'anciens candidats emblématiques de \"Top Chef\" devenus chefs incontestés s'affronteront. Chaque semaine, ils devront sublimer deux produits de notre terroir et proposer deux assiettes gourmandes et gastronomiques. Ils seront jugés par un célèbre journaliste gastronomique, François-Régis Gaudry, mais également par les producteurs."
+   },
+   "primary_language": "fra",
+   "primary_type": "series",
+   "slug": "top-chef-les-grands-duels",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/series/377761/posters/62100358_t.jpg",
+   "translations": {
+    "eng": "Top Chef (FR) - The Great Duels",
+    "fra": "Top chef : les grands duels"
+   },
+   "tvdb_id": "377761",
+   "type": "series",
+   "year": "2020"
+  },
+  {
+   "country": "fra",
+   "first_air_time": "2024-03-13",
+   "id": "series-447786",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/447786/posters/6a0748762eb19.jpg",
+   "name": "Top Chef - La dernière épreuve",
+   "objectID": "series-447786",
+   "overview": "Les candidats qui n'ont pas encore intégré de brigade vont s'affronter pour tenter de décrocher leur place dans le concours. Cette fois, c'est à l'aveugle que les chefs vont choisir leur assiette préférée.",
+   "overviews": {
+    "eng": "Candidates who have not yet joined a brigade will compete to try to win their place in the competition. This time, the chefs will choose their favorite plate blindly.",
+    "fra": "Les candidats qui n'ont pas encore intégré de brigade vont s'affronter pour tenter de décrocher leur place dans le concours. Cette fois, c'est à l'aveugle que les chefs vont choisir leur assiette préférée."
+   },
+   "primary_language": "fra",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "248977",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "top-chef-la-derniere-epreuve",
+   "status": "Continuing",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/447786/posters/6a0748762eb19_t.jpg",
+   "translations": {
+    "eng": "Top Chef - The Last Test",
+    "fra": "Top Chef - La dernière épreuve"
+   },
+   "tvdb_id": "447786",
+   "type": "series",
+   "year": "2024"
+  },
+  {
+   "country": "fra",
+   "id": "series-359444",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/359444/posters/6a0468d42ecea.jpg",
+   "name": "Top Chef France: La Dernière Chance",
+   "network": "M6",
+   "objectID": "series-359444",
+   "primary_language": "fra",
+   "primary_type": "series",
+   "slug": "top-chef-france-la-derniere-chance",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/359444/posters/6a0468d42ecea_t.jpg",
+   "translations": {
+    "fra": "Top Chef France: La Dernière Chance"
+   },
+   "tvdb_id": "359444",
+   "type": "series"
+  },
+  {
+   "country": "fra",
+   "first_air_time": "2016-01-26",
+   "id": "series-346368",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/5c8a7b48503c7.jpg",
+   "name": "Top Chef France - Dans l'assiette des grands chefs",
+   "network": "M6",
+   "objectID": "series-346368",
+   "primary_language": "eng",
+   "primary_type": "series",
+   "slug": "346368-show",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/5c8a7b48503c7_t.jpg",
+   "translations": {
+    "eng": "Top Chef France - Dans l'assiette des grands chefs",
+    "fra": "Top Chef France - Dans l'assiette des grands chefs"
+   },
+   "tvdb_id": "346368",
+   "type": "series",
+   "year": "2016"
+  },
+  {
+   "country": "fra",
+   "first_air_time": "2019-02-13",
+   "id": "series-361066",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/5c8c03e36dfe3.jpg",
+   "name": "Top Chef France : Cuisinez comme un grand chef",
+   "network": "M6",
+   "objectID": "series-361066",
+   "overview": "De grands chefs ouvrent les portes de leurs cuisines pour devenir professeurs le temps d'une soirée. Leur mission : transformer des produits du quotidien en assiettes 3 étoiles !",
+   "overviews": {
+    "fra": "De grands chefs ouvrent les portes de leurs cuisines pour devenir professeurs le temps d'une soirée. Leur mission : transformer des produits du quotidien en assiettes 3 étoiles !"
+   },
+   "primary_language": "fra",
+   "primary_type": "series",
+   "slug": "top-chef-france-cuisinez-comme-un-grand-chef",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/5c8c03e36dfe3_t.jpg",
+   "translations": {
+    "fra": "Top Chef France : Cuisinez comme un grand chef"
+   },
+   "tvdb_id": "361066",
+   "type": "series",
+   "year": "2019"
+  },
+  {
+   "country": "jpn",
+   "first_air_time": "2024-04-12",
+   "id": "series-449929",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/449929/posters/663ebfa93a603.jpg",
+   "name": "Top Chefs’ Quest",
+   "objectID": "series-449929",
+   "overview": "Tokyo harbors more Michelin-starred restaurants than any other city in the world. Variety abounds, from kaiseki and sushi to tempura and yakitori. Each style blends tradition and innovation. The skills master chefs wield in their imaginative use of seasonal ingredients and the spirit of hospitality they impart to delight their patrons are the treasures of Japan’s cuisine. Treasure hunter Shizuka Anderson visits some of the best restaurants in Tokyo to unearth the culinary delights hidden there.",
+   "overviews": {
+    "eng": "Tokyo harbors more Michelin-starred restaurants than any other city in the world. Variety abounds, from kaiseki and sushi to tempura and yakitori. Each style blends tradition and innovation. The skills master chefs wield in their imaginative use of seasonal ingredients and the spirit of hospitality they impart to delight their patrons are the treasures of Japan’s cuisine. Treasure hunter Shizuka Anderson visits some of the best restaurants in Tokyo to unearth the culinary delights hidden there."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "slug": "top-chefs-quest",
+   "status": "Continuing",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/449929/posters/663ebfa93a603_t.jpg",
+   "translations": {
+    "eng": "Top Chefs’ Quest"
+   },
+   "tvdb_id": "449929",
+   "type": "series",
+   "year": "2024"
+  },
+  {
+   "country": "nor",
+   "first_air_time": "1996-01-05",
+   "id": "series-358602",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/5c48f64756d2c.jpg",
+   "name": "Chez Toi",
+   "network": "NRK1",
+   "objectID": "series-358602",
+   "overviews": {
+    "nor": "Den franske kokken Jean-Claude la Bas fra Ivar Dyrhaugs underholdningsprogram \"Rett hjem\" er blitt hovmester på en restaurant på Grünerløkka i Oslo. Han er fortsatt vimsete, forvirret, snakker gebrokkent fransk-norsk, og sørger stadig for forviklinger. Alt som kan gå galt, går galt."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt0127992",
+     "sourceName": "IMDB",
+     "type": 2
+    }
+   ],
+   "slug": "chez-toi",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/5c48f64756d2c_t.jpg",
+   "translations": {
+    "eng": "Chez Toi",
+    "nor": "Chez toi"
+   },
+   "tvdb_id": "358602",
+   "type": "series",
+   "year": "1996"
+  },
+  {
+   "country": "kor",
+   "first_air_time": "2017-01-07",
+   "id": "series-322369",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/322369-1.jpg",
+   "name": "Baek Jong Won's Top 3 Chef King",
+   "network": "SBS",
+   "objectID": "series-322369",
+   "overview": "Invites various chefs of the restaurants from all over Korea to compete to prove themselves as the best. They might not be the very famous chefs nor the chefs of the most fancy restaurants, but they are masters who devoted their whole lives to the perfection of their dishes!",
+   "overviews": {
+    "eng": "Invites various chefs of the restaurants from all over Korea to compete to prove themselves as the best. They might not be the very famous chefs nor the chefs of the most fancy restaurants, but they are masters who devoted their whole lives to the perfection of their dishes!",
+    "kor": "국내 각지의 다양한 셰프들을 초청해 최고임을 증명하기 위해 경쟁합니다. 아주 유명한 셰프도 아니고 최고급 레스토랑의 셰프도 아닐지 모르지만, 일생을 바쳐 완벽한 요리를 완성한 대가들!"
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "84566",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "84566",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "baek-jong-wons-top-3-chef-king",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/322369-1_t.jpg",
+   "translations": {
+    "eng": "Baek Jong Won's Top 3 Chef King",
+    "kor": "백종원의 3대 천왕"
+   },
+   "tvdb_id": "322369",
+   "type": "series",
+   "year": "2017"
+  },
+  {
+   "country": "fra",
+   "first_air_time": "2020-04-04",
+   "id": "series-386067",
+   "image_url": "https://artworks.thetvdb.com/banners/images/missing/series.jpg",
+   "name": "Trop bien chez toi",
+   "network": "Gulli",
+   "objectID": "series-386067",
+   "overview": "\" Trop bien chez toi \" est une série de conseils drôles et ludiques ! Mac Lesggy, Joan Faggianelli, Gaëlle Marie, Moussier Tombola et Gwendal Marimoutou démontrent aux enfants qu'il suffit d'une pointe de créativité pour réinventer son quotidien e... Trop bien chez toi. Tous droits réservés",
+   "overviews": {
+    "fra": "\" Trop bien chez toi \" est une série de conseils drôles et ludiques ! Mac Lesggy, Joan Faggianelli, Gaëlle Marie, Moussier Tombola et Gwendal Marimoutou démontrent aux enfants qu'il suffit d'une pointe de créativité pour réinventer son quotidien e... Trop bien chez toi. Tous droits réservés"
+   },
+   "primary_language": "fra",
+   "primary_type": "series",
+   "slug": "trop-bien-chez-toi",
+   "status": "Ended",
+   "translations": {
+    "fra": "Trop bien chez toi"
+   },
+   "tvdb_id": "386067",
+   "type": "series",
+   "year": "2020"
+  },
+  {
+   "aliases": [
+    "Top Chef: The Dish with Kish"
+   ],
+   "country": "usa",
+   "first_air_time": "2024-03-20",
+   "id": "series-447927",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/447927/posters/68212aeddc81d.jpg",
+   "name": "Dish with Kish",
+   "network": "Bravo (UK)",
+   "objectID": "series-447927",
+   "overview": "Airing each week after the supersized Top Chef episodes, which start at 9/8c, host Kristen Kish and her friends from the show will share interesting insights from both the current season and past episodes that reflect where we are today.",
+   "overviews": {
+    "eng": "Airing each week after the supersized Top Chef episodes, which start at 9/8c, host Kristen Kish and her friends from the show will share interesting insights from both the current season and past episodes that reflect where we are today."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "https://www.bravotv.com/top-chef-the-dish-with-kish",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "249908",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "dish-with-kish",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/447927/posters/68212aeddc81d_t.jpg",
+   "translations": {
+    "eng": "Dish with Kish"
+   },
+   "tvdb_id": "447927",
+   "type": "series",
+   "year": "2024"
+  },
+  {
+   "aliases": [
+    "توب شيف - مش أي شيف"
+   ],
+   "country": "sau",
+   "first_air_time": "2016-09-21",
+   "id": "series-336557",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/336557/posters/6323a02f6c1be.jpg",
+   "name": "توب شيف",
+   "network": "MBC",
+   "objectID": "series-336557",
+   "overview": "يتنافس 15 طاهياً محترفاً من مختلف الدول العربية تحت إشراف لجنة من المتخصصين في عالم الطهي ليفوز أحدهم بلقب توب شيف.",
+   "overviews": {
+    "ara": "يتنافس 15 طاهياً محترفاً من مختلف الدول العربية تحت إشراف لجنة من المتخصصين في عالم الطهي ليفوز أحدهم بلقب توب شيف.",
+    "eng": "Fifteen chefs from different Arab countries compete in fiery culinary challenges under the supervision of prominent Arab chefs and international guests.",
+    "fra": "Quinze chefs de différents pays arabes s'affrontent lors de défis culinaires sous la supervision de chefs arabes de renommée et d'invités internationaux."
+   },
+   "primary_language": "ara",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "mbctopchef",
+     "sourceName": "Facebook",
+     "type": 5
+    },
+    {
+     "id": "mbctopchef",
+     "sourceName": "Instagram",
+     "type": 9
+    },
+    {
+     "id": "https://shahid.mbc.net/en/shows/Top-Chef/show-149597",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "76456",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "MBCTopChef",
+     "sourceName": "X (Twitter)",
+     "type": 6
+    },
+    {
+     "id": "MBCTOPCHEF",
+     "sourceName": "Youtube",
+     "type": 11
+    }
+   ],
+   "slug": "top-chef-mbc",
+   "status": "Continuing",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/336557/posters/6323a02f6c1be_t.jpg",
+   "translations": {
+    "ara": "توب شيف",
+    "eng": "Top Chef (SA)",
+    "fra": "Top Chef (AR)"
+   },
+   "tvdb_id": "336557",
+   "type": "series",
+   "year": "2016"
+  },
+  {
+   "aliases": [
+    "Koch'en på toppen"
+   ],
+   "country": "dnk",
+   "first_air_time": "2019-10-22",
+   "id": "series-371599",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/371599/posters/661f7c341b8fe.jpg",
+   "name": "Kochen på Toppen",
+   "network": "TV3 (DK)",
+   "objectID": "series-371599",
+   "overview": "Den dedikerede og kompromisløse Jesper Koch regerer og kokkerer på det overdådige og toptunede Alsik Hotel, hvor hverdagen er fyldt med sjove påfund, hårdt arbejde og gode grin.",
+   "overviews": {
+    "dan": "Den dedikerede og kompromisløse Jesper Koch regerer og kokkerer på det overdådige og toptunede Alsik Hotel, hvor hverdagen er fyldt med sjove påfund, hårdt arbejde og gode grin.",
+    "eng": "Dedicated and uncompromising Jesper Koch reigns and cooks at the lavish and top-tuned Alsik Hotel, where everyday life is filled with fun antics, hard work and good laughs."
+   },
+   "primary_language": "dan",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "95127",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "kochen-pa-toppen",
+   "status": "Continuing",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/371599/posters/661f7c341b8fe_t.jpg",
+   "translations": {
+    "dan": "Kochen på Toppen",
+    "eng": "The Chef on Top"
+   },
+   "tvdb_id": "371599",
+   "type": "series",
+   "year": "2019"
+  },
+  {
+   "aliases": [
+    "Kochen paa Toppen Jul"
+   ],
+   "country": "dnk",
+   "first_air_time": "2024-12-10",
+   "id": "series-457639",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/457639/posters/6756e70cddfd9.jpg",
+   "name": "Kochen på Toppen Jul",
+   "network": "Viaplay",
+   "objectID": "series-457639",
+   "overview": "Vi følger Jesper Koch og de dedikerede medarbejder på Alsik i deres forberedelser op til julen 2024. Der er travlt op til en af sæsonens vigtigste måneder, hvor hotellet er fuldt belagt med mange arrangementer, som skal planlægges og afvikles.",
+   "overviews": {
+    "dan": "Vi følger Jesper Koch og de dedikerede medarbejder på Alsik i deres forberedelser op til julen 2024. Der er travlt op til en af sæsonens vigtigste måneder, hvor hotellet er fuldt belagt med mange arrangementer, som skal planlægges og afvikles."
+   },
+   "primary_language": "dan",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "279122",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "279122",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "kochen-pa-toppen-jul",
+   "status": "Continuing",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/457639/posters/6756e70cddfd9_t.jpg",
+   "translations": {
+    "dan": "Kochen på Toppen Jul",
+    "eng": "The Chef on Top Christmas"
+   },
+   "tvdb_id": "457639",
+   "type": "series",
+   "year": "2024"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2021-05-06",
+   "id": "series-401390",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/401390/posters/62929750ec75a.jpg",
+   "name": "That Damn Michael Che",
+   "network": "HBO Max",
+   "objectID": "series-401390",
+   "overview": "From the simple mind of Michael Che comes a groundbreaking new comedy series where each episode illustrates what it feels like to experience everyday situations including racial profiling, unemployment, falling in love, and more, from Michael's perspective.",
+   "overviews": {
+    "eng": "From the simple mind of Michael Che comes a groundbreaking new comedy series where each episode illustrates what it feels like to experience everyday situations including racial profiling, unemployment, falling in love, and more, from Michael's perspective.",
+    "fin": "Nerokkaan hulvaton Michael Che puhuu erilaisista aiheista omasta ainutlaatuisesta näkökulmastaan komediasarjansa tuottajana ja tähtenä.",
+    "spa": "Esta nueva e innovadora serie de comedia original utiliza bocetos y viñetas para ilustrar lo que se siente al experimentar diversas situaciones cotidianas, como la discriminación racial, el desempleo, el amor y otros temas, desde la perspectiva del cómico Michael Che."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "10.5240/F569-4831-C2C0-F783-C797-D",
+     "sourceName": "EIDR",
+     "type": 13
+    },
+    {
+     "id": "tt12762460",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "https://www.hbomax.com/that-damn-michael-che",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "124152",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "54861",
+     "sourceName": "TV Maze",
+     "type": 19
+    },
+    {
+     "id": "That_Damn_Michael_Che",
+     "sourceName": "Wikipedia",
+     "type": 24
+    }
+   ],
+   "slug": "that-damn-michael-che",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/401390/posters/62929750ec75a_t.jpg",
+   "translations": {
+    "eng": "That Damn Michael Che",
+    "spa": "El p*to Michael Che"
+   },
+   "tvdb_id": "401390",
+   "type": "series",
+   "year": "2021"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2012-10-18",
+   "id": "series-287238",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/287238-1.jpg",
+   "name": "Commander In Chief: Inside the Oval Office",
+   "network": "Military Channel",
+   "objectID": "series-287238",
+   "overview": "To truly understand a President's decision, one must know what it feels like to sit in the Oval Office with a ticking clock. We will uncover the fascinating details behind presidential decisions such as the Cuban Missile Crisis, The Gulf War and The Bin Laden Raid.",
+   "overviews": {
+    "deu": "Dreiteilige Dokumentation über die schwierigen Entscheidungen, die in Krisenzeiten im Weißen Haus in Washington, D.C. getroffen werden müssen.",
+    "eng": "To truly understand a President's decision, one must know what it feels like to sit in the Oval Office with a ticking clock. We will uncover the fascinating details behind presidential decisions such as the Cuban Missile Crisis, The Gulf War and The Bin Laden Raid."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt2892124",
+     "sourceName": "IMDB",
+     "type": 2
+    }
+   ],
+   "slug": "commander-in-chief-inside-the-oval-office",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/287238-1_t.jpg",
+   "translations": {
+    "deu": "Das Weiße Haus Top Secret",
+    "eng": "Commander In Chief: Inside the Oval Office"
+   },
+   "tvdb_id": "287238",
+   "type": "series",
+   "year": "2012"
+  },
+  {
+   "aliases": [
+    "Tom and Jerry (1940)",
+    "Tom és Jerry Mulatságos Kalandjai",
+    "Tom e Jerry"
+   ],
+   "country": "usa",
+   "first_air_time": "1940-02-10",
+   "id": "series-72860",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/72860-8.jpg",
+   "name": "Tom and Jerry",
+   "network": "CBS",
+   "objectID": "series-72860",
+   "overview": "This is all the Tom and Jerry shorts, from 1940 to 1967. The first 114 are from the Hanna-Barbera era (1940 – 1958), the next 13 are from the Gene Deitch era (1960 – 1962), and the last 34 are from the Chuck Jones era (1963 – 1967).",
+   "overviews": {
+    "bul": "Това са всички късометражни филми на Том и Джери от 1940 до 1967 г. Първите 114 са от ерата на Хана-Барбера (1940 – 1958), следващите 13 са от ерата на Джийн Дайч (1960 – 1962), а последните 34 са от ерата на Чък Джоунс (1963 – 1967).",
+    "ces": "Nerozlučné duo kocoura Toma a myšáka Jerryho spolu soupeří v tomto americkém animovaném seriálu ve 163 dílech. Tom se neustále snaží chytit vychytralého Jerryho, který se jen tak nedá a dělá hloupému kocourovi naschvály. Nakonec ale stejně všechno dobře dopadne a Tom a Jerry jsou zase \"kámoši jak hrom\".",
+    "che": "Nerozlučné duo kocoura Toma a myšáka Jerryho spolu soupeří v tomto americkém animovaném seriálu ve 163 dílech. Tom se neustále snaží chytit vychytralého Jerryho, který se jen tak nedá a dělá hloupému kocourovi naschvály. Nakonec ale stejně všechno dobře dopadne a Tom a Jerry jsou zase \"kámoši jak hrom\".",
+    "dan": "Tom er en kat, som altid jager den lille frække mus, Jerry, som også bor i huset. Hverken tricks, fælder eller stegepander af støbejern kan holde ham fra at jagte Jerry for at spise ham til frokost!\r\n\r\nHvem holder ikke af Tom og Jerry? Den dovne og elskelige Tom, som gerne ville sætte tænderne i Jerry, men aldrig helt er kvik nok til at fange ham! Jerry, som lever et hårdt museliv, mens han prøver at undgå at blive Toms næste måltid, men som også er meget snarrådig og opfindsom! Ud over hele tiden at blive narret af Jerry får Tom konstant ørerne i maskinen hos den lokale hund, Spike, og hans lille søn, Tyke, som begge to beskytter Jerry meget. Selv om du nok har medlidenhed med Tom, er det svært ikke at grine ad ham.",
+    "deu": "Tom und Jerry ist eine Serie von 161 kurzen Zeichentrickfilmen, die von 1940 bis 1967 fürs Kino produziert wurden. Die meisten Folgen handeln vom Versuch des Katers Tom, die Maus Jerry zu fangen, wobei sich skurrile Verfolgungsjagden und Zweikämpfe ergeben, in denen meistens die Maus die Oberhand behält.",
+    "eng": "This is all the Tom and Jerry shorts, from 1940 to 1967. The first 114 are from the Hanna-Barbera era (1940 – 1958), the next 13 are from the Gene Deitch era (1960 – 1962), and the last 34 are from the Chuck Jones era (1963 – 1967).",
+    "fin": "Hauskoja ja seikkailuja kissa- ja hiiritaisteluparin Tomin ja Jerryn seurassa.",
+    "fra": "Chacune de leur rencontre enclenche une course-poursuite dévastatrice. Ils cherchent chacun à faire le plus de misères à l'autre, avec tout ce qui leur tombe sous la patte. C'est généralement Tom qui commence la bagarre et Jerry qui la termine. De son côté, Jerry veut juste se débarrasser de Tom pour être enfin tranquille. Il leur arrive cependant de s'allier. Quand ils ont un ennemi commun (Butch ou Spike, par exemple) ils font la paix pour mettre le troisième hors d'état de nuire. Quand ils enterrent la hache de guerre, Tom et Jerry sont tous les deux vainqueurs, et même très complices. En bref, ils peuvent aussi bien être pires ennemis que meilleurs amis. Tom n'en n'a pas l'air, mais il a un grand cœur.",
+    "hun": "A Tom és Jerry (Tom and Jerry) egy sikeres és hosszú életű amerikai animációs sorozat, amelyet William Hanna, valamint Joseph Barbera írt és rendezett a Metro–Goldwyn–Mayer filmstúdió számára. Annyira népszerűvé vált a két figura, hogy még napjainkban is készítenek kisebb epizódokat, vagy egész estés filmeket. A sorozat epizódjai – számos egyéb kitüntetés mellett – összesen hét Oscar-díjat nyertek.",
+    "isl": "Þetta eru allar stuttmyndirnar um Tomma og Jenna, frá 1940 til 1967. Fyrstu 114 eru frá tímabilinu Hanna-Barbera (1940 – 1958), næstu 13 eru frá tímabilinu Gene Deitch (1960 – 1962) og síðustu 34 eru frá tímabilinu Chuck Jones (1963 – 1967).",
+    "ita": "Tom & Jerry è una serie animata di cortometraggi ideata negli anni '40 da William Hanna e Joseph Barbera per la Metro-Goldwyn-Mayer, che vede protagonista l'eterna rivalità tra un gatto domestico (Tom) ed  un topo (Jerry).",
+    "kor": "1940에서 1950년대 톰과 제리 티비 쇼.",
+    "nld": "Dit zijn alle Tom en Jerry korte films, van 1940 tot 1967. De eerste 114 zijn uit het Hanna-Barbera tijdperk (1940 - 1958), de volgende 13 zijn uit het Gene Deitch tijdperk (1960 - 1962), en de laatste 34 zijn uit het Chuck Jones tijdperk (1963 - 1967).",
+    "nor": "Tom er en katt som alltid jager den lille frekke musen Jerry, som også bor i huset. Ingenting kan stoppe ham fra å jage Jerry, men Jerry har mange lure knep på lur.",
+    "pol": "Przezabawna historia nieustannego konfliktu dwóch godnych siebie przeciwników... Tom i Jerry, mimo że bawią widzów od wielu lat, nie spoważnieli ani odrobinę wyprawiając wciąż swe niewiarygodne figle. Kreskówkowi ulubieńcy jak zwykle bawić nas będą szalonymi pościgami, wymyślnymi sztuczkami i przekomicznymi psotami. \r\nWersja polska: MASTER FILM na zlecenie CANALu+/WARNER BROS.\r\nUdział wzięli:\r\n    * Zbigniew Suszyński – Tom\r\n    * Teresa Lipowska – Pani Toma\r\n    * Stefan Knothe – Pies Spike\r\n    * Jacek Bursztynowicz – Pies Spike\r\n    * Henryk Łapiński – Konduktor Niebiańskiego Ekspresu\r\n    * Edyta Jungowska – Mała kaczuszka\r\n    * Andrzej Precigs - Pan Toma (odc. 109)\r\n    * Zofia Gładyszewska\r\n    * Marcin Jędrzejewski\r\n    * Krystyna Kozanecka\r\n    * Arkadiusz Jakubik\r\n    * Dariusz Odija\r\n    * Leszek Abrahamowicz\r\n    * Jolanta Wilk\r\n    * Mieczysław Morański\r\n",
+    "por": "Tom & Jerry é uma série animada de curta-metragens criada nos anos 40 por William Hanna e Joseph Barbera para a Metro-Goldwyn-Mayer, cujo o tema é a eterna rivalidade entre um gato doméstico (Tom) e um rato (Jerry).",
+    "pt": "Tom é um gato determinado, porém impaciente, cujo objetivo de vida é capturar o ratinho Jerry. Porém, o pequeno animal é inteligente e cheio de habilidades. O clássico desenho acompanha as loucas e eletrizantes perseguições entre gato e rato.",
+    "rus": "Дети всего мира с восторгом следят за приключениями шустрого мышонка Джерри и невезучего кота Тома. Самые яркие, увлекательные и захватывающие приключения неразлучных друзей-противников. Находчивые выходки героев этого мультфильма не дадут сдержаться от смеха ни одной минуты. Трудно поверить, но самый первый мультик с их участием появился аж в 1940 году. За свою, более чем 50-летнюю, бурную деятельность эти бестии перепробовали все мыслимые способы насолить друг другу, чем изрядно повеселили несколько поколений зрителей.",
+    "spa": "Tom y Jerry son dos personajes animados, un gato (Tom) y un ratón (Jerry), que protagonizaron un gran número de cortometrajes, escritos y dirigidos por William Hanna y Joseph Barbera (anterior a la fama de Hanna-Barbera). Las series fueron producidas por el estudio de Hollywood Metro-Goldwyn-Mayer desde 1940 hasta 1958, cuando el grupo de animación del estudio fue cerrado. MGM, en 1960, subcontrató la producción de Tom y Jerry a Rembrandt Films (dirigido por Gene Deitch) en Checoslovaquia. En 1963, la producción de los cortos de Tom y Jerry regresaron a Hollywood con Sib-Tower 12 Productions de Chuck Jones; estas series duraron hasta 1967. Tom y Jerry regresó luego en forma de caricaturas para la televisión por Hanna-Barbera (1975-1977; 1990-1993) y Filmation Studios (1980-1982). Los cortos de Hanna-Barbera son importantes por haber ganado siete premios Óscar, empatando con Silly Symphonies de Walt Disney como las series animadas con más premios.",
+    "swe": "Tom och Jerry är ett par tecknade figurer, bestående av katten Tom och musen Jerry. Paret skapades av MGM Cartoon Studios animatörduo William Hanna och Joseph Barbera för en serie av animerade kortfilmer, producerade åt filmbolaget Metro-Goldwyn-Mayer med start 1940.",
+    "ukr": "«Том і Джееррі» (англ. Tom and Jerry) — мультсеріал про взаємини кота Тома і миші Джеррі. Сюжет більшості серій мультфільму крутиться навколо марних спроб кота Тома спіймати мишу Джеррі, і на руйнування, які з цього випливають. Оскільки в деяких серіях персонажі досить мирно уживаються між собою, залишається незрозумілим, за що Том постійно переслідує Джеррі.",
+    "zho": "Chuck Jones团队1965-1972年间基于Hanna–Barbera在1940-1957年制作的114部影院版动画短片重新打包编辑的电视版《猫和老鼠》，并制作了新片头。其中还混有MGM出品的其他影院版动画短片如Droopy系列。 这一电视版曾于1990年代初在中央电视台播出过。",
+    "zhtw": "每一集短片通常都以湯姆為抓到傑瑞為主題，隨之而來的是對某些物品造成的各式各樣的破壞。湯姆很少戰勝過傑瑞。一般只有在傑瑞越過某些底線時，湯姆才得以擊敗傑瑞；傑瑞的狡猾則源於自衛本能的需要。《湯姆貓與傑利鼠》系列短片風靡世界與那些充滿破壞效果的過癮場面有很多關係，如傑瑞把湯姆切成了兩半，湯姆動用了包括斧頭、手槍、來福槍、炸藥甚至毒藥來試圖殺掉傑瑞，傑瑞把貓的尾巴塞進了鬆餅烘烤模裡面等等。\r\n\r\n在短片中，湯姆往往以一隻被主人嬌壞了的灰色（有時是藍灰色或灰藍色，它的皮毛顏色最接近於英國短毛貓）家貓形象出現，傑瑞是一隻常常和湯姆作鄰居的棕色小老鼠。湯姆易怒而敏感，傑瑞則獨立且投機。精力過剩而頑固的湯姆通常被擁有聰明大腦的傑瑞算計。基本上在每集動畫片的結尾，傑瑞都被表現為洋洋得意的勝利者，而湯姆則是悲壯的失敗者。但是，也有可能出現以下結局：在很少的情況下，湯姆會獲得勝利。有些時候，頗具諷刺意味的是，他們都失敗了。不過偶爾，特別是在聖誕節的時候，湯姆往往救了傑瑞的命，或者與傑瑞分享禮物。在大多的劇集中，它們每日的追逐被描繪為一種互相享受的例行公事：在某一個情節中，湯姆被一隻母貓所吸引，嫉妒的傑瑞不斷地破壞他們的浪漫情節，希望湯姆能看清母貓的真面目。湯姆最後感激地與傑瑞握手——然後又開始了他們永無止境的追逐。"
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt16311516",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "EP00004505",
+     "sourceName": "TMS (Zap2It)",
+     "type": 3
+    }
+   ],
+   "slug": "tom-and-jerry",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/72860-8_t.jpg",
+   "translations": {
+    "ara": "توم وجيري",
+    "bul": "Том и Джери",
+    "ces": "Tom a Jerry",
+    "che": "Tom a Jerry",
+    "dan": "Tom og Jerry",
+    "deu": "Tom und Jerry",
+    "eng": "Tom and Jerry",
+    "fin": "Tom ja Jerry",
+    "fra": "Tom et Jerry",
+    "hun": "Tom és Jerry",
+    "isl": "Tommi og Jenni",
+    "ita": "Tom & Jerry",
+    "kor": "톰과 제리",
+    "nld": "Tom en Jerry",
+    "nor": "Tom & Jerry",
+    "pol": "Tom i Jerry",
+    "por": "Tom & Jerry",
+    "pt": "Tom & Jerry",
+    "rus": "Том и Джерри",
+    "spa": "Tom y Jerry",
+    "swe": "Tom och Jerry",
+    "ukr": "Том і Джеррі",
+    "zho": "猫和老鼠",
+    "zhtw": "湯姆貓與傑利鼠"
+   },
+   "tvdb_id": "72860",
+   "type": "series",
+   "year": "1940"
+  },
+  {
+   "country": "fra",
+   "first_air_time": "2024-10-10",
+   "id": "series-455433",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/455433/posters/670a3827dea42.jpg",
+   "name": "Le meilleur pâtissier : qui réintégrera la tente ?",
+   "network": "M6",
+   "objectID": "series-455433",
+   "overview": "Accompagnée par Mohammed, demi-finaliste de la saison 10 du Meilleur Pâtissier, Noëmie Honiat, finaliste de Top chef en 2014 et juré de la meilleure boulangerie de France challenge les candidats éliminés de la compétition. Ces derniers s’affrontent sur des épreuves techniques de la pâtisserie dans le but de réintégrer le concours. Cette émission permet également de découvrir les coulisses du numéro diffusé en première partie de soirée ainsi qu’une rétrospective des 12 saisons précédentes.",
+   "overviews": {
+    "eng": "Accompanied by Mohammed, semi-finalist of season 10 of Le Meilleur Pâtissier, Noëmie Honiat, finalist of Top Chef in 2014 and judge of the best bakery in France challenges the candidates eliminated from the competition. The latter compete in technical pastry tests with the aim of re-entering the competition. This show also allows you to discover the behind the scenes of the number broadcast in prime time as well as a retrospective of the 12 previous seasons.",
+    "fra": "Accompagnée par Mohammed, demi-finaliste de la saison 10 du Meilleur Pâtissier, Noëmie Honiat, finaliste de Top chef en 2014 et juré de la meilleure boulangerie de France challenge les candidats éliminés de la compétition. Ces derniers s’affrontent sur des épreuves techniques de la pâtisserie dans le but de réintégrer le concours. Cette émission permet également de découvrir les coulisses du numéro diffusé en première partie de soirée ainsi qu’une rétrospective des 12 saisons précédentes."
+   },
+   "primary_language": "fra",
+   "primary_type": "series",
+   "slug": "le-meilleur-patissier-qui-reintegrera-la-tente",
+   "status": "Continuing",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/455433/posters/670a3827dea42_t.jpg",
+   "translations": {
+    "eng": "The best pastry chef: who will return to the tent?",
+    "fra": "Le meilleur pâtissier : qui réintégrera la tente ?"
+   },
+   "tvdb_id": "455433",
+   "type": "series",
+   "year": "2024"
+  },
+  {
+   "aliases": [
+    "Kühlschrank öffne dich!"
+   ],
+   "country": "deu",
+   "first_air_time": "2022-04-07",
+   "id": "series-418801",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/418801/posters/659d2cdc96253.jpg",
+   "name": "Kühlschrank öffne dich! - Das Duell der Kochprofis",
+   "network": "SAT.1",
+   "objectID": "series-418801",
+   "overview": "Profikoch Alexander Kumptner und „The Taste 2021“-Finalistin Hanna Reder stellen sich in der von Ruth Moschner moderierten Sendung einer ganz besonderen lukullischen Herausforderung. Als Team treten sie mit wechselnden Profikochduos in den Wettstreit. Ihre Aufgabe lautet: leckere Mahlzeiten zaubern – und zwar ausschließlich mit den Zutaten aus den Kühlschränken ihnen vollkommen fremder Haushalte. Die Entscheidung über Geschmackswohl oder -weh fällen entsprechend am Ende der Sendung auch die jeweiligen Kühlschrank-Besitzer. Wer dann die meisten Punkte gesammelt hat, geht als Siegerteam vom Herd.",
+   "overviews": {
+    "deu": "Profikoch Alexander Kumptner und „The Taste 2021“-Finalistin Hanna Reder stellen sich in der von Ruth Moschner moderierten Sendung einer ganz besonderen lukullischen Herausforderung. Als Team treten sie mit wechselnden Profikochduos in den Wettstreit. Ihre Aufgabe lautet: leckere Mahlzeiten zaubern – und zwar ausschließlich mit den Zutaten aus den Kühlschränken ihnen vollkommen fremder Haushalte. Die Entscheidung über Geschmackswohl oder -weh fällen entsprechend am Ende der Sendung auch die jeweiligen Kühlschrank-Besitzer. Wer dann die meisten Punkte gesammelt hat, geht als Siegerteam vom Herd.",
+    "eng": "Professional chef Alexander Kumptner and “The Taste 2021” finalist Hanna Reder take on a very special culinary challenge in the programme hosted by Ruth Moschner. Working as a team, they compete against a succession of professional chef duos. Their task is to conjure up delicious meals – using only ingredients from the fridges of households they know nothing about. At the end of the programme, the fridge owners themselves will decide whether the results are a culinary delight or a disaster. The team that has collected the most points will emerge as the winning team.",
+    "fra": "Le chef professionnel Alexander Kumptner et Hanna Reder, finaliste de «The Taste 2021», relèvent un défi culinaire tout à fait particulier dans cette émission animée par Ruth Moschner. En équipe, ils affrontent des duos de chefs professionnels qui changent à chaque fois. Leur mission: concocter de délicieux repas, en utilisant exclusivement les ingrédients contenus dans les réfrigérateurs de foyers qui leur sont totalement inconnus. À la fin de l'émission, ce sont donc les propriétaires des réfrigérateurs respectifs qui décident si le résultat est un délice ou un désastre gustatif. L'équipe qui aura récolté le plus de points remportera la victoire."
+   },
+   "primary_language": "deu",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt18359270",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "239527",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "kuehlschrank-oeffne-dich-das-duell-der-kochprofis",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/418801/posters/659d2cdc96253_t.jpg",
+   "translations": {
+    "deu": "Kühlschrank öffne dich! - Das Duell der Kochprofis",
+    "eng": "Open up, fridge! – The Battle of the Professional Chefs",
+    "fra": "Ouvre-toi, réfrigérateur! - Le duel des chefs professionnels"
+   },
+   "tvdb_id": "418801",
+   "type": "series",
+   "year": "2022"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2002-09-20",
+   "id": "series-78462",
+   "image_url": "https://artworks.thetvdb.com/banners/posters/78462-8.jpg",
+   "name": "What I Like About You",
+   "network": "The WB",
+   "objectID": "series-78462",
+   "overview": "When their dad took a job in Japan, teenage livewire Holly Tyler (Bynes) and her straitlaced twentysomething sister, Valerie (Garth), moved in together in New York City. Just when Val thought she had the perfect existence - a promising career in public relations, her own Upper West Side apartment and plenty of eligible men to date - everything in her neatly regimented life started to unravel the minute Holly stumbled through the door. Their new life together took a lot of getting used to, but Val and Holly's relationship is stronger than ever.",
+   "overviews": {
+    "ces": "Vždycky, když Holly někde zapustí kořeny, je její otec povýšen. Tentokrát by se musela stěhovat do Japonska, a tak se Holly rozhodne přesvědčit svou starší sestru Valerii, že by pro ni byla skvělou spolubydlící.",
+    "deu": "Die 16-jährige Holly Tyler hat es satt, immer wieder wegen ihres Vaters umziehen zu müssen. Als er einen Job in Japan annimmt, quartiert sie sich deshalb kurzerhand bei ihrer älteren Schwester Valerie in New York ein. Aber die hat nicht gerade auf einen quirligen Teenager gewartet, der ihr schön geordnetes Leben völlig auf den Kopf stellt...",
+    "eng": "When their dad took a job in Japan, teenage livewire Holly Tyler (Bynes) and her straitlaced twentysomething sister, Valerie (Garth), moved in together in New York City. Just when Val thought she had the perfect existence - a promising career in public relations, her own Upper West Side apartment and plenty of eligible men to date - everything in her neatly regimented life started to unravel the minute Holly stumbled through the door. Their new life together took a lot of getting used to, but Val and Holly's relationship is stronger than ever.",
+    "fra": "Experte en relation publique, Valerie Tyler se voit contrainte de partager son appartement avec sa jeune soeur lorsque leur père part travailler au Japon. La fraîcheur et l'insouciance de Holly s'opposent au sérieux de Valerie.",
+    "heb": "אחיות או לא להיות הינה קומדית מצבים אמריקאית בכיכובן של אמנדה ביינס וג'ני גארת' שרצה בין השנים 2002 עד 2006. בישראל שודרה בערוץ הילדים. בפרק הראשון של הסדרה אבא של הולי עובר ליפן והולי נאלצת להישאר לגור עם סבתא שלה. הולי מתנגדת לכך ומבקשת לגור עם אחותה הגדולה, ואלרי. הולי מנסה להשתלב בחייה של אחותה הגדולה אך מתקשה לבצע זאת, ובדרך גורמת בעיות וצרות לה ולאחותה.",
+    "jpn": "性格が正反対の仲良し姉妹バレリーとホリーの痛快マンハッタン生活を綴る爆笑コメディー。",
+    "pol": "Pewnego dnia w drzwiach apartamentu pracoholiczki Valerie Tyler staje jej szesnastoletnia siostra Holly. Ojciec obydwu wyjechał w interesach do Japonii, a opiekę nad żywiołową nastolatką powierzył starszej z sióstr. Czy Val uda się zapanować nad energiczną Holly?",
+    "pt": "Tudo se inicia quando o pai de duas jovens aceita um emprego no Japão. Holly vai morar em Nova York com Valerie, sua irmã mais velha e conservadora, mudando sua rotina completamente.\r\n",
+    "rus": "После того, как отец 16-летней Холли и 28-летней Валери едет работать в Японию, старшей сестре приходится присматривать за своей неудачливой младшей. Налаженная жизнь, многообещающая карьера, деловые связи и отношения с мужчинами начинают рушиться прямо на глазах. И Холли, и Валери приходится ко многому привыкать, практически начиная жизнь заново, чтобы приспособиться друг к другу.",
+    "spa": "Sitcom que narra la difícil convivencia entre dos hermanas, de caracteres muy diferentes, a quienes las circunstancias las llevan a ser compañeras de piso. Amanda Bynes es Holly, la hermana pequeña con tan sólo 16 años; y Jennie Gart (Kelly en la popular serie de los noventa \"Sensación de Vivir\") es Valerie, que ya tiene 28 años y una vida muy ordenada."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt0321018",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "33",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "EP00524491",
+     "sourceName": "TMS (Zap2It)",
+     "type": 3
+    }
+   ],
+   "slug": "what-i-like-about-you",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/posters/78462-8_t.jpg",
+   "translations": {
+    "ces": "Co mám na tobě ráda",
+    "deu": "Hallo Holly!",
+    "eng": "What I Like About You",
+    "fra": "Ce que j'aime chez toi",
+    "heb": "אחיות או לא להיות",
+    "hun": "Tesóm nyakán",
+    "ita": "Le cose che amo di te",
+    "jpn": "恋するマンハッタン",
+    "pol": "Siostrzyczki",
+    "pt": "Coisas que Eu Odeio em Você",
+    "rus": "Все лучшее в тебе",
+    "spa": "Lo que me gusta de ti"
+   },
+   "tvdb_id": "78462",
+   "type": "series",
+   "year": "2002"
+  },
+  {
+   "country": "usa",
+   "first_air_time": "2022-04-24",
+   "id": "series-414721",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/414721/posters/6262fd0cbd8ec.jpg",
+   "name": "The Man Who Fell to Earth",
+   "network": "Paramount+ with Showtime",
+   "objectID": "series-414721",
+   "overview": "An extraterrestrial alien arrives on Earth at a turning point in human evolution and must confront his own past to determine our future.",
+   "overviews": {
+    "deu": "Ein Außerirdischer kommt an einem Wendepunkt in der menschlichen Evolution auf die Erde und muss sich seiner eigenen Vergangenheit stellen, um unsere Zukunft zu bestimmen.",
+    "ell": "Ένας εξωγήινος φθάνει στη Γη σε μια πολύ σημαντική στιγμή της ανθρώπινης εξέλιξης και θα πρέπει να αντιμετωπίσει το δικό του παρελθόν για να καθορίσει το δικό μας μέλλον.",
+    "eng": "An extraterrestrial alien arrives on Earth at a turning point in human evolution and must confront his own past to determine our future.",
+    "fin": "Ulkoavaruuden matkaaja saapuu saapuu keskuuteemme ihmiskunnan evoluution käännekohdassa. Olennolla on tehtävä: hänen pitää oppia olemaan ihminen ja löytää henkilö, joka pystyy pelastamaan hänen lajinsa sotien runtelemalta ja rutikuivalta kotiplaneetalta. Löydettyään etsimänsä, tiedenainen Justin Fallsin,  hänen on kohdattava ensin oma menneisyytensä, jotta hän voi määritellä mahdollisen yhteisen tulevaisuutemme. Yhdessä he huomaavat, että sitä varten heidän pitää pelastaa ensin Maa.\r\n\r\nThe Man Who Fell to Earth -sarja perustuu Walter Tevisin vuoden 1963 saman nimisesen romaaniin ja ammentaa vaikutteita Nicolas Roegin ohjaamasta vuoden 1976 elokuva-adaptaatiosta, jonka pääosassa nähtiin David Bowie avaruudesta saapuvana muukalaisena. \r\n\r\n",
+    "fra": "Un extraterrestre débarque sur la planète Terre à un tournant de l'évolution humaine et doit faire face à son propre passé pour déterminer notre avenir.",
+    "heb": "סדרת מד\"ב השואבת את רעיונה מהסרט \"האיש שנפל מכוכב אחר\" משנת 1976, בו כיכב הזמר האגדי דיוויד בואי. חייזר מגיע לכדור הארץ עם משימה: ללמוד להיות אנושי ולמצוא את המדענית האחת שיכולה לעזור להציל את המין שלו. יחד הם מגלים שכדי להציל את עולמו, עליהם קודם כל להציל את העולם שלנו.",
+    "ita": "Un alieno (Chiwetel Ejiofor) arriva sulla Terra con una missione: imparare a diventare umano e trovare la donna (Naomie Harris) che può aiutarlo a salvare la sua specie. Insieme scoprono che per poter salvare il suo mondo devono prima salvare il nostro.",
+    "nld": "Een alien strijkt neer in de olievelden van New Mexico met een missie: hij moet de briljante wetenschapper Justin Falls vinden, de enige vrouw op aarde die kan helpen zijn soort te redden. Zelfs terwijl hij worstelt om zich aan te passen aan onze wereld en meer 'menselijk' te worden, kon haar vertrouwen in de mensheid niet lager zijn. Samen ontdekken ze dat om zijn wereld te redden, ze eerst haar wereld moeten redden.",
+    "pt": "Um alienígena cai na terra com uma missão: aprender a ser humano e encontrar a única mulher que pode ajudar a salvar sua espécie. Juntos descobrem que para salvar o mundo dele, eles devem primeiro salvar o nosso.",
+    "rus": "Бывшая учёная и мать-одиночка Джастин Фоллс, которая пытается воспитать дочь-подростка и сохранить дом, становится свидетельницей падения человека с неба. Им оказывается инопланетянин, ищущий способ спасти погибающую родную планету.",
+    "spa": "The Man Who Fell To Earth' sigue a un personaje alienígena que llega a la Tierra en un punto de inflexión en la evolución humana y debe enfrentarse a su propio pasado para determinar nuestro futuro. Naomie Harris interpreta a Justin Falls, una brillante científica e ingeniera que debe enfrentarse a sus propios demonios en su intento por salvar dos mundos.",
+    "tur": "İnsan evriminde bir dönüm noktasında Dünya'ya gelen bir uzaylı geleceğimiz belirlemek için kendi geçmişiyle yüzleşmek zorunda kalır."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "10.5240/4D96-88B0-B924-8BE9-3849-X",
+     "sourceName": "EIDR",
+     "type": 13
+    },
+    {
+     "id": "tt10758074",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "https://www.sho.com/the-man-who-fell-to-earth",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "118663",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "43235",
+     "sourceName": "TV Maze",
+     "type": 19
+    },
+    {
+     "id": "The_Man_Who_Fell_to_Earth_(TV_series)",
+     "sourceName": "Wikipedia",
+     "type": 24
+    }
+   ],
+   "slug": "the-man-who-fell-to-earth",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/414721/posters/6262fd0cbd8ec_t.jpg",
+   "translations": {
+    "deu": "The Man Who Fell to Earth",
+    "ell": "The Man Who Fell to Earth",
+    "eng": "The Man Who Fell to Earth",
+    "fin": "The Man Who Fell To Earth",
+    "fra": "The Man Who Fell to Earth",
+    "heb": "האיש שנפל מכוכב אחר",
+    "ita": "L'uomo che cadde sulla Terra",
+    "nld": "The Man Who Fell to Earth",
+    "pt": "The Man Who Fell to Earth",
+    "rus": "Человек, который упал на Землю",
+    "spa": "El hombre que cayó a la Tierra",
+    "tur": "The Man Who Fell to Earth"
+   },
+   "tvdb_id": "414721",
+   "type": "series",
+   "year": "2022"
+  },
+  {
+   "aliases": [
+    "I Hate Being in Pain, so I Think I'll Make a Full Defense Build",
+    "I Hate Getting Hurt, so I Put All My Skill Points Into Defense",
+    "I Do Not Want Pain, so I Would Like to Focus on Defense",
+    "Bofuri",
+    "防振り",
+    "Itai no wa Iya nano de Bōgyoryoku ni Kyokufuri Shitai to Omoimasu.",
+    "Itai no wa Iya nano de Bougyoryoku ni Kyokufuri Shitai to Omoimasu.",
+    "Bofuri",
+    "怕痛的我，把防御力点满就对了",
+    "No quiero hacerme daño, así que subiré al máximo mi defensa",
+    "I Hate Being in Pain, So I Think I'll Make a Full Defense Build.",
+    "I Hate Getting Hurt, So I Put All My Skill Points Into Defense.",
+    "Itai no wa Iya nano de Bougyoryoku ni Kyokufuri Shitai to Omoimasu",
+    "Не люблю боль, поэтому собираюсь вкачать всё в защиту"
+   ],
+   "country": "jpn",
+   "first_air_time": "2020-01-08",
+   "id": "series-373679",
+   "image_url": "https://artworks.thetvdb.com/banners/series/373679/posters/62033476.jpg",
+   "name": "痛いのは嫌なので防御力に極振りしたいと思います。",
+   "network": "AT-X",
+   "objectID": "series-373679",
+   "overview": "本庄楓は友達の白峰りさに誘われてバーチャルリアリティMMOゲームを一緒にプレイ。 楓はゲームが嫌いではありませんが、彼女が本当に嫌いなのは苦しんでいることです。 彼女はMapleという名前のキャラクターを作成し、痛みを最小限に抑えるためにすべてのポイントをVITに入れることにしました。 その結果、彼女はゆっくりと動き、魔法を使うことができず、ウサギでさえ彼女を最大限に活用することができます。 しかし、結局のところ、彼女はVITにポイントを送り込むことで「絶対防御」と呼ばれるスキルと、特殊な動きに対抗する「カウンタースキル」を習得します。 今、彼女はすべてのダメージを無効にする能力を持って、冒険に出かけます。",
+   "overviews": {
+    "ara": "دُعيت كايدي هونجو من قبل صديقتها ريسا شيرامين للعب لعبة واقع افتراضي MMO معها. في حين أن كايدي لا تكره الألعاب، إلا أن ما لا تحبه حقًا هو الشعور بالألم. ابتكرت شخصية تدعى مابل، وقررت أن تضع كل نقاطها في VIT لتقليل الألم. ونتيجة لذلك، فهي تتحرك ببطء، ولا يمكنها استخدام السحر، وحتى الأرنب يمكنه أن ينال منها. ولكن كما اتضح، اكتسبت مهارة تُعرف باسم \"الدفاع المطلق\" نتيجة لضخها نقاطًا في VIT، بالإضافة إلى \"مهارة مضادة\" تعمل ضد الحركات الخاصة. والآن، مع قدرتها على إبطال كل الأضرار، تنطلق في مغامراتها.",
+    "deu": "Kaede Honjou wird von ihrer Freundin Risa Shiramine eingeladen, das Virtual-Reality-MMO-Spiel New World Online mit ihr zu spielen. Kaede hat eigentlich nichts gegen Spiele, was sie aber wirklich nicht ausstehen kann sind Schmerzen. So erstellt sie eine Figur namens Maple und beschließt, alle ihre Punkte in die Verteidigung zu investieren, um so die Schmerzen zu minimieren. Als Folge kann sie sich nur noch langsam bewegen und keine Magie mehr wirken. Aber gerade weil sie alle ihre Punkte in die Verteidigung investiert hat, erwirbt sie eine Fähigkeit, die als „absolute Verteidigung“ bekannt ist sowie einen „Counter Skill“, der es ihr erlaubt, einen Gegner mit nur einem Treffer zu töten. Mit ihrer Fähigkeit, den gesamten Schaden aufzuheben, beginnt sie jetzt ihr Abenteuer.",
+    "eng": "Kaede Honjou is invited by her friend Risa Shiramine to play a virtual reality MMO game with her. While Kaede doesn't dislike games, what she really, truly dislikes is being in pain. She creates a character named Maple, and decides to put all her points in VIT to minimize pain. As a result, she moves slowly, can't use magic, and even a rabbit can get the best of her. But as it turns out, she acquires a skill known as \"Absolute Defense\" as a result of her pumping points into VIT, as well as a \"Counter Skill\" that works against special moves. Now, with her ability to nullify all damage, she goes on adventures.",
+    "fra": "Un nouveau gros joueur est apparu sur le fameux VRMMO NewWorld Online ! \r\n\r\nAucune attaque ne peut l’atteindre, et grâce à son talent de poison létal, les monstres comme les autres joueurs se font tous démolir !\r\nQui se cache derrière ce personnage qui, de par son style de combat original, se fait surnommer « la forteresse vivante » ou encore « le boss final » ? Une jeune fille débutante ! \r\n\r\nMaple commence à peine le jeu, sur les conseils de son amie Sally.\r\nN’y connaissant pas grand-chose, elle a mis tous ses premiers points de compétence en VIT (défense). Dès qu’elle a rencontré des petits monstres de base, elle s’est fait ridiculiser… mais ça ne lui a pas fait le moindre mal ? \r\n\r\nIls ont beau l’envoyer valser, elle ne reçoit aucun dégât ! En plus, elle a eu la chance de tomber sur une compétence de contre qui tue l’ennemi en un coup. \r\n\r\nEt grâce à l’aide de camarades aux mêmes préférences qu’elle, Maple ne va cesser de progresser. \r\nQue l’aventure à zéro dégât commence !",
+    "ita": "Kaede Honjou è stata invitata dalla sua amica Risa Shiromine a giocare ad un nuovo VRMMO New World Online, ma non essendo molto esperta e non amando il dolore, sceglie come arma un grosso scudo per difendersi. Eppure le basta questo per sconfiggere nemici su nemici e salire di livello. Senza che se ne renda conto, l'incredibile \"ragazza con lo scudo\", la Tank Maple, è già sulla bocca di tutti!",
+    "jpn": "本庄楓は友達の白峰りさに誘われてバーチャルリアリティMMOゲームを一緒にプレイ。 楓はゲームが嫌いではありませんが、彼女が本当に嫌いなのは苦しんでいることです。 彼女はMapleという名前のキャラクターを作成し、痛みを最小限に抑えるためにすべてのポイントをVITに入れることにしました。 その結果、彼女はゆっくりと動き、魔法を使うことができず、ウサギでさえ彼女を最大限に活用することができます。 しかし、結局のところ、彼女はVITにポイントを送り込むことで「絶対防御」と呼ばれるスキルと、特殊な動きに対抗する「カウンタースキル」を習得します。 今、彼女はすべてのダメージを無効にする能力を持って、冒険に出かけます。",
+    "kor": "친구가 같이 하자는 말에 시작한 VRMMORPG. ‘메이플’이라는 이름으로 가상현실에 접속한 카에데는 뭐가 뭔지 하나도 몰라, 스테이터스를 모두 VIT(방어력)에 투자하고 마는데…\r\n\r\n보통이라면 아무도 고르지 않은 방어 특화의 길. 하지만 그것이 메이플의 특이함과 맞물려 ‘절대방어’라는 스킬을 낳고, 어지간한 일로는 데미지가 1도 들어가지 않는 철벽의 최강 캐릭터를 탄생시켰다?!\r\n\r\n순진무구한 온라인 게임 초보 메이플이 방어력에 올인하는 특이한 플레이를 하면서 벌어 지는 웃기고, 신기하고, 가슴 후련한 이야기!",
+    "pol": "Honjou Kaede zostaje zaproszona przez swoją przyjaciółkę Risę Shiramine do rozpoczęcia gry w VRMMO. Kaede bardzo boi się bólu, dlatego tworzy postać Maple, której daje maksymalną ilość punktów w obronę. Jak można się spodziewać, jej postać jest przez to słaba... Porusza się powoli, nie zadaje prawie żadnych obrażeń. Nawet zwykły królik stanowi większe zagrożenie od niej. Jednak z czasem dziewczyna zyskuje pewną umiejętność Obrony Absolutnej, a także Kontry, która działa na umiejętności specjalne. Teraz z jej nowymi umiejętnościami niwelującymi obrażenia Kaede wyrusza na przygodę!",
+    "por": "Depois de receber um convite de sua amiga Risa Shiromine, Kaede Honjou começa a jogar o VRMMO New World Online como o personagem Maple. Sem conhecimento do jogo, ela coloca todos os pontos de status em defesa. Como resultado, seus movimentos são lentos, ela não pode usar magia e é atacada até pelos coelhos. No entanto, ela obtém uma habilidade chamada \"Defesa Absoluta\" por maximizar seus pontos de vitalidade e uma habilidade de contra-ataque que mata com um único golpe. Uma iniciante no \"estilo fortaleza móvel\", com uma habilidade que invalida todos os ataques e supera todos os obstáculos, ela parte para aventuras, desconsiderando suas irregularidades.",
+    "pt": "Honjou Kaede é convidada por sua amiga Shiramine Risa para jogar um jogo MMO de realidade virtual com ela. Enquanto Kaede não gosta de jogos, o que ela realmente não gosta é de sentir dor. Ela cria um personagem chamado Maple e decide colocar todos os seus pontos no VIT para minimizar a dor. Como resultado, ela se move lentamente, não pode usar mágica e até um coelho pode tirar o melhor dela. Mas, como se vê, ela adquire uma habilidade conhecida como \"Defesa Absoluta\" como resultado de seus pontos de bombeamento no VIT, bem como uma \"Contra Habilidade\" que funciona contra movimentos especiais. Agora, com sua capacidade de anular todo o dano, ela parte em aventuras.",
+    "rus": "Получив приглашение от своей подруги Рисы Сироминэ, Каэдэ Хондзё погружается в VRMMO-игру «New World Online» в роли персонажа Мейпл. Не имея ни малейшего представления о том, как играть в эту игру, она расходует все свои очки навыков на защиту. В результате её движения становятся медленными, Каэдэ не может использовать магию и даже подвергается нападению кроликов. Тем не менее благодаря такому распределению своих очков она получает навык под названием «Абсолютная защита», который убивает одним ударом и полностью блокирует атаки врага. Так Каэдэ, играя в стиле «мобильной крепости», отправляется навстречу приключениям.",
+    "spa": "La historia se centra en Kaede Honjou, quien es invitada por su amiga Risa Shiramine para jugar un juego MMO de realidad virtual con ella. Si bien a Kaede no le gustan los juegos, lo que realmente le disgusta es tener dolor. Ella crea un personaje llamado Maple, y decide poner todos sus puntos en VIT para minimizar el dolor. Como resultado, se mueve lentamente, no puede usar magia, e incluso un conejo puede sacar lo mejor de ella. Pero resulta que ella adquiere una habilidad desconocida llamada \"Defensa total\" como resultado de poner todos sus puntos en VIT, así como una \"Habilidad de contraataque\" que funciona contra movimientos especiales. Ahora, con su gran habilidad para anular todo daño existente, se embarcara en el inicio de sus aventuras.",
+    "zho": "大受欢迎的VRMMO“NewWorld Online”出现了超强新人？\r\n\r\n能让所有攻击失效，以致死毒的技能彻底蹂躏怪物和玩家！那不寻常的战斗英姿，被称之为“移动要塞”或“最终魔王”。而那位玩家的真面目，居然是一名菜鸟美少女。\r\n\r\n想要隐瞒什么的梅普露，在朋友莎莉的推荐下，刚刚开始玩游戏。缺乏游戏常识的她，把属性点点在防御力上点满了，尽管一开始被小喽啰怪物耍得团团转，然而……\r\n“不……痛！？”\r\n即使被怪物拳打脚踢也毫无损伤，更走运的是，还得到了一击必杀的反击技能。\r\n非比寻常的同伴们加入，梅普露也渐渐变强。毫发无伤的大冒险，正式拉开序幕。",
+    "zhtw": "作為遊戲初學者，梅普露選擇了不受歡迎的大盾當武器，並因為怕痛而將所有資源用於增進防禦能力，這種形式讓她學到了各種特殊技能並取得罕見裝備，進而在遊戲中創下傳說。"
+   },
+   "primary_language": "jpn",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "https://bofuri.fandom.com/wiki/I_Don%27t_Want_to_Get_Hurt,_so_I%27ll_Max_Out_My_Defense_Wiki",
+     "sourceName": "Fan Site",
+     "type": 8
+    },
+    {
+     "id": "tt11428630",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "https://bofuri.jp/",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "BoFuri",
+     "sourceName": "Reddit",
+     "type": 7
+    },
+    {
+     "id": "96402",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    },
+    {
+     "id": "bofuri_anime",
+     "sourceName": "X (Twitter)",
+     "type": 6
+    },
+    {
+     "id": "Q91320001",
+     "sourceName": "Wikidata",
+     "type": 18
+    },
+    {
+     "id": "Bofuri",
+     "sourceName": "Wikipedia",
+     "type": 24
+    }
+   ],
+   "slug": "i-do-not-want-pain-so-i-would-like-to-focus-on-defense",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/series/373679/posters/62033476_t.jpg",
+   "translations": {
+    "afr": "Bofuri",
+    "ara": "لا أريد أن أتأذى، لذلك سأصقل دفاعي",
+    "deu": "BOFURI: I Don’t Want to Get Hurt, so I’ll Max Out My Defense.",
+    "eng": "Bofuri: I Don't Want to Get Hurt, so I'll Max Out My Defense",
+    "fra": "BOFURI: Je suis pas venue ici pour souffrir alors j'ai tout mis en défense.",
+    "ita": "BOFURI - Dato che non sopporto il dolore, metterò tutti i punti in difesa",
+    "jpn": "痛いのは嫌なので防御力に極振りしたいと思います。",
+    "kor": "아픈 건 싫으니까 방어력에 올인하려고 합니다.",
+    "pol": "Itai no wa Iya nano de Bougyoryoku ni Kyokufuri Shitai to Omoimasu",
+    "por": "BOFURI: I Don't Want to Get Hurt, so I'll Max Out My Defense.",
+    "pt": "BOFURI: I Don't Want to Get Hurt, so I'll Max Out My Defense.",
+    "rus": "Не люблю боль, поэтому собираюсь вложить всё в защиту",
+    "spa": "Itai no wa Iya nano de Bougyoryoku ni Kyokufuri Shitai to Omoimasu",
+    "zho": "因为太怕痛就全点防御力了",
+    "zhtw": "怕痛的我，把防禦力點滿就對了"
+   },
+   "tvdb_id": "373679",
+   "type": "series",
+   "year": "2020"
+  },
+  {
+   "aliases": [
+    "Как стать криминальным авторитетом"
+   ],
+   "country": "usa",
+   "first_air_time": "2023-11-14",
+   "id": "series-441098",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/441098/posters/654666557eb21.jpg",
+   "name": "How to Become a Mob Boss ",
+   "network": "Netflix",
+   "objectID": "series-441098",
+   "overview": "This darkly satirical how-to guide explores the rise and fall of history's most notorious mob bosses and their tactics for success.",
+   "overviews": {
+    "deu": "Erzähler Peter Dinklage führt durch diesen schwarzhumorig-satirischen How-To-Leitfaden über den Aufstieg und Fall der berüchtigtsten Mafiabosse der Welt – von Al Capone bis Pablo Escobar – und deren Erfolgsstrategien.",
+    "eng": "This darkly satirical how-to guide explores the rise and fall of history's most notorious mob bosses and their tactics for success.",
+    "fin": "Mustan huumorin ryydittämä satiirinen sarja kertoo historian surullisenkuuluisimpien mafiapomojen noususta, tuhosta ja taktiikoista heidän valtansa taustalla.",
+    "fra": "Sous forme de guide sombre et satirique, cette série explore l'ascension et la chute des gangsters les plus célèbres de l'histoire, ainsi que leurs tactiques pour réussir.",
+    "hun": "A fekete humorral fűszerezett útmutató végigvezet a történelem leghírhedtebb maffiózóinak felemelkedésén és bukásán, megvizsgálva a sikereik mögött húzódó stratégiát.",
+    "ita": "Questa guida sinistramente satirica esplora l'ascesa e la caduta dei boss della criminalità più famosi della storia, oltre alle loro tattiche per raggiungere il successo.",
+    "pt": "Este guia satírico e sombrio mostra a ascensão e queda dos líderes criminosos mais famosos da história e as táticas que usaram para ter sucesso.",
+    "rus": "В этом мрачно-сатирическом проекте авторы исследуют взлеты и падения самых известных мафиозных боссов в истории, от Аль Капоне до Пабло Эскобара, и их тактики успеха, показывая их в виде учебника с советами начинающему мафиози. Сериал приоткрывает завесу над темным миром организованной преступности и предлагает провокационный и поучительный рассказ об опасностях стремления к власти любой ценой.",
+    "spa": "Esta guía satírica analiza el ascenso y la caída de los capos mafiosos más famosos de la historia y las estrategias que usaron para triunfar",
+    "tur": "Kılavuz tarzındaki bu karanlık ve hiciv dolu yapımda, tarihteki ünlü mafya babalarının yükselişleri ve çöküşlerinin yanı sıra, onları başarıya ulaştıran taktikler irdeleniyor."
+   },
+   "primary_language": "eng",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "tt29541632",
+     "sourceName": "IMDB",
+     "type": 2
+    },
+    {
+     "id": "https://www.netflix.com/title/81596971",
+     "sourceName": "Official Website",
+     "type": 4
+    },
+    {
+     "id": "237458",
+     "sourceName": "TheMovieDB.com",
+     "type": 12
+    }
+   ],
+   "slug": "how-to-become-a-mob-boss",
+   "status": "Ended",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/441098/posters/654666557eb21_t.jpg",
+   "translations": {
+    "deu": "How to Become a Mob Boss",
+    "eng": "How to Become a Mob Boss ",
+    "fin": "Näin tullaan mafiapomoksi",
+    "fra": "Le Parcours des gangsters",
+    "hun": "Hogyan váljunk maffiafőnökké",
+    "ita": "Come diventare boss della criminalità",
+    "pt": "Como Se Tornar um Chefe do Crime",
+    "rus": "Как стать боссом мафии",
+    "spa": "Cómo se convirtieron en capos de la mafia",
+    "tur": "Mafya Babası Nasıl Olunur?"
+   },
+   "tvdb_id": "441098",
+   "type": "series",
+   "year": "2023"
+  },
+  {
+   "country": "deu",
+   "first_air_time": "2025-06-18",
+   "id": "series-465752",
+   "image_url": "https://artworks.thetvdb.com/banners/v4/series/465752/posters/6963971546fab.jpg",
+   "name": "Stimmt es, dass ...?",
+   "network": "Arte",
+   "objectID": "series-465752",
+   "overview": "Hat die Demokratie ihren Ursprung in Griechenland? War die Pest die schlimmste Epidemie aller Zeiten? Und haben wir früher wirklich härter gearbeitet als heute? Das Geschichtsmagazin \"Stimmt es, dass ...?\" hinterfragt, was wir zu wissen glauben und erzählt Geschichte und die Geschichten dahinter neu – abseits von Eurozentrismus und hartnäckigen Klischees.",
+   "overviews": {
+    "deu": "Hat die Demokratie ihren Ursprung in Griechenland? War die Pest die schlimmste Epidemie aller Zeiten? Und haben wir früher wirklich härter gearbeitet als heute? Das Geschichtsmagazin \"Stimmt es, dass ...?\" hinterfragt, was wir zu wissen glauben und erzählt Geschichte und die Geschichten dahinter neu – abseits von Eurozentrismus und hartnäckigen Klischees.",
+    "eng": "Did democracy actually originate in Greece? Was the plague the worst epidemic of all time? And did we really work harder in the past than we do today? Is it true that ...? questions what we think we know and takes another look at history.",
+    "fra": "Le nouveau format pour démystifier l'Histoire. La démocratie est-elle née en Grèce ? La peste fut-elle la pire épidémie ? Travaillions-nous plus avant ? Le rendez-vous d’Histoire « Est-il vrai que ... ? » remet en question nos certitudes et dévoile les histoires cachées derrière l'Histoire, loin de l’eurocentrisme et des clichés persistants.",
+    "ita": "La democrazia è davvero nata nell'Antica Grecia? La peste fu la peggiore tra le epidemie? In passato gli esseri umani lavoravano di più? Per allontanarsi dai persistenti luoghi comuni in voga nel mondo occidentale, questa serie mette in discussione le nostre più salde certezze, svelando la Realtà dietro la Storia.",
+    "pol": "Czy demokracja narodziła się w Grecji? Czy pracujemy mniej niż kiedyś? Jaka pandemia była najgorsza? Wydaje ci się, że znasz odpowiedzi na te pytania? Pokazujemy, że historia jest nie tylko bardziej skomplikowana, ale też dużo ciekawsza!",
+    "spa": "¿Nació la democracia en Grecia? ¿Fue la peste la peor epidemia? ¿Trabajábamos más antes? Lejos del eurocentrismo y de los tópicos persistentes, el programa \"¿Es cierto que...?\" pone en cuestión nuestras certezas y revela las historias que se esconden detrás de la historia."
+   },
+   "primary_language": "deu",
+   "primary_type": "series",
+   "remote_ids": [
+    {
+     "id": "https://www.arte.tv/fr/videos/RC-026488/est-il-vrai-que/",
+     "sourceName": "Official Website",
+     "type": 4
+    }
+   ],
+   "slug": "est-il-vrai-que",
+   "status": "Continuing",
+   "thumbnail": "https://artworks.thetvdb.com/banners/v4/series/465752/posters/6963971546fab_t.jpg",
+   "translations": {
+    "deu": "Stimmt es, dass ...?",
+    "eng": "Is It True That...?",
+    "fra": "Est-il vrai que... ?",
+    "ita": "È vero che...?",
+    "pol": "Czy to prawda, że...?",
+    "spa": "¿Es cierto que..."
+   },
+   "tvdb_id": "465752",
+   "type": "series",
+   "year": "2025"
+  }
+ ],
+ "links": {
+  "next": null,
+  "page_size": 50,
+  "prev": null,
+  "self": "https://api4.thetvdb.com/v4/search?query=top chef&type=series&limit=50&page=0",
+  "total_items": 49
+ },
+ "status": "success"
+}

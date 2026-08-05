@@ -767,27 +767,34 @@ def search_media(
         default=None,
         description="Restrict to movies or TV; omit to search both.",
     ),
+    offset: int = Query(default=0, ge=0, description="Zero-based index of the first result."),
+    limit: int = Query(default=20, ge=1, le=100, description="Maximum results to return."),
 ) -> MediaSearchResponse:
     """Search live providers for media to follow (add-by-search, OBJ3).
 
-    Read-only: builds per-request provider clients and delegates to the same
-    detailed confidence matchers the decisions search uses, tagging each result
-    with its ``kind``. Results are merged across the requested kind(s) and
-    sorted best-score-first.
+    Read-only: builds per-request provider clients and ranks their results with the
+    RETRIEVAL engine (:mod:`personalscraper.scraper.search_ranking`) — not the
+    scrape matcher, whose anti-false-positive guards are correct for identifying a
+    release folder and wrong for a keyword query.
+
+    The response carries the TOTAL number of ranked candidates alongside the page,
+    so the caller can tell "these are all of them" from "these are the first few".
 
     Args:
         request: The incoming FastAPI request.
         q: The title to search for.
         kind: Optional ``"movie"``/``"tv"`` restriction (both when omitted).
+        offset: Zero-based index of the first result to return.
+        limit: Maximum number of results to return (1-100).
 
     Returns:
-        A :class:`MediaSearchResponse` with the scored matches.
+        A :class:`MediaSearchResponse` with the requested page and the total.
 
     Raises:
         HTTPException: 502 on provider registry build or provider API failure.
     """
     with scoped_provider_clients(request) as (tmdb_client, tvdb_client):
-        return run_media_search(request, tmdb_client, tvdb_client, q, kind)
+        return run_media_search(request, tmdb_client, tvdb_client, q, kind, offset=offset, limit=limit)
 
 
 @router.post(

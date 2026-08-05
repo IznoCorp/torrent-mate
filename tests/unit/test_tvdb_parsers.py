@@ -127,6 +127,52 @@ class TestParseSearchResult:
         items = unwrap(data)
         assert items == []
 
+    def test_search_exposes_external_ids(self) -> None:
+        """TVDB search items carry remote_ids — the free cross-provider key.
+
+        The interactive TV search merges TVDB with TMDB, and this mapping is what
+        makes the merge cost zero extra API calls: the TVDB item already names its
+        TMDB counterpart.
+        """
+        data = _load("search_series.json")
+        r = parse_search_result(unwrap(data)[0], "tvdb")
+        assert isinstance(r.external_ids, dict)
+
+    def test_external_ids_maps_tmdb_and_imdb(self) -> None:
+        """The TheMovieDB.com / IMDB sources are normalised to short keys."""
+        raw = {
+            "tvdb_id": "422598",
+            "name": "Monarch: Legacy of Monsters",
+            "type": "series",
+            "year": "2023",
+            "remote_ids": [
+                {"id": "tt17220216", "sourceName": "IMDB", "type": 2},
+                {"id": "202411", "sourceName": "TheMovieDB.com", "type": 12},
+                {"id": "60090", "sourceName": "TV Maze", "type": 19},
+            ],
+        }
+        r = parse_search_result(raw, "tvdb")
+        assert r.external_ids["tmdb"] == "202411"
+        assert r.external_ids["imdb"] == "tt17220216"
+
+    def test_missing_remote_ids_is_empty_mapping(self) -> None:
+        """10 of 50 live results carry no remote_ids — that must not raise."""
+        r = parse_search_result({"tvdb_id": "1", "name": "X", "type": "series"}, "tvdb")
+        assert r.external_ids == {}
+
+    def test_search_has_no_popularity_signal(self) -> None:
+        """TVDB /search carries no popularity — the absence must be explicit.
+
+        Verified against the live payload: a TVDB search item has no
+        ``popularity``/``score`` key at all. ``None`` is the honest value; a
+        0.0 default would make every TVDB result look measured-and-unpopular
+        and would silently sink them all under any TMDB candidate.
+        """
+        data = _load("search_series.json")
+        r = parse_search_result(unwrap(data)[0], "tvdb")
+        assert r.popularity is None
+        assert r.vote_count is None
+
 
 class TestParseArtwork:
     """Artwork type mapping."""

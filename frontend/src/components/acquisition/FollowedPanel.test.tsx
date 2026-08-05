@@ -283,7 +283,9 @@ describe("FollowedPanel — les cinq états sur la carte (phase 8)", () => {
       makeItem({ id: 2, title: "Furious", status: "non_verifie" }),
     ]);
 
-    const attente = screen.getByText("En attente de torrent").closest("[title]");
+    const attente = screen
+      .getByText("En attente de torrent")
+      .closest("[title]");
     const nonVerifie = screen.getByText("Non vérifié").closest("[title]");
     expect(attente?.getAttribute("title")).toMatch(/rien de conforme/);
     expect(nonVerifie?.getAttribute("title")).toMatch(/[Pp]as encore vérifié/);
@@ -313,7 +315,9 @@ describe("FollowedPanel — les cinq états sur la carte (phase 8)", () => {
       ),
     ).toBeInTheDocument();
     // The raw wanted_pending chip is gone — it knew nothing about ownership.
-    expect(screen.queryByText("9 en attente de torrent")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("9 en attente de torrent"),
+    ).not.toBeInTheDocument();
   });
 
   it("n'affiche aucun compteur quand tout est en médiathèque", () => {
@@ -672,7 +676,10 @@ describe("FollowedPanel — la carte est lisible sur mobile (§12)", () => {
   function nearestRow(el: HTMLElement): HTMLElement | null {
     let cur: HTMLElement | null = el.parentElement;
     while (cur != null) {
-      if (cur.className.includes("flex") && !cur.className.includes("flex-col")) {
+      if (
+        cur.className.includes("flex") &&
+        !cur.className.includes("flex-col")
+      ) {
         return cur;
       }
       cur = cur.parentElement;
@@ -740,5 +747,64 @@ describe("FollowedPanel — la carte est lisible sur mobile (§12)", () => {
     renderPanel([makeItem({ title: "Margin Call", kind: "movie" })]);
 
     expect(screen.queryByText("Film")).not.toBeInTheDocument();
+  });
+});
+
+describe("filtre par nom sur les suivis", () => {
+  /** Type into the name filter (applies on change — no submit). */
+  function typeFilter(value: string): void {
+    fireEvent.change(screen.getByLabelText("Filtrer par nom"), {
+      target: { value },
+    });
+  }
+
+  it("filtre la liste au fil de la frappe, sans valider", () => {
+    renderPanel([
+      makeItem({ id: 1, title: "Silo" }),
+      makeItem({ id: 2, title: "Severance" }),
+      makeItem({ id: 3, title: "Rick and Morty" }),
+    ]);
+    typeFilter("sev");
+    expect(screen.getByText("Severance")).toBeInTheDocument();
+    expect(screen.queryByText("Silo")).not.toBeInTheDocument();
+    expect(screen.queryByText("Rick and Morty")).not.toBeInTheDocument();
+  });
+
+  it("ignore la casse et les accents", () => {
+    // A filter that demands the exact diacritics is a filter to fight against.
+    renderPanel([makeItem({ id: 1, title: "Les Évadés" })]);
+    typeFilter("evad");
+    expect(screen.getByText("Les Évadés")).toBeInTheDocument();
+  });
+
+  it("un filtre vide laisse tout passer", () => {
+    renderPanel([
+      makeItem({ id: 1, title: "Silo" }),
+      makeItem({ id: 2, title: "Severance" }),
+    ]);
+    typeFilter("   ");
+    expect(screen.getByText("Silo")).toBeInTheDocument();
+    expect(screen.getByText("Severance")).toBeInTheDocument();
+  });
+
+  it("dit que c'est le filtre qui vide la liste, pas l'absence de suivis", () => {
+    // §8: "Aucune série suivie" on a filtered-out list would be a lie about state.
+    renderPanel([makeItem({ id: 1, title: "Silo" })]);
+    typeFilter("zzzz");
+    expect(screen.getByText(/Aucun résultat pour/)).toBeInTheDocument();
+    expect(screen.queryByText("Aucune série suivie.")).not.toBeInTheDocument();
+  });
+
+  it("les compteurs des onglets restent NON filtrés", () => {
+    // They answer "how many do I follow", not "how many match what I typed" —
+    // otherwise the toggle mutates under the operator's own keystrokes.
+    renderPanel([
+      makeItem({ id: 1, title: "Silo" }),
+      makeItem({ id: 2, title: "Severance" }),
+    ]);
+    typeFilter("silo");
+    expect(
+      screen.getByRole("button", { name: "Séries (2)" }),
+    ).toBeInTheDocument();
   });
 });

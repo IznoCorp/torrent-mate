@@ -102,6 +102,41 @@ def unwrap(data: dict[str, Any]) -> dict[str, Any] | list[Any]:
 
 # -- Search result parser ----------------------------------------------------
 
+#: TVDB ``remote_ids[].sourceName`` values worth keeping, mapped to the short
+#: provider keys used across this codebase. Other sources (TV Maze, Wikidata,
+#: Official Website…) are dropped — nothing here consumes them.
+_REMOTE_SOURCE_KEYS: dict[str, str] = {
+    "themoviedb.com": "tmdb",
+    "imdb": "imdb",
+}
+
+
+def _parse_remote_ids(raw_remote_ids: Any) -> dict[str, str]:
+    """Map a TVDB ``remote_ids`` array to short-keyed cross-provider ids.
+
+    Roughly a fifth of live TVDB search rows carry no ``remote_ids`` at all, so an
+    empty mapping is a normal outcome, not a parse failure.
+
+    Args:
+        raw_remote_ids: The ``remote_ids`` value from a TVDB search item.
+
+    Returns:
+        Mapping such as ``{"tmdb": "202411", "imdb": "tt17220216"}``; empty when
+        absent or malformed.
+    """
+    if not isinstance(raw_remote_ids, list):
+        return {}
+    mapped: dict[str, str] = {}
+    for entry in raw_remote_ids:
+        if not isinstance(entry, dict):
+            continue
+        source = str(entry.get("sourceName", "")).strip().lower()
+        key = _REMOTE_SOURCE_KEYS.get(source)
+        value = entry.get("id")
+        if key and value and key not in mapped:
+            mapped[key] = str(value)
+    return mapped
+
 
 def parse_search_result(raw: dict[str, Any], provider: str) -> SearchResult:
     """Map a TVDB search item → SearchResult.
@@ -169,6 +204,7 @@ def parse_search_result(raw: dict[str, Any], provider: str) -> SearchResult:
         poster_url=raw.get("image_url", "") or "",
         original_title=original,
         aliases=tuple(aliases),
+        external_ids=_parse_remote_ids(raw.get("remote_ids")),
     )
 
 

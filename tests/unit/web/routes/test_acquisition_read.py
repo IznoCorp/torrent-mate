@@ -812,66 +812,168 @@ class TestSearchEndpoint:
             lambda _request: nullcontext((object(), object())),
         )
 
-    def test_search_both_kinds_sorted(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Both matchers run; results are kind-tagged and best-score-first."""
-        import personalscraper.scraper.confidence as confidence
-        from personalscraper.scraper.decision_candidate import DecisionCandidate
+    @staticmethod
+    def _clients(movies: list[object], shows: list[object]) -> object:
+        """Build a fake (tmdb, tvdb) pair serving canned SearchResult rows."""
 
-        self._patch_providers(monkeypatch)
-        movie = DecisionCandidate(
+        class _Tmdb:
+            def search_movie(self, query: str, year: object = None, **_kw: object) -> list[object]:
+                return movies
+
+            def search_tv(self, query: str, year: object = None, **_kw: object) -> list[object]:
+                return shows
+
+        class _Tvdb:
+            def search_series(self, query: str, year: object = None, **_kw: object) -> list[object]:
+                return []
+
+        return (_Tmdb(), _Tvdb())
+
+    def _patch_clients(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        movies: list[object],
+        shows: list[object],
+    ) -> None:
+        """Patch the request-scoped provider clients with the fakes."""
+        import personalscraper.web.routes.acquisition as acq_routes
+
+        pair = self._clients(movies, shows)
+        monkeypatch.setattr(acq_routes, "scoped_provider_clients", lambda _request: nullcontext(pair))
+
+    def test_search_both_kinds_sorted(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Both chains run; results are kind-tagged and ranked best-first."""
+        from personalscraper.api.metadata._base import SearchResult
+
+        movie = SearchResult(
             provider="tmdb",
-            provider_id=438631,
+            provider_id="438631",
             title="Dune",
             year=2021,
-            score=0.95,
+            media_type="movie",
             poster_url="https://img/dune.jpg",
             overview="Sur Arrakis.",
+            popularity=120.0,
         )
-        tv = DecisionCandidate(
-            provider="tvdb",
-            provider_id=1,
-            title="Dune: Prophecy",
+        show = SearchResult(
+            provider="tmdb",
+            provider_id="1",
+            title="Prophecy",
             year=2024,
-            score=0.42,
-            poster_url=None,
-            overview=None,
+            media_type="tv",
+            popularity=1.0,
         )
-        monkeypatch.setattr(confidence, "match_movie_detailed", lambda _c, _t, _y: (None, [movie]))
-        monkeypatch.setattr(
-            confidence,
-            "match_tvshow_detailed",
-            lambda _tv, _tm, _t, _y: (None, [tv]),
-        )
+        self._patch_clients(monkeypatch, [movie], [show])
 
         resp = client.get("/api/acquisition/search?q=dune", cookies=_make_auth_cookie())
         assert resp.status_code == 200, resp.text
-        results = resp.json()["results"]
-        assert len(results) == 2
-        # Sorted best-score-first: movie (0.95) before tv (0.42).
-        assert results[0]["kind"] == "movie"
-        assert results[0]["title"] == "Dune"
-        assert results[0]["poster_url"] == "https://img/dune.jpg"
-        assert results[1]["kind"] == "tv"
+        body = resp.json()
+        assert len(body["results"]) == 2
+        # 'dune' matches the film exactly and the show not at all → film first.
+        assert body["results"][0]["kind"] == "movie"
+        assert body["results"][0]["title"] == "Dune"
+        assert body["results"][0]["poster_url"] == "https://img/dune.jpg"
 
     def test_search_kind_filter_movie_only(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-        """kind=movie only runs the movie matcher (tv matcher must not fire)."""
-        import personalscraper.scraper.confidence as confidence
-        from personalscraper.scraper.decision_candidate import DecisionCandidate
+        """kind=movie must not run the TV chain."""
+        from personalscraper.api.metadata._base import SearchResult
 
-        self._patch_providers(monkeypatch)
-        movie = DecisionCandidate(provider="tmdb", provider_id=1, title="Dune", year=2021, score=0.9)
+        movie = SearchResult(provider="tmdb", provider_id="1", title="Dune", year=2021, media_type="movie")
 
-        def _tv_must_not_run(*_a: object, **_k: object) -> object:
-            raise AssertionError("tv matcher must not run for kind=movie")
+        class _Tmdb:
+            def search_movie(self, query: str, year: object = None, **_kw: object) -> list[object]:
+                return [movie]
 
-        monkeypatch.setattr(confidence, "match_movie_detailed", lambda _c, _t, _y: (None, [movie]))
-        monkeypatch.setattr(confidence, "match_tvshow_detailed", _tv_must_not_run)
+            def search_tv(self, query: str, year: object = None, **_kw: object) -> list[object]:
+                raise AssertionError("TV chain must not run for kind=movie")
+
+        class _Tvdb:
+            def search_series(self, query: str, year: object = None, **_kw: object) -> list[object]:
+                raise AssertionError("TV chain must not run for kind=movie")
+
+        import personalscraper.web.routes.acquisition as acq_routes
+
+        monkeypatch.setattr(acq_routes, "scoped_provider_clients", lambda _request: nullcontext((_Tmdb(), _Tvdb())))
 
         resp = client.get("/api/acquisition/search?q=dune&kind=movie", cookies=_make_auth_cookie())
         assert resp.status_code == 200, resp.text
-        results = resp.json()["results"]
-        assert len(results) == 1
-        assert results[0]["kind"] == "movie"
+        assert len(resp.json()["results"]) == 1
+        assert resp.json()["results"][0]["kind"] == "movie"
+
+    def test_total_counts_every_candidate_not_the_page(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """§8: serving 5 of 30 without saying so told the operator he had seen all."""
+        from personalscraper.api.metadata._base import SearchResult
+
+        movies = [
+            SearchResult(
+                provider="tmdb",
+                provider_id=str(i),
+                title=f"Dune {i}",
+                year=2000 + i,
+                media_type="movie",
+                popularity=float(30 - i),
+            )
+            for i in range(30)
+        ]
+        self._patch_clients(monkeypatch, movies, [])
+
+        resp = client.get("/api/acquisition/search?q=dune&kind=movie&limit=5", cookies=_make_auth_cookie())
+        body = resp.json()
+        assert len(body["results"]) == 5
+        assert body["total"] == 30
+        assert body["limit"] == 5
+        assert body["offset"] == 0
+
+    def test_pages_do_not_overlap(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        """offset=0 and offset=10 share no candidate, and agree on the total."""
+        from personalscraper.api.metadata._base import SearchResult
+
+        movies = [
+            SearchResult(
+                provider="tmdb",
+                provider_id=str(i),
+                title=f"Dune {i}",
+                year=2000 + i,
+                media_type="movie",
+                popularity=float(30 - i),
+            )
+            for i in range(30)
+        ]
+        self._patch_clients(monkeypatch, movies, [])
+
+        first = client.get(
+            "/api/acquisition/search?q=dune&kind=movie&limit=10&offset=0", cookies=_make_auth_cookie()
+        ).json()
+        second = client.get(
+            "/api/acquisition/search?q=dune&kind=movie&limit=10&offset=10", cookies=_make_auth_cookie()
+        ).json()
+        ids_first = {r["provider_id"] for r in first["results"]}
+        ids_second = {r["provider_id"] for r in second["results"]}
+        assert ids_first & ids_second == set()
+        assert first["total"] == second["total"] == 30
+        assert second["offset"] == 10
+
+    def test_offset_past_the_end_is_empty_not_an_error(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Paging past the last result is an empty page, still with the true total."""
+        from personalscraper.api.metadata._base import SearchResult
+
+        self._patch_clients(
+            monkeypatch,
+            [SearchResult(provider="tmdb", provider_id="1", title="Dune", year=2021, media_type="movie")],
+            [],
+        )
+        body = client.get("/api/acquisition/search?q=dune&kind=movie&offset=500", cookies=_make_auth_cookie()).json()
+        assert body["results"] == []
+        assert body["total"] == 1
+
+    def test_limit_out_of_bounds_is_rejected(self, client: TestClient) -> None:
+        """An absurd limit is a 422, never a silent clamp that hammers providers."""
+        assert client.get("/api/acquisition/search?q=dune&limit=100000", cookies=_make_auth_cookie()).status_code == 422
+        assert client.get("/api/acquisition/search?q=dune&offset=-1", cookies=_make_auth_cookie()).status_code == 422
 
     def test_search_requires_auth(self, client: TestClient) -> None:
         """Unauthenticated search is rejected (401)."""

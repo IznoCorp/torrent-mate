@@ -141,6 +141,8 @@ export function FollowedPanel({
   // #20: séries / films sub-tabs. Declared before any early return so the hook
   // order stays stable. Default « Séries » (the primary followed-media kind).
   const [kindTab, setKindTab] = useState<"show" | "movie">("show");
+  // Name filter over the followed list (applies on change, no submit).
+  const [nameFilter, setNameFilter] = useState("");
 
   // ACQUISITION-3 (ticket 250): « Retirer » is destructive — it must confirm
   // before mutating. Holds the item pending confirmation, or null.
@@ -184,11 +186,31 @@ export function FollowedPanel({
   const isFilm = (item: FollowedSeriesItem): boolean => item.kind === "movie";
   const activeSeries = activeItems.filter((item) => !isFilm(item));
   const activeMovies = activeItems.filter(isFilm);
-  const visibleActive = kindTab === "movie" ? activeMovies : activeSeries;
-  const visibleInactive =
+
+  // Name filter. Accent- and case-insensitive so « evades » finds « Les Évadés »
+  // — a filter that demands the exact diacritics is a filter the operator has to
+  // fight. NFD decomposition + stripping combining marks is the same normalisation
+  // the backend matching uses.
+  const normalise = (text: string): string =>
+    text
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .toLocaleLowerCase();
+  const filterTerm = normalise(nameFilter.trim());
+  const matchesFilter = (item: FollowedSeriesItem): boolean =>
+    filterTerm === "" || normalise(item.title).includes(filterTerm);
+
+  // The counts on the Séries/Films toggle stay UNFILTERED: they answer "how many
+  // do I follow", not "how many match what I typed". Filtering them would make
+  // the toggle change under the operator's own typing.
+  const visibleActive = (
+    kindTab === "movie" ? activeMovies : activeSeries
+  ).filter(matchesFilter);
+  const visibleInactive = (
     kindTab === "movie"
       ? inactiveItems.filter(isFilm)
-      : inactiveItems.filter((item) => !isFilm(item));
+      : inactiveItems.filter((item) => !isFilm(item))
+  ).filter(matchesFilter);
 
   if (data.length === 0) {
     return (
@@ -241,10 +263,45 @@ export function FollowedPanel({
         </p>
       )}
 
+      {/* Name filter: the followed list only grows, and past a dozen rows
+          finding one means scrolling the whole thing. Filters on change (no
+          submit) because the list is already in memory — a round-trip would be
+          latency for nothing. */}
+      <div className="flex flex-col gap-1">
+        <label
+          htmlFor="followed-filter"
+          className="text-xs font-medium text-muted-foreground"
+        >
+          Filtrer par nom
+        </label>
+        <Input
+          id="followed-filter"
+          type="search"
+          value={nameFilter}
+          placeholder={
+            kindTab === "movie" ? "Titre du film" : "Titre de la série"
+          }
+          onChange={(e) => {
+            setNameFilter(e.target.value);
+          }}
+        />
+      </div>
+
       {/* Per-tab empty hint — there ARE follows, just none of this kind. */}
       {visibleActive.length === 0 && (
         <p className="py-4 text-center text-sm text-muted-foreground">
-          {kindTab === "movie" ? "Aucun film suivi." : "Aucune série suivie."}
+          {filterTerm !== "" ? (
+            // A filter that hides everything must say it is the filter doing it,
+            // otherwise the screen reads as "you follow nothing" (§8).
+            <>
+              Aucun résultat pour « {nameFilter.trim()} » parmi les{" "}
+              {kindTab === "movie" ? "films" : "séries"} suivis.
+            </>
+          ) : kindTab === "movie" ? (
+            "Aucun film suivi."
+          ) : (
+            "Aucune série suivie."
+          )}
         </p>
       )}
 

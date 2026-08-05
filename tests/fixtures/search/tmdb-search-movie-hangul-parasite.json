@@ -1,0 +1,88 @@
+{
+ "page": 1,
+ "results": [
+  {
+   "adult": false,
+   "backdrop_path": "/vbC0rzdrb7Ohc2TkbEbxtOABECe.jpg",
+   "genre_ids": [
+    35,
+    53,
+    18
+   ],
+   "id": 496243,
+   "original_language": "ko",
+   "original_title": "기생충",
+   "overview": "Toute la famille de Ki-taek est au chômage. Elle s’intéresse particulièrement au train de vie de la richissime famille Park. Mais un incident se produit et les deux familles se retrouvent mêlées, sans le savoir, à une bien étrange histoire…",
+   "popularity": 42.2446,
+   "poster_path": "/7hLSzZX2jROmEXz2aEoh6JKUFy2.jpg",
+   "release_date": "2019-05-30",
+   "softcore": false,
+   "title": "Parasite",
+   "video": false,
+   "vote_average": 8.489,
+   "vote_count": 21008
+  },
+  {
+   "adult": false,
+   "backdrop_path": null,
+   "genre_ids": [
+    53,
+    35
+   ],
+   "id": 1043106,
+   "original_language": "ko",
+   "original_title": "기생충 Challenge 더블업 우주소녀",
+   "overview": "",
+   "popularity": 1.2325,
+   "poster_path": "/q8Zu3HqkrpxJcmatpiBDYHT71X0.jpg",
+   "release_date": "2022-10-06",
+   "softcore": false,
+   "title": "기생충 Challenge 더블업 우주소녀",
+   "video": true,
+   "vote_average": 10.0,
+   "vote_count": 1
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/5qVLF9WTdBDA08fsZ9H5clJ6umI.jpg",
+   "genre_ids": [
+    27,
+    878
+   ],
+   "id": 48311,
+   "original_language": "en",
+   "original_title": "Parasite",
+   "overview": "1992. Les Etats-Unis vivent sous un régime paramilitaire. Au cours de ses recherches, Dean, un scientifique, absorbe un ver parasite particulièrement vorace qui se nourrit à l'intérieur de l'estomac humain avant qu'il ne soit suffisamment fort pour s'extraire du ventre de sa victime à la recherche d'un nouvel hôte. Dean parvient à s'en débarasser mais la créature s'enfuit. Dean et sa compagne doivent désormais la stopper, tandis qu'ils sont eux-mêmes poursuivis par un agent du gouvernement et un gang particulièrement dangereux.",
+   "popularity": 2.4118,
+   "poster_path": "/tzMIFRvXLdjSMJbm6lQohWQE49Q.jpg",
+   "release_date": "1982-03-12",
+   "softcore": false,
+   "title": "Parasite",
+   "video": false,
+   "vote_average": 4.881,
+   "vote_count": 88
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/xVpb8QB426LP9YYHyevKMw9Y3uQ.jpg",
+   "genre_ids": [
+    18,
+    10749
+   ],
+   "id": 709589,
+   "original_language": "ja",
+   "original_title": "恋する寄生虫",
+   "overview": "",
+   "popularity": 1.1878,
+   "poster_path": "/2bRVTUnbkrXwI0U4pXXDgrvBGjj.jpg",
+   "release_date": "2021-11-12",
+   "softcore": false,
+   "title": "恋する寄生虫",
+   "video": false,
+   "vote_average": 6.8,
+   "vote_count": 18
+  }
+ ],
+ "total_pages": 1,
+ "total_results": 4
+}

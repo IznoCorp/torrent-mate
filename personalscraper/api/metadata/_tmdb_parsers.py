@@ -26,6 +26,44 @@ from personalscraper.api.metadata._base import (
 IMAGE_BASE = "https://image.tmdb.org/t/p/"
 
 
+def _optional_float(value: Any) -> float | None:
+    """Coerce a raw JSON value to float, or None when it is absent/malformed.
+
+    Defensive on purpose: this parser sits on the scrape path, so a provider
+    returning an unexpected shape must degrade to "unknown" rather than raise
+    and break an identification that never needed the field.
+
+    Args:
+        value: Raw value from the provider payload.
+
+    Returns:
+        The value as a float, or None when absent or not numeric.
+    """
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _optional_int(value: Any) -> int | None:
+    """Coerce a raw JSON value to int, or None when it is absent/malformed.
+
+    Args:
+        value: Raw value from the provider payload.
+
+    Returns:
+        The value as an int, or None when absent or not numeric.
+    """
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        return None
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return None
+
+
 def _build_image_url(path: str | None, size: str) -> str:
     """Build a full TMDB image URL from a file_path and size.
 
@@ -75,6 +113,8 @@ def parse_search_result(raw: dict[str, Any], provider: str) -> SearchResult:
         overview=raw.get("overview", "") or "",
         poster_url=_build_image_url(raw.get("poster_path"), "w500"),
         original_title=original_title or "",
+        popularity=_optional_float(raw.get("popularity")),
+        vote_count=_optional_int(raw.get("vote_count")),
     )
 
 

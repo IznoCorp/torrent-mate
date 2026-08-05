@@ -1212,6 +1212,57 @@ class TestSuperstringPenalty:
         assert _superstring_penalty("Show", "Show Alpha Beta Gamma") == pytest.approx(-0.20)
 
 
+class TestScrapePathIgnoresPopularity:
+    """The popularity signal added for the search ranking must not reach scrape.
+
+    ``popularity``/``vote_count`` exist on SearchResult only so the interactive
+    search can rank by relevance. The scrape matcher decides IDENTITY and must
+    stay blind to how famous a candidate is — otherwise a popular wrong match
+    could outrank an obscure right one. These tests are the executable proof of
+    that invariant, not a comment claiming it.
+    """
+
+    @staticmethod
+    def _candidate(**extra: Any) -> SearchResult:
+        """Build a fixed candidate, optionally carrying the popularity fields."""
+        return SearchResult(
+            provider="tmdb",
+            provider_id="550",
+            title="Fight Club",
+            original_title="Fight Club",
+            year=1999,
+            media_type="movie",
+            **extra,
+        )
+
+    def test_score_identical_with_and_without_popularity(self) -> None:
+        """Same candidate, same score — popularity changes nothing."""
+        bare = self._candidate()
+        loaded = self._candidate(popularity=1990.63, vote_count=31902)
+        assert _score_result("Fight Club", 1999, bare) == _score_result("Fight Club", 1999, loaded)
+
+    def test_popular_wrong_title_still_loses_to_exact(self) -> None:
+        """A wildly popular near-match never outranks the exact title in scrape."""
+        exact = self._candidate()
+        popular_other = SearchResult(
+            provider="tmdb",
+            provider_id="999",
+            title="Fight Club 2: The Sequel",
+            original_title="Fight Club 2: The Sequel",
+            year=1999,
+            media_type="movie",
+            popularity=99999.0,
+            vote_count=999999,
+        )
+        assert _score_result("Fight Club", 1999, exact) > _score_result("Fight Club", 1999, popular_other)
+
+    def test_defaults_are_none_so_existing_construction_is_unchanged(self) -> None:
+        """Every pre-existing SearchResult(...) call site keeps its exact shape."""
+        bare = self._candidate()
+        assert bare.popularity is None
+        assert bare.vote_count is None
+
+
 class TestScoreResult:
     """Unit tests for _score_result (title + original_title + penalty)."""
 

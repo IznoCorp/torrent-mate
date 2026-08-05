@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import sqlite3
 from contextlib import closing, contextmanager
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -35,7 +36,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
     from personalscraper.core.identity import MediaRef
-    from personalscraper.scraper.decision_candidate import DecisionCandidate
+    from personalscraper.scraper.search_ranking import RankedResult
 
 logger = get_logger(__name__)
 
@@ -320,6 +321,9 @@ def run_media_search(
     tvdb_client: object,
     q: str,
     kind: Literal["movie", "tv"] | None,
+    *,
+    offset: int = 0,
+    limit: int = 20,
 ) -> MediaSearchResponse:
     """Run the movie/TV search chains against already-built provider clients.
 
@@ -327,42 +331,62 @@ def run_media_search(
     the clients are used entirely inside it, and the 502 raised by a failing
     provider still unwinds through the context manager's ``finally``.
 
+    Ranking is the RETRIEVAL engine
+    (:mod:`personalscraper.scraper.search_ranking`), not the scrape matcher: the
+    latter answers "is this folder that media?" and its anti-false-positive guards
+    scored the wanted title at exactly 0.000 for a short keyword query.
+
     Args:
         request: The incoming FastAPI request (config for the ownership flag).
         tmdb_client: Request-scoped TMDB client.
         tvdb_client: Request-scoped TVDB client.
         q: The title to search for.
         kind: Optional ``"movie"``/``"tv"`` restriction (both when omitted).
+        offset: Zero-based index of the first row to return.
+        limit: Maximum rows to return.
 
     Returns:
-        A :class:`MediaSearchResponse` with the scored matches.
+        A :class:`MediaSearchResponse` carrying the requested page plus the TOTAL
+        number of ranked candidates.
 
     Raises:
         HTTPException: 502 on provider API failure.
     """
-    results: list[MediaSearchResult] = []
+    from personalscraper.scraper.search_ranking import (
+        gather_tv_candidates,
+        rank_search_results,
+    )
+
+    now_year = datetime.now(tz=UTC).year
+    ranked: list[tuple[float, MediaSearchResult]] = []
 
     if kind in (None, "movie"):
-        from personalscraper.scraper.confidence import match_movie_detailed
-
         try:
-            _, movie_candidates = match_movie_detailed(tmdb_client, q, None)
+            movie_rows = tmdb_client.search_movie(q, None)  # type: ignore[attr-defined]
         except Exception as exc:
             logger.error("acquisition_search_movie_failed", error=str(exc))
             raise HTTPException(status_code=502, detail=f"Movie search failed: {exc}") from exc
-        results.extend(_to_search_result(c, "movie") for c in movie_candidates)
+        ranked.extend(
+            (item.score, _to_search_result(item, "movie"))
+            for item in rank_search_results(q, list(movie_rows), kind="movie", now_year=now_year)
+        )
 
     if kind in (None, "tv"):
-        from personalscraper.scraper.confidence import match_tvshow_detailed
+        # Both TV providers, merged: TVDB alone cannot rank (it publishes no
+        # popularity), and the scrape rule "TMDB only when TVDB is silent" hid the
+        # right answer whenever TVDB returned any row at all.
+        tv_rows = gather_tv_candidates(tvdb_client, tmdb_client, q)
+        ranked.extend(
+            (item.score, _to_search_result(item, "tv"))
+            for item in rank_search_results(q, tv_rows, kind="tv", now_year=now_year)
+        )
 
-        try:
-            _, tv_candidates = match_tvshow_detailed(tvdb_client, tmdb_client, q, None)
-        except Exception as exc:
-            logger.error("acquisition_search_tvshow_failed", error=str(exc))
-            raise HTTPException(status_code=502, detail=f"TV search failed: {exc}") from exc
-        results.extend(_to_search_result(c, "tv") for c in tv_candidates)
-
-    results.sort(key=lambda r: r.score, reverse=True)
+    # One ordering across both kinds, so "Tout" is a real merge and not two
+    # independently-truncated lists stapled together.
+    ranked.sort(key=lambda pair: pair[0], reverse=True)
+    total = len(ranked)
+    page = [item for _, item in ranked[offset : offset + limit]]
+    results = page
 
     # §5 replacement confirmation: flag movie results already owned in the
     # library (by provider id, live files only) so the UI can ask before
@@ -383,30 +407,37 @@ def run_media_search(
         finally:
             checker.close()
 
-    return MediaSearchResponse(results=results)
+    return MediaSearchResponse(results=results, total=total, offset=offset, limit=limit)
 
 
 # ── /api/acquisition/followed (write) ─────────────────────────────────────
 
 
-def _to_search_result(candidate: "DecisionCandidate", kind: str) -> MediaSearchResult:
-    """Map a scored :class:`DecisionCandidate` to a :class:`MediaSearchResult`.
+def _to_search_result(candidate: "RankedResult", kind: str) -> MediaSearchResult:
+    """Map a scored :class:`RankedResult` to a :class:`MediaSearchResult`.
 
     Args:
-        candidate: The scored provider candidate.
+        candidate: The ranked provider candidate.
         kind: ``"movie"`` or ``"tv"`` (which search chain produced it).
 
     Returns:
         The tagged search result.
     """
+    result = candidate.result
+    # provider_id is a str on SearchResult but an int on the wire; a provider that
+    # ever returns a non-numeric id must not 500 the whole search.
+    try:
+        provider_id = int(result.provider_id)
+    except (TypeError, ValueError):
+        provider_id = 0
     return MediaSearchResult(
-        provider=candidate.provider,
-        provider_id=candidate.provider_id,
-        title=candidate.title,
-        year=candidate.year,
+        provider=result.provider,
+        provider_id=provider_id,
+        title=result.title,
+        year=result.year,
         kind=kind,
-        poster_url=candidate.poster_url,
-        overview=candidate.overview,
+        poster_url=result.poster_url or None,
+        overview=result.overview or None,
         score=candidate.score,
     )
 

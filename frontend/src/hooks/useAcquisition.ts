@@ -6,7 +6,14 @@
  * (namespaced arrays, mirroring useMaintenanceKeys / useConfigKeys).
  */
 
-import { useMutation, useQuery, useQueryClient, type UseQueryOptions, type UseQueryResult } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type UseQueryOptions,
+  type UseQueryResult,
+} from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import {
@@ -84,9 +91,16 @@ export function useFollowed(params: FollowedParams = {}) {
 }
 
 /**
+ * Rows fetched per search page. Large enough that the carousel has somewhere to
+ * scroll before the next request lands, small enough not to stall on providers.
+ */
+export const SEARCH_PAGE_SIZE = 20;
+
+/**
  * Search live providers for media to follow (add-by-search, OBJ3).
  *
- * Disabled until ``q`` is non-empty so no request fires on an empty box.
+ * Paginated: the operator can walk the whole ranked list instead of the first
+ * few rows. Disabled until ``q`` is non-empty so no request fires on an empty box.
  * Query key: ``['acquisition', 'search', {q, kind}]``.
  *
  * Args:
@@ -100,9 +114,18 @@ export function useMediaSearch(q: string, kind?: "movie" | "tv") {
   const trimmed = q.trim();
   const params: MediaSearchParams =
     kind != null ? { q: trimmed, kind } : { q: trimmed };
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: acqKeys.search(params),
-    queryFn: () => searchMedia(params),
+    queryFn: ({ pageParam }) =>
+      searchMedia({ ...params, offset: pageParam, limit: SEARCH_PAGE_SIZE }),
+    initialPageParam: 0,
+    // The backend reports the TOTAL number of ranked candidates, not the page
+    // size, so "is there more" is an arithmetic fact rather than a guess based
+    // on whether the last page came back full.
+    getNextPageParam: (lastPage) => {
+      const seen = lastPage.offset + lastPage.results.length;
+      return seen < lastPage.total ? seen : undefined;
+    },
     enabled: trimmed.length > 0,
   });
 }

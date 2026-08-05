@@ -1,0 +1,413 @@
+{
+ "page": 1,
+ "results": [
+  {
+   "adult": false,
+   "backdrop_path": "/1fXznFH7cmHxSli5PRbnNvvte3Y.jpg",
+   "first_air_date": "2006-03-08",
+   "genre_ids": [
+    10764
+   ],
+   "id": 41822,
+   "name": "Top chef  (États-Unis)",
+   "origin_country": [
+    "US"
+   ],
+   "original_language": "en",
+   "original_name": "Top Chef",
+   "overview": "Une émission de télé-réalité américaine dans laquelle les chefs s'affrontent dans des défis culinaires et sont jugés par un panel de chefs professionnels et d'autres notables de l'industrie agroalimentaire et du vin avec un ou plusieurs candidats éliminés dans chaque épisode.",
+   "popularity": 15.9055,
+   "poster_path": "/z61ri5TRlMCdFLlcdOnyQt4OzAd.jpg",
+   "softcore": false,
+   "vote_average": 6.862,
+   "vote_count": 69
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/5PvRfVsansmSnJbhgmRqZzGvaCn.jpg",
+   "first_air_date": "2010-02-22",
+   "genre_ids": [
+    10764
+   ],
+   "id": 54493,
+   "name": "Top Chef (France)",
+   "origin_country": [
+    "FR"
+   ],
+   "original_language": "fr",
+   "original_name": "Top Chef",
+   "overview": "La plus grande compétition de cuisine ouverte aux professionnels qui vont devoir impressionner un jury de grands chefs en rivalisant de créativité et de technique autour d'épreuves toujours plus époustouflantes. Leur objectif : prouver qu'avec des produits du quotidien, on peut réaliser des plats d'exception et montrer de quelle manière réinventer des plats classiques, simples, de la cuisine française.",
+   "popularity": 7.9279,
+   "poster_path": "/aff9pmv8d3rItSlBv5yvfmVcVSy.jpg",
+   "softcore": false,
+   "vote_average": 7.071,
+   "vote_count": 7
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/cQSemcWo67z9ywiFMCyum90E2U7.jpg",
+   "first_air_date": "2011-04-11",
+   "genre_ids": [
+    10764
+   ],
+   "id": 37649,
+   "name": "Top Chef Canada",
+   "origin_country": [],
+   "original_language": "en",
+   "original_name": "Top Chef Canada",
+   "overview": "",
+   "popularity": 3.0132,
+   "poster_path": "/7HsJU7ijfcr5MxabLpRjK8Cel.jpg",
+   "softcore": false,
+   "vote_average": 5.1,
+   "vote_count": 7
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/d8ixHrCKwsBMnXKemB2984OSZd0.jpg",
+   "first_air_date": "2022-08-09",
+   "genre_ids": [
+    10764
+   ],
+   "id": 209374,
+   "name": "Top Chef VIP",
+   "origin_country": [
+    "US"
+   ],
+   "original_language": "es",
+   "original_name": "Top Chef VIP",
+   "overview": "",
+   "popularity": 6.9733,
+   "poster_path": "/iu0wrdRTdBlpclGB7QgcUCABrvZ.jpg",
+   "softcore": false,
+   "vote_average": 6.824,
+   "vote_count": 17
+  },
+  {
+   "adult": false,
+   "backdrop_path": null,
+   "first_air_date": "2009-06-10",
+   "genre_ids": [
+    10764
+   ],
+   "id": 19356,
+   "name": "Top Chef Masters",
+   "origin_country": [
+    "US"
+   ],
+   "original_language": "en",
+   "original_name": "Top Chef Masters",
+   "overview": "",
+   "popularity": 2.7162,
+   "poster_path": "/whe7fLfnNVTDSSJdyQQl8OEZh15.jpg",
+   "softcore": false,
+   "vote_average": 7.0,
+   "vote_count": 19
+  },
+  {
+   "adult": false,
+   "backdrop_path": null,
+   "first_air_date": "2010-09-15",
+   "genre_ids": [
+    10764
+   ],
+   "id": 31877,
+   "name": "Top Chef : Just Desserts",
+   "origin_country": [
+    "US"
+   ],
+   "original_language": "en",
+   "original_name": "Top Chef: Just Desserts",
+   "overview": "Douze chefs, un même objectif : être déclaré le meilleur pâtissier et remporter 100 000 $.",
+   "popularity": 1.4174,
+   "poster_path": "/2vPs3ho9THAOMqgqflFeoY1yPN8.jpg",
+   "softcore": false,
+   "vote_average": 5.25,
+   "vote_count": 4
+  },
+  {
+   "adult": false,
+   "backdrop_path": null,
+   "first_air_date": "2017-10-13",
+   "genre_ids": [
+    10764
+   ],
+   "id": 34778,
+   "name": "Top Chef Junior",
+   "origin_country": [
+    "US"
+   ],
+   "original_language": "en",
+   "original_name": "Top Chef Junior",
+   "overview": "Les enfants cuisiniers s'affrontent dans les mêmes défis que les fans de \"Top Chef\" ont appris à connaître et à aimer.",
+   "popularity": 1.6076,
+   "poster_path": "/lFSWQQ7T9nNeef3bhDVf9BNBcBS.jpg",
+   "softcore": false,
+   "vote_average": 7.8,
+   "vote_count": 5
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/5GN1gWsoL4DjyIQXnUlqZxOTkYj.jpg",
+   "first_air_date": "2014-11-10",
+   "genre_ids": [
+    10764
+   ],
+   "id": 104030,
+   "name": "Objectif Top Chef",
+   "origin_country": [
+    "FR"
+   ],
+   "original_language": "fr",
+   "original_name": "Objectif Top Chef",
+   "overview": "Des apprentis cuisiniers sont sélectionnés en région et se voient imposer des défis gastronomiques autour de produits locaux. Plusieurs chefs étoilés participent au jury final. Le vainqueur intègre le concours Top Chef réservé aux professionnels.",
+   "popularity": 6.8791,
+   "poster_path": "/7jJKvZgjGPsiM5lkATRBitxtjGJ.jpg",
+   "softcore": false,
+   "vote_average": 6.0,
+   "vote_count": 1
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/tXiab9dnt5x8I81DFpOXLpqC8bB.jpg",
+   "first_air_date": "2014-08-06",
+   "genre_ids": [
+    10764
+   ],
+   "id": 131455,
+   "name": "Top Chef Duels",
+   "origin_country": [
+    "US"
+   ],
+   "original_language": "en",
+   "original_name": "Top Chef Duels",
+   "overview": "",
+   "popularity": 0.8962,
+   "poster_path": "/qGOhhoyghDdjLL3hFWhyPTOyd1x.jpg",
+   "softcore": false,
+   "vote_average": 5.5,
+   "vote_count": 2
+  },
+  {
+   "adult": false,
+   "backdrop_path": null,
+   "first_air_date": "2011-01-26",
+   "genre_ids": [],
+   "id": 33853,
+   "name": "Top Chef Suomi",
+   "origin_country": [
+    "FI"
+   ],
+   "original_language": "fi",
+   "original_name": "Top Chef Suomi",
+   "overview": "",
+   "popularity": 0.4435,
+   "poster_path": null,
+   "softcore": false,
+   "vote_average": 0.0,
+   "vote_count": 0
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/vWEtxYdXsPVSxnB3aIWe6tMI2oM.jpg",
+   "first_air_date": "2021-07-01",
+   "genre_ids": [
+    10764
+   ],
+   "id": 127839,
+   "name": "Top Chef Amateurs",
+   "origin_country": [
+    "US"
+   ],
+   "original_language": "en",
+   "original_name": "Top Chef Amateurs",
+   "overview": "Des chefs amateurs de tous horizons s'affrontent aux côtés de Top Chef All-Stars dans des batailles en tête-à-tête pour un prix en argent et le titre de Top Chef !",
+   "popularity": 1.0446,
+   "poster_path": "/tO7pc5hSP5T2pmnXKM08IdMwd3j.jpg",
+   "softcore": false,
+   "vote_average": 6.0,
+   "vote_count": 2
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/sZDaoJggsck1XFfDXoFKLusR64c.jpg",
+   "first_air_date": "2024-01-14",
+   "genre_ids": [
+    10764
+   ],
+   "id": 243310,
+   "name": "Top Chef VIP",
+   "origin_country": [
+    "CL"
+   ],
+   "original_language": "es",
+   "original_name": "Top Chef VIP",
+   "overview": "",
+   "popularity": 0.8507,
+   "poster_path": "/qDnFo8HTZckkT6rmohxxX4gC8JD.jpg",
+   "softcore": false,
+   "vote_average": 0.0,
+   "vote_count": 0
+  },
+  {
+   "adult": false,
+   "backdrop_path": null,
+   "first_air_date": "2013-09-11",
+   "genre_ids": [],
+   "id": 230762,
+   "name": "Top Chef",
+   "origin_country": [
+    "PL"
+   ],
+   "original_language": "pl",
+   "original_name": "Top Chef",
+   "overview": "",
+   "popularity": 0.6644,
+   "poster_path": "/vn90vSvjm7hsmuEhdSlg9QsZciL.jpg",
+   "softcore": false,
+   "vote_average": 0.0,
+   "vote_count": 0
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/7R7QR8J91uUmadWLExmoXeUvExT.jpg",
+   "first_air_date": "2021-09-09",
+   "genre_ids": [
+    10764
+   ],
+   "id": 133059,
+   "name": "Top Chef Family Style",
+   "origin_country": [
+    "US"
+   ],
+   "original_language": "en",
+   "original_name": "Top Chef Family Style",
+   "overview": "",
+   "popularity": 1.5206,
+   "poster_path": "/24UhWtfi7ayoP9fUn5lKiUKsHBz.jpg",
+   "softcore": false,
+   "vote_average": 1.0,
+   "vote_count": 1
+  },
+  {
+   "adult": false,
+   "backdrop_path": null,
+   "first_air_date": "2009-01-13",
+   "genre_ids": [],
+   "id": 28892,
+   "name": "Top Chef",
+   "origin_country": [
+    "NL"
+   ],
+   "original_language": "en",
+   "original_name": "Top Chef",
+   "overview": "",
+   "popularity": 0.4181,
+   "poster_path": null,
+   "softcore": false,
+   "vote_average": 0.0,
+   "vote_count": 0
+  },
+  {
+   "adult": false,
+   "backdrop_path": null,
+   "first_air_date": "2009-10-13",
+   "genre_ids": [],
+   "id": 36955,
+   "name": "Top Chef VIPS",
+   "origin_country": [
+    "NL"
+   ],
+   "original_language": "en",
+   "original_name": "Top Chef VIPS",
+   "overview": "",
+   "popularity": 0.9167,
+   "poster_path": null,
+   "softcore": false,
+   "vote_average": 0.0,
+   "vote_count": 0
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/c4i61QT4n9eepJBAWqq8EgqR2K3.jpg",
+   "first_air_date": "2019-04-03",
+   "genre_ids": [
+    10764
+   ],
+   "id": 88165,
+   "name": "Top Chef Brasil",
+   "origin_country": [
+    "BR"
+   ],
+   "original_language": "pt",
+   "original_name": "Top Chef Brasil",
+   "overview": "",
+   "popularity": 1.3778,
+   "poster_path": "/5I9tAu0I3UEV96V7QYUPAtJMw40.jpg",
+   "softcore": false,
+   "vote_average": 6.0,
+   "vote_count": 2
+  },
+  {
+   "adult": false,
+   "backdrop_path": null,
+   "first_air_date": "2019-05-08",
+   "genre_ids": [
+    10764
+   ],
+   "id": 254596,
+   "name": "Top Chef Germany",
+   "origin_country": [
+    "DE"
+   ],
+   "original_language": "de",
+   "original_name": "Top Chef Germany",
+   "overview": "",
+   "popularity": 0.4426,
+   "poster_path": null,
+   "softcore": false,
+   "vote_average": 0.0,
+   "vote_count": 0
+  },
+  {
+   "adult": false,
+   "backdrop_path": "/7AXgZHHYefFYxIwKQIB6S93vJ7z.jpg",
+   "first_air_date": "2013-10-02",
+   "genre_ids": [
+    10751
+   ],
+   "id": 102851,
+   "name": "Top Chef: España",
+   "origin_country": [
+    "ES"
+   ],
+   "original_language": "es",
+   "original_name": "Top Chef: España",
+   "overview": "",
+   "popularity": 1.4936,
+   "poster_path": "/yQ5HvXSap9vlP9RDPTNhcOX7Mx5.jpg",
+   "softcore": false,
+   "vote_average": 0.0,
+   "vote_count": 0
+  },
+  {
+   "adult": false,
+   "backdrop_path": null,
+   "first_air_date": "",
+   "genre_ids": [],
+   "id": 45743,
+   "name": "Top Chef Romania",
+   "origin_country": [],
+   "original_language": "en",
+   "original_name": "Top Chef Romania",
+   "overview": "",
+   "popularity": 0.2261,
+   "poster_path": null,
+   "softcore": false,
+   "vote_average": 0.0,
+   "vote_count": 0
+  }
+ ],
+ "total_pages": 2,
+ "total_results": 35
+}
