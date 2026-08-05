@@ -103,10 +103,40 @@ class PostDispatchReconcileSubscriber:
                 read — the scan is only the trigger; the reconciliation reads the
                 fresh library through the ownership port).
         """
+        self._sweep(trigger=f"scan:{event.mode}")
+
+    def settle(self) -> None:
+        """Run the reconciliation ONE more time, after all post-dispatch work is done.
+
+        §14.3 — « la fermeture suit la médiathèque, pas une horloge ». The
+        ``LibraryScanCompleted`` sweep fires from inside the scan's own ``finally``, so it
+        can land while the library is still being rewritten: a dispatch that MERGES a show
+        renames every conflicting episode file, and a season-level ownership answer is
+        all-or-nothing. On 2026-08-05 that read « not owned » for two American Dad packs
+        that had in fact landed, and — the sweep being the only attempt — the queue kept
+        saying « récupéré » for eight hours, until the next grab cron.
+
+        This is the deterministic second pass: the caller invokes it once the whole
+        post-dispatch maintenance (every scan, every repair) has returned, so the library
+        is settled by construction rather than by luck. Idempotent (reconciliation is
+        guarded on the current status in SQL) and fail-soft — a settle error never reaches
+        the dispatch.
+        """
+        self._sweep(trigger="settle")
+
+    def _sweep(self, *, trigger: str) -> None:
+        """Run one reconciliation pass + film retirement + provenance prune (fail-soft).
+
+        The single body shared by the scan-completed handler and :meth:`settle`, so the
+        two entry points can never drift apart in what they reconcile.
+
+        Args:
+            trigger: What asked for this sweep, for the log line only.
+        """
         try:
             summary = reconcile_wanted(self._store, self._ownership, client_items=None, event_bus=self._bus)
         except Exception as exc:  # noqa: BLE001 — fail-soft: never disrupt the scanner
-            log.warning("acquire.post_dispatch_reconcile.failed", scan_mode=event.mode, error=str(exc))
+            log.warning("acquire.post_dispatch_reconcile.failed", trigger=trigger, error=str(exc))
             return
         for followed_id in summary.closed_movie_followed_ids:
             self._retire_acquired_film(followed_id)

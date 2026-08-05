@@ -177,6 +177,9 @@ class TestReconcileSubscriberOutlivesThePostDispatchScan:
         order: list[str] = []
 
         class _SpySubscriber:
+            def settle(self) -> None:
+                order.append("settle")
+
             def close(self) -> None:
                 order.append("close")
 
@@ -212,6 +215,62 @@ class TestReconcileSubscriberOutlivesThePostDispatchScan:
         ):
             DispatchStep()(ctx)
 
-        assert order == ["maintenance", "close"], (
-            f"the reconcile subscriber must outlive the post-dispatch maintenance scan — got {order}"
+        # §14.3 — l'ordre porte tout le sens : la maintenance (donc les scans) d'abord,
+        # PUIS le second passage déterministe, PUIS seulement le désabonnement. Un settle
+        # avant la maintenance relirait la médiathèque à mi-écriture, exactement la course
+        # qu'il existe pour supprimer.
+        assert order == ["maintenance", "settle", "close"], (
+            f"the reconcile subscriber must settle after the maintenance scan, then close — got {order}"
         )
+
+    def test_the_dispatch_cli_command_settles_the_same_way(self) -> None:
+        """§14.3 — « il n'existe pas deux chemins » : la commande CLI se comporte pareil.
+
+        Les deux racines de composition du dispatch (l'étape du run complet et la commande
+        ``personalscraper dispatch``) ont déjà divergé une fois sur exactement ce point
+        (D4-bis). Le même ordre est donc exigé des deux, sinon la fermeture d'acquisition
+        dépendrait de la porte d'entrée choisie.
+        """
+        from types import SimpleNamespace
+
+        from personalscraper.commands.pipeline import dispatch as dispatch_command
+        from personalscraper.models import StepReport
+
+        order: list[str] = []
+
+        class _SpySubscriber:
+            def settle(self) -> None:
+                order.append("settle")
+
+            def close(self) -> None:
+                order.append("close")
+
+        app = SimpleNamespace(event_bus=EventBus(), acquire=None)
+        ctx = SimpleNamespace(obj=SimpleNamespace(config=MagicMock(name="config")))
+        bundle = SimpleNamespace(app_context=app, settings=MagicMock(name="settings"))
+
+        with (
+            patch(
+                "personalscraper.dispatch.run.run_dispatch",
+                return_value=(StepReport(name="dispatch"), []),
+            ),
+            patch(
+                "personalscraper.subscribers.dispatch_reconcile.build_post_dispatch_reconcile_subscriber",
+                return_value=_SpySubscriber(),
+            ),
+            patch("personalscraper.subscribers.plex.build_plex_subscriber", return_value=None),
+            patch("personalscraper.pipeline_steps.resolve_dispatch_authority", return_value={}),
+            patch(
+                "personalscraper.dispatch.post_maintenance.maybe_run_post_dispatch_maintenance",
+                side_effect=lambda *a, **k: order.append("maintenance"),
+            ),
+            patch.dict("personalscraper.commands.pipeline.state", {"console": MagicMock(), "verbose": False}),
+        ):
+            dispatch_command.__wrapped__.__wrapped__.__wrapped__(  # type: ignore[attr-defined]
+                ctx,  # type: ignore[arg-type]
+                dry_run=False,
+                no_post_maintenance=False,
+                bundle=bundle,  # type: ignore[arg-type]
+            )
+
+        assert order == ["maintenance", "settle", "close"], f"the CLI path must settle too — got {order}"

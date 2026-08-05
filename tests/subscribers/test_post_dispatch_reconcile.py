@@ -206,3 +206,109 @@ def test_build_post_dispatch_reconcile_subscriber_none_without_store() -> None:
     acquire = MagicMock()
     acquire.store = None
     assert build_post_dispatch_reconcile_subscriber(bus, acquire) is None
+
+
+class _OwnsNothingThenEverything:
+    """Ownership fake that answers False on the first sweep and True afterwards.
+
+    Reproduces the 2026-08-05 shape: the dispatch merged and RENAMED ~46 episode files,
+    so the incremental scan that fires ``LibraryScanCompleted`` was still re-indexing when
+    the reconcile ran — the season read « not owned », and nothing tried again until the
+    grab cron twelve hours later.
+    """
+
+    def __init__(self) -> None:
+        """Start out answering « not owned »."""
+        self.settled = False
+
+    def owns(
+        self,
+        media_ref: MediaRef,
+        *,
+        kind: Literal["movie", "episode"],
+        season: int | None = None,
+        episode: int | None = None,
+    ) -> bool:
+        """Answer ownership, flipping to True once :attr:`settled` is set."""
+        return self.settled
+
+
+class TestSettleClosesWhatTheScanRaceMissed:
+    """§14.3 — « la fermeture suit la médiathèque, pas une horloge »."""
+
+    def test_settle_closes_a_row_the_scan_completed_sweep_could_not(
+        self, store: ConcreteAcquireStore
+    ) -> None:
+        """Un second passage DÉTERMINISTE, après que la médiathèque s'est stabilisée.
+
+        Le passage sur ``LibraryScanCompleted`` tombe pendant la ré-indexation et ne peut
+        rien fermer ; ``settle()`` est appelé une fois toute la maintenance post-dispatch
+        terminée et ferme la ligne. Sans lui, la file reste « récupéré » jusqu'au cron
+        suivant — une fermeture qui se joue sur une course, ce que §14.3 interdit.
+        """
+        bus = EventBus()
+        ownership = _OwnsNothingThenEverything()
+        followed_id = store.follow.add(
+            FollowedSeries(media_ref=MediaRef(tvdb_id=73141), title="American Dad!", added_at=1)
+        )
+        wanted_id = store.wanted.add(
+            WantedItem(
+                media_ref=MediaRef(tvdb_id=73141),
+                kind="episode",
+                status="pending",
+                enqueued_at=1_750_000_000,
+                season=15,
+                episode=21,
+                followed_id=followed_id,
+            )
+        )
+        store.wanted.mark_grabbed(wanted_id, "d412a66379ec")
+        sub = PostDispatchReconcileSubscriber(bus, store, ownership)
+        try:
+            # 1) le scan se termine alors que la médiathèque est encore en cours d'écriture
+            bus.emit(LibraryScanCompleted(mode="incremental", scanned=1491, errors=0, elapsed_s=1.0))
+            assert store.wanted.get(wanted_id).status == "grabbed", "rien à fermer à cet instant"
+
+            # 2) la maintenance post-dispatch se termine, la médiathèque est stable
+            ownership.settled = True
+            sub.settle()
+
+            assert store.wanted.get(wanted_id).status == "done"
+        finally:
+            sub.close()
+
+    def test_settle_is_a_no_op_once_everything_is_closed(self, store: ConcreteAcquireStore) -> None:
+        """Idempotent : appelé sur un état déjà réconcilié, il ne change rien."""
+        bus = EventBus()
+        sub = PostDispatchReconcileSubscriber(bus, store, _OwnsAll())
+        try:
+            sub.settle()
+            sub.settle()
+        finally:
+            sub.close()
+
+    def test_settle_never_raises_into_its_caller(self, store: ConcreteAcquireStore) -> None:
+        """Fail-soft comme le handler : le dispatch ne peut pas échouer sur un settle."""
+        bus = EventBus()
+        exploding = MagicMock()
+        exploding.owns.side_effect = RuntimeError("library exploded")
+        followed_id = store.follow.add(
+            FollowedSeries(media_ref=MediaRef(tvdb_id=1), title="X", added_at=1)
+        )
+        wanted_id = store.wanted.add(
+            WantedItem(
+                media_ref=MediaRef(tvdb_id=1),
+                kind="episode",
+                status="pending",
+                enqueued_at=1_750_000_000,
+                season=1,
+                episode=1,
+                followed_id=followed_id,
+            )
+        )
+        store.wanted.mark_grabbed(wanted_id, "abc")
+        sub = PostDispatchReconcileSubscriber(bus, store, exploding)
+        try:
+            sub.settle()  # must not raise
+        finally:
+            sub.close()

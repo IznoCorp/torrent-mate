@@ -236,6 +236,61 @@ correctif.
 
 ---
 
+## §14 — Les deux workflows (règle gravée)
+
+Le produit n'a que **deux** enchaînements, et ils sont **contraignants**. Toute surface, tout
+état affiché, tout garde-fou se lit par rapport à eux. Un état qui n'est pas une étape de ces
+workflows, ou qui y stagne alors que la suite a eu lieu, est **non conforme**.
+
+### §14.1 — Workflow d'acquisition
+
+```
+média ajouté au suivi
+   → est-il déjà diffusé ?          non → on attend (état stable, légitime)
+   → oui : torrent disponible ?     non → on cherche encore (état stable, légitime)
+   → oui : récupération
+   → récupéré ?                     non → changement de release
+```
+
+Deux états seulement sont des **états de repos** légitimes : « pas encore diffusé » et
+« cherché, rien trouvé ». Tout le reste — « disponible », « récupéré » — est **transitoire** :
+il doit avancer tout seul. Une release qui ne se récupère pas se remplace ; ce n'est jamais un
+état où l'on s'installe.
+
+### §14.2 — Workflow pipeline
+
+```
+torrent terminé
+   → ingestion   (uniquement ce qui DOIT l'être : ni les torrents de ratio,
+                  ni ceux déjà ingérés)
+   → tri → nettoyage → identification → scraping → bande-annonce → vérification → dispatch
+```
+
+Le déclencheur est **le torrent terminé**, quelle que soit son origine. Une release issue d'une
+acquisition n'est pas un cas particulier : **elle déclenche le workflow pipeline comme n'importe
+quel torrent terminé**. Il n'existe pas deux chemins.
+
+### §14.3 — La jonction des deux workflows est OBLIGATOIRE
+
+Les deux workflows se rejoignent, et cette jonction est un **engagement**, pas un espoir :
+
+- **« récupéré » n'est PAS un état de repos.** Un torrent d'acquisition terminé a déclenché le
+  pipeline ; si l'acquisition affiche encore « récupéré » alors que le média est en
+  médiathèque, l'interface ment (§13) et le workflow n'est pas allé au bout.
+- **La fermeture suit la médiathèque, pas une horloge.** Dès que la médiathèque possède
+  l'œuvre, la ligne d'acquisition se referme. Elle ne peut pas dépendre d'une **tentative
+  unique** ni d'un cron lointain : une fermeture qui se joue sur une course, avec un filet à
+  douze heures, est **non conforme**.
+- **Un parcours n'a pas de trou.** Un média rangé est passé par l'ingestion, le tri,
+  l'identification et le scraping — c'est le workflow. Si une étape n'est pas connue, l'interface
+  dit **« inconnue »**, jamais « pas faite » : afficher « rangé » au-dessus d'étapes éteintes
+  décrit un chemin qui n'existe pas.
+- **Chaque garde-fou couvre les DEUX workflows en entier.** Une règle qui ne voit qu'un genre
+  de ligne (un épisode mais pas une saison) laisse passer précisément ce qu'elle prétend
+  garder.
+
+---
+
 ## Ce que l'interface DOIT faire (DOIT-1 … DOIT-11)
 
 1. **DOIT-1 — Tout montrer, en français clair.** Chaque média a un état compréhensible sans être

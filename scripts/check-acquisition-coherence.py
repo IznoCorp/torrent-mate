@@ -262,6 +262,39 @@ class _OwnershipIndex:
         return (season, episode) in self._pairs_cache[ref]
 
 
+def _season_owned(
+    ownership: "_OwnershipIndex",
+    ref: tuple[int | None, int | None, str | None],
+    followed_id: int | None,
+    season: int | None,
+    aired_keys: set[tuple[int, int, int]],
+) -> bool:
+    """Return True iff EVERY aired episode of *season* is owned (the season-level answer).
+
+    Mirrors :func:`personalscraper.acquire.reconcile._season_fully_owned` — same rule,
+    two readers, so the guard can never disagree with the engine about what closes a
+    season row. Every blind spot answers ``False``: a missing ``followed_id``/``season``,
+    an empty catalog for that season, or partial ownership. Declaring a season owned on
+    zero knowledge would be the mirror-image lie.
+
+    Args:
+        ownership: The per-work ownership index over ``library.db``.
+        ref: The wanted row's ``(tvdb_id, tmdb_id, imdb_id)`` triple.
+        followed_id: The follow the row belongs to, or None.
+        season: The season number, or None.
+        aired_keys: The ``(followed_id, season, episode)`` set from the aired cache.
+
+    Returns:
+        ``True`` iff the catalog is non-empty for the season and every episode is owned.
+    """
+    if followed_id is None or season is None:
+        return False
+    episodes = [e for (f, s, e) in aired_keys if f == followed_id and s == season]
+    if not episodes:
+        return False
+    return all(ownership.owned("episode", ref, season, episode) for episode in episodes)
+
+
 def collect_anomalies(
     acquire_conn: sqlite3.Connection,
     indexer_conn: sqlite3.Connection,
@@ -393,7 +426,16 @@ def collect_anomalies(
     for w in wanted_rows:
         ref = _parse_ref(w["media_ref_json"])
         title = _title_of(w["followed_id"])
-        owned = ownership.owned(w["kind"], ref, w["season"], w["episode"])
+        # §14.3 — la possession doit avoir une réponse pour CHAQUE genre de ligne. Une
+        # ligne `season` n'a pas de numéro d'épisode, donc la voie épisode ne peut rien en
+        # dire : sa possession se lit sur le catalogue diffusé, exactement comme le fait
+        # ``reconcile._season_fully_owned`` (une seule règle, deux lecteurs). Sans ça, deux
+        # packs American Dad atterris en médiathèque ont affiché « récupéré » huit heures
+        # sans qu'aucune règle ne crie.
+        if w["kind"] == "season":
+            owned = _season_owned(ownership, ref, w["followed_id"], w["season"], aired_keys)
+        else:
+            owned = ownership.owned(w["kind"], ref, w["season"], w["episode"])
         common = {
             "title": title,
             "kind": w["kind"],
