@@ -28,6 +28,7 @@ import json
 import os
 import sqlite3
 import time
+from collections.abc import Sequence
 from contextlib import closing
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, cast
@@ -62,6 +63,7 @@ from personalscraper.web.acquisition.service import (
     run_media_search,
     scoped_provider_clients,
 )
+from personalscraper.web.acquisition.states import WantedFacts, substitute_absorbed_facts
 from personalscraper.web.deps import require_not_staging, require_x_requested_with
 from personalscraper.web.models.acquisition import (
     AcquisitionDownloadsResponse,
@@ -453,6 +455,53 @@ _WANTED_STATUSES = Literal[
 ]
 
 
+def _resolve_absorbed_statuses(conn: sqlite3.Connection, rows: Sequence[sqlite3.Row]) -> dict[int, str]:
+    """Return ``{wanted_id: governing status}`` for one page of queue rows.
+
+    ``absorbed`` points at the season ``wanted`` row that carries the episode's
+    acquisition; the governing status is that season's. The rule itself is NOT
+    written here — this function only feeds
+    :func:`~personalscraper.web.acquisition.states.substitute_absorbed_facts`, which the
+    card and the completeness matrix already call. One rule, one implementation (§13).
+
+    The carrying season row is fetched by id rather than looked up in ``rows``: it may
+    sit on a different page of the queue, and resolving from the page alone would
+    reintroduce the bug for any queue longer than one page.
+
+    Args:
+        conn: An open connection to ``acquire.db``.
+        rows: The ``wanted`` rows of the page being served.
+
+    Returns:
+        ``{row id: governing status}``, one entry per input row.
+    """
+    carrier_ids = sorted(
+        {row["absorbed_by"] for row in rows if row["status"] == "absorbed" and row["absorbed_by"] is not None}
+    )
+    season_facts: dict[int, WantedFacts] = {}
+    if carrier_ids:
+        placeholders = ",".join("?" * len(carrier_ids))
+        carriers = conn.execute(
+            f"SELECT id, status, last_search_outcome, last_search_found FROM wanted WHERE id IN ({placeholders})",
+            carrier_ids,
+        ).fetchall()
+        season_facts = {
+            row["id"]: (row["status"], row["last_search_outcome"], row["last_search_found"]) for row in carriers
+        }
+
+    resolved = substitute_absorbed_facts(
+        [
+            (row["id"], row["status"], row["last_search_outcome"], row["last_search_found"], row["absorbed_by"])
+            for row in rows
+        ],
+        season_facts,
+    )
+    # ``wanted.status`` is NOT NULL, so the ``is not None`` filter never drops a row;
+    # it keeps the mapping honest for mypy without inventing a status when the
+    # impossible happens (a missing key raises loudly rather than serving a lie).
+    return {row_id: status for row_id, status, _outcome, _found in resolved if status is not None}
+
+
 @router.get("/wanted", response_model=WantedResponse)
 def get_wanted(
     request: Request,
@@ -460,11 +509,28 @@ def get_wanted(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=_MAX_PAGE_SIZE),
 ) -> WantedResponse:
-    """List wanted items, paginated, with optional status filter.
+    """List wanted items, paginated, with the absorption pointer RESOLVED.
+
+    The served ``status`` is the status that GOVERNS the row: ``absorbed`` is not
+    a state of the episode but a pointer to the season ``wanted`` row carrying its
+    acquisition (season-grab R5), so an absorbed row is served with its SEASON's
+    status — via :func:`~personalscraper.web.acquisition.states.substitute_absorbed_facts`,
+    the one place that rule lives. Reporting the pointer instead of following it made
+    four American Dad episodes read « En cours d'acquisition » on 2026-08-05 with both
+    packs already grabbed and the files in the library (§13: « un état qui *pointe* vers
+    autre chose doit suivre le pointeur, jamais le rapporter tel quel »). A pointer that
+    cannot be followed (NULL, or a row that does not exist — the column carries no FK)
+    keeps ``absorbed``: ignorance is not traded for a different lie.
+
+    The ``status`` FILTER is deliberately asymmetric: it matches the STORED status, not
+    the resolved one, so ``status=done`` does not return rows absorbed by a done season.
+    Resolving the filter would mean re-implementing the rule in SQL, and two
+    implementations of one rule is how surfaces come to disagree (§13). The queue UI
+    filters client-side on the resolved status it receives here.
 
     Args:
         request: The incoming FastAPI request.
-        status: Filter by wanted status (default ``"all"``).
+        status: Filter by the STORED wanted status (default ``"all"``).
         page: Page number (1-based, default 1).
         page_size: Items per page (1–200, default 50).
 
@@ -504,6 +570,8 @@ def get_wanted(
                 params + [page_size, offset],
             ).fetchall()
 
+            resolved_status = _resolve_absorbed_statuses(conn, rows)
+
             items: list[WantedItemResponse] = []
             for row in rows:
                 items.append(
@@ -513,7 +581,7 @@ def get_wanted(
                         kind=row["kind"],
                         season=row["season"],
                         episode=row["episode"],
-                        status=row["status"],
+                        status=resolved_status[row["id"]],
                         attempts=row["attempts"],
                         enqueued_at=float(row["enqueued_at"]),
                         last_search_at=(float(row["last_search_at"]) if row["last_search_at"] is not None else None),

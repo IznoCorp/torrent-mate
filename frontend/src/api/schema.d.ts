@@ -585,11 +585,28 @@ export interface paths {
         };
         /**
          * Get Wanted
-         * @description List wanted items, paginated, with optional status filter.
+         * @description List wanted items, paginated, with the absorption pointer RESOLVED.
+         *
+         *     The served ``status`` is the status that GOVERNS the row: ``absorbed`` is not
+         *     a state of the episode but a pointer to the season ``wanted`` row carrying its
+         *     acquisition (season-grab R5), so an absorbed row is served with its SEASON's
+         *     status — via :func:`~personalscraper.web.acquisition.states.substitute_absorbed_facts`,
+         *     the one place that rule lives. Reporting the pointer instead of following it made
+         *     four American Dad episodes read « En cours d'acquisition » on 2026-08-05 with both
+         *     packs already grabbed and the files in the library (§13: « un état qui *pointe* vers
+         *     autre chose doit suivre le pointeur, jamais le rapporter tel quel »). A pointer that
+         *     cannot be followed (NULL, or a row that does not exist — the column carries no FK)
+         *     keeps ``absorbed``: ignorance is not traded for a different lie.
+         *
+         *     The ``status`` FILTER is deliberately asymmetric: it matches the STORED status, not
+         *     the resolved one, so ``status=done`` does not return rows absorbed by a done season.
+         *     Resolving the filter would mean re-implementing the rule in SQL, and two
+         *     implementations of one rule is how surfaces come to disagree (§13). The queue UI
+         *     filters client-side on the resolved status it receives here.
          *
          *     Args:
          *         request: The incoming FastAPI request.
-         *         status: Filter by wanted status (default ``"all"``).
+         *         status: Filter by the STORED wanted status (default ``"all"``).
          *         page: Page number (1-based, default 1).
          *         page_size: Items per page (1–200, default 50).
          *
