@@ -254,10 +254,14 @@ export function ParcoursPanel(): ReactElement {
   return (
     <ul className="flex flex-col gap-2">
       {journeys.map((j) => {
-        // §14.3 — un parcours RECONSTRUIT (§13, backfill) ne connaît pas les instants
-        // des étapes intermédiaires : leurs NULL veulent dire « inconnue », jamais
-        // « pas faite ». Le drapeau est lu une fois pour toute la carte.
+        // §14.3 — un parcours RECONSTRUIT (§13, backfill) peut ne pas connaître certains
+        // instants : sur une telle ligne, un NULL veut dire « inconnue », jamais « pas
+        // faite ». Le backfill en retrouve la plupart (tracker d'ingestion + journal des
+        // runs), donc la note ne s'affiche QUE s'il reste réellement une étape sans date —
+        // une note fixe qui annoncerait « les instants ne sont plus connus » sur un
+        // parcours entièrement daté serait un mensonge en attente (§13).
         const rebuilt = j.reconstructed_at != null;
+        const undated = rebuilt && STAGES.some((stage) => j[stage.key] == null);
         return (
           <li
             key={j.info_hash}
@@ -355,11 +359,10 @@ export function ParcoursPanel(): ReactElement {
                 );
               })}
             </ol>
-            {rebuilt && (
+            {undated && (
               <p className="text-xs text-muted-foreground">
-                Parcours reconstruit : le média est bien rangé, mais les
-                dossiers de transit ayant été supprimés, les instants des étapes
-                intermédiaires ne sont plus connus.
+                Parcours reconstruit : certaines étapes n'ont pas pu être
+                datées, les dossiers de transit ayant été supprimés.
               </p>
             )}
             <ResolutionChip j={j} />
