@@ -31,17 +31,25 @@ import { toast } from "sonner";
 
 beforeEach(() => {
   mediaSearchMock.mockReturnValue({
+    // useInfiniteQuery shape: pages, not a flat results array.
     data: {
-      results: [
+      pages: [
         {
-          provider: "tvdb",
-          provider_id: 1,
-          title: "Dune",
-          year: 2021,
-          kind: "tv",
-          poster_url: null,
-          overview: "Sur Arrakis.",
-          score: 0.9,
+          total: 1,
+          offset: 0,
+          limit: 20,
+          results: [
+            {
+              provider: "tvdb",
+              provider_id: 1,
+              title: "Dune",
+              year: 2021,
+              kind: "tv",
+              poster_url: null,
+              overview: "Sur Arrakis.",
+              score: 0.9,
+            },
+          ],
         },
       ],
     },
@@ -49,6 +57,9 @@ beforeEach(() => {
     isError: false,
     error: null,
     refetch: vi.fn(),
+    hasNextPage: false,
+    isFetchingNextPage: false,
+    fetchNextPage: vi.fn(),
   });
 });
 
@@ -352,5 +363,157 @@ describe("MediaSearchAdd — add-by-id (merged surface, #21)", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Suivre" }));
     expect(vi.mocked(toast.warning)).toHaveBeenCalled();
+  });
+});
+
+describe("carrousel de résultats (§12 mobile first, §8 rien en silence)", () => {
+  /** Run a search so the results rail renders. */
+  function search(): void {
+    render(<MediaSearchAdd />);
+    fireEvent.change(screen.getByLabelText("Rechercher un média à suivre"), {
+      target: { value: "dune" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Chercher" }));
+  }
+
+  it("affiche le nombre TOTAL de résultats, pas le nombre de cartes rendues", () => {
+    // §8: five rows out of eighty-one with no count reads as "that is all there
+    // is" — the silence that made a mainstream film look absent.
+    mediaSearchMock.mockReturnValue({
+      data: {
+        pages: [
+          {
+            total: 81,
+            offset: 0,
+            limit: 20,
+            results: [
+              {
+                provider: "tmdb",
+                provider_id: 969681,
+                title: "Spider-Man : Brand New Day",
+                year: 2026,
+                kind: "movie",
+                poster_url: null,
+                overview: null,
+                score: 0.92,
+              },
+            ],
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+      hasNextPage: true,
+      isFetchingNextPage: false,
+      fetchNextPage: vi.fn(),
+    });
+    search();
+    expect(screen.getByTestId("search-result-count")).toHaveTextContent(
+      "81 résultats",
+    );
+  });
+
+  it("le conteneur défile, et lui seul — la page ne déborde pas (§12)", () => {
+    search();
+    const rail = screen.getByTestId("search-rail");
+    expect(rail.className).toContain("overflow-x-auto");
+    expect(rail.className).toContain("snap-x");
+  });
+
+  it("les flèches sont masquées sous sm et présentes au-delà", () => {
+    search();
+    const previous = screen.getByRole("button", {
+      name: "Résultats précédents",
+    });
+    const container = previous.parentElement;
+    // Tailwind: hidden by default, flex from sm — the thumb scrolls on a phone,
+    // where a pair of buttons would steal width from the cards.
+    expect(container?.className).toContain("hidden");
+    expect(container?.className).toContain("sm:flex");
+  });
+
+  it("charge la page suivante à l'approche du bord, sans bouton à viser", () => {
+    const fetchNextPage = vi.fn();
+    mediaSearchMock.mockReturnValue({
+      data: {
+        pages: [
+          {
+            total: 81,
+            offset: 0,
+            limit: 20,
+            results: [
+              {
+                provider: "tmdb",
+                provider_id: 1,
+                title: "Dune",
+                year: 2021,
+                kind: "movie",
+                poster_url: null,
+                overview: null,
+                score: 0.9,
+              },
+            ],
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+      hasNextPage: true,
+      isFetchingNextPage: false,
+      fetchNextPage,
+    });
+    search();
+    const rail = screen.getByTestId("search-rail");
+    // jsdom reports zero-size elements, so drive the geometry explicitly.
+    Object.defineProperty(rail, "scrollWidth", { value: 1000, writable: true });
+    Object.defineProperty(rail, "clientWidth", { value: 400, writable: true });
+    Object.defineProperty(rail, "scrollLeft", { value: 500, writable: true });
+    fireEvent.scroll(rail);
+    expect(fetchNextPage).toHaveBeenCalled();
+  });
+
+  it("ne recharge pas quand il n'y a plus de page", () => {
+    const fetchNextPage = vi.fn();
+    mediaSearchMock.mockReturnValue({
+      data: {
+        pages: [
+          {
+            total: 1,
+            offset: 0,
+            limit: 20,
+            results: [
+              {
+                provider: "tmdb",
+                provider_id: 1,
+                title: "Dune",
+                year: 2021,
+                kind: "movie",
+                poster_url: null,
+                overview: null,
+                score: 0.9,
+              },
+            ],
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+      hasNextPage: false,
+      isFetchingNextPage: false,
+      fetchNextPage,
+    });
+    search();
+    const rail = screen.getByTestId("search-rail");
+    Object.defineProperty(rail, "scrollWidth", { value: 1000, writable: true });
+    Object.defineProperty(rail, "clientWidth", { value: 400, writable: true });
+    Object.defineProperty(rail, "scrollLeft", { value: 600, writable: true });
+    fireEvent.scroll(rail);
+    expect(fetchNextPage).not.toHaveBeenCalled();
   });
 });

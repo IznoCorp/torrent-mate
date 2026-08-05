@@ -8,8 +8,19 @@
  * reuses {@link useFollow}. Loading, error and empty states are all soigné.
  */
 
-import { Check, ChevronDown, Search } from "lucide-react";
-import { useState, type ReactElement, type SyntheticEvent } from "react";
+import {
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Search,
+} from "lucide-react";
+import {
+  useRef,
+  useState,
+  type ReactElement,
+  type SyntheticEvent,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -86,6 +97,33 @@ export function MediaSearchAdd(): ReactElement {
 
   const searchQuery = useMediaSearch(query, kind === "all" ? undefined : kind);
   const followMut = useFollow();
+  const railRef = useRef<HTMLDivElement | null>(null);
+
+  /** Scroll the rail by one visible page in the given direction. */
+  function scrollByPage(direction: 1 | -1): void {
+    const rail = railRef.current;
+    if (rail == null) return;
+    rail.scrollBy({ left: direction * rail.clientWidth, behavior: "smooth" });
+  }
+
+  /**
+   * Fetch the next page as the rail approaches its end.
+   *
+   * Distance-based rather than a "load more" button: on a phone the operator is
+   * already swiping, and asking them to stop and hit a target breaks the gesture.
+   */
+  function handleRailScroll(): void {
+    const rail = railRef.current;
+    if (rail == null) return;
+    const remaining = rail.scrollWidth - rail.scrollLeft - rail.clientWidth;
+    if (
+      remaining < rail.clientWidth &&
+      searchQuery.hasNextPage &&
+      !searchQuery.isFetchingNextPage
+    ) {
+      void searchQuery.fetchNextPage();
+    }
+  }
 
   const idLabel =
     provider === "imdb"
@@ -163,7 +201,12 @@ export function MediaSearchAdd(): ReactElement {
     });
   }
 
-  const results = searchQuery.data?.results ?? [];
+  const pages = searchQuery.data?.pages ?? [];
+  const results = pages.flatMap((page) => page.results);
+  // The backend's total counts every ranked candidate, not the rows on screen —
+  // without showing it, five results out of eighty-one read as "that's all there
+  // is", which is the silence §8 forbids.
+  const total = pages[0]?.total ?? 0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -312,9 +355,14 @@ export function MediaSearchAdd(): ReactElement {
       </div>
 
       {query === "" ? null : searchQuery.isLoading ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        // Skeletons take the carousel's shape, not the old grid's, so the layout
+        // does not jump when the real rows land.
+        <div className="flex gap-3 overflow-hidden">
           {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={`sk-${String(i)}`} className="aspect-[2/3] w-full" />
+            <Skeleton
+              key={`sk-${String(i)}`}
+              className="aspect-[2/3] w-[45%] shrink-0 sm:w-[30%] lg:w-[18%]"
+            />
           ))}
         </div>
       ) : searchQuery.isError ? (
@@ -333,61 +381,121 @@ export function MediaSearchAdd(): ReactElement {
           description={`Aucun média trouvé pour « ${query} ».`}
         />
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {results.map((result) => {
-            const key = `${result.provider}-${String(result.provider_id)}`;
-            const done = followed.has(key);
-            return (
-              <MediaCard
-                key={key}
-                title={result.title}
-                year={result.year ?? null}
-                kind={result.kind === "tv" ? "tv" : "movie"}
-                posterUrl={result.poster_url ?? null}
-                overview={result.overview ?? null}
-                onOpen={() => {
-                  void navigate(
-                    mediaSheetHref({
-                      provider: result.provider,
-                      providerId: String(result.provider_id),
-                      kind: result.kind === "tv" ? "tv" : "movie",
-                    }),
-                  );
+        <div className="flex flex-col gap-2">
+          {/* §8: say how many there are. Five rows with no count read as "that
+              is everything", which is exactly how a mainstream film looked
+              absent. */}
+          <div className="flex items-center justify-between gap-2">
+            <p
+              className="text-xs text-muted-foreground"
+              data-testid="search-result-count"
+            >
+              {total} résultat{total > 1 ? "s" : ""}
+            </p>
+            {/* Arrows only from sm up: on a phone the thumb scrolls the row, and
+                a pair of buttons would steal width from the cards (§12 — width
+                is the scarce resource). */}
+            <div className="hidden items-center gap-1 sm:flex">
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                aria-label="Résultats précédents"
+                onClick={() => {
+                  scrollByPage(-1);
                 }}
-                footer={
-                  <div className="flex w-full flex-col gap-1">
-                    {result.already_owned && (
-                      <span className="text-center text-[length:var(--text-2xs)] text-warning">
-                        Déjà en médiathèque
-                      </span>
-                    )}
-                    <Button
-                      size="sm"
-                      variant={done ? "outline" : "default"}
-                      className="w-full"
-                      disabled={done || followMut.isPending}
-                      onClick={() => {
-                        follow(result);
-                      }}
-                    >
-                      {/* CONFIG-4 leftover (ticket 250): lucide Check, not a
+              >
+                <ChevronLeft className="size-4" aria-hidden="true" />
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                aria-label="Résultats suivants"
+                onClick={() => {
+                  scrollByPage(1);
+                }}
+              >
+                <ChevronRight className="size-4" aria-hidden="true" />
+              </Button>
+            </div>
+          </div>
+          {/* The CONTAINER scrolls, never the page: §12 forbids a surface that
+              overflows the viewport, not a bounded lateral interaction. The
+              distinction is measured by the 390px acceptance check. */}
+          <div
+            ref={railRef}
+            data-testid="search-rail"
+            onScroll={handleRailScroll}
+            className="flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth pb-2"
+          >
+            {results.map((result) => {
+              const key = `${result.provider}-${String(result.provider_id)}`;
+              const done = followed.has(key);
+              return (
+                <div
+                  key={`wrap-${key}`}
+                  className="w-[45%] shrink-0 snap-start sm:w-[30%] lg:w-[18%]"
+                >
+                  <MediaCard
+                    key={key}
+                    title={result.title}
+                    year={result.year ?? null}
+                    kind={result.kind === "tv" ? "tv" : "movie"}
+                    posterUrl={result.poster_url ?? null}
+                    overview={result.overview ?? null}
+                    onOpen={() => {
+                      void navigate(
+                        mediaSheetHref({
+                          provider: result.provider,
+                          providerId: String(result.provider_id),
+                          kind: result.kind === "tv" ? "tv" : "movie",
+                        }),
+                      );
+                    }}
+                    footer={
+                      <div className="flex w-full flex-col gap-1">
+                        {result.already_owned && (
+                          <span className="text-center text-[length:var(--text-2xs)] text-warning">
+                            Déjà en médiathèque
+                          </span>
+                        )}
+                        <Button
+                          size="sm"
+                          variant={done ? "outline" : "default"}
+                          className="w-full"
+                          disabled={done || followMut.isPending}
+                          onClick={() => {
+                            follow(result);
+                          }}
+                        >
+                          {/* CONFIG-4 leftover (ticket 250): lucide Check, not a
                           raw ✓ glyph. */}
-                      {done ? (
-                        <span className="inline-flex items-center gap-1">
-                          <Check className="size-4" aria-hidden="true" />
-                          Suivi
-                        </span>
-                      ) : result.already_owned ? (
-                        "Remplacer…"
-                      ) : (
-                        "Suivre"
-                      )}
-                    </Button>
-                  </div>
-                }
-              />
-            );
-          })}
+                          {done ? (
+                            <span className="inline-flex items-center gap-1">
+                              <Check className="size-4" aria-hidden="true" />
+                              Suivi
+                            </span>
+                          ) : result.already_owned ? (
+                            "Remplacer…"
+                          ) : (
+                            "Suivre"
+                          )}
+                        </Button>
+                      </div>
+                    }
+                  />
+                </div>
+              );
+            })}
+            {searchQuery.isFetchingNextPage &&
+              Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton
+                  key={`more-${String(i)}`}
+                  className="aspect-[2/3] w-[45%] shrink-0 snap-start sm:w-[30%] lg:w-[18%]"
+                />
+              ))}
+          </div>
         </div>
       )}
 
