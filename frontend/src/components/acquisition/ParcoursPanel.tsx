@@ -32,10 +32,33 @@ import { mediaSheetHref } from "@/lib/media-href";
  * and the per-stage run-uid (F3) that deep-links the chip to the run that did it.
  */
 const STAGES = [
-  { key: "grabbed_at", label: "Récupéré", runKey: "grab_run_uid" },
-  { key: "ingested_at", label: "Ingéré", runKey: "ingest_run_uid" },
-  { key: "scraped_at", label: "Scrapé", runKey: "scrape_run_uid" },
-  { key: "dispatched_at", label: "Rangé", runKey: "dispatch_run_uid" },
+  // ``estimateKey`` est le nom que ``estimated_stages`` emploie pour cette étape ; seules
+  // l'ingestion et le scraping peuvent être estimés (le grab et le rangement sont les
+  // deux bornes MESURÉES entre lesquelles on répartit).
+  {
+    key: "grabbed_at",
+    label: "Récupéré",
+    runKey: "grab_run_uid",
+    estimateKey: "grabbed",
+  },
+  {
+    key: "ingested_at",
+    label: "Ingéré",
+    runKey: "ingest_run_uid",
+    estimateKey: "ingested",
+  },
+  {
+    key: "scraped_at",
+    label: "Scrapé",
+    runKey: "scrape_run_uid",
+    estimateKey: "scraped",
+  },
+  {
+    key: "dispatched_at",
+    label: "Rangé",
+    runKey: "dispatch_run_uid",
+    estimateKey: "dispatched",
+  },
 ] as const;
 
 /**
@@ -377,9 +400,13 @@ export function ParcoursPanel(): ReactElement {
                 )}
               </Button>
               <Badge tone="neutral" className="shrink-0">
+                {/* Un pack de saison (`kind === "season"`) EST une série : ne tester que
+                  "episode" laissait « American Dad! · Saison 17 » sans type affiché, ce
+                  que DOIT-1 interdit. Un `kind` inconnu reste un tiret — on ne devine
+                  pas une catégorie. */}
                 {j.kind === "movie"
                   ? "Film"
-                  : j.kind === "episode"
+                  : j.kind === "episode" || j.kind === "season"
                     ? "Série"
                     : "—"}
               </Badge>
@@ -399,11 +426,30 @@ export function ParcoursPanel(): ReactElement {
                 // comme une perte, ni une date inventée, qui serait le mensonge que §13
                 // interdit. Moins d'information, jamais de fausse information.
                 const reached = done || terminal;
-                const badge = (
+                // Arbitrage opérateur : une étape dont l'instant n'a pu être retrouvé
+                // reçoit une valeur COHÉRENTE, répartie entre le grab et le rangement.
+                // Ce qui l'empêche d'être un mensonge, c'est de le DIRE : « ≈ » sur la
+                // date, et l'infobulle qui nomme le calcul. Une estimation annoncée est
+                // une information ; la même, tue, serait une fausse mesure (§13).
+                const estimated = (j.estimated_stages ?? "")
+                  .split(",")
+                  .includes(stage.estimateKey);
+                const chip = (
                   <Badge tone={reached ? "success" : "muted"}>
                     {stage.label}
-                    {done ? ` · ${relativeTime(at)}` : ""}
+                    {done
+                      ? ` · ${estimated ? "≈ " : ""}${relativeTime(at)}`
+                      : ""}
                   </Badge>
+                );
+                // L'infobulle porte l'aveu. `Badge` n'accepte pas de `title` : on
+                // l'enveloppe plutôt que de laisser le « ≈ » sans explication.
+                const badge = estimated ? (
+                  <span title="Instant estimé : cette étape a bien eu lieu, mais son horodatage n'a été retrouvé dans aucune source. La valeur est répartie entre la récupération et le rangement.">
+                    {chip}
+                  </span>
+                ) : (
+                  chip
                 );
                 return (
                   <li key={stage.key}>

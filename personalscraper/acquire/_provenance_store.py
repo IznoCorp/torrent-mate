@@ -158,6 +158,11 @@ class ProvenanceRow:
     # un film, et pour un parcours dont l'épisode n'a jamais été connu.
     season: int | None = None
     episode: int | None = None
+    #: Étapes dont l'instant a été CALCULÉ et non observé (« ingested,scraped »), ou None
+    #: quand tout ce que la ligne porte a été mesuré. C'est ce qui permet d'afficher une
+    #: date approchée en le DISANT, plutôt que de faire passer une interpolation pour une
+    #: mesure — la seule chose qui distingue une estimation d'un mensonge.
+    estimated_stages: str | None = None
 
 
 def _row_to_provenance(row: sqlite3.Row) -> ProvenanceRow:
@@ -196,6 +201,7 @@ def _row_to_provenance(row: sqlite3.Row) -> ProvenanceRow:
         # Identité affichable (017) — tolère une forme de ligne antérieure.
         season=row["season"] if "season" in keys else None,
         episode=row["episode"] if "episode" in keys else None,
+        estimated_stages=row["estimated_stages"] if "estimated_stages" in keys else None,
     )
 
 

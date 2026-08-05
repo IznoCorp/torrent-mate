@@ -250,6 +250,70 @@ describe("ParcoursPanel", () => {
     expect(screen.getByText("Scrapé")).toBeInTheDocument();
   });
 
+  it("un instant CALCULÉ s'affiche comme approché, jamais comme mesuré", async () => {
+    // Arbitrage opérateur : plutôt une date cohérente que rien. Ce qui empêche que ce
+    // soit un mensonge, c'est de le DIRE — « ≈ » et l'infobulle.
+    getJourneysMock.mockResolvedValue({
+      journeys: [
+        {
+          ...TROIS_PARCOURS.journeys[0],
+          info_hash: "estim01",
+          follow_title: "Rick and Morty",
+          season: 9,
+          episode: 7,
+          status: "dispatched",
+          grabbed_at: 1_700_000_000,
+          ingested_at: 1_700_000_100,
+          scraped_at: 1_700_000_200,
+          dispatched_at: 1_700_000_300,
+          reconstructed_at: 1_785_900_000,
+          estimated_stages: "ingested,scraped",
+        },
+      ],
+    });
+    renderPanel();
+    expect(await screen.findByText(/Rick and Morty/)).toBeInTheDocument();
+    expect(screen.queryByText(/inconnue/)).toBeNull();
+    // Les deux étapes calculées portent le marqueur d'approximation…
+    expect(screen.getAllByText(/Ingéré · ≈/).length).toBe(1);
+    expect(screen.getAllByText(/Scrapé · ≈/).length).toBe(1);
+    // …et les étapes mesurées ne le portent PAS.
+    expect(screen.queryByText(/Récupéré · ≈/)).toBeNull();
+    expect(screen.queryByText(/Rangé · ≈/)).toBeNull();
+  });
+
+  it("un pack de SAISON est étiqueté « Série » — c'en est une", async () => {
+    // `kind` vaut 'season' pour un pack : l'étiquette ne testait que 'episode' et 'movie',
+    // donc « American Dad! · Saison 17 » s'affichait avec un tiret. Un média sans type
+    // affiché contredit DOIT-1 : chaque média a un état compréhensible.
+    getJourneysMock.mockResolvedValue({
+      journeys: [
+        {
+          ...TROIS_PARCOURS.journeys[0],
+          info_hash: "saison17",
+          kind: "season",
+          follow_title: "American Dad!",
+          season: 17,
+          episode: null,
+        },
+      ],
+    });
+    renderPanel();
+    expect(await screen.findByText(/American Dad!/)).toBeInTheDocument();
+    expect(screen.getByText("Série")).toBeInTheDocument();
+    expect(screen.queryByText("—")).toBeNull();
+  });
+
+  it("un type inconnu reste un tiret — on n'invente pas une catégorie", async () => {
+    getJourneysMock.mockResolvedValue({
+      journeys: [
+        { ...TROIS_PARCOURS.journeys[0], info_hash: "inconnu1", kind: null },
+      ],
+    });
+    renderPanel();
+    expect(await screen.findByText("—")).toBeInTheDocument();
+  });
+
   it("un parcours EN VOL montre toujours une étape non atteinte comme non atteinte", async () => {
     // Le contre-cas indispensable : sans lui, tout deviendrait « fait » et le stepper ne
     // dirait plus rien. Une étape non atteinte n'est pas une étape sans horodatage.

@@ -106,6 +106,7 @@ class RebuiltRow:
     dispatch_run_uid: str | None = None
     season: int | None = None
     episode: int | None = None
+    estimated_stages: str | None = None
 
     def line(self) -> str:
         """Render the row as one human report line."""
@@ -300,6 +301,58 @@ def _runs_by_release(indexer_conn: sqlite3.Connection) -> dict[str, tuple[str, d
     return index
 
 
+def _interpolate_stages(
+    grabbed_at: int | None, ingested_at: int | None, scraped_at: int | None, dispatched_at: int | None
+) -> tuple[int | None, int | None, str | None]:
+    """Comble les instants d'étape absents par une valeur COHÉRENTE, et la nomme.
+
+    Arbitrage opérateur, réaffirmé après réserve : une date répartie vaut mieux que rien.
+    Ce qui la rend défendable, et non un mensonge :
+
+    * les deux **bornes sont exactes** — le grab et le rangement sont mesurés ;
+    * §14.2 garantit l'**ordre** grab → ingestion → scraping → rangement ;
+    * un instant déjà **observé n'est jamais écrasé** — l'interpolation ne comble que
+      les trous ;
+    * les étapes calculées sont **nommées** dans ``estimated_stages``, de sorte qu'aucun
+      lecteur — interface ou humain — ne puisse prendre l'interpolation pour une mesure.
+
+    Sans borne de fin (un parcours qui n'a pas atterri) il n'y a pas d'intervalle : rien
+    n'est inventé et tout reste NULL. L'ordre rendu est strictement croissant tant que
+    l'intervalle le permet, puis simplement non décroissant sur un intervalle dégénéré —
+    un stepper qui afficherait « ingéré » après « rangé » serait pire que le vide.
+
+    Args:
+        grabbed_at: Instant du grab (borne basse), ou None.
+        ingested_at: Instant d'ingestion observé, ou None.
+        scraped_at: Instant de scraping observé, ou None.
+        dispatched_at: Instant du rangement (borne haute), ou None.
+
+    Returns:
+        ``(ingested_at, scraped_at, estimated_stages)`` — les deux premiers complétés,
+        le troisième nommant les étapes calculées (ou None).
+    """
+    if grabbed_at is None or dispatched_at is None or dispatched_at < grabbed_at:
+        return ingested_at, scraped_at, None
+
+    span = dispatched_at - grabbed_at
+    estimated: list[str] = []
+
+    # Un instant OBSERVÉ n'est jamais touché, même s'il tombe hors de l'intervalle : ce
+    # serait réécrire une mesure par une hypothèse. Seul ce que l'on calcule est borné.
+    if ingested_at is None:
+        # Après le grab, et jamais après un scraping déjà connu.
+        upper = scraped_at if scraped_at is not None else dispatched_at
+        ingested_at = min(max(grabbed_at + span // 3, grabbed_at), max(upper, grabbed_at))
+        estimated.append("ingested")
+    if scraped_at is None:
+        # Après l'ingestion (mesurée ou estimée), et jamais après le rangement.
+        lower = ingested_at if ingested_at is not None else grabbed_at
+        scraped_at = min(max(grabbed_at + (2 * span) // 3, lower), max(dispatched_at, lower))
+        estimated.append("scraped")
+
+    return ingested_at, scraped_at, ",".join(estimated) or None
+
+
 def backfill_spine(
     acquire_conn: sqlite3.Connection,
     indexer_conn: sqlite3.Connection,
@@ -378,7 +431,6 @@ def backfill_spine(
         # row AND the library holds a live file for it. Anything less stops at 'grabbed' —
         # the stage the grab itself proves.
         landed = dispatched_at is not None and w["status"] in _CLOSED_WANTED_STATUSES
-
         # Recover the intermediate stages instead of declaring them lost. The tracker
         # dates the ingest of THIS hash exactly; its release name resolves the run that
         # carried the item, whose per-step instants date the scrape (and re-link every
@@ -396,10 +448,20 @@ def backfill_spine(
         ingested_at = ingested_at if ingested_at is not None else stages.get("ingest")
         scraped_at = stages.get("scrape")
 
+        # Arbitrage opérateur : ce qu'aucune source ne connaît reçoit une valeur COHÉRENTE
+        # entre les deux bornes exactes, plutôt que rien — et les étapes ainsi calculées
+        # sont nommées, pour que l'interface le dise et qu'on ne confonde jamais une
+        # interpolation avec une mesure.
+        grabbed_at = grabbed_at_by_hash.get(info_hash) or w["last_search_at"]
+        estimated: str | None = None
+        if landed:
+            ingested_at, scraped_at, estimated = _interpolate_stages(grabbed_at, ingested_at, scraped_at, dispatched_at)
+
         rebuilt.append(
             RebuiltRow(
                 ingested_at=ingested_at,
                 scraped_at=scraped_at,
+                estimated_stages=estimated,
                 ingest_run_uid=run_uid if ingested_at is not None else None,
                 scrape_run_uid=run_uid if scraped_at is not None else None,
                 dispatch_run_uid=run_uid if landed and "dispatch" in stages else None,
@@ -410,7 +472,7 @@ def backfill_spine(
                 # L'obligation de seed d'abord (posée AU grab) ; sinon la recherche qui
                 # l'a produit — le grab la suit immédiatement. Ne rien mettre serait
                 # renoncer à une donnée qui existe.
-                grabbed_at=grabbed_at_by_hash.get(info_hash) or w["last_search_at"],
+                grabbed_at=grabbed_at,
                 season=w["season"],
                 episode=w["episode"],
                 dispatch_path=dispatch_path if landed else None,
@@ -427,7 +489,7 @@ def backfill_spine(
             "INSERT INTO staging_provenance "
             "(info_hash, followed_id, media_ref_json, kind, grabbed_at, ingested_at, scraped_at, "
             "dispatch_path, dispatched_at, status, reconstructed_at, ingest_run_uid, scrape_run_uid, "
-            "dispatch_run_uid, season, episode) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "dispatch_run_uid, season, episode, estimated_stages) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             [
                 (
                     r.info_hash,
@@ -446,6 +508,7 @@ def backfill_spine(
                     r.dispatch_run_uid,
                     r.season,
                     r.episode,
+                    r.estimated_stages,
                 )
                 for r in rebuilt
             ],

@@ -1889,6 +1889,17 @@
             ],
             "title": "Episode"
           },
+          "estimated_stages": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Stages"
+          },
           "follow_title": {
             "anyOf": [
               {

@@ -137,3 +137,46 @@ def test_a_complete_and_distinguishable_journey_reports_nothing(tmp_path: Path) 
     )
 
     assert collect_gaps(acquire, indexer, {}) == []
+
+
+def test_instants_that_contradict_the_workflow_order_are_reported(tmp_path: Path) -> None:
+    """§14.2 — un instant, mesuré ou ESTIMÉ, ne peut pas contredire la séquence.
+
+    Depuis que les instants manquants sont interpolés, c'est le risque nouveau : une
+    estimation mal bornée afficherait « ingéré » après « rangé ». Pire que le vide
+    qu'elle remplace.
+    """
+    acquire, indexer = _dbs(tmp_path)
+    _wanted(acquire, 1, hash_="aabb11", season=3, last_search=1)
+    _spine(
+        acquire,
+        "aabb11",
+        grabbed_at=1_000,
+        ingested_at=9_000,  # après le rangement
+        scraped_at=1_200,
+        dispatched_at=1_300,
+        season=3,
+        episode=5,
+        status="dispatched",
+    )
+
+    assert "ordre" in _fields(collect_gaps(acquire, indexer, {}))
+
+
+def test_a_well_ordered_journey_passes_the_order_check(tmp_path: Path) -> None:
+    """Le contre-cas : la séquence respectée ne dit rien."""
+    acquire, indexer = _dbs(tmp_path)
+    _wanted(acquire, 1, hash_="aabb11", season=3, last_search=1)
+    _spine(
+        acquire,
+        "aabb11",
+        grabbed_at=1_000,
+        ingested_at=1_100,
+        scraped_at=1_200,
+        dispatched_at=1_300,
+        season=3,
+        episode=5,
+        status="dispatched",
+    )
+
+    assert "ordre" not in _fields(collect_gaps(acquire, indexer, {}))

@@ -74,7 +74,9 @@ def _check(only: list[str]) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--only", nargs="*", default=[], help="Only check items whose folder name matches these globs/substrings.")
+    parser.add_argument(
+        "--only", nargs="*", default=[], help="Only check items whose folder name matches these globs/substrings."
+    )
     args = parser.parse_args()
     return _check(args.only)
 

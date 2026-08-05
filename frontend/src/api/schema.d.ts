@@ -3351,6 +3351,8 @@ export interface components {
             dispatched_at?: number | null;
             /** Episode */
             episode?: number | null;
+            /** Estimated Stages */
+            estimated_stages?: string | null;
             /** Follow Title */
             follow_title?: string | null;
             /** Followed Id */

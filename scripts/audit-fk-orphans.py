@@ -59,6 +59,7 @@ from typing import Any
 # values are **not** orphans, they are valid absent-parent indicators.
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class FKConstraint:
     """One foreign-key constraint to audit.
