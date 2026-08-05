@@ -38,7 +38,7 @@ et les crons prod restent intacts. Baseline à la création : 10429 passed, 7 sk
 | 2   | Le moteur de ranking + le jeu golden (test-first)       | `phase-02-search-ranking-engine.md`   | RC1, RC2, RC4   | [x] |
 | 3   | Recherche TV — union TVDB ∪ TMDB par `remote_ids`       | `phase-03-tv-union.md`                | RC5             | [x] |
 | 4   | Pagination API + branchement des deux surfaces          | `phase-04-api-pagination-surfaces.md` | RC3, RC6        | [x] |
-| 5   | UI carrousel mobile-first + preuve 390 px               | `phase-05-ui-carousel-mobile.md`      | §12             | [ ] |
+| 5   | UI carrousel mobile-first + preuve 390 px               | `phase-05-ui-carousel-mobile.md`      | §12             | [x] |
 | 6   | Portes, PR, CI, merge, déploiement, vérification réelle | `phase-06-gates-pr-deploy.md`         | —               | [ ] |
 
 L'ordre porte du sens : le signal de popularité doit exister avant le moteur qui le consomme ;
@@ -51,7 +51,10 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phase 5 (`phase-05-ui-carousel-mobile.md`) — carrousel mobile-first + preuve 390 px.
+Phase 6 (`phase-06-gates-pr-deploy.md`) — portes, PR, CI, merge, déploiement, vérification réelle.
+
+ACC-05 (preuve 390 px) et ACC-03/ACC-04 (données live) sont exécutés APRÈS déploiement — déclarés
+différés, non cochés d'avance.
 
 Relevé de calibrage : `docs/features/recherche-juste/CALIBRATION.md` (pondérations du DESIGN
 conservées ; observation sur la redondance du terme « titre exact » à porter au corps de PR).
