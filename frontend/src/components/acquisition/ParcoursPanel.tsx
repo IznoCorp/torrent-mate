@@ -322,6 +322,8 @@ export function ParcoursPanel(): ReactElement {
         // une note fixe qui annoncerait « les instants ne sont plus connus » sur un
         // parcours entièrement daté serait un mensonge en attente (§13).
         const rebuilt = j.reconstructed_at != null;
+        // Un parcours TERMINÉ a franchi toutes les étapes, par construction (§14.2).
+        const terminal = j.status === "dispatched" || j.status === "reconciled";
         const undated = rebuilt && STAGES.some((stage) => j[stage.key] == null);
         return (
           <li
@@ -387,20 +389,20 @@ export function ParcoursPanel(): ReactElement {
                 const at = j[stage.key];
                 const done = at != null;
                 const runUid = j[stage.runKey];
-                // §14.3 — « si une étape n'est pas connue, l'interface dit INCONNUE, jamais
-                // PAS FAITE ». Sur un parcours reconstruit (§13), une étape sans horodatage
-                // n'a pas été sautée : un média rangé est passé par l'ingestion et le
-                // scraping par définition (§14.2), c'est l'instant qui est perdu. L'éteindre
-                // dessinerait un chemin qui ne peut pas exister.
-                const unknown = !done && rebuilt;
+                // §14.2 — un média RANGÉ est passé par l'ingestion, le tri et le scraping :
+                // c'est le workflow, pas une supposition. Sur un parcours TERMINÉ, une étape
+                // sans horodatage a donc bel et bien EU LIEU ; seul l'instant manque, et pour
+                // les plus anciens il n'existe nulle part (ingérés par un run manuel dont la
+                // sortie n'a jamais été journalisée).
+                //
+                // On montre donc l'étape FAITE, sans date — jamais « inconnue », qui se lit
+                // comme une perte, ni une date inventée, qui serait le mensonge que §13
+                // interdit. Moins d'information, jamais de fausse information.
+                const reached = done || terminal;
                 const badge = (
-                  <Badge tone={done ? "success" : "muted"}>
+                  <Badge tone={reached ? "success" : "muted"}>
                     {stage.label}
-                    {done
-                      ? ` · ${relativeTime(at)}`
-                      : unknown
-                        ? " · inconnue"
-                        : ""}
+                    {done ? ` · ${relativeTime(at)}` : ""}
                   </Badge>
                 );
                 return (
@@ -422,8 +424,8 @@ export function ParcoursPanel(): ReactElement {
             </ol>
             {undated && (
               <p className="text-xs text-muted-foreground">
-                Parcours reconstruit : certaines étapes n'ont pas pu être
-                datées, les dossiers de transit ayant été supprimés.
+                Parcours reconstruit : toutes les étapes ont eu lieu, mais
+                l'instant de certaines n'a pas pu être retrouvé.
               </p>
             )}
             <ResolutionChip j={j} />

@@ -152,11 +152,12 @@ describe("ParcoursPanel", () => {
     expect(screen.getByText("Rangé")).toBeInTheDocument(); // not reached → bare label, no timestamp
   });
 
-  it("§14.3 — a rebuilt journey says 'inconnue', never 'not done'", async () => {
-    // Un média rangé est FORCÉMENT passé par l'ingestion et le scraping (§14.2). Le
-    // backfill §13 ne connaît pas ces instants et les laisse NULL ; sans distinction,
-    // le stepper les éteint et dessine un chemin qui ne peut pas exister — « Rangé »
-    // posé sur « Ingéré » et « Scrapé » éteints, ce que l'opérateur a vu.
+  it("§14.2 — un parcours reconstruit ET rangé montre ses étapes FAITES, sans date", async () => {
+    // Règle amendée par l'opérateur : plus jamais « inconnue » à l'écran. L'étape a bien
+    // eu lieu (un média rangé est passé par l'ingestion et le scraping, §14.2) ; c'est
+    // l'INSTANT qui manque, et pour les plus anciens il n'existe nulle part. On montre
+    // donc l'étape faite sans date — plutôt qu'un mot qui se lit comme une perte, et
+    // plutôt qu'une date inventée, qui serait le mensonge de §13.
     getJourneysMock.mockResolvedValue({
       journeys: [
         {
@@ -179,12 +180,14 @@ describe("ParcoursPanel", () => {
       ],
     });
     renderPanel();
-    expect(await screen.findByText("American Dad!")).toBeInTheDocument();
-    // Les étapes non datées se DISENT inconnues…
-    expect(screen.getByText(/Ingéré · inconnue/)).toBeInTheDocument();
-    expect(screen.getByText(/Scrapé · inconnue/)).toBeInTheDocument();
-    // …et le parcours annonce qu'il a été reconstruit.
-    expect(screen.getByText(/parcours reconstruit/i)).toBeInTheDocument();
+    expect((await screen.findAllByText(/American Dad!/)).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/inconnue/)).toBeNull();
+    expect(screen.getByText("Ingéré")).toBeInTheDocument();
+    expect(screen.getByText("Scrapé")).toBeInTheDocument();
+    // La note explique l'absence d'instant, jamais une étape manquante.
+    expect(
+      screen.getByText(/instant de.*n'a pas pu être retrouvé/i),
+    ).toBeInTheDocument();
   });
 
   it("§13 — the rebuilt note only shows when a stage is REALLY undated", async () => {
@@ -216,6 +219,59 @@ describe("ParcoursPanel", () => {
     // Toutes les étapes sont datées → ni « inconnue », ni note.
     expect(screen.queryByText(/inconnue/)).toBeNull();
     expect(screen.queryByText(/instants des étapes/i)).toBeNull();
+  });
+
+  it("§14.2 — un parcours RANGÉ n'affiche jamais « inconnue » : l'étape a EU LIEU", async () => {
+    // Un média rangé est passé par l'ingestion et le scraping — c'est le workflow, pas une
+    // supposition. Afficher « inconnue » sur ces étapes-là décrit un chemin impossible et
+    // se lit comme une perte. Seul l'INSTANT manque : on montre l'étape faite, sans date.
+    getJourneysMock.mockResolvedValue({
+      journeys: [
+        {
+          ...TROIS_PARCOURS.journeys[0],
+          info_hash: "range01",
+          follow_title: "Rick and Morty",
+          season: 9,
+          episode: 7,
+          status: "dispatched",
+          grabbed_at: 1_700_000_000,
+          ingested_at: null,
+          scraped_at: null,
+          dispatched_at: 1_700_000_300,
+          reconstructed_at: 1_785_900_000,
+        },
+      ],
+    });
+    renderPanel();
+    expect(await screen.findByText(/Rick and Morty/)).toBeInTheDocument();
+    expect(screen.queryByText(/inconnue/)).toBeNull();
+    // L'étape est bien présente, et présentée comme faite.
+    expect(screen.getByText("Ingéré")).toBeInTheDocument();
+    expect(screen.getByText("Scrapé")).toBeInTheDocument();
+  });
+
+  it("un parcours EN VOL montre toujours une étape non atteinte comme non atteinte", async () => {
+    // Le contre-cas indispensable : sans lui, tout deviendrait « fait » et le stepper ne
+    // dirait plus rien. Une étape non atteinte n'est pas une étape sans horodatage.
+    getJourneysMock.mockResolvedValue({
+      journeys: [
+        {
+          ...TROIS_PARCOURS.journeys[1],
+          info_hash: "envol99",
+          follow_title: "En cours",
+          status: "ingested",
+          grabbed_at: 1_700_000_000,
+          ingested_at: 1_700_000_100,
+          scraped_at: null,
+          dispatched_at: null,
+          reconstructed_at: null,
+        },
+      ],
+    });
+    renderPanel();
+    expect(await screen.findByText("En cours")).toBeInTheDocument();
+    expect(screen.getByText("Rangé")).toBeInTheDocument();
+    expect(screen.queryByText(/inconnue/)).toBeNull();
   });
 
   it("a normal journey still shows an unreached stage as unreached", async () => {
