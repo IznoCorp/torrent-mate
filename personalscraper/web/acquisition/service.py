@@ -357,32 +357,46 @@ def run_media_search(
         gather_tv_candidates,
         rank_search_results,
     )
+    from personalscraper.web.acquisition.search_cache import SEARCH_CACHE
 
-    now_year = datetime.now(tz=UTC).year
-    candidates: list[SearchResult] = []
+    # Paging must not replay the provider sweep. The ranked lot for this exact
+    # (query, kind) is cached, so page 2 and beyond cost nothing at the providers
+    # — walking four pages used to mean four full TMDB + TVDB fan-outs over a
+    # result set that had not changed.
+    cached = SEARCH_CACHE.get(q, kind)
+    if cached is not None:
+        ranked = cached
+    else:
+        now_year = datetime.now(tz=UTC).year
+        candidates: list[SearchResult] = []
 
-    if kind in (None, "movie"):
-        try:
-            candidates.extend(tmdb_client.search_movie(q, None))  # type: ignore[attr-defined]
-        except Exception as exc:
-            logger.error("acquisition_search_movie_failed", error=str(exc))
-            raise HTTPException(status_code=502, detail=f"Movie search failed: {exc}") from exc
+        if kind in (None, "movie"):
+            try:
+                candidates.extend(tmdb_client.search_movie(q, None))  # type: ignore[attr-defined]
+            except Exception as exc:
+                logger.error("acquisition_search_movie_failed", error=str(exc))
+                raise HTTPException(status_code=502, detail=f"Movie search failed: {exc}") from exc
 
-    if kind in (None, "tv"):
-        # Both TV providers, merged: TVDB alone cannot rank (it publishes no
-        # popularity), and the scrape rule "TMDB only when TVDB is silent" hid the
-        # right answer whenever TVDB returned any row at all.
-        candidates.extend(gather_tv_candidates(tvdb_client, tmdb_client, q))
+        if kind in (None, "tv"):
+            # Both TV providers, merged: TVDB alone cannot rank (it publishes no
+            # popularity), and the scrape rule "TMDB only when TVDB is silent" hid
+            # the right answer whenever TVDB returned any row at all.
+            candidates.extend(gather_tv_candidates(tvdb_client, tmdb_client, q))
 
-    # ONE ranking pass over the union — never one per kind. Popularity is
-    # normalised against the most popular candidate in the lot, so ranking each
-    # kind separately runs that normalisation on two different maxima and yields
-    # two incomparable 1.000s. Measured in production 2026-08-05: 'monarch' put
-    # « Monarch City » (popularity 2.19, merely the best of a weak film lot) ahead
-    # of « Monarch: Legacy of Monsters » (popularity 34.45) — a 16× gap erased,
-    # with recency then breaking the tie the wrong way.
-    ranked = rank_search_results(q, candidates, kind=kind or "all", now_year=now_year)
+        # ONE ranking pass over the union — never one per kind. Popularity is
+        # normalised against the most popular candidate in the lot, so ranking each
+        # kind separately runs that normalisation on two different maxima and yields
+        # two incomparable 1.000s. Measured in production 2026-08-05: 'monarch' put
+        # « Monarch City » (popularity 2.19, merely the best of a weak film lot) ahead
+        # of « Monarch: Legacy of Monsters » (popularity 34.45) — a 16× gap erased,
+        # with recency then breaking the tie the wrong way.
+        ranked = rank_search_results(q, candidates, kind=kind or "all", now_year=now_year)
+        SEARCH_CACHE.put(q, kind, ranked)
+
     total = len(ranked)
+    # already_owned is deliberately NOT cached: it is recomputed below from the
+    # indexer on every call, because the library changes while a search sits on
+    # screen and a stale « déjà en médiathèque » badge would drive a wrong choice.
     results = [_to_search_result(item) for item in ranked[offset : offset + limit]]
 
     # §5 replacement confirmation: flag movie results already owned in the

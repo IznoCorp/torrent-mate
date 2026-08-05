@@ -1023,6 +1023,82 @@ class TestSearchEndpoint:
         assert by_id[1] == "movie"
         assert by_id[2] == "tv"
 
+    def test_second_page_does_not_re_query_the_providers(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Paging must be free at the providers — that was the whole cost problem.
+
+        Before the cache, offset=30 replayed the full TMDB (up to five pages) +
+        TVDB fan-out and re-ranked ~130 candidates just to hand back a 30-row
+        window of a result set that had not changed.
+        """
+        from personalscraper.api.metadata._base import SearchResult
+        from personalscraper.web.acquisition.search_cache import SEARCH_CACHE
+
+        SEARCH_CACHE.clear()
+        calls = {"movie": 0}
+        rows = [
+            SearchResult(
+                provider="tmdb",
+                provider_id=str(i),
+                title=f"Dune {i}",
+                year=2000 + i,
+                media_type="movie",
+                popularity=float(40 - i),
+            )
+            for i in range(40)
+        ]
+
+        class _Tmdb:
+            def search_movie(self, query: str, year: object = None, **_kw: object) -> list[object]:
+                calls["movie"] += 1
+                return rows
+
+            def search_tv(self, query: str, year: object = None, **_kw: object) -> list[object]:
+                return []
+
+        class _Tvdb:
+            def search_series(self, query: str, year: object = None, **_kw: object) -> list[object]:
+                return []
+
+        import personalscraper.web.routes.acquisition as acq_routes
+
+        monkeypatch.setattr(acq_routes, "scoped_provider_clients", lambda _request: nullcontext((_Tmdb(), _Tvdb())))
+
+        first = client.get(
+            "/api/acquisition/search?q=dune-cache&kind=movie&limit=20&offset=0",
+            cookies=_make_auth_cookie(),
+        ).json()
+        second = client.get(
+            "/api/acquisition/search?q=dune-cache&kind=movie&limit=20&offset=20",
+            cookies=_make_auth_cookie(),
+        ).json()
+
+        assert calls["movie"] == 1, "la deuxième page a rappelé le provider"
+        assert first["total"] == second["total"] == 40
+        assert {r["provider_id"] for r in first["results"]} & {r["provider_id"] for r in second["results"]} == set()
+        SEARCH_CACHE.clear()
+
+    def test_cache_key_separates_kinds(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        """« Films » must not be served the « Tout » lot from the cache."""
+        from personalscraper.api.metadata._base import SearchResult
+        from personalscraper.web.acquisition.search_cache import SEARCH_CACHE
+
+        SEARCH_CACHE.clear()
+        film = SearchResult(
+            provider="tmdb", provider_id="1", title="Dune", year=2021, media_type="movie", popularity=9.0
+        )
+        show = SearchResult(
+            provider="tmdb", provider_id="2", title="Dune Show", year=2024, media_type="tv", popularity=8.0
+        )
+        self._patch_clients(monkeypatch, [film], [show])
+
+        both = client.get("/api/acquisition/search?q=dune-kinds", cookies=_make_auth_cookie()).json()
+        movies = client.get("/api/acquisition/search?q=dune-kinds&kind=movie", cookies=_make_auth_cookie()).json()
+        assert both["total"] == 2
+        assert movies["total"] == 1
+        SEARCH_CACHE.clear()
+
     def test_limit_out_of_bounds_is_rejected(self, client: TestClient) -> None:
         """An absurd limit is a 422, never a silent clamp that hammers providers."""
         assert client.get("/api/acquisition/search?q=dune&limit=100000", cookies=_make_auth_cookie()).status_code == 422
