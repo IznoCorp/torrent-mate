@@ -9,6 +9,7 @@
 **PR merge**: auto
 **PR**: _(created after last phase)_
 **Design**: `docs/features/recherche-juste/DESIGN.md`
+**Master plan**: `docs/features/recherche-juste/plan/INDEX.md`
 **Diagnostic source**: `docs/analysis/2026-08-05-acquisition-search-relevance-diagnosis.md`
 **Ticket**: KanbanMate #409
 
@@ -31,7 +32,18 @@ et les crons prod restent intacts. Baseline à la création : 10429 passed, 7 sk
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                                                   | Fichier plan                          | Cause visée | Status |
+| --- | ------------------------------------------------------- | ------------------------------------- | ----------- | ------ |
+| 1   | Porter le signal de popularité sur `SearchResult`       | `phase-01-popularity-signal.md`       | RC4 (prérequis) | [ ] |
+| 2   | Le moteur de ranking + le jeu golden (test-first)       | `phase-02-search-ranking-engine.md`   | RC1, RC2, RC4   | [ ] |
+| 3   | Recherche TV — union TVDB ∪ TMDB par `remote_ids`       | `phase-03-tv-union.md`                | RC5             | [ ] |
+| 4   | Pagination API + branchement des deux surfaces          | `phase-04-api-pagination-surfaces.md` | RC3, RC6        | [ ] |
+| 5   | UI carrousel mobile-first + preuve 390 px               | `phase-05-ui-carousel-mobile.md`      | §12             | [ ] |
+| 6   | Portes, PR, CI, merge, déploiement, vérification réelle | `phase-06-gates-pr-deploy.md`         | —               | [ ] |
+
+L'ordre porte du sens : le signal de popularité doit exister avant le moteur qui le consomme ;
+le moteur doit être prouvé isolément avant d'être branché sur deux surfaces ; l'UI vient après
+une API qui pagine réellement.
 
 ## Review cycles
 
@@ -39,4 +51,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` to execute phase 1 (`phase-01-popularity-signal.md`).
