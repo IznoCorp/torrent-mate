@@ -434,20 +434,22 @@ export function ParcoursPanel(): ReactElement {
                 const estimated = (j.estimated_stages ?? "")
                   .split(",")
                   .includes(stage.estimateKey);
-                const badge = (
-                  <Badge
-                    tone={reached ? "success" : "muted"}
-                    title={
-                      estimated
-                        ? "Instant estimé : cette étape a bien eu lieu, mais son horodatage n'a été retrouvé dans aucune source. La valeur est répartie entre la récupération et le rangement."
-                        : undefined
-                    }
-                  >
+                const chip = (
+                  <Badge tone={reached ? "success" : "muted"}>
                     {stage.label}
                     {done
                       ? ` · ${estimated ? "≈ " : ""}${relativeTime(at)}`
                       : ""}
                   </Badge>
+                );
+                // L'infobulle porte l'aveu. `Badge` n'accepte pas de `title` : on
+                // l'enveloppe plutôt que de laisser le « ≈ » sans explication.
+                const badge = estimated ? (
+                  <span title="Instant estimé : cette étape a bien eu lieu, mais son horodatage n'a été retrouvé dans aucune source. La valeur est répartie entre la récupération et le rangement.">
+                    {chip}
+                  </span>
+                ) : (
+                  chip
                 );
                 return (
                   <li key={stage.key}>
