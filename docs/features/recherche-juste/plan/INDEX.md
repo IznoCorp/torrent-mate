@@ -15,6 +15,7 @@ pagine réellement.
 | 4   | Pagination API + branchement des deux surfaces                   | `phase-04-api-pagination-surfaces.md`      | [ ]    |
 | 5   | UI carrousel mobile-first + preuve 390 px                        | `phase-05-ui-carousel-mobile.md`           | [ ]    |
 | 6   | Portes, PR, CI, merge, déploiement, vérification réelle          | `phase-06-gates-pr-deploy.md`              | [ ]    |
+| 7   | Filtre par nom sur les suivis (demande opérateur)                 | `phase-07-followed-name-filter.md`         | [ ]    |
 
 ## Règle de travail (toutes phases)
 
