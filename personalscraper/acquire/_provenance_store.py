@@ -112,6 +112,41 @@ def provenance_row_is_stuck(
     return exists_fn(row.current_path)
 
 
+def journey_release_name(row: "ProvenanceRow | None") -> str | None:
+    """Return the release ACTUALLY grabbed for this journey, or None when unknown.
+
+    A card that shows only the wanted media's title cannot distinguish the film from a
+    soundtrack album named after it — which is exactly how a FLAC album spent two hours
+    displayed as « Spider-Man : Brand New Day — Ingéré » (§13: the interface must show the
+    real state of the data).
+
+    Source order, most faithful first:
+
+    - ``ingest_path`` — the folder as it landed in the staging inbox, i.e. the release
+      name verbatim. Always correct when present, at any later stage.
+    - ``current_path``, but ONLY before the scrape ran: identification renames that folder
+      to the canonical media folder (« Ted Lasso (2020) »), so past that point it is the
+      MEDIA name, and reporting it as the release would be a lie.
+    - otherwise ``None`` — the caller says « inconnu ». Never invented (§14.3: an unknown
+      step is said to be unknown, never dressed up as a known one).
+
+    Args:
+        row: The journey, or ``None`` (the stalled-grab surface may hold no journey).
+
+    Returns:
+        The release name, or ``None`` when it cannot be known truthfully.
+    """
+    if row is None:
+        return None
+    for candidate in (row.ingest_path, None if row.scraped_at else row.current_path):
+        if candidate:
+            # rstrip("/") so a stored trailing separator does not yield an empty name.
+            name = PurePosixPath(candidate.rstrip("/")).name
+            if name:
+                return name
+    return None
+
+
 @dataclass(frozen=True)
 class ProvenanceRow:
     """One acquisition's provenance record (a row of ``staging_provenance``)."""

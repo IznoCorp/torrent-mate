@@ -411,6 +411,22 @@ export function ParcoursPanel(): ReactElement {
                     : "—"}
               </Badge>
             </div>
+            {/*
+              §13 — la carte doit montrer ce qui a RÉELLEMENT été récupéré. Sans cette
+              ligne elle n'affiche que le titre du média suivi : le 2026-08-05 une bande
+              originale FLAC s'est ainsi présentée deux heures durant comme
+              « Spider-Man : Brand New Day — Ingéré », indiscernable du film.
+
+              §14.3 — quand le nom ne peut pas être connu (parcours ancien sans chemin
+              enregistré), on le DIT. « Release inconnue » est une information ; un titre
+              de média affiché à la place de la release serait une fausse information.
+            */}
+            <p
+              className="min-w-0 truncate font-mono text-xs text-muted-foreground"
+              title={j.release_name ?? undefined}
+            >
+              {j.release_name ?? "Release inconnue"}
+            </p>
             <ol className="flex flex-wrap gap-1.5">
               {STAGES.map((stage) => {
                 const at = j[stage.key];

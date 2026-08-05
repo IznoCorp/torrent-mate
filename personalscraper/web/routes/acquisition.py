@@ -35,7 +35,11 @@ from typing import TYPE_CHECKING, Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
-from personalscraper.acquire._provenance_store import STUCK_IDLE_SECONDS, provenance_row_is_stuck
+from personalscraper.acquire._provenance_store import (
+    STUCK_IDLE_SECONDS,
+    journey_release_name,
+    provenance_row_is_stuck,
+)
 from personalscraper.acquire.cadence import Cadence
 from personalscraper.acquire.desired import cadence_from_config, cadence_from_json, effective_cadence
 from personalscraper.acquire.domain import FollowedSeries
@@ -817,6 +821,7 @@ def get_journeys(
                     season=row.season,
                     episode=row.episode,
                     estimated_stages=row.estimated_stages,
+                    release_name=journey_release_name(row),
                 )
             )
         return JourneysResponse(journeys=items)

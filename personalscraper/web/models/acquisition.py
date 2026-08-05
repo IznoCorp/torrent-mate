@@ -707,6 +707,12 @@ class JourneyItem(BaseModel):
     #: (« ingested,scraped »). L'interface affiche alors la date en la disant approchée :
     #: c'est ce qui sépare une estimation d'un mensonge (§13).
     estimated_stages: str | None = None
+    #: La release RÉELLEMENT récupérée, telle qu'elle s'est posée. Sans elle la carte
+    #: n'affiche que le titre du média suivi, et une bande originale FLAC est
+    #: indiscernable du film homonyme — c'est précisément ce qui est arrivé le
+    #: 2026-08-05. ``None`` quand elle ne peut pas être connue : l'interface dit alors
+    #: « inconnue », jamais un nom inventé (§13/§14.3).
+    release_name: str | None = None
 
 
 class JourneysResponse(BaseModel):
@@ -740,6 +746,47 @@ class PendingRunResponse(BaseModel):
     updated_at: float
 
 
+class StalledGrabItem(BaseModel):
+    """Une acquisition parquée à « récupéré » qui n'atteint jamais la médiathèque.
+
+    §14.1 : « récupéré » est un état TRANSITOIRE, jamais un état de repos. Une ligne qui
+    y stagne est non conforme — et muette : la passe de recherche ne reprend que
+    ``pending``/``searching``/``available``, donc le média reste voulu sans que personne
+    ne le cherche plus.
+
+    Attributes:
+        wanted_id: Rowid de la ligne ``wanted`` parquée.
+        title: Titre du média suivi, pour l'affichage.
+        kind: ``movie`` / ``episode`` / ``season``.
+        season / episode: Localisation, ``None`` pour un film.
+        info_hash: La release à laquelle la ligne est engagée.
+        release_name: Le nom de la release réellement récupérée, ou ``None`` si
+            inconnu — la MÊME dérivation que les parcours (§13).
+        since: Epoch de la dernière étape connue (depuis quand ça ne bouge plus).
+        reason: Pourquoi c'est signalé, en français clair (§8 — jamais un compteur nu).
+    """
+
+    wanted_id: int
+    title: str
+    kind: str
+    season: int | None = None
+    episode: int | None = None
+    info_hash: str
+    release_name: str | None = None
+    since: int
+    reason: str
+
+
+class StalledGrabsResponse(BaseModel):
+    """Réponse de ``GET /api/acquisition/stalled-grabs``.
+
+    Attributes:
+        items: Les acquisitions parquées, la plus ancienne d'abord.
+    """
+
+    items: list[StalledGrabItem] = []
+
+
 class AcquisitionOverviewResponse(BaseModel):
     """The « état de la machine » rollup (F5 capstone) — one page over the F0–F4 spine.
 
@@ -752,6 +799,11 @@ class AcquisitionOverviewResponse(BaseModel):
         by_status: ``{status: count}`` over the spine (grabbed/ingested/scraped/dispatched/reconciled).
         in_flight: Non-terminal total = grabbed + ingested + scraped.
         stuck: In-flight items stuck on disk past the idle horizon (F4 FS-truth).
+        stalled_grabs: Acquisitions parquées à « récupéré » qui n'ont jamais atteint la
+            médiathèque (§14.1). DISTINCT de ``stuck``, qui est un état de PARCOURS
+            exigeant que le dossier soit encore sur le disque : une ligne ``wanted``
+            reste parquée pour toujours même après la disparition du dossier, et c'est
+            elle qui décide si le média sera re-cherché un jour.
         awaiting_resolution: The AUTHORITATIVE ``scrape_decision`` pending count.
         watcher_enabled: Whether the acquisition watcher is running (not paused).
         last_successful_run_at: Unix-epoch of the last successful pipeline run, or None.
@@ -762,6 +814,7 @@ class AcquisitionOverviewResponse(BaseModel):
     by_status: dict[str, int] = {}
     in_flight: int = 0
     stuck: int = 0
+    stalled_grabs: int = 0
     awaiting_resolution: int = 0
     pending_run: PendingRunResponse | None = None
     watcher_enabled: bool = True

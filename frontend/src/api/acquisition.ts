@@ -156,6 +156,7 @@ export const acqKeys = {
 
   /** Machine-state overview query key: ``['acquisition', 'overview']`` (F5). */
   overview: () => [...acqKeys.all, "overview"] as const,
+  stalledGrabs: () => [...acqKeys.all, "stalled-grabs"] as const,
 };
 
 // ---------------------------------------------------------------------------
@@ -568,6 +569,22 @@ export type OverviewResponse = SuccessBody<
  */
 export function getOverview(): Promise<OverviewResponse> {
   return apiFetch("/api/acquisition/overview", { method: "get" });
+}
+
+/** Les acquisitions parquées à « récupéré » : ``GET /api/acquisition/stalled-grabs``. */
+export type StalledGrabsResponse = SuccessBody<
+  paths["/api/acquisition/stalled-grabs"]["get"]["responses"]
+>;
+
+/** One parked acquisition, with the reason it is flagged. */
+export type StalledGrabItem = StalledGrabsResponse["items"][number];
+
+/**
+ * Fetch the acquisitions parked at « récupéré » that never reached the library.
+ * The detail behind the overview alert (§8 — a count must lead to its items).
+ */
+export function getStalledGrabs(): Promise<StalledGrabsResponse> {
+  return apiFetch("/api/acquisition/stalled-grabs", { method: "get" });
 }
 
 /** Response of a spine-driven per-item action (rescrape / requeue) — the launched run. */
