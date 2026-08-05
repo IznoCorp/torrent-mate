@@ -114,9 +114,12 @@ export const WANTED_STATUS_OPTIONS = [
   { value: "grabbed", label: "Récupéré" },
   { value: "done", label: "Terminé" },
   { value: "abandoned", label: "Abandonné" },
-  // `absorbed` is NOT offered as a filter: it is not a state the operator
-  // reasons about — an absorbed row is simply being acquired (inside a season
-  // pack), and it already reads « En cours d'acquisition » in the queue.
+  // `absorbed` is NOT offered as a filter: it is not a state the operator reasons
+  // about, and since ticket 411 the queue no longer SHOWS it either — the backend
+  // resolves an absorbed row onto its season's status (§13: follow the pointer),
+  // so those rows are reached through « Terminé », « En attente », etc., like any
+  // other. A row still reading `absorbed` means its pointer could not be followed
+  // — an anomaly the coherence check reports, not a filter the operator needs.
   { value: "fallback_episodes", label: "Reporté en épisodes" },
 ];
 
@@ -128,7 +131,12 @@ export const OBLIGATION_STATUS_OPTIONS = [
   { value: "satisfied", label: "Respectée" },
 ];
 
-/** Status → badge tone mapping. */
+/**
+ * Status → badge tone mapping.
+ *
+ * On `absorbed`, see {@link STATUS_LABEL} — the queue serves it only when the
+ * absorption pointer could not be followed.
+ */
 export const STATUS_TONE: Record<string, BadgeTone> = {
   ...STATE_TONE,
   killed: "warning",
@@ -138,7 +146,19 @@ export const STATUS_TONE: Record<string, BadgeTone> = {
   fallback_episodes: "warning",
 };
 
-/** Status → French label mapping. */
+/**
+ * Status → French label mapping.
+ *
+ * `absorbed` is the DANGLING-POINTER reading, not the normal one. Since ticket 411 the
+ * backend resolves an absorbed row onto the season row carrying its acquisition
+ * (§13: a state that points elsewhere must follow the pointer), so a queue row
+ * normally arrives already reading « Terminé », « En attente », … A row still
+ * labelled `absorbed` is one whose `absorbed_by` is NULL or points at a row that
+ * no longer exists: we know a season carries it, not where that season stands.
+ * « En cours d'acquisition » is the arbitrated reading of that unknown — it must
+ * NOT be taken as « an absorbed episode is always being acquired », which is what
+ * this map used to assert and what kept 31 finished rows lying for weeks.
+ */
 export const STATUS_LABEL: Record<string, string> = {
   ...STATE_LABEL,
   killed: "Arrêté",
@@ -501,9 +521,12 @@ export const EPISODE_STATE_TONE: Record<EpisodeState, BadgeTone> = {
   a_recuperer: "warning",
   en_acquisition: "info",
   en_mediatheque: "success",
-  // An absorbed episode IS an episode being acquired — same tone, same label:
-  // whether the pipeline takes it alone or inside a season pack is plumbing the
-  // operator never has to think about (it stays in the tooltip).
+  // `absorbed` reaches a surface ONLY when the pointer cannot be followed: the
+  // shared seam (states.substitute_absorbed_facts) otherwise replaces it with the
+  // carrying season's own state. So this entry renders an UNKNOWN — we know an
+  // acquisition is carried by a season, not where it stands. « In motion » is the
+  // arbitrated reading of that unknown (never « never checked »); the hint below
+  // is what keeps it honest by naming the season.
   absorbed: "info",
 };
 

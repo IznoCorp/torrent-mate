@@ -143,10 +143,13 @@ describe("EPISODE state vocabulary", () => {
   });
 
   it("aliases absorbed onto en_acquisition — same label AND same tone", () => {
-    // An absorbed episode IS an episode being acquired (the backend already
-    // reads it that way: states.py maps absorbed -> en_acquisition). The alias
-    // is the whole point of the fix — pin it, or a future edit silently brings
-    // « Absorbé (saison) » back without a single red test.
+    // What this pins is the rendering of a DANGLING pointer, nothing wider.
+    // Since ticket 411 a surface only ever meets `absorbed` when the pointer could not
+    // be followed (states.substitute_absorbed_facts otherwise substitutes the
+    // carrying season's own facts). For that unknown, « in motion » is the
+    // arbitrated reading — never « never checked ». Do NOT read this test as
+    // « an absorbed episode is always being acquired »: that reading is what
+    // kept 31 finished queue rows claiming « En cours d'acquisition ».
     expect(EPISODE_STATE_LABEL.absorbed).toBe(EPISODE_STATE_LABEL.en_acquisition);
     expect(EPISODE_STATE_TONE.absorbed).toBe(EPISODE_STATE_TONE.en_acquisition);
     expect(STATUS_LABEL.absorbed).toBe(EPISODE_STATE_LABEL.en_acquisition);
@@ -179,8 +182,8 @@ describe("EPISODE state vocabulary", () => {
     // end (annonce=en_acquisition=info, en_attente=non_verifie=neutral).
     // "absorbed" is excluded on purpose: it is not a state of its own for the
     // operator — it renders EXACTLY like en_acquisition (same tone, same
-    // label), because an absorbed episode is simply being acquired inside a
-    // season pack.
+    // label), being the rendering of a pointer that could not be followed
+    // rather than a step of the live flow.
     const liveFlow = EPISODE_STATES.filter((s) => s !== "absorbed");
     const tones = liveFlow.map((s) => EPISODE_STATE_TONE[s]);
     expect(new Set(tones).size).toBe(liveFlow.length);
