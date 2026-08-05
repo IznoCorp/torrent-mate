@@ -1,76 +1,49 @@
-# Implementation Progress — acq-escalade
+# Implementation Progress — spine-truth
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: L'acquisition escalade vers le pack saison quand la recherche épisode échoue
+**Feature**: La spine de provenance ne perd plus aucun parcours (§13)
 **Type**: fix
-**Version bump**: 0.78.0 → 0.78.2 (bugfix)
-**Branch**: fix/acq-escalade
-**PR merge**: auto — standing operator contract: adversarial review(s) + tests before merge.
-**PR**: _(created after last phase)_
-**Design**: docs/features/acq-escalade/DESIGN.md
-**Master plan**: docs/features/acq-escalade/plan/INDEX.md
+**Version bump**: 0.79.2 → 0.80.0 (minor — migration + nouvelle règle de garde + backfill)
+**Branch**: `fix/spine-truth`
+**Design**: `docs/features/spine-truth/DESIGN.md`
+**Diagnostic source**: `docs/analysis/2026-08-05-provenance-spine-hole-handoff.md`
 
 ## Contexte d'exécution
 
-Travail mené dans le worktree `.claude/worktrees/acq-escalade` (isolement demandé par
-l'opérateur : une feature concurrente `fix/media-sheet-data` est en vol dans un autre
-worktree depuis 2026-08-04 14:10).
+Worktree isolé `.claude/worktrees/acq-escalade`, branché sur `origin/main` (`821009d7`).
+**Jamais de `pip install -e .`** ici : le package est résolu par cwd, l'install editable globale
+et les crons prod restent intacts.
 
-**0.78.1 est pris** par `fix/media-sheet-data` (non mergée) — d'où le saut à **0.78.2**.
+## Invariants non négociables (DESIGN §7, gelés)
 
-Points de collision connus avec cette feature concurrente, à re-vérifier avant merge :
-
-| Fichier | Pourquoi il collisionne |
-| --- | --- |
-| `personalscraper/__init__.py` | Ligne de version — résolu par le saut à 0.78.2 |
-| `frontend/openapi.json`, `frontend/src/api/schema.d.ts` | Fichiers régénérés ; `make openapi` après merge tranche |
-| `frontend/src/components/acquisition/FollowedPanel.tsx` | Touché par les deux si D3 change le code de réponse |
-
-## Invariants non négociables (DESIGN, gelés)
-
-- `event_bus` est un paramètre **REQUIS** sur tout site d'émission — jamais `| None`, jamais
-  de défaut. Le défaut est précisément ce qui a produit D4.
-- `SearchVerdict.found` n'est **jamais 0** sur un chemin non conclu (panne ≠ absence).
-- Une action opérateur légitime ne répond **jamais 409** (§6) : elle s'exécute ou s'enfile
-  visiblement ; seul refus permis = idempotence sur la même cible.
-- La sonde saison est **bornée** : au plus une par `(followed_id, season)` et par passe.
-- Les portes de DETECT restent **inchangées** — deux déclencheurs distincts coexistent.
-- Aucun verdict de conformité sans `scripts/check-acquisition-coherence.py` à **exit 0**.
-- Toute modification de route FastAPI ⇒ `make openapi` + fichiers régénérés commités.
+- La spine reste **advisory** : aucune écriture de provenance ne fait échouer une étape.
+  Ce qui change est la **visibilité** de l'échec, jamais sa gravité.
+- Le chemin redevient une **entrée de recherche** ; l'écriture est keyée sur `info_hash`.
+- Le backfill **n'invente rien** : `ingest_path` / `current_path` / `scraped_at` restent NULL.
+- Une règle de garde = **un** mode de défaillance (pas de doublon avec `GRABBED_HASH_MISSING`).
+- Aucun verdict « conforme » sans `scripts/check-acquisition-coherence.py` à exit 0 sur les
+  données réelles, **après** déploiement.
 
 ## Phases
 
-| #   | Phase                                                    | File                                     | Défaut | Status |
-| --- | -------------------------------------------------------- | ---------------------------------------- | ------ | ------ |
-| 1   | Propager le bus du processus dans le scan post-dispatch   | phase-01-event-bus-propagation.md        | D4     | [x]    |
-| 2   | `trackers_degraded` — une panne n'est pas une absence     | phase-02-trackers-degraded.md            | D2     | [x]    |
-| 3   | Escalade épisode→saison sur l'évidence d'échec            | phase-03-starvation-escalation.md        | D1     | [x]    |
-| 4   | Extraction de la route season-grab (comportement constant)| phase-04-extract-season-grab-route.md    | —      | [x]    |
-| 5   | L'action opérateur déclenche la passe                     | phase-05-operator-trigger.md             | D3     | [x]    |
+| #   | Phase                                                          | Défaut visé | Status |
+| --- | -------------------------------------------------------------- | ----------- | ------ |
+| 1   | Migration 015 — `CHECK kind` accepte `'season'` + garde G1      | Cause A     | [ ]    |
+| 2   | `move_path` de sous-arbre + dispatch corrélé par `info_hash`    | Cause B     | [ ]    |
+| 3   | Le rejet d'écriture n'est plus muet + gardes G2/G3              | le trou     | [ ]    |
+| 4   | §12 — les 3 `<Link>` en `block h-full` + test                   | Cause C     | [ ]    |
+| 5   | Backfill §13 — reconstruire les lignes perdues                  | l'état      | [ ]    |
+| 6   | Gates, PR, CI, merge, déploiement, vérification réelle + 390px  | —           | [ ]    |
 
-L'ordre porte du sens : D4 masque l'effet observable de tout le reste ; D2 change la sémantique
-d'`attempts` dont dépend D1 ; l'extraction dégage la marge que D3 exige sous le plafond de 1000.
-
-## Point ouvert (décision opérateur en attente)
-
-La phase 2 rembourse l'essai **uniquement** sur `trackers_degraded`. Les autres verdicts non
-conclus (`trackers_unavailable`, `circuit_open`, `search_api_error`) continuent de consommer un
-essai — comportement préexistant, non modifié faute d'arbitrage. Conséquence : après la phase 2,
-`attempts` signifie « recherches conclues + recherches en panne totale ». Étendre le
-remboursement à toute la famille panne rendrait le compteur exact, mais c'est un changement de
-comportement supplémentaire qui n'a pas été validé.
-
-## Review cycles
-
-_(filled by implement:pr-review — max 3 cycles)_
+L'ordre porte du sens : la migration doit précéder tout test qui écrit un `kind='season'` ;
+la corrélation doit précéder les gardes qui l'auditent ; le backfill vient en dernier parce
+qu'il s'appuie sur la table migrée.
 
 ## ACCEPTANCE
 
-Exercised 2026-08-04 — see `docs/features/acq-escalade/ACCEPTANCE.md` for the pasted output
-of all 7 criteria. ACC-01 (coherence guard) exit 0, ACC-07 (dated real run proving the
-escalation) PASS.
+_(rempli en phase 6 — déroulé daté sur données réelles, §méthode règle 2)_
 
 ## Next action
 
-Push the branch and open the PR (`/implement:feature-pr`), then adversarial PR review.
+Phase 1 — écrire le test de la migration avant la migration.
