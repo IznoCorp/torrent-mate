@@ -27,9 +27,16 @@ depuis #398 mais la file n'y a jamais été convertie.
 - Aucun verdict « conforme » sans `scripts/check-acquisition-coherence.py` à 0 anomalie sur
   les **données réelles**, après correctif, et sans preuve écran à 390 px.
 
+**Master plan**: `docs/features/file-absorbee/plan/INDEX.md`
+
 ## Phases
 
-_(filled by /implement:plan)_
+| #  | Phase                                                  | Plan                                             | Status |
+| -- | ------------------------------------------------------ | ------------------------------------------------ | ------ |
+| 01 | Backend — la route suit le pointeur                    | `plan/phase-01-backend-resolution.md`            | [ ]    |
+| 02 | Frontend — filtre JS résolu + vocabulaire corrigé      | `plan/phase-02-frontend-filtre.md`               | [ ]    |
+| 03 | Garde — `QUEUE_ABSORBED_DANGLING`                      | `plan/phase-03-garde.md`                         | [ ]    |
+| 04 | Gates, PR, CI, merge, preuve sur données réelles       | `plan/phase-04-gates-preuve.md`                  | [ ]    |
 
 ## Review cycles
 
