@@ -113,7 +113,7 @@
         "type": "object"
       },
       "AcquisitionOverviewResponse": {
-        "description": "The \u00ab \u00e9tat de la machine \u00bb rollup (F5 capstone) \u2014 one page over the F0\u2013F4 spine.\n\nAggregates the four pillars: acquisitions (``by_status`` / ``in_flight``), en-attente\n(``stuck``), d\u00e9cisions (``awaiting_resolution``), and the watcher/last-run context.\nEvery count is an UNCAPPED SQL aggregate (never a frontend count over the 200-capped\njourney list \u2014 product-intent \u00a7m\u00e9thode rule 6).\n\nAttributes:\n    by_status: ``{status: count}`` over the spine (grabbed/ingested/scraped/dispatched/reconciled).\n    in_flight: Non-terminal total = grabbed + ingested + scraped.\n    stuck: In-flight items stuck on disk past the idle horizon (F4 FS-truth).\n    awaiting_resolution: The AUTHORITATIVE ``scrape_decision`` pending count.\n    watcher_enabled: Whether the acquisition watcher is running (not paused).\n    last_successful_run_at: Unix-epoch of the last successful pipeline run, or None.\n    pending_run: What the watcher is waiting for right now (\u00a78 / DOIT-2), or None\n        when the daemon has published nothing \u2014 never started, or unreadable store.",
+        "description": "The \u00ab \u00e9tat de la machine \u00bb rollup (F5 capstone) \u2014 one page over the F0\u2013F4 spine.\n\nAggregates the four pillars: acquisitions (``by_status`` / ``in_flight``), en-attente\n(``stuck``), d\u00e9cisions (``awaiting_resolution``), and the watcher/last-run context.\nEvery count is an UNCAPPED SQL aggregate (never a frontend count over the 200-capped\njourney list \u2014 product-intent \u00a7m\u00e9thode rule 6).\n\nAttributes:\n    by_status: ``{status: count}`` over the spine (grabbed/ingested/scraped/dispatched/reconciled).\n    in_flight: Non-terminal total = grabbed + ingested + scraped.\n    stuck: In-flight items stuck on disk past the idle horizon (F4 FS-truth).\n    stalled_grabs: Acquisitions parqu\u00e9es \u00e0 \u00ab r\u00e9cup\u00e9r\u00e9 \u00bb qui n'ont jamais atteint la\n        m\u00e9diath\u00e8que (\u00a714.1). DISTINCT de ``stuck``, qui est un \u00e9tat de PARCOURS\n        exigeant que le dossier soit encore sur le disque : une ligne ``wanted``\n        reste parqu\u00e9e pour toujours m\u00eame apr\u00e8s la disparition du dossier, et c'est\n        elle qui d\u00e9cide si le m\u00e9dia sera re-cherch\u00e9 un jour.\n    awaiting_resolution: The AUTHORITATIVE ``scrape_decision`` pending count.\n    watcher_enabled: Whether the acquisition watcher is running (not paused).\n    last_successful_run_at: Unix-epoch of the last successful pipeline run, or None.\n    pending_run: What the watcher is waiting for right now (\u00a78 / DOIT-2), or None\n        when the daemon has published nothing \u2014 never started, or unreadable store.",
         "properties": {
           "awaiting_resolution": {
             "default": 0,
@@ -153,6 +153,11 @@
                 "type": "null"
               }
             ]
+          },
+          "stalled_grabs": {
+            "default": 0,
+            "title": "Stalled Grabs",
+            "type": "integer"
           },
           "stuck": {
             "default": 0,
@@ -2005,6 +2010,17 @@
               }
             ],
             "title": "Reconstructed At"
+          },
+          "release_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Name"
           },
           "resolution_state": {
             "anyOf": [
@@ -4496,6 +4512,93 @@
         "title": "StagingStageStep",
         "type": "object"
       },
+      "StalledGrabItem": {
+        "description": "Une acquisition parqu\u00e9e \u00e0 \u00ab r\u00e9cup\u00e9r\u00e9 \u00bb qui n'atteint jamais la m\u00e9diath\u00e8que.\n\n\u00a714.1 : \u00ab r\u00e9cup\u00e9r\u00e9 \u00bb est un \u00e9tat TRANSITOIRE, jamais un \u00e9tat de repos. Une ligne qui\ny stagne est non conforme \u2014 et muette : la passe de recherche ne reprend que\n``pending``/``searching``/``available``, donc le m\u00e9dia reste voulu sans que personne\nne le cherche plus.\n\nAttributes:\n    wanted_id: Rowid de la ligne ``wanted`` parqu\u00e9e.\n    title: Titre du m\u00e9dia suivi, pour l'affichage.\n    kind: ``movie`` / ``episode`` / ``season``.\n    season / episode: Localisation, ``None`` pour un film.\n    info_hash: La release \u00e0 laquelle la ligne est engag\u00e9e.\n    release_name: Le nom de la release r\u00e9ellement r\u00e9cup\u00e9r\u00e9e, ou ``None`` si\n        inconnu \u2014 la M\u00caME d\u00e9rivation que les parcours (\u00a713).\n    since: Epoch de la derni\u00e8re \u00e9tape connue (depuis quand \u00e7a ne bouge plus).\n    reason: Pourquoi c'est signal\u00e9, en fran\u00e7ais clair (\u00a78 \u2014 jamais un compteur nu).",
+        "properties": {
+          "episode": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Episode"
+          },
+          "info_hash": {
+            "title": "Info Hash",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "release_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Name"
+          },
+          "season": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season"
+          },
+          "since": {
+            "title": "Since",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "wanted_id": {
+            "title": "Wanted Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "wanted_id",
+          "title",
+          "kind",
+          "info_hash",
+          "since",
+          "reason"
+        ],
+        "title": "StalledGrabItem",
+        "type": "object"
+      },
+      "StalledGrabsResponse": {
+        "description": "R\u00e9ponse de ``GET /api/acquisition/stalled-grabs``.\n\nAttributes:\n    items: Les acquisitions parqu\u00e9es, la plus ancienne d'abord.",
+        "properties": {
+          "items": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/StalledGrabItem"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "StalledGrabsResponse",
+        "type": "object"
+      },
       "StatusResponse": {
         "description": "Response body for ``GET /api/pipeline/status``.\n\nReflects the live state of the pipeline engine, the pause sentinel,\nthe watcher sentinel, and the latest run metadata.\n\nAttributes:\n    state: The current pipeline run-state.\n    run_uid: The unique identifier of the latest or active run, or\n        ``None`` when idle.\n    step: The human-readable name of the current step, or ``None``\n        when idle.\n    paused: Whether the pipeline is currently paused at a step boundary.\n    watcher_enabled: Whether the directory watcher is currently active.\n    pid: The OS process ID of the running pipeline subprocess, or\n        ``None`` when idle.",
         "properties": {
@@ -5765,6 +5868,28 @@
           }
         },
         "summary": "Search Media",
+        "tags": [
+          "acquisition"
+        ]
+      }
+    },
+    "/api/acquisition/stalled-grabs": {
+      "get": {
+        "description": "Les acquisitions parqu\u00e9es \u00e0 \u00ab r\u00e9cup\u00e9r\u00e9 \u00bb qui n'atteignent jamais la m\u00e9diath\u00e8que.\n\nLe d\u00e9tail derri\u00e8re le compteur de la vue d'ensemble : \u00a78 interdit un nombre sans\nacc\u00e8s \u00e0 ce qu'il compte, et \u00a714.1 fait de \u00ab r\u00e9cup\u00e9r\u00e9 \u00bb un \u00e9tat transitoire \u2014 une\nligne qui y stagne doit se voir, avec sa raison.\n\nLecture seule, fail-soft, non staging-guarded (n'\u00e9crit rien).\n\nArgs:\n    request: La requ\u00eate FastAPI entrante.\n\nReturns:\n    Un :class:`StalledGrabsResponse`, la plus ancienne d'abord.",
+        "operationId": "get_stalled_grabs_api_acquisition_stalled_grabs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StalledGrabsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Stalled Grabs",
         "tags": [
           "acquisition"
         ]

@@ -549,6 +549,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/acquisition/stalled-grabs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Stalled Grabs
+         * @description Les acquisitions parquées à « récupéré » qui n'atteignent jamais la médiathèque.
+         *
+         *     Le détail derrière le compteur de la vue d'ensemble : §8 interdit un nombre sans
+         *     accès à ce qu'il compte, et §14.1 fait de « récupéré » un état transitoire — une
+         *     ligne qui y stagne doit se voir, avec sa raison.
+         *
+         *     Lecture seule, fail-soft, non staging-guarded (n'écrit rien).
+         *
+         *     Args:
+         *         request: La requête FastAPI entrante.
+         *
+         *     Returns:
+         *         Un :class:`StalledGrabsResponse`, la plus ancienne d'abord.
+         */
+        get: operations["get_stalled_grabs_api_acquisition_stalled_grabs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/acquisition/status": {
         parameters: {
             query?: never;
@@ -2214,6 +2246,11 @@ export interface components {
          *         by_status: ``{status: count}`` over the spine (grabbed/ingested/scraped/dispatched/reconciled).
          *         in_flight: Non-terminal total = grabbed + ingested + scraped.
          *         stuck: In-flight items stuck on disk past the idle horizon (F4 FS-truth).
+         *         stalled_grabs: Acquisitions parquées à « récupéré » qui n'ont jamais atteint la
+         *             médiathèque (§14.1). DISTINCT de ``stuck``, qui est un état de PARCOURS
+         *             exigeant que le dossier soit encore sur le disque : une ligne ``wanted``
+         *             reste parquée pour toujours même après la disparition du dossier, et c'est
+         *             elle qui décide si le média sera re-cherché un jour.
          *         awaiting_resolution: The AUTHORITATIVE ``scrape_decision`` pending count.
          *         watcher_enabled: Whether the acquisition watcher is running (not paused).
          *         last_successful_run_at: Unix-epoch of the last successful pipeline run, or None.
@@ -2241,6 +2278,11 @@ export interface components {
             /** Last Successful Run At */
             last_successful_run_at?: number | null;
             pending_run?: components["schemas"]["PendingRunResponse"] | null;
+            /**
+             * Stalled Grabs
+             * @default 0
+             */
+            stalled_grabs: number;
             /**
              * Stuck
              * @default 0
@@ -3396,6 +3438,8 @@ export interface components {
             media_ref: components["schemas"]["MediaRefResponse"];
             /** Reconstructed At */
             reconstructed_at?: number | null;
+            /** Release Name */
+            release_name?: string | null;
             /** Resolution State */
             resolution_state?: string | null;
             /** Resolution Trigger */
@@ -5014,6 +5058,60 @@ export interface components {
             state: "done" | "active" | "blocked" | "pending" | "skipped";
         };
         /**
+         * StalledGrabItem
+         * @description Une acquisition parquée à « récupéré » qui n'atteint jamais la médiathèque.
+         *
+         *     §14.1 : « récupéré » est un état TRANSITOIRE, jamais un état de repos. Une ligne qui
+         *     y stagne est non conforme — et muette : la passe de recherche ne reprend que
+         *     ``pending``/``searching``/``available``, donc le média reste voulu sans que personne
+         *     ne le cherche plus.
+         *
+         *     Attributes:
+         *         wanted_id: Rowid de la ligne ``wanted`` parquée.
+         *         title: Titre du média suivi, pour l'affichage.
+         *         kind: ``movie`` / ``episode`` / ``season``.
+         *         season / episode: Localisation, ``None`` pour un film.
+         *         info_hash: La release à laquelle la ligne est engagée.
+         *         release_name: Le nom de la release réellement récupérée, ou ``None`` si
+         *             inconnu — la MÊME dérivation que les parcours (§13).
+         *         since: Epoch de la dernière étape connue (depuis quand ça ne bouge plus).
+         *         reason: Pourquoi c'est signalé, en français clair (§8 — jamais un compteur nu).
+         */
+        StalledGrabItem: {
+            /** Episode */
+            episode?: number | null;
+            /** Info Hash */
+            info_hash: string;
+            /** Kind */
+            kind: string;
+            /** Reason */
+            reason: string;
+            /** Release Name */
+            release_name?: string | null;
+            /** Season */
+            season?: number | null;
+            /** Since */
+            since: number;
+            /** Title */
+            title: string;
+            /** Wanted Id */
+            wanted_id: number;
+        };
+        /**
+         * StalledGrabsResponse
+         * @description Réponse de ``GET /api/acquisition/stalled-grabs``.
+         *
+         *     Attributes:
+         *         items: Les acquisitions parquées, la plus ancienne d'abord.
+         */
+        StalledGrabsResponse: {
+            /**
+             * Items
+             * @default []
+             */
+            items: components["schemas"]["StalledGrabItem"][];
+        };
+        /**
          * StatusResponse
          * @description Response body for ``GET /api/pipeline/status``.
          *
@@ -5811,6 +5909,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_stalled_grabs_api_acquisition_stalled_grabs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StalledGrabsResponse"];
                 };
             };
         };
