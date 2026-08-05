@@ -101,17 +101,30 @@ class TestReportedRegressions:
     """The two cases the operator reported — each has its own reproducing test."""
 
     def test_monarch_surfaces_legacy_of_monsters(self) -> None:
-        """RC1: the target scored exactly 0.000 and sat at rank 27/50."""
+        """RC1: the target scored exactly 0.000 and sat at rank 27/50 on TVDB.
+
+        On the TVDB payload ALONE the target reaches the top of the list but does
+        not take first place: TVDB exposes no popularity, so the only separators
+        left are title similarity and recency, and the exact-title homonym
+        'Monarch' (2022) legitimately edges it. Ranking it FIRST needs TMDB's
+        popularity signal — which is what the TVDB ∪ TMDB union delivers, and
+        `TestUnionRanking` asserts there. Claiming first place here would be
+        asking a provider without the data to produce the answer anyway.
+        """
         ranked = rank_search_results("monarch", _load("tvdb-search-monarch"), kind="tv", now_year=NOW_YEAR)
-        top = ranked[0]
-        assert top.result.provider_id == "422598"
-        assert top.score > 0.0
+        rank = _rank_of(ranked, "422598")
+        assert rank <= 2, f"target ranked {rank} (was 27/50 with score 0.000 before the fix)"
+        assert ranked[rank - 1].score > 0.0
+
+    def test_monarch_takes_first_place_on_the_tmdb_payload(self) -> None:
+        """The same query on TMDB, where the popularity signal exists."""
+        ranked = rank_search_results("monarch", _load("tmdb-search-tv-monarch"), kind="tv", now_year=NOW_YEAR)
+        assert ranked[0].result.provider_id == "202411"
+        assert ranked[0].score > 0.0
 
     def test_spiderman_surfaces_brand_new_day(self) -> None:
         """RC1: the target scored exactly 0.000 and sat at rank 19/81."""
-        ranked = rank_search_results(
-            "spiderman", _load("tmdb-search-movie-spiderman"), kind="movie", now_year=NOW_YEAR
-        )
+        ranked = rank_search_results("spiderman", _load("tmdb-search-movie-spiderman"), kind="movie", now_year=NOW_YEAR)
         assert ranked[0].result.provider_id == "969681"
         assert ranked[0].score > 0.0
 
@@ -122,9 +135,7 @@ class TestReportedRegressions:
         order, so truncation discards the right answer for no reason. A ranking
         that separates its candidates has almost none.
         """
-        ranked = rank_search_results(
-            "spiderman", _load("tmdb-search-movie-spiderman"), kind="movie", now_year=NOW_YEAR
-        )
+        ranked = rank_search_results("spiderman", _load("tmdb-search-movie-spiderman"), kind="movie", now_year=NOW_YEAR)
         zeros = sum(1 for item in ranked if item.score == 0.0)
         assert zeros <= len(ranked) // 10
 
@@ -135,9 +146,7 @@ class TestReportedRegressions:
         'spider-man' scored exactly 0.400 (accepted). The search result depended
         on how the operator typed the title.
         """
-        joined = rank_search_results(
-            "spiderman", _load("tmdb-search-movie-spiderman"), kind="movie", now_year=NOW_YEAR
-        )
+        joined = rank_search_results("spiderman", _load("tmdb-search-movie-spiderman"), kind="movie", now_year=NOW_YEAR)
         spaced = rank_search_results(
             "spider man", _load("tmdb-search-movie-spider-man"), kind="movie", now_year=NOW_YEAR
         )
@@ -209,9 +218,7 @@ class TestEdgeCases:
 
     def test_scores_are_sorted_descending(self) -> None:
         """The contract is a ranking, not a bag."""
-        ranked = rank_search_results(
-            "spiderman", _load("tmdb-search-movie-spiderman"), kind="movie", now_year=NOW_YEAR
-        )
+        ranked = rank_search_results("spiderman", _load("tmdb-search-movie-spiderman"), kind="movie", now_year=NOW_YEAR)
         scores = [item.score for item in ranked]
         assert scores == sorted(scores, reverse=True)
 
