@@ -130,6 +130,37 @@ describe("ParcoursPanel", () => {
     expect(screen.getByText(/parcours reconstruit/i)).toBeInTheDocument();
   });
 
+  it("§13 — the rebuilt note only shows when a stage is REALLY undated", async () => {
+    // Une note fixe est un mensonge en attente : sur un parcours reconstruit DONT les
+    // instants ont été retrouvés, annoncer « les instants ne sont plus connus » est faux.
+    getJourneysMock.mockResolvedValue({
+      journeys: [
+        {
+          info_hash: "d412a663",
+          kind: "season",
+          media_ref: { tvdb_id: 73141, tmdb_id: null, imdb_id: null },
+          scraped_ref: null,
+          followed_id: 4,
+          follow_title: "American Dad!",
+          status: "dispatched",
+          ingest_path: null,
+          current_path: null,
+          dispatch_path: "/Volumes/Disk2/series/American Dad! (2005)",
+          grabbed_at: 1_785_892_801,
+          ingested_at: 1_785_894_167,
+          scraped_at: 1_785_894_175,
+          dispatched_at: 1_785_894_653,
+          reconstructed_at: 1_785_927_000,
+        },
+      ],
+    });
+    renderPanel();
+    expect(await screen.findByText("American Dad!")).toBeInTheDocument();
+    // Toutes les étapes sont datées → ni « inconnue », ni note.
+    expect(screen.queryByText(/inconnue/)).toBeNull();
+    expect(screen.queryByText(/instants des étapes/i)).toBeNull();
+  });
+
   it("a normal journey still shows an unreached stage as unreached", async () => {
     // Le contre-cas : sans lui, « inconnue » pourrait s'afficher partout et le stepper
     // ne dirait plus rien du tout.
