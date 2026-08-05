@@ -85,6 +85,44 @@ describe("OverviewPanel", () => {
     expect(screen.queryByText("Rien en vol")).toBeNull();
   });
 
+  it("§12 — the whole tile is the touch target, and the four tiles share one height", async () => {
+    // `<Link>` renders an `<a>`, which is `display: inline` by default: inside the
+    // `grid grid-cols-2` the clickable box collapsed to the inline run of content and the
+    // card never stretched to its grid track. On a phone that means aiming at a fraction
+    // of the tile, next to a fourth tile (« Dispatchés », link-less) that WAS full height —
+    // the ragged row the operator photographed. §12: cibles tactiles atteignables.
+    getOverviewMock.mockResolvedValue({
+      by_status: { grabbed: 2, ingested: 1, scraped: 0, dispatched: 5 },
+      in_flight: 3,
+      stuck: 1,
+      awaiting_resolution: 2,
+      watcher_enabled: true,
+      last_successful_run_at: 1_700_000_000,
+    });
+    renderPanel();
+
+    const labels = [
+      "Voir les parcours en vol",
+      "Voir les items bloqués",
+      "Voir les décisions en attente",
+    ];
+    for (const label of labels) {
+      const anchor = (await screen.findByLabelText(label)).closest("a");
+      expect(anchor).not.toBeNull();
+      // A block-level, full-height anchor: the touch target IS the card.
+      expect(anchor).toHaveClass("block", "h-full");
+      // …and the card really is inside that anchor, not merely beside it.
+      expect(anchor?.querySelector(".ps-stat")).not.toBeNull();
+    }
+
+    // Every tile — linked or not — stretches to the grid track, so the row is even.
+    const tiles = document.querySelectorAll(".ps-stat");
+    expect(tiles).toHaveLength(4);
+    for (const tile of tiles) {
+      expect(tile).toHaveClass("h-full");
+    }
+  });
+
   it("shows an empty state when EVERY pillar is zero", async () => {
     getOverviewMock.mockResolvedValue({
       by_status: {},
