@@ -24,11 +24,14 @@ from personalscraper.acquire.stalled_grabs import StalledGrab, list_stalled_grab
 from personalscraper.acquire.store import AcquireStore, build_acquire_store
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.logger import get_logger
+from personalscraper.web.acquisition.to_handle import build_to_handle
 from personalscraper.web.models.acquisition import (
     AcquisitionOverviewResponse,
     PendingRunResponse,
     StalledGrabItem,
     StalledGrabsResponse,
+    ToHandleItemModel,
+    ToHandleResponse,
 )
 
 log = get_logger("web.acquisition.overview")
@@ -198,4 +201,36 @@ def get_stalled_grabs(request: Request) -> StalledGrabsResponse:
             )
             for s in stalled
         ]
+    )
+
+
+@router.get("/to-handle", response_model=ToHandleResponse)
+def get_to_handle(request: Request) -> ToHandleResponse:
+    """Les médias bloqués PORTÉS PAR UNE ACQUISITION, plus le compteur des autres.
+
+    §14.3 : un parcours n'a pas de trou. Un item pris puis ingéré qui cale à
+    l'identification est au milieu de SON parcours ; il doit rester visible depuis
+    l'acquisition. Un dépôt manuel, lui, n'est pas une acquisition : il est compté
+    (orphan_count) mais jamais listé ici, il appartient au panneau « À traiter »
+    de Contrôle.
+
+    Lecture seule, fail-soft, non staging-guarded (n'écrit rien).
+
+    Args:
+        request: La requête FastAPI entrante.
+
+    Returns:
+        Un :class:`ToHandleResponse` — les bloqués portés par une acquisition,
+        le plus ancien d'abord, plus le compteur des orphelins.
+    """
+    config = request.app.state.config
+    store = build_acquire_store(config.acquire)
+    try:
+        rollup = build_to_handle(indexer_db=config.indexer.db_path, store=store)
+    finally:
+        store.close()
+
+    return ToHandleResponse(
+        items=[ToHandleItemModel(**vars(item)) for item in rollup.items],
+        orphan_count=rollup.orphan_count,
     )

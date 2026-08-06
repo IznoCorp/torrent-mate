@@ -848,3 +848,49 @@ class SeasonGrabResponse(BaseModel):
     reused: bool = False
     run_started: bool = False
     run_uid: str | None = None
+
+
+# ── « À traiter » — les bloqués portés par une acquisition (§14.3) ──────────
+
+
+class ToHandleItemModel(BaseModel):
+    """Un média bloqué dont l'acquisition est la nôtre (§14.3).
+
+    Attributes:
+        decision_id: ``scrape_decision.id`` — la cible de « Résoudre → ».
+        title / year / kind: Ce que l'opérateur lit sur la carte.
+        reason: La raison EN FRANÇAIS, déjà mappée (NE-DOIT-PAS-4).
+        candidates_count: Nombre de candidats proposés (§3 : le sélecteur
+            s'ouvre AVEC des propositions).
+        created_at: Epoch seconds de la mise en attente.
+        followed_id: Le suivi porteur, ou ``None``.
+        info_hash: La release concernée, ou ``None``.
+        stage: L'étape RÉELLEMENT atteinte du parcours — jamais une valeur
+            par défaut.
+    """
+
+    decision_id: int
+    title: str
+    year: int | None = None
+    kind: str
+    reason: str
+    candidates_count: int = 0
+    created_at: int = 0
+    followed_id: int | None = None
+    info_hash: str | None = None
+    stage: str
+
+
+class ToHandleResponse(BaseModel):
+    """Réponse de ``GET /api/acquisition/to-handle``.
+
+    Attributes:
+        items: Les bloqués PORTÉS PAR UNE ACQUISITION, le plus ancien d'abord.
+        orphan_count: Les bloqués SANS provenance d'acquisition (dépôts
+            manuels). Ils n'ont pas de carte ici — mais on ne les tait pas :
+            l'UI en fait un renvoi vers Contrôle (§méthode : ne jamais
+            sous-compter ce qui demande attention).
+    """
+
+    items: list[ToHandleItemModel] = []
+    orphan_count: int = 0
