@@ -2316,6 +2316,14 @@ A job failing in 3–4 s with no log is a GitHub spending limit, not the code �
 
 Deploy the branch to `tm-staging.iznogoudatall.xyz`. Then walk this list **on a real phone**, and record a screenshot for each:
 
+0. **A blocked station vs an in-progress one — without relying on colour.** The
+   differentiator shipped is a dashed border on a 9 px dot with a 1.5 px stroke.
+   That satisfies the letter of the accessibility finding, but whether it is
+   actually *perceptible* at that size cannot be settled by reading code. Look at
+   an « À traiter » card next to an « En vol » one and answer plainly: can you tell
+   them apart with the colour ignored? If not, the differentiator must change
+   (shape, size, or a glyph) before merge — a marker only some users can see is
+   not a marker.
 1. « Maintenant » — the five sections, in order, with real counts.
 2. The **gesture arbitration** — swipe from a card (expect: card actions) vs from a section header (expect: view change). This is the decision that cannot be judged from a mockup.
 3. Pull-to-refresh in the PWA **and** in a browser tab — the page must not reload.
