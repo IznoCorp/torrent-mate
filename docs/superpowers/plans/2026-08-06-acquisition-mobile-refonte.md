@@ -14,8 +14,12 @@ Task **numbers below never change** — tasks cite each other by number. What ch
 pre-flight scan is the **order they are dispatched in**:
 
 ```
-1 → 2 → 3 → 4 → 5 → 6 → 10 → 8 → 9 → 12 → 7 → 11 → 13 → 14 → 15 → 16
+1 → 2 → 3 → 17 → 4 → 5 → 6 → 10 → 8 → 9 → 12 → 7 → 11 → 13 → 14 → 15 → 16
 ```
+
+**Task 17 was added during execution** (operator decision A18) and is placed right after the backend work: it opens
+staging's write path for acquisition and decisions, and staging must already accept those writes by the time the
+mutating UI journeys exist to be validated.
 
 **Why:** the original order had Task 7 (the shell) render placeholder components until Tasks 8 and 9
 existed. A stub is dead code — exactly what a reviewer is right to flag — so the panels are built
@@ -2085,6 +2089,168 @@ Expected: 0 failures.
 
 ```bash
 git add -A && git commit -m "refactor(acq-mobile): retirer les panneaux remplacés, déplacer l'éditeur de classement dans Config"
+```
+
+---
+
+### Task 17: Open staging's write path — acquisition and decisions only (A18)
+
+Added during execution. Dispatched right after Task 3 (see **Execution order**), because staging must accept these
+writes before any mutating UI journey exists to validate.
+
+**Files:**
+- Modify: `personalscraper/web/deps.py` (docstring of `require_not_staging` — it currently claims to guard every
+  mutating POST, which stops being true)
+- Modify: `personalscraper/web/routes/acquisition.py` (3 sites), `acquisition_triggers.py` (5 sites),
+  `acquisition_seasons.py` (1 site), `decisions.py` (2 sites)
+- Test: `tests/unit/web/routes/test_staging_write_policy.py` (create)
+
+**Interfaces:**
+- Consumes: `is_staging_role()` / `require_not_staging` from `personalscraper/web/deps.py`.
+- Produces: no new symbol. The policy is expressed by *which routes carry the dependency*, and asserted by one test.
+
+- [ ] **Step 1: Write the failing policy test**
+
+The policy must be asserted as data, not left to eleven scattered edits nobody re-reads. Enumerate the app's routes
+and check the guard's presence against an explicit table — so that a future route added to a guarded family without
+the dependency fails this test.
+
+```python
+"""The staging write policy (A18) — asserted as a table, not as eleven edits."""
+
+import os
+from unittest import mock
+
+import pytest
+from fastapi.routing import APIRoute
+
+from personalscraper.web.app import create_app
+
+# Families whose writes are OPEN on staging: their worst case is a repairable row.
+_OPEN_PREFIXES = ("/api/acquisition", "/api/decisions")
+# Families whose writes stay GUARDED: they move real files, or hold shared state.
+_GUARDED_PREFIXES = ("/api/pipeline", "/api/maintenance", "/api/config", "/api/staging")
+
+_MUTATING = {"POST", "PATCH", "PUT", "DELETE"}
+
+
+def _mutating_routes(app):
+    for route in app.routes:
+        if not isinstance(route, APIRoute):
+            continue
+        for method in route.methods & _MUTATING:
+            yield route.path, method, route
+
+
+def test_acquisition_and_decision_writes_are_open_on_staging(app):
+    """A18: these must NOT carry require_not_staging."""
+    offenders = [
+        f"{method} {path}"
+        for path, method, route in _mutating_routes(app)
+        if path.startswith(_OPEN_PREFIXES)
+        and any("require_not_staging" in repr(d.call) for d in route.dependant.dependencies)
+    ]
+    assert offenders == [], f"encore gardées alors qu'A18 les ouvre : {offenders}"
+
+
+def test_pipeline_and_config_writes_stay_guarded_on_staging(app):
+    """A18: these MUST keep require_not_staging — they move files or hold shared state."""
+    unguarded = [
+        f"{method} {path}"
+        for path, method, route in _mutating_routes(app)
+        if path.startswith(_GUARDED_PREFIXES)
+        and not any("require_not_staging" in repr(d.call) for d in route.dependant.dependencies)
+    ]
+    assert unguarded == [], f"écriture non gardée hors du périmètre A18 : {unguarded}"
+```
+
+Build the `app` fixture the way the existing route tests do (`tests/unit/web/routes/` — copy their client wiring).
+If `route.dependant.dependencies` does not expose the callable as expected in this FastAPI version, inspect one
+known-guarded route interactively first and adapt the predicate — but keep the assertion table-driven.
+
+- [ ] **Step 2: Run it — the first test must FAIL, the second must PASS**
+
+Run: `command python -m pytest tests/unit/web/routes/test_staging_write_policy.py -v`
+Expected: `test_acquisition_and_decision_writes_are_open_on_staging` FAILS listing the 11 currently-guarded routes;
+`test_pipeline_and_config_writes_stay_guarded_on_staging` PASSES already. If the second one fails, STOP and report —
+that would mean a write route outside A18's scope is already unguarded, which is a separate finding.
+
+- [ ] **Step 3: Remove the dependency from the eleven sites**
+
+Delete `Depends(require_not_staging)` — and only that — from the `dependencies=[…]` lists at:
+`acquisition.py:877, 995, 1042` · `acquisition_triggers.py:298, 460, 497, 622, 637` ·
+`acquisition_seasons.py:94` · `decisions.py:533, 665`.
+
+**Keep `Depends(require_x_requested_with)` everywhere it appears** — it is a CSRF guard, unrelated to A18.
+Remove the now-unused `require_not_staging` import only where nothing else in the file uses it.
+
+- [ ] **Step 4: Correct the policy docstring — it is about to become false**
+
+`personalscraper/web/deps.py`, `require_not_staging`, currently says: *"every mutating POST under /api/* must be
+blocked on the staging instance … applied to all write routes in pipeline (S2), maintenance (S3), and config (S4)"*.
+Replace with:
+
+```python
+def require_not_staging() -> None:
+    """FastAPI dependency: 403 read-only on the staging clone — for the DANGEROUS writes.
+
+    Prod and staging share the same ``config/`` directory, and therefore the same
+    ``data_dir``, ``library.db``, ``acquire.db`` and storage disks. This dependency
+    used to guard EVERY mutating route. Since A18 it guards the two families whose
+    damage cannot be undone by hand:
+
+    - the **pipeline runner** — it MOVES REAL FILES on the storage disks, and no
+      database backup rolls that back;
+    - the **config editor** and the staging-media writes — the config is the one
+      piece of state both instances share, so corrupting it breaks prod and
+      staging in the same stroke.
+
+    Acquisition and decision writes are deliberately NOT guarded (A18): their
+    worst case is a wrong follow row or an extra torrent in the client, both
+    repairable, and blocking them made the mobile rebuild's mutating journeys
+    impossible to validate on staging before merge.
+
+    The policy is asserted as a table in
+    ``tests/unit/web/routes/test_staging_write_policy.py`` — change it there, not
+    by editing routes one at a time.
+
+    Raises:
+        HTTPException: 403 with detail ``"read-only"`` when
+            ``PERSONALSCRAPER_WEB_ROLE`` is ``"staging"``.
+    """
+```
+
+- [ ] **Step 5: Run the policy test, then the full backend suite**
+
+Run: `command python -m pytest tests/unit/web/routes/test_staging_write_policy.py -v` → both PASS.
+Then: `command python -m pytest tests/ -q` → 0 failures. Existing tests may assert a 403 on a now-open route; if one
+does, that test encoded the OLD policy — update it and say so in the commit message.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add -A personalscraper tests
+git commit -m "$(cat <<'EOF'
+feat(acq-mobile): staging peut écrire sur acquisition et décisions (A18)
+
+Prod et staging partagent config/, donc data_dir et les bases. Toutes les
+écritures d'acquisition rendaient 403 sur staging, ce qui rendait les parcours
+mutants de la refonte — confirmation §5, récupérer, retirer, balayage —
+impossibles à valider avant merge.
+
+Ouvertes : follows (create/update/delete), triggers, grab de saison, résolution
+et rejet de décision. Pire cas : une ligne de suivi fausse ou un torrent en trop,
+réparables à la main.
+
+Restent gardés : le runner de pipeline, qui DÉPLACE de vrais fichiers sur les
+disques et qu'aucune sauvegarde de base ne rattrape, et l'éditeur de config, seul
+état partagé par les deux instances.
+
+La politique est désormais asservie à une table de test plutôt qu'à onze
+décorations éparses : une future route d'écriture ajoutée à une famille gardée
+sans la dépendance fait échouer le test.
+EOF
+)"
 ```
 
 ---

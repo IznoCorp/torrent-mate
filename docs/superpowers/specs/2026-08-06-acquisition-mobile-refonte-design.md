@@ -87,6 +87,30 @@ So an **installed** staging PWA carries a different home-screen icon, and the in
 The banner was a third, redundant signal — and the most expensive one, since the 3 px frame costs width on all four
 edges at 390 px (§12).
 
+| # | Decision (added 2026-08-06, after A17, during execution) |
+|---|---|
+| A18 | **Staging may WRITE to production data — for acquisition and decisions only.** The pipeline runner and the config editor stay guarded by `require_not_staging`. |
+
+**A18 — why, and what it costs.** `require_not_staging`'s own docstring states that prod and staging share the
+same `config/`, hence the same `data_dir`, `library.db`, `acquire.db` and storage disks. Every acquisition write
+therefore 403s on staging — which makes the rebuild's mutating journeys (§5 replacement confirmation, « Récupérer »,
+« Retirer », the swipe actions) **impossible to validate before merge**, defeating A16.
+
+Scope was deliberately narrowed by the operator to the two families whose worst case is a repairable row:
+
+- **opened** — `acquisition.py` (follow create / update / delete), `acquisition_triggers.py` (5 POSTs),
+  `acquisition_seasons.py` (season grab), `decisions.py` (resolve / dismiss). Worst case: a wrong follow row or an
+  extra torrent in the client. Both undoable by hand.
+- **still guarded** — the **pipeline runner**, because it MOVES REAL FILES on the storage disks and no database
+  backup rolls that back; and the **config editor**, because the config is the one piece of state shared by both
+  instances, so corrupting it breaks prod and staging in the same stroke.
+
+**Known tension with A17, flagged to the operator and left to them.** A17 removed the staging banner on the grounds
+that staging was read-only. It no longer is. The data risk did not grow — the two instances write to the *same*
+rows, so confusing them changes nothing about the outcome — but a NEW hazard appeared: pressing a control « just to
+see the animation », believing one is on a mock. The differing PWA icon remains the only signal, and it became quiet
+exactly as the stakes rose. Re-adding the top badge (without the 3 px frame) is a one-line change if wanted.
+
 ---
 
 ## 3. Target information architecture
