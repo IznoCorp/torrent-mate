@@ -593,12 +593,14 @@ export function getStalledGrabs(): Promise<StalledGrabsResponse> {
 // ---------------------------------------------------------------------------
 
 /** One blocked media whose acquisition is ours (spec §3.1). */
-export type ToHandleItem =
-  paths["/api/acquisition/to-handle"]["get"]["responses"]["200"]["content"]["application/json"]["items"][number];
+export type ToHandleItem = SuccessBody<
+  paths["/api/acquisition/to-handle"]["get"]["responses"]
+>["items"][number];
 
 /** Response for ``GET /api/acquisition/to-handle``. */
-export type ToHandleResponse =
-  paths["/api/acquisition/to-handle"]["get"]["responses"]["200"]["content"]["application/json"];
+export type ToHandleResponse = SuccessBody<
+  paths["/api/acquisition/to-handle"]["get"]["responses"]
+>;
 
 /** Fetch the « À traiter » rollup. Read-only, header-free. */
 export function getToHandle(): Promise<ToHandleResponse> {
