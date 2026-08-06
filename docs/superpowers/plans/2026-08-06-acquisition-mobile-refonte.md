@@ -8,6 +8,22 @@
 
 **Tech Stack:** FastAPI + Pydantic + SQLite (backend), React 19 + TypeScript + TanStack Query + shadcn/ui + Tailwind + Vitest + Testing Library (frontend). Worktree `.claude/worktrees/acq-mobile`, branch `feat/acq-mobile`.
 
+## Execution order
+
+Task **numbers below never change** — tasks cite each other by number. What changed after the
+pre-flight scan is the **order they are dispatched in**:
+
+```
+1 → 2 → 3 → 4 → 5 → 6 → 10 → 8 → 9 → 12 → 7 → 11 → 13 → 14 → 15 → 16
+```
+
+**Why:** the original order had Task 7 (the shell) render placeholder components until Tasks 8 and 9
+existed. A stub is dead code — exactly what a reviewer is right to flag — so the panels are built
+first and the shell wires real components on its first day. The dependency chain that makes this
+stub-free: `AcquisitionCard` (5) and `JourneyStrip` (6) before any panel; `FollowDetailSheet` (10)
+before the panels, because a card's tap target opens it; the panels (8, 9) and the add screen (12)
+before the shell (7) that hosts them; gestures (13, 14) after the surfaces they act on.
+
 ## Global Constraints
 
 - **Spec is binding:** `docs/superpowers/specs/2026-08-06-acquisition-mobile-refonte-design.md`. Its §2 arbitrations A1–A17 are inputs, not proposals. Its §11 rules R1–R8 apply to every component written here.
@@ -1326,7 +1342,7 @@ Keep the existing `useSearchParams` + live-event invalidation machinery from the
 - the redirect effect → drive it from `LEGACY_TAB_REDIRECTS` with `{ replace: true }`;
 - delete the `PageHeader` line entirely;
 - add the « Plus » trigger button (`aria-label="Veille et obligations"`) opening `<PlusSheet />` in a `Sheet`;
-- render `<MaintenantPanel />` / `<SuivisPanel />` (Tasks 8 and 9 — until they exist, render a `null` placeholder component so this task's tests can run; the placeholder is replaced, never shipped).
+- render `<MaintenantPanel />` / `<SuivisPanel />` — both already exist when this task runs (see **Execution order**: Tasks 8 and 9 ship before this one, precisely so no placeholder is ever written).
 
 `PlusSheet.tsx` moves the existing `WatcherPanel` and `ObligationsPanel` **unchanged** into a `Sheet` body, plus a line stating that the ranking profiles moved to Config. Do not redesign those two panels — out of scope (spec §14).
 
