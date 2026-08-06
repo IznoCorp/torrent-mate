@@ -2,7 +2,7 @@
 
 Covers POST /api/acquisition/follows/{id}/seasons/{N}/grab:
 - Create season wanted (201), duplicate returns existing (idempotent)
-- 403 on staging, 404 on unknown follow, 400 on movie follow / season < 1
+- Staging allowed (A18), 404 on unknown follow, 400 on movie follow / season < 1
 - Episode absorption (R5) — live episode wanteds are linked to the season row
 """
 
@@ -380,17 +380,14 @@ class TestSeasonGrab:
         conn.close()
         assert count == 1
 
-    def test_403_on_staging(
+    def test_grab_season_allowed_on_staging(
         self,
         client: TestClient,
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Staging role → 403 Forbidden (require_not_staging)."""
-        monkeypatch.setattr(
-            "personalscraper.web.deps.is_staging_role",
-            lambda: True,
-        )
+        """A18 : le rôle staging peut déclencher un grab de saison — la route d'écriture est ouverte."""
+        monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
 
         acquire_path = tmp_path / "acquire.db"
         conn = sqlite3.connect(str(acquire_path))
@@ -404,8 +401,7 @@ class TestSeasonGrab:
             cookies=_auth_cookies(),
             headers=_xrw_headers(),
         )
-        assert resp.status_code == 403, resp.text
-        assert "read-only" in resp.text
+        assert resp.status_code == 201, resp.text
 
     def test_404_on_unknown_follow(self, client: TestClient) -> None:
         """Unknown followed_id → 404."""
