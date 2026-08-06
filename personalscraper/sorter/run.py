@@ -34,6 +34,41 @@ if TYPE_CHECKING:
 log = get_logger("sorter.run")
 
 
+def media_root_for(destination: Path, staging_dir: Path) -> Path:
+    """Return the MEDIA FOLDER a sorted item now lives in.
+
+    The provenance seed must name the unit the scrape works on — the media
+    folder — not the file inside it. The sorter always places an item under a
+    per-media folder (``001-MOVIES/The Odyssey (2026)/release.mp4``,
+    ``002-TVSHOWS/Star Trek Strange New Worlds/release.dir``), except for a movie
+    DIRECTORY, which becomes the media folder itself. So the media folder is
+    always the first component under the category dir.
+
+    Without this, a single-file movie recorded its FILE path, the scrape's
+    provenance resolver looked the folder up, missed, and silently free-matched
+    by title — which is how « The Odyssey » (2026) reached 27 candidates and a
+    tie at 1.0 despite its TMDB id being known since the grab.
+
+    Falls back to ``destination`` unchanged when it is not under ``staging_dir``
+    or is not deep enough to have a media folder (a file dropped straight into a
+    category dir is its own unit).
+
+    Args:
+        destination: The sorted item's destination path.
+        staging_dir: The staging root the category dirs live under.
+
+    Returns:
+        The media folder path, or ``destination`` when there is none.
+    """
+    try:
+        rel = destination.relative_to(staging_dir)
+    except ValueError:
+        # Not under the staging root — nothing to reason about, keep as-is.
+        return destination
+    # parts[0] is the category dir (001-MOVIES, …); parts[1] is the media folder.
+    return staging_dir / rel.parts[0] / rel.parts[1] if len(rel.parts) > 1 else destination
+
+
 def run_sort(
     settings: Settings,
     staging_dir: Path,
@@ -121,7 +156,9 @@ def run_sort(
         # identity by path (#30). No-op for an untracked (manual/direct) item.
         if provenance is not None and not dry_run and r.status == "moved":
             try:
-                provenance.move_path(str(r.source), str(r.destination))
+                # Record the MEDIA FOLDER, not the file inside it — that is the
+                # unit the scrape resolves identity by (#30).
+                provenance.move_path(str(r.source), str(media_root_for(r.destination, staging_dir)))
             except Exception as exc:  # noqa: BLE001 — advisory: never fails sort
                 log.warning("sort_provenance_move_failed", name=r.source.name, error=str(exc))
 
