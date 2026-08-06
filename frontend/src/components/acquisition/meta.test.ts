@@ -26,6 +26,7 @@ import {
   STATUS_LABEL,
   STATUS_TONE,
   WANTED_STATUS_OPTIONS,
+  actionWords,
   followStatusHint,
   followStatusLabel,
   searchOutcomeReason,
@@ -102,7 +103,7 @@ describe("followStatusLabel / followStatusHint (film vs série)", () => {
 
   it("shares the série wording for every non-overridden state", () => {
     for (const status of FOLLOW_STATUSES) {
-      if (status === "a_jour") continue;
+      if (status === "a_jour" || status === "disabled") continue;
       expect(followStatusLabel(status, "movie")).toBe(
         FOLLOW_STATUS_LABEL[status],
       );
@@ -372,6 +373,68 @@ describe("X7 — les enums servis ne rendent jamais un slug brut", () => {
       if (opt.value === "all") continue;
       expect(STATUS_LABEL[opt.value]).toBeTruthy();
       expect(STATUS_LABEL[opt.value]).not.toBe(opt.value);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// §9 — Vocabulaire d'action film vs série (acq-mobile task 4)
+// ---------------------------------------------------------------------------
+
+describe("vocabulaire film vs série (§9)", () => {
+  it("un film s'ajoute, une série se suit", () => {
+    expect(actionWords("movie").add).toBe("Ajouter");
+    expect(actionWords("movie").added).toBe("✓ Ajouté");
+    expect(actionWords("show").add).toBe("Suivre");
+    expect(actionWords("show").added).toBe("✓ Suivi");
+  });
+
+  it("on n'met pas un film en pause, on arrête de le chercher", () => {
+    expect(actionWords("movie").pause).toBe("Ne plus chercher");
+    expect(actionWords("movie").resume).toBe("Chercher à nouveau");
+    expect(actionWords("show").pause).toBe("Mettre en pause");
+  });
+
+  it("un film quitte la liste, une série est désactivée", () => {
+    expect(actionWords("movie").remove).toBe("Retirer de la liste");
+    expect(actionWords("show").remove).toBe("Retirer le suivi");
+    expect(actionWords("movie").removeConfirmBody).toContain(
+      "quittera votre liste",
+    );
+    expect(actionWords("show").removeConfirmBody).toContain("réactiver");
+  });
+
+  it("un film suspendu n'est pas « en pause » mais « recherche arrêtée »", () => {
+    expect(followStatusLabel("disabled", "movie")).toBe("Recherche arrêtée");
+    expect(followStatusLabel("disabled", "show")).toBe("En pause");
+  });
+
+  it("les libellés courts du balayage tiennent en deux mots", () => {
+    for (const kind of ["movie", "show"]) {
+      expect(
+        actionWords(kind).pauseShort.split(" ").length,
+      ).toBeLessThanOrEqual(3);
+      expect(
+        actionWords(kind).resumeShort.split(" ").length,
+      ).toBeLessThanOrEqual(3);
+    }
+  });
+
+  it("un kind inconnu retombe sur le vocabulaire série, jamais sur un slug", () => {
+    const w = actionWords("what-is-this");
+    expect(w.add).toBe("Suivre");
+    expect(
+      Object.values(w).every(
+        (v: string) => !/[a-z]+_[a-z]+/.test(v),
+      ),
+    ).toBe(true);
+  });
+
+  it("chaque état a un libellé — un nouvel état casse tsc, il n'imprime pas un slug", () => {
+    for (const status of Object.keys(FOLLOW_STATUS_LABEL)) {
+      expect(
+        FOLLOW_STATUS_LABEL[status as keyof typeof FOLLOW_STATUS_LABEL],
+      ).toBeTruthy();
     }
   });
 });

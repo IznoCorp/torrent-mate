@@ -262,7 +262,77 @@ export const FOLLOW_STATUS_LABEL: Record<FollowStatus, string> = {
  */
 export const FOLLOW_STATUS_LABEL_MOVIE: Partial<Record<FollowStatus, string>> = {
   a_jour: "Acquis",
+  // Un film n'est pas « en pause » : on a simplement arrêté de le chercher.
+  disabled: "Recherche arrêtée",
 };
+
+// ---------------------------------------------------------------------------
+// §9 — Vocabulaire d'action film vs série (acq-mobile task 4)
+// ---------------------------------------------------------------------------
+
+/** Action wording for one media nature. */
+export interface ActionWords {
+  readonly add: string;
+  readonly added: string;
+  readonly addAsk: string;
+  readonly pause: string;
+  readonly pauseShort: string;
+  readonly resume: string;
+  readonly resumeShort: string;
+  readonly remove: string;
+  readonly removeConfirmTitle: string;
+  readonly removeConfirmBody: string;
+}
+
+/**
+ * Action verbs, by media nature (§9).
+ *
+ * One does not *follow* a film: nothing accrues, and §5 removes it from the list
+ * once acquired — so « Suivre » is true of a série (a surveillance that lasts)
+ * and false of a film, which one adds once. The `…Short` forms are the swipe
+ * labels, where the button is 84px wide.
+ */
+const ACTION_WORDS: Record<"movie" | "show", ActionWords> = {
+  movie: {
+    add: "Ajouter",
+    added: "✓ Ajouté",
+    addAsk: "Ajouter…",
+    pause: "Ne plus chercher",
+    pauseShort: "Ne plus chercher",
+    resume: "Chercher à nouveau",
+    resumeShort: "Chercher",
+    remove: "Retirer de la liste",
+    removeConfirmTitle: "Retirer ce film de la liste ?",
+    removeConfirmBody:
+      "Ce film ne sera plus cherché et quittera votre liste. Vous pourrez le rajouter par une recherche.",
+  },
+  show: {
+    add: "Suivre",
+    added: "✓ Suivi",
+    addAsk: "Suivre…",
+    pause: "Mettre en pause",
+    pauseShort: "Pause",
+    resume: "Réactiver",
+    resumeShort: "Activer",
+    remove: "Retirer le suivi",
+    removeConfirmTitle: "Retirer ce suivi ?",
+    removeConfirmBody:
+      "Cette série ne sera plus surveillée. Le suivi est désactivé, pas supprimé : vous pourrez le réactiver depuis le filtre « En pause ».",
+  },
+};
+
+/**
+ * Return the action vocabulary for a media kind.
+ *
+ * Args:
+ *   kind: ``"movie"`` or anything else (a série, including ``"season"``).
+ *
+ * Returns:
+ *   The wording set — never a raw token, whatever the input.
+ */
+export function actionWords(kind: string): ActionWords {
+  return kind === "movie" ? ACTION_WORDS.movie : ACTION_WORDS.show;
+}
 
 /**
  * Followed-card status → the sentence that disambiguates it (tooltip / title).
