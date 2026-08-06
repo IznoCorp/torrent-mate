@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Literal
 from xml.etree import ElementTree as ET
 
+from personalscraper.core.media_types import TV_TRAILER_SUBFOLDER
 from personalscraper.io_utils import atomic_write_text
 from personalscraper.logger import get_logger
 
@@ -38,8 +39,9 @@ _KNOWN_TRAILER_EXTENSIONS: tuple[str, ...] = ("mp4", "mkv", "webm")
 # Plex's required subfolder name for TV-show trailer extras. Plex documents an
 # enum of Extra_Directory_Type folders ("Behind The Scenes", "Featurettes",
 # "Trailers", …); we only emit "Trailers" since this is the only kind we
-# produce.
-_TV_TRAILER_SUBFOLDER: str = "Trailers"
+# produce. Sourced from the ``core`` SSOT — the dispatch classifier keys off the
+# same name to tell a re-downloaded trailer from a destroyed episode.
+_TV_TRAILER_SUBFOLDER: str = TV_TRAILER_SUBFOLDER
 
 MediaTypeLiteral = Literal["movie", "tvshow"]
 

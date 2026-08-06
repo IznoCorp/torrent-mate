@@ -857,6 +857,73 @@ def test_merge_impact_episode_sidecar_rewrite_alone_is_metadata_refresh(tmp_path
     assert _classify_merge_impact(source, dest) == "metadata-refresh"
 
 
+def test_merge_impact_trailer_rewrite_is_metadata_refresh(tmp_path: Path) -> None:
+    """A re-downloaded trailer is an auxiliary asset, not a superseded episode.
+
+    Found in prod on « Top Chef Le Concours Parallèle (2026) » (2026-08-06): the
+    staging folder carried `Trailers/<show>.mp4` alongside a genuinely NEW
+    episode, and the destination already had that trailer. A trailer is a video
+    by extension, so the first fix still called the merge an ``overwrite`` — the
+    journal would have claimed « épisode(s) écrasé(s) » with no episode touched.
+    """
+    source = _make_scraped_show(
+        tmp_path / "src",
+        "Top Chef (2026)",
+        {
+            "Saison 17/S17E10 - Episode 10.mkv": b"new" * 8,
+            "Trailers/Top Chef (2026).mp4": b"trailer-new",
+        },
+    )
+    dest = _make_scraped_show(
+        tmp_path / "dst",
+        "Top Chef (2026)",
+        {
+            "Saison 17/S17E09 - Episode 9.mkv": b"old" * 8,
+            "Trailers/Top Chef (2026).mp4": b"trailer-old",
+        },
+    )
+    assert _classify_merge_impact(source, dest) == "metadata-refresh"
+
+
+def test_merge_impact_season_trailer_rewrite_is_metadata_refresh(tmp_path: Path) -> None:
+    """The per-season trailer folder (``Saison NN/Trailers/``) counts the same."""
+    source = _make_scraped_show(
+        tmp_path / "src",
+        "Show (2020)",
+        {"Saison 01/Trailers/Show (2020) - Saison 01.mp4": b"new"},
+    )
+    dest = _make_scraped_show(
+        tmp_path / "dst",
+        "Show (2020)",
+        {
+            "Saison 01/S01E01 - Pilot.mkv": b"x" * 8,
+            "Saison 01/Trailers/Show (2020) - Saison 01.mp4": b"old",
+        },
+    )
+    assert _classify_merge_impact(source, dest) == "metadata-refresh"
+
+
+def test_merge_impact_episode_overwrite_wins_over_shared_trailer(tmp_path: Path) -> None:
+    """A shared trailer must never mask a genuine episode supersede."""
+    source = _make_scraped_show(
+        tmp_path / "src",
+        "Show (2020)",
+        {
+            "Saison 01/S01E01 - Pilot.mkv": b"y" * 8,
+            "Trailers/Show (2020).mp4": b"trailer-new",
+        },
+    )
+    dest = _make_scraped_show(
+        tmp_path / "dst",
+        "Show (2020)",
+        {
+            "Saison 01/S01E01 - Pilot.mkv": b"x" * 8,
+            "Trailers/Show (2020).mp4": b"trailer-old",
+        },
+    )
+    assert _classify_merge_impact(source, dest) == "overwrite"
+
+
 def test_tv_spec_wires_the_metadata_refresh_detail() -> None:
     """The TV spec must wire a metadata detail, else the refresh is journaled nowhere.
 
