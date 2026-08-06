@@ -31,6 +31,27 @@ describe("JourneyStrip (§14.3)", () => {
     });
   });
 
+  it("une étape bloquée se distingue de « en cours » par autre chose que la couleur", () => {
+    const { container } = render(<JourneyStrip stage="scrape" blocked />);
+    // The blocked (current) station's dot must carry a structural differentiator.
+    const blockedDot = container.querySelector(
+      '[data-station="scrape"] [aria-hidden="true"]',
+    );
+    expect(blockedDot).not.toBeNull();
+    expect((blockedDot as HTMLElement).className).toMatch(/border-dashed/);
+    // The dot must also still be round (the fix is additive).
+    expect((blockedDot as HTMLElement).className).toMatch(/rounded-full/);
+  });
+
+  it("le point « en cours » n'a PAS le différenciateur structurel du point bloqué", () => {
+    const { container } = render(<JourneyStrip stage="ingere" />);
+    const nowDot = container.querySelector(
+      '[data-station="ingere"] [aria-hidden="true"]',
+    );
+    expect(nowDot).not.toBeNull();
+    expect((nowDot as HTMLElement).className).not.toMatch(/border-dashed/);
+  });
+
   it("aucun libellé n'est un token machine (NE-DOIT-PAS-4)", () => {
     render(<JourneyStrip stage="telech" />);
     // "pris" is a real French word that intentionally equals its key — it is
