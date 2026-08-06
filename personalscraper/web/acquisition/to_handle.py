@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -96,6 +97,10 @@ def build_to_handle(*, indexer_db: Path | None, store: AcquireStore | None) -> T
 
     try:
         conn = sqlite3.connect(f"file:{indexer_db}?mode=ro", uri=True)
+        try:
+            apply_pragmas(conn)
+        except sqlite3.Error:
+            pass  # Read-only connection — pragmas that require writes are harmless to skip.
         try:
             rows = conn.execute(
                 "SELECT id, staging_path, media_kind, extracted_title, extracted_year, "
