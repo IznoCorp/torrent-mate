@@ -2,8 +2,9 @@
  * FollowDetailSheet — §13 one-derivation detail sheet for a followed series/movie.
  *
  * The three surfaces — card fraction, sheet header, season headers — must AGREE
- * by reading the same `seasonCounts` computation (§5.4). Tests construct catalogue
- * fixtures and assert the agreement holds, not merely that each renders.
+ * by reading the same derivation (§5.4). The card↔sheet crossing is covered by a
+ * backend test (tests/web/acquisition/test_completeness_truth_agreement.py); the
+ * frontend tests verify the sheet-header↔season agreement and the layout order.
  */
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -16,6 +17,7 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { CompletenessResponse } from "@/api/acquisition";
+import type { FollowStatus, MediaKind } from "@/components/acquisition/meta";
 
 import { FollowDetailSheet, seasonCounts } from "./FollowDetailSheet";
 import * as hooks from "@/hooks/useAcquisition";
@@ -75,11 +77,13 @@ function silo(): CompletenessResponse {
 
 /**
  * ``americanDad`` — 21 seasons (proven in prod), most-recent S21 incomplete,
- * S19 complete.
+ * S19 complete.  Seasons arrive ASCENDING from the API (1, 2, …, 21) so the
+ * component's explicit sort is what puts S21 first — the test proves the sort,
+ * not the fixture's luck.
  */
 function americanDad(): CompletenessResponse {
   const seasons = Array.from({ length: 21 }, (_, i) => {
-    const n = 21 - i; // season number: 21, 20, …, 1
+    const n = i + 1; // season number: 1, 2, …, 21 (ascending — sort must invert)
     // Season 21: incomplete (owned != aired). Others: complete.
     const incomplete = n === 21;
     const episodeCount = 15 + (n % 3);
@@ -149,13 +153,18 @@ function mockCompleteness(data: CompletenessResponse): void {
   } as unknown as ReturnType<typeof hooks.useCompleteness>);
 }
 
-function renderSheet(fixture: CompletenessResponse): void {
+function renderSheet(
+  fixture: CompletenessResponse,
+  opts?: { readonly status?: FollowStatus; readonly kind?: MediaKind },
+): void {
   mockCompleteness(fixture);
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={qc}>
       <FollowDetailSheet
         followedId={fixture.followed_id}
+        status={opts?.status ?? "a_jour"}
+        kind={opts?.kind ?? (fixture.kind as MediaKind)}
         open={true}
         onOpenChange={vi.fn()}
       />
@@ -174,10 +183,10 @@ afterEach(() => {
 describe("seasonCounts — la dérivation unique (§13)", () => {
   it("compte possédés = en_mediatheque, diffusés = tout sauf annonce", () => {
     const eps = [
-      { state: "en_mediatheque" },
-      { state: "en_mediatheque" },
-      { state: "a_recuperer" },
-      { state: "annonce" },
+      { state: "en_mediatheque" as const },
+      { state: "en_mediatheque" as const },
+      { state: "a_recuperer" as const },
+      { state: "annonce" as const },
     ];
     const r = seasonCounts(eps);
     expect(r.owned).toBe(2);
@@ -186,8 +195,8 @@ describe("seasonCounts — la dérivation unique (§13)", () => {
 
   it("exclut 'annonce' du dénominateur — un épisode futur ne peut pas manquer", () => {
     const eps = [
-      { state: "annonce" },
-      { state: "annonce" },
+      { state: "annonce" as const },
+      { state: "annonce" as const },
     ];
     const r = seasonCounts(eps);
     expect(r.owned).toBe(0);
@@ -200,7 +209,7 @@ describe("seasonCounts — la dérivation unique (§13)", () => {
 });
 
 describe("FollowDetailSheet", () => {
-  it("§13 — la fraction de la carte, l'en-tête et la somme des saisons disent le même nombre", async () => {
+  it("§13 — l'en-tête et la somme des saisons disent le même nombre", async () => {
     renderSheet(silo());
     // Sheet meta reads the aggregate of ALL seasons through seasonCounts.
     expect(await screen.findByTestId("sheet-meta")).toHaveTextContent("23/24 en médiathèque");
@@ -208,7 +217,7 @@ describe("FollowDetailSheet", () => {
     const perSeason = screen.getAllByTestId("season-fraction").map((n) => n.textContent);
     const owned = perSeason.reduce((a, t) => a + Number(t.split("/")[0]), 0);
     const aired = perSeason.reduce((a, t) => a + Number(t.split("/")[1]), 0);
-    // The three surfaces AGREE — not just each non-empty.
+    // The two surfaces AGREE — not just each non-empty.
     expect(`${String(owned)}/${String(aired)}`).toBe("23/24");
   });
 
@@ -218,9 +227,10 @@ describe("FollowDetailSheet", () => {
     expect(await screen.findByTestId("season-2-fraction")).toHaveTextContent("13/14");
   });
 
-  it("gros catalogue : la saison la plus récente est en tête", async () => {
+  it("gros catalogue : la saison la plus récente est en tête (le tri, pas la chance du fixture)", async () => {
     renderSheet(americanDad());
     const names = (await screen.findAllByTestId("season-name")).map((n) => n.textContent);
+    // The fixture arrives ASCENDING (1→21) — the sort puts S21 first.
     expect(names[0]).toBe("Saison 21");
   });
 
@@ -253,14 +263,26 @@ describe("FollowDetailSheet", () => {
     ).toBeTruthy();
   });
 
+  it("§5.3 — 'a_recuperer' affiche 'Récupérer maintenant' comme action primaire", async () => {
+    renderSheet(silo(), { status: "a_recuperer" });
+    expect(await screen.findByTestId("primary-action")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Récupérer maintenant" })).toBeInTheDocument();
+  });
+
+  it("§5.3 — 'a_jour' n'affiche PAS d'action primaire (rien à récupérer)", async () => {
+    renderSheet(silo(), { status: "a_jour" });
+    await screen.findByTestId("sheet-meta");
+    expect(screen.queryByTestId("primary-action")).toBeNull();
+  });
+
   it("§5 — la fiche d'un film non acquis annonce le retrait automatique", async () => {
-    renderSheet(movieNotOwned());
+    renderSheet(movieNotOwned(), { kind: "movie" });
     expect(await screen.findByText(/quittera votre liste/)).toBeInTheDocument();
   });
 
-  it("§11 — sans identifiant résolu, « Voir la fiche » est absent et une phrase l'explique", async () => {
+  it("§11 — sans identifiant résolu, 'Voir la fiche' est absent et une phrase l'explique", async () => {
     renderSheet(unresolved());
-    expect(screen.queryByRole("button", { name: "Voir la fiche" })).toBeNull();
+    expect(screen.queryByTestId("voir-la-fiche")).toBeNull();
     expect(await screen.findByText(/n'a pas pu être résolu/)).toBeInTheDocument();
   });
 });

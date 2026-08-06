@@ -4,11 +4,16 @@
  *
  * It replaces the always-rendered « Détail par épisode » accordion. Layout order
  * IS part of the spec (design-spec §5.3): title → meta → the one offered primary
- * action (if any) → legend → season matrix → secondary actions LAST. The card
- * fraction, sheet header and every season header answer the SAME question (§13),
- * so they all read `seasonCounts()`.
+ * action (if any) → legend → season matrix → secondary actions LAST.
  *
- * A COMPLETE season is collapsed (`<details>` without `open`); an INCOMPLETE one
+ * The single derivation IS server-side
+ * (``states.derive_episode_state``, consumed by both ``truth.py`` for the card
+ * aggregates and ``completeness.py`` for this sheet); ``seasonCounts()`` is this
+ * component's LOCAL re-aggregation of the same server-derived episode states, and
+ * it must stay consistent with ``truth.py``'s rule — announced episodes excluded
+ * from ``aired``.
+ *
+ * A COMPLETE season is collapsed (``<details>`` without ``open``); an INCOMPLETE one
  * is open and carries a « N manquant(s) » chip. The legend sits ABOVE the matrix
  * — under 390 episodes it would otherwise be invisible exactly when needed.
  */
@@ -34,6 +39,8 @@ import {
   EPISODE_STATE_HINT,
   EPISODE_STATE_LABEL,
   EPISODE_STATE_TONE,
+  type FollowStatus,
+  type MediaKind,
   actionWords,
 } from "./meta";
 
@@ -53,7 +60,7 @@ import {
  *   ``{ owned, aired }``.
  */
 export function seasonCounts(
-  episodes: readonly { readonly state: string }[],
+  episodes: readonly { readonly state: EpisodeCompleteness["state"] }[],
 ): { readonly owned: number; readonly aired: number } {
   return {
     owned: episodes.filter((e) => e.state === "en_mediatheque").length,
@@ -66,6 +73,10 @@ export function seasonCounts(
 /** Props for {@link FollowDetailSheet}. */
 export interface FollowDetailSheetProps {
   readonly followedId: number;
+  /** The card's lifecycle status — drives the primary action (§5.3). */
+  readonly status: FollowStatus;
+  /** The card's media kind (``"movie"`` or ``"show"``) — drives action wording. */
+  readonly kind: MediaKind;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
 }
@@ -185,6 +196,9 @@ function aggregateFraction(
  *
  * Args:
  *   followedId: The ``followed_series`` row id.
+ *   status: The card's lifecycle status — drives « Récupérer maintenant »
+ *           as the primary action when ``"a_recuperer"``.
+ *   kind: The card's media kind — drives action wording (film vs série).
  *   open: Whether the sheet is visible.
  *   onOpenChange: Called when the sheet opens or closes (Radix controlled).
  *
@@ -193,6 +207,8 @@ function aggregateFraction(
  */
 export function FollowDetailSheet({
   followedId,
+  status,
+  kind,
   open,
   onOpenChange,
 }: FollowDetailSheetProps): ReactElement {
@@ -209,7 +225,7 @@ export function FollowDetailSheet({
         ) : isError ? (
           <SheetError />
         ) : data ? (
-          <FollowDetailSheetContent data={data} />
+          <FollowDetailSheetContent data={data} status={status} kind={kind} />
         ) : null}
       </SheetContent>
     </Sheet>
@@ -220,14 +236,26 @@ export function FollowDetailSheet({
 
 function FollowDetailSheetContent({
   data,
+  status,
+  kind,
 }: {
   readonly data: CompletenessResponse;
+  readonly status: FollowStatus;
+  readonly kind: MediaKind;
 }): ReactElement {
-  const words = actionWords(data.kind);
+  const words = actionWords(kind);
   const aggregate = aggregateFraction(data);
 
   // §11: a follow that can't be resolved to a provider id has no catalogue.
   const unresolved = data.kind === "show" && data.seasons.length === 0 && data.source === "unknown";
+
+  // §5.3: « Récupérer maintenant » is the primary action ONLY when something is
+  // takeable — else there is no primary action at all (never a disabled one).
+  const canGrab = status === "a_recuperer";
+
+  // Most-recent season first (§5.3). Sort explicitly; the API makes no ordering
+  // promise and a fixture that happens to be descending proves nothing.
+  const seasons = [...data.seasons].sort((a, b) => b.season - a.season);
 
   return (
     <>
@@ -251,53 +279,60 @@ function FollowDetailSheetContent({
         )}
       </SheetHeader>
 
-      {/* ── Primary action ── */}
-      {!unresolved && (
-        <div className="px-4">
-          {/* "Voir la fiche" is the primary action (§11) — wired by panels later.
-              Rendered as a placeholder button so the layout-order test holds. */}
+      {/* ── Primary action (§5.3) ── */}
+      {canGrab && (
+        <div data-testid="primary-action" className="px-4">
           <button
             type="button"
-            className="text-sm text-primary underline-offset-4 hover:underline"
+            className="w-full rounded-md bg-primary px-3 py-2 text-center text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
-            Voir la fiche
+            Récupérer maintenant
           </button>
         </div>
       )}
 
       {/* ── Legend ABOVE the matrix (§5.3) ── */}
-      {data.seasons.length > 0 && (
+      {seasons.length > 0 && (
         <div data-testid="episode-legend" className="px-4">
           <EpisodeStateLegende />
         </div>
       )}
 
       {/* ── Season matrix, most-recent first ── */}
-      {data.seasons.length > 0 && (
+      {seasons.length > 0 && (
         <div className="flex flex-col px-4">
-          {data.seasons.map((s) => (
+          {seasons.map((s) => (
             <SeasonRow key={s.season} season={s} />
           ))}
         </div>
       )}
 
       {/* ── Secondary actions LAST ── */}
-      <div data-testid="secondary-actions" className="mt-auto flex flex-col gap-2 p-4">
-        {/* Secondary actions: the six actions from actionWords.
-            Rendered as placeholders — the panels wire the handlers. */}
-        <button
-          type="button"
-          className="w-full rounded-md border border-border px-3 py-2 text-left text-sm hover:bg-accent"
-        >
-          {words.pause}
-        </button>
-        <button
-          type="button"
-          className="w-full rounded-md border border-border px-3 py-2 text-left text-sm hover:bg-accent"
-        >
-          {words.remove}
-        </button>
-      </div>
+      {!unresolved && (
+        <div data-testid="secondary-actions" className="mt-auto flex flex-col gap-2 p-4">
+          {/* Panels (Tasks 11-12) add the remaining context-dependent actions
+              (pause, resume, remove). The two rendered here are always present. */}
+          <button
+            data-testid="voir-la-fiche"
+            type="button"
+            className="w-full rounded-md border border-border px-3 py-2 text-left text-sm hover:bg-accent"
+          >
+            Voir la fiche
+          </button>
+          <button
+            type="button"
+            className="w-full rounded-md border border-border px-3 py-2 text-left text-sm hover:bg-accent"
+          >
+            {words.pause}
+          </button>
+          <button
+            type="button"
+            className="w-full rounded-md border border-border px-3 py-2 text-left text-sm hover:bg-accent"
+          >
+            {words.remove}
+          </button>
+        </div>
+      )}
     </>
   );
 }
