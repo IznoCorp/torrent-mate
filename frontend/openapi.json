@@ -953,7 +953,7 @@
         "type": "object"
       },
       "DestructiveOp": {
-        "description": "One append-only destructive-operation journal row (\u00a77 / Star City).\n\nAttributes:\n    ts: Unix-epoch timestamp of the operation.\n    op: The operation kind (``\"overwrite\"`` / ``\"delete\"``).\n    path: The absolute filesystem path that was destroyed.\n    actor: What performed it (``\"dispatch\"`` / ``\"disk-clean\"`` / \u2026).\n    detail: Optional French context / decision string.\n    run_uid: Optional correlating ``pipeline_run`` uid.",
+        "description": "One append-only operation journal row (\u00a77 / Star City).\n\nAttributes:\n    ts: Unix-epoch timestamp of the operation.\n    op: The operation kind \u2014 destructive (``\"overwrite\"`` / ``\"delete\"``) or\n        the non-destructive ``\"metadata-refresh\"`` (NFO/artwork sidecars\n        regenerated over their previous copies; no media lost).\n    path: The absolute filesystem path that was destroyed.\n    actor: What performed it (``\"dispatch\"`` / ``\"disk-clean\"`` / \u2026).\n    detail: Optional French context / decision string.\n    run_uid: Optional correlating ``pipeline_run`` uid.",
         "properties": {
           "actor": {
             "title": "Actor",

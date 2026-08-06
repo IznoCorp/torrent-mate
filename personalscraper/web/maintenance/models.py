@@ -153,11 +153,13 @@ class LocksResponse(BaseModel):
 
 
 class DestructiveOp(BaseModel):
-    """One append-only destructive-operation journal row (§7 / Star City).
+    """One append-only operation journal row (§7 / Star City).
 
     Attributes:
         ts: Unix-epoch timestamp of the operation.
-        op: The operation kind (``"overwrite"`` / ``"delete"``).
+        op: The operation kind — destructive (``"overwrite"`` / ``"delete"``) or
+            the non-destructive ``"metadata-refresh"`` (NFO/artwork sidecars
+            regenerated over their previous copies; no media lost).
         path: The absolute filesystem path that was destroyed.
         actor: What performed it (``"dispatch"`` / ``"disk-clean"`` / …).
         detail: Optional French context / decision string.
