@@ -157,6 +157,7 @@ export const acqKeys = {
   /** Machine-state overview query key: ``['acquisition', 'overview']`` (F5). */
   overview: () => [...acqKeys.all, "overview"] as const,
   stalledGrabs: () => [...acqKeys.all, "stalled-grabs"] as const,
+  toHandle: () => [...acqKeys.all, "to-handle"] as const,
 };
 
 // ---------------------------------------------------------------------------
@@ -585,6 +586,23 @@ export type StalledGrabItem = StalledGrabsResponse["items"][number];
  */
 export function getStalledGrabs(): Promise<StalledGrabsResponse> {
   return apiFetch("/api/acquisition/stalled-grabs", { method: "get" });
+}
+
+// ---------------------------------------------------------------------------
+// « À traiter » — blocked media carried by one of our acquisitions (§14.3)
+// ---------------------------------------------------------------------------
+
+/** One blocked media whose acquisition is ours (spec §3.1). */
+export type ToHandleItem =
+  paths["/api/acquisition/to-handle"]["get"]["responses"]["200"]["content"]["application/json"]["items"][number];
+
+/** Response for ``GET /api/acquisition/to-handle``. */
+export type ToHandleResponse =
+  paths["/api/acquisition/to-handle"]["get"]["responses"]["200"]["content"]["application/json"];
+
+/** Fetch the « À traiter » rollup. Read-only, header-free. */
+export function getToHandle(): Promise<ToHandleResponse> {
+  return apiFetch("/api/acquisition/to-handle", { method: "get" });
 }
 
 /** Response of a spine-driven per-item action (rescrape / requeue) — the launched run. */

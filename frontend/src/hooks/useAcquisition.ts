@@ -26,6 +26,7 @@ import {
   getFollowed,
   getObligations,
   getOverview,
+  getToHandle,
   getWanted,
   searchMedia,
   updateFollow,
@@ -212,6 +213,15 @@ export function useOverview() {
   return useQuery({
     queryKey: acqKeys.overview(),
     queryFn: getOverview,
+  });
+}
+
+/** « À traiter » — les bloqués portés par une acquisition (§14.3). */
+export function useToHandle() {
+  return useQuery({
+    queryKey: acqKeys.toHandle(),
+    queryFn: getToHandle,
+    refetchInterval: 60_000,
   });
 }
 
