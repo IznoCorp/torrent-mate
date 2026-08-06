@@ -59,9 +59,11 @@ def _make_mock_app_context(*, acquire):
 def test_grab_dry_run_prints_top_candidate(tmp_path: Path, monkeypatch) -> None:
     """E2E: --dry-run prints top candidate without side effects.
 
-    Seeded wanted item stays 'pending' — no state change, no add call.
+    Seeded wanted item stays 'available' — no state change, no add call. The
+    seeded status IS the grab queue: the preview reads ``list_available()``,
+    exactly what the real run claims.
     """
-    # 1. Seed a real acquire.db with one pending item.
+    # 1. Seed a real acquire.db with one available item.
     db_path = tmp_path / "acquire.db"
     cfg = AcquireConfig(db_path=db_path)
     seed_store = build_acquire_store(cfg)
@@ -69,7 +71,7 @@ def test_grab_dry_run_prints_top_candidate(tmp_path: Path, monkeypatch) -> None:
         WantedItem(
             media_ref=MediaRef(tvdb_id=12345),
             kind="movie",
-            status="pending",
+            status="available",
             enqueued_at=int(time.time()),
         )
     )
@@ -121,20 +123,21 @@ def test_grab_dry_run_prints_top_candidate(tmp_path: Path, monkeypatch) -> None:
     assert result.exit_code == 0, f"Expected exit 0; got {result.exit_code}:\n{result.output}"
     assert "Movie 2020" in result.output, f"Expected 'Movie 2020' in dry-run output; got:\n{result.output}"
 
-    # 5. Side-effect-free: the wanted item must still be 'pending'.
+    # 5. Side-effect-free: the wanted item must still be 'available' (NOT claimed
+    #    to 'searching' by the preview, which would make the dry-run a real run).
     test_store2 = build_acquire_store(cfg)
-    pending = test_store2.wanted.list_pending()
-    assert len(pending) == 1, f"Expected 1 pending item; got {len(pending)}"
-    assert pending[0].status == "pending", (
-        f"Expected status='pending' (side-effect-free dry-run); got status={pending[0].status!r}"
+    available = test_store2.wanted.list_available()
+    assert len(available) == 1, f"Expected 1 available item; got {len(available)}"
+    assert available[0].status == "available", (
+        f"Expected status='available' (side-effect-free dry-run); got status={available[0].status!r}"
     )
-    assert pending[0].grabbed_hash is None, f"Expected grabbed_hash=None (no add); got {pending[0].grabbed_hash!r}"
+    assert available[0].grabbed_hash is None, f"Expected grabbed_hash=None (no add); got {available[0].grabbed_hash!r}"
     test_store2.close()
     test_store.close()
 
 
-def test_grab_dry_run_no_pending_items(tmp_path: Path, monkeypatch) -> None:
-    """--dry-run with no pending items prints a friendly message, exits 0."""
+def test_grab_dry_run_empty_queue_is_friendly(tmp_path: Path, monkeypatch) -> None:
+    """--dry-run on an empty grab queue prints a friendly message, exits 0."""
     db_path = tmp_path / "acquire.db"
     cfg = AcquireConfig(db_path=db_path)
     empty_store = build_acquire_store(cfg)
@@ -157,8 +160,94 @@ def test_grab_dry_run_no_pending_items(tmp_path: Path, monkeypatch) -> None:
     result = runner.invoke(app, ["grab", "--dry-run"])
 
     assert result.exit_code == 0, result.output
-    assert "No pending wanted items" in result.output
+    assert "No wanted item ready to grab" in result.output
     empty_store.close()
+
+
+def _seed_one(cfg: AcquireConfig, status: str) -> None:
+    """Seed a single wanted row with the given status, then close the store."""
+    seed_store = build_acquire_store(cfg)
+    seed_store.wanted.add(
+        WantedItem(
+            media_ref=MediaRef(tvdb_id=12345),
+            kind="movie",
+            status=status,
+            enqueued_at=int(time.time()),
+        )
+    )
+    seed_store.close()
+
+
+def _dry_run_output(cfg: AcquireConfig, monkeypatch) -> str:
+    """Invoke ``grab --dry-run`` against ``cfg``'s store, return its output."""
+    mock_registry = MagicMock()
+    mock_registry.search_candidates.return_value = SearchOutcome(
+        results=[
+            TrackerResult(
+                provider="c411",
+                tracker_id="t1",
+                title="Movie 2020 MULTi 1080p BluRay x265-GRP",
+                size=ByteSize(5_000_000_000),
+                seeders=50,
+                leechers=0,
+                resolution="1080p",
+                info_hash="abc123",
+                download_url="https://c411.test/t/1",
+            )
+        ],
+        trackers_queried=1,
+        trackers_errored=0,
+    )
+    mock_registry.ranking = RankingConfig()
+
+    from personalscraper.acquire.context import AcquireContext
+
+    store = build_acquire_store(cfg)
+    mock_app_ctx = _make_mock_app_context(
+        acquire=AcquireContext(tracker_registry=mock_registry, store=store, grab=None)
+    )
+
+    @contextmanager
+    def _fake_boundary(config, settings, *, build_torrent_client=False):
+        yield mock_app_ctx
+
+    monkeypatch.setattr("personalscraper.commands.grab.per_step_boundary", _fake_boundary)
+    try:
+        result = runner.invoke(app, ["grab", "--dry-run"])
+    finally:
+        store.close()
+    assert result.exit_code == 0, result.output
+    return result.output
+
+
+def test_grab_dry_run_previews_the_available_queue(tmp_path: Path, monkeypatch) -> None:
+    """--dry-run must preview an 'available' row — the queue the real run claims.
+
+    Regression (2026-08-06 incident): the preview listed ``list_pending()`` while
+    ``AcquisitionService.run`` claims ``list_available()`` + stale-'searching'.
+    A row a search had already concluded takeable was reported as « nothing to
+    do », then grabbed for real by the very next non-dry invocation.
+    """
+    cfg = AcquireConfig(db_path=tmp_path / "acquire.db")
+    _seed_one(cfg, "available")
+
+    output = _dry_run_output(cfg, monkeypatch)
+
+    assert "Movie 2020" in output, f"Expected the available row to be previewed; got:\n{output}"
+
+
+def test_grab_dry_run_ignores_the_pending_backlog(tmp_path: Path, monkeypatch) -> None:
+    """--dry-run must NOT preview a 'pending' row: the grab pass never claims it.
+
+    The pending backlog belongs to the SEARCH pass (``search --dry-run`` previews
+    it). Showing it here would promise a grab that the real run cannot perform.
+    """
+    cfg = AcquireConfig(db_path=tmp_path / "acquire.db")
+    _seed_one(cfg, "pending")
+
+    output = _dry_run_output(cfg, monkeypatch)
+
+    assert "Movie 2020" not in output, f"Expected the pending row to be ignored; got:\n{output}"
 
 
 # ── 3. No-torrent-client path ───────────────────────────────────────────────────
@@ -201,7 +290,7 @@ def test_grab_dry_run_respects_limit(tmp_path: Path, monkeypatch) -> None:
         WantedItem(
             media_ref=MediaRef(tvdb_id=111),
             kind="movie",
-            status="pending",
+            status="available",
             enqueued_at=now,
         )
     )
@@ -209,7 +298,7 @@ def test_grab_dry_run_respects_limit(tmp_path: Path, monkeypatch) -> None:
         WantedItem(
             media_ref=MediaRef(tvdb_id=222),
             kind="movie",
-            status="pending",
+            status="available",
             enqueued_at=now + 1,
         )
     )

@@ -131,7 +131,7 @@ def test_grab_dry_run_top_is_real_ranked_candidate(tmp_path: Path, monkeypatch) 
         WantedItem(
             media_ref=media_ref,
             kind="movie",
-            status="pending",
+            status="available",
             enqueued_at=int(time.time()),
         )
     )
@@ -192,7 +192,7 @@ def test_grab_dry_run_season_previews_as_tv(tmp_path: Path, monkeypatch) -> None
             media_ref=media_ref,
             kind="season",
             season=1,
-            status="pending",
+            status="available",
             enqueued_at=int(time.time()),
         )
     )

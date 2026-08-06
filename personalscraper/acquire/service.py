@@ -78,7 +78,11 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
 from personalscraper.acquire._grab_pass import GrabPassMixin
-from personalscraper.acquire._pass_gates import _STALE_THRESHOLD_S, resolve_effective_profile
+from personalscraper.acquire._pass_gates import (
+    _STALE_THRESHOLD_S,
+    merge_pass_queue,
+    resolve_effective_profile,
+)
 from personalscraper.acquire._search_pass import SEARCH_OUTCOME_STATUS, SearchPassMixin
 from personalscraper.acquire.cadence import Cadence
 from personalscraper.acquire.desired import (
@@ -492,27 +496,12 @@ class AcquisitionService(SearchPassMixin, GrabPassMixin):
         """
         stale_threshold = now - _STALE_THRESHOLD_S
 
-        stale = self._store.wanted.list_stale_searching(older_than=stale_threshold)
-
-        # Merge head + stale, de-duplicated by id (a stale row is in neither
-        # list_pending nor list_available, but the guard keeps the merge total).
-        seen_ids: set[int] = set()
-        queue: list[WantedItem] = []
-        for item in [*head, *stale]:
-            if item.id is not None and item.id not in seen_ids:
-                seen_ids.add(item.id)
-                queue.append(item)
-
-        # Per-series scoping (OBJ3): keep only this series' items. The wanted
-        # queue is small, so an in-memory filter avoids a bespoke scoped store
-        # query. Applied before the limit so `limit` caps the series, not the
-        # whole queue.
-        if followed_id is not None:
-            queue = [item for item in queue if item.followed_id == followed_id]
-
-        if limit is not None:
-            queue = queue[:limit]
-        return queue
+        return merge_pass_queue(
+            head,
+            self._store.wanted.list_stale_searching(older_than=stale_threshold),
+            followed_id=followed_id,
+            limit=limit,
+        )
 
     def _load_follow_map(self, queue: list[WantedItem]) -> dict[int, FollowedSeries]:
         """Load each queued item's followed series ONCE (DESIGN §7).

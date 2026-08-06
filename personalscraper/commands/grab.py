@@ -1,7 +1,9 @@
 """CLI command: ``personalscraper grab`` — batch acquisition run (RP5b).
 
-Drives ``AcquisitionService.run()`` over the pending wanted queue.
-``--dry-run`` searches + filters + ranks but never fetches or adds.
+Drives ``AcquisitionService.run()`` over the available + stale-'searching'
+queue — never the pending backlog, which belongs to the search pass.
+``--dry-run`` previews that SAME queue: it searches + filters + ranks but never
+fetches or adds.
 ``--limit N`` caps the number of items attempted in one run.
 
 Registered against the shared Typer ``app`` (imported side-effect in cli.py).
@@ -285,13 +287,21 @@ def _run_dry(
 ) -> None:
     """Dry-run: search + filter + dedup + rank, print top candidates. No add.
 
+    Previews the queue the REAL run claims — ``list_available()`` plus the
+    stale-'searching' sweep, merged by the shared :func:`merge_pass_queue` — and
+    never the pending backlog, which belongs to the search pass (preview it with
+    ``search --dry-run``). Reading a different queue than the run is what made
+    this preview announce « nothing to do » for a row that the very next real
+    grab took (2026-08-06).
+
     Args:
         acquire: :class:`~personalscraper.acquire.context.AcquireContext`.
         console: Rich Console for output.
         limit: Max items to inspect.
         followed_id: When set, restrict the dry-run to one followed series'
-            pending items (mirrors the real run's OBJ3 per-series scoping).
+            items (mirrors the real run's OBJ3 per-series scoping).
     """
+    from personalscraper.acquire._pass_gates import _STALE_THRESHOLD_S, merge_pass_queue  # noqa: PLC0415
     from personalscraper.api._contracts import MediaType  # noqa: PLC0415
 
     store = acquire.store
@@ -299,21 +309,23 @@ def _run_dry(
         console.print("[yellow]No acquire store — nothing to dry-run.[/yellow]")
         return
 
-    pending = store.wanted.list_pending()
-    if followed_id is not None:
-        pending = [item for item in pending if item.followed_id == followed_id]
-    if limit is not None:
-        pending = pending[:limit]
+    stale_threshold = int(time.time()) - _STALE_THRESHOLD_S
+    queue = merge_pass_queue(
+        store.wanted.list_available(),
+        store.wanted.list_stale_searching(older_than=stale_threshold),
+        followed_id=followed_id,
+        limit=limit,
+    )
 
-    if not pending:
-        console.print("[yellow]No pending wanted items.[/yellow]")
+    if not queue:
+        console.print("[yellow]No wanted item ready to grab (the pending backlog belongs to search).[/yellow]")
         return
 
     from personalscraper.acquire.orchestrator import build_search_query, rank_candidates  # noqa: PLC0415
     from personalscraper.core._contracts import CircuitOpenError  # noqa: PLC0415
 
     registry = acquire.tracker_registry
-    for item in pending:
+    for item in queue:
         console.print(f"\n[bold]Item:[/bold] {item.media_ref} ({item.kind})")
         # A `season` row is TV too — it was classified as MOVIE here while the
         # orchestrator (orchestrator.py) says `in ("episode", "season")`. The
