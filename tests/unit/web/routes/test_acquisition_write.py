@@ -2,7 +2,7 @@
 
 Covers POST/PATCH/DELETE /api/acquisition/followed, including:
 - Create (201), reactivate (201), dedup conflict (409)
-- Staging guard (403), XRW guard (400)
+- Staging allowed (A18), XRW guard (400)
 - PATCH cadence / active toggle
 - DELETE soft-unfollow (204)
 - 404 for unknown IDs, 422 for missing provider IDs
@@ -419,8 +419,8 @@ class TestCreateFollow:
         )
         assert resp.status_code == 400, resp.text
 
-    def test_staging_role_returns_403(self, client: TestClient, tmp_path: Path, monkeypatch: Any) -> None:
-        """Setting PERSONALSCRAPER_WEB_ROLE=staging blocks writes with 403."""
+    def test_staging_role_is_allowed_to_create(self, client: TestClient, tmp_path: Path, monkeypatch: Any) -> None:
+        """A18 : le rôle staging peut créer un suivi — la route d'écriture est ouverte."""
         monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
         resp = client.post(
             "/api/acquisition/followed",
@@ -428,7 +428,7 @@ class TestCreateFollow:
             cookies=_auth_cookies(),
             headers=_xrw_headers(),
         )
-        assert resp.status_code == 403, resp.text
+        assert resp.status_code == 201, resp.text
 
 
 # ---------------------------------------------------------------------------
@@ -546,8 +546,8 @@ class TestUpdateFollow:
         )
         assert resp.status_code == 400, resp.text
 
-    def test_patch_staging_role_returns_403(self, client: TestClient, tmp_path: Path, monkeypatch: Any) -> None:
-        """Setting PERSONALSCRAPER_WEB_ROLE=staging blocks PATCH with 403."""
+    def test_staging_role_is_allowed_to_patch(self, client: TestClient, tmp_path: Path, monkeypatch: Any) -> None:
+        """A18 : le rôle staging peut modifier un suivi (PATCH) — la route d'écriture est ouverte."""
         acquire_path = tmp_path / "acquire.db"
         conn = sqlite3.connect(str(acquire_path))
         apply_pragmas(conn)
@@ -562,7 +562,7 @@ class TestUpdateFollow:
             cookies=_auth_cookies(),
             headers=_xrw_headers(),
         )
-        assert resp.status_code == 403, resp.text
+        assert resp.status_code == 200, resp.text
 
 
 # ---------------------------------------------------------------------------
@@ -626,8 +626,8 @@ class TestDeleteFollow:
         )
         assert resp.status_code == 400, resp.text
 
-    def test_delete_staging_role_returns_403(self, client: TestClient, tmp_path: Path, monkeypatch: Any) -> None:
-        """Setting PERSONALSCRAPER_WEB_ROLE=staging blocks DELETE with 403."""
+    def test_staging_role_is_allowed_to_delete(self, client: TestClient, tmp_path: Path, monkeypatch: Any) -> None:
+        """A18 : le rôle staging peut supprimer un suivi (DELETE) — la route d'écriture est ouverte."""
         acquire_path = tmp_path / "acquire.db"
         conn = sqlite3.connect(str(acquire_path))
         apply_pragmas(conn)
@@ -641,7 +641,7 @@ class TestDeleteFollow:
             cookies=_auth_cookies(),
             headers=_xrw_headers(),
         )
-        assert resp.status_code == 403, resp.text
+        assert resp.status_code == 204, resp.text
 
 
 # ---------------------------------------------------------------------------
@@ -763,15 +763,20 @@ class TestTriggerFollowedSearch:
         )
         assert resp.status_code == 400, resp.text
 
-    def test_trigger_staging_role_returns_403(self, client: TestClient, monkeypatch: Any) -> None:
-        """The staging role refuses the write (403), like every mutating route."""
+    def test_staging_role_is_allowed_to_search(self, client: TestClient, tmp_path: Path, monkeypatch: Any) -> None:
+        """A18 : le rôle staging peut déclencher une recherche — la route d'écriture est ouverte."""
+        monkeypatch.setattr(
+            "personalscraper.web.routes.acquisition_triggers._spawn_prime_runner",
+            lambda run_uid, followed_id: os.getpid(),
+        )
+        fid = _seed_follow_directly(tmp_path)
         monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
         resp = client.post(
-            "/api/acquisition/followed/1/search",
+            f"/api/acquisition/followed/{fid}/search",
             cookies=_auth_cookies(),
             headers=_xrw_headers(),
         )
-        assert resp.status_code == 403, resp.text
+        assert resp.status_code == 202, resp.text
 
 
 class TestTriggerFollowedGrab:
@@ -845,15 +850,20 @@ class TestTriggerFollowedGrab:
         )
         assert resp.status_code == 400, resp.text
 
-    def test_trigger_staging_role_returns_403(self, client: TestClient, monkeypatch: Any) -> None:
-        """The staging role refuses the write (403), like every mutating route."""
+    def test_staging_role_is_allowed_to_grab(self, client: TestClient, tmp_path: Path, monkeypatch: Any) -> None:
+        """A18 : le rôle staging peut déclencher un grab — la route d'écriture est ouverte."""
+        monkeypatch.setattr(
+            "personalscraper.web.routes.acquisition_triggers._spawn_grab_runner",
+            lambda run_uid, followed_id: os.getpid(),
+        )
+        fid = _seed_follow_directly(tmp_path)
         monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
         resp = client.post(
-            "/api/acquisition/followed/1/grab",
+            f"/api/acquisition/followed/{fid}/grab",
             cookies=_auth_cookies(),
             headers=_xrw_headers(),
         )
-        assert resp.status_code == 403, resp.text
+        assert resp.status_code == 202, resp.text
 
 
 class TestRunnerSpawnEnvContract:
@@ -949,11 +959,16 @@ class TestTriggerJourneyRescrape:
         resp = client.post("/api/acquisition/journeys/beef/rescrape", cookies=_auth_cookies())
         assert resp.status_code == 400, resp.text
 
-    def test_staging_role_returns_403(self, client: TestClient, monkeypatch: Any) -> None:
-        """The staging role refuses the write (403)."""
+    def test_staging_role_is_allowed_to_rescrape(self, client: TestClient, tmp_path: Path, monkeypatch: Any) -> None:
+        """A18 : le rôle staging peut déclencher un re-scrape — la route d'écriture est ouverte."""
+        monkeypatch.setattr(
+            "personalscraper.web.routes.acquisition_triggers._spawn_hash_runner",
+            lambda run_uid, action, info_hash: os.getpid(),
+        )
+        _seed_provenance_row(tmp_path, "beef")
         monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
         resp = client.post("/api/acquisition/journeys/beef/rescrape", cookies=_auth_cookies(), headers=_xrw_headers())
-        assert resp.status_code == 403, resp.text
+        assert resp.status_code == 202, resp.text
 
 
 class TestTriggerJourneyRequeue:
@@ -976,8 +991,13 @@ class TestTriggerJourneyRequeue:
         assert resp.status_code == 202, resp.text
         assert spawned == [(resp.json()["run_uid"], "requeue", "cafe")]
 
-    def test_staging_role_returns_403(self, client: TestClient, monkeypatch: Any) -> None:
-        """The staging role refuses the write (403)."""
+    def test_staging_role_is_allowed_to_requeue(self, client: TestClient, tmp_path: Path, monkeypatch: Any) -> None:
+        """A18 : le rôle staging peut déclencher une remise en file — la route d'écriture est ouverte."""
+        monkeypatch.setattr(
+            "personalscraper.web.routes.acquisition_triggers._spawn_hash_runner",
+            lambda run_uid, action, info_hash: os.getpid(),
+        )
+        _seed_provenance_row(tmp_path, "cafe")
         monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
         resp = client.post("/api/acquisition/journeys/cafe/requeue", cookies=_auth_cookies(), headers=_xrw_headers())
-        assert resp.status_code == 403, resp.text
+        assert resp.status_code == 202, resp.text
