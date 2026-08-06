@@ -297,4 +297,52 @@ def resolve_effective_profile(store: "AcquireStore", item: WantedItem) -> Qualit
     return effective_quality(series_profile, criteria)
 
 
-__all__ = ["PassGatesMixin", "resolve_effective_profile"]
+def merge_pass_queue(
+    head: list[WantedItem],
+    stale: list[WantedItem],
+    *,
+    followed_id: int | None,
+    limit: int | None,
+) -> list[WantedItem]:
+    """Merge a pass's own head with the stale-'searching' sweep into one queue.
+
+    The SINGLE implementation of the queue rule — ordering, de-duplication,
+    per-series scoping and capping. Three call sites share it and MUST keep
+    sharing it: :meth:`AcquisitionService.run` (head = ``list_available()``),
+    :meth:`AcquisitionService.run_search` (head = ``list_pending()``) and the
+    ``grab --dry-run`` preview (same head as the grab run). A second
+    implementation is what let the preview drift onto the wrong queue and
+    report « nothing to do » for a row the next real run grabbed.
+
+    Args:
+        head: The pass's own queue (``list_pending`` or ``list_available``).
+        stale: The stale-'searching' rows, which belong to whichever pass runs
+            next — a process killed mid-claim leaves no orphan.
+        followed_id: When set, keep only items of that followed series.
+            Applied BEFORE ``limit`` so the cap counts the series' items.
+        limit: Maximum number of items to return; ``None`` = no cap.
+
+    Returns:
+        The queued :class:`WantedItem` list (possibly empty), de-duplicated by
+        id, ``head`` rows first.
+    """
+    # A stale row is in neither list_pending nor list_available, but the guard
+    # keeps the merge total.
+    seen_ids: set[int] = set()
+    queue: list[WantedItem] = []
+    for item in [*head, *stale]:
+        if item.id is not None and item.id not in seen_ids:
+            seen_ids.add(item.id)
+            queue.append(item)
+
+    # Per-series scoping (OBJ3): keep only this series' items. The wanted queue
+    # is small, so an in-memory filter avoids a bespoke scoped store query.
+    if followed_id is not None:
+        queue = [item for item in queue if item.followed_id == followed_id]
+
+    if limit is not None:
+        queue = queue[:limit]
+    return queue
+
+
+__all__ = ["PassGatesMixin", "merge_pass_queue", "resolve_effective_profile"]
