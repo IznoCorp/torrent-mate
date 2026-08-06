@@ -1,10 +1,17 @@
-"""Append-only journal of destructive filesystem operations (§7 / Star City).
+"""Append-only journal of filesystem operations on the library (§7 / Star City).
 
 Every time the app destroys library content — a REPLACE that supersedes a
 previous folder, a disk-clean deletion — it records a ``destructive_op`` row
 (who / what / when / where / why). This is the durable audit trail whose
 absence turned the Star City incident into a from-scratch reconstruction: with
 it, the pipeline can be innocented or accused from the record.
+
+Not every row is a destruction. :data:`OP_METADATA_REFRESH` traces the benign
+case — regenerated ``tvshow.nfo`` / artwork sidecars written over their previous
+copies — so the trail stays complete WITHOUT diluting the destructive kinds it
+exists to surface. Keeping the two apart is what makes an ``overwrite`` row
+worth reading: a journal that cried "écrasé" on every weekly episode merge was
+100 % noise (16 rows / 16 false positives, 2026-07-24 → 2026-08-05).
 
 Fail-soft by contract: a journal-write failure must NEVER break the operation
 it records (the destruction has value; the log entry is best-effort). All
@@ -22,9 +29,15 @@ from personalscraper.logger import get_logger
 
 log = get_logger(__name__)
 
-#: Recognised destructive operation kinds.
+#: Recognised destructive operation kinds — these DESTROY library content.
 OP_OVERWRITE = "overwrite"
 OP_DELETE = "delete"
+
+#: Non-destructive kind: metadata/artwork sidecars regenerated over their
+#: previous copies (``tvshow.nfo``, posters, per-episode ``.nfo`` / thumbs). No
+#: media content is lost, so this must never be recorded as an
+#: :data:`OP_OVERWRITE`.
+OP_METADATA_REFRESH = "metadata-refresh"
 
 
 def record_destruction(
@@ -40,7 +53,8 @@ def record_destruction(
 
     Args:
         db_path: Absolute path to ``library.db``.
-        op: The operation kind (:data:`OP_OVERWRITE` / :data:`OP_DELETE`).
+        op: The operation kind (:data:`OP_OVERWRITE` / :data:`OP_DELETE`, or the
+            non-destructive :data:`OP_METADATA_REFRESH`).
         path: The absolute filesystem path that was destroyed.
         actor: What performed it (``"dispatch"``, ``"disk-clean"``, …).
         detail: Optional French context / decision string.
@@ -89,4 +103,4 @@ def list_recent(db_path: Path, *, limit: int = 100) -> list[dict[str, object]]:
         return []
 
 
-__all__ = ["OP_OVERWRITE", "OP_DELETE", "record_destruction", "list_recent"]
+__all__ = ["OP_OVERWRITE", "OP_DELETE", "OP_METADATA_REFRESH", "record_destruction", "list_recent"]

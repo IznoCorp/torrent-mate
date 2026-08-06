@@ -8,7 +8,9 @@ import { DestructiveLogPanel } from "@/components/maintenance/DestructiveLogPane
 
 vi.mock("@/api/maintenance", async () => {
   const actual =
-    await vi.importActual<typeof import("@/api/maintenance")>("@/api/maintenance");
+    await vi.importActual<typeof import("@/api/maintenance")>(
+      "@/api/maintenance",
+    );
   return {
     ...actual,
     getDestructiveLog: vi.fn(),
@@ -50,6 +52,15 @@ const _RESP: DestructiveLogResponse = {
       detail: null,
       run_uid: null,
     },
+    {
+      ts: 1_784_138_000,
+      op: "metadata-refresh",
+      path: "/disk/President Curtis (2026)",
+      actor: "dispatch",
+      detail:
+        "MERGE série — métadonnées et visuels régénérés pour « President Curtis (2026) » (aucun épisode écrasé)",
+      run_uid: null,
+    },
   ],
 };
 
@@ -73,6 +84,26 @@ describe("DestructiveLogPanel", () => {
     expect(screen.getByText("/disk/Ferrari (2023)")).toBeInTheDocument();
     expect(
       screen.getByText("REPLACE film — écrasé par « Ferrari (2023) »"),
+    ).toBeInTheDocument();
+  });
+
+  it("distingue une régénération de métadonnées d'une destruction", async () => {
+    (await mockGetLog()).mockResolvedValue(_RESP);
+    renderPanel();
+
+    // The benign kind gets its own French label...
+    const badge = await screen.findByText("Métadonnées");
+    expect(badge).toBeInTheDocument();
+    // ...and a neutral tone: it must NOT wear the destructive red, otherwise a
+    // simple NFO/artwork refresh reads as a lost episode.
+    expect(badge).toHaveClass("text-muted-foreground");
+    expect(badge).not.toHaveClass("text-danger");
+    // The destructive rows keep the alarming tone.
+    expect(await screen.findByText("Écrasé")).toHaveClass("text-danger");
+    expect(
+      screen.getByText(
+        "MERGE série — métadonnées et visuels régénérés pour « President Curtis (2026) » (aucun épisode écrasé)",
+      ),
     ).toBeInTheDocument();
   });
 

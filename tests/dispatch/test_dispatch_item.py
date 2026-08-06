@@ -24,8 +24,11 @@ Coverage:
   a raising permit is fail-open (no breach, transfer proceeds).
 - **Acquired-events emit** — events returned by ``record_dispatch`` flow onto
   the bus once the transfer succeeds.
-- **Merge-destruction predicate** — the ``_merge_supersedes_existing`` helper
-  classifies same-filename overwrite / re-scrape rename / add-only correctly.
+- **Merge-impact classifier** — the ``_classify_merge_impact`` helper separates a
+  genuine episode supersede (``"overwrite"``) from a pure metadata/artwork
+  regeneration (``"metadata-refresh"``) and from a pure add (``"add-only"``),
+  including on the PRODUCTION folder shape where show-level sidecars
+  (``tvshow.nfo``, ``poster.jpg``, …) are always shared with the destination.
 """
 
 from __future__ import annotations
@@ -45,14 +48,14 @@ from personalscraper.core.event_bus import Event, EventBus
 from personalscraper.dispatch._item import (
     DispatchSpec,
     TransferOutcome,
+    _classify_merge_impact,
     _dispatch_item,
-    _merge_supersedes_existing,
     canonical_name_from_destination,
 )
 from personalscraper.dispatch.dispatcher import Dispatcher
 from personalscraper.dispatch.events import ItemDispatched
 from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
-from personalscraper.indexer.destructive_journal import OP_OVERWRITE, list_recent
+from personalscraper.indexer.destructive_journal import OP_METADATA_REFRESH, OP_OVERWRITE, list_recent
 
 _GB = 1024**3
 
@@ -192,21 +195,27 @@ class _FakeTransfer:
     assert whether — and with what — the template invoked the transfer.
     """
 
-    def __init__(self, *, success: bool, destroyed: bool) -> None:
+    def __init__(self, *, success: bool, destroyed: bool, metadata_refreshed: bool = False) -> None:
         """Store the canned outcome.
 
         Args:
             success: The ``success`` field of the returned outcome.
             destroyed: The ``destroyed`` field of the returned outcome.
+            metadata_refreshed: The ``metadata_refreshed`` field of the outcome.
         """
         self._success = success
         self._destroyed = destroyed
+        self._metadata_refreshed = metadata_refreshed
         self.calls: list[tuple[Path, Path, object]] = []
 
     def __call__(self, source: Path, dest: Path, capability: object) -> TransferOutcome:
         """Record the call and return the canned outcome."""
         self.calls.append((source, dest, capability))
-        return TransferOutcome(success=self._success, destroyed=self._destroyed)
+        return TransferOutcome(
+            success=self._success,
+            destroyed=self._destroyed,
+            metadata_refreshed=self._metadata_refreshed,
+        )
 
 
 def _spec(
@@ -240,12 +249,18 @@ def _spec(
         journal_op=journal_op,
         journal_detail=lambda src: f"TEST destruction — « {src.name} »",
         bus_source=bus_source,
+        metadata_journal_detail=lambda src: f"TEST métadonnées — « {src.name} »",
     )
+
+
+def _journal_rows(db_path: Path, dest: Path, op: str) -> list[dict[str, object]]:
+    """Return journal rows of kind ``op`` recorded for ``dest``."""
+    return [r for r in list_recent(db_path) if r["op"] == op and str(r["path"]) == str(dest)]
 
 
 def _overwrite_rows(db_path: Path, dest: Path) -> list[dict[str, object]]:
     """Return destructive ``overwrite`` rows journaled for ``dest``."""
-    return [r for r in list_recent(db_path) if r["op"] == "overwrite" and str(r["path"]) == str(dest)]
+    return _journal_rows(db_path, dest, OP_OVERWRITE)
 
 
 def _seed_existing_movie(char_config: Config, char_db_path: Path, char_disks: list[Path], name: str) -> Path:
@@ -355,6 +370,41 @@ def test_supersede_add_only_never_journals(
     assert result.action == "replaced"
     assert len(transfer.calls) == 1  # the transfer still ran
     assert _overwrite_rows(char_db_path, existing) == []
+    assert _journal_rows(char_db_path, existing, OP_METADATA_REFRESH) == []
+
+
+def test_supersede_metadata_refresh_journals_non_destructive_row(
+    char_config: Config,
+    char_db_path: Path,
+    char_disks: list[Path],
+    tmp_path: Path,
+    _rsync_available: None,
+) -> None:
+    """A metadata-only supersede journals ONE ``metadata-refresh`` row, never an overwrite.
+
+    Regression for the false « épisode(s) écrasé(s) » rows: regenerating
+    ``tvshow.nfo`` / artwork is traced, but as a non-destructive op — the
+    ``overwrite`` kind stays reserved for genuine content destruction.
+    """
+    name = "Andor (2022)"
+    existing = _seed_existing_movie(char_config, char_db_path, char_disks, name)
+    source = _make_media_dir(tmp_path / "staging_src", name, {"new.mkv": b"y" * 4096})
+
+    transfer = _FakeTransfer(success=True, destroyed=False, metadata_refreshed=True)
+    spec = _spec(existing_action="merged", transfer_fn=transfer)
+
+    index = MediaIndex(char_db_path, event_bus=EventBus())
+    dispatcher = Dispatcher(char_config, Settings(), index, event_bus=EventBus())
+    try:
+        _dispatch_item(dispatcher, source, CID.MOVIES, spec)
+    finally:
+        index.close()
+
+    assert _overwrite_rows(char_db_path, existing) == [], "a metadata refresh is NOT an overwrite"
+    rows = _journal_rows(char_db_path, existing, OP_METADATA_REFRESH)
+    assert len(rows) == 1, f"exactly one metadata-refresh row expected; got {list_recent(char_db_path)}"
+    assert rows[0]["actor"] == "dispatch"
+    assert name in str(rows[0]["detail"])
 
 
 # ---------------------------------------------------------------------------
@@ -702,33 +752,123 @@ def test_acquired_events_from_recorder_flow_onto_the_bus(
 
 
 # ---------------------------------------------------------------------------
-# Merge-destruction predicate (_merge_supersedes_existing)
+# Merge-impact classifier (_classify_merge_impact)
 # ---------------------------------------------------------------------------
 
+#: Show-level sidecars the scraper regenerates on EVERY pass. A destination that
+#: has already been scraped always carries them, so every real merge shares
+#: these paths with its source — the shape the bare fixtures below omit.
+_SHOW_SIDECARS = {
+    "tvshow.nfo": b"<tvshow/>",
+    "poster.jpg": b"poster-bytes",
+    "landscape.jpg": b"landscape-bytes",
+    "season01-poster.jpg": b"season-poster-bytes",
+}
 
-def test_merge_predicate_same_filename_overwrite_is_destruction(tmp_path: Path) -> None:
+
+def _make_scraped_show(parent: Path, name: str, files: dict[str, bytes]) -> Path:
+    """Create a show dir in the PRODUCTION shape: ``files`` plus the sidecars."""
+    return _make_media_dir(parent, name, {**_SHOW_SIDECARS, **files})
+
+
+def test_merge_impact_same_filename_overwrite_is_destruction(tmp_path: Path) -> None:
     """Same relative path present on disk → the merge overwrites it (destruction)."""
-    source = _make_media_dir(tmp_path / "src", "Show", {"Saison 01/episode1.mkv": b"y" * 8})
-    dest = _make_media_dir(tmp_path / "dst", "Show", {"Saison 01/episode1.mkv": b"x" * 8})
-    assert _merge_supersedes_existing(source, dest) is True
+    source = _make_media_dir(tmp_path / "src", "Show", {"Saison 01/S01E01 - Pilot.mkv": b"y" * 8})
+    dest = _make_media_dir(tmp_path / "dst", "Show", {"Saison 01/S01E01 - Pilot.mkv": b"x" * 8})
+    assert _classify_merge_impact(source, dest) == "overwrite"
 
 
-def test_merge_predicate_rescrape_rename_is_destruction(tmp_path: Path) -> None:
+def test_merge_impact_rescrape_rename_is_destruction(tmp_path: Path) -> None:
     """Same (season, episode) key under a different filename → purge destroys it."""
     source = _make_media_dir(tmp_path / "src", "Show", {"Saison 01/S04E06 - NEW.mkv": b"y" * 8})
     dest = _make_media_dir(tmp_path / "dst", "Show", {"Saison 01/S04E06 - OLD.mkv": b"x" * 8})
-    assert _merge_supersedes_existing(source, dest) is True
+    assert _classify_merge_impact(source, dest) == "overwrite"
 
 
-def test_merge_predicate_add_only_is_not_destruction(tmp_path: Path) -> None:
-    """Distinct episodes, no shared path or key → add-only, no destruction."""
+def test_merge_impact_add_only_is_not_destruction(tmp_path: Path) -> None:
+    """Distinct episodes, no shared path or key → add-only, nothing to journal."""
     source = _make_media_dir(tmp_path / "src", "Show", {"Saison 01/S04E07 - NEW.mkv": b"y" * 8})
     dest = _make_media_dir(tmp_path / "dst", "Show", {"Saison 01/S04E06 - OLD.mkv": b"x" * 8})
-    assert _merge_supersedes_existing(source, dest) is False
+    assert _classify_merge_impact(source, dest) == "add-only"
 
 
-def test_merge_predicate_missing_dest_is_not_destruction(tmp_path: Path) -> None:
+def test_merge_impact_missing_dest_is_not_destruction(tmp_path: Path) -> None:
     """A destination that does not exist yet cannot be superseded."""
-    source = _make_media_dir(tmp_path / "src", "Show", {"Saison 01/episode1.mkv": b"y" * 8})
+    source = _make_media_dir(tmp_path / "src", "Show", {"Saison 01/S01E01 - Pilot.mkv": b"y" * 8})
     dest = tmp_path / "dst" / "Show"  # never created
-    assert _merge_supersedes_existing(source, dest) is False
+    assert _classify_merge_impact(source, dest) == "add-only"
+
+
+# --- Regression: the weekly-episode merge must NOT read as an overwrite ------
+#
+# Journal rows observed 2026-07-24 → 2026-08-05 (President Curtis, Furious,
+# Ted Lasso, …) claimed « épisode(s) écrasé(s) » on merges that only ADDED a new
+# weekly episode. The predicate walked EVERY source file and fired on the first
+# shared path — always a regenerated show-level sidecar, never an episode.
+
+
+def test_merge_impact_add_only_with_shared_sidecars_is_metadata_refresh(tmp_path: Path) -> None:
+    """Production shape: new episode + regenerated sidecars → metadata-refresh, NOT overwrite.
+
+    Mirrors the President Curtis (2026) dispatch of 2026-08-04 03:44: S01E01
+    already on disk and untouched, S01E02 added, ``tvshow.nfo`` / posters
+    rewritten. No episode was superseded, so no ``overwrite`` may be journaled.
+    """
+    source = _make_scraped_show(
+        tmp_path / "src",
+        "President Curtis (2026)",
+        {"Saison 01/S01E02 - Triangle.mkv": b"b" * 8, "Saison 01/S01E02 - Triangle.nfo": b"b"},
+    )
+    dest = _make_scraped_show(
+        tmp_path / "dst",
+        "President Curtis (2026)",
+        {"Saison 01/S01E01 - Pilot.mkv": b"a" * 8, "Saison 01/S01E01 - Pilot.nfo": b"a"},
+    )
+    assert _classify_merge_impact(source, dest) == "metadata-refresh"
+
+
+def test_merge_impact_episode_overwrite_wins_over_shared_sidecars(tmp_path: Path) -> None:
+    """A genuine episode supersede still classifies as overwrite despite the sidecars.
+
+    The sidecars are shared here too — the metadata signal must never mask a
+    real episode destruction.
+    """
+    source = _make_scraped_show(tmp_path / "src", "Show (2020)", {"Saison 01/S01E01 - Pilot.mkv": b"y" * 8})
+    dest = _make_scraped_show(tmp_path / "dst", "Show (2020)", {"Saison 01/S01E01 - Pilot.mkv": b"x" * 8})
+    assert _classify_merge_impact(source, dest) == "overwrite"
+
+
+def test_merge_impact_episode_sidecar_rewrite_alone_is_metadata_refresh(tmp_path: Path) -> None:
+    """Rewriting an episode's own .nfo/-thumb while keeping the video is a refresh."""
+    source = _make_scraped_show(
+        tmp_path / "src",
+        "Show (2020)",
+        {"Saison 01/S01E01 - Pilot.nfo": b"new", "Saison 01/S01E01 - Pilot-thumb.jpg": b"new"},
+    )
+    dest = _make_scraped_show(
+        tmp_path / "dst",
+        "Show (2020)",
+        {
+            "Saison 01/S01E01 - Pilot.mkv": b"x" * 8,
+            "Saison 01/S01E01 - Pilot.nfo": b"old",
+            "Saison 01/S01E01 - Pilot-thumb.jpg": b"old",
+        },
+    )
+    assert _classify_merge_impact(source, dest) == "metadata-refresh"
+
+
+def test_tv_spec_wires_the_metadata_refresh_detail() -> None:
+    """The TV spec must wire a metadata detail, else the refresh is journaled nowhere.
+
+    Guards the wiring itself: dropping ``metadata_journal_detail`` would silently
+    return the panel to a blank on every add-only merge, and the operator would
+    have no trace of the sidecar rewrite at all.
+    """
+    from personalscraper.dispatch._tv import _TV_SPEC
+
+    assert _TV_SPEC.metadata_journal_detail is not None
+    detail = _TV_SPEC.metadata_journal_detail(Path("/staging/President Curtis (2026)"))
+    assert "President Curtis (2026)" in detail
+    # The wording must state plainly that nothing was overwritten — the whole
+    # point of splitting this kind out of `overwrite`.
+    assert "aucun épisode écrasé" in detail

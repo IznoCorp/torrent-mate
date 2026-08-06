@@ -28,11 +28,29 @@ import { maintenanceKeys } from "@/hooks/useMaintenanceKeys";
 
 type DestructiveOp = components["schemas"]["DestructiveOp"];
 
-/** French label + tone for each destructive operation kind. */
+/** French label for each journaled operation kind. */
 const OP_LABEL: Record<string, string> = {
   overwrite: "Écrasé",
   delete: "Supprimé",
+  "metadata-refresh": "Métadonnées",
 };
+
+/**
+ * Badge tone per operation kind.
+ *
+ * Only the kinds that DESTROY library content wear the alarming tone. A
+ * `metadata-refresh` (regenerated NFO / artwork) is traced for completeness but
+ * loses nothing, so it must not read as a deletion — that conflation is exactly
+ * what made the journal unreadable.
+ */
+const OP_TONE: Record<string, string> = {
+  overwrite: "bg-danger/15 text-danger",
+  delete: "bg-danger/15 text-danger",
+  "metadata-refresh": "bg-muted text-muted-foreground",
+};
+
+/** Fallback tone for an unknown op kind — neutral, never alarming. */
+const DEFAULT_OP_TONE = "bg-muted text-muted-foreground";
 
 /** French label for each actor (what performed the op). */
 const ACTOR_LABEL: Record<string, string> = {
@@ -45,7 +63,9 @@ function LogRow({ op }: { op: DestructiveOp }): ReactElement {
   return (
     <li className="flex flex-col gap-0.5 border-b border-border/60 py-2 last:border-b-0">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="rounded bg-danger/15 px-1.5 py-0.5 text-xs font-medium text-danger">
+        <span
+          className={`rounded px-1.5 py-0.5 text-xs font-medium ${OP_TONE[op.op] ?? DEFAULT_OP_TONE}`}
+        >
           {OP_LABEL[op.op] ?? op.op}
         </span>
         <span className="text-xs text-muted-foreground">
@@ -83,7 +103,9 @@ export function DestructiveLogPanel(): ReactElement {
         <CardTitle className="text-base">Journal des suppressions</CardTitle>
         <CardDescription>
           Trace de chaque fichier supprimé ou remplacé (qui, quoi, quand,
-          pourquoi). Les plus récents en premier.
+          pourquoi). Les plus récents en premier. Les lignes «&nbsp;Métadonnées
+          &nbsp;» signalent une simple régénération des NFO et visuels&nbsp;:
+          aucun média n'a été perdu.
         </CardDescription>
       </CardHeader>
       <CardContent>

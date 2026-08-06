@@ -44,13 +44,14 @@ from typing import TYPE_CHECKING, Literal
 
 from personalscraper.conf import resolver
 from personalscraper.core.delete_permit import ALLOW
+from personalscraper.core.media_types import VIDEO_EXTENSIONS
 from personalscraper.dispatch import _transfer
 from personalscraper.dispatch._types import DispatchResult
 from personalscraper.dispatch.disk_scanner import get_disk_status
 from personalscraper.dispatch.events import ItemDispatched
 from personalscraper.dispatch.media_index import IndexEntry
 from personalscraper.indexer._fs_capability import NTFS_MACFUSE, FilesystemCapability
-from personalscraper.indexer.destructive_journal import record_destruction
+from personalscraper.indexer.destructive_journal import OP_METADATA_REFRESH, record_destruction
 from personalscraper.indexer.outbox._disk import disk_id_for_path
 from personalscraper.indexer.outbox._publish import publish_event
 from personalscraper.logger import get_logger
@@ -75,13 +76,19 @@ class TransferOutcome:
 
     Attributes:
         success: True when the transfer completed and verified (bytes landed).
-        destroyed: True when existing on-disk content was genuinely superseded
-            (an overwrite or a re-scrape-rename purge). Always ``False`` when
-            ``success`` is ``False`` (a failed transfer restores the original).
+        destroyed: True when existing on-disk **media content** was genuinely
+            superseded (an episode/movie overwrite or a re-scrape-rename purge).
+            Always ``False`` when ``success`` is ``False`` (a failed transfer
+            restores the original).
+        metadata_refreshed: True when the transfer rewrote pre-existing
+            metadata/artwork sidecars WITHOUT superseding any media content.
+            Mutually exclusive with ``destroyed`` — a genuine destruction is
+            reported as such and subsumes the sidecar rewrite that came with it.
     """
 
     success: bool
     destroyed: bool
+    metadata_refreshed: bool = False
 
 
 #: A transfer strategy: supersede ``dest`` with ``source`` on the ``dest`` disk,
@@ -98,6 +105,11 @@ CanonicalNameRule = Callable[[DispatchResult, Path], str]
 
 #: Builds the French destructive-journal detail string from the source folder.
 JournalDetail = Callable[[Path], str]
+
+#: What a TV merge would do to the files already on disk: supersede media
+#: content, merely rewrite regenerated metadata sidecars, or touch nothing
+#: pre-existing at all. Only ``"overwrite"`` is a destruction.
+MergeImpact = Literal["overwrite", "metadata-refresh", "add-only"]
 
 
 @dataclass(frozen=True)
@@ -123,6 +135,10 @@ class DispatchSpec:
         journal_detail: Builds the French journal detail string from the source.
         bus_source: The ``ItemDispatched.source`` label for this family
             (``"dispatch.movie"`` / ``"dispatch.tv"``).
+        metadata_journal_detail: Builds the French detail for a NON-destructive
+            ``metadata-refresh`` row, or ``None`` for a family that never
+            reports one (a movie replace always destroys, so it has no use for
+            this hook).
     """
 
     media_type: str
@@ -133,6 +149,7 @@ class DispatchSpec:
     journal_op: str
     journal_detail: JournalDetail
     bus_source: str
+    metadata_journal_detail: JournalDetail | None = None
 
 
 def canonical_name_from_destination(result: DispatchResult, source_dir: Path) -> str:
@@ -185,15 +202,16 @@ def replace_transfer(source: Path, dest: Path, capability: FilesystemCapability)
 def merge_transfer(source: Path, dest: Path, capability: FilesystemCapability) -> TransferOutcome:
     """TV transfer strategy: backup/restore merge (REUSES ``_tv.merge``).
 
-    A merge only destroys content when it supersedes an existing episode — a
-    same-filename rsync overwrite, or a re-scrape rename whose ``(season,
-    episode)`` key collides with an on-disk file under a different filename
-    (purged by ``purge_episode_conflicts``). An add-only merge (source episodes
-    the destination lacks) destroys nothing. The destroyed-content signal is
-    computed BEFORE the merge (which consumes the source) and confirmed only if
-    the merge succeeds — a failed merge restores every original, so nothing is
-    net-destroyed. The underlying :func:`personalscraper.dispatch._tv.merge`
-    transfer is unchanged.
+    A merge only destroys content when it supersedes an existing **episode** — a
+    same-filename rsync overwrite of a video, or a re-scrape rename whose
+    ``(season, episode)`` key collides with an on-disk video under a different
+    filename (purged by ``purge_episode_conflicts``). An add-only merge (source
+    episodes the destination lacks) destroys nothing; when it nonetheless
+    rewrites the regenerated metadata sidecars it reports
+    ``metadata_refreshed``. The impact is classified BEFORE the merge (which
+    consumes the source) and confirmed only if the merge succeeds — a failed
+    merge restores every original, so nothing is net-changed. The underlying
+    :func:`personalscraper.dispatch._tv.merge` transfer is unchanged.
 
     Args:
         source: Staging show directory (the new version).
@@ -202,55 +220,88 @@ def merge_transfer(source: Path, dest: Path, capability: FilesystemCapability) -
 
     Returns:
         A :class:`TransferOutcome`; ``destroyed`` is True only when the merge
-        succeeded AND it superseded at least one existing episode.
+        succeeded AND superseded at least one existing episode,
+        ``metadata_refreshed`` only when it succeeded and rewrote sidecars
+        without touching any episode.
     """
     from personalscraper.dispatch._tv import merge  # noqa: PLC0415  (lazy: avoid import cycle after P2.3 rewiring)
 
-    would_destroy = _merge_supersedes_existing(source, dest)
+    impact = _classify_merge_impact(source, dest)
     success = merge(source, dest, capability=capability)
-    return TransferOutcome(success=success, destroyed=success and would_destroy)
+    return TransferOutcome(
+        success=success,
+        destroyed=success and impact == "overwrite",
+        metadata_refreshed=success and impact == "metadata-refresh",
+    )
 
 
-def _merge_supersedes_existing(source: Path, dest: Path) -> bool:
-    """Return True when merging ``source`` into ``dest`` would supersede content.
+def _is_video(path: Path) -> bool:
+    """Return True when ``path`` is a media video file (not a metadata sidecar)."""
+    return path.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
 
-    Predicate (not a second merge implementation): it answers whether the merge
-    would overwrite or purge any existing destination file, mirroring the two
-    destruction paths of :func:`personalscraper.dispatch._tv.merge`:
 
-    1. **Same relative path** already present on disk → the rsync merge
-       overwrites it (a genuine destruction).
-    2. **Same ``(season, episode)`` key under a different filename** in the same
-       season subdir → ``purge_episode_conflicts`` moves the on-disk file to the
-       backup and the source version replaces it (a re-scrape-rename destruction).
+def _classify_merge_impact(source: Path, dest: Path) -> MergeImpact:
+    """Classify what merging ``source`` into ``dest`` would do to existing files.
 
-    An add-only merge (no shared path and no colliding episode key) returns
-    ``False``. Reuses the same ``_extract_season_episode`` key parser the purge
-    step uses, so the two stay in lock-step.
+    Classifier (not a second merge implementation): it mirrors the two
+    destruction paths of :func:`personalscraper.dispatch._tv.merge` and tells
+    them apart from a benign metadata rewrite.
+
+    ``"overwrite"`` — existing **media content** is superseded, via either:
+
+    1. a source **video** whose relative path already exists on disk (the rsync
+       merge overwrites it), or
+    2. a source **video** whose ``(season, episode)`` key collides with an
+       on-disk video under a different filename in the same season subdir
+       (``purge_episode_conflicts`` destroys it — a re-scrape rename).
+
+    ``"metadata-refresh"`` — no episode is superseded, but at least one
+    pre-existing **sidecar** (``tvshow.nfo``, ``poster.jpg``, a per-episode
+    ``.nfo`` / ``-thumb.jpg``, …) is rewritten. The scraper regenerates these on
+    every pass, so an already-scraped destination ALWAYS shares them: treating
+    that as a destruction is what made every weekly-episode merge claim
+    « épisode(s) écrasé(s) ». No media is lost, so it is not an overwrite.
+
+    ``"add-only"`` — nothing pre-existing is touched at all.
+
+    Reuses the same ``_extract_season_episode`` key parser the purge step uses,
+    so the two stay in lock-step, and the canonical
+    :data:`personalscraper.core.media_types.VIDEO_EXTENSIONS` SSOT to decide what
+    counts as media content.
 
     Args:
         source: Staging show directory (the new version).
         dest: Existing on-disk show directory.
 
     Returns:
-        True if the merge would supersede at least one existing destination file.
+        The merge impact: ``"overwrite"``, ``"metadata-refresh"`` or
+        ``"add-only"``.
     """
     # Lazy-import mirrors purge_episode_conflicts (avoids a package-init cycle
     # between dispatcher and scraper).
     from personalscraper.scraper.episode_manager import _extract_season_episode  # noqa: PLC0415
 
     if not dest.is_dir():
-        return False
+        return "add-only"
 
+    sidecar_rewritten = False
     for src_file in source.rglob("*"):
         if not src_file.is_file():
             continue
         rel = src_file.relative_to(source)
-        # (1) Same relative path already on disk → rsync overwrites it.
+        source_is_video = _is_video(src_file)
+        # (1) Same relative path already on disk → rsync overwrites it. Only a
+        # video is library content; a sidecar rewrite is a metadata refresh.
         if (dest / rel).exists():
-            return True
+            if source_is_video:
+                return "overwrite"
+            sidecar_rewritten = True
+        if not source_is_video:
+            # Rule (2) is about episode identity — only videos carry it. A
+            # renamed sidecar is swept along with the episode it belongs to.
+            continue
         # (2) Same (season, episode) key under a different filename in the same
-        # season subdir → the purge step destroys the on-disk file.
+        # season subdir → the purge step destroys the on-disk episode.
         season, episode = _extract_season_episode(src_file.name)
         if season is None or episode is None:
             continue
@@ -258,12 +309,12 @@ def _merge_supersedes_existing(source: Path, dest: Path) -> bool:
         if not dest_season.is_dir():
             continue
         for dest_file in dest_season.iterdir():
-            if not dest_file.is_file():
+            if not dest_file.is_file() or not _is_video(dest_file):
                 continue
             d_season, d_episode = _extract_season_episode(dest_file.name)
             if (d_season, d_episode) == (season, episode):
-                return True
-    return False
+                return "overwrite"
+    return "metadata-refresh" if sidecar_rewritten else "add-only"
 
 
 def _dispatch_item(
@@ -385,19 +436,30 @@ def _dispatch_item(
             # built them, dispatch just emits them).
             for _evt in acquired_events:
                 dispatcher._event_bus.emit(_evt)
-            # §7 / Star City — append-only trail of the overwrite: journal the
-            # destruction ONCE, and ONLY on a genuine destruction (F1). An
-            # add-only merge destroyed nothing and journals nothing. Best-effort
+            # §7 / Star City — append-only trail: journal ONCE. A genuine
+            # destruction (F1) records the family's destructive op; a merge that
+            # only rewrote regenerated metadata sidecars records the
+            # NON-destructive `metadata-refresh` kind instead, so `overwrite`
+            # keeps meaning "library content was lost". An add-only merge
+            # touched nothing pre-existing and journals nothing. Best-effort
             # (never breaks the dispatch), guarded by a resolved journal DB.
-            if outcome.destroyed:
-                _journal_db = dispatcher.config.indexer.db_path
-                if _journal_db is not None:
+            _journal_db = dispatcher.config.indexer.db_path
+            if _journal_db is not None:
+                if outcome.destroyed:
                     record_destruction(
                         _journal_db,
                         op=spec.journal_op,
                         path=dest,
                         actor="dispatch",
                         detail=spec.journal_detail(src),
+                    )
+                elif outcome.metadata_refreshed and spec.metadata_journal_detail is not None:
+                    record_destruction(
+                        _journal_db,
+                        op=OP_METADATA_REFRESH,
+                        path=dest,
+                        actor="dispatch",
+                        detail=spec.metadata_journal_detail(src),
                     )
     else:
         # New media — move to the most-free eligible disk via the resolver.

@@ -27,10 +27,11 @@ log = get_logger("dispatcher.tv")
 def _tv_journal_detail(source_dir: Path) -> str:
     """Return the destructive-journal detail for a TV merge-overwrite.
 
-    A TV merge journals only when it genuinely supersedes an existing episode —
-    a same-filename rsync overwrite, or a re-scrape-rename purge (same
-    ``(season, episode)`` key under a different filename). The detail names the
-    show folder whose episode(s) were superseded (**F1**, DESIGN §6/§7).
+    A TV merge journals a destruction only when it genuinely supersedes an
+    existing episode **video** — a same-filename rsync overwrite, or a
+    re-scrape-rename purge (same ``(season, episode)`` key under a different
+    filename). The detail names the show folder whose episode(s) were superseded
+    (**F1**, DESIGN §6/§7).
 
     Args:
         source_dir: The staging show folder that supersedes on-disk episode(s).
@@ -41,12 +42,31 @@ def _tv_journal_detail(source_dir: Path) -> str:
     return f"MERGE série — épisode(s) écrasé(s) par « {source_dir.name} »"
 
 
+def _tv_metadata_journal_detail(source_dir: Path) -> str:
+    """Return the NON-destructive journal detail for a metadata-only TV merge.
+
+    The scraper regenerates ``tvshow.nfo`` and the artwork on every pass, so a
+    merge into an already-scraped show rewrites them even when it only ADDS a
+    new episode. That is traced, but as a ``metadata-refresh`` — not as an
+    overwrite: no episode is lost.
+
+    Args:
+        source_dir: The staging show folder whose sidecars were written.
+
+    Returns:
+        The French journal detail string.
+    """
+    return f"MERGE série — métadonnées et visuels régénérés pour « {source_dir.name} » (aucun épisode écrasé)"
+
+
 #: TV specialisation of the shared dispatch template: merge into an existing
 #: on-disk show (backup/restore), gated by the §7 provider-ID identity guard so
 #: a same-named but DIFFERENT series is never overwritten (``tvshow.nfo``, TVDB
 #: primary; fail-open + logged when unverifiable). Journals a supersede of an
-#: existing episode as one ``overwrite`` row (F1). An add-only merge destroys
-#: nothing and journals nothing (see ``merge_transfer``).
+#: existing episode as one ``overwrite`` row (F1); a merge that only rewrote the
+#: regenerated NFO/artwork sidecars as one non-destructive ``metadata-refresh``
+#: row. An add-only merge touches nothing pre-existing and journals nothing
+#: (see ``merge_transfer``).
 _TV_SPEC = DispatchSpec(
     media_type="tvshow",
     existing_action="merged",
@@ -56,6 +76,7 @@ _TV_SPEC = DispatchSpec(
     journal_op=OP_OVERWRITE,
     journal_detail=_tv_journal_detail,
     bus_source="dispatch.tv",
+    metadata_journal_detail=_tv_metadata_journal_detail,
 )
 
 
