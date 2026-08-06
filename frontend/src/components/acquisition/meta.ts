@@ -200,6 +200,20 @@ export const TIER_LABEL: Record<string, string> = {
 // ---------------------------------------------------------------------------
 
 /**
+ * Closed domain for what a unit IS — film, série, or season pack.
+ *
+ * ``"movie"`` — a single-unit catalog; acquired or not, never « suivi ».
+ * ``"show"`` — a multi-episode surveillance that accrues over time.
+ * ``"season"`` — a wanted row can carry a season pack; the card still reads
+ * as its parent show.
+ *
+ * Every caller passes a server-boundary ``string`` and narrows it to this
+ * union locally — never invent a duplicate union in a component file
+ * (see the header comment of this file).
+ */
+export type MediaKind = "movie" | "show" | "season";
+
+/**
  * A followed card's lifecycle status — read STRAIGHT from the generated OpenAPI
  * contract, never re-typed by hand.
  *
@@ -361,6 +375,8 @@ export const FOLLOW_STATUS_HINT: Record<FollowStatus, string> = {
 /** Film wording of {@link FOLLOW_STATUS_HINT}, for the overridden states only. */
 export const FOLLOW_STATUS_HINT_MOVIE: Partial<Record<FollowStatus, string>> = {
   a_jour: "Le film est en médiathèque.",
+  disabled:
+    "Ce film n'est plus cherché — aucune recherche automatique n'est faite.",
 };
 
 /**

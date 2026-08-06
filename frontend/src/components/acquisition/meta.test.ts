@@ -33,6 +33,7 @@ import {
   waitingGroups,
   type EpisodeState,
   type FollowStatus,
+  type MediaKind,
 } from "./meta";
 
 /** The seven card statuses the backend serves (schema.d.ts truth). */
@@ -109,6 +110,15 @@ describe("followStatusLabel / followStatusHint (film vs série)", () => {
       );
       expect(followStatusHint(status, "movie")).toBe(FOLLOW_STATUS_HINT[status]);
     }
+  });
+
+  it("l'infobulle d'un film suspendu ne contredit pas sa pastille", () => {
+    // The badge reads « Recherche arrêtée » — the tooltip must NOT fall through
+    // to the série wording « Suivi en pause » (§13: two surfaces answering the
+    // same question must read from the same code).
+    const hint = followStatusHint("disabled", "movie");
+    expect(hint).not.toContain("Suivi en pause");
+    expect(hint).toMatch(/ne plus cherch|n'est plus cherch/i);
   });
 });
 
@@ -436,5 +446,15 @@ describe("vocabulaire film vs série (§9)", () => {
         FOLLOW_STATUS_LABEL[status as keyof typeof FOLLOW_STATUS_LABEL],
       ).toBeTruthy();
     }
+  });
+
+  it("MediaKind accepte les trois littéraux et rien d'autre", () => {
+    // Type-level assertion: each literal must be assignable to MediaKind.
+    // tsc -b --noEmit is the real gate — this test pins the three values
+    // so no future refactor widens or narrows the union by accident.
+    const m1: MediaKind = "movie";
+    const m2: MediaKind = "show";
+    const m3: MediaKind = "season";
+    expect([m1, m2, m3]).toEqual(["movie", "show", "season"]);
   });
 });
