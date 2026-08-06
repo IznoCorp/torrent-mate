@@ -608,6 +608,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/acquisition/to-handle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get To Handle
+         * @description Les médias bloqués PORTÉS PAR UNE ACQUISITION, plus le compteur des autres.
+         *
+         *     §14.3 : un parcours n'a pas de trou. Un item pris puis ingéré qui cale à
+         *     l'identification est au milieu de SON parcours ; il doit rester visible depuis
+         *     l'acquisition. Un dépôt manuel, lui, n'est pas une acquisition : il est compté
+         *     (orphan_count) mais jamais listé ici, il appartient au panneau « À traiter »
+         *     de Contrôle.
+         *
+         *     Lecture seule, fail-soft, non staging-guarded (n'écrit rien).
+         *
+         *     Args:
+         *         request: La requête FastAPI entrante.
+         *
+         *     Returns:
+         *         Un :class:`ToHandleResponse` — les bloqués portés par une acquisition,
+         *         le plus ancien d'abord, plus le compteur des orphelins.
+         */
+        get: operations["get_to_handle_api_acquisition_to_handle_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/acquisition/wanted": {
         parameters: {
             query?: never;
@@ -5269,6 +5304,73 @@ export interface components {
             status: "pending" | "ready";
         };
         /**
+         * ToHandleItemModel
+         * @description Un média bloqué dont l'acquisition est la nôtre (§14.3).
+         *
+         *     Attributes:
+         *         decision_id: ``scrape_decision.id`` — la cible de « Résoudre → ».
+         *         title / year / kind: Ce que l'opérateur lit sur la carte.
+         *         reason: La raison EN FRANÇAIS, déjà mappée (NE-DOIT-PAS-4).
+         *         candidates_count: Nombre de candidats proposés (§3 : le sélecteur
+         *             s'ouvre AVEC des propositions).
+         *         created_at: Epoch seconds de la mise en attente.
+         *         followed_id: Le suivi porteur, ou ``None``.
+         *         info_hash: La release concernée, ou ``None``.
+         *         stage: L'étape RÉELLEMENT atteinte du parcours — jamais une valeur
+         *             par défaut.
+         */
+        ToHandleItemModel: {
+            /**
+             * Candidates Count
+             * @default 0
+             */
+            candidates_count: number;
+            /**
+             * Created At
+             * @default 0
+             */
+            created_at: number;
+            /** Decision Id */
+            decision_id: number;
+            /** Followed Id */
+            followed_id?: number | null;
+            /** Info Hash */
+            info_hash?: string | null;
+            /** Kind */
+            kind: string;
+            /** Reason */
+            reason: string;
+            /** Stage */
+            stage: string;
+            /** Title */
+            title: string;
+            /** Year */
+            year?: number | null;
+        };
+        /**
+         * ToHandleResponse
+         * @description Réponse de ``GET /api/acquisition/to-handle``.
+         *
+         *     Attributes:
+         *         items: Les bloqués PORTÉS PAR UNE ACQUISITION, le plus ancien d'abord.
+         *         orphan_count: Les bloqués SANS provenance d'acquisition (dépôts
+         *             manuels). Ils n'ont pas de carte ici — mais on ne les tait pas :
+         *             l'UI en fait un renvoi vers Contrôle (§méthode : ne jamais
+         *             sous-compter ce qui demande attention).
+         */
+        ToHandleResponse: {
+            /**
+             * Items
+             * @default []
+             */
+            items: components["schemas"]["ToHandleItemModel"][];
+            /**
+             * Orphan Count
+             * @default 0
+             */
+            orphan_count: number;
+        };
+        /**
          * UpdateFollowRequest
          * @description Request body for PATCH /api/acquisition/followed/{id}.
          *
@@ -5951,6 +6053,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AcquisitionStatusResponse"];
+                };
+            };
+        };
+    };
+    get_to_handle_api_acquisition_to_handle_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToHandleResponse"];
                 };
             };
         };

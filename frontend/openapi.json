@@ -4859,6 +4859,103 @@
         "title": "TmpOrphanSweep",
         "type": "object"
       },
+      "ToHandleItemModel": {
+        "description": "Un m\u00e9dia bloqu\u00e9 dont l'acquisition est la n\u00f4tre (\u00a714.3).\n\nAttributes:\n    decision_id: ``scrape_decision.id`` \u2014 la cible de \u00ab R\u00e9soudre \u2192 \u00bb.\n    title / year / kind: Ce que l'op\u00e9rateur lit sur la carte.\n    reason: La raison EN FRAN\u00c7AIS, d\u00e9j\u00e0 mapp\u00e9e (NE-DOIT-PAS-4).\n    candidates_count: Nombre de candidats propos\u00e9s (\u00a73 : le s\u00e9lecteur\n        s'ouvre AVEC des propositions).\n    created_at: Epoch seconds de la mise en attente.\n    followed_id: Le suivi porteur, ou ``None``.\n    info_hash: La release concern\u00e9e, ou ``None``.\n    stage: L'\u00e9tape R\u00c9ELLEMENT atteinte du parcours \u2014 jamais une valeur\n        par d\u00e9faut.",
+        "properties": {
+          "candidates_count": {
+            "default": 0,
+            "title": "Candidates Count",
+            "type": "integer"
+          },
+          "created_at": {
+            "default": 0,
+            "title": "Created At",
+            "type": "integer"
+          },
+          "decision_id": {
+            "title": "Decision Id",
+            "type": "integer"
+          },
+          "followed_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Followed Id"
+          },
+          "info_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Info Hash"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
+          }
+        },
+        "required": [
+          "decision_id",
+          "title",
+          "kind",
+          "reason",
+          "stage"
+        ],
+        "title": "ToHandleItemModel",
+        "type": "object"
+      },
+      "ToHandleResponse": {
+        "description": "R\u00e9ponse de ``GET /api/acquisition/to-handle``.\n\nAttributes:\n    items: Les bloqu\u00e9s PORT\u00c9S PAR UNE ACQUISITION, le plus ancien d'abord.\n    orphan_count: Les bloqu\u00e9s SANS provenance d'acquisition (d\u00e9p\u00f4ts\n        manuels). Ils n'ont pas de carte ici \u2014 mais on ne les tait pas :\n        l'UI en fait un renvoi vers Contr\u00f4le (\u00a7m\u00e9thode : ne jamais\n        sous-compter ce qui demande attention).",
+        "properties": {
+          "items": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ToHandleItemModel"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "orphan_count": {
+            "default": 0,
+            "title": "Orphan Count",
+            "type": "integer"
+          }
+        },
+        "title": "ToHandleResponse",
+        "type": "object"
+      },
       "UpdateFollowRequest": {
         "description": "Request body for PATCH /api/acquisition/followed/{id}.\n\nEvery field is optional \u2014 only the provided fields are updated.\n*cadence* is validated against :class:`CadenceShape` before writing to\n``cadence_json``.  ``quality_profile_json`` is intentionally ABSENT\n(RP3a deferred \u2014 do NOT expose an editor until the backend consumes it).",
         "properties": {
@@ -5912,6 +6009,28 @@
           }
         },
         "summary": "Get Acquisition Status",
+        "tags": [
+          "acquisition"
+        ]
+      }
+    },
+    "/api/acquisition/to-handle": {
+      "get": {
+        "description": "Les m\u00e9dias bloqu\u00e9s PORT\u00c9S PAR UNE ACQUISITION, plus le compteur des autres.\n\n\u00a714.3 : un parcours n'a pas de trou. Un item pris puis ing\u00e9r\u00e9 qui cale \u00e0\nl'identification est au milieu de SON parcours ; il doit rester visible depuis\nl'acquisition. Un d\u00e9p\u00f4t manuel, lui, n'est pas une acquisition : il est compt\u00e9\n(orphan_count) mais jamais list\u00e9 ici, il appartient au panneau \u00ab \u00c0 traiter \u00bb\nde Contr\u00f4le.\n\nLecture seule, fail-soft, non staging-guarded (n'\u00e9crit rien).\n\nArgs:\n    request: La requ\u00eate FastAPI entrante.\n\nReturns:\n    Un :class:`ToHandleResponse` \u2014 les bloqu\u00e9s port\u00e9s par une acquisition,\n    le plus ancien d'abord, plus le compteur des orphelins.",
+        "operationId": "get_to_handle_api_acquisition_to_handle_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToHandleResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get To Handle",
         "tags": [
           "acquisition"
         ]
