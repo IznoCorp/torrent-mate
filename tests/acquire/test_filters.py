@@ -562,3 +562,100 @@ class TestVideoCategoryFilter:
         survivors = apply_hard_filters(results, QualityProfile())
 
         assert len(survivors) == 1
+
+
+# ---------------------------------------------------------------------------
+# Adult-content filter (XXX)
+# ---------------------------------------------------------------------------
+
+
+class TestAdultFilter:
+    """An adult release must never satisfy a movie/TV wanted item.
+
+    Live incident 2026-08-06: the wanted film « The Odyssey » (TMDB 1368337) was
+    satisfied by an adult release. The tracker probe of the very same query shows
+    why nothing stopped it — the class-6 result was the ONLY survivor:
+
+        cat=2000  classe=2  The.Odyssey.Making.Of.2026...-BYOR
+        cat=2070  classe=2  The.Odyssey.Making.Of.2026.DOC...-BYOR
+        cat=6010  classe=6  [Cosplayground].The.Odyssey.Part.1.2026...-ONYXA   <-- grabbed
+        cat=7000  classe=7  PACK.5183.BANDES.DESSINEES...-DDD                  (dropped, class 7)
+        cat=3010  classe=3  Ludwig.Goransson.The.Odyssey.2026.FLAC...-SDB      (dropped, class 3)
+    """
+
+    #: The exact release that was grabbed, with the category the tracker really
+    #: published for it (verified live against c411/tr4ker on 2026-08-06).
+    LIVE_ADULT = ("tr4ker", "6010", "[Cosplayground].The.Odyssey.Part.1.2026.VO.720p.AVC.AAC.2.0-ONYXA")
+
+    @staticmethod
+    def _categorised(provider: str, category: str | None, title: str) -> TrackerResult:
+        return TrackerResult(
+            provider=provider,
+            tracker_id="t1",
+            title=title,
+            size=ByteSize(700_000_000),
+            seeders=10,
+            leechers=0,
+            resolution=None,
+            category=category,
+        )
+
+    def test_live_adult_release_is_dropped(self) -> None:
+        """REGRESSION: the exact release grabbed on 2026-08-06 must not survive."""
+        provider, category, title = self.LIVE_ADULT
+        results = [self._categorised(provider, category, title)]
+
+        survivors = apply_hard_filters(results, QualityProfile())
+
+        assert survivors == []
+
+    def test_adult_class_dropped_for_every_tracker(self) -> None:
+        """Any class-6 category is dropped, whichever tracker published it."""
+        results = [
+            self._categorised("c411", "6010", "Some.Adult.Release.2026.1080p"),
+            self._categorised("tr4ker", "6000", "Another.Adult.Release.2026.1080p"),
+            self._categorised("c411", "6070", "Third.Adult.Release.2026.1080p"),
+        ]
+
+        survivors = apply_hard_filters(results, QualityProfile())
+
+        assert survivors == []
+
+    def test_movie_class_still_passes(self) -> None:
+        """The guard must not touch legitimate video classes."""
+        results = [self._categorised("c411", "2000", "The.Odyssey.2026.MULTi.1080p.WEB-BYOR")]
+
+        survivors = apply_hard_filters(results, QualityProfile())
+
+        assert len(survivors) == 1
+
+    def test_adult_title_marker_dropped_when_category_lies(self) -> None:
+        """Defense in depth: an explicit adult marker is dropped even under class 2.
+
+        A tracker that mis-files an adult release under Movies would otherwise
+        walk straight through the category rule.
+        """
+        results = [
+            self._categorised("c411", "2000", "Some.Movie.A.XXX.Parody.2026.1080p"),
+            self._categorised("c411", "2000", "Some.Movie.2026.PORN.1080p"),
+            self._categorised("c411", None, "Some.Movie.2026.HENTAI.1080p"),
+        ]
+
+        survivors = apply_hard_filters(results, QualityProfile())
+
+        assert survivors == []
+
+    def test_xxx_alone_does_not_drop_the_2002_film(self) -> None:
+        """LOAD-BEARING: « xXx » (2002) is a mainstream film, not an adult release.
+
+        A bare ``XXX`` token is deliberately NOT an adult marker — the title guard
+        keys on unambiguous words only. The category rule remains the authority.
+        """
+        results = [
+            self._categorised("c411", "2000", "xXx.2002.MULTi.1080p.BluRay.x264-GRP"),
+            self._categorised("c411", "2000", "xXx.Return.of.Xander.Cage.2017.MULTi.1080p-GRP"),
+        ]
+
+        survivors = apply_hard_filters(results, QualityProfile())
+
+        assert len(survivors) == 2
