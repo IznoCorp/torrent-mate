@@ -9,21 +9,30 @@
  * `blocked` is a state of its own: neither "now" (it is not moving) nor pending
  * (it was reached and stayed). §14.3 forbids painting an unreached step as if
  * nothing had happened.
+ *
+ * `Stage` is read STRAIGHT from the generated OpenAPI contract, never hand-typed
+ * — same doctrine as ``FollowStatus`` in ``meta.ts``.  A backend rename of a
+ * stage key breaks ``npx tsc -b --noEmit``.
  */
 
 import { type ReactElement } from "react";
 
+import type { components } from "@/api/schema";
+
 /* eslint-disable react-refresh/only-export-components */
 
-/** One stage of the acquisition journey. */
-export type Stage = "pris" | "telech" | "ingere" | "scrape" | "range";
+/**
+ * One stage of the acquisition journey — derived from the OpenAPI contract.
+ *
+ * @see components["schemas"]["ToHandleItemModel"]["stage"] — the server-side
+ * ``Literal["pris", "telech", "ingere", "scrape", "range"]`` that feeds this.
+ */
+export type Stage = components["schemas"]["ToHandleItemModel"]["stage"];
 
 /**
  * The stages in walking order, with their French labels.
  *
- * The keys MUST match the return values of {@link _stage_of} in
- * ``personalscraper/web/acquisition/to_handle.py`` — a divergence here would
- * render a blank strip in production while every test passes.
+ * The keys are identical to the Stage literal, so a rename breaks ``tsc -b``.
  */
 export const STAGES: readonly { readonly key: Stage; readonly label: string }[] = [
   { key: "pris", label: "pris" },
@@ -41,7 +50,8 @@ export const STAGES: readonly { readonly key: Stage; readonly label: string }[] 
  *   blocked: Whether the journey is stopped at that stage.
  *
  * Returns:
- *   The strip element.
+ *   The strip element, or an explicit unknown reading when the stage key is not
+ *   in the contract.
  */
 export function JourneyStrip({
   stage,
@@ -51,6 +61,23 @@ export function JourneyStrip({
   readonly blocked?: boolean;
 }): ReactElement {
   const current = STAGES.findIndex((s) => s.key === stage);
+
+  // Safety net: a server sending a value outside the contract must NEVER render
+  // every station as « à venir » — unknown ≠ undone (§14.3).
+  if (current === -1) {
+    console.warn("JourneyStrip: unknown stage key", { stage });
+    return (
+      <div className="mt-[10px] flex w-full border-t border-border pt-[10px]">
+        <span
+          data-station-unknown
+          className="block w-full truncate px-0.5 text-center text-[9.5px] leading-tight text-muted-foreground"
+        >
+          {/* The stage key is a machine token, NEVER printed (NE-DOIT-PAS-4). */}
+          {"étape — inconnue"}
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div className="mt-[10px] flex w-full border-t border-border pt-[10px]">

@@ -4860,7 +4860,7 @@
         "type": "object"
       },
       "ToHandleItemModel": {
-        "description": "Un m\u00e9dia bloqu\u00e9 dont l'acquisition est la n\u00f4tre (\u00a714.3).\n\nAttributes:\n    decision_id: ``scrape_decision.id`` \u2014 la cible de \u00ab R\u00e9soudre \u2192 \u00bb.\n    title / year / kind: Ce que l'op\u00e9rateur lit sur la carte.\n    reason: La raison EN FRAN\u00c7AIS, d\u00e9j\u00e0 mapp\u00e9e (NE-DOIT-PAS-4).\n    candidates_count: Nombre de candidats propos\u00e9s (\u00a73 : le s\u00e9lecteur\n        s'ouvre AVEC des propositions).\n    created_at: Epoch seconds de la mise en attente.\n    followed_id: Le suivi porteur, ou ``None``.\n    info_hash: La release concern\u00e9e, ou ``None``.\n    stage: L'\u00e9tape R\u00c9ELLEMENT atteinte du parcours \u2014 jamais une valeur\n        par d\u00e9faut.",
+        "description": "Un m\u00e9dia bloqu\u00e9 dont l'acquisition est la n\u00f4tre (\u00a714.3).\n\nAttributes:\n    decision_id: ``scrape_decision.id`` \u2014 la cible de \u00ab R\u00e9soudre \u2192 \u00bb.\n    title / year / kind: Ce que l'op\u00e9rateur lit sur la carte.\n    reason: La raison EN FRAN\u00c7AIS, d\u00e9j\u00e0 mapp\u00e9e (NE-DOIT-PAS-4).\n    candidates_count: Nombre de candidats propos\u00e9s (\u00a73 : le s\u00e9lecteur\n        s'ouvre AVEC des propositions).\n    created_at: Epoch seconds de la mise en attente.\n    followed_id: Le suivi porteur, ou ``None``.\n    info_hash: La release concern\u00e9e, ou ``None``.\n    stage: L'\u00e9tape R\u00c9ELLEMENT atteinte du parcours \u2014 jamais une valeur\n        par d\u00e9faut.  Le Literal est le contrat dont l'UI d\u00e9rive son type\n        (``Stage = ToHandleItemModel[\"stage\"]`` dans le sch\u00e9ma g\u00e9n\u00e9r\u00e9).",
         "properties": {
           "candidates_count": {
             "default": 0,
@@ -4907,6 +4907,13 @@
             "type": "string"
           },
           "stage": {
+            "enum": [
+              "pris",
+              "telech",
+              "ingere",
+              "scrape",
+              "range"
+            ],
             "title": "Stage",
             "type": "string"
           },

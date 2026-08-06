@@ -2,6 +2,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { JourneyStrip, STAGES } from "./JourneyStrip";
+import type { Stage } from "./JourneyStrip";
 
 describe("JourneyStrip (§14.3)", () => {
   afterEach(cleanup);
@@ -60,5 +61,19 @@ describe("JourneyStrip (§14.3)", () => {
     for (const key of machineTokens) {
       expect(screen.queryByText(key, { exact: true })).toBeNull();
     }
+  });
+
+  it("une étape inconnue ne ment PAS — elle déclare « inconnue », pas « à venir »", () => {
+    const { container } = render(
+      <JourneyStrip stage={"bogus" as unknown as Stage} />,
+    );
+    // Must render the unknown marker, not five « à venir » stations.
+    expect(
+      container.querySelector("[data-station-unknown]"),
+    ).not.toBeNull();
+    // The screen-reader text must say « inconnue », never imply « pas faite ».
+    expect(screen.getByText(/inconnue/)).toBeInTheDocument();
+    // No station should claim « à venir » — because nothing is known.
+    expect(screen.queryByText(/à venir/)).toBeNull();
   });
 });

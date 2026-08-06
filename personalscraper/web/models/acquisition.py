@@ -866,7 +866,8 @@ class ToHandleItemModel(BaseModel):
         followed_id: Le suivi porteur, ou ``None``.
         info_hash: La release concernée, ou ``None``.
         stage: L'étape RÉELLEMENT atteinte du parcours — jamais une valeur
-            par défaut.
+            par défaut.  Le Literal est le contrat dont l'UI dérive son type
+            (``Stage = ToHandleItemModel["stage"]`` dans le schéma généré).
     """
 
     decision_id: int
@@ -878,7 +879,7 @@ class ToHandleItemModel(BaseModel):
     created_at: int = 0
     followed_id: int | None = None
     info_hash: str | None = None
-    stage: str
+    stage: Literal["pris", "telech", "ingere", "scrape", "range"]
 
 
 class ToHandleResponse(BaseModel):

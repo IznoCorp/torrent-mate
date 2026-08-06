@@ -5317,7 +5317,8 @@ export interface components {
          *         followed_id: Le suivi porteur, ou ``None``.
          *         info_hash: La release concernée, ou ``None``.
          *         stage: L'étape RÉELLEMENT atteinte du parcours — jamais une valeur
-         *             par défaut.
+         *             par défaut.  Le Literal est le contrat dont l'UI dérive son type
+         *             (``Stage = ToHandleItemModel["stage"]`` dans le schéma généré).
          */
         ToHandleItemModel: {
             /**
@@ -5340,8 +5341,11 @@ export interface components {
             kind: string;
             /** Reason */
             reason: string;
-            /** Stage */
-            stage: string;
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "pris" | "telech" | "ingere" | "scrape" | "range";
             /** Title */
             title: string;
             /** Year */
