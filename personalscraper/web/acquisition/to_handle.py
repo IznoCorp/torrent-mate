@@ -108,6 +108,10 @@ def build_to_handle(*, indexer_db: Path | None, store: AcquireStore | None) -> T
         logger.warning("to_handle_read_failed", db=str(indexer_db))
         return ToHandleRollup(items=(), orphan_count=0)
 
+    if store is None:
+        logger.warning("to_handle_store_unavailable")
+        return ToHandleRollup(items=(), orphan_count=0)
+
     items: list[ToHandleItem] = []
     orphans = 0
     for decision_id, staging_path, kind, title, year, trigger, candidates_json, created_at in rows:

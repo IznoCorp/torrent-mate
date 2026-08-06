@@ -124,3 +124,16 @@ def test_no_indexer_db_is_an_empty_rollup_not_a_crash(acquire_store):
     roll = build_to_handle(indexer_db=None, store=acquire_store)
     assert roll.items == ()
     assert roll.orphan_count == 0
+
+
+def test_store_none_with_pending_decisions_returns_empty_rollup(tmp_path):
+    """Un store indisponible ne doit pas fabriquer d'orphelins — il ne sait rien."""
+    db = _make_indexer(
+        tmp_path,
+        [
+            (1, "/staging/Un Film", "movie", "Un Film", None, "unmatched", "[]", "pending", 1000.0),
+        ],
+    )
+    roll = build_to_handle(indexer_db=db, store=None)
+    assert roll.items == ()
+    assert roll.orphan_count == 0
