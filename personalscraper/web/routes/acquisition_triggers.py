@@ -26,7 +26,7 @@ from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_history import PipelineRunWriter
 from personalscraper.web.acquisition.runner import grab_options_json, hash_options_json, prime_options_json
-from personalscraper.web.deps import require_not_staging, require_x_requested_with
+from personalscraper.web.deps import require_x_requested_with
 from personalscraper.web.models.acquisition import GrabTriggerResponse
 
 router = APIRouter(prefix="/api/acquisition", tags=["acquisition"])
@@ -295,7 +295,7 @@ def enqueue_prime_run(db_path: Path | None, followed_id: int) -> PrimeResult:
     "/detect",
     status_code=202,
     response_model=GrabTriggerResponse,
-    dependencies=[Depends(require_not_staging), Depends(require_x_requested_with)],
+    dependencies=[Depends(require_x_requested_with)],
 )
 def trigger_detect(request: Request) -> GrabTriggerResponse:
     """Launch the aired-episode / film discovery on demand (§5 manual watcher).
@@ -457,7 +457,7 @@ def _launch_followed_action(request: Request, followed_id: int, action: str) -> 
     "/followed/{followed_id}/search",
     status_code=202,
     response_model=GrabTriggerResponse,
-    dependencies=[Depends(require_not_staging), Depends(require_x_requested_with)],
+    dependencies=[Depends(require_x_requested_with)],
 )
 def trigger_followed_search(request: Request, followed_id: int) -> GrabTriggerResponse:
     """Launch the FULL search chain for one followed series (« Rechercher »).
@@ -494,7 +494,7 @@ def trigger_followed_search(request: Request, followed_id: int) -> GrabTriggerRe
     "/followed/{followed_id}/grab",
     status_code=202,
     response_model=GrabTriggerResponse,
-    dependencies=[Depends(require_not_staging), Depends(require_x_requested_with)],
+    dependencies=[Depends(require_x_requested_with)],
 )
 def trigger_followed_grab(request: Request, followed_id: int) -> GrabTriggerResponse:
     """Claim NOW what is already takeable for one follow (« Récupérer maintenant »).
@@ -619,7 +619,7 @@ def _launch_hash_action(request: Request, info_hash: str, action: str) -> GrabTr
     "/journeys/{info_hash}/rescrape",
     status_code=202,
     response_model=GrabTriggerResponse,
-    dependencies=[Depends(require_not_staging), Depends(require_x_requested_with)],
+    dependencies=[Depends(require_x_requested_with)],
 )
 def trigger_journey_rescrape(request: Request, info_hash: str) -> GrabTriggerResponse:
     """Re-scrape one tracked staging item, seeded from its grab identity (F4, « Re-scraper »).
@@ -634,7 +634,7 @@ def trigger_journey_rescrape(request: Request, info_hash: str) -> GrabTriggerRes
     "/journeys/{info_hash}/requeue",
     status_code=202,
     response_model=GrabTriggerResponse,
-    dependencies=[Depends(require_not_staging), Depends(require_x_requested_with)],
+    dependencies=[Depends(require_x_requested_with)],
 )
 def trigger_journey_requeue(request: Request, info_hash: str) -> GrabTriggerResponse:
     """Requeue one item's wanted row back to pending (F4, « Requeue »).

@@ -18,8 +18,7 @@ mirrors pipeline.py's _build_status pattern.
 
 Writes use ``build_acquire_store`` to create a fresh ConcreteAcquireStore per
 request — its own connection, safe across threads.  Each mutating route also
-carries ``require_not_staging`` (staging → 403) and
-``require_x_requested_with`` (CSRF → 400) as per-route dependencies.
+carries ``require_x_requested_with`` (CSRF → 400) as a per-route dependency.
 """
 
 from __future__ import annotations
@@ -68,7 +67,7 @@ from personalscraper.web.acquisition.service import (
     scoped_provider_clients,
 )
 from personalscraper.web.acquisition.states import WantedFacts, substitute_absorbed_facts
-from personalscraper.web.deps import require_not_staging, require_x_requested_with
+from personalscraper.web.deps import require_x_requested_with
 from personalscraper.web.models.acquisition import (
     AcquisitionDownloadsResponse,
     AcquisitionStatusResponse,
@@ -874,7 +873,7 @@ def search_media(
     "/followed",
     status_code=201,
     response_model=FollowedSeriesItem,
-    dependencies=[Depends(require_not_staging), Depends(require_x_requested_with)],
+    dependencies=[Depends(require_x_requested_with)],
 )
 def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeriesItem:
     """Follow a new series (or reactivate an inactive one).
@@ -992,7 +991,7 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
 @router.patch(
     "/followed/{followed_id}",
     response_model=FollowedSeriesItem,
-    dependencies=[Depends(require_not_staging), Depends(require_x_requested_with)],
+    dependencies=[Depends(require_x_requested_with)],
 )
 def update_follow(
     request: Request,
@@ -1039,7 +1038,7 @@ def update_follow(
 @router.delete(
     "/followed/{followed_id}",
     status_code=204,
-    dependencies=[Depends(require_not_staging), Depends(require_x_requested_with)],
+    dependencies=[Depends(require_x_requested_with)],
 )
 def delete_follow(request: Request, followed_id: int) -> None:
     """Soft-unfollow a series (sets active=False).
