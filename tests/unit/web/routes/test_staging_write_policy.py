@@ -14,6 +14,13 @@ _OPEN_PREFIXES = ("/api/acquisition", "/api/decisions")
 # Families whose writes stay GUARDED: they move real files, or hold shared state.
 _GUARDED_PREFIXES = ("/api/pipeline", "/api/maintenance", "/api/config", "/api/staging")
 
+# Session routes: neither a domain write nor a dangerous one. Authentication
+# must WORK on staging — guarding it would 403 the login endpoint and make the
+# instance unreachable, so you could not even sign in to test. They are listed
+# here so they are CLASSIFIED rather than invisible, and asserted unguarded
+# below: a staging guard appearing on /api/auth would be a bug, not a hardening.
+_SESSION_PREFIXES = ("/api/auth",)
+
 _MUTATING = {"POST", "PATCH", "PUT", "DELETE"}
 
 # Routes that LOOK mutating (they are POSTs, because they take a body) but write
@@ -65,7 +72,10 @@ def _mutating_routes(app):
     """
     _seen: set[int] = set()
 
-    def _walk(routes, prefix=""):
+    # Paths are expected already-absolute because Starlette flattens
+    # included routers — test_every_mutating_route_is_classified fails
+    # loudly if that ever stops being true.
+    def _walk(routes):
         for route in routes:
             # Dedup by id — the same APIRoute can appear at multiple nesting
             # levels when Starlette flattens the tree.
@@ -77,14 +87,14 @@ def _mutating_routes(app):
                     for method in route.methods & _MUTATING:
                         yield route.path, method, route
             elif isinstance(route, Mount):
-                yield from _walk(route.routes, prefix=prefix)
+                yield from _walk(route.routes)
             elif hasattr(route, "original_router"):
                 # FastAPI's _IncludedRouter — wraps an APIRouter after
                 # include_router().  Descend into its original_router.routes.
-                yield from _walk(route.original_router.routes, prefix=prefix)
+                yield from _walk(route.original_router.routes)
             elif hasattr(route, "routes"):
                 # Generic fallback for any other wrapper with .routes.
-                yield from _walk(route.routes, prefix=prefix)
+                yield from _walk(route.routes)
 
     yield from _walk(app.routes)
 
@@ -118,3 +128,45 @@ def test_dangerous_writes_stay_guarded_on_staging(app):
         if path.startswith(_GUARDED_PREFIXES) and not _is_staging_guarded(route)
     ]
     assert unguarded == [], f"écriture non gardée hors du périmètre A18 : {unguarded}"
+
+
+def test_every_mutating_route_is_classified(app):
+    """Aucune route mutante ne doit échapper aux deux tables de politique.
+
+    Les deux assertions ci-dessus classent par préfixe. Une route qui ne tombe
+    dans AUCUN des deux ensembles n'est vérifiée par personne — ni ouverte, ni
+    gardée, simplement invisible. Ce test est ce qui empêche cet angle mort, et
+    il couvre deux dérives d'un coup :
+
+    - un chemin non absolu (si Starlette cessait d'aplatir les routes montées),
+      qui ne commencerait par aucun préfixe connu ;
+    - une famille d'API neuve montée sous un préfixe absent des deux tables.
+
+    Le remède, dans les deux cas, est de mettre à jour les tables — jamais
+    d'élargir ce test.
+    """
+    unclassified = [
+        f"{method} {path}"
+        for path, method, _route in _mutating_routes(app)
+        if not path.startswith(_OPEN_PREFIXES + _GUARDED_PREFIXES + _SESSION_PREFIXES)
+    ]
+    assert unclassified == [], (
+        "routes mutantes non classées — ni ouvertes ni gardées, donc vérifiées "
+        f"par personne : {unclassified}. Mettez à jour _OPEN_PREFIXES, "
+        "_GUARDED_PREFIXES ou _SESSION_PREFIXES."
+    )
+
+
+def test_session_routes_are_never_guarded_on_staging(app):
+    """Se connecter à staging doit rester possible.
+
+    Un garde staging sur /api/auth rendrait l'instance injoignable : on ne
+    pourrait plus s'y authentifier pour tester quoi que ce soit. Ce test existe
+    pour que ce durcissement bien intentionné échoue tout de suite.
+    """
+    guarded = [
+        f"{method} {path}"
+        for path, method, route in _mutating_routes(app)
+        if path.startswith(_SESSION_PREFIXES) and _is_staging_guarded(route)
+    ]
+    assert guarded == [], f"l'authentification est gardée sur staging, l'instance devient injoignable : {guarded}"
