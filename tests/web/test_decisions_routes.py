@@ -856,7 +856,7 @@ class TestSearchDecision:
 
 
 class TestResolveDecision:
-    """``POST /api/decisions/{id}/resolve`` — 202, 409 lock, 409 concurrent, 403 staging, 404, 410."""
+    """``POST /api/decisions/{id}/resolve`` — 202, 409 lock, 409 concurrent, staging allowed (A18), 404, 410."""
 
     def test_resolve_returns_202_and_reserves_row(self, test_config, tmp_path: Path) -> None:
         """202 — spawns runner, reserves pipeline_run row, returns run_uid."""
@@ -1170,7 +1170,7 @@ class TestResolveSecondConcurrent:
 
 
 class TestDismissDecision:
-    """``POST /api/decisions/{id}/dismiss`` — 200, 404, 410, 403 staging."""
+    """``POST /api/decisions/{id}/dismiss`` — 200, 404, 410, staging allowed (A18)."""
 
     def test_dismiss_returns_200_and_refreshed_status(self, test_config, tmp_path: Path) -> None:
         """200 — dismiss marks the row 'dismissed' and returns the refreshed detail."""
@@ -1388,11 +1388,11 @@ class TestXRW:
         assert resp.status_code == 400
 
 
-class TestStagingReadOnly:
-    """403 — ``PERSONALSCRAPER_WEB_ROLE=staging`` on write endpoints."""
+class TestStagingWritesAllowed:
+    """A18 — ``PERSONALSCRAPER_WEB_ROLE=staging`` peut écrire sur les routes de décision."""
 
-    def test_resolve_returns_403_when_staging(self, test_config, tmp_path: Path, monkeypatch) -> None:
-        """403 — POST /{id}/resolve on staging instance."""
+    def test_resolve_allowed_on_staging(self, test_config, tmp_path: Path, monkeypatch) -> None:
+        """A18 : le rôle staging peut résoudre une décision — la route d'écriture est ouverte."""
         test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
         db_path = tmp_path / "library.db"
         conn = _create_library_db(db_path)
@@ -1404,16 +1404,16 @@ class TestStagingReadOnly:
         )
 
         monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
-        resp = client.post(
-            "/api/decisions/1/resolve",
-            json={"provider": "tmdb", "provider_id": 550},
-            headers={"X-Requested-With": "TorrentMate"},
-        )
-        assert resp.status_code == 403
-        assert resp.json()["detail"] == "read-only"
+        with patch("personalscraper.web.routes.decisions._spawn_decision_runner"):
+            resp = client.post(
+                "/api/decisions/1/resolve",
+                json={"provider": "tmdb", "provider_id": 550},
+                headers={"X-Requested-With": "TorrentMate"},
+            )
+        assert resp.status_code == 202
 
-    def test_dismiss_returns_403_when_staging(self, test_config, tmp_path: Path, monkeypatch) -> None:
-        """403 — POST /{id}/dismiss on staging instance."""
+    def test_dismiss_allowed_on_staging(self, test_config, tmp_path: Path, monkeypatch) -> None:
+        """A18 : le rôle staging peut ignorer une décision — la route d'écriture est ouverte."""
         test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
         db_path = tmp_path / "library.db"
         conn = _create_library_db(db_path)
@@ -1429,8 +1429,7 @@ class TestStagingReadOnly:
             "/api/decisions/1/dismiss",
             headers={"X-Requested-With": "TorrentMate"},
         )
-        assert resp.status_code == 403
-        assert resp.json()["detail"] == "read-only"
+        assert resp.status_code == 200
 
     def test_search_not_guarded_by_staging(self, test_config, tmp_path: Path, monkeypatch) -> None:
         """200 — POST /{id}/search is read-only → NOT staging-guarded."""
