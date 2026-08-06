@@ -20,7 +20,6 @@ import { RestartRequiredBanner } from "@/components/config/panels/RestartRequire
 import { StalledLoadRetry } from "@/components/config/panels/StalledLoadRetry";
 import { FileList } from "@/components/config/FileList";
 import { SecretsTab } from "@/components/config/SecretsTab";
-import { StagingBanner } from "@/components/StagingBanner";
 import { PageHeader } from "@/components/ds/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -79,8 +78,6 @@ export default function Config(): ReactElement {
     <section className="mx-auto flex max-w-5xl flex-col gap-4">
       <PageHeader title="Configuration" />
 
-      {/* Staging read-only banner */}
-      {editor.isStaging && <StagingBanner />}
       {editor.readOnly && (
         <div
           className="rounded-md border border-warning bg-warning/10 px-4 py-3 text-sm"

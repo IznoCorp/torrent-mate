@@ -3,8 +3,11 @@
  *
  * Staging is identified by host: the prod and staging origins differ
  * (`tm-staging.iznogoudatall.xyz` / the loopback staging port `8711`). Kept in
- * one place so the {@link StagingBanner}, the in-app logo, and the PWA identity
- * all agree on what "staging" means. Mirrors KanbanMate's `web/src/lib/env.ts`.
+ * one place so the in-app logo and the PWA identity agree on what "staging"
+ * means. The former full-viewport staging banner was removed (A17): the
+ * installed PWA already carries a distinct icon (`index.html` swaps the
+ * manifest and the apple-touch-icon on a staging host) and `BRAND_ICON` below
+ * swaps the in-app mark, so a third signal only cost width at 390px.
  */
 
 /**
