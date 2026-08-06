@@ -2,6 +2,7 @@
 
 import sqlite3
 from pathlib import Path
+from unittest.mock import patch
 
 from personalscraper.web.acquisition.to_handle import build_to_handle
 
@@ -135,5 +136,33 @@ def test_store_none_with_pending_decisions_returns_empty_rollup(tmp_path):
         ],
     )
     roll = build_to_handle(indexer_db=db, store=None)
+    assert roll.items == ()
+    assert roll.orphan_count == 0
+
+
+def test_provenance_correlation_failure_returns_empty_rollup_not_crash(tmp_path, acquire_store):
+    """Une erreur de provenance ne fait pas tomber la page — rollup vide + warning.
+
+    §méthode — « panne ≠ absence » : si le store de provenance est en défaut, on
+    ne peut rien affirmer sur aucun média.  Le rollup est vide et un warning est émis.
+    """
+    db = _make_indexer(
+        tmp_path,
+        [
+            (1, "/staging/Top Chef S16E12", "tvshow", "Top Chef", 2010, "ambiguous", "[{},{},{}]", "pending", 1000.0),
+        ],
+    )
+    acquire_store.provenance.upsert_grab(
+        info_hash="abc",
+        followed_id=42,
+        kind="episode",
+        media_ref=None,
+        grabbed_at=800,
+    )
+    acquire_store.provenance.set_ingest(info_hash="abc", ingest_path="/staging/Top Chef S16E12", ingested_at=900)
+
+    with patch.object(acquire_store.provenance, "by_path", side_effect=sqlite3.OperationalError("database is locked")):
+        roll = build_to_handle(indexer_db=db, store=acquire_store)
+
     assert roll.items == ()
     assert roll.orphan_count == 0

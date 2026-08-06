@@ -114,30 +114,38 @@ def build_to_handle(*, indexer_db: Path | None, store: AcquireStore | None) -> T
 
     items: list[ToHandleItem] = []
     orphans = 0
-    for decision_id, staging_path, kind, title, year, trigger, candidates_json, created_at in rows:
-        try:
-            candidates = len(json.loads(candidates_json or "[]"))
-        except (TypeError, ValueError):
-            candidates = 0
+    try:
+        for decision_id, staging_path, kind, title, year, trigger, candidates_json, created_at in rows:
+            try:
+                candidates = len(json.loads(candidates_json or "[]"))
+            except (TypeError, ValueError):
+                candidates = 0
 
-        prov = store.provenance.by_path(staging_path) if store is not None else None
-        if prov is None:
-            orphans += 1
-            continue
+            prov = store.provenance.by_path(staging_path)
+            if prov is None:
+                orphans += 1
+                continue
 
-        items.append(
-            ToHandleItem(
-                decision_id=int(decision_id),
-                title=str(title or ""),
-                year=int(year) if year is not None else None,
-                kind=str(kind or ""),
-                reason=_reason_of(str(trigger or ""), candidates),
-                candidates_count=candidates,
-                created_at=int(created_at or 0),
-                followed_id=getattr(prov, "followed_id", None),
-                info_hash=getattr(prov, "info_hash", None),
-                stage=_stage_of(prov),
+            items.append(
+                ToHandleItem(
+                    decision_id=int(decision_id),
+                    title=str(title or ""),
+                    year=int(year) if year is not None else None,
+                    kind=str(kind or ""),
+                    reason=_reason_of(str(trigger or ""), candidates),
+                    candidates_count=candidates,
+                    created_at=int(created_at or 0),
+                    followed_id=getattr(prov, "followed_id", None),
+                    info_hash=getattr(prov, "info_hash", None),
+                    stage=_stage_of(prov),
+                )
             )
-        )
+    except Exception as exc:  # noqa: BLE001 — fail-soft : la page ne 500 jamais
+        # §méthode — « panne ≠ absence » : si le store de provenance est en
+        # défaut, on ne peut rien affirmer sur aucun média.  Ce n'est pas un
+        # fail-soft muet (§8 l'interdit) : le warning est ce qui le distingue
+        # d'un « rien à traiter » silencieux.
+        logger.warning("to_handle_correlation_failed", error=str(exc))
+        return ToHandleRollup(items=(), orphan_count=0)
 
     return ToHandleRollup(items=tuple(items), orphan_count=orphans)
