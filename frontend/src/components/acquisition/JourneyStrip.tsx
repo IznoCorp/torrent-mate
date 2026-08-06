@@ -86,12 +86,12 @@ export function JourneyStrip({
         const here = i === current;
         const said = done ? "franchie" : here ? (blocked ? "bloquée" : "en cours") : "à venir";
         const dot = done
-          ? "bg-success border-success"
+          ? "bg-success border-success rounded-full"
           : here
             ? blocked
-              ? "bg-danger border-danger ring-[3px] ring-danger/25 border-dashed"
-              : "bg-info border-info ring-[3px] ring-info/25"
-            : "bg-muted border-border";
+              ? "bg-danger border-danger ring-[3px] ring-danger/25 rounded-[2px]"
+              : "bg-info border-info ring-[3px] ring-info/25 rounded-full"
+            : "bg-muted border-border rounded-full";
         const text = here ? (blocked ? "text-danger font-semibold" : "text-info font-semibold") : "text-muted-foreground";
 
         return (
@@ -102,7 +102,7 @@ export function JourneyStrip({
           >
             <span
               aria-hidden="true"
-              className={`z-[1] size-[9px] shrink-0 rounded-full border-[1.5px] ${dot}`}
+              className={`z-[1] size-[9px] shrink-0 border-[1.5px] ${dot}`}
             />
             <span
               data-station-label

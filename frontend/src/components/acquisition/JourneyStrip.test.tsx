@@ -34,14 +34,16 @@ describe("JourneyStrip (§14.3)", () => {
 
   it("une étape bloquée se distingue de « en cours » par autre chose que la couleur", () => {
     const { container } = render(<JourneyStrip stage="scrape" blocked />);
-    // The blocked (current) station's dot must carry a structural differentiator.
     const blockedDot = container.querySelector(
       '[data-station="scrape"] [aria-hidden="true"]',
     );
     expect(blockedDot).not.toBeNull();
-    expect((blockedDot as HTMLElement).className).toMatch(/border-dashed/);
-    // The dot must also still be round (the fix is additive).
-    expect((blockedDot as HTMLElement).className).toMatch(/rounded-full/);
+    // Shape is the colour-blind differentiator (§14.3): the blocked dot is
+    // square, not round, so it reads as "stopped" without relying on red.
+    expect((blockedDot as HTMLElement).className).toMatch(/rounded-\[2px\]/);
+    // Must NOT carry rounded-full — if it does, the radius was left in the
+    // base string and two radius classes collide (which one wins is arbitrary).
+    expect((blockedDot as HTMLElement).className).not.toMatch(/rounded-full/);
   });
 
   it("le point « en cours » n'a PAS le différenciateur structurel du point bloqué", () => {
@@ -50,7 +52,12 @@ describe("JourneyStrip (§14.3)", () => {
       '[data-station="ingere"] [aria-hidden="true"]',
     );
     expect(nowDot).not.toBeNull();
-    expect((nowDot as HTMLElement).className).not.toMatch(/border-dashed/);
+    // The "now" dot must be round — this proves rounded-full was moved into
+    // each per-state branch rather than sitting in the base class string.
+    expect((nowDot as HTMLElement).className).toMatch(/rounded-full/);
+    // Must NOT carry the square radius — if it does, the two radius classes
+    // collide (both emitted → Tailwind output order determines the winner).
+    expect((nowDot as HTMLElement).className).not.toMatch(/rounded-\[2px\]/);
   });
 
   it("aucun libellé n'est un token machine (NE-DOIT-PAS-4)", () => {
