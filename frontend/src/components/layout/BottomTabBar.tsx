@@ -1,8 +1,12 @@
-import type { ReactElement, ReactNode } from "react";
+import { useEffect, useRef, type ReactElement, type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 
 import { BOTTOM_TAB_ITEMS } from "@/components/layout/nav";
+import {
+  BOTTOM_BAR_HEIGHT_VAR,
+} from "@/components/layout/bottom-bar-metrics";
 import { cn } from "@/lib/utils";
+
 
 /**
  * BottomTabBar — the mobile navigation surface (visible only < md).
@@ -28,8 +32,45 @@ export function BottomTabBar({
 }: {
   readonly badges?: Record<string, ReactNode>;
 }): ReactElement {
+  const navRef = useRef<HTMLElement | null>(null);
+
+  // Publish the bar's measured height on the document root, and keep it
+  // current. A ResizeObserver rather than a one-shot read: the box changes on
+  // rotation, on a viewport crossing the `md` breakpoint (where this bar
+  // disappears and the height must fall to 0), and when the safe-area inset
+  // resolves after first paint on iOS. Cleared on unmount so a route without a
+  // bar — the login page — does not inherit a stale height.
+  useEffect(() => {
+    const el = navRef.current;
+    const root = document.documentElement;
+    if (el == null) return;
+
+    const publish = (): void => {
+      root.style.setProperty(
+        BOTTOM_BAR_HEIGHT_VAR,
+        `${String(el.getBoundingClientRect().height)}px`,
+      );
+    };
+    publish();
+
+    // jsdom has no ResizeObserver; the initial publish above still runs, which
+    // is what the tests assert.
+    if (typeof ResizeObserver === "undefined") {
+      return () => {
+        root.style.removeProperty(BOTTOM_BAR_HEIGHT_VAR);
+      };
+    }
+    const observer = new ResizeObserver(publish);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty(BOTTOM_BAR_HEIGHT_VAR);
+    };
+  }, []);
+
   return (
     <nav
+      ref={navRef}
       aria-label="Navigation principale"
       className="fixed inset-x-0 bottom-0 z-50 flex border-t border-border bg-sidebar pb-[env(safe-area-inset-bottom)] md:hidden"
     >

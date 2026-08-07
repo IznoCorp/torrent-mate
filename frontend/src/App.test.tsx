@@ -50,6 +50,17 @@ beforeEach(() => {
     if (url.includes("/api/auth/me")) {
       return Promise.resolve(buildResponse(200, { username: "izno" }));
     }
+    // Le badge Acquisition de la coquille lit ces deux sources (D6). Le repli
+    // `{}` ne respecte PAS leur contrat (`items` y est toujours sérialisé), et
+    // un corps sans `items` fait remonter l'erreur jusqu'à l'ErrorBoundary du
+    // routeur — donc écran blanc, pas simplement badge absent. Ce mock sert la
+    // vraie forme ; la fragilité elle-même est notée pour la revue finale.
+    if (url.includes("/api/acquisition/followed")) {
+      return Promise.resolve(buildResponse(200, { items: [] }));
+    }
+    if (url.includes("/api/acquisition/to-handle")) {
+      return Promise.resolve(buildResponse(200, { items: [], orphan_count: 0 }));
+    }
     return Promise.resolve(buildResponse(200, {}));
   });
   vi.stubGlobal("fetch", fetchMock);

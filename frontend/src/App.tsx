@@ -6,6 +6,7 @@ import { queryClient } from "@/api/client";
 import { AuthProvider } from "@/components/AuthProvider";
 import { useAuthContext } from "@/hooks/useAuthContext";
 import { InstallBanner } from "@/components/InstallBanner";
+import { aboveBottomBar } from "@/components/layout/bottom-bar-metrics";
 import { Toaster } from "@/components/ui/sonner";
 import { usePwa } from "@/hooks/usePwa";
 import { router } from "@/router";
@@ -31,7 +32,33 @@ function PwaLayer(): ReactElement {
   return (
     <>
       <InstallBanner state={pwa} />
-      <Toaster position="top-center" />
+      {/*
+        §10 — la notification se pose JUSTE au-dessus de la barre du bas, jamais
+        dessous. L'ancien réglage était un `bottom: 84px` calibré sur desktop :
+        sur iPhone la barre grandit de env(safe-area-inset-bottom) (~34 px) et la
+        notification passait dessous. L'offset lit donc la hauteur RÉELLE que la
+        barre publie (voir aboveBottomBar), ce qui reste juste à n'importe
+        quelle hauteur de barre.
+
+        Le repli `0px` n'est pas une précaution : c'est le cas NORMAL sur les
+        deux surfaces sans barre — la page de connexion (hors AppShell) et tout
+        écran ≥ md, où la barre est `md:hidden`. Un repli calibré téléphone y
+        ferait flotter la notification dans le vide.
+
+        Le Toaster reste ici, dans PwaLayer, frère du routeur : c'est ce qui le
+        rend visible sur TOUTES les routes, page de connexion comprise. Le
+        déplacer dans AppShell (à l'intérieur de ProtectedRoute) tuerait
+        silencieusement le toast de mise à jour PWA sur cette page.
+
+        Croix de fermeture et 5 s : deux lignes étaient illisibles en 2,2 s, et
+        la croix est le vrai contrôle — personne n'est forcé d'attendre.
+      */}
+      <Toaster
+        position="bottom-center"
+        closeButton
+        duration={5000}
+        offset={aboveBottomBar("0.75rem")}
+      />
     </>
   );
 }
