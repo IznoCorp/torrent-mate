@@ -35,6 +35,8 @@ import type {
 import {
   useFollowed,
   useJourneys,
+  useDownloads,
+  useOverview,
   useToHandle,
   useWanted,
 } from "@/hooks/useAcquisition";
@@ -44,6 +46,8 @@ import { ErrorState } from "@/components/ds/ErrorState";
 import { AcquisitionCard } from "./AcquisitionCard";
 import { FollowDetailSheet } from "./FollowDetailSheet";
 import { JourneyStrip, type Stage } from "./JourneyStrip";
+import { DownloadRow } from "./DownloadsPanel";
+import { StalledGrabsAlert } from "./StalledGrabsAlert";
 import {
   asMediaKind,
   type FollowStatus,
@@ -197,6 +201,10 @@ export function MaintenantPanel(): ReactElement {
   const wanted = useWanted({ status: "grabbed" });
   const toHandle = useToHandle();
   const journeys = useJourneys();
+  const overview = useOverview();
+  const downloadsQuery = useDownloads();
+  const downloads = downloadsQuery.data?.downloads ?? [];
+  const clientAvailable = downloadsQuery.data?.client_available ?? true;
 
   // Build a lookup from (title+kind+season+episode) → journey so each
   // « En vol » card can derive its real stage instead of hardcoding « pris ».
@@ -382,7 +390,18 @@ export function MaintenantPanel(): ReactElement {
               }`,
             }
           : {})}
-        meta={null}
+        // The release ACTUALLY grabbed — what tells a FLAC soundtrack apart
+        // from the film of the same name. Never a media title standing in for
+        // it: when the name was not recorded, the card says so rather than
+        // showing something that looks like an answer.
+        meta={
+          <span
+            className="min-w-0 truncate font-mono text-[length:var(--text-2xs)] text-muted-foreground"
+            title={journey?.release_name ?? undefined}
+          >
+            {journey?.release_name ?? "Nom de release non enregistré"}
+          </span>
+        }
         // Grabbed items have no detail sheet yet — future tasks may wire
         // a pipeline-progress detail here. No onOpen until then (§11:
         // a button that does nothing is a dead control).
@@ -400,6 +419,12 @@ export function MaintenantPanel(): ReactElement {
   return (
     <>
       <div className="flex flex-col gap-4 px-3 py-3">
+        {/* Above the sections, not inside one: this is work that has STOPPED,
+            and it belongs to no stage — an acquisition parked at « récupéré »
+            is neither takeable nor in flight. It renders nothing when nothing
+            is parked, because a permanent alert stops being one. */}
+        <StalledGrabsAlert count={overview.data?.stalled_grabs ?? 0} />
+
         {sectionList.map((s) => {
           if (!s.visible) return null;
 
@@ -446,7 +471,33 @@ export function MaintenantPanel(): ReactElement {
               )}
 
               {/* « En vol » */}
-              {s.slug === "en-vol" && enVol.map(renderEnVolCard)}
+              {s.slug === "en-vol" && (
+                <>
+                  {/* Fail-soft, and deliberately OUTSIDE the list: it must show
+                      even when the list is empty. An unreachable client makes
+                      progress unknowable — saying nothing would let the absence
+                      of rows read as « nothing is downloading », which is a
+                      different and false statement (§8, panne ≠ absence). */}
+                  {!clientAvailable && (
+                    <p className="mb-3 text-xs text-warning">
+                      Client torrent injoignable — progression indisponible, les
+                      éléments récupérés restent listés.
+                    </p>
+                  )}
+                  {enVol.map(renderEnVolCard)}
+                  {/* Live progress of what is actually downloading, with its
+                      percentage and, when a torrent breaks, the REASON in
+                      French — a stalled download that only says « en cours »
+                      is the silence §8 exists to end. */}
+                  {downloads.length > 0 && (
+                    <div className="mt-3 flex flex-col gap-4">
+                      {downloads.map((d) => (
+                        <DownloadRow key={d.info_hash || d.name} d={d} />
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
 
               {/* « Cherché, rien trouvé » */}
               {s.slug === "cherche-rien-trouve" &&

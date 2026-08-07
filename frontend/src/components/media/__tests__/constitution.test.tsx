@@ -66,6 +66,16 @@ vi.mock("@/hooks/useAcquisition", () => ({
   useToHandle: () => ({ data: { items: [], orphan_count: 0 }, isLoading: false, isError: false }),
   useWanted: () => ({ data: { items: [], total: 0 }, isLoading: false, isError: false }),
   useJourneys: () => ({ data: { journeys: [] }, isLoading: false, isError: false }),
+  useDownloads: () => ({
+    data: { downloads: [], client_available: true },
+    isLoading: false,
+    isError: false,
+  }),
+  useOverview: () => ({
+    data: { stalled_grabs: 0 },
+    isLoading: false,
+    isError: false,
+  }),
 }));
 
 // ---------------------------------------------------------------------------

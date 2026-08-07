@@ -46,6 +46,14 @@ vi.mock("@/hooks/useAcquisition", () => ({
   useToHandle: () => useToHandleMock(),
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   useJourneys: () => useJourneysMock(),
+  // « En vol » carries the live download state and the stalled-grabs alert;
+  // both must be served or the whole panel throws rather than rendering.
+  useDownloads: () => ({
+    data: { downloads: [], client_available: true },
+    isLoading: false,
+    isError: false,
+    error: null,
+  }),
   useMediaSearch: () => ({
     data: undefined,
     isLoading: false,
