@@ -21,12 +21,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   AcquisitionDownload,
   FollowedSeriesItem,
+  JourneyItem,
   ToHandleItem,
   ToHandleResponse,
   WantedItem,
 } from "@/api/acquisition";
 
 import { MaintenantPanel } from "./MaintenantPanel";
+import { STAGES } from "./JourneyStrip";
 import * as hooks from "@/hooks/useAcquisition";
 
 // ── Fixture type ───────────────────────────────────────────────────────────
@@ -36,6 +38,7 @@ interface FullFixtures {
   readonly wanted: readonly WantedItem[];
   readonly toHandle: ToHandleResponse;
   readonly downloads: readonly AcquisitionDownload[];
+  readonly journeys: readonly JourneyItem[];
 }
 
 interface EmptyFixtures {
@@ -43,6 +46,7 @@ interface EmptyFixtures {
   readonly wanted: readonly WantedItem[];
   readonly toHandle: ToHandleResponse;
   readonly downloads: readonly AcquisitionDownload[];
+  readonly journeys: readonly JourneyItem[];
 }
 
 // ── Shared helper values ───────────────────────────────────────────────────
@@ -51,6 +55,7 @@ const EMPTY_FOLLOWED: readonly FollowedSeriesItem[] = [];
 const EMPTY_WANTED: readonly WantedItem[] = [];
 const EMPTY_TO_HANDLE: ToHandleResponse = { items: [], orphan_count: 0 };
 const EMPTY_DOWNLOADS: readonly AcquisitionDownload[] = [];
+const EMPTY_JOURNEYS: readonly JourneyItem[] = [];
 
 // ── Full fixture — populates all five sections ──────────────────────────────
 
@@ -121,6 +126,39 @@ function inflightDownload(): AcquisitionDownload {
   };
 }
 
+/** A journey matching the inflight wanted item — stage "telech" (grabbed, not yet ingested). */
+function inflightJourney(): JourneyItem {
+  return {
+    info_hash: "abc123def4567890",
+    kind: "episode",
+    media_ref: { tvdb_id: 371980, tmdb_id: 95396, imdb_id: null },
+    follow_title: "Severance",
+    season: 3,
+    episode: null,
+    status: "grabbed",
+    grabbed_at: 1_750_000_000,
+    ingested_at: null,
+    scraped_at: null,
+    dispatched_at: null,
+    reconstructed_at: null,
+    stuck: false,
+    current_path: null,
+    decision_id: null,
+    dispatch_path: null,
+    dispatch_run_uid: null,
+    followed_id: null,
+    grab_run_uid: null,
+    ingest_path: null,
+    ingest_run_uid: null,
+    resolution_state: null,
+    resolution_trigger: null,
+    scrape_run_uid: null,
+    scraped_ref: null,
+    estimated_stages: null,
+    release_name: null,
+  };
+}
+
 /** A followed item with ``en_attente`` — lands in « Cherché, rien trouvé ». */
 function waitingShow(): FollowedSeriesItem {
   return {
@@ -166,6 +204,7 @@ const full: FullFixtures = {
   wanted: [inflightWanted()],
   toHandle: { items: [blockedItem()], orphan_count: 0 },
   downloads: [inflightDownload()],
+  journeys: [inflightJourney()],
 };
 
 const empty: EmptyFixtures = {
@@ -173,6 +212,7 @@ const empty: EmptyFixtures = {
   wanted: EMPTY_WANTED,
   toHandle: EMPTY_TO_HANDLE,
   downloads: EMPTY_DOWNLOADS,
+  journeys: EMPTY_JOURNEYS,
 };
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -210,6 +250,13 @@ function mockHooks(f: FullFixtures | EmptyFixtures): void {
     isLoading: false,
     isError: false,
   } as ReturnType<typeof hooks.useDownloads>);
+
+  // `useJourneys` — returns the pipeline journeys for stage derivation.
+  vi.spyOn(hooks, "useJourneys").mockReturnValue({
+    data: { journeys: [...f.journeys] },
+    isLoading: false,
+    isError: false,
+  } as ReturnType<typeof hooks.useJourneys>);
 }
 
 function renderPanel(f: FullFixtures | EmptyFixtures): void {
@@ -257,16 +304,16 @@ describe("MaintenantPanel", () => {
 
     // « En vol » — card HAS a journey strip.
     const inflightSection = screen.getByTestId("section-en-vol");
-    const inflightCards = within(inflightSection).getAllByTestId("acq-card");
-    expect(inflightCards.length).toBeGreaterThan(0);
-    const inflightCard = inflightCards[0] as HTMLElement;
+    const inflightCard = first(
+      within(inflightSection).getAllByTestId("acq-card"),
+    );
     expect(inflightCard.querySelector("[data-station]")).toBeTruthy();
 
     // « À traiter » — card HAS a journey strip (blocked).
     const blockedSection = screen.getByTestId("section-a-traiter");
-    const blockedCards = within(blockedSection).getAllByTestId("acq-card");
-    expect(blockedCards.length).toBeGreaterThan(0);
-    const blockedCard = blockedCards[0] as HTMLElement;
+    const blockedCard = first(
+      within(blockedSection).getAllByTestId("acq-card"),
+    );
     expect(blockedCard.querySelector("[data-station]")).toBeTruthy();
 
     // « Cherché, rien trouvé » — card exists but no strip.
@@ -362,5 +409,151 @@ describe("MaintenantPanel", () => {
     expect(screen.queryByText(/Rien en vol/)).toBeNull();
     // The « À traiter » section IS present (orphans > 0).
     expect(screen.queryByTestId("section-a-traiter")).toBeInTheDocument();
+  });
+
+  // ── Finding B: real stage from journey ──────────────────────────────────
+
+  /** Get the first element from a query result, narrowing away undefined. */
+  function first<T>(arr: readonly T[]): T {
+    if (arr[0] == null) throw new Error("expected at least one element");
+    return arr[0];
+  }
+
+  /** Stage-key → French label, built from the canonical JourneyStrip constant. */
+  const STAGE_LABELS: Record<string, string> = Object.fromEntries(
+    STAGES.map((s) => [s.key, s.label]),
+  );
+
+  /**
+   * Assert that the card's journey strip has `expectedStage` as the current
+   * station.  The JourneyStrip renders sr-only spans like "téléch. — en cours"
+   * on the active (non-blocked) station; we query by that accessible text
+   * instead of `[data-station]` which exists on EVERY station and always
+   * matches "pris" first.
+   */
+  function assertCurrentStage(
+    card: HTMLElement,
+    expectedStage: string,
+    blocked?: boolean,
+  ): void {
+    const state = blocked === true ? "bloquée" : "en cours";
+    // JourneyStrip labels: STAGES = [{key:"pris",label:"pris"}, {key:"telech",label:"téléch."}, ...]
+    const label = STAGE_LABELS[expectedStage] ?? expectedStage;
+    expect(
+      within(card).getByText(`${label} — ${state}`, { exact: false }),
+    ).toBeTruthy();
+  }
+
+  it("une carte « en vol » dérive son étape du parcours réel, pas d'un « pris » en dur", () => {
+    renderPanel(full);
+
+    // The inflight journey has grabbed_at set → stage "telech".
+    const section = screen.getByTestId("section-en-vol");
+    const card = first(within(section).getAllByTestId("acq-card"));
+    assertCurrentStage(card, "telech");
+  });
+
+  it("dérive « range » quand dispatched_at est le dernier timestamp", () => {
+    const journey: JourneyItem = {
+      ...inflightJourney(),
+      grabbed_at: 1_750_000_000,
+      ingested_at: 1_750_100_000,
+      scraped_at: 1_750_200_000,
+      dispatched_at: 1_750_300_000,
+    };
+    renderPanel({ ...full, journeys: [journey] });
+
+    const section = screen.getByTestId("section-en-vol");
+    const card = first(within(section).getAllByTestId("acq-card"));
+    assertCurrentStage(card, "range");
+  });
+
+  it("dérive « scrape » quand scraped_at est le dernier timestamp atteint", () => {
+    const journey: JourneyItem = {
+      ...inflightJourney(),
+      grabbed_at: 1_750_000_000,
+      ingested_at: 1_750_100_000,
+      scraped_at: 1_750_200_000,
+      dispatched_at: null,
+    };
+    renderPanel({ ...full, journeys: [journey] });
+
+    const section = screen.getByTestId("section-en-vol");
+    const card = first(within(section).getAllByTestId("acq-card"));
+    assertCurrentStage(card, "scrape");
+  });
+
+  it("dérive « ingere » quand ingested_at est le dernier timestamp atteint", () => {
+    const journey: JourneyItem = {
+      ...inflightJourney(),
+      grabbed_at: 1_750_000_000,
+      ingested_at: 1_750_100_000,
+      scraped_at: null,
+      dispatched_at: null,
+    };
+    renderPanel({ ...full, journeys: [journey] });
+
+    const section = screen.getByTestId("section-en-vol");
+    const card = first(within(section).getAllByTestId("acq-card"));
+    assertCurrentStage(card, "ingere");
+  });
+
+  it("dérive « telech » quand seul grabbed_at est présent", () => {
+    const journey: JourneyItem = {
+      ...inflightJourney(),
+      grabbed_at: 1_750_000_000,
+      ingested_at: null,
+      scraped_at: null,
+      dispatched_at: null,
+    };
+    renderPanel({ ...full, journeys: [journey] });
+
+    const section = screen.getByTestId("section-en-vol");
+    const card = first(within(section).getAllByTestId("acq-card"));
+    assertCurrentStage(card, "telech");
+  });
+
+  it("dérive « pris » quand aucun timestamp n'est présent", () => {
+    const journey: JourneyItem = {
+      ...inflightJourney(),
+      grabbed_at: null,
+      ingested_at: null,
+      scraped_at: null,
+      dispatched_at: null,
+    };
+    renderPanel({ ...full, journeys: [journey] });
+
+    const section = screen.getByTestId("section-en-vol");
+    const card = first(within(section).getAllByTestId("acq-card"));
+    assertCurrentStage(card, "pris");
+  });
+
+  it("sans parcours correspondant, aucune frise n'est affichée", () => {
+    // No journey matches the inflight wanted (empty journeys).
+    renderPanel({ ...full, journeys: [] });
+
+    const section = screen.getByTestId("section-en-vol");
+    const card = first(within(section).getAllByTestId("acq-card"));
+    // No strip, no data-station — we don't claim « pris » when we can't
+    // establish the stage.
+    expect(card.querySelector("[data-station]")).toBeNull();
+  });
+
+  it("un parcours reconstruit avec une lacune n'affiche pas de frise (§14.3)", () => {
+    // reconstructed_at is set, but ingested_at is missing between grabbed and scraped.
+    const journey: JourneyItem = {
+      ...inflightJourney(),
+      grabbed_at: 1_750_000_000,
+      ingested_at: null, // gap in a rebuilt row → unknown
+      scraped_at: 1_750_200_000,
+      dispatched_at: null,
+      reconstructed_at: 1_750_500_000,
+    };
+    renderPanel({ ...full, journeys: [journey] });
+
+    const section = screen.getByTestId("section-en-vol");
+    const card = first(within(section).getAllByTestId("acq-card"));
+    // §14.3: unknown ≠ not reached — omit the strip.
+    expect(card.querySelector("[data-station]")).toBeNull();
   });
 });

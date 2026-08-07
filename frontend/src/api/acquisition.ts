@@ -158,6 +158,9 @@ export const acqKeys = {
   overview: () => [...acqKeys.all, "overview"] as const,
   stalledGrabs: () => [...acqKeys.all, "stalled-grabs"] as const,
   toHandle: () => [...acqKeys.all, "to-handle"] as const,
+
+  /** Journeys query key: ``['acquisition', 'journeys']`` (F1). */
+  journeys: () => [...acqKeys.all, "journeys"] as const,
 };
 
 // ---------------------------------------------------------------------------

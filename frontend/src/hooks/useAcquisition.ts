@@ -26,6 +26,7 @@ import {
   getFollowed,
   getObligations,
   getOverview,
+  getJourneys,
   getToHandle,
   getWanted,
   searchMedia,
@@ -221,6 +222,15 @@ export function useToHandle() {
   return useQuery({
     queryKey: acqKeys.toHandle(),
     queryFn: getToHandle,
+    refetchInterval: 60_000,
+  });
+}
+
+/** « Parcours » — chaque acquisition tracée du grab au rangement (F1). */
+export function useJourneys() {
+  return useQuery({
+    queryKey: acqKeys.journeys(),
+    queryFn: getJourneys,
     refetchInterval: 60_000,
   });
 }
