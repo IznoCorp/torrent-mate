@@ -123,15 +123,7 @@ function AppShellInner(): ReactElement {
         </span>
       );
     } else if (waitingForOperator > 0) {
-      // Amber, not red: this counts work AWAITING the operator, and painting
-      // attention as error would leave no color for actual failure (the « ? »
-      // above keeps the danger tone precisely because it IS one).
-      map["/acquisition"] = (
-        <NavCountBadge
-          count={waitingForOperator}
-          className="bg-warning text-warning-foreground"
-        />
-      );
+      map["/acquisition"] = <NavCountBadge count={waitingForOperator} />;
     }
     return map;
   }, [

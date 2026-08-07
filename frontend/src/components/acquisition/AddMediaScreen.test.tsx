@@ -40,7 +40,6 @@ vi.mock("react-router-dom", () => ({
 }));
 
 import { AddMediaScreen } from "@/components/acquisition/AddMediaScreen";
-import { toast } from "sonner";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -298,7 +297,7 @@ describe("AddMediaScreen", () => {
   it("ajout par ID : la notation scientifique est refusée et le bouton dit pourquoi", () => {
     renderAdd({});
     // Expand the by-ID section by clicking the summary text.
-    fireEvent.click(screen.getByText(/ou ajouter directement par ID/i));
+    fireEvent.click(screen.getByText(/Ajouter directement par identifiant/i));
     const idInput = screen.getByLabelText(/Identifiant/);
     fireEvent.change(idInput, { target: { value: "12e34" } });
     expect(screen.getByRole("button", { name: "Suivre" })).toBeDisabled();
@@ -310,9 +309,11 @@ describe("AddMediaScreen", () => {
   it("un ID TVDB non résolu est AVOUÉ, pas tu", () => {
     renderAdd({ followResult: { tvdb_unresolved: true } });
     addById("tt0903747", "imdb");
-    // The toast is the user-visible signal — the component does not render
-    // the warning inline (same pattern as MediaSearchAdd).
-    expect(vi.mocked(toast.warning)).toHaveBeenCalled();
+    // The maquette's IN-SCREEN toast is the user-visible signal — a global
+    // toaster under the full-screen sheet is a confirmation nobody sees.
+    expect(screen.getByRole("status")).toHaveTextContent(
+      /ID TVDB n'a pas pu être résolu/,
+    );
   });
 
   // ── Pagination (infinite scroll) ─────────────────────────────────────

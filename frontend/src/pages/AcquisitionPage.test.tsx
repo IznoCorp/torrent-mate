@@ -324,14 +324,19 @@ describe("AcquisitionPage", () => {
 
   // ── Tablist scroll classes ──────────────────────────────────────────────
 
-  it("has flex-nowrap and overflow-x-auto, NOT flex-wrap", () => {
+  it("le train d'onglets est le .seg maquette, avec le « ⋮ » DÉTACHÉ (.more)", () => {
     mockAllEmpty();
     renderPage();
 
+    // Maquette .seg: two equal-width tabs in one muted segment; the « ⋮ » is
+    // its own bordered button BESIDE the segment, never a third rank inside.
     const tablist = screen.getByRole("tablist");
-    expect(tablist.className).toMatch(/\bflex-nowrap\b/);
-    expect(tablist.className).toMatch(/\boverflow-x-auto\b/);
-    expect(tablist.className).not.toMatch(/\bflex-wrap\b/);
+    expect(tablist.className).toMatch(/\bseg\b/);
+    const more = screen.getByRole("button", {
+      name: "Plus — veille et obligations",
+    });
+    expect(more.className).toMatch(/\bmore\b/);
+    expect(tablist.contains(more)).toBe(false);
   });
 
   // ── Tablist ARIA ────────────────────────────────────────────────────────
@@ -534,7 +539,9 @@ describe("AcquisitionPage", () => {
     renderPage();
 
     fireEvent.click(screen.getByRole("button", { name: "Ajouter un média" }));
-    expect(screen.queryByRole("button", { name: /Fermer|Close/ })).toBeNull();
+    // The toast's « Fermer la notification » is NOT a screen-close cross —
+    // only an unlabelled sheet close (the shadcn X) would be.
+    expect(screen.queryByRole("button", { name: /^(Fermer|Close)$/ })).toBeNull();
   });
 
   it("?add=1 en URL directe ouvre l'écran d'ajout (DOIT-10)", () => {

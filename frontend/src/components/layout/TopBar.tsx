@@ -1,8 +1,9 @@
 import { Menu } from "lucide-react";
-import type { ReactElement } from "react";
+import { useEffect, useRef, type ReactElement } from "react";
 import { Link } from "react-router-dom";
 
 import { BrandMark } from "@/components/ds/BrandMark";
+import { TOPBAR_HEIGHT_VAR } from "@/components/layout/bottom-bar-metrics";
 import { StatusDot, type PipelineStatus } from "@/components/ds/StatusDot";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 import { UserMenu } from "@/components/layout/UserMenu";
@@ -70,11 +71,43 @@ const CONNECTION_DISPLAY: Record<
  * @returns The top bar element.
  */
 export function TopBar({ onOpenNav }: TopBarProps): ReactElement {
+  const headerRef = useRef<HTMLElement | null>(null);
+
+  // Publish the sticky header's measured height (same contract as the bottom
+  // bar): the acquisition view pins its tab train and filter zone right under
+  // this header, and a hardcoded offset would drift on safe-area/rotation.
+  useEffect(() => {
+    const el = headerRef.current;
+    const root = document.documentElement;
+    if (el == null) return;
+    const publish = (): void => {
+      root.style.setProperty(
+        TOPBAR_HEIGHT_VAR,
+        `${String(el.getBoundingClientRect().height)}px`,
+      );
+    };
+    publish();
+    if (typeof ResizeObserver === "undefined") {
+      return () => {
+        root.style.removeProperty(TOPBAR_HEIGHT_VAR);
+      };
+    }
+    const observer = new ResizeObserver(publish);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty(TOPBAR_HEIGHT_VAR);
+    };
+  }, []);
+
   const { connectionState } = useEventStreamContext();
   const display = CONNECTION_DISPLAY[connectionState];
 
   return (
-    <header className="sticky top-0 z-40 flex items-center gap-4 border-b border-border bg-background/85 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] backdrop-blur-sm md:px-6">
+    <header
+      ref={headerRef}
+      className="sticky top-0 z-40 flex items-center gap-4 border-b border-border bg-background/85 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] backdrop-blur-sm md:px-6"
+    >
       <button
         type="button"
         onClick={onOpenNav}

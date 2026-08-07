@@ -571,7 +571,9 @@ describe("SuivisPanel", () => {
   it("le commutateur est séparé des puces par un séparateur, pas par un dégradé (A9)", () => {
     renderPanel(FULL_ITEMS);
     const group = screen.getByRole("group", { name: "Mode d'affichage" });
-    expect(group.parentElement?.className).toMatch(/border-l/);
+    // Maquette .vswwrap draws the hard 1px divider (::before) — the class IS
+    // the contract now that the styles are transplanted, not utility-built.
+    expect(group.parentElement?.className).toMatch(/\bvswwrap\b/);
     expect(group.parentElement?.className).not.toMatch(/gradient/);
   });
 

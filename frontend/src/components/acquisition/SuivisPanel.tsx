@@ -37,6 +37,10 @@ import { Chip } from "./Chip";
 import { SwipeActions } from "./SwipeActions";
 import { useFollowActions } from "./followActions";
 import { useSchedulers } from "@/hooks/useSchedulers";
+import {
+  TOPBAR_HEIGHT_VAR,
+  VIEWTABS_HEIGHT_VAR,
+} from "@/components/layout/bottom-bar-metrics";
 import { FollowDetailSheet } from "./FollowDetailSheet";
 import type { FollowStatus } from "./meta";
 import {
@@ -457,26 +461,15 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
     ];
 
     return (
-      <div
-        className="flex-none border-l border-border bg-background pl-2"
-        // Switcher placement B mitigation (A9): hard divider + solid background,
-        // never a gradient — the pills filter DATA, the switcher changes
-        // PRESENTATION, and the two natures must not read as one train.
-      >
-        <div
-          role="group"
-          aria-label="Mode d'affichage"
-          className="flex items-center gap-0.5 rounded-md bg-muted p-[3px]"
-        >
+      /* Maquette .vswwrap: hard 1px divider then the icon triplet — the pills
+         filter DATA, the switcher changes PRESENTATION, and the two natures
+         must not read as one train (A9). */
+      <div className="vswwrap">
+        <div role="group" aria-label="Mode d'affichage" className="vsw">
           {modes.map((m) => (
             <button
               key={m.key}
               type="button"
-              className={`grid h-7 w-8 place-items-center rounded transition-colors ${
-                viewMode === m.key
-                  ? "bg-background text-primary shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
               aria-label={m.ariaLabel}
               aria-pressed={viewMode === m.key}
               onClick={() => {
@@ -495,22 +488,24 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
 
   return (
     <>
-      <div className="flex flex-col gap-4 px-3 py-3">
+      <div className="flex flex-col gap-4 px-[14px] py-2">
         {/* ── Sticky filter zone ──────────────────────────────────────── */}
 
-        {/* Filter zone — ONE sticky block, per the maquette: search field
-            then pill train + switcher, always visible above the list (§5.1;
-            D7 was losing the filter after two screens of scroll). The pills
-            scroll in their OWN container with the scrollbar hidden; the
-            switcher sits outside it, so at 375 px it never scrolls away with
-            the train — a mode control the operator cannot see is a mode the
-            operator does not know exists. */}
-        <div className="sticky top-0 z-10 -mx-3 flex flex-col gap-2 border-b border-border bg-background px-3 pb-2 pt-1">
-          <label className="flex items-center gap-2 rounded-md bg-muted px-2.5">
-            <SearchIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+        {/* Filter zone — the maquette's .filters block, pinned under the
+            view tabs (measured heights, no hardcoded offsets): search field,
+            then pill train + view switcher behind a hard divider. Only the
+            list below scrolls (§5.1); the block's border-bottom is the
+            separator the maquette draws. */}
+        <div
+          className="filters sticky z-20 -mx-[14px]"
+          style={{
+            top: `calc(var(${TOPBAR_HEIGHT_VAR}, 56px) + var(${VIEWTABS_HEIGHT_VAR}, 58px))`,
+          }}
+        >
+          <label className="search">
+            <SearchIcon aria-hidden="true" />
             <input
               type="search"
-              className="min-w-0 flex-1 border-0 bg-transparent py-2 text-sm outline-none placeholder:text-muted-foreground"
               placeholder="Filtrer par nom"
               value={nameFilter}
               onChange={(e) => {
@@ -518,8 +513,8 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
               }}
             />
           </label>
-          <div className="flex items-center">
-            <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto pr-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="pillbar">
+            <div className="pillscroll">
               {(["tout", "series", "films", "pause"] as const).map((k) => {
                 const pm = PILLS[k];
                 const count = pm.count(items);
@@ -527,18 +522,14 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
                   <button
                     key={k}
                     type="button"
-                    className={`shrink-0 rounded-full border px-[11px] py-[5px] text-xs font-semibold transition-colors ${
-                      pill === k
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-transparent text-muted-foreground hover:text-foreground"
-                    }`}
+                    className="pill"
                     aria-pressed={pill === k}
                     onClick={() => {
                       setPill(k);
                     }}
                   >
-                    {pm.label}{" "}
-                    <span className="font-medium opacity-70">{String(count)}</span>
+                    {pm.label}
+                    <span className="c">{String(count)}</span>
                   </button>
                 );
               })}

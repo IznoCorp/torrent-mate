@@ -12,8 +12,9 @@
  * count so several media can be added in a row.
  */
 
-import { ArrowLeft, ChevronDown } from "lucide-react";
+import { ArrowLeft, Search as SearchIcon, X } from "lucide-react";
 import {
+  useRef,
   useState,
   type ReactElement,
   type SyntheticEvent,
@@ -22,9 +23,7 @@ import {
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { mediaSheetHref } from "@/lib/media-href";
-import { toast } from "sonner";
 
-import { cn } from "@/lib/utils";
 
 import type { CreateFollowRequest, MediaSearchResult } from "@/api/acquisition";
 import { EmptyState } from "@/components/ds/EmptyState";
@@ -128,6 +127,18 @@ export function AddMediaScreen({
   const [followed, setFollowed] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
+  // Maquette .toast: the add confirmation lives INSIDE this screen (a global
+  // toaster under the full-screen sheet is a confirmation nobody sees).
+  // Auto-hides after 5 s; the close cross remains the real control.
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showToast = (msg: string): void => {
+    setToastMsg(msg);
+    if (toastTimer.current != null) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => {
+      setToastMsg(null);
+    }, 5000);
+  };
   // Count of items added this session (for the footer bar).
   const [addedCount, setAddedCount] = useState(0);
 
@@ -204,7 +215,7 @@ export function AddMediaScreen({
     const key = `${result.provider}-${String(result.provider_id)}`;
     followMut.mutate(toFollowBody(result), {
       onSuccess: () => {
-        toast.success(`« ${result.title} » ajouté au suivi`);
+        showToast(`« ${result.title} » ajouté au suivi`);
         setFollowed((prev) => new Set(prev).add(key));
         setAddedCount((c) => c + 1);
         // Keep the results visible so several media can be added in a row (§7).
@@ -220,12 +231,12 @@ export function AddMediaScreen({
     if (idTitle.trim()) body.title = idTitle.trim();
     followMut.mutate(body, {
       onSuccess: (created) => {
-        toast.success("Média ajouté au suivi");
+        showToast("Média ajouté au suivi");
         setIdValue("");
         setIdTitle("");
         setAddedCount((c) => c + 1);
         if (created.tvdb_unresolved) {
-          toast.warning(
+          showToast(
             "Série ajoutée, mais l'ID TVDB n'a pas pu être résolu — la détection d'épisodes est indisponible tant qu'un ID TVDB n'est pas fourni.",
           );
         }
@@ -263,43 +274,40 @@ export function AddMediaScreen({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
-        side="bottom"
-        // Correction 2: h-dvh, not the default max-h-[80vh] cap —
-        // the keyboard eats half the phone and a results list in 80vh
-        // is exactly the failure §7 names. pb-safe kept from the base.
-        className="h-dvh max-h-none flex flex-col pb-[env(safe-area-inset-bottom)]"
-        // The maquette has no close cross: leaving is the BACK gesture —
-        // the open state lives in the history, so browser/phone back closes
-        // this screen, and the header arrow is the visible way to say it.
+        // Maquette .fiche: a FULL SCREEN that slides in from the right, with
+        // its own « ‹ Retour » — never a low sheet (the keyboard eats half
+        // the phone), never a close cross (leaving is the back gesture; the
+        // open state lives in the history).
+        side="right"
+        className="mq h-dvh max-h-none w-full max-w-none gap-0 p-0 pb-[env(safe-area-inset-bottom)] flex flex-col"
         showCloseButton={false}
       >
-        <SheetHeader>
-          <div className="flex items-center gap-1">
+        <SheetHeader className="p-0">
+          <SheetTitle className="sr-only">Ajouter un média à suivre</SheetTitle>
+          <SheetDescription className="sr-only">
+            Recherchez un film ou une série, ou ajoutez-le directement par son
+            identifiant.
+          </SheetDescription>
+          <div className="fichebar">
             <button
               type="button"
               aria-label="Retour"
-              className="-ml-2 grid size-9 shrink-0 place-items-center rounded-md text-muted-foreground hover:text-foreground"
+              className="fback"
               onClick={() => {
                 onOpenChange(false);
               }}
             >
-              <ArrowLeft aria-hidden="true" className="size-5" />
+              <ArrowLeft aria-hidden="true" />
+              Retour
             </button>
-            <SheetTitle>Ajouter un média</SheetTitle>
           </div>
-          <SheetDescription>
-            Recherchez un film ou une série, ou ajoutez-le directement par son
-            identifiant.
-          </SheetDescription>
         </SheetHeader>
 
-        {/* ── Search form (fixed, never scrolls) ─────────────────────── */}
-        <form
-          onSubmit={submit}
-          className="flex flex-col gap-2 px-4 sm:flex-row sm:items-end"
-        >
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <Input
+        {/* ── Search form (fixed, never scrolls) — maquette .addform ──── */}
+        <form onSubmit={submit} className="addform">
+          <label className="search">
+            <SearchIcon aria-hidden="true" />
+            <input
               id="add-media-search"
               type="search"
               role="searchbox"
@@ -309,34 +317,34 @@ export function AddMediaScreen({
               }}
               placeholder="Titre (film ou série)"
               aria-label="Rechercher un média"
+              autoComplete="off"
             />
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex flex-1 items-center gap-1 rounded-md border border-border p-0.5 sm:flex-none">
+          </label>
+          <div className="addrow">
+            <div className="pillscroll">
               {(["all", "tv", "movie"] as const).map((k) => (
-                <Button
+                <button
                   key={k}
                   type="button"
-                  size="sm"
-                  className="flex-1 sm:flex-none"
-                  variant={kind === k ? "default" : "ghost"}
+                  className="pill"
+                  aria-pressed={kind === k}
                   onClick={() => {
                     setKind(k);
                   }}
                 >
                   {k === "all" ? "Tout" : k === "tv" ? "Séries" : "Films"}
-                </Button>
+                </button>
               ))}
             </div>
-            <Button type="submit" className="shrink-0">
+            <button type="submit" className="btnprimary">
               Chercher
-            </Button>
+            </button>
           </div>
         </form>
 
-        {/* ── Add-by-ID (collapsible) ────────────────────────────────── */}
+        {/* ── Add-by-ID (collapsible) — maquette .byid accordion ──────── */}
         <details
-          className="mx-4 flex flex-col gap-2 rounded-lg border border-border p-3"
+          className="byid shrink-0"
           open={idOpen}
           onToggle={(e) => {
             setIdOpen((e.target as HTMLDetailsElement).open);
@@ -346,37 +354,27 @@ export function AddMediaScreen({
             role="button"
             aria-expanded={idOpen}
             aria-controls="acq-by-id-region"
-            className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
-            <ChevronDown
-              className={cn(
-                "size-3.5 transition-transform",
-                idOpen ? "rotate-0" : "-rotate-90",
-              )}
-              aria-hidden="true"
-            />
-            ou ajouter directement par ID
+            Ajouter directement par identifiant
           </summary>
           <div
             id="acq-by-id-region"
             role="group"
             aria-label="Ajout par identifiant"
-            className="mt-2 flex flex-col gap-2"
+            className="byidin"
           >
-            <div className="flex items-center gap-1 rounded-md border border-border p-0.5 sm:w-fit">
+            <div className="segmini">
               {(["tvdb", "tmdb", "imdb"] as const).map((p) => (
-                <Button
+                <button
                   key={p}
                   type="button"
-                  size="sm"
-                  className="flex-1 sm:flex-none"
-                  variant={provider === p ? "default" : "ghost"}
+                  aria-pressed={provider === p}
                   onClick={() => {
                     setProvider(p);
                   }}
                 >
                   {p.toUpperCase()}
-                </Button>
+                </button>
               ))}
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
@@ -416,13 +414,14 @@ export function AddMediaScreen({
                   }}
                 />
               </div>
-              <Button
-                className="w-full sm:w-auto sm:shrink-0"
+              <button
+                type="button"
+                className="btnprimary w-full sm:w-auto sm:shrink-0"
                 disabled={idBody === null || followMut.isPending}
                 onClick={handleAddById}
               >
                 {followMut.isPending ? "Ajout…" : "Suivre"}
-              </Button>
+              </button>
             </div>
           </div>
         </details>
@@ -433,7 +432,15 @@ export function AddMediaScreen({
           data-testid="search-results"
           onScroll={handleScroll}
         >
-          {query === "" ? null : searchQuery.isLoading ? (
+          {query === "" ? (
+            /* Maquette idle state: what to do, and the one honesty rule of
+               this screen, before anything has been asked. */
+            <div className="empty">
+              <b>Cherchez un titre</b>
+              Les fournisseurs ne sont interrogés qu&apos;à la validation — pas
+              à chaque frappe.
+            </div>
+          ) : searchQuery.isLoading ? (
             <div className="flex flex-col gap-3">
               {Array.from({ length: 5 }).map((_, i) => (
                 <div
@@ -484,7 +491,7 @@ export function AddMediaScreen({
               {/* Vertical list — each row carries year, kind, provider,
                   and a two-line overview so two homonyms are distinguishable
                   (§12: width is the scarce resource). */}
-              <ul className="flex flex-col gap-3" role="list">
+              <ul className="reslist p-0" role="list">
                 {results.map((result) => {
                   const key = `${result.provider}-${String(result.provider_id)}`;
                   const done = followed.has(key);
@@ -492,19 +499,13 @@ export function AddMediaScreen({
                   const kindLabel =
                     FOLLOW_KIND_LABEL[asMediaKind(result.kind)] ?? result.kind;
                   return (
-                    <li
-                      key={key}
-                      className="flex items-start gap-3 rounded-lg border border-border p-3"
-                    >
-                      {/* Poster 54x81. It is a button: a search result is an
-                          identified media, so it always has a sheet, and §11
-                          requires every media to lead to it. The poster rather
-                          than the whole row, because the row already carries
-                          the add action — nesting one control inside another is
-                          invalid HTML and makes the tap target ambiguous. */}
+                    <li key={key} className="res">
+                      {/* Poster 54x81 (maquette .rp). It is a button: a search
+                          result is an identified media, so it always has a
+                          sheet, and §11 requires every media to lead to it. */}
                       <button
                         type="button"
-                        className="shrink-0 leading-none"
+                        className="rp"
                         aria-label={`Fiche de ${result.title}`}
                         onClick={() => {
                           void navigate(
@@ -517,56 +518,44 @@ export function AddMediaScreen({
                         }}
                       >
                         {result.poster_url ? (
-                          <img
-                            src={result.poster_url}
-                            alt=""
-                            className="h-[81px] w-[54px] rounded object-cover"
-                            loading="lazy"
-                          />
+                          <img src={result.poster_url} alt="" loading="lazy" />
                         ) : (
-                          <div className="flex h-[81px] w-[54px] items-center justify-center rounded bg-muted text-[length:var(--text-2xs)] text-muted-foreground">
-                            N/A
-                          </div>
+                          result.title.slice(0, 1).toUpperCase()
                         )}
                       </button>
-                      <div className="flex min-w-0 flex-1 flex-col gap-1">
-                        <p className="truncate text-sm font-medium">
-                          {result.title}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
+                      <div className="rb">
+                        <p className="rt truncate">{result.title}</p>
+                        <p className="rm">
                           {result.year != null ? `${String(result.year)} · ` : ""}
                           {kindLabel}
                           {" · "}
                           {providerLabel(result.provider)}
                         </p>
-                        {result.overview && (
-                          <p className="line-clamp-2 text-xs text-muted-foreground">
-                            {result.overview}
-                          </p>
-                        )}
-                        <div className="mt-1 flex items-center gap-2">
+                        {result.overview && <p className="ro">{result.overview}</p>}
+                        <div className="ra">
                           {result.already_owned && (
                             <span className="text-[length:var(--text-2xs)] text-warning">
                               Déjà en médiathèque
                             </span>
                           )}
-                          <Button
-                            size="sm"
-                            variant={done ? "outline" : "default"}
-                            className="ml-auto"
+                          {/* Maquette .resbtn: solid primary « Suivre/Ajouter »
+                              that flips to an OUTLINED success « ✓ Suivi/
+                              ✓ Ajouté » once done; an owned film asks first
+                              (warning outline, « Suivre… »). */}
+                          <button
+                            type="button"
+                            className={`resbtn ml-auto ${done ? "done" : result.already_owned ? "owned" : ""}`}
                             disabled={done || followMut.isPending}
                             onClick={() => {
                               follow(result);
                             }}
                           >
-                            {done ? (
-                              words.added
-                            ) : result.already_owned ? (
-                              words.addAsk
-                            ) : (
-                              words.add
-                            )}
-                          </Button>
+                            {done
+                              ? words.added
+                              : result.already_owned
+                                ? words.addAsk
+                                : words.add}
+                          </button>
                         </div>
                       </div>
                     </li>
@@ -593,16 +582,15 @@ export function AddMediaScreen({
           )}
         </div>
 
-        {/* ── Footer bar — count of added items ──────────────────────── */}
+        {/* ── Footer bar — maquette .addfoot ─────────────────────────── */}
         {addedCount > 0 && (
-          <div className="flex items-center justify-between border-t border-border px-4 pt-3">
-            <p className="text-sm text-muted-foreground">
+          <div className="addfoot">
+            <p>
               {addedCount} média{addedCount > 1 ? "s" : ""} ajouté
               {addedCount > 1 ? "s" : ""} au suivi
             </p>
-            <Button
-              variant="link"
-              size="sm"
+            <button
+              type="button"
               onClick={() => {
                 // Canonical target — the legacy value costs a redirect render.
                 void navigate("/acquisition?tab=suivis");
@@ -610,7 +598,7 @@ export function AddMediaScreen({
               }}
             >
               Voir mes suivis →
-            </Button>
+            </button>
           </div>
         )}
 
@@ -650,6 +638,26 @@ export function AddMediaScreen({
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        {/* ── Maquette toast — in-screen confirmation ─────────────────── */}
+        <div
+          className={`mqtoast ${toastMsg != null ? "show" : ""}`}
+          role="status"
+          aria-atomic="true"
+          aria-live="polite"
+        >
+          <span>{toastMsg ?? ""}</span>
+          <button
+            type="button"
+            className="mqtoastclose"
+            aria-label="Fermer la notification"
+            onClick={() => {
+              if (toastTimer.current != null) clearTimeout(toastTimer.current);
+              setToastMsg(null);
+            }}
+          >
+            <X aria-hidden="true" />
+          </button>
+        </div>
       </SheetContent>
     </Sheet>
   );

@@ -13,7 +13,7 @@
  */
 
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { MoreVertical, Plus } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -46,7 +46,11 @@ import {
 } from "@/components/acquisition/meta";
 import { PlusSheet } from "@/components/acquisition/PlusSheet";
 import { SuivisPanel } from "@/components/acquisition/SuivisPanel";
-import { aboveBottomBar } from "@/components/layout/bottom-bar-metrics";
+import {
+  TOPBAR_HEIGHT_VAR,
+  VIEWTABS_HEIGHT_VAR,
+  aboveBottomBar,
+} from "@/components/layout/bottom-bar-metrics";
 import { useWaitingForOperator } from "@/hooks/useAcquisition";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 import { handleTablistKeyDown } from "@/lib/tablist";
@@ -130,6 +134,33 @@ export default function AcquisitionPage(): ReactElement {
   // will mostly happen through the tabs. Only a thumb on a real device can say
   // whether that trade is right; the tabs remain the guaranteed path either way.
   const pagerRef = useRef<HTMLDivElement | null>(null);
+  const viewtabsRef = useRef<HTMLDivElement | null>(null);
+
+  // Publish the view-tabs height: the Suivis filter zone pins directly under
+  // this bar and needs its real measured height (same contract as the bars).
+  useEffect(() => {
+    const el = viewtabsRef.current;
+    const root = document.documentElement;
+    if (el == null) return;
+    const publish = (): void => {
+      root.style.setProperty(
+        VIEWTABS_HEIGHT_VAR,
+        `${String(el.getBoundingClientRect().height)}px`,
+      );
+    };
+    publish();
+    if (typeof ResizeObserver === "undefined") {
+      return () => {
+        root.style.removeProperty(VIEWTABS_HEIGHT_VAR);
+      };
+    }
+    const observer = new ResizeObserver(publish);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty(VIEWTABS_HEIGHT_VAR);
+    };
+  }, []);
   const dragRef = useRef<{
     x: number;
     y: number;
@@ -260,74 +291,77 @@ export default function AcquisitionPage(): ReactElement {
   }, [events, queryClient]);
 
   return (
-    <section className="mx-auto flex max-w-5xl flex-col gap-4">
-      {/* Tabs — two views. E5 segmented control.
+    <section className="mq -mx-4 -mt-4 mx-auto flex max-w-5xl flex-col md:mx-auto md:mt-0">
+      {/* Tabs — the maquette's .viewtabs: an equal-width .seg segment plus a
+          DETACHED « ⋮ » (.more). Pinned under the topbar (measured height, not
+          a hardcoded offset) so only the list below scrolls.
           ACQUISITION-7 (ticket 250): full WAI-ARIA tablist wiring — roving
           tabIndex + arrow-key navigation + tab/panel linkage. */}
       <div
-        role="tablist"
-        aria-label="Vues de la page Acquisition"
-        className="flex flex-nowrap gap-1 overflow-x-auto rounded-lg bg-muted p-1"
-        onKeyDown={(e) => {
-          handleTablistKeyDown(
-            e,
-            TABS.map((t) => t.id),
-            activeTab,
-            (id) => {
-              setActiveTab(id, true);
-            },
-            (id) => `acq-tab-${id}`,
-          );
-        }}
+        ref={viewtabsRef}
+        className="viewtabs sticky z-30 bg-background"
+        style={{ top: `var(${TOPBAR_HEIGHT_VAR}, 56px)` }}
       >
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            id={`acq-tab-${tab.id}`}
-            role="tab"
-            aria-selected={activeTab === tab.id}
-            aria-controls="acq-tabpanel"
-            tabIndex={activeTab === tab.id ? 0 : -1}
-            onClick={() => {
-              setActiveTab(tab.id);
-            }}
-            className={`whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors sm:flex-1 ${
-              activeTab === tab.id
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {tab.label}
-            {/* §3.2 — the badge counts WHAT AWAITS THE OPERATOR, same
-                derivation as the nav badge (§13). « ? » when unknowable. */}
-            {tab.id === "maintenant" && (waiting.unknown || waiting.count > 0) && (
-              <span
-                data-testid="tab-maintenant-badge"
-                className="ml-1.5 inline-flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-warning px-1 text-[0.6875rem] font-semibold leading-none text-warning-foreground"
-                aria-label={
-                  waiting.unknown
-                    ? "Compteur indisponible"
-                    : `${String(waiting.count)} élément(s) à traiter`
-                }
-              >
-                {waiting.unknown ? "?" : String(waiting.count)}
-              </span>
-            )}
-          </button>
-        ))}
-        {/* « ⋮ » — second rank, AT THE END OF THE TAB TRAIN (maquette): a
-            full-width « Plus » button at page bottom was reading as a primary
-            action, which Veille/Obligations are precisely not. */}
+        <div
+          role="tablist"
+          aria-label="Vues de la page Acquisition"
+          className="seg"
+          onKeyDown={(e) => {
+            handleTablistKeyDown(
+              e,
+              TABS.map((t) => t.id),
+              activeTab,
+              (id) => {
+                setActiveTab(id, true);
+              },
+              (id) => `acq-tab-${id}`,
+            );
+          }}
+        >
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              id={`acq-tab-${tab.id}`}
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              aria-controls="acq-tabpanel"
+              tabIndex={activeTab === tab.id ? 0 : -1}
+              onClick={() => {
+                setActiveTab(tab.id);
+              }}
+            >
+              {tab.label}
+              {/* §3.2 — the badge counts WHAT AWAITS THE OPERATOR, same
+                  derivation as the nav badge (§13). « ? » when unknowable. */}
+              {tab.id === "maintenant" && (waiting.unknown || waiting.count > 0) && (
+                <span
+                  data-testid="tab-maintenant-badge"
+                  className="n"
+                  aria-label={
+                    waiting.unknown
+                      ? "Compteur indisponible"
+                      : `${String(waiting.count)} élément(s) à traiter`
+                  }
+                >
+                  {waiting.unknown ? "?" : String(waiting.count)}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+        {/* « ⋮ » — its own bordered button BESIDE the segment (maquette
+            .more), never inside the train: Veille/Obligations are not a
+            third view. */}
         <button
           type="button"
           aria-label="Plus — veille et obligations"
-          className="ml-auto shrink-0 rounded-md px-3 py-2 text-lg leading-none text-muted-foreground hover:text-foreground"
+          className="more"
           onClick={() => {
             setPlusOpen(true);
           }}
         >
-          ⋮
+          <MoreVertical aria-hidden="true" />
         </button>
       </div>
 
@@ -340,7 +374,7 @@ export default function AcquisitionPage(): ReactElement {
         // stops the browser's OWN pull-to-refresh from
         // reloading the page: a full reload loses the view, the filters and the
         // display mode, which is the opposite of what the pull asked for.
-        className="flex touch-pan-y flex-col gap-4 pt-1"
+        className="flex touch-pan-y flex-col"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

@@ -13,6 +13,7 @@
       collision with the DS `:root` declarations. */
 @import "tailwindcss";
 @import "./ps/styles.css";
+@import "./ps/maquette-acquisition.css";
 
 /* Opt-in light surface: `<... class="light">`. DS ships dark on :root. */
 @custom-variant light (&:is(.light *));

@@ -23,6 +23,12 @@
  */
 export const BOTTOM_BAR_HEIGHT_VAR = "--tm-bottom-bar-h";
 
+/** Measured sticky-topbar height, published by Topbar (same contract). */
+export const TOPBAR_HEIGHT_VAR = "--tm-topbar-h";
+
+/** Measured view-tabs height, published by AcquisitionPage (same contract). */
+export const VIEWTABS_HEIGHT_VAR = "--tm-viewtabs-h";
+
 /**
  * Build a CSS length that sits `gap` above the bottom bar, whatever its height.
  *

@@ -607,7 +607,7 @@ export function MaintenantPanel(): ReactElement {
 
   return (
     <>
-      <div className="flex flex-col gap-4 px-3 py-3">
+      <div className="flex flex-col gap-4 px-[14px] py-2">
         {/* Above the sections, not inside one: this is work that has STOPPED,
             and it belongs to no stage — an acquisition parked at « récupéré »
             is neither takeable nor in flight. It renders nothing when nothing
