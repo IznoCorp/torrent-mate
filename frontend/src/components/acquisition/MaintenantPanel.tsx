@@ -330,10 +330,8 @@ export function MaintenantPanel(): ReactElement {
         // §12: blocking reason wraps, never truncates — `reason`, not `subtitle`.
         reason={item.reason}
         meta={null}
-        onOpen={() => {
-          /* Blocked items have no detail sheet — « Résoudre → » is their action. */
-        }}
         // Blocked items have no resolved provider id — no poster link (§11).
+        // No onOpen either — a button that does nothing is a dead control (§11).
         strip={<JourneyStrip stage={item.stage} blocked />}
         // « Résoudre → » lives in footer (full width, under the strip),
         // NOT in meta — nested interactive regions are invalid HTML
@@ -374,10 +372,9 @@ export function MaintenantPanel(): ReactElement {
             }
           : {})}
         meta={null}
-        onOpen={() => {
-          /* Grabbed items have no detail sheet yet — future tasks may wire
-             a pipeline-progress detail here. */
-        }}
+        // Grabbed items have no detail sheet yet — future tasks may wire
+        // a pipeline-progress detail here. No onOpen until then (§11:
+        // a button that does nothing is a dead control).
         // Stage derived from the real journey, not hardcoded « pris ».
         // When the stage cannot be established (no journey match or a
         // reconstructed row with gaps), the strip is omitted entirely —

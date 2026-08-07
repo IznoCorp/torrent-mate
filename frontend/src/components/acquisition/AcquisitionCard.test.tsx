@@ -28,6 +28,16 @@ describe("AcquisitionCard", () => {
     expect(screen.queryByRole("button", { name: /Fiche de/i })).toBeNull();
   });
 
+  it("§11 — sans onOpen, le corps n'est PAS un bouton (aucun faux contrôle)", () => {
+    render(
+      <AcquisitionCard title="Silo" posterUrl={null} />,
+    );
+    // Le corps ne doit pas être un <button>.
+    expect(screen.queryByRole("button", { name: "Silo" })).toBeNull();
+    // Le titre est toujours visible, dans un élément non-interactif.
+    expect(screen.getByTestId("acq-card-title")).toHaveTextContent("Silo");
+  });
+
   it("R3 — la ligne du titre ne contient QUE le titre", () => {
     render(
       <AcquisitionCard {...base} meta={<span data-testid="chip">Nouveau</span>} />,

@@ -13,9 +13,11 @@
  *   column and overlapped its labels.
  * - **R3** — the title line accepts nothing but the title (§12). Everything that
  *   qualifies the media goes on the meta line, the only one that wraps.
- * - **§11** — the poster is a button only when `onPoster` is given. For an
- *   unidentified media it is not a disabled button, it is not a button at all:
- *   §11 forbids a dead link, and a greyed control is the same broken promise.
+ * - **§11** — the poster is a button only when `onPoster` is given, and the
+ *   body is a button only when `onOpen` is given. For an item with no detail
+ *   sheet or no media sheet, the corresponding element is not a disabled
+ *   button, it is not a button at all: §11 forbids a dead link, and a greyed
+ *   control is the same broken promise.
  */
 
 import { type ReactElement, type ReactNode } from "react";
@@ -34,8 +36,10 @@ export interface AcquisitionCardProps {
   readonly reason?: string;
   /** The meta line — fraction, status chip, tags. */
   readonly meta?: ReactNode;
-  /** Tap on the body → the detail sheet. */
-  readonly onOpen: () => void;
+  /** Tap on the body → the detail sheet. Omit when the card has no detail sheet
+   *  — exactly the same rationale as {@link onPoster}: a button that does nothing
+   *  is a dead control (§11). */
+  readonly onOpen?: () => void;
   /** Tap on the poster → the media sheet. Omit when the media has no sheet (§11). */
   readonly onPoster?: () => void;
   /** Desktop-only actions menu, rendered inside the card (R1). */
@@ -44,6 +48,41 @@ export interface AcquisitionCardProps {
   readonly strip?: ReactNode;
   /** Full-width action row under the strip. */
   readonly footer?: ReactNode;
+}
+
+/** Props for the inner body — extracted so button/div share one copy. */
+interface CardBodyProps {
+  readonly title: string;
+  readonly subtitle?: string;
+  readonly reason?: string;
+  readonly meta?: ReactNode;
+}
+
+/** The card's inner content — title line, subtitle, reason, meta. */
+function AcquisitionCardBody({
+  title,
+  subtitle,
+  reason,
+  meta,
+}: CardBodyProps): ReactElement {
+  return (
+    <span className="block min-w-0 flex-1">
+      <span data-testid="acq-card-title" className="block truncate text-sm font-medium">
+        {title}
+      </span>
+      {subtitle != null && (
+        <span className="mt-0.5 block truncate text-xs text-muted-foreground">{subtitle}</span>
+      )}
+      {reason != null && (
+        <span className="mt-0.5 line-clamp-2 block text-xs text-muted-foreground">
+          {reason}
+        </span>
+      )}
+      {meta != null && (
+        <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">{meta}</span>
+      )}
+    </span>
+  );
 }
 
 /**
@@ -93,29 +132,30 @@ export function AcquisitionCard({
           </span>
         )}
 
-        <button
-          type="button"
-          className="flex min-w-0 flex-1 items-center gap-[10px] text-left"
-          aria-label={title}
-          onClick={onOpen}
-        >
-          <span className="block min-w-0 flex-1">
-            <span data-testid="acq-card-title" className="block truncate text-sm font-medium">
-              {title}
-            </span>
-            {subtitle != null && (
-              <span className="mt-0.5 block truncate text-xs text-muted-foreground">{subtitle}</span>
-            )}
-            {reason != null && (
-              <span className="mt-0.5 line-clamp-2 block text-xs text-muted-foreground">
-                {reason}
-              </span>
-            )}
-            {meta != null && (
-              <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">{meta}</span>
-            )}
-          </span>
-        </button>
+        {onOpen ? (
+          <button
+            type="button"
+            className="flex min-w-0 flex-1 items-center gap-[10px] text-left"
+            aria-label={title}
+            onClick={onOpen}
+          >
+            <AcquisitionCardBody
+              title={title}
+              subtitle={subtitle}
+              reason={reason}
+              meta={meta}
+            />
+          </button>
+        ) : (
+          <div className="flex min-w-0 flex-1 items-center gap-[10px]">
+            <AcquisitionCardBody
+              title={title}
+              subtitle={subtitle}
+              reason={reason}
+              meta={meta}
+            />
+          </div>
+        )}
 
         {menu}
       </div>
