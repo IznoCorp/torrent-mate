@@ -479,24 +479,17 @@
   flex: 0 0 auto;
 }
 
-/* ── Line-height parity ──
-   The maquette runs on browser-default `normal`; the app's preflight sets
-   1.5, which alone made every ported control 2px taller (36 → 38 on the
-   tabs — caught by the geometry comparator, invisible to the eye).
-   Since Geist is canonical for this surface (operator arbitration
-   2026-08-08), `normal` resolves through Geist metrics on BOTH the app and
-   the measured maquette — no hard-pinned px heights on ported controls. */
+/* ── Base typography (maquette .device: `font: 14px/1.35 var(--sans)`) ──
+   The maquette inherits 14px/1.35 everywhere through `font: inherit`; the
+   app's preflight base is 14px/1.5. Mirroring the .device declaration here
+   makes every ported control's line box match by construction (e.g. tabs:
+   9+9 + 13px×1.35 = 35.55) — the earlier `line-height: normal` parity
+   block mis-read the maquette (its base is 1.35, not `normal`) and pinned
+   heights compensated in the measuring environment's system font. */
 
-.mq .seg > button,
-.mq .seg .n,
-.mq .pill,
-.mq .btnprimary,
-.mq .resbtn,
-.mq .segmini button,
-.mq .fback,
-.mq .addfoot > button,
-.mq .more {
-  line-height: normal;
+.mq {
+  font-size: 14px;
+  line-height: 1.35;
 }
 
 /* ── Detail sheet text + action rows (maquette .sheet/.sact) ── */
