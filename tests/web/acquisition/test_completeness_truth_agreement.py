@@ -76,9 +76,7 @@ def test_truth_and_completeness_agree_on_counts(acquire_store):
     owned_set = {(1, 1), (1, 2)}
     mock_checker = MagicMock()
     mock_checker.owned_pairs.return_value = owned_set
-    mock_checker.owns.side_effect = (
-        lambda media_ref, kind, season, episode: (season, episode) in owned_set
-    )
+    mock_checker.owns.side_effect = lambda media_ref, kind, season, episode: (season, episode) in owned_set
 
     ref_date = date.today()
 
@@ -103,18 +101,12 @@ def test_truth_and_completeness_agree_on_counts(acquire_store):
 
     # 7. Les agrégats concordent
     total_aired = sum(s.total for s in completeness.seasons)
-    assert truth.aired_count == total_aired, (
-        f"truth.aired_count={truth.aired_count} ≠ sum saisons.total={total_aired}"
-    )
+    assert truth.aired_count == total_aired, f"truth.aired_count={truth.aired_count} ≠ sum saisons.total={total_aired}"
 
     total_owned = sum(s.owned for s in completeness.seasons)
-    assert truth.owned_count == total_owned, (
-        f"truth.owned_count={truth.owned_count} ≠ sum saisons.owned={total_owned}"
-    )
+    assert truth.owned_count == total_owned, f"truth.owned_count={truth.owned_count} ≠ sum saisons.owned={total_owned}"
 
     # 8. L'épisode annoncé (S02E1) est exclu des deux vues
     #    — truth : le SQL exclut air_date > today
     #    — completeness : derive_episode_state rend "annonce", total exclut "annonce"
-    assert truth.aired_count == 3, (
-        f"3 épisodes diffusés, aired_count={truth.aired_count} (le futur ne compte pas)"
-    )
+    assert truth.aired_count == 3, f"3 épisodes diffusés, aired_count={truth.aired_count} (le futur ne compte pas)"
