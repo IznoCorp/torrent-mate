@@ -168,16 +168,32 @@ function matchesName(item: FollowedSeriesItem, term: string): boolean {
 /**
  * Compute the grid badge content for one followed item.
  *
+ * The honesty rules mirror ``followFraction`` (meta.ts:468-472):
+ * - A film has NO episode catalogue — its status chip already carries the
+ *   complete state; no badge.
+ * - ``aired_count == null`` means the catalogue is unknown — « ? », never a
+ *   fabricated number.
+ * - ``verification_en_cours`` is a transient (no verdict yet) — « ? » like
+ *   ``non_verifie``.
+ * - A computed number ONLY for actionable states with a known catalogue.
+ *
  * Returns:
  *   ``"1"`` for one takeable episode, ``"22"`` for 22 waiting, ``"?"`` for
- *   ``non_verifie``, or ``null`` for ``a_jour`` / ``disabled`` — absence IS the
- *   signal that there is nothing to do.
+ *   unknown / no-verdict states, or ``null`` for ``a_jour`` / ``disabled`` /
+ *   film — absence IS the signal that there is nothing to do.
  */
 function gridBadge(item: FollowedSeriesItem): string | null {
-  if (item.status === "non_verifie") return "?";
+  // A film has no episode catalogue — its status chip already carries the
+  // complete state, mirroring followFraction's precedent (meta.ts:469).
+  if (item.kind === "movie") return null;
+  // No verdict yet: both mean "we don't know what's missing".
+  if (item.status === "non_verifie" || item.status === "verification_en_cours") return "?";
+  // Nothing to do — absence IS the signal.
   if (item.status === "a_jour" || item.status === "disabled") return null;
-  // Actionable states — missing episodes that are aired but not owned.
-  const missing = Math.max(1, (item.aired_count ?? 0) - (item.owned_count ?? 0));
+  // Unknown catalogue → honest ignorance, not a fabricated number.
+  if (item.aired_count == null) return "?";
+  // Actionable states with a known catalogue — how many aired episodes are not owned.
+  const missing = Math.max(1, item.aired_count - (item.owned_count ?? 0));
   return String(missing);
 }
 
@@ -348,9 +364,7 @@ export function SuivisPanel(): ReactElement {
           <span
             data-badge
             className={`absolute right-1 top-1 flex size-6 items-center justify-center rounded-full text-xs font-bold text-white ${
-              item.status === "non_verifie"
-                ? "bg-muted-foreground"
-                : "bg-warning"
+              badge === "?" ? "bg-muted-foreground" : "bg-warning"
             }`}
           >
             {badge}

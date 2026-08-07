@@ -190,6 +190,48 @@ function inactiveShow(): FollowedSeriesItem {
   };
 }
 
+/** A show being verified — no verdict yet, badge should read "?". */
+function verificationEnCoursShow(): FollowedSeriesItem {
+  return {
+    id: 10,
+    title: "Verifying Show",
+    kind: "show",
+    status: "verification_en_cours",
+    active: true,
+    added_at: 1_750_000_000,
+    wanted_pending: 0,
+    wanted_grabbed: 0,
+    year: 2025,
+    poster_url: null,
+    tvdb_unresolved: false,
+    priming_running: false,
+    media_ref: { tvdb_id: 500000, tmdb_id: 999999, imdb_id: null },
+    owned_count: 0,
+    aired_count: 0,
+  };
+}
+
+/** A show with unknown catalogue (aired_count=null) but some owned episodes. */
+function unknownCatalogueShow(): FollowedSeriesItem {
+  return {
+    id: 11,
+    title: "Unknown Catalog",
+    kind: "show",
+    status: "en_attente",
+    active: true,
+    added_at: 1_750_000_000,
+    wanted_pending: 0,
+    wanted_grabbed: 0,
+    year: 2024,
+    poster_url: null,
+    tvdb_unresolved: false,
+    priming_running: false,
+    media_ref: { tvdb_id: 500001, tmdb_id: 888888, imdb_id: null },
+    owned_count: 5,
+    aired_count: null,
+  };
+}
+
 /** A takeable show with 22 missing episodes — the badge should read "22". */
 function manyMissingShow(): FollowedSeriesItem {
   return {
@@ -427,6 +469,39 @@ describe("SuivisPanel", () => {
     const dmBadge = darkMatterTile.querySelector("[data-badge]");
     expect(dmBadge).toBeTruthy();
     expect(dmBadge?.textContent).toBe("?");
+  });
+
+  it("mode grille : un film n'a jamais de pastille (pas de catalogue d'épisodes)", () => {
+    renderPanel([movie()]);
+    fireEvent.click(screen.getByRole("button", { name: /Grille/ }));
+
+    // Dune (id=6): kind="movie" → NO badge, mirroring followFraction's precedent.
+    const tile = screen.getByTestId("tile-6");
+    expect(tile.querySelector("[data-badge]")).toBeNull();
+  });
+
+  it("mode grille : aired_count absent ⇒ « ? », pas un nombre fabriqué", () => {
+    renderPanel([unknownCatalogueShow()]);
+    fireEvent.click(screen.getByRole("button", { name: /Grille/ }));
+
+    // Unknown Catalog (id=11): aired_count=null, owned_count=5 →
+    // "?" not "1" — honest ignorance (followFraction precedent).
+    const tile = screen.getByTestId("tile-11");
+    const badge = tile.querySelector("[data-badge]");
+    expect(badge).toBeTruthy();
+    expect(badge?.textContent).toBe("?");
+  });
+
+  it("mode grille : verification_en_cours ⇒ « ? », pas de verdict", () => {
+    renderPanel([verificationEnCoursShow()]);
+    fireEvent.click(screen.getByRole("button", { name: /Grille/ }));
+
+    // Verifying Show (id=10): verification_en_cours, aired_count=0, owned_count=0 →
+    // would fabricate "1" from Math.max(1, 0-0) without the guard.
+    const tile = screen.getByTestId("tile-10");
+    const badge = tile.querySelector("[data-badge]");
+    expect(badge).toBeTruthy();
+    expect(badge?.textContent).toBe("?");
   });
 
   // ── Switcher ──────────────────────────────────────────────────────────────
