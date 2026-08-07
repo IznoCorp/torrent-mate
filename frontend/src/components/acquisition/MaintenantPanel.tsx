@@ -685,13 +685,14 @@ export function MaintenantPanel(): ReactElement {
                        Renders whenever orphans exist, even alongside items —
                        §méthode: never under-count what needs attention. */}
                   {orphanCount > 0 && (
-                    <Link
-                      to="/controle"
-                      className="block rounded-md border border-border px-3 py-2 text-sm text-muted-foreground hover:bg-accent"
-                    >
+                    /* Maquette .crossref: dashed border, destination pinned
+                       right in primary — the row reads as a signpost, not a
+                       card. */
+                    <Link to="/controle" className="crossref">
                       {orphanCount === 1
-                        ? "1 autre média à traiter ne vient pas d'une acquisition → Contrôle"
-                        : `${String(orphanCount)} autres médias à traiter ne viennent pas d'une acquisition → Contrôle`}
+                        ? "1 autre média à traiter ne vient pas d'une acquisition"
+                        : `${String(orphanCount)} autres médias à traiter ne viennent pas d'une acquisition`}
+                      <span>Contrôle →</span>
                     </Link>
                   )}
                 </>

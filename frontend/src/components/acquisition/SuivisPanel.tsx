@@ -408,7 +408,7 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
         key={item.id}
         type="button"
         data-testid={`tile-${String(item.id)}`}
-        className="block w-full min-w-0 text-left"
+        className={`tile${dimmed ? " off" : ""} block w-full min-w-0 text-left`}
         aria-label={
           badge != null ? `${item.title} — ${badge === "?" ? "état à vérifier" : `${badge} épisode(s) manquant(s)`}` : item.title
         }
@@ -416,7 +416,9 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
           setSheet(item);
         }}
       >
-        <span className={`relative block w-full ${dimmed ? "opacity-50" : ""}`}>
+        {/* Maquette .tile.off drives the paused opacities (.42/.55) via the
+            p/nm class hooks — layout itself stays Tailwind. */}
+        <span className="p relative block w-full">
           <span className="block w-full overflow-hidden rounded-lg border border-border">
             <MediaPoster title={item.title} src={item.poster_url ?? null} className="!w-full" />
           </span>
@@ -437,17 +439,19 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
             </span>
           )}
         </span>
-        <span
-          className={`mt-[5px] block truncate text-[11px] leading-tight ${dimmed ? "opacity-60" : ""}`}
-        >
+        <span className="nm mt-[5px] block truncate text-[11px] leading-tight">
           {item.title}
         </span>
-        <span className="block truncate font-mono text-[10px] text-muted-foreground tabular-nums">
-          {item.kind === "movie"
-            ? item.status === "a_jour"
-              ? "acquis"
-              : "non acquis"
-            : (followFraction(item) ?? "\u00A0")}
+        <span className="fr block truncate font-mono text-[10px] text-muted-foreground tabular-nums">
+          {/* Maquette: a paused tile SAYS so where the fraction went \u2014 the
+              dimming alone does not answer \u00AB pourquoi rien ne bouge \u00BB. */}
+          {dimmed
+            ? "en pause"
+            : item.kind === "movie"
+              ? item.status === "a_jour"
+                ? "acquis"
+                : "non acquis"
+              : (followFraction(item) ?? "\u00A0")}
         </span>
       </button>
     );

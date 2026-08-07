@@ -468,6 +468,42 @@
   height: 14px;
 }
 
+/* ── Crossref row (maquette .crossref) — dashed border, primary « → » ── */
+
+.mq .crossref {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 8px;
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--muted-foreground);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  padding: 10px 11px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.mq .crossref span {
+  margin-left: auto;
+  color: var(--primary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── Grid tile dimming (maquette .tile.off) ──
+   Layout stays Tailwind (measured at parity); only the maquette's paused
+   opacities live here, driven by the .tile.off + .p/.nm class hooks. */
+
+.mq .tile.off .p {
+  opacity: 0.42;
+}
+.mq .tile.off .nm {
+  opacity: 0.55;
+}
+
 /* ── Skeleton shimmer (maquette .skel) ── */
 
 .mq .skel {
