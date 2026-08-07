@@ -45,6 +45,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   useCompleteness,
   useGrabNow,
+  useGrabSeason,
   useUnfollow,
   useUpdateFollow,
 } from "@/hooks/useAcquisition";
@@ -129,7 +130,14 @@ function SheetError(): ReactElement {
 
 // ── Season row ────────────────────────────────────────────────────────────
 
-function SeasonRow({ season }: { readonly season: SeasonCompleteness }): ReactElement {
+function SeasonRow({
+  season,
+  followedId,
+}: {
+  readonly season: SeasonCompleteness;
+  readonly followedId: number;
+}): ReactElement {
+  const grabSeasonMut = useGrabSeason();
   const { owned, aired } = seasonCounts(season.episodes);
   const complete = owned === aired;
   const missing = aired - owned;
@@ -152,6 +160,22 @@ function SeasonRow({ season }: { readonly season: SeasonCompleteness }): ReactEl
               {String(owned)}/{String(aired)}
             </span>
           </span>
+          {!complete && (
+            <button
+              data-testid={`grab-season-${String(season.season)}`}
+              type="button"
+              disabled={grabSeasonMut.isPending}
+              className="rounded border border-border px-2 py-0.5 text-xs hover:bg-accent disabled:opacity-50"
+              // A button inside <summary> would also toggle the details.
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                grabSeasonMut.mutate({ id: followedId, season: season.season });
+              }}
+            >
+              Récupérer
+            </button>
+          )}
           {!complete && (
             <Badge tone="warning">
               {String(missing)} manquant{missing > 1 ? "s" : ""}
@@ -313,7 +337,12 @@ function FollowDetailSheetContent({
         {/* The one fraction — same derivation as card + season headers (§13). */}
         {aggregate != null && (
           <p data-testid="sheet-meta" className="text-sm text-muted-foreground">
-            {String(aggregate.owned)}/{String(aggregate.aired)} en médiathèque
+            {/* An announced-only catalogue has aired 0: « 0/0 » would read as
+                an empty série. §14.1 separates « not aired yet » from
+                « nothing there ». */}
+            {aggregate.aired === 0
+              ? "Aucun épisode diffusé pour l'instant"
+              : `${String(aggregate.owned)}/${String(aggregate.aired)} en médiathèque`}
           </p>
         )}
         {/* §5/§9 — the lifecycle rule, NOT the removal-confirmation body this
@@ -364,7 +393,7 @@ function FollowDetailSheetContent({
       {seasons.length > 0 && (
         <div className="flex flex-col px-4">
           {seasons.map((s) => (
-            <SeasonRow key={s.season} season={s} />
+            <SeasonRow key={s.season} season={s} followedId={followedId} />
           ))}
         </div>
       )}

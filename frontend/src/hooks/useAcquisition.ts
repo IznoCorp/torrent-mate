@@ -29,6 +29,7 @@ import {
   getJourneys,
   getToHandle,
   getWanted,
+  grabSeason,
   searchMedia,
   triggerFollowedSearch,
   updateFollow,
@@ -392,6 +393,27 @@ export function useGrabNow() {
     },
     onError: (err: unknown) => {
       toastMutationError("Échec du lancement de la recherche", err);
+    },
+  });
+}
+
+/**
+ * Manually enqueue one season of a followed series (idempotent server-side).
+ *
+ * Returns:
+ *   The mutation; call ``mutate({ id, season })``.
+ */
+export function useGrabSeason() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, season }: { id: number; season: number }) =>
+      grabSeason(id, season),
+    onSuccess: () => {
+      toast.info("Saison mise en file de recherche.");
+      void qc.invalidateQueries({ queryKey: acqKeys.all });
+    },
+    onError: (err: unknown) => {
+      toastMutationError("Échec de la mise en file de la saison", err);
     },
   });
 }

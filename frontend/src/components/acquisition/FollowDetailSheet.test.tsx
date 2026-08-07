@@ -426,4 +426,22 @@ describe("FollowDetailSheet", () => {
     expect(screen.getByTestId("mettre-en-pause")).toBeInTheDocument();
     expect(screen.getByTestId("retirer-le-suivi")).toBeInTheDocument();
   });
+  it("une saison incomplète offre sa récupération (la route existait, aucun bouton)", () => {
+    const mutate = vi.fn();
+    vi.spyOn(hooks, "useGrabSeason").mockReturnValue({
+      mutate,
+      isPending: false,
+    } as unknown as ReturnType<typeof hooks.useGrabSeason>);
+
+    renderSheet(silo());
+    const btn = screen.getByTestId("grab-season-2");
+    fireEvent.click(btn);
+
+    expect(mutate).toHaveBeenCalledWith({ id: 42, season: 2 });
+  });
+
+  it("une saison complète n'offre PAS de récupération — rien à récupérer", () => {
+    renderSheet(silo());
+    expect(screen.queryByTestId("grab-season-1")).toBeNull();
+  });
 });

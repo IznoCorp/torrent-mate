@@ -15,25 +15,26 @@ import { type ReactElement } from "react";
 import { acqKeys, getStalledGrabs } from "@/api/acquisition";
 
 /**
- * StalledGrabsAlert — les acquisitions parquées à « récupéré » (§14.1).
+ * StalledGrabsAlert — acquisitions parked at « récupéré » (§14.1).
  *
- * §14.1 ne reconnaît que DEUX états de repos légitimes : « pas encore diffusé » et
- * « cherché, rien trouvé ». « Récupéré » est transitoire et doit avancer tout seul ; une
- * ligne qui y stagne est non conforme, et surtout MUETTE — la passe de recherche ne
- * reprend que pending/searching/available, donc le média reste voulu sans que personne
- * ne le cherche plus. Le 2026-08-05 une telle ligne est restée invisible jusqu'à ce que
- * l'opérateur pose la question.
+ * §14.1 recognises only TWO legitimate rest states: « not aired yet » and
+ * « searched, nothing found ». « Récupéré » is transitory and must advance on
+ * its own; a row stagnating there is non-conformant and above all MUTE — the
+ * search pass only resumes pending/searching/available, so the media stays
+ * wanted with nobody looking for it. Such a row once stayed invisible until
+ * the operator asked the question themselves.
  *
- * Une bannière, pas une tuile : §8 veut que ce qui n'avance pas se voie, avec sa raison.
- * Rien ne s'affiche quand il n'y a rien — une alerte permanente ne serait plus une alerte.
+ * A banner, not a tile: §8 wants what is NOT moving to be seen, with its
+ * reason. Nothing renders when nothing is parked — a permanent alert no
+ * longer alerts.
  *
- * @param count - Le nombre annoncé par la vue d'ensemble.
- * @returns La bannière, ou null quand rien n'est parqué.
+ * @param count - The count reported by the overview.
+ * @returns The banner, or null when nothing is parked.
  */
 export function StalledGrabsAlert({ count }: { count: number }): ReactElement | null {
-  // La liste n'est demandée QUE lorsque le compteur est non nul : le détail sert à
-  // nommer les items, il n'a pas à peser sur le rendu normal.
-  const { data } = useQuery({
+  // The list is fetched ONLY when the count is non-zero: the detail exists to
+  // NAME the items and must not weigh on the normal render.
+  const { data, isError } = useQuery({
     queryKey: acqKeys.stalledGrabs(),
     queryFn: getStalledGrabs,
     enabled: count > 0,
@@ -53,14 +54,19 @@ export function StalledGrabsAlert({ count }: { count: number }): ReactElement | 
             : `${String(count)} acquisitions récupérées ne sont jamais arrivées en médiathèque`}
         </p>
       </div>
+      {isError && (
+        <p className="text-xs text-muted-foreground">
+          La liste des acquisitions concernées n&apos;a pas pu être chargée.
+        </p>
+      )}
       <ul className="flex flex-col gap-1.5">
         {items.map((it) => (
           <li key={it.wanted_id} className="min-w-0 text-xs">
             <span className="font-medium">{it.title}</span>
             <span className="text-muted-foreground"> — {it.reason}</span>
-            {/* §13 — nommer la release RÉELLEMENT récupérée : c'est ce qui distingue
-              une bande originale FLAC du film homonyme. « inconnue » quand elle
-              ne peut pas être connue, jamais un titre de média à sa place. */}
+            {/* §13 — name the release ACTUALLY grabbed: what tells a FLAC
+                soundtrack apart from the film of the same name. Admit the
+                unknown; never a media title standing in for it. */}
             <span className="block truncate font-mono text-muted-foreground" title={it.release_name ?? undefined}>
               {it.release_name ?? "Nom de release non enregistré"}
             </span>

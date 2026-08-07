@@ -310,6 +310,20 @@ export const FOLLOW_STATUS_LABEL_MOVIE: Partial<Record<FollowStatus, string>> = 
  * reads as loss rather than rule. Lives here because it is vocabulary, and the
  * detail sheet once shipped the REMOVAL-confirmation body in its place.
  */
+/**
+ * Chip paint per DS tone — ONE map (§13). A panel that hand-rolls this as a
+ * ternary chain is a second derivation of the same answer, and the two drift.
+ */
+export const TONE_CHIP_CLASS: Record<string, string> = {
+  warning: "bg-warning/20 text-warning",
+  success: "bg-success/20 text-success",
+  danger: "bg-danger/20 text-danger",
+  info: "bg-info/20 text-info",
+  waiting: "bg-waiting/20 text-waiting",
+  muted: "bg-muted text-muted-foreground",
+  neutral: "bg-muted text-muted-foreground",
+};
+
 export const MOVIE_LIFECYCLE_NOTE =
   "Une fois acquis, ce film quittera automatiquement votre liste.";
 

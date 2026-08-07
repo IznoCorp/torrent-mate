@@ -55,6 +55,8 @@ import {
   type FollowStatus,
   followMediaRef,
   type MediaKind,
+  followCountsCaption,
+  followFraction,
 } from "./meta";
 
 // ---------------------------------------------------------------------------
@@ -322,10 +324,12 @@ export function MaintenantPanel(): ReactElement {
   function renderHeader(slug: SectionSlug, count: number): ReactElement {
     const m = SECTION_META[slug];
     return (
-      <button
-        type="button"
+      /* A heading, NOT a button: it had no onClick, and a focusable control
+         announced as actionable that does nothing is a dead control (§11) —
+         five of them per screen for assistive tech. */
+      <h3
         data-testid="section-head"
-        className="mb-2 flex w-full items-center gap-2 text-left"
+        className="mb-2 flex w-full items-center gap-2 text-left text-sm font-normal"
       >
         <span
           aria-hidden="true"
@@ -335,7 +339,7 @@ export function MaintenantPanel(): ReactElement {
         <span className="ml-auto text-xs text-muted-foreground tabular-nums">
           {String(count)}
         </span>
-      </button>
+      </h3>
     );
   }
 
@@ -351,7 +355,21 @@ export function MaintenantPanel(): ReactElement {
           title={item.title}
           posterUrl={item.poster_url ?? null}
           {...(item.year != null ? { subtitle: String(item.year) } : {})}
-          meta={null}
+          meta={
+            /* Same composition as the Suivis card — one card anatomy (§4). */
+            <>
+              {followFraction(item) != null && (
+                <span className="rounded bg-muted px-1.5 py-px text-xs font-medium text-muted-foreground">
+                  {followFraction(item)}
+                </span>
+              )}
+              {followCountsCaption(item) != null && (
+                <span className="text-xs text-muted-foreground">
+                  {followCountsCaption(item)}
+                </span>
+              )}
+            </>
+          }
           menu={actions.menuFor(item)}
           onOpen={() => {
             setSheet({ followedId: item.id, status: item.status, kind, mediaHref: sheetHref });
@@ -440,19 +458,22 @@ export function MaintenantPanel(): ReactElement {
           : {})}
         // The release ACTUALLY grabbed — what tells a FLAC soundtrack apart
         // from the film of the same name. Never a media title standing in for
-        // it: when the name was not recorded, the card says so rather than
-        // showing something that looks like an answer.
+        // it. Three cases, three renders: a name (show it), a journey without
+        // one (admit it was not recorded), and a FAILED journeys read (say
+        // nothing here — the section-level error already names the failure,
+        // and « non enregistré » would claim knowledge we do not have).
         meta={
-          <span
-            className="min-w-0 truncate font-mono text-[length:var(--text-2xs)] text-muted-foreground"
-            title={journey?.release_name ?? undefined}
-          >
-            {journey?.release_name ?? "Nom de release non enregistré"}
-          </span>
+          journeys.isError ? null : (
+            <span
+              className="min-w-0 truncate font-mono text-[length:var(--text-2xs)] text-muted-foreground"
+              title={journey?.release_name ?? undefined}
+            >
+              {journey?.release_name ?? "Nom de release non enregistré"}
+            </span>
+          )
         }
-        // Grabbed items have no detail sheet yet — future tasks may wire
-        // a pipeline-progress detail here. No onOpen until then (§11:
-        // a button that does nothing is a dead control).
+        // Grabbed items have no detail sheet: nothing to open, so no onOpen —
+        // a button that does nothing is a dead control (§11).
         // Stage derived from the real journey, not hardcoded « pris ».
         // When the stage cannot be established (no journey match or a
         // reconstructed row with gaps), the strip is omitted entirely —

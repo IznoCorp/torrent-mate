@@ -39,6 +39,7 @@ import type { FollowStatus, MediaKind } from "./meta";
 import {
   FOLLOW_STATUS_LABEL,
   FOLLOW_STATUS_TONE,
+  TONE_CHIP_CLASS,
   asMediaKind,
   followCountsCaption,
   followFraction,
@@ -203,9 +204,12 @@ function gridBadge(item: FollowedSeriesItem): string | null {
   if (item.kind === "movie") return "!";
   // Unknown catalogue → honest ignorance, not a fabricated number.
   if (item.aired_count == null) return "?";
-  // Actionable states with a known catalogue — how many aired episodes are not owned.
-  const missing = Math.max(1, item.aired_count - (item.owned_count ?? 0));
-  return String(missing);
+  // Actionable states with a known catalogue — how many aired episodes are not
+  // owned. Stale counts can disagree with the status (aired === owned on an
+  // actionable row): that is a data conflict, and « ? » is the honest render —
+  // Math.max(1, …) used to fabricate an episode out of the disagreement.
+  const missing = item.aired_count - (item.owned_count ?? 0);
+  return missing >= 1 ? String(missing) : "?";
 }
 
 // ---------------------------------------------------------------------------
@@ -272,10 +276,7 @@ export function SuivisPanel(): ReactElement {
   /** Render one row in liste or groupé mode. */
   function renderCard(item: FollowedSeriesItem, showStatus: boolean): ReactElement {
     const kind = asMediaKind(item.kind);
-    const label =
-      kind === "movie" && item.kind !== "show"
-        ? followStatusLabel(item.status, "movie")
-        : followStatusLabel(item.status, "show");
+    const label = followStatusLabel(item.status, kind === "movie" ? "movie" : "show");
     const hint = followStatusHint(item.status, kind);
     const caption = followCountsCaption(item);
     const fraction = followFraction(item);
@@ -299,21 +300,7 @@ export function SuivisPanel(): ReactElement {
         <span
           key="status"
           data-slot="badge"
-          className={`rounded px-1.5 py-px text-xs font-medium ${
-            FOLLOW_STATUS_TONE[item.status] === "warning"
-              ? "bg-warning/20 text-warning"
-              : FOLLOW_STATUS_TONE[item.status] === "success"
-                ? "bg-success/20 text-success"
-                : FOLLOW_STATUS_TONE[item.status] === "danger"
-                  ? "bg-danger/20 text-danger"
-                  : FOLLOW_STATUS_TONE[item.status] === "info"
-                    ? "bg-info/20 text-info"
-                    : FOLLOW_STATUS_TONE[item.status] === "waiting"
-                      ? "bg-waiting/20 text-waiting"
-                      : FOLLOW_STATUS_TONE[item.status] === "muted"
-                        ? "bg-muted text-muted-foreground"
-                        : "bg-muted text-muted-foreground"
-          }`}
+          className={`rounded px-1.5 py-px text-xs font-medium ${TONE_CHIP_CLASS[FOLLOW_STATUS_TONE[item.status]] ?? "bg-muted text-muted-foreground"}`}
           title={hint}
         >
           {label}
@@ -373,7 +360,9 @@ export function SuivisPanel(): ReactElement {
         className={`relative flex aspect-[2/3] w-full items-center justify-center overflow-hidden rounded-lg border border-border ${
           dimmed ? "opacity-50" : ""
         }`}
-        aria-label={item.title}
+        aria-label={
+          badge != null ? `${item.title} — ${badge === "?" ? "état à vérifier" : badge === "!" ? "action requise" : `${badge} épisode(s) à récupérer`}` : item.title
+        }
         onClick={() => {
           const kind = asMediaKind(item.kind);
           setSheet({ followedId: item.id, status: item.status, kind, mediaHref: followMediaRef(item) });
@@ -451,8 +440,14 @@ export function SuivisPanel(): ReactElement {
           }}
         />
 
-        {/* Pill train + switcher. */}
-        <div className="flex items-center gap-1 overflow-x-auto">
+        {/* Pill train + switcher — STICKY (§5.1: « only the filter remains,
+            and it is sticky »; D7 was losing the filter after two screens of
+            scroll). The pills scroll horizontally in their OWN container; the
+            switcher sits outside it, so at 390 px it never scrolls away with
+            the train — a mode control the operator cannot see is a mode the
+            operator does not know exists. */}
+        <div className="sticky top-0 z-10 -mx-3 flex items-center gap-1 bg-background px-3 py-2">
+          <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
           {(["tout", "series", "films", "pause"] as const).map((k) => {
             const pm = PILLS[k];
             const count = pm.count(items);
@@ -474,6 +469,7 @@ export function SuivisPanel(): ReactElement {
               </button>
             );
           })}
+          </div>
           {renderSwitcher()}
         </div>
 
