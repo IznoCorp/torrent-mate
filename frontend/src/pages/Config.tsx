@@ -19,6 +19,7 @@ import { RestartConfirmDialog } from "@/components/config/panels/RestartConfirmD
 import { RestartRequiredBanner } from "@/components/config/panels/RestartRequiredBanner";
 import { StalledLoadRetry } from "@/components/config/panels/StalledLoadRetry";
 import { FileList } from "@/components/config/FileList";
+import { RankingPanel } from "@/components/config/RankingPanel";
 import { SecretsTab } from "@/components/config/SecretsTab";
 import { PageHeader } from "@/components/ds/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -31,6 +32,10 @@ import { cn } from "@/lib/utils";
 const CONFIG_TABS = [
   { id: "files", label: "Fichiers" },
   { id: "secrets", label: "Secrets" },
+  // Ranking profiles used to sit on the acquisition page. They are settings —
+  // read rarely, changed rarely — and they were crowding a surface whose job is
+  // to answer "what needs me now". Their home is here.
+  { id: "classement", label: "Classement" },
 ] as const;
 
 /**
@@ -196,6 +201,17 @@ export default function Config(): ReactElement {
 
       {/* Secrets tab (sibling of the file list — no more scroll-to-find,
           G2/E3). X6: DS Card instead of a hand-rolled bordered div. */}
+      {editor.leftTab === "classement" && (
+        <Card
+          id="config-tabpanel"
+          role="tabpanel"
+          aria-labelledby="config-tab-classement"
+          className="gap-0 p-4"
+        >
+          <RankingPanel />
+        </Card>
+      )}
+
       {editor.leftTab === "secrets" && (
         <Card
           id="config-tabpanel"

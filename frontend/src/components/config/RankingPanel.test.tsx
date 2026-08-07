@@ -1,5 +1,5 @@
 /**
- * ReglagesPanel (#18) — the acquisition ranking editor.
+ * RankingPanel (#18) — the acquisition ranking editor.
  *
  * Proves the editor (a) renders the loaded criteria, (b) scores a live preview
  * against the current draft, and (c) saves through the S4 write-path carrying
@@ -55,7 +55,7 @@ vi.mock("@/api/acquisition", async () => {
   return { ...actual, previewRanking: previewMock };
 });
 
-import { ReglagesPanel } from "./ReglagesPanel";
+import { RankingPanel } from "./RankingPanel";
 
 const RANKING = {
   criteria: [
@@ -117,12 +117,12 @@ function renderPanel(): void {
   });
   render(
     <QueryClientProvider client={qc}>
-      <ReglagesPanel />
+      <RankingPanel />
     </QueryClientProvider>,
   );
 }
 
-describe("ReglagesPanel", () => {
+describe("RankingPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     seedApis();

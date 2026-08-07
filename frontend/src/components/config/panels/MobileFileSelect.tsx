@@ -3,6 +3,7 @@
  */
 
 import { type ReactElement } from "react";
+import type { ConfigLeftTab } from "@/hooks/useConfigEditor";
 
 import type { FileInfo } from "@/api/config";
 import { Label } from "@/components/ui/label";
@@ -23,7 +24,7 @@ interface MobileFileSelectProps {
   /** Names of files with unsaved edits (bullet marker). */
   readonly dirtyFileNames: Set<string>;
   /** Active panel — mirrors the desktop tab bar (systeme-hub 3.1). */
-  readonly leftTab: "files" | "secrets";
+  readonly leftTab: ConfigLeftTab;
   /** Select a file. */
   readonly onSelect: (name: string) => void;
   /** Switch to the Secrets panel (the appended ``Secrets`` option). */
@@ -51,7 +52,11 @@ export function MobileFileSelect({
   return (
     <div className="flex flex-col gap-1.5 md:hidden">
       <Label htmlFor="config-file-mobile-select">
-        {leftTab === "secrets" ? "Secrets" : "Fichier"}
+        {leftTab === "secrets"
+          ? "Secrets"
+          : leftTab === "classement"
+            ? "Classement"
+            : "Fichier"}
       </Label>
       <Select
         {...(selectedFile !== null && leftTab === "files"

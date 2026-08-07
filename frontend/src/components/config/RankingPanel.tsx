@@ -509,13 +509,13 @@ function PreviewColumn({
 }
 
 /**
- * ReglagesPanel — the acquisition ranking editor (#18).
+ * RankingPanel — the acquisition ranking editor (#18).
  *
  * Returns:
  *   The Réglages tab content: a two-column editor (criteria on the left, live
  *   preview on the right) driven by ``ranking.json5`` through the S4 write-path.
  */
-export function ReglagesPanel(): ReactElement {
+export function RankingPanel(): ReactElement {
   const fileQ = useConfigFile("ranking.json5");
   const putFile = usePutConfigFile("ranking.json5");
 

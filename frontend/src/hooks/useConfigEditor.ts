@@ -49,6 +49,9 @@ import { configKeys } from "@/hooks/useConfigKeys";
 // ---------------------------------------------------------------------------
 
 /** Everything the config page shell + panels need to render the editor. */
+/** Sections of the config page. */
+export type ConfigLeftTab = "files" | "secrets" | "classement";
+
 export interface ConfigEditorState {
   // ---- Top-level query lifecycle ----
   /** ``true`` while the schema / files / status queries are all still loading. */
@@ -80,9 +83,9 @@ export interface ConfigEditorState {
 
   // ---- Section tabs (Fichiers / Secrets) ----
   /** Active section — Fichiers or Secrets (local UI state, not URL-driven). */
-  readonly leftTab: "files" | "secrets";
+  readonly leftTab: ConfigLeftTab;
   /** Switch the active section (desktop tab bar — keeps ``?file=`` intact). */
-  readonly setLeftTab: (tab: "files" | "secrets") => void;
+  readonly setLeftTab: (tab: ConfigLeftTab) => void;
   /** Switch to Secrets AND durably clear ``?file=`` (mobile selector path). */
   readonly handleSelectSecrets: () => void;
   /** Names of files with unsaved edits (bullet markers + FileList badges). */
@@ -189,7 +192,7 @@ export function useConfigEditor(): ConfigEditorState {
   // Restart confirmation dialog visibility.
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
   // Active section — Fichiers or Secrets (local UI state, not URL-driven).
-  const [leftTab, setLeftTab] = useState<"files" | "secrets">("files");
+  const [leftTab, setLeftTab] = useState<ConfigLeftTab>("files");
 
   const queryClient = useQueryClient();
 
