@@ -152,14 +152,14 @@ function movie(): FollowedSeriesItem {
   };
 }
 
-/** A paused show — filtered by "En pause". */
+/** A paused show — filtered by "En pause". Server truth: disabled ⟺ active=0. */
 function pausedShow(): FollowedSeriesItem {
   return {
     id: 7,
     title: "The OA",
     kind: "show",
     status: "disabled",
-    active: true,
+    active: false,
     added_at: 1_720_000_000,
     wanted_pending: 0,
     wanted_grabbed: 0,
@@ -328,16 +328,16 @@ describe("SuivisPanel", () => {
     expect(screen.queryByRole("tab", { name: "Séries" })).toBeNull();
     // Pills with counts.
     expect(
-      await screen.findByRole("button", { name: /Tout\s*8/ }),
+      await screen.findByRole("button", { name: /Tout\s*7/ }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Séries\s*7/ }),
+      screen.getByRole("button", { name: /Séries\s*6/ }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /Films\s*1/ }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /En pause\s*1/ }),
+      screen.getByRole("button", { name: /En pause\s*2/ }),
     ).toBeInTheDocument();
   });
 
@@ -352,7 +352,7 @@ describe("SuivisPanel", () => {
   it("le filtre « Séries » ne montre que les séries et exclut les films", () => {
     renderPanel(FULL_ITEMS);
     fireEvent.click(
-      screen.getByRole("button", { name: /Séries\s*7/ }),
+      screen.getByRole("button", { name: /Séries\s*6/ }),
     );
     // Dune (film) is hidden; Silo (série) is visible.
     expect(screen.queryByText("Dune")).toBeNull();
@@ -371,17 +371,19 @@ describe("SuivisPanel", () => {
   it("le filtre « En pause » ne montre que les suivis arrêtés", () => {
     renderPanel(FULL_ITEMS);
     fireEvent.click(
-      screen.getByRole("button", { name: /En pause\s*1/ }),
+      screen.getByRole("button", { name: /En pause\s*2/ }),
     );
-    // The OA is disabled (active=true, status=disabled).
+    // Paused rows are EXCLUDED from « Tout » but reachable here — pausing must
+    // never make a follow vanish from every surface.
     expect(screen.getByText("The OA")).toBeInTheDocument();
+    expect(screen.getByText("Inactive Show")).toBeInTheDocument();
     expect(screen.queryByText("Silo")).toBeNull();
   });
 
   it("« Tout » montre tout ce qui est actif", () => {
     renderPanel(FULL_ITEMS);
     // 8 active items should be visible (all except Inactive Show).
-    fireEvent.click(screen.getByRole("button", { name: /Tout\s*8/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Tout\s*7/ }));
     expect(screen.getByText("Silo")).toBeInTheDocument();
     expect(screen.getByText("Dune")).toBeInTheDocument();
     expect(screen.queryByText("Inactive Show")).toBeNull();
@@ -398,7 +400,7 @@ describe("SuivisPanel", () => {
     expect(screen.queryByText("Silo")).toBeNull();
     // But the pill counts haven't changed — they are the unfiltered truth.
     expect(
-      screen.getByRole("button", { name: /Tout\s*8/ }),
+      screen.getByRole("button", { name: /Tout\s*7/ }),
     ).toBeInTheDocument();
   });
 
@@ -406,8 +408,9 @@ describe("SuivisPanel", () => {
 
   it("trie par urgence puis par titre (localeCompare fr)", async () => {
     renderPanel(FULL_ITEMS);
-    // Urgency: a_recuperer(0) → en_acquisition(1) → en_attente(2) →
-    // non_verifie(3) → a_jour(4) → disabled(5)
+    // Urgency: a_recuperer(0) → en_acquisition(1) → verification_en_cours(2)
+    // → en_attente(3) → non_verifie(4) → a_jour(5) — paused rows live behind
+    // their own pill, not in this list.
     const cards = await screen.findAllByTestId("acq-card");
     const titles = cards.map((c) =>
       within(c).getByTestId("acq-card-title").textContent,
@@ -424,8 +427,7 @@ describe("SuivisPanel", () => {
     expect(titles[5]).toBe("Dark Matter");
     // Shōgun is a_jour.
     expect(titles[6]).toBe("Shōgun");
-    // The OA is disabled.
-    expect(titles[7]).toBe("The OA");
+    expect(titles).toHaveLength(7);
   });
 
   // ── Display modes ─────────────────────────────────────────────────────────

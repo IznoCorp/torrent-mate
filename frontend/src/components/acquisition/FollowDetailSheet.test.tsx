@@ -296,9 +296,20 @@ describe("FollowDetailSheet", () => {
     expect(screen.queryByTestId("primary-action")).toBeNull();
   });
 
-  it("§5 — la fiche d'un film non acquis annonce le retrait automatique", async () => {
-    renderSheet(movieNotOwned(), { kind: "movie" });
-    expect(await screen.findByText(/quittera votre liste/)).toBeInTheDocument();
+  it("§5 — la fiche d'un film non acquis annonce la sortie AUTOMATIQUE, pas le retrait", async () => {
+    // The sheet once rendered the REMOVAL-confirmation body here: « ne sera
+    // plus cherché » on every open read as a threat. §9 fixes the sentence.
+    renderSheet(movieNotOwned(), { kind: "movie", status: "en_attente" });
+    expect(
+      await screen.findByText("Une fois acquis, ce film quittera automatiquement votre liste."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/ne sera plus cherché/)).toBeNull();
+  });
+
+  it("§5 — un film acquis ne porte plus la phrase de cycle de vie", async () => {
+    renderSheet(movieNotOwned(), { kind: "movie", status: "a_jour" });
+    await screen.findByTestId("secondary-actions");
+    expect(screen.queryByText(/quittera automatiquement/)).toBeNull();
   });
 
   it("§11 — sans identifiant résolu, 'Voir la fiche' est absent et une phrase l'explique", async () => {
@@ -344,7 +355,7 @@ describe("FollowDetailSheet", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  it("« retirer » retire réellement le suivi", () => {
+  it("§9 — « retirer » demande confirmation AVANT d'agir, et agit après", () => {
     const mutate = vi.fn();
     vi.spyOn(hooks, "useUnfollow").mockReturnValue({
       mutate,
@@ -353,7 +364,66 @@ describe("FollowDetailSheet", () => {
 
     renderSheet(silo());
     fireEvent.click(screen.getByTestId("retirer-le-suivi"));
+    // The tap opened a confirmation; nothing was removed yet.
+    expect(mutate).not.toHaveBeenCalled();
+    expect(screen.getByText("Retirer ce suivi ?")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("confirmer-le-retrait"));
+    expect(mutate).toHaveBeenCalledWith(42);
+  });
+
+  it("§9 — annuler la confirmation ne retire rien", () => {
+    const mutate = vi.fn();
+    vi.spyOn(hooks, "useUnfollow").mockReturnValue({
+      mutate,
+      isPending: false,
+    } as unknown as ReturnType<typeof hooks.useUnfollow>);
+
+    renderSheet(silo());
+    fireEvent.click(screen.getByTestId("retirer-le-suivi"));
+    fireEvent.click(screen.getByText("Annuler"));
+
+    expect(mutate).not.toHaveBeenCalled();
+    expect(screen.queryByText("Retirer ce suivi ?")).toBeNull();
+  });
+
+  it("§11 — « Récupérer maintenant » lance réellement la recherche et referme", () => {
+    // The one action this sheet exists to offer shipped as a button with no
+    // onClick — a dead control on the primary path. This pins the wiring.
+    const mutate = vi.fn();
+    const onOpenChange = vi.fn();
+    vi.spyOn(hooks, "useGrabNow").mockReturnValue({
+      mutate,
+      isPending: false,
+    } as unknown as ReturnType<typeof hooks.useGrabNow>);
+
+    renderSheet(silo(), { status: "a_recuperer", onOpenChange });
+    fireEvent.click(screen.getByText("Récupérer maintenant"));
 
     expect(mutate).toHaveBeenCalledWith(42);
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("§9 — un suivi en pause offre « Réactiver », jamais une seconde pause", () => {
+    const mutate = vi.fn();
+    vi.spyOn(hooks, "useUpdateFollow").mockReturnValue({
+      mutate,
+      isPending: false,
+    } as unknown as ReturnType<typeof hooks.useUpdateFollow>);
+
+    renderSheet(silo(), { status: "disabled" });
+    expect(screen.queryByTestId("mettre-en-pause")).toBeNull();
+    fireEvent.click(screen.getByTestId("reactiver"));
+
+    expect(mutate).toHaveBeenCalledWith({ id: 42, body: { active: true } });
+  });
+
+  it("§11 — un suivi non résolu garde pause et retrait : ses seules sorties", async () => {
+    // Pausing and removing need no provider id. Hiding them left the operator
+    // unable to stop or drop exactly the follow most likely to need it.
+    renderSheet(unresolved());
+    await screen.findByText(/n'a pas pu être résolu/);
+    expect(screen.getByTestId("mettre-en-pause")).toBeInTheDocument();
+    expect(screen.getByTestId("retirer-le-suivi")).toBeInTheDocument();
   });
 });

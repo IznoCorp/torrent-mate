@@ -304,6 +304,15 @@ export const FOLLOW_STATUS_LABEL_MOVIE: Partial<Record<FollowStatus, string>> = 
 // ---------------------------------------------------------------------------
 
 /** Action wording for one media nature. */
+/**
+ * The film lifecycle sentence (§5/§9): a non-acquired film leaves the list by
+ * itself once acquired. No label said it — the operator saw films vanish, which
+ * reads as loss rather than rule. Lives here because it is vocabulary, and the
+ * detail sheet once shipped the REMOVAL-confirmation body in its place.
+ */
+export const MOVIE_LIFECYCLE_NOTE =
+  "Une fois acquis, ce film quittera automatiquement votre liste.";
+
 export interface ActionWords {
   readonly add: string;
   readonly added: string;

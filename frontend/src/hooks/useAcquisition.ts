@@ -30,6 +30,7 @@ import {
   getToHandle,
   getWanted,
   searchMedia,
+  triggerFollowedSearch,
   updateFollow,
   type AcquisitionStatusResponse,
   type CreateFollowRequest,
@@ -366,6 +367,31 @@ export function useFollow() {
  *   The mutation result; call ``mutateAsync({id, body})`` from a toggle or
  *   cadence form.
  */
+/**
+ * Launch the full search chain for one followed series, now.
+ *
+ * The 202 means « launched », not « found » — the toast says so, and the
+ * invalidation lets the card move to « en cours » on its own poll. Failures
+ * toast in French with the backend detail rather than leaving the primary
+ * action visibly pressed and silently inert.
+ *
+ * Returns:
+ *   The mutation; call ``mutate(followedId)``.
+ */
+export function useGrabNow() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => triggerFollowedSearch(id),
+    onSuccess: () => {
+      toast.info("Recherche lancée.");
+      void qc.invalidateQueries({ queryKey: acqKeys.all });
+    },
+    onError: (err: unknown) => {
+      toastMutationError("Échec du lancement de la recherche", err);
+    },
+  });
+}
+
 export function useUpdateFollow() {
   const qc = useQueryClient();
   return useMutation({

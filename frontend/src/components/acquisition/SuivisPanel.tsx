@@ -59,10 +59,12 @@ import { type ViewMode, useViewMode } from "./useViewMode";
 const URGENCY: Record<string, number> = {
   a_recuperer: 0,
   en_acquisition: 1,
-  en_attente: 2,
-  non_verifie: 3,
-  a_jour: 4,
-  disabled: 5,
+  // Being verified is in motion — between « acquiring » and « waiting ».
+  verification_en_cours: 2,
+  en_attente: 3,
+  non_verifie: 4,
+  a_jour: 5,
+  disabled: 6,
 };
 
 /** Filter pill keys. */
@@ -94,8 +96,11 @@ const PILLS: Record<FilterPill, PillMeta> = {
   },
   pause: {
     label: "En pause",
-    count: (items) => items.filter((i) => i.active && i.status === "disabled").length,
-    matches: (i) => i.active && i.status === "disabled",
+    // status "disabled" is the server's derivation of active=0 — the old
+    // predicate ANDed it with i.active, a combination the server can never
+    // produce. One derivation (§13): read the derived status alone.
+    count: (items) => items.filter((i) => i.status === "disabled").length,
+    matches: (i) => i.status === "disabled",
   },
 };
 
@@ -107,6 +112,7 @@ const PILLS: Record<FilterPill, PillMeta> = {
 const GROUP_KEYS: FollowStatus[] = [
   "a_recuperer",
   "en_acquisition",
+  "verification_en_cours",
   "en_attente",
   "non_verifie",
   "a_jour",
@@ -214,7 +220,12 @@ function gridBadge(item: FollowedSeriesItem): string | null {
  */
 export function SuivisPanel(): ReactElement {
   const navigate = useNavigate();
-  const followed = useFollowed();
+  // active:"all", deliberately: the server derives status "disabled" ONLY for
+  // active=0 rows, and the default fetch excludes exactly those. With the
+  // default, pausing a follow made it vanish from every mounted surface and
+  // the « En pause » pill was a permanent zero by construction — a filter that
+  // can never match is a lie with a control attached.
+  const followed = useFollowed({ active: "all" });
   const [viewMode, setViewMode] = useViewMode();
 
   // ── State ──────────────────────────────────────────────────────────────────

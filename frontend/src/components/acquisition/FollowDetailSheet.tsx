@@ -18,7 +18,7 @@
  * — under 390 episodes it would otherwise be invisible exactly when needed.
  */
 
-import { type ReactElement } from "react";
+import { useState, type ReactElement } from "react";
 import { useNavigate } from "react-router-dom";
 
 import type {
@@ -31,10 +31,20 @@ import {
   Sheet,
   SheetContent,
   SheetHeader,
+  SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useCompleteness,
+  useGrabNow,
   useUnfollow,
   useUpdateFollow,
 } from "@/hooks/useAcquisition";
@@ -47,6 +57,7 @@ import {
   type FollowStatus,
   type MediaKind,
   actionWords,
+  MOVIE_LIFECYCLE_NOTE,
 } from "./meta";
 
 // ── §13 — the single derivation the three surfaces read ──────────────────
@@ -94,19 +105,25 @@ export interface FollowDetailSheetProps {
 
 function SheetLoading(): ReactElement {
   return (
+    <>
+    <SheetTitle className="sr-only">Détail du suivi</SheetTitle>
     <div className="flex flex-col gap-4 p-4">
       <Skeleton className="h-6 w-2/3" />
       <Skeleton className="h-4 w-1/3" />
       <Skeleton className="h-32 w-full" />
     </div>
+    </>
   );
 }
 
 function SheetError(): ReactElement {
   return (
+    <>
+    <SheetTitle className="sr-only">Détail du suivi</SheetTitle>
     <p className="p-4 text-sm text-muted-foreground">
       Complétude indisponible pour le moment.
     </p>
+    </>
   );
 }
 
@@ -270,6 +287,11 @@ function FollowDetailSheetContent({
   const words = actionWords(kind);
   const updateFollow = useUpdateFollow();
   const unfollow = useUnfollow();
+  const grabNow = useGrabNow();
+  // Removal is confirmed (§9) — the wording differs by nature: a série is
+  // deactivated and reactivable, a film leaves the list and returns via a
+  // search. Swiping past a destructive action must never BE the action.
+  const [confirmRemove, setConfirmRemove] = useState(false);
   const aggregate = aggregateFraction(data);
 
   // §11: a follow that can't be resolved to a provider id has no catalogue.
@@ -287,20 +309,25 @@ function FollowDetailSheetContent({
     <>
       {/* ── Header ── */}
       <SheetHeader>
-        <h2 className="text-lg font-semibold">{data.title}</h2>
+        <SheetTitle className="text-lg font-semibold">{data.title}</SheetTitle>
         {/* The one fraction — same derivation as card + season headers (§13). */}
         {aggregate != null && (
           <p data-testid="sheet-meta" className="text-sm text-muted-foreground">
             {String(aggregate.owned)}/{String(aggregate.aired)} en médiathèque
           </p>
         )}
-        {data.kind === "movie" && (
-          <p className="text-sm text-muted-foreground">{words.removeConfirmBody}</p>
+        {/* §5/§9 — the lifecycle rule, NOT the removal-confirmation body this
+            once shipped: telling the operator their film « ne sera plus
+            cherché » on every open read as a threat, and said nothing about
+            the automatic exit that §5 makes normal. An acquired film is past
+            the rule, so it gets no sentence. */}
+        {data.kind === "movie" && status !== "a_jour" && (
+          <p className="text-sm text-muted-foreground">{MOVIE_LIFECYCLE_NOTE}</p>
         )}
         {unresolved && (
           <p className="text-sm text-muted-foreground">
             Ce suivi n&apos;a pas pu être résolu à un identifiant provider (TVDB/TMDB).
-            Les actions de fiche détaillée ne sont pas disponibles.
+            La matrice d&apos;épisodes et la fiche ne sont pas disponibles.
           </p>
         )}
       </SheetHeader>
@@ -308,9 +335,18 @@ function FollowDetailSheetContent({
       {/* ── Primary action (§5.3) ── */}
       {canGrab && (
         <div data-testid="primary-action" className="px-4">
+          {/* Wired to the real search chain: the ONE action this sheet exists
+              to offer was shipped as a button with no onClick — a dead control
+              on the primary path (§11). The 202 means « launched »; the toast
+              says so and the card moves on its own refresh. */}
           <button
             type="button"
-            className="w-full rounded-md bg-primary px-3 py-2 text-center text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            disabled={grabNow.isPending}
+            className="w-full rounded-md bg-primary px-3 py-2 text-center text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            onClick={() => {
+              grabNow.mutate(followedId);
+              onOpenChange(false);
+            }}
           >
             Récupérer maintenant
           </button>
@@ -333,28 +369,42 @@ function FollowDetailSheetContent({
         </div>
       )}
 
-      {/* ── Secondary actions LAST ── */}
-      {!unresolved && (
-        <div data-testid="secondary-actions" className="mt-auto flex flex-col gap-2 p-4">
-          {/* The remaining context-dependent actions (pause, resume, remove)
-              are added by the surrounding panel. The two rendered here are
-              always present. */}
-          {mediaHref != null && (
-            <button
-              data-testid="voir-la-fiche"
-              type="button"
-              className="w-full rounded-md border border-border px-3 py-2 text-left text-sm hover:bg-accent"
-              onClick={() => {
-                void navigate(mediaHref);
-              }}
-            >
-              Voir la fiche
-            </button>
-          )}
-          {/* Both were rendered with no handler: controls that look alive and
-              do nothing, which §11 forbids as firmly as a dead link. They act
-              now; a failure toasts in French from the hook rather than snapping
-              the row back in silence. */}
+      {/* ── Secondary actions LAST ──
+          NOT gated on `unresolved`: pause and removal need no provider id, and
+          an unresolved follow whose only exits are invisible is a trap — the
+          operator could neither stop nor drop the one follow most likely to
+          need it. Only « Voir la fiche » depends on an id, and it gates itself
+          through mediaHref. */}
+      <div data-testid="secondary-actions" className="mt-auto flex flex-col gap-2 p-4">
+        {mediaHref != null && (
+          <button
+            data-testid="voir-la-fiche"
+            type="button"
+            className="w-full rounded-md border border-border px-3 py-2 text-left text-sm hover:bg-accent"
+            onClick={() => {
+              void navigate(mediaHref);
+            }}
+          >
+            Voir la fiche
+          </button>
+        )}
+        {/* §9 suspend/resume is a PAIR: a paused follow offers « Réactiver »,
+            never a second pause. `disabled` is the server's derivation of
+            active=0 — one derivation, read here rather than re-derived. */}
+        {status === "disabled" ? (
+          <button
+            data-testid="reactiver"
+            type="button"
+            disabled={updateFollow.isPending}
+            className="w-full rounded-md border border-border px-3 py-2 text-left text-sm hover:bg-accent disabled:opacity-50"
+            onClick={() => {
+              updateFollow.mutate({ id: followedId, body: { active: true } });
+              onOpenChange(false);
+            }}
+          >
+            {words.resume}
+          </button>
+        ) : (
           <button
             data-testid="mettre-en-pause"
             type="button"
@@ -367,20 +417,53 @@ function FollowDetailSheetContent({
           >
             {words.pause}
           </button>
-          <button
-            data-testid="retirer-le-suivi"
-            type="button"
-            disabled={unfollow.isPending}
-            className="w-full rounded-md border border-border px-3 py-2 text-left text-sm text-danger hover:bg-accent disabled:opacity-50"
-            onClick={() => {
-              unfollow.mutate(followedId);
-              onOpenChange(false);
-            }}
-          >
-            {words.remove}
-          </button>
-        </div>
-      )}
+        )}
+        <button
+          data-testid="retirer-le-suivi"
+          type="button"
+          disabled={unfollow.isPending}
+          className="w-full rounded-md border border-border px-3 py-2 text-left text-sm text-danger hover:bg-accent disabled:opacity-50"
+          onClick={() => {
+            setConfirmRemove(true);
+          }}
+        >
+          {words.remove}
+        </button>
+      </div>
+
+      {/* ── Removal confirmation (§9) ── */}
+      <Dialog open={confirmRemove} onOpenChange={setConfirmRemove}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{words.removeConfirmTitle}</DialogTitle>
+            <DialogDescription>{words.removeConfirmBody}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              type="button"
+              className="rounded-md border border-border px-3 py-2 text-sm hover:bg-accent"
+              onClick={() => {
+                setConfirmRemove(false);
+              }}
+            >
+              Annuler
+            </button>
+            <button
+              data-testid="confirmer-le-retrait"
+              type="button"
+              disabled={unfollow.isPending}
+              className="rounded-md bg-danger px-3 py-2 text-sm font-medium text-danger-foreground hover:bg-danger/90 disabled:opacity-50"
+              onClick={() => {
+                unfollow.mutate(followedId);
+                setConfirmRemove(false);
+                onOpenChange(false);
+              }}
+            >
+              {words.remove}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

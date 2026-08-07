@@ -62,6 +62,7 @@ vi.mock("@/hooks/useAcquisition", () => ({
   useFollow: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateFollow: () => ({ mutate: vi.fn(), isPending: false }),
   useUnfollow: () => ({ mutate: vi.fn(), isPending: false }),
+  useGrabNow: () => ({ mutate: vi.fn(), isPending: false }),
   useCompleteness: () => completenessMock(),
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   useFollowed: () => followedMock(),
