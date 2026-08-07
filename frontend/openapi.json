@@ -5984,7 +5984,7 @@
     },
     "/api/acquisition/stalled-grabs": {
       "get": {
-        "description": "Les acquisitions parqu\u00e9es \u00e0 \u00ab r\u00e9cup\u00e9r\u00e9 \u00bb qui n'atteignent jamais la m\u00e9diath\u00e8que.\n\nLe d\u00e9tail derri\u00e8re le compteur de la vue d'ensemble : \u00a78 interdit un nombre sans\nacc\u00e8s \u00e0 ce qu'il compte, et \u00a714.1 fait de \u00ab r\u00e9cup\u00e9r\u00e9 \u00bb un \u00e9tat transitoire \u2014 une\nligne qui y stagne doit se voir, avec sa raison.\n\nLecture seule, fail-soft, non staging-guarded (n'\u00e9crit rien).\n\nArgs:\n    request: La requ\u00eate FastAPI entrante.\n\nReturns:\n    Un :class:`StalledGrabsResponse`, la plus ancienne d'abord.",
+        "description": "Les acquisitions parqu\u00e9es \u00e0 \u00ab r\u00e9cup\u00e9r\u00e9 \u00bb qui n'atteignent jamais la m\u00e9diath\u00e8que.\n\nLe d\u00e9tail derri\u00e8re le compteur de la vue d'ensemble : \u00a78 interdit un nombre sans\nacc\u00e8s \u00e0 ce qu'il compte, et \u00a714.1 fait de \u00ab r\u00e9cup\u00e9r\u00e9 \u00bb un \u00e9tat transitoire \u2014 une\nligne qui y stagne doit se voir, avec sa raison.\n\nLecture seule, non staging-guard\u00e9e (n'\u00e9crit rien). PAS fail-soft, et c'est\nvoulu : une lecture en \u00e9chec r\u00e9pond 500, le client rend l'\u00e9chec visible\nsous le compteur (\u00ab la liste n'a pas pu \u00eatre charg\u00e9e \u00bb) \u2014 avaler l'erreur\nici rendrait une liste vide qui affirmerait le contraire du vrai.\n\nArgs:\n    request: La requ\u00eate FastAPI entrante.\n\nReturns:\n    Un :class:`StalledGrabsResponse`, la plus ancienne d'abord.",
         "operationId": "get_stalled_grabs_api_acquisition_stalled_grabs_get",
         "responses": {
           "200": {

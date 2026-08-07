@@ -564,7 +564,10 @@ export interface paths {
          *     accès à ce qu'il compte, et §14.1 fait de « récupéré » un état transitoire — une
          *     ligne qui y stagne doit se voir, avec sa raison.
          *
-         *     Lecture seule, fail-soft, non staging-guarded (n'écrit rien).
+         *     Lecture seule, non staging-guardée (n'écrit rien). PAS fail-soft, et c'est
+         *     voulu : une lecture en échec répond 500, le client rend l'échec visible
+         *     sous le compteur (« la liste n'a pas pu être chargée ») — avaler l'erreur
+         *     ici rendrait une liste vide qui affirmerait le contraire du vrai.
          *
          *     Args:
          *         request: La requête FastAPI entrante.
