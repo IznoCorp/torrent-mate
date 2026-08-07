@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/sheet";
 import { usePipelineStatus } from "@/hooks/usePipelineStatus";
 import { useStagingMedia } from "@/hooks/useStagingMedia";
-import { useFollowed, useToHandle } from "@/hooks/useAcquisition";
+import { useWaitingForOperator } from "@/hooks/useAcquisition";
 import { useWsInvalidation } from "@/hooks/useWsInvalidation";
 import { SHELL_BADGE_EVENT_TYPES } from "@/api/events";
 import { decisionsKeys } from "@/api/decisions";
@@ -56,33 +56,10 @@ function AppShellInner(): ReactElement {
   const pipelineRunning: boolean = pipelineStatus.state !== "idle";
 
   // ── Badge 3: /acquisition = what AWAITS THE OPERATOR ──────────────────
-  // The badge counts WHAT AWAITS THE OPERATOR, not what is in progress: items
-  // to retrieve + items to handle. An in-flight item needs nothing from them.
+  // One derivation (§13): the « Maintenant » tab badge reads the same hook.
   // The old `pendingWanted` read 3 then landed on a view showing 0/0/0/59 (D6).
-  // 60 s poll, like the badge source it replaced: a shell badge that only
-  // refreshes on remount would show yesterday's count all day.
-  const { data: followedData, isError: followedIsError } = useFollowed(
-    {},
-    { refetchInterval: 60_000, staleTime: 55_000 },
-  );
-  const { data: toHandleData, isError: toHandleIsError } = useToHandle();
-  const takeableCount: number = (followedData?.items ?? []).filter(
-    (i) => i.status === "a_recuperer",
-  ).length;
-  // `items` is guaranteed by the contract (ToHandleResponse.items has a default
-  // on the Pydantic side, so it is always serialised) — no runtime guard that
-  // contradicts the type. A test mock that returns `{}` however crashes the
-  // WHOLE shell: the AppShell.test global mock must serve the real shape.
-  const toHandleCount: number = toHandleData?.items.length ?? 0;
-  const waitingForOperator: number = takeableCount + toHandleCount;
-  // A failure on EITHER source makes the total unknowable. Showing the half we
-  // have would under-count what needs attention — the single prohibition of
-  // §méthode. Show « ? », as the old single-source badge did.
-  // `degraded` counts as unknown: the server answered 200 with an empty list
-  // BECAUSE its own read failed — rendering a number would state the one thing
-  // it just told us it does not know.
-  const acquisitionCountUnknown: boolean =
-    followedIsError || toHandleIsError || (toHandleData?.degraded ?? false);
+  const { count: waitingForOperator, unknown: acquisitionCountUnknown } =
+    useWaitingForOperator();
 
   // ── WS listener: invalidate staging counts + decisions + pipeline ───
   // history on ItemProgressed status changes and run-lifecycle events

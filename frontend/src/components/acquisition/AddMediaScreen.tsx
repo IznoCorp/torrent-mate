@@ -423,7 +423,11 @@ export function AddMediaScreen({
             <ErrorState
               title="La recherche a échoué"
               {...(searchQuery.error instanceof Error
-                ? { message: searchQuery.error.message }
+                ? {
+                    // Wrapped: the raw ApiError starts with a bare status code
+                    // and an English backend detail — machine text (NE-DOIT-PAS-4).
+                    message: `La recherche a échoué (${searchQuery.error.message}). Réessayez, ou ajoutez par identifiant ci-dessous.`,
+                  }
                 : {})}
               onRetry={() => {
                 void searchQuery.refetch();
@@ -569,7 +573,8 @@ export function AddMediaScreen({
               variant="link"
               size="sm"
               onClick={() => {
-                void navigate("/acquisition?tab=followed");
+                // Canonical target — the legacy value costs a redirect render.
+                void navigate("/acquisition?tab=suivis");
                 onOpenChange(false);
               }}
             >

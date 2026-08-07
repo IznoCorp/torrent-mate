@@ -46,6 +46,7 @@ vi.mock("@/hooks/useAcquisition", () => ({
   useToHandle: () => useToHandleMock(),
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   useJourneys: () => useJourneysMock(),
+  useWaitingForOperator: () => ({ count: 0, unknown: false }),
   // « En vol » carries the live download state and the stalled-grabs alert;
   // both must be served or the whole panel throws rather than rendering.
   useDownloads: () => ({
@@ -96,10 +97,15 @@ import AcquisitionPage from "@/pages/AcquisitionPage";
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Probe that surfaces the live URL search string for ?tab= assertions. */
+/** Probe that surfaces the live URL for redirect assertions. */
 function LocationProbe(): ReactElement {
-  const { search } = useLocation();
-  return <div data-testid="loc-search">{search}</div>;
+  const { pathname, search } = useLocation();
+  return (
+    <>
+      <div data-testid="loc-pathname">{pathname}</div>
+      <div data-testid="loc-search">{search}</div>
+    </>
+  );
 }
 
 /** Render the page wrapped in a QueryClientProvider + router (?tab= support). */
@@ -229,7 +235,6 @@ describe("AcquisitionPage", () => {
     ["obligations", "maintenant"],
     ["watcher", "maintenant"],
     ["parcours", "maintenant"],
-    ["reglages", "maintenant"],
     ["wanted", "maintenant"],
     ["downloads", "maintenant"],
   ])(
@@ -246,6 +251,16 @@ describe("AcquisitionPage", () => {
       }
     },
   );
+
+  it("un ancien lien ?tab=reglages atteint la VRAIE nouvelle maison : /config", () => {
+    // The ranking editor moved to /config's « Classement » tab — landing on
+    // « maintenant » was the wrong page with no pointer to the new home.
+    mockAllEmpty();
+    renderPage("/acquisition?tab=reglages");
+
+    expect(screen.getByTestId("loc-pathname")).toHaveTextContent("/config");
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("tab=classement");
+  });
 
   it("a legacy redirect does not stack a history entry (replace, not push)", () => {
     mockAllEmpty();
@@ -488,7 +503,7 @@ describe("AcquisitionPage", () => {
     renderPage();
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Veille et obligations" }),
+      screen.getByRole("button", { name: "Plus — veille et obligations" }),
     );
 
     // The ObligationsPanel renders inside the sheet.

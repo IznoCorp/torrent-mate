@@ -191,8 +191,13 @@ export function useConfigEditor(): ConfigEditorState {
   const [showConflict, setShowConflict] = useState(false);
   // Restart confirmation dialog visibility.
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
-  // Active section — Fichiers or Secrets (local UI state, not URL-driven).
-  const [leftTab, setLeftTab] = useState<ConfigLeftTab>("files");
+  // Active section. Seeded from ?tab= so a deep link (the old Acquisition
+  // « Réglages » redirects to /config?tab=classement) lands on the RIGHT
+  // section instead of the file list; afterwards it is local UI state.
+  const [leftTab, setLeftTab] = useState<ConfigLeftTab>(() => {
+    const t = searchParams.get("tab");
+    return t === "classement" || t === "secrets" ? t : "files";
+  });
 
   const queryClient = useQueryClient();
 

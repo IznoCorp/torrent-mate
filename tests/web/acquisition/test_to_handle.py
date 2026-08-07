@@ -72,6 +72,13 @@ def test_a_manual_drop_is_counted_but_never_listed(tmp_path, acquire_store):
     assert roll.orphan_count == 1
 
 
+def test_a_successful_read_says_so(tmp_path, acquire_store):
+    """degraded=False sur une lecture réussie — l'absence de panne est un fait aussi."""
+    db = _make_indexer(tmp_path, [])
+    roll = build_to_handle(indexer_db=db, store=acquire_store)
+    assert roll.degraded is False
+
+
 def test_a_resolved_decision_is_neither(tmp_path, acquire_store):
     """Une décision résolue n'est ni une acquisition ni un orphelin."""
     db = _make_indexer(
@@ -125,6 +132,9 @@ def test_no_indexer_db_is_an_empty_rollup_not_a_crash(acquire_store):
     roll = build_to_handle(indexer_db=None, store=acquire_store)
     assert roll.items == ()
     assert roll.orphan_count == 0
+    # Empty AND degraded: without the flag the UI renders « rien à traiter »
+    # when the truth is that the reading could not happen.
+    assert roll.degraded is True
 
 
 def test_store_none_with_pending_decisions_returns_empty_rollup(tmp_path):
@@ -138,6 +148,7 @@ def test_store_none_with_pending_decisions_returns_empty_rollup(tmp_path):
     roll = build_to_handle(indexer_db=db, store=None)
     assert roll.items == ()
     assert roll.orphan_count == 0
+    assert roll.degraded is True
 
 
 def test_provenance_correlation_failure_returns_empty_rollup_not_crash(tmp_path, acquire_store):
@@ -166,3 +177,4 @@ def test_provenance_correlation_failure_returns_empty_rollup_not_crash(tmp_path,
 
     assert roll.items == ()
     assert roll.orphan_count == 0
+    assert roll.degraded is True

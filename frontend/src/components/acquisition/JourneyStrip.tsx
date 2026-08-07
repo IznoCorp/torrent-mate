@@ -104,8 +104,11 @@ export function JourneyStrip({
               aria-hidden="true"
               className={`z-[1] size-[9px] shrink-0 border-[1.5px] ${dot}`}
             />
+            {/* aria-hidden: the sr-only span below already carries this label
+                WITH its state — without it every station read twice. */}
             <span
               data-station-label
+              aria-hidden="true"
               className={`block w-full truncate px-0.5 text-center text-[9.5px] leading-tight ${text}`}
             >
               {s.label}

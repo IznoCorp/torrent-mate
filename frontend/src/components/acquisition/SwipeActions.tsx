@@ -142,10 +142,13 @@ export function SwipeActions({
       className="relative overflow-hidden rounded-lg"
     >
       {/* Action layer — behind the card, never translated. */}
-      <div className="absolute inset-y-0 left-0 flex" aria-hidden={offset <= 0}>
+      {/* inert: aria-hidden alone left the buttons keyboard-focusable — a
+          hidden control that still takes focus is a trap. The kebab is the
+          keyboard path to the same actions. */}
+      <div className="absolute inset-y-0 left-0 flex" aria-hidden={offset <= 0} inert={offset <= 0}>
         {left != null && renderAction(left)}
       </div>
-      <div className="absolute inset-y-0 right-0 flex" aria-hidden={offset >= 0}>
+      <div className="absolute inset-y-0 right-0 flex" aria-hidden={offset >= 0} inert={offset >= 0}>
         {right?.map(renderAction)}
       </div>
 

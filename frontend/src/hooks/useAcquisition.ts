@@ -383,6 +383,36 @@ export function useFollow() {
  * Returns:
  *   The mutation; call ``mutate(followedId)``.
  */
+/**
+ * « What awaits the operator » — ONE derivation (§13).
+ *
+ * The nav badge and the « Maintenant » tab badge answer the same question and
+ * must read the same computation: takeable follows + blocked items. An
+ * in-flight item awaits nothing from the operator and is not counted. When
+ * EITHER source fails — or the server admits a degraded read — the total is
+ * unknowable and ``unknown`` is true: showing the half we have would
+ * under-count what needs attention.
+ *
+ * Returns:
+ *   ``{ count, unknown }``.
+ */
+export function useWaitingForOperator(): {
+  count: number;
+  unknown: boolean;
+} {
+  const followed = useFollowed({}, { refetchInterval: 60_000, staleTime: 55_000 });
+  const toHandle = useToHandle();
+  const takeable = (followed.data?.items ?? []).filter(
+    (i) => i.status === "a_recuperer",
+  ).length;
+  const blocked = toHandle.data?.items.length ?? 0;
+  return {
+    count: takeable + blocked,
+    unknown:
+      followed.isError || toHandle.isError || (toHandle.data?.degraded ?? false),
+  };
+}
+
 export function useGrabNow() {
   const qc = useQueryClient();
   return useMutation({

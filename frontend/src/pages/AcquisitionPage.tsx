@@ -22,7 +22,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactElement,
 } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import { acqKeys } from "@/api/acquisition";
@@ -48,6 +48,7 @@ import { PlusSheet } from "@/components/acquisition/PlusSheet";
 import { SuivisPanel } from "@/components/acquisition/SuivisPanel";
 import { aboveBottomBar } from "@/components/layout/bottom-bar-metrics";
 import { Button } from "@/components/ui/button";
+import { useWaitingForOperator } from "@/hooks/useAcquisition";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 import { handleTablistKeyDown } from "@/lib/tablist";
 
@@ -69,12 +70,21 @@ export default function AcquisitionPage(): ReactElement {
   // URL (single source of truth); the default "maintenant" carries no param so
   // /acquisition stays clean and ?tab=suivis is the shareable form.
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const waiting = useWaitingForOperator();
   const rawTab = searchParams.get("tab");
 
   // Redirect legacy ?tab= values to the view that now answers them. Replace so
   // Back doesn't cycle through the redirect — DOIT-10 deep-link survives.
   useEffect(() => {
     if (rawTab === null) return;
+    // The ranking editor did not dissolve into a view — it MOVED to /config.
+    // Redirecting its deep link to « maintenant » landed the operator on the
+    // wrong page with no pointer to the new home.
+    if (rawTab === "reglages") {
+      void navigate("/config?tab=classement", { replace: true });
+      return;
+    }
     const target = LEGACY_TAB_REDIRECTS[rawTab];
     if (target === undefined) return;
     setSearchParams(
@@ -89,7 +99,7 @@ export default function AcquisitionPage(): ReactElement {
       },
       { replace: true },
     );
-  }, [rawTab, setSearchParams]);
+  }, [rawTab, setSearchParams, navigate]);
 
   const activeTab: TabId = TABS.some((t) => t.id === rawTab)
     ? (rawTab as TabId)
@@ -133,6 +143,9 @@ export default function AcquisitionPage(): ReactElement {
   const onPointerDown = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
     const pager = pagerRef.current;
     if (pager == null) return;
+    // A mouse drag is text selection, not a view gesture: on desktop the tabs
+    // are one click away and a selection sweep must not change the view.
+    if (e.pointerType === "mouse") return;
     // A gesture born inside a card is the card's; it says so with data-swipe.
     if ((e.target as HTMLElement).closest("[data-swipe]") != null) return;
     if (!shouldStartViewSwipe(e.clientX, pager.getBoundingClientRect().left)) {
@@ -265,6 +278,21 @@ export default function AcquisitionPage(): ReactElement {
             }`}
           >
             {tab.label}
+            {/* §3.2 — the badge counts WHAT AWAITS THE OPERATOR, same
+                derivation as the nav badge (§13). « ? » when unknowable. */}
+            {tab.id === "maintenant" && (waiting.unknown || waiting.count > 0) && (
+              <span
+                data-testid="tab-maintenant-badge"
+                className="ml-1.5 inline-flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-warning px-1 text-[0.6875rem] font-semibold leading-none text-warning-foreground"
+                aria-label={
+                  waiting.unknown
+                    ? "Compteur indisponible"
+                    : `${String(waiting.count)} élément(s) à traiter`
+                }
+              >
+                {waiting.unknown ? "?" : String(waiting.count)}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -284,17 +312,24 @@ export default function AcquisitionPage(): ReactElement {
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
       >
-        {pullDistance > 0 && (
-          <p
-            data-testid="pull-indicator"
-            aria-live="polite"
-            className="text-center text-xs text-muted-foreground"
-          >
-            {pullDistance >= PULL_THRESHOLD_PX
+        {/* The live region is ALWAYS mounted with conditional content: a
+            region that mounts on first use announces nothing the first time —
+            assistive tech only reports changes inside an existing region. */}
+        <p
+          data-testid="pull-indicator"
+          aria-live="polite"
+          className={
+            pullDistance > 0
+              ? "text-center text-xs text-muted-foreground"
+              : "sr-only"
+          }
+        >
+          {pullDistance > 0
+            ? pullDistance >= PULL_THRESHOLD_PX
               ? "Relâchez pour actualiser"
-              : "Tirez pour actualiser"}
-          </p>
-        )}
+              : "Tirez pour actualiser"
+            : ""}
+        </p>
         {activeTab === "maintenant" && <MaintenantPanel />}
         {activeTab === "suivis" && <SuivisPanel />}
       </div>
@@ -304,7 +339,7 @@ export default function AcquisitionPage(): ReactElement {
       <Button
         variant="outline"
         size="sm"
-        aria-label="Veille et obligations"
+        aria-label="Plus — veille et obligations"
         onClick={() => {
           setPlusOpen(true);
         }}

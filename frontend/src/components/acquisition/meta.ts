@@ -97,7 +97,6 @@ export const LEGACY_TAB_REDIRECTS: Readonly<Record<string, TabId>> = {
   obligations: "maintenant",
   watcher: "maintenant",
   parcours: "maintenant",
-  reglages: "maintenant",
   followed: "suivis",
 };
 
