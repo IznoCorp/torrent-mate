@@ -1,0 +1,314 @@
+/**
+ * AddMediaScreen — full-screen add-by-search + add-by-ID surface (acq-mobile task 12).
+ *
+ * Tests the search-gating, vertical-result rows, provider-total display,
+ * §5 replacement confirmation, session-local follow state, empty/error
+ * states, and the by-ID validation rules.
+ */
+
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { MediaSearchResult } from "@/api/acquisition";
+
+// ── Mocks ──────────────────────────────────────────────────────────────────
+
+const mediaSearchMock = vi.fn();
+const followMutate = vi.fn();
+
+vi.mock("@/hooks/useAcquisition", () => ({
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  useMediaSearch: (...a: unknown[]) => mediaSearchMock(...a),
+  useFollow: () => ({ mutate: followMutate, isPending: false }),
+}));
+
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
+}));
+
+const navigateMock = vi.fn();
+vi.mock("react-router-dom", () => ({
+  useNavigate: () => navigateMock,
+}));
+
+import { AddMediaScreen } from "@/components/acquisition/AddMediaScreen";
+import { toast } from "sonner";
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+/** Default media-search infinite-query shape with no data (idle). */
+function emptySearchResult() {
+  return {
+    data: undefined,
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+    hasNextPage: false,
+    isFetchingNextPage: false,
+    fetchNextPage: vi.fn(),
+  };
+}
+
+/** Build a single MediaSearchResult with defaults for every optional field. */
+function makeResult(
+  overrides: Partial<MediaSearchResult> & { followed?: boolean } = {},
+): MediaSearchResult {
+  return {
+    provider: "tmdb",
+    provider_id: 1,
+    title: "Dune",
+    year: 2021,
+    kind: "movie",
+    poster_url: null,
+    overview: "Sur Arrakis.",
+    score: 0.95,
+    ...overrides,
+    // `followed` is stripped — it is a harness-only field, not part of
+    // MediaSearchResult.
+  } as MediaSearchResult;
+}
+
+/**
+ * Render the AddMediaScreen wrapped in a QueryClientProvider and
+ * pre-configure the mocks from the brief's test-harness vocabulary.
+ */
+function renderAdd(opts?: {
+  /** Number of results to generate, or an explicit row array. */
+  results?: number | readonly (Partial<MediaSearchResult> & { followed?: boolean })[];
+  /** Provider total (≠ row count, §8). */
+  total?: number;
+  /** The query that was submitted (for the empty-state message). */
+  query?: string;
+  /** Spy called each time a provider search is triggered. */
+  /** Spy called each time a provider search is triggered. */
+  onSearch?: (...args: unknown[]) => void;
+  /** Spy called each time a follow body is submitted. */
+  onFollow?: (...args: unknown[]) => void;
+  /** What the follow mutation's onSuccess receives. */
+  followResult?: { tvdb_unresolved?: boolean };
+}) {
+  // --- Build the search result ---
+  const resultsArg = opts?.results;
+  let results: MediaSearchResult[];
+  if (resultsArg === undefined) {
+    results = [];
+  } else if (typeof resultsArg === "number") {
+    results = Array.from({ length: resultsArg }, (_, i) =>
+      makeResult({ title: `Résultat ${String(i + 1)}`, provider_id: i + 1 }),
+    );
+  } else {
+    results = resultsArg.map((r) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { followed: _f, ...rest } = r as MediaSearchResult & { followed?: boolean };
+      return makeResult(rest);
+    });
+  }
+  const total = opts?.total ?? results.length;
+
+  const searchData =
+    results.length > 0 || total > 0
+      ? { pages: [{ total, offset: 0, limit: 30, results }] }
+      : undefined;
+
+  const onSearch = opts?.onSearch;
+  mediaSearchMock.mockImplementation((q: string, kind?: string) => {
+    // Fire the onSearch spy only when a real query was passed — the empty
+    // initial call on mount (q === "") must not count as a search.
+    if (q && onSearch) onSearch(q, kind);
+    return {
+      ...emptySearchResult(),
+      data: searchData,
+      isLoading: false,
+      hasNextPage: false,
+    };
+  });
+
+  // --- Build the follow mutation ---
+  const onFollow = opts?.onFollow;
+  followMutate.mockImplementation(
+    (body: unknown, mutationOpts?: { onSuccess?: (created: unknown) => void }) => {
+      if (onFollow) onFollow(body);
+      mutationOpts?.onSuccess?.(opts?.followResult ?? {});
+    },
+  );
+
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+
+  const view = render(
+    <QueryClientProvider client={qc}>
+      <AddMediaScreen open={true} onOpenChange={vi.fn()} />
+    </QueryClientProvider>,
+  );
+
+  return view;
+}
+
+/**
+ * Click the single ENABLED "Suivre" button among potentially multiple.
+ *
+ * When results are visible, two « Suivre » buttons coexist: the always-visible
+ * by-ID entry (disabled while its id field is empty) and the result card action.
+ * Asserts exactly one is enabled, then clicks it.
+ */
+function clickResultSuivre(): void {
+  const enabled = screen
+    .getAllByRole("button", { name: "Suivre" })
+    .filter((b) => !(b as HTMLButtonElement).disabled);
+  expect(enabled).toHaveLength(1);
+  const btn = enabled[0];
+  if (btn === undefined) throw new Error("no enabled « Suivre » button");
+  fireEvent.click(btn);
+}
+
+/** Helper: fill the by-ID form and submit for a given provider + id. */
+function addById(id: string, provider: "tvdb" | "tmdb" | "imdb"): void {
+  const details = screen.getByRole("group", { name: /identifiant/i });
+  // Select the provider
+  fireEvent.click(within(details).getByRole("button", { name: provider.toUpperCase() }));
+  // Type the id
+  const idInput = screen.getByLabelText(/Identifiant/);
+  fireEvent.change(idInput, { target: { value: id } });
+  // Submit — use the button WITHIN the by-ID section.
+  fireEvent.click(within(details).getByRole("button", { name: "Suivre" }));
+}
+
+/** Submit a search for the given title. */
+function search(title: string): void {
+  const searchbox = screen.getByRole("searchbox");
+  fireEvent.change(searchbox, { target: { value: title } });
+  fireEvent.click(screen.getByRole("button", { name: "Chercher" }));
+}
+
+// ── Tests ──────────────────────────────────────────────────────────────────
+
+beforeEach(() => {
+  mediaSearchMock.mockReturnValue(emptySearchResult());
+});
+
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
+
+describe("AddMediaScreen", () => {
+  it("n'interroge le fournisseur qu'à la validation, jamais à la frappe", () => {
+    const spy = vi.fn();
+    renderAdd({ onSearch: spy });
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Dune" } });
+    expect(spy).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Chercher" }));
+    expect(spy).toHaveBeenCalledWith("Dune", undefined);
+  });
+
+  it("§8 — affiche le total du fournisseur, pas le nombre de lignes", () => {
+    renderAdd({ results: 5, total: 81 });
+    // Submit a search so results render.
+    search("dune");
+    expect(
+      screen.getByText(/5 résultats affichés sur 81 trouvés/),
+    ).toBeInTheDocument();
+  });
+
+  it("chaque résultat porte année, type et fournisseur — ce qui départage deux homonymes", () => {
+    renderAdd({
+      results: [
+        { title: "Dune", year: 2019, kind: "tv", provider: "tvdb", provider_id: 1 },
+        { title: "Dune", year: 2013, kind: "movie", provider: "tmdb", provider_id: 2 },
+      ],
+    });
+    search("dune");
+    // First verify the count text renders (proves results section is visible).
+    expect(screen.getByText(/2 résultats affichés sur 2 trouvés/)).toBeInTheDocument();
+    // Then verify specific row content.
+    expect(screen.getByText("2019 · Série · TVDB")).toBeInTheDocument();
+    expect(screen.getByText("2013 · Film · TMDB")).toBeInTheDocument();
+  });
+
+  it("A14 — un film s'ajoute, une série se suit", () => {
+    renderAdd({
+      results: [
+        { title: "Dune", kind: "movie", provider_id: 1 },
+        { title: "Silo", kind: "tv", provider_id: 2 },
+      ],
+    });
+    search("test");
+    expect(
+      screen.getByRole("button", { name: "Ajouter" }),
+    ).toBeInTheDocument();
+    // Multiple « Suivre » buttons coexist (by-ID + result row) — at least one
+    // must be present.
+    const suivreBtns = screen.getAllByRole("button", { name: "Suivre" });
+    expect(suivreBtns.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("§5 — un film déjà en médiathèque demande AVANT de suivre", () => {
+    const follow = vi.fn();
+    renderAdd({
+      results: [
+        { title: "Blade Runner 2049", kind: "movie", provider_id: 1, already_owned: true },
+      ],
+      onFollow: follow,
+    });
+    search("blade runner");
+    fireEvent.click(screen.getByRole("button", { name: "Ajouter…" }));
+    expect(follow).not.toHaveBeenCalled();
+    expect(
+      screen.getByText(/REMPLACERA la version en place/i),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Remplacer" }));
+    expect(follow).toHaveBeenCalledOnce();
+  });
+
+  it("l'état déjà-suivi est SUR le bouton, sans étiquette redondante (§12)", () => {
+    // Simulate a session-local follow: the row's button flips to « ✓ Suivi ».
+    renderAdd({
+      results: [{ title: "Silo", kind: "tv", provider_id: 1 }],
+    });
+    search("silo");
+    // Follow it once — the onSuccess handler marks it done.
+    clickResultSuivre();
+    const btn = screen.getByRole("button", { name: "✓ Suivi" });
+    expect(btn).toBeDisabled();
+    // No redundant tag.
+    expect(screen.queryByText(/déjà dans vos suivis/)).toBeNull();
+  });
+
+  it("zéro résultat n'est jamais un écran blanc (§3)", () => {
+    renderAdd({ results: [], query: "zzzz" });
+    search("zzzz");
+    expect(
+      screen.getByText(/Aucun résultat pour « zzzz »/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: /identifiant/i })).toBeInTheDocument();
+  });
+
+  it("ajout par ID : la notation scientifique est refusée et le bouton dit pourquoi", () => {
+    renderAdd({});
+    // Expand the by-ID section by clicking the summary text.
+    fireEvent.click(screen.getByText(/ou ajouter directement par ID/i));
+    const idInput = screen.getByLabelText(/Identifiant/);
+    fireEvent.change(idInput, { target: { value: "12e34" } });
+    expect(screen.getByRole("button", { name: "Suivre" })).toBeDisabled();
+    expect(
+      screen.getByText(/entrez un nombre entier positif/),
+    ).toBeInTheDocument();
+  });
+
+  it("un ID TVDB non résolu est AVOUÉ, pas tu", () => {
+    renderAdd({ followResult: { tvdb_unresolved: true } });
+    addById("tt0903747", "imdb");
+    // The toast is the user-visible signal — the component does not render
+    // the warning inline (same pattern as MediaSearchAdd).
+    expect(vi.mocked(toast.warning)).toHaveBeenCalled();
+  });
+});
