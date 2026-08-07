@@ -318,8 +318,7 @@ export const TONE_CELL_CLASS: Record<string, string> = {
   warning: "bg-warning/20 text-warning",
   info: "bg-info/20 text-info",
   waiting: "bg-waiting/20 text-waiting",
-  upcoming:
-    "bg-[color-mix(in_oklch,var(--upcoming)_16%,transparent)] text-[var(--upcoming)]",
+  upcoming: "bg-upcoming/20 text-upcoming",
   muted: "border border-dashed border-border bg-transparent text-muted-foreground",
   neutral: "bg-muted text-muted-foreground",
 };
@@ -330,7 +329,7 @@ export const TONE_SWATCH_CLASS: Record<string, string> = {
   warning: "bg-warning/60",
   info: "bg-info/60",
   waiting: "bg-waiting/60",
-  upcoming: "bg-[color-mix(in_oklch,var(--upcoming)_60%,transparent)]",
+  upcoming: "bg-upcoming/60",
   muted: "border border-dashed border-border bg-transparent",
   neutral: "bg-muted",
 };

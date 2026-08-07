@@ -358,8 +358,13 @@ export function MaintenantPanel(): ReactElement {
     const reason = followWaitingReason(item);
     if (reason != null) pieces.push(reason);
     if (item.next_search_at != null) {
+      // Compact wording: the full « prochaine vérification » pushed the line
+      // past 375 px and the subtitle truncates (§12) — when a verdict opens
+      // the line, the short form carries the same fact.
       pieces.push(
-        `prochaine vérification ${relativeTimeUntil(item.next_search_at)}`,
+        reason != null
+          ? `vérif. ${relativeTimeUntil(item.next_search_at)}`
+          : `prochaine vérification ${relativeTimeUntil(item.next_search_at)}`,
       );
     }
     return pieces.length > 0
@@ -386,10 +391,11 @@ export function MaintenantPanel(): ReactElement {
           posterUrl={item.poster_url ?? null}
           {...(searchMeta ? { subtitle: searchMetaLine(item) } : {})}
           meta={
-            /* Maquette followRow: mono fraction, dotted status chip on the
-               takeable card (the resting card's verdict is its subtitle). */
+            /* Maquette followRow: mono fraction + dotted status chip on the
+               takeable card; the resting card carries its verdict as the
+               subtitle and NOTHING else — no fraction there (maquette). */
             <>
-              {followFraction(item) != null && (
+              {!searchMeta && followFraction(item) != null && (
                 <span className="font-mono text-xs text-muted-foreground tabular-nums">
                   {followFraction(item)}
                 </span>
@@ -485,7 +491,7 @@ export function MaintenantPanel(): ReactElement {
         footer={
           <Link
             to={resolveHref(item)}
-            className="mt-[10px] block w-full rounded-md border border-border py-2 text-center text-sm hover:bg-accent"
+            className="mt-[10px] block w-full rounded-md border border-danger/40 bg-danger/10 py-2 text-center text-sm font-medium text-danger hover:bg-danger/20"
           >
             Résoudre →
           </Link>

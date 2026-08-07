@@ -75,6 +75,13 @@
   --color-danger-foreground: var(--danger-foreground);
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
+  /* waiting/upcoming were defined as raw tokens but never registered here:
+     every `bg-waiting` / `text-upcoming` utility silently compiled to NOTHING
+     (invisible section pips, unpainted chips). Registration makes them real. */
+  --color-waiting: var(--waiting);
+  --color-waiting-foreground: var(--waiting-foreground);
+  --color-upcoming: var(--upcoming);
+  --color-upcoming-foreground: var(--upcoming-foreground);
 }
 
 /* ── Expressive motion (LOT A/B) ─────────────────────────────────────────────
