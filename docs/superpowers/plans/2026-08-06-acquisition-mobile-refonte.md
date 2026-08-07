@@ -2068,6 +2068,25 @@ git add -A frontend/src && git commit -m "feat(acq-mobile): swipe entre les vues
 - Create: `frontend/src/components/acquisition/SwipeActions.tsx`
 - Test: `frontend/src/components/acquisition/SwipeActions.test.tsx`
 - Modify: `AcquisitionCard` call sites to wrap in `SwipeActions`
+- Modify: `frontend/src/components/acquisition/AcquisitionCard.tsx` — see the note below
+
+> **A11 is currently enforced by nothing (found 2026-08-06 validating this task
+> against the code).** `AcquisitionCard`'s `menu` prop is documented
+> « Desktop-only actions menu, rendered inside the card (R1) » (`:41`), but it is
+> rendered unconditionally at `:120`. Today no call site passes a menu (only the
+> card's own test does), so the operator sees no kebab on touch — by accident,
+> not by construction. The first call site that passes one puts a « ··· » on a
+> phone, which is exactly what A11 rejected: *« On ne garde pas le doublon "..." »*
+> then *« … que sur desktop »*.
+>
+> This task is the one that starts passing menus, so it must make the docstring
+> true: gate the menu at the card (a `hidden md:…` wrapper), not at each call
+> site. A prop whose contract lives in a comment is a promise waiting to be
+> broken; the card is the single place that can keep it.
+>
+> **Test it**: a card given a `menu` exposes no menu control at touch width, and
+> does at desktop width. Assert on what is rendered, not on a class name alone —
+> a class that stops matching a breakpoint would still pass a className check.
 
 **Interfaces:**
 - Produces:
