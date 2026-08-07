@@ -311,4 +311,165 @@ describe("AddMediaScreen", () => {
     // the warning inline (same pattern as MediaSearchAdd).
     expect(vi.mocked(toast.warning)).toHaveBeenCalled();
   });
+
+  // ── Pagination (infinite scroll) ─────────────────────────────────────
+
+  it("le défilement près de la fin du conteneur appelle fetchNextPage", () => {
+    const fetchNextPageSpy = vi.fn();
+    // Override beforeEach default with a paginated search result.
+    mediaSearchMock.mockReturnValue({
+      ...emptySearchResult(),
+      data: {
+        pages: [
+          {
+            total: 81,
+            offset: 0,
+            limit: 30,
+            results: [makeResult({ title: "Dune", provider_id: 1 })],
+          },
+        ],
+      },
+      isLoading: false,
+      hasNextPage: true,
+      isFetchingNextPage: false,
+      fetchNextPage: fetchNextPageSpy,
+    });
+
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={qc}>
+        <AddMediaScreen open={true} onOpenChange={vi.fn()} />
+      </QueryClientProvider>,
+    );
+
+    // Submit a search so results are visible.
+    search("dune");
+
+    const container = screen.getByTestId("search-results");
+
+    // jsdom reports 0 for every layout metric — set them explicitly so the
+    // branch is genuinely exercised.
+    Object.defineProperty(container, "scrollHeight", {
+      value: 1000,
+      configurable: true,
+    });
+    Object.defineProperty(container, "clientHeight", {
+      value: 200,
+      configurable: true,
+    });
+    Object.defineProperty(container, "scrollTop", {
+      value: 850,
+      configurable: true,
+      writable: true,
+    });
+
+    // remaining = 1000 - 850 - 200 = -50 < 200 → triggers fetch
+    fireEvent.scroll(container);
+
+    expect(fetchNextPageSpy).toHaveBeenCalledOnce();
+  });
+
+  it("n'appelle PAS fetchNextPage quand hasNextPage est false", () => {
+    const fetchNextPageSpy = vi.fn();
+    mediaSearchMock.mockReturnValue({
+      ...emptySearchResult(),
+      data: {
+        pages: [
+          {
+            total: 30,
+            offset: 0,
+            limit: 30,
+            results: [makeResult({ title: "Dune", provider_id: 1 })],
+          },
+        ],
+      },
+      isLoading: false,
+      hasNextPage: false,
+      isFetchingNextPage: false,
+      fetchNextPage: fetchNextPageSpy,
+    });
+
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={qc}>
+        <AddMediaScreen open={true} onOpenChange={vi.fn()} />
+      </QueryClientProvider>,
+    );
+
+    search("dune");
+
+    const container = screen.getByTestId("search-results");
+    Object.defineProperty(container, "scrollHeight", {
+      value: 1000,
+      configurable: true,
+    });
+    Object.defineProperty(container, "clientHeight", {
+      value: 200,
+      configurable: true,
+    });
+    Object.defineProperty(container, "scrollTop", {
+      value: 850,
+      configurable: true,
+      writable: true,
+    });
+
+    fireEvent.scroll(container);
+
+    expect(fetchNextPageSpy).not.toHaveBeenCalled();
+  });
+
+  it("n'appelle PAS fetchNextPage pendant un isFetchingNextPage déjà actif", () => {
+    const fetchNextPageSpy = vi.fn();
+    mediaSearchMock.mockReturnValue({
+      ...emptySearchResult(),
+      data: {
+        pages: [
+          {
+            total: 81,
+            offset: 0,
+            limit: 30,
+            results: [makeResult({ title: "Dune", provider_id: 1 })],
+          },
+        ],
+      },
+      isLoading: false,
+      hasNextPage: true,
+      isFetchingNextPage: true,
+      fetchNextPage: fetchNextPageSpy,
+    });
+
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={qc}>
+        <AddMediaScreen open={true} onOpenChange={vi.fn()} />
+      </QueryClientProvider>,
+    );
+
+    search("dune");
+
+    const container = screen.getByTestId("search-results");
+    Object.defineProperty(container, "scrollHeight", {
+      value: 1000,
+      configurable: true,
+    });
+    Object.defineProperty(container, "clientHeight", {
+      value: 200,
+      configurable: true,
+    });
+    Object.defineProperty(container, "scrollTop", {
+      value: 850,
+      configurable: true,
+      writable: true,
+    });
+
+    fireEvent.scroll(container);
+
+    expect(fetchNextPageSpy).not.toHaveBeenCalled();
+  });
 });

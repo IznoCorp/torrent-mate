@@ -17,6 +17,7 @@ import {
   useState,
   type ReactElement,
   type SyntheticEvent,
+  type UIEvent,
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -215,6 +216,25 @@ export function AddMediaScreen({
     });
   }
 
+  /**
+   * Fetch the next page as the list approaches its end.
+   *
+   * Distance-based rather than a "load more" button: on a phone the operator
+   * is already swiping, and asking them to stop and hit a target breaks the
+   * gesture (§12).
+   */
+  function handleScroll(e: UIEvent<HTMLDivElement>): void {
+    const el = e.currentTarget;
+    const remaining = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (
+      remaining < el.clientHeight &&
+      searchQuery.hasNextPage &&
+      !searchQuery.isFetchingNextPage
+    ) {
+      void searchQuery.fetchNextPage();
+    }
+  }
+
   // ── Derived data ─────────────────────────────────────────────────────
 
   const pages = searchQuery.data?.pages ?? [];
@@ -375,7 +395,11 @@ export function AddMediaScreen({
         </details>
 
         {/* ── Results — the ONLY scrolling region (§7) ────────────────── */}
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div
+          className="min-h-0 flex-1 overflow-y-auto"
+          data-testid="search-results"
+          onScroll={handleScroll}
+        >
           {query === "" ? null : searchQuery.isLoading ? (
             <div className="flex flex-col gap-3">
               {Array.from({ length: 5 }).map((_, i) => (
