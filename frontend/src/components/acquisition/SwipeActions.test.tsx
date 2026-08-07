@@ -135,4 +135,38 @@ describe("SwipeActions", () => {
     // specificity, and the later declaration wins.
     expect(button.className.split(/\s+/)).not.toContain("grab");
   });
+  // The next two observe the transform DURING the drag, not after it. Asserting
+  // only the settled state let two separate defects hide each other: an
+  // unclamped drag and an unlocked axis both end at 0 whenever the opposite
+  // side is empty, so neither was actually covered.
+
+  it("ne dépasse jamais la largeur des actions, même en cours de glissement", () => {
+    renderSwipe({
+      left: action("get", "Récupérer"),
+      right: [action("rm", "Retirer")],
+    });
+    const card = screen.getByTestId("swipe-card");
+
+    fireEvent.pointerDown(card, { clientX: 200, clientY: 100 });
+    fireEvent.pointerMove(card, { clientX: 600, clientY: 101 });
+
+    // 400 px of drag onto a single 84 px action: the card must stop at the
+    // action's edge, not slide off its own row.
+    expect(card.style.transform).toBe(translated(84));
+  });
+
+  it("un glissement vertical ne déplace pas la carte, même dʼun pixel", () => {
+    // A left action exists, so an unlocked axis WOULD show: the small positive
+    // dx of a vertical scroll would translate the card instead of being ignored.
+    renderSwipe({
+      left: action("get", "Récupérer"),
+      right: [action("rm", "Retirer")],
+    });
+    const card = screen.getByTestId("swipe-card");
+
+    fireEvent.pointerDown(card, { clientX: 200, clientY: 100 });
+    fireEvent.pointerMove(card, { clientX: 205, clientY: 220 });
+
+    expect(card.style.transform).toBe(translated(0));
+  });
 });
