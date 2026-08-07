@@ -478,3 +478,20 @@
   margin: 10px auto 8px;
   flex: 0 0 auto;
 }
+
+/* ── Line-height parity ──
+   The maquette runs on browser-default `normal`; the app's preflight sets
+   1.5, which alone made every ported control 2px taller (36 → 38 on the
+   tabs — caught by the geometry comparator, invisible to the eye). */
+
+.mq .seg > button,
+.mq .seg .n,
+.mq .pill,
+.mq .btnprimary,
+.mq .resbtn,
+.mq .segmini button,
+.mq .fback,
+.mq .addfoot > button,
+.mq .more {
+  line-height: normal;
+}
