@@ -617,22 +617,22 @@ export interface paths {
         };
         /**
          * Get To Handle
-         * @description Les médias bloqués PORTÉS PAR UNE ACQUISITION, plus le compteur des autres.
+         * @description Blocked media CARRIED BY AN ACQUISITION, plus the count of the others.
          *
-         *     §14.3 : un parcours n'a pas de trou. Un item pris puis ingéré qui cale à
-         *     l'identification est au milieu de SON parcours ; il doit rester visible depuis
-         *     l'acquisition. Un dépôt manuel, lui, n'est pas une acquisition : il est compté
-         *     (orphan_count) mais jamais listé ici, il appartient au panneau « À traiter »
-         *     de Contrôle.
+         *     §14.3: a journey has no hole. An item grabbed then ingested that stalls at
+         *     identification is in the middle of ITS journey; it must stay visible from the
+         *     acquisition surface. A manual deposit is not an acquisition: it is counted
+         *     (orphan_count) but never listed here; it belongs on the « À traiter » panel
+         *     in Contrôle.
          *
-         *     Lecture seule, fail-soft, non staging-guarded (n'écrit rien).
+         *     Read-only, fail-soft, not staging-guarded (writes nothing).
          *
          *     Args:
-         *         request: La requête FastAPI entrante.
+         *         request: The incoming FastAPI request.
          *
          *     Returns:
-         *         Un :class:`ToHandleResponse` — les bloqués portés par une acquisition,
-         *         le plus ancien d'abord, plus le compteur des orphelins.
+         *         A :class:`ToHandleResponse` — the blocked items carried by an acquisition,
+         *         oldest first, plus the orphan count.
          */
         get: operations["get_to_handle_api_acquisition_to_handle_get"];
         put?: never;
@@ -5305,20 +5305,20 @@ export interface components {
         };
         /**
          * ToHandleItemModel
-         * @description Un média bloqué dont l'acquisition est la nôtre (§14.3).
+         * @description A blocked media item whose acquisition is ours (§14.3).
          *
          *     Attributes:
-         *         decision_id: ``scrape_decision.id`` — la cible de « Résoudre → ».
-         *         title / year / kind: Ce que l'opérateur lit sur la carte.
-         *         reason: La raison EN FRANÇAIS, déjà mappée (NE-DOIT-PAS-4).
-         *         candidates_count: Nombre de candidats proposés (§3 : le sélecteur
-         *             s'ouvre AVEC des propositions).
-         *         created_at: Epoch seconds de la mise en attente.
-         *         followed_id: Le suivi porteur, ou ``None``.
-         *         info_hash: La release concernée, ou ``None``.
-         *         stage: L'étape RÉELLEMENT atteinte du parcours — jamais une valeur
-         *             par défaut.  Le Literal est le contrat dont l'UI dérive son type
-         *             (``Stage = ToHandleItemModel["stage"]`` dans le schéma généré).
+         *         decision_id: ``scrape_decision.id`` — the target of the « Résoudre → » link.
+         *         title / year / kind: What the operator reads on the card.
+         *         reason: The reason IN FRENCH, already mapped (NE-DOIT-PAS-4).
+         *         candidates_count: Number of candidates proposed (§3: the selector opens
+         *             WITH proposals).
+         *         created_at: Epoch seconds of when it was placed on hold.
+         *         followed_id: The carrying follow, or ``None``.
+         *         info_hash: The release involved, or ``None``.
+         *         stage: The stage ACTUALLY reached of the journey — never a default
+         *             value. The Literal is the contract from which the UI derives its
+         *             type (``Stage = ToHandleItemModel["stage"]`` in the generated schema).
          */
         ToHandleItemModel: {
             /**
@@ -5353,14 +5353,14 @@ export interface components {
         };
         /**
          * ToHandleResponse
-         * @description Réponse de ``GET /api/acquisition/to-handle``.
+         * @description Response from ``GET /api/acquisition/to-handle``.
          *
          *     Attributes:
-         *         items: Les bloqués PORTÉS PAR UNE ACQUISITION, le plus ancien d'abord.
-         *         orphan_count: Les bloqués SANS provenance d'acquisition (dépôts
-         *             manuels). Ils n'ont pas de carte ici — mais on ne les tait pas :
-         *             l'UI en fait un renvoi vers Contrôle (§méthode : ne jamais
-         *             sous-compter ce qui demande attention).
+         *         items: The blocked items CARRIED BY AN ACQUISITION, oldest first.
+         *         orphan_count: The blocked items WITHOUT acquisition provenance (manual
+         *             deposits). They have no card here — but they are not silenced: the
+         *             UI converts it into a crossref to Contrôle (§méthode: never
+         *             under-count what needs attention).
          */
         ToHandleResponse: {
             /**
