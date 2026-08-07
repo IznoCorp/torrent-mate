@@ -261,6 +261,20 @@ function mockHooks(f: FullFixtures | EmptyFixtures): void {
   } as unknown as ReturnType<typeof hooks.useJourneys>);
 }
 
+/** Render with whatever mocks are already installed. */
+function renderPanelPreMocked(): void {
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  render(
+    <QueryClientProvider client={qc}>
+      <MemoryRouter>
+        <MaintenantPanel />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
 function renderPanel(f: FullFixtures | EmptyFixtures): void {
   mockHooks(f);
   const qc = new QueryClient({
@@ -852,5 +866,89 @@ describe("MaintenantPanel", () => {
     expect(
       screen.getByText(/Impossible de charger les données/),
     ).toBeInTheDocument();
+  });
+  // ── Behaviours re-homed from the dissolved tabs ────────────────────────
+  //
+  // « Vue d'ensemble » and « File d'acquisition » disappeared with the tab bar.
+  // Three of their guarantees had no surface left; these pin them in their new
+  // home, because a behaviour kept in the code but guarded nowhere is not kept.
+
+  it("signale les acquisitions parquées à « récupéré », que rien d'autre ne montre", async () => {
+    // §14.1 knows only two legitimate rest states; « récupéré » is transitory
+    // and must advance on its own. A row stagnating there is MUTE — the search
+    // pass only resumes pending/searching/available, so the media stays wanted
+    // with nobody looking for it.
+    vi.spyOn(hooks, "useOverview").mockReturnValue({
+      data: { stalled_grabs: 2 },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useOverview>);
+
+    renderPanel(empty);
+
+    expect(
+      await screen.findByText(
+        /2 acquisitions récupérées ne sont jamais arrivées en médiathèque/,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("ne montre aucune alerte quand rien n'est parqué — une alerte permanente n'alerte plus", () => {
+    vi.spyOn(hooks, "useOverview").mockReturnValue({
+      data: { stalled_grabs: 0 },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useOverview>);
+
+    renderPanel(empty);
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("dit que le client torrent est injoignable MÊME quand rien ne télécharge", () => {
+    // Hoisted out of the list on purpose: with an unreachable client, progress
+    // is unknowable. Saying nothing would let the absence of rows read as
+    // « rien ne télécharge » — a different statement, and a false one.
+    mockHooks(full);
+    vi.spyOn(hooks, "useDownloads").mockReturnValue({
+      data: { downloads: [], client_available: false },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useDownloads>);
+    renderPanelPreMocked();
+
+    expect(screen.getByText(/Client torrent injoignable/)).toBeInTheDocument();
+  });
+
+  it("nomme la release réellement récupérée sur la carte « En vol »", () => {
+    mockHooks(full);
+    vi.spyOn(hooks, "useJourneys").mockReturnValue({
+      data: {
+        journeys: full.journeys.map((j) => ({
+          ...j,
+          release_name: "Silo.S01E01.2160p.WEB-DL.DV.HDR",
+        })),
+      },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useJourneys>);
+    renderPanelPreMocked();
+
+    // What tells a FLAC soundtrack apart from the film of the same name.
+    const enVol = screen.getByTestId("section-en-vol");
+    expect(
+      within(enVol).getAllByText("Silo.S01E01.2160p.WEB-DL.DV.HDR").length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("avoue que le nom de release manque, plutôt que d'afficher le titre à sa place", () => {
+    // The fixture's journeys carry `release_name: null`. Showing the media
+    // title there would look like an answer and be one — a wrong one.
+    renderPanel(full);
+
+    const enVol = screen.getByTestId("section-en-vol");
+    expect(
+      within(enVol).getAllByText("Nom de release non enregistré").length,
+    ).toBeGreaterThan(0);
   });
 });
