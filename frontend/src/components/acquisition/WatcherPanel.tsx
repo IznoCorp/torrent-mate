@@ -248,9 +248,21 @@ export function WatcherPanel(): ReactElement {
                         {label}
                       </TableCell>
                       <TableCell className="text-xs">
-                        {formatDatetime(run.started_at)}{" "}
-                        <span className="text-muted-foreground">
-                          ({relativeTime(run.started_at)})
+                        {/* Below md the full datetime pushed « État » — the
+                            column that says whether it WORKED — off a 375 px
+                            screen. The relative instant suffices there; the
+                            exact one stays on md+ and in the title. */}
+                        <span
+                          className="md:hidden"
+                          title={formatDatetime(run.started_at)}
+                        >
+                          {relativeTime(run.started_at)}
+                        </span>
+                        <span className="hidden md:inline">
+                          {formatDatetime(run.started_at)}{" "}
+                          <span className="text-muted-foreground">
+                            ({relativeTime(run.started_at)})
+                          </span>
                         </span>
                       </TableCell>
                       <TableCell className="hidden font-mono text-xs tabular-nums md:table-cell">

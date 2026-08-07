@@ -755,6 +755,36 @@ describe("SuivisPanel", () => {
     expect(labels).not.toContain("Récupérer");
   });
 
+  it("nomme le trou d'identité : chip « Sans ID TVDB » sur la carte concernée", () => {
+    renderPanel([
+      { ...takeableShow(), tvdb_unresolved: true },
+      { ...takeableShow(), id: 2, title: "Autre" },
+    ]);
+    // Exactly one — the flag is per-item, never a blanket décor.
+    expect(screen.getAllByText("Sans ID TVDB")).toHaveLength(1);
+  });
+
+  it("offre l'ajout en fin de liste quand la page câble onAddMedia", () => {
+    const onAddMedia = vi.fn();
+    mockFollowed([takeableShow()]);
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter>
+          <SuivisPanel onAddMedia={onAddMedia} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(screen.getByTestId("ajouter-en-fin-de-liste"));
+    expect(onAddMedia).toHaveBeenCalledTimes(1);
+  });
+
+  it("sans câblage onAddMedia, aucun bouton d'ajout mort ne se rend (§11)", () => {
+    renderPanel([takeableShow()]);
+    expect(screen.queryByTestId("ajouter-en-fin-de-liste")).toBeNull();
+  });
+
   it("A11/A12 — au pointeur fin, le « ··· » existe et offre « Voir la fiche »", () => {
     vi.stubGlobal(
       "matchMedia",

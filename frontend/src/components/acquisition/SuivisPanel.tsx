@@ -42,6 +42,7 @@ import {
   FOLLOW_STATUS_TONE,
   GRAB_JOB_NAME,
   TONE_CHIP_CLASS,
+  TONE_PIP_CLASS,
   asMediaKind,
   followCountsCaption,
   followFraction,
@@ -240,7 +241,15 @@ function gridBadge(item: FollowedSeriesItem): string | null {
  * Returns:
  *   The panel element.
  */
-export function SuivisPanel(): ReactElement {
+/** Props for {@link SuivisPanel}. */
+export interface SuivisPanelProps {
+  /** Opens the add-media screen — the end-of-list entry point: after scanning
+   *  every follow without finding the one you wanted, the next step is right
+   *  there, not back up at a floating corner. */
+  readonly onAddMedia?: () => void;
+}
+
+export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement {
   const navigate = useNavigate();
   // active:"all", deliberately: the server derives status "disabled" ONLY for
   // active=0 rows, and the default fetch excludes exactly those. With the
@@ -573,15 +582,23 @@ export function SuivisPanel(): ReactElement {
 
               return (
                 <section key={status} data-testid={`group-${status}`}>
-                  <div
+                  {/* Same header grammar as the « Maintenant » sections (§13):
+                      square tone pip, uppercase-via-CSS label, count at end. */}
+                  <h3
                     data-testid="section-head"
-                    className="mb-2 flex items-center gap-2 text-sm font-medium"
+                    className="mb-2 flex items-center gap-2 text-left text-sm font-normal"
                   >
-                    {FOLLOW_STATUS_LABEL[status]}
-                    <span className="text-xs text-muted-foreground tabular-nums">
+                    <span
+                      aria-hidden="true"
+                      className={`inline-block size-[9px] shrink-0 rounded-[2px] border-[1.5px] ${TONE_PIP_CLASS[FOLLOW_STATUS_TONE[status]] ?? "border-muted-foreground bg-muted-foreground"}`}
+                    />
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      {FOLLOW_STATUS_LABEL[status]}
+                    </span>
+                    <span className="ml-auto text-xs text-muted-foreground tabular-nums">
                       {String(groupItems.length)}
                     </span>
-                  </div>
+                  </h3>
                   <div className="flex flex-col gap-2">
                     {groupItems.map((item) => renderCard(item, false))}
                   </div>
@@ -599,6 +616,18 @@ export function SuivisPanel(): ReactElement {
           >
             {visible.map(renderTile)}
           </div>
+        )}
+
+        {/* The add journey, reachable where the scan of the list ENDS. */}
+        {onAddMedia != null && !isLoading && (
+          <button
+            type="button"
+            data-testid="ajouter-en-fin-de-liste"
+            className="w-full rounded-md border border-border py-2.5 text-center text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+            onClick={onAddMedia}
+          >
+            + Ajouter un média à suivre
+          </button>
         )}
       </div>
 

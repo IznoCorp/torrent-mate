@@ -343,7 +343,13 @@ export default function AcquisitionPage(): ReactElement {
             : ""}
         </p>
         {activeTab === "maintenant" && <MaintenantPanel />}
-        {activeTab === "suivis" && <SuivisPanel />}
+        {activeTab === "suivis" && (
+          <SuivisPanel
+            onAddMedia={() => {
+              setAddOpen(true);
+            }}
+          />
+        )}
       </div>
 
       {/* ── « Plus » : Veille et Obligations ─────────────────────────── */}

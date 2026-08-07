@@ -305,6 +305,24 @@ export const TONE_CHIP_CLASS: Record<string, string> = {
   neutral: "bg-muted text-muted-foreground",
 };
 
+/**
+ * DS tone → square section-pip classes — the ONE header grammar (§13).
+ *
+ * « Maintenant » paints its five fixed sections from SECTION_META; the grouped
+ * « Suivis » headers derive theirs from the group's status tone through this
+ * map, so the two surfaces speak the same visual language without a second
+ * hand-rolled color derivation.
+ */
+export const TONE_PIP_CLASS: Record<string, string> = {
+  warning: "border-warning bg-warning",
+  success: "border-success bg-success",
+  danger: "border-danger bg-danger",
+  info: "border-info bg-info",
+  waiting: "border-waiting bg-waiting",
+  muted: "border-muted-foreground bg-muted-foreground",
+  neutral: "border-muted-foreground bg-muted-foreground",
+};
+
 export const MOVIE_LIFECYCLE_NOTE =
   "Une fois acquis, ce film quittera automatiquement votre liste.";
 

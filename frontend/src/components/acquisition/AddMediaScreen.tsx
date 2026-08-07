@@ -265,7 +265,7 @@ export function AddMediaScreen({
         {/* ── Search form (fixed, never scrolls) ─────────────────────── */}
         <form
           onSubmit={submit}
-          className="flex flex-col gap-2 sm:flex-row sm:items-end"
+          className="flex flex-col gap-2 px-4 sm:flex-row sm:items-end"
         >
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <Input
@@ -305,7 +305,7 @@ export function AddMediaScreen({
 
         {/* ── Add-by-ID (collapsible) ────────────────────────────────── */}
         <details
-          className="flex flex-col gap-2 rounded-lg border border-border p-3"
+          className="mx-4 flex flex-col gap-2 rounded-lg border border-border p-3"
           open={idOpen}
           onToggle={(e) => {
             setIdOpen((e.target as HTMLDetailsElement).open);
@@ -398,7 +398,7 @@ export function AddMediaScreen({
 
         {/* ── Results — the ONLY scrolling region (§7) ────────────────── */}
         <div
-          className="min-h-0 flex-1 overflow-y-auto"
+          className="min-h-0 flex-1 overflow-y-auto px-4"
           data-testid="search-results"
           onScroll={handleScroll}
         >
@@ -564,7 +564,7 @@ export function AddMediaScreen({
 
         {/* ── Footer bar — count of added items ──────────────────────── */}
         {addedCount > 0 && (
-          <div className="flex items-center justify-between border-t border-border px-1 pt-3">
+          <div className="flex items-center justify-between border-t border-border px-4 pt-3">
             <p className="text-sm text-muted-foreground">
               {addedCount} média{addedCount > 1 ? "s" : ""} ajouté
               {addedCount > 1 ? "s" : ""}
