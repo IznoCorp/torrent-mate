@@ -66,16 +66,16 @@ describe("AcquisitionCard", () => {
     );
   }
 
-  it("A11 — le « ··· » n'existe pas au doigt", () => {
-    // The operator rejected it on touch: the same actions are already one tap
-    // away in the detail sheet, so a kebab there is a duplicate that costs
-    // width. The card enforces this itself — a call site cannot opt out.
+  it("le « ··· » est rendu au doigt AUSSI (arbitrage opérateur, remplace A11)", () => {
+    // The operator reversed the earlier touch-rejection: the kebab is the one
+    // visible affordance for a card's actions, on EVERY pointer — the touch
+    // chevron is gone with it.
     stubPointer(false);
     render(
       <AcquisitionCard {...base} menu={<button data-testid="kebab">···</button>} />,
     );
 
-    expect(screen.queryByTestId("kebab")).not.toBeInTheDocument();
+    expect(screen.getByTestId("kebab")).toBeInTheDocument();
     vi.unstubAllGlobals();
   });
 

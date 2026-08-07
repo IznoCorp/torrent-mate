@@ -44,10 +44,8 @@ import {
 import { FollowDetailSheet } from "./FollowDetailSheet";
 import type { FollowStatus } from "./meta";
 import {
-  FOLLOW_STATUS_LABEL,
   FOLLOW_STATUS_TONE,
   GRAB_JOB_NAME,
-  TONE_PIP_CLASS,
   asMediaKind,
   followCountsCaption,
   followFraction,
@@ -125,18 +123,36 @@ const PILLS: Record<FilterPill, PillMeta> = {
 };
 
 /**
- * Group keys for « groupé » mode.
- *
- * Ordered by urgency — same as the sort.
+ * The « groupé » mode groups — the maquette's URGENCY classes, not the raw
+ * statuses: what asks for something, what runs alone, what rests, what is
+ * paused. Cards inside a heterogeneous group KEEP their status chip (the
+ * header alone cannot say which of its three statuses a card carries).
  */
-const GROUP_KEYS: FollowStatus[] = [
-  "a_recuperer",
-  "en_acquisition",
-  "verification_en_cours",
-  "en_attente",
-  "non_verifie",
-  "a_jour",
-  "disabled",
+const GROUPS: readonly {
+  readonly key: string;
+  readonly label: string;
+  readonly pipClass: string;
+  readonly of: readonly FollowStatus[];
+}[] = [
+  {
+    key: "demandent",
+    label: "Demandent quelque chose",
+    pipClass: "bg-warning",
+    of: ["a_recuperer", "en_attente", "non_verifie"],
+  },
+  {
+    key: "en-cours",
+    label: "En cours",
+    pipClass: "bg-info",
+    of: ["en_acquisition", "verification_en_cours"],
+  },
+  { key: "a-jour", label: "À jour", pipClass: "bg-success", of: ["a_jour"] },
+  {
+    key: "en-pause",
+    label: "En pause",
+    pipClass: "bg-muted-foreground",
+    of: ["disabled"],
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -192,46 +208,26 @@ function matchesName(item: FollowedSeriesItem, term: string): boolean {
 // ---------------------------------------------------------------------------
 
 /**
- * Compute the grid badge content for one followed item.
+ * Compute the grid badge content for one followed item — maquette rule:
+ * « la pastille porte un NOMBRE ; rien à faire = pas de pastille ».
  *
- * §5.2 fixes what an ABSENT badge means: « a follow with nothing to do carries
- * no badge at all ». A grid tile is a poster plus this badge and nothing else —
- * unlike a list row, it carries no status chip. So absence is a STATEMENT here,
- * and the two ways to get it wrong are symmetric: inventing a number the data
- * cannot support, and staying silent about something that needs attention.
- *
- * The honesty rules mirror ``followFraction`` (meta.ts:468-472):
- * - No verdict yet (``non_verifie`` / ``verification_en_cours``) — « ? ».
- * - Nothing to do (``a_jour`` / ``disabled``) — no badge.
- * - A film has NO episode catalogue, so its gap cannot be COUNTED — but it can
- *   be MARKED: « ! ». Returning null instead would tell the operator, about a
- *   film that needs attention, that it needs none.
- * - ``aired_count == null`` means the catalogue is unknown — « ? », never a
- *   fabricated number.
- * - A computed number ONLY for actionable states with a known catalogue.
- *
- * Returns:
- *   ``"1"`` for one takeable episode, ``"22"`` for 22 waiting, ``"!"`` for an
- *   actionable film, ``"?"`` for unknown / no-verdict states, or ``null`` for
- *   ``a_jour`` / ``disabled`` — absence IS the signal that there is nothing
- *   to do.
+ * Every actionable status carries the count of missing units — a film counts
+ * as its single unit (operator arbitration: the number, never a « ! »). No
+ * verdict yet reads « ? »; nothing to do renders NO badge at all.
  */
 function gridBadge(item: FollowedSeriesItem): string | null {
-  // No verdict yet: both mean "we don't know what's missing".
-  if (item.status === "non_verifie" || item.status === "verification_en_cours") return "?";
-  // Nothing to do — absence IS the signal.
-  if (item.status === "a_jour" || item.status === "disabled") return null;
-  // Everything below is an ACTIONABLE state.
-  // A film has no episode catalogue: mark it, do not count it.
-  if (item.kind === "movie") return "!";
-  // Unknown catalogue → honest ignorance, not a fabricated number.
-  if (item.aired_count == null) return "?";
-  // Actionable states with a known catalogue — how many aired episodes are not
-  // owned. Stale counts can disagree with the status (aired === owned on an
-  // actionable row): that is a data conflict, and « ? » is the honest render —
-  // Math.max(1, …) used to fabricate an episode out of the disagreement.
-  const missing = item.aired_count - (item.owned_count ?? 0);
-  return missing >= 1 ? String(missing) : "?";
+  if (
+    item.status === "a_recuperer" ||
+    item.status === "en_acquisition" ||
+    item.status === "en_attente"
+  ) {
+    return String(
+      Math.max(1, (item.aired_count ?? 0) - (item.owned_count ?? 0)),
+    );
+  }
+  if (item.status === "non_verifie" || item.status === "verification_en_cours")
+    return "?";
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -414,7 +410,7 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
         data-testid={`tile-${String(item.id)}`}
         className="block w-full min-w-0 text-left"
         aria-label={
-          badge != null ? `${item.title} — ${badge === "?" ? "état à vérifier" : badge === "!" ? "action requise" : `${badge} épisode(s) à récupérer`}` : item.title
+          badge != null ? `${item.title} — ${badge === "?" ? "état à vérifier" : `${badge} épisode(s) manquant(s)`}` : item.title
         }
         onClick={() => {
           setSheet(item);
@@ -447,7 +443,11 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
           {item.title}
         </span>
         <span className="block truncate font-mono text-[10px] text-muted-foreground tabular-nums">
-          {followFraction(item) ?? "\u00A0"}
+          {item.kind === "movie"
+            ? item.status === "a_jour"
+              ? "acquis"
+              : "non acquis"
+            : (followFraction(item) ?? "\u00A0")}
         </span>
       </button>
     );
@@ -588,12 +588,14 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
         {/* Grouped mode — cards under status headers. */}
         {!isLoading && !isError && viewMode === "group" && visible.length > 0 && (
           <div className="flex flex-col gap-4" data-testid="group-container">
-            {GROUP_KEYS.map((status) => {
-              const groupItems = visible.filter((i) => i.status === status);
+            {GROUPS.map((group) => {
+              const groupItems = visible.filter((i) =>
+                group.of.includes(i.status),
+              );
               if (groupItems.length === 0) return null;
 
               return (
-                <section key={status} data-testid={`group-${status}`}>
+                <section key={group.key} data-testid={`group-${group.key}`}>
                   {/* Same header grammar as the « Maintenant » sections (§13):
                       square tone pip, uppercase-via-CSS label, count at end. */}
                   <h3
@@ -602,17 +604,17 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
                   >
                     <span
                       aria-hidden="true"
-                      className={`inline-block size-2 shrink-0 rounded-[2px] ${TONE_PIP_CLASS[FOLLOW_STATUS_TONE[status]] ?? "bg-muted-foreground"}`}
+                      className={`inline-block size-2 shrink-0 rounded-[2px] ${group.pipClass}`}
                     />
                     <span className="text-[11px] font-bold uppercase tracking-[0.07em] text-muted-foreground">
-                      {FOLLOW_STATUS_LABEL[status]}
+                      {group.label}
                     </span>
                     <span className="ml-auto text-xs font-semibold text-foreground tabular-nums">
                       {String(groupItems.length)}
                     </span>
                   </h3>
                   <div className="flex flex-col gap-2">
-                    {groupItems.map((item) => renderCard(item, false))}
+                    {groupItems.map((item) => renderCard(item, group.of.length > 1))}
                   </div>
                 </section>
               );

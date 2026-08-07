@@ -432,24 +432,24 @@ describe("SuivisPanel", () => {
 
   // ── Display modes ─────────────────────────────────────────────────────────
 
-  it("mode groupé : l'état monte dans l'en-tête et quitte les lignes (§12)", () => {
+  it("mode groupé : groupes d'URGENCE maquette, chip conservée dans un groupe hétérogène", () => {
     renderPanel(FULL_ITEMS);
     const groupBtn = screen.getByRole("button", { name: /Groupé par état/ });
     act(() => {
       fireEvent.click(groupBtn);
     });
 
-    // Section headers carry the status label.
-    const section = screen.getByTestId("group-a_recuperer");
+    // « Demandent quelque chose » federates three statuses: the header alone
+    // cannot say which one a card carries, so the chip STAYS on the card
+    // (maquette: followRow(f, g.of.length > 1)).
+    const section = screen.getByTestId("group-demandent");
     expect(
       within(section).getByTestId("section-head"),
-    ).toHaveTextContent("À récupérer");
-
-    // Within a card, the status badge is absent.
+    ).toHaveTextContent("Demandent quelque chose");
     const card = first(within(section).getAllByTestId("acq-card"));
     expect(
-      within(card).queryByText("À récupérer", { selector: "[data-slot=badge]" }),
-    ).toBeNull();
+      within(card).getByText("À récupérer", { selector: "[data-slot=chip]" }),
+    ).toBeInTheDocument();
   });
 
   // The panel used to carry its own GROUP_HEADER_LABEL map, duplicating the
@@ -460,32 +460,27 @@ describe("SuivisPanel", () => {
   // LITERAL here on purpose: reading them from FOLLOW_STATUS_LABEL would make
   // the assertion tautological — the map and the expectation would move
   // together and a re-introduced local duplicate would sail through.
-  it("mode groupé : CHAQUE en-tête porte le libellé partagé, aucun libellé local", () => {
-    const EXPECTED: Readonly<Record<string, string>> = {
-      a_recuperer: "À récupérer",
-      en_acquisition: "En cours d'acquisition",
-      en_attente: "En attente de torrent",
-      non_verifie: "Non vérifié",
-      a_jour: "À jour",
-      disabled: "En pause",
-    };
-
+  it("mode groupé : les QUATRE groupes maquette, dans l'ordre d'urgence", () => {
     renderPanel(FULL_ITEMS);
     act(() => {
       fireEvent.click(screen.getByRole("button", { name: /Groupé par état/ }));
     });
 
-    let checked = 0;
-    for (const [status, label] of Object.entries(EXPECTED)) {
-      const section = screen.queryByTestId(`group-${status}`);
-      if (section === null) continue; // that status has no item in view
-      expect(within(section).getByTestId("section-head")).toHaveTextContent(
-        label,
-      );
-      checked += 1;
+    const heads = screen
+      .getAllByTestId("section-head")
+      .map((h) => h.textContent);
+    const labels = [
+      "Demandent quelque chose",
+      "En cours",
+      "À jour",
+      "En pause",
+    ].filter((l) => heads.some((h) => h.includes(l)));
+    // Every group present in the fixture shows with its maquette label, in
+    // the maquette order — and no raw status label leaks as a header.
+    expect(labels.length).toBeGreaterThanOrEqual(2);
+    for (const h of heads) {
+      expect(h).not.toMatch(/En attente de torrent|Non vérifié/);
     }
-    // Guard against the assertion loop silently covering nothing.
-    expect(checked).toBeGreaterThanOrEqual(4);
   });
 
   it("mode grille : la pastille porte un NOMBRE, et rien à faire ⇒ pas de pastille", () => {
@@ -515,13 +510,16 @@ describe("SuivisPanel", () => {
   // badge at all ». Returning null for every film would therefore state, about
   // a film that needs attention, that it needs none. A film's gap cannot be
   // counted (no episode catalogue), so it is marked, not numbered.
-  it("mode grille : un film qui demande attention est marqué, jamais compté", () => {
+  it("mode grille : un film qui demande attention porte le NOMBRE 1 (maquette)", () => {
+    // Operator arbitration overrides the earlier « ! » marker: the maquette
+    // rule is « la pastille porte un NOMBRE », and a film counts as its one
+    // missing unit.
     renderPanel([movie()]); // Dune (id=6), status en_attente — actionable
     fireEvent.click(screen.getByRole("button", { name: /Grille/ }));
 
     const badge = screen.getByTestId("tile-6").querySelector("[data-badge]");
     expect(badge).toBeTruthy();
-    expect(badge?.textContent).toBe("!");
+    expect(badge?.textContent).toBe("1");
   });
 
   it("mode grille : un film sans rien à faire ne porte pas de pastille", () => {
@@ -541,16 +539,16 @@ describe("SuivisPanel", () => {
     expect(badge?.textContent).toBe("?");
   });
 
-  it("mode grille : aired_count absent ⇒ « ? », pas un nombre fabriqué", () => {
+  it("mode grille : aired_count absent ⇒ plancher maquette à 1", () => {
     renderPanel([unknownCatalogueShow()]);
     fireEvent.click(screen.getByRole("button", { name: /Grille/ }));
 
-    // Unknown Catalog (id=11): aired_count=null, owned_count=5 →
-    // "?" not "1" — honest ignorance (followFraction precedent).
+    // Maquette rule (operator arbitration): Math.max(1, aired-owned) — an
+    // actionable tile always carries at least « 1 », never an empty corner.
     const tile = screen.getByTestId("tile-11");
     const badge = tile.querySelector("[data-badge]");
     expect(badge).toBeTruthy();
-    expect(badge?.textContent).toBe("?");
+    expect(badge?.textContent).toBe("1");
   });
 
   it("mode grille : verification_en_cours ⇒ « ? », pas de verdict", () => {

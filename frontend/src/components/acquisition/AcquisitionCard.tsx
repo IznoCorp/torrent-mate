@@ -22,10 +22,7 @@
 
 import { type ReactElement, type ReactNode } from "react";
 
-import { ChevronRight } from "lucide-react";
-
 import { MediaPoster } from "@/components/ds/MediaPoster";
-import { useFinePointer } from "@/hooks/useFinePointer";
 
 /** Props for {@link AcquisitionCard}. */
 export interface AcquisitionCardProps {
@@ -49,8 +46,8 @@ export interface AcquisitionCardProps {
    *  surface whose item is identified but merely unlinkable here must not let
    *  the card claim « non identifié » about it — that claim would be false. */
   readonly posterHint?: string | undefined;
-  /** Actions menu. Rendered ONLY on a fine, hovering pointer — the card
-   *  enforces that itself, so a call site cannot put a « ··· » on a phone. */
+  /** Actions menu — the « ··· » rendered on EVERY pointer (operator
+   *  arbitration: one visible affordance for the card's actions). */
   readonly menu?: ReactNode;
   /** Full-width own line under the top row (R2) — the journey strip. */
   readonly strip?: ReactNode;
@@ -119,11 +116,6 @@ export function AcquisitionCard({
   footer,
 }: AcquisitionCardProps): ReactElement {
   const poster = <MediaPoster title={title} src={posterUrl} className="w-[38px]" />;
-  // A11 is enforced HERE rather than at each call site. The prop's contract
-  // says desktop-only; a contract that lives only in a comment is a promise
-  // waiting to be broken, and the operator rejected a « ··· » on touch
-  // precisely because the same actions are already one tap away in the sheet.
-  const finePointer = useFinePointer();
 
   return (
     <div
@@ -162,15 +154,7 @@ export function AcquisitionCard({
               reason={reason}
               meta={meta}
             />
-            {/* The affordance that says « this card opens » — on touch only:
-                on a fine pointer the « ··· » already marks the interactive
-                card, and the maquette hides the chevron there. */}
-            {!finePointer && (
-              <ChevronRight
-                aria-hidden="true"
-                className="size-4 shrink-0 text-muted-foreground"
-              />
-            )}
+
           </button>
         ) : (
           <div className="flex min-w-0 flex-1 items-center gap-[10px]">
@@ -183,7 +167,10 @@ export function AcquisitionCard({
           </div>
         )}
 
-        {finePointer && menu}
+        {/* The « ··· » on EVERY card — operator arbitration overriding the
+            maquette's touch-only chevron: the kebab is the one visible
+            affordance for a card's actions, on every pointer. */}
+        {menu}
       </div>
 
       {strip}
