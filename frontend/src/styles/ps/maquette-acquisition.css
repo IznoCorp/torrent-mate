@@ -511,6 +511,8 @@
 .mq .dlg h3 {
   margin: 0 0 7px;
   font-size: 15.5px;
+  /* UA h3 bold the maquette relies on — the app preflight resets it. */
+  font-weight: 700;
 }
 .mq .dlg p {
   margin: 0 0 16px;
