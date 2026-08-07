@@ -450,6 +450,41 @@ describe("SuivisPanel", () => {
     ).toBeNull();
   });
 
+  // The panel used to carry its own GROUP_HEADER_LABEL map, duplicating the
+  // labels meta.ts already owns. Deleting it left only ONE header label under
+  // test (« À récupérer », above), and the tests that covered the others live
+  // in FollowedPanel.test.tsx, which task 15 deletes. Expected strings are
+  // LITERAL here on purpose: reading them from FOLLOW_STATUS_LABEL would make
+  // the assertion tautological — the map and the expectation would move
+  // together and a re-introduced local duplicate would sail through.
+  it("mode groupé : CHAQUE en-tête porte le libellé partagé, aucun libellé local", () => {
+    const EXPECTED: Readonly<Record<string, string>> = {
+      a_recuperer: "À récupérer",
+      en_acquisition: "En cours d'acquisition",
+      en_attente: "En attente de torrent",
+      non_verifie: "Non vérifié",
+      a_jour: "À jour",
+      disabled: "En pause",
+    };
+
+    renderPanel(FULL_ITEMS);
+    act(() => {
+      fireEvent.click(screen.getByRole("button", { name: /Groupé par état/ }));
+    });
+
+    let checked = 0;
+    for (const [status, label] of Object.entries(EXPECTED)) {
+      const section = screen.queryByTestId(`group-${status}`);
+      if (section === null) continue; // that status has no item in view
+      expect(within(section).getByTestId("section-head")).toHaveTextContent(
+        label,
+      );
+      checked += 1;
+    }
+    // Guard against the assertion loop silently covering nothing.
+    expect(checked).toBeGreaterThanOrEqual(4);
+  });
+
   it("mode grille : la pastille porte un NOMBRE, et rien à faire ⇒ pas de pastille", () => {
     renderPanel(FULL_ITEMS);
     fireEvent.click(screen.getByRole("button", { name: /Grille/ }));
