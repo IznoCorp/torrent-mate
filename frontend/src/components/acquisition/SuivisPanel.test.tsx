@@ -580,6 +580,26 @@ describe("SuivisPanel", () => {
   it("affiche « Chargement… » quand les données ne sont pas encore arrivées", () => {
     renderPanel([], { isLoading: true, noData: true });
     expect(screen.getByText(/Chargement/)).toBeInTheDocument();
+    // Maquette grammar: three .skel shimmer cards in a busy container —
+    // never bare text alone.
+    const busy = document.querySelector('[aria-busy="true"]');
+    expect(busy).not.toBeNull();
+    expect(busy?.querySelectorAll(".skel")).toHaveLength(3);
+  });
+
+  it("un filtre sans résultat parle la copie maquette exacte", () => {
+    renderPanel([takeableShow()]);
+    fireEvent.change(screen.getByPlaceholderText(/Filtrer par nom/), {
+      target: { value: "zzz-aucun-match" },
+    });
+    const empty = document.querySelector(".empty");
+    expect(empty).not.toBeNull();
+    expect(empty?.querySelector("b")?.textContent).toBe(
+      "Aucun suivi ne correspond",
+    );
+    expect(empty?.textContent).toContain(
+      "Change de filtre, ou ajoute un média avec le bouton +.",
+    );
   });
 
   it("ne montre pas « Aucun suivi » pendant le chargement", () => {

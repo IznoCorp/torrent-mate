@@ -552,11 +552,14 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
           </p>
         )}
 
-        {/* ── Loading ────────────────────────────────────────────────── */}
+        {/* ── Loading — maquette .skel shimmer, never bare text ──────── */}
         {isLoading && !anyData && (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            Chargement…
-          </p>
+          <div aria-busy="true" className="flex flex-col gap-2 py-2">
+            <p className="sr-only">Chargement…</p>
+            <div className="skel" />
+            <div className="skel" />
+            <div className="skel" />
+          </div>
         )}
 
         {/* ── Error ──────────────────────────────────────────────────── */}
@@ -566,16 +569,18 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
 
         {/* ── Empty ──────────────────────────────────────────────────── */}
         {!isLoading && !isError && items.length === 0 && (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            Aucun suivi — utilisez le « + » pour en ajouter un.
-          </p>
+          <div className="empty">
+            <b>Aucun suivi</b>
+            Utilisez le « + » pour en ajouter un.
+          </div>
         )}
 
-        {/* ── Normal — data loaded, items present ─────────────────────── */}
+        {/* ── Filter matched nothing — maquette copy verbatim ─────────── */}
         {!isLoading && !isError && visible.length === 0 && items.length > 0 && (
-          <p className="py-4 text-center text-sm text-muted-foreground">
-            Aucun suivi ne correspond au filtre.
-          </p>
+          <div className="empty">
+            <b>Aucun suivi ne correspond</b>
+            Change de filtre, ou ajoute un média avec le bouton +.
+          </div>
         )}
 
         {/* List mode — flat card list. */}

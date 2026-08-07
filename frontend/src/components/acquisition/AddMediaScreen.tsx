@@ -40,7 +40,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Sheet,
   SheetContent,
@@ -441,21 +440,12 @@ export function AddMediaScreen({
               à chaque frappe.
             </div>
           ) : searchQuery.isLoading ? (
-            <div className="flex flex-col gap-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div
-                  key={`sk-${String(i)}`}
-                  className="flex items-center gap-3"
-                >
-                  <Skeleton className="h-[81px] w-[54px] shrink-0 rounded" />
-                  <div className="flex flex-1 flex-col gap-1.5">
-                    <Skeleton className="h-4 w-3/4" />
-                    <Skeleton className="h-3 w-1/2" />
-                    <Skeleton className="h-3 w-full" />
-                    <Skeleton className="h-3 w-2/3" />
-                  </div>
-                </div>
-              ))}
+            /* Maquette loading: three .skel shimmer cards in a busy reslist. */
+            <div className="reslist" aria-busy="true">
+              <p className="sr-only">Recherche en cours…</p>
+              <div className="skel" />
+              <div className="skel" />
+              <div className="skel" />
             </div>
           ) : searchQuery.isError ? (
             <ErrorState
@@ -563,21 +553,15 @@ export function AddMediaScreen({
                 })}
               </ul>
 
-              {/* Infinite-scroll loading indicator */}
-              {searchQuery.isFetchingNextPage &&
-                Array.from({ length: 3 }).map((_, i) => (
-                  <div
-                    key={`more-sk-${String(i)}`}
-                    className="flex items-center gap-3"
-                  >
-                    <Skeleton className="h-[81px] w-[54px] shrink-0 rounded" />
-                    <div className="flex flex-1 flex-col gap-1.5">
-                      <Skeleton className="h-4 w-3/4" />
-                      <Skeleton className="h-3 w-1/2" />
-                      <Skeleton className="h-3 w-full" />
-                    </div>
-                  </div>
-                ))}
+              {/* Infinite-scroll loading indicator — same .skel grammar. */}
+              {searchQuery.isFetchingNextPage && (
+                <div aria-busy="true" className="flex flex-col gap-2.5 pt-2.5">
+                  <p className="sr-only">Chargement de résultats supplémentaires…</p>
+                  <div className="skel" />
+                  <div className="skel" />
+                  <div className="skel" />
+                </div>
+              )}
             </div>
           )}
         </div>

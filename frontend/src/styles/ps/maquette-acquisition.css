@@ -468,6 +468,26 @@
   height: 14px;
 }
 
+/* ── Skeleton shimmer (maquette .skel) ── */
+
+.mq .skel {
+  height: 101px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--card) 25%, var(--muted) 50%, var(--card) 75%);
+  background-size: 400% 100%;
+  animation: mq-sh 1.3s linear infinite;
+}
+@keyframes mq-sh {
+  to {
+    background-position: -400% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mq .skel {
+    animation: none;
+  }
+}
+
 /* ── Pull-to-refresh (maquette .ptr) ──
    Keyframe renamed mq-spin: Tailwind already owns a global `spin`. */
 

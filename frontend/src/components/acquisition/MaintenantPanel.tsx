@@ -737,19 +737,24 @@ export function MaintenantPanel(): ReactElement {
         })}
 
         {/* Loading — all sections empty, data hasn't landed yet.
-            MUST NOT show « Rien à signaler » while a fetch is in flight. */}
+            MUST NOT show « Rien à signaler » while a fetch is in flight.
+            Maquette grammar: .skel shimmer cards, never bare text. */}
         {allEmpty && anyLoading && !anyData && (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            Chargement…
-          </p>
+          <div aria-busy="true" className="flex flex-col gap-2 py-2">
+            <p className="sr-only">Chargement…</p>
+            <div className="skel" />
+            <div className="skel" />
+            <div className="skel" />
+          </div>
         )}
 
         {/* Empty state — all five sections are empty AND data has loaded
             AND no hook is in error (§ panne ≠ absence). */}
         {allEmpty && !anyLoading && !anyError && (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            Rien à signaler — tout est en ordre.
-          </p>
+          <div className="empty">
+            <b>Rien à signaler</b>
+            — tout est en ordre.
+          </div>
         )}
 
         {/* All hooks errored with no data — the panel cannot render anything
