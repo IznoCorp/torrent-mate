@@ -1242,13 +1242,58 @@ git commit -m "feat(acq-mobile): JourneyStrip — frise de parcours, anti-chevau
 
 ### Task 7: Page shell — two views, « Plus », legacy redirects, badge
 
+> **SPLIT AND CORRECTED 2026-08-06 after validating this task against the code.**
+> It is the largest task in the plan and it carried four drifts, one of which was a
+> silent regression. It is now **two dispatches**:
+>
+> - **Task 7a — the page**: `meta.ts` (TABS + redirects), `AcquisitionPage.tsx`
+>   rewrite, `PlusSheet.tsx`, **and the `+` control that opens `AddMediaScreen`**
+>   (Steps 1-4 below, plus correction 1).
+> - **Task 7b — the shell chrome**: the honest badge in `AppShell.tsx` and the
+>   §10 notification docking (Steps 5-7 below, as rewritten by corrections 2-3).
+>
+> **Correction 1 — there is NO FAB, and nothing opens the add screen.** Step 7
+> says "position the FAB and the toast container inside it" as if one existed;
+> `rg 'FloatingAction|\bFAB\b' frontend/src` returns nothing. Task 12 shipped
+> `AddMediaScreen({open, onOpenChange})` and **no surface opens it** — the add
+> flow is currently unreachable. Task 7a must create the `+` control and wire it.
+> This is the task that makes §7 reachable at all; without it the add flow is
+> dead code.
+>
+> **Correction 2 — do NOT move the `Toaster` into `AppShell`.** Step 6 asserts
+> "the dock belongs to whoever owns the bottom bar, which is this shell". It is
+> architecturally tempting and factually breaking: the `Toaster` lives in
+> `PwaLayer` (`App.tsx:27-38`), a **deliberate router sibling**, and that file's
+> own docstring states why — "so the PWA update/install UI is visible on every
+> route, **login page included**". `AppShell` renders inside `ProtectedRoute`
+> (`router.tsx:47`). Moving the host would silently kill every toast on the login
+> page, the PWA update toast among them. **The Toaster stays in `PwaLayer`**; only
+> its position changes.
+>
+> **Correction 3 — a fixed `offset` reproduces the very defect §10 exists to fix.**
+> The brief's own comment says a `bottom: 84px` calibrated on desktop pushed the
+> notification UNDER the bar. A static sonner `offset` is that same bug with a
+> different number. The offset must be **construction-correct**: express it as
+> `calc()` over a CSS custom property that the bottom bar itself owns, so it
+> tracks the real bar height including `env(safe-area-inset-bottom)`, and
+> collapses to zero where there is no bar — `BottomTabBar` is `md:hidden`
+> (`BottomTabBar.tsx:34`), and the login page has no bar at all. An unset
+> variable must therefore fall back to `0px`, not to a phone-sized guess.
+>
+> **Correction 4 — the redirect test cannot read `window.location`.** The `it.each`
+> case asserts `new URLSearchParams(window.location.search)`, but the suite renders
+> through `MemoryRouter` (`AcquisitionPage.test.tsx:172`), which never touches the
+> jsdom URL — the assertion would read the ambient location and pass or fail for
+> reasons unrelated to the redirect. Assert through a `useLocation` probe instead;
+> that test file already imports `useLocation` (`:20`) for exactly this purpose.
+
 **Files:**
-- Modify: `frontend/src/pages/AcquisitionPage.tsx`, `frontend/src/components/acquisition/meta.ts` (TABS), `frontend/src/components/layout/AppShell.tsx`
+- Modify: `frontend/src/pages/AcquisitionPage.tsx`, `frontend/src/components/acquisition/meta.ts` (TABS), `frontend/src/components/layout/AppShell.tsx`, `frontend/src/App.tsx` (Toaster position only — 7b)
 - Create: `frontend/src/components/acquisition/PlusSheet.tsx`
 - Test: `frontend/src/pages/AcquisitionPage.test.tsx` (rewrite), `frontend/src/components/layout/AppShell.test.tsx` (amend)
 
 **Interfaces:**
-- Consumes: `useToHandle` (Task 3), `useWanted`, `useFollowed`.
+- Consumes: `useToHandle` (Task 3), `useWanted`, `useFollowed`, `AddMediaScreen` (Task 12).
 - Produces: `TabId = "maintenant" | "suivis"`; `TABS` reduced to those two.
 
 - [ ] **Step 1: Write the failing tests**
