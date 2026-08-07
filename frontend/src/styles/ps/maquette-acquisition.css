@@ -36,6 +36,7 @@
   font: inherit;
   font-size: 13px;
   font-weight: 600;
+  height: 36px;
   line-height: 18px;
   background: transparent;
   color: var(--muted-foreground);
@@ -532,7 +533,7 @@
   font: inherit;
   font-size: 13.5px;
   font-weight: 500;
-  line-height: 20px;
+  line-height: 18px;
   padding: 11px 12px;
   border-radius: 8px;
   cursor: pointer;
