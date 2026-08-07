@@ -1792,6 +1792,12 @@ git commit -m "feat(acq-mobile): feuille de détail — matrice en pastilles, un
 
 Add the new surfaces to the existing `WIRED_SURFACES` array (`constitution.test.tsx:129`) — the file's own comment says that array is the single source of truth and that adding a surface means adding it there. Add `AcquisitionCard` (poster), `MaintenantPanel`, `SuivisPanel` (liste, groupé, grille), `FollowDetailSheet`.
 
+**Also migrate the add surface (added 2026-08-06).** That test currently registers `MediaSearchAdd` as a covered
+surface and renders it (`:117`, `:130`, `:315-363`). Task 12 built its replacement, `AddMediaScreen`, and Task 15
+deletes the old component — so this task must repoint the surface to `AddMediaScreen`, keeping the same §11
+assertion (opening a result leads to the media sheet). Leave `MediaSearchAdd` itself on disk; Task 15 owns the
+deletion and re-checks that nothing imports it.
+
 - [ ] **Step 2: Run to verify failure** — the new entries have no wiring yet.
 
 - [ ] **Step 3: Wire**
@@ -1813,7 +1819,10 @@ git add -A frontend/src && git commit -m "feat(acq-mobile): l'affiche mène à l
 **Files:**
 - Create: `frontend/src/components/acquisition/AddMediaScreen.tsx`
 - Test: `frontend/src/components/acquisition/AddMediaScreen.test.tsx`
-- Delete: `frontend/src/components/acquisition/MediaSearchAdd.tsx` + test (after parity)
+- **Do NOT delete `MediaSearchAdd.tsx`** — corrected 2026-08-06 against the code. It is still rendered by
+  `AcquisitionPage.tsx:217` (rewritten in Task 7) and still imported by
+  `components/media/__tests__/constitution.test.tsx:117` (migrated in Task 11). Deleting it here breaks
+  the build. Its removal belongs to Task 15, behind that task's "prove nothing still imports them" gate.
 
 **Interfaces:**
 - Consumes: `useMediaSearch(q, kind)`, `useFollow()`, `buildIdFollowBody` (`@/hooks/useFollowedPanel`).
@@ -1890,13 +1899,24 @@ it("un ID TVDB non résolu est AVOUÉ, pas tu", async () => {
 
 - [ ] **Step 3: Implement**
 
-A full-screen overlay (`Sheet` with `side="bottom"` and `h-dvh`, or a routed screen — follow whichever the codebase already uses for full-screen surfaces; grep `h-dvh` in `frontend/src`). Search form submits on `onSubmit` only. Results as a **vertical list**, each row: poster 54×81, title, `{year} · {Film|Série} · {PROVIDER}`, two-line clamped overview, and the action button whose label comes from `actionWords(kind)`.
+A full-screen overlay. **Corrected 2026-08-06 against the code:** the original instruction said to follow whatever
+full-screen pattern the codebase already uses — there is none. `rg 'h-dvh|h-screen' frontend/src` returns nothing, and
+the only bottom-sheet convention is `Sheet side="bottom"` capped at `max-h-[85vh]` (`FollowDetailSheet.tsx:220-221`,
+Task 10), over a primitive that hardcodes `max-h-[80vh]` (`ui/sheet.tsx:27`). **You are establishing the first
+full-screen surface**, so you must override that cap rather than inherit it, and the spec says why: §7 — « A full
+screen, not a low sheet: **the keyboard eats half the phone** ». A results list under an open keyboard inside 80vh is
+exactly the failure the spec names. Use `h-dvh` (not `h-screen`: on iOS Safari `100vh` excludes the retracting URL bar
+and overflows), keep `pb-[env(safe-area-inset-bottom)]`, and make the results list the only scrolling region so the
+search field stays reachable.
+
+Search form submits on `onSubmit` only. Results as a **vertical list**, each row: poster 54×81, title, `{year} · {Film|Série} · {PROVIDER}`, two-line clamped overview, and the action button whose label comes from `actionWords(kind)`.
 
 The by-ID block is a `<details>` with provider segmented control, validated input (`/^[0-9]+$/` for tvdb/tmdb, `/^tt[0-9]{7,}$/` for imdb) and an error line — reuse `buildIdFollowBody`, do not re-implement it.
 
 After a successful follow: mark the row done, show the footer bar with the count and a « Voir mes suivis → » action.
 
-- [ ] **Step 4: Run the tests, then delete `MediaSearchAdd`.**
+- [ ] **Step 4: Run the tests.** `MediaSearchAdd` stays on disk and stays wired — see the Files note above.
+      Both components coexist until Task 15. Do not "clean up" the old one.
 
 - [ ] **Step 5: Commit**
 
@@ -2051,7 +2071,7 @@ git add -A frontend/src && git commit -m "feat(acq-mobile): actions par balayage
 ### Task 15: Retire the old panels and move the ranking editor
 
 **Files:**
-- Delete: `FileDAcquisitionPanel.tsx` (+test), `WantedPanel.tsx`, `ParcoursPanel.tsx` (+test), `FollowedPanel.tsx` (+test), `EpisodeStateLegende.tsx` (if now unused), `EpisodeDatePopover.tsx` (if now unused)
+- Delete: `FileDAcquisitionPanel.tsx` (+test), `WantedPanel.tsx`, `ParcoursPanel.tsx` (+test), `FollowedPanel.tsx` (+test), `MediaSearchAdd.tsx` (+test — moved here from Task 12 on 2026-08-06; it stayed wired until Task 7 swapped the page and Task 11 repointed the constitution surface), `EpisodeStateLegende.tsx` (if now unused), `EpisodeDatePopover.tsx` (if now unused)
 - Move: `ReglagesPanel.tsx` → `frontend/src/components/config/RankingPanel.tsx`, rendered from `pages/Config.tsx`
 - Modify: `frontend/src/components/acquisition/meta.ts` — drop now-dead exports
 
@@ -2059,7 +2079,7 @@ git add -A frontend/src && git commit -m "feat(acq-mobile): actions par balayage
 
 - [ ] **Step 1: Prove nothing still imports them**
 
-Run: `cd frontend && command rg -g '*.tsx' -g '*.ts' -n "FileDAcquisitionPanel|WantedPanel|ParcoursPanel|FollowedPanel|ReglagesPanel" src`
+Run: `cd frontend && command rg -g '*.tsx' -g '*.ts' -n "FileDAcquisitionPanel|WantedPanel|ParcoursPanel|FollowedPanel|ReglagesPanel|MediaSearchAdd" src`
 Expected: only the files themselves and their tests. Any other hit is a task that is not finished — go fix it before deleting.
 
 - [ ] **Step 2: Move the ranking editor**
