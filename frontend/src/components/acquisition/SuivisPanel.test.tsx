@@ -674,8 +674,9 @@ describe("SuivisPanel", () => {
     const labels = within(container)
       .getAllByTestId("swipe-action")
       .map((b) => b.textContent);
-    // §9's 84 px pair for a série: suspend then remove.
-    expect(labels).toEqual(["Pause", "Retirer"]);
+    // The affirmative left action for a takeable item, then §9's 84 px pair
+    // for a série: suspend then remove.
+    expect(labels).toEqual(["Récupérer", "Pause", "Retirer"]);
   });
 
   it("A10 — le balayage d'une série en pause offre « Activer », pas une seconde pause", () => {
@@ -697,7 +698,9 @@ describe("SuivisPanel", () => {
 
     renderPanel([takeableShow()]);
     const container = screen.getByTestId("swipe-container");
-    const [, removeBtn] = within(container).getAllByTestId("swipe-action");
+    const removeBtn = within(container)
+      .getAllByTestId("swipe-action")
+      .find((b) => b.textContent === "Retirer");
     if (removeBtn == null) throw new Error("unreachable");
     fireEvent.click(removeBtn);
 
@@ -716,11 +719,40 @@ describe("SuivisPanel", () => {
 
     renderPanel([takeableShow()]);
     const container = screen.getByTestId("swipe-container");
-    const [suspendBtn] = within(container).getAllByTestId("swipe-action");
+    const suspendBtn = within(container)
+      .getAllByTestId("swipe-action")
+      .find((b) => b.textContent === "Pause");
     if (suspendBtn == null) throw new Error("unreachable");
     fireEvent.click(suspendBtn);
 
     expect(mutate).toHaveBeenCalledWith({ id: 1, body: { active: false } });
+  });
+
+  it("A10 — « Récupérer » par balayage lance réellement la recherche", () => {
+    const mutate = vi.fn();
+    vi.spyOn(hooks, "useGrabNow").mockReturnValue({
+      mutate,
+      isPending: false,
+    } as unknown as ReturnType<typeof hooks.useGrabNow>);
+
+    renderPanel([takeableShow()]);
+    const container = screen.getByTestId("swipe-container");
+    const grabBtn = within(container)
+      .getAllByTestId("swipe-action")
+      .find((b) => b.textContent === "Récupérer");
+    if (grabBtn == null) throw new Error("unreachable");
+    fireEvent.click(grabBtn);
+
+    expect(mutate).toHaveBeenCalledWith(1);
+  });
+
+  it("A10 — pas de « Récupérer » au balayage d'un suivi qui n'a rien à prendre", () => {
+    renderPanel([pausedShow()]);
+    fireEvent.click(screen.getByRole("button", { name: /En pause\s*1/ }));
+    const labels = within(screen.getByTestId("swipe-container"))
+      .getAllByTestId("swipe-action")
+      .map((b) => b.textContent);
+    expect(labels).not.toContain("Récupérer");
   });
 
   it("A11/A12 — au pointeur fin, le « ··· » existe et offre « Voir la fiche »", () => {

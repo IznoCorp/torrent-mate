@@ -47,7 +47,6 @@ import {
 import { PlusSheet } from "@/components/acquisition/PlusSheet";
 import { SuivisPanel } from "@/components/acquisition/SuivisPanel";
 import { aboveBottomBar } from "@/components/layout/bottom-bar-metrics";
-import { Button } from "@/components/ui/button";
 import { useWaitingForOperator } from "@/hooks/useAcquisition";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 import { handleTablistKeyDown } from "@/lib/tablist";
@@ -295,6 +294,19 @@ export default function AcquisitionPage(): ReactElement {
             )}
           </button>
         ))}
+        {/* « ⋮ » — second rank, AT THE END OF THE TAB TRAIN (maquette): a
+            full-width « Plus » button at page bottom was reading as a primary
+            action, which Veille/Obligations are precisely not. */}
+        <button
+          type="button"
+          aria-label="Plus — veille et obligations"
+          className="ml-auto shrink-0 rounded-md px-3 py-2 text-lg leading-none text-muted-foreground hover:text-foreground"
+          onClick={() => {
+            setPlusOpen(true);
+          }}
+        >
+          ⋮
+        </button>
       </div>
 
       {/* Active panel. */}
@@ -336,16 +348,6 @@ export default function AcquisitionPage(): ReactElement {
 
       {/* ── « Plus » : Veille et Obligations ─────────────────────────── */}
 
-      <Button
-        variant="outline"
-        size="sm"
-        aria-label="Plus — veille et obligations"
-        onClick={() => {
-          setPlusOpen(true);
-        }}
-      >
-        Plus
-      </Button>
       <PlusSheet open={plusOpen} onOpenChange={setPlusOpen} />
 
       {/* ── « + » : add-by-search + add-by-ID (§7) ────────────────────── */}

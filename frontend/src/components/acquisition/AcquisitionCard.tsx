@@ -22,6 +22,8 @@
 
 import { type ReactElement, type ReactNode } from "react";
 
+import { ChevronRight } from "lucide-react";
+
 import { MediaPoster } from "@/components/ds/MediaPoster";
 import { useFinePointer } from "@/hooks/useFinePointer";
 
@@ -159,6 +161,12 @@ export function AcquisitionCard({
               subtitle={subtitle}
               reason={reason}
               meta={meta}
+            />
+            {/* The affordance that says « this card opens » — rendered by the
+                card itself so every openable card carries it, and only those. */}
+            <ChevronRight
+              aria-hidden="true"
+              className="size-4 shrink-0 text-muted-foreground"
             />
           </button>
         ) : (

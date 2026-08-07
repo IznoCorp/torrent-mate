@@ -34,15 +34,24 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useUnfollow, useUpdateFollow } from "@/hooks/useAcquisition";
+import { useGrabNow, useUnfollow, useUpdateFollow } from "@/hooks/useAcquisition";
 
 import type { SwipeAction } from "./SwipeActions";
 import { actionWords, asMediaKind, followMediaRef } from "./meta";
 
+/** Both sides of a follow card's swipe — spread onto {@link SwipeActions}. */
+export interface FollowSwipe {
+  /** The affirmative action (rightward drag) — present only when one exists. */
+  readonly left?: SwipeAction;
+  /** Suspend/resume then remove (§9's 84 px pair), on a leftward drag. */
+  readonly right: readonly SwipeAction[];
+}
+
 /** What {@link useFollowActions} hands a panel. */
 export interface FollowActions {
-  /** Swipe actions for one follow — suspend/resume then remove (§9's 84 px pair). */
-  readonly swipeFor: (item: FollowedSeriesItem) => readonly SwipeAction[];
+  /** Swipe actions for one follow — « Récupérer » on the left when takeable,
+   *  suspend/resume + remove on the right. */
+  readonly swipeFor: (item: FollowedSeriesItem) => FollowSwipe;
   /** The « ··· » kebab for one follow — rendered by the card on fine pointers only (A11). */
   readonly menuFor: (item: FollowedSeriesItem) => ReactElement;
   /** The shared removal-confirmation dialog — render ONCE per panel. */
@@ -59,6 +68,7 @@ export function useFollowActions(): FollowActions {
   const navigate = useNavigate();
   const updateFollow = useUpdateFollow();
   const unfollow = useUnfollow();
+  const grabNow = useGrabNow();
   const [removing, setRemoving] = useState<FollowedSeriesItem | null>(null);
   // The per-series search cadence editor, re-homed from the dissolved list
   // panel: an operator-set cadence with no surface left to set it is a
@@ -77,10 +87,10 @@ export function useFollowActions(): FollowActions {
     });
   };
 
-  const swipeFor = (item: FollowedSeriesItem): readonly SwipeAction[] => {
+  const swipeFor = (item: FollowedSeriesItem): FollowSwipe => {
     const w = words(item);
     const paused = item.status === "disabled";
-    return [
+    const right: readonly SwipeAction[] = [
       {
         key: "suspend",
         label: paused ? w.resumeShort : w.pauseShort,
@@ -100,6 +110,22 @@ export function useFollowActions(): FollowActions {
         },
       },
     ];
+    // The affirmative side exists only when the server says the item is
+    // takeable — a « Récupérer » that fires a search on a complete série
+    // would be a dead promise wearing a primary tone.
+    if (item.status !== "a_recuperer") return { right };
+    return {
+      left: {
+        key: "grab",
+        label: "Récupérer",
+        icon: null,
+        tone: "primary",
+        onRun: () => {
+          grabNow.mutate(item.id);
+        },
+      },
+      right,
+    };
   };
 
   const menuFor = (item: FollowedSeriesItem): ReactElement => {

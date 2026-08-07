@@ -1121,4 +1121,59 @@ describe("MaintenantPanel", () => {
     const posters = within(enVol).queryAllByTitle(/Média non identifié/);
     expect(posters).toHaveLength(0);
   });
+
+  // ── §12 — a correlated download folds INTO its card ───────────────────────
+
+  it("§12 — le téléchargement corrélé vit SUR la carte, pas en ligne séparée", () => {
+    // Same info_hash as inflightJourney → the progress belongs to Severance.
+    renderPanel({
+      ...full,
+      downloads: [{ ...inflightDownload(), progress: 0.78 }],
+    });
+
+    const enVol = screen.getByTestId("section-en-vol");
+    // The percentage and state ride the card's meta line…
+    expect(within(enVol).getByText("78 %")).toBeInTheDocument();
+    // …and no standalone row repeats them (DownloadRow carries a progressbar).
+    expect(within(enVol).queryAllByRole("progressbar")).toHaveLength(0);
+  });
+
+  it("§8 — un téléchargement qu'aucune carte ne revendique garde sa ligne", () => {
+    renderPanel({
+      ...full,
+      downloads: [{ ...inflightDownload(), info_hash: "0000aaaa1111bbbb" }],
+    });
+
+    const enVol = screen.getByTestId("section-en-vol");
+    expect(within(enVol).getAllByRole("progressbar")).toHaveLength(1);
+  });
+
+  // ── §12 — « Rangé aujourd'hui » is an acknowledgement, not a card ─────────
+
+  it("§12 — « rangé aujourd'hui » rend des lignes compactes horodatées, pas des cartes", () => {
+    renderPanel(full);
+
+    const range = screen.getByTestId("section-range-aujourdhui");
+    const rows = within(range).getAllByTestId("range-row");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.textContent).toContain("Shōgun");
+    // dispatched_at is minutes old — the row says WHEN it landed.
+    expect(rows[0]?.textContent).toMatch(/il y a|à l'instant/);
+    expect(within(range).queryAllByTestId("acq-card")).toHaveLength(0);
+  });
+
+  // ── §14.1 — the resting card explains itself ──────────────────────────────
+
+  it("§14.1 — « cherché, rien trouvé » annonce la prochaine vérification", () => {
+    const waiting = {
+      ...waitingShow(),
+      next_search_at: Math.floor(Date.now() / 1000) + 7260,
+    };
+    renderPanel({ ...full, followed: [waiting] });
+
+    const section = screen.getByTestId("section-cherche-rien-trouve");
+    expect(
+      within(section).getByText(/prochaine vérification dans 2 h/),
+    ).toBeInTheDocument();
+  });
 });

@@ -355,6 +355,18 @@ export function SuivisPanel(): ReactElement {
         </span>,
       );
     }
+    if (item.tvdb_unresolved) {
+      // The identity gap, named on the card — the sheet explains what it
+      // blocks; hiding it would let a « Non vérifié » read as a search issue.
+      metaPieces.push(
+        <span
+          key="sans-id"
+          className="rounded bg-muted px-1.5 py-px text-xs text-muted-foreground"
+        >
+          Sans ID TVDB
+        </span>,
+      );
+    }
 
     const sheetHref = followMediaRef(item);
 
@@ -363,7 +375,7 @@ export function SuivisPanel(): ReactElement {
          hands back any drag born inside data-swipe, so the two horizontal
          gestures never fight. The « ··· » renders on fine pointers only —
          the card enforces A11 itself. */
-      <SwipeActions key={item.id} right={actions.swipeFor(item)}>
+      <SwipeActions key={item.id} {...actions.swipeFor(item)}>
         <AcquisitionCard
           title={item.title}
           posterUrl={item.poster_url ?? null}

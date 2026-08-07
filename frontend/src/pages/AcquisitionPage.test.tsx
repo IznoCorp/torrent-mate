@@ -69,6 +69,7 @@ vi.mock("@/hooks/useAcquisition", () => ({
   useFollow: () => ({ mutate: followMutateFn, isPending: false }),
   useUpdateFollow: () => ({ mutate: vi.fn(), isPending: false }),
   useUnfollow: () => ({ mutate: vi.fn(), isPending: false }),
+  useGrabNow: () => ({ mutate: vi.fn(), isPending: false }),
   useOverview: () => ({
     data: undefined,
     isLoading: false,

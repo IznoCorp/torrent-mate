@@ -42,6 +42,7 @@ import {
 } from "@/hooks/useAcquisition";
 
 import { ErrorState } from "@/components/ds/ErrorState";
+import { relativeTimeUntil } from "@/lib/format";
 
 import { AcquisitionCard } from "./AcquisitionCard";
 import { SwipeActions } from "./SwipeActions";
@@ -55,11 +56,16 @@ import { DownloadRow } from "./DownloadRow";
 import { StalledGrabsAlert } from "./StalledGrabsAlert";
 import {
   asMediaKind,
+  DOWNLOAD_STATE_LABEL,
+  DOWNLOAD_STATE_TONE,
   type FollowStatus,
   followMediaRef,
+  followWaitingReason,
   type MediaKind,
   followCountsCaption,
   followFraction,
+  relativeTime,
+  TONE_CHIP_CLASS,
 } from "./meta";
 
 // ---------------------------------------------------------------------------
@@ -208,20 +214,39 @@ export function MaintenantPanel(): ReactElement {
    * local midnight. */
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
-  const dispatchedTodayTitles = new Set(
-    (journeys.data?.journeys ?? [])
-      .filter(
-        (j) =>
-          j.dispatched_at != null &&
-          j.dispatched_at * 1000 >= startOfToday.getTime(),
-      )
-      .map((j) => j.follow_title)
-      .filter((t): t is string => t != null && t !== ""),
-  );
+  // title → most recent dispatched_at: the compact row shows WHEN it landed.
+  const dispatchedToday = new Map<string, number>();
+  for (const j of journeys.data?.journeys ?? []) {
+    if (
+      j.dispatched_at == null ||
+      j.dispatched_at * 1000 < startOfToday.getTime()
+    )
+      continue;
+    const t = j.follow_title;
+    if (t == null || t === "") continue;
+    const prev = dispatchedToday.get(t);
+    if (prev == null || j.dispatched_at > prev) dispatchedToday.set(t, j.dispatched_at);
+  }
   const rangeAujourdhui: readonly FollowedSeriesItem[] =
     followed.data?.items.filter(
-      (i) => i.status === "a_jour" && dispatchedTodayTitles.has(i.title),
+      (i) => i.status === "a_jour" && dispatchedToday.has(i.title),
     ) ?? [];
+
+  // ── Download ↔ journey correlation (info_hash) ────────────────────────
+  // A download correlated with an « En vol » card folds INTO that card — the
+  // progress belongs to the media it advances. Only downloads no card claims
+  // keep a standalone row, so nothing is shown twice and nothing is dropped.
+  const downloadByHash = new Map(downloads.map((d) => [d.info_hash, d]));
+  const correlatedHashes = new Set<string>();
+  for (const item of enVol) {
+    const j = journeyByKey.get(
+      journeyMatchKey(item.title, item.kind, item.season ?? null, item.episode ?? null),
+    );
+    if (j != null && downloadByHash.has(j.info_hash)) correlatedHashes.add(j.info_hash);
+  }
+  const uncorrelatedDownloads = downloads.filter(
+    (d) => !correlatedHashes.has(d.info_hash),
+  );
 
   // ── Section visibility ────────────────────────────────────────────────
 
@@ -232,7 +257,9 @@ export function MaintenantPanel(): ReactElement {
         : slug === "a-traiter"
           ? aTraiter.length
           : slug === "en-vol"
-            ? enVol.length + downloads.length
+            ? // A correlated download IS its card — counting both would
+              // announce more in-flight items than exist.
+              enVol.length + uncorrelatedDownloads.length
             : slug === "cherche-rien-trouve"
               ? chercheRienTrouve.length
               : rangeAujourdhui.length;
@@ -300,9 +327,12 @@ export function MaintenantPanel(): ReactElement {
       >
         <span
           aria-hidden="true"
-          className={`inline-block size-[9px] shrink-0 rounded-full border-[1.5px] ${m.pipClass}`}
+          className={`inline-block size-[9px] shrink-0 rounded-[2px] border-[1.5px] ${m.pipClass}`}
         />
-        <span className="text-sm font-medium">{m.label}</span>
+        {/* Uppercase via CSS: the DOM keeps the French label as data. */}
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          {m.label}
+        </span>
         <span className="ml-auto text-xs text-muted-foreground tabular-nums">
           {String(count)}
         </span>
@@ -310,14 +340,36 @@ export function MaintenantPanel(): ReactElement {
     );
   }
 
-  /** Render one followed-item card (used in three sections). */
-  function renderFollowedCard(item: FollowedSeriesItem): ReactElement {
+  /**
+   * The « Cherché, rien trouvé » meta line: the search verdict (films carry
+   * one per unit) and the next scheduled check — WHY nothing landed and WHEN
+   * the machine looks again, which is what a resting card owes the operator.
+   */
+  function searchMetaLine(item: FollowedSeriesItem): string {
+    const pieces: string[] = [];
+    const reason = followWaitingReason(item);
+    if (reason != null) pieces.push(reason);
+    if (item.next_search_at != null) {
+      pieces.push(
+        `prochaine vérification ${relativeTimeUntil(item.next_search_at)}`,
+      );
+    }
+    return pieces.length > 0
+      ? pieces.join(" · ")
+      : "rien de conforme au dernier passage";
+  }
+
+  /** Render one followed-item card (used by two sections). */
+  function renderFollowedCard(
+    item: FollowedSeriesItem,
+    searchMeta = false,
+  ): ReactElement {
     const kind = asMediaKind(item.kind);
     const sheetHref = followMediaRef(item);
     return (
       /* A10/A11 — same gesture and kebab grammar as « Suivis », from the same
          builder (§13): three surfaces, one action source. */
-      <SwipeActions key={item.id} right={actions.swipeFor(item)}>
+      <SwipeActions key={item.id} {...actions.swipeFor(item)}>
         <AcquisitionCard
           title={item.title}
           posterUrl={item.poster_url ?? null}
@@ -330,9 +382,20 @@ export function MaintenantPanel(): ReactElement {
                   {followFraction(item)}
                 </span>
               )}
-              {followCountsCaption(item) != null && (
+              {searchMeta ? (
                 <span className="text-xs text-muted-foreground">
-                  {followCountsCaption(item)}
+                  {searchMetaLine(item)}
+                </span>
+              ) : (
+                followCountsCaption(item) != null && (
+                  <span className="text-xs text-muted-foreground">
+                    {followCountsCaption(item)}
+                  </span>
+                )
+              )}
+              {item.tvdb_unresolved && (
+                <span className="rounded bg-muted px-1.5 py-px text-xs text-muted-foreground">
+                  Sans ID TVDB
                 </span>
               )}
             </>
@@ -350,6 +413,43 @@ export function MaintenantPanel(): ReactElement {
             : {})}
         />
       </SwipeActions>
+    );
+  }
+
+  /**
+   * Compact « rangé aujourd'hui » row — done work earns one line, not a card.
+   *
+   * §12: the urgency-ordered screen spends its height on what still needs the
+   * operator; what already landed is an acknowledgement. The row still opens
+   * the detail sheet — done is not dead (§11).
+   */
+  function renderRangeRow(item: FollowedSeriesItem): ReactElement {
+    const at = dispatchedToday.get(item.title);
+    return (
+      <button
+        key={item.id}
+        type="button"
+        data-testid="range-row"
+        className="flex w-full items-center gap-2 rounded-md px-1 py-1.5 text-left text-sm hover:bg-accent"
+        onClick={() => {
+          setSheet({
+            followedId: item.id,
+            status: item.status,
+            kind: asMediaKind(item.kind),
+            mediaHref: followMediaRef(item),
+          });
+        }}
+      >
+        <span aria-hidden="true" className="shrink-0 text-success">
+          ✓
+        </span>
+        <span className="min-w-0 truncate">{item.title}</span>
+        {at != null && (
+          <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+            {relativeTime(at)}
+          </span>
+        )}
+      </button>
     );
   }
 
@@ -393,6 +493,10 @@ export function MaintenantPanel(): ReactElement {
     );
     const journey = journeyByKey.get(matchKey);
     const stage = deriveStage(journey);
+    // The live download correlated through the journey's info_hash — its
+    // progress belongs ON this card, not in a separate list (§12).
+    const download =
+      journey != null ? downloadByHash.get(journey.info_hash) : undefined;
     // The wanted row carries no provider ids, but its correlated journey does:
     // an identified in-flight media leads to its sheet like any other (§11).
     const sheetHref =
@@ -430,13 +534,37 @@ export function MaintenantPanel(): ReactElement {
         // nothing here — the section-level error already names the failure,
         // and « non enregistré » would claim knowledge we do not have).
         meta={
-          journeys.isError ? null : (
-            <span
-              className="min-w-0 truncate font-mono text-[length:var(--text-2xs)] text-muted-foreground"
-              title={journey?.release_name ?? undefined}
-            >
-              {journey?.release_name ?? "Nom de release non enregistré"}
-            </span>
+          journeys.isError && download == null ? null : (
+            <>
+              {/* Live progress folded into the card — percentage, state,
+                  and a broken torrent's reason in French (§8). */}
+              {download != null && (
+                <>
+                  <span
+                    className={`rounded px-1.5 py-px text-xs font-medium tabular-nums ${TONE_CHIP_CLASS[DOWNLOAD_STATE_TONE[download.state] ?? "neutral"] ?? "bg-muted text-muted-foreground"}`}
+                  >
+                    {Math.round(download.progress * 100)} %
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {DOWNLOAD_STATE_LABEL[download.state] ?? "état inconnu"}
+                  </span>
+                  {download.error_reason != null &&
+                    download.error_reason !== "" && (
+                      <span className="text-xs text-danger">
+                        {download.error_reason}
+                      </span>
+                    )}
+                </>
+              )}
+              {!journeys.isError && (
+                <span
+                  className="min-w-0 truncate font-mono text-[length:var(--text-2xs)] text-muted-foreground"
+                  title={journey?.release_name ?? undefined}
+                >
+                  {journey?.release_name ?? "Nom de release non enregistré"}
+                </span>
+              )}
+            </>
           )
         }
         // §3 — « Voir le parcours » per item: the body opens the journey
@@ -519,7 +647,8 @@ export function MaintenantPanel(): ReactElement {
                 )}
 
               {/* « À récupérer » */}
-              {s.slug === "a-recuperer" && aRecuperer.map(renderFollowedCard)}
+              {s.slug === "a-recuperer" &&
+                aRecuperer.map((i) => renderFollowedCard(i))}
 
               {/* « À traiter » — cards + crossref for orphans */}
               {s.slug === "a-traiter" && (
@@ -556,13 +685,12 @@ export function MaintenantPanel(): ReactElement {
                     </p>
                   )}
                   {enVol.map(renderEnVolCard)}
-                  {/* Live progress of what is actually downloading, with its
-                      percentage and, when a torrent breaks, the REASON in
-                      French — a stalled download that only says « en cours »
-                      is the silence §8 exists to end. */}
-                  {downloads.length > 0 && (
+                  {/* Downloads NO card claims — grabs the follow layer does
+                      not know about. Correlated ones already live on their
+                      card; dropping these would hide real in-flight work. */}
+                  {uncorrelatedDownloads.length > 0 && (
                     <div className="mt-3 flex flex-col gap-4">
-                      {downloads.map((d) => (
+                      {uncorrelatedDownloads.map((d) => (
                         <DownloadRow key={d.info_hash || d.name} d={d} />
                       ))}
                     </div>
@@ -570,13 +698,13 @@ export function MaintenantPanel(): ReactElement {
                 </>
               )}
 
-              {/* « Cherché, rien trouvé » */}
+              {/* « Cherché, rien trouvé » — verdict + next check, not counts. */}
               {s.slug === "cherche-rien-trouve" &&
-                chercheRienTrouve.map(renderFollowedCard)}
+                chercheRienTrouve.map((i) => renderFollowedCard(i, true))}
 
-              {/* « Rangé aujourd'hui » */}
+              {/* « Rangé aujourd'hui » — compact acknowledgement rows. */}
               {s.slug === "range-aujourdhui" &&
-                rangeAujourdhui.map(renderFollowedCard)}
+                rangeAujourdhui.map((i) => renderRangeRow(i))}
             </section>
           );
         })}
