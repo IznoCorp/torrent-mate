@@ -60,6 +60,8 @@ vi.mock("@/hooks/useAcquisition", () => ({
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   useMediaSearch: (...a: unknown[]) => searchResultsMock(...a),
   useFollow: () => ({ mutate: vi.fn(), isPending: false }),
+  useUpdateFollow: () => ({ mutate: vi.fn(), isPending: false }),
+  useUnfollow: () => ({ mutate: vi.fn(), isPending: false }),
   useCompleteness: () => completenessMock(),
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   useFollowed: () => followedMock(),

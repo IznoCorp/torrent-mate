@@ -33,7 +33,11 @@ import {
   SheetHeader,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCompleteness } from "@/hooks/useAcquisition";
+import {
+  useCompleteness,
+  useUnfollow,
+  useUpdateFollow,
+} from "@/hooks/useAcquisition";
 
 import { EpisodeStateLegende } from "./EpisodeStateLegende";
 import {
@@ -231,7 +235,14 @@ export function FollowDetailSheet({
         ) : isError ? (
           <SheetError />
         ) : data ? (
-          <FollowDetailSheetContent data={data} status={status} kind={kind} mediaHref={mediaHref} />
+          <FollowDetailSheetContent
+            data={data}
+            status={status}
+            kind={kind}
+            mediaHref={mediaHref}
+            followedId={followedId}
+            onOpenChange={onOpenChange}
+          />
         ) : null}
       </SheetContent>
     </Sheet>
@@ -245,14 +256,20 @@ function FollowDetailSheetContent({
   status,
   kind,
   mediaHref,
+  followedId,
+  onOpenChange,
 }: {
   readonly data: CompletenessResponse;
   readonly status: FollowStatus;
   readonly kind: MediaKind;
   readonly mediaHref?: string | null | undefined;
+  readonly followedId: number;
+  readonly onOpenChange: (open: boolean) => void;
 }): ReactElement {
   const navigate = useNavigate();
   const words = actionWords(kind);
+  const updateFollow = useUpdateFollow();
+  const unfollow = useUnfollow();
   const aggregate = aggregateFraction(data);
 
   // §11: a follow that can't be resolved to a provider id has no catalogue.
@@ -334,15 +351,31 @@ function FollowDetailSheetContent({
               Voir la fiche
             </button>
           )}
+          {/* Both were rendered with no handler: controls that look alive and
+              do nothing, which §11 forbids as firmly as a dead link. They act
+              now; a failure toasts in French from the hook rather than snapping
+              the row back in silence. */}
           <button
+            data-testid="mettre-en-pause"
             type="button"
-            className="w-full rounded-md border border-border px-3 py-2 text-left text-sm hover:bg-accent"
+            disabled={updateFollow.isPending}
+            className="w-full rounded-md border border-border px-3 py-2 text-left text-sm hover:bg-accent disabled:opacity-50"
+            onClick={() => {
+              updateFollow.mutate({ id: followedId, body: { active: false } });
+              onOpenChange(false);
+            }}
           >
             {words.pause}
           </button>
           <button
+            data-testid="retirer-le-suivi"
             type="button"
-            className="w-full rounded-md border border-border px-3 py-2 text-left text-sm hover:bg-accent"
+            disabled={unfollow.isPending}
+            className="w-full rounded-md border border-border px-3 py-2 text-left text-sm text-danger hover:bg-accent disabled:opacity-50"
+            onClick={() => {
+              unfollow.mutate(followedId);
+              onOpenChange(false);
+            }}
           >
             {words.remove}
           </button>

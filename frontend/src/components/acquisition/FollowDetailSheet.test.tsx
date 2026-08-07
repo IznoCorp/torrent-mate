@@ -167,7 +167,12 @@ function mockCompleteness(data: CompletenessResponse): void {
 
 function renderSheet(
   fixture: CompletenessResponse,
-  opts?: { readonly status?: FollowStatus; readonly kind?: MediaKind; readonly mediaHref?: string | null },
+  opts?: {
+    readonly status?: FollowStatus;
+    readonly kind?: MediaKind;
+    readonly mediaHref?: string | null;
+    readonly onOpenChange?: (open: boolean) => void;
+  },
 ): void {
   mockCompleteness(fixture);
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -180,7 +185,7 @@ function renderSheet(
           kind={opts?.kind ?? (fixture.kind as MediaKind)}
           mediaHref={opts?.mediaHref}
           open={true}
-          onOpenChange={vi.fn()}
+          onOpenChange={opts?.onOpenChange ?? vi.fn()}
         />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -319,5 +324,36 @@ describe("FollowDetailSheet", () => {
     fireEvent.click(screen.getByTestId("voir-la-fiche"));
     expect(navigateMock).toHaveBeenCalledTimes(1);
     expect(navigateMock.mock.calls[0]?.[0]).toBe("/media/tvdb/400000?kind=tv");
+  });
+  // Both were rendered with no handler — controls that look alive and do
+  // nothing. §11 forbids that as firmly as a dead link, and a test is what
+  // keeps them wired: an unwired button looks identical in a screenshot.
+
+  it("« mettre en pause » suspend réellement le suivi et referme la feuille", () => {
+    const mutate = vi.fn();
+    const onOpenChange = vi.fn();
+    vi.spyOn(hooks, "useUpdateFollow").mockReturnValue({
+      mutate,
+      isPending: false,
+    } as unknown as ReturnType<typeof hooks.useUpdateFollow>);
+
+    renderSheet(silo(), { onOpenChange });
+    fireEvent.click(screen.getByTestId("mettre-en-pause"));
+
+    expect(mutate).toHaveBeenCalledWith({ id: 42, body: { active: false } });
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("« retirer » retire réellement le suivi", () => {
+    const mutate = vi.fn();
+    vi.spyOn(hooks, "useUnfollow").mockReturnValue({
+      mutate,
+      isPending: false,
+    } as unknown as ReturnType<typeof hooks.useUnfollow>);
+
+    renderSheet(silo());
+    fireEvent.click(screen.getByTestId("retirer-le-suivi"));
+
+    expect(mutate).toHaveBeenCalledWith(42);
   });
 });
