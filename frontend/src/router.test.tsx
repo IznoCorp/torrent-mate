@@ -212,7 +212,7 @@ describe("router", () => {
 
     // Root redirects to the acquisitions landing (operator directive), inside the shell.
     expect(
-      await screen.findByRole("heading", { name: /acquisition/i }),
+      await screen.findByRole("tab", { name: /Maintenant/ }),
     ).toBeInTheDocument();
     // Shell chrome present: the top bar's user menu and the mobile nav.
     expect(
@@ -534,7 +534,7 @@ describe("router", () => {
 
     // Open-redirect guard: `//evil` collapses to the app root → acquisitions landing.
     expect(
-      await screen.findByRole("heading", { name: /acquisition/i }),
+      await screen.findByRole("tab", { name: /Maintenant/ }),
     ).toBeInTheDocument();
   });
 

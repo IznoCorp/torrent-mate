@@ -79,8 +79,9 @@ describe("App", () => {
     // The browser router boots at jsdom's default path ("/"); once `me` resolves
     // authenticated the guard renders the shell, and the root redirects to the
     // acquisitions landing (the main page, per the operator nav reorder).
+    // The acquisition page renders two view tabs — Maintenant and Suivis.
     expect(
-      await screen.findByRole("heading", { name: /acquisition/i }),
+      await screen.findByRole("tab", { name: /Maintenant/ }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /menu utilisateur/i }),

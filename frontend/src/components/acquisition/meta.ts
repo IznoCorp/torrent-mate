@@ -23,15 +23,8 @@ import {
 } from "@/lib/outcome-labels";
 import { mediaSheetHref } from "@/lib/media-href";
 
-/** Tab ids for the panels. */
-export type TabId =
-  | "apercu"
-  | "followed"
-  | "file"
-  | "obligations"
-  | "watcher"
-  | "parcours"
-  | "reglages";
+/** View ids for the two panels (spec §3). */
+export type TabId = "maintenant" | "suivis";
 
 /**
  * Scheduler `name` of the automatic followed-search (grab) cron job (C15).
@@ -82,16 +75,31 @@ export const OBLIGATION_INVALIDATE_EVENTS = new Set([
   "RatioMeasured",
 ]);
 
-/** Tabs displayed in the page header. */
+/**
+ * The two views.
+ *
+ * Named after the operator's QUESTIONS, not after data tables. The former seven
+ * tabs (apercu / followed / file / obligations / watcher / parcours / reglages)
+ * were named after the tables behind them, which is why each of the operator's
+ * three real questions cut across several of them.
+ */
 export const TABS: readonly { id: TabId; label: string }[] = [
-  { id: "apercu", label: "Vue d'ensemble" },
-  { id: "followed", label: "Suivis" },
-  { id: "file", label: "File d'acquisition" },
-  { id: "obligations", label: "Obligations" },
-  { id: "watcher", label: "Watcher" },
-  { id: "parcours", label: "Parcours" },
-  { id: "reglages", label: "Réglages" },
+  { id: "maintenant", label: "Maintenant" },
+  { id: "suivis", label: "Suivis" },
 ];
+
+/** Old ``?tab=`` values → the view that now answers them (DOIT-10: no dead deep link). */
+export const LEGACY_TAB_REDIRECTS: Readonly<Record<string, TabId>> = {
+  apercu: "maintenant",
+  file: "maintenant",
+  wanted: "maintenant",
+  downloads: "maintenant",
+  obligations: "maintenant",
+  watcher: "maintenant",
+  parcours: "maintenant",
+  reglages: "maintenant",
+  followed: "suivis",
+};
 
 /** Allowed status filter values for the wanted queue (includes "all"). */
 export type WantedFilter =
