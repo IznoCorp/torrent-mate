@@ -73,9 +73,12 @@ describe("PlusSheet", () => {
     // Each panel renders its own heading; finding both proves neither was
     // dropped from the drawer.
     expect(screen.getByText("État du watcher")).toBeInTheDocument();
+    // Text that ONLY ObligationsPanel renders. A looser matcher here silently
+    // matched the drawer's own description — the assertion then survived
+    // deleting the panel, which is the vacuous test this guard exists to avoid.
     expect(
-      screen.getAllByText(/Obligations de partage|Aucune obligation/i).length,
-    ).toBeGreaterThan(0);
+      screen.getByText("Aucune obligation de seed enregistrée."),
+    ).toBeInTheDocument();
   });
 
   it("says where the ranking profiles went, rather than letting them vanish", () => {
