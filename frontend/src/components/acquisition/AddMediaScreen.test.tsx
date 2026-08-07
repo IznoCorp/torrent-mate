@@ -88,7 +88,6 @@ function renderAdd(opts?: {
   /** The query that was submitted (for the empty-state message). */
   query?: string;
   /** Spy called each time a provider search is triggered. */
-  /** Spy called each time a provider search is triggered. */
   onSearch?: (...args: unknown[]) => void;
   /** Spy called each time a follow body is submitted. */
   onFollow?: (...args: unknown[]) => void;
