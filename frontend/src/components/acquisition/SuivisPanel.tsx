@@ -35,6 +35,7 @@ import type { FollowStatus, MediaKind } from "./meta";
 import {
   FOLLOW_STATUS_LABEL,
   FOLLOW_STATUS_TONE,
+  asMediaKind,
   followCountsCaption,
   followFraction,
   followStatusHint,
@@ -186,20 +187,6 @@ function gridBadge(item: FollowedSeriesItem): string | null {
   // Actionable states with a known catalogue — how many aired episodes are not owned.
   const missing = Math.max(1, item.aired_count - (item.owned_count ?? 0));
   return String(missing);
-}
-
-// ---------------------------------------------------------------------------
-// Narrowing helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Narrow a server ``kind`` string to the ``MediaKind`` union.
- *
- * Falls back to ``"show"`` for unknown values — never crashes on a new kind.
- */
-function asMediaKind(kind: string): MediaKind {
-  if (kind === "movie" || kind === "show" || kind === "season") return kind;
-  return "show";
 }
 
 // ---------------------------------------------------------------------------

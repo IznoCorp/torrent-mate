@@ -27,6 +27,7 @@ import {
   STATUS_TONE,
   WANTED_STATUS_OPTIONS,
   actionWords,
+  asMediaKind,
   followStatusHint,
   followStatusLabel,
   searchOutcomeReason,
@@ -456,5 +457,16 @@ describe("vocabulaire film vs série (§9)", () => {
     const m2: MediaKind = "show";
     const m3: MediaKind = "season";
     expect([m1, m2, m3]).toEqual(["movie", "show", "season"]);
+  });
+
+  it("asMediaKind renvoie le littéral exact pour les trois MediaKind connus", () => {
+    expect(asMediaKind("movie")).toBe("movie");
+    expect(asMediaKind("show")).toBe("show");
+    expect(asMediaKind("season")).toBe("season");
+  });
+
+  it("asMediaKind tombe sur « show » pour une valeur inconnue", () => {
+    expect(asMediaKind("podcast")).toBe("show");
+    expect(asMediaKind("")).toBe("show");
   });
 });

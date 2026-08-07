@@ -42,7 +42,7 @@ import { ErrorState } from "@/components/ds/ErrorState";
 import { AcquisitionCard } from "./AcquisitionCard";
 import { FollowDetailSheet } from "./FollowDetailSheet";
 import { JourneyStrip, type Stage } from "./JourneyStrip";
-import type { FollowStatus, MediaKind } from "./meta";
+import { asMediaKind, type FollowStatus, type MediaKind } from "./meta";
 
 // ---------------------------------------------------------------------------
 // Section order — CONSTANT (§3.1)
@@ -104,20 +104,6 @@ const SECTION_META: Record<SectionSlug, SectionMeta> = {
  */
 function resolveHref(item: ToHandleItem): string {
   return `/medias?decision=${String(item.decision_id)}`;
-}
-
-// ---------------------------------------------------------------------------
-// Narrowing helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Narrow a server ``kind`` string to the ``MediaKind`` union.
- *
- * Falls back to ``"show"`` for unknown values — never crashes on a new kind.
- */
-function asMediaKind(kind: string): MediaKind {
-  if (kind === "movie" || kind === "show" || kind === "season") return kind;
-  return "show";
 }
 
 // ---------------------------------------------------------------------------

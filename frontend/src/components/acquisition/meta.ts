@@ -214,6 +214,16 @@ export const TIER_LABEL: Record<string, string> = {
 export type MediaKind = "movie" | "show" | "season";
 
 /**
+ * Narrow a server ``kind`` string to the {@link MediaKind} union.
+ *
+ * Falls back to ``"show"`` for unknown values — never crashes on a new kind.
+ */
+export function asMediaKind(kind: string): MediaKind {
+  if (kind === "movie" || kind === "show" || kind === "season") return kind;
+  return "show";
+}
+
+/**
  * A followed card's lifecycle status — read STRAIGHT from the generated OpenAPI
  * contract, never re-typed by hand.
  *
