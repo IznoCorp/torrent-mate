@@ -14,6 +14,7 @@ import {
   type UseQueryOptions,
   type UseQueryResult,
 } from "@tanstack/react-query";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -43,6 +44,7 @@ import {
   type WantedResponse,
 } from "@/api/acquisition";
 import { ApiError } from "@/api/client";
+import { formatRunResult } from "@/components/acquisition/meta";
 import { useRunToCompletion } from "@/hooks/useRunToCompletion";
 
 /**
@@ -359,31 +361,6 @@ export function useFollow() {
 }
 
 /**
- * Update a followed series (active flag / cadence).
- *
- * Sends ``PATCH /api/acquisition/followed/{followed_id}``.  On success
- * invalidates the entire acquisition query namespace; failures toast in
- * French with the backend detail (X3).
- *
- * Args:
- *   (none — pass ``{id, body}`` to ``mutateAsync``)
- *
- * Returns:
- *   The mutation result; call ``mutateAsync({id, body})`` from a toggle or
- *   cadence form.
- */
-/**
- * Launch the full search chain for one followed series, now.
- *
- * The 202 means « launched », not « found » — the toast says so, and the
- * invalidation lets the card move to « en cours » on its own poll. Failures
- * toast in French with the backend detail rather than leaving the primary
- * action visibly pressed and silently inert.
- *
- * Returns:
- *   The mutation; call ``mutate(followedId)``.
- */
-/**
  * « What awaits the operator » — ONE derivation (§13).
  *
  * The nav badge and the « Maintenant » tab badge answer the same question and
@@ -413,12 +390,38 @@ export function useWaitingForOperator(): {
   };
 }
 
+/**
+ * Launch the full search chain for one followed series and TRACK the run.
+ *
+ * Fire-and-track, not fire-and-forget: the 202 only means « launched », so the
+ * launch toast says what runs; the run is then tracked to its real end and the
+ * closing toast carries the NUMERIC result — an action whose outcome never
+ * comes back reads as an action that did nothing (§8).
+ *
+ * Returns:
+ *   The mutation; call ``mutate(followedId)``.
+ */
 export function useGrabNow() {
   const qc = useQueryClient();
+  const [trackedRun, setTrackedRun] = useState<string | null>(null);
+  const finishedRun = useTrackedAcquisitionRun(trackedRun);
+  if (finishedRun?.ended_at != null && trackedRun != null) {
+    if (finishedRun.outcome === "success") {
+      const summary = formatRunResult(finishedRun.result);
+      toast.success(`Exécution terminée${summary ? ` — ${summary}` : ""}.`);
+    } else {
+      toast.error("L'exécution a échoué — voir les exécutions récentes.");
+    }
+    setTrackedRun(null);
+    void qc.invalidateQueries({ queryKey: acqKeys.all });
+  }
+
   return useMutation({
     mutationFn: (id: number) => triggerFollowedSearch(id),
-    onSuccess: () => {
-      toast.info("Recherche lancée.");
+    onSuccess: (res) => {
+      // The chain runs server-side end to end — say so, then follow the run.
+      toast.info("Vérification lancée — catalogue, trackers, puis récupération…");
+      setTrackedRun(res.run_uid);
       void qc.invalidateQueries({ queryKey: acqKeys.all });
     },
     onError: (err: unknown) => {
@@ -426,6 +429,7 @@ export function useGrabNow() {
     },
   });
 }
+
 
 /**
  * Manually enqueue one season of a followed series (idempotent server-side).
@@ -448,6 +452,16 @@ export function useGrabSeason() {
   });
 }
 
+/**
+ * Update a followed series (active flag / cadence).
+ *
+ * Sends ``PATCH /api/acquisition/followed/{followed_id}``. On success
+ * invalidates the acquisition namespace; failures toast in French with the
+ * backend detail (X3).
+ *
+ * Returns:
+ *   The mutation result; call ``mutate({id, body})``.
+ */
 export function useUpdateFollow() {
   const qc = useQueryClient();
   return useMutation({

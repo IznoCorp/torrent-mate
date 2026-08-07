@@ -143,9 +143,12 @@ export const acqKeys = {
   trackedRun: (runUid: string | null) =>
     [...acqKeys.status(), "tracked", runUid] as const,
 
-  /** Media search query key: ``['acquisition', 'search', {q, kind}]``. */
+  /** Media search query key — its OWN root, deliberately outside
+   *  ``acqKeys.all``: every follow mutation invalidates that namespace, and a
+   *  provider search re-fetching after each add burned quota for nothing.
+   *  Nothing a mutation changes lives in a search result. */
   search: (params: MediaSearchParams) =>
-    [...acqKeys.all, "search", params] as const,
+    ["acquisition-search", params] as const,
 
   /** Completeness query key: ``['acquisition', 'completeness', id]`` (§5). */
   completeness: (id: number) =>
@@ -339,6 +342,53 @@ export function updateFollow(
     headers: XRW_HEADERS,
     params: { path: { followed_id: id } },
   });
+}
+
+/** The provider an add-by-id follow targets. */
+export type FollowProvider = "tvdb" | "tmdb" | "imdb";
+
+/** An IMDb id is ``tt`` followed by digits (e.g. ``tt0137523``). */
+const IMDB_ID_RE = /^tt\d+$/;
+
+/**
+ * Build the follow body for an add-by-id submit, or ``null`` when the id is
+ * invalid for the provider (TVDB/TMDB → plain positive digits, IMDB →
+ * ``tt\d+``).
+ *
+ * The plain-digits requirement is checked BEFORE ``Number()`` because the
+ * latter coerces ``"1e3"`` → 1000 and ``"0x10"`` → 16, both of which are
+ * safe integers — but the operator typing ``"1e3"`` into the by-ID field
+ * means the string ``"1e3"``, not the integer 1000, and following that as
+ * tvdb_id 1000 would fetch wrong artwork and wrong metadata on a real
+ * library.
+ *
+ * The form is series-only (``kind: 'show'``) — a TVDB id is a series id, and a
+ * film is followed from the search cards which carry ``kind: 'movie'``. The
+ * server resolves TVDB from a TMDB/IMDB series so detection works.
+ */
+export function buildIdFollowBody(
+  provider: FollowProvider,
+  rawId: string,
+): CreateFollowRequest | null {
+  const value = rawId.trim();
+  if (!value) return null;
+  if (provider === "imdb") {
+    return IMDB_ID_RE.test(value) ? { imdb_id: value, kind: "show" } : null;
+  }
+  // Reject any non-IMDB value that is not plain digits — Number() alone
+  // cannot carry this: it coerces "1e3" → 1000 and "0x10" → 16, both of
+  // which pass Number.isSafeInteger.  The operator typing "1e3" into the
+  // by-ID field means the string 1e3, not the integer 1000.
+  if (!/^\d+$/.test(value)) return null;
+  const numeric = Number(value);
+  // Number.isSafeInteger, not isInteger: a 17-digit-or-longer id still passes
+  // isInteger but has already lost precision (JSON would emit 1e+23 for a
+  // 23-digit string) — a precision-mangled id must refuse here, never silently
+  // follow a wrong id.
+  if (!Number.isSafeInteger(numeric) || numeric <= 0) return null;
+  return provider === "tvdb"
+    ? { tvdb_id: numeric, kind: "show" }
+    : { tmdb_id: numeric, kind: "show" };
 }
 
 /** Response type for POST /api/acquisition/followed/{id}/search (OBJ3). */

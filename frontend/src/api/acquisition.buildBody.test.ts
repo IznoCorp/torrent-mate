@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { buildIdFollowBody } from "./useFollowedPanel";
+import { buildIdFollowBody } from "./acquisition";
 
 describe("buildIdFollowBody", () => {
   it("maps TVDB to tvdb_id (int) with kind show", () => {

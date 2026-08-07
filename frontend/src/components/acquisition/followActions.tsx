@@ -13,6 +13,8 @@
  */
 
 import { useState, type ReactElement } from "react";
+
+import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
 import type { FollowedSeriesItem } from "@/api/acquisition";
@@ -30,6 +32,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useUnfollow, useUpdateFollow } from "@/hooks/useAcquisition";
 
 import type { SwipeAction } from "./SwipeActions";
@@ -56,6 +60,11 @@ export function useFollowActions(): FollowActions {
   const updateFollow = useUpdateFollow();
   const unfollow = useUnfollow();
   const [removing, setRemoving] = useState<FollowedSeriesItem | null>(null);
+  // The per-series search cadence editor, re-homed from the dissolved list
+  // panel: an operator-set cadence with no surface left to set it is a
+  // feature silently withdrawn.
+  const [cadenceTarget, setCadenceTarget] = useState<FollowedSeriesItem | null>(null);
+  const [cadenceInterval, setCadenceInterval] = useState("");
 
   const words = (item: FollowedSeriesItem) =>
     actionWords(asMediaKind(item.kind) === "movie" ? "movie" : "show");
@@ -124,6 +133,14 @@ export function useFollowActions(): FollowActions {
             {paused ? w.resume : w.pause}
           </DropdownMenuItem>
           <DropdownMenuItem
+            onSelect={() => {
+              setCadenceTarget(item);
+              setCadenceInterval("");
+            }}
+          >
+            Modifier la cadence
+          </DropdownMenuItem>
+          <DropdownMenuItem
             variant="destructive"
             onSelect={() => {
               setRemoving(item);
@@ -179,5 +196,84 @@ export function useFollowActions(): FollowActions {
     </Dialog>
   );
 
-  return { swipeFor, menuFor, dialog };
+  const cadenceDialog = (
+    <Dialog
+      open={cadenceTarget != null}
+      onOpenChange={(open) => {
+        if (!open) setCadenceTarget(null);
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Modifier la cadence</DialogTitle>
+          <DialogDescription>
+            {cadenceTarget?.title ?? ""} — définissez l&apos;intervalle en
+            minutes entre deux vérifications.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-2">
+          <div>
+            <Label htmlFor="cadence-interval">Intervalle (minutes)</Label>
+            <Input
+              id="cadence-interval"
+              type="number"
+              min={0}
+              value={cadenceInterval}
+              onChange={(e) => {
+                setCadenceInterval(e.target.value);
+              }}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <button
+            type="button"
+            className="rounded-md border border-border px-3 py-2 text-sm hover:bg-accent"
+            onClick={() => {
+              setCadenceTarget(null);
+            }}
+          >
+            Annuler
+          </button>
+          <button
+            data-testid="enregistrer-la-cadence"
+            type="button"
+            disabled={updateFollow.isPending}
+            className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            onClick={() => {
+              if (cadenceTarget == null) return;
+              const interval = Number(cadenceInterval);
+              if (!Number.isFinite(interval) || interval < 0) return;
+              updateFollow.mutate(
+                {
+                  id: cadenceTarget.id,
+                  body: { cadence: { interval_minutes: interval } },
+                },
+                {
+                  onSuccess: () => {
+                    // The dialog closing alone does not say the save landed.
+                    toast.success("Cadence mise à jour.");
+                  },
+                },
+              );
+              setCadenceTarget(null);
+            }}
+          >
+            Enregistrer
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
+  return {
+    swipeFor,
+    menuFor,
+    dialog: (
+      <>
+        {dialog}
+        {cadenceDialog}
+      </>
+    ),
+  };
 }

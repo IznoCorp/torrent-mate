@@ -180,7 +180,41 @@ function waitingShow(): FollowedSeriesItem {
   };
 }
 
-/** A followed item with ``a_jour`` — lands in « Rangé aujourd'hui ». */
+/** A journey for Shōgun dispatched JUST NOW — what makes it « aujourd'hui ». */
+function shogunDispatchedToday(): JourneyItem {
+  return {
+    info_hash: "feedcafe",
+    followed_id: 3,
+    decision_id: null,
+    follow_title: "Shōgun",
+    kind: "episode",
+    season: 1,
+    episode: 10,
+    media_ref: { tvdb_id: 421000, tmdb_id: null, imdb_id: null },
+    release_name: "Shogun.S01E10.2160p",
+    status: "dispatched",
+    stuck: false,
+    resolution_state: null,
+    resolution_trigger: null,
+    estimated_stages: null,
+    reconstructed_at: null,
+    ingest_path: null,
+    current_path: null,
+    dispatch_path: "/d1/TV/Shogun",
+    grabbed_at: Math.floor(Date.now() / 1000) - 3600,
+    ingested_at: Math.floor(Date.now() / 1000) - 1800,
+    scraped_at: Math.floor(Date.now() / 1000) - 900,
+    dispatched_at: Math.floor(Date.now() / 1000) - 60,
+    grab_run_uid: null,
+    ingest_run_uid: null,
+    scrape_run_uid: null,
+    dispatch_run_uid: null,
+  };
+}
+
+/** A followed item with ``a_jour`` — lands in « Rangé aujourd'hui » because
+ *  its journey dispatched today (the status alone is the permanent steady
+ *  state of every complete série and no longer suffices). */
 function upToDateShow(): FollowedSeriesItem {
   return {
     id: 3,
@@ -208,7 +242,7 @@ const full: FullFixtures = {
     degraded: false,
   },
   downloads: [inflightDownload()],
-  journeys: [inflightJourney()],
+  journeys: [shogunDispatchedToday(), inflightJourney()],
 };
 
 const empty: EmptyFixtures = {

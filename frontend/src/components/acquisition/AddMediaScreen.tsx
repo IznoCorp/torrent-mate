@@ -53,7 +53,7 @@ import { useFollow, useMediaSearch } from "@/hooks/useAcquisition";
 import {
   buildIdFollowBody,
   type FollowProvider,
-} from "@/hooks/useFollowedPanel";
+} from "@/api/acquisition";
 
 // ── Props ──────────────────────────────────────────────────────────────────
 

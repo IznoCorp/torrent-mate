@@ -47,8 +47,11 @@ import { AcquisitionCard } from "./AcquisitionCard";
 import { SwipeActions } from "./SwipeActions";
 import { useFollowActions } from "./followActions";
 import { FollowDetailSheet } from "./FollowDetailSheet";
-import { JourneyStrip, type Stage } from "./JourneyStrip";
-import { DownloadRow } from "./DownloadsPanel";
+import { JourneyDetailSheet } from "./JourneyDetailSheet";
+import { deriveStage, journeyMatchKey } from "./journey";
+import { PendingRunLine } from "./PendingRunLine";
+import { JourneyStrip } from "./JourneyStrip";
+import { DownloadRow } from "./DownloadRow";
 import { StalledGrabsAlert } from "./StalledGrabsAlert";
 import {
   asMediaKind,
@@ -125,66 +128,6 @@ function resolveHref(item: ToHandleItem): string {
 // Stage derivation from journey timestamps
 // ---------------------------------------------------------------------------
 
-/**
- * Build a unique key for matching a wanted/en-vol item to a journey row.
- *
- * ``WantedItem`` has no ``info_hash``, so we match by title + season + episode
- * + kind — sufficient for the « En vol » section where a given episode is
- * rarely grabbed twice simultaneously.  Journey ``kind`` is more specific
- * (``"episode"`` vs ``"show"``) so we normalise it.
- */
-function journeyMatchKey(
-  title: string,
-  kind: string,
-  season: number | null,
-  episode: number | null,
-): string {
-  // Journey kind is "episode"/"movie"/null; wanted kind is "show"/"movie".
-  // Normalise "episode" → "show" so a show follow matches its episode journeys.
-  const normalised = kind === "episode" ? "show" : kind;
-  return `${title}||${normalised}||${String(season ?? "")}||${String(episode ?? "")}`;
-}
-
-/**
- * Derive the journey stage from the per-stage timestamps.
- *
- * Returns the ``Stage`` literal for the latest reached station, or ``null``
- * when the stage cannot be established — for instance a ``reconstructed_at``
- * row with gaps (§14.3: absent timestamp on a rebuilt row means « unknown »,
- * not « not reached »), or no matching journey at all.
- *
- * Args:
- *   j: The matching journey row, or ``undefined``.
- *
- * Returns:
- *   The stage, or ``null`` when the strip must be omitted.
- */
-function deriveStage(j: JourneyItem | undefined): string | null {
-  if (j == null) return null;
-
-  const { grabbed_at, ingested_at, scraped_at, dispatched_at, reconstructed_at } = j;
-
-  // Find the latest reached station (top-down: dispatched → scraped → ingested → grabbed).
-  let stage: string | null = null;
-  if (dispatched_at != null) stage = "range";
-  else if (scraped_at != null) stage = "scrape";
-  else if (ingested_at != null) stage = "ingere";
-  else if (grabbed_at != null) stage = "telech";
-  else stage = "pris";
-
-  // §14.3: on a rebuilt row, an absent intermediate timestamp means UNKNOWN.
-  // If any station BEFORE the latest is missing, we cannot draw a confident path.
-  if (reconstructed_at != null) {
-    const expected = [grabbed_at, ingested_at, scraped_at, dispatched_at];
-    const stageIdx = ["pris", "telech", "ingere", "scrape", "range"].indexOf(stage);
-    // Every timestamp up to and including the latest must be present.
-    for (let i = 1; i <= stageIdx; i++) {
-      if (expected[i - 1] == null) return null;
-    }
-  }
-
-  return stage;
-}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -208,6 +151,10 @@ export function MaintenantPanel(): ReactElement {
   const overview = useOverview();
   const toHandleDegraded = toHandle.data?.degraded ?? false;
   const actions = useFollowActions();
+  const [journeySheet, setJourneySheet] = useState<{
+    journey: JourneyItem;
+    title: string;
+  } | null>(null);
   const downloadsQuery = useDownloads();
   const downloads = downloadsQuery.data?.downloads ?? [];
   const clientAvailable = downloadsQuery.data?.client_available ?? true;
@@ -252,9 +199,29 @@ export function MaintenantPanel(): ReactElement {
   const chercheRienTrouve: readonly FollowedSeriesItem[] =
     followed.data?.items.filter((i) => i.status === "en_attente") ?? [];
 
-  /** « Rangé aujourd'hui » — fully acquired, everything is on the disks. */
+  /** « Rangé aujourd'hui » — follows whose journey DISPATCHED today.
+   *
+   * NOT every `a_jour` follow: that status is the permanent steady state of
+   * every complete série, and rendering them all here flooded the
+   * urgency-ordered screen with what needs nothing. « aujourd'hui » is a
+   * date, so the derivation reads one: a correlated journey dispatched since
+   * local midnight. */
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const dispatchedTodayTitles = new Set(
+    (journeys.data?.journeys ?? [])
+      .filter(
+        (j) =>
+          j.dispatched_at != null &&
+          j.dispatched_at * 1000 >= startOfToday.getTime(),
+      )
+      .map((j) => j.follow_title)
+      .filter((t): t is string => t != null && t !== ""),
+  );
   const rangeAujourdhui: readonly FollowedSeriesItem[] =
-    followed.data?.items.filter((i) => i.status === "a_jour") ?? [];
+    followed.data?.items.filter(
+      (i) => i.status === "a_jour" && dispatchedTodayTitles.has(i.title),
+    ) ?? [];
 
   // ── Section visibility ────────────────────────────────────────────────
 
@@ -472,13 +439,21 @@ export function MaintenantPanel(): ReactElement {
             </span>
           )
         }
-        // Grabbed items have no detail sheet: nothing to open, so no onOpen —
-        // a button that does nothing is a dead control (§11).
+        // §3 — « Voir le parcours » per item: the body opens the journey
+        // detail when a correlated journey exists. Without one there is
+        // nothing to open, so no onOpen (§11).
+        {...(journey != null
+          ? {
+              onOpen: () => {
+                setJourneySheet({ journey, title: item.title });
+              },
+            }
+          : {})}
         // Stage derived from the real journey, not hardcoded « pris ».
         // When the stage cannot be established (no journey match or a
         // reconstructed row with gaps), the strip is omitted entirely —
         // §14.3: « inconnue » is NOT « pas faite ».
-        strip={stage != null ? <JourneyStrip stage={stage as Stage} /> : undefined}
+        strip={stage != null ? <JourneyStrip stage={stage} /> : undefined}
       />
     );
   }
@@ -498,7 +473,11 @@ export function MaintenantPanel(): ReactElement {
         {overview.isError ? (
           <ErrorState title="Impossible de vérifier les acquisitions parquées." />
         ) : (
-          <StalledGrabsAlert count={overview.data?.stalled_grabs ?? 0} />
+          <>
+            <StalledGrabsAlert count={overview.data?.stalled_grabs ?? 0} />
+            {/* §8/DOIT-2 — the watcher's wait, said out loud. */}
+            <PendingRunLine pending={overview.data?.pending_run} />
+          </>
         )}
 
         {sectionList.map((s) => {
@@ -628,6 +607,17 @@ export function MaintenantPanel(): ReactElement {
       </div>
 
       {actions.dialog}
+
+      {journeySheet != null && (
+        <JourneyDetailSheet
+          journey={journeySheet.journey}
+          title={journeySheet.title}
+          open
+          onOpenChange={(open) => {
+            if (!open) setJourneySheet(null);
+          }}
+        />
+      )}
 
       {/* ── Detail sheet ─────────────────────────────────────────────── */}
       {sheet != null && (
