@@ -58,3 +58,37 @@ pre-existing warning); `npx vitest run` **1274/1274**.
 
 **Deploy**: branch pushed; staging ours-merge `16621507` pushed;
 post-deploy re-probe recorded in Entry 2.
+
+---
+
+## Entry 2 — L0 closed: base typography fixed, all three tools calibrated at zero
+
+**Second real finding**: after unpinning, the app measured 35 vs maquette
+35.5 — the « line-height parity » block (`normal`) mis-read the maquette.
+Ground truth: the maquette's `.device` declares `font: 14px/1.35
+var(--sans)` and `font: inherit` propagates **1.35** everywhere
+(13 × 1.35 = 17.55 — font-INDEPENDENT, which the isolated-span experiment
+proved: identical 17.0 struts under literal `Geist` on both pages).
+**Fix `9f328b91`**: `.mq { font-size: 14px; line-height: 1.35 }` (the
+verbatim `.device` base) replaces the `normal` block. App base was
+14px/1.5 (preflight) inside `.mq` before this.
+
+**Deploy**: staging ours-merge `3afae935`; `/api/version` = `staging @
+3afae935…` verified in the measuring context (service workers blocked).
+
+**Probe (hard gate)**: calibration region (`.viewtabs`, `.seg > button`,
+`.more`) → **`0 divergences on 4 selectors`**, with 8 allowlisted pairs
+(UA-default noise + zero-width-border props, each justified in
+`allowlist.json`).
+
+**Overlay (net)**: `fixtures.js` mirror payloads (maquette demo data
+reshaped as real API envelopes, injected via init-script into the app
+context only) make the tab badge show « 4 » on both sides. Element
+screenshots of `.viewtabs` → **`diff_pct=1.37`** (< 2 target), heatmap
+`ov-tabs.heat.png`: glyph antialiasing + sub-pixel edges on the badge and
+« ⋮ » dots, no structural hotspot.
+
+**L0 exit state**: probe + differ + allowlist + overlay + mirror fixtures
+all validated on the deployed build. Known forward notes: the mirror
+fixtures already carry post-L3 fields (`season`/`episode` on to-handle,
+`eta_seconds`, `last_search_at/best`) — inert until the UI reads them.
