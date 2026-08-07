@@ -1,5 +1,5 @@
 /**
- * AddMediaScreen — full-screen add-by-search + add-by-ID surface (acq-mobile task 12).
+ * AddMediaScreen — full-screen add-by-search + add-by-ID surface.
  *
  * Tests the search-gating, vertical-result rows, provider-total display,
  * §5 replacement confirmation, session-local follow state, empty/error

@@ -50,11 +50,11 @@ beforeEach(() => {
     if (url.includes("/api/auth/me")) {
       return Promise.resolve(buildResponse(200, { username: "izno" }));
     }
-    // Le badge Acquisition de la coquille lit ces deux sources (D6). Le repli
-    // `{}` ne respecte PAS leur contrat (`items` y est toujours sérialisé), et
-    // un corps sans `items` fait remonter l'erreur jusqu'à l'ErrorBoundary du
-    // routeur — donc écran blanc, pas simplement badge absent. Ce mock sert la
-    // vraie forme ; la fragilité elle-même est notée pour la revue finale.
+    // The shell's Acquisition badge reads these two sources (D6). The `{}`
+    // fallback does NOT respect their contract (`items` is always serialized),
+    // and a body without `items` propagates the error to the router's
+    // ErrorBoundary — blank screen, not just a missing badge. This mock serves
+    // the real shape; the fragility itself is noted for the final review.
     if (url.includes("/api/acquisition/followed")) {
       return Promise.resolve(buildResponse(200, { items: [] }));
     }

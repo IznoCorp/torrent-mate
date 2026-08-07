@@ -195,7 +195,7 @@ function aggregateFraction(
 /**
  * FollowDetailSheet — a side/bottom drawer showing one followed item's state.
  *
- * The sheet is opened by tapping a card (panels, Tasks 11-12). It lays out
+ * The sheet is opened by tapping a card. It lays out
  * state-first: the aggregate then the season matrix, then the actions. A
  * COMPLETE season is collapsed; an INCOMPLETE one is open with a missing chip.
  *
@@ -319,8 +319,9 @@ function FollowDetailSheetContent({
       {/* ── Secondary actions LAST ── */}
       {!unresolved && (
         <div data-testid="secondary-actions" className="mt-auto flex flex-col gap-2 p-4">
-          {/* Panels (Tasks 11-12) add the remaining context-dependent actions
-              (pause, resume, remove). The two rendered here are always present. */}
+          {/* The remaining context-dependent actions (pause, resume, remove)
+              are added by the surrounding panel. The two rendered here are
+              always present. */}
           {mediaHref != null && (
             <button
               data-testid="voir-la-fiche"

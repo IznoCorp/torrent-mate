@@ -1,13 +1,13 @@
-"""« À traiter » — les médias bloqués QUI VIENNENT D'UNE ACQUISITION.
+"""« À traiter » — blocked media THAT CAME FROM AN ACQUISITION.
 
-§14.3 : un parcours n'a pas de trou. Un item pris puis ingéré qui cale à
-l'identification est au milieu de SON parcours ; il doit rester visible depuis
-l'acquisition. Un dépôt manuel, lui, n'est pas une acquisition : il est compté
-(§méthode — ne jamais sous-compter ce qui demande attention) mais jamais listé
-ici, il appartient au panneau « À traiter » de Contrôle.
+§14.3: a journey has no hole. An item grabbed then ingested that stalls at
+identification is in the middle of ITS journey; it must stay visible from the
+acquisition surface. A manual deposit is not an acquisition: it is counted
+(§méthode — never under-count what needs attention) but never listed here;
+it belongs on the « À traiter » panel in Contrôle.
 
-La corrélation n'exige AUCUNE migration : ``ProvenanceRow`` porte déjà
-``decision_id``, et ``by_path()`` retrouve la ligne par son chemin de staging.
+The correlation requires NO migration: ``ProvenanceRow`` already carries
+``decision_id``, and ``by_path()`` finds the row by its staging path.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-# Verdict machine → raison française. NE-DOIT-PAS-4 : jamais le token brut.
+# Verdict machine → French reason label. NE-DOIT-PAS-4: never the raw token.
 _REASON: dict[str, str] = {
     "ambiguous": "titre ambigu",
     "unmatched": "aucun candidat — recherche manuelle prête",
@@ -37,7 +37,7 @@ _UNKNOWN_REASON = "identification impossible au dernier passage"
 
 @dataclass(frozen=True)
 class ToHandleItem:
-    """Une décision bloquée portée par une acquisition."""
+    """A blocked decision carried by an acquisition."""
 
     decision_id: int
     title: str
@@ -53,14 +53,14 @@ class ToHandleItem:
 
 @dataclass(frozen=True)
 class ToHandleRollup:
-    """Le partage entre ce qui s'affiche ici et ce qui se compte ailleurs."""
+    """The split between what is shown here and what is counted elsewhere."""
 
     items: tuple[ToHandleItem, ...]
     orphan_count: int
 
 
 def _stage_of(row: object) -> str:
-    """L'étape réellement atteinte — jamais une valeur par défaut (§14.3)."""
+    """The stage actually reached — never a default value (§14.3)."""
     if getattr(row, "dispatched_at", None):
         return "range"
     if getattr(row, "scraped_at", None):
@@ -145,11 +145,11 @@ def build_to_handle(*, indexer_db: Path | None, store: AcquireStore | None) -> T
                     stage=_stage_of(prov),
                 )
             )
-    except Exception as exc:  # noqa: BLE001 — fail-soft : la page ne 500 jamais
-        # §méthode — « panne ≠ absence » : si le store de provenance est en
-        # défaut, on ne peut rien affirmer sur aucun média.  Ce n'est pas un
-        # fail-soft muet (§8 l'interdit) : le warning est ce qui le distingue
-        # d'un « rien à traiter » silencieux.
+    except Exception as exc:  # noqa: BLE001 — fail-soft: the page must never 500
+        # §méthode — « outage ≠ absence »: if the provenance store is broken, we
+        # can assert nothing about any media. This is not a silent fail-soft
+        # (§8 forbids it): the warning is what distinguishes it from a silent
+        # « nothing to handle ».
         logger.warning("to_handle_correlation_failed", error=str(exc))
         return ToHandleRollup(items=(), orphan_count=0)
 

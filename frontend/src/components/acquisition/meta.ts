@@ -287,12 +287,12 @@ export const FOLLOW_STATUS_LABEL: Record<FollowStatus, string> = {
  */
 export const FOLLOW_STATUS_LABEL_MOVIE: Partial<Record<FollowStatus, string>> = {
   a_jour: "Acquis",
-  // Un film n'est pas « en pause » : on a simplement arrêté de le chercher.
+  // A film is not « en pause »: the operator simply stopped searching for it.
   disabled: "Recherche arrêtée",
 };
 
 // ---------------------------------------------------------------------------
-// §9 — Vocabulaire d'action film vs série (acq-mobile task 4)
+// §9 — Film vs series action labelling
 // ---------------------------------------------------------------------------
 
 /** Action wording for one media nature. */

@@ -104,9 +104,9 @@ beforeEach(() => {
     if (url.includes("/api/pipeline/status")) {
       return Promise.resolve(buildResponse(200, pipelineStatusPayload("idle")));
     }
-    // Le badge Acquisition lit désormais ces deux sources (D6). Le mock global
-    // doit les servir, sinon TOUS les autres describes rendent la coquille avec
-    // des corps vides — ce qui masquait leur vrai sujet derrière un plantage.
+    // The shell's Acquisition badge now reads these two sources (D6). The global
+    // mock must serve them, otherwise EVERY other describe renders the shell with
+    // empty bodies — hiding their real subject behind a crash.
     if (url.includes("/api/acquisition/followed")) {
       return Promise.resolve(buildResponse(200, followedPayload([])));
     }
@@ -421,8 +421,8 @@ describe("AppShell nav badges", () => {
         );
       }
       if (url.includes("/api/acquisition/followed")) {
-        // 2 à récupérer + 7 en vol (en_acquisition) = 9 items, mais seuls
-        // les 2 « a_recuperer » comptent dans le badge.
+        // 2 takeable + 7 in-flight (en_acquisition) = 9 items, but only the
+        // 2 « a_recuperer » count toward the badge.
         return Promise.resolve(
           buildResponse(
             200,
@@ -448,9 +448,9 @@ describe("AppShell nav badges", () => {
 
     renderShell();
 
-    // Total attendu : 2 (à récupérer) + 2 (à traiter) = 4.
-    // Les 7 « en_acquisition » (en vol) ne comptent PAS — ils n'attendent rien
-    // de l'opérateur.
+    // Expected total: 2 (takeable) + 2 (to handle) = 4.
+    // The 7 « en_acquisition » (in-flight) do NOT count — they await nothing
+    // from the operator.
     const badge = await within(firstLink(/Acquisition/)).findByText("4");
     expect(badge.getAttribute("data-slot")).toBe("nav-count");
   });

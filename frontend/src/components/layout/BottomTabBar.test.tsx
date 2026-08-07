@@ -91,11 +91,11 @@ describe("BottomTabBar", () => {
 
     expect(expr).toContain(`var(${BOTTOM_BAR_HEIGHT_VAR}`);
     expect(expr).toContain("0.75rem");
-    // Le repli est 0px : sur les deux surfaces sans barre (page de connexion,
-    // tout écran >= md où la barre est md:hidden), la surface se colle au bas
-    // au lieu de flotter dans le vide.
+    // The fallback is 0px: on the two surfaces without a bar (login page,
+    // every viewport ≥ md where the bar is md:hidden), the surface sticks to
+    // the bottom edge instead of floating in empty space.
     expect(expr).toMatch(/var\(--tm-bottom-bar-h,\s*0\w+\)/);
-    // Pas une longueur fixe déguisée.
+    // Not a fixed length in disguise.
     expect(expr).not.toMatch(/^\s*\d+(\.\d+)?\w+\s*$/);
   });
 });

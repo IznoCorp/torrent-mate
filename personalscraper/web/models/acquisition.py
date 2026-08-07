@@ -850,24 +850,24 @@ class SeasonGrabResponse(BaseModel):
     run_uid: str | None = None
 
 
-# ── « À traiter » — les bloqués portés par une acquisition (§14.3) ──────────
+# ── « À traiter » — blocked decisions carried by an acquisition (§14.3) ─────
 
 
 class ToHandleItemModel(BaseModel):
-    """Un média bloqué dont l'acquisition est la nôtre (§14.3).
+    """A blocked media item whose acquisition is ours (§14.3).
 
     Attributes:
-        decision_id: ``scrape_decision.id`` — la cible de « Résoudre → ».
-        title / year / kind: Ce que l'opérateur lit sur la carte.
-        reason: La raison EN FRANÇAIS, déjà mappée (NE-DOIT-PAS-4).
-        candidates_count: Nombre de candidats proposés (§3 : le sélecteur
-            s'ouvre AVEC des propositions).
-        created_at: Epoch seconds de la mise en attente.
-        followed_id: Le suivi porteur, ou ``None``.
-        info_hash: La release concernée, ou ``None``.
-        stage: L'étape RÉELLEMENT atteinte du parcours — jamais une valeur
-            par défaut.  Le Literal est le contrat dont l'UI dérive son type
-            (``Stage = ToHandleItemModel["stage"]`` dans le schéma généré).
+        decision_id: ``scrape_decision.id`` — the target of the « Résoudre → » link.
+        title / year / kind: What the operator reads on the card.
+        reason: The reason IN FRENCH, already mapped (NE-DOIT-PAS-4).
+        candidates_count: Number of candidates proposed (§3: the selector opens
+            WITH proposals).
+        created_at: Epoch seconds of when it was placed on hold.
+        followed_id: The carrying follow, or ``None``.
+        info_hash: The release involved, or ``None``.
+        stage: The stage ACTUALLY reached of the journey — never a default
+            value. The Literal is the contract from which the UI derives its
+            type (``Stage = ToHandleItemModel["stage"]`` in the generated schema).
     """
 
     decision_id: int
@@ -883,14 +883,14 @@ class ToHandleItemModel(BaseModel):
 
 
 class ToHandleResponse(BaseModel):
-    """Réponse de ``GET /api/acquisition/to-handle``.
+    """Response from ``GET /api/acquisition/to-handle``.
 
     Attributes:
-        items: Les bloqués PORTÉS PAR UNE ACQUISITION, le plus ancien d'abord.
-        orphan_count: Les bloqués SANS provenance d'acquisition (dépôts
-            manuels). Ils n'ont pas de carte ici — mais on ne les tait pas :
-            l'UI en fait un renvoi vers Contrôle (§méthode : ne jamais
-            sous-compter ce qui demande attention).
+        items: The blocked items CARRIED BY AN ACQUISITION, oldest first.
+        orphan_count: The blocked items WITHOUT acquisition provenance (manual
+            deposits). They have no card here — but they are not silenced: the
+            UI converts it into a crossref to Contrôle (§méthode: never
+            under-count what needs attention).
     """
 
     items: list[ToHandleItemModel] = []

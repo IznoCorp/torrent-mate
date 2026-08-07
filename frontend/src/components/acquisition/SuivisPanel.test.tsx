@@ -453,7 +453,8 @@ describe("SuivisPanel", () => {
   // The panel used to carry its own GROUP_HEADER_LABEL map, duplicating the
   // labels meta.ts already owns. Deleting it left only ONE header label under
   // test (« À récupérer », above), and the tests that covered the others live
-  // in FollowedPanel.test.tsx, which task 15 deletes. Expected strings are
+  // in FollowedPanel.test.tsx, which is deleted alongside the old FollowedPanel.
+  // Expected strings are
   // LITERAL here on purpose: reading them from FOLLOW_STATUS_LABEL would make
   // the assertion tautological — the map and the expectation would move
   // together and a re-introduced local duplicate would sail through.

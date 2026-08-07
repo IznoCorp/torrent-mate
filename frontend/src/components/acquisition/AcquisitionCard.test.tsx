@@ -32,9 +32,9 @@ describe("AcquisitionCard", () => {
     render(
       <AcquisitionCard title="Silo" posterUrl={null} />,
     );
-    // Le corps ne doit pas être un <button>.
+    // The body must not be a <button>.
     expect(screen.queryByRole("button", { name: "Silo" })).toBeNull();
-    // Le titre est toujours visible, dans un élément non-interactif.
+    // The title is still visible, inside a non-interactive element.
     expect(screen.getByTestId("acq-card-title")).toHaveTextContent("Silo");
   });
 

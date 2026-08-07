@@ -1,9 +1,11 @@
 /**
  * MaintenantPanel — the five-section urgency-ordered « Maintenant » view.
  *
- * Five building blocks shipped in earlier tasks are composed here:
- * ``AcquisitionCard`` (T5), ``JourneyStrip`` (T6), ``FollowDetailSheet`` (T10),
- * the ``actionWords`` vocabulary (T4), and the ``useToHandle`` hook (T3).
+ * Composes five building blocks — ``AcquisitionCard``, ``JourneyStrip``,
+ * ``FollowDetailSheet``, the ``actionWords`` vocabulary, and the
+ * ``useToHandle`` hook — each tested in its own module. This component
+ * owns the composition: card/strip linkage, section ordering, and the
+ * loading/error/empty guards.
  *
  * Section order is DATA, not a rendering accident (§3.1): what is stopped and
  * waiting on the operator comes BEFORE what advances alone.
@@ -342,8 +344,9 @@ export function MaintenantPanel(): ReactElement {
         // No onOpen either — a button that does nothing is a dead control (§11).
         strip={<JourneyStrip stage={item.stage} blocked />}
         // « Résoudre → » lives in footer (full width, under the strip),
-        // NOT in meta — nested interactive regions are invalid HTML
-        // (carried forward from Task 5's review, resolution 4).
+        // NOT in meta — nested interactive regions are invalid HTML,
+        // so placing a Link inside the meta span would produce a button
+        // inside another button at any width below md.
         footer={
           <Link
             to={resolveHref(item)}

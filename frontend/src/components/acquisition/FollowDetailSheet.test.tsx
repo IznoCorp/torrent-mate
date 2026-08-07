@@ -303,16 +303,16 @@ describe("FollowDetailSheet", () => {
   });
 
   it("« Voir la fiche » est absent quand mediaHref est null, même pour un suivi résolu", async () => {
-    // mediaHref null → le bouton ne doit pas être présent.
-    // Le reste des actions secondaires (pause, remove) reste visible.
+    // mediaHref is null — the button must not be present.
+    // The remaining secondary actions (pause, remove) stay visible.
     renderSheet(silo(), { mediaHref: null });
     await screen.findByTestId("sheet-meta");
     expect(screen.queryByTestId("voir-la-fiche")).toBeNull();
-    // Les autres actions secondaires sont toujours présentes.
+    // The remaining secondary actions are always present.
     expect(screen.getByTestId("secondary-actions")).toBeInTheDocument();
   });
 
-  it("« Voir la fiche » navigue vers le href media quand mediaHref est fourni (task 11, A12)", async () => {
+  it("« Voir la fiche » navigue vers le href media quand mediaHref est fourni (A12)", async () => {
     navigateMock.mockReset();
     renderSheet(silo(), { mediaHref: "/media/tvdb/400000?kind=tv" });
     await screen.findByTestId("voir-la-fiche");

@@ -33,25 +33,24 @@ function PwaLayer(): ReactElement {
     <>
       <InstallBanner state={pwa} />
       {/*
-        §10 — la notification se pose JUSTE au-dessus de la barre du bas, jamais
-        dessous. L'ancien réglage était un `bottom: 84px` calibré sur desktop :
-        sur iPhone la barre grandit de env(safe-area-inset-bottom) (~34 px) et la
-        notification passait dessous. L'offset lit donc la hauteur RÉELLE que la
-        barre publie (voir aboveBottomBar), ce qui reste juste à n'importe
-        quelle hauteur de barre.
+        §10 — the toast sits JUST above the bottom bar, never below it.
+        The previous setting was `bottom: 84px` calibrated on desktop: on iPhone
+        the bar grows by env(safe-area-inset-bottom) (~34 px) and the toast slid
+        underneath. The offset reads the REAL height the bar publishes (see
+        aboveBottomBar), which stays correct at any bar height, on any device.
 
-        Le repli `0px` n'est pas une précaution : c'est le cas NORMAL sur les
-        deux surfaces sans barre — la page de connexion (hors AppShell) et tout
-        écran ≥ md, où la barre est `md:hidden`. Un repli calibré téléphone y
-        ferait flotter la notification dans le vide.
+        The `0px` fallback is not a precaution: it is the NORMAL case on the two
+        surfaces without a bar — the login page (outside AppShell) and every
+        viewport ≥ md, where the bar is `md:hidden`. A phone-calibrated fallback
+        would float the toast in empty space there.
 
-        Le Toaster reste ici, dans PwaLayer, frère du routeur : c'est ce qui le
-        rend visible sur TOUTES les routes, page de connexion comprise. Le
-        déplacer dans AppShell (à l'intérieur de ProtectedRoute) tuerait
-        silencieusement le toast de mise à jour PWA sur cette page.
+        The Toaster stays here, inside PwaLayer, sibling of the router: this is
+        what makes it visible on ALL routes, login page included. Moving it into
+        AppShell (inside ProtectedRoute) would silently kill the PWA update toast
+        on that page.
 
-        Croix de fermeture et 5 s : deux lignes étaient illisibles en 2,2 s, et
-        la croix est le vrai contrôle — personne n'est forcé d'attendre.
+        Close button and 5 s: two lines were unreadable in 2.2 s, and the close
+        button is the real control — nobody is forced to wait.
       */}
       <Toaster
         position="bottom-center"

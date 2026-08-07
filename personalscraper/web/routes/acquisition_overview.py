@@ -206,22 +206,22 @@ def get_stalled_grabs(request: Request) -> StalledGrabsResponse:
 
 @router.get("/to-handle", response_model=ToHandleResponse)
 def get_to_handle(request: Request) -> ToHandleResponse:
-    """Les médias bloqués PORTÉS PAR UNE ACQUISITION, plus le compteur des autres.
+    """Blocked media CARRIED BY AN ACQUISITION, plus the count of the others.
 
-    §14.3 : un parcours n'a pas de trou. Un item pris puis ingéré qui cale à
-    l'identification est au milieu de SON parcours ; il doit rester visible depuis
-    l'acquisition. Un dépôt manuel, lui, n'est pas une acquisition : il est compté
-    (orphan_count) mais jamais listé ici, il appartient au panneau « À traiter »
-    de Contrôle.
+    §14.3: a journey has no hole. An item grabbed then ingested that stalls at
+    identification is in the middle of ITS journey; it must stay visible from the
+    acquisition surface. A manual deposit is not an acquisition: it is counted
+    (orphan_count) but never listed here; it belongs on the « À traiter » panel
+    in Contrôle.
 
-    Lecture seule, fail-soft, non staging-guarded (n'écrit rien).
+    Read-only, fail-soft, not staging-guarded (writes nothing).
 
     Args:
-        request: La requête FastAPI entrante.
+        request: The incoming FastAPI request.
 
     Returns:
-        Un :class:`ToHandleResponse` — les bloqués portés par une acquisition,
-        le plus ancien d'abord, plus le compteur des orphelins.
+        A :class:`ToHandleResponse` — the blocked items carried by an acquisition,
+        oldest first, plus the orphan count.
     """
     config = request.app.state.config
     store = build_acquire_store(config.acquire)

@@ -390,7 +390,7 @@ describe("X7 — les enums servis ne rendent jamais un slug brut", () => {
 });
 
 // ---------------------------------------------------------------------------
-// §9 — Vocabulaire d'action film vs série (acq-mobile task 4)
+// §9 — Film vs series action labelling
 // ---------------------------------------------------------------------------
 
 describe("vocabulaire film vs série (§9)", () => {
@@ -473,7 +473,7 @@ describe("vocabulaire film vs série (§9)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// followMediaRef — gate on the LINK, not on tvdb_unresolved (task 11)
+// followMediaRef — gate on the LINK, not on tvdb_unresolved
 // ---------------------------------------------------------------------------
 
 /** Minimal FollowedSeriesItem — only the fields followMediaRef reads. */

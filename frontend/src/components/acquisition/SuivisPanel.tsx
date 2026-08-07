@@ -6,7 +6,7 @@
  * disappears:
  * - Séries / Films sub-tabs → filter pills carrying their counts.
  * - The second search field → only the **filter** remains, sticky.  Adding lives
- *   on the « + » (a later task).
+ *   on the « + » floating action button.
  * - The always-rendered « Détail par épisode » accordion → the detail sheet
  *   (tap the card).
  *

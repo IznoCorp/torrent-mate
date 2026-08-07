@@ -1,8 +1,10 @@
 /**
  * MaintenantPanel — five-section composition of the « Maintenant » view.
  *
- * The first ASSEMBLY task (T8). Every building block was shipped in an earlier
- * task — this test verifies composition, not re-derivation of component internals.
+ * Each building block (AcquisitionCard, JourneyStrip, FollowDetailSheet,
+ * actionWords vocabulary, useToHandle hook) is tested in its own module.
+ * This test verifies composition — card/strip linkage, section ordering,
+ * and the loading/error/empty guards — not re-derivation of component internals.
  *
  * Section order is a CONSTANT, not a rendering accident — what is stopped and
  * waiting on the operator comes BEFORE what advances alone (§3.1).
