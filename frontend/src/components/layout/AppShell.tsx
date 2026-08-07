@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/sheet";
 import { usePipelineStatus } from "@/hooks/usePipelineStatus";
 import { useStagingMedia } from "@/hooks/useStagingMedia";
-import { useWanted } from "@/hooks/useAcquisition";
+import { useFollowed, useToHandle } from "@/hooks/useAcquisition";
 import { useWsInvalidation } from "@/hooks/useWsInvalidation";
 import { SHELL_BADGE_EVENT_TYPES } from "@/api/events";
 import { decisionsKeys } from "@/api/decisions";
@@ -55,12 +55,26 @@ function AppShellInner(): ReactElement {
   const { snapshot: pipelineStatus } = usePipelineStatus();
   const pipelineRunning: boolean = pipelineStatus.state !== "idle";
 
-  // ── Badge 3: /acquisition = pending wanted count ─────────────────────
-  const { data: wantedData, isError: wantedIsError } = useWanted(
-    { status: "pending", page_size: 1 },
-    { refetchInterval: 60_000, staleTime: 55_000 },
-  );
-  const pendingWanted: number = wantedData?.total ?? 0;
+  // ── Badge 3: /acquisition = ce qui ATTEND L'OPÉRATEUR ────────────────
+  // Le badge compte CE QUI ATTEND L'OPÉRATEUR, pas ce qui se passe : à
+  // récupérer + à traiter. Un item en vol n'attend rien de lui. L'ancien
+  // `pendingWanted` annonçait 3 et faisait atterrir sur une vue affichant
+  // 0/0/0/59 (D6).
+  const { data: followedData, isError: followedIsError } = useFollowed();
+  const { data: toHandleData, isError: toHandleIsError } = useToHandle();
+  const takeableCount: number = (followedData?.items ?? []).filter(
+    (i) => i.status === "a_recuperer",
+  ).length;
+  // `items` est garanti par le contrat (ToHandleResponse.items a un défaut côté
+  // Pydantic, donc toujours sérialisé) — pas de garde runtime qui contredirait
+  // le type. En revanche un mock de test qui renvoie `{}` fait planter TOUTE la
+  // coquille : le mock global d'AppShell.test doit servir la vraie forme.
+  const toHandleCount: number = toHandleData?.items.length ?? 0;
+  const waitingForOperator: number = takeableCount + toHandleCount;
+  // Une panne sur L'UNE des deux sources rend le total inconnaissable. Afficher
+  // la moitié qu'on a sous-compterait ce qui demande attention — le seul
+  // interdit du §méthode. On dit « ? », comme le faisait déjà l'ancienne source.
+  const acquisitionCountUnknown: boolean = followedIsError || toHandleIsError;
 
   // ── WS listener: invalidate staging counts + decisions + pipeline ───
   // history on ItemProgressed status changes and run-lifecycle events
@@ -113,7 +127,7 @@ function AppShellInner(): ReactElement {
         />
       );
     }
-    if (wantedIsError) {
+    if (acquisitionCountUnknown) {
       map["/acquisition"] = (
         <span
           data-slot="nav-count"
@@ -123,16 +137,16 @@ function AppShellInner(): ReactElement {
           ?
         </span>
       );
-    } else if (pendingWanted > 0) {
-      map["/acquisition"] = <NavCountBadge count={pendingWanted} />;
+    } else if (waitingForOperator > 0) {
+      map["/acquisition"] = <NavCountBadge count={waitingForOperator} />;
     }
     return map;
   }, [
     awaitingAction,
     pipelineRunning,
-    pendingWanted,
+    waitingForOperator,
     stagingIsError,
-    wantedIsError,
+    acquisitionCountUnknown,
     pipelineStatus.state,
   ]);
 
