@@ -23,7 +23,6 @@ import { useNavigate } from "react-router-dom";
 
 import { type FollowedSeriesItem } from "@/api/acquisition";
 import { MediaPoster } from "@/components/ds/MediaPoster";
-import { mediaSheetHref } from "@/lib/media-href";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,6 +51,7 @@ import {
   FOLLOW_STATUS_TONE,
   followCountsCaption,
   followFraction,
+  followMediaRef,
   followStatusHint,
   followStatusLabel,
   followWaitingReason,
@@ -78,40 +78,6 @@ export interface FollowedPanelProps {
  * Returns:
  *   The followed panel element.
  */
-/**
- * Derive a {@link MediaRef} from a followed item's provider ids.
- *
- * Priority: tvdb > tmdb.  imdb has no sheet route on the backend and is
- * skipped — an imdb-only item has no media sheet (§11 exception: unidentified
- * media must lead to resolution, never a dead link).
- *
- * Args:
- *   item: A followed series or film.
- *
- * Returns:
- *   A media sheet href, or ``null`` when no tvdb/tmdb id is known.
- */
-function followMediaRef(item: FollowedSeriesItem): string | null {
-  const ref = item.media_ref;
-  // tvdb first — primary provider for series.
-  if (ref.tvdb_id != null) {
-    return mediaSheetHref({
-      provider: "tvdb",
-      providerId: String(ref.tvdb_id),
-      kind: item.kind === "movie" ? "movie" : "tv",
-    });
-  }
-  // tmdb second — universal provider.
-  if (ref.tmdb_id != null) {
-    return mediaSheetHref({
-      provider: "tmdb",
-      providerId: String(ref.tmdb_id),
-      kind: item.kind === "movie" ? "movie" : "tv",
-    });
-  }
-  return null;
-}
-
 export function FollowedPanel({
   data,
   isLoading,

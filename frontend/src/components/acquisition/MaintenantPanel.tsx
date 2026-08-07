@@ -22,7 +22,7 @@
 
 import { type ReactElement, useState } from "react";
 
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import type {
   FollowedSeriesItem,
@@ -42,7 +42,12 @@ import { ErrorState } from "@/components/ds/ErrorState";
 import { AcquisitionCard } from "./AcquisitionCard";
 import { FollowDetailSheet } from "./FollowDetailSheet";
 import { JourneyStrip, type Stage } from "./JourneyStrip";
-import { asMediaKind, type FollowStatus, type MediaKind } from "./meta";
+import {
+  asMediaKind,
+  type FollowStatus,
+  followMediaRef,
+  type MediaKind,
+} from "./meta";
 
 // ---------------------------------------------------------------------------
 // Section order — CONSTANT (§3.1)
@@ -185,6 +190,7 @@ function deriveStage(j: JourneyItem | undefined): string | null {
  *   The panel element.
  */
 export function MaintenantPanel(): ReactElement {
+  const navigate = useNavigate();
   const followed = useFollowed();
   const wanted = useWanted({ status: "grabbed" });
   const toHandle = useToHandle();
@@ -298,6 +304,7 @@ export function MaintenantPanel(): ReactElement {
   /** Render one followed-item card (used in three sections). */
   function renderFollowedCard(item: FollowedSeriesItem): ReactElement {
     const kind = asMediaKind(item.kind);
+    const sheetHref = followMediaRef(item);
     return (
       <AcquisitionCard
         key={item.id}
@@ -308,13 +315,13 @@ export function MaintenantPanel(): ReactElement {
         onOpen={() => {
           setSheet({ followedId: item.id, status: item.status, kind });
         }}
-        {...(item.tvdb_unresolved
-          ? {}
-          : {
+        {...(sheetHref != null
+          ? {
               onPoster: () => {
-                /* Poster tap → media sheet (A13). Wired in a later task. */
+                void navigate(sheetHref);
               },
-            })}
+            }
+          : {})}
       />
     );
   }

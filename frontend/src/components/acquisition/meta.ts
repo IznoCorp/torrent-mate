@@ -21,6 +21,7 @@ import {
   STATE_LABEL,
   STATE_TONE,
 } from "@/lib/outcome-labels";
+import { mediaSheetHref } from "@/lib/media-href";
 
 /** Tab ids for the panels. */
 export type TabId =
@@ -458,6 +459,40 @@ const COUNT_ORDER: readonly Exclude<
   EpisodeState,
   "en_mediatheque" | "annonce" | "absorbed"
 >[] = ["a_recuperer", "en_acquisition", "en_attente", "non_verifie"];
+
+/**
+ * Derive a media sheet href from a followed item's provider ids.
+ *
+ * Priority: tvdb > tmdb.  imdb has no sheet route on the backend and is
+ * skipped — an imdb-only item has no media sheet (§11 exception: unidentified
+ * media must lead to resolution, never a dead link).
+ *
+ * Args:
+ *   item: A followed series or film.
+ *
+ * Returns:
+ *   A media sheet href, or ``null`` when no tvdb/tmdb id is known.
+ */
+export function followMediaRef(item: FollowedSeriesItem): string | null {
+  const ref = item.media_ref;
+  // tvdb first — primary provider for series.
+  if (ref.tvdb_id != null) {
+    return mediaSheetHref({
+      provider: "tvdb",
+      providerId: String(ref.tvdb_id),
+      kind: item.kind === "movie" ? "movie" : "tv",
+    });
+  }
+  // tmdb second — universal provider.
+  if (ref.tmdb_id != null) {
+    return mediaSheetHref({
+      provider: "tmdb",
+      providerId: String(ref.tmdb_id),
+      kind: item.kind === "movie" ? "movie" : "tv",
+    });
+  }
+  return null;
+}
 
 /**
  * Render a followed SHOW's library fraction, or ``null`` when it has none.

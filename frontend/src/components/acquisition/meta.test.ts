@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { EpisodeCompleteness } from "@/api/acquisition";
+import type { EpisodeCompleteness, FollowedSeriesItem } from "@/api/acquisition";
 
 import {
   DEFERRED_REASON_LABEL,
@@ -28,6 +28,7 @@ import {
   WANTED_STATUS_OPTIONS,
   actionWords,
   asMediaKind,
+  followMediaRef,
   followStatusHint,
   followStatusLabel,
   searchOutcomeReason,
@@ -468,5 +469,92 @@ describe("vocabulaire film vs série (§9)", () => {
   it("asMediaKind tombe sur « show » pour une valeur inconnue", () => {
     expect(asMediaKind("podcast")).toBe("show");
     expect(asMediaKind("")).toBe("show");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// followMediaRef — gate on the LINK, not on tvdb_unresolved (task 11)
+// ---------------------------------------------------------------------------
+
+/** Minimal FollowedSeriesItem — only the fields followMediaRef reads. */
+function mediaRefItem(
+  overrides: Partial<FollowedSeriesItem> = {},
+): FollowedSeriesItem {
+  return {
+    id: 1,
+    title: "Silo",
+    kind: "show",
+    active: true,
+    added_at: 0,
+    cadence: { interval_minutes: 60 },
+    cadence_tier: null,
+    next_search_at: null,
+    quality_profile: null,
+    wanted_pending: 0,
+    wanted_grabbed: 0,
+    season_count: 2,
+    year: 2023,
+    overview: null,
+    poster_url: null,
+    media_ref: { tvdb_id: 400000, tmdb_id: 125910, imdb_id: null },
+    status: "a_jour",
+    priming_running: false,
+    tvdb_unresolved: false,
+    aired_count: null,
+    owned_count: null,
+    a_recuperer_count: null,
+    en_acquisition_count: null,
+    en_attente_count: null,
+    non_verifie_count: null,
+    movie_facts: null,
+    ...overrides,
+  };
+}
+
+describe("followMediaRef — la condition est le LIEN, pas le flag (§11)", () => {
+  it("priorité TVDB : tvdb_id → /media/tvdb/{id}?kind=tv", () => {
+    const href = followMediaRef(mediaRefItem());
+    expect(href).toBe("/media/tvdb/400000?kind=tv");
+  });
+
+  it("fallback TMDB : pas de tvdb_id → /media/tmdb/{id}?kind=tv", () => {
+    const href = followMediaRef(
+      mediaRefItem({
+        media_ref: { tvdb_id: null, tmdb_id: 125910, imdb_id: null },
+      }),
+    );
+    expect(href).toBe("/media/tmdb/125910?kind=tv");
+  });
+
+  it("film → kind=movie dans le href", () => {
+    const href = followMediaRef(
+      mediaRefItem({
+        kind: "movie",
+        media_ref: { tvdb_id: null, tmdb_id: 550, imdb_id: null },
+      }),
+    );
+    expect(href).toBe("/media/tmdb/550?kind=movie");
+  });
+
+  it("aucun id → null (§11 : pas de lien mort)", () => {
+    const href = followMediaRef(
+      mediaRefItem({
+        media_ref: { tvdb_id: null, tmdb_id: null, imdb_id: "tt1234567" },
+      }),
+    );
+    expect(href).toBeNull();
+  });
+
+  it("tmdb_id seul suffit, même avec tvdb_unresolved=true (le flag n'est pas la vérité)", () => {
+    // An item can have tvdb_unresolved: true while carrying a tmdb_id that
+    // resolves to a valid sheet. Gating on the flag would suppress the link
+    // for nothing — followMediaRef returns the real answer.
+    const href = followMediaRef(
+      mediaRefItem({
+        tvdb_unresolved: true,
+        media_ref: { tvdb_id: null, tmdb_id: 125910, imdb_id: null },
+      }),
+    );
+    expect(href).toBe("/media/tmdb/125910?kind=tv");
   });
 });

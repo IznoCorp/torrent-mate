@@ -23,6 +23,8 @@
 
 import { type ReactElement, useMemo, useState } from "react";
 
+import { useNavigate } from "react-router-dom";
+
 import type { FollowedSeriesItem } from "@/api/acquisition";
 import { useFollowed } from "@/hooks/useAcquisition";
 
@@ -38,6 +40,7 @@ import {
   asMediaKind,
   followCountsCaption,
   followFraction,
+  followMediaRef,
   followStatusHint,
   followStatusLabel,
 } from "./meta";
@@ -210,6 +213,7 @@ function gridBadge(item: FollowedSeriesItem): string | null {
  *   The panel element.
  */
 export function SuivisPanel(): ReactElement {
+  const navigate = useNavigate();
   const followed = useFollowed();
   const [viewMode, setViewMode] = useViewMode();
 
@@ -312,6 +316,8 @@ export function SuivisPanel(): ReactElement {
       );
     }
 
+    const sheetHref = followMediaRef(item);
+
     return (
       <AcquisitionCard
         key={item.id}
@@ -322,6 +328,13 @@ export function SuivisPanel(): ReactElement {
         onOpen={() => {
           setSheet({ followedId: item.id, status: item.status, kind });
         }}
+        {...(sheetHref != null
+          ? {
+              onPoster: () => {
+                void navigate(sheetHref);
+              },
+            }
+          : {})}
       />
     );
   }
