@@ -1246,11 +1246,31 @@ git commit -m "feat(acq-mobile): JourneyStrip — frise de parcours, anti-chevau
 > It is the largest task in the plan and it carried four drifts, one of which was a
 > silent regression. It is now **two dispatches**:
 >
-> - **Task 7a — the page**: `meta.ts` (TABS + redirects), `AcquisitionPage.tsx`
->   rewrite, `PlusSheet.tsx`, **and the `+` control that opens `AddMediaScreen`**
->   (Steps 1-4 below, plus correction 1).
-> - **Task 7b — the shell chrome**: the honest badge in `AppShell.tsx` and the
->   §10 notification docking (Steps 5-7 below, as rewritten by corrections 2-3).
+> - **Task 7b FIRST — the shell chrome**: the honest badge in `AppShell.tsx` and
+>   the §10 notification docking (Steps 5-7 below, as rewritten by corrections
+>   2-3). It ships the CSS custom property that carries the bottom bar's real
+>   height, which 7a then consumes.
+> - **Task 7a SECOND — the page**: `meta.ts` (TABS + redirects),
+>   `AcquisitionPage.tsx` rewrite, `PlusSheet.tsx`, **and the `+` control that
+>   opens `AddMediaScreen`** (Steps 1-4 below, plus correction 1).
+>
+> **Order reversed on 2026-08-06**: §10 anchors the toast AND the `+` to the same
+> construction — "a zero-height dock just above the bottom bar". Correction 2
+> below forbids the literal shared-DOM dock (it would move the Toaster and break
+> the login page), so the shared thing becomes the bar-height variable instead.
+> Both surfaces consume it; 7b defines it, so 7b goes first.
+>
+> **Correction 5 — the spec's z-index numbers are PROTOTYPE numbers; do not copy
+> them.** §10 reasons with "toast (40) above the full screens (35) while the FAB
+> (20) passes under them". Those values have no counterpart in this codebase,
+> where `rg 'z-[0-9]'` gives: `BottomTabBar` z-50 (`BottomTabBar.tsx:34`),
+> every `Sheet`/`Dialog`/`DropdownMenu`/`Select` z-50, `TopBar` z-40. Re-derive
+> the intent against those real values rather than transcribing 20/35/40:
+> - the toast must stay above an open full screen — `sonner` sets its own very
+>   high stacking and already satisfies this; only its OFFSET is broken;
+> - the `+` must NOT show through an open full-screen sheet (z-50), so it sits
+>   below that — and it never overlaps the bar geometrically anyway, since it is
+>   positioned above it.
 >
 > **Correction 1 — there is NO FAB, and nothing opens the add screen.** Step 7
 > says "position the FAB and the toast container inside it" as if one existed;
