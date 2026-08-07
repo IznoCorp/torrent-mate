@@ -37,6 +37,8 @@ import {
   useWanted,
 } from "@/hooks/useAcquisition";
 
+import { ErrorState } from "@/components/ds/ErrorState";
+
 import { AcquisitionCard } from "./AcquisitionCard";
 import { FollowDetailSheet } from "./FollowDetailSheet";
 import { JourneyStrip, type Stage } from "./JourneyStrip";
@@ -259,16 +261,30 @@ export function MaintenantPanel(): ReactElement {
               ? chercheRienTrouve.length
               : rangeAujourdhui.length;
 
-    // « À traiter » renders when items>0 OR orphans>0 (§3.2).
+    // « À traiter » renders when items>0 OR orphans>0 (§3.2),
+    // OR when the hook errored — panne ≠ absence: a failed fetch must
+    // never collapse the section that was supposed to alert the operator.
     const visible =
       slug === "a-traiter"
-        ? aTraiter.length > 0 || orphanCount > 0
+        ? aTraiter.length > 0 || orphanCount > 0 || toHandle.isError
         : count > 0;
 
     return { slug, count, visible };
   });
 
   const allEmpty = sectionList.every((s) => !s.visible);
+
+  // ── Loading / error guards ────────────────────────────────────────────
+  // § panne ≠ absence : a failure to know must never be rendered as
+  // knowledge that there is nothing (§14.1 rest-state rule, applied to
+  // the client side).
+
+  const anyLoading =
+    followed.isLoading || wanted.isLoading || toHandle.isLoading;
+  const anyData =
+    followed.data != null || wanted.data != null || toHandle.data != null;
+  const anyError =
+    followed.isError || wanted.isError || toHandle.isError;
 
   // ── Render helpers ────────────────────────────────────────────────────
 
@@ -397,13 +413,28 @@ export function MaintenantPanel(): ReactElement {
             <section key={s.slug} data-testid={`section-${s.slug}`}>
               {renderHeader(s.slug, s.count)}
 
+              {/* Error states — panne ≠ absence: a failed fetch must never
+                   render as an empty section (§14.1 rest-state rule). */}
+              {s.slug === "a-traiter" && toHandle.isError && (
+                <ErrorState title="Impossible de charger les éléments à traiter." />
+              )}
+              {s.slug === "en-vol" && wanted.isError && (
+                <ErrorState title="Impossible de charger les éléments en vol." />
+              )}
+              {(s.slug === "a-recuperer" ||
+                s.slug === "cherche-rien-trouve" ||
+                s.slug === "range-aujourdhui") &&
+                followed.isError && (
+                  <ErrorState title="Impossible de charger les suivis." />
+                )}
+
               {/* « À récupérer » */}
               {s.slug === "a-recuperer" && aRecuperer.map(renderFollowedCard)}
 
               {/* « À traiter » — cards + crossref for orphans */}
               {s.slug === "a-traiter" && (
                 <>
-                  {aTraiter.map(renderATraiterCard)}
+                  {!toHandle.isError && aTraiter.map(renderATraiterCard)}
                   {/* Crossref — orphans with NO acquisition provenance (§3.1).
                        Renders whenever orphans exist, even alongside items —
                        §méthode: never under-count what needs attention. */}
@@ -434,11 +465,27 @@ export function MaintenantPanel(): ReactElement {
           );
         })}
 
-        {/* Empty state — all five sections are empty.
-            MUST NOT appear when any pile is non-zero (test asserts this). */}
-        {allEmpty && (
+        {/* Loading — all sections empty, data hasn't landed yet.
+            MUST NOT show « Rien à signaler » while a fetch is in flight. */}
+        {allEmpty && anyLoading && !anyData && (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            Chargement…
+          </p>
+        )}
+
+        {/* Empty state — all five sections are empty AND data has loaded
+            AND no hook is in error (§ panne ≠ absence). */}
+        {allEmpty && !anyLoading && !anyError && (
           <p className="py-8 text-center text-sm text-muted-foreground">
             Rien à signaler — tout est en ordre.
+          </p>
+        )}
+
+        {/* All hooks errored with no data — the panel cannot render anything
+            but must NOT read as « there is nothing » (§14.1). */}
+        {allEmpty && !anyLoading && anyError && (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            Impossible de charger les données — veuillez réessayer.
           </p>
         )}
       </div>

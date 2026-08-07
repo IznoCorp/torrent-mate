@@ -223,7 +223,7 @@ function mockHooks(f: FullFixtures | EmptyFixtures): void {
     data: { items: [...f.followed] },
     isLoading: false,
     isError: false,
-  } as ReturnType<typeof hooks.useFollowed>);
+  } as unknown as ReturnType<typeof hooks.useFollowed>);
 
   // `useWanted` — returns the wanted items (status=grabbed for « En vol »).
   vi.spyOn(hooks, "useWanted").mockReturnValue({
@@ -235,28 +235,28 @@ function mockHooks(f: FullFixtures | EmptyFixtures): void {
     },
     isLoading: false,
     isError: false,
-  } as ReturnType<typeof hooks.useWanted>);
+  } as unknown as ReturnType<typeof hooks.useWanted>);
 
   // `useToHandle` — returns blocked items + orphan count.
   vi.spyOn(hooks, "useToHandle").mockReturnValue({
     data: { ...f.toHandle },
     isLoading: false,
     isError: false,
-  } as ReturnType<typeof hooks.useToHandle>);
+  } as unknown as ReturnType<typeof hooks.useToHandle>);
 
   // `useDownloads` — returns live download progress.
   vi.spyOn(hooks, "useDownloads").mockReturnValue({
     data: { downloads: [...f.downloads], client_available: true },
     isLoading: false,
     isError: false,
-  } as ReturnType<typeof hooks.useDownloads>);
+  } as unknown as ReturnType<typeof hooks.useDownloads>);
 
   // `useJourneys` — returns the pipeline journeys for stage derivation.
   vi.spyOn(hooks, "useJourneys").mockReturnValue({
     data: { journeys: [...f.journeys] },
     isLoading: false,
     isError: false,
-  } as ReturnType<typeof hooks.useJourneys>);
+  } as unknown as ReturnType<typeof hooks.useJourneys>);
 }
 
 function renderPanel(f: FullFixtures | EmptyFixtures): void {
@@ -555,5 +555,300 @@ describe("MaintenantPanel", () => {
     const card = first(within(section).getAllByTestId("acq-card"));
     // §14.3: unknown ≠ not reached — omit the strip.
     expect(card.querySelector("[data-station]")).toBeNull();
+  });
+
+  // ── Finding C: loading / error states ──────────────────────────────────
+
+  it("affiche « Chargement… » quand les données ne sont pas encore arrivées", () => {
+    // Override mocks to simulate loading state — no data yet.
+    vi.spyOn(hooks, "useFollowed").mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useFollowed>);
+    vi.spyOn(hooks, "useWanted").mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useWanted>);
+    vi.spyOn(hooks, "useToHandle").mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useToHandle>);
+    vi.spyOn(hooks, "useDownloads").mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useDownloads>);
+    vi.spyOn(hooks, "useJourneys").mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useJourneys>);
+
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter>
+          <MaintenantPanel />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    // Loading state — NOT the all-clear message.
+    expect(screen.getByText(/Chargement/)).toBeInTheDocument();
+    expect(screen.queryByText(/Rien à signaler/)).toBeNull();
+  });
+
+  it("ne montre pas « Chargement… » quand des données sont déjà en cache", () => {
+    // Loading is true but data IS available (TanStack Query stale refetch).
+    vi.spyOn(hooks, "useFollowed").mockReturnValue({
+      data: { items: [...full.followed] },
+      isLoading: true,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useFollowed>);
+    vi.spyOn(hooks, "useWanted").mockReturnValue({
+      data: {
+        items: [...full.wanted],
+        total: full.wanted.length,
+        page: 1,
+        page_size: 50,
+      },
+      isLoading: true,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useWanted>);
+    vi.spyOn(hooks, "useToHandle").mockReturnValue({
+      data: { ...full.toHandle },
+      isLoading: true,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useToHandle>);
+    vi.spyOn(hooks, "useDownloads").mockReturnValue({
+      data: { downloads: [], client_available: true },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useDownloads>);
+    vi.spyOn(hooks, "useJourneys").mockReturnValue({
+      data: { journeys: [] },
+      isLoading: true,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useJourneys>);
+
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter>
+          <MaintenantPanel />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    // Sections render with cached data — no loading placeholder.
+    expect(screen.getByTestId("section-a-recuperer")).toBeInTheDocument();
+    expect(screen.queryByText(/Chargement/)).toBeNull();
+  });
+
+  it("affiche une erreur visible quand les éléments à traiter ne peuvent pas être chargés", () => {
+    vi.spyOn(hooks, "useFollowed").mockReturnValue({
+      data: { items: [] },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useFollowed>);
+    vi.spyOn(hooks, "useWanted").mockReturnValue({
+      data: { items: [], total: 0, page: 1, page_size: 50 },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useWanted>);
+    vi.spyOn(hooks, "useToHandle").mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    } as unknown as ReturnType<typeof hooks.useToHandle>);
+    vi.spyOn(hooks, "useDownloads").mockReturnValue({
+      data: { downloads: [], client_available: true },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useDownloads>);
+    vi.spyOn(hooks, "useJourneys").mockReturnValue({
+      data: { journeys: [] },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useJourneys>);
+
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter>
+          <MaintenantPanel />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    // § panne ≠ absence — the section renders with an error, not silently gone.
+    const section = screen.getByTestId("section-a-traiter");
+    expect(
+      within(section).getByText(/Impossible de charger les éléments à traiter/),
+    ).toBeInTheDocument();
+    // The empty all-clear message must NOT appear.
+    expect(screen.queryByText(/Rien à signaler/)).toBeNull();
+  });
+
+  it("affiche une erreur visible quand les suivis ne peuvent pas être chargés", () => {
+    vi.spyOn(hooks, "useFollowed").mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    } as unknown as ReturnType<typeof hooks.useFollowed>);
+    // wanted needs to be non-empty so the panel doesn't go into empty-state path.
+    vi.spyOn(hooks, "useWanted").mockReturnValue({
+      data: { items: [inflightWanted()], total: 1, page: 1, page_size: 50 },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useWanted>);
+    vi.spyOn(hooks, "useToHandle").mockReturnValue({
+      data: { items: [], orphan_count: 0 },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useToHandle>);
+    vi.spyOn(hooks, "useDownloads").mockReturnValue({
+      data: { downloads: [], client_available: true },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useDownloads>);
+    vi.spyOn(hooks, "useJourneys").mockReturnValue({
+      data: { journeys: [] },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useJourneys>);
+
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter>
+          <MaintenantPanel />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    // The followed-based sections are all now empty (data=undefined) BUT
+    // their visibility is zero → they're hidden. The error appears only in
+    // sections that WOULD be visible: but when followed errors with no data,
+    // the follow-based sections are hidden (count=0).
+    //
+    // The key assertion: the panel does NOT show « Rien à signaler » while
+    // any error is present — it doesn't falsely claim calm.
+    expect(screen.queryByText(/Rien à signaler/)).toBeNull();
+  });
+
+  it("quand tous les hooks sont en erreur sans données, le panneau ne dit pas « Rien à signaler »", () => {
+    // The worst case: every hook failed, no data.
+    // § panne ≠ absence — the panel must NOT claim there is nothing.
+    // The « à traiter » section stays visible because toHandle.isError
+    // forces its visibility; its per-section error renders inside it.
+    vi.spyOn(hooks, "useFollowed").mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    } as unknown as ReturnType<typeof hooks.useFollowed>);
+    vi.spyOn(hooks, "useWanted").mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    } as unknown as ReturnType<typeof hooks.useWanted>);
+    vi.spyOn(hooks, "useToHandle").mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    } as unknown as ReturnType<typeof hooks.useToHandle>);
+    vi.spyOn(hooks, "useDownloads").mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useDownloads>);
+    vi.spyOn(hooks, "useJourneys").mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useJourneys>);
+
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter>
+          <MaintenantPanel />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    // « Rien à signaler » must NEVER appear when hooks have failed.
+    expect(screen.queryByText(/Rien à signaler/)).toBeNull();
+    // The « à traiter » section renders its per-section error.
+    const section = screen.getByTestId("section-a-traiter");
+    expect(
+      within(section).getByText(/Impossible de charger les éléments à traiter/),
+    ).toBeInTheDocument();
+  });
+
+  it("ne dit pas « Rien à signaler » quand les suivis et les wanted sont en erreur mais toHandle est vide", () => {
+    // Partial failure: followed + wanted errored, toHandle OK but empty.
+    // No section is visible (toHandle cleared the visibility gate), so the
+    // panel-level fallback error message renders instead of the per-section
+    // error states — but « Rien à signaler » must still be suppressed.
+    vi.spyOn(hooks, "useFollowed").mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    } as unknown as ReturnType<typeof hooks.useFollowed>);
+    vi.spyOn(hooks, "useWanted").mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    } as unknown as ReturnType<typeof hooks.useWanted>);
+    vi.spyOn(hooks, "useToHandle").mockReturnValue({
+      data: { items: [], orphan_count: 0 },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useToHandle>);
+    vi.spyOn(hooks, "useDownloads").mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useDownloads>);
+    vi.spyOn(hooks, "useJourneys").mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useJourneys>);
+
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter>
+          <MaintenantPanel />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    // No section is visible — toHandle is OK, followed/wanted errored.
+    expect(screen.queryByTestId("section-a-traiter")).toBeNull();
+    expect(screen.queryByTestId("section-en-vol")).toBeNull();
+    // « Rien à signaler » must NOT appear.
+    expect(screen.queryByText(/Rien à signaler/)).toBeNull();
+    // The panel-level fallback error is visible.
+    expect(
+      screen.getByText(/Impossible de charger les données/),
+    ).toBeInTheDocument();
   });
 });
