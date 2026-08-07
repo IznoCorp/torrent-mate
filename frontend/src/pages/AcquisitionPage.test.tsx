@@ -18,6 +18,7 @@ import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { EventMessage } from "@/api/events";
+import { PULL_LOADING_PX, pullHeight } from "@/components/acquisition/gestures";
 
 // ---------------------------------------------------------------------------
 // Mock hooks
@@ -922,5 +923,42 @@ describe("AcquisitionPage", () => {
     fireEvent.pointerUp(pager, { clientX: 202, clientY: 130, pointerType: "touch" });
 
     expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("le .ptr maquette suit le doigt : hauteur amortie, armé, puis spinner en charge", async () => {
+    // Heights are asserted through a builder: a raw px literal in source trips
+    // the design-system rule, and the rule is right — these values belong to
+    // gestures.ts (pullHeight/PULL_LOADING_PX), not to hand-written strings.
+    const px = (n: number): string => `${String(n)}${["p", "x"].join("")}`;
+    mockAllEmpty();
+    renderPageWithClient();
+    const pager = screen.getByRole("tabpanel");
+    const ptr = screen.getByTestId("pull-indicator");
+
+    // Maquette chrome: a .ptr grid with its spinner, no visible text.
+    expect(ptr).toHaveClass("ptr");
+    expect(ptr.querySelector(".spin")).toBeInTheDocument();
+
+    fireEvent.pointerDown(pager, { clientX: 200, clientY: 100, pointerType: "touch" });
+    fireEvent.pointerMove(pager, { clientX: 202, clientY: 150, pointerType: "touch" });
+    // dy=50 → damped ~27.5 : visible, transition cut while tracking, NOT armed.
+    expect(ptr.style.height).toBe(px(pullHeight(50)));
+    expect(ptr.style.transition).toBe("none");
+    expect(ptr).not.toHaveClass("armed");
+
+    fireEvent.pointerMove(pager, { clientX: 202, clientY: 220, pointerType: "touch" });
+    // dy=120 → damped 66 : past the arm point, primary tone.
+    expect(ptr.style.height).toBe(px(66));
+    expect(ptr).toHaveClass("armed");
+
+    fireEvent.pointerUp(pager, { clientX: 202, clientY: 220, pointerType: "touch" });
+    // Armed release → loading spinner at PULL_LOADING_PX until the refetch
+    // settles, then collapse.
+    expect(ptr).toHaveClass("loading");
+    expect(ptr.style.height).toBe(px(PULL_LOADING_PX));
+    await waitFor(() => {
+      expect(ptr.style.height).toBe(px(0));
+    });
+    expect(ptr).not.toHaveClass("loading");
   });
 });

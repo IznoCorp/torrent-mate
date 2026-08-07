@@ -11,8 +11,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   EDGE_DEAD_ZONE_PX,
+  PULL_MAX_PX,
   PULL_THRESHOLD_PX,
   lockAxis,
+  pullArmed,
+  pullHeight,
   shouldRefresh,
   shouldStartViewSwipe,
   viewSwipeResult,
@@ -73,10 +76,25 @@ describe("viewSwipeResult", () => {
   });
 });
 
+describe("pullHeight / pullArmed (maquette damping)", () => {
+  it("amortit à 0.55 et plafonne à THRESH+16", () => {
+    expect(pullHeight(100)).toBeCloseTo(55);
+    expect(pullHeight(400)).toBe(PULL_MAX_PX);
+  });
+
+  it("s'arme à 62 % du seuil, en hauteur amortie", () => {
+    expect(pullArmed(PULL_THRESHOLD_PX * 0.62)).toBe(true);
+    expect(pullArmed(PULL_THRESHOLD_PX * 0.62 - 0.1)).toBe(false);
+  });
+});
+
 describe("shouldRefresh", () => {
-  it("only refreshes on a long pull that started at the top", () => {
-    expect(shouldRefresh(PULL_THRESHOLD_PX, true)).toBe(true);
-    expect(shouldRefresh(PULL_THRESHOLD_PX - 1, true)).toBe(false);
+  it("commits sur la hauteur AMORTIE armée, pas sur la distance brute", () => {
+    // Maquette: h = 0.55·dy doit atteindre 64×0.62 ≈ 39.68 → dy ≥ ~72.15.
+    // Un dy de 64 (l'ancien seuil brut) n'amortit qu'à 35.2 : pas de refresh.
+    expect(shouldRefresh(73, true)).toBe(true);
+    expect(shouldRefresh(72, true)).toBe(false);
+    expect(shouldRefresh(PULL_THRESHOLD_PX, true)).toBe(false);
   });
 
   it("never refreshes mid-list — that pull is a scroll", () => {

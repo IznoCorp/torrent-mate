@@ -28,8 +28,10 @@ import { toast } from "sonner";
 import { acqKeys } from "@/api/acquisition";
 import { AddMediaScreen } from "@/components/acquisition/AddMediaScreen";
 import {
-  PULL_THRESHOLD_PX,
+  PULL_LOADING_PX,
   lockAxis,
+  pullArmed,
+  pullHeight,
   shouldRefresh,
   shouldStartViewSwipe,
   viewSwipeResult,
@@ -167,7 +169,13 @@ export default function AcquisitionPage(): ReactElement {
     axis: "x" | "y" | null;
     atTop: boolean;
   } | null>(null);
-  const [pullDistance, setPullDistance] = useState(0);
+  // Maquette .ptr model: a damped height while dragging (transition cut so
+  // the bar tracks the finger), 44 px while the refresh actually runs.
+  const [pull, setPull] = useState<{ height: number; dragging: boolean }>({
+    height: 0,
+    dragging: false,
+  });
+  const [refreshing, setRefreshing] = useState(false);
   const queryClientForPull = useQueryClient();
 
   const onPointerDown = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
@@ -189,37 +197,51 @@ export default function AcquisitionPage(): ReactElement {
     };
   }, []);
 
-  const onPointerMove = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
-    const drag = dragRef.current;
-    if (drag == null) return;
-    const dx = e.clientX - drag.x;
-    const dy = e.clientY - drag.y;
-    drag.axis ??= lockAxis(dx, dy);
-    if (drag.axis === "y" && drag.atTop && dy > 0) {
-      setPullDistance(dy);
-    }
-  }, []);
+  const onPointerMove = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      const drag = dragRef.current;
+      if (drag == null) return;
+      const dx = e.clientX - drag.x;
+      const dy = e.clientY - drag.y;
+      drag.axis ??= lockAxis(dx, dy);
+      if (drag.axis === "y" && drag.atTop && dy > 0 && !refreshing) {
+        setPull({ height: pullHeight(dy), dragging: true });
+      }
+    },
+    [refreshing],
+  );
 
   const onPointerUp = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
       const drag = dragRef.current;
       dragRef.current = null;
-      setPullDistance(0);
       if (drag == null) return;
       const dx = e.clientX - drag.x;
       const dy = e.clientY - drag.y;
 
       if (drag.axis === "x") {
+        setPull({ height: 0, dragging: false });
         const width = pagerRef.current?.getBoundingClientRect().width ?? 0;
         const next = viewSwipeResult(dx, width, activeTab);
         if (next !== activeTab) setActiveTab(next);
         return;
       }
-      if (shouldRefresh(dy, drag.atTop)) {
-        void queryClientForPull.invalidateQueries({ queryKey: acqKeys.all });
+      if (!refreshing && shouldRefresh(dy, drag.atTop)) {
+        // Maquette: armed release → 44 px spinner until the refetch settles
+        // (its 1100 ms was a demo stand-in for a real round-trip).
+        setRefreshing(true);
+        setPull({ height: PULL_LOADING_PX, dragging: false });
+        void Promise.resolve(
+          queryClientForPull.invalidateQueries({ queryKey: acqKeys.all }),
+        ).finally(() => {
+          setRefreshing(false);
+          setPull({ height: 0, dragging: false });
+        });
+        return;
       }
+      setPull({ height: 0, dragging: false });
     },
-    [activeTab, setActiveTab, queryClientForPull],
+    [activeTab, setActiveTab, queryClientForPull, refreshing],
   );
   const queryClient = useQueryClient();
   const { events } = useEventStreamContext();
@@ -380,24 +402,30 @@ export default function AcquisitionPage(): ReactElement {
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
       >
-        {/* The live region is ALWAYS mounted with conditional content: a
-            region that mounts on first use announces nothing the first time —
-            assistive tech only reports changes inside an existing region. */}
-        <p
+        {/* Maquette .ptr — spinner-only chrome. The sr-only live region is
+            ALWAYS mounted with conditional content: a region that mounts on
+            first use announces nothing the first time — assistive tech only
+            reports changes inside an existing region. It is absolutely
+            positioned, so the grid cell layout of .ptr is untouched. */}
+        <div
           data-testid="pull-indicator"
-          aria-live="polite"
-          className={
-            pullDistance > 0
-              ? "text-center text-xs text-muted-foreground"
-              : "sr-only"
-          }
+          className={`ptr${pullArmed(pull.height) ? " armed" : ""}${refreshing ? " loading" : ""}`}
+          style={{
+            height: `${String(pull.height)}px`,
+            ...(pull.dragging ? { transition: "none" } : {}),
+          }}
         >
-          {pullDistance > 0
-            ? pullDistance >= PULL_THRESHOLD_PX
-              ? "Relâchez pour actualiser"
-              : "Tirez pour actualiser"
-            : ""}
-        </p>
+          <div className="spin" />
+          <p aria-live="polite" className="sr-only">
+            {refreshing
+              ? "Actualisation en cours"
+              : pull.height > 0
+                ? pullArmed(pull.height)
+                  ? "Relâchez pour actualiser"
+                  : "Tirez pour actualiser"
+                : ""}
+          </p>
+        </div>
         {activeTab === "maintenant" && <MaintenantPanel />}
         {activeTab === "suivis" && (
           <SuivisPanel

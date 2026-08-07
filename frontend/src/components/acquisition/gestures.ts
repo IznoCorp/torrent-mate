@@ -26,6 +26,41 @@ export const VIEW_SWIPE_RATIO = 0.28;
 /** Pull distance, in CSS pixels, that commits a refresh. */
 export const PULL_THRESHOLD_PX = 64;
 
+/** Drag-to-height damping factor (maquette: `dy * 0.55`). */
+export const PULL_DRAG_FACTOR = 0.55;
+
+/** Indicator height ceiling while dragging (maquette: `THRESH + 16`). */
+export const PULL_MAX_PX = PULL_THRESHOLD_PX + 16;
+
+/** Indicator height while the refresh runs (maquette: 44 px). */
+export const PULL_LOADING_PX = 44;
+
+/**
+ * Damped indicator height for a raw downward drag.
+ *
+ * Args:
+ *   dy: Total downward movement, in CSS pixels.
+ *
+ * Returns:
+ *   The `.ptr` height — damped and capped exactly like the maquette.
+ */
+export function pullHeight(dy: number): number {
+  return Math.min(PULL_MAX_PX, dy * PULL_DRAG_FACTOR);
+}
+
+/**
+ * Whether an indicator height arms the refresh (maquette: `h ≥ THRESH×0.62`).
+ *
+ * Args:
+ *   height: Current `.ptr` height from {@link pullHeight}.
+ *
+ * Returns:
+ *   ``true`` when releasing now must refresh.
+ */
+export function pullArmed(height: number): boolean {
+  return height >= PULL_THRESHOLD_PX * 0.62;
+}
+
 /** Movement below this, in CSS pixels, is noise rather than intent. */
 const AXIS_LOCK_SLOP_PX = 10;
 
@@ -107,6 +142,10 @@ export function viewSwipeResult(
 /**
  * Resolve a completed vertical pull to whether it commits a refresh.
  *
+ * Derived the maquette's way: the DAMPED indicator height must have armed
+ * (`h ≥ THRESH × 0.62`), not the raw finger distance — the two disagree
+ * (raw 64 px damps to 35.2, well short of arming).
+ *
  * Args:
  *   dy: Total downward movement.
  *   atTop: Whether the scroller was already at its top when the pull began.
@@ -115,5 +154,5 @@ export function viewSwipeResult(
  *   ``true`` when the pull was long enough, from the top, to mean "refresh".
  */
 export function shouldRefresh(dy: number, atTop: boolean): boolean {
-  return atTop && dy >= PULL_THRESHOLD_PX;
+  return atTop && pullArmed(pullHeight(dy));
 }

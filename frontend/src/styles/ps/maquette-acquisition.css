@@ -468,6 +468,42 @@
   height: 14px;
 }
 
+/* ── Pull-to-refresh (maquette .ptr) ──
+   Keyframe renamed mq-spin: Tailwind already owns a global `spin`. */
+
+.mq .ptr {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  height: 0;
+  transition: height 0.22s ease;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.mq .ptr.armed {
+  color: var(--primary);
+}
+.mq .ptr .spin {
+  width: 16px;
+  height: 16px;
+  border-radius: 99px;
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
+}
+.mq .ptr.loading .spin {
+  animation: mq-spin 0.7s linear infinite;
+}
+@keyframes mq-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mq .ptr.loading .spin {
+    animation-duration: 2.4s;
+  }
+}
+
 /* ── Swipe action panes (maquette .actions/.act) ──
    `.act.grab` is safe: the sheet handle is `sheetgrab` (the maquette named
    it that way precisely to dodge this collision). */
