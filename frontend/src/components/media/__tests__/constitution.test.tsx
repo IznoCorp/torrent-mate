@@ -114,7 +114,8 @@ vi.mock("@/hooks/useStagingMedia", () => ({
 // Imports under test (AFTER mocks — vitest hoists vi.mock calls).
 // ---------------------------------------------------------------------------
 
-import { MediaSearchAdd } from "@/components/acquisition/MediaSearchAdd";
+import { AddMediaScreen } from "@/components/acquisition/AddMediaScreen";
+import { AcquisitionCard } from "@/components/acquisition/AcquisitionCard";
 import { FollowedPanel } from "@/components/acquisition/FollowedPanel";
 import { CandidateCard } from "@/components/decisions/CandidateCard";
 import { StagingLibrary } from "@/components/staging/StagingLibrary";
@@ -127,7 +128,8 @@ import { ParcoursPanel } from "@/components/acquisition/ParcoursPanel";
 // ---------------------------------------------------------------------------
 
 const WIRED_SURFACES = [
-  "MediaSearchAdd",
+  "AddMediaScreen",
+  "AcquisitionCard",
   "FollowedPanel",
   "CandidateCard",
   "StagingLibrary",
@@ -312,11 +314,11 @@ afterEach(cleanup);
 
 describe("§11 constitution — « Tout média est consultable »", () => {
   // -----------------------------------------------------------------------
-  // SURFACE 1 — MediaSearchAdd (onOpen → navigate)
+  // SURFACE 1 — AddMediaScreen (result row → navigate)
   // -----------------------------------------------------------------------
 
-  describe("MediaSearchAdd", () => {
-    coveredSurfaces.add("MediaSearchAdd");
+  describe("AddMediaScreen", () => {
+    coveredSurfaces.add("AddMediaScreen");
 
     it("navigates to the media sheet when clicking an identified result card", () => {
       searchResultsMock.mockReturnValue({
@@ -331,15 +333,16 @@ describe("§11 constitution — « Tout média est consultable »", () => {
         fetchNextPage: vi.fn(),
       });
 
-      render(<MediaSearchAdd />);
+      render(<AddMediaScreen open onOpenChange={vi.fn()} />);
       // Submit the search so results render.
       const input = screen.getByPlaceholderText("Titre (film ou série)");
       fireEvent.change(input, { target: { value: "Inception" } });
       fireEvent.submit(input);
 
-      // The card is a <button> (MediaCard with onOpen).  Click it.
-      const card = screen.getByRole("button", { name: /Inception/ });
-      fireEvent.click(card);
+      // The poster is the control that reaches the sheet (the row also
+      // carries the add action, so it cannot itself be a button).
+      const poster = screen.getByRole("button", { name: "Fiche de Inception" });
+      fireEvent.click(poster);
 
       expect(navigateMock).toHaveBeenCalledTimes(1);
       const firstCall = navigateMock.mock.calls[0];
@@ -360,7 +363,7 @@ describe("§11 constitution — « Tout média est consultable »", () => {
         fetchNextPage: vi.fn(),
       });
 
-      render(<MediaSearchAdd />);
+      render(<AddMediaScreen open onOpenChange={vi.fn()} />);
       const input = screen.getByPlaceholderText("Titre (film ou série)");
       fireEvent.change(input, { target: { value: "Nothing" } });
       fireEvent.submit(input);
@@ -370,7 +373,49 @@ describe("§11 constitution — « Tout média est consultable »", () => {
   });
 
   // -----------------------------------------------------------------------
-  // SURFACE 2 — FollowedPanel (DropdownMenuItem → useNavigate)
+  // SURFACE 2 — AcquisitionCard (poster → media sheet, or no control at all)
+  // -----------------------------------------------------------------------
+
+  describe("AcquisitionCard", () => {
+    coveredSurfaces.add("AcquisitionCard");
+
+    // This card is the shared primitive behind every acquisition list, so the
+    // §11 contract is enforced HERE once rather than in each panel: a poster is
+    // a control when it leads somewhere, and is not a control when it does not.
+
+    it("makes the poster a button that reaches the media sheet", () => {
+      const onPoster = vi.fn();
+      render(
+        <AcquisitionCard title="Inception" posterUrl={null} onPoster={onPoster} />,
+      );
+
+      const poster = screen.getByRole("button", { name: "Fiche de Inception" });
+      fireEvent.click(poster);
+      expect(onPoster).toHaveBeenCalledTimes(1);
+    });
+
+    it("renders NO poster control when the media has no sheet", () => {
+      // A blocked item is stuck at identification: there is no provider id, so
+      // there is nothing to link to. A button that does nothing is the dead
+      // control §11 forbids — the poster degrades to plain image.
+      render(<AcquisitionCard title="Inconnu" posterUrl={null} />);
+
+      expect(
+        screen.queryByRole("button", { name: /Fiche de/ }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("renders NO body control when there is no detail sheet", () => {
+      // Same rule applied to the body: the card is tappable only when the tap
+      // has a destination.
+      render(<AcquisitionCard title="Inconnu" posterUrl={null} />);
+
+      expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // SURFACE 3 — FollowedPanel (DropdownMenuItem → useNavigate)
   // -----------------------------------------------------------------------
 
   describe("FollowedPanel", () => {

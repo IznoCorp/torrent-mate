@@ -20,6 +20,8 @@ import {
   type UIEvent,
 } from "react";
 import { useNavigate } from "react-router-dom";
+
+import { mediaSheetHref } from "@/lib/media-href";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
@@ -459,19 +461,39 @@ export function AddMediaScreen({
                       key={key}
                       className="flex items-start gap-3 rounded-lg border border-border p-3"
                     >
-                      {/* Poster 54×81 */}
-                      {result.poster_url ? (
-                        <img
-                          src={result.poster_url}
-                          alt=""
-                          className="h-[81px] w-[54px] shrink-0 rounded object-cover"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <div className="flex h-[81px] w-[54px] shrink-0 items-center justify-center rounded bg-muted text-[length:var(--text-2xs)] text-muted-foreground">
-                          N/A
-                        </div>
-                      )}
+                      {/* Poster 54x81. It is a button: a search result is an
+                          identified media, so it always has a sheet, and §11
+                          requires every media to lead to it. The poster rather
+                          than the whole row, because the row already carries
+                          the add action — nesting one control inside another is
+                          invalid HTML and makes the tap target ambiguous. */}
+                      <button
+                        type="button"
+                        className="shrink-0 leading-none"
+                        aria-label={`Fiche de ${result.title}`}
+                        onClick={() => {
+                          void navigate(
+                            mediaSheetHref({
+                              provider: result.provider,
+                              providerId: String(result.provider_id),
+                              kind: result.kind === "tv" ? "tv" : "movie",
+                            }),
+                          );
+                        }}
+                      >
+                        {result.poster_url ? (
+                          <img
+                            src={result.poster_url}
+                            alt=""
+                            className="h-[81px] w-[54px] rounded object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="flex h-[81px] w-[54px] items-center justify-center rounded bg-muted text-[length:var(--text-2xs)] text-muted-foreground">
+                            N/A
+                          </div>
+                        )}
+                      </button>
                       <div className="flex min-w-0 flex-1 flex-col gap-1">
                         <p className="truncate text-sm font-medium">
                           {result.title}
