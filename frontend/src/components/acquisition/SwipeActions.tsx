@@ -125,11 +125,16 @@ export function SwipeActions({
 
   const onClickCapture = useCallback(
     (e: ReactMouseEvent<HTMLDivElement>) => {
-      const justSwiped =
-        Date.now() - lastSwipeEndRef.current < CLICK_ABSORB_MS;
-      if (offset === 0 && !justSwiped) return;
-      // Maquette: a tap on a swiped card settles it first — it is never
-      // ALSO the tap that opens the sheet.
+      if (Date.now() - lastSwipeEndRef.current < CLICK_ABSORB_MS) {
+        // The synthetic click that ends the drag itself: swallowed WITHOUT
+        // closing, or a mouse swipe would immediately undo its own opening.
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      if (offset === 0) return;
+      // Maquette: a LATER tap on a swiped card settles it first — it is
+      // never ALSO the tap that opens the sheet.
       e.preventDefault();
       e.stopPropagation();
       close();

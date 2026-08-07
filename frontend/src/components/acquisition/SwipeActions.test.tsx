@@ -178,10 +178,10 @@ describe("SwipeActions", () => {
     expect(card.style.transform).toBe(translated(0));
   });
 
-  it("absorbe le click qui suit un balayage — pas de fiche fantôme (maquette data-swiped)", () => {
+  it("absorbe le click qui suit un balayage — pas de fiche fantôme (maquette justSwiped)", () => {
     // A mouse drag ends in a synthetic click on the card; the maquette
     // absorbs it for 400 ms (`justSwiped`) so a swipe never doubles as a
-    // tap. Without this, a desktop drag opened the detail sheet.
+    // tap — and WITHOUT closing, or the swipe would undo its own opening.
     const onCardTap = vi.fn();
     render(
       <SwipeActions right={[action("rm", "Retirer")]}>
@@ -195,8 +195,15 @@ describe("SwipeActions", () => {
     fireEvent.click(screen.getByTestId("tap-target"));
 
     expect(onCardTap).not.toHaveBeenCalled();
-    // The absorbed tap also CLOSES the open pane (maquette: any tap while a
-    // swipe is open settles the card first).
+    expect(screen.getByTestId("swipe-card").style.transform).toBe(translated(-84));
+
+    // Past the absorb window, a tap on the still-open card settles it first
+    // (maquette closeAllSwipes) — and is still not the tap that opens the
+    // sheet.
+    vi.spyOn(Date, "now").mockReturnValue(Date.now() + 500);
+    fireEvent.click(screen.getByTestId("tap-target"));
+
+    expect(onCardTap).not.toHaveBeenCalled();
     expect(screen.getByTestId("swipe-card").style.transform).toBe(translated(0));
   });
 
