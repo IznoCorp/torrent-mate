@@ -178,6 +178,28 @@ describe("SwipeActions", () => {
     expect(card.style.transform).toBe(translated(0));
   });
 
+  it("absorbe le click qui suit un balayage — pas de fiche fantôme (maquette data-swiped)", () => {
+    // A mouse drag ends in a synthetic click on the card; the maquette
+    // absorbs it for 400 ms (`justSwiped`) so a swipe never doubles as a
+    // tap. Without this, a desktop drag opened the detail sheet.
+    const onCardTap = vi.fn();
+    render(
+      <SwipeActions right={[action("rm", "Retirer")]}>
+        <button type="button" data-testid="tap-target" onClick={onCardTap}>
+          Silo
+        </button>
+      </SwipeActions>,
+    );
+    drag(-60);
+
+    fireEvent.click(screen.getByTestId("tap-target"));
+
+    expect(onCardTap).not.toHaveBeenCalled();
+    // The absorbed tap also CLOSES the open pane (maquette: any tap while a
+    // swipe is open settles the card first).
+    expect(screen.getByTestId("swipe-card").style.transform).toBe(translated(0));
+  });
+
   it("rend les panneaux maquette .act.<classe> avec leur icône", () => {
     // Maquette contract: each pane is a .act column carrying its tone class
     // (grab=primary, pause=muted, remove=danger) and a 17 px SVG icon —

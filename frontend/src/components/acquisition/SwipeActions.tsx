@@ -10,6 +10,7 @@ import {
   useCallback,
   useRef,
   useState,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactElement,
   type ReactNode,
@@ -52,6 +53,16 @@ const ACTION_WIDTH_PX = 84;
 const OPEN_THRESHOLD_PX = 40;
 
 /**
+ * Window, in ms, during which the click that FOLLOWS a swipe is absorbed.
+ *
+ * Mouse semantics fire a click after any press-move-release on one element,
+ * so a desktop drag would double as a tap and open the detail sheet. The
+ * maquette absorbs it (`justSwiped`, 400 ms); touch browsers already
+ * suppress the click on long drags, so this only guards mouse drags.
+ */
+const CLICK_ABSORB_MS = 400;
+
+/**
  * Wrap a card so a sideways drag reveals its actions.
  *
  * Args:
@@ -69,6 +80,7 @@ export function SwipeActions({
   const dragRef = useRef<{ x: number; y: number; axis: "x" | "y" | null } | null>(
     null,
   );
+  const lastSwipeEndRef = useRef(0);
 
   const rightWidth = (right?.length ?? 0) * ACTION_WIDTH_PX;
   const leftWidth = left != null ? ACTION_WIDTH_PX : 0;
@@ -103,12 +115,27 @@ export function SwipeActions({
     const drag = dragRef.current;
     dragRef.current = null;
     if (drag?.axis !== "x") return;
+    lastSwipeEndRef.current = Date.now();
     setOffset((current) => {
       if (current <= -OPEN_THRESHOLD_PX) return -rightWidth;
       if (current >= OPEN_THRESHOLD_PX) return leftWidth;
       return 0;
     });
   }, [leftWidth, rightWidth]);
+
+  const onClickCapture = useCallback(
+    (e: ReactMouseEvent<HTMLDivElement>) => {
+      const justSwiped =
+        Date.now() - lastSwipeEndRef.current < CLICK_ABSORB_MS;
+      if (offset === 0 && !justSwiped) return;
+      // Maquette: a tap on a swiped card settles it first — it is never
+      // ALSO the tap that opens the sheet.
+      e.preventDefault();
+      e.stopPropagation();
+      close();
+    },
+    [offset, close],
+  );
 
   function renderAction(action: SwipeAction): ReactElement {
     return (
@@ -158,6 +185,7 @@ export function SwipeActions({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        onClickCapture={onClickCapture}
       >
         {children}
       </div>
