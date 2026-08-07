@@ -55,6 +55,7 @@ import {
   EPISODE_STATE_HINT,
   EPISODE_STATE_LABEL,
   EPISODE_STATE_TONE,
+  searchOutcomeReason,
   type FollowStatus,
   type MediaKind,
   actionWords,
@@ -201,7 +202,13 @@ function EpisodeChip({
 }): ReactElement {
   const label = EPISODE_STATE_LABEL[episode.state];
   const hint = EPISODE_STATE_HINT[episode.state];
-  const title = `E${String(episode.episode)} — ${label}${hint ? ` · ${hint}` : ""}`;
+  // §14.1 — a waiting episode names WHY the last search rested there. The
+  // reason survived its old accordion home through this tooltip.
+  const reason = searchOutcomeReason(episode.state, episode.last_search_outcome);
+  // The air date, when known: what tells « announced for Friday » apart from
+  // « announced, date unknown » without opening anything.
+  const aired = episode.air_date != null ? ` · ${episode.air_date}` : "";
+  const title = `E${String(episode.episode)} — ${label}${hint ? ` · ${hint}` : ""}${reason ? ` · ${reason}` : ""}${aired}`;
 
   return (
     <span title={title} className="inline-flex">

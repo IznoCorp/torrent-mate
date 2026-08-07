@@ -34,11 +34,13 @@ import { ErrorState } from "@/components/ds/ErrorState";
 import { AcquisitionCard } from "./AcquisitionCard";
 import { SwipeActions } from "./SwipeActions";
 import { useFollowActions } from "./followActions";
+import { useSchedulers } from "@/hooks/useSchedulers";
 import { FollowDetailSheet } from "./FollowDetailSheet";
 import type { FollowStatus, MediaKind } from "./meta";
 import {
   FOLLOW_STATUS_LABEL,
   FOLLOW_STATUS_TONE,
+  GRAB_JOB_NAME,
   TONE_CHIP_CLASS,
   asMediaKind,
   followCountsCaption,
@@ -233,6 +235,17 @@ export function SuivisPanel(): ReactElement {
   // can never match is a lie with a control attached.
   const followed = useFollowed({ active: "all" });
   const actions = useFollowActions();
+  // C15 — the automatic-search cadence, read from the LIVE scheduler and never
+  // hardcoded; omitted entirely when the job is absent (§8: we do not narrate
+  // a schedule we do not know).
+  const schedulers = useSchedulers();
+  const grabJob = (schedulers.data?.schedulers ?? []).find(
+    (j) => j.name === GRAB_JOB_NAME,
+  );
+  const cadenceCaption =
+    grabJob?.schedule != null && grabJob.schedule !== ""
+      ? `Recherche automatique : ${grabJob.schedule}`
+      : null;
   const [viewMode, setViewMode] = useViewMode();
 
   // ── State ──────────────────────────────────────────────────────────────────
@@ -472,6 +485,14 @@ export function SuivisPanel(): ReactElement {
           </div>
           {renderSwitcher()}
         </div>
+        {cadenceCaption != null && (
+          <p
+            data-testid="cadence-caption"
+            className="px-1 text-xs text-muted-foreground"
+          >
+            {cadenceCaption}
+          </p>
+        )}
 
         {/* ── Loading ────────────────────────────────────────────────── */}
         {isLoading && !anyData && (

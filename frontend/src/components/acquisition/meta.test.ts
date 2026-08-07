@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { EpisodeCompleteness, FollowedSeriesItem } from "@/api/acquisition";
+import type { FollowedSeriesItem } from "@/api/acquisition";
 
 import {
   DEFERRED_REASON_LABEL,
@@ -25,14 +25,12 @@ import {
   RUN_OUTCOME_TONE,
   STATUS_LABEL,
   STATUS_TONE,
-  WANTED_STATUS_OPTIONS,
   actionWords,
   asMediaKind,
   followMediaRef,
   followStatusHint,
   followStatusLabel,
   searchOutcomeReason,
-  waitingGroups,
   type EpisodeState,
   type FollowStatus,
   type MediaKind,
@@ -232,19 +230,6 @@ describe("WANTED-QUEUE status vocabulary (review F8)", () => {
     expect(STATUS_TONE[status]).toBe(tone);
   });
 
-  it("lets the queue filter select the season-grab statuses", () => {
-    const values = WANTED_STATUS_OPTIONS.map((o) => o.value);
-    // `absorbed` is deliberately NOT offered: an absorbed row simply reads
-    // « En cours d'acquisition », so a filter on it would ask the operator to
-    // reason about plumbing (season pack vs episode) that changes nothing.
-    expect(values).not.toContain("absorbed");
-    expect(values).toContain("fallback_episodes");
-    // Every option carries French wording, never the raw slug.
-    for (const opt of WANTED_STATUS_OPTIONS) {
-      expect(opt.label).toBeTruthy();
-      expect(opt.label).not.toBe(opt.value);
-    }
-  });
 });
 
 describe("searchOutcomeReason — le motif d'attente en français", () => {
@@ -277,40 +262,6 @@ describe("searchOutcomeReason — le motif d'attente en français", () => {
     expect(searchOutcomeReason("en_acquisition", "all_filtered")).toBeNull();
     expect(searchOutcomeReason("non_verifie", null)).toBeNull();
     expect(searchOutcomeReason("en_attente", undefined)).toBeNull();
-  });
-});
-
-describe("waitingGroups — un motif, les épisodes qui le partagent", () => {
-  const ep = (
-    episode: number,
-    state: EpisodeCompleteness["state"],
-    outcome: string | null,
-  ): EpisodeCompleteness => ({
-    episode,
-    state,
-    title: null,
-    air_date: null,
-    last_search_outcome: outcome,
-  });
-
-  it("regroupe les épisodes par motif, numéros triés", () => {
-    const groups = waitingGroups([
-      ep(3, "en_attente", "all_filtered"),
-      ep(1, "en_attente", "all_filtered"),
-      ep(2, "en_attente", "no_candidates"),
-      ep(4, "en_mediatheque", null),
-    ]);
-
-    expect(groups).toEqual([
-      { reason: "rien de conforme au profil", episodes: [1, 3] },
-      { reason: "aucun résultat", episodes: [2] },
-    ]);
-  });
-
-  it("ne dit rien quand rien n'attend", () => {
-    expect(
-      waitingGroups([ep(1, "en_mediatheque", null), ep(2, "a_recuperer", null)]),
-    ).toEqual([]);
   });
 });
 
@@ -372,21 +323,6 @@ describe("X7 — les enums servis ne rendent jamais un slug brut", () => {
     }
   });
 
-  it("couvre chaque statut filtrable de la file et des obligations", () => {
-    // Every selectable status (the « all » sentinel aside) must resolve to a
-    // French STATUS_LABEL — the queue Badge and the empty-state sentence
-    // both read from it.
-    for (const opt of WANTED_STATUS_OPTIONS) {
-      if (opt.value === "all") continue;
-      expect(STATUS_LABEL[opt.value]).toBeTruthy();
-      expect(STATUS_LABEL[opt.value]).not.toBe(opt.value);
-    }
-    for (const opt of OBLIGATION_STATUS_OPTIONS) {
-      if (opt.value === "all") continue;
-      expect(STATUS_LABEL[opt.value]).toBeTruthy();
-      expect(STATUS_LABEL[opt.value]).not.toBe(opt.value);
-    }
-  });
 });
 
 // ---------------------------------------------------------------------------
@@ -556,5 +492,13 @@ describe("followMediaRef — la condition est le LIEN, pas le flag (§11)", () =
       }),
     );
     expect(href).toBe("/media/tmdb/125910?kind=tv");
+  });
+  it("chaque option de filtre d'obligation porte un libellé français, jamais le jeton", () => {
+    // ObligationsPanel (mounted behind « Plus ») renders these options as-is:
+    // a machine value reaching the select would be NE-DOIT-PAS-4.
+    for (const opt of OBLIGATION_STATUS_OPTIONS) {
+      expect(opt.label).toBeTruthy();
+      expect(opt.label).not.toBe(opt.value);
+    }
   });
 });

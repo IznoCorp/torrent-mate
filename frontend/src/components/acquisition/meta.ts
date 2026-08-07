@@ -9,7 +9,6 @@
  */
 
 import {
-  type EpisodeCompleteness,
   type FollowedSeriesItem,
   type ObligationItem,
   type SeasonCompleteness,
@@ -113,23 +112,6 @@ export type WantedFilter =
 
 /** Allowed status filter values for obligations (includes "all"). */
 export type ObligationFilter = "all" | "pending" | "breached" | "satisfied";
-
-/** Wanted status filter options. */
-export const WANTED_STATUS_OPTIONS = [
-  { value: "all", label: "Tous" },
-  { value: "pending", label: "En attente" },
-  { value: "searching", label: "En recherche" },
-  { value: "grabbed", label: "Récupéré" },
-  { value: "done", label: "Terminé" },
-  { value: "abandoned", label: "Abandonné" },
-  // `absorbed` is NOT offered as a filter: it is not a state the operator reasons
-  // about, and since ticket 411 the queue no longer SHOWS it either — the backend
-  // resolves an absorbed row onto its season's status (§13: follow the pointer),
-  // so those rows are reached through « Terminé », « En attente », etc., like any
-  // other. A row still reading `absorbed` means its pointer could not be followed
-  // — an anomaly the coherence check reports, not a filter the operator needs.
-  { value: "fallback_episodes", label: "Reporté en épisodes" },
-];
 
 /** Obligation status filter options. */
 export const OBLIGATION_STATUS_OPTIONS = [
@@ -812,36 +794,6 @@ export interface WaitingGroup {
   readonly episodes: readonly number[];
 }
 
-/**
- * Group a season's waiting episodes by their French reason.
- *
- * A tooltip alone would be invisible on a phone (no hover), so the accordion
- * prints these groups under the chips. Grouping keeps the line short when a
- * whole season shares one verdict, which is the common case.
- *
- * Args:
- *   episodes: The season's episodes, as served.
- *
- * Returns:
- *   One group per distinct reason, in first-appearance order. Empty when
- *   nothing is waiting or no verdict was recorded.
- */
-export function waitingGroups(
-  episodes: readonly EpisodeCompleteness[],
-): WaitingGroup[] {
-  const byReason = new Map<string, number[]>();
-  for (const ep of episodes) {
-    const reason = searchOutcomeReason(ep.state, ep.last_search_outcome);
-    if (reason == null) continue;
-    const bucket = byReason.get(reason);
-    if (bucket) bucket.push(ep.episode);
-    else byReason.set(reason, [ep.episode]);
-  }
-  return [...byReason.entries()].map(([reason, eps]) => ({
-    reason,
-    episodes: [...eps].sort((a, b) => a - b),
-  }));
-}
 
 /**
  * Return the French reason a followed FILM is waiting, or ``null``.
@@ -909,25 +861,7 @@ export function obligationStatus(
   return "pending";
 }
 
-/** Extract ``interval_minutes`` from a cadence JSON blob, returning a safe default. */
-export function cadenceInterval(
-  cadence: Record<string, unknown> | null | undefined,
-): number {
-  if (cadence == null) return 0;
-  const v = cadence.interval_minutes;
-  return typeof v === "number" ? v : 0;
-}
 
-/** Relative human label until an epoch-seconds instant ("imminente" when due). */
-export function untilLabel(epochSec: number, nowMs: number): string {
-  const deltaMs = epochSec * 1000 - nowMs;
-  if (deltaMs <= 60_000) return "imminente";
-  const mins = Math.round(deltaMs / 60_000);
-  if (mins < 60) return `dans ~${String(mins)} min`;
-  const hours = Math.round(mins / 60);
-  if (hours < 48) return `dans ~${String(hours)} h`;
-  return `dans ~${String(Math.round(hours / 24))} j`;
-}
 
 /** Truncate a long string for table display, appending "…" when cut. */
 export function truncate(s: string, max: number): string {

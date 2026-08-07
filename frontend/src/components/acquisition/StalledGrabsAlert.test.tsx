@@ -27,18 +27,7 @@ vi.mock("@/api/acquisition", async () => {
   };
 });
 
-import { OverviewPanel } from "./OverviewPanel";
-
-const OVERVIEW = {
-  by_status: { dispatched: 3 },
-  in_flight: 0,
-  stuck: 0,
-  stalled_grabs: 0,
-  awaiting_resolution: 0,
-  watcher_enabled: true,
-  last_successful_run_at: 1_700_000_000,
-  pending_run: null,
-};
+import { StalledGrabsAlert } from "./StalledGrabsAlert";
 
 const STALLED = {
   items: [
@@ -57,18 +46,18 @@ const STALLED = {
   ],
 };
 
-function renderPanel(): void {
+function renderAlert(count: number): void {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={qc}>
       <MemoryRouter>
-        <OverviewPanel />
+        <StalledGrabsAlert count={count} />
       </MemoryRouter>
     </QueryClientProvider>,
   );
 }
 
-describe("OverviewPanel — alerte grabs en souffrance", () => {
+describe("StalledGrabsAlert — the parked-acquisitions alert", () => {
   beforeEach(() => {
     getOverviewMock.mockReset();
     getStalledGrabsMock.mockReset();
@@ -77,9 +66,7 @@ describe("OverviewPanel — alerte grabs en souffrance", () => {
   afterEach(cleanup);
 
   it("alerte, avec la raison ET la release réellement récupérée", async () => {
-    getOverviewMock.mockResolvedValue({ ...OVERVIEW, stalled_grabs: 1 });
-
-    renderPanel();
+    renderAlert(1);
 
     // Le détail arrive par une requête distincte : on attend qu'il soit peint, sinon on
     // n'éprouve que le compteur — précisément ce que §8 juge insuffisant.
@@ -96,32 +83,26 @@ describe("OverviewPanel — alerte grabs en souffrance", () => {
     expect(alert).toHaveTextContent(/Original Motion Picture Soundtrack/);
   });
 
-  it("ne montre rien quand rien n'est parqué (une alerte permanente n'alerte plus)", async () => {
-    getOverviewMock.mockResolvedValue(OVERVIEW);
+  it("ne montre rien quand rien n'est parqué (une alerte permanente n'alerte plus)", () => {
+    renderAlert(0);
 
-    renderPanel();
-
-    await waitFor(() => {
-      expect(screen.getByText("Dispatchés")).toBeInTheDocument();
-    });
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    // The detail list is not even fetched for a zero count.
     expect(getStalledGrabsMock).not.toHaveBeenCalled();
   });
 
-  it("n'est jamais masquée par « Rien en vol » quand elle est seule", async () => {
-    // Une ligne wanted survit à la disparition de son parcours : le spine peut être vide
-    // alors qu'une acquisition est bel et bien parquée.
-    getOverviewMock.mockResolvedValue({
-      ...OVERVIEW,
-      by_status: {},
-      stalled_grabs: 1,
-    });
-
-    renderPanel();
+  it("dit quand la liste derrière le compteur n'a pas pu être chargée", async () => {
+    // A wanted row can outlive its journey: the count can be non-zero while
+    // the LIST read fails. Silence there would render a bare count — §8 wants
+    // the failure named.
+    getStalledGrabsMock.mockRejectedValue(new Error("boom"));
+    renderAlert(2);
 
     await waitFor(() => {
-      expect(screen.getByRole("alert")).toBeInTheDocument();
+      expect(
+        screen.getByText(/La liste des acquisitions concernées n'a pas pu être chargée/),
+      ).toBeInTheDocument();
     });
-    expect(screen.queryByText("Rien en vol")).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toBeInTheDocument();
   });
 });
