@@ -202,6 +202,7 @@ export function MaintenantPanel(): ReactElement {
   const toHandle = useToHandle();
   const journeys = useJourneys();
   const overview = useOverview();
+  const toHandleDegraded = toHandle.data?.degraded ?? false;
   const downloadsQuery = useDownloads();
   const downloads = downloadsQuery.data?.downloads ?? [];
   const clientAvailable = downloadsQuery.data?.client_available ?? true;
@@ -267,10 +268,24 @@ export function MaintenantPanel(): ReactElement {
     // « À traiter » renders when items>0 OR orphans>0 (§3.2),
     // OR when the hook errored — panne ≠ absence: a failed fetch must
     // never collapse the section that was supposed to alert the operator.
+    // « En vol » follows the same rule for its own reasons to speak: a torrent
+    // still downloading, an unreachable client, or a failed read. Any of them
+    // alone must open the section — gating it on "are there wanted rows" would
+    // re-create the silence this section exists to end.
     const visible =
       slug === "a-traiter"
-        ? aTraiter.length > 0 || orphanCount > 0 || toHandle.isError
-        : count > 0;
+        ? aTraiter.length > 0 ||
+          orphanCount > 0 ||
+          toHandle.isError ||
+          toHandleDegraded
+        : slug === "en-vol"
+          ? count > 0 ||
+            downloads.length > 0 ||
+            !clientAvailable ||
+            wanted.isError ||
+            downloadsQuery.isError ||
+            journeys.isError
+          : count > 0;
 
     return { slug, count, visible };
   });
@@ -437,8 +452,24 @@ export function MaintenantPanel(): ReactElement {
               {s.slug === "a-traiter" && toHandle.isError && (
                 <ErrorState title="Impossible de charger les éléments à traiter." />
               )}
+              {/* The server answered, but could not read: an empty list and a
+                  failed read are different facts. Saying « rien à traiter »
+                  here would state the one thing we do not know. */}
+              {s.slug === "a-traiter" && !toHandle.isError && toHandleDegraded && (
+                <ErrorState title="Impossible de savoir ce qui est à traiter — la lecture n'a pas abouti." />
+              )}
               {s.slug === "en-vol" && wanted.isError && (
                 <ErrorState title="Impossible de charger les éléments en vol." />
+              )}
+              {/* A failed journeys fetch drops every strip; a failed downloads
+                  fetch drops every percentage. Silently, the cards would look
+                  like items that simply have no progress to show — panne ≠
+                  absence applies to a PART of a section, not only to all of it. */}
+              {s.slug === "en-vol" && journeys.isError && (
+                <ErrorState title="Impossible de charger les parcours — les étapes ne sont pas affichées." />
+              )}
+              {s.slug === "en-vol" && downloadsQuery.isError && (
+                <ErrorState title="Impossible de charger la progression des téléchargements." />
               )}
               {(s.slug === "a-recuperer" ||
                 s.slug === "cherche-rien-trouve" ||

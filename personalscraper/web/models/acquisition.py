@@ -894,4 +894,9 @@ class ToHandleResponse(BaseModel):
     """
 
     items: list[ToHandleItemModel] = []
+    #: ``True`` when the reading could not complete. An empty list and a failed
+    #: read are different facts: rendering the second as the first tells the
+    #: operator there is nothing to handle when the truth is that we cannot
+    #: tell. The UI must say so rather than show an empty section.
+    degraded: bool = False
     orphan_count: int = 0

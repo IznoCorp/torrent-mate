@@ -136,7 +136,7 @@ function mockAllEmpty(): void {
   useToHandleMock.mockReturnValue({
     isLoading: false,
     isError: false,
-    data: { items: [], orphan_count: 0 },
+    data: { items: [], orphan_count: 0, degraded: false },
     error: null,
   });
   useJourneysMock.mockReturnValue({

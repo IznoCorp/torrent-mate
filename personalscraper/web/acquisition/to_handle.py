@@ -53,10 +53,24 @@ class ToHandleItem:
 
 @dataclass(frozen=True)
 class ToHandleRollup:
-    """The split between what is shown here and what is counted elsewhere."""
+    """The split between what is shown here and what is counted elsewhere.
+
+    Attributes:
+        items: The blocked items carried by an acquisition, oldest first.
+        orphan_count: Blocked items with no acquisition provenance.
+        degraded: ``True`` when this reading could NOT complete. Every failure
+            path here returns an empty rollup so the page never 500s — but an
+            empty rollup and a failed one are different facts, and rendering
+            the second as the first tells the operator there is nothing to
+            handle when the truth is that we cannot tell. The flag is what
+            keeps that distinction alive across the wire; without it the
+            warning only reaches the server log, which the operator never
+            reads.
+    """
 
     items: tuple[ToHandleItem, ...]
     orphan_count: int
+    degraded: bool = False
 
 
 def _stage_of(row: object) -> str:
@@ -93,7 +107,7 @@ def build_to_handle(*, indexer_db: Path | None, store: AcquireStore | None) -> T
         down with it.
     """
     if indexer_db is None or not Path(indexer_db).exists():
-        return ToHandleRollup(items=(), orphan_count=0)
+        return ToHandleRollup(items=(), orphan_count=0, degraded=True)
 
     try:
         conn = sqlite3.connect(f"file:{indexer_db}?mode=ro", uri=True)
@@ -111,11 +125,11 @@ def build_to_handle(*, indexer_db: Path | None, store: AcquireStore | None) -> T
             conn.close()
     except sqlite3.Error:
         logger.warning("to_handle_read_failed", db=str(indexer_db))
-        return ToHandleRollup(items=(), orphan_count=0)
+        return ToHandleRollup(items=(), orphan_count=0, degraded=True)
 
     if store is None:
         logger.warning("to_handle_store_unavailable")
-        return ToHandleRollup(items=(), orphan_count=0)
+        return ToHandleRollup(items=(), orphan_count=0, degraded=True)
 
     items: list[ToHandleItem] = []
     orphans = 0
@@ -151,6 +165,6 @@ def build_to_handle(*, indexer_db: Path | None, store: AcquireStore | None) -> T
         # (§8 forbids it): the warning is what distinguishes it from a silent
         # « nothing to handle ».
         logger.warning("to_handle_correlation_failed", error=str(exc))
-        return ToHandleRollup(items=(), orphan_count=0)
+        return ToHandleRollup(items=(), orphan_count=0, degraded=True)
 
     return ToHandleRollup(items=tuple(items), orphan_count=orphans)

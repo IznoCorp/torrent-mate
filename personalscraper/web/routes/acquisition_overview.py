@@ -233,4 +233,5 @@ def get_to_handle(request: Request) -> ToHandleResponse:
     return ToHandleResponse(
         items=[ToHandleItemModel(**vars(item)) for item in rollup.items],
         orphan_count=rollup.orphan_count,
+        degraded=rollup.degraded,
     )

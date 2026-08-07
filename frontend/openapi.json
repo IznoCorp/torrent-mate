@@ -4946,6 +4946,11 @@
       "ToHandleResponse": {
         "description": "Response from ``GET /api/acquisition/to-handle``.\n\nAttributes:\n    items: The blocked items CARRIED BY AN ACQUISITION, oldest first.\n    orphan_count: The blocked items WITHOUT acquisition provenance (manual\n        deposits). They have no card here \u2014 but they are not silenced: the\n        UI converts it into a crossref to Contr\u00f4le (\u00a7m\u00e9thode: never\n        under-count what needs attention).",
         "properties": {
+          "degraded": {
+            "default": false,
+            "title": "Degraded",
+            "type": "boolean"
+          },
           "items": {
             "default": [],
             "items": {

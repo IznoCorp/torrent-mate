@@ -154,4 +154,8 @@ def test_to_handle_route_is_fail_soft_without_a_database(test_config: Any, tmp_p
 
     resp = client.get("/api/acquisition/to-handle", cookies=_COOKIE)
     assert resp.status_code == 200
-    assert resp.json() == {"items": [], "orphan_count": 0}
+    # Fail-soft, but NOT silent: an empty list and a failed read are different
+    # facts. Without ``degraded`` the UI would render « nothing to handle »
+    # when the truth is that it cannot tell — the warning would only ever
+    # reach the server log, which the operator never reads.
+    assert resp.json() == {"items": [], "orphan_count": 0, "degraded": True}

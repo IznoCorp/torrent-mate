@@ -55,7 +55,7 @@ interface EmptyFixtures {
 
 const EMPTY_FOLLOWED: readonly FollowedSeriesItem[] = [];
 const EMPTY_WANTED: readonly WantedItem[] = [];
-const EMPTY_TO_HANDLE: ToHandleResponse = { items: [], orphan_count: 0 };
+const EMPTY_TO_HANDLE: ToHandleResponse = { items: [], orphan_count: 0, degraded: false };
 const EMPTY_DOWNLOADS: readonly AcquisitionDownload[] = [];
 const EMPTY_JOURNEYS: readonly JourneyItem[] = [];
 
@@ -204,7 +204,9 @@ function upToDateShow(): FollowedSeriesItem {
 const full: FullFixtures = {
   followed: [takeableShow(), waitingShow(), upToDateShow()],
   wanted: [inflightWanted()],
-  toHandle: { items: [blockedItem()], orphan_count: 0 },
+  toHandle: { items: [blockedItem()], orphan_count: 0,
+    degraded: false,
+  },
   downloads: [inflightDownload()],
   journeys: [inflightJourney()],
 };
@@ -370,7 +372,9 @@ describe("MaintenantPanel", () => {
   it("les bloqués sans provenance ne sont pas listés mais ne sont pas tus non plus", async () => {
     renderPanel({
       ...full,
-      toHandle: { items: [], orphan_count: 2 },
+      toHandle: { items: [], orphan_count: 2,
+    degraded: false,
+  },
     });
 
     // Section still renders because orphans > 0.
@@ -386,7 +390,9 @@ describe("MaintenantPanel", () => {
   it("le renvoi orphelin apparaît même quand des items sont présents (§méthode)", async () => {
     renderPanel({
       ...full,
-      toHandle: { items: [blockedItem()], orphan_count: 5 },
+      toHandle: { items: [blockedItem()], orphan_count: 5,
+    degraded: false,
+  },
     });
 
     // Both the blocked card AND the crossref render.
@@ -408,7 +414,7 @@ describe("MaintenantPanel", () => {
   it("« À traiter » disparaît quand il n'y a ni item ni orphelin", () => {
     renderPanel({
       ...full,
-      toHandle: { items: [], orphan_count: 0 },
+      toHandle: { items: [], orphan_count: 0, degraded: false },
     });
 
     expect(screen.queryByTestId("section-a-traiter")).toBeNull();
@@ -417,7 +423,9 @@ describe("MaintenantPanel", () => {
   it("l'état vide ne prétend jamais que tout va bien alors qu'une pile est non nulle", () => {
     renderPanel({
       ...empty,
-      toHandle: { items: [], orphan_count: 3 },
+      toHandle: { items: [], orphan_count: 3,
+    degraded: false,
+  },
     });
 
     // With orphans > 0, the panel must NOT claim « Rien en vol » (or any
@@ -728,7 +736,7 @@ describe("MaintenantPanel", () => {
       isError: false,
     } as unknown as ReturnType<typeof hooks.useWanted>);
     vi.spyOn(hooks, "useToHandle").mockReturnValue({
-      data: { items: [], orphan_count: 0 },
+      data: { items: [], orphan_count: 0, degraded: false },
       isLoading: false,
       isError: false,
     } as unknown as ReturnType<typeof hooks.useToHandle>);
@@ -831,7 +839,7 @@ describe("MaintenantPanel", () => {
       isError: true,
     } as unknown as ReturnType<typeof hooks.useWanted>);
     vi.spyOn(hooks, "useToHandle").mockReturnValue({
-      data: { items: [], orphan_count: 0 },
+      data: { items: [], orphan_count: 0, degraded: false },
       isLoading: false,
       isError: false,
     } as unknown as ReturnType<typeof hooks.useToHandle>);
@@ -969,5 +977,23 @@ describe("MaintenantPanel", () => {
     expect(
       within(enVol).getAllByText("Nom de release non enregistré").length,
     ).toBeGreaterThan(0);
+  });
+  it("dit qu'on ne PEUT PAS savoir ce qui est à traiter, plutôt qu'il n'y a rien", () => {
+    // The server answered 200 with an empty list because its own read failed.
+    // Rendering that as an empty section would state the single thing we do not
+    // know. `degraded` is what carries the distinction across the wire; a flag
+    // nothing renders is decoration.
+    mockHooks(empty);
+    vi.spyOn(hooks, "useToHandle").mockReturnValue({
+      data: { items: [], orphan_count: 0, degraded: true },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useToHandle>);
+    renderPanelPreMocked();
+
+    expect(
+      screen.getByText(/Impossible de savoir ce qui est à traiter/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Rien à signaler/)).toBeNull();
   });
 });

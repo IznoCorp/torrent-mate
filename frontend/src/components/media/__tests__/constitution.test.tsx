@@ -63,7 +63,7 @@ vi.mock("@/hooks/useAcquisition", () => ({
   useCompleteness: () => completenessMock(),
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   useFollowed: () => followedMock(),
-  useToHandle: () => ({ data: { items: [], orphan_count: 0 }, isLoading: false, isError: false }),
+  useToHandle: () => ({ data: { items: [], orphan_count: 0, degraded: false }, isLoading: false, isError: false }),
   useWanted: () => ({ data: { items: [], total: 0 }, isLoading: false, isError: false }),
   useJourneys: () => ({ data: { journeys: [] }, isLoading: false, isError: false }),
   useDownloads: () => ({

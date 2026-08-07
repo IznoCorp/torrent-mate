@@ -5364,6 +5364,11 @@ export interface components {
          */
         ToHandleResponse: {
             /**
+             * Degraded
+             * @default false
+             */
+            degraded: boolean;
+            /**
              * Items
              * @default []
              */
