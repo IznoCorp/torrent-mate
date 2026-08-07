@@ -13,11 +13,13 @@
  */
 
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, type ReactElement } from "react";
+import { Plus } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import { acqKeys } from "@/api/acquisition";
+import { AddMediaScreen } from "@/components/acquisition/AddMediaScreen";
 import { MaintenantPanel } from "@/components/acquisition/MaintenantPanel";
 import {
   ACQ_EVENT_TYPES,
@@ -28,7 +30,10 @@ import {
   WANTED_INVALIDATE_EVENTS,
   type TabId,
 } from "@/components/acquisition/meta";
+import { PlusSheet } from "@/components/acquisition/PlusSheet";
 import { SuivisPanel } from "@/components/acquisition/SuivisPanel";
+import { aboveBottomBar } from "@/components/layout/bottom-bar-metrics";
+import { Button } from "@/components/ui/button";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 import { handleTablistKeyDown } from "@/lib/tablist";
 
@@ -95,6 +100,11 @@ export default function AcquisitionPage(): ReactElement {
   );
   const queryClient = useQueryClient();
   const { events } = useEventStreamContext();
+
+  // ── Sheet state ─────────────────────────────────────────────────────────
+
+  const [addOpen, setAddOpen] = useState(false);
+  const [plusOpen, setPlusOpen] = useState(false);
 
   // Only invalidate on fresh events, not re-scanning the ring every render
   // (AppShell R13 ref pattern, coherence study F13).
@@ -189,6 +199,40 @@ export default function AcquisitionPage(): ReactElement {
         {activeTab === "maintenant" && <MaintenantPanel />}
         {activeTab === "suivis" && <SuivisPanel />}
       </div>
+
+      {/* ── « Plus » : Veille et Obligations ─────────────────────────── */}
+
+      <Button
+        variant="outline"
+        size="sm"
+        aria-label="Veille et obligations"
+        onClick={() => {
+          setPlusOpen(true);
+        }}
+      >
+        Plus
+      </Button>
+      <PlusSheet open={plusOpen} onOpenChange={setPlusOpen} />
+
+      {/* ── « + » : add-by-search + add-by-ID (§7) ────────────────────── */}
+
+      {/* Anchored above the bottom bar by its real measured height rather than
+          a hardcoded offset — the original defect (§10). z-30 sits below every
+          Sheet / Dialog / BottomTabBar (z-50) so the button does not show
+          through an open full-screen surface. The 0px fallback is load-bearing:
+          this bar is md:hidden; on desktop the button floats at gap alone. */}
+      <button
+        type="button"
+        className="fixed right-4 z-30 flex size-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90"
+        style={{ bottom: aboveBottomBar("1rem") }}
+        aria-label="Ajouter un média"
+        onClick={() => {
+          setAddOpen(true);
+        }}
+      >
+        <Plus className="size-6" aria-hidden="true" />
+      </button>
+      <AddMediaScreen open={addOpen} onOpenChange={setAddOpen} />
     </section>
   );
 }

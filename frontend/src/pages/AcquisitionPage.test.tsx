@@ -27,6 +27,8 @@ const useFollowedMock = vi.fn();
 const useWantedMock = vi.fn();
 const useToHandleMock = vi.fn();
 const useJourneysMock = vi.fn();
+const useAcquisitionStatusMock = vi.fn();
+const useObligationsMock = vi.fn();
 
 /** Stable mock mutation fns — cleared between tests. */
 let followMutateFn = vi.fn();
@@ -51,6 +53,10 @@ vi.mock("@/hooks/useAcquisition", () => ({
     error: null,
     refetch: () => undefined,
   }),
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  useAcquisitionStatus: () => useAcquisitionStatusMock(),
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  useObligations: (...args: unknown[]) => useObligationsMock(...args),
   useFollow: () => ({ mutate: followMutateFn, isPending: false }),
   useUpdateFollow: () => ({ mutate: vi.fn(), isPending: false }),
   useUnfollow: () => ({ mutate: vi.fn(), isPending: false }),
@@ -129,6 +135,23 @@ function mockAllEmpty(): void {
     isLoading: false,
     isError: false,
     data: { journeys: [] },
+    error: null,
+  });
+  useAcquisitionStatusMock.mockReturnValue({
+    isLoading: false,
+    isError: false,
+    data: {
+      watcher_enabled: true,
+      last_successful_run_at: null,
+      recent_runs: [],
+      deferred: [],
+    },
+    error: null,
+  });
+  useObligationsMock.mockReturnValue({
+    isLoading: false,
+    isError: false,
+    data: { items: [] },
     error: null,
   });
 }
@@ -422,6 +445,46 @@ describe("AcquisitionPage", () => {
       );
     });
     expect(screen.getByTestId("loc-search").textContent).not.toContain("tab=");
+  });
+
+  // ── « + » add button ──────────────────────────────────────────────────
+
+  it("renders the « + » button anchored above the bottom bar", () => {
+    mockAllEmpty();
+    renderPage();
+
+    const addBtn = screen.getByRole("button", { name: "Ajouter un média" });
+    expect(addBtn).toBeInTheDocument();
+    // The button is fixed-positioned and uses the aboveBottomBar helper — its
+    // computed bottom must reference the custom property, not a literal pixel.
+    expect(addBtn.style.bottom).toContain("var(--tm-bottom-bar-h");
+  });
+
+  it("the « + » opens AddMediaScreen", () => {
+    mockAllEmpty();
+    renderPage();
+
+    // Before activation the add screen is absent.
+    expect(screen.queryByText(/Ajouter un média/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Ajouter un média" }));
+
+    // The full-screen sheet renders its title.
+    expect(screen.getByText(/Ajouter un média/)).toBeInTheDocument();
+  });
+
+  // ── « Plus » button ────────────────────────────────────────────────────
+
+  it("« Plus » opens the Veille et Obligations sheet", () => {
+    mockAllEmpty();
+    renderPage();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Veille et obligations" }),
+    );
+
+    // The ObligationsPanel renders inside the sheet.
+    expect(screen.getByText(/Obligations de partage/i)).toBeInTheDocument();
   });
 
   // ── R13 WS invalidation ────────────────────────────────────────────────
