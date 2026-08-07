@@ -857,14 +857,16 @@ describe("MaintenantPanel", () => {
       </QueryClientProvider>,
     );
 
-    // No section is visible — toHandle is OK, followed/wanted errored.
-    expect(screen.queryByTestId("section-a-traiter")).toBeNull();
-    expect(screen.queryByTestId("section-en-vol")).toBeNull();
-    // « Rien à signaler » must NOT appear.
+    // The guarantee that matters: a failure NEVER renders as « nothing to
+    // report ». Silence about a failure is the one thing this panel may not do.
     expect(screen.queryByText(/Rien à signaler/)).toBeNull();
-    // The panel-level fallback error is visible.
+
+    // « En vol » opens on its own error rather than collapsing, so the operator
+    // is told WHICH data is missing instead of reading a generic panel message.
+    // Naming the gap is strictly more useful than announcing that there is one.
+    expect(screen.getByTestId("section-en-vol")).toBeInTheDocument();
     expect(
-      screen.getByText(/Impossible de charger les données/),
+      screen.getByText(/Impossible de charger les éléments en vol/),
     ).toBeInTheDocument();
   });
   // ── Behaviours re-homed from the dissolved tabs ────────────────────────
@@ -903,6 +905,23 @@ describe("MaintenantPanel", () => {
     renderPanel(empty);
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("ouvre « En vol » pour un client injoignable, même sans AUCUNE ligne en vol", () => {
+    // The failure this pins: the notice used to live INSIDE a section whose
+    // visibility depended on having wanted rows. With none, the section
+    // collapsed and took the notice with it — an unreachable client rendered
+    // as silence, which is precisely what the notice exists to prevent.
+    mockHooks(empty);
+    vi.spyOn(hooks, "useDownloads").mockReturnValue({
+      data: { downloads: [], client_available: false },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useDownloads>);
+    renderPanelPreMocked();
+
+    expect(screen.getByTestId("section-en-vol")).toBeInTheDocument();
+    expect(screen.getByText(/Client torrent injoignable/)).toBeInTheDocument();
   });
 
   it("dit que le client torrent est injoignable MÊME quand rien ne télécharge", () => {
