@@ -2147,6 +2147,18 @@ git add -A frontend/src && git commit -m "feat(acq-mobile): actions par balayage
 Run: `cd frontend && command rg -g '*.tsx' -g '*.ts' -n "FileDAcquisitionPanel|WantedPanel|ParcoursPanel|FollowedPanel|ReglagesPanel|MediaSearchAdd" src`
 Expected: only the files themselves and their tests. Any other hit is a task that is not finished — go fix it before deleting.
 
+**Step 1b — clean `WIRED_SURFACES` (added 2026-08-06, found by validating this
+task against the code).** `constitution.test.tsx:129` lists `FollowedPanel` and
+`ParcoursPanel`, and Task 11 repoints `MediaSearchAdd` → `AddMediaScreen`. That
+array is enforced against the describe blocks that populate `coveredSurfaces`:
+deleting a component removes its describe block, so an entry left behind makes
+the constitution test fail with a mismatch. **Remove the entries for every
+component this task deletes**, in the same commit as the deletion — never as a
+follow-up, or the branch has a red test in between.
+
+The grep in Step 1 does NOT catch this: `WIRED_SURFACES` holds surface names as
+plain strings, so a stale entry is invisible to an import search. Read the array.
+
 - [ ] **Step 2: Move the ranking editor**
 
 `git mv frontend/src/components/acquisition/ReglagesPanel.tsx frontend/src/components/config/RankingPanel.tsx` (same for its test), update its imports, and render it from `Config.tsx` under its own heading. Its internals do not change — it is a move, not a redesign.
