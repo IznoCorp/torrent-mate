@@ -92,3 +92,71 @@ screenshots of `.viewtabs` → **`diff_pct=1.37`** (< 2 target), heatmap
 all validated on the deployed build. Known forward notes: the mirror
 fixtures already carry post-L3 fields (`season`/`episode` on to-handle,
 `eta_seconds`, `last_search_at/best`) — inert until the UI reads them.
+
+---
+
+## Entry 3 — L1-T4: swipe panes `.act` (icons + tones) + two flow findings
+
+**Fixes deployed** (staging `d8159fce` → `722d33fd` → `b50ade31`):
+
+1. `b61f2418` — verbatim `.actions`/`.act` transplant (84 px column,
+   11 px/700, line 1.2, 17 px SVG; grab=primary, pause=muted+`--fg`,
+   remove=danger); maquette icons down/pause/trash replace `icon: null`;
+   SwipeActions drops Tailwind tone classes for the maquette grammar.
+   Obsolete test rule « never a class named grab » removed (the handle is
+   `sheetgrab` — named that way in the maquette precisely for this).
+2. `256767db` — **population finding caught by the probe** (7 expected
+   `.act.pause` vs 5): the maquette's « Cherché, rien trouvé » includes
+   ACTIVE `non_verifie` follows (renderNow line 823); the app filtered
+   `en_attente` only. Fixed + honest sub « pas encore vérifié sur les
+   trackers » (no fake search verdict); pinned by a new MaintenantPanel
+   test.
+3. `3fc1a3b9` + `72c9244f` — **behavior finding caught by the flow
+   exercise**: mouse semantics fire a click after a drag, so a desktop
+   swipe opened the detail sheet over the revealed pane (phantom sheet);
+   and the first fix wrongly closed the fresh pane. Final contract =
+   maquette `justSwiped`: the synthetic click is absorbed 400 ms WITHOUT
+   closing; a later tap on the open card settles it first. Pinned by
+   SwipeActions tests.
+
+**Probe (hard gate)**, deployed build, mirror data, Maintenant-scoped:
+`0 divergences on 16 selectors` (`.act.grab/.pause/.remove` + grab svg).
+Allowlist: pane `h` ×3 — TEMPORARY (pane stretches to its card; card
+sub-line content converges at L3-T16; re-check and REMOVE at L5).
+Differ improvement: zero-width-border style/color pairs are skipped as
+rendering-equivalent (preflight declares solid+color on every element).
+
+**Overlay**: swiped-open first takeable card — pane side visually
+identical (17 px ‖ icon, 11 px/700 label, muted tone); full-height
+overlay blocked by the allowlisted card-height gap until L3-T16
+(`size mismatch 164 vs 156` physical px — expected).
+
+**Measurement-integrity hardening** after one transient live-data
+screenshot: the harness now FAILS LOUD when the mirror is not active
+(sentinel: first followed must be « Silo ») or when a swipe did not open
+(transform assertion) — no silent live-data measurements possible.
+
+---
+
+## Entry 4 — L1-T5: pull-to-refresh `.ptr` + a maquette internal contradiction
+
+**Fix deployed** (`c02741e8`, staging `20e31a20`): maquette `.ptr`
+chrome (16 px spinner, height-transition grid, `armed` tone, `mq-spin`
+keyframe — Tailwind owns `spin`), damped drag model in `gestures.ts`
+(`pullHeight = min(80, 0.55·dy)`, `pullArmed = h ≥ 64×0.62`), commit on
+the DAMPED armed height (dy ≥ ~72) instead of the old raw 64 px, 44 px
+loading held until the real refetch settles. sr-only live region kept
+(absolutely positioned — no layout impact). Pinned by gestures tests +
+a page test walking damped/armed/loading/collapse.
+
+**Probe**, deployed build, held synthetic touch pull (dy=120):
+`0 divergences on 2 selectors` (`.ptr`, `.ptr .spin`), 1 allowlisted:
+
+**⚠ FLAG FOR OPERATOR (T16)** — maquette internal contradiction: the
+maquette DECLARES `.ptr` height 66 (style.height=66px, transition:
+height) but RENDERS 21.3 px — `.ptr` lacks `flex: 0 0 auto` inside the
+fixed-height pane (all its siblings have it) and gets flex-shrunk by
+the demo scroller's content, so its rendered height depends on demo
+content length. The app follows the DECLARED model (66/80/44 real
+pixels). If you prefer the compressed feel seen on the maquette device,
+it is a one-line change — say so at T16.
