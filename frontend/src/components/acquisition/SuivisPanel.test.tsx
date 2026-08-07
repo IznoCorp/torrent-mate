@@ -506,13 +506,36 @@ describe("SuivisPanel", () => {
     expect(dmBadge?.textContent).toBe("?");
   });
 
-  it("mode grille : un film n'a jamais de pastille (pas de catalogue d'épisodes)", () => {
-    renderPanel([movie()]);
+  // A grid tile is a poster plus an optional badge — it carries NO status chip,
+  // unlike a list row. So for a film the badge is the only signal there is, and
+  // §5.2 fixes what its absence MEANS: « a follow with nothing to do carries no
+  // badge at all ». Returning null for every film would therefore state, about
+  // a film that needs attention, that it needs none. A film's gap cannot be
+  // counted (no episode catalogue), so it is marked, not numbered.
+  it("mode grille : un film qui demande attention est marqué, jamais compté", () => {
+    renderPanel([movie()]); // Dune (id=6), status en_attente — actionable
     fireEvent.click(screen.getByRole("button", { name: /Grille/ }));
 
-    // Dune (id=6): kind="movie" → NO badge, mirroring followFraction's precedent.
-    const tile = screen.getByTestId("tile-6");
-    expect(tile.querySelector("[data-badge]")).toBeNull();
+    const badge = screen.getByTestId("tile-6").querySelector("[data-badge]");
+    expect(badge).toBeTruthy();
+    expect(badge?.textContent).toBe("!");
+  });
+
+  it("mode grille : un film sans rien à faire ne porte pas de pastille", () => {
+    renderPanel([{ ...movie(), status: "a_jour" }]);
+    fireEvent.click(screen.getByRole("button", { name: /Grille/ }));
+
+    expect(
+      screen.getByTestId("tile-6").querySelector("[data-badge]"),
+    ).toBeNull();
+  });
+
+  it("mode grille : un film sans verdict porte « ? », pas « ! »", () => {
+    renderPanel([{ ...movie(), status: "non_verifie" }]);
+    fireEvent.click(screen.getByRole("button", { name: /Grille/ }));
+
+    const badge = screen.getByTestId("tile-6").querySelector("[data-badge]");
+    expect(badge?.textContent).toBe("?");
   });
 
   it("mode grille : aired_count absent ⇒ « ? », pas un nombre fabriqué", () => {

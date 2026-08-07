@@ -160,28 +160,36 @@ function matchesName(item: FollowedSeriesItem, term: string): boolean {
 /**
  * Compute the grid badge content for one followed item.
  *
+ * §5.2 fixes what an ABSENT badge means: « a follow with nothing to do carries
+ * no badge at all ». A grid tile is a poster plus this badge and nothing else —
+ * unlike a list row, it carries no status chip. So absence is a STATEMENT here,
+ * and the two ways to get it wrong are symmetric: inventing a number the data
+ * cannot support, and staying silent about something that needs attention.
+ *
  * The honesty rules mirror ``followFraction`` (meta.ts:468-472):
- * - A film has NO episode catalogue — its status chip already carries the
- *   complete state; no badge.
+ * - No verdict yet (``non_verifie`` / ``verification_en_cours``) — « ? ».
+ * - Nothing to do (``a_jour`` / ``disabled``) — no badge.
+ * - A film has NO episode catalogue, so its gap cannot be COUNTED — but it can
+ *   be MARKED: « ! ». Returning null instead would tell the operator, about a
+ *   film that needs attention, that it needs none.
  * - ``aired_count == null`` means the catalogue is unknown — « ? », never a
  *   fabricated number.
- * - ``verification_en_cours`` is a transient (no verdict yet) — « ? » like
- *   ``non_verifie``.
  * - A computed number ONLY for actionable states with a known catalogue.
  *
  * Returns:
- *   ``"1"`` for one takeable episode, ``"22"`` for 22 waiting, ``"?"`` for
- *   unknown / no-verdict states, or ``null`` for ``a_jour`` / ``disabled`` /
- *   film — absence IS the signal that there is nothing to do.
+ *   ``"1"`` for one takeable episode, ``"22"`` for 22 waiting, ``"!"`` for an
+ *   actionable film, ``"?"`` for unknown / no-verdict states, or ``null`` for
+ *   ``a_jour`` / ``disabled`` — absence IS the signal that there is nothing
+ *   to do.
  */
 function gridBadge(item: FollowedSeriesItem): string | null {
-  // A film has no episode catalogue — its status chip already carries the
-  // complete state, mirroring followFraction's precedent (meta.ts:469).
-  if (item.kind === "movie") return null;
   // No verdict yet: both mean "we don't know what's missing".
   if (item.status === "non_verifie" || item.status === "verification_en_cours") return "?";
   // Nothing to do — absence IS the signal.
   if (item.status === "a_jour" || item.status === "disabled") return null;
+  // Everything below is an ACTIONABLE state.
+  // A film has no episode catalogue: mark it, do not count it.
+  if (item.kind === "movie") return "!";
   // Unknown catalogue → honest ignorance, not a fabricated number.
   if (item.aired_count == null) return "?";
   // Actionable states with a known catalogue — how many aired episodes are not owned.
