@@ -229,6 +229,7 @@ export function SuivisPanel(): ReactElement {
     followedId: number;
     status: FollowStatus;
     kind: MediaKind;
+    mediaHref: string | null;
   } | null>(null);
 
   // ── Derived data ───────────────────────────────────────────────────────────
@@ -326,7 +327,7 @@ export function SuivisPanel(): ReactElement {
         {...(item.year != null ? { subtitle: String(item.year) } : {})}
         meta={metaPieces.length > 0 ? <>{metaPieces}</> : null}
         onOpen={() => {
-          setSheet({ followedId: item.id, status: item.status, kind });
+          setSheet({ followedId: item.id, status: item.status, kind, mediaHref: sheetHref });
         }}
         {...(sheetHref != null
           ? {
@@ -355,7 +356,7 @@ export function SuivisPanel(): ReactElement {
         aria-label={item.title}
         onClick={() => {
           const kind = asMediaKind(item.kind);
-          setSheet({ followedId: item.id, status: item.status, kind });
+          setSheet({ followedId: item.id, status: item.status, kind, mediaHref: followMediaRef(item) });
         }}
       >
         <MediaPoster title={item.title} src={item.poster_url ?? null} className="!w-full" />
@@ -533,6 +534,7 @@ export function SuivisPanel(): ReactElement {
           followedId={sheet.followedId}
           status={sheet.status}
           kind={sheet.kind}
+          mediaHref={sheet.mediaHref}
           open
           onOpenChange={(open) => {
             if (!open) setSheet(null);

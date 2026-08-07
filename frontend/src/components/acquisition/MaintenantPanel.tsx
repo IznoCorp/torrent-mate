@@ -216,6 +216,7 @@ export function MaintenantPanel(): ReactElement {
     followedId: number;
     status: FollowStatus;
     kind: MediaKind;
+    mediaHref: string | null;
   } | null>(null);
 
   // ── Derived sections ──────────────────────────────────────────────────
@@ -313,7 +314,7 @@ export function MaintenantPanel(): ReactElement {
         {...(item.year != null ? { subtitle: String(item.year) } : {})}
         meta={null}
         onOpen={() => {
-          setSheet({ followedId: item.id, status: item.status, kind });
+          setSheet({ followedId: item.id, status: item.status, kind, mediaHref: sheetHref });
         }}
         {...(sheetHref != null
           ? {
@@ -486,6 +487,7 @@ export function MaintenantPanel(): ReactElement {
           followedId={sheet.followedId}
           status={sheet.status}
           kind={sheet.kind}
+          mediaHref={sheet.mediaHref}
           open
           onOpenChange={(open) => {
             if (!open) setSheet(null);

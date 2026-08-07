@@ -10,10 +10,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   cleanup,
+  fireEvent,
   render,
   screen,
   within,
 } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { CompletenessResponse } from "@/api/acquisition";
@@ -21,6 +23,16 @@ import type { FollowStatus, MediaKind } from "@/components/acquisition/meta";
 
 import { FollowDetailSheet, seasonCounts } from "./FollowDetailSheet";
 import * as hooks from "@/hooks/useAcquisition";
+
+// Capture navigation.
+const navigateMock = vi.fn();
+vi.mock("react-router-dom", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-router-dom")>();
+  return {
+    ...actual,
+    useNavigate: () => navigateMock,
+  } as typeof actual;
+});
 
 // ── Fixtures ──────────────────────────────────────────────────────────────
 
@@ -155,19 +167,22 @@ function mockCompleteness(data: CompletenessResponse): void {
 
 function renderSheet(
   fixture: CompletenessResponse,
-  opts?: { readonly status?: FollowStatus; readonly kind?: MediaKind },
+  opts?: { readonly status?: FollowStatus; readonly kind?: MediaKind; readonly mediaHref?: string | null },
 ): void {
   mockCompleteness(fixture);
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={qc}>
-      <FollowDetailSheet
-        followedId={fixture.followed_id}
-        status={opts?.status ?? "a_jour"}
-        kind={opts?.kind ?? (fixture.kind as MediaKind)}
-        open={true}
-        onOpenChange={vi.fn()}
-      />
+      <MemoryRouter>
+        <FollowDetailSheet
+          followedId={fixture.followed_id}
+          status={opts?.status ?? "a_jour"}
+          kind={opts?.kind ?? (fixture.kind as MediaKind)}
+          mediaHref={opts?.mediaHref}
+          open={true}
+          onOpenChange={vi.fn()}
+        />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }
@@ -176,6 +191,7 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
   vi.restoreAllMocks();
+  navigateMock.mockReset();
 });
 
 // ── Tests ─────────────────────────────────────────────────────────────────
@@ -284,5 +300,24 @@ describe("FollowDetailSheet", () => {
     renderSheet(unresolved());
     expect(screen.queryByTestId("voir-la-fiche")).toBeNull();
     expect(await screen.findByText(/n'a pas pu être résolu/)).toBeInTheDocument();
+  });
+
+  it("« Voir la fiche » est absent quand mediaHref est null, même pour un suivi résolu", async () => {
+    // mediaHref null → le bouton ne doit pas être présent.
+    // Le reste des actions secondaires (pause, remove) reste visible.
+    renderSheet(silo(), { mediaHref: null });
+    await screen.findByTestId("sheet-meta");
+    expect(screen.queryByTestId("voir-la-fiche")).toBeNull();
+    // Les autres actions secondaires sont toujours présentes.
+    expect(screen.getByTestId("secondary-actions")).toBeInTheDocument();
+  });
+
+  it("« Voir la fiche » navigue vers le href media quand mediaHref est fourni (task 11, A12)", async () => {
+    navigateMock.mockReset();
+    renderSheet(silo(), { mediaHref: "/media/tvdb/400000?kind=tv" });
+    await screen.findByTestId("voir-la-fiche");
+    fireEvent.click(screen.getByTestId("voir-la-fiche"));
+    expect(navigateMock).toHaveBeenCalledTimes(1);
+    expect(navigateMock.mock.calls[0]?.[0]).toBe("/media/tvdb/400000?kind=tv");
   });
 });

@@ -19,6 +19,7 @@
  */
 
 import { type ReactElement } from "react";
+import { useNavigate } from "react-router-dom";
 
 import type {
   CompletenessResponse,
@@ -79,6 +80,10 @@ export interface FollowDetailSheetProps {
   readonly kind: MediaKind;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
+  /** Media sheet href, or ``null`` when no provider id is known (§11).
+   *  Derived by the panel from ``followMediaRef(item)`` — the sheet does
+   *  not own the derivation. */
+  readonly mediaHref?: string | null;
 }
 
 // ── Loading / Error states ────────────────────────────────────────────────
@@ -211,6 +216,7 @@ export function FollowDetailSheet({
   kind,
   open,
   onOpenChange,
+  mediaHref,
 }: FollowDetailSheetProps): ReactElement {
   const { data, isLoading, isError } = useCompleteness(followedId, open);
 
@@ -225,7 +231,7 @@ export function FollowDetailSheet({
         ) : isError ? (
           <SheetError />
         ) : data ? (
-          <FollowDetailSheetContent data={data} status={status} kind={kind} />
+          <FollowDetailSheetContent data={data} status={status} kind={kind} mediaHref={mediaHref} />
         ) : null}
       </SheetContent>
     </Sheet>
@@ -238,11 +244,14 @@ function FollowDetailSheetContent({
   data,
   status,
   kind,
+  mediaHref,
 }: {
   readonly data: CompletenessResponse;
   readonly status: FollowStatus;
   readonly kind: MediaKind;
+  readonly mediaHref?: string | null;
 }): ReactElement {
+  const navigate = useNavigate();
   const words = actionWords(kind);
   const aggregate = aggregateFraction(data);
 
@@ -312,13 +321,18 @@ function FollowDetailSheetContent({
         <div data-testid="secondary-actions" className="mt-auto flex flex-col gap-2 p-4">
           {/* Panels (Tasks 11-12) add the remaining context-dependent actions
               (pause, resume, remove). The two rendered here are always present. */}
-          <button
-            data-testid="voir-la-fiche"
-            type="button"
-            className="w-full rounded-md border border-border px-3 py-2 text-left text-sm hover:bg-accent"
-          >
-            Voir la fiche
-          </button>
+          {mediaHref != null && (
+            <button
+              data-testid="voir-la-fiche"
+              type="button"
+              className="w-full rounded-md border border-border px-3 py-2 text-left text-sm hover:bg-accent"
+              onClick={() => {
+                void navigate(mediaHref);
+              }}
+            >
+              Voir la fiche
+            </button>
+          )}
           <button
             type="button"
             className="w-full rounded-md border border-border px-3 py-2 text-left text-sm hover:bg-accent"
