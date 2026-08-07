@@ -36,6 +36,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useGrabNow, useUnfollow, useUpdateFollow } from "@/hooks/useAcquisition";
 
+import { MqDialog } from "./MqDialog";
+
 import type { SwipeAction } from "./SwipeActions";
 import { actionWords, asMediaKind, followMediaRef } from "./meta";
 
@@ -213,46 +215,22 @@ export function useFollowActions(): FollowActions {
   };
 
   const dialog = (
-    <Dialog
+    /* Maquette .dlg (§9): one title, one paragraph saying what removal MEANS
+       for the nature, cancel + the verb. */
+    <MqDialog
       open={removing != null}
-      onOpenChange={(open) => {
-        if (!open) setRemoving(null);
+      title={removing != null ? words(removing).removeConfirmTitle : ""}
+      text={removing != null ? words(removing).removeConfirmBody : ""}
+      okLabel={removing != null ? words(removing).remove : ""}
+      okTestId="confirmer-le-retrait"
+      onOk={() => {
+        if (removing != null && !unfollow.isPending) unfollow.mutate(removing.id);
+        setRemoving(null);
       }}
-    >
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            {removing != null ? words(removing).removeConfirmTitle : ""}
-          </DialogTitle>
-          <DialogDescription>
-            {removing != null ? words(removing).removeConfirmBody : ""}
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <button
-            type="button"
-            className="rounded-md border border-border px-3 py-2 text-sm hover:bg-accent"
-            onClick={() => {
-              setRemoving(null);
-            }}
-          >
-            Annuler
-          </button>
-          <button
-            data-testid="confirmer-le-retrait"
-            type="button"
-            disabled={unfollow.isPending}
-            className="rounded-md bg-danger px-3 py-2 text-sm font-medium text-danger-foreground hover:bg-danger/90 disabled:opacity-50"
-            onClick={() => {
-              if (removing != null) unfollow.mutate(removing.id);
-              setRemoving(null);
-            }}
-          >
-            {removing != null ? words(removing).remove : ""}
-          </button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      onCancel={() => {
+        setRemoving(null);
+      }}
+    />
   );
 
   const cadenceDialog = (

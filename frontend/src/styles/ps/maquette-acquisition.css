@@ -468,6 +468,78 @@
   height: 14px;
 }
 
+/* ── Confirmation dialog (maquette .dlg) ──
+   `fixed` where the maquette says `absolute`: its .device IS the viewport
+   on a phone. z 60/61 where the maquette says 45/46: the app's bottom bar
+   sits at z-50 and the scrim must cover it (the maquette had no such
+   neighbor). Everything else verbatim. */
+
+.mq .dlgscrim {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 0.6);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  z-index: 60;
+}
+.mq .dlgscrim.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+.mq .dlg {
+  position: fixed;
+  left: 20px;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%) scale(0.96);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 61;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  transition: opacity 0.2s, transform 0.2s;
+  box-shadow: 0 20px 60px rgb(0 0 0 / 0.7);
+}
+.mq .dlg.open {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
+  pointer-events: auto;
+}
+.mq .dlg h3 {
+  margin: 0 0 7px;
+  font-size: 15.5px;
+}
+.mq .dlg p {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+.mq .dlgacts {
+  display: flex;
+  gap: 8px;
+}
+.mq .dlgbtn {
+  flex: 1;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.mq .dlgbtn.danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
 /* ── Crossref row (maquette .crossref) — dashed border, primary « → » ── */
 
 .mq .crossref {

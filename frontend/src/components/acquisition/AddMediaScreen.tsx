@@ -29,15 +29,7 @@ import type { CreateFollowRequest, MediaSearchResult } from "@/api/acquisition";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { ErrorState } from "@/components/ds/ErrorState";
 import { actionWords, asMediaKind, FOLLOW_KIND_LABEL } from "@/components/acquisition/meta";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { MqDialog } from "@/components/acquisition/MqDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -586,42 +578,20 @@ export function AddMediaScreen({
           </div>
         )}
 
-        {/* ── §5 replacement confirmation dialog ─────────────────────── */}
-        <Dialog
+        {/* ── §5 replacement confirmation — maquette .dlg, copy verbatim ── */}
+        <MqDialog
           open={confirmReplace != null}
-          onOpenChange={(open) => {
-            if (!open) setConfirmReplace(null);
+          title="Ce film est déjà en médiathèque"
+          text={`« ${confirmReplace?.title ?? ""} » est déjà rangé. Le suivre relancera une acquisition dont le résultat REMPLACERA la version en place.`}
+          okLabel="Remplacer"
+          onOk={() => {
+            if (confirmReplace != null) doFollow(confirmReplace);
+            setConfirmReplace(null);
           }}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Remplacer la version en médiathèque ?</DialogTitle>
-              <DialogDescription>
-                « {confirmReplace?.title} » est déjà en médiathèque. Le suivre
-                relancera son acquisition puis REMPLACERA la version en place
-                par la nouvelle une fois le pipeline terminé.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setConfirmReplace(null);
-                }}
-              >
-                Annuler
-              </Button>
-              <Button
-                onClick={() => {
-                  if (confirmReplace != null) doFollow(confirmReplace);
-                  setConfirmReplace(null);
-                }}
-              >
-                Remplacer
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          onCancel={() => {
+            setConfirmReplace(null);
+          }}
+        />
         {/* ── Maquette toast — in-screen confirmation ─────────────────── */}
         <div
           className={`mqtoast ${toastMsg != null ? "show" : ""}`}
