@@ -54,10 +54,40 @@ describe("AcquisitionCard", () => {
     expect(screen.getByTestId("strip")).toBeInTheDocument();
   });
 
-  it("R1 — le « ··· » est rendu DANS la carte (il voyage avec elle au balayage)", () => {
-    render(<AcquisitionCard {...base} menu={<button data-testid="kebab">···</button>} />);
+  /** Make matchMedia report a fine pointer, or a touch one. */
+  function stubPointer(fine: boolean): void {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn().mockReturnValue({
+        matches: fine,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }),
+    );
+  }
+
+  it("A11 — le « ··· » n'existe pas au doigt", () => {
+    // The operator rejected it on touch: the same actions are already one tap
+    // away in the detail sheet, so a kebab there is a duplicate that costs
+    // width. The card enforces this itself — a call site cannot opt out.
+    stubPointer(false);
+    render(
+      <AcquisitionCard {...base} menu={<button data-testid="kebab">···</button>} />,
+    );
+
+    expect(screen.queryByTestId("kebab")).not.toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+
+  it("R1 — au pointeur fin, le « ··· » est rendu DANS la carte (il voyage avec elle au balayage)", () => {
+    stubPointer(true);
+    render(
+      <AcquisitionCard {...base} menu={<button data-testid="kebab">···</button>} />,
+    );
+
     const card = screen.getByTestId("acq-card");
     expect(within(card).getByTestId("kebab")).toBeInTheDocument();
+    vi.unstubAllGlobals();
   });
 
   it("§12 — la raison enroule et n'est jamais tronquée par nowrap", () => {

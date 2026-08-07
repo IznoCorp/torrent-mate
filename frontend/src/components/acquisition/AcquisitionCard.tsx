@@ -23,6 +23,7 @@
 import { type ReactElement, type ReactNode } from "react";
 
 import { MediaPoster } from "@/components/ds/MediaPoster";
+import { useFinePointer } from "@/hooks/useFinePointer";
 
 /** Props for {@link AcquisitionCard}. */
 export interface AcquisitionCardProps {
@@ -42,7 +43,8 @@ export interface AcquisitionCardProps {
   readonly onOpen?: () => void;
   /** Tap on the poster → the media sheet. Omit when the media has no sheet (§11). */
   readonly onPoster?: () => void;
-  /** Desktop-only actions menu, rendered inside the card (R1). */
+  /** Actions menu. Rendered ONLY on a fine, hovering pointer — the card
+   *  enforces that itself, so a call site cannot put a « ··· » on a phone. */
   readonly menu?: ReactNode;
   /** Full-width own line under the top row (R2) — the journey strip. */
   readonly strip?: ReactNode;
@@ -110,6 +112,11 @@ export function AcquisitionCard({
   footer,
 }: AcquisitionCardProps): ReactElement {
   const poster = <MediaPoster title={title} src={posterUrl} className="w-[38px]" />;
+  // A11 is enforced HERE rather than at each call site. The prop's contract
+  // says desktop-only; a contract that lives only in a comment is a promise
+  // waiting to be broken, and the operator rejected a « ··· » on touch
+  // precisely because the same actions are already one tap away in the sheet.
+  const finePointer = useFinePointer();
 
   return (
     <div
@@ -160,7 +167,7 @@ export function AcquisitionCard({
           </div>
         )}
 
-        {menu}
+        {finePointer && menu}
       </div>
 
       {strip}
