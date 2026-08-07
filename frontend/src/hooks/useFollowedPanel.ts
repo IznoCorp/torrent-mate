@@ -43,7 +43,15 @@ const IMDB_ID_RE = /^tt\d+$/;
 
 /**
  * Build the follow body for an add-by-id submit, or ``null`` when the id is
- * invalid for the provider (TVDB/TMDB → positive int, IMDB → ``tt\d+``).
+ * invalid for the provider (TVDB/TMDB → plain positive digits, IMDB →
+ * ``tt\d+``).
+ *
+ * The plain-digits requirement is checked BEFORE ``Number()`` because the
+ * latter coerces ``"1e3"`` → 1000 and ``"0x10"`` → 16, both of which are
+ * safe integers — but the operator typing ``"1e3"`` into the by-ID field
+ * means the string ``"1e3"``, not the integer 1000, and following that as
+ * tvdb_id 1000 would fetch wrong artwork and wrong metadata on a real
+ * library.
  *
  * The form is series-only (``kind: 'show'``) — a TVDB id is a series id, and a
  * film is followed from the search cards which carry ``kind: 'movie'``. The
@@ -58,6 +66,11 @@ export function buildIdFollowBody(
   if (provider === "imdb") {
     return IMDB_ID_RE.test(value) ? { imdb_id: value, kind: "show" } : null;
   }
+  // Reject any non-IMDB value that is not plain digits — Number() alone
+  // cannot carry this: it coerces "1e3" → 1000 and "0x10" → 16, both of
+  // which pass Number.isSafeInteger.  The operator typing "1e3" into the
+  // by-ID field means the string 1e3, not the integer 1000.
+  if (!/^\d+$/.test(value)) return null;
   const numeric = Number(value);
   // Number.isSafeInteger, not isInteger: a 17-digit-or-longer id still passes
   // isInteger but has already lost precision (JSON would emit 1e+23 for a

@@ -58,4 +58,17 @@ describe("buildIdFollowBody", () => {
     // An IMDB-shaped value under a numeric provider is not a number → null.
     expect(buildIdFollowBody("tvdb", "tt0903747")).toBeNull();
   });
+
+  // Number() coerces "1e3" → 1000 and "0x10" → 16 — the shape check must
+  // reject these BEFORE the numeric conversion, because the docstring
+  // promises "positive int" and the operator typing "1e3" in the by-ID
+  // field means 1e3, not 1000.
+  it("rejects scientific-notation and hex strings for numeric providers", () => {
+    expect(buildIdFollowBody("tvdb", "1e3")).toBeNull();
+    expect(buildIdFollowBody("tmdb", "1e3")).toBeNull();
+    expect(buildIdFollowBody("tvdb", "1.5e2")).toBeNull();
+    expect(buildIdFollowBody("tmdb", "1.5e2")).toBeNull();
+    expect(buildIdFollowBody("tvdb", "0x10")).toBeNull();
+    expect(buildIdFollowBody("tmdb", "0x10")).toBeNull();
+  });
 });
