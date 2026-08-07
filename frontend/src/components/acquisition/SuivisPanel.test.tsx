@@ -327,11 +327,13 @@ describe("SuivisPanel", () => {
     // The old "tab" role is gone.
     expect(screen.queryByRole("tab", { name: "Séries" })).toBeNull();
     // Pills with counts.
+    // Maquette FILTERS: « Tout » counts EVERYTHING (paused included);
+    // Séries/Films cut by nature only.
     expect(
-      await screen.findByRole("button", { name: /Tout\s*7/ }),
+      await screen.findByRole("button", { name: /Tout\s*9/ }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Séries\s*6/ }),
+      screen.getByRole("button", { name: /Séries\s*8/ }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /Films\s*1/ }),
@@ -352,7 +354,7 @@ describe("SuivisPanel", () => {
   it("le filtre « Séries » ne montre que les séries et exclut les films", () => {
     renderPanel(FULL_ITEMS);
     fireEvent.click(
-      screen.getByRole("button", { name: /Séries\s*6/ }),
+      screen.getByRole("button", { name: /Séries\s*8/ }),
     );
     // Dune (film) is hidden; Silo (série) is visible.
     expect(screen.queryByText("Dune")).toBeNull();
@@ -373,20 +375,25 @@ describe("SuivisPanel", () => {
     fireEvent.click(
       screen.getByRole("button", { name: /En pause\s*2/ }),
     );
-    // Paused rows are EXCLUDED from « Tout » but reachable here — pausing must
-    // never make a follow vanish from every surface.
     expect(screen.getByText("The OA")).toBeInTheDocument();
     expect(screen.getByText("Inactive Show")).toBeInTheDocument();
     expect(screen.queryByText("Silo")).toBeNull();
   });
 
-  it("« Tout » montre tout ce qui est actif", () => {
+  it("« Tout » montre TOUT — les suspendus restent visibles, triés en dernier", () => {
+    // Maquette FILTERS: Tout = () => true. A paused follow never vanishes
+    // from the default view; URGENCY sorts it last and the tile dims.
     renderPanel(FULL_ITEMS);
-    // 8 active items should be visible (all except Inactive Show).
-    fireEvent.click(screen.getByRole("button", { name: /Tout\s*7/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Tout\s*9/ }));
     expect(screen.getByText("Silo")).toBeInTheDocument();
     expect(screen.getByText("Dune")).toBeInTheDocument();
-    expect(screen.queryByText("Inactive Show")).toBeNull();
+    expect(screen.getByText("Inactive Show")).toBeInTheDocument();
+    // Urgency order: the paused rows close the list.
+    const titles = screen.getAllByTestId("acq-card").map((c) => c.textContent);
+    const silo = titles.findIndex((t) => t.includes("Silo"));
+    const paused = titles.findIndex((t) => t.includes("Inactive Show"));
+    expect(silo).toBeGreaterThanOrEqual(0);
+    expect(paused).toBeGreaterThan(silo);
   });
 
   it("le filtre textuel réduit les résultats sans changer les compteurs de puce", () => {
@@ -400,7 +407,7 @@ describe("SuivisPanel", () => {
     expect(screen.queryByText("Silo")).toBeNull();
     // But the pill counts haven't changed — they are the unfiltered truth.
     expect(
-      screen.getByRole("button", { name: /Tout\s*7/ }),
+      screen.getByRole("button", { name: /Tout\s*9/ }),
     ).toBeInTheDocument();
   });
 
@@ -409,8 +416,8 @@ describe("SuivisPanel", () => {
   it("trie par urgence puis par titre (localeCompare fr)", async () => {
     renderPanel(FULL_ITEMS);
     // Urgency: a_recuperer(0) → en_acquisition(1) → verification_en_cours(2)
-    // → en_attente(3) → non_verifie(4) → a_jour(5) — paused rows live behind
-    // their own pill, not in this list.
+    // → en_attente(3) → non_verifie(4) → a_jour(5) → disabled(6) — maquette
+    // « Tout » keeps paused rows in the list, urgency-sorted LAST.
     const cards = await screen.findAllByTestId("acq-card");
     const titles = cards.map((c) =>
       within(c).getByTestId("acq-card-title").textContent,
@@ -427,7 +434,10 @@ describe("SuivisPanel", () => {
     expect(titles[5]).toBe("Dark Matter");
     // Shōgun is a_jour.
     expect(titles[6]).toBe("Shōgun");
-    expect(titles).toHaveLength(7);
+    // Paused rows close the list — "Inactive Show" < "The OA".
+    expect(titles[7]).toBe("Inactive Show");
+    expect(titles[8]).toBe("The OA");
+    expect(titles).toHaveLength(9);
   });
 
   // ── Display modes ─────────────────────────────────────────────────────────

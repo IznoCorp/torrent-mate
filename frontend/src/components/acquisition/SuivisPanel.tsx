@@ -96,27 +96,30 @@ interface PillMeta {
   matches(item: FollowedSeriesItem): boolean;
 }
 
+/* Maquette FILTERS semantics: « Tout » is ALL follows — a paused follow
+ * stays visible (dimmed, urgency-sorted last, « en pause » tile fraction)
+ * instead of vanishing from the default view; « Séries »/« Films » cut by
+ * nature only. « En pause » remains the dedicated lens. */
 const PILLS: Record<FilterPill, PillMeta> = {
   tout: {
     label: "Tout",
-    count: (items) => items.filter((i) => i.active).length,
-    matches: (i) => i.active,
+    count: (items) => items.length,
+    matches: () => true,
   },
   series: {
     label: "Séries",
-    count: (items) => items.filter((i) => i.active && i.kind !== "movie").length,
-    matches: (i) => i.active && i.kind !== "movie",
+    count: (items) => items.filter((i) => i.kind !== "movie").length,
+    matches: (i) => i.kind !== "movie",
   },
   films: {
     label: "Films",
-    count: (items) => items.filter((i) => i.active && i.kind === "movie").length,
-    matches: (i) => i.active && i.kind === "movie",
+    count: (items) => items.filter((i) => i.kind === "movie").length,
+    matches: (i) => i.kind === "movie",
   },
   pause: {
     label: "En pause",
-    // status "disabled" is the server's derivation of active=0 — the old
-    // predicate ANDed it with i.active, a combination the server can never
-    // produce. One derivation (§13): read the derived status alone.
+    // status "disabled" is the server's derivation of active=0 — one
+    // derivation (§13): read the derived status alone.
     count: (items) => items.filter((i) => i.status === "disabled").length,
     matches: (i) => i.status === "disabled",
   },
