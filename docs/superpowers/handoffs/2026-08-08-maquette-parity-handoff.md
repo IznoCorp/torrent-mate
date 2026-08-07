@@ -111,6 +111,26 @@ you probably regressed an arbitration:
    reserved for the « ? » unknown-count state.
 5. **Never touch the maquette** — not the file, not the operator's tab, not
    its emulation. Work in your own tabs only.
+5b. **Geist is canonical for the Acquisition surface** (2026-08-08). The
+   maquette's system-font stack is a prototype artifact — do NOT port it.
+   All font-dependent metrics (letter widths, `normal` line boxes) are
+   judged under Geist on both sides; the measurement harness injects Geist
+   at runtime into ITS OWN rendering of the maquette copy (file untouched).
+   Corollary: no hard-pinned px heights compensating system-font metrics —
+   the maquette's verbatim declarations under Geist are the truth
+   (fix `963b2922`).
+5c. **Add-screen `.sugg` chips carry honest data** (2026-08-08): this
+   device's recent search queries (localStorage, max 5, deduplicated
+   against existing follows), absent until history exists — never the
+   maquette's hardcoded titles.
+5d. **Desktop ≥ md = centered reading column** (2026-08-08): mobile
+   maquette grammar in a ~672 px centered column (not `max-w-5xl`), tile
+   grid auto-fill, sheets/dialogs width-capped. No invented desktop
+   layout.
+5e. **Measurement driver** (2026-08-08): headless Playwright harness
+   (browser MCP unavailable this session) — isolated contexts, zero
+   contact with the operator's Chrome; method/spec unchanged
+   (spec §3.1 addendum).
 6. Repo-wide standing rules: code comments in English only, no dev-phase
    references in code; conventional commits, French bodies, no AI
    attribution; version bump on every PR; in `frontend/` write « ticket 411 »

@@ -30,8 +30,17 @@ Worktree `.claude/worktrees/acq-mobile`, branch `feat/acq-mobile`.
 
 ### 3.1 Scripted DOM probe — the hard gate
 
-A versioned probe script (scratchpad + referenced in the ledger) executed via
-chrome-devtools MCP `evaluate_script` in TWO tabs I own:
+> **Driver addendum (2026-08-08, operator-approved):** the browser MCP
+> extension is not connected in this session, so the measurement driver is a
+> **headless Playwright harness** (Python Playwright already installed,
+> Chromium already cached — no downloads). Everything below reading « tab »
+> means an isolated headless browser context; probe semantics, emulation
+> (390×844, DPR 2, mobile, touch), synthetic-injection recipe, staging URL
+> and evidence formats are unchanged. Headless contexts have zero contact
+> with the operator's Chrome, which strengthens arbitration §3.5.
+
+A versioned probe script (scratchpad + referenced in the ledger) executed in
+TWO browser contexts I own:
 
 - **Maquette tab**: `acquisition-prototype-debug.html` served by the prior
   session's `serve.py` (127.0.0.1:8801, no-store). The original maquette file and
