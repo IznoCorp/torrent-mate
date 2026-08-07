@@ -17,7 +17,13 @@ afterEach(() => {
 });
 
 function action(key: string, label: string, onRun = vi.fn()): SwipeAction {
-  return { key, label, icon: null, tone: "neutral", onRun };
+  return {
+    key,
+    label,
+    icon: <svg data-testid={`icon-${key}`} aria-hidden="true" />,
+    actClass: "pause",
+    onRun,
+  };
 }
 
 function renderSwipe(opts?: {
@@ -124,16 +130,18 @@ describe("SwipeActions", () => {
   });
 
   it("keeps the label readable rather than widening the button", () => {
-    // « Ne plus chercher » is the longest label; it must wrap inside a fixed
-    // basis, because unequal buttons make the action row read as misaligned.
+    // « Ne plus chercher » is the longest label; it must wrap inside the .act
+    // pane's fixed 84 px flex basis (carried by the maquette CSS, which jsdom
+    // does not compute — the class IS the contract), because unequal buttons
+    // make the action row read as misaligned.
     renderSwipe({ right: [action("s", "Ne plus chercher")] });
     const button = screen.getByTestId("swipe-action");
 
-    expect(button.className).toContain("flex-none");
-    expect(button.className).toContain(`basis-[84${CSS_PX}]`);
-    // R5: never a class named `grab` — the sheet handle owns that name at equal
-    // specificity, and the later declaration wins.
-    expect(button.className.split(/\s+/)).not.toContain("grab");
+    expect(button).toHaveClass("act", "pause");
+    // The label lives in its own span so the icon/label column keeps the
+    // maquette's 4 px gap; the old R5 « never a class named grab » rule is
+    // obsolete — the sheet handle is `sheetgrab`, so `.act.grab` is free.
+    expect(button.querySelector("span")).toHaveTextContent("Ne plus chercher");
   });
   // The next two observe the transform DURING the drag, not after it. Asserting
   // only the settled state let two separate defects hide each other: an
@@ -168,5 +176,21 @@ describe("SwipeActions", () => {
     fireEvent.pointerMove(card, { clientX: 205, clientY: 220 });
 
     expect(card.style.transform).toBe(translated(0));
+  });
+
+  it("rend les panneaux maquette .act.<classe> avec leur icône", () => {
+    // Maquette contract: each pane is a .act column carrying its tone class
+    // (grab=primary, pause=muted, remove=danger) and a 17 px SVG icon —
+    // an icon-less pane was the previous session's `icon: null` gap.
+    renderSwipe({
+      left: { ...action("grab", "Récupérer"), actClass: "grab" },
+      right: [action("suspend", "Pause"), { ...action("remove", "Retirer"), actClass: "remove" }],
+    });
+    const buttons = screen.getAllByTestId("swipe-action");
+
+    expect(buttons.map((b) => b.className)).toEqual(["act grab", "act pause", "act remove"]);
+    for (const key of ["grab", "suspend", "remove"]) {
+      expect(screen.getByTestId(`icon-${key}`)).toBeInTheDocument();
+    }
   });
 });

@@ -468,6 +468,59 @@
   height: 14px;
 }
 
+/* ── Swipe action panes (maquette .actions/.act) ──
+   `.act.grab` is safe: the sheet handle is `sheetgrab` (the maquette named
+   it that way precisely to dodge this collision). */
+
+.mq .actions {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: stretch;
+}
+.mq .actions .side {
+  display: flex;
+}
+.mq .actions .side.left {
+  margin-right: auto;
+}
+.mq .actions .side.right {
+  margin-left: auto;
+}
+.mq .act {
+  border: 0;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #fff;
+  flex: 0 0 84px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 5px;
+  text-align: center;
+  cursor: pointer;
+}
+.mq .act svg {
+  width: 17px;
+  height: 17px;
+}
+.mq .act.grab {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.mq .act.pause {
+  background: var(--muted);
+  color: var(--foreground);
+}
+.mq .act.remove {
+  background: var(--danger);
+  color: #fff;
+}
+
 /* ── Bottom sheet chrome (maquette .sheet/.sheetgrab) ── */
 
 .mq .sheetgrab {

@@ -21,8 +21,11 @@ import { EDGE_DEAD_ZONE_PX, lockAxis } from "@/components/acquisition/gestures";
 export interface SwipeAction {
   readonly key: string;
   readonly label: string;
+  /** 17 px maquette icon — sized by the `.act svg` rule. */
   readonly icon: ReactNode;
-  readonly tone: "primary" | "neutral" | "danger";
+  /** Maquette pane class — carries the tone (grab=primary, pause=muted,
+   *  remove=danger) and the 84 px column layout. */
+  readonly actClass: "grab" | "pause" | "remove";
   readonly onRun: () => void;
 }
 
@@ -47,13 +50,6 @@ const ACTION_WIDTH_PX = 84;
 
 /** Distance a drag must cover before the actions stay open. */
 const OPEN_THRESHOLD_PX = 40;
-
-/** Tailwind classes per tone. */
-const TONE_CLASS: Record<SwipeAction["tone"], string> = {
-  primary: "bg-primary text-primary-foreground",
-  neutral: "bg-muted text-foreground",
-  danger: "bg-danger text-danger-foreground",
-};
 
 /**
  * Wrap a card so a sideways drag reveals its actions.
@@ -120,16 +116,16 @@ export function SwipeActions({
         key={action.key}
         type="button"
         data-testid="swipe-action"
-        // `flex-none` with a fixed basis, and NEVER a class named `grab`: the
-        // sheet handle already owns that name at the same specificity, and the
-        // later declaration wins — which once painted an action as a 36x4 pill.
-        className={`flex flex-none basis-[84px] flex-col items-center justify-center gap-1 px-1 text-center text-[length:var(--text-2xs)] leading-tight ${TONE_CLASS[action.tone]}`}
+        // Maquette pane grammar: 84 px column, 17 px icon, tone via the class.
+        // `.act.grab` no longer collides with the sheet handle — it is
+        // `sheetgrab`, named that way in the maquette for this exact reason.
+        className={`act ${action.actClass}`}
         onClick={() => {
           action.onRun();
           close();
         }}
       >
-        <span aria-hidden="true">{action.icon}</span>
+        {action.icon}
         <span>{action.label}</span>
       </button>
     );
@@ -141,15 +137,17 @@ export function SwipeActions({
       data-testid="swipe-container"
       className="relative overflow-hidden rounded-lg"
     >
-      {/* Action layer — behind the card, never translated. */}
+      {/* Action layer — behind the card, never translated (maquette .actions). */}
       {/* inert: aria-hidden alone left the buttons keyboard-focusable — a
           hidden control that still takes focus is a trap. The kebab is the
           keyboard path to the same actions. */}
-      <div className="absolute inset-y-0 left-0 flex" aria-hidden={offset <= 0} inert={offset <= 0}>
-        {left != null && renderAction(left)}
-      </div>
-      <div className="absolute inset-y-0 right-0 flex" aria-hidden={offset >= 0} inert={offset >= 0}>
-        {right?.map(renderAction)}
+      <div className="actions">
+        <div className="side left" aria-hidden={offset <= 0} inert={offset <= 0}>
+          {left != null && renderAction(left)}
+        </div>
+        <div className="side right" aria-hidden={offset >= 0} inert={offset >= 0}>
+          {right?.map(renderAction)}
+        </div>
       </div>
 
       <div

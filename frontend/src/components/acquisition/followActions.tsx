@@ -39,6 +39,24 @@ import { useGrabNow, useUnfollow, useUpdateFollow } from "@/hooks/useAcquisition
 import type { SwipeAction } from "./SwipeActions";
 import { actionWords, asMediaKind, followMediaRef } from "./meta";
 
+/* Maquette icon set `I` — verbatim SVG paths (down/pause/trash), sized 17 px
+ * by the `.act svg` rule. */
+const ICON_DOWN = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+    <path d="M12 4v12M6 12l6 6 6-6" />
+  </svg>
+);
+const ICON_PAUSE = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+    <path d="M10 5v14M14 5v14" />
+  </svg>
+);
+const ICON_TRASH = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+    <path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13" />
+  </svg>
+);
+
 /** Both sides of a follow card's swipe — spread onto {@link SwipeActions}. */
 export interface FollowSwipe {
   /** The affirmative action (rightward drag) — present only when one exists. */
@@ -103,8 +121,8 @@ export function useFollowActions(): FollowActions {
       {
         key: "suspend",
         label: paused ? w.resumeShort : w.pauseShort,
-        icon: null,
-        tone: "neutral",
+        icon: ICON_PAUSE,
+        actClass: "pause",
         onRun: () => {
           suspendOrResume(item);
         },
@@ -117,8 +135,8 @@ export function useFollowActions(): FollowActions {
             {
               key: "remove",
               label: "Retirer",
-              icon: null,
-              tone: "danger" as const,
+              icon: ICON_TRASH,
+              actClass: "remove" as const,
               onRun: () => {
                 setRemoving(item);
               },
@@ -133,8 +151,8 @@ export function useFollowActions(): FollowActions {
       left: {
         key: "grab",
         label: "Récupérer",
-        icon: null,
-        tone: "primary",
+        icon: ICON_DOWN,
+        actClass: "grab",
         onRun: () => {
           grabNow.mutate(item.id);
         },
