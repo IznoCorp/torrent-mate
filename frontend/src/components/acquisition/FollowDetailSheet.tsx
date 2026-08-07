@@ -19,6 +19,17 @@
  */
 
 import { useState, type ReactElement } from "react";
+
+import {
+  Clock,
+  Download,
+  FileText,
+  Pause,
+  Play,
+  Route,
+  Search,
+  Trash2,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import type {
@@ -387,11 +398,11 @@ function FollowDetailSheetContent({
         <div className="flex items-start gap-3">
           <MediaPoster title={data.title} src={posterUrl ?? null} className="w-[84px]" />
           <div className="min-w-0 flex-1">
-        <SheetTitle className="text-[19px] font-semibold leading-tight tracking-[-0.015em] [text-wrap:balance]">{data.title}</SheetTitle>
+        <SheetTitle className="sheettitle [text-wrap:balance]">{data.title}</SheetTitle>
         {/* The one fraction — same derivation as card + season headers (§13) —
             then WHEN the machine looks again, or why it will not (paused). */}
         {(aggregate != null || data.kind === "movie") && (
-          <p data-testid="sheet-meta" className="text-sm text-muted-foreground">
+          <p data-testid="sheet-meta" className="sheetmeta">
             {/* An announced-only catalogue has aired 0: « 0/0 » would read as
                 an empty série. §14.1 separates « not aired yet » from
                 « nothing there ». */}
@@ -417,7 +428,7 @@ function FollowDetailSheetContent({
             the automatic exit that §5 makes normal. An acquired film is past
             the rule, so it gets no sentence. */}
         {data.kind === "movie" && status !== "a_jour" && (
-          <p className="text-sm text-muted-foreground">{MOVIE_LIFECYCLE_NOTE}</p>
+          <p className="rulenote">{MOVIE_LIFECYCLE_NOTE}</p>
         )}
         {unresolved && (
           <p className="text-sm text-muted-foreground">
@@ -431,7 +442,7 @@ function FollowDetailSheetContent({
 
       {/* ── Primary action (§5.3) ── */}
       {canGrab && (
-        <div data-testid="primary-action" className="px-4">
+        <div data-testid="primary-action" className="sheetacts px-4">
           {/* Wired to the real search chain: the ONE action this sheet exists
               to offer was shipped as a button with no onClick — a dead control
               on the primary path (§11). The 202 means « launched »; the toast
@@ -439,12 +450,13 @@ function FollowDetailSheetContent({
           <button
             type="button"
             disabled={grabNow.isPending}
-            className="w-full rounded-md bg-primary px-3 py-2 text-center text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            className="sact primary"
             onClick={() => {
               grabNow.mutate(followedId);
               onOpenChange(false);
             }}
           >
+            <Download aria-hidden="true" />
             Récupérer maintenant
           </button>
         </div>
@@ -472,16 +484,17 @@ function FollowDetailSheetContent({
           operator could neither stop nor drop the one follow most likely to
           need it. Only « Voir la fiche » depends on an id, and it gates itself
           through mediaHref. */}
-      <div data-testid="secondary-actions" className="mt-auto flex flex-col gap-2 p-4">
+      <div data-testid="secondary-actions" className="sheetacts secondary mt-auto px-4 pb-4">
         {mediaHref != null ? (
           <button
             data-testid="voir-la-fiche"
             type="button"
-            className="w-full rounded-md border border-border px-3 py-2 text-left text-sm hover:bg-accent"
+            className="sact hover:bg-accent"
             onClick={() => {
               void navigate(mediaHref);
             }}
           >
+            <FileText aria-hidden="true" />
             Voir la fiche
           </button>
         ) : unresolved ? null : (
@@ -489,7 +502,7 @@ function FollowDetailSheetContent({
              button that simply is not there reads as a bug, not a fact. The
              header's unresolved paragraph already says it for a catalogue-less
              follow — no second sentence there (§12). */
-          <p className="text-xs text-muted-foreground">
+          <p className="nofiche">
             Pas de fiche : l&apos;identifiant TVDB de ce média n&apos;a pas pu
             être résolu.
           </p>
@@ -500,24 +513,26 @@ function FollowDetailSheetContent({
           data-testid="rechercher-maintenant"
           type="button"
           disabled={grabNow.isPending}
-          className="w-full rounded-md border border-border px-3 py-2 text-left text-sm hover:bg-accent disabled:opacity-50"
+          className="sact hover:bg-accent"
           onClick={() => {
             grabNow.mutate(followedId);
             onOpenChange(false);
           }}
         >
+          <Search aria-hidden="true" />
           Rechercher maintenant
         </button>
         {onVoirLeParcours != null && (
           <button
             data-testid="voir-le-parcours"
             type="button"
-            className="w-full rounded-md border border-border px-3 py-2 text-left text-sm hover:bg-accent"
+            className="sact hover:bg-accent"
             onClick={() => {
               onOpenChange(false);
               onVoirLeParcours();
             }}
           >
+            <Route aria-hidden="true" />
             Voir le parcours
           </button>
         )}
@@ -525,11 +540,12 @@ function FollowDetailSheetContent({
           <button
             data-testid="cadence-de-recherche"
             type="button"
-            className="w-full rounded-md border border-border px-3 py-2 text-left text-sm hover:bg-accent"
+            className="sact hover:bg-accent"
             onClick={() => {
               onEditCadence();
             }}
           >
+            <Clock aria-hidden="true" />
             Cadence de recherche
           </button>
         )}
@@ -541,12 +557,13 @@ function FollowDetailSheetContent({
             data-testid="reactiver"
             type="button"
             disabled={updateFollow.isPending}
-            className="w-full rounded-md border border-border px-3 py-2 text-left text-sm hover:bg-accent disabled:opacity-50"
+            className="sact hover:bg-accent"
             onClick={() => {
               updateFollow.mutate({ id: followedId, body: { active: true } });
               onOpenChange(false);
             }}
           >
+            <Play aria-hidden="true" />
             {words.resume}
           </button>
         ) : (
@@ -554,12 +571,13 @@ function FollowDetailSheetContent({
             data-testid="mettre-en-pause"
             type="button"
             disabled={updateFollow.isPending}
-            className="w-full rounded-md border border-border px-3 py-2 text-left text-sm hover:bg-accent disabled:opacity-50"
+            className="sact hover:bg-accent"
             onClick={() => {
               updateFollow.mutate({ id: followedId, body: { active: false } });
               onOpenChange(false);
             }}
           >
+            <Pause aria-hidden="true" />
             {words.pause}
           </button>
         )}
@@ -567,11 +585,12 @@ function FollowDetailSheetContent({
           data-testid="retirer-le-suivi"
           type="button"
           disabled={unfollow.isPending}
-          className="w-full rounded-md border border-border px-3 py-2 text-left text-sm text-danger hover:bg-accent disabled:opacity-50"
+          className="sact danger hover:bg-accent"
           onClick={() => {
             setConfirmRemove(true);
           }}
         >
+          <Trash2 aria-hidden="true" />
           {words.remove}
         </button>
       </div>
