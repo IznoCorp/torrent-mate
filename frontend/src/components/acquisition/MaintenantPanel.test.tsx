@@ -375,6 +375,33 @@ describe("MaintenantPanel", () => {
     expect(waitingCard?.querySelector("[data-station]")).toBeNull();
   });
 
+  it("un suivi non vérifié ACTIF attend dans « Cherché, rien trouvé » (maquette renderNow)", async () => {
+    // Maquette: waiting = actifs en_attente OU non_verifie — un suivi jamais
+    // vérifié attend l'opérateur autant qu'un « rien de conforme », et son
+    // sub dit honnêtement pourquoi (pas de faux verdict de recherche).
+    const nonVerifie: FollowedSeriesItem = {
+      ...waitingShow(),
+      id: 9,
+      title: "Star City",
+      status: "non_verifie",
+    };
+    const paused: FollowedSeriesItem = {
+      ...waitingShow(),
+      id: 10,
+      title: "Rooster",
+      status: "non_verifie",
+      active: false,
+    };
+    renderPanel({ ...full, followed: [...full.followed, nonVerifie, paused] });
+
+    const waitingSection = await screen.findByTestId("section-cherche-rien-trouve");
+    expect(within(waitingSection).getByText("Star City")).toBeInTheDocument();
+    expect(
+      within(waitingSection).getByText(/pas encore vérifié sur les trackers/),
+    ).toBeInTheDocument();
+    expect(within(waitingSection).queryByText("Rooster")).toBeNull();
+  });
+
   it("un bloqué affiche sa raison ENTIÈRE et l'action sous la frise (§12)", async () => {
     renderPanel(full);
 

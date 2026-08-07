@@ -199,9 +199,14 @@ export function MaintenantPanel(): ReactElement {
   /** « En vol » — wanted items currently in the pipeline (status=grabbed). */
   const enVol: readonly WantedItem[] = wanted.data?.items ?? [];
 
-  /** « Cherché, rien trouvé » — searched, nothing conforming (§14.1 rest state). */
+  /** « Cherché, rien trouvé » — searched, nothing conforming (§14.1 rest
+   *  state), PLUS active never-verified follows (maquette renderNow: a
+   *  follow the machine has not checked yet is also waiting on nothing). */
   const chercheRienTrouve: readonly FollowedSeriesItem[] =
-    followed.data?.items.filter((i) => i.status === "en_attente") ?? [];
+    followed.data?.items.filter(
+      (i) =>
+        i.active && (i.status === "en_attente" || i.status === "non_verifie"),
+    ) ?? [];
 
   /** « Rangé aujourd'hui » — follows whose journey DISPATCHED today.
    *
@@ -355,7 +360,12 @@ export function MaintenantPanel(): ReactElement {
    */
   function searchMetaLine(item: FollowedSeriesItem): string {
     const pieces: string[] = [];
-    const reason = followWaitingReason(item);
+    // Maquette waiting card: a never-verified follow says WHY it rests —
+    // no search verdict exists yet, and faking one would break §14.
+    const reason =
+      item.status === "non_verifie"
+        ? "pas encore vérifié sur les trackers"
+        : followWaitingReason(item);
     if (reason != null) pieces.push(reason);
     if (item.next_search_at != null) {
       // Compact wording: the full « prochaine vérification » pushed the line
