@@ -44,6 +44,8 @@ import {
 import { ErrorState } from "@/components/ds/ErrorState";
 
 import { AcquisitionCard } from "./AcquisitionCard";
+import { SwipeActions } from "./SwipeActions";
+import { useFollowActions } from "./followActions";
 import { FollowDetailSheet } from "./FollowDetailSheet";
 import { JourneyStrip, type Stage } from "./JourneyStrip";
 import { DownloadRow } from "./DownloadsPanel";
@@ -203,6 +205,7 @@ export function MaintenantPanel(): ReactElement {
   const journeys = useJourneys();
   const overview = useOverview();
   const toHandleDegraded = toHandle.data?.degraded ?? false;
+  const actions = useFollowActions();
   const downloadsQuery = useDownloads();
   const downloads = downloadsQuery.data?.downloads ?? [];
   const clientAvailable = downloadsQuery.data?.client_available ?? true;
@@ -332,23 +335,27 @@ export function MaintenantPanel(): ReactElement {
     const kind = asMediaKind(item.kind);
     const sheetHref = followMediaRef(item);
     return (
-      <AcquisitionCard
-        key={item.id}
-        title={item.title}
-        posterUrl={item.poster_url ?? null}
-        {...(item.year != null ? { subtitle: String(item.year) } : {})}
-        meta={null}
-        onOpen={() => {
-          setSheet({ followedId: item.id, status: item.status, kind, mediaHref: sheetHref });
-        }}
-        {...(sheetHref != null
-          ? {
-              onPoster: () => {
-                void navigate(sheetHref);
-              },
-            }
-          : {})}
-      />
+      /* A10/A11 — same gesture and kebab grammar as « Suivis », from the same
+         builder (§13): three surfaces, one action source. */
+      <SwipeActions key={item.id} right={actions.swipeFor(item)}>
+        <AcquisitionCard
+          title={item.title}
+          posterUrl={item.poster_url ?? null}
+          {...(item.year != null ? { subtitle: String(item.year) } : {})}
+          meta={null}
+          menu={actions.menuFor(item)}
+          onOpen={() => {
+            setSheet({ followedId: item.id, status: item.status, kind, mediaHref: sheetHref });
+          }}
+          {...(sheetHref != null
+            ? {
+                onPoster: () => {
+                  void navigate(sheetHref);
+                },
+              }
+            : {})}
+        />
+      </SwipeActions>
     );
   }
 
@@ -565,6 +572,8 @@ export function MaintenantPanel(): ReactElement {
           </p>
         )}
       </div>
+
+      {actions.dialog}
 
       {/* ── Detail sheet ─────────────────────────────────────────────── */}
       {sheet != null && (

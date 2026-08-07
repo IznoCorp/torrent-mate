@@ -32,6 +32,8 @@ import { MediaPoster } from "@/components/ds/MediaPoster";
 import { ErrorState } from "@/components/ds/ErrorState";
 
 import { AcquisitionCard } from "./AcquisitionCard";
+import { SwipeActions } from "./SwipeActions";
+import { useFollowActions } from "./followActions";
 import { FollowDetailSheet } from "./FollowDetailSheet";
 import type { FollowStatus, MediaKind } from "./meta";
 import {
@@ -226,6 +228,7 @@ export function SuivisPanel(): ReactElement {
   // the « En pause » pill was a permanent zero by construction — a filter that
   // can never match is a lie with a control attached.
   const followed = useFollowed({ active: "all" });
+  const actions = useFollowActions();
   const [viewMode, setViewMode] = useViewMode();
 
   // ── State ──────────────────────────────────────────────────────────────────
@@ -331,23 +334,29 @@ export function SuivisPanel(): ReactElement {
     const sheetHref = followMediaRef(item);
 
     return (
-      <AcquisitionCard
-        key={item.id}
-        title={item.title}
-        posterUrl={item.poster_url ?? null}
-        {...(item.year != null ? { subtitle: String(item.year) } : {})}
-        meta={metaPieces.length > 0 ? <>{metaPieces}</> : null}
-        onOpen={() => {
-          setSheet({ followedId: item.id, status: item.status, kind, mediaHref: sheetHref });
-        }}
-        {...(sheetHref != null
-          ? {
-              onPoster: () => {
-                void navigate(sheetHref);
-              },
-            }
-          : {})}
-      />
+      /* A10 — the card's own gesture: swipe reveals suspend/remove. The pager
+         hands back any drag born inside data-swipe, so the two horizontal
+         gestures never fight. The « ··· » renders on fine pointers only —
+         the card enforces A11 itself. */
+      <SwipeActions key={item.id} right={actions.swipeFor(item)}>
+        <AcquisitionCard
+          title={item.title}
+          posterUrl={item.poster_url ?? null}
+          {...(item.year != null ? { subtitle: String(item.year) } : {})}
+          meta={metaPieces.length > 0 ? <>{metaPieces}</> : null}
+          menu={actions.menuFor(item)}
+          onOpen={() => {
+            setSheet({ followedId: item.id, status: item.status, kind, mediaHref: sheetHref });
+          }}
+          {...(sheetHref != null
+            ? {
+                onPoster: () => {
+                  void navigate(sheetHref);
+                },
+              }
+            : {})}
+        />
+      </SwipeActions>
     );
   }
 
@@ -538,6 +547,8 @@ export function SuivisPanel(): ReactElement {
           </div>
         )}
       </div>
+
+      {actions.dialog}
 
       {/* ── Detail sheet ─────────────────────────────────────────────── */}
       {sheet != null && (

@@ -634,4 +634,85 @@ describe("SuivisPanel", () => {
     const sections = screen.queryAllByTestId("section-head");
     expect(sections).toHaveLength(0); // No section headers in list mode.
   });
+  // ── A10/A11/A12 — the gesture and kebab are MOUNTED ─────────────────────
+  //
+  // SwipeActions and the « ··· » menu once shipped fully built, fully tested,
+  // and mounted NOWHERE — every arbitration they carry was unreachable. These
+  // pin the mount itself: the component tests cannot see an absent call site.
+
+  it("A10 — chaque carte liste vit dans un conteneur de balayage avec ses actions", () => {
+    renderPanel([takeableShow()]);
+    const container = screen.getByTestId("swipe-container");
+    expect(container).toHaveAttribute("data-swipe");
+    const labels = within(container)
+      .getAllByTestId("swipe-action")
+      .map((b) => b.textContent);
+    // §9's 84 px pair for a série: suspend then remove.
+    expect(labels).toEqual(["Pause", "Retirer"]);
+  });
+
+  it("A10 — le balayage d'une série en pause offre « Activer », pas une seconde pause", () => {
+    renderPanel([pausedShow()]);
+    fireEvent.click(screen.getByRole("button", { name: /En pause\s*1/ }));
+    const container = screen.getByTestId("swipe-container");
+    const labels = within(container)
+      .getAllByTestId("swipe-action")
+      .map((b) => b.textContent);
+    expect(labels).toEqual(["Activer", "Retirer"]);
+  });
+
+  it("A10/§9 — « Retirer » par balayage passe par la confirmation avant d'agir", () => {
+    const mutate = vi.fn();
+    vi.spyOn(hooks, "useUnfollow").mockReturnValue({
+      mutate,
+      isPending: false,
+    } as unknown as ReturnType<typeof hooks.useUnfollow>);
+
+    renderPanel([takeableShow()]);
+    const container = screen.getByTestId("swipe-container");
+    const [, removeBtn] = within(container).getAllByTestId("swipe-action");
+    if (removeBtn == null) throw new Error("unreachable");
+    fireEvent.click(removeBtn);
+
+    expect(mutate).not.toHaveBeenCalled();
+    expect(screen.getByText("Retirer ce suivi ?")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("confirmer-le-retrait"));
+    expect(mutate).toHaveBeenCalledWith(1);
+  });
+
+  it("A10 — « Pause » par balayage suspend réellement", () => {
+    const mutate = vi.fn();
+    vi.spyOn(hooks, "useUpdateFollow").mockReturnValue({
+      mutate,
+      isPending: false,
+    } as unknown as ReturnType<typeof hooks.useUpdateFollow>);
+
+    renderPanel([takeableShow()]);
+    const container = screen.getByTestId("swipe-container");
+    const [suspendBtn] = within(container).getAllByTestId("swipe-action");
+    if (suspendBtn == null) throw new Error("unreachable");
+    fireEvent.click(suspendBtn);
+
+    expect(mutate).toHaveBeenCalledWith({ id: 1, body: { active: false } });
+  });
+
+  it("A11/A12 — au pointeur fin, le « ··· » existe et offre « Voir la fiche »", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn().mockReturnValue({
+        matches: true,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }),
+    );
+    renderPanel([takeableShow()]);
+
+    const trigger = screen.getByRole("button", { name: "Actions pour Silo" });
+    fireEvent.pointerDown(trigger);
+    fireEvent.click(trigger);
+
+    expect(screen.getByText("Voir la fiche")).toBeInTheDocument();
+    expect(screen.getByText("Retirer le suivi")).toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
 });
