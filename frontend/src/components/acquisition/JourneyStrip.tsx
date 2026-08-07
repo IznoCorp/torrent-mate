@@ -89,7 +89,7 @@ export function JourneyStrip({
           ? "bg-success border-success rounded-full"
           : here
             ? blocked
-              ? "bg-danger border-danger ring-[3px] ring-danger/25 rounded-[2px]"
+              ? "bg-danger border-danger ring-[3px] ring-danger/25 rounded-full"
               : "bg-info border-info ring-[3px] ring-info/25 rounded-full"
             : "bg-muted border-border rounded-full";
         const text = here ? (blocked ? "text-danger font-semibold" : "text-info font-semibold") : "text-muted-foreground";

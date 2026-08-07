@@ -306,6 +306,36 @@ export const TONE_CHIP_CLASS: Record<string, string> = {
 };
 
 /**
+ * DS tone → episode-CELL paint — the square matrix cells of the detail sheet.
+ *
+ * Tinted background + toned number, per the maquette's 22 % mix; the
+ * no-verdict ghost is a dashed outline, not a colour. The legend swatches
+ * read {@link TONE_SWATCH_CLASS} — same tones, stronger mix — so cell and
+ * key can never drift apart.
+ */
+export const TONE_CELL_CLASS: Record<string, string> = {
+  success: "bg-success/20 text-success",
+  warning: "bg-warning/20 text-warning",
+  info: "bg-info/20 text-info",
+  waiting: "bg-waiting/20 text-waiting",
+  upcoming:
+    "bg-[color-mix(in_oklch,var(--upcoming)_16%,transparent)] text-[var(--upcoming)]",
+  muted: "border border-dashed border-border bg-transparent text-muted-foreground",
+  neutral: "bg-muted text-muted-foreground",
+};
+
+/** DS tone → legend-swatch paint — 9 px squares at the maquette's 60 % mix. */
+export const TONE_SWATCH_CLASS: Record<string, string> = {
+  success: "bg-success/60",
+  warning: "bg-warning/60",
+  info: "bg-info/60",
+  waiting: "bg-waiting/60",
+  upcoming: "bg-[color-mix(in_oklch,var(--upcoming)_60%,transparent)]",
+  muted: "border border-dashed border-border bg-transparent",
+  neutral: "bg-muted",
+};
+
+/**
  * DS tone → square section-pip classes — the ONE header grammar (§13).
  *
  * « Maintenant » paints its five fixed sections from SECTION_META; the grouped
@@ -314,13 +344,13 @@ export const TONE_CHIP_CLASS: Record<string, string> = {
  * hand-rolled color derivation.
  */
 export const TONE_PIP_CLASS: Record<string, string> = {
-  warning: "border-warning bg-warning",
-  success: "border-success bg-success",
-  danger: "border-danger bg-danger",
-  info: "border-info bg-info",
-  waiting: "border-waiting bg-waiting",
-  muted: "border-muted-foreground bg-muted-foreground",
-  neutral: "border-muted-foreground bg-muted-foreground",
+  warning: "bg-warning",
+  success: "bg-success",
+  danger: "bg-danger",
+  info: "bg-info",
+  waiting: "bg-waiting",
+  muted: "bg-muted-foreground",
+  neutral: "bg-muted-foreground",
 };
 
 export const MOVIE_LIFECYCLE_NOTE =

@@ -512,6 +512,38 @@ describe("AcquisitionPage", () => {
     expect(screen.getByText(/Ajouter un média/)).toBeInTheDocument();
   });
 
+  it("l'écran d'ajout vit dans l'historique : « Retour » le ferme (régression gestes)", () => {
+    mockAllEmpty();
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Ajouter un média" }));
+    expect(screen.getByText(/Recherchez un film ou une série/)).toBeInTheDocument();
+
+    // The header arrow pops the pushed entry — same path as the phone's back
+    // gesture. The old useState open never touched history: back left the
+    // operator stuck, and the only exit was a close cross the maquette
+    // never had.
+    fireEvent.click(screen.getByRole("button", { name: "Retour" }));
+    expect(
+      screen.queryByText(/Recherchez un film ou une série/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("l'écran d'ajout n'a PAS de croix de fermeture (la maquette n'en prévoit pas)", () => {
+    mockAllEmpty();
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Ajouter un média" }));
+    expect(screen.queryByRole("button", { name: /Fermer|Close/ })).toBeNull();
+  });
+
+  it("?add=1 en URL directe ouvre l'écran d'ajout (DOIT-10)", () => {
+    mockAllEmpty();
+    renderPage("/acquisition?add=1");
+
+    expect(screen.getByText(/Recherchez un film ou une série/)).toBeInTheDocument();
+  });
+
   // ── « Plus » button ────────────────────────────────────────────────────
 
   it("« Plus » opens the Veille et Obligations sheet", () => {

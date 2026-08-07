@@ -32,18 +32,24 @@ describe("JourneyStrip (§14.3)", () => {
     });
   });
 
-  it("une étape bloquée se distingue de « en cours » par autre chose que la couleur", () => {
+  it("une étape bloquée porte le contrat maquette : rouge, halo, libellé gras", () => {
+    // Operator arbitration (pixel-perfect directive): the maquette draws EVERY
+    // station round — blocked included. The earlier square dot was a
+    // colour-blind shape differentiator; what remains for non-colour readers
+    // is the sr-only « bloquée » plus the bold label, matching the maquette.
     const { container } = render(<JourneyStrip stage="scrape" blocked />);
     const blockedDot = container.querySelector(
       '[data-station="scrape"] [aria-hidden="true"]',
     );
     expect(blockedDot).not.toBeNull();
-    // Shape is the colour-blind differentiator (§14.3): the blocked dot is
-    // square, not round, so it reads as "stopped" without relying on red.
-    expect((blockedDot as HTMLElement).className).toMatch(/rounded-\[2px\]/);
-    // Must NOT carry rounded-full — if it does, the radius was left in the
-    // base string and two radius classes collide (which one wins is arbitrary).
-    expect((blockedDot as HTMLElement).className).not.toMatch(/rounded-full/);
+    expect((blockedDot as HTMLElement).className).toMatch(/rounded-full/);
+    expect((blockedDot as HTMLElement).className).toMatch(/bg-danger/);
+    expect((blockedDot as HTMLElement).className).toMatch(/ring-\[3px\]/);
+    const label = container.querySelector(
+      '[data-station="scrape"] [data-station-label]',
+    );
+    expect((label as HTMLElement).className).toMatch(/font-semibold/);
+    expect(container.textContent).toContain("scrapé — bloquée");
   });
 
   it("le point « en cours » n'a PAS le différenciateur structurel du point bloqué", () => {

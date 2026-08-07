@@ -5,7 +5,11 @@
  * `EPISODE_STATE_LABEL`, with its labels — no hardcoded copy, no missing state.
  * A state added to (or removed from) the single-source maps must change the
  * legend automatically, so a drift here is a test failure rather than a silent
- * mismatch between a chip's colour and the key beneath the matrix.
+ * mismatch between a cell's colour and the key beneath the matrix.
+ *
+ * The legend entries are SQUARE swatches + plain labels (the matrix cells are
+ * squares, and a key drawn with a different shape than what it explains
+ * misleads) — an entry is a `<span>` holding an `<i>` swatch and its text.
  */
 
 import { cleanup, render, screen, within } from "@testing-library/react";
@@ -15,6 +19,13 @@ import { EpisodeStateLegende } from "./EpisodeStateLegende";
 import { EPISODE_LEGEND_ORDER, EPISODE_STATE_LABEL } from "./meta";
 
 afterEach(cleanup);
+
+/** The legend's entries, in DOM order: the spans that carry an `<i>` swatch. */
+function entries(legend: HTMLElement): HTMLElement[] {
+  return Array.from(legend.querySelectorAll("span")).filter(
+    (sp) => sp.querySelector("i") != null,
+  );
+}
 
 describe("EpisodeStateLegende", () => {
   it("lists exactly the states of EPISODE_LEGEND_ORDER (no drift)", () => {
@@ -26,10 +37,9 @@ describe("EpisodeStateLegende", () => {
     for (const label of labels) {
       expect(within(legend).getByText(label)).toBeInTheDocument();
     }
-    // …and NOTHING beyond them: one chip (the swatch) per state, so the legend
+    // …and NOTHING beyond them: one swatch entry per state, so the legend
     // can neither omit a state nor invent one. Drift in the maps = failure here.
-    const chips = legend.querySelectorAll('[data-slot="badge"]');
-    expect(chips).toHaveLength(labels.length);
+    expect(entries(legend)).toHaveLength(labels.length);
   });
 
   it("walks the lifecycle order the operator reads, left to right", () => {
@@ -39,10 +49,8 @@ describe("EpisodeStateLegende", () => {
     // Unknown → announced → searched-but-nothing → takeable → being taken →
     // owned. Pinned as an ORDERED list: a reshuffle is a regression, not a
     // detail (the legend is how the operator learns the flow).
-    const chipTexts = Array.from(
-      legend.querySelectorAll('[data-slot="badge"]'),
-    ).map((c) => c.textContent.trim());
-    expect(chipTexts).toEqual([
+    const texts = entries(legend).map((c) => c.textContent.trim());
+    expect(texts).toEqual([
       "Non vérifié",
       "Annoncé",
       "En attente de torrent",
@@ -57,22 +65,23 @@ describe("EpisodeStateLegende", () => {
     const legend = screen.getByLabelText("Légende des statuts d'épisode");
 
     // An absorbed episode renders as « En cours d'acquisition » — listing it
-    // would print that same chip twice for one operator-facing state.
+    // would print that same swatch twice for one operator-facing state.
     expect(
       within(legend).getAllByText("En cours d'acquisition"),
     ).toHaveLength(1);
     expect(within(legend).queryByText(/Absorb/)).not.toBeInTheDocument();
   });
 
-  it("renders each entry as a coloured chip carrying its label", () => {
+  it("renders each entry as a SQUARE swatch carrying its label", () => {
     render(<EpisodeStateLegende />);
     const legend = screen.getByLabelText("Légende des statuts d'épisode");
 
-    // The chip IS the swatch: each badge shows its label as its text.
-    const chips = Array.from(legend.querySelectorAll('[data-slot="badge"]'));
-    const chipTexts = chips.map((c) => c.textContent.trim());
-    for (const state of EPISODE_LEGEND_ORDER) {
-      expect(chipTexts).toContain(EPISODE_STATE_LABEL[state]);
+    for (const entry of entries(legend)) {
+      const swatch = entry.querySelector("i");
+      // Square, not a dot: rounded-[2px] is the maquette's 2 px corner —
+      // rounded-full here would redraw the key as circles again.
+      expect(swatch?.className).toContain("rounded-[2px]");
+      expect(swatch?.className).not.toContain("rounded-full");
     }
   });
 });

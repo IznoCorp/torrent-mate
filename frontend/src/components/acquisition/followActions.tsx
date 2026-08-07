@@ -51,11 +51,17 @@ export interface FollowSwipe {
 export interface FollowActions {
   /** Swipe actions for one follow — « Récupérer » on the left when takeable,
    *  suspend/resume + remove on the right. */
-  readonly swipeFor: (item: FollowedSeriesItem) => FollowSwipe;
+  readonly swipeFor: (
+    item: FollowedSeriesItem,
+    opts?: { readonly remove?: boolean },
+  ) => FollowSwipe;
   /** The « ··· » kebab for one follow — rendered by the card on fine pointers only (A11). */
   readonly menuFor: (item: FollowedSeriesItem) => ReactElement;
   /** The shared removal-confirmation dialog — render ONCE per panel. */
   readonly dialog: ReactElement;
+  /** Open the cadence editor for one follow — the sheet's « Cadence de
+   *  recherche » routes here so the dialog stays single-sourced (§13). */
+  readonly openCadence: (item: FollowedSeriesItem) => void;
 }
 
 /**
@@ -87,7 +93,10 @@ export function useFollowActions(): FollowActions {
     });
   };
 
-  const swipeFor = (item: FollowedSeriesItem): FollowSwipe => {
+  const swipeFor = (
+    item: FollowedSeriesItem,
+    opts?: { readonly remove?: boolean },
+  ): FollowSwipe => {
     const w = words(item);
     const paused = item.status === "disabled";
     const right: readonly SwipeAction[] = [
@@ -100,15 +109,21 @@ export function useFollowActions(): FollowActions {
           suspendOrResume(item);
         },
       },
-      {
-        key: "remove",
-        label: "Retirer",
-        icon: null,
-        tone: "danger",
-        onRun: () => {
-          setRemoving(item);
-        },
-      },
+      // The maquette pares « Maintenant »'s takeable cards down to the two
+      // verbs of the moment — removal stays one tap away in the sheet.
+      ...(opts?.remove === false
+        ? []
+        : [
+            {
+              key: "remove",
+              label: "Retirer",
+              icon: null,
+              tone: "danger" as const,
+              onRun: () => {
+                setRemoving(item);
+              },
+            },
+          ]),
     ];
     // The affirmative side exists only when the server says the item is
     // takeable — a « Récupérer » that fires a search on a complete série
@@ -295,6 +310,10 @@ export function useFollowActions(): FollowActions {
   return {
     swipeFor,
     menuFor,
+    openCadence: (item: FollowedSeriesItem) => {
+      setCadenceTarget(item);
+      setCadenceInterval("");
+    },
     dialog: (
       <>
         {dialog}

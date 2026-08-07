@@ -36,6 +36,7 @@ vi.mock("sonner", () => ({
 const navigateMock = vi.fn();
 vi.mock("react-router-dom", () => ({
   useNavigate: () => navigateMock,
+  useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }));
 
 import { AddMediaScreen } from "@/components/acquisition/AddMediaScreen";

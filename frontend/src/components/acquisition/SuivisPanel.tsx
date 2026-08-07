@@ -23,6 +23,7 @@
 
 import { type ReactElement, useMemo, useState } from "react";
 
+import { AlignLeft, LayoutGrid, List, Search as SearchIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import type { FollowedSeriesItem } from "@/api/acquisition";
@@ -32,16 +33,16 @@ import { MediaPoster } from "@/components/ds/MediaPoster";
 import { ErrorState } from "@/components/ds/ErrorState";
 
 import { AcquisitionCard } from "./AcquisitionCard";
+import { Chip } from "./Chip";
 import { SwipeActions } from "./SwipeActions";
 import { useFollowActions } from "./followActions";
 import { useSchedulers } from "@/hooks/useSchedulers";
 import { FollowDetailSheet } from "./FollowDetailSheet";
-import type { FollowStatus, MediaKind } from "./meta";
+import type { FollowStatus } from "./meta";
 import {
   FOLLOW_STATUS_LABEL,
   FOLLOW_STATUS_TONE,
   GRAB_JOB_NAME,
-  TONE_CHIP_CLASS,
   TONE_PIP_CLASS,
   asMediaKind,
   followCountsCaption,
@@ -279,12 +280,7 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
   const [nameFilter, setNameFilter] = useState("");
 
   // Detail-sheet state.
-  const [sheet, setSheet] = useState<{
-    followedId: number;
-    status: FollowStatus;
-    kind: MediaKind;
-    mediaHref: string | null;
-  } | null>(null);
+  const [sheet, setSheet] = useState<FollowedSeriesItem | null>(null);
 
   // ── Derived data ───────────────────────────────────────────────────────────
 
@@ -336,7 +332,7 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
       metaPieces.push(
         <span
           key="fraction"
-          className="rounded bg-muted px-1.5 py-px text-xs font-medium text-muted-foreground"
+          className="font-mono text-xs text-muted-foreground tabular-nums"
         >
           {fraction}
         </span>,
@@ -344,14 +340,9 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
     }
     if (showStatus) {
       metaPieces.push(
-        <span
-          key="status"
-          data-slot="badge"
-          className={`rounded px-1.5 py-px text-xs font-medium ${TONE_CHIP_CLASS[FOLLOW_STATUS_TONE[item.status]] ?? "bg-muted text-muted-foreground"}`}
-          title={hint}
-        >
+        <Chip key="status" tone={FOLLOW_STATUS_TONE[item.status]} title={hint}>
           {label}
-        </span>,
+        </Chip>,
       );
     }
     if (caption != null) {
@@ -368,12 +359,13 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
       // The identity gap, named on the card — the sheet explains what it
       // blocks; hiding it would let a « Non vérifié » read as a search issue.
       metaPieces.push(
-        <span
+        <Chip
           key="sans-id"
-          className="rounded bg-muted px-1.5 py-px text-xs text-muted-foreground"
+          tone="warning"
+          title="Détection d'épisodes indisponible : l'ID TVDB n'a pas pu être résolu."
         >
           Sans ID TVDB
-        </span>,
+        </Chip>,
       );
     }
 
@@ -392,7 +384,7 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
           meta={metaPieces.length > 0 ? <>{metaPieces}</> : null}
           menu={actions.menuFor(item)}
           onOpen={() => {
-            setSheet({ followedId: item.id, status: item.status, kind, mediaHref: sheetHref });
+            setSheet(item);
           }}
           {...(sheetHref != null
             ? {
@@ -416,38 +408,52 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
         key={item.id}
         type="button"
         data-testid={`tile-${String(item.id)}`}
-        className={`relative flex aspect-[2/3] w-full items-center justify-center overflow-hidden rounded-lg border border-border ${
-          dimmed ? "opacity-50" : ""
-        }`}
+        className="block w-full min-w-0 text-left"
         aria-label={
           badge != null ? `${item.title} — ${badge === "?" ? "état à vérifier" : badge === "!" ? "action requise" : `${badge} épisode(s) à récupérer`}` : item.title
         }
         onClick={() => {
-          const kind = asMediaKind(item.kind);
-          setSheet({ followedId: item.id, status: item.status, kind, mediaHref: followMediaRef(item) });
+          setSheet(item);
         }}
       >
-        <MediaPoster title={item.title} src={item.poster_url ?? null} className="!w-full" />
-        {badge != null && (
-          <span
-            data-badge
-            className={`absolute right-1 top-1 flex size-6 items-center justify-center rounded-full text-xs font-bold text-white ${
-              badge === "?" ? "bg-muted-foreground" : "bg-warning"
-            }`}
-          >
-            {badge}
+        <span className={`relative block w-full ${dimmed ? "opacity-50" : ""}`}>
+          <span className="block w-full overflow-hidden rounded-lg border border-border">
+            <MediaPoster title={item.title} src={item.poster_url ?? null} className="!w-full" />
           </span>
-        )}
+          {badge != null && (
+            <span
+              data-badge
+              className={`absolute right-[5px] top-[5px] grid h-[17px] min-w-[17px] place-items-center rounded-full px-1 text-[11px] font-bold text-white ring-2 ring-background ${
+                badge === "?" ? "bg-muted-foreground" : "bg-warning"
+              }`}
+            >
+              {badge}
+            </span>
+          )}
+        </span>
+        <span
+          className={`mt-[5px] block truncate text-[11px] leading-tight ${dimmed ? "opacity-60" : ""}`}
+        >
+          {item.title}
+        </span>
+        <span className="block truncate font-mono text-[10px] text-muted-foreground tabular-nums">
+          {followFraction(item) ?? "\u00A0"}
+        </span>
       </button>
     );
   }
 
-  /** Render the mode switcher buttons. */
+  /** Render the mode switcher — three ICON buttons, per the maquette.
+   *
+   * Text labels (« Liste Groupé Grille ») ate half the 375 px row and forced
+   * the pills into a permanent horizontal scroll; the icon triplet costs
+   * ~100 px and the pills get the rest. The names stay for assistive tech.
+   */
   function renderSwitcher(): ReactElement {
-    const modes: { key: ViewMode; label: string; ariaLabel: string }[] = [
-      { key: "list", label: "Liste", ariaLabel: "Liste" },
-      { key: "group", label: "Groupé", ariaLabel: "Groupé par état" },
-      { key: "grid", label: "Grille", ariaLabel: "Grille d'affiches" },
+    const modes: { key: ViewMode; icon: ReactElement; ariaLabel: string }[] = [
+      { key: "list", icon: <List aria-hidden="true" className="size-4" />, ariaLabel: "Liste" },
+      { key: "group", icon: <AlignLeft aria-hidden="true" className="size-4" />, ariaLabel: "Groupé par état" },
+      { key: "grid", icon: <LayoutGrid aria-hidden="true" className="size-4" />, ariaLabel: "Grille d'affiches" },
     ];
 
     return (
@@ -457,14 +463,18 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
         // never a gradient — the pills filter DATA, the switcher changes
         // PRESENTATION, and the two natures must not read as one train.
       >
-        <div role="group" aria-label="Mode d'affichage" className="flex items-center gap-0.5">
+        <div
+          role="group"
+          aria-label="Mode d'affichage"
+          className="flex items-center gap-0.5 rounded-md bg-muted p-[3px]"
+        >
           {modes.map((m) => (
             <button
               key={m.key}
               type="button"
-              className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
+              className={`grid h-7 w-8 place-items-center rounded transition-colors ${
                 viewMode === m.key
-                  ? "bg-foreground text-background"
+                  ? "bg-background text-primary shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
               aria-label={m.ariaLabel}
@@ -473,7 +483,7 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
                 setViewMode(m.key);
               }}
             >
-              {m.label}
+              {m.icon}
             </button>
           ))}
         </div>
@@ -488,48 +498,53 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
       <div className="flex flex-col gap-4 px-3 py-3">
         {/* ── Sticky filter zone ──────────────────────────────────────── */}
 
-        {/* Search field — the ONE that filters (D2). */}
-        <input
-          type="search"
-          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground"
-          placeholder="Filtrer par nom"
-          value={nameFilter}
-          onChange={(e) => {
-            setNameFilter(e.target.value);
-          }}
-        />
-
-        {/* Pill train + switcher — STICKY (§5.1: « only the filter remains,
-            and it is sticky »; D7 was losing the filter after two screens of
-            scroll). The pills scroll horizontally in their OWN container; the
-            switcher sits outside it, so at 390 px it never scrolls away with
+        {/* Filter zone — ONE sticky block, per the maquette: search field
+            then pill train + switcher, always visible above the list (§5.1;
+            D7 was losing the filter after two screens of scroll). The pills
+            scroll in their OWN container with the scrollbar hidden; the
+            switcher sits outside it, so at 375 px it never scrolls away with
             the train — a mode control the operator cannot see is a mode the
             operator does not know exists. */}
-        <div className="sticky top-0 z-10 -mx-3 flex items-center gap-1 bg-background px-3 py-2">
-          <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-          {(["tout", "series", "films", "pause"] as const).map((k) => {
-            const pm = PILLS[k];
-            const count = pm.count(items);
-            return (
-              <button
-                key={k}
-                type="button"
-                className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                  pill === k
-                    ? "bg-foreground text-background"
-                    : "bg-muted text-muted-foreground hover:text-foreground"
-                }`}
-                aria-pressed={pill === k}
-                onClick={() => {
-                  setPill(k);
-                }}
-              >
-                {pm.label} {String(count)}
-              </button>
-            );
-          })}
+        <div className="sticky top-0 z-10 -mx-3 flex flex-col gap-2 border-b border-border bg-background px-3 pb-2 pt-1">
+          <label className="flex items-center gap-2 rounded-md bg-muted px-2.5">
+            <SearchIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+            <input
+              type="search"
+              className="min-w-0 flex-1 border-0 bg-transparent py-2 text-sm outline-none placeholder:text-muted-foreground"
+              placeholder="Filtrer par nom"
+              value={nameFilter}
+              onChange={(e) => {
+                setNameFilter(e.target.value);
+              }}
+            />
+          </label>
+          <div className="flex items-center">
+            <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto pr-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {(["tout", "series", "films", "pause"] as const).map((k) => {
+                const pm = PILLS[k];
+                const count = pm.count(items);
+                return (
+                  <button
+                    key={k}
+                    type="button"
+                    className={`shrink-0 rounded-full border px-[11px] py-[5px] text-xs font-semibold transition-colors ${
+                      pill === k
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-transparent text-muted-foreground hover:text-foreground"
+                    }`}
+                    aria-pressed={pill === k}
+                    onClick={() => {
+                      setPill(k);
+                    }}
+                  >
+                    {pm.label}{" "}
+                    <span className="font-medium opacity-70">{String(count)}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {renderSwitcher()}
           </div>
-          {renderSwitcher()}
         </div>
         {cadenceCaption != null && (
           <p
@@ -590,12 +605,12 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
                   >
                     <span
                       aria-hidden="true"
-                      className={`inline-block size-[9px] shrink-0 rounded-[2px] border-[1.5px] ${TONE_PIP_CLASS[FOLLOW_STATUS_TONE[status]] ?? "border-muted-foreground bg-muted-foreground"}`}
+                      className={`inline-block size-2 shrink-0 rounded-[2px] ${TONE_PIP_CLASS[FOLLOW_STATUS_TONE[status]] ?? "bg-muted-foreground"}`}
                     />
-                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <span className="text-[11px] font-bold uppercase tracking-[0.07em] text-muted-foreground">
                       {FOLLOW_STATUS_LABEL[status]}
                     </span>
-                    <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                    <span className="ml-auto text-xs font-semibold text-foreground tabular-nums">
                       {String(groupItems.length)}
                     </span>
                   </h3>
@@ -636,10 +651,15 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
       {/* ── Detail sheet ─────────────────────────────────────────────── */}
       {sheet != null && (
         <FollowDetailSheet
-          followedId={sheet.followedId}
+          followedId={sheet.id}
           status={sheet.status}
-          kind={sheet.kind}
-          mediaHref={sheet.mediaHref}
+          kind={asMediaKind(sheet.kind)}
+          mediaHref={followMediaRef(sheet)}
+          nextSearchAt={sheet.next_search_at ?? null}
+          posterUrl={sheet.poster_url ?? null}
+          onEditCadence={() => {
+            actions.openCadence(sheet);
+          }}
           open
           onOpenChange={(open) => {
             if (!open) setSheet(null);

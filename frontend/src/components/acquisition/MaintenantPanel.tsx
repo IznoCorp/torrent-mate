@@ -45,6 +45,7 @@ import { ErrorState } from "@/components/ds/ErrorState";
 import { relativeTimeUntil } from "@/lib/format";
 
 import { AcquisitionCard } from "./AcquisitionCard";
+import { Chip } from "./Chip";
 import { SwipeActions } from "./SwipeActions";
 import { useFollowActions } from "./followActions";
 import { FollowDetailSheet } from "./FollowDetailSheet";
@@ -58,11 +59,10 @@ import {
   asMediaKind,
   DOWNLOAD_STATE_LABEL,
   DOWNLOAD_STATE_TONE,
-  type FollowStatus,
+  FOLLOW_STATUS_TONE,
   followMediaRef,
+  followStatusLabel,
   followWaitingReason,
-  type MediaKind,
-  followCountsCaption,
   followFraction,
   relativeTime,
   TONE_CHIP_CLASS,
@@ -96,16 +96,16 @@ interface SectionMeta {
 }
 
 const SECTION_META: Record<SectionSlug, SectionMeta> = {
-  "a-recuperer": { label: "À récupérer", pipClass: "border-warning bg-warning" },
-  "a-traiter": { label: "À traiter", pipClass: "border-danger bg-danger" },
-  "en-vol": { label: "En vol", pipClass: "border-info bg-info" },
+  "a-recuperer": { label: "À récupérer", pipClass: "bg-warning" },
+  "a-traiter": { label: "À traiter", pipClass: "bg-danger" },
+  "en-vol": { label: "En vol", pipClass: "bg-info" },
   "cherche-rien-trouve": {
     label: "Cherché, rien trouvé",
-    pipClass: "border-waiting bg-waiting",
+    pipClass: "bg-waiting",
   },
   "range-aujourdhui": {
     label: "Rangé aujourd'hui",
-    pipClass: "border-success bg-success",
+    pipClass: "bg-success",
   },
 };
 
@@ -181,12 +181,10 @@ export function MaintenantPanel(): ReactElement {
 
   // ── Detail-sheet state ────────────────────────────────────────────────
 
-  const [sheet, setSheet] = useState<{
-    followedId: number;
-    status: FollowStatus;
-    kind: MediaKind;
-    mediaHref: string | null;
-  } | null>(null);
+  // The sheet keeps the whole item: every derived prop (status, kind, href,
+  // next search, cadence target) reads ONE source instead of a copied subset
+  // that drifts the moment the item gains a field.
+  const [sheet, setSheet] = useState<FollowedSeriesItem | null>(null);
 
   // ── Derived sections ──────────────────────────────────────────────────
 
@@ -214,8 +212,12 @@ export function MaintenantPanel(): ReactElement {
    * local midnight. */
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
-  // title → most recent dispatched_at: the compact row shows WHEN it landed.
-  const dispatchedToday = new Map<string, number>();
+  // title → most recent dispatch: the compact row says WHEN it landed and,
+  // for a série, WHICH episode did (maquette: « Friends · S10E12 »).
+  const dispatchedToday = new Map<
+    string,
+    { at: number; season: number | null; episode: number | null }
+  >();
   for (const j of journeys.data?.journeys ?? []) {
     if (
       j.dispatched_at == null ||
@@ -225,7 +227,13 @@ export function MaintenantPanel(): ReactElement {
     const t = j.follow_title;
     if (t == null || t === "") continue;
     const prev = dispatchedToday.get(t);
-    if (prev == null || j.dispatched_at > prev) dispatchedToday.set(t, j.dispatched_at);
+    if (prev == null || j.dispatched_at > prev.at) {
+      dispatchedToday.set(t, {
+        at: j.dispatched_at,
+        season: j.season ?? null,
+        episode: j.episode ?? null,
+      });
+    }
   }
   const rangeAujourdhui: readonly FollowedSeriesItem[] =
     followed.data?.items.filter(
@@ -327,13 +335,13 @@ export function MaintenantPanel(): ReactElement {
       >
         <span
           aria-hidden="true"
-          className={`inline-block size-[9px] shrink-0 rounded-[2px] border-[1.5px] ${m.pipClass}`}
+          className={`inline-block size-2 shrink-0 rounded-[2px] ${m.pipClass}`}
         />
         {/* Uppercase via CSS: the DOM keeps the French label as data. */}
-        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <span className="text-[11px] font-bold uppercase tracking-[0.07em] text-muted-foreground">
           {m.label}
         </span>
-        <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+        <span className="ml-auto text-xs font-semibold text-foreground tabular-nums">
           {String(count)}
         </span>
       </h3>
@@ -364,45 +372,46 @@ export function MaintenantPanel(): ReactElement {
     item: FollowedSeriesItem,
     searchMeta = false,
   ): ReactElement {
-    const kind = asMediaKind(item.kind);
     const sheetHref = followMediaRef(item);
     return (
       /* A10/A11 — same gesture and kebab grammar as « Suivis », from the same
-         builder (§13): three surfaces, one action source. */
-      <SwipeActions key={item.id} {...actions.swipeFor(item)}>
+         builder (§13). The takeable card's swipe pares down to the two verbs
+         of the moment (maquette): Récupérer / Pause — no Retirer here. */
+      <SwipeActions
+        key={item.id}
+        {...actions.swipeFor(item, { remove: searchMeta })}
+      >
         <AcquisitionCard
           title={item.title}
           posterUrl={item.poster_url ?? null}
-          {...(item.year != null ? { subtitle: String(item.year) } : {})}
+          {...(searchMeta ? { subtitle: searchMetaLine(item) } : {})}
           meta={
-            /* Same composition as the Suivis card — one card anatomy (§4). */
+            /* Maquette followRow: mono fraction, dotted status chip on the
+               takeable card (the resting card's verdict is its subtitle). */
             <>
               {followFraction(item) != null && (
-                <span className="rounded bg-muted px-1.5 py-px text-xs font-medium text-muted-foreground">
+                <span className="font-mono text-xs text-muted-foreground tabular-nums">
                   {followFraction(item)}
                 </span>
               )}
-              {searchMeta ? (
-                <span className="text-xs text-muted-foreground">
-                  {searchMetaLine(item)}
-                </span>
-              ) : (
-                followCountsCaption(item) != null && (
-                  <span className="text-xs text-muted-foreground">
-                    {followCountsCaption(item)}
-                  </span>
-                )
+              {!searchMeta && (
+                <Chip tone={FOLLOW_STATUS_TONE[item.status]}>
+                  {followStatusLabel(item.status, item.kind)}
+                </Chip>
               )}
               {item.tvdb_unresolved && (
-                <span className="rounded bg-muted px-1.5 py-px text-xs text-muted-foreground">
+                <Chip
+                  tone="warning"
+                  title="Détection d'épisodes indisponible : l'ID TVDB n'a pas pu être résolu."
+                >
                   Sans ID TVDB
-                </span>
+                </Chip>
               )}
             </>
           }
           menu={actions.menuFor(item)}
           onOpen={() => {
-            setSheet({ followedId: item.id, status: item.status, kind, mediaHref: sheetHref });
+            setSheet(item);
           }}
           {...(sheetHref != null
             ? {
@@ -424,7 +433,11 @@ export function MaintenantPanel(): ReactElement {
    * the detail sheet — done is not dead (§11).
    */
   function renderRangeRow(item: FollowedSeriesItem): ReactElement {
-    const at = dispatchedToday.get(item.title);
+    const disp = dispatchedToday.get(item.title);
+    const ep =
+      disp?.season != null && disp.episode != null
+        ? ` · S${String(disp.season).padStart(2, "0")}E${String(disp.episode).padStart(2, "0")}`
+        : "";
     return (
       <button
         key={item.id}
@@ -432,21 +445,19 @@ export function MaintenantPanel(): ReactElement {
         data-testid="range-row"
         className="flex w-full items-center gap-2 rounded-md px-1 py-1.5 text-left text-sm hover:bg-accent"
         onClick={() => {
-          setSheet({
-            followedId: item.id,
-            status: item.status,
-            kind: asMediaKind(item.kind),
-            mediaHref: followMediaRef(item),
-          });
+          setSheet(item);
         }}
       >
         <span aria-hidden="true" className="shrink-0 text-success">
           ✓
         </span>
-        <span className="min-w-0 truncate">{item.title}</span>
-        {at != null && (
+        <span className="min-w-0 truncate">
+          {item.title}
+          {ep !== "" && <span className="text-muted-foreground">{ep}</span>}
+        </span>
+        {disp != null && (
           <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-            {relativeTime(at)}
+            {relativeTime(disp.at)}
           </span>
         )}
       </button>
@@ -750,10 +761,15 @@ export function MaintenantPanel(): ReactElement {
       {/* ── Detail sheet ─────────────────────────────────────────────── */}
       {sheet != null && (
         <FollowDetailSheet
-          followedId={sheet.followedId}
+          followedId={sheet.id}
           status={sheet.status}
-          kind={sheet.kind}
-          mediaHref={sheet.mediaHref}
+          kind={asMediaKind(sheet.kind)}
+          mediaHref={followMediaRef(sheet)}
+          nextSearchAt={sheet.next_search_at ?? null}
+          posterUrl={sheet.poster_url ?? null}
+          onEditCadence={() => {
+            actions.openCadence(sheet);
+          }}
           open
           onOpenChange={(open) => {
             if (!open) setSheet(null);

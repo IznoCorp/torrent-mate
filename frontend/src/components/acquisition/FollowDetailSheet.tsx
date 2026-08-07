@@ -41,6 +41,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { MediaPoster } from "@/components/ds/MediaPoster";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useCompleteness,
@@ -50,11 +51,15 @@ import {
   useUpdateFollow,
 } from "@/hooks/useAcquisition";
 
+import { EpisodeDatePopover } from "./EpisodeDatePopover";
 import { EpisodeStateLegende } from "./EpisodeStateLegende";
+import { relativeTimeUntil } from "@/lib/format";
+
 import {
   EPISODE_STATE_HINT,
   EPISODE_STATE_LABEL,
   EPISODE_STATE_TONE,
+  TONE_CELL_CLASS,
   searchOutcomeReason,
   type FollowStatus,
   type MediaKind,
@@ -101,6 +106,15 @@ export interface FollowDetailSheetProps {
    *  Derived by the panel from ``followMediaRef(item)`` — the sheet does
    *  not own the derivation. */
   readonly mediaHref?: string | null | undefined;
+  /** Next scheduled search instant (epoch s) — the meta line says when the
+   *  machine looks again; silence about it reads as « never » (§8). */
+  readonly nextSearchAt?: number | null | undefined;
+  /** Opens the cadence editor (owned by the panel's action source, §13). */
+  readonly onEditCadence?: (() => void) | undefined;
+  /** Opens the journey detail — provided only when a journey exists (§11). */
+  readonly onVoirLeParcours?: (() => void) | undefined;
+  /** Poster URL for the header (maquette: 84×126 beside the title). */
+  readonly posterUrl?: string | null | undefined;
 }
 
 // ── Loading / Error states ────────────────────────────────────────────────
@@ -142,7 +156,7 @@ function SeasonRow({
   const { owned, aired } = seasonCounts(season.episodes);
   const complete = owned === aired;
   const missing = aired - owned;
-  const seasonName = `Saison ${String(season.season)}`;
+  const seasonName = `Saison ${String(season.season).padStart(2, "0")}`;
 
   return (
     <details
@@ -150,13 +164,13 @@ function SeasonRow({
       className="group border-t border-border py-2 first:border-t-0"
       open={!complete}
     >
-      <summary className="flex cursor-pointer items-center justify-between text-sm font-medium marker:text-xs">
+      <summary className="flex cursor-pointer items-center gap-2 py-1 text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground [&::-webkit-details-marker]:hidden">
         <span data-testid="season-name">{seasonName}</span>
-        <span className="flex items-center gap-2">
+        <span className="ml-auto flex items-center gap-2 normal-case tracking-normal">
           <span data-testid="season-fraction">
             <span
               data-testid={`season-${String(season.season)}-fraction`}
-              className="text-xs text-muted-foreground"
+              className="font-mono text-xs font-semibold text-foreground tabular-nums"
             >
               {String(owned)}/{String(aired)}
             </span>
@@ -211,12 +225,22 @@ function EpisodeChip({
   const title = `E${String(episode.episode)} — ${label}${hint ? ` · ${hint}` : ""}${reason ? ` · ${reason}` : ""}${aired}`;
 
   return (
-    <span title={title} className="inline-flex">
-      <Badge tone={EPISODE_STATE_TONE[episode.state]}>
-        E{episode.episode}
+    // Tap → the air date, said in French. The hover title stays as the
+    // desktop fallback; on touch a tooltip does not exist, and losing the
+    // date with the old accordion was a regression, not a simplification.
+    <EpisodeDatePopover
+      state={episode.state}
+      airDate={episode.air_date ?? null}
+      triggerLabel={`E${String(episode.episode)} — ${label}`}
+      hoverTitle={title}
+    >
+      <span
+        className={`grid h-[27px] w-[31px] place-items-center rounded-[5px] font-mono text-[11px] font-semibold ${TONE_CELL_CLASS[EPISODE_STATE_TONE[episode.state]] ?? "bg-muted text-muted-foreground"}`}
+      >
+        {String(episode.episode).padStart(2, "0")}
         <span className="sr-only"> — {label}</span>
-      </Badge>
-    </span>
+      </span>
+    </EpisodeDatePopover>
   );
 }
 
@@ -269,6 +293,10 @@ export function FollowDetailSheet({
   open,
   onOpenChange,
   mediaHref,
+  nextSearchAt,
+  onEditCadence,
+  onVoirLeParcours,
+  posterUrl,
 }: FollowDetailSheetProps): ReactElement {
   const { data, isLoading, isError } = useCompleteness(followedId, open);
 
@@ -290,6 +318,10 @@ export function FollowDetailSheet({
             mediaHref={mediaHref}
             followedId={followedId}
             onOpenChange={onOpenChange}
+            nextSearchAt={nextSearchAt}
+            onEditCadence={onEditCadence}
+            onVoirLeParcours={onVoirLeParcours}
+            posterUrl={posterUrl ?? null}
           />
         ) : null}
       </SheetContent>
@@ -306,6 +338,10 @@ function FollowDetailSheetContent({
   mediaHref,
   followedId,
   onOpenChange,
+  nextSearchAt,
+  onEditCadence,
+  onVoirLeParcours,
+  posterUrl,
 }: {
   readonly data: CompletenessResponse;
   readonly status: FollowStatus;
@@ -313,6 +349,10 @@ function FollowDetailSheetContent({
   readonly mediaHref?: string | null | undefined;
   readonly followedId: number;
   readonly onOpenChange: (open: boolean) => void;
+  readonly nextSearchAt?: number | null | undefined;
+  readonly onEditCadence?: (() => void) | undefined;
+  readonly onVoirLeParcours?: (() => void) | undefined;
+  readonly posterUrl?: string | null | undefined;
 }): ReactElement {
   const navigate = useNavigate();
   const words = actionWords(kind);
@@ -340,16 +380,31 @@ function FollowDetailSheetContent({
     <>
       {/* ── Header ── */}
       <SheetHeader>
-        <SheetTitle className="text-lg font-semibold">{data.title}</SheetTitle>
-        {/* The one fraction — same derivation as card + season headers (§13). */}
-        {aggregate != null && (
+        <div className="flex items-start gap-3">
+          <MediaPoster title={data.title} src={posterUrl ?? null} className="w-[84px]" />
+          <div className="min-w-0 flex-1">
+        <SheetTitle className="text-[19px] font-semibold leading-tight tracking-[-0.015em] [text-wrap:balance]">{data.title}</SheetTitle>
+        {/* The one fraction — same derivation as card + season headers (§13) —
+            then WHEN the machine looks again, or why it will not (paused). */}
+        {(aggregate != null || data.kind === "movie") && (
           <p data-testid="sheet-meta" className="text-sm text-muted-foreground">
             {/* An announced-only catalogue has aired 0: « 0/0 » would read as
                 an empty série. §14.1 separates « not aired yet » from
                 « nothing there ». */}
-            {aggregate.aired === 0
-              ? "Aucun épisode diffusé pour l'instant"
-              : `${String(aggregate.owned)}/${String(aggregate.aired)} en médiathèque`}
+            {data.kind === "movie"
+              ? status === "a_jour"
+                ? "en médiathèque"
+                : "pas encore acquis"
+              : aggregate == null || aggregate.aired === 0
+                ? "Aucun épisode diffusé pour l'instant"
+                : `${String(aggregate.owned)}/${String(aggregate.aired)} en médiathèque`}
+            {status === "disabled"
+              ? kind === "movie"
+                ? " · recherche arrêtée"
+                : " · suivi en pause"
+              : nextSearchAt != null
+                ? ` · prochaine recherche ${relativeTimeUntil(nextSearchAt)}`
+                : ""}
           </p>
         )}
         {/* §5/§9 — the lifecycle rule, NOT the removal-confirmation body this
@@ -366,6 +421,8 @@ function FollowDetailSheetContent({
             La matrice d&apos;épisodes et la fiche ne sont pas disponibles.
           </p>
         )}
+          </div>
+        </div>
       </SheetHeader>
 
       {/* ── Primary action (§5.3) ── */}
@@ -412,7 +469,7 @@ function FollowDetailSheetContent({
           need it. Only « Voir la fiche » depends on an id, and it gates itself
           through mediaHref. */}
       <div data-testid="secondary-actions" className="mt-auto flex flex-col gap-2 p-4">
-        {mediaHref != null && (
+        {mediaHref != null ? (
           <button
             data-testid="voir-la-fiche"
             type="button"
@@ -422,6 +479,54 @@ function FollowDetailSheetContent({
             }}
           >
             Voir la fiche
+          </button>
+        ) : unresolved ? null : (
+          /* §8/§11 — the absent link is EXPLAINED, never silent: a fiche
+             button that simply is not there reads as a bug, not a fact. The
+             header's unresolved paragraph already says it for a catalogue-less
+             follow — no second sentence there (§12). */
+          <p className="text-xs text-muted-foreground">
+            Pas de fiche : l&apos;identifiant TVDB de ce média n&apos;a pas pu
+            être résolu.
+          </p>
+        )}
+        {/* Always offered — the chain searches, and only takes what is
+            takeable; on a resting follow it IS the manual re-check. */}
+        <button
+          data-testid="rechercher-maintenant"
+          type="button"
+          disabled={grabNow.isPending}
+          className="w-full rounded-md border border-border px-3 py-2 text-left text-sm hover:bg-accent disabled:opacity-50"
+          onClick={() => {
+            grabNow.mutate(followedId);
+            onOpenChange(false);
+          }}
+        >
+          Rechercher maintenant
+        </button>
+        {onVoirLeParcours != null && (
+          <button
+            data-testid="voir-le-parcours"
+            type="button"
+            className="w-full rounded-md border border-border px-3 py-2 text-left text-sm hover:bg-accent"
+            onClick={() => {
+              onOpenChange(false);
+              onVoirLeParcours();
+            }}
+          >
+            Voir le parcours
+          </button>
+        )}
+        {onEditCadence != null && (
+          <button
+            data-testid="cadence-de-recherche"
+            type="button"
+            className="w-full rounded-md border border-border px-3 py-2 text-left text-sm hover:bg-accent"
+            onClick={() => {
+              onEditCadence();
+            }}
+          >
+            Cadence de recherche
           </button>
         )}
         {/* §9 suspend/resume is a PAIR: a paused follow offers « Réactiver »,

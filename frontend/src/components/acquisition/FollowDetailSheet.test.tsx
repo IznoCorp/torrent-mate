@@ -199,6 +199,28 @@ afterEach(() => {
   navigateMock.mockReset();
 });
 
+describe("date d'épisode au toucher (régression : perdue avec l'ancien accordéon)", () => {
+  it("un tap sur un épisode diffusé montre « Diffusé le … »", async () => {
+    renderSheet(silo());
+    // E14 of S02 — « The Missing », aired 2024-06-08. The cell is the popover
+    // trigger; its accessible name carries the episode + state.
+    const cell = await screen.findByRole("button", {
+      name: "E14 — À récupérer",
+    });
+    fireEvent.click(cell);
+
+    expect(screen.getByText(/Diffusé le .*2024/)).toBeInTheDocument();
+  });
+
+  it("un épisode annoncé dit « Sortie prévue le … », jamais un passé inventé", async () => {
+    renderSheet(silo());
+    const cell = await screen.findByRole("button", { name: "E15 — Annoncé" });
+    fireEvent.click(cell);
+
+    expect(screen.getByText(/Sortie prévue le .*2099/)).toBeInTheDocument();
+  });
+});
+
 // ── Tests ─────────────────────────────────────────────────────────────────
 
 describe("seasonCounts — la dérivation unique (§13)", () => {

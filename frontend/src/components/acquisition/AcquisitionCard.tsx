@@ -78,7 +78,7 @@ function AcquisitionCardBody({
 }: CardBodyProps): ReactElement {
   return (
     <span className="block min-w-0 flex-1">
-      <span data-testid="acq-card-title" className="block truncate text-sm font-medium">
+      <span data-testid="acq-card-title" className="block truncate text-sm font-semibold">
         {title}
       </span>
       {subtitle != null && (
@@ -162,12 +162,15 @@ export function AcquisitionCard({
               reason={reason}
               meta={meta}
             />
-            {/* The affordance that says « this card opens » — rendered by the
-                card itself so every openable card carries it, and only those. */}
-            <ChevronRight
-              aria-hidden="true"
-              className="size-4 shrink-0 text-muted-foreground"
-            />
+            {/* The affordance that says « this card opens » — on touch only:
+                on a fine pointer the « ··· » already marks the interactive
+                card, and the maquette hides the chevron there. */}
+            {!finePointer && (
+              <ChevronRight
+                aria-hidden="true"
+                className="size-4 shrink-0 text-muted-foreground"
+              />
+            )}
           </button>
         ) : (
           <div className="flex min-w-0 flex-1 items-center gap-[10px]">

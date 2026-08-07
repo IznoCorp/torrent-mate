@@ -22,7 +22,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactElement,
 } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import { acqKeys } from "@/api/acquisition";
@@ -195,7 +195,29 @@ export default function AcquisitionPage(): ReactElement {
 
   // ── Sheet state ─────────────────────────────────────────────────────────
 
-  const [addOpen, setAddOpen] = useState(false);
+  // « ?add=1 » IS the open state (DOIT-10): opening pushes a history entry,
+  // so the browser back button and the phone's back gesture close the screen,
+  // and a « Voir la fiche » navigation away then back RESTORES the search —
+  // query included (the screen reads ?q=). A useState here was the regression:
+  // back from the fiche landed on the page with the search silently gone.
+  const location = useLocation();
+  const addOpen = searchParams.has("add");
+  const openAdd = (): void => {
+    const next = new URLSearchParams(searchParams);
+    next.set("add", "1");
+    void navigate(`?${next.toString()}`, { state: { addPushed: true } });
+  };
+  const closeAdd = (): void => {
+    // Pushed by us → pop the entry; deep-linked → replace, there is no entry.
+    if ((location.state as { addPushed?: boolean } | null)?.addPushed === true) {
+      void navigate(-1);
+    } else {
+      const next = new URLSearchParams(searchParams);
+      next.delete("add");
+      next.delete("q");
+      void navigate(`?${next.toString()}`, { replace: true });
+    }
+  };
   const [plusOpen, setPlusOpen] = useState(false);
 
   // Only invalidate on fresh events, not re-scanning the ring every render
@@ -346,7 +368,7 @@ export default function AcquisitionPage(): ReactElement {
         {activeTab === "suivis" && (
           <SuivisPanel
             onAddMedia={() => {
-              setAddOpen(true);
+              openAdd();
             }}
           />
         )}
@@ -369,12 +391,21 @@ export default function AcquisitionPage(): ReactElement {
         style={{ bottom: aboveBottomBar("1rem") }}
         aria-label="Ajouter un média"
         onClick={() => {
-          setAddOpen(true);
+          openAdd();
         }}
       >
         <Plus className="size-6" aria-hidden="true" />
       </button>
-      <AddMediaScreen open={addOpen} onOpenChange={setAddOpen} />
+      <AddMediaScreen
+        open={addOpen}
+        onOpenChange={(open) => {
+          if (open) {
+            openAdd();
+          } else {
+            closeAdd();
+          }
+        }}
+      />
     </section>
   );
 }

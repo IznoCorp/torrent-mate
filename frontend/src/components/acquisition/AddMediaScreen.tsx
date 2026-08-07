@@ -12,14 +12,14 @@
  * count so several media can be added in a row.
  */
 
-import { ChevronDown } from "lucide-react";
+import { ArrowLeft, ChevronDown } from "lucide-react";
 import {
   useState,
   type ReactElement,
   type SyntheticEvent,
   type UIEvent,
 } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { mediaSheetHref } from "@/lib/media-href";
 import { toast } from "sonner";
@@ -115,10 +115,13 @@ export function AddMediaScreen({
   onOpenChange,
 }: AddMediaScreenProps): ReactElement {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  // Search state
-  const [draft, setDraft] = useState("");
-  const [query, setQuery] = useState("");
+  // Search state — seeded from ?q= so a « Voir la fiche » round-trip restores
+  // the search instead of silently dropping it (the results come back from
+  // the query cache, keyed by this same string).
+  const [draft, setDraft] = useState(() => searchParams.get("q") ?? "");
+  const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
   const [kind, setKind] = useState<KindFilter>("all");
 
   // Session-local follow state (NOT an API cross-check — see Correction 3).
@@ -172,7 +175,19 @@ export function AddMediaScreen({
   /** Submit the search — fire on validation only, never per keystroke. */
   function submit(e: SyntheticEvent): void {
     e.preventDefault();
-    setQuery(draft.trim());
+    const q = draft.trim();
+    setQuery(q);
+    // Mirror into the URL so the search survives leaving for a fiche and
+    // coming back. Replace: refining a query is not a navigation step.
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (q === "") next.delete("q");
+        else next.set("q", q);
+        return next;
+      },
+      { replace: true },
+    );
   }
 
   /** Follow a search result (or ask §5 confirmation for an owned film). */
@@ -253,9 +268,25 @@ export function AddMediaScreen({
         // the keyboard eats half the phone and a results list in 80vh
         // is exactly the failure §7 names. pb-safe kept from the base.
         className="h-dvh max-h-none flex flex-col pb-[env(safe-area-inset-bottom)]"
+        // The maquette has no close cross: leaving is the BACK gesture —
+        // the open state lives in the history, so browser/phone back closes
+        // this screen, and the header arrow is the visible way to say it.
+        showCloseButton={false}
       >
         <SheetHeader>
-          <SheetTitle>Ajouter un média</SheetTitle>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              aria-label="Retour"
+              className="-ml-2 grid size-9 shrink-0 place-items-center rounded-md text-muted-foreground hover:text-foreground"
+              onClick={() => {
+                onOpenChange(false);
+              }}
+            >
+              <ArrowLeft aria-hidden="true" className="size-5" />
+            </button>
+            <SheetTitle>Ajouter un média</SheetTitle>
+          </div>
           <SheetDescription>
             Recherchez un film ou une série, ou ajoutez-le directement par son
             identifiant.
@@ -567,7 +598,7 @@ export function AddMediaScreen({
           <div className="flex items-center justify-between border-t border-border px-4 pt-3">
             <p className="text-sm text-muted-foreground">
               {addedCount} média{addedCount > 1 ? "s" : ""} ajouté
-              {addedCount > 1 ? "s" : ""}
+              {addedCount > 1 ? "s" : ""} au suivi
             </p>
             <Button
               variant="link"
