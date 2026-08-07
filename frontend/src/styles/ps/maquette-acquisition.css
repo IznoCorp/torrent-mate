@@ -36,8 +36,6 @@
   font: inherit;
   font-size: 13px;
   font-weight: 600;
-  height: 36px;
-  line-height: 18px;
   background: transparent;
   color: var(--muted-foreground);
   cursor: pointer;
@@ -484,7 +482,10 @@
 /* ── Line-height parity ──
    The maquette runs on browser-default `normal`; the app's preflight sets
    1.5, which alone made every ported control 2px taller (36 → 38 on the
-   tabs — caught by the geometry comparator, invisible to the eye). */
+   tabs — caught by the geometry comparator, invisible to the eye).
+   Since Geist is canonical for this surface (operator arbitration
+   2026-08-08), `normal` resolves through Geist metrics on BOTH the app and
+   the measured maquette — no hard-pinned px heights on ported controls. */
 
 .mq .seg > button,
 .mq .seg .n,
@@ -533,7 +534,6 @@
   font: inherit;
   font-size: 13.5px;
   font-weight: 500;
-  line-height: 18px;
   padding: 11px 12px;
   border-radius: 8px;
   cursor: pointer;
