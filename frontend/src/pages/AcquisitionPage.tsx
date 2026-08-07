@@ -303,10 +303,10 @@ export default function AcquisitionPage(): ReactElement {
         id="acq-tabpanel"
         role="tabpanel"
         aria-labelledby={`acq-tab-${activeTab}`}
-        // overscroll-y-contain stops the browser's OWN pull-to-refresh from
+        // stops the browser's OWN pull-to-refresh from
         // reloading the page: a full reload loses the view, the filters and the
         // display mode, which is the opposite of what the pull asked for.
-        className="flex touch-pan-y flex-col gap-4 overscroll-y-contain pt-1"
+        className="flex touch-pan-y flex-col gap-4 pt-1"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

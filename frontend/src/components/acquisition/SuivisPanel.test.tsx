@@ -610,14 +610,41 @@ describe("SuivisPanel", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
-  it("la fiche détail transmet le vrai statut et la vraie nature", () => {
-    renderPanel([takeableShow(), movie()]);
-    // Dune is en_attente → sorted after Silo (a_recuperer).
-    // Click the inner body button for Dune.
-    const duneBtn = screen.getByRole("button", { name: "Dune" });
-    fireEvent.click(duneBtn);
-    // The sheet should be open for Dune (a movie, en_attente).
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  it("la fiche détail transmet le vrai statut et la vraie nature", async () => {
+    const completeness = (kind: string) => ({
+      data: {
+        followed_id: 6,
+        title: "X",
+        kind,
+        provider_catalog_empty: false,
+        source: "cache",
+        catalog_refreshed_at: 1_750_000_000,
+        seasons: [],
+      },
+      isLoading: false,
+      isError: false,
+    });
+    // kind: only a MOVIE sheet in a non-acquired status renders the §5
+    // lifecycle sentence — a hardcoded "show" kind could never produce it.
+    vi.spyOn(hooks, "useCompleteness").mockReturnValue(
+      completeness("movie") as unknown as ReturnType<typeof hooks.useCompleteness>,
+    );
+    renderPanel([movie()]);
+    fireEvent.click(screen.getByTestId("acq-card-title"));
+    expect(
+      await screen.findByText(/quittera automatiquement votre liste/),
+    ).toBeInTheDocument();
+    cleanup();
+
+    // status: only a_recuperer produces the primary action.
+    vi.spyOn(hooks, "useCompleteness").mockReturnValue(
+      completeness("show") as unknown as ReturnType<typeof hooks.useCompleteness>,
+    );
+    renderPanel([takeableShow()]);
+    fireEvent.click(screen.getByTestId("acq-card-title"));
+    expect(
+      await screen.findByText("Récupérer maintenant"),
+    ).toBeInTheDocument();
   });
 
   // ── Default mode ──────────────────────────────────────────────────────────
@@ -714,5 +741,15 @@ describe("SuivisPanel", () => {
     expect(screen.getByText("Voir la fiche")).toBeInTheDocument();
     expect(screen.getByText("Retirer le suivi")).toBeInTheDocument();
     vi.unstubAllGlobals();
+  });
+  it("mode grille : taper une tuile ouvre la fiche détail du suivi", () => {
+    renderPanel([takeableShow()]);
+    fireEvent.click(screen.getByRole("button", { name: /Grille/ }));
+
+    fireEvent.click(screen.getByTestId("tile-1"));
+
+    // The detail sheet mounts — the tile is the ONLY path to it in grid mode,
+    // so an unwired handler would leave every tile a dead control (§11).
+    expect(document.querySelector("[data-testid=sheet-meta], [role=dialog]")).not.toBeNull();
   });
 });

@@ -113,6 +113,9 @@ export default function Config(): ReactElement {
         leftTab={editor.leftTab}
         onSelect={editor.handleSelectFile}
         onSelectSecrets={editor.handleSelectSecrets}
+        onSelectClassement={() => {
+          editor.setLeftTab("classement");
+        }}
       />
 
       {/* Desktop tab bar — visible only on md+; mobile uses the dropdown above.

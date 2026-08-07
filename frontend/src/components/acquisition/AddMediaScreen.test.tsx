@@ -93,6 +93,7 @@ function renderAdd(opts?: {
   onFollow?: (...args: unknown[]) => void;
   /** What the follow mutation's onSuccess receives. */
   followResult?: { tvdb_unresolved?: boolean };
+  isError?: boolean;
 }) {
   // --- Build the search result ---
   const resultsArg = opts?.results;
@@ -124,8 +125,10 @@ function renderAdd(opts?: {
     if (q && onSearch) onSearch(q, kind);
     return {
       ...emptySearchResult(),
-      data: searchData,
+      data: opts?.isError ? undefined : searchData,
       isLoading: false,
+      isError: opts?.isError ?? false,
+      error: opts?.isError ? new Error("500: upstream provider unavailable") : null,
       hasNextPage: false,
     };
   });
@@ -470,5 +473,18 @@ describe("AddMediaScreen", () => {
     fireEvent.scroll(container);
 
     expect(fetchNextPageSpy).not.toHaveBeenCalled();
+  });
+  it("§8 — un échec du fournisseur est NOMMÉ en français, avec la voie de secours", async () => {
+    renderAdd({ isError: true });
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Dune" } });
+    fireEvent.click(screen.getByRole("button", { name: "Chercher" }));
+
+    const mentions = await screen.findAllByText(/La recherche a échoué/);
+    expect(mentions.length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(/ajoutez par identifiant/).length,
+    ).toBeGreaterThan(0);
+    // The by-ID fallback stays reachable under the error.
+    expect(screen.getByRole("group", { name: /identifiant/i })).toBeInTheDocument();
   });
 });

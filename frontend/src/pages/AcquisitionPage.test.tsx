@@ -109,6 +109,21 @@ function LocationProbe(): ReactElement {
 }
 
 /** Render the page wrapped in a QueryClientProvider + router (?tab= support). */
+function renderPageWithClient(initialEntry = "/acquisition"): QueryClient {
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  render(
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <QueryClientProvider client={qc}>
+        <AcquisitionPage />
+        <LocationProbe />
+      </QueryClientProvider>
+    </MemoryRouter>,
+  );
+  return qc;
+}
+
 function renderPage(initialEntry = "/acquisition"): void {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -839,5 +854,33 @@ describe("AcquisitionPage", () => {
     expect(
       screen.getByRole("tab", { name: /Suivis/ }),
     ).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("tirer depuis le haut au-delà du seuil actualise réellement les données", () => {
+    mockAllEmpty();
+    const qc = renderPageWithClient();
+    const spy = vi.spyOn(qc, "invalidateQueries");
+    const pager = screen.getByRole("tabpanel");
+
+    fireEvent.pointerDown(pager, { clientX: 200, clientY: 100, pointerType: "touch" });
+    fireEvent.pointerMove(pager, { clientX: 202, clientY: 220, pointerType: "touch" });
+    // Mid-pull the live region invites the release.
+    expect(screen.getByTestId("pull-indicator").textContent).toMatch(/actualiser/);
+    fireEvent.pointerUp(pager, { clientX: 202, clientY: 220, pointerType: "touch" });
+
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it("un tirage trop court n'actualise rien", () => {
+    mockAllEmpty();
+    const qc = renderPageWithClient();
+    const spy = vi.spyOn(qc, "invalidateQueries");
+    const pager = screen.getByRole("tabpanel");
+
+    fireEvent.pointerDown(pager, { clientX: 200, clientY: 100, pointerType: "touch" });
+    fireEvent.pointerMove(pager, { clientX: 202, clientY: 130, pointerType: "touch" });
+    fireEvent.pointerUp(pager, { clientX: 202, clientY: 130, pointerType: "touch" });
+
+    expect(spy).not.toHaveBeenCalled();
   });
 });

@@ -61,6 +61,15 @@ import { type ViewMode, useViewMode } from "./useViewMode";
  * §5.1: « a_recuperer » is what the operator can act on RIGHT NOW;
  * « a_jour » is information, not a call to action.
  */
+/** A follow added within this window is « new » — §7's post-add promise:
+ *  sorted to the top of « Suivis » with a « Nouveau » chip, so the operator
+ *  sees their add LAND rather than hunting it through the urgency order. */
+const NEW_WINDOW_S = 24 * 3600;
+
+function isNew(item: FollowedSeriesItem): boolean {
+  return Date.now() / 1000 - item.added_at < NEW_WINDOW_S;
+}
+
 const URGENCY: Record<string, number> = {
   a_recuperer: 0,
   en_acquisition: 1,
@@ -139,6 +148,11 @@ const GROUP_KEYS: FollowStatus[] = [
  */
 function sortItems(items: readonly FollowedSeriesItem[]): FollowedSeriesItem[] {
   return [...items].sort((a, b) => {
+    // §7 — a fresh add outranks everything: the operator just acted, and the
+    // list must show the consequence where they look first.
+    const na = isNew(a) ? 0 : 1;
+    const nb = isNew(b) ? 0 : 1;
+    if (na !== nb) return na - nb;
     const ua = URGENCY[a.status] ?? 99;
     const ub = URGENCY[b.status] ?? 99;
     if (ua !== ub) return ua - ub;
@@ -298,6 +312,17 @@ export function SuivisPanel(): ReactElement {
     // In groupé mode (showStatus=false), the status chip is omitted — it lives in
     // the section header instead (§12: no repetition).
     const metaPieces: ReactElement[] = [];
+    if (isNew(item)) {
+      metaPieces.push(
+        <span
+          key="nouveau"
+          data-testid="chip-nouveau"
+          className="rounded bg-info/20 px-1.5 py-px text-xs font-medium text-info"
+        >
+          Nouveau
+        </span>,
+      );
+    }
     if (fraction != null) {
       metaPieces.push(
         <span

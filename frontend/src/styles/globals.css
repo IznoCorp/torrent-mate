@@ -204,3 +204,9 @@
     animation: none;
   }
 }
+
+/* The app implements its own pull-to-refresh on the acquisition pager;
+   the native one would reload the PWA and lose view, filters and mode. */
+html {
+  overscroll-behavior-y: contain;
+}

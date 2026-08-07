@@ -29,6 +29,8 @@ interface MobileFileSelectProps {
   readonly onSelect: (name: string) => void;
   /** Switch to the Secrets panel (the appended ``Secrets`` option). */
   readonly onSelectSecrets: () => void;
+  /** Switch to the ranking-profiles section (the editor that moved here). */
+  readonly onSelectClassement: () => void;
 }
 
 /**
@@ -48,6 +50,7 @@ export function MobileFileSelect({
   leftTab,
   onSelect,
   onSelectSecrets,
+  onSelectClassement,
 }: MobileFileSelectProps): ReactElement {
   return (
     <div className="flex flex-col gap-1.5 md:hidden">
@@ -65,6 +68,8 @@ export function MobileFileSelect({
         onValueChange={(value: string) => {
           if (value === "__secrets__") {
             onSelectSecrets();
+          } else if (value === "__classement__") {
+            onSelectClassement();
           } else {
             onSelect(value);
           }
@@ -90,6 +95,10 @@ export function MobileFileSelect({
           >
             Secrets
           </SelectItem>
+          {/* The ranking editor moved here from the Acquisition page; without
+              this entry it is unreachable below md — a moved feature that only
+              desktop can reach did not move, it half-vanished. */}
+          <SelectItem value="__classement__">Classement</SelectItem>
         </SelectContent>
       </Select>
     </div>
