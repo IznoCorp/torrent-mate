@@ -849,4 +849,49 @@ describe("AppShell nav badges", () => {
       expect(qc.getQueryState(decisionsKeys.all)?.isInvalidated).toBe(true);
     });
   });
+  it("le badge Acquisition affiche '?' quand le serveur avoue une lecture dégradée", async () => {
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (url.includes("/api/auth/me")) {
+        return Promise.resolve(buildResponse(200, { username: "izno" }));
+      }
+      if (url.includes("/api/staging/media")) {
+        return Promise.resolve(buildResponse(200, stagingPayload(0)));
+      }
+      if (url.includes("/api/pipeline/status")) {
+        return Promise.resolve(
+          buildResponse(200, pipelineStatusPayload("idle")),
+        );
+      }
+      if (url.includes("/api/acquisition/followed")) {
+        // Two takeable rows — a number the badge must NOT show, because the
+        // other half of the sum is unknowable.
+        return Promise.resolve(
+          buildResponse(200, followedPayload([
+            { status: "a_recuperer" },
+            { status: "a_recuperer" },
+          ])),
+        );
+      }
+      if (url.includes("/api/acquisition/to-handle")) {
+        // HTTP 200, empty items — but the server SAYS the read failed.
+        return Promise.resolve(
+          buildResponse(200, { items: [], orphan_count: 0, degraded: true }),
+        );
+      }
+      return Promise.resolve(buildResponse(200, {}));
+    });
+    renderShell();
+
+    // Sidebar and bottom bar both render the badge map — two is correct.
+    const marks = await screen.findAllByLabelText("Compteur indisponible");
+    expect(marks.length).toBeGreaterThan(0);
+    // And no numeric count coexists with the admission of ignorance.
+    expect(screen.queryByText("2")).toBeNull();
+  });
 });

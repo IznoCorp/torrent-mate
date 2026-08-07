@@ -490,7 +490,10 @@ const COUNT_ORDER: readonly Exclude<
  * Returns:
  *   A media sheet href, or ``null`` when no tvdb/tmdb id is known.
  */
-export function followMediaRef(item: FollowedSeriesItem): string | null {
+export function followMediaRef(item: {
+  readonly media_ref: FollowedSeriesItem["media_ref"];
+  readonly kind: string;
+}): string | null {
   const ref = item.media_ref;
   // tvdb first — primary provider for series.
   if (ref.tvdb_id != null) {

@@ -263,7 +263,7 @@ export function MaintenantPanel(): ReactElement {
         : slug === "a-traiter"
           ? aTraiter.length
           : slug === "en-vol"
-            ? enVol.length
+            ? enVol.length + downloads.length
             : slug === "cherche-rien-trouve"
               ? chercheRienTrouve.length
               : rangeAujourdhui.length;
@@ -288,7 +288,9 @@ export function MaintenantPanel(): ReactElement {
             wanted.isError ||
             downloadsQuery.isError ||
             journeys.isError
-          : count > 0;
+          : slug === "a-recuperer"
+            ? count > 0 || followed.isError
+            : count > 0;
 
     return { slug, count, visible };
   });
@@ -300,8 +302,15 @@ export function MaintenantPanel(): ReactElement {
   // knowledge that there is nothing (§14.1 rest-state rule, applied to
   // the client side).
 
+  // journeys and downloads included: without them the first paint showed
+  // stripless, percentless cards — indistinguishable from items that simply
+  // have no progress, which is a false statement made briefly on every load.
   const anyLoading =
-    followed.isLoading || wanted.isLoading || toHandle.isLoading;
+    followed.isLoading ||
+    wanted.isLoading ||
+    toHandle.isLoading ||
+    journeys.isLoading ||
+    downloadsQuery.isLoading;
   const anyData =
     followed.data != null || wanted.data != null || toHandle.data != null;
   const anyError =
@@ -399,12 +408,29 @@ export function MaintenantPanel(): ReactElement {
     );
     const journey = journeyByKey.get(matchKey);
     const stage = deriveStage(journey);
+    // The wanted row carries no provider ids, but its correlated journey does:
+    // an identified in-flight media leads to its sheet like any other (§11).
+    const sheetHref =
+      journey != null
+        ? followMediaRef({ media_ref: journey.media_ref, kind: item.kind })
+        : null;
 
     return (
       <AcquisitionCard
         key={item.id}
         title={item.title}
         posterUrl={null}
+        {...(sheetHref != null
+          ? {
+              onPoster: () => {
+                void navigate(sheetHref);
+              },
+            }
+          : {
+              // Identified (the title comes from the follow) — merely not
+              // linkable from here. « Média non identifié » would be false.
+              posterHint: "Pas de lien vers la fiche depuis cette carte.",
+            })}
         {...(item.season != null
           ? {
               subtitle: `S${String(item.season).padStart(2, "0")}${
@@ -445,7 +471,14 @@ export function MaintenantPanel(): ReactElement {
             and it belongs to no stage — an acquisition parked at « récupéré »
             is neither takeable nor in flight. It renders nothing when nothing
             is parked, because a permanent alert stops being one. */}
-        <StalledGrabsAlert count={overview.data?.stalled_grabs ?? 0} />
+        {/* A failed overview read is NOT « nothing is parked »: the count
+            falling back to 0 would silence the one alert built to end that
+            exact silence. */}
+        {overview.isError ? (
+          <ErrorState title="Impossible de vérifier les acquisitions parquées." />
+        ) : (
+          <StalledGrabsAlert count={overview.data?.stalled_grabs ?? 0} />
+        )}
 
         {sectionList.map((s) => {
           if (!s.visible) return null;

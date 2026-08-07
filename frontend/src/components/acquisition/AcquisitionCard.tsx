@@ -43,6 +43,10 @@ export interface AcquisitionCardProps {
   readonly onOpen?: () => void;
   /** Tap on the poster → the media sheet. Omit when the media has no sheet (§11). */
   readonly onPoster?: () => void;
+  /** Tooltip on a non-linked poster. The default fits an UNIDENTIFIED item; a
+   *  surface whose item is identified but merely unlinkable here must not let
+   *  the card claim « non identifié » about it — that claim would be false. */
+  readonly posterHint?: string | undefined;
   /** Actions menu. Rendered ONLY on a fine, hovering pointer — the card
    *  enforces that itself, so a call site cannot put a « ··· » on a phone. */
   readonly menu?: ReactNode;
@@ -107,6 +111,7 @@ export function AcquisitionCard({
   meta,
   onOpen,
   onPoster,
+  posterHint,
   menu,
   strip,
   footer,
@@ -136,7 +141,7 @@ export function AcquisitionCard({
         ) : (
           <span
             className="shrink-0 leading-none"
-            title="Média non identifié — pas de fiche disponible."
+            title={posterHint ?? "Média non identifié — pas de fiche disponible."}
           >
             {poster}
           </span>

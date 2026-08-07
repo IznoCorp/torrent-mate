@@ -86,10 +86,14 @@ function toastMutationError(action: string, err: unknown): void {
  * Returns:
  *   The TanStack Query result for a {@link FollowedResponse}.
  */
-export function useFollowed(params: FollowedParams = {}) {
+export function useFollowed(
+  params: FollowedParams = {},
+  options: { refetchInterval?: number; staleTime?: number } = {},
+) {
   return useQuery({
     queryKey: acqKeys.followed(params),
     queryFn: () => getFollowed(params),
+    ...options,
   });
 }
 

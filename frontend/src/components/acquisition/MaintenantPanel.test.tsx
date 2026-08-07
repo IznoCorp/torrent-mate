@@ -996,4 +996,95 @@ describe("MaintenantPanel", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText(/Rien à signaler/)).toBeNull();
   });
+  // ── Guards for the exhaustive-review fixes — a fix without a guard is a
+  //    fix waiting to be deleted by accident. ─────────────────────────────
+
+  it("une lecture d'ensemble en échec ne tait pas l'alerte des grabs parqués", () => {
+    mockHooks(empty);
+    vi.spyOn(hooks, "useOverview").mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    } as unknown as ReturnType<typeof hooks.useOverview>);
+    renderPanelPreMocked();
+
+    expect(
+      screen.getByText(/Impossible de vérifier les acquisitions parquées/),
+    ).toBeInTheDocument();
+  });
+
+  it("un échec des suivis OUVRE « À récupérer » au lieu de le faire disparaître", () => {
+    // The silent shape: followed fails, another section has content, and the
+    // three followed-backed sections vanish — their error state with them.
+    mockHooks(full);
+    vi.spyOn(hooks, "useFollowed").mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    } as unknown as ReturnType<typeof hooks.useFollowed>);
+    renderPanelPreMocked();
+
+    expect(screen.getByTestId("section-a-recuperer")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Impossible de charger les suivis/),
+    ).toBeInTheDocument();
+  });
+
+  it("nomme un échec de lecture des parcours dans « En vol »", () => {
+    mockHooks(full);
+    vi.spyOn(hooks, "useJourneys").mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    } as unknown as ReturnType<typeof hooks.useJourneys>);
+    renderPanelPreMocked();
+
+    expect(
+      screen.getByText(/Impossible de charger les parcours/),
+    ).toBeInTheDocument();
+  });
+
+  it("nomme un échec de lecture de la progression dans « En vol »", () => {
+    mockHooks(full);
+    vi.spyOn(hooks, "useDownloads").mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    } as unknown as ReturnType<typeof hooks.useDownloads>);
+    renderPanelPreMocked();
+
+    expect(
+      screen.getByText(/Impossible de charger la progression des téléchargements/),
+    ).toBeInTheDocument();
+  });
+
+  it("§11 — une carte « en vol » dont le parcours porte un identifiant mène à la fiche", () => {
+    mockHooks(full);
+    vi.spyOn(hooks, "useJourneys").mockReturnValue({
+      data: {
+        journeys: full.journeys.map((j) => ({
+          ...j,
+          media_ref: { tvdb_id: 400000, tmdb_id: null, imdb_id: null },
+        })),
+      },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof hooks.useJourneys>);
+    renderPanelPreMocked();
+
+    const enVol = screen.getByTestId("section-en-vol");
+    expect(
+      within(enVol).getAllByRole("button", { name: /Fiche de/ }).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("§8 — sans parcours corrélé, la carte n'affirme JAMAIS « non identifié »", () => {
+    // The title comes from the follow: the media IS identified. The generic
+    // card hint would state the opposite.
+    renderPanel(full);
+
+    const enVol = screen.getByTestId("section-en-vol");
+    const posters = within(enVol).queryAllByTitle(/Média non identifié/);
+    expect(posters).toHaveLength(0);
+  });
 });
