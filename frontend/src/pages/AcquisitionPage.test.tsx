@@ -791,7 +791,11 @@ describe("AcquisitionPage", () => {
   });
 
   it("un glissement né dans la bande de retour d'iOS ne change pas de vue", () => {
-    renderPage();
+    // Started from « Suivis » on purpose: a rightward drag from « Maintenant »
+    // lands back on « Maintenant » with OR without the guard, so that setup
+    // would prove nothing. From « Suivis » the same drag WOULD switch views if
+    // the edge band were not honoured.
+    renderPage("/acquisition?tab=suivis");
     const pager = screen.getByRole("tabpanel");
     vi.spyOn(pager, "getBoundingClientRect").mockReturnValue({
       left: 0,
@@ -806,11 +810,11 @@ describe("AcquisitionPage", () => {
     });
 
     fireEvent.pointerDown(pager, { clientX: 12, clientY: 200 });
-    fireEvent.pointerMove(pager, { clientX: 200, clientY: 202 });
-    fireEvent.pointerUp(pager, { clientX: 200, clientY: 202 });
+    fireEvent.pointerMove(pager, { clientX: 300, clientY: 202 });
+    fireEvent.pointerUp(pager, { clientX: 300, clientY: 202 });
 
     expect(
-      screen.getByRole("tab", { name: /Maintenant/ }),
+      screen.getByRole("tab", { name: /Suivis/ }),
     ).toHaveAttribute("aria-selected", "true");
   });
 });
