@@ -45,15 +45,23 @@ vi.mock("react-router-dom", async (importOriginal) => {
 // ---------------------------------------------------------------------------
 
 const searchResultsMock = vi.fn();
+const followedMock = vi.fn();
+const completenessMock = vi.fn(() => ({
+  data: undefined,
+  isLoading: false,
+  isError: false,
+}));
 vi.mock("@/hooks/useAcquisition", () => ({
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   useMediaSearch: (...a: unknown[]) => searchResultsMock(...a),
   useFollow: () => ({ mutate: vi.fn(), isPending: false }),
-  useCompleteness: () => ({
-    data: undefined,
-    isLoading: false,
-    isError: false,
-  }),
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  useCompleteness: () => completenessMock(),
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  useFollowed: () => followedMock(),
+  useToHandle: () => ({ data: { items: [], orphan_count: 0 }, isLoading: false, isError: false }),
+  useWanted: () => ({ data: { items: [], total: 0 }, isLoading: false, isError: false }),
+  useJourneys: () => ({ data: { journeys: [] }, isLoading: false, isError: false }),
 }));
 
 // ---------------------------------------------------------------------------
@@ -116,6 +124,9 @@ vi.mock("@/hooks/useStagingMedia", () => ({
 
 import { AddMediaScreen } from "@/components/acquisition/AddMediaScreen";
 import { AcquisitionCard } from "@/components/acquisition/AcquisitionCard";
+import { MaintenantPanel } from "@/components/acquisition/MaintenantPanel";
+import { SuivisPanel } from "@/components/acquisition/SuivisPanel";
+import { FollowDetailSheet } from "@/components/acquisition/FollowDetailSheet";
 import { FollowedPanel } from "@/components/acquisition/FollowedPanel";
 import { CandidateCard } from "@/components/decisions/CandidateCard";
 import { StagingLibrary } from "@/components/staging/StagingLibrary";
@@ -130,6 +141,9 @@ import { ParcoursPanel } from "@/components/acquisition/ParcoursPanel";
 const WIRED_SURFACES = [
   "AddMediaScreen",
   "AcquisitionCard",
+  "MaintenantPanel",
+  "SuivisPanel",
+  "FollowDetailSheet",
   "FollowedPanel",
   "CandidateCard",
   "StagingLibrary",
@@ -885,6 +899,168 @@ describe("§11 constitution — « Tout média est consultable »", () => {
       const title = await screen.findByText("feedbeef");
       // Must NOT be wrapped in an anchor — §11 forbids a dead link.
       expect(title.closest("a")).toBeNull();
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // SURFACES 3-5 — the acquisition panels and the detail sheet
+  // -----------------------------------------------------------------------
+
+  // These three render AcquisitionCard, so the poster contract is already
+  // enforced on the primitive above. What they own — and what is asserted here —
+  // is the DERIVATION: each must hand the card a real destination built from the
+  // item's provider ids, and hand it nothing when the item has none. A panel
+  // that passed a no-op would render a control that goes nowhere while the
+  // primitive's own tests stayed green.
+
+  /** A followed series carrying a tvdb id — it has a sheet. */
+  function identifiedFollow(): Record<string, unknown> {
+    return {
+      id: 1,
+      title: "Silo",
+      kind: "show",
+      status: "a_recuperer",
+      active: true,
+      added_at: 1_750_000_000,
+      wanted_pending: 0,
+      wanted_grabbed: 0,
+      year: 2023,
+      poster_url: null,
+      tvdb_unresolved: false,
+      priming_running: false,
+      media_ref: { tvdb_id: 400000, tmdb_id: null, imdb_id: null },
+      owned_count: 1,
+      aired_count: 2,
+    };
+  }
+
+  /** The same follow with no provider id at all — it has NO sheet. */
+  function unidentifiedFollow(): Record<string, unknown> {
+    return {
+      ...identifiedFollow(),
+      id: 2,
+      title: "Inconnu",
+      media_ref: { tvdb_id: null, tmdb_id: null, imdb_id: null },
+    };
+  }
+
+  function renderInRouter(node: ReactElement): void {
+    render(
+      <MemoryRouter>
+        <QueryClientProvider client={makeQueryClient()}>
+          {node}
+        </QueryClientProvider>
+      </MemoryRouter>,
+    );
+  }
+
+  describe("MaintenantPanel", () => {
+    coveredSurfaces.add("MaintenantPanel");
+
+    it("gives an identified item a poster that reaches its sheet", () => {
+      followedMock.mockReturnValue({
+        data: { items: [identifiedFollow()] },
+        isLoading: false,
+        isError: false,
+      });
+      renderInRouter(<MaintenantPanel />);
+
+      expect(
+        screen.getByRole("button", { name: "Fiche de Silo" }),
+      ).toBeInTheDocument();
+    });
+
+    it("gives an item with no provider id NO poster control", () => {
+      followedMock.mockReturnValue({
+        data: { items: [unidentifiedFollow()] },
+        isLoading: false,
+        isError: false,
+      });
+      renderInRouter(<MaintenantPanel />);
+
+      expect(
+        screen.queryByRole("button", { name: "Fiche de Inconnu" }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  describe("SuivisPanel", () => {
+    coveredSurfaces.add("SuivisPanel");
+
+    it("gives an identified follow a poster that reaches its sheet", () => {
+      followedMock.mockReturnValue({
+        data: { items: [identifiedFollow()] },
+        isLoading: false,
+        isError: false,
+      });
+      renderInRouter(<SuivisPanel />);
+
+      expect(
+        screen.getByRole("button", { name: "Fiche de Silo" }),
+      ).toBeInTheDocument();
+    });
+
+    it("gives a follow with no provider id NO poster control", () => {
+      followedMock.mockReturnValue({
+        data: { items: [unidentifiedFollow()] },
+        isLoading: false,
+        isError: false,
+      });
+      renderInRouter(<SuivisPanel />);
+
+      expect(
+        screen.queryByRole("button", { name: "Fiche de Inconnu" }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  describe("FollowDetailSheet", () => {
+    coveredSurfaces.add("FollowDetailSheet");
+
+    it("offers « Voir la fiche » when the follow has a sheet", () => {
+      completenessMock.mockReturnValue({
+        data: { title: "Silo", seasons: [] },
+        isLoading: false,
+        isError: false,
+      });
+      renderInRouter(
+        <FollowDetailSheet
+          followedId={1}
+          status="a_recuperer"
+          kind="show"
+          open
+          onOpenChange={vi.fn()}
+          mediaHref="/media/tvdb/400000?kind=tv"
+        />,
+      );
+
+      expect(
+        screen.getByRole("button", { name: /Voir la fiche/i }),
+      ).toBeInTheDocument();
+    });
+
+    it("omits « Voir la fiche » entirely when there is no sheet", () => {
+      // Absent, not disabled: a control the operator can see but never use is
+      // the dead link §11 forbids.
+      completenessMock.mockReturnValue({
+        data: { title: "Inconnu", seasons: [] },
+        isLoading: false,
+        isError: false,
+      });
+      renderInRouter(
+        <FollowDetailSheet
+          followedId={2}
+          status="a_recuperer"
+          kind="show"
+          open
+          onOpenChange={vi.fn()}
+          mediaHref={null}
+        />,
+      );
+
+      expect(
+        screen.queryByRole("button", { name: /Voir la fiche/i }),
+      ).not.toBeInTheDocument();
     });
   });
 
