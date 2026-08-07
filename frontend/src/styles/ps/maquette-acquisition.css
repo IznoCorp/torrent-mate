@@ -493,15 +493,61 @@
   white-space: nowrap;
 }
 
-/* ── Grid tile dimming (maquette .tile.off) ──
-   Layout stays Tailwind (measured at parity); only the maquette's paused
-   opacities live here, driven by the .tile.off + .p/.nm class hooks. */
+/* ── Grid tiles (maquette .tile family) ──
+   The poster BOX is the maquette contract (aspect 2/3, radius 6, no
+   border); the poster fallback INSIDE stays the design-system's
+   (the maquette's gradients+initials were prototype stand-ins for real
+   artwork). overflow:hidden added for real <img> clipping. */
 
+.mq .tile {
+  position: relative;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  display: block;
+  width: 100%;
+}
+.mq .tile .p {
+  display: grid;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: 6px;
+  place-items: center;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  color: rgb(255 255 255 / 0.7);
+  overflow: hidden;
+  background: var(--muted);
+}
 .mq .tile.off .p {
   opacity: 0.42;
 }
+.mq .tile .nm {
+  display: block;
+  font-size: 11px;
+  margin-top: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .mq .tile.off .nm {
   opacity: 0.55;
+}
+.mq .tile .fr {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ── Skeleton shimmer (maquette .skel) ── */

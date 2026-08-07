@@ -411,7 +411,7 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
         key={item.id}
         type="button"
         data-testid={`tile-${String(item.id)}`}
-        className={`tile${dimmed ? " off" : ""} block w-full min-w-0 text-left`}
+        className={`tile${dimmed ? " off" : ""}`}
         aria-label={
           badge != null ? `${item.title} — ${badge === "?" ? "état à vérifier" : `${badge} épisode(s) manquant(s)`}` : item.title
         }
@@ -419,33 +419,29 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
           setSheet(item);
         }}
       >
-        {/* Maquette .tile.off drives the paused opacities (.42/.55) via the
-            p/nm class hooks — layout itself stays Tailwind. */}
-        <span className="p relative block w-full">
-          <span className="block w-full overflow-hidden rounded-lg border border-border">
-            <MediaPoster title={item.title} src={item.poster_url ?? null} className="!w-full" />
+        {/* Maquette .tile grammar: the .p poster box (aspect 2/3, radius 6,
+            no border), badge as a .tile child, .nm/.fr text rows. */}
+        <span className="p">
+          <MediaPoster title={item.title} src={item.poster_url ?? null} className="!h-full !w-full" />
+        </span>
+        {badge != null && (
+          <span
+            data-badge
+            className={`absolute right-[5px] top-[5px] grid h-[17px] min-w-[17px] place-items-center rounded-full border-2 border-background px-1 text-[9.5px] font-bold text-white ${
+              badge === "?"
+                ? "bg-muted-foreground"
+                : item.status === "en_acquisition"
+                  ? "bg-info"
+                  : item.status === "en_attente"
+                    ? "bg-waiting"
+                    : "bg-warning"
+            }`}
+          >
+            {badge}
           </span>
-          {badge != null && (
-            <span
-              data-badge
-              className={`absolute right-[5px] top-[5px] grid h-[17px] min-w-[17px] place-items-center rounded-full border-2 border-background px-1 text-[9.5px] font-bold text-white ${
-                badge === "?"
-                  ? "bg-muted-foreground"
-                  : item.status === "en_acquisition"
-                    ? "bg-info"
-                    : item.status === "en_attente"
-                      ? "bg-waiting"
-                      : "bg-warning"
-              }`}
-            >
-              {badge}
-            </span>
-          )}
-        </span>
-        <span className="nm mt-[5px] block truncate text-[11px] leading-tight">
-          {item.title}
-        </span>
-        <span className="fr block truncate font-mono text-[10px] text-muted-foreground tabular-nums">
+        )}
+        <span className="nm">{item.title}</span>
+        <span className="fr">
           {/* Maquette: a paused tile SAYS so where the fraction went \u2014 the
               dimming alone does not answer \u00AB pourquoi rien ne bouge \u00BB. */}
           {dimmed
@@ -637,7 +633,7 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
         {/* Grid mode — 3-up poster grid. */}
         {!isLoading && !isError && viewMode === "grid" && visible.length > 0 && (
           <div
-            className="grid grid-cols-3 gap-3"
+            className="grid grid-cols-3 gap-2.5"
             data-testid="grid-container"
           >
             {visible.map(renderTile)}
