@@ -53,9 +53,12 @@ export interface AcquisitionCardProps {
 /** Props for the inner body — extracted so button/div share one copy. */
 interface CardBodyProps {
   readonly title: string;
-  readonly subtitle?: string;
-  readonly reason?: string;
-  readonly meta?: ReactNode;
+  // `| undefined` is required, not decorative: exactOptionalPropertyTypes is on,
+  // so an optional prop and a prop explicitly passed as undefined are different
+  // types, and the card spreads its own optionals straight through to here.
+  readonly subtitle?: string | undefined;
+  readonly reason?: string | undefined;
+  readonly meta?: ReactNode | undefined;
 }
 
 /** The card's inner content — title line, subtitle, reason, meta. */

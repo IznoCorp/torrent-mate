@@ -83,7 +83,7 @@ export interface FollowDetailSheetProps {
   /** Media sheet href, or ``null`` when no provider id is known (§11).
    *  Derived by the panel from ``followMediaRef(item)`` — the sheet does
    *  not own the derivation. */
-  readonly mediaHref?: string | null;
+  readonly mediaHref?: string | null | undefined;
 }
 
 // ── Loading / Error states ────────────────────────────────────────────────
@@ -249,7 +249,7 @@ function FollowDetailSheetContent({
   readonly data: CompletenessResponse;
   readonly status: FollowStatus;
   readonly kind: MediaKind;
-  readonly mediaHref?: string | null;
+  readonly mediaHref?: string | null | undefined;
 }): ReactElement {
   const navigate = useNavigate();
   const words = actionWords(kind);

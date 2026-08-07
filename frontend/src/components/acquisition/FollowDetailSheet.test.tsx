@@ -31,7 +31,7 @@ vi.mock("react-router-dom", async (importOriginal) => {
   return {
     ...actual,
     useNavigate: () => navigateMock,
-  } as typeof actual;
+  };
 });
 
 // ── Fixtures ──────────────────────────────────────────────────────────────

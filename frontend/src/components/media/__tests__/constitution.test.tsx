@@ -16,6 +16,7 @@
  * not that the helper itself is called.
  */
 
+import type { ReactElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -46,7 +47,11 @@ vi.mock("react-router-dom", async (importOriginal) => {
 
 const searchResultsMock = vi.fn();
 const followedMock = vi.fn();
-const completenessMock = vi.fn(() => ({
+const completenessMock = vi.fn<() => {
+  data: unknown;
+  isLoading: boolean;
+  isError: boolean;
+}>(() => ({
   data: undefined,
   isLoading: false,
   isError: false,
@@ -55,7 +60,6 @@ vi.mock("@/hooks/useAcquisition", () => ({
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   useMediaSearch: (...a: unknown[]) => searchResultsMock(...a),
   useFollow: () => ({ mutate: vi.fn(), isPending: false }),
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   useCompleteness: () => completenessMock(),
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   useFollowed: () => followedMock(),
