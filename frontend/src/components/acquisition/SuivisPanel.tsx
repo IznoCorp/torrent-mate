@@ -33,6 +33,7 @@ import { AcquisitionCard } from "./AcquisitionCard";
 import { FollowDetailSheet } from "./FollowDetailSheet";
 import type { FollowStatus, MediaKind } from "./meta";
 import {
+  FOLLOW_STATUS_LABEL,
   FOLLOW_STATUS_TONE,
   followCountsCaption,
   followFraction,
@@ -107,16 +108,6 @@ const GROUP_KEYS: FollowStatus[] = [
   "a_jour",
   "disabled",
 ];
-
-const GROUP_HEADER_LABEL: Record<FollowStatus, string> = {
-  a_recuperer: "À récupérer",
-  en_acquisition: "En cours d'acquisition",
-  en_attente: "En attente de torrent",
-  non_verifie: "Non vérifié",
-  a_jour: "À jour",
-  disabled: "En pause",
-  verification_en_cours: "Vérification en cours",
-};
 
 // ---------------------------------------------------------------------------
 // Sort
@@ -503,7 +494,7 @@ export function SuivisPanel(): ReactElement {
                     data-testid="section-head"
                     className="mb-2 flex items-center gap-2 text-sm font-medium"
                   >
-                    {GROUP_HEADER_LABEL[status]}
+                    {FOLLOW_STATUS_LABEL[status]}
                     <span className="text-xs text-muted-foreground tabular-nums">
                       {String(groupItems.length)}
                     </span>
