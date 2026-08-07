@@ -320,6 +320,28 @@ describe("MaintenantPanel", () => {
     expect(link).toHaveAttribute("href", "/controle");
   });
 
+  it("le renvoi orphelin apparaît même quand des items sont présents (§méthode)", async () => {
+    renderPanel({
+      ...full,
+      toHandle: { items: [blockedItem()], orphan_count: 5 },
+    });
+
+    // Both the blocked card AND the crossref render.
+    const section = screen.getByTestId("section-a-traiter");
+    expect(section).toBeInTheDocument();
+
+    // The card is present.
+    expect(
+      within(section).getByText("titre ambigu — 3 candidats proposés"),
+    ).toBeInTheDocument();
+
+    // The crossref is ALSO present — orphans are never invisible.
+    const crossref = await within(section).findByRole("link", {
+      name: /5 autres médias à traiter.*Contrôle/i,
+    });
+    expect(crossref).toHaveAttribute("href", "/controle");
+  });
+
   it("« À traiter » disparaît quand il n'y a ni item ni orphelin", () => {
     renderPanel({
       ...full,

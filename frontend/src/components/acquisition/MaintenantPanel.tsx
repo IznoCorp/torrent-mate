@@ -309,8 +309,10 @@ export function MaintenantPanel(): ReactElement {
               {s.slug === "a-traiter" && (
                 <>
                   {aTraiter.map(renderATraiterCard)}
-                  {/* Crossref — orphans with NO acquisition provenance (§3.1). */}
-                  {aTraiter.length === 0 && orphanCount > 0 && (
+                  {/* Crossref — orphans with NO acquisition provenance (§3.1).
+                       Renders whenever orphans exist, even alongside items —
+                       §méthode: never under-count what needs attention. */}
+                  {orphanCount > 0 && (
                     <Link
                       to="/controle"
                       className="block rounded-md border border-border px-3 py-2 text-sm text-muted-foreground hover:bg-accent"
