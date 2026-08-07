@@ -304,8 +304,12 @@ export function FollowDetailSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="flex max-h-[85vh] flex-col overflow-y-auto"
+        // Maquette .sheet: a grab handle and the outside tap close it — no
+        // cross. 16px top radius, 86% max height.
+        className="mq flex max-h-[86%] flex-col overflow-y-auto rounded-t-2xl border-t border-border"
+        showCloseButton={false}
       >
+        <div className="sheetgrab" aria-hidden="true" />
         {isLoading ? (
           <SheetLoading />
         ) : isError ? (

@@ -427,8 +427,14 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
           {badge != null && (
             <span
               data-badge
-              className={`absolute right-[5px] top-[5px] grid h-[17px] min-w-[17px] place-items-center rounded-full px-1 text-[11px] font-bold text-white ring-2 ring-background ${
-                badge === "?" ? "bg-muted-foreground" : "bg-warning"
+              className={`absolute right-[5px] top-[5px] grid h-[17px] min-w-[17px] place-items-center rounded-full border-2 border-background px-1 text-[9.5px] font-bold text-white ${
+                badge === "?"
+                  ? "bg-muted-foreground"
+                  : item.status === "en_acquisition"
+                    ? "bg-info"
+                    : item.status === "en_attente"
+                      ? "bg-waiting"
+                      : "bg-warning"
               }`}
             >
               {badge}

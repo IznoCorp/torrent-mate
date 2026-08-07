@@ -467,3 +467,14 @@
   width: 14px;
   height: 14px;
 }
+
+/* ── Bottom sheet chrome (maquette .sheet/.sheetgrab) ── */
+
+.mq .sheetgrab {
+  width: 36px;
+  height: 4px;
+  border-radius: 99px;
+  background: var(--border);
+  margin: 10px auto 8px;
+  flex: 0 0 auto;
+}

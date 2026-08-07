@@ -68,7 +68,12 @@ export function JourneyDetailSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="flex max-h-[85vh] flex-col gap-3 overflow-y-auto">
+      <SheetContent
+        side="bottom"
+        className="mq flex max-h-[86%] flex-col gap-3 overflow-y-auto rounded-t-2xl border-t border-border"
+        showCloseButton={false}
+      >
+        <div className="sheetgrab" aria-hidden="true" />
         <SheetHeader>
           <SheetTitle className="text-lg font-semibold">{title}</SheetTitle>
           {/* The release ACTUALLY grabbed — admitted absent, never substituted. */}
