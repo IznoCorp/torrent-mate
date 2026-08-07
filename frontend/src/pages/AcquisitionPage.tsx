@@ -14,12 +14,26 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactElement,
+} from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import { acqKeys } from "@/api/acquisition";
 import { AddMediaScreen } from "@/components/acquisition/AddMediaScreen";
+import {
+  PULL_THRESHOLD_PX,
+  lockAxis,
+  shouldRefresh,
+  shouldStartViewSwipe,
+  viewSwipeResult,
+} from "@/components/acquisition/gestures";
 import { MaintenantPanel } from "@/components/acquisition/MaintenantPanel";
 import {
   ACQ_EVENT_TYPES,
@@ -97,6 +111,72 @@ export default function AcquisitionPage(): ReactElement {
       );
     },
     [setSearchParams],
+  );
+
+  // ── Touch gestures ────────────────────────────────────────────────────
+  //
+  // Two horizontal gestures compete for one surface. Arbitration: a drag that
+  // STARTS on a card belongs to the card; anywhere else it changes view. The
+  // consequence is accepted, not hidden — in card-dense areas, changing view
+  // will mostly happen through the tabs. Only a thumb on a real device can say
+  // whether that trade is right; the tabs remain the guaranteed path either way.
+  const pagerRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{
+    x: number;
+    y: number;
+    axis: "x" | "y" | null;
+    atTop: boolean;
+  } | null>(null);
+  const [pullDistance, setPullDistance] = useState(0);
+  const queryClientForPull = useQueryClient();
+
+  const onPointerDown = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    const pager = pagerRef.current;
+    if (pager == null) return;
+    // A gesture born inside a card is the card's; it says so with data-swipe.
+    if ((e.target as HTMLElement).closest("[data-swipe]") != null) return;
+    if (!shouldStartViewSwipe(e.clientX, pager.getBoundingClientRect().left)) {
+      return;
+    }
+    dragRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      axis: null,
+      atTop: window.scrollY <= 0,
+    };
+  }, []);
+
+  const onPointerMove = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (drag == null) return;
+    const dx = e.clientX - drag.x;
+    const dy = e.clientY - drag.y;
+    drag.axis ??= lockAxis(dx, dy);
+    if (drag.axis === "y" && drag.atTop && dy > 0) {
+      setPullDistance(dy);
+    }
+  }, []);
+
+  const onPointerUp = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      const drag = dragRef.current;
+      dragRef.current = null;
+      setPullDistance(0);
+      if (drag == null) return;
+      const dx = e.clientX - drag.x;
+      const dy = e.clientY - drag.y;
+
+      if (drag.axis === "x") {
+        const width = pagerRef.current?.getBoundingClientRect().width ?? 0;
+        const next = viewSwipeResult(dx, width, activeTab);
+        if (next !== activeTab) setActiveTab(next);
+        return;
+      }
+      if (shouldRefresh(dy, drag.atTop)) {
+        void queryClientForPull.invalidateQueries({ queryKey: acqKeys.all });
+      }
+    },
+    [activeTab, setActiveTab, queryClientForPull],
   );
   const queryClient = useQueryClient();
   const { events } = useEventStreamContext();
@@ -191,11 +271,30 @@ export default function AcquisitionPage(): ReactElement {
 
       {/* Active panel. */}
       <div
+        ref={pagerRef}
         id="acq-tabpanel"
         role="tabpanel"
         aria-labelledby={`acq-tab-${activeTab}`}
-        className="flex flex-col gap-4 pt-1"
+        // overscroll-y-contain stops the browser's OWN pull-to-refresh from
+        // reloading the page: a full reload loses the view, the filters and the
+        // display mode, which is the opposite of what the pull asked for.
+        className="flex touch-pan-y flex-col gap-4 overscroll-y-contain pt-1"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
       >
+        {pullDistance > 0 && (
+          <p
+            data-testid="pull-indicator"
+            aria-live="polite"
+            className="text-center text-xs text-muted-foreground"
+          >
+            {pullDistance >= PULL_THRESHOLD_PX
+              ? "Relâchez pour actualiser"
+              : "Tirez pour actualiser"}
+          </p>
+        )}
         {activeTab === "maintenant" && <MaintenantPanel />}
         {activeTab === "suivis" && <SuivisPanel />}
       </div>

@@ -727,4 +727,90 @@ describe("AcquisitionPage", () => {
       screen.getByText(/Impossible de charger les éléments à traiter/),
     ).toBeInTheDocument();
   });
+  // ── Gestures ────────────────────────────────────────────────────────────
+  //
+  // The arbitration itself is unit-tested in gestures.test.ts (jsdom has no
+  // real touch and no layout). What is pinned HERE is the wiring: that the
+  // pager consults those rules at all, and that a gesture which belongs to a
+  // card is handed back to it.
+
+  it("un glissement horizontal franc change de vue", () => {
+    renderPage();
+    const pager = screen.getByRole("tabpanel");
+    // jsdom reports 0 for every box, and a 0-width pager makes every drag
+    // spring back — so the width has to be stated for the rule to be exercised.
+    vi.spyOn(pager, "getBoundingClientRect").mockReturnValue({
+      left: 0,
+      width: 390,
+      top: 0,
+      right: 390,
+      bottom: 0,
+      height: 0,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.pointerDown(pager, { clientX: 300, clientY: 200 });
+    fireEvent.pointerMove(pager, { clientX: 140, clientY: 202 });
+    fireEvent.pointerUp(pager, { clientX: 140, clientY: 202 });
+
+    expect(
+      screen.getByRole("tab", { name: /Suivis/ }),
+    ).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("un glissement parti d'une carte reste à la carte, la vue ne bouge pas", () => {
+    // Two horizontal gestures share this surface; the card's own swipe actions
+    // would be unusable if the pager stole every drag that starts on one.
+    renderPage();
+    const pager = screen.getByRole("tabpanel");
+    vi.spyOn(pager, "getBoundingClientRect").mockReturnValue({
+      left: 0,
+      width: 390,
+      top: 0,
+      right: 390,
+      bottom: 0,
+      height: 0,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+
+    const card = document.createElement("div");
+    card.setAttribute("data-swipe", "");
+    pager.appendChild(card);
+
+    fireEvent.pointerDown(card, { clientX: 300, clientY: 200 });
+    fireEvent.pointerMove(pager, { clientX: 140, clientY: 202 });
+    fireEvent.pointerUp(pager, { clientX: 140, clientY: 202 });
+
+    expect(
+      screen.getByRole("tab", { name: /Maintenant/ }),
+    ).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("un glissement né dans la bande de retour d'iOS ne change pas de vue", () => {
+    renderPage();
+    const pager = screen.getByRole("tabpanel");
+    vi.spyOn(pager, "getBoundingClientRect").mockReturnValue({
+      left: 0,
+      width: 390,
+      top: 0,
+      right: 390,
+      bottom: 0,
+      height: 0,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.pointerDown(pager, { clientX: 12, clientY: 200 });
+    fireEvent.pointerMove(pager, { clientX: 200, clientY: 202 });
+    fireEvent.pointerUp(pager, { clientX: 200, clientY: 202 });
+
+    expect(
+      screen.getByRole("tab", { name: /Maintenant/ }),
+    ).toHaveAttribute("aria-selected", "true");
+  });
 });
