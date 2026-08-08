@@ -46,6 +46,10 @@ export function useBackCloses(open: boolean, close: () => void): void {
       markerRef.current = true;
       void navigate(`${location.pathname}${location.search}`, {
         state: { backLayer: true },
+        // The page under the layer must not jump to the top when the
+        // marker entry is pushed (ScrollRestoration treats a push as a
+        // new page by default).
+        preventScrollReset: true,
       });
     }
     // location is deliberately not a dependency: the push must happen once

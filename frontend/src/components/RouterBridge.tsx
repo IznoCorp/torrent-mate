@@ -34,7 +34,12 @@
 
 import { useEffect, useRef, type ReactElement } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import {
+  Outlet,
+  ScrollRestoration,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 
 import { setUnauthorizedHandler } from "@/api/client";
 import { authKeys } from "@/hooks/useAuth";
@@ -68,5 +73,13 @@ export function RouterBridge(): ReactElement {
     });
   }, [navigate, queryClient]);
 
-  return <Outlet />;
+  return (
+    <>
+      {/* App-like scroll: entering a page (push/replace) starts at the top,
+          the Back gesture restores the previous position. In-page layers
+          that push marker entries opt out via preventScrollReset. */}
+      <ScrollRestoration />
+      <Outlet />
+    </>
+  );
 }

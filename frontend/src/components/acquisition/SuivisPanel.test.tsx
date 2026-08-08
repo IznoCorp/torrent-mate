@@ -597,6 +597,17 @@ describe("SuivisPanel", () => {
     expect(busy?.querySelectorAll(".skel")).toHaveLength(3);
   });
 
+  it("changer de mode de vue remonte en haut de la liste", () => {
+    // Operator report: switching display mode left the list mid-scroll.
+    const scrollSpy = vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+    renderPanel([takeableShow()]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Grille d'affiches" }));
+
+    expect(scrollSpy).toHaveBeenCalledWith({ top: 0 });
+    scrollSpy.mockRestore();
+  });
+
   it("un ajout frais brille : glow .fresh sur la rangée et pilule .freshtag", () => {
     // Maquette .swipe.fresh + .freshtag — « c'est ajouté » se PROUVE dans la
     // liste, sinon ce n'est qu'une affirmation (§7).

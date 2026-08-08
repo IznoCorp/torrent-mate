@@ -504,6 +504,9 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
               aria-pressed={viewMode === m.key}
               onClick={() => {
                 setViewMode(m.key);
+                // Operator report: switching display mode left the list
+                // mid-scroll — a new view reads from its top.
+                window.scrollTo({ top: 0 });
               }}
             >
               {m.icon}
