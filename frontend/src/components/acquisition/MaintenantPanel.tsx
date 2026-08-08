@@ -52,7 +52,7 @@ import { JourneyDetailSheet } from "./JourneyDetailSheet";
 import { deriveStage, formatSince, journeyMatchKey, stageElapsed } from "./journey";
 import { PendingRunLine } from "./PendingRunLine";
 import { JourneyStrip } from "./JourneyStrip";
-import { DownloadRow } from "./DownloadRow";
+import { DownloadRow, formatEta } from "./DownloadRow";
 import { StalledGrabsAlert } from "./StalledGrabsAlert";
 import {
   asMediaKind,
@@ -605,6 +605,14 @@ export function MaintenantPanel(): ReactElement {
                   <span className="text-xs text-muted-foreground">
                     {DOWNLOAD_STATE_LABEL[download.state] ?? "état inconnu"}
                   </span>
+                  {/* Maquette FROM card: « 12 min restantes » folded into the
+                      card — only while downloading AND known (addition B). */}
+                  {download.state === "downloading" &&
+                    download.eta_seconds != null && (
+                      <span className="text-xs text-muted-foreground">
+                        {formatEta(download.eta_seconds)}
+                      </span>
+                    )}
                   {download.error_reason != null &&
                     download.error_reason !== "" && (
                       <span className="text-xs text-danger">

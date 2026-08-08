@@ -28,7 +28,7 @@ function downloadTitle(d: AcquisitionDownload): string {
 }
 
 /** Maquette « 12 min restantes » — honest ETA wording from client seconds. */
-function formatEta(seconds: number): string {
+export function formatEta(seconds: number): string {
   if (seconds < 60) return "moins d'une minute restante";
   const mins = Math.round(seconds / 60);
   if (mins < 60) return `${String(mins)} min restantes`;
