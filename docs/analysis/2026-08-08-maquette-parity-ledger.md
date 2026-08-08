@@ -415,3 +415,55 @@ maquette closes it) — commit `3818e1fd`.
 **ALL PASS — 15 regions, 0 divergences** (69 selector pairs incl. the
 2 fresh ones), toast now passing with its shadow equal. Gates: tsc 0,
 eslint 0, vitest **1303/1303** (fresh pin test added).
+
+## Entry 14 — 2026-08-08: five operator-reported fixes, measured on the deployed build
+
+All five reports from the operator's TODO list, each fixed → deployed →
+verified live (staging `948310df`):
+
+1. **Back gesture closed the tab, not the sheet.** Detail sheets were
+   React state, invisible to history — Back popped `?tab=suivis` and
+   landed on Maintenant. New `useBackCloses` hook: opening a layer
+   pushes a same-URL marker entry (preventScrollReset), Back pops it
+   and closes the layer, a UI close consumes it, « Voir la fiche »
+   REPLACES it so one Back returns under the sheet. Wired on
+   FollowDetailSheet (×2), JourneyDetailSheet, the « ⋮ » sheet.
+   Verified live: back→sheet closed on Suivis; fiche→one back→Suivis.
+2. **Suivis list slow.** API was 66 ms — the cost was FRONT: full-size
+   posters (~370 KB TVDB each) + cold query per tab switch. Fixes:
+   `posterThumb()` (TVDB `_t`, TMDB `w342`) on card/tile/sheet
+   surfaces, prefetch of `followed(active=all)` at page mount,
+   staleTime 55 s. Measured live: tab switch → first card 149 ms;
+   19/19 poster responses are thumbnails (0 full-size).
+3. **Pull-to-refresh dead under a real finger.** The pager carries
+   `touch-pan-y`: the browser claimed vertical pans and sent
+   pointercancel — the pointer-based pull only ever worked with
+   synthetic events. Pull moved to non-passive TOUCH listeners with
+   preventDefault at top. Verified with native CDP touch gestures:
+   pull arms (`ptr armed h=80px`), release fires 10 acquisition
+   refetches. Harness ptrhold scenario updated to touch accordingly.
+4. **Owned series not flagged in search.** The §5 ownership pass only
+   checked `kind == "movie"`. Series now go through `owned_pairs()` —
+   owned as soon as ANY live episode file exists. Regression test
+   (mutation-checked: fails on pre-fix code). Verified live:
+   « tv Kaamelott 2005 owned=True ».
+5. **Views opened mid-scroll.** `ScrollRestoration` mounted in
+   RouterBridge (push → top, Back → restored) + explicit scroll-top on
+   the Suivis view-mode switch. Verified live: fiche opens at
+   scrollY 0; vsw switch → 0.
+
+**Parity re-proof after all five**: UNION **ALL PASS — 15 regions, 0
+divergences** on the deployed build. Gates: tsc 0, eslint 0, vitest
+**1313/1313**, `make check` **10445 passed** (one
+`test_locks_tmp_orphans` flake, passes alone — known isolation noise).
+
+**Process fault logged**: one commit (`fcd4aab8`) was pushed with tsc
+RED — a `; echo` masked the exit code (the exact gate-verdict fault
+this mission already documented). Repaired within minutes by
+`8a5ea20c`; the strict `if …; then` form is now used everywhere.
+
+**Pre-existing quirk observed (NOT a regression, left open)**: opening
+any shadcn/Radix sheet clamps `window.scrollY` to 0 (body
+`overflow:hidden` scroll-lock), so the list under a sheet loses its
+scroll position on close. Predates this branch; consistent with the
+operator's stated top-of-view preference, flagged for their call.
