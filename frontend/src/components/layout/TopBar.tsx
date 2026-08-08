@@ -3,7 +3,10 @@ import { useEffect, useRef, type ReactElement } from "react";
 import { Link } from "react-router-dom";
 
 import { BrandMark } from "@/components/ds/BrandMark";
-import { TOPBAR_HEIGHT_VAR } from "@/components/layout/bottom-bar-metrics";
+import {
+  TOPBAR_HEIGHT_VAR,
+  publishMeasuredHeight,
+} from "@/components/layout/bottom-bar-metrics";
 import { StatusDot, type PipelineStatus } from "@/components/ds/StatusDot";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 import { UserMenu } from "@/components/layout/UserMenu";
@@ -81,10 +84,7 @@ export function TopBar({ onOpenNav }: TopBarProps): ReactElement {
     const root = document.documentElement;
     if (el == null) return;
     const publish = (): void => {
-      root.style.setProperty(
-        TOPBAR_HEIGHT_VAR,
-        `${String(el.getBoundingClientRect().height)}px`,
-      );
+      publishMeasuredHeight(TOPBAR_HEIGHT_VAR, el.getBoundingClientRect().height);
     };
     publish();
     if (typeof ResizeObserver === "undefined") {
@@ -106,7 +106,13 @@ export function TopBar({ onOpenNav }: TopBarProps): ReactElement {
   return (
     <header
       ref={headerRef}
-      className="sticky top-0 z-40 flex items-center gap-4 border-b border-border bg-background/85 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] backdrop-blur-sm md:px-6"
+      // OPAQUE, and no backdrop-filter: a translucent blurred bar has to
+      // re-sample the content moving underneath on EVERY frame, and iOS
+      // composites that against a main-thread sticky offset — which is the
+      // shimmer the operator reported three times. The maquette asks for no
+      // blur here (its only blur is the decorative poster backdrop in the
+      // media sheet), so nothing is owed to the design by keeping it.
+      className="sticky top-0 z-40 flex items-center gap-4 border-b border-border bg-background px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] md:px-6"
     >
       <button
         type="button"

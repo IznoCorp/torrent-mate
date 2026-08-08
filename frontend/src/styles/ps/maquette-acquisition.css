@@ -19,10 +19,6 @@
   gap: 8px;
   align-items: center;
   padding: 10px 14px 8px;
-  /* iOS: a sticky element repainted in the page layer shivers during list
-     scroll (operator report) — its own compositing layer holds it still.
-     Zero-value transform: measured geometry is untouched. */
-  transform: translateZ(0);
 }
 .mq .seg {
   flex: 1 1 auto;
@@ -82,8 +78,6 @@
   padding: 0 14px 8px;
   border-bottom: 1px solid var(--border);
   background: var(--background);
-  /* Same iOS anti-shiver layer promotion as .viewtabs. */
-  transform: translateZ(0);
 }
 .mq .search {
   display: flex;

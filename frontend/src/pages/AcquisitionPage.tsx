@@ -54,6 +54,7 @@ import {
   TOPBAR_HEIGHT_VAR,
   VIEWTABS_HEIGHT_VAR,
   aboveBottomBar,
+  publishMeasuredHeight,
 } from "@/components/layout/bottom-bar-metrics";
 import { useWaitingForOperator } from "@/hooks/useAcquisition";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
@@ -189,10 +190,7 @@ export default function AcquisitionPage(): ReactElement {
     const root = document.documentElement;
     if (el == null) return;
     const publish = (): void => {
-      root.style.setProperty(
-        VIEWTABS_HEIGHT_VAR,
-        `${String(el.getBoundingClientRect().height)}px`,
-      );
+      publishMeasuredHeight(VIEWTABS_HEIGHT_VAR, el.getBoundingClientRect().height);
     };
     publish();
     if (typeof ResizeObserver === "undefined") {

@@ -4,6 +4,7 @@ import { NavLink } from "react-router-dom";
 import { BOTTOM_TAB_ITEMS } from "@/components/layout/nav";
 import {
   BOTTOM_BAR_HEIGHT_VAR,
+  publishMeasuredHeight,
 } from "@/components/layout/bottom-bar-metrics";
 import { cn } from "@/lib/utils";
 
@@ -46,10 +47,7 @@ export function BottomTabBar({
     if (el == null) return;
 
     const publish = (): void => {
-      root.style.setProperty(
-        BOTTOM_BAR_HEIGHT_VAR,
-        `${String(el.getBoundingClientRect().height)}px`,
-      );
+      publishMeasuredHeight(BOTTOM_BAR_HEIGHT_VAR, el.getBoundingClientRect().height);
     };
     publish();
 

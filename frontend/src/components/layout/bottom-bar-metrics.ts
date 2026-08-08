@@ -46,3 +46,31 @@ export const VIEWTABS_HEIGHT_VAR = "--tm-viewtabs-h";
 export function aboveBottomBar(gap: string): string {
   return `calc(var(${BOTTOM_BAR_HEIGHT_VAR}, 0px) + ${gap})`;
 }
+
+
+/**
+ * Publish a measured height as a CSS custom property — but ONLY on change.
+ *
+ * The three bars each observe themselves and write their height to
+ * `:root`. On iOS that write is not free: scrolling collapses and expands the
+ * URL bar, which changes the visual viewport AND `env(safe-area-inset-*)`, so
+ * the observed elements resize CONTINUOUSLY while the finger is down. Every
+ * write invalidates the whole document's style, and the sticky filter zone —
+ * positioned at `top: calc(var(--tm-topbar-h) + var(--tm-viewtabs-h))` —
+ * re-resolves its offset mid-scroll. That is a shimmer, and it is self
+ * inflicted.
+ *
+ * Two guards, both cheap: round to the whole pixel (sub-pixel churn from the
+ * toolbar animation is noise, not information), and skip the write when the
+ * rounded value is what is already there.
+ *
+ * Args:
+ *   varName: The custom property to publish.
+ *   height: The freshly measured height, in CSS pixels.
+ */
+export function publishMeasuredHeight(varName: string, height: number): void {
+  const root = document.documentElement;
+  const next = `${String(Math.round(height))}px`;
+  if (root.style.getPropertyValue(varName) === next) return;
+  root.style.setProperty(varName, next);
+}
