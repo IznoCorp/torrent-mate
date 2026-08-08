@@ -213,6 +213,8 @@
 }
 .mq .addform {
   flex: 0 0 auto;
+  /* UA form bottom margin the maquette rides — preflight resets it. */
+  margin-bottom: 14px;
   padding: 0 16px 12px;
   border-bottom: 1px solid var(--border);
   display: flex;
@@ -241,6 +243,8 @@
   cursor: not-allowed;
 }
 .mq .rescount {
+  /* UA <p> margins the maquette rides (1em at 12px) — preflight resets. */
+  margin: 12px 0;
   font-size: 12px;
   color: var(--muted-foreground);
   padding: 14px 16px 4px;
@@ -316,8 +320,8 @@
   font: inherit;
   font-size: 12px;
   font-weight: 700;
-  padding: 6px 12px;
-  border-radius: 99px;
+  padding: 6px 13px;
+  border-radius: 6px;
   cursor: pointer;
 }
 .mq .resbtn.done {

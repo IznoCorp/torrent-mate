@@ -116,7 +116,8 @@ export function AddMediaScreen({
   const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
   const [kind, setKind] = useState<KindFilter>("all");
 
-  // Session-local follow state (NOT an API cross-check — see Correction 3).
+  // Session-local adds; the rendered « ✓ Suivi » state ALSO title-matches
+  // the live follows list (maquette isFollowed) — see `done` at the button.
   const [followed, setFollowed] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
@@ -434,7 +435,12 @@ export function AddMediaScreen({
               <ul className="reslist" role="list">
                 {results.map((result) => {
                   const key = `${result.provider}-${String(result.provider_id)}`;
-                  const done = followed.has(key);
+                  // Maquette isFollowed: session adds OR a TITLE already in the
+                  // follows — searching what you already follow answers
+                  // « ✓ Suivi », not a second follow button.
+                  const done =
+                    followed.has(key) ||
+                    followedTitles.has(result.title.toLowerCase());
                   const words = actionWords(result.kind);
                   const kindLabel =
                     FOLLOW_KIND_LABEL[asMediaKind(result.kind)] ?? result.kind;
@@ -484,7 +490,7 @@ export function AddMediaScreen({
                               (warning outline, « Suivre… »). */}
                           <button
                             type="button"
-                            className={`resbtn ml-auto ${done ? "done" : result.already_owned ? "owned" : ""}`}
+                            className={`resbtn ${done ? "done" : result.already_owned ? "owned" : ""}`}
                             disabled={done || followMut.isPending}
                             onClick={() => {
                               follow(result);

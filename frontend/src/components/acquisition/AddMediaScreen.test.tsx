@@ -530,6 +530,17 @@ describe("AddMediaScreen", () => {
       expect(screen.getByRole("searchbox")).toHaveValue("severance");
     });
 
+    it("un résultat au titre déjà suivi répond « ✓ Suivi », désactivé (maquette isFollowed)", () => {
+      followedListMock.mockReturnValue({ data: { items: [{ title: "silo" }] } });
+      renderAdd({ results: [{ title: "Silo", kind: "tv", provider: "tvdb" }] });
+      fireEvent.change(screen.getByRole("searchbox"), { target: { value: "silo" } });
+      fireEvent.click(screen.getByRole("button", { name: "Chercher" }));
+
+      const doneBtn = screen.getByRole("button", { name: /✓ Suivi/ });
+      expect(doneBtn).toBeDisabled();
+      expect(doneBtn).toHaveClass("resbtn", "done");
+    });
+
     it("une requête déjà suivie n'est pas proposée", () => {
       localStorage.setItem(
         "tm.add.recentSearches",
