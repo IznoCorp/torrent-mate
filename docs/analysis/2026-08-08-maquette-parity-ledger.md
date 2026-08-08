@@ -562,3 +562,40 @@ for PWA push notifications (Android + iOS) — planning only.
 
 **Gates**: `make check` PASS (incl. migrations chain 21), frontend
 1323/1323, UNION **ALL PASS — 15 regions** post-batch.
+
+## Entry 17 — 2026-08-08 (post-batch-4): two truth fixes + the gesture net rebuilt
+
+**A conflated unknown, caught by measuring the render path.** Proving the
+release-name fix end-to-end (a patched payload, not the parity mirror)
+showed 3 of 5 in-flight cards naming the release and 2 still reading
+« Nom de release non enregistré ». Root cause was not the new column: the
+card rendered `journey?.release_name ?? "Nom de release non enregistré"`,
+folding TWO different unknowns into one sentence — a correlated journey
+whose name was never recorded, versus a download tied to NO journey at
+all. « Non enregistré » asserts we consulted the record; that is only true
+in the first case. Now split (« Acquisition non corrélée » for the
+second). Test mutation-checked: it fails on the pre-fix code.
+
+**« Recherche automatique » served** (`0578ca02`) — the last maquette
+`.kv` row that could be filled honestly, read from the grab cron's LIVE
+schedule via the scheduler registry, never hardcoded. Verified live:
+« Recherche automatique | Tous les jours à 03:20 et 15:20 ».
+The other two stay OMITTED with their reason recorded in the component
+docstring: « Prochain passage » has no computable next-fire (the registry
+mirrors the cron in prose only) and « Ratio global » has no data at all
+(`ratio_state` holds zero rows — a figure there would be invented, which
+is precisely §14's prohibition).
+
+**Gesture pass rebuilt for the new channels — it had gone vacuous.** The
+12-assertion pass still drove POINTER events for pull-to-refresh and
+asserted tab positions by `nth-child`, both invalidated by today's work.
+It was failing loudly on the pull (good) but its two swipe assertions
+were passing while certifying the wrong direction (bad — a green test
+that checks the old contract). Realigned to touch events + accessible
+names, and EXTENDED with the two gestures shipped today: Back closes the
+sheet without leaving the tab, and dragging the handle down closes it
+(driven by native CDP touch, not synthetic JS). **14/14 pass**, 3 GIFs
+regenerated.
+
+**Measurement**: UNION **ALL PASS — 15 regions** on `432fac94`;
+`make check` PASS; frontend **1326/1326**.
