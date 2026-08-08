@@ -16,6 +16,38 @@ from personalscraper.logger import get_logger
 logger = get_logger(__name__)
 
 
+#: One year, in seconds — the max-age a CONTENT-HASHED asset earns.
+#: Vite emits ``index-<hash>.js``: the name changes whenever the bytes do, so
+#: the cached copy can never be stale. Serving them with no cache header at
+#: all (the state measured on staging 2026-08-08) re-downloaded the whole
+#: 1 MB bundle on every visit.
+_IMMUTABLE_MAX_AGE = 31_536_000
+
+
+class _ImmutableAssets(StaticFiles):
+    """``StaticFiles`` that marks hashed build output immutable.
+
+    Only mounted at ``/assets``, whose filenames all carry a content hash.
+    Nothing else is touched — ``index.html`` and the PWA root files keep
+    their default (revalidated) handling, which is what lets a deploy be
+    picked up at all.
+    """
+
+    def file_response(self, *args: object, **kwargs: object) -> Response:
+        """Add the immutable cache header to the served file.
+
+        Args:
+            *args: Forwarded to :meth:`StaticFiles.file_response`.
+            **kwargs: Forwarded to :meth:`StaticFiles.file_response`.
+
+        Returns:
+            The response, with ``Cache-Control`` set.
+        """
+        response = super().file_response(*args, **kwargs)  # type: ignore[arg-type]
+        response.headers["Cache-Control"] = f"public, max-age={_IMMUTABLE_MAX_AGE}, immutable"
+        return response
+
+
 def mount_spa(app: FastAPI, static_dir: Path, dev_mode: bool) -> None:
     """Mount the SPA static files and index.html fallback route.
 
@@ -44,7 +76,7 @@ def mount_spa(app: FastAPI, static_dir: Path, dev_mode: bool) -> None:
         # Mount /assets for hashed Vite output (JS, CSS, fonts, images).
         assets_dir = static_dir / "assets"
         if assets_dir.is_dir():
-            app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="spa_assets")
+            app.mount("/assets", _ImmutableAssets(directory=str(assets_dir)), name="spa_assets")
 
         # Resolved once — used inside the closure for path-traversal guard.
         _resolved_root = static_dir.resolve()
