@@ -27,6 +27,7 @@ import { mediaSheetHref } from "@/lib/media-href";
 
 import type { CreateFollowRequest, MediaSearchResult } from "@/api/acquisition";
 import { EmptyState } from "@/components/ds/EmptyState";
+import { MediaPoster } from "@/components/ds/MediaPoster";
 import { ErrorState } from "@/components/ds/ErrorState";
 import { actionWords, asMediaKind, FOLLOW_KIND_LABEL } from "@/components/acquisition/meta";
 import { MqDialog } from "@/components/acquisition/MqDialog";
@@ -463,11 +464,11 @@ export function AddMediaScreen({
                           );
                         }}
                       >
-                        {result.poster_url ? (
-                          <img src={result.poster_url} alt="" loading="lazy" />
-                        ) : (
-                          result.title.slice(0, 1).toUpperCase()
-                        )}
+                        <MediaPoster
+                          title={result.title}
+                          src={result.poster_url ?? null}
+                          className="!h-full !w-full"
+                        />
                       </button>
                       <div className="rb">
                         <p className="rt truncate">{result.title}</p>
