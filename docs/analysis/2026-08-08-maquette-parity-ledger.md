@@ -599,3 +599,59 @@ regenerated.
 
 **Measurement**: UNION **ALL PASS — 15 regions** on `432fac94`;
 `make check` PASS; frontend **1326/1326**.
+
+## Entry 18 — 2026-08-08: adversarial pre-PR review (22 agents) — 15 defects, all fixed
+
+A six-lens review of the day's diff (`12bf25ba..HEAD`), each finding then
+handed to an adversarial verifier instructed to REFUTE it. **15 confirmed,
+1 refuted.** Every confirmed defect is fixed, with a mutation-checked test
+where the behaviour is testable. The ones that mattered:
+
+**The fallback walk blamed the wrong tracker (HIGH, mine, same day).** An
+auth error raised while resolving a LOWER-ranked candidate escaped the
+loop, terminally abandoned the item, and named the ranked TOP's provider
+in the operator alert — sending the operator to fix credentials on a
+healthy tracker. The walk now absorbs each candidate's failure, keeps
+going across trackers, and concludes on the CULPRIT. Extracted to
+`_resolve_walk.py` (the addition had pushed `orchestrator.py` back over
+the 1000-line ceiling — 1042).
+
+**A homonym could not be added at all (HIGH, pre-existing).** « Déjà
+suivi » was decided by a lowercase TITLE match, and the button was
+hard-disabled: with « Dune » (2021) followed, « Dune » (1984) was
+declared already followed and could not be added. Identity is now the
+provider id. The follows mock was forced to carry `media_ref` like the
+real API — it had been letting tests pass against a payload production
+never sends.
+
+**A series popped the FILM replacement dialog (HIGH, mine).** Flagging
+series `already_owned` (this morning's fix) reached a consumer that
+treats the flag as the movie replacement trigger: following a
+partially-owned show announced a replacement that will not happen. §5
+confirmation is now movie-only; the informative badge stays for both.
+
+**The download station counted finished torrents (HIGH, mine).** The
+endpoint lists every grabbed row — seeding, paused, missing included —
+so the new upstream station could claim « en cours » for a download
+finished hours earlier. Only genuinely inbound states feed it.
+
+**Two open layers closed each other (MEDIUM, mine).** The history marker
+was a shared boolean. Giving each hook its own id exposed a deeper
+defect while writing the test: opening a layer ON TOP pushes an entry,
+which the old logic read as a Back and used to close the layer
+underneath. The close is now gated on a POP.
+
+Also fixed: `not_found` (a search verdict) was stamped as a grab failure;
+a stale failure survived requeues (now cleared at claim); the failure line
+rendered `attempts` — which counts tracker interactions, not retrievals —
+as « n tentatives »; the takeable correlation read an unpaginated page 1;
+drag-to-close fought a scrolled sheet; a second finger left the pull bar
+armed; and the release-name production wiring had zero coverage (the
+helper and the column were pinned, the one line feeding them was not).
+
+**Measurement**: `make check` PASS, frontend **1330/1330**, UNION **ALL
+PASS — 15 regions** and gesture pass **14/14** on the deployed
+`84298c34`. One mirror fixture was corrected in the process: its « Silo »
+search result carried a provider id matching no follow, which made the
+app render « Suivre » where the maquette shows « ✓ Suivi » — the fixture
+was wrong, not the app.
