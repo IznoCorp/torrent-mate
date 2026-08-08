@@ -248,15 +248,7 @@ function gridBadge(item: FollowedSeriesItem): string | null {
  * Returns:
  *   The panel element.
  */
-/** Props for {@link SuivisPanel}. */
-export interface SuivisPanelProps {
-  /** Opens the add-media screen — the end-of-list entry point: after scanning
-   *  every follow without finding the one you wanted, the next step is right
-   *  there, not back up at a floating corner. */
-  readonly onAddMedia?: () => void;
-}
-
-export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement {
+export function SuivisPanel(): ReactElement {
   const navigate = useNavigate();
   // active:"all", deliberately: the server derives status "disabled" ONLY for
   // active=0 rows, and the default fetch excludes exactly those. With the
@@ -664,17 +656,6 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
           </div>
         )}
 
-        {/* The add journey, reachable where the scan of the list ENDS. */}
-        {onAddMedia != null && !isLoading && (
-          <button
-            type="button"
-            data-testid="ajouter-en-fin-de-liste"
-            className="w-full rounded-md border border-border py-2.5 text-center text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
-            onClick={onAddMedia}
-          >
-            + Ajouter un média à suivre
-          </button>
-        )}
       </div>
 
       {actions.dialog}

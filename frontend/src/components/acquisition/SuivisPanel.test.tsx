@@ -824,23 +824,7 @@ describe("SuivisPanel", () => {
     expect(screen.getAllByText("Sans ID TVDB")).toHaveLength(1);
   });
 
-  it("offre l'ajout en fin de liste quand la page câble onAddMedia", () => {
-    const onAddMedia = vi.fn();
-    mockFollowed([takeableShow()]);
-    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
-      <QueryClientProvider client={qc}>
-        <MemoryRouter>
-          <SuivisPanel onAddMedia={onAddMedia} />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
-
-    fireEvent.click(screen.getByTestId("ajouter-en-fin-de-liste"));
-    expect(onAddMedia).toHaveBeenCalledTimes(1);
-  });
-
-  it("sans câblage onAddMedia, aucun bouton d'ajout mort ne se rend (§11)", () => {
+  it("aucun bouton d'ajout en fin de liste — redondant avec le « + » fixe (opérateur)", () => {
     renderPanel([takeableShow()]);
     expect(screen.queryByTestId("ajouter-en-fin-de-liste")).toBeNull();
   });
