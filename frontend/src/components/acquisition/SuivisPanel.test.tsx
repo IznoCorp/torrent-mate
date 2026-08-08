@@ -611,6 +611,8 @@ describe("SuivisPanel", () => {
     const chip = screen.getByTestId("chip-nouveau");
     expect(chip).toHaveClass("freshtag");
     expect(chip).toHaveTextContent("Nouveau");
+    // Maquette order: the freshtag CLOSES the meta row, after every chip.
+    expect(chip.parentElement?.lastElementChild).toBe(chip);
     expect(screen.getByTestId("swipe-container")).toHaveClass("fresh");
   });
 

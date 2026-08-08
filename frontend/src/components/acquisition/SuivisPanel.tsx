@@ -320,13 +320,6 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
     // In groupé mode (showStatus=false), the status chip is omitted — it lives in
     // the section header instead (§12: no repetition).
     const metaPieces: ReactElement[] = [];
-    if (isNew(item)) {
-      metaPieces.push(
-        <span key="nouveau" data-testid="chip-nouveau" className="freshtag">
-          Nouveau
-        </span>,
-      );
-    }
     if (fraction != null) {
       metaPieces.push(
         <span
@@ -365,6 +358,14 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
         >
           Sans ID TVDB
         </Chip>,
+      );
+    }
+    if (isNew(item)) {
+      // Maquette order: the freshtag closes the meta row, after every chip.
+      metaPieces.push(
+        <span key="nouveau" data-testid="chip-nouveau" className="freshtag">
+          Nouveau
+        </span>,
       );
     }
 
