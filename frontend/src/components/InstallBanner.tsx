@@ -18,6 +18,7 @@
 import { Download, Share, X } from "lucide-react";
 import type { ReactElement } from "react";
 
+import { aboveBottomBar } from "@/components/layout/bottom-bar-metrics";
 import { Button } from "@/components/ui/button";
 import type { PwaState } from "@/hooks/usePwa";
 
@@ -45,9 +46,13 @@ export function InstallBanner({
     <div
       role="region"
       aria-label="Installer TorrentMate"
-      className="fixed inset-x-0 bottom-0 z-50 flex justify-center p-4"
+      className="fixed inset-x-0 z-50 flex justify-center p-4"
+      // Above the bottom navigation bar: anchored at bottom-0 the close
+      // button sat UNDER the fixed bar — unreachable on both platforms
+      // (operator report: « impossible de fermer »).
+      style={{ bottom: aboveBottomBar("0rem") }}
     >
-      <div className="flex w-full max-w-md items-center gap-3 rounded-lg border border-border bg-card p-4 shadow-lg">
+      <div className="flex w-full max-w-md items-start gap-3 rounded-lg border border-border bg-card p-4 shadow-lg">
         <div className="flex flex-1 flex-col gap-1">
           <p className="text-sm font-medium text-foreground">
             Installer l’application
@@ -57,21 +62,36 @@ export function InstallBanner({
               Ajoutez TorrentMate à votre écran d’accueil pour un accès direct.
             </p>
           ) : (
-            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Share className="size-4 shrink-0" aria-hidden="true" />
-              <span>
-                Appuyez sur Partager, puis « Sur l’écran d’accueil ».
-              </span>
-            </p>
+            // iOS has no install prompt — the banner IS the guide, so it
+            // walks the actual steps (operator ask), not a one-liner.
+            <ol className="flex list-decimal flex-col gap-1 pl-4 text-xs text-muted-foreground">
+              <li>Ouvrez cette page dans Safari.</li>
+              <li className="flex-wrap">
+                Touchez{" "}
+                <span className="inline-flex items-center gap-1 font-medium text-foreground">
+                  <Share className="size-3.5 shrink-0" aria-hidden="true" />
+                  Partager
+                </span>{" "}
+                dans la barre du bas.
+              </li>
+              <li>
+                Choisissez «&nbsp;Sur l’écran d’accueil&nbsp;», puis
+                «&nbsp;Ajouter&nbsp;».
+              </li>
+            </ol>
+          )}
+
+          {canInstall && (
+            <Button
+              size="sm"
+              className="mt-2 self-start"
+              onClick={() => void promptInstall()}
+            >
+              <Download aria-hidden="true" />
+              Installer TorrentMate
+            </Button>
           )}
         </div>
-
-        {canInstall && (
-          <Button size="sm" onClick={() => void promptInstall()}>
-            <Download aria-hidden="true" />
-            Installer TorrentMate
-          </Button>
-        )}
 
         <Button
           variant="ghost"
