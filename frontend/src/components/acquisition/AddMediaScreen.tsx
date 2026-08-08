@@ -485,23 +485,22 @@ export function AddMediaScreen({
                               Déjà en médiathèque
                             </span>
                           )}
-                          {/* Maquette .resbtn: solid primary « Suivre/Ajouter »
-                              that flips to an OUTLINED success « ✓ Suivi/
-                              ✓ Ajouté » once done; an owned film asks first
-                              (warning outline, « Suivre… »). */}
+                          {/* Operator directive (2026-08-08, overrides the
+                              maquette's third « owned » look): the button has
+                              exactly TWO states — solid primary « Suivre/
+                              Ajouter », or OUTLINED success « ✓ Suivi/
+                              ✓ Ajouté » once followed. Library ownership is
+                              the badge's job; an owned media still confirms
+                              the replacement on tap (§5). */}
                           <button
                             type="button"
-                            className={`resbtn ${done ? "done" : result.already_owned ? "owned" : ""}`}
+                            className={`resbtn ${done ? "done" : ""}`}
                             disabled={done || followMut.isPending}
                             onClick={() => {
                               follow(result);
                             }}
                           >
-                            {done
-                              ? words.added
-                              : result.already_owned
-                                ? words.addAsk
-                                : words.add}
+                            {done ? words.added : words.add}
                           </button>
                         </div>
                       </div>

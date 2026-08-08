@@ -270,7 +270,9 @@ describe("AddMediaScreen", () => {
       onFollow: follow,
     });
     search("blade runner");
-    fireEvent.click(screen.getByRole("button", { name: "Ajouter…" }));
+    // Operator directive: an owned-but-not-followed media wears the NORMAL
+    // primary button — the confirmation lives in the dialog, not the label.
+    fireEvent.click(screen.getByRole("button", { name: "Ajouter" }));
     expect(follow).not.toHaveBeenCalled();
     expect(
       screen.getByText(/REMPLACERA la version en place/i),
