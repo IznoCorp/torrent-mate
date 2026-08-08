@@ -506,16 +506,21 @@ def follow_backfill_metadata(
                     skipped += 1
                     log.info("cli.follow.backfill.no_provider_data", followed_id=row["id"], title=row["title"])
                     continue
+                # A nameless row has nothing to print as a name — show the id
+                # and the resolved title, or the line reads as an empty repair.
+                shown = row["title"] or f"#{row['id']} (sans nom)"
                 console.print(
-                    f"[green]{row['title']}[/green] ← "
+                    f"[green]{shown}[/green] ← "
                     + " ".join(
                         f"{label}={'yes' if before is None and after is not None else '—'}"
                         for label, before, after in (
+                            ("titre", existing.title, resolved.title),
                             ("poster", existing.poster_url, resolved.poster_url),
                             ("overview", existing.overview, resolved.overview),
                             ("year", existing.year, resolved.year),
                         )
                     )
+                    + (f" → « {resolved.title} »" if existing.title is None and resolved.title else "")
                 )
                 if not dry_run:
                     # One short write transaction for THIS row, taken after its
@@ -525,6 +530,9 @@ def follow_backfill_metadata(
                         poster_url=resolved.poster_url,
                         overview=resolved.overview,
                         year=resolved.year,
+                        # Repairs a follow created nameless (the add-by-ID
+                        # form, before the title was resolved at create).
+                        title=resolved.title,
                     )
                     updated += 1
             console.print(f"[bold]{'(dry-run) ' if dry_run else ''}Backfilled {updated}, skipped {skipped}.[/bold]")

@@ -410,6 +410,7 @@ class _FollowSubStore:
         poster_url: str | None,
         overview: str | None,
         year: int | None,
+        title: str | None = None,
     ) -> None:
         """Merge the OBJ3 card metadata columns of a followed series (additive).
 
@@ -427,12 +428,19 @@ class _FollowSubStore:
             poster_url: Poster URL, or ``None`` to leave the stored one intact.
             overview: Overview/synopsis text, or ``None`` to leave it intact.
             year: Release/first-air year, or ``None`` to leave it intact.
+            title: Provider title, written ONLY over an empty one. A follow
+                created before the title was resolved (the add-by-ID form)
+                sits there nameless — blank in the list and in its own sheet —
+                and the backfill is what repairs it. A row that already has a
+                name keeps it: the operator may have chosen it.
         """
         with _write_tx(self._conn):
             self._conn.execute(
                 "UPDATE followed_series SET poster_url = COALESCE(?, poster_url), "
-                "overview = COALESCE(?, overview), year = COALESCE(?, year) WHERE id = ?",
-                (poster_url, overview, year, followed_id),
+                "overview = COALESCE(?, overview), year = COALESCE(?, year), "
+                "title = CASE WHEN trim(COALESCE(title, '')) = '' THEN COALESCE(?, title) ELSE title END "
+                "WHERE id = ?",
+                (poster_url, overview, year, title, followed_id),
             )
 
 

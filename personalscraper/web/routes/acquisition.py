@@ -134,6 +134,7 @@ def _write_follow_metadata(
             poster_url=metadata.poster_url,
             overview=metadata.overview,
             year=metadata.year,
+            title=metadata.title,
         )
     except Exception:  # noqa: BLE001 — fail-soft: the follow already succeeded, metadata is a nicety
         logger.warning("acquisition_follow_metadata_write_failed", followed_id=followed_id, exc_info=True)
