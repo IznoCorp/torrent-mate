@@ -75,6 +75,9 @@ class TorrentItem:
     completion_on: int | None = None
     error_reason: str | None = None
     swarm_seeds: int | None = None
+    # Estimated seconds until completion, as the client reports it. None when
+    # unknown (qBit sentinel 8640000, Transmission -1/-2, or absent).
+    eta_seconds: int | None = None
 
 
 @dataclass(frozen=True)

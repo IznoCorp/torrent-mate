@@ -199,3 +199,24 @@ def test_in_progress_sorts_before_seeding() -> None:
 
     progresses = [d.progress for d in resp.downloads]
     assert progresses == [0.10, 0.80, 1.0]  # incomplete (asc) before complete
+
+
+def test_eta_seconds_passes_through_and_missing_is_none() -> None:
+    """Addition B: the client's eta reaches the row; a missing torrent has none."""
+    grabbed = [_wanted("aa11"), _wanted("bb22")]
+    client = MagicMock()
+    client.get_by_hashes.return_value = [
+        TorrentItem(
+            hash="aa11", name="d.mkv", size_bytes=1, progress=0.4,
+            state="downloading", eta_seconds=720,
+        ),
+    ]
+    with (
+        patch(f"{_MOD}.build_acquire_store", return_value=_store(grabbed, [_follow_robot()])),
+        patch(f"{_SESSION}.build_active_torrent_client", return_value=client),
+    ):
+        resp = list_active_downloads(MagicMock())
+
+    by_hash = {d.info_hash: d for d in resp.downloads}
+    assert by_hash["aa11"].eta_seconds == 720
+    assert by_hash["bb22"].eta_seconds is None

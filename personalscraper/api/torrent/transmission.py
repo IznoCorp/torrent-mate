@@ -20,7 +20,7 @@ HTTP Basic Auth and the CSRF session-id dance handled by the library.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import ClassVar
 
@@ -158,6 +158,7 @@ class TransmissionClient(
                 "labels",
                 "error",
                 "errorString",
+                "eta",
             ],
         )
         return [_torrent_item(t) for t in torrents]
@@ -559,6 +560,14 @@ def _torrent_item(t: transmission_rpc.Torrent) -> TorrentItem:
     # requests both fields; surface them so a broken torrent is VISIBLE (§8)
     # rather than shown as a healthy status. Tracker warnings (1) are transient
     # and not surfaced as an error.
+    # eta: Transmission serves -1 (not available) / -2 (unknown) — honest None.
+    eta_raw = getattr(t, "eta", None)
+    if isinstance(eta_raw, timedelta):
+        eta_raw = int(eta_raw.total_seconds())
+    eta_seconds: int | None = (
+        int(eta_raw) if isinstance(eta_raw, (int, float)) and eta_raw >= 0 else None
+    )
+
     error_code = getattr(t, "error", 0) or 0
     error_string = str(getattr(t, "error_string", "") or "").strip()
     error_reason: str | None = None
@@ -579,4 +588,5 @@ def _torrent_item(t: transmission_rpc.Torrent) -> TorrentItem:
         save_path=str(t.download_dir) if t.download_dir else "",
         completion_on=completion_on,
         error_reason=error_reason,
+        eta_seconds=eta_seconds,
     )

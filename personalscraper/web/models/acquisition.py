@@ -572,6 +572,10 @@ class AcquisitionDownload(BaseModel):
     state: DownloadState
     size_bytes: int = 0
     error_reason: str | None = None
+    # Client-estimated seconds to completion (backend addition B) — None when
+    # the client does not know (qBit 8640000 sentinel, Transmission -1/-2,
+    # missing torrent). The UI derives « 12 min restantes » from it.
+    eta_seconds: int | None = None
 
 
 class AcquisitionDownloadsResponse(BaseModel):

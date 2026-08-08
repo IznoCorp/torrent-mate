@@ -26,6 +26,17 @@
             ],
             "title": "Error Reason"
           },
+          "eta_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eta Seconds"
+          },
           "info_hash": {
             "title": "Info Hash",
             "type": "string"

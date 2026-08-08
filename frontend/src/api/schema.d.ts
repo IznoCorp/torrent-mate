@@ -2219,6 +2219,8 @@ export interface components {
             episode?: number | null;
             /** Error Reason */
             error_reason?: string | null;
+            /** Eta Seconds */
+            eta_seconds?: number | null;
             /** Info Hash */
             info_hash: string;
             /** Kind */

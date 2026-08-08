@@ -27,6 +27,16 @@ function downloadTitle(d: AcquisitionDownload): string {
   return d.title || d.name || d.info_hash.slice(0, 12);
 }
 
+/** Maquette « 12 min restantes » — honest ETA wording from client seconds. */
+function formatEta(seconds: number): string {
+  if (seconds < 60) return "moins d'une minute restante";
+  const mins = Math.round(seconds / 60);
+  if (mins < 60) return `${String(mins)} min restantes`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m > 0 ? `${String(h)} h ${String(m)} restantes` : `${String(h)} h restantes`;
+}
+
 /** Format a byte count as a compact GB/MB string. */
 function formatSize(bytes: number): string {
   if (bytes <= 0) return "";
@@ -76,12 +86,17 @@ export function DownloadRow({ d }: { d: AcquisitionDownload }): ReactElement {
           }}
         />
       </div>
-      <div className="flex justify-between text-xs text-muted-foreground">
+      <div className="flex justify-between gap-2 text-xs text-muted-foreground">
         <span>
           {d.state === "missing" || d.state === "errored"
             ? "—"
             : `${String(pct)} %`}
         </span>
+        {/* Maquette A2: the ETA shows only while actually downloading AND
+            known — an unknown remains silent, never a fake promise. */}
+        {d.state === "downloading" && d.eta_seconds != null && (
+          <span>{formatEta(d.eta_seconds)}</span>
+        )}
         {size !== "" && <span>{size}</span>}
       </div>
       {/* §8 — a broken torrent shows WHY, not a bare state. */}
