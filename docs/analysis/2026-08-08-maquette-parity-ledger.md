@@ -655,3 +655,43 @@ PASS — 15 regions** and gesture pass **14/14** on the deployed
 search result carried a provider id matching no follow, which made the
 app render « Suivre » where the maquette shows « ✓ Suivi » — the fixture
 was wrong, not the app.
+
+## Entry 19 — 2026-08-08: the spinner that never ended, and 1 MB of raw JS
+
+Two operator reports, one measurement session, two root causes — neither
+where the symptom pointed.
+
+**« Le refresh bloque des dizaines de secondes ».** Every acquisition
+endpoint was timed on staging first: 10–130 ms, search 1.3 s,
+completeness 40 ms. Nothing slow. The cause was that **`fetch` carries no
+timeout**: a stalled socket — a phone waking from background, a wifi/4G
+handoff, a proxy that accepted the connection and went quiet — waits
+FOREVER, and the pull's `invalidateQueries` waits on the slowest query it
+triggered. The same rule the shell side has carried since the
+omdbapi.com incident (never an unbounded network call) had simply never
+reached the web client. Every request now carries a finite budget
+(15 s; 45 s for paths that genuinely reach trackers or run pipeline
+steps). The spinner is additionally capped at 6 s — past it the bar
+collapses and the refetches finish in the background — and a failed
+refresh now SAYS so instead of looking like « up to date » (§8).
+
+**« Certains chargements sont très longs ».** Measured, not guessed: the
+SPA shipped **1.05 MB of JavaScript raw** — no `content-encoding` header
+at all — and **no `Cache-Control`**, so every visit re-downloaded the
+whole bundle. Fixed inside the app rather than in the reverse proxy (so
+it survives a proxy reconfiguration): `GZipMiddleware` above 1 KB, and
+`/assets/*` — whose Vite filenames carry a content hash, hence can never
+go stale — served `public, max-age=1y, immutable`. `index.html` stays
+revalidated on purpose: caching it would pin the device to an old bundle
+and no deploy would ever land.
+
+**Measured on the deployed `7f05938e`**: bundle **1120 KB → 311 KB**
+(−72 %) on a cold load, zero bytes on a repeat visit, and API JSON
+compressed too (journeys 50 KB → 5.7 KB). Gates: `make check` PASS,
+frontend **1333/1333**, UNION **ALL PASS — 15 regions**, gestures
+**14/14**.
+
+One test was caught being vacuous while writing it (it asserted on an
+empty map without ever calling the code) and was replaced by a real
+assertion over the exported budget table — the same defect class the
+adversarial review flagged an hour earlier.
