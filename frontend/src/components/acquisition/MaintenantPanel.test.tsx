@@ -409,19 +409,20 @@ describe("MaintenantPanel", () => {
   });
 
   it("la carte à récupérer nomme le manque et le meilleur candidat (addition A)", async () => {
-    // Maquette: « S02E05 · 1080p WEB-DL · 42 sources » — earliest pending
+    // Maquette: « S02E05 · 1080p WEB-DL · 42 sources » — earliest TAKEABLE
     // gap + the persisted last-search facts, correlated by followed_id.
+    // status "available": that is where a concluded search parks the row.
     renderPanel(full);
     cleanup();
     vi.spyOn(hooks, "useWanted").mockImplementation(((params?: { status?: string }) => ({
       data: {
         items:
-          params?.status === "pending"
+          params?.status === "available"
             ? [
                 {
                   ...inflightWanted(),
                   id: 300,
-                  status: "pending",
+                  status: "available",
                   season: 2,
                   episode: 5,
                   followed_id: 1,
@@ -443,6 +444,43 @@ describe("MaintenantPanel", () => {
     expect(
       within(takeable).getByText("S02E05 · 1080p WEB-DL · 42 sources"),
     ).toBeInTheDocument();
+  });
+
+  it("§8 — une récupération qui échoue le DIT sur la carte à récupérer", async () => {
+    renderPanel(full);
+    cleanup();
+    vi.spyOn(hooks, "useWanted").mockImplementation(((params?: { status?: string }) => ({
+      data: {
+        items:
+          params?.status === "available"
+            ? [
+                {
+                  ...inflightWanted(),
+                  id: 301,
+                  status: "available",
+                  season: 2,
+                  episode: 5,
+                  followed_id: 1,
+                  attempts: 4,
+                  last_grab_reason: "fetch_failed",
+                  last_grab_at: Math.floor(Date.now() / 1000) - 3600,
+                },
+              ]
+            : [...full.wanted],
+        total: 1,
+        page: 1,
+        page_size: 50,
+      },
+      isLoading: false,
+      isError: false,
+    })) as unknown as typeof hooks.useWanted);
+    renderPanelPreMocked();
+
+    const takeable = await screen.findByTestId("section-a-recuperer");
+    expect(
+      within(takeable).getByText(/Récupération en échec : le téléchargement du torrent échoue/),
+    ).toBeInTheDocument();
+    expect(within(takeable).getByText(/4 tentatives/)).toBeInTheDocument();
   });
 
   it("un suivi non vérifié ACTIF attend dans « Cherché, rien trouvé » (maquette renderNow)", async () => {

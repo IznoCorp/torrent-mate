@@ -61,6 +61,7 @@ import {
   DOWNLOAD_STATE_LABEL,
   DOWNLOAD_STATE_TONE,
   FOLLOW_STATUS_TONE,
+  GRAB_FAILURE_LABEL,
   followMediaRef,
   followStatusLabel,
   followWaitingReason,
@@ -155,7 +156,10 @@ export function MaintenantPanel(): ReactElement {
   const wanted = useWanted({ status: "grabbed" });
   // Addition A: the takeable card's « S02E05 · 1080p WEB-DL · 42 sources »
   // reads the follow's pending wanted rows (label + last-search facts).
-  const pendingWanted = useWanted({ status: "pending" });
+  // "available", not "pending": a search that concluded takeable PARKS the
+  // row as available until the grab pass takes it — pending rows are the
+  // not-yet-searched ones and never carry last-search facts.
+  const takeableWanted = useWanted({ status: "available" });
   const toHandle = useToHandle();
   const journeys = useJourneys();
   const overview = useOverview();
@@ -390,17 +394,24 @@ export function MaintenantPanel(): ReactElement {
       : reason;
   }
 
-  /** Maquette takeable sub: earliest pending gap + last-search facts —
-   *  each segment only when truly known (no invented quality, §14). */
-  function takeableDetail(item: FollowedSeriesItem): string | null {
-    const rows = (pendingWanted.data?.items ?? []).filter(
+  /** Earliest takeable wanted row carried by this follow, or null. */
+  function takeableRow(item: FollowedSeriesItem): WantedItem | null {
+    const rows = (takeableWanted.data?.items ?? []).filter(
       (w) => w.followed_id === item.id,
     );
     if (rows.length === 0) return null;
-    const w = [...rows].sort(
-      (a, b) =>
-        (a.season ?? 0) - (b.season ?? 0) || (a.episode ?? 0) - (b.episode ?? 0),
-    )[0];
+    return (
+      [...rows].sort(
+        (a, b) =>
+          (a.season ?? 0) - (b.season ?? 0) || (a.episode ?? 0) - (b.episode ?? 0),
+      )[0] ?? null
+    );
+  }
+
+  /** Maquette takeable sub: earliest takeable gap + last-search facts —
+   *  each segment only when truly known (no invented quality, §14). */
+  function takeableDetail(item: FollowedSeriesItem): string | null {
+    const w = takeableRow(item);
     if (w == null) return null;
     const parts: string[] = [];
     if (w.season != null && w.episode != null) {
@@ -416,6 +427,23 @@ export function MaintenantPanel(): ReactElement {
       parts.push(`${String(w.last_search_found)} source${w.last_search_found > 1 ? "s" : ""}`);
     }
     return parts.length > 0 ? parts.join(" · ") : null;
+  }
+
+  /** Why the last grab attempt for this takeable item failed — French, or null.
+   *
+   *  §8 (rien en silence): a takeable card whose grabs keep failing must SAY
+   *  so — the operator watched « Ninja Turtles » freeze through four
+   *  identical fetch failures that only Telegram ever saw. */
+  function grabFailureLine(item: FollowedSeriesItem): string | null {
+    const w = takeableRow(item);
+    if (w?.last_grab_reason == null) return null;
+    const label =
+      GRAB_FAILURE_LABEL[w.last_grab_reason] ?? "la récupération a échoué";
+    const attempts =
+      w.attempts > 1 ? ` (${String(w.attempts)} tentatives)` : "";
+    const when =
+      w.last_grab_at != null ? ` · ${relativeTime(w.last_grab_at)}` : "";
+    return `Récupération en échec : ${label}${attempts}${when}`;
   }
 
   /** Render one followed-item card (used by two sections). */
@@ -440,6 +468,11 @@ export function MaintenantPanel(): ReactElement {
             : item.status === "a_recuperer" && takeableDetail(item) != null
               ? { subtitle: takeableDetail(item) ?? "" }
               : {})}
+          {...(!searchMeta &&
+          item.status === "a_recuperer" &&
+          grabFailureLine(item) != null
+            ? { reason: grabFailureLine(item) ?? "" }
+            : {})}
           meta={
             /* Maquette followRow: mono fraction + dotted status chip on the
                takeable card; the resting card carries its verdict as the
@@ -465,7 +498,6 @@ export function MaintenantPanel(): ReactElement {
               )}
             </>
           }
-          menu={actions.menuFor(item)}
           onOpen={() => {
             setSheet(item);
           }}

@@ -161,6 +161,26 @@ export const STATUS_LABEL: Record<string, string> = {
   fallback_episodes: "Reporté en épisodes",
 };
 
+/**
+ * French labels for ``wanted.last_grab_reason`` slugs (§8: rien en silence).
+ *
+ * Spoken by the takeable card when its grabs keep failing — the fallback for
+ * an unknown slug is provided at the call site, so a new orchestrator reason
+ * degrades to a generic sentence rather than a raw slug on screen.
+ */
+export const GRAB_FAILURE_LABEL: Record<string, string> = {
+  fetch_failed:
+    "le téléchargement du torrent échoue (fichier invalide côté tracker)",
+  add_failed: "l'envoi au client torrent a échoué",
+  circuit_open: "tracker en défaut, nouvel essai plus tard",
+  no_torrent_client: "client torrent indisponible",
+  trackers_unavailable: "trackers injoignables",
+  trackers_degraded: "trackers partiellement en panne",
+  search_api_error: "erreur du tracker pendant la recherche",
+  no_seeders: "plus aucune source active",
+  tracker_auth: "authentification tracker refusée",
+};
+
 /** Cadence temperature token colour (DS `--temp-*`), by tier. */
 export const TEMP_COLOR: Record<string, string> = {
   hot: "var(--temp-hot)",
@@ -363,7 +383,6 @@ export const MOVIE_LIFECYCLE_NOTE =
 export interface ActionWords {
   readonly add: string;
   readonly added: string;
-  readonly addAsk: string;
   readonly pause: string;
   readonly pauseShort: string;
   readonly resume: string;
@@ -385,7 +404,6 @@ const ACTION_WORDS: Record<"movie" | "show", ActionWords> = {
   movie: {
     add: "Ajouter",
     added: "✓ Ajouté",
-    addAsk: "Ajouter…",
     pause: "Ne plus chercher",
     pauseShort: "Ne plus chercher",
     resume: "Chercher à nouveau",
@@ -398,7 +416,6 @@ const ACTION_WORDS: Record<"movie" | "show", ActionWords> = {
   show: {
     add: "Suivre",
     added: "✓ Suivi",
-    addAsk: "Suivre…",
     pause: "Mettre en pause",
     pauseShort: "Pause",
     resume: "Réactiver",
