@@ -160,3 +160,59 @@ the demo scroller's content, so its rendered height depends on demo
 content length. The app follows the DECLARED model (66/80/44 real
 pixels). If you prefer the compressed feel seen on the maquette device,
 it is a one-line change — say so at T16.
+
+---
+
+## Entry 5 — L1-T6: `.skel` shimmer + `.empty` states (staging `205d1a94`)
+
+`de048a18`: 101 px `.skel` cards (keyframe `mq-sh` — Tailwind owns
+`sh`-adjacent names) replace bare « Chargement… » paragraphs in both
+panels and the shadcn Skeletons in the add screen (3 per busy container,
+sr-only live text kept); `.empty` grammar (block-bold title + advice) on
+panel empties, maquette copy VERBATIM for the filter-no-match case.
+Pinned by SuivisPanel tests. **Probe**: `.empty`/`.empty b` on
+filter-no-match, both sides → `0 divergences on 2 selectors`; `.skel`
+class measured via runtime-injected nodes in BOTH contexts (composition
+pinned by unit tests) → `0 divergences` once injected at the app's real
+section container (the first run measured my injection point's width,
+not the class — corrected).
+
+---
+
+## Entry 6 — L1-T7: crossref + grid tiles (staging `a020ed5d` → `f5b7fabf` → `b90ee45f`)
+
+1. `0e4fa27c` — `.crossref` verbatim (1 px DASHED border, 12 px mutedfg,
+   right-pinned primary « Contrôle → » span); `.tile.off` opacities
+   .42/.55 and the paused tile's `.fr` says « en pause ».
+   **Probe crossref**: `0 divergences on 2 selectors`.
+2. `38f84c06` — **population finding caught by the probe** (0 `.tile.off`
+   rendered): the app's « Tout » pill EXCLUDED paused follows; maquette
+   FILTERS say « Tout » = everything (paused dimmed, urgency-sorted
+   last), Séries/Films cut by nature only. Fixed + tests re-pinned
+   (counts 9/8/1/2, paused rows close the list).
+3. `9b9c5e56` — **tile-geometry findings caught by the probe**: grid gap
+   12→10 px (column 114 exact), poster box `.p` transplanted (aspect
+   2/3, radius 6, NO border, 20/700 initials metrics), badge back to a
+   direct `.tile` child, `.nm` 11 px with INHERITED 1.35 line box
+   (leading-tight was 13.2 px vs 14.85), `.fr` mono 10 px. Poster
+   fallback INTERNALS stay DS-owned (maquette gradients = prototype
+   stand-ins for artwork) — allowlisted `.p` backgroundColor with that
+   ruling.
+   **Final probe**: `0 divergences on 3 selectors` (+1 allowlisted).
+
+---
+
+## Entry 7 — L1-T8: maquette `.dlg` confirmation dialog (staging `b90ee45f` → `436df8f4`)
+
+`b7c2acb8` — `MqDialog` (.dlgscrim/.dlg/.dlgacts/.dlgbtn.danger)
+replaces both shadcn Dialogs: §5 replace (maquette copy VERBATIM: « Ce
+film est déjà en médiathèque », « …le résultat REMPLACERA la version en
+place », verb « Remplacer ») and §9 removal (meta copies — already
+verbatim ACT_WORDS — and `confirmer-le-retrait` testid kept). Adjusted
+vs maquette, documented in the CSS: `fixed` not `absolute` (the .device
+IS the viewport), z 60/61 above the app's z-50 bottom bar. Escape
+closes, initial focus lands on Annuler, `inert` while closed.
+`76f85ddf` — **probe finding**: `.dlg h3` weight 400 vs 700 — the
+maquette rides the UA h3 bold, the app preflight resets it; pinned in
+the CSS. **Final probe** (remove dialog opened by swipe+tap on both
+sides): `0 divergences on 6 selectors`, no allowlist.
