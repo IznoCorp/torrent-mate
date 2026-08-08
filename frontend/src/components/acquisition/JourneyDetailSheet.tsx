@@ -31,6 +31,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 
+import { SheetGrabHandle } from "./SheetGrabHandle";
 import { relativeTime } from "./meta";
 
 /** The four stored stages, in workflow order. */
@@ -73,7 +74,11 @@ export function JourneyDetailSheet({
         className="mq flex max-h-[86%] flex-col gap-3 overflow-y-auto rounded-t-2xl border-t border-border"
         showCloseButton={false}
       >
-        <div className="sheetgrab" aria-hidden="true" />
+        <SheetGrabHandle
+          onClose={() => {
+            onOpenChange(false);
+          }}
+        />
         <SheetHeader>
           <SheetTitle className="text-lg font-semibold">{title}</SheetTitle>
           {/* The release ACTUALLY grabbed — admitted absent, never substituted. */}

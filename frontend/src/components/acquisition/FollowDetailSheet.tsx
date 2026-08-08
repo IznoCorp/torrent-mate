@@ -53,6 +53,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { MediaPoster } from "@/components/ds/MediaPoster";
+import { SheetGrabHandle } from "@/components/acquisition/SheetGrabHandle";
 import { posterThumb } from "@/lib/poster-thumb";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -321,7 +322,11 @@ export function FollowDetailSheet({
         className="mq flex max-h-[86%] flex-col overflow-y-auto rounded-t-2xl border-t border-border"
         showCloseButton={false}
       >
-        <div className="sheetgrab" aria-hidden="true" />
+        <SheetGrabHandle
+          onClose={() => {
+            onOpenChange(false);
+          }}
+        />
         {isLoading ? (
           <SheetLoading />
         ) : isError ? (
