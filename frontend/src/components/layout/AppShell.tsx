@@ -136,7 +136,7 @@ function AppShellInner(): ReactElement {
   ]);
 
   return (
-    <div className="flex min-h-screen overflow-x-clip bg-background font-sans text-foreground">
+    <div className="flex min-h-svh overflow-x-clip bg-background font-sans text-foreground">
       <Sidebar badges={badges} />
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar

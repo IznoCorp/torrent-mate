@@ -1012,42 +1012,23 @@ describe("AcquisitionPage", () => {
     }
   });
 
-  it("un scroll EN MILIEU de liste n'installe aucun écouteur non-passif (iOS)", () => {
-    // A non-passive touchmove tells the browser « I may cancel this scroll »,
-    // so iOS drops the compositor fast path and the sticky header shivers a
-    // frame behind the content (operator report, twice). The pull tracker
-    // must therefore exist ONLY for a gesture that can become a pull.
+  it("AUCUN écouteur ne bloque le défilement — nulle part, jamais (iOS)", () => {
+    // A non-passive touchmove announces « I may cancel this scroll », so iOS
+    // routes every frame through the main thread and the content scrolls a
+    // frame ahead of the sticky header: that gap IS the shiver reported three
+    // times. Gating it per gesture was not enough — the flag is sampled at
+    // touchstart, so a gesture starting at the top kept it for its whole
+    // duration, which is most scrolls on this page.
+    const spy = vi.spyOn(EventTarget.prototype, "addEventListener");
     mockAllEmpty();
     renderPageWithClient();
-    const pager = screen.getByRole("tabpanel");
-    const addSpy = vi.spyOn(pager, "addEventListener");
-
-    // Mid-list: the page is scrolled, so this gesture cannot be a pull.
-    // Both sources are stubbed because the component reads scrollingElement
-    // FIRST and falls back to window.scrollY (scrollingElement can be null).
-    const setScroll = (v: number): void => {
-      const el: Element | null | undefined = document.scrollingElement;
-      if (el != null) {
-        Object.defineProperty(el, "scrollTop", { value: v, configurable: true });
-      }
-      Object.defineProperty(window, "scrollY", { value: v, configurable: true });
-    };
-    setScroll(500);
-    fireEvent.touchStart(pager, { touches: [{ clientX: 200, clientY: 300 }] });
-    fireEvent.touchMove(pager, { touches: [{ clientX: 202, clientY: 380 }] });
-
-    const nonPassiveTouchmoveCount = (): number =>
-      addSpy.mock.calls.filter(
-        ([type, , opts]) =>
-          type === "touchmove" && typeof opts === "object" && !opts.passive,
-      ).length;
-    expect(nonPassiveTouchmoveCount()).toBe(0);
-
-    // And at the top, it IS attached — the pull must still work.
-    setScroll(0);
-    fireEvent.touchStart(pager, { touches: [{ clientX: 200, clientY: 100 }] });
-    expect(nonPassiveTouchmoveCount()).toBe(1);
-    addSpy.mockRestore();
+    const nonPassiveScrollBlockers = spy.mock.calls.filter(
+      ([type, , opts]) =>
+        (type === "touchmove" || type === "wheel") &&
+        (typeof opts !== "object" || !opts.passive),
+    );
+    expect(nonPassiveScrollBlockers).toHaveLength(0);
+    spy.mockRestore();
   });
 
   it("un tirage trop court n'actualise rien", () => {

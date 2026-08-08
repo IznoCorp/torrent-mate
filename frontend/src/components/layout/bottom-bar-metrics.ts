@@ -60,9 +60,15 @@ export function aboveBottomBar(gap: string): string {
  * re-resolves its offset mid-scroll. That is a shimmer, and it is self
  * inflicted.
  *
- * Two guards, both cheap: round to the whole pixel (sub-pixel churn from the
- * toolbar animation is noise, not information), and skip the write when the
- * rounded value is what is already there.
+ * Two guards, both cheap: quantise to the whole pixel (sub-pixel churn from
+ * the toolbar animation is noise, not information), and skip the write when
+ * the value is what is already there.
+ *
+ * `ceil`, deliberately, not `round`: two of these vars are SUMMED to place the
+ * sticky filter zone (`top: calc(var(--tm-topbar-h) + var(--tm-viewtabs-h))`).
+ * Rounding a real height DOWN would seat that zone a fraction too high and
+ * open a sliver of list content between the two sticky bands during scroll —
+ * trading one visual defect for another. Ceiling never under-states.
  *
  * Args:
  *   varName: The custom property to publish.
@@ -70,7 +76,7 @@ export function aboveBottomBar(gap: string): string {
  */
 export function publishMeasuredHeight(varName: string, height: number): void {
   const root = document.documentElement;
-  const next = `${String(Math.round(height))}px`;
+  const next = `${String(Math.ceil(height))}px`;
   if (root.style.getPropertyValue(varName) === next) return;
   root.style.setProperty(varName, next);
 }
