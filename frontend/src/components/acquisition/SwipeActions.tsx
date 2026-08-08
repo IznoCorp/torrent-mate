@@ -99,9 +99,12 @@ export function SwipeActions({
   className,
 }: SwipeActionsProps): ReactElement {
   const [offset, setOffset] = useState(0);
-  const dragRef = useRef<{ x: number; y: number; axis: "x" | "y" | null } | null>(
-    null,
-  );
+  const dragRef = useRef<{
+    x: number;
+    y: number;
+    axis: "x" | "y" | null;
+    captured: boolean;
+  } | null>(null);
   const lastSwipeEndRef = useRef(0);
   const rowId = useId();
 
@@ -145,18 +148,12 @@ export function SwipeActions({
       // drag even resolves: two rows open at once is the state the operator
       // reported, and it makes the second swipe look like it did nothing.
       claimOpenRow(rowId);
-      dragRef.current = { x: e.clientX, y: e.clientY, axis: null };
-      // Capture, so the rest of the gesture is delivered here even if the
-      // finger wanders off the row — and a window-level net for the end of
-      // the touch, because a row LEFT MID-DRAG is exactly what the operator
-      // saw on their phone (« seul pause visible plus un bout de retirer »):
-      // the card sitting wherever the finger let go, half a pane wide. Which
-      // of pointerup / pointercancel / touchend iOS delivers no longer
-      // decides whether the row settles.
-      const row = e.currentTarget;
-      if (typeof row.setPointerCapture === "function") {
-        row.setPointerCapture(e.pointerId);
-      }
+      dragRef.current = { x: e.clientX, y: e.clientY, axis: null, captured: false };
+      // A window-level net for the end of the touch: a row LEFT MID-DRAG is
+      // exactly what the operator saw on their phone (« seul pause visible
+      // plus un bout de retirer ») — the card sitting wherever the finger let
+      // go, half a pane wide. Which of pointerup / pointercancel / touchend
+      // iOS delivers no longer decides whether the row settles.
       const end = (): void => {
         settle();
         window.removeEventListener("pointerup", end);
@@ -180,6 +177,17 @@ export function SwipeActions({
       const dy = e.clientY - drag.y;
       drag.axis ??= lockAxis(dx, dy);
       if (drag.axis !== "x") return;
+      // Capture only once this is REALLY a horizontal drag, never on the
+      // press: a captured pointer retargets the click that ends it to the
+      // capturing element, so capturing on pointerdown swallowed every tap
+      // on a control inside the card — the detail sheet stopped opening.
+      if (!drag.captured) {
+        drag.captured = true;
+        const row = e.currentTarget;
+        if (typeof row.setPointerCapture === "function") {
+          row.setPointerCapture(e.pointerId);
+        }
+      }
       // Clamp to what actually exists: dragging towards an empty side must not
       // open a gap onto nothing.
       setOffset(Math.max(-rightWidth, Math.min(leftWidth, dx)));

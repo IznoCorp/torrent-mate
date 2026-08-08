@@ -223,6 +223,28 @@ describe("SwipeActions", () => {
     }
   });
 
+  it("un simple tap atteint le contrôle DANS la carte", () => {
+    // Regression: capturing the pointer on pointerdown retargets the click
+    // that ends the gesture to the capturing element, so every tap inside the
+    // card was swallowed and the detail sheet stopped opening. Capture belongs
+    // to a drag that has actually locked horizontally, not to a press.
+    const onCardTap = vi.fn();
+    render(
+      <SwipeActions right={[action("rm", "Retirer")]}>
+        <button type="button" data-testid="tap-target" onClick={onCardTap}>
+          Silo
+        </button>
+      </SwipeActions>,
+    );
+    const target = screen.getByTestId("tap-target");
+    fireEvent.pointerDown(target, { clientX: 200, clientY: 100 });
+    fireEvent.pointerUp(target, { clientX: 200, clientY: 100 });
+    fireEvent.click(target);
+
+    expect(onCardTap).toHaveBeenCalledOnce();
+    expect(screen.getByTestId("swipe-card").style.transform).toBe(translated(0));
+  });
+
   it("ouvrir une carte referme celle qui était ouverte", () => {
     // Operator, 2026-08-08: « une seule carte à la fois — en ouvrir une
     // seconde doit refermer la première ». Two rows left open at once made
