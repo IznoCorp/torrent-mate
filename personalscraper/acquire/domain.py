@@ -75,6 +75,11 @@ class FollowedSeries:
     kind: FollowKind = "show"
     id: int | None = None
     year: int | None = None
+    #: The operator authorised REPLACING a copy already in the library (§5).
+    #: Detect honours it once — without it, a film already owned is closed on
+    #: sight and the replacement the UI promised never runs. Cleared as soon as
+    #: the wanted row exists.
+    replace_owned: bool = False
 
     def __post_init__(self) -> None:
         """Validate the kind literal.

@@ -95,9 +95,10 @@ def test_post_dispatch_reconcile_subscriber_retires_acquired_film(store: Concret
     assert row is not None
     assert row.status == "done"
 
-    follow = store.follow.get(followed_id)
-    assert follow is not None
-    assert follow.active is False
+    # REMOVED, not paused — the file is confirmed at its destination, so the
+    # follow has nothing left to want. Deactivating wrote the same row as
+    # « Mettre en pause » and made the two indistinguishable.
+    assert store.follow.get(followed_id) is None
 
     assert len(captured) == 1
     assert isinstance(captured[0], FilmAcquired)

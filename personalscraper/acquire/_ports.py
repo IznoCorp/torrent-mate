@@ -81,6 +81,14 @@ class FollowSubStore(Protocol):
         """REMOVE a follow and its still-queued wanted rows (not a pause)."""
         ...
 
+    def set_replace_owned(self, followed_id: int, value: bool) -> None:
+        """Write the §5 replacement authorisation on an existing follow."""
+        ...
+
+    def clear_replace_owned(self, followed_id: int) -> None:
+        """Spend the §5 replacement authorisation once the wanted row exists."""
+        ...
+
     def set_kind(self, followed_id: int, kind: str) -> None:
         """Update the ``kind`` ('movie'|'show') of a ``followed_series`` row."""
         ...

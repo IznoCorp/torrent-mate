@@ -584,6 +584,11 @@
             ],
             "title": "Poster Url"
           },
+          "replace_owned": {
+            "default": false,
+            "title": "Replace Owned",
+            "type": "boolean"
+          },
           "title": {
             "anyOf": [
               {

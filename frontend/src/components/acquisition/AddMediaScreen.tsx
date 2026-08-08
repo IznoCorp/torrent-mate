@@ -64,10 +64,17 @@ type KindFilter = "all" | "movie" | "tv";
  * Carries the candidate's card metadata (poster, overview, year) so the
  * watch-list card can render without a later provider call (OBJ3).
  */
-function toFollowBody(result: MediaSearchResult): CreateFollowRequest {
+function toFollowBody(
+  result: MediaSearchResult,
+  opts: { readonly replaceOwned?: boolean } = {},
+): CreateFollowRequest {
   const kind: "movie" | "show" = result.kind === "tv" ? "show" : "movie";
   const meta = {
     kind,
+    // The §5 authorisation travels with the follow: without it the pipeline
+    // sees the film already in the library and closes it on sight, so the
+    // replacement the operator just confirmed never runs.
+    replace_owned: opts.replaceOwned ?? false,
     ...(result.poster_url != null ? { poster_url: result.poster_url } : {}),
     ...(result.overview != null ? { overview: result.overview } : {}),
     ...(result.year != null ? { year: result.year } : {}),
@@ -274,10 +281,14 @@ export function AddMediaScreen({
     doFollow(result);
   }
 
-  /** Execute the follow mutation for a search result. */
-  function doFollow(result: MediaSearchResult): void {
+  /** Execute the follow mutation for a search result.
+   *
+   *  `replaceOwned` is set only on the path that went through the §5 dialog:
+   *  the operator answered « Remplacer », and that answer must reach the
+   *  pipeline or the replacement never happens. */
+  function doFollow(result: MediaSearchResult, replaceOwned = false): void {
     const key = `${result.provider}-${String(result.provider_id)}`;
-    followMut.mutate(toFollowBody(result), {
+    followMut.mutate(toFollowBody(result, { replaceOwned }), {
       onSuccess: () => {
         showToast(`« ${result.title} » ajouté au suivi`);
         setFollowed((prev) => new Set(prev).add(key));
@@ -730,7 +741,8 @@ export function AddMediaScreen({
           text={`« ${confirmReplace?.title ?? ""} » est déjà rangé. Le suivre relancera une acquisition dont le résultat REMPLACERA la version en place.`}
           okLabel="Remplacer"
           onOk={() => {
-            if (confirmReplace != null) doFollow(confirmReplace);
+            // « Remplacer » — carry that authorisation to the backend.
+            if (confirmReplace != null) doFollow(confirmReplace, true);
             setConfirmReplace(null);
           }}
           onCancel={() => {

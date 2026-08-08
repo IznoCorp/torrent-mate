@@ -64,6 +64,8 @@ def _row_to_followed(row: sqlite3.Row) -> FollowedSeries:
     # year is optional in the SELECT (only the grab-title/year path fetches it);
     # decode defensively so every other read keeps working without column churn.
     year = row["year"] if "year" in row.keys() else None
+    keys = row.keys()
+    replace_owned = bool(row["replace_owned"]) if "replace_owned" in keys else False
     return FollowedSeries(
         id=row["id"],
         media_ref=_media_ref_from_json(row["media_ref_json"]),
@@ -74,6 +76,7 @@ def _row_to_followed(row: sqlite3.Row) -> FollowedSeries:
         cadence_json=row["cadence_json"],
         kind=row["kind"],
         year=year,
+        replace_owned=replace_owned,
     )
 
 

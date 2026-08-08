@@ -297,15 +297,37 @@ class DetectService:
             log.warning("acquire.detect.ownership_error", error=str(exc))
             owned = False
 
+        if owned and mf.replace_owned:
+            # The operator authorised a REPLACEMENT (§5 dialog). Fall through
+            # to the ordinary enqueue: closing here is what made that dialog's
+            # promise false — it announced « le résultat REMPLACERA la version
+            # en place » and nothing was ever fetched. The authorisation is
+            # spent below, once the wanted row exists, so the NEW file closes
+            # the follow normally.
+            log.info("acquire.detect.film_replacement_authorised", series=mf.title)
+            owned = False
+            if not dry_run and mf.id is not None:
+                try:
+                    self._store.follow.clear_replace_owned(mf.id)
+                except Exception as exc:  # noqa: BLE001 — fail-soft: the enqueue matters more
+                    log.warning("acquire.detect.clear_replace_failed", error=str(exc))
+
         if owned:
             if not dry_run:
                 try:
                     # §5 closure: the film is IN the library — close its live
-                    # wanted row (done) and auto-unfollow, with a visible trace.
+                    # wanted row (done) and REMOVE the follow, with a visible trace.
                     live = self._store.wanted.find(followed_id=mf.id, kind="movie", season=None, episode=None)
                     if live is not None and live.id is not None and live.status != "done":
                         self._store.wanted.set_status(live.id, "done")
-                    self._store.follow.set_active(mf.id, False)
+                    # REMOVED, not paused. Deactivating wrote the exact state a
+                    # manual « Mettre en pause » writes, so an acquired film and
+                    # a film the operator set aside became indistinguishable —
+                    # and the acquired one then read « pas encore acquis » in
+                    # « En pause » (their report, 2026-08-08). The gate above is
+                    # the confirmation this needs: ownership.owns() means a LIVE
+                    # file is in the library.
+                    self._store.follow.delete(mf.id)
                     self._event_bus.emit(FilmAcquired(media_ref=mf.media_ref, title=mf.title, followed_id=mf.id))
                     log.info("acquire.detect.film_acquired_unfollowed", series=mf.title)
                     actions.append(DetectAction("movie", mf.title, None, None, None, None, DetectOutcome.FILM_ACQUIRED))

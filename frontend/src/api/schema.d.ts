@@ -2695,6 +2695,11 @@ export interface components {
             overview?: string | null;
             /** Poster Url */
             poster_url?: string | null;
+            /**
+             * Replace Owned
+             * @default false
+             */
+            replace_owned: boolean;
             /** Title */
             title?: string | null;
             /** Tmdb Id */

@@ -396,6 +396,10 @@ class CreateFollowRequest(BaseModel):
     #: follow produces ONE wanted item at detect time and is auto-unfollowed
     #: once the acquired file reaches the library.
     kind: Literal["movie", "show"] = "show"
+    #: The operator confirmed REPLACING a copy already in the library (§5).
+    #: Without it, detect closes an owned film on sight and the replacement
+    #: the confirmation dialog promised never runs.
+    replace_owned: bool = False
     # Optional card metadata captured from the add-by-search candidate (OBJ3).
     poster_url: str | None = None
     overview: str | None = None

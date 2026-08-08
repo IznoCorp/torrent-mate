@@ -151,8 +151,7 @@ export const acqKeys = {
     ["acquisition-search", params] as const,
 
   /** Completeness query key: ``['acquisition', 'completeness', id]`` (§5). */
-  completeness: (id: number) =>
-    [...acqKeys.all, "completeness", id] as const,
+  completeness: (id: number) => [...acqKeys.all, "completeness", id] as const,
 
   /** Downloads query key: ``['acquisition', 'downloads']`` (A4). */
   downloads: () => [...acqKeys.all, "downloads"] as const,
@@ -404,7 +403,9 @@ export function buildIdFollowBody(
   const value = rawId.trim();
   if (!value) return null;
   if (provider === "imdb") {
-    return IMDB_ID_RE.test(value) ? { imdb_id: value, kind: "show" } : null;
+    return IMDB_ID_RE.test(value)
+      ? { imdb_id: value, kind: "show", replace_owned: false }
+      : null;
   }
   // Reject any non-IMDB value that is not plain digits — Number() alone
   // cannot carry this: it coerces "1e3" → 1000 and "0x10" → 16, both of
@@ -418,8 +419,8 @@ export function buildIdFollowBody(
   // follow a wrong id.
   if (!Number.isSafeInteger(numeric) || numeric <= 0) return null;
   return provider === "tvdb"
-    ? { tvdb_id: numeric, kind: "show" }
-    : { tmdb_id: numeric, kind: "show" };
+    ? { tvdb_id: numeric, kind: "show", replace_owned: false }
+    : { tmdb_id: numeric, kind: "show", replace_owned: false };
 }
 
 /** Response type for POST /api/acquisition/followed/{id}/search (OBJ3). */
@@ -446,7 +447,9 @@ export type GrabTriggerResponse = SuccessBody<
  *   ApiError: 404 (unknown series) / 409 (a search for this series is already
  *     running — the only permitted refusal).
  */
-export function triggerFollowedSearch(id: number): Promise<GrabTriggerResponse> {
+export function triggerFollowedSearch(
+  id: number,
+): Promise<GrabTriggerResponse> {
   return apiFetch("/api/acquisition/followed/{followed_id}/search", {
     method: "post",
     headers: XRW_HEADERS,
@@ -486,8 +489,7 @@ export function triggerFollowedGrab(id: number): Promise<GrabTriggerResponse> {
  * The endpoint returns ``201``, not ``200``, so ``SuccessBody`` does not match —
  * the type is extracted directly from the generated schema.
  */
-export type SeasonGrabResponse =
-  components["schemas"]["SeasonGrabResponse"];
+export type SeasonGrabResponse = components["schemas"]["SeasonGrabResponse"];
 
 /**
  * Manually enqueue a season wanted for a followed series (R4).
@@ -700,7 +702,9 @@ export type JourneyActionResponse = SuccessBody<
  * Re-scrape one tracked staging item (F4): ``POST /journeys/{info_hash}/rescrape``.
  * Mutating — carries the ``X-Requested-With`` header. 202 with the launched run_uid.
  */
-export function rescrapeJourney(infoHash: string): Promise<JourneyActionResponse> {
+export function rescrapeJourney(
+  infoHash: string,
+): Promise<JourneyActionResponse> {
   return apiFetch("/api/acquisition/journeys/{info_hash}/rescrape", {
     method: "post",
     params: { path: { info_hash: infoHash } },
@@ -712,7 +716,9 @@ export function rescrapeJourney(infoHash: string): Promise<JourneyActionResponse
  * Requeue one item's wanted row (F4): ``POST /journeys/{info_hash}/requeue``.
  * Mutating — carries the ``X-Requested-With`` header. 202 with the launched run_uid.
  */
-export function requeueJourney(infoHash: string): Promise<JourneyActionResponse> {
+export function requeueJourney(
+  infoHash: string,
+): Promise<JourneyActionResponse> {
   return apiFetch("/api/acquisition/journeys/{info_hash}/requeue", {
     method: "post",
     params: { path: { info_hash: infoHash } },

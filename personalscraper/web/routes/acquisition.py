@@ -980,6 +980,8 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
             # series-shaped and no movie wanted row is ever produced).
             store.follow.set_active(existing.id, True)
             store.follow.set_kind(existing.id, body.kind)
+            if body.replace_owned:
+                store.follow.set_replace_owned(existing.id, True)
             # Reactivation backfills too: a follow paused before the server
             # enriched anything must not stay posterless just because it is old.
             metadata = _resolve_follow_metadata(request, body, media_ref)
@@ -1040,6 +1042,7 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
             added_at=int(time.time()),
             active=True,
             kind=body.kind,
+            replace_owned=body.replace_owned,
         )
         new_id = store.follow.add(series)
         created = store.follow.get(new_id)

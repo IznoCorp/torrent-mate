@@ -14,6 +14,7 @@ describe("buildIdFollowBody", () => {
     expect(buildIdFollowBody("tvdb", "255968")).toEqual({
       tvdb_id: 255968,
       kind: "show",
+      replace_owned: false,
     });
   });
 
@@ -21,6 +22,7 @@ describe("buildIdFollowBody", () => {
     expect(buildIdFollowBody("tmdb", "1399")).toEqual({
       tmdb_id: 1399,
       kind: "show",
+      replace_owned: false,
     });
   });
 
@@ -28,6 +30,7 @@ describe("buildIdFollowBody", () => {
     expect(buildIdFollowBody("imdb", "tt0903747")).toEqual({
       imdb_id: "tt0903747",
       kind: "show",
+      replace_owned: false,
     });
   });
 
@@ -35,6 +38,7 @@ describe("buildIdFollowBody", () => {
     expect(buildIdFollowBody("imdb", "  tt0903747  ")).toEqual({
       imdb_id: "tt0903747",
       kind: "show",
+      replace_owned: false,
     });
   });
 

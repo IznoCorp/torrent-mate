@@ -122,8 +122,49 @@ def test_detect_service_movie_owned_retires_and_emits(store: ConcreteAcquireStor
     assert [a.outcome for a in result.actions] == [DetectOutcome.FILM_ACQUIRED]
     assert result.summary.skipped_owned == 1
     follow = store.follow.get(fid)
-    assert follow is not None and follow.active is False
+    # REMOVED, not paused: deactivating wrote the same state as « Mettre en
+    # pause », so an acquired film and one the operator set aside were the
+    # same row (operator report 2026-08-08).
+    assert follow is None, "an acquired film leaves the follows"
     assert len(films) == 1 and films[0].followed_id == fid
+
+
+def test_detect_service_replaces_an_owned_film_when_authorised(store: ConcreteAcquireStore) -> None:
+    """A film the operator chose to REPLACE is acquired, not closed on sight.
+
+    Operator, 2026-08-08: « un film déjà en médiathèque doit être
+    re-téléchargé et remplacé ». The §5 dialog promises exactly that; detect
+    used to close the follow the moment it saw the film owned, so nothing was
+    ever fetched and the promise was false.
+    """
+    ref = MediaRef(tmdb_id=1184918)
+    fid = store.follow.add(
+        FollowedSeries(
+            media_ref=ref,
+            title="Le Robot sauvage",
+            added_at=1,
+            kind="movie",
+            replace_owned=True,
+        )
+    )
+    bus = EventBus()
+    films: list[FilmAcquired] = []
+    bus.subscribe(FilmAcquired, films.append)
+
+    with patch("personalscraper.acquire.detect.poll_known", return_value=[]):
+        result = _service(store, _StubOwnership({ref}), bus).run(
+            series=None, dry_run=False, today=date(2024, 1, 1), now=100
+        )
+
+    # It enqueued instead of closing — the follow survives and wants something.
+    assert result.summary.skipped_owned == 0
+    assert DetectOutcome.FILM_ACQUIRED not in [a.outcome for a in result.actions]
+    assert store.follow.get(fid) is not None
+    assert films == [], "nothing was acquired yet — the fetch has not run"
+    # And the authorisation is SPENT: leaving it set would re-acquire the film
+    # on every later pass, which is a loop, not a replacement.
+    follow = store.follow.get(fid)
+    assert follow is not None and follow.replace_owned is False
 
 
 def test_detect_service_resurrects_abandoned_within_cutoff(store: ConcreteAcquireStore) -> None:

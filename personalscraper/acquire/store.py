@@ -188,12 +188,15 @@ class _FollowSubStore:
                 """
                 INSERT INTO followed_series
                   (media_ref_json, title, active,
-                   quality_profile_json, cadence_json, added_at, kind, year)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                   quality_profile_json, cadence_json, added_at, kind, year, replace_owned)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(media_ref_json) DO UPDATE SET
                   active = 1,
                   title = excluded.title,
-                  kind = excluded.kind
+                  kind = excluded.kind,
+                  -- Re-following an owned film to replace it must carry the
+                  -- authorisation even when the row already exists.
+                  replace_owned = MAX(followed_series.replace_owned, excluded.replace_owned)
                 RETURNING id
                 """,
                 (
@@ -205,6 +208,7 @@ class _FollowSubStore:
                     series.added_at,
                     series.kind,
                     series.year,
+                    1 if series.replace_owned else 0,
                 ),
             ).fetchone()
         assert row is not None  # noqa: S101 — RETURNING always yields the affected row
@@ -223,7 +227,7 @@ class _FollowSubStore:
         row = self._conn.execute(
             """
             SELECT id, media_ref_json, title, active,
-                   quality_profile_json, cadence_json, added_at, kind, year
+                   quality_profile_json, cadence_json, added_at, kind, year, replace_owned
             FROM followed_series WHERE id = ?
             """,
             (followed_id,),
@@ -253,7 +257,7 @@ class _FollowSubStore:
             row = self._conn.execute(
                 """
                 SELECT id, media_ref_json, title, active,
-                       quality_profile_json, cadence_json, added_at, kind
+                       quality_profile_json, cadence_json, added_at, kind, replace_owned
                 FROM followed_series
                 WHERE json_extract(media_ref_json, '$.tvdb_id') = ?
                 ORDER BY id LIMIT 1
@@ -264,7 +268,7 @@ class _FollowSubStore:
             row = self._conn.execute(
                 """
                 SELECT id, media_ref_json, title, active,
-                       quality_profile_json, cadence_json, added_at, kind
+                       quality_profile_json, cadence_json, added_at, kind, replace_owned
                 FROM followed_series
                 WHERE json_extract(media_ref_json, '$.tmdb_id') = ?
                 ORDER BY id LIMIT 1
@@ -275,7 +279,7 @@ class _FollowSubStore:
             row = self._conn.execute(
                 """
                 SELECT id, media_ref_json, title, active,
-                       quality_profile_json, cadence_json, added_at, kind
+                       quality_profile_json, cadence_json, added_at, kind, replace_owned
                 FROM followed_series
                 WHERE json_extract(media_ref_json, '$.imdb_id') = ?
                 ORDER BY id LIMIT 1
@@ -297,7 +301,7 @@ class _FollowSubStore:
         rows = self._conn.execute(
             """
             SELECT id, media_ref_json, title, active,
-                   quality_profile_json, cadence_json, added_at, kind
+                   quality_profile_json, cadence_json, added_at, kind, replace_owned
             FROM followed_series
             WHERE active = 1
             ORDER BY id
@@ -317,7 +321,7 @@ class _FollowSubStore:
         rows = self._conn.execute(
             """
             SELECT id, media_ref_json, title, active,
-                   quality_profile_json, cadence_json, added_at, kind
+                   quality_profile_json, cadence_json, added_at, kind, replace_owned
             FROM followed_series
             ORDER BY id
             """
@@ -339,6 +343,40 @@ class _FollowSubStore:
             self._conn.execute(
                 "UPDATE followed_series SET active = ? WHERE id = ?",
                 (1 if active else 0, followed_id),
+            )
+
+    def set_replace_owned(self, followed_id: int, value: bool) -> None:
+        """Write the §5 replacement authorisation on an EXISTING follow.
+
+        Re-following a film already in the library goes through the
+        reactivation branch, where the row is already there — the flag has to
+        be written, not carried by an insert.
+
+        Args:
+            followed_id: Rowid of the ``followed_series`` row.
+            value: ``True`` to authorise one replacement acquisition.
+        """
+        with _write_tx(self._conn):
+            self._conn.execute(
+                "UPDATE followed_series SET replace_owned = ? WHERE id = ?",
+                (1 if value else 0, followed_id),
+            )
+
+    def clear_replace_owned(self, followed_id: int) -> None:
+        """Spend the §5 replacement authorisation.
+
+        Called once the wanted row exists: the acquisition the operator asked
+        for is under way, so the flag has done its job. Leaving it set would
+        make EVERY future detect re-acquire the film, which is a loop, not a
+        replacement.
+
+        Args:
+            followed_id: Rowid of the ``followed_series`` row.
+        """
+        with _write_tx(self._conn):
+            self._conn.execute(
+                "UPDATE followed_series SET replace_owned = 0 WHERE id = ?",
+                (followed_id,),
             )
 
     def delete(self, followed_id: int) -> None:
