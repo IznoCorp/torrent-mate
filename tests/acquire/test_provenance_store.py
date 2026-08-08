@@ -63,6 +63,21 @@ class TestProvenanceCrud:
         assert row.kind == "episode"
         assert row.status == "grabbed"
 
+    def test_upsert_grab_persists_the_release_name(self, store: ConcreteAcquireStore) -> None:
+        """021 — the chosen candidate's title rides the row from grab time."""
+        fid = _a_follow(store)
+        store.provenance.upsert_grab(
+            "DDEEFF",
+            followed_id=fid,
+            media_ref=MediaRef(tmdb_id=98566),
+            kind="movie",
+            grabbed_at=100,
+            release_name="Ninja.Turtles.2014.MULTi.1080p.BluRay-GRP",
+        )
+        row = store.provenance.by_hash("ddeeff")
+        assert row is not None
+        assert row.release_name == "Ninja.Turtles.2014.MULTi.1080p.BluRay-GRP"
+
     def test_ingest_sets_current_path_and_by_path_join(self, store: ConcreteAcquireStore) -> None:
         """set_ingest records the folder; by_path joins folder → row (the #30 seam)."""
         store.provenance.upsert_grab(
@@ -317,7 +332,7 @@ class TestMigration012RunLinkage:
         conn = store._ensure_open()  # noqa: SLF001 — test reaches the migrated schema
         cols = {r[1] for r in conn.execute("PRAGMA table_info('staging_provenance')")}
         assert {"grab_run_uid", "ingest_run_uid", "scrape_run_uid", "dispatch_run_uid"} <= cols
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 20  # latest chain: 020 wanted last_grab_failure
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 21  # latest chain: 021 provenance release_name
 
 
 class TestRunLinkage:

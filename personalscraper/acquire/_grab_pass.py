@@ -306,6 +306,10 @@ class GrabPassMixin(PassGatesMixin):
                 # NOT the ContextVar — grab's correlation is a misaligned fresh uuid). None
                 # when grab runs with no run row.
                 run_uid=self._grab_run_uid,
+                # 021 — the journey's displayable name during grab→ingest,
+                # before any staging path exists (« Nom de release non
+                # enregistré » was on screen for the whole download).
+                release_name=(outcome.chosen.title if outcome.chosen is not None else None),
             )
         # Seed obligation at GRAB time (2026-07-15): the dispatch-time
         # name+size correlation can never match a renamed/aggregated TV show
