@@ -54,6 +54,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useDownloads } from "@/hooks/useAcquisition";
 import { usePipelineStages } from "@/hooks/usePipelineStages";
 
 /** One stage as returned by ``GET /api/pipeline/stages``. */
@@ -196,6 +197,10 @@ export function FlowBoard(): ReactElement {
     };
   }, []);
   const navigate = useNavigate();
+  // Upstream stock: live torrent-client downloads, not yet on disk — the
+  // board's first station when non-empty (« visible nulle part » report).
+  // Hook order: before every early return (loading/error) below.
+  const downloadCount = useDownloads().data?.downloads.length ?? 0;
   // The open stage drawer is URL-addressable (?stage=<key>) so the browser
   // Back button closes it like any route — same discipline as ?media/?decision
   // (open pushes a history entry; close replaces it, no dangling entry).
@@ -319,6 +324,33 @@ export function FlowBoard(): ReactElement {
           Desktop: horizontal wrapping row — stations wrap instead of
           overflowing so the anomaly signal is always visible (DOIT-2, §8). */}
       <div className="flex flex-col gap-2 pb-2 sm:flex-row sm:flex-wrap sm:items-stretch sm:gap-1">
+        {/* Upstream of « Arrivée »: a live download exists in the torrent
+            client but not yet on disk — the operator watched a grab download
+            for 20 minutes while every station read 0 (« visible nulle part »).
+            The station only renders when something is actually inbound. */}
+        {downloadCount > 0 && (
+          <Fragment key="telechargement">
+            <StageStation
+              label="Téléchargement"
+              count={downloadCount}
+              state="active"
+              timeframe="en cours"
+              icon={Download}
+              compact={isDesktop}
+              onClick={() => {
+                void navigate("/acquisition?tab=maintenant");
+              }}
+              {...(isDesktop ? {} : ({ size: "sm" } as const))}
+            />
+            <div
+              className="flex shrink-0 items-center justify-center self-center py-0.5 sm:py-0"
+              aria-hidden="true"
+            >
+              <span className="ps-flow-line-vertical h-4 w-0.5 rounded-full sm:hidden" />
+              <span className="ps-flow-line hidden h-0.5 w-6 rounded-full sm:block" />
+            </div>
+          </Fragment>
+        )}
         {stages.map((stage, i) => {
           const split = toStationSplit(stage.split);
           const icon = STAGE_ICON[stage.key];
@@ -441,6 +473,18 @@ export function FlowBoard(): ReactElement {
                   {selected.blocked} média{selected.blocked > 1 ? "s" : ""}{" "}
                   bloqué{selected.blocked > 1 ? "s" : ""} à cette étape — le
                   détail ci-dessous donne la raison et l'action.
+                </p>
+              )}
+
+              {/* « En cours » + 0 média lisaient comme une contradiction
+                  (rapport opérateur) : le badge dit où le RUN travaille, le
+                  compte dit ce qui STATIONNE. Quand les deux divergent, le
+                  tiroir l'explique au lieu de laisser deviner. */}
+              {running && selected.state === "active" && selected.count === 0 && (
+                <p className="text-sm text-info">
+                  Le run exécute cette étape en ce moment. Aucun média n’est
+                  stationné ici : l’étape travaille sur le lot en cours, qui
+                  reste compté à sa position dans le flux.
                 </p>
               )}
 
