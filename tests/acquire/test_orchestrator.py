@@ -39,6 +39,7 @@ from personalscraper.acquire.desired import QualityProfile, Resolution
 from personalscraper.acquire.domain import WantedItem
 from personalscraper.acquire.events import GrabFailed, GrabSucceeded, WantedAbandoned
 from personalscraper.acquire.orchestrator import (
+    FETCH_FALLBACK_CANDIDATES,
     GrabOrchestrator,
     GrabOutcome,
     build_search_query,
@@ -440,6 +441,65 @@ def test_torrent_fetch_error_retryable() -> None:
 
     assert outcome.disposition == "retryable"
     assert outcome.reason == "fetch_failed"
+    assert [e for e in spy.events if isinstance(e, GrabFailed)]
+
+
+def test_fetch_error_falls_back_to_next_ranked_candidate() -> None:
+    """A candidate-specific fetch failure walks to the NEXT ranked candidate.
+
+    Regression (Ninja Turtles 2026-08-08): the top candidate's tracker
+    download endpoint served the WRONG torrent — the D5 info-hash check
+    refused it on every pass, ``fetch_failed`` retried the SAME candidate
+    forever, and the healthy sibling one rank below was never tried.
+    """
+    top = _make_result(title="Film 2014 1080p BluRay x264-BROKEN", seeders=50, info_hash="bad1")
+    sibling = _make_result(title="Film 2014 1080p BluRay x264-GOOD", seeders=40, info_hash="good2")
+    outcome_pool = SearchOutcome(results=[top, sibling], trackers_queried=1, trackers_errored=0)
+    orchestrator, spy, _registry, torrent_client, _seed = _make_orchestrator(
+        search_outcome=outcome_pool,
+    )
+    good_source = MagicMock(spec=TorrentSource)
+    with patch(_RESOLVE) as mock_resolve:
+        mock_resolve.side_effect = [
+            TorrentFetchError(provider="c411", http_status=0, message="info_hash mismatch"),
+            good_source,
+        ]
+        outcome = orchestrator.grab(_make_wanted(), QualityProfile())
+
+    assert outcome.disposition == "success"
+    # The grab proceeded with the SIBLING, not the broken top.
+    assert outcome.chosen is not None and outcome.chosen.info_hash == "good2"
+    assert torrent_client is not None
+    torrent_client.add.assert_called_once()
+    assert torrent_client.add.call_args.args[0] is good_source
+    # No GrabFailed emitted — the pass succeeded.
+    assert not [e for e in spy.events if isinstance(e, GrabFailed)]
+
+
+def test_fetch_error_fallback_is_bounded() -> None:
+    """When every tried candidate fails to fetch, the walk stops at the cap.
+
+    The pool holds more candidates than ``FETCH_FALLBACK_CANDIDATES``; the
+    pass must not hammer the tracker beyond the bound, and the disposition
+    stays the historical RETRYABLE ``fetch_failed``.
+    """
+    pool = [
+        _make_result(title=f"Film 2014 1080p x264-GRP{i}", seeders=50 - i, info_hash=f"h{i}")
+        for i in range(FETCH_FALLBACK_CANDIDATES + 2)
+    ]
+    outcome_pool = SearchOutcome(results=pool, trackers_queried=1, trackers_errored=0)
+    orchestrator, spy, _registry, torrent_client, _seed = _make_orchestrator(
+        search_outcome=outcome_pool,
+    )
+    with patch(_RESOLVE) as mock_resolve:
+        mock_resolve.side_effect = TorrentFetchError(provider="c411", http_status=0, message="dead")
+        outcome = orchestrator.grab(_make_wanted(), QualityProfile())
+
+    assert outcome.disposition == "retryable"
+    assert outcome.reason == "fetch_failed"
+    assert mock_resolve.call_count == FETCH_FALLBACK_CANDIDATES
+    assert torrent_client is not None
+    torrent_client.add.assert_not_called()
     assert [e for e in spy.events if isinstance(e, GrabFailed)]
 
 
