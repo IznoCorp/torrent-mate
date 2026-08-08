@@ -751,3 +751,63 @@ router.
 
 **Measurement** (deployed `df1fc6eb`): `make check` PASS, frontend
 **1336/1336**, UNION **ALL PASS — 15 regions**, gestures **14/14**.
+
+## Entry 21 — 2026-08-08: the iOS shimmer, third report, real cause found
+
+Two previous fixes treated symptoms. A 5-agent audit of the actual code
+(four independent hypotheses + a synthesis, each forbidden from
+re-proposing the failed attempts) found what I had missed.
+
+**The cause: a non-passive `touchmove` still covered the gestures that
+matter.** Attempt #2 made the pull tracker per-gesture, gated on `atTop`
+— but `atTop` is sampled ONCE, at touchstart. A gesture that STARTS at
+the top keeps the scroll-blocking listener for its whole duration,
+including the upward drag that scrolls the list. And the list is at the
+top on arrival, after every display-mode switch, after every tab change
+and after every refresh: that is the dominant case, not the rare one.
+Attempt #2 removed the listener exactly where nobody was complaining.
+
+**The fix: zero scroll-blocking listeners, anywhere.** The
+`preventDefault` existed only to beat the native rubber-band, and CSS
+already refuses the native pull — `overscroll-behavior-y` moved from
+`contain` (stops chaining, KEEPS the bounce) to `none`, which lets the
+tracker be `{ passive: true }` and permanent. iOS keeps the document on
+the compositor, and the scrolling tree applies the sticky offsets itself
+instead of the main thread re-resolving them a frame late. Pinned by a
+test that spies on `addEventListener` and fails if ANY `touchmove` /
+`wheel` is registered non-passive; mutation-checked.
+
+**Three companions, all from the audit:**
+- The sticky TopBar carried `bg-background/85 backdrop-blur-sm`. A
+  blurred backdrop must be re-sampled from the moving content every
+  frame. The maquette specifies no blur here (its only blur is the
+  decorative poster backdrop in the media sheet) and the shell's other
+  pinned bar is already opaque — so the bar became an opaque slab.
+- The three ResizeObservers wrote `:root` custom properties on every
+  tick. On iOS the collapsing URL bar resizes the observed elements
+  CONTINUOUSLY mid-scroll, and `.filters` pins at the SUM of two of
+  those vars. Writes are now quantised and skipped when unchanged —
+  measured: **0 writes across 6 viewport-height changes**. Quantised
+  with `ceil`, not `round`, on the audit's warning: rounding a real
+  height down would seat the filter zone a fraction high and open a
+  sliver of list content in the seam.
+- `min-h-screen` (=100vh, the LARGE viewport on iOS) manufactured a
+  toolbar-sized overflow on every page, guaranteeing the URL-bar dance
+  even on a short list → `min-h-svh`.
+
+**Reverted**: the `translateZ(0)` layer promotion from attempt #1. It
+fixed nothing, and promoting a sticky element to its own layer is itself
+a documented iOS jitter source. A failed fix left in place is debt.
+
+**Harness honesty**: making the pull passive exposed TWO false
+assertions in my own gesture pass — one racing the refresh it had just
+triggered, and one asserting `.sheettitle`, a string that only appears
+once the completeness query resolves (a request the mirror does not
+intercept). It was measuring a fetch and calling it a gesture. Both now
+assert what they claim.
+
+**Measurement** (deployed `f7faa140`): `overscroll-behavior-y: none`,
+`backdrop-filter: none`, no transform on the sticky bars, published
+heights whole-pixel (69px / 62px), shell at `min-h-svh`. `make check`
+PASS, frontend **1336/1336**, UNION **ALL PASS — 15 regions**, gestures
+**14/14**. The device verdict is the operator's — it is the only iPhone.
