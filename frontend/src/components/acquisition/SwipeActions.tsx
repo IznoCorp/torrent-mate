@@ -38,6 +38,8 @@ export interface SwipeActionsProps {
   readonly right?: readonly SwipeAction[];
   /** The card. */
   readonly children: ReactNode;
+  /** Extra container class — e.g. maquette ``fresh`` for the add glow. */
+  readonly className?: string;
 }
 
 /**
@@ -75,6 +77,7 @@ export function SwipeActions({
   left,
   right,
   children,
+  className,
 }: SwipeActionsProps): ReactElement {
   const [offset, setOffset] = useState(0);
   const dragRef = useRef<{ x: number; y: number; axis: "x" | "y" | null } | null>(
@@ -167,7 +170,7 @@ export function SwipeActions({
     <div
       data-swipe
       data-testid="swipe-container"
-      className="relative overflow-hidden rounded-lg"
+      className={`relative overflow-hidden rounded-lg${className != null ? ` ${className}` : ""}`}
     >
       {/* Action layer — behind the card, never translated (maquette .actions). */}
       {/* inert: aria-hidden alone left the buttons keyboard-focusable — a

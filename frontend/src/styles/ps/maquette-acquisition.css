@@ -675,6 +675,38 @@
   text-overflow: ellipsis;
 }
 
+/* ── Fresh add (maquette .freshtag + .swipe.fresh glow) ──
+   What was just added SIGNALS itself — otherwise « c'est ajouté » is only a
+   claim and the operator hunts for proof. Keyframe renamed mq-pop. */
+
+.mq .freshtag {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 99px;
+  color: var(--primary-foreground);
+  background: var(--primary);
+  white-space: nowrap;
+}
+.mq .fresh [data-testid="acq-card"] {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--primary) 30%, transparent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mq .fresh [data-testid="acq-card"] {
+    animation: mq-pop 0.45s cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+  @keyframes mq-pop {
+    from {
+      transform: scale(0.97);
+    }
+    to {
+      transform: scale(1);
+    }
+  }
+}
+
 /* ── Skeleton shimmer (maquette .skel) ── */
 
 .mq .skel {

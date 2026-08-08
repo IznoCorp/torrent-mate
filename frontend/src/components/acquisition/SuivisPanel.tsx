@@ -322,11 +322,7 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
     const metaPieces: ReactElement[] = [];
     if (isNew(item)) {
       metaPieces.push(
-        <span
-          key="nouveau"
-          data-testid="chip-nouveau"
-          className="rounded bg-info/20 px-1.5 py-px text-xs font-medium text-info"
-        >
+        <span key="nouveau" data-testid="chip-nouveau" className="freshtag">
           Nouveau
         </span>,
       );
@@ -379,7 +375,11 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
          hands back any drag born inside data-swipe, so the two horizontal
          gestures never fight. The « ··· » renders on fine pointers only —
          the card enforces A11 itself. */
-      <SwipeActions key={item.id} {...actions.swipeFor(item)}>
+      <SwipeActions
+        key={item.id}
+        {...actions.swipeFor(item)}
+        {...(isNew(item) ? { className: "fresh" } : {})}
+      >
         <AcquisitionCard
           title={item.title}
           posterUrl={item.poster_url ?? null}

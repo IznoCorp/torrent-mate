@@ -597,6 +597,23 @@ describe("SuivisPanel", () => {
     expect(busy?.querySelectorAll(".skel")).toHaveLength(3);
   });
 
+  it("un ajout frais brille : glow .fresh sur la rangée et pilule .freshtag", () => {
+    // Maquette .swipe.fresh + .freshtag — « c'est ajouté » se PROUVE dans la
+    // liste, sinon ce n'est qu'une affirmation (§7).
+    const fresh = {
+      ...takeableShow(),
+      id: 99,
+      title: "Tout Frais",
+      added_at: Math.floor(Date.now() / 1000) - 60,
+    };
+    renderPanel([fresh]);
+
+    const chip = screen.getByTestId("chip-nouveau");
+    expect(chip).toHaveClass("freshtag");
+    expect(chip).toHaveTextContent("Nouveau");
+    expect(screen.getByTestId("swipe-container")).toHaveClass("fresh");
+  });
+
   it("un filtre sans résultat parle la copie maquette exacte", () => {
     renderPanel([takeableShow()]);
     fireEvent.change(screen.getByPlaceholderText(/Filtrer par nom/), {
