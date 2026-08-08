@@ -45,7 +45,13 @@ vi.mock("react-router-dom", async (importOriginal) => {
 // ---------------------------------------------------------------------------
 
 const searchResultsMock = vi.fn();
-const followedMock = vi.fn();
+// Default: an empty followed list — AddMediaScreen now reads it for the
+// `.sugg` dedup even when a test never seeds follows.
+const followedMock = vi.fn((): unknown => ({
+  data: { items: [] },
+  isLoading: false,
+  isError: false,
+}));
 const completenessMock = vi.fn<() => {
   data: unknown;
   isLoading: boolean;
