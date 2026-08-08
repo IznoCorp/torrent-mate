@@ -42,7 +42,6 @@ import {
 } from "@/hooks/useAcquisition";
 
 import { ErrorState } from "@/components/ds/ErrorState";
-import { relativeTimeUntil } from "@/lib/format";
 
 import { AcquisitionCard } from "./AcquisitionCard";
 import { Chip } from "./Chip";
@@ -359,27 +358,17 @@ export function MaintenantPanel(): ReactElement {
    * the machine looks again, which is what a resting card owes the operator.
    */
   function searchMetaLine(item: FollowedSeriesItem): string {
-    const pieces: string[] = [];
-    // Maquette waiting card: a never-verified follow says WHY it rests —
-    // no search verdict exists yet, and faking one would break §14.
+    // Maquette waiting card: the verdict, then WHEN the machine last looked
+    // (« rien de conforme au profil · il y a 3 h ») — the LAST search, not
+    // the next-check substitute (backend addition C). A never-verified
+    // follow says WHY it rests instead of faking a verdict (§14).
     const reason =
       item.status === "non_verifie"
         ? "pas encore vérifié sur les trackers"
-        : followWaitingReason(item);
-    if (reason != null) pieces.push(reason);
-    if (item.next_search_at != null) {
-      // Compact wording: the full « prochaine vérification » pushed the line
-      // past 375 px and the subtitle truncates (§12) — when a verdict opens
-      // the line, the short form carries the same fact.
-      pieces.push(
-        reason != null
-          ? `vérif. ${relativeTimeUntil(item.next_search_at)}`
-          : `prochaine vérification ${relativeTimeUntil(item.next_search_at)}`,
-      );
-    }
-    return pieces.length > 0
-      ? pieces.join(" · ")
-      : "rien de conforme au dernier passage";
+        : (followWaitingReason(item) ?? "rien de conforme au dernier passage");
+    return item.last_search_at != null
+      ? `${reason} · ${relativeTime(item.last_search_at)}`
+      : reason;
   }
 
   /** Render one followed-item card (used by two sections). */

@@ -148,13 +148,14 @@ def _seed_wanted(
     kind: str = "episode",
     season: int = 1,
     episode: int = 1,
+    last_search_at: int | None = None,
 ) -> int:
     """Insert a wanted row and return its id."""
     now = int(time.time())
     cur = conn.execute(
         "INSERT INTO wanted (followed_id, media_ref_json, kind, season, episode, "
-        "status, enqueued_at, attempts) VALUES (?, ?, ?, ?, ?, ?, ?, 0)",
-        (followed_id, '{"tvdb_id": 360001}', kind, season, episode, status, now),
+        "status, enqueued_at, attempts, last_search_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)",
+        (followed_id, '{"tvdb_id": 360001}', kind, season, episode, status, now, last_search_at),
     )
     return cur.lastrowid
 
@@ -290,6 +291,30 @@ class TestFollowedEndpoint:
         # Inactive item must NOT be present.
         ids = {it["id"] for it in items}
         assert fid3 not in ids
+
+    def test_last_search_at_is_the_max_across_all_statuses(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
+        """La carte au repos dit la DERNIÈRE recherche réelle — une ligne
+        ``done`` récente témoigne autant qu'une ``pending`` (maquette:
+        « rien de conforme au profil · il y a 3 h »)."""
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        _seed_followed(conn, 1, "Searched Show", active=True)
+        _seed_followed(conn, 2, "Never Searched", active=True)
+        _seed_wanted(conn, 1, status="pending", episode=1, last_search_at=1_000)
+        _seed_wanted(conn, 1, status="done", episode=2, last_search_at=5_000)
+        _seed_wanted(conn, 2, status="pending", episode=1, last_search_at=None)
+        conn.commit()
+        conn.close()
+
+        resp = client.get("/api/acquisition/followed", cookies=_make_auth_cookie())
+        assert resp.status_code == 200, resp.text
+        items = {it["id"]: it for it in resp.json()["items"]}
+
+        assert items[1]["last_search_at"] == 5_000
+        assert items[2]["last_search_at"] is None
 
     def test_active_all(self, client: TestClient, tmp_path: Path) -> None:
         """``?active=all`` returns all items regardless of active flag."""

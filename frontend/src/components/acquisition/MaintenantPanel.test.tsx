@@ -1194,16 +1194,30 @@ describe("MaintenantPanel", () => {
 
   // ── §14.1 — the resting card explains itself ──────────────────────────────
 
-  it("§14.1 — « cherché, rien trouvé » annonce la prochaine vérification", () => {
+  it("§14.1 — la carte au repos date la DERNIÈRE recherche réelle (maquette)", () => {
+    // Backend addition C: last_search_at remplace le substitut « prochaine
+    // vérification » — la maquette dit « rien de conforme au profil · il y a 3 h ».
     const waiting = {
       ...waitingShow(),
+      last_search_at: Math.floor(Date.now() / 1000) - 10_800,
       next_search_at: Math.floor(Date.now() / 1000) + 7260,
     };
     renderPanel({ ...full, followed: [waiting] });
 
     const section = screen.getByTestId("section-cherche-rien-trouve");
     expect(
-      within(section).getByText(/prochaine vérification dans 2 h/),
+      within(section).getByText(/rien de conforme au dernier passage · il y a 3 h/),
     ).toBeInTheDocument();
+  });
+
+  it("§14.1 — jamais cherché : le verdict reste seul, sans fausse date", () => {
+    const waiting = { ...waitingShow(), last_search_at: null };
+    renderPanel({ ...full, followed: [waiting] });
+
+    const section = screen.getByTestId("section-cherche-rien-trouve");
+    expect(
+      within(section).getByText("rien de conforme au dernier passage"),
+    ).toBeInTheDocument();
+    expect(within(section).queryByText(/il y a/)).toBeNull();
   });
 });

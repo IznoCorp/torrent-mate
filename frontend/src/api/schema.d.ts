@@ -3177,6 +3177,8 @@ export interface components {
              * @default show
              */
             kind: string;
+            /** Last Search At */
+            last_search_at?: number | null;
             media_ref: components["schemas"]["MediaRefResponse"];
             movie_facts?: components["schemas"]["MovieFacts"] | null;
             /** Next Search At */

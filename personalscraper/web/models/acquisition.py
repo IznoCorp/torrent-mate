@@ -93,6 +93,12 @@ class FollowedSeriesItem(BaseModel):
     # ``None`` when nothing is pending (the series is up to date).
     next_search_at: float | None = None
     cadence_tier: str | None = None
+    # When the machine LAST searched for this series — MAX(last_search_at)
+    # over its wanted rows, ALL statuses (a done row still witnesses the last
+    # pass). ``None`` when never searched. The resting card's honest
+    # « rien de conforme au profil · il y a 3 h » (maquette) reads this,
+    # never the next-check substitute.
+    last_search_at: float | None = None
     # Five-state truth facts (acq-states phase 4) — derived from the
     # aired-catalog cache × library ownership × wanted rows × the last search
     # verdict, one count per state. All ``None`` when the series has no cached

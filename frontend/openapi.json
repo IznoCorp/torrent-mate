@@ -1438,6 +1438,17 @@
             "title": "Kind",
             "type": "string"
           },
+          "last_search_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Search At"
+          },
           "media_ref": {
             "$ref": "#/components/schemas/MediaRefResponse"
           },

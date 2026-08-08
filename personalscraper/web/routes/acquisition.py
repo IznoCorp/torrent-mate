@@ -249,6 +249,18 @@ def get_followed(
                     last = None if w["last_search_at"] is None else int(w["last_search_at"])
                     timings_by_series.setdefault(int(w["followed_id"]), []).append((int(w["enqueued_at"]), last))
 
+            # The LAST real search per series — MAX over ALL statuses: a
+            # grabbed/done row still witnesses the last pass (the query above
+            # feeds the cadence and only reads pending/searching).
+            last_search_by_series: dict[int, float] = {
+                int(w["followed_id"]): float(w["last"])
+                for w in conn.execute(
+                    "SELECT followed_id, MAX(last_search_at) AS last FROM wanted "
+                    "WHERE followed_id IS NOT NULL AND last_search_at IS NOT NULL "
+                    "GROUP BY followed_id"
+                ).fetchall()
+            }
+
             # Batched lookup of in-flight priming runs — one query, never N+1.
             # An open prime run overrides the card status to
             # ``verification_en_cours``, so the predicate MUST be the one
@@ -370,6 +382,7 @@ def get_followed(
                         season_count=season_count,
                         next_search_at=next_due,
                         cadence_tier=cadence_tier,
+                        last_search_at=last_search_by_series.get(row["id"]),
                         aired_count=truth.aired_count,
                         owned_count=truth.owned_count,
                         a_recuperer_count=truth.a_recuperer_count,
