@@ -96,7 +96,9 @@ export function PlusSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right">
+      {/* `mq`: the portal lands on <body>, outside the page's scope — the
+          maquette classes need the scope re-applied here. */}
+      <SheetContent side="right" className="mq">
         <SheetHeader>
           <SheetTitle className="sheettitle">Veille et obligations</SheetTitle>
           <SheetDescription className="sheetmeta">
