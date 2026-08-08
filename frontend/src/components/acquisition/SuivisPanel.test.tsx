@@ -288,21 +288,41 @@ function mockFollowed(
   } as unknown as ReturnType<typeof hooks.useFollowed>);
 }
 
+/**
+ * Render the panel inside a stand-in for the shell's scrollport.
+ *
+ * The shell is a frame: the panel scrolls inside `main[data-scroll-root]`, not
+ * the window. jsdom gives no element a scrolling box, so `scrollTop` would
+ * silently swallow both the write and the read — the setter is instrumented
+ * instead, and returned, so « back to top » is asserted on what it actually
+ * does rather than on a value jsdom refuses to keep.
+ */
 function renderPanel(
   items: readonly FollowedSeriesItem[],
   opts?: MockOpts,
-): void {
+): { readonly scrollTopSet: ReturnType<typeof vi.fn> } {
   mockFollowed(items, opts);
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
+  const scrollRoot = document.createElement("div");
+  scrollRoot.setAttribute("data-scroll-root", "");
+  const scrollTopSet = vi.fn();
+  Object.defineProperty(scrollRoot, "scrollTop", {
+    get: () => 420,
+    set: scrollTopSet,
+    configurable: true,
+  });
+  document.body.appendChild(scrollRoot);
   render(
     <QueryClientProvider client={qc}>
       <MemoryRouter>
         <SuivisPanel />
       </MemoryRouter>
     </QueryClientProvider>,
+    { container: scrollRoot },
   );
+  return { scrollTopSet };
 }
 
 /** Get the first element from a query result, narrowing away undefined. */
@@ -598,14 +618,14 @@ describe("SuivisPanel", () => {
   });
 
   it("changer de mode de vue remonte en haut de la liste", () => {
-    // Operator report: switching display mode left the list mid-scroll.
-    const scrollSpy = vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
-    renderPanel([takeableShow()]);
+    // Operator report: switching display mode left the list mid-scroll. The
+    // scrollport is the shell's `main`, so this must move THAT element — a
+    // `window.scrollTo` would now be a no-op on a document that never scrolls.
+    const { scrollTopSet } = renderPanel([takeableShow()]);
 
     fireEvent.click(screen.getByRole("button", { name: "Grille d'affiches" }));
 
-    expect(scrollSpy).toHaveBeenCalledWith({ top: 0 });
-    scrollSpy.mockRestore();
+    expect(scrollTopSet).toHaveBeenCalledWith(0);
   });
 
   it("un ajout frais brille : glow .fresh sur la rangée et pilule .freshtag", () => {

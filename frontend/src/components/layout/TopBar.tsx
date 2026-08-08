@@ -106,13 +106,14 @@ export function TopBar({ onOpenNav }: TopBarProps): ReactElement {
   return (
     <header
       ref={headerRef}
-      // OPAQUE, and no backdrop-filter: a translucent blurred bar has to
-      // re-sample the content moving underneath on EVERY frame, and iOS
-      // composites that against a main-thread sticky offset — which is the
-      // shimmer the operator reported three times. The maquette asks for no
-      // blur here (its only blur is the decorative poster backdrop in the
-      // media sheet), so nothing is owed to the design by keeping it.
-      className="sticky top-0 z-40 flex items-center gap-4 border-b border-border bg-background px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] md:px-6"
+      // STATIC, opaque, and no backdrop-filter. Not sticky: the shell is a
+      // frame (see AppShell) and the scrollport is `main`, BELOW this row —
+      // so nothing ever scrolls under this bar and nothing ever re-places it
+      // mid-gesture. A translucent blurred bar would also have to re-sample
+      // the content moving underneath on every frame; the maquette asks for
+      // no blur here (its only blur is the decorative poster backdrop in the
+      // media sheet), so nothing is owed to the design by dropping it.
+      className="relative z-40 flex shrink-0 items-center gap-4 border-b border-border bg-background px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] md:px-6"
     >
       <button
         type="button"

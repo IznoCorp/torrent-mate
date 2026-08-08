@@ -37,10 +37,8 @@ import { Chip } from "./Chip";
 import { SwipeActions } from "./SwipeActions";
 import { useFollowActions } from "./followActions";
 import { useSchedulers } from "@/hooks/useSchedulers";
-import {
-  TOPBAR_HEIGHT_VAR,
-  VIEWTABS_HEIGHT_VAR,
-} from "@/components/layout/bottom-bar-metrics";
+import { VIEWTABS_HEIGHT_VAR } from "@/components/layout/bottom-bar-metrics";
+import { scrollRootToTop } from "@/lib/scroll-root";
 import { posterThumb } from "@/lib/poster-thumb";
 import { useBackCloses } from "@/lib/use-back-closes";
 
@@ -288,6 +286,8 @@ export function SuivisPanel(): ReactElement {
   const [nameFilter, setNameFilter] = useState("");
   /** The filter box — the clear button hands focus straight back to it. */
   const filterInputRef = useRef<HTMLInputElement | null>(null);
+  /** Anchor inside the scrollport — how « back to top » finds it. */
+  const switcherRef = useRef<HTMLDivElement | null>(null);
 
   // Detail-sheet state.
   const [sheet, setSheet] = useState<FollowedSeriesItem | null>(null);
@@ -492,7 +492,7 @@ export function SuivisPanel(): ReactElement {
       /* Maquette .vswwrap: hard 1px divider then the icon triplet — the pills
          filter DATA, the switcher changes PRESENTATION, and the two natures
          must not read as one train (A9). */
-      <div className="vswwrap">
+      <div className="vswwrap" ref={switcherRef}>
         <div role="group" aria-label="Mode d'affichage" className="vsw">
           {modes.map((m) => (
             <button
@@ -503,8 +503,9 @@ export function SuivisPanel(): ReactElement {
               onClick={() => {
                 setViewMode(m.key);
                 // Operator report: switching display mode left the list
-                // mid-scroll — a new view reads from its top.
-                window.scrollTo({ top: 0 });
+                // mid-scroll — a new view reads from its top. The scrollport
+                // is the shell's `main`, not the window (AppShell frame).
+                scrollRootToTop(switcherRef.current);
               }}
             >
               {m.icon}
@@ -527,11 +528,12 @@ export function SuivisPanel(): ReactElement {
             then pill train + view switcher behind a hard divider. Only the
             list below scrolls (§5.1); the block's border-bottom is the
             separator the maquette draws. */}
+        {/* Pinned under the view tabs INSIDE the scrollport — one measured
+            height instead of a sum that included the shell header, which is
+            no longer part of the scrolling area at all (AppShell frame). */}
         <div
           className="filters sticky z-20 -mx-[14px]"
-          style={{
-            top: `calc(var(${TOPBAR_HEIGHT_VAR}, 56px) + var(${VIEWTABS_HEIGHT_VAR}, 58px))`,
-          }}
+          style={{ top: `var(${VIEWTABS_HEIGHT_VAR}, 58px)` }}
         >
           <label className="search">
             <SearchIcon aria-hidden="true" />

@@ -258,7 +258,7 @@ describe("AppShell clampe le débordement horizontal (garde structurelle)", () =
   // overflow-x-clip from the shell" breaks CI. The real-layout proof (390 px
   // Chrome, scrollWidth-innerWidth == 0 on every route) is ACC-05, run out of
   // band by the orchestrator.
-  it("le root porte overflow-x-clip, <main> porte min-w-0 + overflow-x-clip, la bottom-bar est fixed", () => {
+  it("le shell est un CADRE : root h-svh + clip, <main> est l'unique zone qui défile", () => {
     renderShell();
 
     // The bottom bar is position:fixed — the DESIGN's whole point is that its
@@ -276,7 +276,12 @@ describe("AppShell clampe le débordement horizontal (garde structurelle)", () =
     // horizontal scroll is ever possible, whatever a child does.
     const root = bottomBar.parentElement;
     expect(root).not.toBeNull();
-    expect(root?.className).toContain("overflow-x-clip");
+    expect(root?.className).toContain("overflow-clip");
+    // …and it is exactly ONE viewport tall. This is the frame: the document
+    // itself never scrolls, so iOS never collapses its URL bar mid-gesture,
+    // so the visual viewport never resizes under a sticky header. That chain
+    // is the operator's shimmer; `h-svh` + clip is where it is cut.
+    expect(root?.className).toContain("h-svh");
 
     // <main> carries BOTH protections: min-w-0 so a wide child cannot push the
     // flex column wider than the viewport, and overflow-x-clip so a child that
@@ -284,6 +289,11 @@ describe("AppShell clampe le débordement horizontal (garde structurelle)", () =
     const main = screen.getByRole("main");
     expect(main.className).toContain("min-w-0");
     expect(main.className).toContain("overflow-x-clip");
+    // <main> is the single scrollport, and says so: the gestures (pull-to-
+    // refresh, « back to top ») find it by this attribute. A refactor that
+    // moves the scroll back onto the document breaks here.
+    expect(main.className).toContain("overflow-y-auto");
+    expect(main).toHaveAttribute("data-scroll-root");
   });
 });
 

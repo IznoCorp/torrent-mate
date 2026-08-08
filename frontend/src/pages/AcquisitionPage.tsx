@@ -51,11 +51,11 @@ import {
 import { PlusSheet } from "@/components/acquisition/PlusSheet";
 import { SuivisPanel } from "@/components/acquisition/SuivisPanel";
 import {
-  TOPBAR_HEIGHT_VAR,
   VIEWTABS_HEIGHT_VAR,
   aboveBottomBar,
   publishMeasuredHeight,
 } from "@/components/layout/bottom-bar-metrics";
+import { scrollRootOf } from "@/lib/scroll-root";
 import { useWaitingForOperator } from "@/hooks/useAcquisition";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 import { handleTablistKeyDown } from "@/lib/tablist";
@@ -327,7 +327,7 @@ export default function AcquisitionPage(): ReactElement {
       }
       const t = e.touches[0];
       if (t == null) return;
-      const atTop = (document.scrollingElement?.scrollTop ?? window.scrollY) <= 0;
+      const atTop = (scrollRootOf(el)?.scrollTop ?? 0) <= 0;
       touchDragRef.current = {
         x: t.clientX,
         y: t.clientY,
@@ -486,11 +486,11 @@ export default function AcquisitionPage(): ReactElement {
           a hardcoded offset) so only the list below scrolls.
           ACQUISITION-7 (ticket 250): full WAI-ARIA tablist wiring — roving
           tabIndex + arrow-key navigation + tab/panel linkage. */}
-      <div
-        ref={viewtabsRef}
-        className="viewtabs sticky z-30 bg-background"
-        style={{ top: `var(${TOPBAR_HEIGHT_VAR}, 56px)` }}
-      >
+      {/* `top: 0` — the scrollport starts BELOW the shell header now, so the
+          tabs pin to the top of the scrolling area itself. The old offset read
+          the header's measured height, which is precisely the value iOS kept
+          changing mid-scroll. */}
+      <div ref={viewtabsRef} className="viewtabs sticky top-0 z-30 bg-background">
         <div
           role="tablist"
           aria-label="Vues de la page Acquisition"
