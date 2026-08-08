@@ -292,12 +292,12 @@ class TestFollowedEndpoint:
         ids = {it["id"] for it in items}
         assert fid3 not in ids
 
-    def test_last_search_at_is_the_max_across_all_statuses(
-        self, client: TestClient, tmp_path: Path
-    ) -> None:
-        """La carte au repos dit la DERNIÈRE recherche réelle — une ligne
-        ``done`` récente témoigne autant qu'une ``pending`` (maquette:
-        « rien de conforme au profil · il y a 3 h »)."""
+    def test_last_search_at_is_the_max_across_all_statuses(self, client: TestClient, tmp_path: Path) -> None:
+        """La carte au repos dit la DERNIÈRE recherche réelle.
+
+        Une ligne ``done`` récente témoigne autant qu'une ``pending``
+        (maquette : « rien de conforme au profil · il y a 3 h »).
+        """
         acquire_path = tmp_path / "acquire.db"
         conn = sqlite3.connect(str(acquire_path))
         apply_pragmas(conn)
