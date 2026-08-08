@@ -368,7 +368,7 @@ export function AddMediaScreen({
             /* Maquette idle state: what to do, and the one honesty rule of
                this screen, before anything has been asked. */
             <>
-              <div className="empty">
+              <div className="empty addidle">
                 <b>Cherchez un titre</b>
                 Les fournisseurs ne sont interrogés qu&apos;à la validation —
                 pas à chaque frappe.
