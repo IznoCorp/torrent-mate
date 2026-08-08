@@ -12,6 +12,7 @@
   --mq-shadow-vsw: 0 1px 3px rgb(0 0 0 / 0.5);
   --mq-shadow-fab: 0 6px 20px rgb(0 0 0 / 0.55);
   --mq-shadow-dlg: 0 20px 60px rgb(0 0 0 / 0.7);
+  --mq-shadow-toast: 0 8px 26px rgb(0 0 0 / 0.5);
 
   /* Scrim (maquette .dlgscrim) */
   --mq-scrim: rgb(0 0 0 / 0.6);
