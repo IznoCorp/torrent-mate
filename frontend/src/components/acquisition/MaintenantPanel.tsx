@@ -173,6 +173,14 @@ export function MaintenantPanel(): ReactElement {
   const downloads = downloadsQuery.data?.downloads ?? [];
   const clientAvailable = downloadsQuery.data?.client_available ?? true;
 
+  // Follow poster lookup — the in-flight and takeable cards correlate to
+  // their follow by id; a card with a known follow must never fall back to
+  // the monogram while the poster exists (operator report, Ninja Turtles).
+  const posterByFollow = new Map<number, string | null>();
+  for (const f of followed.data?.items ?? []) {
+    posterByFollow.set(f.id, f.poster_url ?? null);
+  }
+
   // Build a lookup from (title+kind+season+episode) → journey so each
   // « En vol » card can derive its real stage instead of hardcoding « pris ».
   const journeyByKey = new Map<string, JourneyItem>();
@@ -613,7 +621,13 @@ export function MaintenantPanel(): ReactElement {
       <AcquisitionCard
         key={item.id}
         title={item.title}
-        posterUrl={null}
+        // Operator report: the in-flight card showed a bare monogram while
+        // the FOLLOW carries the poster — correlate through followed_id.
+        posterUrl={
+          item.followed_id != null
+            ? (posterByFollow.get(item.followed_id) ?? null)
+            : null
+        }
         {...(sheetHref != null
           ? {
               onPoster: () => {
