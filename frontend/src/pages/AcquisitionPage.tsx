@@ -560,10 +560,15 @@ export default function AcquisitionPage(): ReactElement {
         id="acq-tabpanel"
         role="tabpanel"
         aria-labelledby={`acq-tab-${activeTab}`}
-        // stops the browser's OWN pull-to-refresh from
-        // reloading the page: a full reload loses the view, the filters and the
-        // display mode, which is the opposite of what the pull asked for.
-        className="flex touch-pan-y flex-col"
+        // No `touch-action` restriction here. It used to carry `pan-y` to stop
+        // the browser's OWN pull-to-refresh from reloading the page — the frame
+        // does that now (the document cannot scroll at all), and `pan-y` on
+        // this ancestor was ALSO what stopped the filter pills from scrolling
+        // sideways: touch-action intersects down the whole chain, so a `pan-x`
+        // scroller under a `pan-y` ancestor can pan on neither axis. The
+        // restriction lives on the regions that want it instead — the card
+        // rows and the panels' content — leaving the pill train free.
+        className="flex flex-col"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

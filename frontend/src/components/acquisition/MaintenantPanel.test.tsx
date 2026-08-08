@@ -33,6 +33,24 @@ import { MaintenantPanel } from "./MaintenantPanel";
 import { STAGES } from "./JourneyStrip";
 import * as hooks from "@/hooks/useAcquisition";
 
+/**
+ * A timestamp `seconds` ago that is still TODAY.
+ *
+ * « Rangé aujourd'hui » is a real date bucket — dispatched since local
+ * midnight — so a plain `now - 60` fixture lands on YESTERDAY whenever the
+ * suite runs in the first minute of a day, and the section correctly drops it.
+ * One minute a day of red is still red: this clamps to just after midnight.
+ * (Observed 2026-08-09 at 00:00:40.)
+ */
+function secondsAgoToday(seconds: number): number {
+  const midnight = new Date();
+  midnight.setHours(0, 0, 0, 0);
+  return Math.max(
+    Math.floor(Date.now() / 1000) - seconds,
+    Math.floor(midnight.getTime() / 1000) + 1,
+  );
+}
+
 // ── Fixture type ───────────────────────────────────────────────────────────
 
 interface FullFixtures {
@@ -206,7 +224,7 @@ function shogunDispatchedToday(): JourneyItem {
     grabbed_at: Math.floor(Date.now() / 1000) - 3600,
     ingested_at: Math.floor(Date.now() / 1000) - 1800,
     scraped_at: Math.floor(Date.now() / 1000) - 900,
-    dispatched_at: Math.floor(Date.now() / 1000) - 60,
+    dispatched_at: secondsAgoToday(60),
     grab_run_uid: null,
     ingest_run_uid: null,
     scrape_run_uid: null,

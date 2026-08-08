@@ -589,6 +589,12 @@ export function SuivisPanel(): ReactElement {
             {renderSwitcher()}
           </div>
         </div>
+        {/* Everything BELOW the filters declares `touch-pan-y`: vertical to the
+            browser, horizontal to the view swipe. The filter zone stays out of
+            it on purpose — touch-action intersects down the chain, and a
+            `pan-y` ancestor is exactly what stopped the pill train from
+            scrolling sideways. */}
+        <div className="flex min-w-0 touch-pan-y flex-col gap-4">
         {cadenceCaption != null && (
           <p
             data-testid="cadence-caption"
@@ -682,7 +688,7 @@ export function SuivisPanel(): ReactElement {
             {visible.map(renderTile)}
           </div>
         )}
-
+        </div>
       </div>
 
       {actions.dialog}

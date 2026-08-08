@@ -132,19 +132,28 @@
   gap: 0;
   margin-top: 8px;
 }
-/* The maquette scrolls this train sideways. On the phone that gesture is not
-   available: the pager above declares `touch-action: pan-y`, which per spec
-   intersects with everything below it, so iOS never scrolls the pills — it
-   hands the drag to the pager, and « scrolling the pills » changed VIEW
-   (operator, 2026-08-08). The train therefore WRAPS: every filter is reachable
-   by tap, and no horizontal gesture competes for this strip at all. */
+/* The maquette scrolls this train sideways, and so do we — one line, always.
+   It stopped working on the phone because an ancestor declared
+   `touch-action: pan-y` and touch-action INTERSECTS down the whole chain: a
+   pan-x scroller under a pan-y ancestor can pan on neither axis, so iOS handed
+   the drag to the pager and « scrolling the pills » changed VIEW (operator,
+   2026-08-08). The restriction now lives on the regions below the filters, not
+   above this one, and this strip claims the horizontal axis for itself. The
+   pill bar also carries `data-noswipe`, so even a drag the browser declines to
+   turn into a scroll never reaches the view-swipe. */
 .mq .pillscroll {
   flex: 1 1 auto;
   min-width: 0;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  touch-action: pan-x;
   padding-right: 8px;
+}
+.mq .pillscroll::-webkit-scrollbar {
+  display: none;
 }
 .mq .pill {
   flex: 0 0 auto;

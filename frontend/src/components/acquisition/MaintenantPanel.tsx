@@ -746,7 +746,10 @@ export function MaintenantPanel(): ReactElement {
 
   return (
     <>
-      <div className="flex flex-col gap-4 px-[14px] py-2">
+      {/* `touch-pan-y`: vertical belongs to the browser, horizontal to the view
+          swipe. This panel has no horizontal scroller of its own, so the whole
+          of it can say so. */}
+      <div className="flex touch-pan-y flex-col gap-4 px-[14px] py-2">
         {/* Above the sections, not inside one: this is work that has STOPPED,
             and it belongs to no stage — an acquisition parked at « récupéré »
             is neither takeable nor in flight. It renders nothing when nothing
