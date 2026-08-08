@@ -525,3 +525,40 @@ pins Maintenant, seg pairing active↔active across the inverted order,
 toastshow via the sheet, mirror sentinel population-based, fixture
 wanted rows on status available). Gates: `make check` PASS (backend
 full suite + frontend 1322/1322).
+
+## Entry 16 — 2026-08-08 (evening): batch 4 — the download made visible everywhere
+
+**Ninja Turtles epilogue**: the prod 15:20 grab succeeded on its 5th
+attempt (ranking shifted; a healthy candidate topped) and the pipeline
+took the film all the way to DISPATCHED. What the operator watched
+meanwhile exposed four visibility gaps, each fixed and live-verified on
+`1246166e`:
+
+1. **« Nom de release non enregistré » during the whole download** —
+   the journey name derived only from disk paths, which do not exist
+   between grab and ingest. Migration 021: `upsert_grab` persists the
+   chosen candidate's title; `journey_release_name` serves it as the
+   last-resort candidate (paths stay more faithful). Shared DB migrated
+   v21 + the live row backfilled truthfully (hash-matched on the
+   tracker: MULTI VF2 1080p BluRay HDLight x264-OLOBYHD).
+2. **No poster on the in-flight card** — identity was NEVER lost
+   (tmdb 98566 rides the spine); the journey card passed
+   `posterUrl=null`. It now correlates to the follow's poster by
+   followed_id.
+3. **A live download « visible nulle part » in Pipeline** — it lives
+   upstream of « Arrivée » (torrent client). FlowBoard grows an
+   upstream « Téléchargement » station (only when something is inbound)
+   linking to Acquisition.
+4. **« Trailers en cours mais aucun média »** — the badge names the
+   RUN's current step, the count names PARKED stock; when they diverge
+   the drawer now explains instead of contradicting.
+
+**PWA batch**: install banner moved ABOVE the fixed bottom bar (its
+close button was underneath — the « impossible de fermer » on both
+platforms), and the iOS variant walks the 3 real steps (Safari →
+Partager → Sur l'écran d'accueil). Kanban ticket
+**IznoCorp/torrent-mate#421** created and added to the board (Backlog)
+for PWA push notifications (Android + iOS) — planning only.
+
+**Gates**: `make check` PASS (incl. migrations chain 21), frontend
+1323/1323, UNION **ALL PASS — 15 regions** post-batch.
