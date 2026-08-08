@@ -28,6 +28,7 @@ import { acqKeys, getFollowed } from "@/api/acquisition";
 import { AddMediaScreen } from "@/components/acquisition/AddMediaScreen";
 import {
   PULL_LOADING_PX,
+  PULL_SPINNER_CAP_MS,
   lockAxis,
   pullArmed,
   pullHeight,
@@ -279,13 +280,33 @@ export default function AcquisitionPage(): ReactElement {
     refreshingRef.current = true;
     setRefreshing(true);
     setPull({ height: PULL_LOADING_PX, dragging: false });
-    void Promise.resolve(
-      queryClientForPull.invalidateQueries({ queryKey: acqKeys.all }),
-    ).finally(() => {
+
+    const settle = (): void => {
+      if (!refreshingRef.current) return;
       refreshingRef.current = false;
       setRefreshing(false);
       setPull({ height: 0, dragging: false });
-    });
+    };
+
+    // The spinner is CAPPED. Waiting on every acquisition query means waiting
+    // on the slowest of them, and the operator watched that bar sit for tens
+    // of seconds. Past the cap the bar collapses and the refetches finish in
+    // the background — the lists update when their data lands, which is what
+    // the pull asked for. (The unbounded `fetch` that made those waits
+    // possible at all is fixed at the source in `api/client`.)
+    const cap = window.setTimeout(settle, PULL_SPINNER_CAP_MS);
+    void Promise.resolve(
+      queryClientForPull.invalidateQueries({ queryKey: acqKeys.all }),
+    )
+      .catch(() => {
+        // §8 — a refresh that could not run says so; silence would read as
+        // « up to date ».
+        mqtoast("Actualisation impossible — vérifiez la connexion.");
+      })
+      .finally(() => {
+        window.clearTimeout(cap);
+        settle();
+      });
   }, [queryClientForPull]);
 
   useEffect(() => {

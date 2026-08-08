@@ -141,6 +141,15 @@ export function viewSwipeResult(
 }
 
 /**
+ * Longest the pull-to-refresh spinner may stay on screen, in ms.
+ *
+ * The refresh awaits EVERY acquisition query; the slowest one used to hold
+ * the bar hostage (operator report: tens of seconds). Past this cap the bar
+ * collapses and the refetches continue in the background.
+ */
+export const PULL_SPINNER_CAP_MS = 6_000;
+
+/**
  * Resolve a completed vertical pull to whether it commits a refresh.
  *
  * Derived the maquette's way: the DAMPED indicator height must have armed

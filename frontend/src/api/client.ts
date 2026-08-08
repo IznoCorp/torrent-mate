@@ -141,6 +141,13 @@ export async function apiFetch<P extends keyof paths, M extends MethodOf<P>>(
     method: init.method.toUpperCase(),
     credentials: "include",
     headers: requestHeaders,
+    // A request MUST be able to fail. `fetch` has no default timeout, so a
+    // stalled socket — a phone waking from background, a wifi/4G handoff, a
+    // proxy that accepted the connection and went quiet — hangs FOREVER, and
+    // everything waiting on it hangs too (the operator watched the
+    // pull-to-refresh spinner sit for tens of seconds). The same rule the
+    // shell side has carried for a year: never an unbounded network call.
+    signal: AbortSignal.timeout(timeoutFor(path)),
   };
   if (init.body !== undefined) {
     fetchInit.body = JSON.stringify(init.body);
@@ -300,6 +307,33 @@ function runUnauthorizedHandler(): void {
  */
 export function setUnauthorizedHandler(handler: UnauthorizedHandler): void {
   unauthorizedHandler = handler;
+}
+
+/** Request budget, in ms, for an ordinary read or write. */
+export const DEFAULT_TIMEOUT_MS = 15_000;
+
+/** Budget for the paths that legitimately reach live third parties. */
+export const SLOW_PATH_TIMEOUT_MS = 45_000;
+
+/** Path prefixes whose work is a live provider/tracker round-trip, not a
+ *  local read: a search queries every tracker, a maintenance action runs a
+ *  real pipeline step. Their budget is generous — but still finite. */
+const SLOW_PATHS = ["/api/acquisition/search", "/api/maintenance/actions"];
+
+/**
+ * Pick the request timeout for one path. Exported for its test: the
+ * budgets ARE the contract, and an unbounded call is the defect.
+ *
+ * Args:
+ *   path: The API path being called.
+ *
+ * Returns:
+ *   The budget in milliseconds.
+ */
+export function timeoutFor(path: string): number {
+  return SLOW_PATHS.some((p) => path.startsWith(p))
+    ? SLOW_PATH_TIMEOUT_MS
+    : DEFAULT_TIMEOUT_MS;
 }
 
 // ---------------------------------------------------------------------------

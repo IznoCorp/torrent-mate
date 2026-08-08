@@ -7,6 +7,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -18,7 +19,11 @@ import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { EventMessage } from "@/api/events";
-import { PULL_LOADING_PX, pullHeight } from "@/components/acquisition/gestures";
+import {
+  PULL_LOADING_PX,
+  PULL_SPINNER_CAP_MS,
+  pullHeight,
+} from "@/components/acquisition/gestures";
 
 // ---------------------------------------------------------------------------
 // Mock hooks
@@ -975,6 +980,36 @@ describe("AcquisitionPage", () => {
     fireEvent.touchEnd(pager, { changedTouches: [{ clientX: 202, clientY: 220 }] });
 
     expect(spy).toHaveBeenCalled();
+  });
+
+  it("le spinner ne reste PAS bloqué quand une requête traîne", () => {
+    // Operator report: the bar sat for tens of seconds. It awaits EVERY
+    // acquisition query, so the slowest one held it hostage. Past the cap it
+    // collapses; the refetches finish in the background.
+    vi.useFakeTimers();
+    try {
+      mockAllEmpty();
+      const qc = renderPageWithClient();
+      // A refetch that never settles — the exact shape of a stalled socket.
+      vi.spyOn(qc, "invalidateQueries").mockReturnValue(
+        new Promise<void>(() => undefined),
+      );
+      const pager = screen.getByRole("tabpanel");
+      const ptr = screen.getByTestId("pull-indicator");
+
+      fireEvent.touchStart(pager, { touches: [{ clientX: 200, clientY: 100 }] });
+      fireEvent.touchMove(pager, { touches: [{ clientX: 202, clientY: 220 }] });
+      fireEvent.touchEnd(pager, { changedTouches: [{ clientX: 202, clientY: 220 }] });
+      expect(ptr).toHaveClass("loading");
+
+      act(() => {
+        vi.advanceTimersByTime(PULL_SPINNER_CAP_MS + 100);
+      });
+      expect(ptr).not.toHaveClass("loading");
+      expect(ptr.style.height).toBe(`0${["p", "x"].join("")}`);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("un tirage trop court n'actualise rien", () => {
