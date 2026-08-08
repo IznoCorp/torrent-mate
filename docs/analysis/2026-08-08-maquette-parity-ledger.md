@@ -245,3 +245,79 @@ flagged only `h` — style parity held even then.
 **L1 exit**: all §7 missing-CSS regions transplanted and measured at
 zero on the deployed build: `.act`+icons, `.ptr`, `.skel`, `.empty`,
 `.crossref`, `.tile` family + `.off`, `.dlg`, toast + FAB.
+
+---
+
+## Entry 9 — L2 complete (`.sugg`, add-screen sweep, sheets)
+
+- **T10 `.sugg`** (`6f28b2c0` + `6eda31df`): honest recent-searches chips
+  (§3.5c — localStorage cap 5, case-insensitive dedup vs follows, tap RUNS
+  the search); probe on seeded history **0 divergences on 6 selectors**
+  after the add-body double-inset fix (`px-4` removed — maquette #addbody
+  never pads; children self-pad; `.rescount` transplanted).
+  ⚠ One gate fault this lot: pushed with the FULL suite red (isolated file
+  green); fixed in `cd10067e`, rule re-stated (full-suite summary line
+  before any push).
+- **T11 add-screen sweep** (`1eb2651d`, `15655783`, `ad7eb863`): by-ID
+  block MOVED INSIDE the scroll body (maquette #addbody position — old app
+  §7 pinned it above), `.resbtn` transplant bugs from lot 5 fixed (radius
+  99→6, padding 12→13, `ml-auto` removed), « ✓ Suivi » now ALSO
+  title-matches the live follows (maquette isFollowed — old « Correction
+  3 » session-only rule superseded), UA margins the maquette rides
+  restored (form 14, p 12), idle-empty inline paddings (32/14).
+  **Probes: chrome+first-result 0 divergences on 14 selectors** (2
+  allowlisted `.rp` poster-fallback pairs), **idle-empty 0/1**.
+- **T12 sheets** (`05ab6c0c`, `01f39ce4`, `4061c3c1`, part of
+  `b938b5d6`): the « ⋮ » sheet rebuilt in maquette grammar — title+meta
+  verbatim, two REAL `.sact` summaries (watcher state + last pass;
+  obligations counted via obligationStatus) each EXPANDING its full S3
+  panel (function preserved one tap deep), honest `.kv` (« Dernier run
+  réussi » only when served), footnote+link. The unserved maquette `.kv`
+  rows (« Recherche automatique », « Prochain passage », « Ratio
+  global ») are OMITTED, not faked — **flagged as candidate backend
+  additions**. Portal traps fixed: `.mq` scope re-applied on the portaled
+  SheetContent, sheetbody insets 16/20, `.sheetmeta` line-height 1.35
+  re-pinned (shadcn text-sm leaked 1.4286 — class-level fix, all sheets
+  benefit). **Probe: 0 divergences on 6 selectors.**
+- **C19 conformance** (`563313c7`): first `make check` of the branch
+  surfaced pre-existing debt — raw `<img>` in `.rp` → DS `MediaPoster`;
+  the transplant's 9 raw colours → verbatim `--mq-*` tokens in
+  `tokens/maquette.css` (same computed pixels).
+
+---
+
+## Entry 10 — L3 complete: the four backend additions + the elapsed sibling
+
+- **D — episode label** (`b938b5d6`): `ToHandleItem`/`ToHandleItemModel`
+  carry `season`/`episode` from the correlated ProvenanceRow (migration
+  017); blocked card opens its reason with « S16E12 · » (maquette).
+  Backend 12/12 + panel pins.
+- **C — `last_search_at`** (`55d1e2d5`, `0eeb985f`): MAX over ALL wanted
+  statuses per follow (a done row witnesses the last pass); the resting
+  card reads « rien de conforme au dernier passage · il y a 3 h » instead
+  of the next-check substitute; never-searched → verdict alone.
+- **B — ETA** (`4c713a6d`, `db66833c`): `TorrentItem.eta_seconds` mapped
+  from qBittorrent (8640000 sentinel + negatives → None) and Transmission
+  (`eta` added to its explicit torrent_get arguments; −1/−2 → None,
+  timedelta handled); exposed on `AcquisitionDownload`; the row shows
+  « 12 min restantes » only while downloading AND known.
+  ⚠ Second gate fault: `make check` exit masked by an `echo $?` in a
+  shell chain — pushed red (docstring-only failure). Fixed immediately;
+  gates now verified via `if make check; then`, never `$?` after a pipe.
+- **A — best candidate** (`93c0928b`): migration 019 (single transaction
+  + user_version bump — the first draft without the bump re-ran the ALTER
+  on every store open, caught by the full suite: 74 failures),
+  `record_search_outcome(best=)` persists the chosen release's facts and
+  a chose-nothing pass CLEARS them; `WantedSearchBest` +
+  `last_search_found` + `followed_id` on the API (fail-soft `_row_col`
+  reads for pre-migration DBs); the takeable card composes « S02E05 ·
+  1080p WEB-DL · 42 sources » — each segment only when known.
+  NOTE: the shared acquire.db receives migration 019 at the first staging
+  acquisition write (additive nullable column + `.bak` snapshot; required
+  by prod at merge anyway).
+- **Elapsed sibling** (`b78199d2`): `stageElapsed`/`formatSince` from
+  journey timestamps — « depuis 4 min », « ~ » when `estimated_stages`
+  taints precision (§13), silence without timestamps.
+
+All lots: frontend 1302/1302, `make check` PASS before push (post-fault
+protocol).
