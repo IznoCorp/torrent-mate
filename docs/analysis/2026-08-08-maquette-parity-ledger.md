@@ -695,3 +695,59 @@ One test was caught being vacuous while writing it (it asserted on an
 empty map without ever calling the code) and was replaced by a real
 assertion over the exported budget table — the same defect class the
 adversarial review flagged an hour earlier.
+
+## Entry 20 — 2026-08-08: nine operator fixes, incl. the iOS shimmer's real cause
+
+**The shimmer was mine.** Reported twice; the first attempt (compositing
+layers on the sticky elements) treated a symptom. The cause: a
+permanently-registered NON-PASSIVE `touchmove` listener on the pager —
+added with the touch pull-to-refresh earlier the same day. It tells the
+browser « I may cancel this scroll », so iOS drops that subtree from the
+compositor and routes every frame through the main thread; the content
+then scrolls a frame ahead of the `position: sticky` header, which is
+exactly what shivers. The listener is now attached ONLY for a gesture
+that can become a pull (finger down at scrollTop 0) and removed on
+release — ordinary mid-list scrolling keeps the fast path. Pinned by a
+test that spies on `addEventListener` and mutation-checked.
+
+**Add screen** — four in one pass: the button moved BEFORE « Déjà en
+médiathèque » (the badge appears on some rows only and made the button
+dance); changing Tout/Séries/Films returns to the top of the list;
+submitting from the on-screen keyboard blurs the field so the keyboard
+closes (tapping « Chercher » already did); and closing RESETS the search
+— the screen stays mounted, so its state used to survive « Voir mes
+suivis » and reappear on the next opening.
+
+**A film's tile badge** dropped the « 1 »: it counted nothing the tile's
+own presence had not already said. A dot signals « celui-ci demande
+quelque chose » without pretending to be a count.
+
+**Removing a follow now REMOVES it.** `DELETE` called
+`set_active(False)` — the exact write the pause button performs. Two
+verbs, one effect: the removal never happened and the follow came back
+in « En pause ». It now deletes the row and whatever was still queued
+for it; rows already handed to the client are KEPT, their acquisition is
+real and its provenance must stay readable. The confirmation copy stopped
+promising a reactivation and points at « Mettre en pause » for that.
+
+**Add-by-ID: two reports, one cause.** The form followed on submit,
+sight unseen, with a hand-typed title — usually none, which is how a
+NAMELESS follow was created (blank in the list AND in its own sheet).
+New `GET /api/acquisition/lookup` resolves an id into a search result
+(title, year, poster, ownership) and follows nothing; the screen renders
+it as an ordinary card, so the add stays one deliberate tap. The typed
+title field is gone — the provider owns the name — replaced by the
+Série/Film choice the lookup actually needs. Server-side safety net for
+ANY client: the enrichment now carries the provider title and the create
+path uses it when the client sends none; « Sans titre » only if both are
+silent. Verified live: `lookup?provider=tvdb&provider_id=255968` →
+« Top Chef », 2010, poster — and the follow count unchanged by the
+resolution itself.
+
+Two modules crossed the 1000-line ceiling during this batch and were
+split rather than squeezed: the resolve walk into `_resolve_walk.py`,
+and the lookup engine + `_parse_search_best` out of the acquisition
+router.
+
+**Measurement** (deployed `df1fc6eb`): `make check` PASS, frontend
+**1336/1336**, UNION **ALL PASS — 15 regions**, gestures **14/14**.
