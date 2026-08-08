@@ -135,8 +135,9 @@ export function viewSwipeResult(
   // Dragging left moves forward in the view order, right moves back. With
   // exactly two views the destination does not depend on the origin: a forward
   // drag lands on the last view whether or not it was already there, which IS
-  // the clamp. A third view would need an index walk instead.
-  return dx < 0 ? "suivis" : "maintenant";
+  // the clamp. A third view would need an index walk instead. View order is
+  // Suivis → Maintenant (operator directive 2026-08-08).
+  return dx < 0 ? "maintenant" : "suivis";
 }
 
 /**

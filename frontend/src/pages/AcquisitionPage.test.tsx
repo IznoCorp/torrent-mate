@@ -197,6 +197,9 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
   followMutateFn = vi.fn();
+  // The page remembers the last active tab — leaked state would silently
+  // change which panel later tests land on.
+  localStorage.clear();
 });
 
 describe("AcquisitionPage", () => {
@@ -216,32 +219,40 @@ describe("AcquisitionPage", () => {
     expect(screen.queryByRole("heading", { name: "Acquisition" })).toBeNull();
   });
 
-  it("shows the Maintenant panel by default with no ?tab= param", () => {
+  it("shows the Suivis panel by default with no ?tab= param (operator order)", () => {
     mockAllEmpty();
     renderPage();
-    expect(screen.getByRole("tab", { name: /Maintenant/ })).toHaveAttribute(
+    expect(screen.getByRole("tab", { name: /Suivis/ })).toHaveAttribute(
       "aria-selected",
       "true",
     );
     expect(screen.getByTestId("loc-search")).toHaveTextContent("");
   });
 
-  it("switches to the Suivis panel when clicking its tab", () => {
+  it("Suivis is the FIRST tab in the segment (operator order)", () => {
+    mockAllEmpty();
+    renderPage();
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs[0]).toHaveTextContent("Suivis");
+    expect(tabs[1]).toHaveTextContent("Maintenant");
+  });
+
+  it("switches to the Maintenant panel when clicking its tab", () => {
     mockAllEmpty();
     renderPage();
 
-    fireEvent.click(screen.getByRole("tab", { name: /Suivis/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /Maintenant/ }));
 
-    expect(screen.getByRole("tab", { name: /Suivis/ })).toHaveAttribute(
+    expect(screen.getByRole("tab", { name: /Maintenant/ })).toHaveAttribute(
       "aria-selected",
       "true",
     );
-    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=suivis");
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=maintenant");
   });
 
   it("renders the Rien à signaler empty state when all sections are empty", () => {
     mockAllEmpty();
-    renderPage();
+    renderPage("/acquisition?tab=maintenant");
     expect(screen.getByText(/Rien à signaler/)).toBeInTheDocument();
   });
 
@@ -262,11 +273,12 @@ describe("AcquisitionPage", () => {
       mockAllEmpty();
       renderPage(`/acquisition?tab=${legacy}`);
 
-      // Redirects to the canonical view — "maintenant" carries no param.
+      // Redirects to the canonical view — the default "suivis" carries no
+      // param, "maintenant" is explicit.
       if (legacy === "followed") {
-        expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=suivis");
-      } else {
         expect(screen.getByTestId("loc-search")).toHaveTextContent("");
+      } else {
+        expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=maintenant");
       }
     },
   );
@@ -285,8 +297,8 @@ describe("AcquisitionPage", () => {
     mockAllEmpty();
     renderPage("/acquisition?tab=apercu");
 
-    // After redirect the URL is clean (maintenant = no param).
-    expect(screen.getByTestId("loc-search")).toHaveTextContent("");
+    // After redirect the URL names the view (suivis = no param is default).
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=maintenant");
     expect(screen.getByRole("tab", { name: /Maintenant/ })).toHaveAttribute(
       "aria-selected",
       "true",
@@ -297,19 +309,30 @@ describe("AcquisitionPage", () => {
 
   it("opens the tab indicated by ?tab= on load (deep-link)", () => {
     mockAllEmpty();
+    renderPage("/acquisition?tab=maintenant");
+
+    expect(screen.getByRole("tab", { name: /Maintenant/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("normalizes an explicit ?tab=suivis to the clean default URL", () => {
+    mockAllEmpty();
     renderPage("/acquisition?tab=suivis");
 
     expect(screen.getByRole("tab", { name: /Suivis/ })).toHaveAttribute(
       "aria-selected",
       "true",
     );
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("");
   });
 
-  it("falls back to Maintenant on an unknown ?tab= value", () => {
+  it("falls back to Suivis on an unknown ?tab= value", () => {
     mockAllEmpty();
     renderPage("/acquisition?tab=bogus");
 
-    expect(screen.getByRole("tab", { name: /Maintenant/ })).toHaveAttribute(
+    expect(screen.getByRole("tab", { name: /Suivis/ })).toHaveAttribute(
       "aria-selected",
       "true",
     );
@@ -318,11 +341,43 @@ describe("AcquisitionPage", () => {
 
   it("clears the param when returning to the default tab", () => {
     mockAllEmpty();
+    renderPage("/acquisition?tab=maintenant");
+
+    fireEvent.click(screen.getByRole("tab", { name: /Suivis/ }));
+
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("");
+  });
+
+  it("remembers the last view and reopens it on a plain return (operator ask)", () => {
+    mockAllEmpty();
+    localStorage.setItem("tm.acquisition.lastTab", "maintenant");
+    renderPage();
+
+    expect(screen.getByRole("tab", { name: /Maintenant/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=maintenant");
+  });
+
+  it("a deep link WITH ?tab= beats the remembered view", () => {
+    mockAllEmpty();
+    localStorage.setItem("tm.acquisition.lastTab", "maintenant");
     renderPage("/acquisition?tab=suivis");
+
+    expect(screen.getByRole("tab", { name: /Suivis/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("activating a tab records it as the last view", () => {
+    mockAllEmpty();
+    renderPage();
 
     fireEvent.click(screen.getByRole("tab", { name: /Maintenant/ }));
 
-    expect(screen.getByTestId("loc-search")).toHaveTextContent("");
+    expect(localStorage.getItem("tm.acquisition.lastTab")).toBe("maintenant");
   });
 
   // ── Tablist scroll classes ──────────────────────────────────────────────
@@ -348,23 +403,23 @@ describe("AcquisitionPage", () => {
     mockAllEmpty();
     renderPage();
 
-    const tab = screen.getByRole("tab", { name: "Maintenant" });
-    expect(tab).toHaveAttribute("id", "acq-tab-maintenant");
+    const tab = screen.getByRole("tab", { name: "Suivis" });
+    expect(tab).toHaveAttribute("id", "acq-tab-suivis");
     expect(tab).toHaveAttribute("aria-controls", "acq-tabpanel");
 
     const panel = screen.getByRole("tabpanel");
     expect(panel).toHaveAttribute("id", "acq-tabpanel");
-    expect(panel).toHaveAttribute("aria-labelledby", "acq-tab-maintenant");
+    expect(panel).toHaveAttribute("aria-labelledby", "acq-tab-suivis");
   });
 
   it("tabpanel tracks the active tab (aria-labelledby)", () => {
     mockAllEmpty();
     renderPage();
 
-    fireEvent.click(screen.getByRole("tab", { name: "Suivis" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Maintenant" }));
     expect(screen.getByRole("tabpanel")).toHaveAttribute(
       "aria-labelledby",
-      "acq-tab-suivis",
+      "acq-tab-maintenant",
     );
   });
 
@@ -372,11 +427,11 @@ describe("AcquisitionPage", () => {
     mockAllEmpty();
     renderPage();
 
-    expect(screen.getByRole("tab", { name: "Maintenant" })).toHaveAttribute(
+    expect(screen.getByRole("tab", { name: "Suivis" })).toHaveAttribute(
       "tabindex",
       "0",
     );
-    expect(screen.getByRole("tab", { name: "Suivis" })).toHaveAttribute(
+    expect(screen.getByRole("tab", { name: "Maintenant" })).toHaveAttribute(
       "tabindex",
       "-1",
     );
@@ -388,30 +443,30 @@ describe("AcquisitionPage", () => {
 
     const tablist = screen.getByRole("tablist");
 
-    // Maintenant → ArrowRight → Suivis
+    // Suivis → ArrowRight → Maintenant
     fireEvent.keyDown(tablist, { key: "ArrowRight" });
-    expect(screen.getByRole("tab", { name: "Suivis" })).toHaveAttribute(
+    expect(screen.getByRole("tab", { name: "Maintenant" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
 
-    // Suivis → ArrowLeft → Maintenant
+    // Maintenant → ArrowLeft → Suivis
     fireEvent.keyDown(tablist, { key: "ArrowLeft" });
-    expect(screen.getByRole("tab", { name: "Maintenant" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-
-    // End → last tab (Suivis)
-    fireEvent.keyDown(tablist, { key: "End" });
     expect(screen.getByRole("tab", { name: "Suivis" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
 
-    // Home → first tab (Maintenant)
-    fireEvent.keyDown(tablist, { key: "Home" });
+    // End → last tab (Maintenant)
+    fireEvent.keyDown(tablist, { key: "End" });
     expect(screen.getByRole("tab", { name: "Maintenant" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+
+    // Home → first tab (Suivis)
+    fireEvent.keyDown(tablist, { key: "Home" });
+    expect(screen.getByRole("tab", { name: "Suivis" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
@@ -457,13 +512,13 @@ describe("AcquisitionPage", () => {
   it("navigate(-1) after legacy redirect lands on first entry, not the legacy URL", async () => {
     mockAllEmpty();
     // Two-entry history: /somewhere (index 0), /acquisition?tab=apercu (index 1).
-    // The redirect useEffect replaces tab=apercu → clean (maintenant default),
-    // so history becomes [/somewhere, /acquisition].
+    // The redirect useEffect replaces tab=apercu → ?tab=maintenant, so history
+    // becomes [/somewhere, /acquisition?tab=maintenant].
     // navigate(-1) must land on /somewhere, NOT /acquisition?tab=apercu.
     renderPageWithProbe("/acquisition?tab=apercu");
 
     await waitFor(() => {
-      expect(screen.getByTestId("loc-search")).toHaveTextContent("");
+      expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=maintenant");
     });
 
     fireEvent.click(screen.getByTestId("go-back"));
@@ -476,17 +531,17 @@ describe("AcquisitionPage", () => {
 
   it("ArrowRight then Back returns to the original tab, not an intermediate one (ACQUISITION-7, ticket 250)", async () => {
     mockAllEmpty();
-    // History: [/somewhere, /acquisition] — Maintenant is the origin tab.
+    // History: [/somewhere, /acquisition] — Suivis is the origin tab.
     renderPageWithProbe();
 
     // Click pushes one entry.
-    fireEvent.click(screen.getByRole("tab", { name: "Suivis" }));
-    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=suivis");
+    fireEvent.click(screen.getByRole("tab", { name: "Maintenant" }));
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=maintenant");
 
-    // One Back lands on Maintenant (the pre-click tab), not an intermediate.
+    // One Back lands on Suivis (the pre-click tab), not an intermediate.
     fireEvent.click(screen.getByTestId("go-back"));
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "Maintenant" })).toHaveAttribute(
+      expect(screen.getByRole("tab", { name: "Suivis" })).toHaveAttribute(
         "aria-selected",
         "true",
       );
@@ -511,13 +566,16 @@ describe("AcquisitionPage", () => {
     mockAllEmpty();
     renderPage();
 
-    // Before activation the add screen is absent.
-    expect(screen.queryByText(/Ajouter un média/)).not.toBeInTheDocument();
+    // Before activation the add screen is absent (the Suivis end-of-list
+    // « + Ajouter un média à suivre » is NOT the screen).
+    expect(
+      screen.queryByText(/Recherchez un film ou une série/),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Ajouter un média" }));
 
-    // The full-screen sheet renders its title.
-    expect(screen.getByText(/Ajouter un média/)).toBeInTheDocument();
+    // The full-screen sheet renders its idle hint.
+    expect(screen.getByText(/Recherchez un film ou une série/)).toBeInTheDocument();
   });
 
   it("l'écran d'ajout vit dans l'historique : « Retour » le ferme (régression gestes)", () => {
@@ -730,16 +788,16 @@ describe("AcquisitionPage", () => {
     const tablist = screen.getByRole("tablist");
 
     // Click pushes a new history entry.
-    fireEvent.click(screen.getByRole("tab", { name: "Suivis" }));
-    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=suivis");
+    fireEvent.click(screen.getByRole("tab", { name: "Maintenant" }));
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=maintenant");
 
-    // Keyboard nav replaces, no new entry — URL still just ?tab=suivis.
+    // Keyboard nav replaces, no new entry — back to the clean default URL.
     fireEvent.keyDown(tablist, { key: "ArrowLeft" });
-    expect(screen.getByRole("tab", { name: "Maintenant" })).toHaveAttribute(
+    expect(screen.getByRole("tab", { name: "Suivis" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
-    // After keyboard nav back to Maintenant, URL should be clean.
+    // After keyboard nav back to Suivis, URL should be clean.
     expect(screen.getByTestId("loc-search")).toHaveTextContent("");
   });
 
@@ -803,7 +861,7 @@ describe("AcquisitionPage", () => {
       error: null,
     });
 
-    renderPage();
+    renderPage("/acquisition?tab=maintenant");
     // The « À traiter » section renders its own error — panne ≠ absence.
     expect(
       screen.getByText(/Impossible de charger les éléments à traiter/),
@@ -838,7 +896,7 @@ describe("AcquisitionPage", () => {
     fireEvent.pointerUp(pager, { clientX: 140, clientY: 202 });
 
     expect(
-      screen.getByRole("tab", { name: /Suivis/ }),
+      screen.getByRole("tab", { name: /Maintenant/ }),
     ).toHaveAttribute("aria-selected", "true");
   });
 
@@ -868,16 +926,16 @@ describe("AcquisitionPage", () => {
     fireEvent.pointerUp(pager, { clientX: 140, clientY: 202 });
 
     expect(
-      screen.getByRole("tab", { name: /Maintenant/ }),
+      screen.getByRole("tab", { name: /Suivis/ }),
     ).toHaveAttribute("aria-selected", "true");
   });
 
   it("un glissement né dans la bande de retour d'iOS ne change pas de vue", () => {
-    // Started from « Suivis » on purpose: a rightward drag from « Maintenant »
-    // lands back on « Maintenant » with OR without the guard, so that setup
-    // would prove nothing. From « Suivis » the same drag WOULD switch views if
-    // the edge band were not honoured.
-    renderPage("/acquisition?tab=suivis");
+    // Started from « Maintenant » on purpose: a rightward drag from « Suivis »
+    // lands back on « Suivis » with OR without the guard, so that setup
+    // would prove nothing. From « Maintenant » the same drag WOULD switch
+    // views if the edge band were not honoured.
+    renderPage("/acquisition?tab=maintenant");
     const pager = screen.getByRole("tabpanel");
     vi.spyOn(pager, "getBoundingClientRect").mockReturnValue({
       left: 0,
@@ -896,7 +954,7 @@ describe("AcquisitionPage", () => {
     fireEvent.pointerUp(pager, { clientX: 300, clientY: 202 });
 
     expect(
-      screen.getByRole("tab", { name: /Suivis/ }),
+      screen.getByRole("tab", { name: /Maintenant/ }),
     ).toHaveAttribute("aria-selected", "true");
   });
 

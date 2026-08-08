@@ -39,6 +39,7 @@ import { MaintenantPanel } from "@/components/acquisition/MaintenantPanel";
 import { MqToaster, mqtoast } from "@/components/acquisition/MqToast";
 import {
   ACQ_EVENT_TYPES,
+  DEFAULT_TAB,
   FULL_INVALIDATE_EVENTS,
   LEGACY_TAB_REDIRECTS,
   OBLIGATION_INVALIDATE_EVENTS,
@@ -61,26 +62,32 @@ import { useBackCloses } from "@/lib/use-back-closes";
 /**
  * AcquisitionPage — the authenticated acquisition route (``/acquisition``).
  *
- * Two views — Maintenant (default, no param) and Suivis (``?tab=suivis``) —
- * each answering one of the operator's questions. Legacy ``?tab=`` values
- * are redirected to the view that now answers them. Live events from the
- * WebSocket invalidate the matching TanStack Query caches (R13 — processes
- * only new events, not the whole ring on every render).
+ * Two views — Suivis (default, no param) and Maintenant (``?tab=maintenant``)
+ * — each answering one of the operator's questions. Legacy ``?tab=`` values
+ * are redirected to the view that now answers them, and the last active view
+ * is remembered: coming back to /acquisition without an explicit ``?tab=``
+ * reopens the view the operator left. Live events from the WebSocket
+ * invalidate the matching TanStack Query caches (R13 — processes only new
+ * events, not the whole ring on every render).
  *
  * Returns:
  *   The acquisition page element.
  */
+/** localStorage key remembering the last active acquisition view. */
+const LAST_TAB_STORAGE_KEY = "tm.acquisition.lastTab";
+
 export default function AcquisitionPage(): ReactElement {
   // The active tab is URL-addressable (?tab=<id>) — DOIT-10: the tab is a
   // shareable deep-link and Back returns to the previous tab. Derived from the
-  // URL (single source of truth); the default "maintenant" carries no param so
-  // /acquisition stays clean and ?tab=suivis is the shareable form.
+  // URL (single source of truth); the default "suivis" carries no param so
+  // /acquisition stays clean and ?tab=maintenant is the shareable form.
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const waiting = useWaitingForOperator();
   const rawTab = searchParams.get("tab");
 
-  // Redirect legacy ?tab= values to the view that now answers them. Replace so
+  // Redirect legacy ?tab= values to the view that now answers them, and strip
+  // an explicit default (?tab=suivis) to the canonical clean URL. Replace so
   // Back doesn't cycle through the redirect — DOIT-10 deep-link survives.
   useEffect(() => {
     if (rawTab === null) return;
@@ -91,12 +98,12 @@ export default function AcquisitionPage(): ReactElement {
       void navigate("/config?tab=classement", { replace: true });
       return;
     }
-    const target = LEGACY_TAB_REDIRECTS[rawTab];
+    const target = rawTab === DEFAULT_TAB ? DEFAULT_TAB : LEGACY_TAB_REDIRECTS[rawTab];
     if (target === undefined) return;
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
-        if (target === "maintenant") {
+        if (target === DEFAULT_TAB) {
           next.delete("tab");
         } else {
           next.set("tab", target);
@@ -109,7 +116,42 @@ export default function AcquisitionPage(): ReactElement {
 
   const activeTab: TabId = TABS.some((t) => t.id === rawTab)
     ? (rawTab as TabId)
-    : "maintenant";
+    : DEFAULT_TAB;
+
+  // Remember the last active view and reopen it when the operator comes back
+  // to /acquisition without an explicit ?tab= (their words: « toujours revenir
+  // sur l'onglet sur lequel on était en dernier »). A deep link WITH ?tab=
+  // always wins; the restore replaces so Back gains no extra entry.
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+    if (rawTab !== null) return;
+    let stored: string | null = null;
+    try {
+      stored = localStorage.getItem(LAST_TAB_STORAGE_KEY);
+    } catch {
+      return;
+    }
+    if (stored === null || stored === DEFAULT_TAB) return;
+    if (!TABS.some((t) => t.id === stored)) return;
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("tab", stored);
+        return next;
+      },
+      { replace: true },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem(LAST_TAB_STORAGE_KEY, activeTab);
+    } catch {
+      // Private mode: the view still works, it just won't be remembered.
+    }
+  }, [activeTab]);
   // ACQUISITION-7 (ticket 250): keyboard-driven activation (arrows follow
   // focus) REPLACES the current history entry — holding ArrowRight must not
   // stack one entry per keystroke. Click activation keeps push (D3
@@ -119,7 +161,7 @@ export default function AcquisitionPage(): ReactElement {
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
-          if (id === "maintenant") next.delete("tab");
+          if (id === DEFAULT_TAB) next.delete("tab");
           else next.set("tab", id);
           return next;
         },

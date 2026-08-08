@@ -58,21 +58,21 @@ describe("viewSwipeResult", () => {
   });
 
   it("commits once the drag clears the threshold", () => {
-    expect(viewSwipeResult(-140, 390, "maintenant")).toBe("suivis");
-    expect(viewSwipeResult(140, 390, "suivis")).toBe("maintenant");
+    expect(viewSwipeResult(-140, 390, "suivis")).toBe("maintenant");
+    expect(viewSwipeResult(140, 390, "maintenant")).toBe("suivis");
   });
 
   it("does not wrap past the last view", () => {
     // Two views only: a hard flick must land where the operator aimed, not
     // carousel around to the other end.
-    expect(viewSwipeResult(-300, 390, "suivis")).toBe("suivis");
-    expect(viewSwipeResult(300, 390, "maintenant")).toBe("maintenant");
+    expect(viewSwipeResult(-300, 390, "maintenant")).toBe("maintenant");
+    expect(viewSwipeResult(300, 390, "suivis")).toBe("suivis");
   });
 
   it("stays put when the width is unknown", () => {
     // Before first layout the width is 0; a ratio against it would make every
     // drag commit, so an unmeasured pager must not move at all.
-    expect(viewSwipeResult(-999, 0, "maintenant")).toBe("maintenant");
+    expect(viewSwipeResult(-999, 0, "suivis")).toBe("suivis");
   });
 });
 

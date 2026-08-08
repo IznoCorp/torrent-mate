@@ -83,9 +83,14 @@ export const OBLIGATION_INVALIDATE_EVENTS = new Set([
  * three real questions cut across several of them.
  */
 export const TABS: readonly { id: TabId; label: string }[] = [
-  { id: "maintenant", label: "Maintenant" },
+  // Operator directive (2026-08-08, overrides the maquette pane order):
+  // Suivis comes first and is the default view.
   { id: "suivis", label: "Suivis" },
+  { id: "maintenant", label: "Maintenant" },
 ];
+
+/** The default view — no ``?tab=`` param, /acquisition stays clean. */
+export const DEFAULT_TAB: TabId = "suivis";
 
 /** Old ``?tab=`` values → the view that now answers them (DOIT-10: no dead deep link). */
 export const LEGACY_TAB_REDIRECTS: Readonly<Record<string, TabId>> = {
