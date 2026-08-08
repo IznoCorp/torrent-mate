@@ -194,6 +194,27 @@
   height: 15px;
 }
 
+/* ── Key-value rows (maquette .kv — Veille et obligations) ── */
+
+.mq .kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.mq .kv:last-child {
+  border-bottom: 0;
+}
+.mq .kv span:first-child {
+  color: var(--muted-foreground);
+}
+.mq .kv span:last-child {
+  font-weight: 600;
+  text-align: right;
+}
+
 /* ── Add screen — « ‹ Retour », search form, results, footer ── */
 
 .mq .fichebar {

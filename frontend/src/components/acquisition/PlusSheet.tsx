@@ -14,6 +14,7 @@
  * in the parity ledger).
  */
 
+import { ArrowLeft } from "lucide-react";
 import { useState, type ReactElement } from "react";
 
 import { Link } from "react-router-dom";
@@ -98,7 +99,22 @@ export function PlusSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       {/* `mq`: the portal lands on <body>, outside the page's scope — the
           maquette classes need the scope re-applied here. */}
-      <SheetContent side="right" className="mq px-4 pb-5">
+      <SheetContent side="right" className="mq px-4 pb-5" showCloseButton={false}>
+        {/* Operator directive: EVERY back wears the search screen's
+            « ‹ Retour » — never a cross. */}
+        <div className="fichebar -mx-2">
+          <button
+            type="button"
+            aria-label="Retour"
+            className="fback"
+            onClick={() => {
+              onOpenChange(false);
+            }}
+          >
+            <ArrowLeft aria-hidden="true" />
+            Retour
+          </button>
+        </div>
         <SheetHeader className="p-0">
           <SheetTitle className="sheettitle">Veille et obligations</SheetTitle>
           <SheetDescription className="sheetmeta">
