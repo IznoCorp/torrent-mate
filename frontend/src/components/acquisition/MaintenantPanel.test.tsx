@@ -377,6 +377,37 @@ describe("MaintenantPanel", () => {
     expect(waitingCard?.querySelector("[data-station]")).toBeNull();
   });
 
+  it("une carte en vol sans téléchargement dit depuis quand son étape dure", async () => {
+    // Maquette « depuis 4 min » — derived from journey timestamps only
+    // (frontend sibling of the backend additions); « ~ » when the spine
+    // ESTIMATED the stamps (§13).
+    const scraping: JourneyItem = {
+      ...inflightJourney(),
+      info_hash: "mirror-furious",
+      status: "ingested",
+      grabbed_at: Math.floor(Date.now() / 1000) - 900,
+      ingested_at: Math.floor(Date.now() / 1000) - 240,
+    };
+    renderPanel({ ...full, downloads: [], journeys: [scraping] });
+
+    const section = await screen.findByTestId("section-en-vol");
+    expect(within(section).getByText("depuis 4 min")).toBeInTheDocument();
+  });
+
+  it("les timestamps estimés portent l'approximation « ~ » (§13)", async () => {
+    const estimated: JourneyItem = {
+      ...inflightJourney(),
+      status: "ingested",
+      grabbed_at: Math.floor(Date.now() / 1000) - 900,
+      ingested_at: Math.floor(Date.now() / 1000) - 240,
+      estimated_stages: "ingest",
+    };
+    renderPanel({ ...full, downloads: [], journeys: [estimated] });
+
+    const section = await screen.findByTestId("section-en-vol");
+    expect(within(section).getByText("~ depuis 4 min")).toBeInTheDocument();
+  });
+
   it("la carte à récupérer nomme le manque et le meilleur candidat (addition A)", async () => {
     // Maquette: « S02E05 · 1080p WEB-DL · 42 sources » — earliest pending
     // gap + the persisted last-search facts, correlated by followed_id.

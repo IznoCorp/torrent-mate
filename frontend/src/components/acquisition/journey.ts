@@ -71,3 +71,51 @@ export function deriveStage(j: JourneyItem | undefined): Stage | null {
 
   return stage;
 }
+
+
+/**
+ * Seconds spent in the journey's CURRENT stage (maquette « depuis 4 min »).
+ *
+ * Derived from the latest non-null stage timestamp. ``approx`` is ``true``
+ * when the journey carries ``estimated_stages`` — some stamps were COMPUTED,
+ * not observed (§13), and the UI must present the figure as approximate.
+ *
+ * Args:
+ *   j: The correlated journey, if any.
+ *
+ * Returns:
+ *   The elapsed seconds + approximation flag, or ``null`` when no stage
+ *   timestamp exists (nothing honest to say).
+ */
+export function stageElapsed(
+  j: JourneyItem | undefined,
+): { seconds: number; approx: boolean } | null {
+  if (j == null) return null;
+  const stamps = [j.grabbed_at, j.ingested_at, j.scraped_at, j.dispatched_at].filter(
+    (t): t is number => t != null,
+  );
+  if (stamps.length === 0) return null;
+  const entered = Math.max(...stamps);
+  return {
+    seconds: Math.max(0, Math.floor(Date.now() / 1000) - entered),
+    approx: (j.estimated_stages?.length ?? 0) > 0,
+  };
+}
+
+/**
+ * Wording for {@link stageElapsed} — « depuis 4 min », « depuis 2 h »…
+ *
+ * Args:
+ *   seconds: Elapsed seconds in the stage.
+ *
+ * Returns:
+ *   The French duration phrase.
+ */
+export function formatSince(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  if (mins < 1) return "depuis moins d'une minute";
+  if (mins < 60) return `depuis ${String(mins)} min`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `depuis ${String(hours)} h`;
+  return `depuis ${String(Math.floor(hours / 24))} j`;
+}

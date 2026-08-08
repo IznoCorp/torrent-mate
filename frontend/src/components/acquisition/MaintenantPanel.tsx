@@ -49,7 +49,7 @@ import { SwipeActions } from "./SwipeActions";
 import { useFollowActions } from "./followActions";
 import { FollowDetailSheet } from "./FollowDetailSheet";
 import { JourneyDetailSheet } from "./JourneyDetailSheet";
-import { deriveStage, journeyMatchKey } from "./journey";
+import { deriveStage, formatSince, journeyMatchKey, stageElapsed } from "./journey";
 import { PendingRunLine } from "./PendingRunLine";
 import { JourneyStrip } from "./JourneyStrip";
 import { DownloadRow } from "./DownloadRow";
@@ -613,6 +613,21 @@ export function MaintenantPanel(): ReactElement {
                     )}
                 </>
               )}
+              {/* Maquette « depuis 4 min » — time spent in the CURRENT stage,
+                  when no live download carries the pace; « ~ » marks stamps
+                  the spine computed rather than observed (§13). */}
+              {download == null &&
+                journey != null &&
+                stageElapsed(journey) != null && (
+                  <span className="text-xs text-muted-foreground">
+                    {(() => {
+                      const e = stageElapsed(journey);
+                      return e == null
+                        ? null
+                        : `${e.approx ? "~ " : ""}${formatSince(e.seconds)}`;
+                    })()}
+                  </span>
+                )}
               {!journeys.isError && (
                 <span
                   className="min-w-0 truncate font-mono text-[length:var(--text-2xs)] text-muted-foreground"
