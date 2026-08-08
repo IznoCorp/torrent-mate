@@ -811,3 +811,74 @@ assert what they claim.
 heights whole-pixel (69px / 62px), shell at `min-h-svh`. `make check`
 PASS, frontend **1336/1336**, UNION **ALL PASS — 15 regions**, gestures
 **14/14**. The device verdict is the operator's — it is the only iPhone.
+
+---
+
+## Entry 22 — 2026-08-08: thirteen operator reports — the follow that would not die, and the id search that took the screen hostage
+
+**Reported** (batch of 13, in the operator's order): a downloaded film that
+reached the library sits « en pause » then claims « pas encore acquis », and
+once reactivated can be neither paused nor removed, silently (a); every action
+must confirm (b); repair the blocked row (c); an acquired film must LEAVE the
+follows, but only on confirmed arrival (d); a film already in the library must
+be re-downloaded and REPLACE it (e); every failure must say so (f); a clear
+button on the search field (g); « Voir mes suivis » broken after an add-by-id
+(h); the ordinary search dead after an id search (i); the id result rendered
+above its own form (j); swipe panes badly shown on an iPhone SE (k); only one
+row open at a time (l); scrolling the filter pills changes VIEW on iOS (m).
+
+**The follow that would not die** (a, c, d, e). Two distinct promises were
+false at once. An acquired film was `set_active(False)` — a PAUSE, indistin-
+guishable from an operator pause, which is why the card then read « pas encore
+acquis » and why removing it did nothing: `DELETE` was itself a soft-delete of
+an already-inactive row. Both are now real: `detect` and the post-dispatch
+reconcile DELETE the follow, and the endpoint deletes rather than deactivates.
+The §5 dialog's other promise — « le résultat REMPLACERA la version en place »
+— never ran at all: `detect` closed the follow the moment it saw the film
+owned, so the acquisition the operator had just authorised was discarded before
+it started. Migration 022 carries that authorisation as `replace_owned`,
+consumed as soon as the wanted row exists so the ordinary owned-closure applies
+again when the NEW file lands.
+
+**Every action reports** (b, f). Success was silent, and failures went to the
+sonner stack — which on this surface sits behind full-screen sheets. One funnel
+now decides: the maquette toast when its host is mounted, sonner otherwise.
+Measured on staging: pausing a row answers `« American Dad! » — recherche
+suspendue.`
+
+**The id search took the screen hostage** (h, i, j). `results` preferred
+`idResult` whenever it was set and nothing ever cleared it, so every later title
+search rendered the id card instead. The resolved card renders at the TOP of
+the body while the operator's thumb is on the accordion at the BOTTOM — it
+resolved out of sight. And « Voir mes suivis » pushed `/acquisition` then popped
+the add entry, landing back on `?add=1`: the screen it had just left reopened.
+One replace-navigation, one reset on a new query, one fold-and-scroll on a
+resolved id.
+
+**The pills that changed view** (m). The pager declares `touch-action: pan-y`,
+which per spec intersects with everything below it — so iOS never scrolled the
+pill train, it handed the drag to the pager. The train now WRAPS: measured
+`flex-wrap=wrap`, overflow **0 px** at 375, so no filter is out of reach and no
+horizontal gesture competes for that strip at all.
+
+**What could not be reproduced** (k). Measured with real touch events at both
+375×667 and 320×568: the card settles at `translateX(-168px)` and BOTH panes
+land fully inside the viewport (84 px each, `visible=84`). « Pause plus a
+sliver of Retirer » is a row left MID-DRAG, not a layout — so the settle no
+longer depends on which of pointerup / pointercancel / touchend iOS delivers:
+the row captures the pointer and settles on the first of them to arrive, at the
+window. A partial 100 px drag now measures `-168px`.
+
+**Two stale rows, not deletable from prod yet.** `Ninja Turtles` (id 29) and
+`On l'appelait Robin des Bois` (id 33) are paused follows for films confirmed
+in the library (items 3296 / 3297, 2.9 GiB and 17.27 GiB of real file). They
+are artifacts of the old pause-instead-of-remove behaviour. Prod still runs the
+soft-delete DELETE, and staging refuses writes, so they survive until this
+branch merges — then one tap on « Retirer » ends them.
+
+**Measurement** (deployed `62f65709`, 375×667, real touch): `make check` PASS,
+frontend **131 files / all green**, batch pass **10/10 PASS** — pills wrap +
+view unchanged, partial swipe settles, one row open, both clear buttons, the id
+card in view (`attendu='Top Chef' affiché=['Top Chef'] scrollTop=0`), title
+search back in control, « Voir mes suivis » out of the add screen, action toast
+shown. The device verdict stays the operator's.
