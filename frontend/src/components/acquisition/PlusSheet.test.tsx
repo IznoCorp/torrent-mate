@@ -9,7 +9,7 @@
  */
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -64,20 +64,42 @@ function renderSheet(open = true): void {
 }
 
 describe("PlusSheet", () => {
-  it("reaches both secondary surfaces — watcher and obligations", () => {
+  it("reaches both secondary surfaces — watcher and obligations, one tap deep", () => {
+    // Maquette grammar: the sheet RESTS as two .sact summary rows; each
+    // expands its full panel. Reachability is pinned THROUGH the tap —
+    // losing a panel would still fail here.
     renderSheet();
 
     expect(
       screen.getByRole("heading", { name: /Veille et obligations/i }),
     ).toBeInTheDocument();
-    // Each panel renders its own heading; finding both proves neither was
-    // dropped from the drawer.
+
+    fireEvent.click(screen.getByRole("button", { name: /Veille/ }));
     expect(screen.getByText("État du watcher")).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Obligations de partage/ }),
+    );
     // Text that ONLY ObligationsPanel renders. A looser matcher here silently
     // matched the drawer's own description — the assertion then survived
     // deleting the panel, which is the vacuous test this guard exists to avoid.
     expect(
       screen.getByText("Aucune obligation de seed enregistrée."),
+    ).toBeInTheDocument();
+  });
+
+  it("résume la veille et les obligations avec les données réelles", () => {
+    renderSheet();
+
+    // watcher_enabled: true + no last run → active, no fake timestamp.
+    expect(
+      screen.getByRole("button", { name: "Veille active" }),
+    ).toBeInTheDocument();
+    // Zero obligations → honest zeros, maquette wording.
+    expect(
+      screen.getByRole("button", {
+        name: "Obligations de partage · 0 en cours, 0 non respectée",
+      }),
     ).toBeInTheDocument();
   });
 
@@ -87,7 +109,10 @@ describe("PlusSheet", () => {
     renderSheet();
 
     expect(screen.getByText(/profils de\s+classement/i)).toBeInTheDocument();
-    expect(screen.getByText(/Configuration/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Config/ })).toHaveAttribute(
+      "href",
+      "/config?tab=classement",
+    );
   });
 
   it("renders nothing while closed", () => {
