@@ -882,3 +882,59 @@ view unchanged, partial swipe settles, one row open, both clear buttons, the id
 card in view (`attendu='Top Chef' affiché=['Top Chef'] scrollTop=0`), title
 search back in control, « Voir mes suivis » out of the add screen, action toast
 shown. The device verdict stays the operator's.
+
+---
+
+## Entry 23 — 2026-08-08: the shimmer, fourth report — the operator read the template right
+
+**Reported**: « Sur iOS la partie fix tremble encore quand on scroll ! le bug
+n'est toujours pas corrigé !!! pourquoi les éléments scrollent-ils jusque sous
+la partie fix ? peut-être que le problème est là ? Dans le template même de la
+page. » — and that is exactly where it was.
+
+**Why three fixes failed.** Attempts 1–3 all treated the header: promote it to
+its own layer, stop claiming the touch, stop rewriting its height. Each
+addressed a contributor; none addressed the mechanism. While the DOCUMENT
+scrolls, iOS collapses and expands the URL bar throughout the gesture. Every
+one of those frames changes the visual viewport AND `env(safe-area-inset-*)`,
+so a `position: sticky` header must be re-placed against a scrollport that is
+itself moving — on the main thread, one frame behind the content the compositor
+has already scrolled. That gap is the shiver. Damping it was always going to
+lose to its cause.
+
+**The template answer.** The shell is now a FRAME: exactly one viewport tall,
+`overflow: clip`, with `main` as the single scrollport (`data-scroll-root`).
+The header and the desktop rail are ordinary static rows. The document has
+nothing to scroll, so the URL bar never moves, so the viewport never resizes
+mid-gesture, so there is nothing to re-place — and nothing passes under the
+header, because the scrolling area now BEGINS below it. The acquisition tabs
+pin at `top: 0` of that scrollport instead of a measured header height, and the
+filter zone at the tabs' height alone: the sum that included the header — the
+value iOS kept changing — is gone from the sticky math entirely.
+
+**Measured on deployed `8eb89117`** (390×844, real touch scroll):
+document scrollable **0 px**, header `position: relative`, scrollport top
+**69** = header bottom **69** (nothing under it), content scrolled **0 → 295**
+while the header box stayed byte-identical, and **0** `--tm-*` writes during
+the gesture.
+
+**Collateral, caught by the harness.** Making the row capture its pointer (the
+mid-drag fix from entry 22) retargets the click that ends the gesture to the
+capturing element — so every tap on a control INSIDE a card was swallowed and
+the detail sheet stopped opening. The gesture pass caught it before deploy.
+Capture now belongs to a drag that has actually locked horizontally, never to a
+press; a regression test pins it.
+
+**Trade-off, stated.** In mobile Safari the URL bar no longer auto-collapses on
+scroll — a frame gives up that gesture by construction. In the installed PWA
+(standalone) there is no URL bar and nothing changes.
+
+**Still sticky, deliberately**: the view tabs and the filter zone, INSIDE the
+scrollport. Their offsets are now constant and were measured stable. If the
+operator still sees those two shiver, the next lever is lifting them out of the
+scroller as well, leaving the list as the only scrolling element.
+
+**Full re-measure** (`8eb89117`): `make check` PASS, frontend **131 files**
+green, UNION **ALL PASS — 15 regions**, gestures **15/15**, batch **10/10**,
+frame **6/6**, and every authenticated route (9) holds the frame with its
+content still reachable.
