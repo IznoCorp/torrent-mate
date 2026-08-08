@@ -239,6 +239,11 @@ class _WantedSubStore:
         concurrent grabbers; ``attempts + 1`` and ``last_search_at = now`` are
         stamped atomically (``attempts`` counts every tracker interaction).
 
+        The claim also CLEARS the previous attempt's failure columns: a new
+        attempt supersedes the old verdict, and this one will write its own.
+        Without it a stale « Récupération en échec » from a past cycle would
+        keep describing a row the pass is re-trying right now.
+
         Args:
             wanted_id: Rowid of the ``wanted`` row.
             now: Unix epoch seconds (stamps ``last_search_at``).
@@ -253,7 +258,9 @@ class _WantedSubStore:
                 UPDATE wanted
                 SET status = 'searching',
                     attempts = attempts + 1,
-                    last_search_at = ?
+                    last_search_at = ?,
+                    last_grab_reason = NULL,
+                    last_grab_at = NULL
                 WHERE id = ? AND status = 'available'
                 """,
                 (now, wanted_id),

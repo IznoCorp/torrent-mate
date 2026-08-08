@@ -35,11 +35,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from personalscraper.acquire._dedup import SearchOutcome
+from personalscraper.acquire._resolve_walk import FETCH_FALLBACK_CANDIDATES
 from personalscraper.acquire.desired import QualityProfile, Resolution
 from personalscraper.acquire.domain import WantedItem
-from personalscraper.acquire.events import GrabFailed, GrabSucceeded, WantedAbandoned
+from personalscraper.acquire.events import GrabFailed, GrabSucceeded, TrackerAuthFailed, WantedAbandoned
 from personalscraper.acquire.orchestrator import (
-    FETCH_FALLBACK_CANDIDATES,
     GrabOrchestrator,
     GrabOutcome,
     build_search_query,
@@ -58,7 +58,7 @@ from personalscraper.core._contracts import CircuitOpenError
 from personalscraper.core.event_bus import Event, EventBus
 from personalscraper.core.identity import MediaRef
 
-_RESOLVE = "personalscraper.acquire.orchestrator.resolve_source"
+_RESOLVE = "personalscraper.acquire._resolve_walk.resolve_source"
 
 
 def _make_wanted(
@@ -474,6 +474,64 @@ def test_fetch_error_falls_back_to_next_ranked_candidate() -> None:
     assert torrent_client.add.call_args.args[0] is good_source
     # No GrabFailed emitted — the pass succeeded.
     assert not [e for e in spy.events if isinstance(e, GrabFailed)]
+
+
+def test_a_broken_tracker_does_not_stop_the_walk_at_a_healthy_sibling() -> None:
+    """A tracker-wide failure on ONE candidate must not starve the others.
+
+    With a multi-tracker pool, an auth failure belongs to that tracker — the
+    healthy tracker's candidate one rank below is still grabbable. Raising on
+    the spot would abandon the item terminally on a working pool.
+    """
+    broken = _make_result(title="Film 2014 1080p x264-BROKEN", seeders=50, info_hash="b1")
+    healthy = _make_result(title="Film 2014 1080p x264-HEALTHY", seeders=40, info_hash="h1")
+    orchestrator, _spy, _registry, torrent_client, _seed = _make_orchestrator(
+        search_outcome=SearchOutcome(results=[broken, healthy], trackers_queried=2, trackers_errored=0),
+    )
+    good_source = MagicMock(spec=TorrentSource)
+    with patch(_RESOLVE) as mock_resolve:
+        mock_resolve.side_effect = [
+            TrackerAuthError(provider="tr4ker", http_status=403, message="forbidden"),
+            good_source,
+        ]
+        outcome = orchestrator.grab(_make_wanted(), QualityProfile())
+
+    assert outcome.disposition == "success"
+    assert outcome.chosen is not None and outcome.chosen.info_hash == "h1"
+    assert torrent_client is not None
+    torrent_client.add.assert_called_once()
+
+
+def test_a_broken_tracker_still_states_its_verdict_when_nothing_resolves() -> None:
+    """When the walk resolves NOTHING and a tracker was down, say so.
+
+    Reporting a generic ``fetch_failed`` there would hide a broken passkey
+    behind a transient-looking reason and retry it forever.
+    """
+    a = _make_result(title="Film 2014 1080p x264-A", seeders=50, info_hash="a1")
+    b = _make_result(title="Film 2014 1080p x264-B", seeders=40, info_hash="b2")
+    orchestrator, spy, _registry, torrent_client, _seed = _make_orchestrator(
+        search_outcome=SearchOutcome(results=[a, b], trackers_queried=1, trackers_errored=0),
+    )
+    with patch(_RESOLVE) as mock_resolve:
+        mock_resolve.side_effect = [
+            TrackerAuthError(provider="c411", http_status=403, message="forbidden"),
+            TorrentFetchError(provider="c411", http_status=0, message="dead"),
+        ]
+        outcome = orchestrator.grab(_make_wanted(), QualityProfile())
+
+    assert outcome.disposition == "terminal"
+    assert outcome.reason == "tracker_auth"
+    assert torrent_client is not None
+    torrent_client.add.assert_not_called()
+    assert [e for e in spy.events if isinstance(e, WantedAbandoned)]
+    # The alert must name the tracker that ACTUALLY refused, not the ranked
+    # top — sending the operator to fix a healthy tracker's credentials is
+    # worse than saying nothing.
+    auth = [e for e in spy.events if isinstance(e, TrackerAuthFailed)]
+    assert len(auth) == 1
+    assert auth[0].tracker == "c411"
+    assert outcome.chosen is not None and outcome.chosen.info_hash == "a1"
 
 
 def test_fetch_error_fallback_is_bounded() -> None:

@@ -35,7 +35,7 @@ from personalscraper.conf.models.acquire import BandwidthConfig
 from personalscraper.core.event_bus import Event, EventBus
 from personalscraper.core.identity import MediaRef
 
-_RESOLVE = "personalscraper.acquire.orchestrator.resolve_source"
+_RESOLVE = "personalscraper.acquire._resolve_walk.resolve_source"
 
 # Constants used across tests — pin to expected values in assertions.
 TOP_PROVIDER = "c411"

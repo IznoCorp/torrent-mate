@@ -242,6 +242,81 @@ def test_grab_failure_reason_is_persisted_on_the_row(store: ConcreteAcquireStore
     assert isinstance(row[1], int) and row[1] > 0
 
 
+def test_success_seeds_the_provenance_with_the_chosen_release_name(
+    store: ConcreteAcquireStore,
+) -> None:
+    """The provenance seed carries the CHOSEN release's title (021 wiring).
+
+    The helper and the store column were pinned, but the one line that feeds
+    them in production was not — reverting it left every journey reading
+    « Nom de release non enregistré » with a full green suite.
+    """
+    from personalscraper.api._units import ByteSize
+    from personalscraper.api.tracker._base import TrackerResult
+
+    rowid = _available_item(store, tvdb_id=99, found=5)
+    chosen = TrackerResult(
+        provider="tr4ker",
+        tracker_id="t1",
+        title="Ninja.Turtles.2014.MULTi.1080p.BluRay-GRP",
+        size=ByteSize(5_000_000_000),
+        seeders=10,
+        leechers=0,
+        resolution="1080p",
+        info_hash="abc123",
+        download_url="https://tr4ker.test/d/1",
+    )
+
+    orch = MagicMock(spec=GrabOrchestrator)
+    orch.grab.return_value = GrabOutcome(disposition="success", info_hash="abc123", found=3, chosen=chosen)
+
+    _service(store, orch).run()
+
+    row = store.provenance.by_hash("abc123")
+    assert row is not None, "a follow-driven grab seeds its provenance row"
+    assert row.release_name == "Ninja.Turtles.2014.MULTi.1080p.BluRay-GRP"
+    assert store.wanted.get(rowid) is not None
+
+
+def test_a_vanished_candidate_is_not_called_a_grab_failure(store: ConcreteAcquireStore) -> None:
+    """not_found is a SEARCH verdict — never « récupération en échec ».
+
+    The grab's own re-search concluding « nothing takeable » is already
+    recorded as the row's search outcome; stamping it as a grab failure would
+    make the card name the wrong thing.
+    """
+    rowid = _available_item(store, tvdb_id=99, found=5)
+
+    orch = MagicMock(spec=GrabOrchestrator)
+    orch.grab.return_value = GrabOutcome(disposition="not_found", reason="no_candidates", found=0)
+
+    _service(store, orch).run()
+
+    row = store.wanted._conn.execute(  # noqa: SLF001 — persistence pin on the real column
+        "SELECT last_grab_reason FROM wanted WHERE id = ?", (rowid,)
+    ).fetchone()
+    assert row is not None
+    assert row[0] is None
+
+
+def test_a_new_grab_attempt_supersedes_the_previous_failure(store: ConcreteAcquireStore) -> None:
+    """Claiming for a new attempt CLEARS the old verdict.
+
+    Otherwise a « Récupération en échec » from a past cycle keeps describing a
+    row the pass is re-trying right now.
+    """
+    rowid = _available_item(store, tvdb_id=99, found=5)
+    store.wanted.record_grab_failure(rowid, "fetch_failed", 1_700_000_000)
+
+    assert store.wanted.claim_for_grab(rowid, _PINNED_NOW) is True
+
+    row = store.wanted._conn.execute(  # noqa: SLF001 — persistence pin on the real column
+        "SELECT last_grab_reason, last_grab_at FROM wanted WHERE id = ?", (rowid,)
+    ).fetchone()
+    assert row is not None
+    assert row[0] is None and row[1] is None
+
+
 def test_grab_success_clears_the_failure_reason(store: ConcreteAcquireStore) -> None:
     """A successful grab CLEARS the recorded failure.
 

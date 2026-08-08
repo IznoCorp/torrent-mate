@@ -31,7 +31,7 @@ from personalscraper.conf.models.acquire import BandwidthConfig
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.identity import MediaRef
 
-_RESOLVE = "personalscraper.acquire.orchestrator.resolve_source"
+_RESOLVE = "personalscraper.acquire._resolve_walk.resolve_source"
 
 TOP_PROVIDER = "c411"
 INFO_HASH = "cafe1234"
