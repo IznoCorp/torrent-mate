@@ -355,91 +355,7 @@ export function AddMediaScreen({
           </div>
         </form>
 
-        {/* ── Add-by-ID (collapsible) — maquette .byid accordion ──────── */}
-        <details
-          className="byid shrink-0"
-          open={idOpen}
-          onToggle={(e) => {
-            setIdOpen((e.target as HTMLDetailsElement).open);
-          }}
-        >
-          <summary
-            role="button"
-            aria-expanded={idOpen}
-            aria-controls="acq-by-id-region"
-          >
-            Ajouter directement par identifiant
-          </summary>
-          <div
-            id="acq-by-id-region"
-            role="group"
-            aria-label="Ajout par identifiant"
-            className="byidin"
-          >
-            <div className="segmini">
-              {(["tvdb", "tmdb", "imdb"] as const).map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  aria-pressed={provider === p}
-                  onClick={() => {
-                    setProvider(p);
-                  }}
-                >
-                  {p.toUpperCase()}
-                </button>
-              ))}
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-              <div className="flex flex-col gap-1 sm:w-40">
-                <Label htmlFor="add-media-id">{idLabel}</Label>
-                <Input
-                  id="add-media-id"
-                  type="text"
-                  inputMode={provider === "imdb" ? "text" : "numeric"}
-                  placeholder={idPlaceholder}
-                  value={idValue}
-                  aria-invalid={idInvalid ? true : undefined}
-                  aria-describedby={idInvalid ? "add-media-id-error" : undefined}
-                  onChange={(e) => {
-                    setIdValue(e.target.value);
-                  }}
-                />
-                {idInvalid && (
-                  <p
-                    id="add-media-id-error"
-                    role="alert"
-                    className="text-xs text-danger"
-                  >
-                    {idErrorText}
-                  </p>
-                )}
-              </div>
-              <div className="flex min-w-0 flex-1 flex-col gap-1">
-                <Label htmlFor="add-media-id-title">Titre (optionnel)</Label>
-                <Input
-                  id="add-media-id-title"
-                  type="text"
-                  placeholder="ex: Top Chef"
-                  value={idTitle}
-                  onChange={(e) => {
-                    setIdTitle(e.target.value);
-                  }}
-                />
-              </div>
-              <button
-                type="button"
-                className="btnprimary w-full sm:w-auto sm:shrink-0"
-                disabled={idBody === null || followMut.isPending}
-                onClick={handleAddById}
-              >
-                {followMut.isPending ? "Ajout…" : "Suivre"}
-              </button>
-            </div>
-          </div>
-        </details>
-
-        {/* ── Results — the ONLY scrolling region (§7) ────────────────── */}
+        {/* ── Scrolling body — maquette #addbody ─────────────────────── */}
         {/* Maquette #addbody: NO horizontal padding of its own — every child
             carries its maquette inset (.empty 20, .reslist 16, .sugg 20). */}
         <div
@@ -598,6 +514,95 @@ export function AddMediaScreen({
                 </div>
               )}
             </div>
+          )}
+
+          {/* ── Add-by-ID (collapsible) — maquette .byid accordion, INSIDE
+              the scrolling body after the state content (idle, results and
+              no-results all end on it in the maquette; loading shows the
+              skeletons alone). */}
+          {!searchQuery.isLoading && (
+            <details
+              className="byid"
+              open={idOpen}
+              onToggle={(e) => {
+                setIdOpen((e.target as HTMLDetailsElement).open);
+              }}
+            >
+              <summary
+                role="button"
+                aria-expanded={idOpen}
+                aria-controls="acq-by-id-region"
+              >
+                Ajouter directement par identifiant
+              </summary>
+              <div
+                id="acq-by-id-region"
+                role="group"
+                aria-label="Ajout par identifiant"
+                className="byidin"
+              >
+                <div className="segmini">
+                  {(["tvdb", "tmdb", "imdb"] as const).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      aria-pressed={provider === p}
+                      onClick={() => {
+                        setProvider(p);
+                      }}
+                    >
+                      {p.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                  <div className="flex flex-col gap-1 sm:w-40">
+                    <Label htmlFor="add-media-id">{idLabel}</Label>
+                    <Input
+                      id="add-media-id"
+                      type="text"
+                      inputMode={provider === "imdb" ? "text" : "numeric"}
+                      placeholder={idPlaceholder}
+                      value={idValue}
+                      aria-invalid={idInvalid ? true : undefined}
+                      aria-describedby={idInvalid ? "add-media-id-error" : undefined}
+                      onChange={(e) => {
+                        setIdValue(e.target.value);
+                      }}
+                    />
+                    {idInvalid && (
+                      <p
+                        id="add-media-id-error"
+                        role="alert"
+                        className="text-xs text-danger"
+                      >
+                        {idErrorText}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <Label htmlFor="add-media-id-title">Titre (optionnel)</Label>
+                    <Input
+                      id="add-media-id-title"
+                      type="text"
+                      placeholder="ex: Top Chef"
+                      value={idTitle}
+                      onChange={(e) => {
+                        setIdTitle(e.target.value);
+                      }}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="btnprimary w-full sm:w-auto sm:shrink-0"
+                    disabled={idBody === null || followMut.isPending}
+                    onClick={handleAddById}
+                  >
+                    {followMut.isPending ? "Ajout…" : "Suivre"}
+                  </button>
+                </div>
+              </div>
+            </details>
           )}
         </div>
 
