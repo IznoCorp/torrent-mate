@@ -399,22 +399,24 @@ def run_media_search(
     # screen and a stale « déjà en médiathèque » badge would drive a wrong choice.
     results = [_to_search_result(item) for item in ranked[offset : offset + limit]]
 
-    # §5 replacement confirmation: flag movie results already owned in the
-    # library (by provider id, live files only) so the UI can ask before
-    # following — the pipeline will REPLACE the existing version. Fail-soft:
-    # an unreadable indexer leaves already_owned=False everywhere.
+    # §5 replacement confirmation: flag results already owned in the library
+    # (by provider id, live files only) so the UI can ask before following —
+    # the pipeline will REPLACE the existing version. A series counts as owned
+    # as soon as ANY live episode file exists (presence, not completeness).
+    # Fail-soft: an unreadable indexer leaves already_owned=False everywhere.
     indexer_db = request.app.state.config.indexer.db_path
-    if indexer_db is not None and any(r.kind == "movie" for r in results):
+    if indexer_db is not None and len(results) > 0:
         from personalscraper.core.identity import MediaRef
         from personalscraper.indexer.ownership import IndexerOwnershipChecker
 
         checker = IndexerOwnershipChecker(Path(indexer_db))
         try:
             for r in results:
-                if r.kind != "movie":
-                    continue
                 ref = MediaRef(tmdb_id=r.provider_id) if r.provider == "tmdb" else MediaRef(tvdb_id=r.provider_id)
-                r.already_owned = checker.owns(ref, kind="movie")
+                if r.kind == "movie":
+                    r.already_owned = checker.owns(ref, kind="movie")
+                else:
+                    r.already_owned = len(checker.owned_pairs(ref)) > 0
         finally:
             checker.close()
 

@@ -950,6 +950,61 @@ class TestSearchEndpoint:
         assert body["results"][0]["title"] == "Dune"
         assert body["results"][0]["poster_url"] == "https://img/dune.jpg"
 
+    def test_series_owned_is_flagged_already_owned(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Regression (operator report): an owned SERIES was never flagged.
+
+        The §5 ownership pass only checked ``kind == "movie"`` results, so a
+        series present in the library (« Kaamelott 2005 ») searched silent
+        while films showed « déjà en médiathèque ». A series counts as owned
+        as soon as ANY live episode file exists.
+        """
+        from personalscraper.api.metadata._base import SearchResult
+
+        movie = SearchResult(
+            provider="tmdb",
+            provider_id="101",
+            title="Kaamelott — Premier volet",
+            year=2021,
+            media_type="movie",
+        )
+        show = SearchResult(
+            provider="tmdb",
+            provider_id="202",
+            title="Kaamelott",
+            year=2005,
+            media_type="tv",
+        )
+        self._patch_clients(monkeypatch, movies=[movie], shows=[show])
+
+        calls: dict[str, object] = {}
+
+        class _FakeChecker:
+            def __init__(self, _path: object) -> None:
+                pass
+
+            def owns(self, ref: object, *, kind: str, **_kw: object) -> bool:
+                calls["movie"] = (ref, kind)
+                return True
+
+            def owned_pairs(self, ref: object) -> set[tuple[int, int]]:
+                calls["pairs"] = ref
+                return {(1, 1)}
+
+            def close(self) -> None:
+                pass
+
+        # Patched at the source module: the service imports it lazily.
+        monkeypatch.setattr("personalscraper.indexer.ownership.IndexerOwnershipChecker", _FakeChecker)
+
+        resp = client.get("/api/acquisition/search?q=kaamelott", cookies=_make_auth_cookie())
+        assert resp.status_code == 200, resp.text
+        by_kind = {r["kind"]: r for r in resp.json()["results"]}
+        assert by_kind["tv"]["already_owned"] is True
+        assert by_kind["movie"]["already_owned"] is True
+        # The series went through the episode-presence predicate with its id.
+        assert getattr(calls["pairs"], "tmdb_id", None) == 202
+        assert calls["movie"][1] == "movie"
+
     def test_search_kind_filter_movie_only(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
         """kind=movie must not run the TV chain."""
         from personalscraper.api.metadata._base import SearchResult
