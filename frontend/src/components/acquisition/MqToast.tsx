@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
 
 import { X } from "lucide-react";
+import { toast } from "sonner";
 
 /** Auto-hide delay — maquette `toast()` uses 5000 ms. */
 const TOAST_HIDE_MS = 5000;
@@ -26,6 +27,29 @@ let listener: ((msg: string) => void) | null = null;
  */
 export function mqtoast(msg: string): void {
   listener?.(msg);
+}
+
+/**
+ * Report an outcome on whichever toast host the operator is actually looking at.
+ *
+ * The acquisition surface runs full-screen sheets with their own in-page toast;
+ * everywhere else sonner is the host. Routing through one funnel is what makes
+ * « every action reports, success or failure » true on both — a sonner call from
+ * a page that renders {@link MqToaster} lands in the global stack the operator
+ * is not watching, and an `mqtoast` from a page without a host lands nowhere.
+ *
+ * Args:
+ *   msg: The message — it carries the outcome by itself (the maquette toast is
+ *     single-tone).
+ *   kind: Selects the sonner variant on the fallback path only.
+ */
+export function surfaceToast(msg: string, kind: "info" | "error" = "info"): void {
+  if (listener != null) {
+    listener(msg);
+    return;
+  }
+  if (kind === "error") toast.error(msg);
+  else toast.info(msg);
 }
 
 /**

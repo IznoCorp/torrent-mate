@@ -222,4 +222,35 @@ describe("SwipeActions", () => {
       expect(screen.getByTestId(`icon-${key}`)).toBeInTheDocument();
     }
   });
+
+  it("ouvrir une carte referme celle qui était ouverte", () => {
+    // Operator, 2026-08-08: « une seule carte à la fois — en ouvrir une
+    // seconde doit refermer la première ». Two rows left open at once made
+    // the second swipe look like it had done nothing.
+    render(
+      <>
+        <SwipeActions right={[action("rm1", "Retirer")]}>
+          <div data-testid="card-a">A</div>
+        </SwipeActions>
+        <SwipeActions right={[action("rm2", "Retirer")]}>
+          <div data-testid="card-b">B</div>
+        </SwipeActions>
+      </>,
+    );
+    const [cardA, cardB] = screen.getAllByTestId("swipe-card");
+    if (cardA === undefined || cardB === undefined) throw new Error("two rows");
+
+    const swipe = (el: HTMLElement): void => {
+      fireEvent.pointerDown(el, { clientX: 200, clientY: 100 });
+      fireEvent.pointerMove(el, { clientX: 140, clientY: 101 });
+      fireEvent.pointerUp(el, { clientX: 140, clientY: 101 });
+    };
+
+    swipe(cardA);
+    expect(cardA.style.transform).toBe(translated(-84));
+
+    swipe(cardB);
+    expect(cardB.style.transform).toBe(translated(-84));
+    expect(cardA.style.transform).toBe(translated(0));
+  });
 });

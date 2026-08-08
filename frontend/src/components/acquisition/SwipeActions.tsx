@@ -8,6 +8,8 @@
 
 import {
   useCallback,
+  useEffect,
+  useId,
   useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
@@ -65,6 +67,23 @@ const OPEN_THRESHOLD_PX = 40;
 const CLICK_ABSORB_MS = 400;
 
 /**
+ * The one row allowed to stay open, and the rows listening for that to change.
+ *
+ * Operator, 2026-08-08: « une seule carte peut être ouverte à la fois — en
+ * ouvrir une seconde referme la première ». A module-level registry rather than
+ * lifted state: every list that renders these rows would otherwise have to
+ * thread an "openId" through, and the rule belongs to the row, not to the list.
+ */
+const openListeners = new Map<string, (openId: string | null) => void>();
+
+/** Declare `id` the open row and notify every other row to settle. */
+function claimOpenRow(id: string | null): void {
+  for (const [key, notify] of openListeners) {
+    if (key !== id) notify(id);
+  }
+}
+
+/**
  * Wrap a card so a sideways drag reveals its actions.
  *
  * Args:
@@ -84,6 +103,7 @@ export function SwipeActions({
     null,
   );
   const lastSwipeEndRef = useRef(0);
+  const rowId = useId();
 
   const rightWidth = (right?.length ?? 0) * ACTION_WIDTH_PX;
   const leftWidth = left != null ? ACTION_WIDTH_PX : 0;
@@ -92,12 +112,65 @@ export function SwipeActions({
     setOffset(0);
   }, []);
 
-  const onPointerDown = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
-    // Same edge band as the pager: iOS owns it, and competing there produces a
-    // half-navigation nobody asked for.
-    if (e.clientX < EDGE_DEAD_ZONE_PX) return;
-    dragRef.current = { x: e.clientX, y: e.clientY, axis: null };
-  }, []);
+  // Another row opening closes this one — including mid-drag, so a second
+  // finger cannot leave two rows half-open.
+  useEffect(() => {
+    openListeners.set(rowId, () => {
+      dragRef.current = null;
+      setOffset(0);
+    });
+    return () => {
+      openListeners.delete(rowId);
+    };
+  }, [rowId]);
+
+  const settle = useCallback(() => {
+    const drag = dragRef.current;
+    dragRef.current = null;
+    if (drag?.axis !== "x") return;
+    lastSwipeEndRef.current = Date.now();
+    setOffset((current) => {
+      if (current <= -OPEN_THRESHOLD_PX) return -rightWidth;
+      if (current >= OPEN_THRESHOLD_PX) return leftWidth;
+      return 0;
+    });
+  }, [leftWidth, rightWidth]);
+
+  const onPointerDown = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      // Same edge band as the pager: iOS owns it, and competing there produces
+      // a half-navigation nobody asked for.
+      if (e.clientX < EDGE_DEAD_ZONE_PX) return;
+      // Touching THIS row settles every other one straight away, before the
+      // drag even resolves: two rows open at once is the state the operator
+      // reported, and it makes the second swipe look like it did nothing.
+      claimOpenRow(rowId);
+      dragRef.current = { x: e.clientX, y: e.clientY, axis: null };
+      // Capture, so the rest of the gesture is delivered here even if the
+      // finger wanders off the row — and a window-level net for the end of
+      // the touch, because a row LEFT MID-DRAG is exactly what the operator
+      // saw on their phone (« seul pause visible plus un bout de retirer »):
+      // the card sitting wherever the finger let go, half a pane wide. Which
+      // of pointerup / pointercancel / touchend iOS delivers no longer
+      // decides whether the row settles.
+      const row = e.currentTarget;
+      if (typeof row.setPointerCapture === "function") {
+        row.setPointerCapture(e.pointerId);
+      }
+      const end = (): void => {
+        settle();
+        window.removeEventListener("pointerup", end);
+        window.removeEventListener("pointercancel", end);
+        window.removeEventListener("touchend", end);
+        window.removeEventListener("touchcancel", end);
+      };
+      window.addEventListener("pointerup", end);
+      window.addEventListener("pointercancel", end);
+      window.addEventListener("touchend", end);
+      window.addEventListener("touchcancel", end);
+    },
+    [rowId, settle],
+  );
 
   const onPointerMove = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -115,16 +188,8 @@ export function SwipeActions({
   );
 
   const onPointerUp = useCallback(() => {
-    const drag = dragRef.current;
-    dragRef.current = null;
-    if (drag?.axis !== "x") return;
-    lastSwipeEndRef.current = Date.now();
-    setOffset((current) => {
-      if (current <= -OPEN_THRESHOLD_PX) return -rightWidth;
-      if (current >= OPEN_THRESHOLD_PX) return leftWidth;
-      return 0;
-    });
-  }, [leftWidth, rightWidth]);
+    settle();
+  }, [settle]);
 
   const onClickCapture = useCallback(
     (e: ReactMouseEvent<HTMLDivElement>) => {

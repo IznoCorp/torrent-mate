@@ -97,10 +97,23 @@ export function useFollowActions(): FollowActions {
 
   const suspendOrResume = (item: FollowedSeriesItem): void => {
     // "disabled" is the server's derivation of active=0 — read, not re-derived.
-    updateFollow.mutate({
-      id: item.id,
-      body: { active: item.status === "disabled" },
-    });
+    const resuming = item.status === "disabled";
+    updateFollow.mutate(
+      { id: item.id, body: { active: resuming } },
+      {
+        onSuccess: () => {
+          // Operator, 2026-08-08: « chaque action doit afficher un toast de
+          // confirmation ». A card that merely re-renders leaves the operator
+          // guessing whether the tap registered — and when the row was already
+          // in that state, nothing moved at all.
+          mqtoast(
+            resuming
+              ? `« ${item.title} » — recherche reprise.`
+              : `« ${item.title} » — recherche suspendue.`,
+          );
+        },
+      },
+    );
   };
 
   const swipeFor = (
@@ -163,7 +176,14 @@ export function useFollowActions(): FollowActions {
       okLabel={removing != null ? words(removing).remove : ""}
       okTestId="confirmer-le-retrait"
       onOk={() => {
-        if (removing != null && !unfollow.isPending) unfollow.mutate(removing.id);
+        if (removing != null && !unfollow.isPending) {
+          const { title } = removing;
+          unfollow.mutate(removing.id, {
+            onSuccess: () => {
+              mqtoast(`« ${title} » retiré des suivis.`);
+            },
+          });
+        }
         setRemoving(null);
       }}
       onCancel={() => {

@@ -226,7 +226,12 @@ export default function AcquisitionPage(): ReactElement {
     // are one click away and a selection sweep must not change the view.
     if (e.pointerType === "mouse") return;
     // A gesture born inside a card is the card's; it says so with data-swipe.
-    if ((e.target as HTMLElement).closest("[data-swipe]") != null) return;
+    // Same for a zone that owns its own horizontal drag — the filter pills
+    // scroll sideways, and on iOS the ancestor `touch-pan-y` hands that drag
+    // to us, so scrolling the pills changed view (operator, 2026-08-08).
+    const from = e.target as HTMLElement;
+    if (from.closest("[data-swipe]") != null) return;
+    if (from.closest("[data-noswipe]") != null) return;
     if (!shouldStartViewSwipe(e.clientX, pager.getBoundingClientRect().left)) {
       return;
     }

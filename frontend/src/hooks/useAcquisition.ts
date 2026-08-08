@@ -15,7 +15,6 @@ import {
   type UseQueryResult,
 } from "@tanstack/react-query";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import {
   acqKeys,
@@ -44,6 +43,7 @@ import {
   type WantedResponse,
 } from "@/api/acquisition";
 import { ApiError } from "@/api/client";
+import { surfaceToast } from "@/components/acquisition/MqToast";
 import { formatRunResult } from "@/components/acquisition/meta";
 import { useRunToCompletion } from "@/hooks/useRunToCompletion";
 
@@ -57,18 +57,23 @@ import { useRunToCompletion } from "@/hooks/useRunToCompletion";
  *   err: The error thrown by the mutation.
  */
 function toastMutationError(action: string, err: unknown): void {
+  // Routed through the surface funnel: on the acquisition screens the sonner
+  // stack sits behind full-screen sheets, so a failure reported there is a
+  // failure the operator never sees — which is how « aucun message d'erreur »
+  // happened (operator, 2026-08-08).
   if (err instanceof ApiError) {
     // The staging read-only guard already carries a clean French message;
     // any other ApiError surfaces the backend ``detail`` (409/422/428).
-    toast.error(
+    surfaceToast(
       err.isReadOnly
         ? err.message
         : err.detail !== ""
           ? `${action} — ${err.detail}`
           : `${action}.`,
+      "error",
     );
   } else {
-    toast.error(`${action}.`);
+    surfaceToast(`${action}.`, "error");
   }
 }
 
@@ -352,7 +357,7 @@ export function useFollow() {
         // the local "not followed" view that allowed this submit is stale, so
         // resync the acquisition namespace just like a success would.
         void qc.invalidateQueries({ queryKey: acqKeys.all });
-        toast.info("Déjà suivi — ce média est déjà dans les suivis.");
+        surfaceToast("Déjà suivi — ce média est déjà dans les suivis.");
         return;
       }
       toastMutationError("Échec de l'ajout au suivi", err);
@@ -408,9 +413,9 @@ export function useGrabNow() {
   if (finishedRun?.ended_at != null && trackedRun != null) {
     if (finishedRun.outcome === "success") {
       const summary = formatRunResult(finishedRun.result);
-      toast.success(`Exécution terminée${summary ? ` — ${summary}` : ""}.`);
+      surfaceToast(`Exécution terminée${summary ? ` — ${summary}` : ""}.`);
     } else {
-      toast.error("L'exécution a échoué — voir les exécutions récentes.");
+      surfaceToast("L'exécution a échoué — voir les exécutions récentes.", "error");
     }
     setTrackedRun(null);
     void qc.invalidateQueries({ queryKey: acqKeys.all });
@@ -420,7 +425,7 @@ export function useGrabNow() {
     mutationFn: (id: number) => triggerFollowedSearch(id),
     onSuccess: (res) => {
       // The chain runs server-side end to end — say so, then follow the run.
-      toast.info("Vérification lancée — catalogue, trackers, puis récupération…");
+      surfaceToast("Vérification lancée — catalogue, trackers, puis récupération…");
       setTrackedRun(res.run_uid);
       void qc.invalidateQueries({ queryKey: acqKeys.all });
     },
@@ -443,7 +448,7 @@ export function useGrabSeason() {
     mutationFn: ({ id, season }: { id: number; season: number }) =>
       grabSeason(id, season),
     onSuccess: () => {
-      toast.info("Saison mise en file de recherche.");
+      surfaceToast("Saison mise en file de recherche.");
       void qc.invalidateQueries({ queryKey: acqKeys.all });
     },
     onError: (err: unknown) => {

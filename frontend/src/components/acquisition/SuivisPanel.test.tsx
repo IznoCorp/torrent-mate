@@ -767,7 +767,13 @@ describe("SuivisPanel", () => {
     expect(mutate).not.toHaveBeenCalled();
     expect(screen.getByText("Retirer ce suivi ?")).toBeInTheDocument();
     fireEvent.click(screen.getByTestId("confirmer-le-retrait"));
-    expect(mutate).toHaveBeenCalledWith(1);
+    const [removedId, removeOpts] = mutate.mock.calls[0] as [
+      number,
+      { onSuccess?: () => void },
+    ];
+    expect(removedId).toBe(1);
+    // The success toast rides on the call's own options.
+    expect(typeof removeOpts.onSuccess).toBe("function");
   });
 
   it("A10 — « Pause » par balayage suspend réellement", () => {
@@ -785,7 +791,13 @@ describe("SuivisPanel", () => {
     if (suspendBtn == null) throw new Error("unreachable");
     fireEvent.click(suspendBtn);
 
-    expect(mutate).toHaveBeenCalledWith({ id: 1, body: { active: false } });
+    const [payload, opts] = mutate.mock.calls[0] as [
+      { id: number; body: { active: boolean } },
+      { onSuccess?: () => void },
+    ];
+    expect(payload).toEqual({ id: 1, body: { active: false } });
+    // The success toast rides on the call's own options.
+    expect(typeof opts.onSuccess).toBe("function");
   });
 
   it("A10 — « Récupérer » par balayage lance réellement la recherche", () => {

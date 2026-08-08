@@ -437,6 +437,51 @@ describe("AddMediaScreen", () => {
     expect(follow).not.toHaveBeenCalled();
   });
 
+  it("une recherche par titre REMPLACE le résultat d'une recherche par ID", async () => {
+    // Operator, 2026-08-08: « après une recherche par id la recherche
+    // classique ne fonctionne plus ». The id card won over every later search
+    // because it was never cleared.
+    renderAdd({ results: [{ title: "Dune" }] });
+    fireEvent.click(screen.getByText(/Ajouter directement par identifiant/i));
+    fireEvent.change(screen.getByLabelText(/Identifiant/), {
+      target: { value: "255968" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Chercher cet ID/ }));
+    expect(await screen.findByText("Kaamelott")).toBeInTheDocument();
+
+    search("dune");
+
+    expect(screen.getByText("Dune")).toBeInTheDocument();
+    expect(screen.queryByText("Kaamelott")).not.toBeInTheDocument();
+  });
+
+  it("la croix vide le champ et ramène l'écran à son état initial", () => {
+    renderAdd({ results: [{ title: "Dune" }] });
+    search("dune");
+    expect(screen.getByText("Dune")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Effacer la recherche" }));
+
+    expect(screen.getByRole("searchbox")).toHaveValue("");
+    // Idle again — a cleared box still showing the previous results would lie
+    // about what is being searched.
+    expect(screen.queryByText("Dune")).not.toBeInTheDocument();
+    expect(screen.getByText(/Cherchez un titre/)).toBeInTheDocument();
+  });
+
+  it("« Voir mes suivis » REMPLACE l'entrée d'ajout au lieu de la rouvrir", () => {
+    // Pushing /acquisition then popping the add entry landed back on ?add=1:
+    // the screen the operator had just left reopened (operator, 2026-08-08).
+    renderAdd({ results: [{ title: "Kaamelott", kind: "tv" }] });
+    search("kaamelott");
+    clickResultSuivre();
+
+    fireEvent.click(screen.getByRole("button", { name: /Voir mes suivis/ }));
+
+    expect(navigateMock).toHaveBeenCalledTimes(1);
+    expect(navigateMock).toHaveBeenCalledWith("/acquisition", { replace: true });
+  });
+
   // ── Pagination (infinite scroll) ─────────────────────────────────────
 
   it("le défilement près de la fin du conteneur appelle fetchNextPage", () => {

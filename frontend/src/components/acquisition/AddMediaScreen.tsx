@@ -84,6 +84,18 @@ function toFollowBody(
     : { tmdb_id: result.provider_id, title: result.title, ...meta };
 }
 
+/**
+ * Return a scrolling body to its top.
+ *
+ * `scrollTo` is absent on elements outside a real browser (jsdom), and calling
+ * a missing method inside a promise chain turns a successful lookup into its
+ * error branch — the failure mode this helper exists to prevent.
+ */
+function scrollBodyToTop(el: HTMLDivElement | null): void {
+  if (el == null || typeof el.scrollTo !== "function") return;
+  el.scrollTo({ top: 0 });
+}
+
 /** French label for a provider token. */
 function providerLabel(provider: string): string {
   return provider.toUpperCase();
@@ -120,6 +132,8 @@ export function AddMediaScreen({
   const [kind, setKind] = useState<KindFilter>("all");
   /** The scrolling results body — used to return to its top on a new list. */
   const bodyRef = useRef<HTMLDivElement | null>(null);
+  /** The search box — the clear button hands focus straight back to it. */
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   // Session-local adds; the rendered « ✓ Suivi » state ALSO title-matches
   // the live follows list (maquette isFollowed) — see `done` at the button.
@@ -239,6 +253,12 @@ export function AddMediaScreen({
   function applyQuery(q: string): void {
     setDraft(q);
     setQuery(q);
+    // A title search REPLACES a by-id result. `results` prefers `idResult`
+    // whenever it is set, so leaving it behind made every later search show
+    // the id card instead — « après une recherche par id la recherche
+    // classique ne fonctionne plus » (operator, 2026-08-08).
+    setIdResult(null);
+    setIdLookupError(null);
     // Honest .sugg source (§3.5c): only queries actually submitted here.
     if (q !== "") pushRecentSearch(q);
     // Mirror into the URL so the search survives leaving for a fiche and
@@ -316,6 +336,11 @@ export function AddMediaScreen({
       .then((found) => {
         setIdResult(found);
         setIdLookupError(null);
+        // The resolved card renders at the TOP of the body, above this form —
+        // the operator, thumb still on the accordion at the bottom, saw
+        // nothing happen. Fold the form and bring its result into view.
+        setIdOpen(false);
+        scrollBodyToTop(bodyRef.current);
       })
       .catch(() => {
         // §8 — an id the provider does not know says so, instead of quietly
@@ -397,6 +422,7 @@ export function AddMediaScreen({
           <label className="search">
             <SearchIcon aria-hidden="true" />
             <input
+              ref={searchInputRef}
               id="add-media-search"
               type="search"
               role="searchbox"
@@ -408,6 +434,23 @@ export function AddMediaScreen({
               aria-label="Rechercher un média"
               autoComplete="off"
             />
+            {draft !== "" && (
+              /* Clearing by hand meant a dozen backspaces on a phone. The ×
+                 also takes the screen back to its idle state — a cleared box
+                 still showing the previous results is a lie about what is
+                 being searched. */
+              <button
+                type="button"
+                className="searchclear"
+                aria-label="Effacer la recherche"
+                onClick={() => {
+                  applyQuery("");
+                  searchInputRef.current?.focus();
+                }}
+              >
+                <X aria-hidden="true" />
+              </button>
+            )}
           </label>
           <div className="addrow">
             <div className="pillscroll">
@@ -421,7 +464,7 @@ export function AddMediaScreen({
                     setKind(k);
                     // A new filter is a new list — read it from its top
                     // (operator: « on revient pas en haut de la liste »).
-                    bodyRef.current?.scrollTo({ top: 0 });
+                    scrollBodyToTop(bodyRef.current);
                   }}
                 >
                   {k === "all" ? "Tout" : k === "tv" ? "Séries" : "Films"}
@@ -724,9 +767,13 @@ export function AddMediaScreen({
             <button
               type="button"
               onClick={() => {
-                // Canonical target — the legacy value costs a redirect render.
-                void navigate("/acquisition?tab=suivis");
-                onOpenChange(false);
+                // ONE navigation, and a REPLACE. Pushing « /acquisition » and
+                // then closing (which pops the add entry) landed back on
+                // ?add=1: the screen the operator had just left reopened.
+                // Replacing the add entry both closes this screen — ?add is
+                // gone, and that param IS the open state — and leaves Back
+                // pointing where it pointed before the add.
+                void navigate("/acquisition", { replace: true });
               }}
             >
               Voir mes suivis →

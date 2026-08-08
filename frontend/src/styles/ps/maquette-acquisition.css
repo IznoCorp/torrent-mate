@@ -107,23 +107,44 @@
 .mq .search input::placeholder {
   color: var(--muted-foreground);
 }
+/* WebKit draws its own clear affordance on a type=search input — inconsistent
+   between iOS and desktop, and absent while the field is unfocused. Ours is
+   the only one. */
+.mq .search input[type="search"]::-webkit-search-cancel-button {
+  display: none;
+}
+.mq .search .searchclear {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-right: -6px;
+  border: 0;
+  border-radius: 99px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
 .mq .pillbar {
   display: flex;
   align-items: center;
   gap: 0;
   margin-top: 8px;
 }
+/* The maquette scrolls this train sideways. On the phone that gesture is not
+   available: the pager above declares `touch-action: pan-y`, which per spec
+   intersects with everything below it, so iOS never scrolls the pills — it
+   hands the drag to the pager, and « scrolling the pills » changed VIEW
+   (operator, 2026-08-08). The train therefore WRAPS: every filter is reachable
+   by tap, and no horizontal gesture competes for this strip at all. */
 .mq .pillscroll {
   flex: 1 1 auto;
   min-width: 0;
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
-  overflow-x: auto;
-  scrollbar-width: none;
   padding-right: 8px;
-}
-.mq .pillscroll::-webkit-scrollbar {
-  display: none;
 }
 .mq .pill {
   flex: 0 0 auto;

@@ -21,9 +21,9 @@
  * - **Grille** — 3-up poster grid; the badge carries a NUMBER, not a mute colour.
  */
 
-import { type ReactElement, useCallback, useMemo, useState } from "react";
+import { type ReactElement, useCallback, useMemo, useRef, useState } from "react";
 
-import { AlignLeft, LayoutGrid, List, Search as SearchIcon } from "lucide-react";
+import { AlignLeft, LayoutGrid, List, Search as SearchIcon, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import type { FollowedSeriesItem } from "@/api/acquisition";
@@ -286,6 +286,8 @@ export function SuivisPanel(): ReactElement {
   const [pill, setPill] = useState<FilterPill>("tout");
   /** Name filter text. */
   const [nameFilter, setNameFilter] = useState("");
+  /** The filter box — the clear button hands focus straight back to it. */
+  const filterInputRef = useRef<HTMLInputElement | null>(null);
 
   // Detail-sheet state.
   const [sheet, setSheet] = useState<FollowedSeriesItem | null>(null);
@@ -534,6 +536,7 @@ export function SuivisPanel(): ReactElement {
           <label className="search">
             <SearchIcon aria-hidden="true" />
             <input
+              ref={filterInputRef}
               type="search"
               placeholder="Filtrer par nom"
               value={nameFilter}
@@ -541,8 +544,26 @@ export function SuivisPanel(): ReactElement {
                 setNameFilter(e.target.value);
               }}
             />
+            {nameFilter !== "" && (
+              /* One tap back to the full list — a dozen backspaces was the
+                 only way out of a filter on a phone. */
+              <button
+                type="button"
+                className="searchclear"
+                aria-label="Effacer le filtre"
+                onClick={() => {
+                  setNameFilter("");
+                  filterInputRef.current?.focus();
+                }}
+              >
+                <X aria-hidden="true" />
+              </button>
+            )}
           </label>
-          <div className="pillbar">
+          {/* data-noswipe: dragging the pill train sideways is how the
+              operator reaches the filters that overflow — it must never be
+              read as « change view » (operator, 2026-08-08). */}
+          <div className="pillbar" data-noswipe>
             <div className="pillscroll">
               {(["tout", "series", "films", "pause"] as const).map((k) => {
                 const pm = PILLS[k];
