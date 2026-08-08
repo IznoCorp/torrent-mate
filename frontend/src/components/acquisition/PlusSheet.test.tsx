@@ -43,6 +43,28 @@ vi.mock("@/hooks/useAcquisition", async (importOriginal) => {
   };
 });
 
+// The « Recherche automatique » row reads the grab cron's LIVE schedule.
+vi.mock("@/hooks/useSchedulers", () => ({
+  useSchedulers: () => ({
+    data: {
+      schedulers: [
+        {
+          name: "personalscraper-grab",
+          kind: "cron",
+          display_name: "Récupération (grab)",
+          schedule: "Tous les jours à 03:20 et 15:20",
+          enabled: null,
+          last_run_at: null,
+          last_outcome: null,
+        },
+      ],
+    },
+    isLoading: false,
+    isError: false,
+    error: null,
+  }),
+}));
+
 afterEach(() => {
   cleanup();
 });
@@ -121,5 +143,25 @@ describe("PlusSheet", () => {
     expect(
       screen.queryByRole("heading", { name: /Veille et obligations/i }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("PlusSheet — bloc .kv", () => {
+  it("sert « Recherche automatique » depuis la cadence VIVANTE du cron", () => {
+    renderSheet();
+    expect(screen.getByText("Recherche automatique")).toBeInTheDocument();
+    // The schedule is read from the scheduler registry, never hardcoded.
+    expect(
+      screen.getByText("Tous les jours à 03:20 et 15:20"),
+    ).toBeInTheDocument();
+  });
+
+  it("n'invente ni « Prochain passage » ni « Ratio global » (§14)", () => {
+    // Neither is served today: the cron registry mirrors the schedule in
+    // prose (no next-fire computable) and ratio_state is empty. A row with a
+    // guessed value would read as measured fact.
+    renderSheet();
+    expect(screen.queryByText("Prochain passage")).toBeNull();
+    expect(screen.queryByText("Ratio global")).toBeNull();
   });
 });

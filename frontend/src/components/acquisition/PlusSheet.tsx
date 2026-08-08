@@ -8,10 +8,11 @@
  * ObligationsPanel) — the S3 features stay reachable one tap deep, never
  * silently removed.
  *
- * The maquette's other `.kv` rows (« Recherche automatique », « Prochain
- * passage », « Ratio global ») name data the API does not serve — they are
- * OMITTED rather than faked (§13/§14; candidate backend additions, flagged
- * in the parity ledger).
+ * Of the maquette's `.kv` rows, « Recherche automatique » is served (the grab
+ * cron's live schedule). « Prochain passage » and « Ratio global » stay
+ * OMITTED rather than faked (§13/§14): the cron registry mirrors the schedule
+ * in prose only — no next-fire is computable from it — and `ratio_state` holds
+ * no row, so any figure there would be invented.
  */
 
 import { ArrowLeft } from "lucide-react";
@@ -19,7 +20,7 @@ import { useState, type ReactElement } from "react";
 
 import { Link } from "react-router-dom";
 
-import { obligationStatus } from "@/components/acquisition/meta";
+import { GRAB_JOB_NAME, obligationStatus } from "@/components/acquisition/meta";
 import { ObligationsPanel } from "@/components/acquisition/ObligationsPanel";
 import { WatcherPanel } from "@/components/acquisition/WatcherPanel";
 import {
@@ -30,6 +31,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useAcquisitionStatus, useObligations } from "@/hooks/useAcquisition";
+import { useSchedulers } from "@/hooks/useSchedulers";
 import { relativeTime } from "@/lib/format";
 
 /* Maquette icon set `I` — radar and seed, verbatim paths (16 px via .sact svg). */
@@ -71,6 +73,14 @@ export function PlusSheet({
 }: PlusSheetProps): ReactElement {
   const status = useAcquisitionStatus();
   const obligations = useObligations();
+  // The grab cron's live schedule — the maquette's « Recherche automatique »
+  // row. Absent scheduler ⇒ the row does not render (never a guessed time).
+  const schedulers = useSchedulers();
+  const rawGrabSchedule = schedulers.data?.schedulers.find(
+    (j) => j.name === GRAB_JOB_NAME,
+  )?.schedule;
+  const grabSchedule =
+    rawGrabSchedule != null && rawGrabSchedule !== "" ? rawGrabSchedule : null;
   const [watcherOpen, setWatcherOpen] = useState(false);
   const [obligOpen, setObligOpen] = useState(false);
 
@@ -151,13 +161,27 @@ export function PlusSheet({
           {obligOpen && <ObligationsPanel />}
         </div>
 
-        {/* Maquette .kv block — only the rows the API can honestly fill. */}
-        {status.data?.last_successful_run_at != null && (
+        {/* Maquette .kv block — only the rows the API can honestly fill.
+            « Recherche automatique » reads the grab cron's LIVE schedule
+            (never a hardcoded time). Still omitted, for want of data rather
+            than of intent: « Prochain passage » (the registry mirrors the
+            cron in prose only, so no next-fire can be computed) and « Ratio
+            global » (ratio_state is empty — inventing a figure there is
+            exactly what §14 forbids). */}
+        {(grabSchedule != null || status.data?.last_successful_run_at != null) && (
           <div>
-            <div className="kv">
-              <span>Dernier run réussi</span>
-              <span>{relativeTime(status.data.last_successful_run_at)}</span>
-            </div>
+            {grabSchedule != null && (
+              <div className="kv">
+                <span>Recherche automatique</span>
+                <span>{grabSchedule}</span>
+              </div>
+            )}
+            {status.data?.last_successful_run_at != null && (
+              <div className="kv">
+                <span>Dernier run réussi</span>
+                <span>{relativeTime(status.data.last_successful_run_at)}</span>
+              </div>
+            )}
           </div>
         )}
 
