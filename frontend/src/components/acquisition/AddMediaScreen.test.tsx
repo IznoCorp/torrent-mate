@@ -12,7 +12,6 @@ import {
   fireEvent,
   render,
   screen,
-  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -45,6 +44,29 @@ vi.mock("@/hooks/useAcquisition", () => ({
   useFollow: () => ({ mutate: followMutate, isPending: false }),
   useFollowed: () => followedListMock(),
 }));
+
+/** The by-ID lookup: resolves an id to a card. Default = a known media. */
+const lookupMediaMock = vi.fn(() =>
+  Promise.resolve({
+    provider: "tvdb",
+    provider_id: 255968,
+    title: "Kaamelott",
+    year: 2005,
+    kind: "tv",
+    poster_url: null,
+    overview: null,
+    score: 1,
+    already_owned: false,
+  }),
+);
+vi.mock("@/api/acquisition", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/acquisition")>();
+  return {
+    ...actual,
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    lookupMedia: (...a: unknown[]) => lookupMediaMock(...(a as [])),
+  };
+});
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
@@ -199,17 +221,6 @@ function clickResultSuivre(): void {
   fireEvent.click(btn);
 }
 
-/** Helper: fill the by-ID form and submit for a given provider + id. */
-function addById(id: string, provider: "tvdb" | "tmdb" | "imdb"): void {
-  const details = screen.getByRole("group", { name: /identifiant/i });
-  // Select the provider
-  fireEvent.click(within(details).getByRole("button", { name: provider.toUpperCase() }));
-  // Type the id
-  const idInput = screen.getByLabelText(/Identifiant/);
-  fireEvent.change(idInput, { target: { value: id } });
-  // Submit — use the button WITHIN the by-ID section.
-  fireEvent.click(within(details).getByRole("button", { name: "Suivre" }));
-}
 
 /** Submit a search for the given title. */
 function search(title: string): void {
@@ -377,20 +388,53 @@ describe("AddMediaScreen", () => {
     fireEvent.click(screen.getByText(/Ajouter directement par identifiant/i));
     const idInput = screen.getByLabelText(/Identifiant/);
     fireEvent.change(idInput, { target: { value: "12e34" } });
-    expect(screen.getByRole("button", { name: "Suivre" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Chercher cet ID/ })).toBeDisabled();
     expect(
       screen.getByText(/entrez un nombre entier positif/),
     ).toBeInTheDocument();
   });
 
-  it("un ID TVDB non résolu est AVOUÉ, pas tu", () => {
-    renderAdd({ followResult: { tvdb_unresolved: true } });
-    addById("tt0903747", "imdb");
-    // The maquette's IN-SCREEN toast is the user-visible signal — a global
-    // toaster under the full-screen sheet is a confirmation nobody sees.
-    expect(screen.getByRole("status")).toHaveTextContent(
-      /ID TVDB n'a pas pu être résolu/,
+  it("un ID valide RÉSOUT et montre le média — il ne suit pas tout seul", async () => {
+    // Operator, 2026-08-08: submitting an id followed the media sight unseen,
+    // with whatever title had been typed (usually none) — which is how a
+    // nameless follow was created. The id must resolve to a card first.
+    const follow = vi.fn();
+    renderAdd({ onFollow: follow });
+    fireEvent.click(screen.getByText(/Ajouter directement par identifiant/i));
+    fireEvent.change(screen.getByLabelText(/Identifiant/), {
+      target: { value: "255968" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Chercher cet ID/ }));
+
+    // The resolved media appears as an ordinary result card…
+    expect(await screen.findByText("Kaamelott")).toBeInTheDocument();
+    // …and NOTHING was followed by the lookup itself.
+    expect(follow).not.toHaveBeenCalled();
+
+    // The add stays one deliberate tap.
+    const suivre = screen
+      .getAllByRole("button", { name: "Suivre" })
+      .find((b) => b.className.includes("resbtn"));
+    expect(suivre).toBeDefined();
+    if (suivre === undefined) throw new Error("no result button");
+    fireEvent.click(suivre);
+    expect(follow).toHaveBeenCalledOnce();
+  });
+
+  it("un identifiant inconnu le DIT au lieu de créer une ligne sans nom", async () => {
+    lookupMediaMock.mockRejectedValueOnce(new Error("404"));
+    const follow = vi.fn();
+    renderAdd({ onFollow: follow });
+    fireEvent.click(screen.getByText(/Ajouter directement par identifiant/i));
+    fireEvent.change(screen.getByLabelText(/Identifiant/), {
+      target: { value: "999999999" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Chercher cet ID/ }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /Aucun média avec cet identifiant/,
     );
+    expect(follow).not.toHaveBeenCalled();
   });
 
   // ── Pagination (infinite scroll) ─────────────────────────────────────

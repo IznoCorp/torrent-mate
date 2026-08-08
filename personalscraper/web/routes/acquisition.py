@@ -52,6 +52,7 @@ from personalscraper.web.acquisition._helpers import (
     _cadence_readout,
     _parse_json_dict,
     _parse_media_ref,
+    _parse_search_best,
     _row_col,
 )
 from personalscraper.web.acquisition.obligation_titles import resolve_obligation_titles
@@ -63,6 +64,7 @@ from personalscraper.web.acquisition.service import (
     _list_deferred_torrents,
     _query_watcher_recent_runs,
     resolve_series_tvdb,
+    run_media_lookup,
     run_media_search,
     scoped_provider_clients,
 )
@@ -79,12 +81,12 @@ from personalscraper.web.models.acquisition import (
     JourneysResponse,
     MediaRefResponse,
     MediaSearchResponse,
+    MediaSearchResult,
     ObligationItem,
     ObligationsResponse,
     UpdateFollowRequest,
     WantedItemResponse,
     WantedResponse,
-    WantedSearchBest,
 )
 from personalscraper.web.routes.acquisition_triggers import enqueue_prime_run, pid_is_alive
 
@@ -98,31 +100,6 @@ _MAX_PAGE_SIZE = 200
 
 
 # ── helpers ────────────────────────────────────────────────────────────
-
-
-def _parse_search_best(raw: object) -> WantedSearchBest | None:
-    """Parse ``wanted.last_search_best_json`` into its response model.
-
-    Fail-soft: a corrupt snapshot reads as « no summary », never a 500 —
-    the card simply omits the quality segment.
-
-    Args:
-        raw: The raw column value (TEXT or NULL).
-
-    Returns:
-        The parsed summary, or ``None``.
-    """
-    if not isinstance(raw, str) or raw == "":
-        return None
-    try:
-        data = json.loads(raw)
-    except ValueError:
-        return None
-    if not isinstance(data, dict):
-        return None
-    return WantedSearchBest.model_validate(
-        {k: data.get(k) for k in ("title", "resolution", "source", "codec", "language", "seeders")}
-    )
 
 
 def _write_follow_metadata(
@@ -190,7 +167,15 @@ def _resolve_follow_metadata(request: Request, body: CreateFollowRequest, media_
     Returns:
         The resolved :class:`FollowMetadata`.
     """
-    known = FollowMetadata(poster_url=body.poster_url, overview=body.overview, year=body.year)
+    known = FollowMetadata(
+        poster_url=body.poster_url,
+        overview=body.overview,
+        year=body.year,
+        # Seeded so a client that DID send a title makes zero provider calls;
+        # a client that sent none (the add-by-ID form) gets the title resolved
+        # rather than storing a nameless follow.
+        title=body.title if body.title else None,
+    )
     if known.is_complete:
         return known
     try:
@@ -880,6 +865,35 @@ def get_journeys(
         store.close()
 
 
+@router.get("/lookup", response_model=MediaSearchResult)
+def lookup_by_id(
+    request: Request,
+    provider: Literal["tvdb", "tmdb"] = Query(..., description="Metadata provider"),
+    provider_id: int = Query(..., ge=1, description="The provider's numeric id"),
+    kind: Literal["movie", "tv"] = Query("tv", description="Movie or series"),
+) -> MediaSearchResult:
+    """Resolve ONE media by provider id, as a search result.
+
+    The add-by-ID form RESOLVES before it follows (operator, 2026-08-08):
+    submitting an id used to create the follow sight unseen, with whatever
+    title had been typed — usually none. Engine in
+    :func:`~personalscraper.web.acquisition.service.run_media_lookup`.
+
+    Args:
+        request: The incoming FastAPI request.
+        provider: ``"tvdb"`` or ``"tmdb"``.
+        provider_id: The provider's numeric identifier.
+        kind: ``"movie"`` or ``"tv"``.
+
+    Returns:
+        The resolved :class:`MediaSearchResult`.
+
+    Raises:
+        HTTPException: 404 when the provider knows no such id.
+    """
+    return run_media_lookup(request, provider=provider, provider_id=provider_id, kind=kind)
+
+
 # ── media search (add-by-search, OBJ3) ───────────────────────────────────
 
 
@@ -1008,11 +1022,20 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
                     imdb_id=media_ref.imdb_id,
                 )
 
+        # Card metadata FIRST: it carries the provider's title, and the row is
+        # written with it. Resolving after the insert (as this did) is why an
+        # add-by-ID produced a NAMELESS follow — blank in the list and blank in
+        # its own sheet (operator report 2026-08-08). The client's title still
+        # wins; « Sans titre » only when BOTH are silent, so the row can at
+        # least be found and removed.
+        metadata = _resolve_follow_metadata(request, body, media_ref)
+        resolved_title = title or metadata.title or "Sans titre"
+
         # New follow. The kind ('movie'|'show') starts the §5 film lifecycle:
         # detect will produce one movie wanted row and auto-unfollow once acquired.
         series = FollowedSeries(
             media_ref=media_ref,
-            title=title,
+            title=resolved_title,
             added_at=int(time.time()),
             active=True,
             kind=body.kind,
@@ -1020,10 +1043,6 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
         new_id = store.follow.add(series)
         created = store.follow.get(new_id)
         assert created is not None  # noqa: S101 — just inserted it
-        # Persist + echo the card metadata: the search candidate when the client
-        # supplied one, otherwise fetched from the provider by ID (§7 RC3 — the
-        # by-ID add form sends no poster, and the card stayed blank forever).
-        metadata = _resolve_follow_metadata(request, body, media_ref)
         _write_follow_metadata(store, new_id, metadata)
         # Amorce: catalog + queue + first search run NOW, through the existing
         # run authority — a fresh follow is never left idle until the 03:00

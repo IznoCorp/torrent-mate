@@ -263,6 +263,37 @@ export function getDownloads(): Promise<AcquisitionDownloadsResponse> {
   return apiFetch("/api/acquisition/downloads", { method: "get" });
 }
 
+/** Query params for GET /api/acquisition/lookup */
+export type MediaLookupParams = QueryParamsOf<
+  paths["/api/acquisition/lookup"]["get"]
+>;
+
+/** One resolved media, as a search result. */
+export type MediaLookupResult = SuccessBody<
+  paths["/api/acquisition/lookup"]["get"]["responses"]
+>;
+
+/**
+ * Resolve ONE media by provider id.
+ *
+ * The add-by-ID path: it RESOLVES, it does not follow. The operator sees the
+ * real title and poster, then decides.
+ *
+ * Args:
+ *   params: provider, provider_id, kind.
+ *
+ * Returns:
+ *   The resolved result.
+ */
+export function lookupMedia(
+  params: MediaLookupParams,
+): Promise<MediaLookupResult> {
+  return apiFetch("/api/acquisition/lookup", {
+    method: "get",
+    params: { query: params },
+  });
+}
+
 /**
  * Search live providers for media to follow (add-by-search, OBJ3).
  *

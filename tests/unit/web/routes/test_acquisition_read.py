@@ -1011,6 +1011,61 @@ class TestSearchEndpoint:
         assert getattr(calls["pairs"], "tmdb_id", None) == 202
         assert calls["movie"][1] == "movie"
 
+    def test_lookup_by_id_resolves_a_result_without_following(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A by-id lookup RESOLVES and returns — it never follows.
+
+        Regression (operator, 2026-08-08): the add-by-ID form followed on
+        submit, sight unseen, with whatever title had been typed — usually
+        none, which stored a nameless follow. Resolving first puts a real card
+        on screen and leaves the add to a deliberate tap.
+        """
+        import personalscraper.web.acquisition.service as acq_service
+
+        class _Details:
+            title = "Kaamelott"
+            year = 2005
+            overview = "Les aventures du roi Arthur."
+            images: list[object] = []
+
+        class _Tvdb:
+            def get_series(self, provider_id: int) -> object:
+                assert provider_id == 255968
+                return _Details()
+
+        monkeypatch.setattr(acq_service, "scoped_provider_clients", lambda _r: nullcontext((object(), _Tvdb())))
+
+        resp = client.get(
+            "/api/acquisition/lookup?provider=tvdb&provider_id=255968&kind=tv",
+            cookies=_make_auth_cookie(),
+        )
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["title"] == "Kaamelott"
+        assert body["provider_id"] == 255968
+        assert body["kind"] == "tv"
+
+    def test_lookup_unknown_id_is_a_404_not_a_nameless_row(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """An id the provider does not know must FAIL, never resolve blank."""
+        import personalscraper.web.routes.acquisition as acq_routes
+
+        class _Tvdb:
+            def get_series(self, provider_id: int) -> object:
+                raise ValueError("no such series")
+
+        monkeypatch.setattr(acq_routes, "scoped_provider_clients", lambda _r: nullcontext((object(), _Tvdb())))
+
+        resp = client.get(
+            "/api/acquisition/lookup?provider=tvdb&provider_id=999999999&kind=tv",
+            cookies=_make_auth_cookie(),
+        )
+
+        assert resp.status_code == 404, resp.text
+
     def test_search_kind_filter_movie_only(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
         """kind=movie must not run the TV chain."""
         from personalscraper.api.metadata._base import SearchResult

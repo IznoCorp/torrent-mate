@@ -273,8 +273,16 @@ class TestCreateFollow:
         conn.close()
         assert row == ("https://img.example/poster.jpg", "A great series.", 2021)
 
-    def test_create_no_title_returns_201(self, client: TestClient, tmp_path: Path) -> None:
-        """Sending a tvdb_id without title is accepted (title defaults to empty)."""
+    def test_create_no_title_is_never_nameless(self, client: TestClient, tmp_path: Path) -> None:
+        """A follow created without a title still HAS one.
+
+        Regression (operator, 2026-08-08): the add-by-ID form sends no title,
+        and the row was stored with an empty one — blank in the follow list
+        and blank in its own sheet. The provider's title is resolved first;
+        « Sans titre » is the last resort so the row stays findable and
+        removable. Here no provider is reachable, so that fallback is what we
+        must see — never an empty string.
+        """
         resp = client.post(
             "/api/acquisition/followed",
             json={"tvdb_id": 456},
@@ -283,7 +291,8 @@ class TestCreateFollow:
         )
         assert resp.status_code == 201, resp.text
         data = resp.json()
-        assert data["title"] == ""
+        assert data["title"] != "", "a nameless follow is unusable"
+        assert data["title"] == "Sans titre"
         assert data["media_ref"]["tvdb_id"] == 456
         assert data["active"] is True
 

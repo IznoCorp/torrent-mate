@@ -33,9 +33,19 @@ class _Artwork:
 class _Details:
     """Minimal MediaDetails stand-in."""
 
-    def __init__(self, *, year: int | None = None, overview: str = "", poster: str = "") -> None:
+    def __init__(
+        self,
+        *,
+        year: int | None = None,
+        overview: str = "",
+        poster: str = "",
+        title: str = "Titre du fournisseur",
+    ) -> None:
         self.year = year
         self.overview = overview
+        # A real provider ALWAYS returns a title — the stub must too, or the
+        # enrichment reads « still incomplete » and polls the fallback.
+        self.title = title
         self.images = [_Artwork("landscape", "https://x/land.jpg"), _Artwork("poster", poster)] if poster else []
 
 
@@ -72,7 +82,9 @@ class _RecordingClient:
 def test_existing_values_win_and_skip_every_provider_call() -> None:
     """A complete ``existing`` short-circuits: no provider is ever touched."""
     tvdb = _RecordingClient(_Details(year=2024, overview="provider", poster="https://p/prov.jpg"))
-    existing = FollowMetadata(poster_url="https://c/client.jpg", overview="client", year=2023)
+    # A COMPLETE snapshot now includes the title: a follow whose name is
+    # unknown still has something to fetch (a nameless row is unusable).
+    existing = FollowMetadata(poster_url="https://c/client.jpg", overview="client", year=2023, title="Client")
 
     result = enrich_follow_metadata(
         MediaRef(tvdb_id=_TVDB_ID), "show", tmdb_client=None, tvdb_client=tvdb, existing=existing

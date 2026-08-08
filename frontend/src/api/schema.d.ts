@@ -415,6 +415,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/acquisition/lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lookup By Id
+         * @description Resolve ONE media by provider id, as a search result.
+         *
+         *     The add-by-ID form RESOLVES before it follows (operator, 2026-08-08):
+         *     submitting an id used to create the follow sight unseen, with whatever
+         *     title had been typed — usually none. Engine in
+         *     :func:`~personalscraper.web.acquisition.service.run_media_lookup`.
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *         provider: ``"tvdb"`` or ``"tmdb"``.
+         *         provider_id: The provider's numeric identifier.
+         *         kind: ``"movie"`` or ``"tv"``.
+         *
+         *     Returns:
+         *         The resolved :class:`MediaSearchResult`.
+         *
+         *     Raises:
+         *         HTTPException: 404 when the provider knows no such id.
+         */
+        get: operations["lookup_by_id_api_acquisition_lookup_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/acquisition/obligations": {
         parameters: {
             query?: never;
@@ -5940,6 +5977,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GrabTriggerResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    lookup_by_id_api_acquisition_lookup_get: {
+        parameters: {
+            query: {
+                /** @description Metadata provider */
+                provider: "tvdb" | "tmdb";
+                /** @description The provider's numeric id */
+                provider_id: number;
+                /** @description Movie or series */
+                kind?: "movie" | "tv";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaSearchResult"];
                 };
             };
             /** @description Validation Error */

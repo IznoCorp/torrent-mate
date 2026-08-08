@@ -5944,6 +5944,83 @@
         ]
       }
     },
+    "/api/acquisition/lookup": {
+      "get": {
+        "description": "Resolve ONE media by provider id, as a search result.\n\nThe add-by-ID form RESOLVES before it follows (operator, 2026-08-08):\nsubmitting an id used to create the follow sight unseen, with whatever\ntitle had been typed \u2014 usually none. Engine in\n:func:`~personalscraper.web.acquisition.service.run_media_lookup`.\n\nArgs:\n    request: The incoming FastAPI request.\n    provider: ``\"tvdb\"`` or ``\"tmdb\"``.\n    provider_id: The provider's numeric identifier.\n    kind: ``\"movie\"`` or ``\"tv\"``.\n\nReturns:\n    The resolved :class:`MediaSearchResult`.\n\nRaises:\n    HTTPException: 404 when the provider knows no such id.",
+        "operationId": "lookup_by_id_api_acquisition_lookup_get",
+        "parameters": [
+          {
+            "description": "Metadata provider",
+            "in": "query",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "description": "Metadata provider",
+              "enum": [
+                "tvdb",
+                "tmdb"
+              ],
+              "title": "Provider",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The provider's numeric id",
+            "in": "query",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "description": "The provider's numeric id",
+              "minimum": 1,
+              "title": "Provider Id",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Movie or series",
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "default": "tv",
+              "description": "Movie or series",
+              "enum": [
+                "movie",
+                "tv"
+              ],
+              "title": "Kind",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaSearchResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Lookup By Id",
+        "tags": [
+          "acquisition"
+        ]
+      }
+    },
     "/api/acquisition/obligations": {
       "get": {
         "description": "List seed obligations with their current ratio state.\n\nArgs:\n    request: The incoming FastAPI request.\n    status: Filter: ``\"all\"`` (default), ``\"pending\"``, ``\"breached\"``,\n        or ``\"satisfied\"``.\n\nReturns:\n    An ``ObligationsResponse`` with matching items.  Each item LEFT JOINs\n    ``ratio_state`` on tracker name.",

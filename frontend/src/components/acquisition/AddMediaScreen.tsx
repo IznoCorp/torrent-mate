@@ -39,6 +39,7 @@ import { useFollow, useFollowed, useMediaSearch } from "@/hooks/useAcquisition";
 import { pushRecentSearch, readRecentSearches } from "./recentSearches";
 import {
   buildIdFollowBody,
+  lookupMedia,
   type FollowProvider,
 } from "@/api/acquisition";
 
@@ -151,7 +152,8 @@ export function AddMediaScreen({
       setAddedCount(0);
       setIdOpen(false);
       setIdValue("");
-      setIdTitle("");
+      setIdResult(null);
+      setIdLookupError(null);
     }
     if (!wasOpen.current && open) {
       const q = searchParams.get("q") ?? "";
@@ -164,8 +166,13 @@ export function AddMediaScreen({
   // Add-by-ID state
   const [provider, setProvider] = useState<FollowProvider>("tvdb");
   const [idValue, setIdValue] = useState("");
-  const [idTitle, setIdTitle] = useState("");
   const [idOpen, setIdOpen] = useState(false);
+  /** Movie or series — the lookup needs to know which endpoint to ask. */
+  const [idKind, setIdKind] = useState<"movie" | "tv">("tv");
+  /** The RESOLVED media, shown as a result card until the operator acts. */
+  const [idResult, setIdResult] = useState<MediaSearchResult | null>(null);
+  const [idLooking, setIdLooking] = useState(false);
+  const [idLookupError, setIdLookupError] = useState<string | null>(null);
 
   const searchQuery = useMediaSearch(query, kind === "all" ? undefined : kind);
 
@@ -281,24 +288,35 @@ export function AddMediaScreen({
     });
   }
 
-  /** Submit the add-by-ID form. */
-  function handleAddById(): void {
-    if (idBody === null) return;
-    const body = { ...idBody };
-    if (idTitle.trim()) body.title = idTitle.trim();
-    followMut.mutate(body, {
-      onSuccess: (created) => {
-        showToast("Média ajouté au suivi");
-        setIdValue("");
-        setIdTitle("");
-        setAddedCount((c) => c + 1);
-        if (created.tvdb_unresolved) {
-          showToast(
-            "Série ajoutée, mais l'ID TVDB n'a pas pu être résolu — la détection d'épisodes est indisponible tant qu'un ID TVDB n'est pas fourni.",
-          );
-        }
-      },
-    });
+  /** Resolve the add-by-ID form — it RESOLVES, it does not follow.
+   *
+   *  Operator, 2026-08-08: typing an id used to follow on submit, sight
+   *  unseen and usually nameless. The id now becomes a normal result card;
+   *  the add stays one deliberate tap on « Suivre » / « Ajouter ». */
+  function handleLookupById(): void {
+    if (idBody === null || provider === "imdb") return;
+    setIdLookupError(null);
+    setIdLooking(true);
+    lookupMedia({
+      provider,
+      provider_id: Number(idValue.trim()),
+      kind: idKind,
+    })
+      .then((found) => {
+        setIdResult(found);
+        setIdLookupError(null);
+      })
+      .catch(() => {
+        // §8 — an id the provider does not know says so, instead of quietly
+        // creating a nameless follow (which is exactly what used to happen).
+        setIdResult(null);
+        setIdLookupError(
+          "Aucun média avec cet identifiant chez ce fournisseur.",
+        );
+      })
+      .finally(() => {
+        setIdLooking(false);
+      });
   }
 
   /**
@@ -323,7 +341,10 @@ export function AddMediaScreen({
   // ── Derived data ─────────────────────────────────────────────────────
 
   const pages = searchQuery.data?.pages ?? [];
-  const results = pages.flatMap((page) => page.results);
+  // A by-id lookup renders through the SAME card as a search result: same
+  // « Suivre »/« Ajouter », same done state, same §5 confirmation. Nothing
+  // about the add is special-cased for ids.
+  const results = idResult != null ? [idResult] : pages.flatMap((page) => page.results);
   // §8: the PROVIDER total, not the row count — five out of eighty-one
   // with no count reads as "that's all there is."
   const total = pages[0]?.total ?? 0;
@@ -411,7 +432,7 @@ export function AddMediaScreen({
           data-testid="search-results"
           onScroll={handleScroll}
         >
-          {query === "" ? (
+          {query === "" && idResult == null ? (
             /* Maquette idle state: what to do, and the one honesty rule of
                this screen, before anything has been asked. */
             <>
@@ -636,27 +657,47 @@ export function AddMediaScreen({
                       </p>
                     )}
                   </div>
-                  <div className="flex min-w-0 flex-1 flex-col gap-1">
-                    <Label htmlFor="add-media-id-title">Titre (optionnel)</Label>
-                    <Input
-                      id="add-media-id-title"
-                      type="text"
-                      placeholder="ex: Top Chef"
-                      value={idTitle}
-                      onChange={(e) => {
-                        setIdTitle(e.target.value);
-                      }}
-                    />
+                  {/* The typed title is gone: the provider owns the name, and
+                      a hand-typed one is how nameless follows happened. What
+                      the lookup genuinely needs is film vs série. */}
+                  <div
+                    role="group"
+                    aria-label="Nature du média"
+                    className="segmini min-w-0 flex-1"
+                  >
+                    {(["tv", "movie"] as const).map((k) => (
+                      <button
+                        key={k}
+                        type="button"
+                        aria-pressed={idKind === k}
+                        onClick={() => {
+                          setIdKind(k);
+                        }}
+                      >
+                        {k === "tv" ? "Série" : "Film"}
+                      </button>
+                    ))}
                   </div>
                   <button
                     type="button"
                     className="btnprimary w-full sm:w-auto sm:shrink-0"
-                    disabled={idBody === null || followMut.isPending}
-                    onClick={handleAddById}
+                    disabled={idBody === null || provider === "imdb" || idLooking}
+                    onClick={handleLookupById}
                   >
-                    {followMut.isPending ? "Ajout…" : "Suivre"}
+                    {idLooking ? "Recherche…" : "Chercher cet ID"}
                   </button>
                 </div>
+                {idLookupError != null && (
+                  <p role="alert" className="text-xs text-danger">
+                    {idLookupError}
+                  </p>
+                )}
+                {provider === "imdb" && (
+                  <p className="text-xs text-muted-foreground">
+                    La recherche par identifiant IMDB n&apos;est pas encore
+                    servie — utilisez TVDB ou TMDB, ou la recherche par titre.
+                  </p>
+                )}
               </div>
             </details>
           )}

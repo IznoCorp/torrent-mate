@@ -483,6 +483,9 @@ def follow_backfill_metadata(
                     poster_url=row["poster_url"] or None,
                     overview=row["overview"] or None,
                     year=row["year"],
+                    # The row already carries its name — seed it, or the
+                    # backfill would call a provider for a title it holds.
+                    title=row["title"] or None,
                 )
                 if existing.is_complete:
                     continue
