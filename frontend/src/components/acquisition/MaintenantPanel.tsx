@@ -703,7 +703,15 @@ export function MaintenantPanel(): ReactElement {
                   className="min-w-0 truncate font-mono text-[length:var(--text-2xs)] text-muted-foreground"
                   title={journey?.release_name ?? undefined}
                 >
-                  {journey?.release_name ?? "Nom de release non enregistré"}
+                  {/* §14 — two DIFFERENT unknowns, never merged into one
+                      sentence: a correlated acquisition whose release name
+                      was not recorded, versus a download we could not tie to
+                      any recorded acquisition at all. « Non enregistré »
+                      claims we consulted the record; that is only true in
+                      the first case. */}
+                  {journey == null
+                    ? "Acquisition non corrélée"
+                    : (journey.release_name ?? "Nom de release non enregistré")}
                 </span>
               )}
             </>

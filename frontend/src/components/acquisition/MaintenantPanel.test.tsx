@@ -1148,6 +1148,21 @@ describe("MaintenantPanel", () => {
       within(enVol).getAllByText("Nom de release non enregistré").length,
     ).toBeGreaterThan(0);
   });
+
+  it("§14 — une acquisition NON CORRÉLÉE ne se dit pas « non enregistré »", () => {
+    // Two different unknowns: a journey whose release name was never
+    // recorded, versus a download tied to NO journey at all. Merging them
+    // claims we consulted a record that does not exist.
+    renderPanel({ ...full, journeys: [] });
+
+    const enVol = screen.getByTestId("section-en-vol");
+    expect(
+      within(enVol).getAllByText("Acquisition non corrélée").length,
+    ).toBeGreaterThan(0);
+    expect(
+      within(enVol).queryByText("Nom de release non enregistré"),
+    ).toBeNull();
+  });
   it("dit qu'on ne PEUT PAS savoir ce qui est à traiter, plutôt qu'il n'y a rien", () => {
     // The server answered 200 with an empty list because its own read failed.
     // Rendering that as an empty section would state the single thing we do not
