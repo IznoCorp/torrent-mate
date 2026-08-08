@@ -352,7 +352,9 @@ describe("FlowBoard", () => {
     // read 0 — the inbound torrent must be visible upstream of « Arrivée ».
     downloadsMock.mockReturnValueOnce({
       data: {
-        downloads: [{ name: "Ninja.Turtles.2014", progress: 0.5 }],
+        downloads: [
+          { name: "Ninja.Turtles.2014", progress: 0.5, state: "downloading" },
+        ],
         client_available: true,
       },
       isLoading: false,
@@ -360,6 +362,26 @@ describe("FlowBoard", () => {
     } as never);
     renderBoard();
     expect(screen.getByText("Téléchargement")).toBeInTheDocument();
+  });
+
+  it("un torrent en partage ou en pause n'est PAS « en cours »", () => {
+    // The endpoint lists every grabbed row — seeding/paused/missing included.
+    // Counting those as inbound would put a station on the board claiming a
+    // download that finished hours ago.
+    downloadsMock.mockReturnValueOnce({
+      data: {
+        downloads: [
+          { name: "Fini.Depuis.Longtemps", progress: 1, state: "seeding" },
+          { name: "En.Pause", progress: 0.3, state: "paused" },
+          { name: "Introuvable", progress: 0, state: "missing" },
+        ],
+        client_available: true,
+      },
+      isLoading: false,
+      isError: false,
+    } as never);
+    renderBoard();
+    expect(screen.queryByText("Téléchargement")).not.toBeInTheDocument();
   });
 
   it("restores the open drawer from a ?stage= deep link", () => {

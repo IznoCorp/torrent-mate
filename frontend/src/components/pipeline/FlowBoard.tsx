@@ -57,6 +57,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useDownloads } from "@/hooks/useAcquisition";
 import { usePipelineStages } from "@/hooks/usePipelineStages";
 
+/** Download states that mean « still arriving » — the upstream station's
+ *  population. Seeding, paused, missing and errored are NOT inbound: the
+ *  file is either already here or not coming without a decision. */
+const INBOUND_DOWNLOAD_STATES = new Set(["downloading", "stalled", "queued"]);
+
 /** One stage as returned by ``GET /api/pipeline/stages``. */
 type ApiStage = StagesResponse["stages"][number];
 
@@ -197,10 +202,15 @@ export function FlowBoard(): ReactElement {
     };
   }, []);
   const navigate = useNavigate();
-  // Upstream stock: live torrent-client downloads, not yet on disk — the
-  // board's first station when non-empty (« visible nulle part » report).
+  // Upstream stock: torrents still COMING IN, not yet on disk — the board's
+  // first station when non-empty (« visible nulle part » report). The
+  // endpoint lists every grabbed row, seeding/paused/missing included;
+  // counting those as « en cours » would state something false, so only the
+  // genuinely inbound states feed the station.
   // Hook order: before every early return (loading/error) below.
-  const downloadCount = useDownloads().data?.downloads.length ?? 0;
+  const downloadCount = (useDownloads().data?.downloads ?? []).filter((d) =>
+    INBOUND_DOWNLOAD_STATES.has(d.state),
+  ).length;
   // The open stage drawer is URL-addressable (?stage=<key>) so the browser
   // Back button closes it like any route — same discipline as ?media/?decision
   // (open pushes a history entry; close replaces it, no dangling entry).
