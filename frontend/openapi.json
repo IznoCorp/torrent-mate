@@ -5540,7 +5540,7 @@
     },
     "/api/acquisition/followed/{followed_id}": {
       "delete": {
-        "description": "Soft-unfollow a series (sets active=False).\n\nArgs:\n    request: The incoming FastAPI request.\n    followed_id: Rowid of the ``followed_series`` row.\n\nRaises:\n    HTTPException: 404 if the followed_id does not exist.",
+        "description": "REMOVE a follow \u2014 really, not a disguised pause.\n\nThis used to call ``set_active(False)``: the exact write the \u00ab Mettre en\npause \u00bb button performs. Two verbs, one effect \u2014 a removal the operator\nasked for never happened, and the row came back in \u00ab En pause \u00bb (their\nreport, 2026-08-08). Pausing keeps its own path (``PATCH`` with\n``active=false``); this one deletes.\n\nArgs:\n    request: The incoming FastAPI request.\n    followed_id: Rowid of the ``followed_series`` row.\n\nRaises:\n    HTTPException: 404 if the followed_id does not exist.",
         "operationId": "delete_follow_api_acquisition_followed__followed_id__delete",
         "parameters": [
           {

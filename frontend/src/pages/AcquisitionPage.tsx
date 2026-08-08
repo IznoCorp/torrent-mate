@@ -324,13 +324,31 @@ export default function AcquisitionPage(): ReactElement {
       }
       const t = e.touches[0];
       if (t == null) return;
+      const atTop = (document.scrollingElement?.scrollTop ?? window.scrollY) <= 0;
       touchDragRef.current = {
         x: t.clientX,
         y: t.clientY,
         axis: null,
         dy: 0,
-        atTop: (document.scrollingElement?.scrollTop ?? window.scrollY) <= 0,
+        atTop,
       };
+      // The pull tracker is attached ONLY for a gesture that could be a pull
+      // — i.e. one starting at the very top. See the note on the listeners
+      // below: a permanently-attached non-passive touchmove is what made the
+      // sticky header shiver on iOS.
+      if (atTop && !refreshingRef.current) attachPullTracker();
+    };
+
+    let pullTrackerAttached = false;
+    const attachPullTracker = (): void => {
+      if (pullTrackerAttached) return;
+      pullTrackerAttached = true;
+      el.addEventListener("touchmove", onTouchMove, { passive: false });
+    };
+    const detachPullTracker = (): void => {
+      if (!pullTrackerAttached) return;
+      pullTrackerAttached = false;
+      el.removeEventListener("touchmove", onTouchMove);
     };
 
     const onTouchMove = (e: TouchEvent): void => {
@@ -356,6 +374,7 @@ export default function AcquisitionPage(): ReactElement {
     };
 
     const onTouchEnd = (): void => {
+      detachPullTracker();
       const drag = touchDragRef.current;
       touchDragRef.current = null;
       if (drag?.axis !== "y") {
@@ -371,13 +390,23 @@ export default function AcquisitionPage(): ReactElement {
       if (!refreshingRef.current) setPull({ height: 0, dragging: false });
     };
 
+    // WHY the pull tracker is attached and detached per gesture, instead of
+    // living here alongside the others:
+    //
+    // a NON-PASSIVE `touchmove` listener tells the browser « I may cancel
+    // this scroll », so iOS stops scrolling this subtree on the compositor
+    // and routes every frame through the main thread. The content then
+    // scrolls a frame ahead of the position:sticky header, which reads as the
+    // header SHIVERING (operator report, twice). Attaching it only for a
+    // gesture that starts at scrollTop 0 — the only gesture that can become a
+    // pull — leaves ordinary mid-list scrolling on the fast path, where it
+    // belongs.
     el.addEventListener("touchstart", onTouchStart, { passive: true });
-    el.addEventListener("touchmove", onTouchMove, { passive: false });
     el.addEventListener("touchend", onTouchEnd);
     el.addEventListener("touchcancel", onTouchEnd);
     return () => {
+      detachPullTracker();
       el.removeEventListener("touchstart", onTouchStart);
-      el.removeEventListener("touchmove", onTouchMove);
       el.removeEventListener("touchend", onTouchEnd);
       el.removeEventListener("touchcancel", onTouchEnd);
     };
