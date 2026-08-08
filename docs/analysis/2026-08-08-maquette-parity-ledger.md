@@ -938,3 +938,51 @@ scroller as well, leaving the list as the only scrolling element.
 green, UNION **ALL PASS — 15 regions**, gestures **15/15**, batch **10/10**,
 frame **6/6**, and every authenticated route (9) holds the frame with its
 content still reachable.
+
+---
+
+## Entry 24 — 2026-08-09: the pills come back, and the last thing leaking past the pinned zone
+
+**Two reports, one root each.**
+
+**« tu as retiré le scroll horizontal sur les filtres ? j'aimais bien. »** —
+fair question, and the answer is that I wrapped them onto two lines to work
+around a cause that was somewhere else. `touch-action` intersects down the
+WHOLE ancestor chain: the pager declared `pan-y`, so a `pan-x` scroller beneath
+it could pan on neither axis — iOS handed the drag to the pager and scrolling
+the pills changed view. The pager no longer needs `pan-y` at all (the frame
+removed the browser's own pull-to-refresh, which is what it was there for), so
+the restriction moved DOWN onto the regions below the filters, and the train
+claims the horizontal axis for itself. `data-noswipe` stays as a belt: even a
+drag the browser declines to turn into a scroll never reaches the view swipe.
+Measured at 375: **one line** (`nowrap`, 1 row), **95 px** of real overflow,
+`scrollLeft 0 → 95` under a finger, view unchanged — and the view swipe still
+works where it belongs, off the cards.
+
+**« la liste des cards scroll toujours derrière la partie fixe »** — it did,
+and a screenshot showed it: a poster and a title parading ABOVE the tab bar.
+Two leaks, both sub-16px, both measured:
+
+- The tabs pinned **16 px too low**. Sticky offsets resolve against the
+  scrollport's CONTENT edge and the shell's `main` carries `p-4`, so `top: 0`
+  parked them below a 16 px band of scrolling content. `-mt-4` already cancels
+  that padding for layout; `top: -1rem` now cancels it for the pinning. A shell
+  test pins `p-4` so the two can never drift apart.
+- A **0.45 px hairline** between the two bars. The published height is CEILED
+  (61.55 → 62) and the filter zone aligned on it exactly. Sub-pixel sounds
+  harmless; on a 3× screen it is over one physical pixel of MOVING content,
+  permanently — a plausible share of « ça tremble ». The filters now overlap by
+  a pixel and the tabs paint above them (z-30 over z-20).
+
+**Measured after** (deployed `ce91f328`, mid-scroll at `scrollTop 405`):
+scrollport top **69**, tabs **69 → 130.55**, filters **130 → 216.55** — band
+above the tabs **0 px**, seam **−0.55 px** (overlap, not gap), and the
+screenshot of that band is now empty background.
+
+**Also caught**: a `« rangé aujourd'hui »` fixture pinned at `now − 60 s` falls
+on YESTERDAY when the suite runs in the first minute of a day — observed live at
+00:00:40. One red minute a day is still red; it is clamped to today.
+
+**Full re-measure** (`ce91f328`): `make check` PASS, frontend **131 files**
+green, UNION **15/15**, gestures **15/15**, batch **10/10**, frame **6/6**,
+pills **5/5**.
