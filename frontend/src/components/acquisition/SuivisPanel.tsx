@@ -381,10 +381,11 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
         {...actions.swipeFor(item)}
         {...(isNew(item) ? { className: "fresh" } : {})}
       >
+        {/* No year subtitle here — the maquette's followRow is title + meta
+            row only; the year lives in the sheet (§12 density). */}
         <AcquisitionCard
           title={item.title}
           posterUrl={item.poster_url ?? null}
-          {...(item.year != null ? { subtitle: String(item.year) } : {})}
           meta={metaPieces.length > 0 ? <>{metaPieces}</> : null}
           menu={actions.menuFor(item)}
           onOpen={() => {
