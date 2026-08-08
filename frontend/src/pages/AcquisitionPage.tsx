@@ -24,7 +24,7 @@ import {
 } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
-import { acqKeys } from "@/api/acquisition";
+import { acqKeys, getFollowed } from "@/api/acquisition";
 import { AddMediaScreen } from "@/components/acquisition/AddMediaScreen";
 import {
   PULL_LOADING_PX,
@@ -246,6 +246,17 @@ export default function AcquisitionPage(): ReactElement {
   );
   const queryClient = useQueryClient();
   const { events } = useEventStreamContext();
+
+  // Warm the Suivis list while the operator is still on Maintenant: the
+  // panel only mounts on tab switch, and a cold query there made the list
+  // feel slow. Same key+staleTime as SuivisPanel's useFollowed.
+  useEffect(() => {
+    void queryClient.prefetchQuery({
+      queryKey: acqKeys.followed({ active: "all" }),
+      queryFn: () => getFollowed({ active: "all" }),
+      staleTime: 55_000,
+    });
+  }, [queryClient]);
 
   // ── Sheet state ─────────────────────────────────────────────────────────
 

@@ -41,6 +41,7 @@ import {
   TOPBAR_HEIGHT_VAR,
   VIEWTABS_HEIGHT_VAR,
 } from "@/components/layout/bottom-bar-metrics";
+import { posterThumb } from "@/lib/poster-thumb";
 import { useBackCloses } from "@/lib/use-back-closes";
 
 import { FollowDetailSheet } from "./FollowDetailSheet";
@@ -262,7 +263,12 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
   // default, pausing a follow made it vanish from every mounted surface and
   // the « En pause » pill was a permanent zero by construction — a filter that
   // can never match is a lie with a control attached.
-  const followed = useFollowed({ active: "all" });
+  // staleTime keeps a tab switch instant: within the window the cached list
+  // renders with NO refetch flash; the interval keeps it live while mounted.
+  const followed = useFollowed(
+    { active: "all" },
+    { staleTime: 55_000, refetchInterval: 60_000 },
+  );
   const actions = useFollowActions();
   // C15 — the automatic-search cadence, read from the LIVE scheduler and never
   // hardcoded; omitted entirely when the job is absent (§8: we do not narrate
@@ -433,7 +439,11 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
         {/* Maquette .tile grammar: the .p poster box (aspect 2/3, radius 6,
             no border), badge as a .tile child, .nm/.fr text rows. */}
         <span className="p">
-          <MediaPoster title={item.title} src={item.poster_url ?? null} className="!h-full !w-full" />
+          <MediaPoster
+            title={item.title}
+            src={posterThumb(item.poster_url ?? null)}
+            className="!h-full !w-full"
+          />
         </span>
         {badge != null && (
           <span

@@ -53,6 +53,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { MediaPoster } from "@/components/ds/MediaPoster";
+import { posterThumb } from "@/lib/poster-thumb";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useCompleteness,
@@ -396,7 +397,11 @@ function FollowDetailSheetContent({
       {/* ── Header ── */}
       <SheetHeader>
         <div className="flex items-start gap-3">
-          <MediaPoster title={data.title} src={posterUrl ?? null} className="w-[84px]" />
+          <MediaPoster
+            title={data.title}
+            src={posterThumb(posterUrl ?? null)}
+            className="w-[84px]"
+          />
           <div className="min-w-0 flex-1">
         <SheetTitle className="sheettitle [text-wrap:balance]">{data.title}</SheetTitle>
         {/* The one fraction — same derivation as card + season headers (§13) —

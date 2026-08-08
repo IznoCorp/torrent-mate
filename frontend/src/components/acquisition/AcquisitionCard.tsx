@@ -23,6 +23,7 @@
 import { type ReactElement, type ReactNode } from "react";
 
 import { MediaPoster } from "@/components/ds/MediaPoster";
+import { posterThumb } from "@/lib/poster-thumb";
 
 /** Props for {@link AcquisitionCard}. */
 export interface AcquisitionCardProps {
@@ -115,7 +116,9 @@ export function AcquisitionCard({
   strip,
   footer,
 }: AcquisitionCardProps): ReactElement {
-  const poster = <MediaPoster title={title} src={posterUrl} className="w-[38px]" />;
+  const poster = (
+    <MediaPoster title={title} src={posterThumb(posterUrl)} className="w-[38px]" />
+  );
 
   return (
     <div
