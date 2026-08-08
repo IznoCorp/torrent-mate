@@ -39,7 +39,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { useFollow, useMediaSearch } from "@/hooks/useAcquisition";
+import { useFollow, useFollowed, useMediaSearch } from "@/hooks/useAcquisition";
+
+import { pushRecentSearch, readRecentSearches } from "./recentSearches";
 import {
   buildIdFollowBody,
   type FollowProvider,
@@ -144,6 +146,17 @@ export function AddMediaScreen({
   const [idOpen, setIdOpen] = useState(false);
 
   const searchQuery = useMediaSearch(query, kind === "all" ? undefined : kind);
+
+  // `.sugg` dedup source: a query that names an existing follow is a
+  // shortcut to nowhere (its resbtn would read « ✓ Suivi »).
+  const followedList = useFollowed();
+  const followedTitles = new Set(
+    (followedList.data?.items ?? []).map((i) => i.title.toLowerCase()),
+  );
+  const recents =
+    query === ""
+      ? readRecentSearches().filter((q) => !followedTitles.has(q.toLowerCase()))
+      : [];
   const followMut = useFollow();
 
   // ── By-ID helpers ────────────────────────────────────────────────────
@@ -174,11 +187,14 @@ export function AddMediaScreen({
 
   // ── Handlers ─────────────────────────────────────────────────────────
 
-  /** Submit the search — fire on validation only, never per keystroke. */
-  function submit(e: SyntheticEvent): void {
-    e.preventDefault();
-    const q = draft.trim();
+  /** Apply a query — shared by form submit and the `.sugg` shortcut chips
+   *  (maquette: a shortcut that still leaves a gesture to make is not a
+   *  shortcut — tapping a chip RUNS the search). */
+  function applyQuery(q: string): void {
+    setDraft(q);
     setQuery(q);
+    // Honest .sugg source (§3.5c): only queries actually submitted here.
+    if (q !== "") pushRecentSearch(q);
     // Mirror into the URL so the search survives leaving for a fiche and
     // coming back. Replace: refining a query is not a navigation step.
     setSearchParams(
@@ -190,6 +206,12 @@ export function AddMediaScreen({
       },
       { replace: true },
     );
+  }
+
+  /** Submit the search — fire on validation only, never per keystroke. */
+  function submit(e: SyntheticEvent): void {
+    e.preventDefault();
+    applyQuery(draft.trim());
   }
 
   /** Follow a search result (or ask §5 confirmation for an owned film). */
@@ -426,11 +448,32 @@ export function AddMediaScreen({
           {query === "" ? (
             /* Maquette idle state: what to do, and the one honesty rule of
                this screen, before anything has been asked. */
-            <div className="empty">
-              <b>Cherchez un titre</b>
-              Les fournisseurs ne sont interrogés qu&apos;à la validation — pas
-              à chaque frappe.
-            </div>
+            <>
+              <div className="empty">
+                <b>Cherchez un titre</b>
+                Les fournisseurs ne sont interrogés qu&apos;à la validation —
+                pas à chaque frappe.
+              </div>
+              {recents.length > 0 && (
+                /* .sugg chips — honest shortcuts (§3.5c): this device's
+                   recent searches, minus what is already followed. A tap
+                   RUNS the search (maquette: a shortcut that leaves a
+                   gesture to make is not a shortcut). */
+                <div className="sugg">
+                  {recents.map((q) => (
+                    <button
+                      key={q}
+                      type="button"
+                      onClick={() => {
+                        applyQuery(q);
+                      }}
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
           ) : searchQuery.isLoading ? (
             /* Maquette loading: three .skel shimmer cards in a busy reslist. */
             <div className="reslist" aria-busy="true">

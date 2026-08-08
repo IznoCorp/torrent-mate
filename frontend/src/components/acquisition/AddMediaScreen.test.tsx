@@ -22,11 +22,17 @@ import type { MediaSearchResult } from "@/api/acquisition";
 
 const mediaSearchMock = vi.fn();
 const followMutate = vi.fn();
+const followedListMock = vi.fn(
+  (): { data: { items: { title: string }[] } | undefined } => ({
+    data: { items: [] },
+  }),
+);
 
 vi.mock("@/hooks/useAcquisition", () => ({
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   useMediaSearch: (...a: unknown[]) => mediaSearchMock(...a),
   useFollow: () => ({ mutate: followMutate, isPending: false }),
+  useFollowed: () => followedListMock(),
 }));
 
 vi.mock("sonner", () => ({
@@ -200,6 +206,8 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  localStorage.clear();
+  followedListMock.mockReturnValue({ data: { items: [] } });
 });
 
 describe("AddMediaScreen", () => {
@@ -488,5 +496,51 @@ describe("AddMediaScreen", () => {
     ).toBeGreaterThan(0);
     // The by-ID fallback stays reachable under the error.
     expect(screen.getByRole("group", { name: /identifiant/i })).toBeInTheDocument();
+  });
+
+  // ── `.sugg` chips — honest shortcuts (arbitration §3.5c) ─────────────────
+
+  describe("chips .sugg (recherches récentes)", () => {
+    it("l'idle sans historique ne montre aucune chip", () => {
+      renderAdd();
+      expect(document.querySelector(".sugg")).toBeNull();
+    });
+
+    it("une recherche soumise ressort en chip à l'idle suivant", () => {
+      renderAdd();
+      fireEvent.change(screen.getByRole("searchbox"), { target: { value: "silo" } });
+      fireEvent.click(screen.getByRole("button", { name: "Chercher" }));
+      cleanup();
+
+      renderAdd();
+      const sugg = document.querySelector(".sugg");
+      expect(sugg).not.toBeNull();
+      expect(sugg?.textContent).toContain("silo");
+    });
+
+    it("taper une chip RELANCE la recherche — pas un simple préremplissage", () => {
+      localStorage.setItem("tm.add.recentSearches", JSON.stringify(["severance"]));
+      renderAdd();
+
+      fireEvent.click(screen.getByRole("button", { name: "severance" }));
+
+      // The idle prompt is gone: the query ran (maquette: a shortcut that
+      // leaves a gesture to make is not a shortcut).
+      expect(screen.queryByText("Cherchez un titre")).toBeNull();
+      expect(screen.getByRole("searchbox")).toHaveValue("severance");
+    });
+
+    it("une requête déjà suivie n'est pas proposée", () => {
+      localStorage.setItem(
+        "tm.add.recentSearches",
+        JSON.stringify(["Dune", "silo"]),
+      );
+      followedListMock.mockReturnValue({ data: { items: [{ title: "dune" }] } });
+      renderAdd();
+
+      const sugg = document.querySelector(".sugg");
+      expect(sugg?.textContent).toContain("silo");
+      expect(sugg?.textContent).not.toContain("Dune");
+    });
   });
 });

@@ -338,6 +338,27 @@
   font-size: 14px;
   margin-bottom: 5px;
 }
+.mq .sugg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  justify-content: center;
+  padding: 0 20px 20px;
+}
+.mq .sugg button {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 12.5px;
+  padding: 6px 13px;
+  border-radius: 99px;
+  cursor: pointer;
+}
+.mq .sugg button:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
 .mq .byid {
   margin: 4px 16px 24px;
   border: 1px solid var(--border);
