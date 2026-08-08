@@ -4876,6 +4876,17 @@
             "title": "Decision Id",
             "type": "integer"
           },
+          "episode": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Episode"
+          },
           "followed_id": {
             "anyOf": [
               {
@@ -4905,6 +4916,17 @@
           "reason": {
             "title": "Reason",
             "type": "string"
+          },
+          "season": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season"
           },
           "stage": {
             "enum": [

@@ -5336,6 +5336,8 @@ export interface components {
             created_at: number;
             /** Decision Id */
             decision_id: number;
+            /** Episode */
+            episode?: number | null;
             /** Followed Id */
             followed_id?: number | null;
             /** Info Hash */
@@ -5344,6 +5346,8 @@ export interface components {
             kind: string;
             /** Reason */
             reason: string;
+            /** Season */
+            season?: number | null;
             /**
              * Stage
              * @enum {string}

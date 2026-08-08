@@ -880,6 +880,10 @@ class ToHandleItemModel(BaseModel):
     followed_id: int | None = None
     info_hash: str | None = None
     stage: Literal["pris", "telech", "ingere", "scrape", "range"]
+    # Episode identity from the provenance spine — the blocked card's
+    # « S16E12 » subtitle (maquette); None when the grab carried none.
+    season: int | None = None
+    episode: int | None = None
 
 
 class ToHandleResponse(BaseModel):

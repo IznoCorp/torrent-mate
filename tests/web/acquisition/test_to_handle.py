@@ -57,6 +57,52 @@ def test_a_decision_backed_by_an_acquisition_is_an_item(tmp_path, acquire_store)
     assert item.stage == "ingere"
 
 
+def test_an_item_carries_its_episode_identity(tmp_path, acquire_store):
+    """La provenance porte S/E : la carte bloquée peut dire « S16E12 » (maquette)."""
+    db = _make_indexer(
+        tmp_path,
+        [
+            (1, "/staging/Top Chef S16E12", "tvshow", "Top Chef", 2010, "ambiguous", "[{},{},{}]", "pending", 1000.0),
+        ],
+    )
+    acquire_store.provenance.upsert_grab(
+        info_hash="abc",
+        followed_id=42,
+        kind="episode",
+        media_ref=None,
+        grabbed_at=800,
+        season=16,
+        episode=12,
+    )
+    acquire_store.provenance.set_ingest(info_hash="abc", ingest_path="/staging/Top Chef S16E12", ingested_at=900)
+
+    roll = build_to_handle(indexer_db=db, store=acquire_store)
+
+    assert (roll.items[0].season, roll.items[0].episode) == (16, 12)
+
+
+def test_episode_identity_absent_stays_none(tmp_path, acquire_store):
+    """Pas de S/E en provenance (film, saison entière) → None, jamais inventé."""
+    db = _make_indexer(
+        tmp_path,
+        [
+            (2, "/staging/Un Film", "movie", "Un Film", 2020, "unmatched", "[]", "pending", 1000.0),
+        ],
+    )
+    acquire_store.provenance.upsert_grab(
+        info_hash="def",
+        followed_id=7,
+        kind="movie",
+        media_ref=None,
+        grabbed_at=800,
+    )
+    acquire_store.provenance.set_ingest(info_hash="def", ingest_path="/staging/Un Film", ingested_at=900)
+
+    roll = build_to_handle(indexer_db=db, store=acquire_store)
+
+    assert (roll.items[0].season, roll.items[0].episode) == (None, None)
+
+
 def test_a_manual_drop_is_counted_but_never_listed(tmp_path, acquire_store):
     """Un dépôt manuel n'est pas une acquisition : compté, jamais affiché ici."""
     db = _make_indexer(

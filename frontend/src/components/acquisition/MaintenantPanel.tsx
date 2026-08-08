@@ -482,6 +482,12 @@ export function MaintenantPanel(): ReactElement {
 
   /** Render one « à traiter » card with its journey strip + resolve action. */
   function renderATraiterCard(item: ToHandleItem): ReactElement {
+    // Maquette blocked sub: « S16E12 · titre ambigu — … » — the episode
+    // identity from the provenance spine opens the reason line.
+    const epLabel =
+      item.season != null && item.episode != null
+        ? `S${String(item.season).padStart(2, "0")}E${String(item.episode).padStart(2, "0")}`
+        : null;
     return (
       <AcquisitionCard
         key={item.decision_id}
@@ -489,7 +495,7 @@ export function MaintenantPanel(): ReactElement {
         posterUrl={null}
         {...(item.year != null ? { subtitle: String(item.year) } : {})}
         // §12: blocking reason wraps, never truncates — `reason`, not `subtitle`.
-        reason={item.reason}
+        reason={epLabel != null ? `${epLabel} · ${item.reason}` : item.reason}
         meta={null}
         // Blocked items have no resolved provider id — no poster link (§11).
         // No onOpen either — a button that does nothing is a dead control (§11).

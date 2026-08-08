@@ -99,7 +99,7 @@ export function PlusSheet({
       {/* `mq`: the portal lands on <body>, outside the page's scope — the
           maquette classes need the scope re-applied here. */}
       <SheetContent side="right" className="mq px-4 pb-5">
-        <SheetHeader>
+        <SheetHeader className="p-0">
           <SheetTitle className="sheettitle">Veille et obligations</SheetTitle>
           <SheetDescription className="sheetmeta">
             Ce qu&apos;on surveille en fond — pas du travail quotidien.

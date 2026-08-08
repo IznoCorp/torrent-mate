@@ -93,6 +93,8 @@ function blockedItem(): ToHandleItem {
     year: 2023,
     followed_id: 7,
     info_hash: null,
+    season: 16,
+    episode: 12,
   };
 }
 
@@ -405,9 +407,10 @@ describe("MaintenantPanel", () => {
   it("un bloqué affiche sa raison ENTIÈRE et l'action sous la frise (§12)", async () => {
     renderPanel(full);
 
-    // The full blocking reason is visible, not truncated.
+    // The full blocking reason is visible, not truncated — opened by the
+    // provenance episode identity (maquette: « S16E12 · titre ambigu — … »).
     expect(
-      await screen.findByText("titre ambigu — 3 candidats proposés"),
+      await screen.findByText("S16E12 · titre ambigu — 3 candidats proposés"),
     ).toBeInTheDocument();
 
     // The « Résoudre → » link is inside the card.
@@ -462,7 +465,7 @@ describe("MaintenantPanel", () => {
 
     // The card is present.
     expect(
-      within(section).getByText("titre ambigu — 3 candidats proposés"),
+      within(section).getByText("S16E12 · titre ambigu — 3 candidats proposés"),
     ).toBeInTheDocument();
 
     // The crossref is ALSO present — orphans are never invisible.

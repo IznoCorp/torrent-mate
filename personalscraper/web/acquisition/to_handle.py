@@ -49,6 +49,10 @@ class ToHandleItem:
     followed_id: int | None
     info_hash: str | None
     stage: str
+    # Episode identity from the provenance spine (migration 017) — lets the
+    # blocked card say « S16E12 » (maquette); None when the grab carried none.
+    season: int | None = None
+    episode: int | None = None
 
 
 @dataclass(frozen=True)
@@ -157,6 +161,8 @@ def build_to_handle(*, indexer_db: Path | None, store: AcquireStore | None) -> T
                     followed_id=getattr(prov, "followed_id", None),
                     info_hash=getattr(prov, "info_hash", None),
                     stage=_stage_of(prov),
+                    season=getattr(prov, "season", None),
+                    episode=getattr(prov, "episode", None),
                 )
             )
     except Exception as exc:  # noqa: BLE001 — fail-soft: the page must never 500
