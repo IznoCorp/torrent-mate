@@ -313,7 +313,7 @@ export default function AcquisitionPage(): ReactElement {
   }, [events, queryClient]);
 
   return (
-    <section className="mq -mx-4 -mt-4 flex flex-col md:mx-auto md:mt-0 md:max-w-5xl">
+    <section className="mq -mx-4 -mt-4 flex flex-col md:mx-auto md:mt-0 md:max-w-2xl">
       {/* Tabs — the maquette's .viewtabs: an equal-width .seg segment plus a
           DETACHED « ⋮ » (.more). Pinned under the topbar (measured height, not
           a hardcoded offset) so only the list below scrolls.

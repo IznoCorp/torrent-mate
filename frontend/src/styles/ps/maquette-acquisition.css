@@ -888,3 +888,26 @@
 .mq .sact.primary svg {
   color: var(--primary-foreground);
 }
+
+
+/* ── Desktop ≥ md (operator arbitration §3.5d) ──
+   The mobile maquette grammar in a centered reading column (~672px, set on
+   the page section); element-level metrics stay the 390px truth. Only the
+   tile grid densifies — three phone-width columns would be posters the size
+   of hands. */
+
+@media (min-width: 768px) {
+  .mq .grid,
+  .mq [data-testid="grid-container"] {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+  .mq .dlg {
+    left: 50%;
+    right: auto;
+    width: 420px;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+  .mq .dlg.open {
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
