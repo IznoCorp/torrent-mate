@@ -5160,6 +5160,17 @@
             ],
             "title": "Episode"
           },
+          "followed_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Followed Id"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -5178,6 +5189,27 @@
               }
             ],
             "title": "Last Search At"
+          },
+          "last_search_best": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WantedSearchBest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_search_found": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Search Found"
           },
           "season": {
             "anyOf": [
@@ -5240,6 +5272,79 @@
           "page_size"
         ],
         "title": "WantedResponse",
+        "type": "object"
+      },
+      "WantedSearchBest": {
+        "description": "Summary of the last search's top-ranked candidate (addition A).\n\nA snapshot persisted at search time (``wanted.last_search_best_json``) \u2014\nthe \u00ab \u00c0 r\u00e9cup\u00e9rer \u00bb card reads it (\u00ab S02E05 \u00b7 1080p WEB-DL \u00b7 42\nsources \u00bb) without re-querying any tracker. Every field nullable: a\ntracker that names no codec stays silent, never guessed.",
+        "properties": {
+          "codec": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codec"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          },
+          "seeders": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seeders"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "title": "WantedSearchBest",
         "type": "object"
       },
       "WatcherRequest": {

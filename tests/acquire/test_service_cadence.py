@@ -363,6 +363,6 @@ def test_search_pass_claims_a_due_item() -> None:
 
     store.wanted.claim_for_search.assert_called_once()
     orchestrator.search.assert_called_once()
-    store.wanted.record_search_outcome.assert_called_once_with(10, "available", 2)
+    store.wanted.record_search_outcome.assert_called_once_with(10, "available", 2, best=None)
     store.wanted.set_status.assert_called_once_with(10, "available")
     assert summary.available == 1

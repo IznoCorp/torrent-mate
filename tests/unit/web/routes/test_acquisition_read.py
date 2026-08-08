@@ -64,7 +64,8 @@ CREATE TABLE IF NOT EXISTS wanted (
     last_search_outcome TEXT,
     last_search_found   INTEGER,
     tried_hashes_json   TEXT,
-    absorbed_by     INTEGER
+    absorbed_by     INTEGER,
+    last_search_best_json TEXT
 );
 
 CREATE TABLE IF NOT EXISTS seed_obligation (
@@ -392,6 +393,47 @@ class TestWantedEndpoint:
         assert data["total"] == 55
         assert data["page"] == 1
         assert data["page_size"] == 50
+
+    def test_last_search_best_and_followed_id_serialize(self, client: TestClient, tmp_path: Path) -> None:
+        """Addition A: the card facts reach the API — count, best summary, follow."""
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        fid = _seed_followed(conn, 1, "Silo", active=True)
+        wid = _seed_wanted(conn, fid, status="pending", season=2, episode=5)
+        conn.execute(
+            "UPDATE wanted SET last_search_found = 42, last_search_best_json = ? WHERE id = ?",
+            (json.dumps({"resolution": "1080p", "source": "WEB-DL", "seeders": 42}), wid),
+        )
+        conn.commit()
+        conn.close()
+
+        resp = client.get("/api/acquisition/wanted", cookies=_make_auth_cookie())
+        assert resp.status_code == 200, resp.text
+        item = resp.json()["items"][0]
+
+        assert item["followed_id"] == fid
+        assert item["last_search_found"] == 42
+        assert item["last_search_best"]["resolution"] == "1080p"
+        assert item["last_search_best"]["source"] == "WEB-DL"
+
+    def test_a_corrupt_best_snapshot_reads_as_absent(self, client: TestClient, tmp_path: Path) -> None:
+        """Fail-soft: corrupt JSON in the column → no summary, never a 500."""
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        fid = _seed_followed(conn, 1, "Silo", active=True)
+        wid = _seed_wanted(conn, fid, status="pending", episode=1)
+        conn.execute(
+            "UPDATE wanted SET last_search_best_json = '{pas du json' WHERE id = ?",
+            (wid,),
+        )
+        conn.commit()
+        conn.close()
+
+        resp = client.get("/api/acquisition/wanted", cookies=_make_auth_cookie())
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["items"][0]["last_search_best"] is None
 
     def test_pagination_page2(self, client: TestClient, tmp_path: Path) -> None:
         """page=2 returns the remaining items."""

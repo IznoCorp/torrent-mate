@@ -5469,12 +5469,17 @@ export interface components {
             enqueued_at: number;
             /** Episode */
             episode?: number | null;
+            /** Followed Id */
+            followed_id?: number | null;
             /** Id */
             id: number;
             /** Kind */
             kind: string;
             /** Last Search At */
             last_search_at?: number | null;
+            last_search_best?: components["schemas"]["WantedSearchBest"] | null;
+            /** Last Search Found */
+            last_search_found?: number | null;
             /** Season */
             season?: number | null;
             /** Status */
@@ -5495,6 +5500,29 @@ export interface components {
             page_size: number;
             /** Total */
             total: number;
+        };
+        /**
+         * WantedSearchBest
+         * @description Summary of the last search's top-ranked candidate (addition A).
+         *
+         *     A snapshot persisted at search time (``wanted.last_search_best_json``) —
+         *     the « À récupérer » card reads it (« S02E05 · 1080p WEB-DL · 42
+         *     sources ») without re-querying any tracker. Every field nullable: a
+         *     tracker that names no codec stays silent, never guessed.
+         */
+        WantedSearchBest: {
+            /** Codec */
+            codec?: string | null;
+            /** Language */
+            language?: string | null;
+            /** Resolution */
+            resolution?: string | null;
+            /** Seeders */
+            seeders?: number | null;
+            /** Source */
+            source?: string | null;
+            /** Title */
+            title?: string | null;
         };
         /**
          * WatcherRequest

@@ -151,6 +151,9 @@ export function MaintenantPanel(): ReactElement {
   const navigate = useNavigate();
   const followed = useFollowed();
   const wanted = useWanted({ status: "grabbed" });
+  // Addition A: the takeable card's « S02E05 · 1080p WEB-DL · 42 sources »
+  // reads the follow's pending wanted rows (label + last-search facts).
+  const pendingWanted = useWanted({ status: "pending" });
   const toHandle = useToHandle();
   const journeys = useJourneys();
   const overview = useOverview();
@@ -371,6 +374,34 @@ export function MaintenantPanel(): ReactElement {
       : reason;
   }
 
+  /** Maquette takeable sub: earliest pending gap + last-search facts —
+   *  each segment only when truly known (no invented quality, §14). */
+  function takeableDetail(item: FollowedSeriesItem): string | null {
+    const rows = (pendingWanted.data?.items ?? []).filter(
+      (w) => w.followed_id === item.id,
+    );
+    if (rows.length === 0) return null;
+    const w = [...rows].sort(
+      (a, b) =>
+        (a.season ?? 0) - (b.season ?? 0) || (a.episode ?? 0) - (b.episode ?? 0),
+    )[0];
+    if (w == null) return null;
+    const parts: string[] = [];
+    if (w.season != null && w.episode != null) {
+      parts.push(
+        `S${String(w.season).padStart(2, "0")}E${String(w.episode).padStart(2, "0")}`,
+      );
+    }
+    const quality = [w.last_search_best?.resolution, w.last_search_best?.source]
+      .filter((v): v is string => v != null && v !== "")
+      .join(" ");
+    if (quality !== "") parts.push(quality);
+    if (w.last_search_found != null) {
+      parts.push(`${String(w.last_search_found)} source${w.last_search_found > 1 ? "s" : ""}`);
+    }
+    return parts.length > 0 ? parts.join(" · ") : null;
+  }
+
   /** Render one followed-item card (used by two sections). */
   function renderFollowedCard(
     item: FollowedSeriesItem,
@@ -388,7 +419,11 @@ export function MaintenantPanel(): ReactElement {
         <AcquisitionCard
           title={item.title}
           posterUrl={item.poster_url ?? null}
-          {...(searchMeta ? { subtitle: searchMetaLine(item) } : {})}
+          {...(searchMeta
+            ? { subtitle: searchMetaLine(item) }
+            : item.status === "a_recuperer" && takeableDetail(item) != null
+              ? { subtitle: takeableDetail(item) ?? "" }
+              : {})}
           meta={
             /* Maquette followRow: mono fraction + dotted status chip on the
                takeable card; the resting card carries its verdict as the

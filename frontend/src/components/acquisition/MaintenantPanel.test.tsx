@@ -377,6 +377,43 @@ describe("MaintenantPanel", () => {
     expect(waitingCard?.querySelector("[data-station]")).toBeNull();
   });
 
+  it("la carte à récupérer nomme le manque et le meilleur candidat (addition A)", async () => {
+    // Maquette: « S02E05 · 1080p WEB-DL · 42 sources » — earliest pending
+    // gap + the persisted last-search facts, correlated by followed_id.
+    renderPanel(full);
+    cleanup();
+    vi.spyOn(hooks, "useWanted").mockImplementation(((params?: { status?: string }) => ({
+      data: {
+        items:
+          params?.status === "pending"
+            ? [
+                {
+                  ...inflightWanted(),
+                  id: 300,
+                  status: "pending",
+                  season: 2,
+                  episode: 5,
+                  followed_id: 1,
+                  last_search_found: 42,
+                  last_search_best: { resolution: "1080p", source: "WEB-DL" },
+                },
+              ]
+            : [...full.wanted],
+        total: 1,
+        page: 1,
+        page_size: 50,
+      },
+      isLoading: false,
+      isError: false,
+    })) as unknown as typeof hooks.useWanted);
+    renderPanelPreMocked();
+
+    const takeable = await screen.findByTestId("section-a-recuperer");
+    expect(
+      within(takeable).getByText("S02E05 · 1080p WEB-DL · 42 sources"),
+    ).toBeInTheDocument();
+  });
+
   it("un suivi non vérifié ACTIF attend dans « Cherché, rien trouvé » (maquette renderNow)", async () => {
     // Maquette: waiting = actifs en_attente OU non_verifie — un suivi jamais
     // vérifié attend l'opérateur autant qu'un « rien de conforme », et son

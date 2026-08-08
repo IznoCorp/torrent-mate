@@ -118,12 +118,20 @@ class WantedSubStore(Protocol):
         """Return all ``wanted`` rows with ``status='available'`` — the grab pass queue."""
         ...
 
-    def record_search_outcome(self, wanted_id: int, outcome: str, found: int | None) -> None:
+    def record_search_outcome(
+        self,
+        wanted_id: int,
+        outcome: str,
+        found: int | None,
+        best: dict[str, object] | None = None,
+    ) -> None:
         """Persist the verdict of the last search on *wanted_id*.
 
         Called at EVERY exit path of the search pass. ``found`` is ``None``
         when the search did NOT conclude (outage / dead swarm / open circuit):
-        zero would falsely claim « I looked, there is nothing ».
+        zero would falsely claim « I looked, there is nothing ». ``best`` is
+        the top-ranked candidate's summary, always written (a chose-nothing
+        pass clears it).
         """
         ...
 

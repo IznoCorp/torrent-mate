@@ -790,7 +790,13 @@ class _WantedSubStore:
             )
             return cur.rowcount == 1
 
-    def record_search_outcome(self, wanted_id: int, outcome: str, found: int | None) -> None:
+    def record_search_outcome(
+        self,
+        wanted_id: int,
+        outcome: str,
+        found: int | None,
+        best: dict[str, object] | None = None,
+    ) -> None:
         """Persist the verdict of the search that just ran for this item.
 
         Called once per search attempt, at EVERY exit path — including failures
@@ -811,11 +817,17 @@ class _WantedSubStore:
                 ``min_seeders`` floor. ``None`` when the search did NOT
                 conclude (outage, open circuit, dead swarm): zero would
                 falsely claim « I looked, there is nothing ».
+            best: Summary of the top-ranked candidate (title/resolution/
+                source/codec/language/seeders), or ``None``. ALWAYS written:
+                a later search that chose nothing clears the column, so it
+                describes the LAST pass, never a stale one.
         """
+        best_json = None if best is None else json.dumps(best)
         with self._write_tx(self._conn):
             self._conn.execute(
-                "UPDATE wanted SET last_search_outcome = ?, last_search_found = ? WHERE id = ?",
-                (outcome, found, wanted_id),
+                "UPDATE wanted SET last_search_outcome = ?, last_search_found = ?, "
+                "last_search_best_json = ? WHERE id = ?",
+                (outcome, found, best_json, wanted_id),
             )
 
     def list_available(self) -> list[WantedItem]:

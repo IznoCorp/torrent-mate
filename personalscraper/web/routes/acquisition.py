@@ -84,6 +84,7 @@ from personalscraper.web.models.acquisition import (
     UpdateFollowRequest,
     WantedItemResponse,
     WantedResponse,
+    WantedSearchBest,
 )
 from personalscraper.web.routes.acquisition_triggers import enqueue_prime_run, pid_is_alive
 
@@ -97,6 +98,31 @@ _MAX_PAGE_SIZE = 200
 
 
 # ── helpers ────────────────────────────────────────────────────────────
+
+
+def _parse_search_best(raw: object) -> WantedSearchBest | None:
+    """Parse ``wanted.last_search_best_json`` into its response model.
+
+    Fail-soft: a corrupt snapshot reads as « no summary », never a 500 —
+    the card simply omits the quality segment.
+
+    Args:
+        raw: The raw column value (TEXT or NULL).
+
+    Returns:
+        The parsed summary, or ``None``.
+    """
+    if not isinstance(raw, str) or raw == "":
+        return None
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    return WantedSearchBest.model_validate(
+        {k: data.get(k) for k in ("title", "resolution", "source", "codec", "language", "seeders")}
+    )
 
 
 def _write_follow_metadata(
@@ -601,6 +627,9 @@ def get_wanted(
                         attempts=row["attempts"],
                         enqueued_at=float(row["enqueued_at"]),
                         last_search_at=(float(row["last_search_at"]) if row["last_search_at"] is not None else None),
+                        last_search_found=cast("int | None", _row_col(row, "last_search_found")),
+                        last_search_best=_parse_search_best(_row_col(row, "last_search_best_json")),
+                        followed_id=cast("int | None", _row_col(row, "followed_id")),
                     )
                 )
             return WantedResponse(items=items, total=total, page=page, page_size=page_size)

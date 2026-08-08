@@ -190,6 +190,23 @@ class FollowedResponse(BaseModel):
     items: list[FollowedSeriesItem]
 
 
+class WantedSearchBest(BaseModel):
+    """Summary of the last search's top-ranked candidate (addition A).
+
+    A snapshot persisted at search time (``wanted.last_search_best_json``) —
+    the « À récupérer » card reads it (« S02E05 · 1080p WEB-DL · 42
+    sources ») without re-querying any tracker. Every field nullable: a
+    tracker that names no codec stays silent, never guessed.
+    """
+
+    title: str | None = None
+    resolution: str | None = None
+    source: str | None = None
+    codec: str | None = None
+    language: str | None = None
+    seeders: int | None = None
+
+
 class WantedItemResponse(BaseModel):
     """A single wanted item in the paginated list."""
 
@@ -201,7 +218,15 @@ class WantedItemResponse(BaseModel):
     status: str  # "pending" | "searching" | "available" | "grabbed" | "done" | "abandoned"
     attempts: int
     enqueued_at: float  # epoch seconds
-    last_search_at: float | None = None  # epoch seconds
+    last_search_at: float | None = None
+    # Addition A — what the last CONCLUDED search saw: takeable-candidate
+    # count and the top-ranked release's facts. ``None`` when never searched
+    # or not concluded (panne ≠ absence).
+    last_search_found: int | None = None
+    last_search_best: WantedSearchBest | None = None
+    # The carrying follow — lets the « À récupérer » card find its wanted
+    # row's label + last-search facts without a title join.
+    followed_id: int | None = None  # epoch seconds
 
 
 class WantedResponse(BaseModel):
