@@ -13,13 +13,7 @@
  */
 
 import { ArrowLeft, Search as SearchIcon, X } from "lucide-react";
-import {
-  useRef,
-  useState,
-  type ReactElement,
-  type SyntheticEvent,
-  type UIEvent,
-} from "react";
+import { useEffect, useRef, useState, type ReactElement, type SyntheticEvent, type UIEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { mediaSheetHref } from "@/lib/media-href";
@@ -116,6 +110,8 @@ export function AddMediaScreen({
   const [draft, setDraft] = useState(() => searchParams.get("q") ?? "");
   const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
   const [kind, setKind] = useState<KindFilter>("all");
+  /** The scrolling results body — used to return to its top on a new list. */
+  const bodyRef = useRef<HTMLDivElement | null>(null);
 
   // Session-local adds; the rendered « ✓ Suivi » state ALSO title-matches
   // the live follows list (maquette isFollowed) — see `done` at the button.
@@ -140,6 +136,30 @@ export function AddMediaScreen({
   // §5 replacement confirmation (already-owned film).
   const [confirmReplace, setConfirmReplace] =
     useState<MediaSearchResult | null>(null);
+
+  // Closing RESETS the screen. It stays mounted (a Sheet), so its state
+  // outlives the closing: « Voir mes suivis » left the last query in place
+  // and it reappeared on the next opening (operator report). Every exit must
+  // behave like the Back one. Reopening seeds itself from the URL, so a
+  // deep-linked ?q= still opens on its results.
+  const wasOpen = useRef(open);
+  useEffect(() => {
+    if (wasOpen.current && !open) {
+      setDraft("");
+      setQuery("");
+      setKind("all");
+      setAddedCount(0);
+      setIdOpen(false);
+      setIdValue("");
+      setIdTitle("");
+    }
+    if (!wasOpen.current && open) {
+      const q = searchParams.get("q") ?? "";
+      setDraft(q);
+      setQuery(q);
+    }
+    wasOpen.current = open;
+  }, [open, searchParams]);
 
   // Add-by-ID state
   const [provider, setProvider] = useState<FollowProvider>("tvdb");
@@ -223,6 +243,13 @@ export function AddMediaScreen({
   /** Submit the search — fire on validation only, never per keystroke. */
   function submit(e: SyntheticEvent): void {
     e.preventDefault();
+    // Blur FIRST: submitting from the on-screen keyboard's « Entrée » left
+    // the field focused, so the keyboard stayed up and covered the results
+    // (tapping « Chercher » blurs by definition — the two paths must feel
+    // the same).
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
     applyQuery(draft.trim());
   }
 
@@ -360,6 +387,9 @@ export function AddMediaScreen({
                   aria-pressed={kind === k}
                   onClick={() => {
                     setKind(k);
+                    // A new filter is a new list — read it from its top
+                    // (operator: « on revient pas en haut de la liste »).
+                    bodyRef.current?.scrollTo({ top: 0 });
                   }}
                 >
                   {k === "all" ? "Tout" : k === "tv" ? "Séries" : "Films"}
@@ -376,6 +406,7 @@ export function AddMediaScreen({
         {/* Maquette #addbody: NO horizontal padding of its own — every child
             carries its maquette inset (.empty 20, .reslist 16, .sugg 20). */}
         <div
+          ref={bodyRef}
           className="min-h-0 flex-1 overflow-y-auto"
           data-testid="search-results"
           onScroll={handleScroll}
@@ -494,12 +525,11 @@ export function AddMediaScreen({
                           {providerLabel(result.provider)}
                         </p>
                         {result.overview && <p className="ro">{result.overview}</p>}
+                        {/* Button FIRST, badge after (operator): the badge
+                            appears on some rows and not others, and putting it
+                            ahead of the button made the button dance down the
+                            list. Fixed anchor, variable annotation. */}
                         <div className="ra">
-                          {result.already_owned && (
-                            <span className="text-[length:var(--text-2xs)] text-warning">
-                              Déjà en médiathèque
-                            </span>
-                          )}
                           {/* Operator directive (2026-08-08, overrides the
                               maquette's third « owned » look): the button has
                               exactly TWO states — solid primary « Suivre/
@@ -517,6 +547,11 @@ export function AddMediaScreen({
                           >
                             {done ? words.added : words.add}
                           </button>
+                          {result.already_owned && (
+                            <span className="text-[length:var(--text-2xs)] text-warning">
+                              Déjà en médiathèque
+                            </span>
+                          )}
                         </div>
                       </div>
                     </li>

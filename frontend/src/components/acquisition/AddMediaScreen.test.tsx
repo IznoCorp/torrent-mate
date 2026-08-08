@@ -169,7 +169,17 @@ function renderAdd(opts?: {
     </QueryClientProvider>,
   );
 
-  return view;
+  /** Re-render the SAME mounted screen with a new `open` — the Sheet stays
+   *  mounted in production, so closing must be exercised that way. */
+  const setOpen = (open: boolean): void => {
+    view.rerender(
+      <QueryClientProvider client={qc}>
+        <AddMediaScreen open={open} onOpenChange={vi.fn()} />
+      </QueryClientProvider>,
+    );
+  };
+
+  return { ...view, setOpen };
 }
 
 /**
@@ -290,6 +300,22 @@ describe("AddMediaScreen", () => {
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Remplacer" }));
     expect(follow).toHaveBeenCalledOnce();
+  });
+
+  it("fermer l'écran REMET la recherche à zéro (opérateur)", () => {
+    // The screen stays mounted (a Sheet), so its state outlived the closing:
+    // « Voir mes suivis » left the last query in place and it reappeared on
+    // the next opening. Every exit must behave like the Back one.
+    const { setOpen } = renderAdd({
+      results: [{ title: "Silo", kind: "tv", provider_id: 1 }],
+    });
+    search("silo");
+    expect(screen.getByRole("searchbox")).toHaveValue("silo");
+
+    setOpen(false);
+    setOpen(true);
+
+    expect(screen.getByRole("searchbox")).toHaveValue("");
   });
 
   it("une SÉRIE déjà en médiathèque ne déclenche PAS le dialogue de remplacement", () => {
