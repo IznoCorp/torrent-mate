@@ -818,6 +818,8 @@
 }
 .mq .sheetmeta {
   font-size: 12px;
+  /* Re-pin the 1.35 base: shadcn's text-sm leaks its own line-height. */
+  line-height: 1.35;
   color: var(--muted-foreground);
   margin-bottom: 14px;
 }
