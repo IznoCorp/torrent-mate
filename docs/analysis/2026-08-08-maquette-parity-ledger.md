@@ -216,3 +216,32 @@ closes, initial focus lands on Annuler, `inert` while closed.
 maquette rides the UA h3 bold, the app preflight resets it; pinned in
 the CSS. **Final probe** (remove dialog opened by swipe+tap on both
 sides): `0 divergences on 6 selectors`, no allowlist.
+
+---
+
+## Entry 8 — L1-T9: unified maquette toast + FAB 54 px (staging `ccd1bce6`) — **L1 COMPLETE**
+
+`0033acb4` — `mqtoast()` imperative API + single `MqToaster` host: the
+maquette's ONE neutral tone (the message carries the outcome), bottom
+82 px above the FAB, real close control, 5 s auto-hide; all 10 sonner
+calls on the Acquisition surface migrated (page, watcher ×6,
+obligations, cadence) — sonner remains outside Acquisition. FAB to
+maquette metrics (54 px, 24 px icon, maquette shadow) — it was 48 px.
+Tests: 3 new MqToast pins + Watcher/Obligations/Page test mocks
+re-pinned from sonner to mqtoast (tone assertions collapse into message
+assertions — maquette has no tones). 1284/1284.
+
+**Safety-net added to the harness**: `fixtures.js` now intercepts
+MUTATIONS on `/api/acquisition/*` with a synthetic 200 — no measurement
+scenario can ever write to the shared library.db.
+
+**Probes on `ccd1bce6`**: FAB `0 divergences on 2 selectors` (6
+UA-noise pairs allowlisted, same family as `.more`); toast at IDENTICAL
+text both sides (maquette toast DOM state reproduced — its `toast()` is
+closure-scoped) `0 divergences on 2 selectors` (5 allowlisted UA pairs
+on the icon-only close button). First run with different messages had
+flagged only `h` — style parity held even then.
+
+**L1 exit**: all §7 missing-CSS regions transplanted and measured at
+zero on the deployed build: `.act`+icons, `.ptr`, `.skel`, `.empty`,
+`.crossref`, `.tile` family + `.off`, `.dlg`, toast + FAB.
