@@ -381,3 +381,37 @@ lines 2433–2456), then the PR flow. Open flags awaiting their word:
    backend additions if wanted.
 3. The maquette demo's Pan-Am-in-two-sections quirk — the app follows
    §13 (one status, one section).
+
+## Entry 13 — 2026-08-08 (post-L5 continuation): fresh state + strengthened probe
+
+**Fresh state implemented and measured** (the last unmeasured card
+state). Maquette grammar transplanted verbatim: `.freshtag` pill
+(10px/700, primary, closes the meta row) and `.fresh` glow on the row
+(primary border + 2px `color-mix` ring + `pop` 0.45s under
+`prefers-reduced-motion: no-preference`). `SwipeActions` gained an
+optional `className`; `SuivisPanel` applies `fresh` via the existing
+`isNew()` (24h). Rendering composition pinned by unit test at REAL
+render (freshtag present, LAST in meta row, container `.fresh`);
+geometry measured class-level via symmetric injection (the `.skel`
+precedent) — scenario `freshinject`, `regions-fresh.json`.
+
+**Probe strengthened**: `boxShadow`, `animationDuration`,
+`animationTimingFunction` added to PROPS for ALL regions.
+(`animationName` deliberately excluded: keyframes are namespaced
+`mq-pop` vs `pop`; duration + timing are compared instead.)
+
+**Two real divergences caught and fixed** by the strengthened pass:
+1. Suivis rows carried a year subtitle line the maquette `followRow`
+   does not have (title + meta row only) — card height 81 vs 77. Year
+   removed (it lives in the sheet). Commit `64a06761`.
+2. The toast had NO shadow vs maquette `0 8px 26px rgba(0,0,0,.5)`;
+   transition/translateY also drifted (0.22s/8px vs .28s
+   cubic-bezier/14px). Fixed via `--mq-shadow-toast` token. Commit
+   `4d372f51`.
+Also fixed en route: freshtag ordering (app opened the meta row,
+maquette closes it) — commit `3818e1fd`.
+
+**Measurement** (deployed build `7a6667e4`, mirror fixtures): UNION
+**ALL PASS — 15 regions, 0 divergences** (69 selector pairs incl. the
+2 fresh ones), toast now passing with its shadow equal. Gates: tsc 0,
+eslint 0, vitest **1303/1303** (fresh pin test added).
