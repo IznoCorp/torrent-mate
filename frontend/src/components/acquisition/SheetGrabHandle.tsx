@@ -55,6 +55,10 @@ export function SheetGrabHandle({
       if (t == null) return;
       const top = content.getBoundingClientRect().top;
       if (t.clientY - top > GRAB_STRIP_PX) return;
+      // Only when the sheet is at its TOP. Scrolled down, that same band
+      // shows content, not the handle: arming there turns an upward scroll
+      // into a close (and swallows the scroll on the way).
+      if (content.scrollTop > 0) return;
       dragging = true;
       startY = t.clientY;
       dy = 0;

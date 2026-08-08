@@ -480,7 +480,10 @@ describe("MaintenantPanel", () => {
     expect(
       within(takeable).getByText(/Récupération en échec : le téléchargement du torrent échoue/),
     ).toBeInTheDocument();
-    expect(within(takeable).getByText(/4 tentatives/)).toBeInTheDocument();
+    // No attempt count: `attempts` counts tracker interactions (searches
+    // included), so rendering it as retrieval attempts would state a number
+    // that means something else.
+    expect(within(takeable).queryByText(/tentatives/)).toBeNull();
   });
 
   it("un suivi non vérifié ACTIF attend dans « Cherché, rien trouvé » (maquette renderNow)", async () => {

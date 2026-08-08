@@ -159,7 +159,10 @@ export function MaintenantPanel(): ReactElement {
   // "available", not "pending": a search that concluded takeable PARKS the
   // row as available until the grab pass takes it — pending rows are the
   // not-yet-searched ones and never carry last-search facts.
-  const takeableWanted = useWanted({ status: "available" });
+  // page_size is raised past the server default: the correlation is per
+  // FOLLOW, so a page-1 cut would silently strip the detail (and any failure
+  // explanation) from the follows whose rows fell off the page.
+  const takeableWanted = useWanted({ status: "available", page_size: 200 });
   const toHandle = useToHandle();
   const journeys = useJourneys();
   const overview = useOverview();
@@ -447,11 +450,14 @@ export function MaintenantPanel(): ReactElement {
     if (w?.last_grab_reason == null) return null;
     const label =
       GRAB_FAILURE_LABEL[w.last_grab_reason] ?? "la récupération a échoué";
-    const attempts =
-      w.attempts > 1 ? ` (${String(w.attempts)} tentatives)` : "";
+    // No attempt count: `attempts` counts every tracker interaction (search
+    // claims included, and it is refunded on an inconclusive search), so
+    // rendering it as « n tentatives » of RÉCUPÉRATION would state a number
+    // that means something else. The timestamp carries the « it is stuck »
+    // signal on its own.
     const when =
       w.last_grab_at != null ? ` · ${relativeTime(w.last_grab_at)}` : "";
-    return `Récupération en échec : ${label}${attempts}${when}`;
+    return `Récupération en échec : ${label}${when}`;
   }
 
   /** Render one followed-item card (used by two sections). */

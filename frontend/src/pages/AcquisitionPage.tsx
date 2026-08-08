@@ -294,7 +294,11 @@ export default function AcquisitionPage(): ReactElement {
 
     const onTouchStart = (e: TouchEvent): void => {
       if (e.touches.length !== 1) {
+        // A second finger cancels the pull — and must COLLAPSE the bar with
+        // it: leaving it open showed an armed indicator that no release
+        // would ever act on.
         touchDragRef.current = null;
+        if (!refreshingRef.current) setPull({ height: 0, dragging: false });
         return;
       }
       const t = e.touches[0];
@@ -333,7 +337,12 @@ export default function AcquisitionPage(): ReactElement {
     const onTouchEnd = (): void => {
       const drag = touchDragRef.current;
       touchDragRef.current = null;
-      if (drag?.axis !== "y") return;
+      if (drag?.axis !== "y") {
+        // Not our gesture (or already cancelled) — still make sure no bar is
+        // left hanging open from a partial pull.
+        if (!refreshingRef.current) setPull({ height: 0, dragging: false });
+        return;
+      }
       if (!refreshingRef.current && shouldRefresh(drag.dy, drag.atTop)) {
         runRefresh();
         return;
