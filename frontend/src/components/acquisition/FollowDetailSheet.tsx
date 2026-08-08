@@ -491,7 +491,9 @@ function FollowDetailSheetContent({
             type="button"
             className="sact hover:bg-accent"
             onClick={() => {
-              void navigate(mediaHref);
+              // replace: the sheet holds a useBackCloses marker entry — the
+              // fiche takes its place, so one Back lands under the sheet.
+              void navigate(mediaHref, { replace: true });
             }}
           >
             <FileText aria-hidden="true" />

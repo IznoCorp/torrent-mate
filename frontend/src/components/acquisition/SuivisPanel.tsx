@@ -21,7 +21,7 @@
  * - **Grille** — 3-up poster grid; the badge carries a NUMBER, not a mute colour.
  */
 
-import { type ReactElement, useMemo, useState } from "react";
+import { type ReactElement, useCallback, useMemo, useState } from "react";
 
 import { AlignLeft, LayoutGrid, List, Search as SearchIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -41,6 +41,8 @@ import {
   TOPBAR_HEIGHT_VAR,
   VIEWTABS_HEIGHT_VAR,
 } from "@/components/layout/bottom-bar-metrics";
+import { useBackCloses } from "@/lib/use-back-closes";
+
 import { FollowDetailSheet } from "./FollowDetailSheet";
 import type { FollowStatus } from "./meta";
 import {
@@ -284,6 +286,13 @@ export function SuivisPanel({ onAddMedia }: SuivisPanelProps = {}): ReactElement
 
   // Detail-sheet state.
   const [sheet, setSheet] = useState<FollowedSeriesItem | null>(null);
+  // Back gesture closes the sheet instead of leaving the Suivis tab.
+  useBackCloses(
+    sheet != null,
+    useCallback(() => {
+      setSheet(null);
+    }, []),
+  );
 
   // ── Derived data ───────────────────────────────────────────────────────────
 

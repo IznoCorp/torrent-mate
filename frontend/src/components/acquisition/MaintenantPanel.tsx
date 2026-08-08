@@ -22,7 +22,7 @@
  * essential piece of information does not share its line.
  */
 
-import { type ReactElement, useState } from "react";
+import { type ReactElement, useCallback, useState } from "react";
 
 import { Link, useNavigate } from "react-router-dom";
 
@@ -47,6 +47,8 @@ import { AcquisitionCard } from "./AcquisitionCard";
 import { Chip } from "./Chip";
 import { SwipeActions } from "./SwipeActions";
 import { useFollowActions } from "./followActions";
+import { useBackCloses } from "@/lib/use-back-closes";
+
 import { FollowDetailSheet } from "./FollowDetailSheet";
 import { JourneyDetailSheet } from "./JourneyDetailSheet";
 import { deriveStage, formatSince, journeyMatchKey, stageElapsed } from "./journey";
@@ -187,6 +189,20 @@ export function MaintenantPanel(): ReactElement {
   // next search, cadence target) reads ONE source instead of a copied subset
   // that drifts the moment the item gains a field.
   const [sheet, setSheet] = useState<FollowedSeriesItem | null>(null);
+  // Back gesture closes whichever detail layer is open instead of leaving
+  // the page. One hook per layer; only the open one holds a marker entry.
+  useBackCloses(
+    journeySheet != null,
+    useCallback(() => {
+      setJourneySheet(null);
+    }, []),
+  );
+  useBackCloses(
+    sheet != null,
+    useCallback(() => {
+      setSheet(null);
+    }, []),
+  );
 
   // ── Derived sections ──────────────────────────────────────────────────
 

@@ -56,6 +56,7 @@ import {
 import { useWaitingForOperator } from "@/hooks/useAcquisition";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 import { handleTablistKeyDown } from "@/lib/tablist";
+import { useBackCloses } from "@/lib/use-back-closes";
 
 /**
  * AcquisitionPage — the authenticated acquisition route (``/acquisition``).
@@ -272,6 +273,13 @@ export default function AcquisitionPage(): ReactElement {
     }
   };
   const [plusOpen, setPlusOpen] = useState(false);
+  // Back gesture closes the « ⋮ » sheet instead of leaving the page.
+  useBackCloses(
+    plusOpen,
+    useCallback(() => {
+      setPlusOpen(false);
+    }, []),
+  );
 
   // Only invalidate on fresh events, not re-scanning the ring every render
   // (AppShell R13 ref pattern, coherence study F13).
