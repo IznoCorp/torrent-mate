@@ -77,6 +77,10 @@ class FollowSubStore(Protocol):
         """Set the ``active`` flag on a ``followed_series`` row."""
         ...
 
+    def delete(self, followed_id: int) -> None:
+        """REMOVE a follow and its still-queued wanted rows (not a pause)."""
+        ...
+
     def set_kind(self, followed_id: int, kind: str) -> None:
         """Update the ``kind`` ('movie'|'show') of a ``followed_series`` row."""
         ...

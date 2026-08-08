@@ -1093,7 +1093,13 @@ def update_follow(
     dependencies=[Depends(require_x_requested_with)],
 )
 def delete_follow(request: Request, followed_id: int) -> None:
-    """Soft-unfollow a series (sets active=False).
+    """REMOVE a follow — really, not a disguised pause.
+
+    This used to call ``set_active(False)``: the exact write the « Mettre en
+    pause » button performs. Two verbs, one effect — a removal the operator
+    asked for never happened, and the row came back in « En pause » (their
+    report, 2026-08-08). Pausing keeps its own path (``PATCH`` with
+    ``active=false``); this one deletes.
 
     Args:
         request: The incoming FastAPI request.
@@ -1108,6 +1114,6 @@ def delete_follow(request: Request, followed_id: int) -> None:
         existing = store.follow.get(followed_id)
         if existing is None:
             raise HTTPException(status_code=404, detail="Followed series not found")
-        store.follow.set_active(followed_id, False)
+        store.follow.delete(followed_id)
     finally:
         store.close()

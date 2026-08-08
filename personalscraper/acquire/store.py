@@ -341,6 +341,34 @@ class _FollowSubStore:
                 (1 if active else 0, followed_id),
             )
 
+    def delete(self, followed_id: int) -> None:
+        """REMOVE a follow and everything still queued for it.
+
+        Distinct from :meth:`set_active` (« mettre en pause »), which the API
+        used to call for BOTH verbs: « Retirer le suivi » and « Mettre en
+        pause » wrote the same row, so a removal the operator asked for never
+        happened (their report, 2026-08-08).
+
+        Open ``wanted`` rows go with it: the schema's ``ON DELETE SET NULL``
+        would otherwise leave them orphaned yet still queued, and the search
+        pass would keep working for a follow that no longer exists. Rows that
+        already reached the client (``grabbed``/``done``/…) are KEPT — their
+        acquisition is real and its provenance must stay readable; they simply
+        lose their back-link.
+
+        Args:
+            followed_id: Rowid of the ``followed_series`` row.
+        """
+        with _write_tx(self._conn):
+            self._conn.execute(
+                "DELETE FROM wanted WHERE followed_id = ? AND status IN ('pending', 'searching', 'available')",
+                (followed_id,),
+            )
+            self._conn.execute(
+                "DELETE FROM followed_series WHERE id = ?",
+                (followed_id,),
+            )
+
     def set_kind(self, followed_id: int, kind: str) -> None:
         """Update the ``kind`` ('movie'|'show') of a ``followed_series`` row.
 

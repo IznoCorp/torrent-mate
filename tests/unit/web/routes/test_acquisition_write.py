@@ -573,12 +573,30 @@ class TestUpdateFollow:
 class TestDeleteFollow:
     """DELETE /api/acquisition/followed/{id} — soft unfollow."""
 
-    def test_delete_soft_unfollow_returns_204(self, client: TestClient, tmp_path: Path) -> None:
-        """Deleting an active series soft-unfollows it (active=0) and returns 204."""
+    def test_delete_really_removes_the_follow(self, client: TestClient, tmp_path: Path) -> None:
+        """DELETE removes the row — it is not a disguised pause.
+
+        Regression (operator, 2026-08-08): the route called set_active(False),
+        the exact write « Mettre en pause » performs. Two verbs, one effect —
+        the removal never happened and the follow reappeared « En pause ».
+        """
         acquire_path = tmp_path / "acquire.db"
         conn = sqlite3.connect(str(acquire_path))
         apply_pragmas(conn)
         fid = _seed_followed(conn, 1, "Test Show", active=True)
+        # A queued row and an in-flight one: the first must go with the follow
+        # (nothing should keep searching for it), the second must SURVIVE —
+        # its acquisition is real and its history stays readable.
+        conn.execute(
+            "INSERT INTO wanted (followed_id, media_ref_json, kind, season, episode, "
+            "status, enqueued_at, attempts) VALUES (?, ?, 'episode', 1, 1, 'pending', 0, 0)",
+            (fid, '{"tvdb_id": 1}'),
+        )
+        conn.execute(
+            "INSERT INTO wanted (followed_id, media_ref_json, kind, season, episode, "
+            "status, enqueued_at, attempts) VALUES (?, ?, 'episode', 1, 2, 'grabbed', 0, 0)",
+            (fid, '{"tvdb_id": 1}'),
+        )
         conn.commit()
         conn.close()
 
@@ -590,8 +608,19 @@ class TestDeleteFollow:
         assert resp.status_code == 204, resp.text
         assert resp.text == "" or resp.text is None or not resp.content
 
-        # Row still exists with active=0 (soft delete).
-        _assert_row_active(acquire_path, fid, False)
+        check = sqlite3.connect(str(acquire_path))
+        try:
+            gone = check.execute("SELECT COUNT(*) FROM followed_series WHERE id = ?", (fid,)).fetchone()[0]
+            assert gone == 0, "the follow must be REMOVED, not deactivated"
+            queued = check.execute(
+                "SELECT COUNT(*) FROM wanted WHERE followed_id = ? AND status = 'pending'",
+                (fid,),
+            ).fetchone()[0]
+            assert queued == 0, "nothing may keep searching for a removed follow"
+            in_flight = check.execute("SELECT COUNT(*) FROM wanted WHERE status = 'grabbed'").fetchone()[0]
+            assert in_flight == 1, "an acquisition already in flight keeps its row"
+        finally:
+            check.close()
 
     def test_delete_already_inactive_returns_204(self, client: TestClient, tmp_path: Path) -> None:
         """Deleting an already-inactive series returns 204 (idempotent)."""
