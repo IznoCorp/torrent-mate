@@ -900,17 +900,21 @@ describe("AcquisitionPage", () => {
     ).toHaveAttribute("aria-selected", "true");
   });
 
+  // The pull listens to TOUCH events (a real finger gets pointercancel from
+  // the browser's native pan under `touch-pan-y`; pointer events only ever
+  // worked synthetically). Tests drive the same path the phone does.
+
   it("tirer depuis le haut au-delà du seuil actualise réellement les données", () => {
     mockAllEmpty();
     const qc = renderPageWithClient();
     const spy = vi.spyOn(qc, "invalidateQueries");
     const pager = screen.getByRole("tabpanel");
 
-    fireEvent.pointerDown(pager, { clientX: 200, clientY: 100, pointerType: "touch" });
-    fireEvent.pointerMove(pager, { clientX: 202, clientY: 220, pointerType: "touch" });
+    fireEvent.touchStart(pager, { touches: [{ clientX: 200, clientY: 100 }] });
+    fireEvent.touchMove(pager, { touches: [{ clientX: 202, clientY: 220 }] });
     // Mid-pull the live region invites the release.
     expect(screen.getByTestId("pull-indicator").textContent).toMatch(/actualiser/);
-    fireEvent.pointerUp(pager, { clientX: 202, clientY: 220, pointerType: "touch" });
+    fireEvent.touchEnd(pager, { changedTouches: [{ clientX: 202, clientY: 220 }] });
 
     expect(spy).toHaveBeenCalled();
   });
@@ -921,9 +925,9 @@ describe("AcquisitionPage", () => {
     const spy = vi.spyOn(qc, "invalidateQueries");
     const pager = screen.getByRole("tabpanel");
 
-    fireEvent.pointerDown(pager, { clientX: 200, clientY: 100, pointerType: "touch" });
-    fireEvent.pointerMove(pager, { clientX: 202, clientY: 130, pointerType: "touch" });
-    fireEvent.pointerUp(pager, { clientX: 202, clientY: 130, pointerType: "touch" });
+    fireEvent.touchStart(pager, { touches: [{ clientX: 200, clientY: 100 }] });
+    fireEvent.touchMove(pager, { touches: [{ clientX: 202, clientY: 130 }] });
+    fireEvent.touchEnd(pager, { changedTouches: [{ clientX: 202, clientY: 130 }] });
 
     expect(spy).not.toHaveBeenCalled();
   });
@@ -942,19 +946,19 @@ describe("AcquisitionPage", () => {
     expect(ptr).toHaveClass("ptr");
     expect(ptr.querySelector(".spin")).toBeInTheDocument();
 
-    fireEvent.pointerDown(pager, { clientX: 200, clientY: 100, pointerType: "touch" });
-    fireEvent.pointerMove(pager, { clientX: 202, clientY: 150, pointerType: "touch" });
+    fireEvent.touchStart(pager, { touches: [{ clientX: 200, clientY: 100 }] });
+    fireEvent.touchMove(pager, { touches: [{ clientX: 202, clientY: 150 }] });
     // dy=50 → damped ~27.5 : visible, transition cut while tracking, NOT armed.
     expect(ptr.style.height).toBe(px(pullHeight(50)));
     expect(ptr.style.transition).toBe("none");
     expect(ptr).not.toHaveClass("armed");
 
-    fireEvent.pointerMove(pager, { clientX: 202, clientY: 220, pointerType: "touch" });
+    fireEvent.touchMove(pager, { touches: [{ clientX: 202, clientY: 220 }] });
     // dy=120 → damped 66 : past the arm point, primary tone.
     expect(ptr.style.height).toBe(px(66));
     expect(ptr).toHaveClass("armed");
 
-    fireEvent.pointerUp(pager, { clientX: 202, clientY: 220, pointerType: "touch" });
+    fireEvent.touchEnd(pager, { changedTouches: [{ clientX: 202, clientY: 220 }] });
     // Armed release → loading spinner at PULL_LOADING_PX until the refetch
     // settles, then collapse.
     expect(ptr).toHaveClass("loading");

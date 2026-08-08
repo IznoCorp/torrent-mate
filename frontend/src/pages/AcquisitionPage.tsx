@@ -168,7 +168,6 @@ export default function AcquisitionPage(): ReactElement {
     x: number;
     y: number;
     axis: "x" | "y" | null;
-    atTop: boolean;
   } | null>(null);
   // Maquette .ptr model: a damped height while dragging (transition cut so
   // the bar tracks the finger), 44 px while the refresh actually runs.
@@ -190,60 +189,125 @@ export default function AcquisitionPage(): ReactElement {
     if (!shouldStartViewSwipe(e.clientX, pager.getBoundingClientRect().left)) {
       return;
     }
-    dragRef.current = {
-      x: e.clientX,
-      y: e.clientY,
-      axis: null,
-      atTop: window.scrollY <= 0,
-    };
+    dragRef.current = { x: e.clientX, y: e.clientY, axis: null };
   }, []);
 
-  const onPointerMove = useCallback(
-    (e: ReactPointerEvent<HTMLDivElement>) => {
-      const drag = dragRef.current;
-      if (drag == null) return;
-      const dx = e.clientX - drag.x;
-      const dy = e.clientY - drag.y;
-      drag.axis ??= lockAxis(dx, dy);
-      if (drag.axis === "y" && drag.atTop && dy > 0 && !refreshing) {
-        setPull({ height: pullHeight(dy), dragging: true });
-      }
-    },
-    [refreshing],
-  );
+  const onPointerMove = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (drag == null) return;
+    const dx = e.clientX - drag.x;
+    const dy = e.clientY - drag.y;
+    drag.axis ??= lockAxis(dx, dy);
+  }, []);
 
   const onPointerUp = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
       const drag = dragRef.current;
       dragRef.current = null;
-      if (drag == null) return;
+      if (drag?.axis !== "x") return;
       const dx = e.clientX - drag.x;
-      const dy = e.clientY - drag.y;
-
-      if (drag.axis === "x") {
-        setPull({ height: 0, dragging: false });
-        const width = pagerRef.current?.getBoundingClientRect().width ?? 0;
-        const next = viewSwipeResult(dx, width, activeTab);
-        if (next !== activeTab) setActiveTab(next);
-        return;
-      }
-      if (!refreshing && shouldRefresh(dy, drag.atTop)) {
-        // Maquette: armed release → 44 px spinner until the refetch settles
-        // (its 1100 ms was a demo stand-in for a real round-trip).
-        setRefreshing(true);
-        setPull({ height: PULL_LOADING_PX, dragging: false });
-        void Promise.resolve(
-          queryClientForPull.invalidateQueries({ queryKey: acqKeys.all }),
-        ).finally(() => {
-          setRefreshing(false);
-          setPull({ height: 0, dragging: false });
-        });
-        return;
-      }
-      setPull({ height: 0, dragging: false });
+      const width = pagerRef.current?.getBoundingClientRect().width ?? 0;
+      const next = viewSwipeResult(dx, width, activeTab);
+      if (next !== activeTab) setActiveTab(next);
     },
-    [activeTab, setActiveTab, queryClientForPull, refreshing],
+    [activeTab, setActiveTab],
   );
+
+  // ── Pull-to-refresh — TOUCH events, not pointer events ────────────────
+  //
+  // The pager carries `touch-pan-y`: the browser owns vertical pans, so a
+  // real finger gets pointercancel after a few px and a pointer-based pull
+  // never accumulates (it only ever worked with synthetic events). The
+  // vertical pull therefore listens to raw touch events and claims the pan
+  // with preventDefault — which requires a NON-passive listener, hence
+  // addEventListener instead of a React prop.
+
+  const refreshingRef = useRef(false);
+  const touchDragRef = useRef<{
+    x: number;
+    y: number;
+    axis: "x" | "y" | null;
+    atTop: boolean;
+    dy: number;
+  } | null>(null);
+
+  const runRefresh = useCallback(() => {
+    // Maquette: armed release → 44 px spinner until the refetch settles
+    // (its 1100 ms was a demo stand-in for a real round-trip).
+    refreshingRef.current = true;
+    setRefreshing(true);
+    setPull({ height: PULL_LOADING_PX, dragging: false });
+    void Promise.resolve(
+      queryClientForPull.invalidateQueries({ queryKey: acqKeys.all }),
+    ).finally(() => {
+      refreshingRef.current = false;
+      setRefreshing(false);
+      setPull({ height: 0, dragging: false });
+    });
+  }, [queryClientForPull]);
+
+  useEffect(() => {
+    const el = pagerRef.current;
+    if (el == null) return undefined;
+
+    const onTouchStart = (e: TouchEvent): void => {
+      if (e.touches.length !== 1) {
+        touchDragRef.current = null;
+        return;
+      }
+      const t = e.touches[0];
+      touchDragRef.current = {
+        x: t.clientX,
+        y: t.clientY,
+        axis: null,
+        dy: 0,
+        atTop: (document.scrollingElement?.scrollTop ?? window.scrollY) <= 0,
+      };
+    };
+
+    const onTouchMove = (e: TouchEvent): void => {
+      const drag = touchDragRef.current;
+      if (drag == null || e.touches.length !== 1) return;
+      const t = e.touches[0];
+      const dx = t.clientX - drag.x;
+      const dy = t.clientY - drag.y;
+      drag.axis ??= lockAxis(dx, dy);
+      const leansDown = dy > 0 && dy >= Math.abs(dx);
+      if (drag.atTop && !refreshingRef.current && (drag.axis === "y" || (drag.axis == null && leansDown))) {
+        // Claim the pan BEFORE the axis slop resolves: once the browser
+        // starts a native scroll it cancels the touch stream and the pull
+        // can never arm.
+        if (dy > 0) e.preventDefault();
+      }
+      if (drag.axis !== "y") return;
+      drag.dy = dy;
+      if (drag.atTop && dy > 0 && !refreshingRef.current) {
+        setPull({ height: pullHeight(dy), dragging: true });
+      }
+    };
+
+    const onTouchEnd = (): void => {
+      const drag = touchDragRef.current;
+      touchDragRef.current = null;
+      if (drag?.axis !== "y") return;
+      if (!refreshingRef.current && shouldRefresh(drag.dy, drag.atTop)) {
+        runRefresh();
+        return;
+      }
+      if (!refreshingRef.current) setPull({ height: 0, dragging: false });
+    };
+
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd);
+    el.addEventListener("touchcancel", onTouchEnd);
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
+    };
+  }, [runRefresh]);
   const queryClient = useQueryClient();
   const { events } = useEventStreamContext();
 
