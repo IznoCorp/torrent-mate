@@ -485,6 +485,10 @@ _WANTED_STATUSES = Literal[
     "all",
     "pending",
     "searching",
+    # A search that concluded takeable parks the row here until the grab pass
+    # takes it — it is what the « À récupérer » card must correlate with
+    # (the pending filter silently missed every genuinely takeable item).
+    "available",
     "grabbed",
     "done",
     "abandoned",
@@ -629,6 +633,12 @@ def get_wanted(
                         last_search_at=(float(row["last_search_at"]) if row["last_search_at"] is not None else None),
                         last_search_found=cast("int | None", _row_col(row, "last_search_found")),
                         last_search_best=_parse_search_best(_row_col(row, "last_search_best_json")),
+                        last_grab_reason=cast("str | None", _row_col(row, "last_grab_reason")),
+                        last_grab_at=(
+                            float(cast("int", _row_col(row, "last_grab_at")))
+                            if _row_col(row, "last_grab_at") is not None
+                            else None
+                        ),
                         followed_id=cast("int | None", _row_col(row, "followed_id")),
                     )
                 )

@@ -463,7 +463,8 @@ class _WantedSubStore:
             self._conn.execute(
                 """
                 UPDATE wanted
-                SET status = 'grabbed', grabbed_hash = ?
+                SET status = 'grabbed', grabbed_hash = ?,
+                    last_grab_reason = NULL, last_grab_at = NULL
                 WHERE id = ?
                 """,
                 (info_hash, wanted_id),
@@ -828,6 +829,27 @@ class _WantedSubStore:
                 "UPDATE wanted SET last_search_outcome = ?, last_search_found = ?, "
                 "last_search_best_json = ? WHERE id = ?",
                 (outcome, found, best_json, wanted_id),
+            )
+
+    def record_grab_failure(self, wanted_id: int, reason: str, at: int) -> None:
+        """Persist the reason the LAST grab attempt for this item failed.
+
+        Written on every non-success grab disposition and cleared by a
+        successful :meth:`mark_grabbed` — the operator report behind it
+        (Ninja Turtles, 2026-08-08) was a card frozen on « À récupérer »
+        through four identical fetch failures with no on-screen trace (§8:
+        rien en silence).
+
+        Args:
+            wanted_id: The ``wanted`` row whose grab just failed.
+            reason: The orchestrator's outcome reason slug
+                (``fetch_failed``, ``add_failed``, ``circuit_open``, …).
+            at: Unix-epoch seconds of the failure.
+        """
+        with self._write_tx(self._conn):
+            self._conn.execute(
+                "UPDATE wanted SET last_grab_reason = ?, last_grab_at = ? WHERE id = ?",
+                (reason, at, wanted_id),
             )
 
     def list_available(self) -> list[WantedItem]:

@@ -5475,6 +5475,10 @@ export interface components {
             id: number;
             /** Kind */
             kind: string;
+            /** Last Grab At */
+            last_grab_at?: number | null;
+            /** Last Grab Reason */
+            last_grab_reason?: string | null;
             /** Last Search At */
             last_search_at?: number | null;
             last_search_best?: components["schemas"]["WantedSearchBest"] | null;
@@ -6128,7 +6132,7 @@ export interface operations {
     get_wanted_api_acquisition_wanted_get: {
         parameters: {
             query?: {
-                status?: "all" | "pending" | "searching" | "grabbed" | "done" | "abandoned" | "absorbed" | "fallback_episodes";
+                status?: "all" | "pending" | "searching" | "available" | "grabbed" | "done" | "abandoned" | "absorbed" | "fallback_episodes";
                 page?: number;
                 page_size?: number;
             };

@@ -146,6 +146,11 @@ class GrabPassMixin(PassGatesMixin):
         # ``clear_grab_intent`` for the full list of actors it locks out.
         self._release_grab_intent(wanted_id)
 
+        # §8 (rien en silence): every non-success grab leaves its reason ON the
+        # row so the card can explain a frozen « À récupérer » — the operator
+        # watched four identical fetch failures with zero on-screen trace.
+        self._store.wanted.record_grab_failure(wanted_id, outcome.reason or outcome.disposition, int(time.time()))
+
         if outcome.disposition == "terminal":
             # The orchestrator already emitted WantedAbandoned on this path, so
             # the service only persists: verdict first, then the status (same

@@ -65,7 +65,9 @@ CREATE TABLE IF NOT EXISTS wanted (
     last_search_found   INTEGER,
     tried_hashes_json   TEXT,
     absorbed_by     INTEGER,
-    last_search_best_json TEXT
+    last_search_best_json TEXT,
+    last_grab_reason TEXT,
+    last_grab_at    INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS seed_obligation (
@@ -402,7 +404,8 @@ class TestWantedEndpoint:
         fid = _seed_followed(conn, 1, "Silo", active=True)
         wid = _seed_wanted(conn, fid, status="pending", season=2, episode=5)
         conn.execute(
-            "UPDATE wanted SET last_search_found = 42, last_search_best_json = ? WHERE id = ?",
+            "UPDATE wanted SET last_search_found = 42, last_search_best_json = ?, "
+            "last_grab_reason = 'fetch_failed', last_grab_at = 1700000000 WHERE id = ?",
             (json.dumps({"resolution": "1080p", "source": "WEB-DL", "seeders": 42}), wid),
         )
         conn.commit()
@@ -415,6 +418,9 @@ class TestWantedEndpoint:
         assert item["followed_id"] == fid
         assert item["last_search_found"] == 42
         assert item["last_search_best"]["resolution"] == "1080p"
+        # §8 — the last grab failure rides the same row to the card.
+        assert item["last_grab_reason"] == "fetch_failed"
+        assert item["last_grab_at"] == 1700000000.0
         assert item["last_search_best"]["source"] == "WEB-DL"
 
     def test_a_corrupt_best_snapshot_reads_as_absent(self, client: TestClient, tmp_path: Path) -> None:

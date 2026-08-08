@@ -5179,6 +5179,28 @@
             "title": "Kind",
             "type": "string"
           },
+          "last_grab_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Grab At"
+          },
+          "last_grab_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Grab Reason"
+          },
           "last_search_at": {
             "anyOf": [
               {
@@ -6212,6 +6234,7 @@
                 "all",
                 "pending",
                 "searching",
+                "available",
                 "grabbed",
                 "done",
                 "abandoned",

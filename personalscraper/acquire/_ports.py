@@ -135,6 +135,14 @@ class WantedSubStore(Protocol):
         """
         ...
 
+    def record_grab_failure(self, wanted_id: int, reason: str, at: int) -> None:
+        """Persist the reason the LAST grab attempt failed (§8: rien en silence).
+
+        Written on every non-success grab disposition; a successful
+        ``mark_grabbed`` clears it.
+        """
+        ...
+
     def claim_for_search(self, wanted_id: int, now: int) -> bool:
         """Atomically claim a pending item; return ``True`` iff this call won."""
         ...

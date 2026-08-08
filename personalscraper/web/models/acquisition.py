@@ -224,6 +224,12 @@ class WantedItemResponse(BaseModel):
     # or not concluded (panne ≠ absence).
     last_search_found: int | None = None
     last_search_best: WantedSearchBest | None = None
+    # §8 (rien en silence) — why the LAST grab attempt failed, if it did:
+    # reason slug (``fetch_failed``, ``add_failed``, …) + epoch seconds.
+    # ``None`` after a success or when never grabbed. The « À récupérer »
+    # card explains a frozen takeable item with it.
+    last_grab_reason: str | None = None
+    last_grab_at: float | None = None
     # The carrying follow — lets the « À récupérer » card find its wanted
     # row's label + last-search facts without a title join.
     followed_id: int | None = None  # epoch seconds

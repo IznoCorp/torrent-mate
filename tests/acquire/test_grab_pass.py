@@ -221,6 +221,47 @@ def test_grab_success_records_grabbed_verdict(store: ConcreteAcquireStore) -> No
     assert item.last_search_found == 3, f"grab pass found must be 3 (len(ranked)); got {item.last_search_found!r}"
 
 
+def test_grab_failure_reason_is_persisted_on_the_row(store: ConcreteAcquireStore) -> None:
+    """A non-success grab leaves its reason ON the row (§8: rien en silence).
+
+    Regression (Ninja Turtles 2026-08-08): four identical fetch failures and
+    the card had ZERO on-screen trace — the reason only ever reached Telegram.
+    """
+    rowid = _available_item(store, tvdb_id=99, found=5, outcome="available")
+
+    orch = MagicMock(spec=GrabOrchestrator)
+    orch.grab.return_value = GrabOutcome(disposition="retryable", reason="fetch_failed", found=None)
+
+    _service(store, orch).run()
+
+    row = store.wanted._conn.execute(  # noqa: SLF001 — persistence pin on the real column
+        "SELECT last_grab_reason, last_grab_at FROM wanted WHERE id = ?", (rowid,)
+    ).fetchone()
+    assert row is not None
+    assert row[0] == "fetch_failed"
+    assert isinstance(row[1], int) and row[1] > 0
+
+
+def test_grab_success_clears_the_failure_reason(store: ConcreteAcquireStore) -> None:
+    """A successful grab CLEARS the recorded failure.
+
+    The column always describes the LATEST attempt, never a stale one.
+    """
+    rowid = _available_item(store, tvdb_id=99, found=5)
+    store.wanted.record_grab_failure(rowid, "fetch_failed", 1_700_000_000)
+
+    orch = MagicMock(spec=GrabOrchestrator)
+    orch.grab.return_value = GrabOutcome(disposition="success", info_hash="abc123", found=3)
+
+    _service(store, orch).run()
+
+    row = store.wanted._conn.execute(  # noqa: SLF001 — persistence pin on the real column
+        "SELECT last_grab_reason, last_grab_at FROM wanted WHERE id = ?", (rowid,)
+    ).fetchone()
+    assert row is not None
+    assert row[0] is None and row[1] is None
+
+
 def test_grab_has_no_cadence_gate(store: ConcreteAcquireStore) -> None:
     """An available item whose cadence would say « not due » is STILL grabbed.
 
