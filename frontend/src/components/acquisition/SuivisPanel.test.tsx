@@ -829,24 +829,9 @@ describe("SuivisPanel", () => {
     expect(screen.queryByTestId("ajouter-en-fin-de-liste")).toBeNull();
   });
 
-  it("A11/A12 — au pointeur fin, le « ··· » existe et offre « Voir la fiche »", () => {
-    vi.stubGlobal(
-      "matchMedia",
-      vi.fn().mockReturnValue({
-        matches: true,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-      }),
-    );
+  it("aucun « ··· » sur les rangées (opérateur) — les actions vivent dans la fiche", () => {
     renderPanel([takeableShow()]);
-
-    const trigger = screen.getByRole("button", { name: "Actions pour Silo" });
-    fireEvent.pointerDown(trigger);
-    fireEvent.click(trigger);
-
-    expect(screen.getByText("Voir la fiche")).toBeInTheDocument();
-    expect(screen.getByText("Retirer le suivi")).toBeInTheDocument();
-    vi.unstubAllGlobals();
+    expect(screen.queryByRole("button", { name: "Actions pour Silo" })).toBeNull();
   });
   it("mode grille : taper une tuile ouvre la fiche détail du suivi", () => {
     renderPanel([takeableShow()]);

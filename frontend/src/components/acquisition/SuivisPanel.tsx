@@ -394,7 +394,6 @@ export function SuivisPanel(): ReactElement {
           title={item.title}
           posterUrl={item.poster_url ?? null}
           meta={metaPieces.length > 0 ? <>{metaPieces}</> : null}
-          menu={actions.menuFor(item)}
           onOpen={() => {
             setSheet(item);
           }}

@@ -47,9 +47,6 @@ export interface AcquisitionCardProps {
    *  surface whose item is identified but merely unlinkable here must not let
    *  the card claim « non identifié » about it — that claim would be false. */
   readonly posterHint?: string | undefined;
-  /** Actions menu — the « ··· » rendered on EVERY pointer (operator
-   *  arbitration: one visible affordance for the card's actions). */
-  readonly menu?: ReactNode;
   /** Full-width own line under the top row (R2) — the journey strip. */
   readonly strip?: ReactNode;
   /** Full-width action row under the strip. */
@@ -112,7 +109,6 @@ export function AcquisitionCard({
   onOpen,
   onPoster,
   posterHint,
-  menu,
   strip,
   footer,
 }: AcquisitionCardProps): ReactElement {
@@ -173,7 +169,6 @@ export function AcquisitionCard({
         {/* The « ··· » on EVERY card — operator arbitration overriding the
             maquette's touch-only chevron: the kebab is the one visible
             affordance for a card's actions, on every pointer. */}
-        {menu}
       </div>
 
       {strip}

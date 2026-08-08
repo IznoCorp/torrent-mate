@@ -14,7 +14,6 @@
 
 import { useState, type ReactElement } from "react";
 
-import { useNavigate } from "react-router-dom";
 
 import type { FollowedSeriesItem } from "@/api/acquisition";
 import {
@@ -25,12 +24,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useGrabNow, useUnfollow, useUpdateFollow } from "@/hooks/useAcquisition";
@@ -39,7 +32,7 @@ import { MqDialog } from "./MqDialog";
 import { mqtoast } from "./MqToast";
 
 import type { SwipeAction } from "./SwipeActions";
-import { actionWords, asMediaKind, followMediaRef } from "./meta";
+import { actionWords, asMediaKind } from "./meta";
 
 /* Maquette icon set `I` — verbatim SVG paths (down/pause/trash), sized 17 px
  * by the `.act svg` rule. */
@@ -75,8 +68,6 @@ export interface FollowActions {
     item: FollowedSeriesItem,
     opts?: { readonly remove?: boolean },
   ) => FollowSwipe;
-  /** The « ··· » kebab for one follow — rendered by the card on fine pointers only (A11). */
-  readonly menuFor: (item: FollowedSeriesItem) => ReactElement;
   /** The shared removal-confirmation dialog — render ONCE per panel. */
   readonly dialog: ReactElement;
   /** Open the cadence editor for one follow — the sheet's « Cadence de
@@ -91,7 +82,6 @@ export interface FollowActions {
  *   The action builders plus the confirmation dialog element.
  */
 export function useFollowActions(): FollowActions {
-  const navigate = useNavigate();
   const updateFollow = useUpdateFollow();
   const unfollow = useUnfollow();
   const grabNow = useGrabNow();
@@ -161,57 +151,6 @@ export function useFollowActions(): FollowActions {
       },
       right,
     };
-  };
-
-  const menuFor = (item: FollowedSeriesItem): ReactElement => {
-    const w = words(item);
-    const paused = item.status === "disabled";
-    const href = followMediaRef(item);
-    return (
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          aria-label={`Actions pour ${item.title}`}
-          className="rounded px-2 py-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-        >
-          ···
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          {/* A12 — the kebab always offers the sheet when one exists. */}
-          {href != null && (
-            <DropdownMenuItem
-              onSelect={() => {
-                void navigate(href);
-              }}
-            >
-              Voir la fiche
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem
-            onSelect={() => {
-              suspendOrResume(item);
-            }}
-          >
-            {paused ? w.resume : w.pause}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onSelect={() => {
-              setCadenceTarget(item);
-              setCadenceInterval("");
-            }}
-          >
-            Modifier la cadence
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            variant="destructive"
-            onSelect={() => {
-              setRemoving(item);
-            }}
-          >
-            {w.remove}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    );
   };
 
   const dialog = (
@@ -305,7 +244,6 @@ export function useFollowActions(): FollowActions {
 
   return {
     swipeFor,
-    menuFor,
     openCadence: (item: FollowedSeriesItem) => {
       setCadenceTarget(item);
       setCadenceInterval("");

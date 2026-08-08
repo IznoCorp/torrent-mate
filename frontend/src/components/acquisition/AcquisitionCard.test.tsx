@@ -66,27 +66,12 @@ describe("AcquisitionCard", () => {
     );
   }
 
-  it("le « ··· » est rendu au doigt AUSSI (arbitrage opérateur, remplace A11)", () => {
-    // The operator reversed the earlier touch-rejection: the kebab is the one
-    // visible affordance for a card's actions, on EVERY pointer — the touch
-    // chevron is gone with it.
-    stubPointer(false);
-    render(
-      <AcquisitionCard {...base} menu={<button data-testid="kebab">···</button>} />,
-    );
-
-    expect(screen.getByTestId("kebab")).toBeInTheDocument();
-    vi.unstubAllGlobals();
-  });
-
-  it("R1 — au pointeur fin, le « ··· » est rendu DANS la carte (il voyage avec elle au balayage)", () => {
+  it("aucun « ··· » sur la carte (opérateur : tap accidentel, redondant avec le panel)", () => {
+    // The kebab is gone on every pointer — the card's actions live in the
+    // detail sheet (tap) and the swipe panes.
     stubPointer(true);
-    render(
-      <AcquisitionCard {...base} menu={<button data-testid="kebab">···</button>} />,
-    );
-
-    const card = screen.getByTestId("acq-card");
-    expect(within(card).getByTestId("kebab")).toBeInTheDocument();
+    render(<AcquisitionCard {...base} />);
+    expect(screen.queryByText("···")).toBeNull();
     vi.unstubAllGlobals();
   });
 
