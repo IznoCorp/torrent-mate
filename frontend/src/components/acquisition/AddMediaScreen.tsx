@@ -155,6 +155,16 @@ export function AddMediaScreen({
   const followedTitles = new Set(
     (followedList.data?.items ?? []).map((i) => i.title.toLowerCase()),
   );
+  // Follow identity, by PROVIDER ID — the only key that cannot confuse two
+  // works. A title match alone declared « Dune » (1984) already followed
+  // because « Dune » (2021) is, and hard-disabled its add button: the
+  // operator could not follow the other film at all.
+  const followedRefs = new Set<string>();
+  for (const i of followedList.data?.items ?? []) {
+    const { tmdb_id: tmdb, tvdb_id: tvdb } = i.media_ref;
+    if (tmdb != null) followedRefs.add(`tmdb-${String(tmdb)}`);
+    if (tvdb != null) followedRefs.add(`tvdb-${String(tvdb)}`);
+  }
   const recents =
     query === ""
       ? readRecentSearches().filter((q) => !followedTitles.has(q.toLowerCase()))
@@ -218,7 +228,12 @@ export function AddMediaScreen({
 
   /** Follow a search result (or ask §5 confirmation for an owned film). */
   function follow(result: MediaSearchResult): void {
-    if (result.already_owned) {
+    // §5 replacement confirmation is a FILM rule: acquiring a film again
+    // replaces the copy in place. A series is owned episode by episode —
+    // following it adds tracking for the MISSING ones and replaces nothing,
+    // so the film dialog would state something false about it. The « déjà en
+    // médiathèque » badge still shows: that part IS true for both.
+    if (result.already_owned && result.kind === "movie") {
       setConfirmReplace(result);
       return;
     }
@@ -436,12 +451,12 @@ export function AddMediaScreen({
               <ul className="reslist" role="list">
                 {results.map((result) => {
                   const key = `${result.provider}-${String(result.provider_id)}`;
-                  // Maquette isFollowed: session adds OR a TITLE already in the
-                  // follows — searching what you already follow answers
-                  // « ✓ Suivi », not a second follow button.
-                  const done =
-                    followed.has(key) ||
-                    followedTitles.has(result.title.toLowerCase());
+                  // Maquette isFollowed: session adds OR the SAME work already
+                  // followed — searching what you already follow answers
+                  // « ✓ Suivi », not a second follow button. Identity is the
+                  // provider id: a homonym is a different work, and marking it
+                  // done would lock the operator out of adding it.
+                  const done = followed.has(key) || followedRefs.has(key);
                   const words = actionWords(result.kind);
                   const kindLabel =
                     FOLLOW_KIND_LABEL[asMediaKind(result.kind)] ?? result.kind;

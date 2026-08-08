@@ -22,8 +22,19 @@ import type { MediaSearchResult } from "@/api/acquisition";
 
 const mediaSearchMock = vi.fn();
 const followMutate = vi.fn();
+/** Follow rows as the screen reads them: a title AND the provider identity
+ *  (the add screen keys « déjà suivi » on the ids, never on the title). */
+interface FollowedMockItem {
+  readonly title: string;
+  /** REQUIRED, like the API's own shape: a mock that omits it lets a test
+   *  pass against a payload production never sends. */
+  readonly media_ref: {
+    readonly tmdb_id: number | null;
+    readonly tvdb_id: number | null;
+  };
+}
 const followedListMock = vi.fn(
-  (): { data: { items: { title: string }[] } | undefined } => ({
+  (): { data: { items: FollowedMockItem[] } | undefined } => ({
     data: { items: [] },
   }),
 );
@@ -281,6 +292,36 @@ describe("AddMediaScreen", () => {
     expect(follow).toHaveBeenCalledOnce();
   });
 
+  it("une SÉRIE déjà en médiathèque ne déclenche PAS le dialogue de remplacement", () => {
+    // Owning episodes of a series is not owning « the » copy: following it
+    // tracks the MISSING episodes and replaces nothing. Showing the film
+    // replacement dialog there states something false (§14).
+    const follow = vi.fn();
+    renderAdd({
+      results: [
+        { title: "Kaamelott", kind: "tv", provider_id: 2, already_owned: true },
+      ],
+      onFollow: follow,
+    });
+    search("kaamelott");
+
+    // The badge stays — that part is true for both natures.
+    expect(screen.getByText("Déjà en médiathèque")).toBeInTheDocument();
+    // The by-ID form carries a « Suivre » button too — take the RESULT's.
+    const resultBtn = screen
+      .getAllByRole("button", { name: "Suivre" })
+      .find((b) => b.className.includes("resbtn"));
+    expect(resultBtn).toBeDefined();
+    if (resultBtn === undefined) throw new Error("no result button");
+    fireEvent.click(resultBtn);
+
+    // MqDialog stays mounted and inert when closed — assert the OPEN state,
+    // not mere presence of its copy in the DOM.
+    const dlg = screen.getByRole("alertdialog", { hidden: true });
+    expect(dlg.className).not.toMatch(/\bopen\b/);
+    expect(follow).toHaveBeenCalledOnce();
+  });
+
   it("l'état déjà-suivi est SUR le bouton, sans étiquette redondante (§12)", () => {
     // Simulate a session-local follow: the row's button flips to « ✓ Suivi ».
     renderAdd({
@@ -532,9 +573,17 @@ describe("AddMediaScreen", () => {
       expect(screen.getByRole("searchbox")).toHaveValue("severance");
     });
 
-    it("un résultat au titre déjà suivi répond « ✓ Suivi », désactivé (maquette isFollowed)", () => {
-      followedListMock.mockReturnValue({ data: { items: [{ title: "silo" }] } });
-      renderAdd({ results: [{ title: "Silo", kind: "tv", provider: "tvdb" }] });
+    it("un résultat DÉJÀ SUIVI (même id) répond « ✓ Suivi », désactivé", () => {
+      followedListMock.mockReturnValue({
+        data: {
+          items: [
+            { title: "Silo", media_ref: { tvdb_id: 1, tmdb_id: null } },
+          ],
+        },
+      });
+      renderAdd({
+        results: [{ title: "Silo", kind: "tv", provider: "tvdb", provider_id: 1 }],
+      });
       fireEvent.change(screen.getByRole("searchbox"), { target: { value: "silo" } });
       fireEvent.click(screen.getByRole("button", { name: "Chercher" }));
 
@@ -543,12 +592,44 @@ describe("AddMediaScreen", () => {
       expect(doneBtn).toHaveClass("resbtn", "done");
     });
 
+    it("un HOMONYME reste ajoutable — le titre n'est pas une identité", () => {
+      // « Dune » (1984) must stay followable while « Dune » (2021) is
+      // followed: a title match hard-disabled the button and locked the
+      // operator out of the other film entirely.
+      followedListMock.mockReturnValue({
+        data: {
+          items: [
+            { title: "Dune", media_ref: { tmdb_id: 438631, tvdb_id: null } },
+          ],
+        },
+      });
+      renderAdd({
+        results: [
+          { title: "Dune", kind: "movie", provider: "tmdb", provider_id: 841 },
+        ],
+      });
+      fireEvent.change(screen.getByRole("searchbox"), { target: { value: "dune" } });
+      fireEvent.click(screen.getByRole("button", { name: "Chercher" }));
+
+      const btn = screen
+        .getAllByRole("button", { name: "Ajouter" })
+        .find((b) => b.className.includes("resbtn"));
+      expect(btn).toBeDefined();
+      expect(btn).not.toBeDisabled();
+    });
+
     it("une requête déjà suivie n'est pas proposée", () => {
       localStorage.setItem(
         "tm.add.recentSearches",
         JSON.stringify(["Dune", "silo"]),
       );
-      followedListMock.mockReturnValue({ data: { items: [{ title: "dune" }] } });
+      followedListMock.mockReturnValue({
+        data: {
+          items: [
+            { title: "dune", media_ref: { tmdb_id: 438631, tvdb_id: null } },
+          ],
+        },
+      });
       renderAdd();
 
       const sugg = document.querySelector(".sugg");
