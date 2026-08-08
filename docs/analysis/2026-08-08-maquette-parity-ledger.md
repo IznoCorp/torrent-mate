@@ -467,3 +467,61 @@ any shadcn/Radix sheet clamps `window.scrollY` to 0 (body
 `overflow:hidden` scroll-lock), so the list under a sheet loses its
 scroll position on close. Predates this branch; consistent with the
 operator's stated top-of-view preference, flagged for their call.
+
+## Entry 15 — 2026-08-08 (afternoon): operator batches 2-3 + the Ninja Turtles bug
+
+**Tab inversion (operator directive, overrides the maquette pane order)**:
+Suivis first and default (clean URL; ?tab=maintenant explicit; legacy +
+?tab=suivis normalized; pager direction inverted); last active tab
+remembered (localStorage) and restored on a plain return — deep links
+win. Verified live incl. the memory round-trip via /controle.
+
+**Mobile batch, all live-verified on `ca0ea814`**: bottom sheets close by
+dragging down from the handle strip (SheetGrabHandle, CDP-touch-verified
+1→0 dialogs); media fiche carries the « ‹ Retour » bar (deep-link
+fallback to /acquisition); sticky top zone layer-promoted against the
+iOS scroll shiver (device confirmation = operator's); end-of-list add
+button removed; « ⋮ » sheet swapped its cross for « ‹ Retour » (global
+back alignment: screens/panels get the bar, bottom sheets keep the
+handle — their own directive); « Dernier run réussiil y a 8 h » was the
+maquette `.kv` block never transplanted — rules added, row reads
+« Dernier run réussi | il y a 9 h »; ALL zoom disabled
+(maximum-scale=1 + user-scalable=no, also kills the input focus
+auto-zoom); search result button reduced to TWO states (primary
+Suivre/Ajouter, outline-success ✓ Suivi/✓ Ajouté — the outline-warning
+« Suivre… » owned state is gone, operator overrides the maquette);
+kebab « ··· » removed from all media cards (accidental taps).
+
+**BUG (operator priority) — « Ninja Turtles 2014 bloqué en À récupérer
+sans explication » — root-caused, reproduced, fixed:**
+- Diagnosis on live data: search fine (14 candidates, best known), but
+  the tr4ker download endpoint of the TOP candidate serves the WRONG
+  torrent — the D5 info-hash cross-check refuses it
+  (`expected 3254a0…, fetched 629061…`, reproduced deterministically).
+  Classified transient → the SAME candidate re-picked every pass (4
+  attempts), the healthy sibling (same film, 5 seeders) one rank below
+  never tried, and the only trace went to Telegram.
+- Fix 1 `d1393b7a`: grab walks the ranked candidates on
+  TorrentFetchError (bounded FETCH_FALLBACK_CANDIDATES=3);
+  auth/circuit stay tracker-wide. Mutation-checked.
+- Fix 2 `e4216250` + `e3acf894`: migration 020 persists
+  last_grab_reason/last_grab_at on the wanted row (cleared on success),
+  served by the API, spoken by the card: « Récupération en échec : le
+  téléchargement du torrent échoue (fichier invalide côté tracker)
+  (4 tentatives) · il y a 34 min » — live screenshot sent.
+- En route: `available` was MISSING from /api/acquisition/wanted's
+  status filter, and the takeable-card correlation queried `pending` —
+  a status takeable rows never have. The « S02E05 · 1080p · N sources »
+  line now actually renders in production conditions (verified live:
+  « 1080p BluRay · 14 sources » on the real card).
+- Shared acquire.db migrated to v20 manually (additive, prod-tolerant);
+  the observed failure recorded truthfully on row 100.
+- NOTE for prod: the fallback ships at MERGE — until then the 15:20
+  prod grab keeps failing (harmlessly) on the broken candidate.
+
+**Measurement**: UNION **ALL PASS — 15 regions** on `ca0ea814` after
+harness realignment (tab clicks by accessible name, default scenario
+pins Maintenant, seg pairing active↔active across the inverted order,
+toastshow via the sheet, mirror sentinel population-based, fixture
+wanted rows on status available). Gates: `make check` PASS (backend
+full suite + frontend 1322/1322).
