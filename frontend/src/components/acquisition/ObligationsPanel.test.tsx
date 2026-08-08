@@ -50,8 +50,9 @@ const { toastError } = vi.hoisted(() => ({
   toastError: vi.fn(),
 }));
 
-vi.mock("sonner", () => ({
-  toast: { success: vi.fn(), error: toastError },
+vi.mock("@/components/acquisition/MqToast", () => ({
+  mqtoast: toastError,
+  MqToaster: (): null => null,
 }));
 
 // X7 (ticket 250): meta passes through except obligationStatus, wrapped in a

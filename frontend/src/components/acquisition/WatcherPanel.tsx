@@ -7,9 +7,9 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactElement } from "react";
-import { toast } from "sonner";
 
 import { acqKeys, triggerDetect } from "@/api/acquisition";
+import { mqtoast } from "./MqToast";
 import { ApiError } from "@/api/client";
 import { setWatcher } from "@/api/pipeline";
 import { Badge } from "@/components/ui/badge";
@@ -55,7 +55,7 @@ export function WatcherPanel(): ReactElement {
     mutationFn: (enabled: boolean) => setWatcher({ enabled }),
     onSuccess: (_res, enabled) => {
       // X3: name the action — the Switch alone cannot say the write landed.
-      toast.success(enabled ? "Watcher activé." : "Watcher désactivé.");
+      mqtoast(enabled ? "Watcher activé." : "Watcher désactivé.");
       void queryClient.invalidateQueries({ queryKey: acqKeys.status() });
     },
     onError: (err: unknown, enabled) => {
@@ -63,7 +63,7 @@ export function WatcherPanel(): ReactElement {
       const action = enabled
         ? "Impossible d'activer le watcher."
         : "Impossible de désactiver le watcher.";
-      toast.error(
+      mqtoast(
         err instanceof ApiError && err.detail !== ""
           ? `${action} — ${err.detail}`
           : action,
@@ -78,9 +78,9 @@ export function WatcherPanel(): ReactElement {
   if (finishedRun?.ended_at != null && trackedRun != null) {
     if (finishedRun.outcome === "success") {
       const summary = formatRunResult(finishedRun.result);
-      toast.success(`Détection terminée${summary ? ` — ${summary}` : ""}.`);
+      mqtoast(`Détection terminée${summary ? ` — ${summary}` : ""}.`);
     } else {
-      toast.error("La détection a échoué — voir les exécutions récentes.");
+      mqtoast("La détection a échoué — voir les exécutions récentes.");
     }
     setTrackedRun(null);
     void queryClient.invalidateQueries({ queryKey: acqKeys.all });
@@ -89,14 +89,14 @@ export function WatcherPanel(): ReactElement {
   const detectMutation = useMutation({
     mutationFn: () => triggerDetect(),
     onSuccess: (res) => {
-      toast.info("Détection lancée…");
+      mqtoast("Détection lancée…");
       setTrackedRun(res.run_uid);
     },
     onError: (err: unknown) => {
       if (err instanceof ApiError && err.status === 409) {
-        toast.error("Une détection est déjà en cours.");
+        mqtoast("Une détection est déjà en cours.");
       } else {
-        toast.error("Impossible de lancer la détection.");
+        mqtoast("Impossible de lancer la détection.");
       }
     },
   });

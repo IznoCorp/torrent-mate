@@ -468,6 +468,21 @@
   height: 14px;
 }
 
+/* ── FAB (maquette .fab) — 54 px, primary, maquette shadow ── */
+
+.mq .fab {
+  width: 54px;
+  height: 54px;
+  border: 0;
+  border-radius: 99px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.55);
+}
+
 /* ── Confirmation dialog (maquette .dlg) ──
    `fixed` where the maquette says `absolute`: its .device IS the viewport
    on a phone. z 60/61 where the maquette says 45/46: the app's bottom bar

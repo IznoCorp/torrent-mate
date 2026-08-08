@@ -14,7 +14,6 @@
 
 import { useState, type ReactElement } from "react";
 
-import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
 import type { FollowedSeriesItem } from "@/api/acquisition";
@@ -37,6 +36,7 @@ import { Label } from "@/components/ui/label";
 import { useGrabNow, useUnfollow, useUpdateFollow } from "@/hooks/useAcquisition";
 
 import { MqDialog } from "./MqDialog";
+import { mqtoast } from "./MqToast";
 
 import type { SwipeAction } from "./SwipeActions";
 import { actionWords, asMediaKind, followMediaRef } from "./meta";
@@ -289,7 +289,7 @@ export function useFollowActions(): FollowActions {
                 {
                   onSuccess: () => {
                     // The dialog closing alone does not say the save landed.
-                    toast.success("Cadence mise à jour.");
+                    mqtoast("Cadence mise à jour.");
                   },
                 },
               );

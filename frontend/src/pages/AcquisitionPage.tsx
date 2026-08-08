@@ -23,7 +23,6 @@ import {
   type ReactElement,
 } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { toast } from "sonner";
 
 import { acqKeys } from "@/api/acquisition";
 import { AddMediaScreen } from "@/components/acquisition/AddMediaScreen";
@@ -37,6 +36,7 @@ import {
   viewSwipeResult,
 } from "@/components/acquisition/gestures";
 import { MaintenantPanel } from "@/components/acquisition/MaintenantPanel";
+import { MqToaster, mqtoast } from "@/components/acquisition/MqToast";
 import {
   ACQ_EVENT_TYPES,
   FULL_INVALIDATE_EVENTS,
@@ -288,7 +288,7 @@ export default function AcquisitionPage(): ReactElement {
       // went back to searching (a dead/blocked release was swapped). The wanted
       // invalidation below still runs so the card refreshes.
       if (msg.type === "GrabReswitched") {
-        toast.info("Source bloquée — bascule vers une autre release.");
+        mqtoast("Source bloquée — bascule vers une autre release.");
       }
 
       if (FULL_INVALIDATE_EVENTS.has(msg.type)) {
@@ -449,7 +449,8 @@ export default function AcquisitionPage(): ReactElement {
           this bar is md:hidden; on desktop the button floats at gap alone. */}
       <button
         type="button"
-        className="fixed right-4 z-30 flex size-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90"
+        data-testid="acq-fab"
+        className="fab fixed right-4 z-30"
         style={{ bottom: aboveBottomBar("1rem") }}
         aria-label="Ajouter un média"
         onClick={() => {
@@ -458,6 +459,9 @@ export default function AcquisitionPage(): ReactElement {
       >
         <Plus className="size-6" aria-hidden="true" />
       </button>
+
+      {/* Maquette in-page toast — single host for the whole surface. */}
+      <MqToaster />
       <AddMediaScreen
         open={addOpen}
         onOpenChange={(open) => {

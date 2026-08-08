@@ -11,8 +11,8 @@
 
 import { Check, Copy } from "lucide-react";
 import { useCallback, useState, type ReactElement } from "react";
-import { toast } from "sonner";
 
+import { mqtoast } from "@/components/acquisition/MqToast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -81,7 +81,7 @@ export function ObligationsPanel(): ReactElement {
         }, 1500);
       })
       .catch(() => {
-        toast.error("Copie du hash impossible");
+        mqtoast("Copie du hash impossible");
       });
   }, []);
 

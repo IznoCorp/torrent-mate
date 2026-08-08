@@ -89,8 +89,10 @@ vi.mock("@/hooks/useEventStreamContext", () => ({
   useEventStreamContext: () => useEventStreamContextMock(),
 }));
 
-vi.mock("sonner", () => ({
-  toast: { info: vi.fn(), success: vi.fn(), error: vi.fn(), warning: vi.fn() },
+const { mqtoastMock } = vi.hoisted(() => ({ mqtoastMock: vi.fn() }));
+vi.mock("@/components/acquisition/MqToast", () => ({
+  mqtoast: mqtoastMock,
+  MqToaster: (): null => null,
 }));
 
 import AcquisitionPage from "@/pages/AcquisitionPage";
@@ -629,8 +631,7 @@ describe("AcquisitionPage", () => {
     );
   });
 
-  it("toasts + invalidates wanted on GrabReswitched event (ticket 342)", async () => {
-    const { toast } = await import("sonner");
+  it("toasts + invalidates wanted on GrabReswitched event (ticket 342)", () => {
     const qc = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
@@ -652,7 +653,9 @@ describe("AcquisitionPage", () => {
     );
     render(tree);
 
-    expect(vi.mocked(toast.info)).toHaveBeenCalled();
+    expect(mqtoastMock).toHaveBeenCalledWith(
+      "Source bloquée — bascule vers une autre release.",
+    );
     expect(invalidateQueriesSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         queryKey: ["acquisition", "wanted", {}],
