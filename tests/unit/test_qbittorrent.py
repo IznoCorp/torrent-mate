@@ -84,7 +84,7 @@ class TestTorrentItemMapping:
         assert _torrent_item(mock).error_reason == "Torrent en erreur (voir qBittorrent)"
 
     def test_eta_maps_to_eta_seconds(self) -> None:
-        """qBit `eta` (seconds) reaches TorrentItem.eta_seconds."""
+        """Map qBit `eta` (seconds) onto TorrentItem.eta_seconds."""
         mock = MagicMock()
         mock.eta = 720
         assert _torrent_item(mock).eta_seconds == 720

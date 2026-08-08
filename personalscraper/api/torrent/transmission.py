@@ -564,9 +564,7 @@ def _torrent_item(t: transmission_rpc.Torrent) -> TorrentItem:
     eta_raw = getattr(t, "eta", None)
     if isinstance(eta_raw, timedelta):
         eta_raw = int(eta_raw.total_seconds())
-    eta_seconds: int | None = (
-        int(eta_raw) if isinstance(eta_raw, (int, float)) and eta_raw >= 0 else None
-    )
+    eta_seconds: int | None = int(eta_raw) if isinstance(eta_raw, (int, float)) and eta_raw >= 0 else None
 
     error_code = getattr(t, "error", 0) or 0
     error_string = str(getattr(t, "error_string", "") or "").strip()

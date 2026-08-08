@@ -813,9 +813,7 @@ def _torrent_item(t: qbittorrentapi.TorrentDictionary) -> TorrentItem:
     # and can serve negatives — both are honest None (maquette A2: « 12 min
     # restantes » only when the client actually knows).
     eta_raw = getattr(t, "eta", None)
-    eta_seconds: int | None = (
-        int(eta_raw) if isinstance(eta_raw, (int, float)) and 0 <= eta_raw < 8640000 else None
-    )
+    eta_seconds: int | None = int(eta_raw) if isinstance(eta_raw, (int, float)) and 0 <= eta_raw < 8640000 else None
     return TorrentItem(
         hash=t.hash,
         name=t.name,

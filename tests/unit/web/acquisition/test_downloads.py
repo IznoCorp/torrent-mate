@@ -207,8 +207,12 @@ def test_eta_seconds_passes_through_and_missing_is_none() -> None:
     client = MagicMock()
     client.get_by_hashes.return_value = [
         TorrentItem(
-            hash="aa11", name="d.mkv", size_bytes=1, progress=0.4,
-            state="downloading", eta_seconds=720,
+            hash="aa11",
+            name="d.mkv",
+            size_bytes=1,
+            progress=0.4,
+            state="downloading",
+            eta_seconds=720,
         ),
     ]
     with (
