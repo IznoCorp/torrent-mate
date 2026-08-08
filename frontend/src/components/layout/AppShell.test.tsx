@@ -294,6 +294,12 @@ describe("AppShell clampe le débordement horizontal (garde structurelle)", () =
     // moves the scroll back onto the document breaks here.
     expect(main.className).toContain("overflow-y-auto");
     expect(main).toHaveAttribute("data-scroll-root");
+    // The scrollport's padding is part of a contract, not a detail: sticky
+    // offsets resolve against its CONTENT edge, so the acquisition chrome
+    // cancels this exact value (`-mt-4`, `top: -1rem`) to pin flush with the
+    // top. Change one without the other and scrolled cards reappear in the
+    // band above the tab bar (operator, 2026-08-09).
+    expect(main.className).toContain("p-4");
   });
 });
 

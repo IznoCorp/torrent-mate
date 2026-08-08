@@ -486,11 +486,18 @@ export default function AcquisitionPage(): ReactElement {
           a hardcoded offset) so only the list below scrolls.
           ACQUISITION-7 (ticket 250): full WAI-ARIA tablist wiring — roving
           tabIndex + arrow-key navigation + tab/panel linkage. */}
-      {/* `top: 0` — the scrollport starts BELOW the shell header now, so the
-          tabs pin to the top of the scrolling area itself. The old offset read
-          the header's measured height, which is precisely the value iOS kept
-          changing mid-scroll. */}
-      <div ref={viewtabsRef} className="viewtabs sticky top-0 z-30 bg-background">
+      {/* Pinned at the TRUE top of the scrollport. `top: 0` was not it: sticky
+          offsets resolve against the scrollport's content edge, and the shell's
+          `main` carries `p-4` — so the tabs parked 16 px low and scrolled cards
+          paraded through the band above them (operator, 2026-08-09, screenshot:
+          a poster and a title visible over the tab bar). `-mt-4` already
+          cancels that same padding for the layout; this cancels it for the
+          pinning. The two must move together — the shell test pins main's
+          padding for exactly that reason. */}
+      <div
+        ref={viewtabsRef}
+        className="viewtabs sticky top-[-1rem] z-30 bg-background"
+      >
         <div
           role="tablist"
           aria-label="Vues de la page Acquisition"

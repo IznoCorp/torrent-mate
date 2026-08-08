@@ -528,12 +528,18 @@ export function SuivisPanel(): ReactElement {
             then pill train + view switcher behind a hard divider. Only the
             list below scrolls (§5.1); the block's border-bottom is the
             separator the maquette draws. */}
-        {/* Pinned under the view tabs INSIDE the scrollport — one measured
-            height instead of a sum that included the shell header, which is
-            no longer part of the scrolling area at all (AppShell frame). */}
+        {/* Pinned directly under the view tabs, inside the scrollport.
+            `- 1rem` cancels the shell's `main` padding, exactly as the tabs do
+            — the two are one slab and must pin against the same edge.
+            `- 1px` closes the seam: the published height is CEILED (61.55 →
+            62), so aligning on it exactly left a 0.45 px hairline through
+            which the list was visible, scrolling. A sub-pixel gap on a 3×
+            screen is over a physical pixel of moving content — the « ça
+            tremble » the operator kept seeing. Overlapping is free: the tabs
+            paint above (z-30 vs z-20). */}
         <div
           className="filters sticky z-20 -mx-[14px]"
-          style={{ top: `var(${VIEWTABS_HEIGHT_VAR}, 58px)` }}
+          style={{ top: `calc(var(${VIEWTABS_HEIGHT_VAR}, 58px) - 1rem - 1px)` }}
         >
           <label className="search">
             <SearchIcon aria-hidden="true" />
