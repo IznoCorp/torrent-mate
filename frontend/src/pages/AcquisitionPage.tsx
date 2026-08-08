@@ -256,6 +256,7 @@ export default function AcquisitionPage(): ReactElement {
         return;
       }
       const t = e.touches[0];
+      if (t == null) return;
       touchDragRef.current = {
         x: t.clientX,
         y: t.clientY,
@@ -269,6 +270,7 @@ export default function AcquisitionPage(): ReactElement {
       const drag = touchDragRef.current;
       if (drag == null || e.touches.length !== 1) return;
       const t = e.touches[0];
+      if (t == null) return;
       const dx = t.clientX - drag.x;
       const dy = t.clientY - drag.y;
       drag.axis ??= lockAxis(dx, dy);
