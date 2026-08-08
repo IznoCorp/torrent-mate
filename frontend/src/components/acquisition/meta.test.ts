@@ -343,13 +343,14 @@ describe("vocabulaire film vs série (§9)", () => {
     expect(actionWords("show").pause).toBe("Mettre en pause");
   });
 
-  it("un film quitte la liste, une série est désactivée", () => {
-    expect(actionWords("movie").remove).toBe("Retirer de la liste");
-    expect(actionWords("show").remove).toBe("Retirer le suivi");
-    expect(actionWords("movie").removeConfirmBody).toContain(
-      "quittera votre liste",
-    );
-    expect(actionWords("show").removeConfirmBody).toContain("réactiver");
+  it("un film quitte la liste, une série AUSSI — supprimer supprime (§9)", () => {
+    // Operator, 2026-08-08: « supprimer » and « mettre en pause » wrote the
+    // same row. Now that removal really removes, the copy must stop promising
+    // a reactivation and must point at the pause for that intent.
+    expect(actionWords("movie").removeConfirmBody).toMatch(/SUPPRIMÉ/);
+    expect(actionWords("show").removeConfirmBody).toMatch(/SUPPRIMÉ/);
+    expect(actionWords("show").removeConfirmBody).toMatch(/Mettre en pause/);
+    expect(actionWords("show").removeConfirmBody).not.toMatch(/réactiver/i);
   });
 
   it("un film suspendu n'est pas « en pause » mais « recherche arrêtée »", () => {

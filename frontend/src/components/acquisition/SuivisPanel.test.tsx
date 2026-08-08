@@ -520,16 +520,16 @@ describe("SuivisPanel", () => {
   // badge at all ». Returning null for every film would therefore state, about
   // a film that needs attention, that it needs none. A film's gap cannot be
   // counted (no episode catalogue), so it is marked, not numbered.
-  it("mode grille : un film qui demande attention porte le NOMBRE 1 (maquette)", () => {
-    // Operator arbitration overrides the earlier « ! » marker: the maquette
-    // rule is « la pastille porte un NOMBRE », and a film counts as its one
-    // missing unit.
-    renderPanel([movie()]); // Dune (id=6), status en_attente — actionable
-    fireEvent.click(screen.getByRole("button", { name: /Grille/ }));
+  it("mode grille : un film qui demande attention porte une PUCE, pas « 1 »", () => {
+    // Operator: « 1 » counts nothing a film's own presence did not already
+    // say. A dot signals « celui-ci demande quelque chose » without pretending
+    // to be a count.
+    renderPanel([{ ...movie(), status: "a_recuperer" }]);
+    fireEvent.click(screen.getByRole("button", { name: "Grille d'affiches" }));
 
-    const badge = screen.getByTestId("tile-6").querySelector("[data-badge]");
-    expect(badge).toBeTruthy();
-    expect(badge?.textContent).toBe("1");
+    const tile = screen.getByTestId("tile-6");
+    expect(within(tile).getByText("•")).toBeInTheDocument();
+    expect(within(tile).queryByText("1")).toBeNull();
   });
 
   it("mode grille : un film sans rien à faire ne porte pas de pastille", () => {

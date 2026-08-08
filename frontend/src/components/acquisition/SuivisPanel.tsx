@@ -227,6 +227,11 @@ function gridBadge(item: FollowedSeriesItem): string | null {
     item.status === "en_acquisition" ||
     item.status === "en_attente"
   ) {
+    // A FILM is one unit: « 1 » counts nothing the operator did not already
+    // know from the tile being there at all (their words: « ça n'a pas
+    // vraiment de sens »). The dot says « this one wants something » without
+    // pretending to count.
+    if (item.kind === "movie") return "•";
     return String(
       Math.max(1, (item.aired_count ?? 0) - (item.owned_count ?? 0)),
     );

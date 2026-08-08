@@ -411,7 +411,7 @@ const ACTION_WORDS: Record<"movie" | "show", ActionWords> = {
     remove: "Retirer de la liste",
     removeConfirmTitle: "Retirer ce film de la liste ?",
     removeConfirmBody:
-      "Ce film ne sera plus cherché et quittera votre liste. Vous pourrez le rajouter par une recherche.",
+      "Ce film ne sera plus cherché et son suivi sera SUPPRIMÉ. Vous pourrez le rajouter par une recherche.",
   },
   show: {
     add: "Suivre",
@@ -423,7 +423,7 @@ const ACTION_WORDS: Record<"movie" | "show", ActionWords> = {
     remove: "Retirer le suivi",
     removeConfirmTitle: "Retirer ce suivi ?",
     removeConfirmBody:
-      "Cette série ne sera plus surveillée. Le suivi est désactivé, pas supprimé : vous pourrez le réactiver depuis le filtre « En pause ».",
+      "Cette série ne sera plus surveillée et son suivi sera SUPPRIMÉ, avec ce qui restait à chercher. Pour la mettre de côté sans la perdre, utilisez « Mettre en pause ».",
   },
 };
 
