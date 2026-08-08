@@ -440,8 +440,10 @@ export function AddMediaScreen({
         </details>
 
         {/* ── Results — the ONLY scrolling region (§7) ────────────────── */}
+        {/* Maquette #addbody: NO horizontal padding of its own — every child
+            carries its maquette inset (.empty 20, .reslist 16, .sugg 20). */}
         <div
-          className="min-h-0 flex-1 overflow-y-auto px-4"
+          className="min-h-0 flex-1 overflow-y-auto"
           data-testid="search-results"
           onScroll={handleScroll}
         >
@@ -502,12 +504,9 @@ export function AddMediaScreen({
               description={`Aucun résultat pour « ${query} ».`}
             />
           ) : (
-            <div className="flex flex-col gap-2">
+            <div>
               {/* §8: provider total, not row count. */}
-              <p
-                className="text-xs text-muted-foreground"
-                data-testid="search-result-count"
-              >
+              <p className="rescount" data-testid="search-result-count">
                 {results.length} résultat{results.length > 1 ? "s" : ""} affiché
                 {results.length > 1 ? "s" : ""} sur {total} trouvé
                 {total > 1 ? "s" : ""}
@@ -516,7 +515,7 @@ export function AddMediaScreen({
               {/* Vertical list — each row carries year, kind, provider,
                   and a two-line overview so two homonyms are distinguishable
                   (§12: width is the scarce resource). */}
-              <ul className="reslist p-0" role="list">
+              <ul className="reslist" role="list">
                 {results.map((result) => {
                   const key = `${result.provider}-${String(result.provider_id)}`;
                   const done = followed.has(key);
@@ -588,9 +587,10 @@ export function AddMediaScreen({
                 })}
               </ul>
 
-              {/* Infinite-scroll loading indicator — same .skel grammar. */}
+              {/* Infinite-scroll loading indicator — same .skel grammar,
+                  reslist inset (the body no longer pads). */}
               {searchQuery.isFetchingNextPage && (
-                <div aria-busy="true" className="flex flex-col gap-2.5 pt-2.5">
+                <div aria-busy="true" className="flex flex-col gap-2.5 px-4 pt-2.5">
                   <p className="sr-only">Chargement de résultats supplémentaires…</p>
                   <div className="skel" />
                   <div className="skel" />
