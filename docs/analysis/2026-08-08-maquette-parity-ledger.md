@@ -321,3 +321,63 @@ zero on the deployed build: `.act`+icons, `.ptr`, `.skel`, `.empty`,
 
 All lots: frontend 1302/1302, `make check` PASS before push (post-fault
 protocol).
+
+---
+
+## Entry 11 — L3 verified on deploy + L4 desktop (staging `9af346d4`)
+
+**L3 content verification** (mirror data, deployed build): **5/5 PASS** —
+« S02E05 · 1080p WEB-DL · 42 sources » (A), « S16E12 · titre ambigu — 3
+candidats proposés » (D), « il y a 3 h » (C), « 12 min restantes » (B,
+after `f40b9299` folded the ETA onto the correlated card — the maquette
+puts it there, the first cut only had it on uncorrelated rows), « depuis
+4 min » (T17). Two mirror-fixture defects found and fixed on the way
+(missing `followed_id` on wanted rows; progress on a 0–100 scale instead
+of 0–1).
+
+**L4 desktop** (`4c4f8aa2`): element metrics CONSTANT across widths
+(`.seg > button` h 35.5 at 1280 and 1440 — the 390 px truth), column
+672 px centered in the content area (the desktop shell adds a nav rail —
+window-relative centering is not the contract), tile grid auto-fill →
+5 columns, `.dlg` capped 420 px centered. Screenshots at both widths
+sent to the operator.
+
+---
+
+## Entry 12 — L5: FULL union at zero, gesture pass, version 0.88.0 — READY FOR T16
+
+**Probe union** (14 region maps, every scenario, one browser, deployed
+build `9af346d4`): **ALL 14 PASS at `0 divergences`** — tabs(4),
+swipe(16), ptr(2), empty(2), skel(1), crossref(2), tiles(3), dlg(6),
+more(6), sugg(6), addidle(1), add(14), fab(2), toast(2) = 67 selector
+pairs. Allowlist finalized at 24 pairs, each justified inline
+(`allowlist.json`): UA-default noise on icon-only buttons, sticky-bar
+background, poster-fallback DS ownership, the `.ptr` maquette
+contradiction (operator flag), and the `.act` heights whose divergence
+is DEMO-population, not CSS (the maquette lists Pan Am takeable AND
+waiting simultaneously — unreproducible under the app's single §13
+status derivation). The TEMPORARY `.act` height entries were removed
+and re-checked as promised: the CSS contract measures at zero.
+
+**Gesture pass** (deployed build, mirror data, 12 assertions, 3 GIFs
+sent to the operator): view swipe both ways (aria-selected proof),
+pull-to-refresh armed → loading, card swipe → pane action, card tap →
+detail sheet, add round-trip (search → URL `?q=` → fiche navigation →
+back RESTORES query and results → second back closes).
+
+**Gates**: `npx tsc -b` 0, eslint 0, vitest **1302/1302**, `make
+check` PASS (backend 10 4xx+ tests, C19, module size, typed API,
+OpenAPI drift). **Version 0.88.0** (minor — new API fields), single
+bump for the PR.
+
+**REMAINING — the operator's T16 gate** (only they close the mission):
+phone validation against the 11-point checklist
+(`docs/superpowers/plans/2026-08-06-acquisition-mobile-refonte.md`
+lines 2433–2456), then the PR flow. Open flags awaiting their word:
+1. `.ptr` rendered-height contradiction (Entry 4) — declared model
+   shipped; say the word for the compressed feel.
+2. The « ⋮ » sheet's unserved maquette `.kv` rows (« Recherche
+   automatique », « Prochain passage », « Ratio global ») — candidate
+   backend additions if wanted.
+3. The maquette demo's Pan-Am-in-two-sections quirk — the app follows
+   §13 (one status, one section).
