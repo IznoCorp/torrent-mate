@@ -121,3 +121,59 @@ describe("useBackCloses", () => {
     );
   });
 });
+
+describe("useBackCloses — deux couches", () => {
+  afterEach(cleanup);
+
+  it("chaque couche a SON marqueur : le retour ne ferme que la bonne", async () => {
+    // A panel can host two layers at once. With a shared marker the inner one
+    // reads the outer's entry as its own and closes on a Back meant for it.
+    function TwoLayers(): React.ReactElement {
+      const [outer, setOuter] = useState(false);
+      const [inner, setInner] = useState(false);
+      useBackCloses(outer, () => {
+        setOuter(false);
+      });
+      useBackCloses(inner, () => {
+        setInner(false);
+      });
+      return (
+        <div>
+          <button
+            type="button"
+            onClick={() => {
+              setOuter(true);
+            }}
+          >
+            ouvrir-externe
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setInner(true);
+            }}
+          >
+            ouvrir-interne
+          </button>
+          <span data-testid="etat">{`${outer ? "O" : "-"}${inner ? "I" : "-"}`}</span>
+        </div>
+      );
+    }
+
+    const router = createMemoryRouter(
+      [{ path: "/acquisition", element: <TwoLayers /> }],
+      { initialEntries: ["/acquisition?tab=suivis"] },
+    );
+    render(<RouterProvider router={router} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "ouvrir-externe" }));
+    fireEvent.click(screen.getByRole("button", { name: "ouvrir-interne" }));
+    expect(screen.getByTestId("etat")).toHaveTextContent("OI");
+
+    // One Back pops the INNER layer's marker — the outer stays open.
+    await act(async () => {
+      await router.navigate(-1);
+    });
+    expect(screen.getByTestId("etat")).toHaveTextContent("O-");
+  });
+});
