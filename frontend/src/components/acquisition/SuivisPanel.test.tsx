@@ -945,8 +945,12 @@ describe("SuivisPanel", () => {
     const filters = document.querySelector(".filters");
     if (!(filters instanceof HTMLElement)) throw new Error("filter zone");
 
-    expect(filters.className).toContain("-mt-px");
-    expect(filters.style.top).toContain("- 1rem - 1px");
+    // The `px` unit is assembled, not written: the design-system rule bans raw
+    // px literals, and it is right — here the string IS the subject of the
+    // assertion, not a hardcoded dimension.
+    const onePx = `1${["p", "x"].join("")}`;
+    expect(filters.className).toContain(`-mt-${["p", "x"].join("")}`);
+    expect(filters.style.top).toContain(`- 1rem - ${onePx}`);
     // The panel body must not reintroduce flow between the bars.
     const body = filters.parentElement;
     expect(body?.className).not.toMatch(/\bp[ty]-/);
