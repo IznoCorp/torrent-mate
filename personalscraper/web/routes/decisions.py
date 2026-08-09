@@ -39,7 +39,6 @@ from personalscraper.web.decisions.reserve import _reserve_decision_run
 from personalscraper.web.decisions.search import ProviderSearchError, search_candidates
 from personalscraper.web.deps import (
     is_staging_role,
-    require_not_staging,
     require_x_requested_with,
 )
 from personalscraper.web.models.decisions import (
@@ -530,7 +529,6 @@ def resolve_decision(
     body: ResolveRequest,
     request: Request,
     _xrw: None = Depends(require_x_requested_with),
-    _staging: None = Depends(require_not_staging),
 ) -> ResolveResponse:
     """Launch a targeted re-scrape for a decision.
 
@@ -662,7 +660,6 @@ def dismiss_decision(
     decision_id: int,
     request: Request,
     _xrw: None = Depends(require_x_requested_with),
-    _staging: None = Depends(require_not_staging),
 ) -> DecisionDetail:
     """Dismiss a decision (manual or MediaElch path).
 

@@ -9,7 +9,6 @@
  */
 
 import {
-  type EpisodeCompleteness,
   type FollowedSeriesItem,
   type ObligationItem,
   type SeasonCompleteness,
@@ -21,16 +20,10 @@ import {
   STATE_LABEL,
   STATE_TONE,
 } from "@/lib/outcome-labels";
+import { mediaSheetHref } from "@/lib/media-href";
 
-/** Tab ids for the panels. */
-export type TabId =
-  | "apercu"
-  | "followed"
-  | "file"
-  | "obligations"
-  | "watcher"
-  | "parcours"
-  | "reglages";
+/** View ids for the two panels (spec §3). */
+export type TabId = "maintenant" | "suivis";
 
 /**
  * Scheduler `name` of the automatic followed-search (grab) cron job (C15).
@@ -81,16 +74,35 @@ export const OBLIGATION_INVALIDATE_EVENTS = new Set([
   "RatioMeasured",
 ]);
 
-/** Tabs displayed in the page header. */
+/**
+ * The two views.
+ *
+ * Named after the operator's QUESTIONS, not after data tables. The former seven
+ * tabs (apercu / followed / file / obligations / watcher / parcours / reglages)
+ * were named after the tables behind them, which is why each of the operator's
+ * three real questions cut across several of them.
+ */
 export const TABS: readonly { id: TabId; label: string }[] = [
-  { id: "apercu", label: "Vue d'ensemble" },
-  { id: "followed", label: "Suivis" },
-  { id: "file", label: "File d'acquisition" },
-  { id: "obligations", label: "Obligations" },
-  { id: "watcher", label: "Watcher" },
-  { id: "parcours", label: "Parcours" },
-  { id: "reglages", label: "Réglages" },
+  // Operator directive (2026-08-08, overrides the maquette pane order):
+  // Suivis comes first and is the default view.
+  { id: "suivis", label: "Suivis" },
+  { id: "maintenant", label: "Maintenant" },
 ];
+
+/** The default view — no ``?tab=`` param, /acquisition stays clean. */
+export const DEFAULT_TAB: TabId = "suivis";
+
+/** Old ``?tab=`` values → the view that now answers them (DOIT-10: no dead deep link). */
+export const LEGACY_TAB_REDIRECTS: Readonly<Record<string, TabId>> = {
+  apercu: "maintenant",
+  file: "maintenant",
+  wanted: "maintenant",
+  downloads: "maintenant",
+  obligations: "maintenant",
+  watcher: "maintenant",
+  parcours: "maintenant",
+  followed: "suivis",
+};
 
 /** Allowed status filter values for the wanted queue (includes "all"). */
 export type WantedFilter =
@@ -105,23 +117,6 @@ export type WantedFilter =
 
 /** Allowed status filter values for obligations (includes "all"). */
 export type ObligationFilter = "all" | "pending" | "breached" | "satisfied";
-
-/** Wanted status filter options. */
-export const WANTED_STATUS_OPTIONS = [
-  { value: "all", label: "Tous" },
-  { value: "pending", label: "En attente" },
-  { value: "searching", label: "En recherche" },
-  { value: "grabbed", label: "Récupéré" },
-  { value: "done", label: "Terminé" },
-  { value: "abandoned", label: "Abandonné" },
-  // `absorbed` is NOT offered as a filter: it is not a state the operator reasons
-  // about, and since ticket 411 the queue no longer SHOWS it either — the backend
-  // resolves an absorbed row onto its season's status (§13: follow the pointer),
-  // so those rows are reached through « Terminé », « En attente », etc., like any
-  // other. A row still reading `absorbed` means its pointer could not be followed
-  // — an anomaly the coherence check reports, not a filter the operator needs.
-  { value: "fallback_episodes", label: "Reporté en épisodes" },
-];
 
 /** Obligation status filter options. */
 export const OBLIGATION_STATUS_OPTIONS = [
@@ -166,6 +161,26 @@ export const STATUS_LABEL: Record<string, string> = {
   fallback_episodes: "Reporté en épisodes",
 };
 
+/**
+ * French labels for ``wanted.last_grab_reason`` slugs (§8: rien en silence).
+ *
+ * Spoken by the takeable card when its grabs keep failing — the fallback for
+ * an unknown slug is provided at the call site, so a new orchestrator reason
+ * degrades to a generic sentence rather than a raw slug on screen.
+ */
+export const GRAB_FAILURE_LABEL: Record<string, string> = {
+  fetch_failed:
+    "le téléchargement du torrent échoue (fichier invalide côté tracker)",
+  add_failed: "l'envoi au client torrent a échoué",
+  circuit_open: "tracker en défaut, nouvel essai plus tard",
+  no_torrent_client: "client torrent indisponible",
+  trackers_unavailable: "trackers injoignables",
+  trackers_degraded: "trackers partiellement en panne",
+  search_api_error: "erreur du tracker pendant la recherche",
+  no_seeders: "plus aucune source active",
+  tracker_auth: "authentification tracker refusée",
+};
+
 /** Cadence temperature token colour (DS `--temp-*`), by tier. */
 export const TEMP_COLOR: Record<string, string> = {
   hot: "var(--temp-hot)",
@@ -198,6 +213,30 @@ export const TIER_LABEL: Record<string, string> = {
 // ``Record<string, …>`` can never provide. Extend HERE; never re-declare a
 // follow/episode label anywhere else.
 // ---------------------------------------------------------------------------
+
+/**
+ * Closed domain for what a unit IS — film, série, or season pack.
+ *
+ * ``"movie"`` — a single-unit catalog; acquired or not, never « suivi ».
+ * ``"show"`` — a multi-episode surveillance that accrues over time.
+ * ``"season"`` — a wanted row can carry a season pack; the card still reads
+ * as its parent show.
+ *
+ * Every caller passes a server-boundary ``string`` and narrows it to this
+ * union locally — never invent a duplicate union in a component file
+ * (see the header comment of this file).
+ */
+export type MediaKind = "movie" | "show" | "season";
+
+/**
+ * Narrow a server ``kind`` string to the {@link MediaKind} union.
+ *
+ * Falls back to ``"show"`` for unknown values — never crashes on a new kind.
+ */
+export function asMediaKind(kind: string): MediaKind {
+  if (kind === "movie" || kind === "show" || kind === "season") return kind;
+  return "show";
+}
 
 /**
  * A followed card's lifecycle status — read STRAIGHT from the generated OpenAPI
@@ -262,7 +301,144 @@ export const FOLLOW_STATUS_LABEL: Record<FollowStatus, string> = {
  */
 export const FOLLOW_STATUS_LABEL_MOVIE: Partial<Record<FollowStatus, string>> = {
   a_jour: "Acquis",
+  // A film is not « en pause »: the operator simply stopped searching for it.
+  disabled: "Recherche arrêtée",
 };
+
+// ---------------------------------------------------------------------------
+// §9 — Film vs series action labelling
+// ---------------------------------------------------------------------------
+
+/** Action wording for one media nature. */
+/**
+ * The film lifecycle sentence (§5/§9): a non-acquired film leaves the list by
+ * itself once acquired. No label said it — the operator saw films vanish, which
+ * reads as loss rather than rule. Lives here because it is vocabulary, and the
+ * detail sheet once shipped the REMOVAL-confirmation body in its place.
+ */
+/**
+ * Chip paint per DS tone — ONE map (§13). A panel that hand-rolls this as a
+ * ternary chain is a second derivation of the same answer, and the two drift.
+ */
+export const TONE_CHIP_CLASS: Record<string, string> = {
+  warning: "bg-warning/20 text-warning",
+  success: "bg-success/20 text-success",
+  danger: "bg-danger/20 text-danger",
+  info: "bg-info/20 text-info",
+  waiting: "bg-waiting/20 text-waiting",
+  muted: "bg-muted text-muted-foreground",
+  neutral: "bg-muted text-muted-foreground",
+};
+
+/**
+ * DS tone → episode-CELL paint — the square matrix cells of the detail sheet.
+ *
+ * Tinted background + toned number, per the maquette's 22 % mix; the
+ * no-verdict ghost is a dashed outline, not a colour. The legend swatches
+ * read {@link TONE_SWATCH_CLASS} — same tones, stronger mix — so cell and
+ * key can never drift apart.
+ */
+export const TONE_CELL_CLASS: Record<string, string> = {
+  success: "bg-success/20 text-success",
+  warning: "bg-warning/20 text-warning",
+  info: "bg-info/20 text-info",
+  waiting: "bg-waiting/20 text-waiting",
+  upcoming: "bg-upcoming/20 text-upcoming",
+  muted: "border border-dashed border-border bg-transparent text-muted-foreground",
+  neutral: "bg-muted text-muted-foreground",
+};
+
+/** DS tone → legend-swatch paint — 9 px squares at the maquette's 60 % mix. */
+export const TONE_SWATCH_CLASS: Record<string, string> = {
+  success: "bg-success/60",
+  warning: "bg-warning/60",
+  info: "bg-info/60",
+  waiting: "bg-waiting/60",
+  upcoming: "bg-upcoming/60",
+  muted: "border border-dashed border-border bg-transparent",
+  neutral: "bg-muted",
+};
+
+/**
+ * DS tone → square section-pip classes — the ONE header grammar (§13).
+ *
+ * « Maintenant » paints its five fixed sections from SECTION_META; the grouped
+ * « Suivis » headers derive theirs from the group's status tone through this
+ * map, so the two surfaces speak the same visual language without a second
+ * hand-rolled color derivation.
+ */
+export const TONE_PIP_CLASS: Record<string, string> = {
+  warning: "bg-warning",
+  success: "bg-success",
+  danger: "bg-danger",
+  info: "bg-info",
+  waiting: "bg-waiting",
+  muted: "bg-muted-foreground",
+  neutral: "bg-muted-foreground",
+};
+
+export const MOVIE_LIFECYCLE_NOTE =
+  "Une fois acquis, ce film quittera automatiquement votre liste.";
+
+export interface ActionWords {
+  readonly add: string;
+  readonly added: string;
+  readonly pause: string;
+  readonly pauseShort: string;
+  readonly resume: string;
+  readonly resumeShort: string;
+  readonly remove: string;
+  readonly removeConfirmTitle: string;
+  readonly removeConfirmBody: string;
+}
+
+/**
+ * Action verbs, by media nature (§9).
+ *
+ * One does not *follow* a film: nothing accrues, and §5 removes it from the list
+ * once acquired — so « Suivre » is true of a série (a surveillance that lasts)
+ * and false of a film, which one adds once. The `…Short` forms are the swipe
+ * labels, where the button is 84px wide.
+ */
+const ACTION_WORDS: Record<"movie" | "show", ActionWords> = {
+  movie: {
+    add: "Ajouter",
+    added: "✓ Ajouté",
+    pause: "Ne plus chercher",
+    pauseShort: "Ne plus chercher",
+    resume: "Chercher à nouveau",
+    resumeShort: "Chercher",
+    remove: "Retirer de la liste",
+    removeConfirmTitle: "Retirer ce film de la liste ?",
+    removeConfirmBody:
+      "Ce film ne sera plus cherché et son suivi sera SUPPRIMÉ. Vous pourrez le rajouter par une recherche.",
+  },
+  show: {
+    add: "Suivre",
+    added: "✓ Suivi",
+    pause: "Mettre en pause",
+    pauseShort: "Pause",
+    resume: "Réactiver",
+    resumeShort: "Activer",
+    remove: "Retirer le suivi",
+    removeConfirmTitle: "Retirer ce suivi ?",
+    removeConfirmBody:
+      "Cette série ne sera plus surveillée et son suivi sera SUPPRIMÉ, avec ce qui restait à chercher. Pour la mettre de côté sans la perdre, utilisez « Mettre en pause ».",
+  },
+};
+
+/**
+ * Return the action vocabulary for a media kind.
+ *
+ * Args:
+ *   kind: ``"movie"`` or anything else (a série, including ``"season"``).
+ *
+ * Returns:
+ *   The wording set — never a raw token, whatever the input.
+ */
+export function actionWords(kind: string): ActionWords {
+  return kind === "movie" ? ACTION_WORDS.movie : ACTION_WORDS.show;
+}
 
 /**
  * Followed-card status → the sentence that disambiguates it (tooltip / title).
@@ -291,6 +467,8 @@ export const FOLLOW_STATUS_HINT: Record<FollowStatus, string> = {
 /** Film wording of {@link FOLLOW_STATUS_HINT}, for the overridden states only. */
 export const FOLLOW_STATUS_HINT_MOVIE: Partial<Record<FollowStatus, string>> = {
   a_jour: "Le film est en médiathèque.",
+  disabled:
+    "Ce film n'est plus cherché — aucune recherche automatique n'est faite.",
 };
 
 /**
@@ -362,6 +540,43 @@ const COUNT_ORDER: readonly Exclude<
   EpisodeState,
   "en_mediatheque" | "annonce" | "absorbed"
 >[] = ["a_recuperer", "en_acquisition", "en_attente", "non_verifie"];
+
+/**
+ * Derive a media sheet href from a followed item's provider ids.
+ *
+ * Priority: tvdb > tmdb.  imdb has no sheet route on the backend and is
+ * skipped — an imdb-only item has no media sheet (§11 exception: unidentified
+ * media must lead to resolution, never a dead link).
+ *
+ * Args:
+ *   item: A followed series or film.
+ *
+ * Returns:
+ *   A media sheet href, or ``null`` when no tvdb/tmdb id is known.
+ */
+export function followMediaRef(item: {
+  readonly media_ref: FollowedSeriesItem["media_ref"];
+  readonly kind: string;
+}): string | null {
+  const ref = item.media_ref;
+  // tvdb first — primary provider for series.
+  if (ref.tvdb_id != null) {
+    return mediaSheetHref({
+      provider: "tvdb",
+      providerId: String(ref.tvdb_id),
+      kind: item.kind === "movie" ? "movie" : "tv",
+    });
+  }
+  // tmdb second — universal provider.
+  if (ref.tmdb_id != null) {
+    return mediaSheetHref({
+      provider: "tmdb",
+      providerId: String(ref.tmdb_id),
+      kind: item.kind === "movie" ? "movie" : "tv",
+    });
+  }
+  return null;
+}
 
 /**
  * Render a followed SHOW's library fraction, or ``null`` when it has none.
@@ -648,36 +863,6 @@ export interface WaitingGroup {
   readonly episodes: readonly number[];
 }
 
-/**
- * Group a season's waiting episodes by their French reason.
- *
- * A tooltip alone would be invisible on a phone (no hover), so the accordion
- * prints these groups under the chips. Grouping keeps the line short when a
- * whole season shares one verdict, which is the common case.
- *
- * Args:
- *   episodes: The season's episodes, as served.
- *
- * Returns:
- *   One group per distinct reason, in first-appearance order. Empty when
- *   nothing is waiting or no verdict was recorded.
- */
-export function waitingGroups(
-  episodes: readonly EpisodeCompleteness[],
-): WaitingGroup[] {
-  const byReason = new Map<string, number[]>();
-  for (const ep of episodes) {
-    const reason = searchOutcomeReason(ep.state, ep.last_search_outcome);
-    if (reason == null) continue;
-    const bucket = byReason.get(reason);
-    if (bucket) bucket.push(ep.episode);
-    else byReason.set(reason, [ep.episode]);
-  }
-  return [...byReason.entries()].map(([reason, eps]) => ({
-    reason,
-    episodes: [...eps].sort((a, b) => a - b),
-  }));
-}
 
 /**
  * Return the French reason a followed FILM is waiting, or ``null``.
@@ -745,25 +930,7 @@ export function obligationStatus(
   return "pending";
 }
 
-/** Extract ``interval_minutes`` from a cadence JSON blob, returning a safe default. */
-export function cadenceInterval(
-  cadence: Record<string, unknown> | null | undefined,
-): number {
-  if (cadence == null) return 0;
-  const v = cadence.interval_minutes;
-  return typeof v === "number" ? v : 0;
-}
 
-/** Relative human label until an epoch-seconds instant ("imminente" when due). */
-export function untilLabel(epochSec: number, nowMs: number): string {
-  const deltaMs = epochSec * 1000 - nowMs;
-  if (deltaMs <= 60_000) return "imminente";
-  const mins = Math.round(deltaMs / 60_000);
-  if (mins < 60) return `dans ~${String(mins)} min`;
-  const hours = Math.round(mins / 60);
-  if (hours < 48) return `dans ~${String(hours)} h`;
-  return `dans ~${String(Math.round(hours / 24))} j`;
-}
 
 /** Truncate a long string for table display, appending "…" when cut. */
 export function truncate(s: string, max: number): string {

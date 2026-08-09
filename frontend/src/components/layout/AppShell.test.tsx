@@ -58,13 +58,26 @@ function pipelineStatusPayload(
   };
 }
 
-/** A wanted payload carrying the ``total`` the badge reads. */
-function wantedPayload(total: number): Record<string, unknown> {
+/** A followed payload for the acquisition badge (takeable count). */
+function followedPayload(
+  items: readonly { status: string }[],
+): Record<string, unknown> {
+  return { items };
+}
+
+/** A to-handle payload for the acquisition badge. */
+function toHandlePayload(count: number): Record<string, unknown> {
   return {
-    items: [],
-    total,
-    page: 1,
-    page_size: 1,
+    items: Array.from({ length: count }, (_, i) => ({
+      decision_id: i + 1,
+      title: "Bloqué " + String(i + 1),
+      kind: "movie",
+      reason: "titre non résolu",
+      stage: "scrape",
+      candidates_count: 2,
+      created_at: 1_700_000_000 + i,
+    })),
+    orphan_count: 0,
   };
 }
 
@@ -91,11 +104,14 @@ beforeEach(() => {
     if (url.includes("/api/pipeline/status")) {
       return Promise.resolve(buildResponse(200, pipelineStatusPayload("idle")));
     }
-    if (
-      url.includes("/api/acquisition/wanted") &&
-      url.includes("status=pending")
-    ) {
-      return Promise.resolve(buildResponse(200, wantedPayload(0)));
+    // The shell's Acquisition badge now reads these two sources (D6). The global
+    // mock must serve them, otherwise EVERY other describe renders the shell with
+    // empty bodies — hiding their real subject behind a crash.
+    if (url.includes("/api/acquisition/followed")) {
+      return Promise.resolve(buildResponse(200, followedPayload([])));
+    }
+    if (url.includes("/api/acquisition/to-handle")) {
+      return Promise.resolve(buildResponse(200, toHandlePayload(0)));
     }
     return Promise.resolve(buildResponse(200, {}));
   });
@@ -242,7 +258,7 @@ describe("AppShell clampe le débordement horizontal (garde structurelle)", () =
   // overflow-x-clip from the shell" breaks CI. The real-layout proof (390 px
   // Chrome, scrollWidth-innerWidth == 0 on every route) is ACC-05, run out of
   // band by the orchestrator.
-  it("le root porte overflow-x-clip, <main> porte min-w-0 + overflow-x-clip, la bottom-bar est fixed", () => {
+  it("le shell est un CADRE : root h-svh + clip, <main> est l'unique zone qui défile", () => {
     renderShell();
 
     // The bottom bar is position:fixed — the DESIGN's whole point is that its
@@ -260,7 +276,12 @@ describe("AppShell clampe le débordement horizontal (garde structurelle)", () =
     // horizontal scroll is ever possible, whatever a child does.
     const root = bottomBar.parentElement;
     expect(root).not.toBeNull();
-    expect(root?.className).toContain("overflow-x-clip");
+    expect(root?.className).toContain("overflow-clip");
+    // …and it is exactly ONE viewport tall. This is the frame: the document
+    // itself never scrolls, so iOS never collapses its URL bar mid-gesture,
+    // so the visual viewport never resizes under a sticky header. That chain
+    // is the operator's shimmer; `h-svh` + clip is where it is cut.
+    expect(root?.className).toContain("h-svh");
 
     // <main> carries BOTH protections: min-w-0 so a wide child cannot push the
     // flex column wider than the viewport, and overflow-x-clip so a child that
@@ -268,6 +289,17 @@ describe("AppShell clampe le débordement horizontal (garde structurelle)", () =
     const main = screen.getByRole("main");
     expect(main.className).toContain("min-w-0");
     expect(main.className).toContain("overflow-x-clip");
+    // <main> is the single scrollport, and says so: the gestures (pull-to-
+    // refresh, « back to top ») find it by this attribute. A refactor that
+    // moves the scroll back onto the document breaks here.
+    expect(main.className).toContain("overflow-y-auto");
+    expect(main).toHaveAttribute("data-scroll-root");
+    // The scrollport's padding is part of a contract, not a detail: sticky
+    // offsets resolve against its CONTENT edge, so the acquisition chrome
+    // cancels this exact value (`-mt-4`, `top: -1rem`) to pin flush with the
+    // top. Change one without the other and scrolled cards reappear in the
+    // band above the tab bar (operator, 2026-08-09).
+    expect(main.className).toContain("p-4");
   });
 });
 
@@ -293,11 +325,11 @@ describe("AppShell nav badges", () => {
           buildResponse(200, pipelineStatusPayload("idle")),
         );
       }
-      if (
-        url.includes("/api/acquisition/wanted") &&
-        url.includes("status=pending")
-      ) {
-        return Promise.resolve(buildResponse(200, wantedPayload(0)));
+      if (url.includes("/api/acquisition/followed")) {
+        return Promise.resolve(buildResponse(200, followedPayload([])));
+      }
+      if (url.includes("/api/acquisition/to-handle")) {
+        return Promise.resolve(buildResponse(200, toHandlePayload(0)));
       }
       return Promise.resolve(buildResponse(200, {}));
     });
@@ -306,8 +338,8 @@ describe("AppShell nav badges", () => {
   it("n'affiche pas de badge et pas de dot quand tout est à zéro / idle (zero-state)", async () => {
     renderShell();
 
-    // Wait until both the staging AND wanted URLs were actually fetched
-    // (the initial fetchMock call alone does not prove both queries settled).
+    // Wait until the staging, followed AND toHandle URLs were actually fetched
+    // (the initial fetchMock call alone does not prove the queries settled).
     await waitFor(() => {
       const stagingFetched = fetchMock.mock.calls.some((c) => {
         const arg = c[0];
@@ -319,7 +351,7 @@ describe("AppShell nav badges", () => {
               : arg.url;
         return u.includes("/api/staging/media") && u.includes("page_size=1");
       });
-      const wantedFetched = fetchMock.mock.calls.some((c) => {
+      const followedFetched = fetchMock.mock.calls.some((c) => {
         const arg = c[0];
         const u =
           typeof arg === "string"
@@ -327,11 +359,9 @@ describe("AppShell nav badges", () => {
             : arg instanceof URL
               ? arg.href
               : arg.url;
-        return (
-          u.includes("/api/acquisition/wanted") && u.includes("status=pending")
-        );
+        return u.includes("/api/acquisition/followed");
       });
-      expect(stagingFetched && wantedFetched).toBe(true);
+      expect(stagingFetched && followedFetched).toBe(true);
     });
 
     // No nav-count badge element should be in the document — every badge
@@ -370,11 +400,11 @@ describe("AppShell nav badges", () => {
           buildResponse(200, pipelineStatusPayload("idle")),
         );
       }
-      if (
-        url.includes("/api/acquisition/wanted") &&
-        url.includes("status=pending")
-      ) {
-        return Promise.resolve(buildResponse(200, wantedPayload(0)));
+      if (url.includes("/api/acquisition/followed")) {
+        return Promise.resolve(buildResponse(200, followedPayload([])));
+      }
+      if (url.includes("/api/acquisition/to-handle")) {
+        return Promise.resolve(buildResponse(200, toHandlePayload(0)));
       }
       return Promise.resolve(buildResponse(200, {}));
     });
@@ -387,7 +417,7 @@ describe("AppShell nav badges", () => {
     expect(badge.getAttribute("data-slot")).toBe("nav-count");
   });
 
-  it("affiche un badge Acquisition avec le pending wanted, scoped au lien nav", async () => {
+  it("le badge compte ce qui M'ATTEND : à récupérer + à traiter (D6)", async () => {
     fetchMock.mockImplementation((input) => {
       const url =
         typeof input === "string"
@@ -406,21 +436,121 @@ describe("AppShell nav badges", () => {
           buildResponse(200, pipelineStatusPayload("idle")),
         );
       }
-      if (
-        url.includes("/api/acquisition/wanted") &&
-        url.includes("status=pending")
-      ) {
-        return Promise.resolve(buildResponse(200, wantedPayload(3)));
+      if (url.includes("/api/acquisition/followed")) {
+        // 2 takeable + 7 in-flight (en_acquisition) = 9 items, but only the
+        // 2 « a_recuperer » count toward the badge.
+        return Promise.resolve(
+          buildResponse(
+            200,
+            followedPayload([
+              { status: "a_recuperer" },
+              { status: "a_recuperer" },
+              { status: "en_acquisition" },
+              { status: "en_acquisition" },
+              { status: "en_acquisition" },
+              { status: "en_acquisition" },
+              { status: "en_acquisition" },
+              { status: "en_acquisition" },
+              { status: "en_acquisition" },
+            ]),
+          ),
+        );
+      }
+      if (url.includes("/api/acquisition/to-handle")) {
+        return Promise.resolve(buildResponse(200, toHandlePayload(2)));
       }
       return Promise.resolve(buildResponse(200, {}));
     });
 
     renderShell();
 
-    // The badge must appear inside an Acquisition nav link.
-    const badge = await within(firstLink(/Acquisition/)).findByText("3");
+    // Expected total: 2 (takeable) + 2 (to handle) = 4.
+    // The 7 « en_acquisition » (in-flight) do NOT count — they await nothing
+    // from the operator.
+    const badge = await within(firstLink(/Acquisition/)).findByText("4");
     expect(badge.getAttribute("data-slot")).toBe("nav-count");
   });
+
+  it("le badge Acquisition affiche '?' quand useFollowed est en erreur, même si useToHandle est ok", async () => {
+    fetchMock.mockImplementation((input) => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (url.includes("/api/auth/me")) {
+        return Promise.resolve(buildResponse(200, { username: "izno" }));
+      }
+      if (url.includes("/api/staging/media") && url.includes("page_size=1")) {
+        return Promise.resolve(buildResponse(200, stagingPayload(0)));
+      }
+      if (url.includes("/api/pipeline/status")) {
+        return Promise.resolve(
+          buildResponse(200, pipelineStatusPayload("idle")),
+        );
+      }
+      if (url.includes("/api/acquisition/followed")) {
+        return Promise.resolve(
+          buildResponse(500, { detail: "Internal Server Error" }),
+        );
+      }
+      if (url.includes("/api/acquisition/to-handle")) {
+        return Promise.resolve(buildResponse(200, toHandlePayload(2)));
+      }
+      return Promise.resolve(buildResponse(200, {}));
+    });
+
+    renderShell();
+
+    const errorMarker = await within(firstLink(/Acquisition/)).findByLabelText(
+      "Compteur indisponible",
+    );
+    expect(errorMarker).toHaveTextContent("?");
+  });
+
+  it("le badge Acquisition affiche '?' quand useToHandle est en erreur, même si useFollowed est ok", async () => {
+    fetchMock.mockImplementation((input) => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (url.includes("/api/auth/me")) {
+        return Promise.resolve(buildResponse(200, { username: "izno" }));
+      }
+      if (url.includes("/api/staging/media") && url.includes("page_size=1")) {
+        return Promise.resolve(buildResponse(200, stagingPayload(0)));
+      }
+      if (url.includes("/api/pipeline/status")) {
+        return Promise.resolve(
+          buildResponse(200, pipelineStatusPayload("idle")),
+        );
+      }
+      if (url.includes("/api/acquisition/followed")) {
+        return Promise.resolve(
+          buildResponse(
+            200,
+            followedPayload([{ status: "a_recuperer" }, { status: "a_recuperer" }]),
+          ),
+        );
+      }
+      if (url.includes("/api/acquisition/to-handle")) {
+        return Promise.resolve(
+          buildResponse(500, { detail: "Internal Server Error" }),
+        );
+      }
+      return Promise.resolve(buildResponse(200, {}));
+    });
+
+    renderShell();
+
+    const errorMarker = await within(firstLink(/Acquisition/)).findByLabelText(
+      "Compteur indisponible",
+    );
+    expect(errorMarker).toHaveTextContent("?");
+  })
 
   it("affiche un dot Pipeline quand le pipeline est en cours, scoped au lien nav", async () => {
     fetchMock.mockImplementation((input) => {
@@ -441,11 +571,11 @@ describe("AppShell nav badges", () => {
           buildResponse(200, pipelineStatusPayload("running")),
         );
       }
-      if (
-        url.includes("/api/acquisition/wanted") &&
-        url.includes("status=pending")
-      ) {
-        return Promise.resolve(buildResponse(200, wantedPayload(0)));
+      if (url.includes("/api/acquisition/followed")) {
+        return Promise.resolve(buildResponse(200, followedPayload([])));
+      }
+      if (url.includes("/api/acquisition/to-handle")) {
+        return Promise.resolve(buildResponse(200, toHandlePayload(0)));
       }
       return Promise.resolve(buildResponse(200, {}));
     });
@@ -478,11 +608,11 @@ describe("AppShell nav badges", () => {
           buildResponse(200, pipelineStatusPayload("paused")),
         );
       }
-      if (
-        url.includes("/api/acquisition/wanted") &&
-        url.includes("status=pending")
-      ) {
-        return Promise.resolve(buildResponse(200, wantedPayload(0)));
+      if (url.includes("/api/acquisition/followed")) {
+        return Promise.resolve(buildResponse(200, followedPayload([])));
+      }
+      if (url.includes("/api/acquisition/to-handle")) {
+        return Promise.resolve(buildResponse(200, toHandlePayload(0)));
       }
       return Promise.resolve(buildResponse(200, {}));
     });
@@ -525,11 +655,11 @@ describe("AppShell nav badges", () => {
           buildResponse(200, pipelineStatusPayload("idle")),
         );
       }
-      if (
-        url.includes("/api/acquisition/wanted") &&
-        url.includes("status=pending")
-      ) {
-        return Promise.resolve(buildResponse(200, wantedPayload(0)));
+      if (url.includes("/api/acquisition/followed")) {
+        return Promise.resolve(buildResponse(200, followedPayload([])));
+      }
+      if (url.includes("/api/acquisition/to-handle")) {
+        return Promise.resolve(buildResponse(200, toHandlePayload(0)));
       }
       return Promise.resolve(buildResponse(200, {}));
     });
@@ -568,11 +698,11 @@ describe("AppShell nav badges", () => {
           buildResponse(200, pipelineStatusPayload("idle")),
         );
       }
-      if (
-        url.includes("/api/acquisition/wanted") &&
-        url.includes("status=pending")
-      ) {
-        return Promise.resolve(buildResponse(200, wantedPayload(0)));
+      if (url.includes("/api/acquisition/followed")) {
+        return Promise.resolve(buildResponse(200, followedPayload([])));
+      }
+      if (url.includes("/api/acquisition/to-handle")) {
+        return Promise.resolve(buildResponse(200, toHandlePayload(0)));
       }
       return Promise.resolve(buildResponse(200, {}));
     });
@@ -645,11 +775,11 @@ describe("AppShell nav badges", () => {
           buildResponse(200, pipelineStatusPayload("idle")),
         );
       }
-      if (
-        url.includes("/api/acquisition/wanted") &&
-        url.includes("status=pending")
-      ) {
-        return Promise.resolve(buildResponse(200, wantedPayload(0)));
+      if (url.includes("/api/acquisition/followed")) {
+        return Promise.resolve(buildResponse(200, followedPayload([])));
+      }
+      if (url.includes("/api/acquisition/to-handle")) {
+        return Promise.resolve(buildResponse(200, toHandlePayload(0)));
       }
       return Promise.resolve(buildResponse(200, {}));
     });
@@ -734,5 +864,50 @@ describe("AppShell nav badges", () => {
     await waitFor(() => {
       expect(qc.getQueryState(decisionsKeys.all)?.isInvalidated).toBe(true);
     });
+  });
+  it("le badge Acquisition affiche '?' quand le serveur avoue une lecture dégradée", async () => {
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (url.includes("/api/auth/me")) {
+        return Promise.resolve(buildResponse(200, { username: "izno" }));
+      }
+      if (url.includes("/api/staging/media")) {
+        return Promise.resolve(buildResponse(200, stagingPayload(0)));
+      }
+      if (url.includes("/api/pipeline/status")) {
+        return Promise.resolve(
+          buildResponse(200, pipelineStatusPayload("idle")),
+        );
+      }
+      if (url.includes("/api/acquisition/followed")) {
+        // Two takeable rows — a number the badge must NOT show, because the
+        // other half of the sum is unknowable.
+        return Promise.resolve(
+          buildResponse(200, followedPayload([
+            { status: "a_recuperer" },
+            { status: "a_recuperer" },
+          ])),
+        );
+      }
+      if (url.includes("/api/acquisition/to-handle")) {
+        // HTTP 200, empty items — but the server SAYS the read failed.
+        return Promise.resolve(
+          buildResponse(200, { items: [], orphan_count: 0, degraded: true }),
+        );
+      }
+      return Promise.resolve(buildResponse(200, {}));
+    });
+    renderShell();
+
+    // Sidebar and bottom bar both render the badge map — two is correct.
+    const marks = await screen.findAllByLabelText("Compteur indisponible");
+    expect(marks.length).toBeGreaterThan(0);
+    // And no numeric count coexists with the admission of ignorance.
+    expect(screen.queryByText("2")).toBeNull();
   });
 });

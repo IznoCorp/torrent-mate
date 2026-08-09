@@ -113,6 +113,7 @@ def _to_download(
         state=state,
         size_bytes=0 if item is None else item.size_bytes,
         error_reason=error_reason,
+        eta_seconds=None if item is None else item.eta_seconds,
     )
 
 

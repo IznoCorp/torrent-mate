@@ -64,7 +64,10 @@ CREATE TABLE IF NOT EXISTS wanted (
     last_search_outcome TEXT,
     last_search_found   INTEGER,
     tried_hashes_json   TEXT,
-    absorbed_by     INTEGER
+    absorbed_by     INTEGER,
+    last_search_best_json TEXT,
+    last_grab_reason TEXT,
+    last_grab_at    INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS seed_obligation (
@@ -148,13 +151,14 @@ def _seed_wanted(
     kind: str = "episode",
     season: int = 1,
     episode: int = 1,
+    last_search_at: int | None = None,
 ) -> int:
     """Insert a wanted row and return its id."""
     now = int(time.time())
     cur = conn.execute(
         "INSERT INTO wanted (followed_id, media_ref_json, kind, season, episode, "
-        "status, enqueued_at, attempts) VALUES (?, ?, ?, ?, ?, ?, ?, 0)",
-        (followed_id, '{"tvdb_id": 360001}', kind, season, episode, status, now),
+        "status, enqueued_at, attempts, last_search_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)",
+        (followed_id, '{"tvdb_id": 360001}', kind, season, episode, status, now, last_search_at),
     )
     return cur.lastrowid
 
@@ -291,6 +295,30 @@ class TestFollowedEndpoint:
         ids = {it["id"] for it in items}
         assert fid3 not in ids
 
+    def test_last_search_at_is_the_max_across_all_statuses(self, client: TestClient, tmp_path: Path) -> None:
+        """La carte au repos dit la DERNIÈRE recherche réelle.
+
+        Une ligne ``done`` récente témoigne autant qu'une ``pending``
+        (maquette : « rien de conforme au profil · il y a 3 h »).
+        """
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        _seed_followed(conn, 1, "Searched Show", active=True)
+        _seed_followed(conn, 2, "Never Searched", active=True)
+        _seed_wanted(conn, 1, status="pending", episode=1, last_search_at=1_000)
+        _seed_wanted(conn, 1, status="done", episode=2, last_search_at=5_000)
+        _seed_wanted(conn, 2, status="pending", episode=1, last_search_at=None)
+        conn.commit()
+        conn.close()
+
+        resp = client.get("/api/acquisition/followed", cookies=_make_auth_cookie())
+        assert resp.status_code == 200, resp.text
+        items = {it["id"]: it for it in resp.json()["items"]}
+
+        assert items[1]["last_search_at"] == 5_000
+        assert items[2]["last_search_at"] is None
+
     def test_active_all(self, client: TestClient, tmp_path: Path) -> None:
         """``?active=all`` returns all items regardless of active flag."""
         acquire_path = tmp_path / "acquire.db"
@@ -367,6 +395,51 @@ class TestWantedEndpoint:
         assert data["total"] == 55
         assert data["page"] == 1
         assert data["page_size"] == 50
+
+    def test_last_search_best_and_followed_id_serialize(self, client: TestClient, tmp_path: Path) -> None:
+        """Addition A: the card facts reach the API — count, best summary, follow."""
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        fid = _seed_followed(conn, 1, "Silo", active=True)
+        wid = _seed_wanted(conn, fid, status="pending", season=2, episode=5)
+        conn.execute(
+            "UPDATE wanted SET last_search_found = 42, last_search_best_json = ?, "
+            "last_grab_reason = 'fetch_failed', last_grab_at = 1700000000 WHERE id = ?",
+            (json.dumps({"resolution": "1080p", "source": "WEB-DL", "seeders": 42}), wid),
+        )
+        conn.commit()
+        conn.close()
+
+        resp = client.get("/api/acquisition/wanted", cookies=_make_auth_cookie())
+        assert resp.status_code == 200, resp.text
+        item = resp.json()["items"][0]
+
+        assert item["followed_id"] == fid
+        assert item["last_search_found"] == 42
+        assert item["last_search_best"]["resolution"] == "1080p"
+        # §8 — the last grab failure rides the same row to the card.
+        assert item["last_grab_reason"] == "fetch_failed"
+        assert item["last_grab_at"] == 1700000000.0
+        assert item["last_search_best"]["source"] == "WEB-DL"
+
+    def test_a_corrupt_best_snapshot_reads_as_absent(self, client: TestClient, tmp_path: Path) -> None:
+        """Fail-soft: corrupt JSON in the column → no summary, never a 500."""
+        acquire_path = tmp_path / "acquire.db"
+        conn = sqlite3.connect(str(acquire_path))
+        apply_pragmas(conn)
+        fid = _seed_followed(conn, 1, "Silo", active=True)
+        wid = _seed_wanted(conn, fid, status="pending", episode=1)
+        conn.execute(
+            "UPDATE wanted SET last_search_best_json = '{pas du json' WHERE id = ?",
+            (wid,),
+        )
+        conn.commit()
+        conn.close()
+
+        resp = client.get("/api/acquisition/wanted", cookies=_make_auth_cookie())
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["items"][0]["last_search_best"] is None
 
     def test_pagination_page2(self, client: TestClient, tmp_path: Path) -> None:
         """page=2 returns the remaining items."""
@@ -882,6 +955,116 @@ class TestSearchEndpoint:
         assert body["results"][0]["kind"] == "movie"
         assert body["results"][0]["title"] == "Dune"
         assert body["results"][0]["poster_url"] == "https://img/dune.jpg"
+
+    def test_series_owned_is_flagged_already_owned(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Regression (operator report): an owned SERIES was never flagged.
+
+        The §5 ownership pass only checked ``kind == "movie"`` results, so a
+        series present in the library (« Kaamelott 2005 ») searched silent
+        while films showed « déjà en médiathèque ». A series counts as owned
+        as soon as ANY live episode file exists.
+        """
+        from personalscraper.api.metadata._base import SearchResult
+
+        movie = SearchResult(
+            provider="tmdb",
+            provider_id="101",
+            title="Kaamelott — Premier volet",
+            year=2021,
+            media_type="movie",
+        )
+        show = SearchResult(
+            provider="tmdb",
+            provider_id="202",
+            title="Kaamelott",
+            year=2005,
+            media_type="tv",
+        )
+        self._patch_clients(monkeypatch, movies=[movie], shows=[show])
+
+        calls: dict[str, object] = {}
+
+        class _FakeChecker:
+            def __init__(self, _path: object) -> None:
+                pass
+
+            def owns(self, ref: object, *, kind: str, **_kw: object) -> bool:
+                calls["movie"] = (ref, kind)
+                return True
+
+            def owned_pairs(self, ref: object) -> set[tuple[int, int]]:
+                calls["pairs"] = ref
+                return {(1, 1)}
+
+            def close(self) -> None:
+                pass
+
+        # Patched at the source module: the service imports it lazily.
+        monkeypatch.setattr("personalscraper.indexer.ownership.IndexerOwnershipChecker", _FakeChecker)
+
+        resp = client.get("/api/acquisition/search?q=kaamelott", cookies=_make_auth_cookie())
+        assert resp.status_code == 200, resp.text
+        by_kind = {r["kind"]: r for r in resp.json()["results"]}
+        assert by_kind["tv"]["already_owned"] is True
+        assert by_kind["movie"]["already_owned"] is True
+        # The series went through the episode-presence predicate with its id.
+        assert getattr(calls["pairs"], "tmdb_id", None) == 202
+        assert calls["movie"][1] == "movie"
+
+    def test_lookup_by_id_resolves_a_result_without_following(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A by-id lookup RESOLVES and returns — it never follows.
+
+        Regression (operator, 2026-08-08): the add-by-ID form followed on
+        submit, sight unseen, with whatever title had been typed — usually
+        none, which stored a nameless follow. Resolving first puts a real card
+        on screen and leaves the add to a deliberate tap.
+        """
+        import personalscraper.web.acquisition.service as acq_service
+
+        class _Details:
+            title = "Kaamelott"
+            year = 2005
+            overview = "Les aventures du roi Arthur."
+            images: list[object] = []
+
+        class _Tvdb:
+            def get_series(self, provider_id: int) -> object:
+                assert provider_id == 255968
+                return _Details()
+
+        monkeypatch.setattr(acq_service, "scoped_provider_clients", lambda _r: nullcontext((object(), _Tvdb())))
+
+        resp = client.get(
+            "/api/acquisition/lookup?provider=tvdb&provider_id=255968&kind=tv",
+            cookies=_make_auth_cookie(),
+        )
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["title"] == "Kaamelott"
+        assert body["provider_id"] == 255968
+        assert body["kind"] == "tv"
+
+    def test_lookup_unknown_id_is_a_404_not_a_nameless_row(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """An id the provider does not know must FAIL, never resolve blank."""
+        import personalscraper.web.routes.acquisition as acq_routes
+
+        class _Tvdb:
+            def get_series(self, provider_id: int) -> object:
+                raise ValueError("no such series")
+
+        monkeypatch.setattr(acq_routes, "scoped_provider_clients", lambda _r: nullcontext((object(), _Tvdb())))
+
+        resp = client.get(
+            "/api/acquisition/lookup?provider=tvdb&provider_id=999999999&kind=tv",
+            cookies=_make_auth_cookie(),
+        )
+
+        assert resp.status_code == 404, resp.text
 
     def test_search_kind_filter_movie_only(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
         """kind=movie must not run the TV chain."""

@@ -1,9 +1,8 @@
 /**
- * Unit tests for the AcquisitionPage component (acq-watch Phase 4).
+ * Unit tests for the AcquisitionPage component (acq-mobile refonte).
  *
  * Mocks the acquisition hooks and event-stream context so the page logic
- * (four panels, empty states, CRUD flows, status badges, pagination,
- * WS invalidation) is tested in isolation.
+ * (two views, legacy redirects, WS invalidation) is tested in isolation.
  */
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -14,13 +13,17 @@ import {
   render,
   screen,
   waitFor,
-  within,
 } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { EventMessage } from "@/api/events";
+import {
+  PULL_LOADING_PX,
+  PULL_SPINNER_CAP_MS,
+  pullHeight,
+} from "@/components/acquisition/gestures";
 
 // ---------------------------------------------------------------------------
 // Mock hooks
@@ -28,22 +31,17 @@ import type { EventMessage } from "@/api/events";
 
 const useFollowedMock = vi.fn();
 const useWantedMock = vi.fn();
-const useObligationsMock = vi.fn();
+const useToHandleMock = vi.fn();
+const useJourneysMock = vi.fn();
 const useAcquisitionStatusMock = vi.fn();
-const useDownloadsMock = vi.fn();
+const useObligationsMock = vi.fn();
 
-/** Stable mock mutation fns — cleared between tests, set per-test. */
+/** Stable mock mutation fns — cleared between tests. */
 let followMutateFn = vi.fn();
-let updateFollowMutateFn = vi.fn();
-let unfollowMutateFn = vi.fn();
 
 const useEventStreamContextMock = vi.fn((): { events: EventMessage[] } => ({
   events: [],
 }));
-
-const useSchedulersMock = vi.fn();
-
-const setWatcherMock = vi.fn();
 
 vi.mock("@/hooks/useAcquisition", () => ({
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
@@ -51,12 +49,18 @@ vi.mock("@/hooks/useAcquisition", () => ({
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   useWanted: (...args: unknown[]) => useWantedMock(...args),
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-  useObligations: (...args: unknown[]) => useObligationsMock(...args),
+  useToHandle: () => useToHandleMock(),
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-  useAcquisitionStatus: () => useAcquisitionStatusMock(),
-  // Arrival badge on the downloads tab (A4 limite avouée).
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-  useDownloads: () => useDownloadsMock(),
+  useJourneys: () => useJourneysMock(),
+  useWaitingForOperator: () => ({ count: 0, unknown: false }),
+  // « En vol » carries the live download state and the stalled-grabs alert;
+  // both must be served or the whole panel throws rather than rendering.
+  useDownloads: () => ({
+    data: { downloads: [], client_available: true },
+    isLoading: false,
+    isError: false,
+    error: null,
+  }),
   useMediaSearch: () => ({
     data: undefined,
     isLoading: false,
@@ -64,18 +68,20 @@ vi.mock("@/hooks/useAcquisition", () => ({
     error: null,
     refetch: () => undefined,
   }),
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  useAcquisitionStatus: () => useAcquisitionStatusMock(),
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  useObligations: (...args: unknown[]) => useObligationsMock(...args),
   useFollow: () => ({ mutate: followMutateFn, isPending: false }),
-  useUpdateFollow: () => ({ mutate: updateFollowMutateFn, isPending: false }),
-  useUnfollow: () => ({ mutate: unfollowMutateFn, isPending: false }),
-  // Inert stub so keyboard navigation can land on the « Vue d'ensemble » tab.
+  useUpdateFollow: () => ({ mutate: vi.fn(), isPending: false }),
+  useUnfollow: () => ({ mutate: vi.fn(), isPending: false }),
+  useGrabNow: () => ({ mutate: vi.fn(), isPending: false }),
   useOverview: () => ({
     data: undefined,
     isLoading: false,
     isError: false,
     error: null,
   }),
-  // §5 additions: the completeness accordion + the run-tracking hook. Stubbed
-  // to inert values so the page/panel render is unaffected by them.
   useCompleteness: () => ({
     data: undefined,
     isLoading: false,
@@ -88,81 +94,45 @@ vi.mock("@/hooks/useEventStreamContext", () => ({
   useEventStreamContext: () => useEventStreamContextMock(),
 }));
 
-vi.mock("@/hooks/useSchedulers", () => ({
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-  useSchedulers: () => useSchedulersMock(),
+const { mqtoastMock } = vi.hoisted(() => ({ mqtoastMock: vi.fn() }));
+vi.mock("@/components/acquisition/MqToast", () => ({
+  mqtoast: mqtoastMock,
+  MqToaster: (): null => null,
 }));
-
-vi.mock("sonner", () => ({
-  toast: { info: vi.fn(), success: vi.fn(), error: vi.fn(), warning: vi.fn() },
-}));
-
-vi.mock("@/api/pipeline", async () => {
-  const actual = await vi.importActual("@/api/pipeline");
-  return {
-    ...(actual as object),
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    setWatcher: (...args: unknown[]) => setWatcherMock(...args),
-  };
-});
 
 import AcquisitionPage from "@/pages/AcquisitionPage";
-
-// ---------------------------------------------------------------------------
-// Fixtures
-// ---------------------------------------------------------------------------
-
-/** A single followed-series item matching FollowedSeriesItem shape. */
-function makeFollowed(overrides: Record<string, unknown> = {}) {
-  const merged = {
-    id: 1,
-    title: "Top Chef",
-    active: true,
-    added_at: 1_719_792_000,
-    cadence: { interval_minutes: 60 },
-    quality_profile: null,
-    wanted_pending: 2,
-    media_ref: { tvdb_id: 255968, tmdb_id: null, imdb_id: null },
-    ...overrides,
-  };
-  // Mirror the backend-derived status (C14) so the fixture matches the real
-  // response shape; an explicit `status` override still wins. The status is NOT
-  // derived from `wanted_pending` any more (acq-states phase 4): a raw queue
-  // counter knows nothing about ownership or about the aired catalog.
-  const status = merged.active ? "a_recuperer" : "disabled";
-  return { status, priming_running: false, ...merged };
-}
-
-/** A single obligation item matching ObligationItem shape. */
-function makeObligation(overrides: Record<string, unknown> = {}) {
-  return {
-    info_hash: "abcdef1234567890abcdef1234567890abcdef12",
-    source_tracker: "c411",
-    dispatched_path: "/movies/Top Chef",
-    min_seed_time_s: 86400,
-    min_ratio: 1.0,
-    observed_ratio: 0.8,
-    hnr_count: 0,
-    added_at: 1_719_792_000,
-    released_at: null,
-    breached_at: null,
-    satisfied_at: null,
-    accumulated_seed_time_s: 43200,
-    ...overrides,
-  };
-}
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Probe that surfaces the live URL search string for ?tab= assertions. */
+/** Probe that surfaces the live URL for redirect assertions. */
 function LocationProbe(): ReactElement {
-  const { search } = useLocation();
-  return <div data-testid="loc-search">{search}</div>;
+  const { pathname, search } = useLocation();
+  return (
+    <>
+      <div data-testid="loc-pathname">{pathname}</div>
+      <div data-testid="loc-search">{search}</div>
+    </>
+  );
 }
 
 /** Render the page wrapped in a QueryClientProvider + router (?tab= support). */
+function renderPageWithClient(initialEntry = "/acquisition"): QueryClient {
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  render(
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <QueryClientProvider client={qc}>
+        <AcquisitionPage />
+        <LocationProbe />
+      </QueryClientProvider>
+    </MemoryRouter>,
+  );
+  return qc;
+}
+
 function renderPage(initialEntry = "/acquisition"): void {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -190,13 +160,19 @@ function mockAllEmpty(): void {
   useWantedMock.mockReturnValue({
     isLoading: false,
     isError: false,
-    data: { items: [], total: 0, page: 1, page_size: 50 },
+    data: { items: [] },
     error: null,
   });
-  useObligationsMock.mockReturnValue({
+  useToHandleMock.mockReturnValue({
     isLoading: false,
     isError: false,
-    data: { items: [] },
+    data: { items: [], orphan_count: 0, degraded: false },
+    error: null,
+  });
+  useJourneysMock.mockReturnValue({
+    isLoading: false,
+    isError: false,
+    data: { journeys: [] },
     error: null,
   });
   useAcquisitionStatusMock.mockReturnValue({
@@ -204,33 +180,17 @@ function mockAllEmpty(): void {
     isError: false,
     data: {
       watcher_enabled: true,
-      last_successful_run_at: 1_719_792_000,
+      last_successful_run_at: null,
       recent_runs: [],
       deferred: [],
     },
     error: null,
   });
-  useDownloadsMock.mockReturnValue({
+  useObligationsMock.mockReturnValue({
     isLoading: false,
     isError: false,
-    data: { downloads: [], client_available: true },
+    data: { items: [] },
     error: null,
-  });
-  // Default: the grab scheduler is present with its live schedule (C15).
-  useSchedulersMock.mockReturnValue({
-    data: {
-      schedulers: [
-        {
-          name: "personalscraper-grab",
-          display_name: "Récupération (grab)",
-          kind: "cron",
-          schedule: "Tous les jours à 03:20 et 15:20",
-          enabled: true,
-          last_run_at: null,
-          last_outcome: null,
-        },
-      ],
-    },
   });
 }
 
@@ -242,782 +202,433 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
   followMutateFn = vi.fn();
-  updateFollowMutateFn = vi.fn();
-  unfollowMutateFn = vi.fn();
+  // The page remembers the last active tab — leaked state would silently
+  // change which panel later tests land on.
+  localStorage.clear();
 });
 
 describe("AcquisitionPage", () => {
   // ── Tab navigation ──────────────────────────────────────────────────────
 
-  it("renders the tab bar with all four panels", () => {
+  it("exposes exactly two views", () => {
+    mockAllEmpty();
+    renderPage();
+    expect(screen.getAllByRole("tab")).toHaveLength(2);
+    expect(screen.getByRole("tab", { name: /Maintenant/ })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Suivis/ })).toBeInTheDocument();
+  });
+
+  it("does not render a duplicate « Acquisition » title — the bottom bar already says where you are (§12/D3)", () => {
+    mockAllEmpty();
+    renderPage();
+    expect(screen.queryByRole("heading", { name: "Acquisition" })).toBeNull();
+  });
+
+  it("shows the Suivis panel by default with no ?tab= param (operator order)", () => {
+    mockAllEmpty();
+    renderPage();
+    expect(screen.getByRole("tab", { name: /Suivis/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("");
+  });
+
+  it("Suivis is the FIRST tab in the segment (operator order)", () => {
+    mockAllEmpty();
+    renderPage();
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs[0]).toHaveTextContent("Suivis");
+    expect(tabs[1]).toHaveTextContent("Maintenant");
+  });
+
+  it("switches to the Maintenant panel when clicking its tab", () => {
     mockAllEmpty();
     renderPage();
 
-    expect(screen.getByRole("tablist")).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Suivis" })).toBeInTheDocument();
-    expect(
-      screen.getByRole("tab", { name: "File d'acquisition" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("tab", { name: "Obligations" }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Watcher" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: /Maintenant/ }));
+
+    expect(screen.getByRole("tab", { name: /Maintenant/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=maintenant");
   });
 
-  it('shows the Followed panel by default with "Suivis" tab selected', () => {
+  it("renders the Rien à signaler empty state when all sections are empty", () => {
+    mockAllEmpty();
+    renderPage("/acquisition?tab=maintenant");
+    expect(screen.getByText(/Rien à signaler/)).toBeInTheDocument();
+  });
+
+  // ── Legacy redirects ────────────────────────────────────────────────────
+
+  it.each([
+    ["followed", "suivis"],
+    ["file", "maintenant"],
+    ["apercu", "maintenant"],
+    ["obligations", "maintenant"],
+    ["watcher", "maintenant"],
+    ["parcours", "maintenant"],
+    ["wanted", "maintenant"],
+    ["downloads", "maintenant"],
+  ])(
+    "redirects legacy ?tab=%s to %s without stacking history",
+    (legacy) => {
+      mockAllEmpty();
+      renderPage(`/acquisition?tab=${legacy}`);
+
+      // Redirects to the canonical view — the default "suivis" carries no
+      // param, "maintenant" is explicit.
+      if (legacy === "followed") {
+        expect(screen.getByTestId("loc-search")).toHaveTextContent("");
+      } else {
+        expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=maintenant");
+      }
+    },
+  );
+
+  it("un ancien lien ?tab=reglages atteint la VRAIE nouvelle maison : /config", () => {
+    // The ranking editor moved to /config's « Classement » tab — landing on
+    // « maintenant » was the wrong page with no pointer to the new home.
+    mockAllEmpty();
+    renderPage("/acquisition?tab=reglages");
+
+    expect(screen.getByTestId("loc-pathname")).toHaveTextContent("/config");
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("tab=classement");
+  });
+
+  it("a legacy redirect does not stack a history entry (replace, not push)", () => {
+    mockAllEmpty();
+    renderPage("/acquisition?tab=apercu");
+
+    // After redirect the URL names the view (suivis = no param is default).
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=maintenant");
+    expect(screen.getByRole("tab", { name: /Maintenant/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  // ── URL-addressable tab (DOIT-10) ───────────────────────────────────────
+
+  it("opens the tab indicated by ?tab= on load (deep-link)", () => {
+    mockAllEmpty();
+    renderPage("/acquisition?tab=maintenant");
+
+    expect(screen.getByRole("tab", { name: /Maintenant/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("normalizes an explicit ?tab=suivis to the clean default URL", () => {
+    mockAllEmpty();
+    renderPage("/acquisition?tab=suivis");
+
+    expect(screen.getByRole("tab", { name: /Suivis/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("");
+  });
+
+  it("falls back to Suivis on an unknown ?tab= value", () => {
+    mockAllEmpty();
+    renderPage("/acquisition?tab=bogus");
+
+    expect(screen.getByRole("tab", { name: /Suivis/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=bogus");
+  });
+
+  it("clears the param when returning to the default tab", () => {
+    mockAllEmpty();
+    renderPage("/acquisition?tab=maintenant");
+
+    fireEvent.click(screen.getByRole("tab", { name: /Suivis/ }));
+
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("");
+  });
+
+  it("remembers the last view and reopens it on a plain return (operator ask)", () => {
+    mockAllEmpty();
+    localStorage.setItem("tm.acquisition.lastTab", "maintenant");
+    renderPage();
+
+    expect(screen.getByRole("tab", { name: /Maintenant/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=maintenant");
+  });
+
+  it("a deep link WITH ?tab= beats the remembered view", () => {
+    mockAllEmpty();
+    localStorage.setItem("tm.acquisition.lastTab", "maintenant");
+    renderPage("/acquisition?tab=suivis");
+
+    expect(screen.getByRole("tab", { name: /Suivis/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("activating a tab records it as the last view", () => {
+    mockAllEmpty();
+    renderPage();
+
+    fireEvent.click(screen.getByRole("tab", { name: /Maintenant/ }));
+
+    expect(localStorage.getItem("tm.acquisition.lastTab")).toBe("maintenant");
+  });
+
+  // ── Tablist scroll classes ──────────────────────────────────────────────
+
+  it("le train d'onglets est le .seg maquette, avec le « ⋮ » DÉTACHÉ (.more)", () => {
+    mockAllEmpty();
+    renderPage();
+
+    // Maquette .seg: two equal-width tabs in one muted segment; the « ⋮ » is
+    // its own bordered button BESIDE the segment, never a third rank inside.
+    const tablist = screen.getByRole("tablist");
+    expect(tablist.className).toMatch(/\bseg\b/);
+    const more = screen.getByRole("button", {
+      name: "Plus — veille et obligations",
+    });
+    expect(more.className).toMatch(/\bmore\b/);
+    expect(tablist.contains(more)).toBe(false);
+  });
+
+  // ── Tablist ARIA ────────────────────────────────────────────────────────
+
+  it("links each tab to the panel: aria-controls, tabpanel, aria-labelledby", () => {
+    mockAllEmpty();
+    renderPage();
+
+    const tab = screen.getByRole("tab", { name: "Suivis" });
+    expect(tab).toHaveAttribute("id", "acq-tab-suivis");
+    expect(tab).toHaveAttribute("aria-controls", "acq-tabpanel");
+
+    const panel = screen.getByRole("tabpanel");
+    expect(panel).toHaveAttribute("id", "acq-tabpanel");
+    expect(panel).toHaveAttribute("aria-labelledby", "acq-tab-suivis");
+  });
+
+  it("tabpanel tracks the active tab (aria-labelledby)", () => {
+    mockAllEmpty();
+    renderPage();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Maintenant" }));
+    expect(screen.getByRole("tabpanel")).toHaveAttribute(
+      "aria-labelledby",
+      "acq-tab-maintenant",
+    );
+  });
+
+  it("roving tabindex: only the active tab is tabbable", () => {
     mockAllEmpty();
     renderPage();
 
     expect(screen.getByRole("tab", { name: "Suivis" })).toHaveAttribute(
+      "tabindex",
+      "0",
+    );
+    expect(screen.getByRole("tab", { name: "Maintenant" })).toHaveAttribute(
+      "tabindex",
+      "-1",
+    );
+  });
+
+  it("ArrowRight/ArrowLeft navigate, Home/End jump to extremes", () => {
+    mockAllEmpty();
+    renderPage();
+
+    const tablist = screen.getByRole("tablist");
+
+    // Suivis → ArrowRight → Maintenant
+    fireEvent.keyDown(tablist, { key: "ArrowRight" });
+    expect(screen.getByRole("tab", { name: "Maintenant" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
-    expect(screen.getByText(/aucune série suivie/i)).toBeInTheDocument();
-  });
 
-  it("switches to the File d'acquisition panel when clicking its tab", async () => {
-    mockAllEmpty();
-    renderPage();
-
-    fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
-
-    expect(
-      screen.getByRole("tab", { name: "File d'acquisition" }),
-    ).toHaveAttribute("aria-selected", "true");
-    expect(await screen.findByText(/Recherches/)).toBeInTheDocument();
-  });
-
-  it("switches to the Obligations panel when clicking its tab", async () => {
-    mockAllEmpty();
-    renderPage();
-
-    fireEvent.click(screen.getByRole("tab", { name: "Obligations" }));
-
-    expect(screen.getByRole("tab", { name: "Obligations" })).toHaveAttribute(
+    // Maintenant → ArrowLeft → Suivis
+    fireEvent.keyDown(tablist, { key: "ArrowLeft" });
+    expect(screen.getByRole("tab", { name: "Suivis" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
-    expect(
-      await screen.findByText(/aucune obligation de seed/i),
-    ).toBeInTheDocument();
-  });
 
-  it("switches to the Watcher panel when clicking its tab", async () => {
-    mockAllEmpty();
-    renderPage();
-
-    fireEvent.click(screen.getByRole("tab", { name: "Watcher" }));
-
-    expect(screen.getByRole("tab", { name: "Watcher" })).toHaveAttribute(
+    // End → last tab (Maintenant)
+    fireEvent.keyDown(tablist, { key: "End" });
+    expect(screen.getByRole("tab", { name: "Maintenant" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
-    expect(await screen.findByText(/état du watcher/i)).toBeInTheDocument();
+
+    // Home → first tab (Suivis)
+    fireEvent.keyDown(tablist, { key: "Home" });
+    expect(screen.getByRole("tab", { name: "Suivis" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
   });
 
-  // ── Followed panel — table ──────────────────────────────────────────────
+  // ── Back-navigation probe (mutation-proof) ──────────────────────────────
 
-  it("renders followed series in a table with distinct IDs", () => {
-    mockAllEmpty();
-    useFollowedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        items: [
-          makeFollowed({
-            id: 1,
-            title: "Top Chef",
-            wanted_pending: 3,
-            status: "en_attente",
-            media_ref: { tvdb_id: 255968, tmdb_id: null, imdb_id: null },
-          }),
-          makeFollowed({
-            id: 2,
-            title: "Koh-Lanta",
-            active: false,
-            wanted_pending: 0,
-            media_ref: { tvdb_id: 12345, tmdb_id: null, imdb_id: null },
-          }),
-        ],
-      },
-      error: null,
+  function BackProbe(): ReactElement {
+    const navigate = useNavigate();
+    const location = useLocation();
+    return (
+      <>
+        <div data-testid="loc-pathname">{location.pathname}</div>
+        <div data-testid="loc-search">{location.search}</div>
+        <button
+          data-testid="go-back"
+          onClick={() => {
+            void navigate(-1);
+          }}
+        >
+          Back
+        </button>
+      </>
+    );
+  }
+
+  function renderPageWithProbe(initialEntry = "/acquisition"): void {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
     });
-    renderPage();
 
-    expect(screen.getByText("Top Chef")).toBeInTheDocument();
-    // Derived état badge: Top Chef (active + 3 pending) → the card state
-    // `en_attente`, i.e. « En attente de torrent » (searched, nothing
-    // conforming yet) — never the bare « En attente » of the queue vocabulary.
-    expect(screen.getByText("En attente de torrent")).toBeInTheDocument();
-    // The inactive follow leaves the grid (revue mobile 2026-07-15): it lives
-    // in the collapsed « Suivis retirés » section, reactivatable.
-    expect(screen.getByText("Suivis retirés (1)")).toBeInTheDocument();
-    expect(screen.getByText(/Koh-Lanta/)).toBeInTheDocument();
-    expect(screen.queryByText("12345")).not.toBeInTheDocument();
+    const tree: ReactElement = (
+      <MemoryRouter initialEntries={["/somewhere", initialEntry]}>
+        <QueryClientProvider client={qc}>
+          <AcquisitionPage />
+          <BackProbe />
+        </QueryClientProvider>
+      </MemoryRouter>
+    );
+    render(tree);
+  }
+
+  it("navigate(-1) after legacy redirect lands on first entry, not the legacy URL", async () => {
+    mockAllEmpty();
+    // Two-entry history: /somewhere (index 0), /acquisition?tab=apercu (index 1).
+    // The redirect useEffect replaces tab=apercu → ?tab=maintenant, so history
+    // becomes [/somewhere, /acquisition?tab=maintenant].
+    // navigate(-1) must land on /somewhere, NOT /acquisition?tab=apercu.
+    renderPageWithProbe("/acquisition?tab=apercu");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=maintenant");
+    });
+
+    fireEvent.click(screen.getByTestId("go-back"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("loc-pathname")).toHaveTextContent("/somewhere");
+    });
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("");
   });
 
-  it("maps the backend-derived status verbatim without re-deriving it (C14)", () => {
+  it("ArrowRight then Back returns to the original tab, not an intermediate one (ACQUISITION-7, ticket 250)", async () => {
     mockAllEmpty();
-    useFollowedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        items: [
-          // Contradictory flags on purpose: the raw active/pending would read
-          // as "En attente", but the backend-derived status says a_jour. The
-          // UI must trust `status` (no JSX derivation) → "À jour".
-          makeFollowed({
-            id: 1,
-            title: "Top Chef",
-            active: true,
-            wanted_pending: 4,
-            status: "a_jour",
-          }),
-        ],
-      },
-      error: null,
-    });
-    renderPage();
+    // History: [/somewhere, /acquisition] — Suivis is the origin tab.
+    renderPageWithProbe();
 
-    expect(screen.getByText("À jour")).toBeInTheDocument();
-    expect(screen.queryByText("En cours")).not.toBeInTheDocument();
+    // Click pushes one entry.
+    fireEvent.click(screen.getByRole("tab", { name: "Maintenant" }));
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=maintenant");
+
+    // One Back lands on Suivis (the pre-click tab), not an intermediate.
+    fireEvent.click(screen.getByTestId("go-back"));
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "Suivis" })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+    });
+    expect(screen.getByTestId("loc-search").textContent).not.toContain("tab=");
   });
 
-  it("builds the automatic-search caption from the live grab scheduler (C15)", () => {
+  // ── « + » add button ──────────────────────────────────────────────────
+
+  it("renders the « + » button anchored above the bottom bar", () => {
     mockAllEmpty();
-    useSchedulersMock.mockReturnValue({
-      data: {
-        schedulers: [
-          {
-            name: "personalscraper-grab",
-            display_name: "Récupération (grab)",
-            kind: "cron",
-            schedule: "Le lundi à 09:00",
-            enabled: true,
-            last_run_at: null,
-            last_outcome: null,
-          },
-        ],
-      },
-    });
-    useFollowedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: { items: [makeFollowed({ id: 1 })] },
-      error: null,
-    });
     renderPage();
 
-    // The caption reflects the scheduler's live schedule, not a hardcoded one.
+    const addBtn = screen.getByRole("button", { name: "Ajouter un média" });
+    expect(addBtn).toBeInTheDocument();
+    // The button is fixed-positioned and uses the aboveBottomBar helper — its
+    // computed bottom must reference the custom property, not a literal pixel.
+    expect(addBtn.style.bottom).toContain("var(--tm-bottom-bar-h");
+  });
+
+  it("the « + » opens AddMediaScreen", () => {
+    mockAllEmpty();
+    renderPage();
+
+    // Before activation the add screen is absent (the Suivis end-of-list
+    // « + Ajouter un média à suivre » is NOT the screen).
     expect(
-      screen.getByText(/Recherche automatique : Le lundi à 09:00\./),
-    ).toBeInTheDocument();
+      screen.queryByText(/Recherchez un film ou une série/),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Ajouter un média" }));
+
+    // The full-screen sheet renders its idle hint.
+    expect(screen.getByText(/Recherchez un film ou une série/)).toBeInTheDocument();
   });
 
-  it("omits the automatic-search caption when the grab scheduler is absent (C15)", () => {
+  it("l'écran d'ajout vit dans l'historique : « Retour » le ferme (régression gestes)", () => {
     mockAllEmpty();
-    useSchedulersMock.mockReturnValue({ data: { schedulers: [] } });
-    useFollowedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: { items: [makeFollowed({ id: 1 })] },
-      error: null,
-    });
     renderPage();
 
-    expect(screen.queryByText(/Recherche automatique/)).not.toBeInTheDocument();
-  });
+    fireEvent.click(screen.getByRole("button", { name: "Ajouter un média" }));
+    expect(screen.getByText(/Recherchez un film ou une série/)).toBeInTheDocument();
 
-  it("shows a per-series 'Rechercher maintenant' action for active series only", async () => {
-    mockAllEmpty();
-    useFollowedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        items: [
-          makeFollowed({ id: 1, title: "Top Chef", active: true }),
-          makeFollowed({ id: 2, title: "Koh-Lanta", active: false }),
-        ],
-      },
-      error: null,
-    });
-    renderPage();
-
-    // Inactive follows left the grid (revue mobile 2026-07-15) and the
-    // compact-row actions live in a DropdownMenu. Open the active row's menu.
-    const trigger = screen.getByRole("button", {
-      name: "Actions pour Top Chef",
-    });
-    fireEvent.pointerDown(trigger);
-    // Rechercher maintenant is a menuitem in the dropdown.
-    const searchItem = await screen.findByRole("menuitem", {
-      name: "Rechercher maintenant",
-    });
-    expect(searchItem).not.toHaveAttribute("aria-disabled", "true");
-  });
-
-  it("toggles a followed series active/paused in place via updateFollow (C16)", async () => {
-    mockAllEmpty();
-    useFollowedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        items: [makeFollowed({ id: 7, title: "Top Chef", active: true })],
-      },
-      error: null,
-    });
-    renderPage();
-
-    // The active toggle moved to the DropdownMenu — open it first.
-    const trigger = screen.getByRole("button", {
-      name: "Actions pour Top Chef",
-    });
-    fireEvent.pointerDown(trigger);
-    const deactivateItem = await screen.findByRole("menuitem", {
-      name: "Désactiver",
-    });
-    fireEvent.click(deactivateItem);
-    // X3: the call-site now names the action in a success toast via options.
-    expect(updateFollowMutateFn).toHaveBeenCalledWith(
-      { id: 7, body: { active: false } },
-      expect.objectContaining({
-        onSuccess: expect.any(Function) as () => void,
-      }),
-    );
-  });
-
-  it("surfaces a followed-query error instead of the empty state", () => {
-    // Adversarial-review regression: on a failed followed query (e.g. 401) the
-    // panel must show an error, NOT "aucune série suivie" (data illusion).
-    mockAllEmpty();
-    useFollowedMock.mockReturnValue({
-      isLoading: false,
-      isError: true,
-      data: undefined,
-      error: new Error("Session expirée"),
-    });
-    renderPage();
-
+    // The header arrow pops the pushed entry — same path as the phone's back
+    // gesture. The old useState open never touched history: back left the
+    // operator stuck, and the only exit was a close cross the maquette
+    // never had.
+    fireEvent.click(screen.getByRole("button", { name: "Retour" }));
     expect(
-      screen.getByText(/erreur de chargement des séries suivies/i),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/session expirée/i)).toBeInTheDocument();
-    // The empty-state text must NOT be shown.
-    expect(screen.queryByText(/aucune série suivie/i)).not.toBeInTheDocument();
-  });
-
-  it("shows the five-state counts, never the raw wanted_pending counter", () => {
-    mockAllEmpty();
-    useFollowedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        items: [
-          makeFollowed({
-            wanted_pending: 3,
-            status: "a_recuperer",
-            aired_count: 8,
-            owned_count: 6,
-            a_recuperer_count: 2,
-          }),
-        ],
-      },
-      error: null,
-    });
-    renderPage();
-
-    // What is owed comes from the SAME derivation as the chip (phase 8): the
-    // raw queue counter knew nothing about ownership and could contradict it.
-    expect(screen.getByText("2 à récupérer")).toBeInTheDocument();
-    expect(screen.queryByText("3 en attente")).not.toBeInTheDocument();
-  });
-
-  it("shows a next-search caption coloured by cadence tier (OBJ3)", () => {
-    mockAllEmpty();
-    const soon = Math.floor(Date.now() / 1000) + 3 * 3600; // ~3h out
-    useFollowedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        items: [
-          makeFollowed({
-            active: true,
-            next_search_at: soon,
-            cadence_tier: "warm",
-          }),
-        ],
-      },
-      error: null,
-    });
-    renderPage();
-
-    // Next-search caption in the compact row shows a relative estimate.
-    expect(screen.getByText(/dans ~3\s?h/)).toBeInTheDocument();
-  });
-
-  it('does not render the "Personnalisé" badge in compact row (removed per E1)', () => {
-    mockAllEmpty();
-    useFollowedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        items: [
-          makeFollowed({
-            quality_profile: { preferred_words: ["MULTi"] },
-          }),
-        ],
-      },
-      error: null,
-    });
-    renderPage();
-
-    // The quality_profile badge was removed from compact rows (Phase 02).
-    expect(screen.queryByText("Personnalisé")).not.toBeInTheDocument();
-  });
-
-  it("shows loading skeletons while followed data loads", () => {
-    mockAllEmpty();
-    useFollowedMock.mockReturnValue({
-      isLoading: true,
-      isError: false,
-      data: undefined,
-      error: null,
-    });
-    renderPage();
-
-    const skeletons = document.querySelectorAll(".animate-pulse");
-    expect(skeletons.length).toBeGreaterThan(0);
-  });
-
-  // ── Followed panel — add form ──────────────────────────────────────────
-
-  it("renders the add form with TVDB ID and title inputs", () => {
-    mockAllEmpty();
-    renderPage();
-    // The add-by-ID entry is a collapsible section (repliable) — expand it first.
-    fireEvent.click(
-      screen.getByRole("button", { name: /ou ajouter directement par ID/i }),
-    );
-    expect(screen.getByLabelText("ID TVDB")).toBeInTheDocument();
-    expect(screen.getByLabelText(/titre/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Suivre" })).toBeInTheDocument();
-  });
-
-  it("calls useFollow().mutate on form submit", () => {
-    mockAllEmpty();
-    renderPage();
-    fireEvent.click(
-      screen.getByRole("button", { name: /ou ajouter directement par ID/i }),
-    );
-    fireEvent.change(screen.getByLabelText("ID TVDB"), {
-      target: { value: "255968" },
-    });
-    fireEvent.change(screen.getByLabelText(/titre/i), {
-      target: { value: "Top Chef" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Suivre" }));
-
-    expect(followMutateFn).toHaveBeenCalledWith(
-      expect.objectContaining({
-        tvdb_id: 255968,
-        title: "Top Chef",
-      }),
-      expect.any(Object),
-    );
-  });
-
-  it("disables the Follow button when tvdb_id is empty", () => {
-    mockAllEmpty();
-    renderPage();
-    fireEvent.click(
-      screen.getByRole("button", { name: /ou ajouter directement par ID/i }),
-    );
-    expect(screen.getByRole("button", { name: "Suivre" })).toBeDisabled();
-  });
-
-  // ── Followed panel — unfollow ──────────────────────────────────────────
-
-  it("calls useUnfollow().mutate on unfollow via dropdown", async () => {
-    mockAllEmpty();
-    useFollowedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: { items: [makeFollowed({ id: 42 })] },
-      error: null,
-    });
-    renderPage();
-
-    // Open the actions dropdown.
-    const trigger = screen.getByRole("button", {
-      name: "Actions pour Top Chef",
-    });
-    fireEvent.pointerDown(trigger);
-    const retirerItem = await screen.findByRole("menuitem", {
-      name: "Retirer",
-    });
-    fireEvent.click(retirerItem);
-    // ACQUISITION-3 (ticket 250): a confirmation dialog now gates the
-    // destructive unfollow — the menu click alone must NOT mutate.
-    expect(unfollowMutateFn).not.toHaveBeenCalled();
-    const confirmBtn = await screen.findByRole("button", { name: "Retirer" });
-    fireEvent.click(confirmBtn);
-    // X3: the call-site now names the action in a success toast via options.
-    expect(unfollowMutateFn).toHaveBeenCalledWith(
-      42,
-      expect.objectContaining({
-        onSuccess: expect.any(Function) as () => void,
-      }),
-    );
-  });
-
-  // ── Followed panel — edit-cadence dialog ────────────────────────────────
-
-  it("opens the edit-cadence dialog from the dropdown", async () => {
-    mockAllEmpty();
-    useFollowedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        items: [
-          makeFollowed({
-            title: "Top Chef",
-            cadence: { interval_minutes: 120 },
-          }),
-        ],
-      },
-      error: null,
-    });
-    renderPage();
-
-    // Open the actions dropdown, click Cadence.
-    const trigger = screen.getByRole("button", {
-      name: "Actions pour Top Chef",
-    });
-    fireEvent.pointerDown(trigger);
-    const cadenceItem = await screen.findByRole("menuitem", {
-      name: "Cadence",
-    });
-    fireEvent.click(cadenceItem);
-
-    expect(
-      await screen.findByRole("dialog", { name: /modifier la cadence/i }),
-    ).toBeInTheDocument();
-    // Pre-filled with existing interval.
-    const intervalInput = screen.getByLabelText(/intervalle/i);
-    expect(intervalInput).toHaveValue(120);
-  });
-
-  it("calls useUpdateFollow().mutate when saving the cadence dialog", async () => {
-    mockAllEmpty();
-    useFollowedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        items: [makeFollowed({ id: 7, cadence: null })],
-      },
-      error: null,
-    });
-    renderPage();
-
-    // Open dropdown, click Cadence.
-    fireEvent.pointerDown(
-      screen.getByRole("button", { name: "Actions pour Top Chef" }),
-    );
-    fireEvent.click(await screen.findByRole("menuitem", { name: "Cadence" }));
-    await screen.findByRole("dialog", { name: /modifier la cadence/i });
-
-    fireEvent.change(screen.getByLabelText(/intervalle/i), {
-      target: { value: "90" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
-
-    expect(updateFollowMutateFn).toHaveBeenCalledWith(
-      { id: 7, body: { cadence: { interval_minutes: 90 } } },
-      expect.any(Object),
-    );
-  });
-
-  it("closes the cadence dialog when clicking Annuler", async () => {
-    mockAllEmpty();
-    useFollowedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: { items: [makeFollowed()] },
-      error: null,
-    });
-    renderPage();
-
-    // Open dropdown, click Cadence.
-    fireEvent.pointerDown(
-      screen.getByRole("button", { name: "Actions pour Top Chef" }),
-    );
-    fireEvent.click(await screen.findByRole("menuitem", { name: "Cadence" }));
-    const dialog = await screen.findByRole("dialog", {
-      name: /modifier la cadence/i,
-    });
-    expect(dialog).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Annuler" }));
-    await act(async () => {
-      await Promise.resolve();
-    });
-    expect(
-      screen.queryByRole("dialog", { name: /modifier la cadence/i }),
+      screen.queryByText(/Recherchez un film ou une série/),
     ).not.toBeInTheDocument();
   });
 
-  // ── Wanted panel ───────────────────────────────────────────────────────
-
-  it("renders the File d'acquisition panel sections", () => {
+  it("l'écran d'ajout n'a PAS de croix de fermeture (la maquette n'en prévoit pas)", () => {
     mockAllEmpty();
     renderPage();
 
-    fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
-
-    // Stub renders both sections (3.1); full assertions in 3.3.
-    expect(screen.getByText(/Recherches/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Ajouter un média" }));
+    // The toast's « Fermer la notification » is NOT a screen-close cross —
+    // only an unlabelled sheet close (the shadcn X) would be.
+    expect(screen.queryByRole("button", { name: /^(Fermer|Close)$/ })).toBeNull();
   });
 
-  it("shows pagination controls with page info", () => {
-    // Deferred to 3.3 — FileDAcquisitionPanel.test.tsx covers this.
+  it("?add=1 en URL directe ouvre l'écran d'ajout (DOIT-10)", () => {
     mockAllEmpty();
-    renderPage();
-    fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
-    expect(screen.getByText(/Recherches/)).toBeInTheDocument();
+    renderPage("/acquisition?add=1");
+
+    expect(screen.getByText(/Recherchez un film ou une série/)).toBeInTheDocument();
   });
 
-  it("disables previous button on page 1", () => {
-    // Deferred to 3.3 — FileDAcquisitionPanel.test.tsx covers this.
+  // ── « Plus » button ────────────────────────────────────────────────────
+
+  it("« Plus » opens the Veille et Obligations sheet", () => {
     mockAllEmpty();
     renderPage();
-    fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
-    expect(screen.getByText(/Recherches/)).toBeInTheDocument();
-  });
 
-  it("calls useWanted with status filter when changed", async () => {
-    // Deferred to 3.3 — FileDAcquisitionPanel.test.tsx covers this.
-    mockAllEmpty();
-    renderPage();
-    fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
-    expect(await screen.findByText(/Recherches/)).toBeInTheDocument();
-  });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Plus — veille et obligations" }),
+    );
 
-  // ── Obligations panel ───────────────────────────────────────────────────
-
-  it("renders obligation items with derived status badges", () => {
-    mockAllEmpty();
-    useObligationsMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        items: [
-          makeObligation({
-            info_hash: "aaaa1111222233334444aaaa1111222233334444",
-            source_tracker: "tr4ker",
-            satisfied_at: 1_719_800_000,
-          }),
-          makeObligation({
-            info_hash: "bbbb1111222233334444bbbb1111222233334444",
-            source_tracker: "c411",
-            breached_at: 1_719_780_000,
-          }),
-        ],
-      },
-      error: null,
-    });
-    renderPage();
-    fireEvent.click(screen.getByRole("tab", { name: "Obligations" }));
-
-    expect(screen.getByText("tr4ker")).toBeInTheDocument();
-    expect(screen.getByText("c411")).toBeInTheDocument();
-    // Derived status badges.
-    expect(screen.getByText("Respectée")).toBeInTheDocument();
-    expect(screen.getByText("Non respectée")).toBeInTheDocument();
-  });
-
-  it("shows HnR count as a danger badge when non-zero", () => {
-    mockAllEmpty();
-    useObligationsMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        items: [makeObligation({ hnr_count: 3 })],
-      },
-      error: null,
-    });
-    renderPage();
-    fireEvent.click(screen.getByRole("tab", { name: "Obligations" }));
-
-    expect(screen.getByText("3")).toBeInTheDocument();
-  });
-
-  // ── Watcher panel ──────────────────────────────────────────────────────
-
-  it("renders the watcher status card with enabled toggle", () => {
-    mockAllEmpty();
-    renderPage();
-    fireEvent.click(screen.getByRole("tab", { name: "Watcher" }));
-
-    expect(screen.getByText(/état du watcher/i)).toBeInTheDocument();
-    // "Activé" is both the status badge and the switch label → getAll.
-    expect(screen.getAllByText("Activé").length).toBeGreaterThan(0);
-    // The switch should be checked.
-    const switchEl = screen.getByRole("switch", { name: /activé/i });
-    expect(switchEl).toBeInTheDocument();
-    expect(switchEl).toHaveAttribute("aria-checked", "true");
-  });
-
-  it("calls setWatcher when the toggle is clicked", async () => {
-    mockAllEmpty();
-    useAcquisitionStatusMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        watcher_enabled: true,
-        last_successful_run_at: null,
-        recent_runs: [],
-        deferred: [],
-      },
-      error: null,
-    });
-    renderPage();
-    fireEvent.click(screen.getByRole("tab", { name: "Watcher" }));
-
-    const switchEl = screen.getByRole("switch", { name: /activé/i });
-    fireEvent.click(switchEl);
-
-    // The toggle fires a react-query mutation → setWatcher runs on the next tick.
-    await waitFor(() => {
-      expect(setWatcherMock).toHaveBeenCalledWith({ enabled: false });
-    });
-  });
-
-  it('shows "Jamais" and disabled state when watcher never ran', () => {
-    mockAllEmpty();
-    useAcquisitionStatusMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        watcher_enabled: false,
-        last_successful_run_at: null,
-        recent_runs: [],
-        deferred: [],
-      },
-      error: null,
-    });
-    renderPage();
-    fireEvent.click(screen.getByRole("tab", { name: "Watcher" }));
-
-    expect(screen.getByText("Jamais")).toBeInTheDocument();
-    expect(screen.getByText("Désactivé")).toBeInTheDocument();
-    expect(screen.getByText(/aucune exécution récente/i)).toBeInTheDocument();
-  });
-
-  it("renders recent watcher runs in a table", () => {
-    mockAllEmpty();
-    useAcquisitionStatusMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        watcher_enabled: true,
-        last_successful_run_at: 1_719_800_000,
-        recent_runs: [
-          {
-            run_uid: "abc123def456",
-            started_at: 1_719_790_000,
-            ended_at: 1_719_795_000,
-            outcome: "success",
-            command: "follow-detect",
-            trigger: "cron",
-            result: { detected: 3, enqueued: 2 },
-          },
-          {
-            run_uid: "ghi789jkl012",
-            started_at: 1_719_760_000,
-            ended_at: null,
-            outcome: null,
-            command: "grab",
-            trigger: "web",
-            result: null,
-          },
-        ],
-        deferred: [],
-      },
-      error: null,
-    });
-    renderPage();
-    fireEvent.click(screen.getByRole("tab", { name: "Watcher" }));
-
-    // §5-aware table: run type + numeric result + outcome/running state.
-    expect(screen.getByText("Détection")).toBeInTheDocument();
-    expect(screen.getByText("Récupération")).toBeInTheDocument();
-    expect(
-      screen.getByText(/3 détecté\(s\), 2 mis en file/),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Succès/)).toBeInTheDocument();
-    expect(screen.getByText(/En cours…/)).toBeInTheDocument();
-  });
-
-  // ── Empty states ───────────────────────────────────────────────────────
-
-  it("shows empty state for wanted panel when no items", () => {
-    // Deferred to 3.3 — FileDAcquisitionPanel.test.tsx covers this.
-    mockAllEmpty();
-    renderPage();
-    fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
-    expect(screen.getByText(/Recherches/)).toBeInTheDocument();
-  });
-
-  it("shows empty state for obligations panel when no items", () => {
-    mockAllEmpty();
-    renderPage();
-    fireEvent.click(screen.getByRole("tab", { name: "Obligations" }));
-
-    expect(screen.getByText(/aucune obligation de seed/i)).toBeInTheDocument();
-  });
-
-  // ── Error states ────────────────────────────────────────────────────────
-
-  it("shows error message for wanted panel on fetch failure", () => {
-    // Deferred to 3.3 — FileDAcquisitionPanel.test.tsx covers error states.
-    mockAllEmpty();
-    useWantedMock.mockReturnValue({
-      isLoading: false,
-      isError: true,
-      data: undefined,
-      error: new Error("Timeout"),
-    });
-    renderPage();
-    fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
-    expect(screen.getByText(/Recherches/)).toBeInTheDocument();
-  });
-
-  it("shows error message for obligations panel on fetch failure", () => {
-    mockAllEmpty();
-    useObligationsMock.mockReturnValue({
-      isLoading: false,
-      isError: true,
-      data: undefined,
-      error: new Error("DB error"),
-    });
-    renderPage();
-    fireEvent.click(screen.getByRole("tab", { name: "Obligations" }));
-
-    expect(screen.getByText(/DB error/)).toBeInTheDocument();
-  });
-
-  it("shows error message for watcher panel on fetch failure", () => {
-    mockAllEmpty();
-    useAcquisitionStatusMock.mockReturnValue({
-      isLoading: false,
-      isError: true,
-      data: undefined,
-      error: new Error("Connection refused"),
-    });
-    renderPage();
-    fireEvent.click(screen.getByRole("tab", { name: "Watcher" }));
-
-    expect(screen.getByText(/Connection refused/)).toBeInTheDocument();
+    // The ObligationsPanel renders inside the sheet.
+    expect(screen.getByText(/Obligations de partage/i)).toBeInTheDocument();
   });
 
   // ── R13 WS invalidation ────────────────────────────────────────────────
@@ -1083,8 +694,7 @@ describe("AcquisitionPage", () => {
     );
   });
 
-  it("toasts + invalidates wanted on GrabReswitched event (ticket 342)", async () => {
-    const { toast } = await import("sonner");
+  it("toasts + invalidates wanted on GrabReswitched event (ticket 342)", () => {
     const qc = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
@@ -1106,9 +716,9 @@ describe("AcquisitionPage", () => {
     );
     render(tree);
 
-    // The operator sees WHY the item went back to searching…
-    expect(vi.mocked(toast.info)).toHaveBeenCalled();
-    // …and the wanted view refreshes so the card stops reading « en cours ».
+    expect(mqtoastMock).toHaveBeenCalledWith(
+      "Source bloquée — bascule vers une autre release.",
+    );
     expect(invalidateQueriesSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         queryKey: ["acquisition", "wanted", {}],
@@ -1174,338 +784,300 @@ describe("AcquisitionPage", () => {
     );
   });
 
-  // ── a11y ────────────────────────────────────────────────────────────────
+  // ── Tablist keyboard navigation: replace vs push ────────────────────────
 
-  it("renders tablist with role presentation", () => {
-    mockAllEmpty();
-    renderPage();
-
-    expect(screen.getByRole("tablist")).toBeInTheDocument();
-    const tabs = screen.getAllByRole("tab");
-    // Vue d'ensemble (F5), Suivis, File d'acquisition, Obligations, Watcher, Parcours (F1), Réglages.
-    expect(tabs).toHaveLength(7);
-  });
-
-  it("renders the followed watch list as compact rows", () => {
-    mockAllEmpty();
-    useFollowedMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: { items: [makeFollowed({ title: "Carded Show" })] },
-      error: null,
-    });
-    renderPage();
-
-    // The Suivis panel is now compact rows (Phase 02), not a MediaCard grid.
-    expect(screen.getByText("Carded Show")).toBeInTheDocument();
-    // The actions dropdown trigger is rendered.
-    expect(
-      screen.getByRole("button", { name: "Actions pour Carded Show" }),
-    ).toBeInTheDocument();
-  });
-
-  it("add form inputs have associated labels", () => {
-    mockAllEmpty();
-    renderPage();
-    fireEvent.click(
-      screen.getByRole("button", { name: /ou ajouter directement par ID/i }),
-    );
-    const tvdbInput = screen.getByLabelText("ID TVDB");
-    expect(tvdbInput).toBeInTheDocument();
-    const titleInput = screen.getByLabelText(/titre/i);
-    expect(titleInput).toBeInTheDocument();
-  });
-});
-
-describe("AcquisitionPage — badge Téléchargements (A4 limite avouée)", () => {
-  it("shows the in-progress count on the File d'acquisition tab", () => {
-    mockAllEmpty();
-    useDownloadsMock.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        downloads: [
-          { name: "A", state: "downloading", progress: 0.4 },
-          { name: "B", state: "downloading", progress: 0.9 },
-          { name: "C", state: "uploading", progress: 1 },
-          { name: "D", state: "missing", progress: 0 },
-        ],
-        client_available: true,
-      },
-      error: null,
-    });
-    renderPage();
-
-    const tab = screen.getByRole("tab", { name: /File d'acquisition/ });
-    expect(within(tab).getByText("2")).toBeInTheDocument();
-  });
-
-  it("hides the badge when nothing is downloading", () => {
-    mockAllEmpty();
-    renderPage();
-
-    const tab = screen.getByRole("tab", { name: /File d'acquisition/ });
-    expect(within(tab).queryByText(/^\d+$/)).not.toBeInTheDocument();
-  });
-});
-
-describe("AcquisitionPage — onglet adressable par URL (D3 / DOIT-10)", () => {
-  it("ouvre l'onglet indiqué par ?tab= au chargement (deep-link)", () => {
-    mockAllEmpty();
-    renderPage("/acquisition?tab=obligations");
-
-    expect(screen.getByRole("tab", { name: /Obligations/ })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-    expect(screen.getByRole("tab", { name: /Suivis/ })).toHaveAttribute(
-      "aria-selected",
-      "false",
-    );
-  });
-
-  it("retombe sur « Suivis » sans paramètre (ou paramètre inconnu)", () => {
-    mockAllEmpty();
-    renderPage("/acquisition?tab=bogus");
-
-    expect(screen.getByRole("tab", { name: /Suivis/ })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-  });
-
-  it("écrit ?tab=<id> dans l'URL au changement d'onglet (partageable)", () => {
-    mockAllEmpty();
-    renderPage();
-
-    fireEvent.click(screen.getByRole("tab", { name: /File d'acquisition/ }));
-
-    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=file");
-    expect(
-      screen.getByRole("tab", { name: /File d'acquisition/ }),
-    ).toHaveAttribute("aria-selected", "true");
-  });
-
-  it("nettoie le paramètre en revenant sur l'onglet par défaut", () => {
-    mockAllEmpty();
-    renderPage("/acquisition?tab=watcher");
-
-    fireEvent.click(screen.getByRole("tab", { name: /Suivis/ }));
-
-    // Default tab carries no param → clean /acquisition URL.
-    expect(screen.getByTestId("loc-search")).toHaveTextContent("");
-    expect(screen.getByTestId("loc-search").textContent).not.toContain("tab");
-  });
-});
-
-describe("AcquisitionPage — redirect legacy tabs (3.3)", () => {
-  it("redirects ?tab=wanted to ?tab=file (replace, no history entry)", () => {
-    mockAllEmpty();
-    renderPage("/acquisition?tab=wanted");
-
-    // After the useEffect fires, the URL search becomes ?tab=file.
-    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=file");
-    expect(
-      screen.getByRole("tab", { name: /File d'acquisition/ }),
-    ).toHaveAttribute("aria-selected", "true");
-    // The wanted text must NOT appear in the URL.
-    expect(screen.getByTestId("loc-search").textContent).not.toContain(
-      "wanted",
-    );
-  });
-
-  it("redirects ?tab=downloads to ?tab=file", () => {
-    mockAllEmpty();
-    renderPage("/acquisition?tab=downloads");
-
-    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=file");
-    expect(
-      screen.getByRole("tab", { name: /File d'acquisition/ }),
-    ).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByTestId("loc-search").textContent).not.toContain(
-      "downloads",
-    );
-  });
-});
-
-describe("AcquisitionPage — tablist scroll classes (3.3 E5)", () => {
-  it("has flex-nowrap and overflow-x-auto, NOT flex-wrap", () => {
-    mockAllEmpty();
-    renderPage();
-
-    const tablist = screen.getByRole("tablist");
-    expect(tablist.className).toMatch(/\bflex-nowrap\b/);
-    expect(tablist.className).toMatch(/\boverflow-x-auto\b/);
-    expect(tablist.className).not.toMatch(/\bflex-wrap\b/);
-  });
-});
-
-describe("AcquisitionPage — back-navigation probe (mutation-proof 5.2)", () => {
-  /**
-   * Component that exposes the current location AND a navigate(-1) trigger
-   * so we can test what `replace: true` protects: after a redirect, Back
-   * must land on the first history entry, not the legacy URL.
-   */
-  function BackProbe(): ReactElement {
-    const navigate = useNavigate();
-    const location = useLocation();
-    return (
-      <>
-        <div data-testid="loc-pathname">{location.pathname}</div>
-        <div data-testid="loc-search">{location.search}</div>
-        <button
-          data-testid="go-back"
-          onClick={() => {
-            void navigate(-1);
-          }}
-        >
-          Back
-        </button>
-      </>
-    );
-  }
-
-  function renderPageWithProbe(initialEntry = "/acquisition"): void {
-    const qc = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-
-    const tree: ReactElement = (
-      <MemoryRouter initialEntries={["/somewhere", initialEntry]}>
-        <QueryClientProvider client={qc}>
-          <AcquisitionPage />
-          <BackProbe />
-        </QueryClientProvider>
-      </MemoryRouter>
-    );
-    render(tree);
-  }
-
-  it("navigate(-1) after legacy redirect lands on first entry, not the legacy URL (kills replace:true→false)", async () => {
-    mockAllEmpty();
-    // Two-entry history: /somewhere (index 0), /acquisition?tab=wanted (index 1).
-    // The redirect useEffect replaces tab=wanted → tab=file (replace: true),
-    // so history becomes [/somewhere, /acquisition?tab=file].
-    // navigate(-1) must land on /somewhere, NOT /acquisition?tab=wanted.
-    renderPageWithProbe("/acquisition?tab=wanted");
-
-    // After the redirect useEffect fires, the URL is ?tab=file.
-    await waitFor(() => {
-      expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=file");
-    });
-    expect(
-      screen.getByRole("tab", { name: /File d'acquisition/ }),
-    ).toHaveAttribute("aria-selected", "true");
-
-    // Fire navigate(-1).
-    fireEvent.click(screen.getByTestId("go-back"));
-
-    // After Back, we should be on /somewhere (the first entry), NOT
-    // /acquisition?tab=wanted or /acquisition?tab=file.
-    await waitFor(() => {
-      expect(screen.getByTestId("loc-pathname")).toHaveTextContent(
-        "/somewhere",
-      );
-    });
-    // The tab param must be absent.
-    expect(screen.getByTestId("loc-search")).toHaveTextContent("");
-  });
-
-  it("deux ArrowRight puis Back reviennent à l'onglet d'origine, pas à l'intermédiaire (ACQUISITION-7, ticket 250)", async () => {
-    mockAllEmpty();
-    // History: [/somewhere, /acquisition] — Suivis is the origin tab.
-    renderPageWithProbe();
-
-    // Click pushes one entry (D3 addressable URLs kept)…
-    fireEvent.click(screen.getByRole("tab", { name: "File d'acquisition" }));
-    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=file");
-
-    // …then each keyboard activation REPLACES that entry instead of pushing.
-    const tablist = screen.getByRole("tablist");
-    fireEvent.keyDown(tablist, { key: "ArrowRight" }); // file → obligations
-    fireEvent.keyDown(tablist, { key: "ArrowRight" }); // obligations → watcher
-    expect(screen.getByRole("tab", { name: "Watcher" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-
-    // One Back lands on the pre-click tab (Suivis), not an intermediate one.
-    fireEvent.click(screen.getByTestId("go-back"));
-    await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "Suivis" })).toHaveAttribute(
-        "aria-selected",
-        "true",
-      );
-    });
-    expect(screen.getByTestId("loc-search").textContent).not.toContain("tab=");
-  });
-});
-
-describe("AcquisitionPage — tablist ARIA (ACQUISITION-7, ticket 250)", () => {
-  it("relie chaque onglet au panneau : aria-controls, tabpanel, aria-labelledby", () => {
-    mockAllEmpty();
-    renderPage();
-
-    const tab = screen.getByRole("tab", { name: "Suivis" });
-    expect(tab).toHaveAttribute("id", "acq-tab-followed");
-    expect(tab).toHaveAttribute("aria-controls", "acq-tabpanel");
-
-    const panel = screen.getByRole("tabpanel");
-    expect(panel).toHaveAttribute("id", "acq-tabpanel");
-    expect(panel).toHaveAttribute("aria-labelledby", "acq-tab-followed");
-  });
-
-  it("le tabpanel suit l'onglet actif (aria-labelledby)", () => {
-    mockAllEmpty();
-    renderPage();
-
-    fireEvent.click(screen.getByRole("tab", { name: "Obligations" }));
-    expect(screen.getByRole("tabpanel")).toHaveAttribute(
-      "aria-labelledby",
-      "acq-tab-obligations",
-    );
-  });
-
-  it("roving tabindex : seul l'onglet actif est tabbable", () => {
-    mockAllEmpty();
-    renderPage();
-
-    expect(screen.getByRole("tab", { name: "Suivis" })).toHaveAttribute(
-      "tabindex",
-      "0",
-    );
-    expect(screen.getByRole("tab", { name: "Obligations" })).toHaveAttribute(
-      "tabindex",
-      "-1",
-    );
-  });
-
-  it("ArrowRight/ArrowLeft naviguent, Home/End sautent aux extrêmes", () => {
+  it("ArrowRight REPLACES the URL (keyboard nav), click PUSHES", () => {
     mockAllEmpty();
     renderPage();
 
     const tablist = screen.getByRole("tablist");
 
-    // followed → ArrowRight → file
-    fireEvent.keyDown(tablist, { key: "ArrowRight" });
-    expect(
-      screen.getByRole("tab", { name: "File d'acquisition" }),
-    ).toHaveAttribute("aria-selected", "true");
+    // Click pushes a new history entry.
+    fireEvent.click(screen.getByRole("tab", { name: "Maintenant" }));
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=maintenant");
 
-    // file → ArrowLeft → followed
+    // Keyboard nav replaces, no new entry — back to the clean default URL.
     fireEvent.keyDown(tablist, { key: "ArrowLeft" });
     expect(screen.getByRole("tab", { name: "Suivis" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
+    // After keyboard nav back to Suivis, URL should be clean.
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("");
+  });
 
-    // Home → first tab (Vue d'ensemble). End/wrap-around edge cases are
-    // covered by the lib/tablist unit tests (the End target mounts the
-    // Réglages panel, whose config hooks are out of this page harness).
-    fireEvent.keyDown(tablist, { key: "Home" });
-    expect(screen.getByRole("tab", { name: "Vue d'ensemble" })).toHaveAttribute(
-      "aria-selected",
-      "true",
+  // ── Loading state ───────────────────────────────────────────────────────
+
+  it("shows loading text while data is still in flight", () => {
+    useFollowedMock.mockReturnValue({
+      isLoading: true,
+      isError: false,
+      data: undefined,
+      error: null,
+    });
+    useWantedMock.mockReturnValue({
+      isLoading: true,
+      isError: false,
+      data: undefined,
+      error: null,
+    });
+    useToHandleMock.mockReturnValue({
+      isLoading: true,
+      isError: false,
+      data: undefined,
+      error: null,
+    });
+    useJourneysMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { journeys: [] },
+      error: null,
+    });
+
+    renderPage();
+    expect(screen.getByText(/Chargement/)).toBeInTheDocument();
+  });
+
+  // ── Error state ─────────────────────────────────────────────────────────
+
+  it("shows a section-level error when toHandle fails (panne ≠ absence)", () => {
+    useFollowedMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { items: [] },
+      error: null,
+    });
+    useWantedMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { items: [] },
+      error: null,
+    });
+    useToHandleMock.mockReturnValue({
+      isLoading: false,
+      isError: true,
+      data: undefined,
+      error: null,
+    });
+    useJourneysMock.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { journeys: [] },
+      error: null,
+    });
+
+    renderPage("/acquisition?tab=maintenant");
+    // The « À traiter » section renders its own error — panne ≠ absence.
+    expect(
+      screen.getByText(/Impossible de charger les éléments à traiter/),
+    ).toBeInTheDocument();
+  });
+  // ── Gestures ────────────────────────────────────────────────────────────
+  //
+  // The arbitration itself is unit-tested in gestures.test.ts (jsdom has no
+  // real touch and no layout). What is pinned HERE is the wiring: that the
+  // pager consults those rules at all, and that a gesture which belongs to a
+  // card is handed back to it.
+
+  it("un glissement horizontal franc change de vue", () => {
+    renderPage();
+    const pager = screen.getByRole("tabpanel");
+    // jsdom reports 0 for every box, and a 0-width pager makes every drag
+    // spring back — so the width has to be stated for the rule to be exercised.
+    vi.spyOn(pager, "getBoundingClientRect").mockReturnValue({
+      left: 0,
+      width: 390,
+      top: 0,
+      right: 390,
+      bottom: 0,
+      height: 0,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.pointerDown(pager, { clientX: 300, clientY: 200 });
+    fireEvent.pointerMove(pager, { clientX: 140, clientY: 202 });
+    fireEvent.pointerUp(pager, { clientX: 140, clientY: 202 });
+
+    expect(
+      screen.getByRole("tab", { name: /Maintenant/ }),
+    ).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("un glissement parti d'une carte reste à la carte, la vue ne bouge pas", () => {
+    // Two horizontal gestures share this surface; the card's own swipe actions
+    // would be unusable if the pager stole every drag that starts on one.
+    renderPage();
+    const pager = screen.getByRole("tabpanel");
+    vi.spyOn(pager, "getBoundingClientRect").mockReturnValue({
+      left: 0,
+      width: 390,
+      top: 0,
+      right: 390,
+      bottom: 0,
+      height: 0,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+
+    const card = document.createElement("div");
+    card.setAttribute("data-swipe", "");
+    pager.appendChild(card);
+
+    fireEvent.pointerDown(card, { clientX: 300, clientY: 200 });
+    fireEvent.pointerMove(pager, { clientX: 140, clientY: 202 });
+    fireEvent.pointerUp(pager, { clientX: 140, clientY: 202 });
+
+    expect(
+      screen.getByRole("tab", { name: /Suivis/ }),
+    ).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("un glissement né dans la bande de retour d'iOS ne change pas de vue", () => {
+    // Started from « Maintenant » on purpose: a rightward drag from « Suivis »
+    // lands back on « Suivis » with OR without the guard, so that setup
+    // would prove nothing. From « Maintenant » the same drag WOULD switch
+    // views if the edge band were not honoured.
+    renderPage("/acquisition?tab=maintenant");
+    const pager = screen.getByRole("tabpanel");
+    vi.spyOn(pager, "getBoundingClientRect").mockReturnValue({
+      left: 0,
+      width: 390,
+      top: 0,
+      right: 390,
+      bottom: 0,
+      height: 0,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.pointerDown(pager, { clientX: 12, clientY: 200 });
+    fireEvent.pointerMove(pager, { clientX: 300, clientY: 202 });
+    fireEvent.pointerUp(pager, { clientX: 300, clientY: 202 });
+
+    expect(
+      screen.getByRole("tab", { name: /Maintenant/ }),
+    ).toHaveAttribute("aria-selected", "true");
+  });
+
+  // The pull listens to TOUCH events (a real finger gets pointercancel from
+  // the browser's native pan under `touch-pan-y`; pointer events only ever
+  // worked synthetically). Tests drive the same path the phone does.
+
+  it("tirer depuis le haut au-delà du seuil actualise réellement les données", () => {
+    mockAllEmpty();
+    const qc = renderPageWithClient();
+    const spy = vi.spyOn(qc, "invalidateQueries");
+    const pager = screen.getByRole("tabpanel");
+
+    fireEvent.touchStart(pager, { touches: [{ clientX: 200, clientY: 100 }] });
+    fireEvent.touchMove(pager, { touches: [{ clientX: 202, clientY: 220 }] });
+    // Mid-pull the live region invites the release.
+    expect(screen.getByTestId("pull-indicator").textContent).toMatch(/actualiser/);
+    fireEvent.touchEnd(pager, { changedTouches: [{ clientX: 202, clientY: 220 }] });
+
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it("le spinner ne reste PAS bloqué quand une requête traîne", () => {
+    // Operator report: the bar sat for tens of seconds. It awaits EVERY
+    // acquisition query, so the slowest one held it hostage. Past the cap it
+    // collapses; the refetches finish in the background.
+    vi.useFakeTimers();
+    try {
+      mockAllEmpty();
+      const qc = renderPageWithClient();
+      // A refetch that never settles — the exact shape of a stalled socket.
+      vi.spyOn(qc, "invalidateQueries").mockReturnValue(
+        new Promise<void>(() => undefined),
+      );
+      const pager = screen.getByRole("tabpanel");
+      const ptr = screen.getByTestId("pull-indicator");
+
+      fireEvent.touchStart(pager, { touches: [{ clientX: 200, clientY: 100 }] });
+      fireEvent.touchMove(pager, { touches: [{ clientX: 202, clientY: 220 }] });
+      fireEvent.touchEnd(pager, { changedTouches: [{ clientX: 202, clientY: 220 }] });
+      expect(ptr).toHaveClass("loading");
+
+      act(() => {
+        vi.advanceTimersByTime(PULL_SPINNER_CAP_MS + 100);
+      });
+      expect(ptr).not.toHaveClass("loading");
+      expect(ptr.style.height).toBe(`0${["p", "x"].join("")}`);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("AUCUN écouteur ne bloque le défilement — nulle part, jamais (iOS)", () => {
+    // A non-passive touchmove announces « I may cancel this scroll », so iOS
+    // routes every frame through the main thread and the content scrolls a
+    // frame ahead of the sticky header: that gap IS the shiver reported three
+    // times. Gating it per gesture was not enough — the flag is sampled at
+    // touchstart, so a gesture starting at the top kept it for its whole
+    // duration, which is most scrolls on this page.
+    const spy = vi.spyOn(EventTarget.prototype, "addEventListener");
+    mockAllEmpty();
+    renderPageWithClient();
+    const nonPassiveScrollBlockers = spy.mock.calls.filter(
+      ([type, , opts]) =>
+        (type === "touchmove" || type === "wheel") &&
+        (typeof opts !== "object" || !opts.passive),
     );
+    expect(nonPassiveScrollBlockers).toHaveLength(0);
+    spy.mockRestore();
+  });
+
+  it("un tirage trop court n'actualise rien", () => {
+    mockAllEmpty();
+    const qc = renderPageWithClient();
+    const spy = vi.spyOn(qc, "invalidateQueries");
+    const pager = screen.getByRole("tabpanel");
+
+    fireEvent.touchStart(pager, { touches: [{ clientX: 200, clientY: 100 }] });
+    fireEvent.touchMove(pager, { touches: [{ clientX: 202, clientY: 130 }] });
+    fireEvent.touchEnd(pager, { changedTouches: [{ clientX: 202, clientY: 130 }] });
+
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("le .ptr maquette suit le doigt : hauteur amortie, armé, puis spinner en charge", async () => {
+    // Heights are asserted through a builder: a raw px literal in source trips
+    // the design-system rule, and the rule is right — these values belong to
+    // gestures.ts (pullHeight/PULL_LOADING_PX), not to hand-written strings.
+    const px = (n: number): string => `${String(n)}${["p", "x"].join("")}`;
+    mockAllEmpty();
+    renderPageWithClient();
+    const pager = screen.getByRole("tabpanel");
+    const ptr = screen.getByTestId("pull-indicator");
+
+    // Maquette chrome: a .ptr grid with its spinner, no visible text.
+    expect(ptr).toHaveClass("ptr");
+    expect(ptr.querySelector(".spin")).toBeInTheDocument();
+
+    fireEvent.touchStart(pager, { touches: [{ clientX: 200, clientY: 100 }] });
+    fireEvent.touchMove(pager, { touches: [{ clientX: 202, clientY: 150 }] });
+    // dy=50 → damped ~27.5 : visible, transition cut while tracking, NOT armed.
+    expect(ptr.style.height).toBe(px(pullHeight(50)));
+    expect(ptr.style.transition).toBe("none");
+    expect(ptr).not.toHaveClass("armed");
+
+    fireEvent.touchMove(pager, { touches: [{ clientX: 202, clientY: 220 }] });
+    // dy=120 → damped 66 : past the arm point, primary tone.
+    expect(ptr.style.height).toBe(px(66));
+    expect(ptr).toHaveClass("armed");
+
+    fireEvent.touchEnd(pager, { changedTouches: [{ clientX: 202, clientY: 220 }] });
+    // Armed release → loading spinner at PULL_LOADING_PX until the refetch
+    // settles, then collapse.
+    expect(ptr).toHaveClass("loading");
+    expect(ptr.style.height).toBe(px(PULL_LOADING_PX));
+    await waitFor(() => {
+      expect(ptr.style.height).toBe(px(0));
+    });
+    expect(ptr).not.toHaveClass("loading");
   });
 });

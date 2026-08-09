@@ -16,7 +16,7 @@ from pathlib import Path
 from personalscraper.acquire.cadence import Cadence, next_search_at, tier_name
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.logger import get_logger
-from personalscraper.web.models.acquisition import MediaRefResponse
+from personalscraper.web.models.acquisition import MediaRefResponse, WantedSearchBest
 
 logger = get_logger(__name__)
 
@@ -169,3 +169,28 @@ def _cadence_readout(
             best_rank = rank
             best_tier = tier
     return (float(soonest) if soonest is not None else None, best_tier)
+
+
+def _parse_search_best(raw: object) -> WantedSearchBest | None:
+    """Parse ``wanted.last_search_best_json`` into its response model.
+
+    Fail-soft: a corrupt snapshot reads as « no summary », never a 500 —
+    the card simply omits the quality segment.
+
+    Args:
+        raw: The raw column value (TEXT or NULL).
+
+    Returns:
+        The parsed summary, or ``None``.
+    """
+    if not isinstance(raw, str) or raw == "":
+        return None
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    return WantedSearchBest.model_validate(
+        {k: data.get(k) for k in ("title", "resolution", "source", "codec", "language", "seeders")}
+    )

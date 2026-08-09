@@ -18,8 +18,7 @@ mirrors pipeline.py's _build_status pattern.
 
 Writes use ``build_acquire_store`` to create a fresh ConcreteAcquireStore per
 request — its own connection, safe across threads.  Each mutating route also
-carries ``require_not_staging`` (staging → 403) and
-``require_x_requested_with`` (CSRF → 400) as per-route dependencies.
+carries ``require_x_requested_with`` (CSRF → 400) as a per-route dependency.
 """
 
 from __future__ import annotations
@@ -53,6 +52,7 @@ from personalscraper.web.acquisition._helpers import (
     _cadence_readout,
     _parse_json_dict,
     _parse_media_ref,
+    _parse_search_best,
     _row_col,
 )
 from personalscraper.web.acquisition.obligation_titles import resolve_obligation_titles
@@ -64,11 +64,12 @@ from personalscraper.web.acquisition.service import (
     _list_deferred_torrents,
     _query_watcher_recent_runs,
     resolve_series_tvdb,
+    run_media_lookup,
     run_media_search,
     scoped_provider_clients,
 )
 from personalscraper.web.acquisition.states import WantedFacts, substitute_absorbed_facts
-from personalscraper.web.deps import require_not_staging, require_x_requested_with
+from personalscraper.web.deps import require_x_requested_with
 from personalscraper.web.models.acquisition import (
     AcquisitionDownloadsResponse,
     AcquisitionStatusResponse,
@@ -80,6 +81,7 @@ from personalscraper.web.models.acquisition import (
     JourneysResponse,
     MediaRefResponse,
     MediaSearchResponse,
+    MediaSearchResult,
     ObligationItem,
     ObligationsResponse,
     UpdateFollowRequest,
@@ -132,6 +134,7 @@ def _write_follow_metadata(
             poster_url=metadata.poster_url,
             overview=metadata.overview,
             year=metadata.year,
+            title=metadata.title,
         )
     except Exception:  # noqa: BLE001 — fail-soft: the follow already succeeded, metadata is a nicety
         logger.warning("acquisition_follow_metadata_write_failed", followed_id=followed_id, exc_info=True)
@@ -165,7 +168,15 @@ def _resolve_follow_metadata(request: Request, body: CreateFollowRequest, media_
     Returns:
         The resolved :class:`FollowMetadata`.
     """
-    known = FollowMetadata(poster_url=body.poster_url, overview=body.overview, year=body.year)
+    known = FollowMetadata(
+        poster_url=body.poster_url,
+        overview=body.overview,
+        year=body.year,
+        # Seeded so a client that DID send a title makes zero provider calls;
+        # a client that sent none (the add-by-ID form) gets the title resolved
+        # rather than storing a nameless follow.
+        title=body.title if body.title else None,
+    )
     if known.is_complete:
         return known
     try:
@@ -249,6 +260,18 @@ def get_followed(
                 ).fetchall():
                     last = None if w["last_search_at"] is None else int(w["last_search_at"])
                     timings_by_series.setdefault(int(w["followed_id"]), []).append((int(w["enqueued_at"]), last))
+
+            # The LAST real search per series — MAX over ALL statuses: a
+            # grabbed/done row still witnesses the last pass (the query above
+            # feeds the cadence and only reads pending/searching).
+            last_search_by_series: dict[int, float] = {
+                int(w["followed_id"]): float(w["last"])
+                for w in conn.execute(
+                    "SELECT followed_id, MAX(last_search_at) AS last FROM wanted "
+                    "WHERE followed_id IS NOT NULL AND last_search_at IS NOT NULL "
+                    "GROUP BY followed_id"
+                ).fetchall()
+            }
 
             # Batched lookup of in-flight priming runs — one query, never N+1.
             # An open prime run overrides the card status to
@@ -371,6 +394,7 @@ def get_followed(
                         season_count=season_count,
                         next_search_at=next_due,
                         cadence_tier=cadence_tier,
+                        last_search_at=last_search_by_series.get(row["id"]),
                         aired_count=truth.aired_count,
                         owned_count=truth.owned_count,
                         a_recuperer_count=truth.a_recuperer_count,
@@ -447,6 +471,10 @@ _WANTED_STATUSES = Literal[
     "all",
     "pending",
     "searching",
+    # A search that concluded takeable parks the row here until the grab pass
+    # takes it — it is what the « À récupérer » card must correlate with
+    # (the pending filter silently missed every genuinely takeable item).
+    "available",
     "grabbed",
     "done",
     "abandoned",
@@ -589,6 +617,15 @@ def get_wanted(
                         attempts=row["attempts"],
                         enqueued_at=float(row["enqueued_at"]),
                         last_search_at=(float(row["last_search_at"]) if row["last_search_at"] is not None else None),
+                        last_search_found=cast("int | None", _row_col(row, "last_search_found")),
+                        last_search_best=_parse_search_best(_row_col(row, "last_search_best_json")),
+                        last_grab_reason=cast("str | None", _row_col(row, "last_grab_reason")),
+                        last_grab_at=(
+                            float(cast("int", _row_col(row, "last_grab_at")))
+                            if _row_col(row, "last_grab_at") is not None
+                            else None
+                        ),
+                        followed_id=cast("int | None", _row_col(row, "followed_id")),
                     )
                 )
             return WantedResponse(items=items, total=total, page=page, page_size=page_size)
@@ -829,6 +866,35 @@ def get_journeys(
         store.close()
 
 
+@router.get("/lookup", response_model=MediaSearchResult)
+def lookup_by_id(
+    request: Request,
+    provider: Literal["tvdb", "tmdb"] = Query(..., description="Metadata provider"),
+    provider_id: int = Query(..., ge=1, description="The provider's numeric id"),
+    kind: Literal["movie", "tv"] = Query("tv", description="Movie or series"),
+) -> MediaSearchResult:
+    """Resolve ONE media by provider id, as a search result.
+
+    The add-by-ID form RESOLVES before it follows (operator, 2026-08-08):
+    submitting an id used to create the follow sight unseen, with whatever
+    title had been typed — usually none. Engine in
+    :func:`~personalscraper.web.acquisition.service.run_media_lookup`.
+
+    Args:
+        request: The incoming FastAPI request.
+        provider: ``"tvdb"`` or ``"tmdb"``.
+        provider_id: The provider's numeric identifier.
+        kind: ``"movie"`` or ``"tv"``.
+
+    Returns:
+        The resolved :class:`MediaSearchResult`.
+
+    Raises:
+        HTTPException: 404 when the provider knows no such id.
+    """
+    return run_media_lookup(request, provider=provider, provider_id=provider_id, kind=kind)
+
+
 # ── media search (add-by-search, OBJ3) ───────────────────────────────────
 
 
@@ -874,7 +940,7 @@ def search_media(
     "/followed",
     status_code=201,
     response_model=FollowedSeriesItem,
-    dependencies=[Depends(require_not_staging), Depends(require_x_requested_with)],
+    dependencies=[Depends(require_x_requested_with)],
 )
 def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeriesItem:
     """Follow a new series (or reactivate an inactive one).
@@ -914,6 +980,8 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
             # series-shaped and no movie wanted row is ever produced).
             store.follow.set_active(existing.id, True)
             store.follow.set_kind(existing.id, body.kind)
+            if body.replace_owned:
+                store.follow.set_replace_owned(existing.id, True)
             # Reactivation backfills too: a follow paused before the server
             # enriched anything must not stay posterless just because it is old.
             metadata = _resolve_follow_metadata(request, body, media_ref)
@@ -957,22 +1025,28 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
                     imdb_id=media_ref.imdb_id,
                 )
 
+        # Card metadata FIRST: it carries the provider's title, and the row is
+        # written with it. Resolving after the insert (as this did) is why an
+        # add-by-ID produced a NAMELESS follow — blank in the list and blank in
+        # its own sheet (operator report 2026-08-08). The client's title still
+        # wins; « Sans titre » only when BOTH are silent, so the row can at
+        # least be found and removed.
+        metadata = _resolve_follow_metadata(request, body, media_ref)
+        resolved_title = title or metadata.title or "Sans titre"
+
         # New follow. The kind ('movie'|'show') starts the §5 film lifecycle:
         # detect will produce one movie wanted row and auto-unfollow once acquired.
         series = FollowedSeries(
             media_ref=media_ref,
-            title=title,
+            title=resolved_title,
             added_at=int(time.time()),
             active=True,
             kind=body.kind,
+            replace_owned=body.replace_owned,
         )
         new_id = store.follow.add(series)
         created = store.follow.get(new_id)
         assert created is not None  # noqa: S101 — just inserted it
-        # Persist + echo the card metadata: the search candidate when the client
-        # supplied one, otherwise fetched from the provider by ID (§7 RC3 — the
-        # by-ID add form sends no poster, and the card stayed blank forever).
-        metadata = _resolve_follow_metadata(request, body, media_ref)
         _write_follow_metadata(store, new_id, metadata)
         # Amorce: catalog + queue + first search run NOW, through the existing
         # run authority — a fresh follow is never left idle until the 03:00
@@ -992,7 +1066,7 @@ def create_follow(request: Request, body: CreateFollowRequest) -> FollowedSeries
 @router.patch(
     "/followed/{followed_id}",
     response_model=FollowedSeriesItem,
-    dependencies=[Depends(require_not_staging), Depends(require_x_requested_with)],
+    dependencies=[Depends(require_x_requested_with)],
 )
 def update_follow(
     request: Request,
@@ -1039,10 +1113,16 @@ def update_follow(
 @router.delete(
     "/followed/{followed_id}",
     status_code=204,
-    dependencies=[Depends(require_not_staging), Depends(require_x_requested_with)],
+    dependencies=[Depends(require_x_requested_with)],
 )
 def delete_follow(request: Request, followed_id: int) -> None:
-    """Soft-unfollow a series (sets active=False).
+    """REMOVE a follow — really, not a disguised pause.
+
+    This used to call ``set_active(False)``: the exact write the « Mettre en
+    pause » button performs. Two verbs, one effect — a removal the operator
+    asked for never happened, and the row came back in « En pause » (their
+    report, 2026-08-08). Pausing keeps its own path (``PATCH`` with
+    ``active=false``); this one deletes.
 
     Args:
         request: The incoming FastAPI request.
@@ -1057,6 +1137,6 @@ def delete_follow(request: Request, followed_id: int) -> None:
         existing = store.follow.get(followed_id)
         if existing is None:
             raise HTTPException(status_code=404, detail="Followed series not found")
-        store.follow.set_active(followed_id, False)
+        store.follow.delete(followed_id)
     finally:
         store.close()

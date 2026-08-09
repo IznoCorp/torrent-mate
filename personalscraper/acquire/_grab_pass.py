@@ -146,6 +146,16 @@ class GrabPassMixin(PassGatesMixin):
         # ``clear_grab_intent`` for the full list of actors it locks out.
         self._release_grab_intent(wanted_id)
 
+        # §8 (rien en silence): a grab that FAILED leaves its reason ON the row
+        # so the card can explain a frozen « À récupérer » — the operator
+        # watched four identical fetch failures with zero on-screen trace.
+        # ``not_found`` is deliberately excluded: it is the grab's own
+        # re-search concluding « nothing takeable right now », a SEARCH verdict
+        # the row already records. Calling that « récupération en échec » would
+        # name the wrong thing.
+        if outcome.disposition != "not_found":
+            self._store.wanted.record_grab_failure(wanted_id, outcome.reason or outcome.disposition, int(time.time()))
+
         if outcome.disposition == "terminal":
             # The orchestrator already emitted WantedAbandoned on this path, so
             # the service only persists: verdict first, then the status (same
@@ -301,6 +311,10 @@ class GrabPassMixin(PassGatesMixin):
                 # NOT the ContextVar — grab's correlation is a misaligned fresh uuid). None
                 # when grab runs with no run row.
                 run_uid=self._grab_run_uid,
+                # 021 — the journey's displayable name during grab→ingest,
+                # before any staging path exists (« Nom de release non
+                # enregistré » was on screen for the whole download).
+                release_name=(outcome.chosen.title if outcome.chosen is not None else None),
             )
         # Seed obligation at GRAB time (2026-07-15): the dispatch-time
         # name+size correlation can never match a renamed/aggregated TV show

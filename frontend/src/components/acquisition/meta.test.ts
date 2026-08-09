@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { EpisodeCompleteness } from "@/api/acquisition";
+import type { FollowedSeriesItem } from "@/api/acquisition";
 
 import {
   DEFERRED_REASON_LABEL,
@@ -25,13 +25,15 @@ import {
   RUN_OUTCOME_TONE,
   STATUS_LABEL,
   STATUS_TONE,
-  WANTED_STATUS_OPTIONS,
+  actionWords,
+  asMediaKind,
+  followMediaRef,
   followStatusHint,
   followStatusLabel,
   searchOutcomeReason,
-  waitingGroups,
   type EpisodeState,
   type FollowStatus,
+  type MediaKind,
 } from "./meta";
 
 /** The seven card statuses the backend serves (schema.d.ts truth). */
@@ -102,12 +104,21 @@ describe("followStatusLabel / followStatusHint (film vs série)", () => {
 
   it("shares the série wording for every non-overridden state", () => {
     for (const status of FOLLOW_STATUSES) {
-      if (status === "a_jour") continue;
+      if (status === "a_jour" || status === "disabled") continue;
       expect(followStatusLabel(status, "movie")).toBe(
         FOLLOW_STATUS_LABEL[status],
       );
       expect(followStatusHint(status, "movie")).toBe(FOLLOW_STATUS_HINT[status]);
     }
+  });
+
+  it("l'infobulle d'un film suspendu ne contredit pas sa pastille", () => {
+    // The badge reads « Recherche arrêtée » — the tooltip must NOT fall through
+    // to the série wording « Suivi en pause » (§13: two surfaces answering the
+    // same question must read from the same code).
+    const hint = followStatusHint("disabled", "movie");
+    expect(hint).not.toContain("Suivi en pause");
+    expect(hint).toMatch(/ne plus cherch|n'est plus cherch/i);
   });
 });
 
@@ -219,19 +230,6 @@ describe("WANTED-QUEUE status vocabulary (review F8)", () => {
     expect(STATUS_TONE[status]).toBe(tone);
   });
 
-  it("lets the queue filter select the season-grab statuses", () => {
-    const values = WANTED_STATUS_OPTIONS.map((o) => o.value);
-    // `absorbed` is deliberately NOT offered: an absorbed row simply reads
-    // « En cours d'acquisition », so a filter on it would ask the operator to
-    // reason about plumbing (season pack vs episode) that changes nothing.
-    expect(values).not.toContain("absorbed");
-    expect(values).toContain("fallback_episodes");
-    // Every option carries French wording, never the raw slug.
-    for (const opt of WANTED_STATUS_OPTIONS) {
-      expect(opt.label).toBeTruthy();
-      expect(opt.label).not.toBe(opt.value);
-    }
-  });
 });
 
 describe("searchOutcomeReason — le motif d'attente en français", () => {
@@ -264,40 +262,6 @@ describe("searchOutcomeReason — le motif d'attente en français", () => {
     expect(searchOutcomeReason("en_acquisition", "all_filtered")).toBeNull();
     expect(searchOutcomeReason("non_verifie", null)).toBeNull();
     expect(searchOutcomeReason("en_attente", undefined)).toBeNull();
-  });
-});
-
-describe("waitingGroups — un motif, les épisodes qui le partagent", () => {
-  const ep = (
-    episode: number,
-    state: EpisodeCompleteness["state"],
-    outcome: string | null,
-  ): EpisodeCompleteness => ({
-    episode,
-    state,
-    title: null,
-    air_date: null,
-    last_search_outcome: outcome,
-  });
-
-  it("regroupe les épisodes par motif, numéros triés", () => {
-    const groups = waitingGroups([
-      ep(3, "en_attente", "all_filtered"),
-      ep(1, "en_attente", "all_filtered"),
-      ep(2, "en_attente", "no_candidates"),
-      ep(4, "en_mediatheque", null),
-    ]);
-
-    expect(groups).toEqual([
-      { reason: "rien de conforme au profil", episodes: [1, 3] },
-      { reason: "aucun résultat", episodes: [2] },
-    ]);
-  });
-
-  it("ne dit rien quand rien n'attend", () => {
-    expect(
-      waitingGroups([ep(1, "en_mediatheque", null), ep(2, "a_recuperer", null)]),
-    ).toEqual([]);
   });
 });
 
@@ -359,19 +323,183 @@ describe("X7 — les enums servis ne rendent jamais un slug brut", () => {
     }
   });
 
-  it("couvre chaque statut filtrable de la file et des obligations", () => {
-    // Every selectable status (the « all » sentinel aside) must resolve to a
-    // French STATUS_LABEL — the queue Badge and the empty-state sentence
-    // both read from it.
-    for (const opt of WANTED_STATUS_OPTIONS) {
-      if (opt.value === "all") continue;
-      expect(STATUS_LABEL[opt.value]).toBeTruthy();
-      expect(STATUS_LABEL[opt.value]).not.toBe(opt.value);
+});
+
+// ---------------------------------------------------------------------------
+// §9 — Film vs series action labelling
+// ---------------------------------------------------------------------------
+
+describe("vocabulaire film vs série (§9)", () => {
+  it("un film s'ajoute, une série se suit", () => {
+    expect(actionWords("movie").add).toBe("Ajouter");
+    expect(actionWords("movie").added).toBe("✓ Ajouté");
+    expect(actionWords("show").add).toBe("Suivre");
+    expect(actionWords("show").added).toBe("✓ Suivi");
+  });
+
+  it("on n'met pas un film en pause, on arrête de le chercher", () => {
+    expect(actionWords("movie").pause).toBe("Ne plus chercher");
+    expect(actionWords("movie").resume).toBe("Chercher à nouveau");
+    expect(actionWords("show").pause).toBe("Mettre en pause");
+  });
+
+  it("un film quitte la liste, une série AUSSI — supprimer supprime (§9)", () => {
+    // Operator, 2026-08-08: « supprimer » and « mettre en pause » wrote the
+    // same row. Now that removal really removes, the copy must stop promising
+    // a reactivation and must point at the pause for that intent.
+    expect(actionWords("movie").removeConfirmBody).toMatch(/SUPPRIMÉ/);
+    expect(actionWords("show").removeConfirmBody).toMatch(/SUPPRIMÉ/);
+    expect(actionWords("show").removeConfirmBody).toMatch(/Mettre en pause/);
+    expect(actionWords("show").removeConfirmBody).not.toMatch(/réactiver/i);
+  });
+
+  it("un film suspendu n'est pas « en pause » mais « recherche arrêtée »", () => {
+    expect(followStatusLabel("disabled", "movie")).toBe("Recherche arrêtée");
+    expect(followStatusLabel("disabled", "show")).toBe("En pause");
+  });
+
+  it("les libellés courts du balayage tiennent en deux mots", () => {
+    for (const kind of ["movie", "show"]) {
+      expect(
+        actionWords(kind).pauseShort.split(" ").length,
+      ).toBeLessThanOrEqual(3);
+      expect(
+        actionWords(kind).resumeShort.split(" ").length,
+      ).toBeLessThanOrEqual(3);
     }
+  });
+
+  it("un kind inconnu retombe sur le vocabulaire série, jamais sur un slug", () => {
+    const w = actionWords("what-is-this");
+    expect(w.add).toBe("Suivre");
+    expect(
+      Object.values(w).every(
+        (v: string) => !/[a-z]+_[a-z]+/.test(v),
+      ),
+    ).toBe(true);
+  });
+
+  it("chaque état a un libellé — un nouvel état casse tsc, il n'imprime pas un slug", () => {
+    for (const status of Object.keys(FOLLOW_STATUS_LABEL)) {
+      expect(
+        FOLLOW_STATUS_LABEL[status as keyof typeof FOLLOW_STATUS_LABEL],
+      ).toBeTruthy();
+    }
+  });
+
+  it("MediaKind accepte les trois littéraux et rien d'autre", () => {
+    // Type-level assertion: each literal must be assignable to MediaKind.
+    // tsc -b --noEmit is the real gate — this test pins the three values
+    // so no future refactor widens or narrows the union by accident.
+    const m1: MediaKind = "movie";
+    const m2: MediaKind = "show";
+    const m3: MediaKind = "season";
+    expect([m1, m2, m3]).toEqual(["movie", "show", "season"]);
+  });
+
+  it("asMediaKind renvoie le littéral exact pour les trois MediaKind connus", () => {
+    expect(asMediaKind("movie")).toBe("movie");
+    expect(asMediaKind("show")).toBe("show");
+    expect(asMediaKind("season")).toBe("season");
+  });
+
+  it("asMediaKind tombe sur « show » pour une valeur inconnue", () => {
+    expect(asMediaKind("podcast")).toBe("show");
+    expect(asMediaKind("")).toBe("show");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// followMediaRef — gate on the LINK, not on tvdb_unresolved
+// ---------------------------------------------------------------------------
+
+/** Minimal FollowedSeriesItem — only the fields followMediaRef reads. */
+function mediaRefItem(
+  overrides: Partial<FollowedSeriesItem> = {},
+): FollowedSeriesItem {
+  return {
+    id: 1,
+    title: "Silo",
+    kind: "show",
+    active: true,
+    added_at: 0,
+    cadence: { interval_minutes: 60 },
+    cadence_tier: null,
+    next_search_at: null,
+    quality_profile: null,
+    wanted_pending: 0,
+    wanted_grabbed: 0,
+    season_count: 2,
+    year: 2023,
+    overview: null,
+    poster_url: null,
+    media_ref: { tvdb_id: 400000, tmdb_id: 125910, imdb_id: null },
+    status: "a_jour",
+    priming_running: false,
+    tvdb_unresolved: false,
+    aired_count: null,
+    owned_count: null,
+    a_recuperer_count: null,
+    en_acquisition_count: null,
+    en_attente_count: null,
+    non_verifie_count: null,
+    movie_facts: null,
+    ...overrides,
+  };
+}
+
+describe("followMediaRef — la condition est le LIEN, pas le flag (§11)", () => {
+  it("priorité TVDB : tvdb_id → /media/tvdb/{id}?kind=tv", () => {
+    const href = followMediaRef(mediaRefItem());
+    expect(href).toBe("/media/tvdb/400000?kind=tv");
+  });
+
+  it("fallback TMDB : pas de tvdb_id → /media/tmdb/{id}?kind=tv", () => {
+    const href = followMediaRef(
+      mediaRefItem({
+        media_ref: { tvdb_id: null, tmdb_id: 125910, imdb_id: null },
+      }),
+    );
+    expect(href).toBe("/media/tmdb/125910?kind=tv");
+  });
+
+  it("film → kind=movie dans le href", () => {
+    const href = followMediaRef(
+      mediaRefItem({
+        kind: "movie",
+        media_ref: { tvdb_id: null, tmdb_id: 550, imdb_id: null },
+      }),
+    );
+    expect(href).toBe("/media/tmdb/550?kind=movie");
+  });
+
+  it("aucun id → null (§11 : pas de lien mort)", () => {
+    const href = followMediaRef(
+      mediaRefItem({
+        media_ref: { tvdb_id: null, tmdb_id: null, imdb_id: "tt1234567" },
+      }),
+    );
+    expect(href).toBeNull();
+  });
+
+  it("tmdb_id seul suffit, même avec tvdb_unresolved=true (le flag n'est pas la vérité)", () => {
+    // An item can have tvdb_unresolved: true while carrying a tmdb_id that
+    // resolves to a valid sheet. Gating on the flag would suppress the link
+    // for nothing — followMediaRef returns the real answer.
+    const href = followMediaRef(
+      mediaRefItem({
+        tvdb_unresolved: true,
+        media_ref: { tvdb_id: null, tmdb_id: 125910, imdb_id: null },
+      }),
+    );
+    expect(href).toBe("/media/tmdb/125910?kind=tv");
+  });
+  it("chaque option de filtre d'obligation porte un libellé français, jamais le jeton", () => {
+    // ObligationsPanel (mounted behind « Plus ») renders these options as-is:
+    // a machine value reaching the select would be NE-DOIT-PAS-4.
     for (const opt of OBLIGATION_STATUS_OPTIONS) {
-      if (opt.value === "all") continue;
-      expect(STATUS_LABEL[opt.value]).toBeTruthy();
-      expect(STATUS_LABEL[opt.value]).not.toBe(opt.value);
+      expect(opt.label).toBeTruthy();
+      expect(opt.label).not.toBe(opt.value);
     }
   });
 });

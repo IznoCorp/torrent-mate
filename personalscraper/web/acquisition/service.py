@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from fastapi import HTTPException, Request
 
 from personalscraper.acquire.domain import FollowedSeries
+from personalscraper.acquire.metadata_enrich import _first_poster_url
 from personalscraper.api.transport._policy import RetryPolicy
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.logger import get_logger
@@ -399,22 +400,24 @@ def run_media_search(
     # screen and a stale « déjà en médiathèque » badge would drive a wrong choice.
     results = [_to_search_result(item) for item in ranked[offset : offset + limit]]
 
-    # §5 replacement confirmation: flag movie results already owned in the
-    # library (by provider id, live files only) so the UI can ask before
-    # following — the pipeline will REPLACE the existing version. Fail-soft:
-    # an unreadable indexer leaves already_owned=False everywhere.
+    # §5 replacement confirmation: flag results already owned in the library
+    # (by provider id, live files only) so the UI can ask before following —
+    # the pipeline will REPLACE the existing version. A series counts as owned
+    # as soon as ANY live episode file exists (presence, not completeness).
+    # Fail-soft: an unreadable indexer leaves already_owned=False everywhere.
     indexer_db = request.app.state.config.indexer.db_path
-    if indexer_db is not None and any(r.kind == "movie" for r in results):
+    if indexer_db is not None and len(results) > 0:
         from personalscraper.core.identity import MediaRef
         from personalscraper.indexer.ownership import IndexerOwnershipChecker
 
         checker = IndexerOwnershipChecker(Path(indexer_db))
         try:
             for r in results:
-                if r.kind != "movie":
-                    continue
                 ref = MediaRef(tmdb_id=r.provider_id) if r.provider == "tmdb" else MediaRef(tvdb_id=r.provider_id)
-                r.already_owned = checker.owns(ref, kind="movie")
+                if r.kind == "movie":
+                    r.already_owned = checker.owns(ref, kind="movie")
+                else:
+                    r.already_owned = len(checker.owned_pairs(ref)) > 0
         finally:
             checker.close()
 
@@ -561,3 +564,76 @@ def _count_wanted_pending(store: Any, followed_id: int) -> int:
         (followed_id,),
     ).fetchone()
     return row[0] if row else 0
+
+
+def run_media_lookup(
+    request: "Request",
+    *,
+    provider: str,
+    provider_id: int,
+    kind: str,
+) -> MediaSearchResult:
+    """Resolve ONE media by provider id into a search result.
+
+    The engine behind ``GET /api/acquisition/lookup``: it RESOLVES and returns,
+    it never follows. Same ownership pass as the search, so « déjà en
+    médiathèque » is as true here as there.
+
+    Args:
+        request: The incoming FastAPI request (config + provider clients).
+        provider: ``"tvdb"`` or ``"tmdb"``.
+        provider_id: The provider's numeric identifier.
+        kind: ``"movie"`` or ``"tv"``.
+
+    Returns:
+        The resolved :class:`MediaSearchResult`.
+
+    Raises:
+        HTTPException: 404 when the provider knows no such id.
+    """
+    method = "get_movie" if kind == "movie" else ("get_series" if provider == "tvdb" else "get_tv")
+    details: object | None = None
+    with scoped_provider_clients(request) as (tmdb_client, tvdb_client):
+        client = tvdb_client if provider == "tvdb" else tmdb_client
+        fn = getattr(client, method, None)
+        if fn is not None:
+            try:
+                details = fn(provider_id)
+            except Exception:  # noqa: BLE001 — an unknown id is a 404, not a 500
+                logger.warning("acquisition_lookup_failed", provider=provider, provider_id=provider_id, exc_info=True)
+                details = None
+    if details is None:
+        raise HTTPException(status_code=404, detail="Média introuvable chez ce fournisseur")
+
+    title = str(getattr(details, "title", "") or "")
+    if title == "":
+        raise HTTPException(status_code=404, detail="Média introuvable chez ce fournisseur")
+    year = getattr(details, "year", None)
+    overview = getattr(details, "overview", None)
+    result = MediaSearchResult(
+        provider=provider,
+        provider_id=provider_id,
+        title=title,
+        year=int(year) if isinstance(year, int) else None,
+        kind=kind,
+        poster_url=_first_poster_url(details),
+        overview=str(overview) if isinstance(overview, str) and overview.strip() else None,
+        score=1.0,
+    )
+
+    # Same ownership pass the search does — a media already in the library
+    # says so here too (§5).
+    indexer_db = request.app.state.config.indexer.db_path
+    if indexer_db is not None:
+        from personalscraper.core.identity import MediaRef  # noqa: PLC0415
+        from personalscraper.indexer.ownership import IndexerOwnershipChecker  # noqa: PLC0415
+
+        checker = IndexerOwnershipChecker(Path(indexer_db))
+        try:
+            ref = MediaRef(tmdb_id=provider_id) if provider == "tmdb" else MediaRef(tvdb_id=provider_id)
+            result.already_owned = (
+                checker.owns(ref, kind="movie") if kind == "movie" else len(checker.owned_pairs(ref)) > 0
+            )
+        finally:
+            checker.close()
+    return result

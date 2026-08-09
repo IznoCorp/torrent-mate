@@ -26,6 +26,17 @@
             ],
             "title": "Error Reason"
           },
+          "eta_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eta Seconds"
+          },
           "info_hash": {
             "title": "Info Hash",
             "type": "string"
@@ -572,6 +583,11 @@
               }
             ],
             "title": "Poster Url"
+          },
+          "replace_owned": {
+            "default": false,
+            "title": "Replace Owned",
+            "type": "boolean"
           },
           "title": {
             "anyOf": [
@@ -1437,6 +1453,17 @@
             "default": "show",
             "title": "Kind",
             "type": "string"
+          },
+          "last_search_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Search At"
           },
           "media_ref": {
             "$ref": "#/components/schemas/MediaRefResponse"
@@ -4859,6 +4886,137 @@
         "title": "TmpOrphanSweep",
         "type": "object"
       },
+      "ToHandleItemModel": {
+        "description": "A blocked media item whose acquisition is ours (\u00a714.3).\n\nAttributes:\n    decision_id: ``scrape_decision.id`` \u2014 the target of the \u00ab R\u00e9soudre \u2192 \u00bb link.\n    title / year / kind: What the operator reads on the card.\n    reason: The reason IN FRENCH, already mapped (NE-DOIT-PAS-4).\n    candidates_count: Number of candidates proposed (\u00a73: the selector opens\n        WITH proposals).\n    created_at: Epoch seconds of when it was placed on hold.\n    followed_id: The carrying follow, or ``None``.\n    info_hash: The release involved, or ``None``.\n    stage: The stage ACTUALLY reached of the journey \u2014 never a default\n        value. The Literal is the contract from which the UI derives its\n        type (``Stage = ToHandleItemModel[\"stage\"]`` in the generated schema).",
+        "properties": {
+          "candidates_count": {
+            "default": 0,
+            "title": "Candidates Count",
+            "type": "integer"
+          },
+          "created_at": {
+            "default": 0,
+            "title": "Created At",
+            "type": "integer"
+          },
+          "decision_id": {
+            "title": "Decision Id",
+            "type": "integer"
+          },
+          "episode": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Episode"
+          },
+          "followed_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Followed Id"
+          },
+          "info_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Info Hash"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "season": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Season"
+          },
+          "stage": {
+            "enum": [
+              "pris",
+              "telech",
+              "ingere",
+              "scrape",
+              "range"
+            ],
+            "title": "Stage",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Year"
+          }
+        },
+        "required": [
+          "decision_id",
+          "title",
+          "kind",
+          "reason",
+          "stage"
+        ],
+        "title": "ToHandleItemModel",
+        "type": "object"
+      },
+      "ToHandleResponse": {
+        "description": "Response from ``GET /api/acquisition/to-handle``.\n\nAttributes:\n    items: The blocked items CARRIED BY AN ACQUISITION, oldest first.\n    orphan_count: The blocked items WITHOUT acquisition provenance (manual\n        deposits). They have no card here \u2014 but they are not silenced: the\n        UI converts it into a crossref to Contr\u00f4le (\u00a7m\u00e9thode: never\n        under-count what needs attention).",
+        "properties": {
+          "degraded": {
+            "default": false,
+            "title": "Degraded",
+            "type": "boolean"
+          },
+          "items": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ToHandleItemModel"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "orphan_count": {
+            "default": 0,
+            "title": "Orphan Count",
+            "type": "integer"
+          }
+        },
+        "title": "ToHandleResponse",
+        "type": "object"
+      },
       "UpdateFollowRequest": {
         "description": "Request body for PATCH /api/acquisition/followed/{id}.\n\nEvery field is optional \u2014 only the provided fields are updated.\n*cadence* is validated against :class:`CadenceShape` before writing to\n``cadence_json``.  ``quality_profile_json`` is intentionally ABSENT\n(RP3a deferred \u2014 do NOT expose an editor until the backend consumes it).",
         "properties": {
@@ -5007,6 +5165,17 @@
             ],
             "title": "Episode"
           },
+          "followed_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Followed Id"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -5014,6 +5183,28 @@
           "kind": {
             "title": "Kind",
             "type": "string"
+          },
+          "last_grab_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Grab At"
+          },
+          "last_grab_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Grab Reason"
           },
           "last_search_at": {
             "anyOf": [
@@ -5025,6 +5216,27 @@
               }
             ],
             "title": "Last Search At"
+          },
+          "last_search_best": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WantedSearchBest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_search_found": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Search Found"
           },
           "season": {
             "anyOf": [
@@ -5087,6 +5299,79 @@
           "page_size"
         ],
         "title": "WantedResponse",
+        "type": "object"
+      },
+      "WantedSearchBest": {
+        "description": "Summary of the last search's top-ranked candidate (addition A).\n\nA snapshot persisted at search time (``wanted.last_search_best_json``) \u2014\nthe \u00ab \u00c0 r\u00e9cup\u00e9rer \u00bb card reads it (\u00ab S02E05 \u00b7 1080p WEB-DL \u00b7 42\nsources \u00bb) without re-querying any tracker. Every field nullable: a\ntracker that names no codec stays silent, never guessed.",
+        "properties": {
+          "codec": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codec"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          },
+          "seeders": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seeders"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "title": "WantedSearchBest",
         "type": "object"
       },
       "WatcherRequest": {
@@ -5260,7 +5545,7 @@
     },
     "/api/acquisition/followed/{followed_id}": {
       "delete": {
-        "description": "Soft-unfollow a series (sets active=False).\n\nArgs:\n    request: The incoming FastAPI request.\n    followed_id: Rowid of the ``followed_series`` row.\n\nRaises:\n    HTTPException: 404 if the followed_id does not exist.",
+        "description": "REMOVE a follow \u2014 really, not a disguised pause.\n\nThis used to call ``set_active(False)``: the exact write the \u00ab Mettre en\npause \u00bb button performs. Two verbs, one effect \u2014 a removal the operator\nasked for never happened, and the row came back in \u00ab En pause \u00bb (their\nreport, 2026-08-08). Pausing keeps its own path (``PATCH`` with\n``active=false``); this one deletes.\n\nArgs:\n    request: The incoming FastAPI request.\n    followed_id: Rowid of the ``followed_series`` row.\n\nRaises:\n    HTTPException: 404 if the followed_id does not exist.",
         "operationId": "delete_follow_api_acquisition_followed__followed_id__delete",
         "parameters": [
           {
@@ -5664,6 +5949,83 @@
         ]
       }
     },
+    "/api/acquisition/lookup": {
+      "get": {
+        "description": "Resolve ONE media by provider id, as a search result.\n\nThe add-by-ID form RESOLVES before it follows (operator, 2026-08-08):\nsubmitting an id used to create the follow sight unseen, with whatever\ntitle had been typed \u2014 usually none. Engine in\n:func:`~personalscraper.web.acquisition.service.run_media_lookup`.\n\nArgs:\n    request: The incoming FastAPI request.\n    provider: ``\"tvdb\"`` or ``\"tmdb\"``.\n    provider_id: The provider's numeric identifier.\n    kind: ``\"movie\"`` or ``\"tv\"``.\n\nReturns:\n    The resolved :class:`MediaSearchResult`.\n\nRaises:\n    HTTPException: 404 when the provider knows no such id.",
+        "operationId": "lookup_by_id_api_acquisition_lookup_get",
+        "parameters": [
+          {
+            "description": "Metadata provider",
+            "in": "query",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "description": "Metadata provider",
+              "enum": [
+                "tvdb",
+                "tmdb"
+              ],
+              "title": "Provider",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The provider's numeric id",
+            "in": "query",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "description": "The provider's numeric id",
+              "minimum": 1,
+              "title": "Provider Id",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Movie or series",
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "default": "tv",
+              "description": "Movie or series",
+              "enum": [
+                "movie",
+                "tv"
+              ],
+              "title": "Kind",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaSearchResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Lookup By Id",
+        "tags": [
+          "acquisition"
+        ]
+      }
+    },
     "/api/acquisition/obligations": {
       "get": {
         "description": "List seed obligations with their current ratio state.\n\nArgs:\n    request: The incoming FastAPI request.\n    status: Filter: ``\"all\"`` (default), ``\"pending\"``, ``\"breached\"``,\n        or ``\"satisfied\"``.\n\nReturns:\n    An ``ObligationsResponse`` with matching items.  Each item LEFT JOINs\n    ``ratio_state`` on tracker name.",
@@ -5875,7 +6237,7 @@
     },
     "/api/acquisition/stalled-grabs": {
       "get": {
-        "description": "Les acquisitions parqu\u00e9es \u00e0 \u00ab r\u00e9cup\u00e9r\u00e9 \u00bb qui n'atteignent jamais la m\u00e9diath\u00e8que.\n\nLe d\u00e9tail derri\u00e8re le compteur de la vue d'ensemble : \u00a78 interdit un nombre sans\nacc\u00e8s \u00e0 ce qu'il compte, et \u00a714.1 fait de \u00ab r\u00e9cup\u00e9r\u00e9 \u00bb un \u00e9tat transitoire \u2014 une\nligne qui y stagne doit se voir, avec sa raison.\n\nLecture seule, fail-soft, non staging-guarded (n'\u00e9crit rien).\n\nArgs:\n    request: La requ\u00eate FastAPI entrante.\n\nReturns:\n    Un :class:`StalledGrabsResponse`, la plus ancienne d'abord.",
+        "description": "Les acquisitions parqu\u00e9es \u00e0 \u00ab r\u00e9cup\u00e9r\u00e9 \u00bb qui n'atteignent jamais la m\u00e9diath\u00e8que.\n\nLe d\u00e9tail derri\u00e8re le compteur de la vue d'ensemble : \u00a78 interdit un nombre sans\nacc\u00e8s \u00e0 ce qu'il compte, et \u00a714.1 fait de \u00ab r\u00e9cup\u00e9r\u00e9 \u00bb un \u00e9tat transitoire \u2014 une\nligne qui y stagne doit se voir, avec sa raison.\n\nLecture seule, non staging-guard\u00e9e (n'\u00e9crit rien). PAS fail-soft, et c'est\nvoulu : une lecture en \u00e9chec r\u00e9pond 500, le client rend l'\u00e9chec visible\nsous le compteur (\u00ab la liste n'a pas pu \u00eatre charg\u00e9e \u00bb) \u2014 avaler l'erreur\nici rendrait une liste vide qui affirmerait le contraire du vrai.\n\nArgs:\n    request: La requ\u00eate FastAPI entrante.\n\nReturns:\n    Un :class:`StalledGrabsResponse`, la plus ancienne d'abord.",
         "operationId": "get_stalled_grabs_api_acquisition_stalled_grabs_get",
         "responses": {
           "200": {
@@ -5917,6 +6279,28 @@
         ]
       }
     },
+    "/api/acquisition/to-handle": {
+      "get": {
+        "description": "Blocked media CARRIED BY AN ACQUISITION, plus the count of the others.\n\n\u00a714.3: a journey has no hole. An item grabbed then ingested that stalls at\nidentification is in the middle of ITS journey; it must stay visible from the\nacquisition surface. A manual deposit is not an acquisition: it is counted\n(orphan_count) but never listed here; it belongs on the \u00ab \u00c0 traiter \u00bb panel\nin Contr\u00f4le.\n\nRead-only, fail-soft, not staging-guarded (writes nothing).\n\nArgs:\n    request: The incoming FastAPI request.\n\nReturns:\n    A :class:`ToHandleResponse` \u2014 the blocked items carried by an acquisition,\n    oldest first, plus the orphan count.",
+        "operationId": "get_to_handle_api_acquisition_to_handle_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToHandleResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get To Handle",
+        "tags": [
+          "acquisition"
+        ]
+      }
+    },
     "/api/acquisition/wanted": {
       "get": {
         "description": "List wanted items, paginated, with the absorption pointer RESOLVED.\n\nThe served ``status`` is the status that GOVERNS the row: ``absorbed`` is not\na state of the episode but a pointer to the season ``wanted`` row carrying its\nacquisition (season-grab R5), so an absorbed row is served with its SEASON's\nstatus \u2014 via :func:`~personalscraper.web.acquisition.states.substitute_absorbed_facts`,\nthe one place that rule lives. Reporting the pointer instead of following it made\nfour American Dad episodes read \u00ab En cours d'acquisition \u00bb on 2026-08-05 with both\npacks already grabbed and the files in the library (\u00a713: \u00ab un \u00e9tat qui *pointe* vers\nautre chose doit suivre le pointeur, jamais le rapporter tel quel \u00bb). A pointer that\ncannot be followed (NULL, or a row that does not exist \u2014 the column carries no FK)\nkeeps ``absorbed``: ignorance is not traded for a different lie.\n\nThe ``status`` FILTER is deliberately asymmetric: it matches the STORED status, not\nthe resolved one, so ``status=done`` does not return rows absorbed by a done season.\nResolving the filter would mean re-implementing the rule in SQL, and two\nimplementations of one rule is how surfaces come to disagree (\u00a713). The queue UI\nfilters client-side on the resolved status it receives here.\n\nArgs:\n    request: The incoming FastAPI request.\n    status: Filter by the STORED wanted status (default ``\"all\"``).\n    page: Page number (1-based, default 1).\n    page_size: Items per page (1\u2013200, default 50).\n\nReturns:\n    A ``WantedResponse`` with the matching items + pagination metadata.",
@@ -5932,6 +6316,7 @@
                 "all",
                 "pending",
                 "searching",
+                "available",
                 "grabbed",
                 "done",
                 "abandoned",

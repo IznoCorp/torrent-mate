@@ -30,14 +30,21 @@ describe("InstallBanner", () => {
     expect(promptInstall).toHaveBeenCalledTimes(1);
   });
 
-  it("affiche l’instruction « Partager » sur iOS Safari", () => {
+  it("détaille les ÉTAPES d’installation sur iOS Safari (opérateur)", () => {
     render(<InstallBanner state={buildState({ isIosInstall: true })} />);
 
-    expect(screen.getByText(/partager/i)).toBeInTheDocument();
+    // The banner IS the guide: Safari → Partager → Sur l'écran d'accueil.
+    const steps = screen.getAllByRole("listitem");
+    expect(steps).toHaveLength(3);
+    expect(steps[0]).toHaveTextContent(/Safari/);
+    expect(steps[1]).toHaveTextContent(/Partager/);
+    expect(steps[2]).toHaveTextContent(/écran d’accueil/);
     // No native install button on iOS — only the manual instruction.
     expect(
       screen.queryByRole("button", { name: /installer torrentmate/i }),
     ).not.toBeInTheDocument();
+    // The close button is present and REACHABLE (above the bottom bar).
+    expect(screen.getByRole("button", { name: /ignorer/i })).toBeInTheDocument();
   });
 
   it("mémorise le rejet via le bouton de fermeture", () => {

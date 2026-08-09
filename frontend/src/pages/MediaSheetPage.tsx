@@ -8,8 +8,9 @@
  * (DESIGN D7).
  */
 
+import { ArrowLeft } from "lucide-react";
 import type { ReactElement } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { MediaSheet } from "@/components/media/MediaSheet";
 import { ErrorState } from "@/components/ds/ErrorState";
@@ -27,6 +28,18 @@ export default function MediaSheetPage(): ReactElement {
   }>();
   const [searchParams] = useSearchParams();
   const kindParam = searchParams.get("kind");
+  const navigate = useNavigate();
+
+  /** Pop history when there is somewhere to go; a deep-linked fiche has no
+   *  app history under it and would otherwise leave the app. */
+  const back = (): void => {
+    const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
+    if (idx > 0) {
+      void navigate(-1);
+    } else {
+      void navigate("/acquisition");
+    }
+  };
 
   // Only accept known kind values — anything else falls through to no-hint.
   const kind: "movie" | "tv" | undefined =
@@ -45,10 +58,30 @@ export default function MediaSheetPage(): ReactElement {
   }
 
   return (
-    <MediaSheet
-      provider={provider}
-      providerId={providerId}
-      {...(kind !== undefined ? { kind } : {})}
-    />
+    <>
+      {/* Operator report: on iPhone the edge-swipe back is awkward — the
+          fiche carries the same « ‹ Retour » bar as the add-media screen
+          (.mq scope on the bar alone, for the exact same look). */}
+      <div className="mq">
+        <div className="fichebar">
+          <button
+            type="button"
+            aria-label="Retour"
+            className="fback"
+            onClick={() => {
+              back();
+            }}
+          >
+            <ArrowLeft aria-hidden="true" />
+            Retour
+          </button>
+        </div>
+      </div>
+      <MediaSheet
+        provider={provider}
+        providerId={providerId}
+        {...(kind !== undefined ? { kind } : {})}
+      />
+    </>
   );
 }

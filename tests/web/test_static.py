@@ -98,6 +98,38 @@ class TestSpaPresent:
         assert response.status_code == 200
         assert "console.log" in response.text
 
+    def test_hashed_assets_are_cacheable_forever(self, tmp_path: Path) -> None:
+        """Hashed build output carries an immutable cache header.
+
+        Measured on staging 2026-08-08: /assets/* came back with NO
+        Cache-Control at all, so a phone re-downloaded the whole ~1 MB bundle
+        on every visit. The filenames carry a content hash, so a cached copy
+        can never go stale.
+        """
+        static_dir = self._make_static_dir(tmp_path)
+        client = self._make_app(static_dir)
+
+        response = client.get("/assets/app.js")
+
+        assert response.status_code == 200
+        cache = response.headers.get("cache-control", "")
+        assert "immutable" in cache
+        assert "max-age=31536000" in cache
+
+    def test_index_html_is_NOT_marked_immutable(self, tmp_path: Path) -> None:
+        """The entry document must stay revalidated, or a deploy never lands.
+
+        index.html is the one file whose URL does not change between builds:
+        caching it forever would pin the operator to the old bundle.
+        """
+        static_dir = self._make_static_dir(tmp_path)
+        client = self._make_app(static_dir)
+
+        response = client.get("/")
+
+        assert response.status_code == 200
+        assert "immutable" not in response.headers.get("cache-control", "")
+
     # -- PWA root-file regression tests (fix: real files at static root
     #    must NOT be shadowed by the SPA index.html fallback).
 

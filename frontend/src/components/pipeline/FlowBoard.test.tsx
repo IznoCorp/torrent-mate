@@ -24,6 +24,18 @@ vi.mock("@/hooks/usePipelineStages", () => ({
   usePipelineStages: () => stagesMock(),
 }));
 
+// The upstream « Téléchargement » station reads the live downloads — stub it
+// (default: none) so the board test needs no QueryClient.
+const downloadsMock = vi.fn(() => ({
+  data: { downloads: [], client_available: true },
+  isLoading: false,
+  isError: false,
+}));
+vi.mock("@/hooks/useAcquisition", () => ({
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  useDownloads: () => downloadsMock(),
+}));
+
 // The stage drawer mounts StageMediaList → stub its data hook so no real query
 // (and no QueryClient/event context) is needed in this isolated board test.
 vi.mock("@/hooks/useStagingMedia", () => ({
@@ -333,6 +345,43 @@ describe("FlowBoard", () => {
     expect(screen.getByTestId("location-search").textContent).not.toContain(
       "stage=verify",
     );
+  });
+
+  it("une descente en cours ajoute la station amont « Téléchargement »", () => {
+    // Operator report: a grab downloaded for 20 minutes while every station
+    // read 0 — the inbound torrent must be visible upstream of « Arrivée ».
+    downloadsMock.mockReturnValueOnce({
+      data: {
+        downloads: [
+          { name: "Ninja.Turtles.2014", progress: 0.5, state: "downloading" },
+        ],
+        client_available: true,
+      },
+      isLoading: false,
+      isError: false,
+    } as never);
+    renderBoard();
+    expect(screen.getByText("Téléchargement")).toBeInTheDocument();
+  });
+
+  it("un torrent en partage ou en pause n'est PAS « en cours »", () => {
+    // The endpoint lists every grabbed row — seeding/paused/missing included.
+    // Counting those as inbound would put a station on the board claiming a
+    // download that finished hours ago.
+    downloadsMock.mockReturnValueOnce({
+      data: {
+        downloads: [
+          { name: "Fini.Depuis.Longtemps", progress: 1, state: "seeding" },
+          { name: "En.Pause", progress: 0.3, state: "paused" },
+          { name: "Introuvable", progress: 0, state: "missing" },
+        ],
+        client_available: true,
+      },
+      isLoading: false,
+      isError: false,
+    } as never);
+    renderBoard();
+    expect(screen.queryByText("Téléchargement")).not.toBeInTheDocument();
   });
 
   it("restores the open drawer from a ?stage= deep link", () => {

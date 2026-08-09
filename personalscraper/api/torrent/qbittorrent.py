@@ -809,6 +809,11 @@ def _torrent_item(t: qbittorrentapi.TorrentDictionary) -> TorrentItem:
     swarm_seeds: int | None = (
         int(num_complete_raw) if isinstance(num_complete_raw, (int, float)) and num_complete_raw >= 0 else None
     )
+    # eta: seconds to completion; qBit serves 8640000 as « infinity/unknown »
+    # and can serve negatives — both are honest None (maquette A2: « 12 min
+    # restantes » only when the client actually knows).
+    eta_raw = getattr(t, "eta", None)
+    eta_seconds: int | None = int(eta_raw) if isinstance(eta_raw, (int, float)) and 0 <= eta_raw < 8640000 else None
     return TorrentItem(
         hash=t.hash,
         name=t.name,
@@ -824,6 +829,7 @@ def _torrent_item(t: qbittorrentapi.TorrentDictionary) -> TorrentItem:
         completion_on=completion_on,
         error_reason=error_reason,
         swarm_seeds=swarm_seeds,
+        eta_seconds=eta_seconds,
     )
 
 

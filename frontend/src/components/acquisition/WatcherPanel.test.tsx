@@ -15,22 +15,16 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const {
-  toastSuccess,
-  toastInfo,
-  toastError,
-  triggerDetectMock,
-  setWatcherMock,
-} = vi.hoisted(() => ({
-  toastSuccess: vi.fn(),
-  toastInfo: vi.fn(),
-  toastError: vi.fn(),
+const { mqtoastMock, triggerDetectMock, setWatcherMock } = vi.hoisted(() => ({
+  mqtoastMock: vi.fn(),
   triggerDetectMock: vi.fn(),
   setWatcherMock: vi.fn(),
 }));
 
-vi.mock("sonner", () => ({
-  toast: { success: toastSuccess, info: toastInfo, error: toastError },
+// The maquette toast has ONE tone — the message itself carries the outcome.
+vi.mock("./MqToast", () => ({
+  mqtoast: mqtoastMock,
+  MqToaster: (): null => null,
 }));
 
 vi.mock("@/api/acquisition", async () => {
@@ -99,8 +93,8 @@ describe("WatcherPanel — §5 detect trigger", () => {
     await waitFor(() => {
       expect(triggerDetectMock).toHaveBeenCalledTimes(1);
     });
-    expect(toastInfo).toHaveBeenCalledWith("Détection lancée…");
-    expect(toastSuccess).not.toHaveBeenCalled();
+    expect(mqtoastMock).toHaveBeenCalledWith("Détection lancée…");
+    expect(mqtoastMock).not.toHaveBeenCalledWith(expect.stringContaining("Détection terminée"));
   });
 
   it("toasts the NUMERIC result once the tracked run ends", async () => {
@@ -138,7 +132,7 @@ describe("WatcherPanel — §5 detect trigger", () => {
 
     // The success toast carries the numeric result, never a bare "lancée".
     await waitFor(() => {
-      expect(toastSuccess).toHaveBeenCalledWith(
+      expect(mqtoastMock).toHaveBeenCalledWith(
         expect.stringContaining("3 détecté(s), 2 mis en file"),
       );
     });
@@ -175,7 +169,7 @@ describe("WatcherPanel — toggle feedback (X3)", () => {
     await waitFor(() => {
       expect(setWatcherMock).toHaveBeenCalledWith({ enabled: false });
     });
-    expect(toastSuccess).toHaveBeenCalledWith("Watcher désactivé.");
+    expect(mqtoastMock).toHaveBeenCalledWith("Watcher désactivé.");
   });
 
   it("toasts an error when the toggle write fails (no silent snap-back)", async () => {
@@ -186,11 +180,11 @@ describe("WatcherPanel — toggle feedback (X3)", () => {
     fireEvent.click(screen.getByRole("switch", { name: /Activé/ }));
 
     await waitFor(() => {
-      expect(toastError).toHaveBeenCalledWith(
+      expect(mqtoastMock).toHaveBeenCalledWith(
         "Impossible de désactiver le watcher.",
       );
     });
-    expect(toastSuccess).not.toHaveBeenCalled();
+    expect(mqtoastMock).not.toHaveBeenCalledWith(expect.stringContaining("activé"));
   });
 });
 

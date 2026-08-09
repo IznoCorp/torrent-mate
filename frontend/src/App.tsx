@@ -6,7 +6,7 @@ import { queryClient } from "@/api/client";
 import { AuthProvider } from "@/components/AuthProvider";
 import { useAuthContext } from "@/hooks/useAuthContext";
 import { InstallBanner } from "@/components/InstallBanner";
-import { StagingBanner } from "@/components/StagingBanner";
+import { aboveBottomBar } from "@/components/layout/bottom-bar-metrics";
 import { Toaster } from "@/components/ui/sonner";
 import { usePwa } from "@/hooks/usePwa";
 import { router } from "@/router";
@@ -32,7 +32,32 @@ function PwaLayer(): ReactElement {
   return (
     <>
       <InstallBanner state={pwa} />
-      <Toaster position="top-center" />
+      {/*
+        §10 — the toast sits JUST above the bottom bar, never below it.
+        The previous setting was `bottom: 84px` calibrated on desktop: on iPhone
+        the bar grows by env(safe-area-inset-bottom) (~34 px) and the toast slid
+        underneath. The offset reads the REAL height the bar publishes (see
+        aboveBottomBar), which stays correct at any bar height, on any device.
+
+        The `0px` fallback is not a precaution: it is the NORMAL case on the two
+        surfaces without a bar — the login page (outside AppShell) and every
+        viewport ≥ md, where the bar is `md:hidden`. A phone-calibrated fallback
+        would float the toast in empty space there.
+
+        The Toaster stays here, inside PwaLayer, sibling of the router: this is
+        what makes it visible on ALL routes, login page included. Moving it into
+        AppShell (inside ProtectedRoute) would silently kill the PWA update toast
+        on that page.
+
+        Close button and 5 s: two lines were unreadable in 2.2 s, and the close
+        button is the real control — nobody is forced to wait.
+      */}
+      <Toaster
+        position="bottom-center"
+        closeButton
+        duration={5000}
+        offset={aboveBottomBar("0.75rem")}
+      />
     </>
   );
 }
@@ -59,7 +84,6 @@ export default function App(): ReactElement {
         <RouterProvider router={router} />
         <PwaLayer />
       </AuthProvider>
-      <StagingBanner />
     </QueryClientProvider>
   );
 }

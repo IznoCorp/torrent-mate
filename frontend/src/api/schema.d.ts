@@ -124,7 +124,13 @@ export interface paths {
         post?: never;
         /**
          * Delete Follow
-         * @description Soft-unfollow a series (sets active=False).
+         * @description REMOVE a follow — really, not a disguised pause.
+         *
+         *     This used to call ``set_active(False)``: the exact write the « Mettre en
+         *     pause » button performs. Two verbs, one effect — a removal the operator
+         *     asked for never happened, and the row came back in « En pause » (their
+         *     report, 2026-08-08). Pausing keeps its own path (``PATCH`` with
+         *     ``active=false``); this one deletes.
          *
          *     Args:
          *         request: The incoming FastAPI request.
@@ -409,6 +415,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/acquisition/lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lookup By Id
+         * @description Resolve ONE media by provider id, as a search result.
+         *
+         *     The add-by-ID form RESOLVES before it follows (operator, 2026-08-08):
+         *     submitting an id used to create the follow sight unseen, with whatever
+         *     title had been typed — usually none. Engine in
+         *     :func:`~personalscraper.web.acquisition.service.run_media_lookup`.
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *         provider: ``"tvdb"`` or ``"tmdb"``.
+         *         provider_id: The provider's numeric identifier.
+         *         kind: ``"movie"`` or ``"tv"``.
+         *
+         *     Returns:
+         *         The resolved :class:`MediaSearchResult`.
+         *
+         *     Raises:
+         *         HTTPException: 404 when the provider knows no such id.
+         */
+        get: operations["lookup_by_id_api_acquisition_lookup_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/acquisition/obligations": {
         parameters: {
             query?: never;
@@ -564,7 +607,10 @@ export interface paths {
          *     accès à ce qu'il compte, et §14.1 fait de « récupéré » un état transitoire — une
          *     ligne qui y stagne doit se voir, avec sa raison.
          *
-         *     Lecture seule, fail-soft, non staging-guarded (n'écrit rien).
+         *     Lecture seule, non staging-guardée (n'écrit rien). PAS fail-soft, et c'est
+         *     voulu : une lecture en échec répond 500, le client rend l'échec visible
+         *     sous le compteur (« la liste n'a pas pu être chargée ») — avaler l'erreur
+         *     ici rendrait une liste vide qui affirmerait le contraire du vrai.
          *
          *     Args:
          *         request: La requête FastAPI entrante.
@@ -600,6 +646,41 @@ export interface paths {
          *         successful run timestamp, and recent runs.
          */
         get: operations["get_acquisition_status_api_acquisition_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/acquisition/to-handle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get To Handle
+         * @description Blocked media CARRIED BY AN ACQUISITION, plus the count of the others.
+         *
+         *     §14.3: a journey has no hole. An item grabbed then ingested that stalls at
+         *     identification is in the middle of ITS journey; it must stay visible from the
+         *     acquisition surface. A manual deposit is not an acquisition: it is counted
+         *     (orphan_count) but never listed here; it belongs on the « À traiter » panel
+         *     in Contrôle.
+         *
+         *     Read-only, fail-soft, not staging-guarded (writes nothing).
+         *
+         *     Args:
+         *         request: The incoming FastAPI request.
+         *
+         *     Returns:
+         *         A :class:`ToHandleResponse` — the blocked items carried by an acquisition,
+         *         oldest first, plus the orphan count.
+         */
+        get: operations["get_to_handle_api_acquisition_to_handle_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2181,6 +2262,8 @@ export interface components {
             episode?: number | null;
             /** Error Reason */
             error_reason?: string | null;
+            /** Eta Seconds */
+            eta_seconds?: number | null;
             /** Info Hash */
             info_hash: string;
             /** Kind */
@@ -2612,6 +2695,11 @@ export interface components {
             overview?: string | null;
             /** Poster Url */
             poster_url?: string | null;
+            /**
+             * Replace Owned
+             * @default false
+             */
+            replace_owned: boolean;
             /** Title */
             title?: string | null;
             /** Tmdb Id */
@@ -3139,6 +3227,8 @@ export interface components {
              * @default show
              */
             kind: string;
+            /** Last Search At */
+            last_search_at?: number | null;
             media_ref: components["schemas"]["MediaRefResponse"];
             movie_facts?: components["schemas"]["MovieFacts"] | null;
             /** Next Search At */
@@ -5269,6 +5359,86 @@ export interface components {
             status: "pending" | "ready";
         };
         /**
+         * ToHandleItemModel
+         * @description A blocked media item whose acquisition is ours (§14.3).
+         *
+         *     Attributes:
+         *         decision_id: ``scrape_decision.id`` — the target of the « Résoudre → » link.
+         *         title / year / kind: What the operator reads on the card.
+         *         reason: The reason IN FRENCH, already mapped (NE-DOIT-PAS-4).
+         *         candidates_count: Number of candidates proposed (§3: the selector opens
+         *             WITH proposals).
+         *         created_at: Epoch seconds of when it was placed on hold.
+         *         followed_id: The carrying follow, or ``None``.
+         *         info_hash: The release involved, or ``None``.
+         *         stage: The stage ACTUALLY reached of the journey — never a default
+         *             value. The Literal is the contract from which the UI derives its
+         *             type (``Stage = ToHandleItemModel["stage"]`` in the generated schema).
+         */
+        ToHandleItemModel: {
+            /**
+             * Candidates Count
+             * @default 0
+             */
+            candidates_count: number;
+            /**
+             * Created At
+             * @default 0
+             */
+            created_at: number;
+            /** Decision Id */
+            decision_id: number;
+            /** Episode */
+            episode?: number | null;
+            /** Followed Id */
+            followed_id?: number | null;
+            /** Info Hash */
+            info_hash?: string | null;
+            /** Kind */
+            kind: string;
+            /** Reason */
+            reason: string;
+            /** Season */
+            season?: number | null;
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "pris" | "telech" | "ingere" | "scrape" | "range";
+            /** Title */
+            title: string;
+            /** Year */
+            year?: number | null;
+        };
+        /**
+         * ToHandleResponse
+         * @description Response from ``GET /api/acquisition/to-handle``.
+         *
+         *     Attributes:
+         *         items: The blocked items CARRIED BY AN ACQUISITION, oldest first.
+         *         orphan_count: The blocked items WITHOUT acquisition provenance (manual
+         *             deposits). They have no card here — but they are not silenced: the
+         *             UI converts it into a crossref to Contrôle (§méthode: never
+         *             under-count what needs attention).
+         */
+        ToHandleResponse: {
+            /**
+             * Degraded
+             * @default false
+             */
+            degraded: boolean;
+            /**
+             * Items
+             * @default []
+             */
+            items: components["schemas"]["ToHandleItemModel"][];
+            /**
+             * Orphan Count
+             * @default 0
+             */
+            orphan_count: number;
+        };
+        /**
          * UpdateFollowRequest
          * @description Request body for PATCH /api/acquisition/followed/{id}.
          *
@@ -5347,12 +5517,21 @@ export interface components {
             enqueued_at: number;
             /** Episode */
             episode?: number | null;
+            /** Followed Id */
+            followed_id?: number | null;
             /** Id */
             id: number;
             /** Kind */
             kind: string;
+            /** Last Grab At */
+            last_grab_at?: number | null;
+            /** Last Grab Reason */
+            last_grab_reason?: string | null;
             /** Last Search At */
             last_search_at?: number | null;
+            last_search_best?: components["schemas"]["WantedSearchBest"] | null;
+            /** Last Search Found */
+            last_search_found?: number | null;
             /** Season */
             season?: number | null;
             /** Status */
@@ -5373,6 +5552,29 @@ export interface components {
             page_size: number;
             /** Total */
             total: number;
+        };
+        /**
+         * WantedSearchBest
+         * @description Summary of the last search's top-ranked candidate (addition A).
+         *
+         *     A snapshot persisted at search time (``wanted.last_search_best_json``) —
+         *     the « À récupérer » card reads it (« S02E05 · 1080p WEB-DL · 42
+         *     sources ») without re-querying any tracker. Every field nullable: a
+         *     tracker that names no codec stays silent, never guessed.
+         */
+        WantedSearchBest: {
+            /** Codec */
+            codec?: string | null;
+            /** Language */
+            language?: string | null;
+            /** Resolution */
+            resolution?: string | null;
+            /** Seeders */
+            seeders?: number | null;
+            /** Source */
+            source?: string | null;
+            /** Title */
+            title?: string | null;
         };
         /**
          * WatcherRequest
@@ -5793,6 +5995,42 @@ export interface operations {
             };
         };
     };
+    lookup_by_id_api_acquisition_lookup_get: {
+        parameters: {
+            query: {
+                /** @description Metadata provider */
+                provider: "tvdb" | "tmdb";
+                /** @description The provider's numeric id */
+                provider_id: number;
+                /** @description Movie or series */
+                kind?: "movie" | "tv";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaSearchResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_obligations_api_acquisition_obligations_get: {
         parameters: {
             query?: {
@@ -5955,10 +6193,30 @@ export interface operations {
             };
         };
     };
+    get_to_handle_api_acquisition_to_handle_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToHandleResponse"];
+                };
+            };
+        };
+    };
     get_wanted_api_acquisition_wanted_get: {
         parameters: {
             query?: {
-                status?: "all" | "pending" | "searching" | "grabbed" | "done" | "abandoned" | "absorbed" | "fallback_episodes";
+                status?: "all" | "pending" | "searching" | "available" | "grabbed" | "done" | "abandoned" | "absorbed" | "fallback_episodes";
                 page?: number;
                 page_size?: number;
             };

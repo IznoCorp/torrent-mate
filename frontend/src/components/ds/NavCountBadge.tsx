@@ -15,8 +15,9 @@ export interface NavCountBadgeProps {
  *
  * Replaces the faint tinted `Badge tone="danger"` that was illegible as a
  * mobile bottom-nav corner superscript (dark red text on a 16 %-red wash,
- * cramped into the icon corner). This is a **solid** `bg-danger` /
- * `text-danger-foreground` pill (high contrast), circular for a single digit,
+ * cramped into the icon corner). This is a **solid** `bg-primary` /
+ * `text-primary-foreground` pill (maquette: nav counts are AMBER — pending
+ * work is attention, not failure; the « ? » unknown state keeps danger), circular for a single digit,
  * capped at `99+`, with a `ring-sidebar` halo so it separates cleanly from the
  * icon it overlaps. Renders nothing when the count is 0.
  *
@@ -36,7 +37,7 @@ export function NavCountBadge({
     <span
       data-slot="nav-count"
       className={cn(
-        "inline-flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-danger px-1 text-[0.6875rem] font-semibold leading-none text-danger-foreground shadow-sm ring-2 ring-sidebar tabular-nums",
+        "inline-flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-primary px-1 text-[0.6875rem] font-semibold leading-none text-primary-foreground shadow-sm ring-2 ring-sidebar tabular-nums",
         className,
       )}
       aria-label={`${String(count)} en attente`}

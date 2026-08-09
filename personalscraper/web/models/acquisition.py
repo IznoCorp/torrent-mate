@@ -93,6 +93,12 @@ class FollowedSeriesItem(BaseModel):
     # ``None`` when nothing is pending (the series is up to date).
     next_search_at: float | None = None
     cadence_tier: str | None = None
+    # When the machine LAST searched for this series — MAX(last_search_at)
+    # over its wanted rows, ALL statuses (a done row still witnesses the last
+    # pass). ``None`` when never searched. The resting card's honest
+    # « rien de conforme au profil · il y a 3 h » (maquette) reads this,
+    # never the next-check substitute.
+    last_search_at: float | None = None
     # Five-state truth facts (acq-states phase 4) — derived from the
     # aired-catalog cache × library ownership × wanted rows × the last search
     # verdict, one count per state. All ``None`` when the series has no cached
@@ -184,6 +190,23 @@ class FollowedResponse(BaseModel):
     items: list[FollowedSeriesItem]
 
 
+class WantedSearchBest(BaseModel):
+    """Summary of the last search's top-ranked candidate (addition A).
+
+    A snapshot persisted at search time (``wanted.last_search_best_json``) —
+    the « À récupérer » card reads it (« S02E05 · 1080p WEB-DL · 42
+    sources ») without re-querying any tracker. Every field nullable: a
+    tracker that names no codec stays silent, never guessed.
+    """
+
+    title: str | None = None
+    resolution: str | None = None
+    source: str | None = None
+    codec: str | None = None
+    language: str | None = None
+    seeders: int | None = None
+
+
 class WantedItemResponse(BaseModel):
     """A single wanted item in the paginated list."""
 
@@ -195,7 +218,21 @@ class WantedItemResponse(BaseModel):
     status: str  # "pending" | "searching" | "available" | "grabbed" | "done" | "abandoned"
     attempts: int
     enqueued_at: float  # epoch seconds
-    last_search_at: float | None = None  # epoch seconds
+    last_search_at: float | None = None
+    # Addition A — what the last CONCLUDED search saw: takeable-candidate
+    # count and the top-ranked release's facts. ``None`` when never searched
+    # or not concluded (panne ≠ absence).
+    last_search_found: int | None = None
+    last_search_best: WantedSearchBest | None = None
+    # §8 (rien en silence) — why the LAST grab attempt failed, if it did:
+    # reason slug (``fetch_failed``, ``add_failed``, …) + epoch seconds.
+    # ``None`` after a success or when never grabbed. The « À récupérer »
+    # card explains a frozen takeable item with it.
+    last_grab_reason: str | None = None
+    last_grab_at: float | None = None
+    # The carrying follow — lets the « À récupérer » card find its wanted
+    # row's label + last-search facts without a title join.
+    followed_id: int | None = None  # epoch seconds
 
 
 class WantedResponse(BaseModel):
@@ -359,6 +396,10 @@ class CreateFollowRequest(BaseModel):
     #: follow produces ONE wanted item at detect time and is auto-unfollowed
     #: once the acquired file reaches the library.
     kind: Literal["movie", "show"] = "show"
+    #: The operator confirmed REPLACING a copy already in the library (§5).
+    #: Without it, detect closes an owned film on sight and the replacement
+    #: the confirmation dialog promised never runs.
+    replace_owned: bool = False
     # Optional card metadata captured from the add-by-search candidate (OBJ3).
     poster_url: str | None = None
     overview: str | None = None
@@ -566,6 +607,10 @@ class AcquisitionDownload(BaseModel):
     state: DownloadState
     size_bytes: int = 0
     error_reason: str | None = None
+    # Client-estimated seconds to completion (backend addition B) — None when
+    # the client does not know (qBit 8640000 sentinel, Transmission -1/-2,
+    # missing torrent). The UI derives « 12 min restantes » from it.
+    eta_seconds: int | None = None
 
 
 class AcquisitionDownloadsResponse(BaseModel):
@@ -848,3 +893,59 @@ class SeasonGrabResponse(BaseModel):
     reused: bool = False
     run_started: bool = False
     run_uid: str | None = None
+
+
+# ── « À traiter » — blocked decisions carried by an acquisition (§14.3) ─────
+
+
+class ToHandleItemModel(BaseModel):
+    """A blocked media item whose acquisition is ours (§14.3).
+
+    Attributes:
+        decision_id: ``scrape_decision.id`` — the target of the « Résoudre → » link.
+        title / year / kind: What the operator reads on the card.
+        reason: The reason IN FRENCH, already mapped (NE-DOIT-PAS-4).
+        candidates_count: Number of candidates proposed (§3: the selector opens
+            WITH proposals).
+        created_at: Epoch seconds of when it was placed on hold.
+        followed_id: The carrying follow, or ``None``.
+        info_hash: The release involved, or ``None``.
+        stage: The stage ACTUALLY reached of the journey — never a default
+            value. The Literal is the contract from which the UI derives its
+            type (``Stage = ToHandleItemModel["stage"]`` in the generated schema).
+    """
+
+    decision_id: int
+    title: str
+    year: int | None = None
+    kind: str
+    reason: str
+    candidates_count: int = 0
+    created_at: int = 0
+    followed_id: int | None = None
+    info_hash: str | None = None
+    stage: Literal["pris", "telech", "ingere", "scrape", "range"]
+    # Episode identity from the provenance spine — the blocked card's
+    # « S16E12 » subtitle (maquette); None when the grab carried none.
+    season: int | None = None
+    episode: int | None = None
+
+
+class ToHandleResponse(BaseModel):
+    """Response from ``GET /api/acquisition/to-handle``.
+
+    Attributes:
+        items: The blocked items CARRIED BY AN ACQUISITION, oldest first.
+        orphan_count: The blocked items WITHOUT acquisition provenance (manual
+            deposits). They have no card here — but they are not silenced: the
+            UI converts it into a crossref to Contrôle (§méthode: never
+            under-count what needs attention).
+    """
+
+    items: list[ToHandleItemModel] = []
+    #: ``True`` when the reading could not complete. An empty list and a failed
+    #: read are different facts: rendering the second as the first tells the
+    #: operator there is nothing to handle when the truth is that we cannot
+    #: tell. The UI must say so rather than show an empty section.
+    degraded: bool = False
+    orphan_count: int = 0

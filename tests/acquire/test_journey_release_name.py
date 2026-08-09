@@ -21,6 +21,7 @@ def _row(
     ingest_path: str | None = None,
     current_path: str | None = None,
     scraped_at: int | None = None,
+    release_name: str | None = None,
 ) -> ProvenanceRow:
     return ProvenanceRow(
         info_hash="1329fe9e",
@@ -36,6 +37,7 @@ def _row(
         scraped_at=scraped_at,
         dispatched_at=None,
         status=status,
+        release_name=release_name,
     )
 
 
@@ -94,3 +96,24 @@ def test_trailing_separator_does_not_yield_an_empty_name() -> None:
 def test_none_row_is_unknown() -> None:
     """The helper is shared with the stalled-grab surface, which may hold no journey."""
     assert journey_release_name(None) is None
+
+
+def test_grab_time_release_name_fills_the_pre_ingest_window() -> None:
+    """Regression (Ninja Turtles 2026-08-08): the grab-time title fills the gap.
+
+    Between grab and ingest neither path exists, yet the chosen candidate's
+    title IS the release name — the card read « Nom de release non
+    enregistré » for the whole download.
+    """
+    row = _row(status="grabbed", release_name="Ninja.Turtles.2014.MULTi.1080p.BluRay-GRP")
+    assert journey_release_name(row) == "Ninja.Turtles.2014.MULTi.1080p.BluRay-GRP"
+
+
+def test_paths_stay_more_faithful_than_the_grab_time_name() -> None:
+    """Once the release landed on disk, the folder name wins (ground truth)."""
+    row = _row(
+        status="ingested",
+        ingest_path="/stage/Ninja Turtles 2014 MULTi",
+        release_name="Ninja.Turtles.2014.MULTi.1080p.BluRay-GRP",
+    )
+    assert journey_release_name(row) == "Ninja Turtles 2014 MULTi"

@@ -3,6 +3,7 @@
  */
 
 import { type ReactElement } from "react";
+import type { ConfigLeftTab } from "@/hooks/useConfigEditor";
 
 import type { FileInfo } from "@/api/config";
 import { Label } from "@/components/ui/label";
@@ -23,11 +24,13 @@ interface MobileFileSelectProps {
   /** Names of files with unsaved edits (bullet marker). */
   readonly dirtyFileNames: Set<string>;
   /** Active panel — mirrors the desktop tab bar (systeme-hub 3.1). */
-  readonly leftTab: "files" | "secrets";
+  readonly leftTab: ConfigLeftTab;
   /** Select a file. */
   readonly onSelect: (name: string) => void;
   /** Switch to the Secrets panel (the appended ``Secrets`` option). */
   readonly onSelectSecrets: () => void;
+  /** Switch to the ranking-profiles section (the editor that moved here). */
+  readonly onSelectClassement: () => void;
 }
 
 /**
@@ -47,11 +50,16 @@ export function MobileFileSelect({
   leftTab,
   onSelect,
   onSelectSecrets,
+  onSelectClassement,
 }: MobileFileSelectProps): ReactElement {
   return (
     <div className="flex flex-col gap-1.5 md:hidden">
       <Label htmlFor="config-file-mobile-select">
-        {leftTab === "secrets" ? "Secrets" : "Fichier"}
+        {leftTab === "secrets"
+          ? "Secrets"
+          : leftTab === "classement"
+            ? "Classement"
+            : "Fichier"}
       </Label>
       <Select
         {...(selectedFile !== null && leftTab === "files"
@@ -60,6 +68,8 @@ export function MobileFileSelect({
         onValueChange={(value: string) => {
           if (value === "__secrets__") {
             onSelectSecrets();
+          } else if (value === "__classement__") {
+            onSelectClassement();
           } else {
             onSelect(value);
           }
@@ -85,6 +95,10 @@ export function MobileFileSelect({
           >
             Secrets
           </SelectItem>
+          {/* The ranking editor moved here from the Acquisition page; without
+              this entry it is unreachable below md — a moved feature that only
+              desktop can reach did not move, it half-vanished. */}
+          <SelectItem value="__classement__">Classement</SelectItem>
         </SelectContent>
       </Select>
     </div>

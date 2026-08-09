@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/sheet";
 import { usePipelineStatus } from "@/hooks/usePipelineStatus";
 import { useStagingMedia } from "@/hooks/useStagingMedia";
-import { useWanted } from "@/hooks/useAcquisition";
+import { useWaitingForOperator } from "@/hooks/useAcquisition";
 import { useWsInvalidation } from "@/hooks/useWsInvalidation";
 import { SHELL_BADGE_EVENT_TYPES } from "@/api/events";
 import { decisionsKeys } from "@/api/decisions";
@@ -55,12 +55,11 @@ function AppShellInner(): ReactElement {
   const { snapshot: pipelineStatus } = usePipelineStatus();
   const pipelineRunning: boolean = pipelineStatus.state !== "idle";
 
-  // ── Badge 3: /acquisition = pending wanted count ─────────────────────
-  const { data: wantedData, isError: wantedIsError } = useWanted(
-    { status: "pending", page_size: 1 },
-    { refetchInterval: 60_000, staleTime: 55_000 },
-  );
-  const pendingWanted: number = wantedData?.total ?? 0;
+  // ── Badge 3: /acquisition = what AWAITS THE OPERATOR ──────────────────
+  // One derivation (§13): the « Maintenant » tab badge reads the same hook.
+  // The old `pendingWanted` read 3 then landed on a view showing 0/0/0/59 (D6).
+  const { count: waitingForOperator, unknown: acquisitionCountUnknown } =
+    useWaitingForOperator();
 
   // ── WS listener: invalidate staging counts + decisions + pipeline ───
   // history on ItemProgressed status changes and run-lifecycle events
@@ -113,7 +112,7 @@ function AppShellInner(): ReactElement {
         />
       );
     }
-    if (wantedIsError) {
+    if (acquisitionCountUnknown) {
       map["/acquisition"] = (
         <span
           data-slot="nav-count"
@@ -123,29 +122,52 @@ function AppShellInner(): ReactElement {
           ?
         </span>
       );
-    } else if (pendingWanted > 0) {
-      map["/acquisition"] = <NavCountBadge count={pendingWanted} />;
+    } else if (waitingForOperator > 0) {
+      map["/acquisition"] = <NavCountBadge count={waitingForOperator} />;
     }
     return map;
   }, [
     awaitingAction,
     pipelineRunning,
-    pendingWanted,
+    waitingForOperator,
     stagingIsError,
-    wantedIsError,
+    acquisitionCountUnknown,
     pipelineStatus.state,
   ]);
 
   return (
-    <div className="flex min-h-screen overflow-x-clip bg-background font-sans text-foreground">
+    /* An app FRAME, not a long document: the shell is exactly one viewport
+       tall and clips, and the routed page scrolls inside `main`.
+
+       This is the answer to the operator's fourth report of the fixed zone
+       shivering on iOS, and to their own diagnosis — « pourquoi les éléments
+       scrollent-ils jusque sous la partie fix ? ». They do not, any more.
+       While the DOCUMENT scrolls, iOS collapses and expands the URL bar
+       throughout the gesture; every one of those frames resizes the visual
+       viewport and `env(safe-area-inset-*)`, and a `position: sticky` header
+       must be re-placed against a moving scrollport — on the main thread,
+       one frame behind the compositor-scrolled content. That gap IS the
+       shiver, and three attempts at damping it (layer promotion, passive
+       listeners, quantised heights) never removed its cause.
+
+       A frame removes the cause: the document has nothing to scroll, so the
+       URL bar never moves, the viewport never resizes mid-gesture, and the
+       header is an ordinary static row that no scrolling can reach. */
+    <div className="flex h-svh overflow-clip bg-background font-sans text-foreground">
       <Sidebar badges={badges} />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <TopBar
           onOpenNav={() => {
             setNavOpen(true);
           }}
         />
-        <main className="min-w-0 overflow-x-clip flex-1 p-4 pb-[calc(env(safe-area-inset-bottom)+5rem)] md:p-6 md:pb-6 max-w-7xl mx-auto w-full">
+        {/* The single scrollport. `data-scroll-root` is how the gestures find
+            it: pull-to-refresh and « back to top » must act on the element
+            that actually scrolls, which is no longer the window. */}
+        <main
+          data-scroll-root
+          className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-clip overscroll-y-none p-4 pb-[calc(env(safe-area-inset-bottom)+5rem)] md:p-6 md:pb-6 max-w-7xl mx-auto w-full"
+        >
           <Outlet />
         </main>
       </div>

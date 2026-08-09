@@ -3,6 +3,10 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { BottomTabBar } from "@/components/layout/BottomTabBar";
+import {
+  BOTTOM_BAR_HEIGHT_VAR,
+  aboveBottomBar,
+} from "@/components/layout/bottom-bar-metrics";
 
 afterEach(() => {
   cleanup();
@@ -53,5 +57,45 @@ describe("BottomTabBar", () => {
     const pipeline = screen.getByRole("link", { name: "Pipeline" });
     expect(pipeline).toHaveAttribute("aria-current", "page");
     expect(pipeline.className).toContain("text-primary");
+  });
+  // §10 — anything that must sit just above the bar reads its measured height
+  // from this property. These two tests are what stop it silently reverting to
+  // a literal offset, which is the exact defect §10 exists to fix.
+  it("publie sa hauteur mesurée sur la racine du document", () => {
+    renderBottomBar();
+    const published = document.documentElement.style.getPropertyValue(
+      BOTTOM_BAR_HEIGHT_VAR,
+    );
+    // jsdom lays nothing out, so the measured height is 0 — what this pins is
+    // that the property is PUBLISHED from a measurement, not that the number is
+    // right (only a real device can say that; it is on the staging checklist).
+    expect(published).toMatch(/^\d+(\.\d+)?\w+$/);
+  });
+
+  it("retire la propriété au démontage — une route sans barre n'hérite pas d'une hauteur", () => {
+    renderBottomBar();
+    expect(
+      document.documentElement.style.getPropertyValue(BOTTOM_BAR_HEIGHT_VAR),
+    ).not.toBe("");
+    cleanup();
+    expect(
+      document.documentElement.style.getPropertyValue(BOTTOM_BAR_HEIGHT_VAR),
+    ).toBe("");
+  });
+  // The whole point of §10: this expression must TRACK the bar. A literal is the
+  // original defect (`bottom: 84px`, calibrated on desktop, sliding under the
+  // bar on iPhone) — so the assertion is on the SHAPE, and any regression to a
+  // fixed length fails it.
+  it("aboveBottomBar suit la barre et ne retombe jamais sur un littéral", () => {
+    const expr = aboveBottomBar("0.75rem");
+
+    expect(expr).toContain(`var(${BOTTOM_BAR_HEIGHT_VAR}`);
+    expect(expr).toContain("0.75rem");
+    // The fallback is 0px: on the two surfaces without a bar (login page,
+    // every viewport ≥ md where the bar is md:hidden), the surface sticks to
+    // the bottom edge instead of floating in empty space.
+    expect(expr).toMatch(/var\(--tm-bottom-bar-h,\s*0\w+\)/);
+    // Not a fixed length in disguise.
+    expect(expr).not.toMatch(/^\s*\d+(\.\d+)?\w+\s*$/);
   });
 });

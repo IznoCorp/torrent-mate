@@ -13,6 +13,7 @@
       collision with the DS `:root` declarations. */
 @import "tailwindcss";
 @import "./ps/styles.css";
+@import "./ps/maquette-acquisition.css";
 
 /* Opt-in light surface: `<... class="light">`. DS ships dark on :root. */
 @custom-variant light (&:is(.light *));
@@ -75,6 +76,13 @@
   --color-danger-foreground: var(--danger-foreground);
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
+  /* waiting/upcoming were defined as raw tokens but never registered here:
+     every `bg-waiting` / `text-upcoming` utility silently compiled to NOTHING
+     (invisible section pips, unpainted chips). Registration makes them real. */
+  --color-waiting: var(--waiting);
+  --color-waiting-foreground: var(--waiting-foreground);
+  --color-upcoming: var(--upcoming);
+  --color-upcoming-foreground: var(--upcoming-foreground);
 }
 
 /* ── Expressive motion (LOT A/B) ─────────────────────────────────────────────
@@ -203,4 +211,15 @@
   .ps-enter-row {
     animation: none;
   }
+}
+
+/* The app implements its own pull-to-refresh on the acquisition pager;
+   the native one would reload the PWA and lose view, filters and mode.
+   `none`, not `contain`: `contain` stops the chaining but KEEPS the bounce,
+   and the bounce is what forced the JS to claim the gesture with a
+   non-passive `preventDefault` — which takes iOS off the compositor and
+   makes the sticky header shiver. Refusing the overscroll in CSS lets the
+   pull tracker be passive. */
+html {
+  overscroll-behavior-y: none;
 }

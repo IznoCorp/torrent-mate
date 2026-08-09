@@ -144,7 +144,10 @@ def journey_release_name(row: "ProvenanceRow | None") -> str | None:
             name = PurePosixPath(candidate.rstrip("/")).name
             if name:
                 return name
-    return None
+    # Between grab and ingest neither path exists, but the name IS known: the
+    # chosen candidate's title, persisted at grab time (021). Least faithful of
+    # the three (the on-disk folder may differ slightly), hence last.
+    return row.release_name or None
 
 
 @dataclass(frozen=True)
@@ -179,6 +182,8 @@ class ProvenanceRow:
     grab_run_uid: str | None = None
     ingest_run_uid: str | None = None
     scrape_run_uid: str | None = None
+    # Grab-time release title (021) — the journey's name before any path exists.
+    release_name: str | None = None
     dispatch_run_uid: str | None = None
     # Rebuild marker (§14.3). Non-None when this journey was RECONSTRUCTED from the
     # surviving databases rather than written by the pipeline as it happened. On such a
@@ -237,6 +242,8 @@ def _row_to_provenance(row: sqlite3.Row) -> ProvenanceRow:
         season=row["season"] if "season" in keys else None,
         episode=row["episode"] if "episode" in keys else None,
         estimated_stages=row["estimated_stages"] if "estimated_stages" in keys else None,
+        # Grab-time release title (021) — tolerate a pre-021 row shape.
+        release_name=row["release_name"] if "release_name" in keys else None,
     )
 
 
@@ -293,6 +300,7 @@ class _ProvenanceSubStore:
         run_uid: str | None = None,
         season: int | None = None,
         episode: int | None = None,
+        release_name: str | None = None,
     ) -> None:
         """Create/refresh the row for a FOLLOW-DRIVEN grab (the identity seed).
 
@@ -300,13 +308,15 @@ class _ProvenanceSubStore:
         wanted-derived identity. A manual/direct grab never reaches here, so it
         never gets a row (ACC-06). ``run_uid`` (F3) is the grab command's own
         ``pipeline_run.run_uid`` (hex) — None when grab runs with no run row.
+        ``release_name`` (021) is the chosen candidate's title — the journey's
+        displayable name during the grab→ingest window, when no path exists yet.
         """
         self._safe_write(
             """
             INSERT INTO staging_provenance
               (info_hash, followed_id, media_ref_json, kind, grabbed_at, status, grab_run_uid,
-               season, episode)
-            VALUES (?, ?, ?, ?, ?, 'grabbed', ?, ?, ?)
+               season, episode, release_name)
+            VALUES (?, ?, ?, ?, ?, 'grabbed', ?, ?, ?, ?)
             ON CONFLICT(info_hash) DO UPDATE SET
               followed_id    = excluded.followed_id,
               media_ref_json = excluded.media_ref_json,
@@ -315,7 +325,8 @@ class _ProvenanceSubStore:
               status         = 'grabbed',
               grab_run_uid   = excluded.grab_run_uid,
               season         = excluded.season,
-              episode        = excluded.episode
+              episode        = excluded.episode,
+              release_name   = excluded.release_name
             """,
             (
                 info_hash.lower(),
@@ -326,6 +337,7 @@ class _ProvenanceSubStore:
                 run_uid,
                 season,
                 episode,
+                release_name,
             ),
         )
 

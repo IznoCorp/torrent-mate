@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from personalscraper.acquire.desired import QualityProfile
     from personalscraper.acquire.orchestrator import GrabOrchestrator, SearchVerdict
     from personalscraper.acquire.service import _SearchItemOutcome
+    from personalscraper.api.tracker._base import TrackerResult
     from personalscraper.core.event_bus import EventBus
 
 log = get_logger("acquire.service")
@@ -333,7 +334,9 @@ class SearchPassMixin(PassGatesMixin):
         else:
             found = None  # NOT concluded (outage / circuit / dead swarm / auth)
 
-        self._store.wanted.record_search_outcome(wanted_id, verdict.outcome, found)
+        self._store.wanted.record_search_outcome(
+            wanted_id, verdict.outcome, found, best=_chosen_summary(verdict.chosen)
+        )
 
         if status == "abandoned":
             # Terminal verdict (broken passkey): the search pass emits nothing of
@@ -607,3 +610,23 @@ class SearchPassMixin(PassGatesMixin):
 
 
 __all__ = ["SEARCH_OUTCOME_STATUS", "SearchPassMixin"]
+
+
+def _chosen_summary(chosen: TrackerResult | None) -> dict[str, object] | None:
+    """Snapshot the top-ranked candidate for the web layer (addition A).
+
+    Returns:
+        The display facts of the chosen release, or ``None`` when the search
+        chose nothing — the store then CLEARS the persisted summary so it
+        always describes the last pass.
+    """
+    if chosen is None:
+        return None
+    return {
+        "title": chosen.title,
+        "resolution": chosen.resolution,
+        "source": chosen.source,
+        "codec": chosen.codec,
+        "language": chosen.language,
+        "seeders": chosen.seeders,
+    }

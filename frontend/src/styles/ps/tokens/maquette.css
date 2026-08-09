@@ -1,0 +1,24 @@
+/* Maquette-verbatim colour values consumed by maquette-acquisition.css.
+ *
+ * The acquisition maquette (operator-approved prototype) hardcodes these —
+ * shadows on near-black, scrims, and pure white on danger/poster surfaces.
+ * C19 keeps raw colours inside tokens/: the values live HERE, verbatim, and
+ * the transplant file consumes the vars so the computed pixels stay
+ * byte-identical to the maquette. */
+
+:root {
+  /* Shadows (maquette .seg button[aria-selected], .vsw, .fab, .dlg) */
+  --mq-shadow-seg: 0 1px 3px rgb(0 0 0 / 0.45);
+  --mq-shadow-vsw: 0 1px 3px rgb(0 0 0 / 0.5);
+  --mq-shadow-fab: 0 6px 20px rgb(0 0 0 / 0.55);
+  --mq-shadow-dlg: 0 20px 60px rgb(0 0 0 / 0.7);
+  --mq-shadow-toast: 0 8px 26px rgb(0 0 0 / 0.5);
+
+  /* Scrim (maquette .dlgscrim) */
+  --mq-scrim: rgb(0 0 0 / 0.6);
+
+  /* Pure white on saturated surfaces (maquette .act.remove, .dlgbtn.danger,
+     tile badge) and the poster-initials white (maquette .tile .p). */
+  --mq-white: #fff;
+  --mq-white-70: rgb(255 255 255 / 0.7);
+}

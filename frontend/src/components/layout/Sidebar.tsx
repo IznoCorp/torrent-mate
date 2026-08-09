@@ -68,7 +68,11 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "hidden shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex sticky top-0 h-screen overflow-y-auto",
+        // The shell is a frame: this rail is a full-height flex column that
+        // scrolls on its own. `sticky top-0 h-screen` was the document-scroll
+        // era — with nothing to scroll past, sticky bought nothing and
+        // `h-screen` (100vh) overflowed the frame by the safe-area inset.
+        "hidden h-full shrink-0 flex-col overflow-y-auto border-r border-sidebar-border bg-sidebar md:flex",
         collapsed ? "md:w-16" : "md:w-56",
       )}
     >

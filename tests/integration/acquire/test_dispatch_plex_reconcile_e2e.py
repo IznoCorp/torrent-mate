@@ -140,7 +140,9 @@ def test_dispatch_triggers_plex_refresh_and_closes_acquisition(store: ConcreteAc
     row = store.wanted.get(wanted_id)
     assert row is not None and row.status == "done"
     follow = store.follow.get(followed_id)
-    assert follow is not None and follow.active is False
+    # An acquired film LEAVES the follows (it is not « paused ») — the file is
+    # confirmed at its destination, so the follow has nothing left to want.
+    assert follow is None
     assert len(acquired) == 1 and acquired[0].followed_id == followed_id
 
 

@@ -104,14 +104,27 @@ def is_staging_role() -> bool:
 
 
 def require_not_staging() -> None:
-    """FastAPI dependency: 403 read-only on the staging clone.
+    """FastAPI dependency: 403 read-only on the staging clone — for the DANGEROUS writes.
 
-    Because the prod and staging web processes share the same ``config/``
-    directory (and therefore the same ``data_dir``, ``library.db``, and
-    storage disks), every mutating ``POST`` under ``/api/*`` must be
-    blocked on the staging instance.  This dependency is the single guard
-    applied to all write routes in pipeline (S2), maintenance (S3), and
-    config (S4).
+    Prod and staging share the same ``config/`` directory, and therefore the same
+    ``data_dir``, ``library.db``, ``acquire.db`` and storage disks. This dependency
+    used to guard EVERY mutating route. Since A18 it guards the two families whose
+    damage cannot be undone by hand:
+
+    - the **pipeline runner** — it MOVES REAL FILES on the storage disks, and no
+      database backup rolls that back;
+    - the **config editor** and the staging-media writes — the config is the one
+      piece of state both instances share, so corrupting it breaks prod and
+      staging in the same stroke.
+
+    Acquisition and decision writes are deliberately NOT guarded (A18): their
+    worst case is a wrong follow row or an extra torrent in the client, both
+    repairable, and blocking them made the mobile rebuild's mutating journeys
+    impossible to validate on staging before merge.
+
+    The policy is asserted as a table in
+    ``tests/unit/web/routes/test_staging_write_policy.py`` — change it there, not
+    by editing routes one at a time.
 
     Raises:
         HTTPException: 403 with detail ``"read-only"`` when

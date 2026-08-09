@@ -7,8 +7,7 @@ model and per-route dependencies are unchanged, and the auth perimeter stays the
 per-route ``require_session`` is added here.
 
 Writes use ``build_acquire_store`` to create a fresh ConcreteAcquireStore per request; the
-mutating route carries ``require_not_staging`` (staging → 403) and
-``require_x_requested_with`` (CSRF → 400) as per-route dependencies.
+mutating route carries ``require_x_requested_with`` (CSRF → 400) as a per-route dependency.
 """
 
 from __future__ import annotations
@@ -22,7 +21,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from personalscraper.acquire.domain import OPEN_WANTED_STATUSES
 from personalscraper.acquire.store import build_acquire_store
 from personalscraper.logger import get_logger
-from personalscraper.web.deps import require_not_staging, require_x_requested_with
+from personalscraper.web.deps import require_x_requested_with
 from personalscraper.web.models.acquisition import SeasonGrabResponse
 from personalscraper.web.routes.acquisition_triggers import enqueue_prime_run
 
@@ -92,7 +91,7 @@ def _absorb_live_episodes_for_season(
     "/follows/{followed_id}/seasons/{season}/grab",
     status_code=201,
     response_model=SeasonGrabResponse,
-    dependencies=[Depends(require_not_staging), Depends(require_x_requested_with)],
+    dependencies=[Depends(require_x_requested_with)],
 )
 def grab_season(
     request: Request,

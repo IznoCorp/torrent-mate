@@ -18,11 +18,15 @@ describe("NavCountBadge", () => {
     expect(badge).toHaveAttribute("aria-label", "3 en attente");
   });
 
-  it("is a solid high-contrast pill (bg-danger + danger-foreground)", () => {
+  it("is a solid high-contrast pill — PRIMARY, per the maquette (amber counts)", () => {
+    // Pending work is attention, not failure: the maquette paints every nav
+    // count with the primary amber; the danger tone stays reserved for the
+    // « ? » unknown state, which IS a failure to know.
     render(<NavCountBadge count={1} />);
     const cls = screen.getByText("1").className;
-    expect(cls).toContain("bg-danger");
-    expect(cls).toContain("text-danger-foreground");
+    expect(cls).toContain("bg-primary");
+    expect(cls).toContain("text-primary-foreground");
+    expect(cls).not.toContain("bg-danger");
   });
 
   it("caps large counts at 99+", () => {

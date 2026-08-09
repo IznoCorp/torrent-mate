@@ -83,6 +83,25 @@ class TestTorrentItemMapping:
         mock.added_on = 0
         assert _torrent_item(mock).error_reason == "Torrent en erreur (voir qBittorrent)"
 
+    def test_eta_maps_to_eta_seconds(self) -> None:
+        """Map qBit `eta` (seconds) onto TorrentItem.eta_seconds."""
+        mock = MagicMock()
+        mock.eta = 720
+        assert _torrent_item(mock).eta_seconds == 720
+
+    def test_eta_infinity_sentinel_is_none(self) -> None:
+        """8640000 is qBit's « infinity/unknown » sentinel — honest None."""
+        mock = MagicMock()
+        mock.eta = 8640000
+        assert _torrent_item(mock).eta_seconds is None
+
+    def test_eta_negative_or_non_numeric_is_none(self) -> None:
+        """Negative or duck-typed junk degrades to None, never raises."""
+        mock = MagicMock()
+        mock.eta = -1
+        assert _torrent_item(mock).eta_seconds is None
+        assert _torrent_item(MagicMock()).eta_seconds is None
+
     def test_num_complete_maps_to_swarm_seeds(self) -> None:
         """QBit ``num_complete`` → ``swarm_seeds`` (reswitch #342)."""
         mock = MagicMock()

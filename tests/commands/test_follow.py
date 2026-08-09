@@ -709,9 +709,12 @@ class _BackfillArtwork:
 class _BackfillDetails:
     """Minimal MediaDetails stand-in carrying the three card fields."""
 
-    def __init__(self, year: int, overview: str, poster_url: str) -> None:
+    def __init__(self, year: int, overview: str, poster_url: str, title: str = "Breaking Bad") -> None:
         self.year = year
         self.overview = overview
+        # A real provider always names the media — the stub must too, or the
+        # backfill cannot repair a nameless row.
+        self.title = title
         self.images = [_BackfillArtwork("poster", poster_url)]
 
 
@@ -747,7 +750,14 @@ _BACKFILL_OVERVIEW = "A series about furious things."
 _BACKFILL_POSTER = "https://artworks.thetvdb.com/banners/posters/468000-1.jpg"
 
 
-def _seed_follow_row(db_path: Path, *, poster: str | None, overview: str | None, year: int | None) -> int:
+def _seed_follow_row(
+    db_path: Path,
+    *,
+    poster: str | None,
+    overview: str | None,
+    year: int | None,
+    title: str = "Furious",
+) -> int:
     """Insert one follow with the given (possibly partial) card metadata.
 
     Args:
@@ -755,6 +765,7 @@ def _seed_follow_row(db_path: Path, *, poster: str | None, overview: str | None,
         poster: ``poster_url`` value, or ``None``.
         overview: ``overview`` value, or ``None``.
         year: ``year`` value, or ``None``.
+        title: The stored title — pass ``""`` to reproduce a NAMELESS follow.
 
     Returns:
         The new ``followed_series`` rowid.
@@ -780,8 +791,8 @@ def _seed_follow_row(db_path: Path, *, poster: str | None, overview: str | None,
         store.close()
     conn = sqlite3.connect(str(db_path))
     conn.execute(
-        "UPDATE followed_series SET poster_url = ?, overview = ?, year = ? WHERE id = ?",
-        (poster, overview, year, follow_id),
+        "UPDATE followed_series SET poster_url = ?, overview = ?, year = ?, title = ? WHERE id = ?",
+        (poster, overview, year, title, follow_id),
     )
     conn.commit()
     conn.close()
@@ -869,6 +880,48 @@ def test_backfill_provider_outage_skips_the_row(tmp_path: Path, monkeypatch, tes
     assert result.exit_code == 0, result.output
     assert _read_card_metadata(db_path, follow_id) == (None, "already there", None)
     assert "skipped 1" in result.output
+
+
+def test_backfill_repairs_a_nameless_follow(tmp_path: Path, monkeypatch, test_config) -> None:
+    """A follow created WITHOUT a title gets its name from the provider.
+
+    Operator, 2026-08-08: « Breaking Bad n'a toujours pas de titre ». The
+    create-path fix only covers NEW follows; the rows already stored nameless
+    (the add-by-ID form) are repaired here — blank in the list and blank in
+    their own sheet until then.
+    """
+    db_path = tmp_path / "acquire.db"
+    follow_id = _seed_follow_row(db_path, poster="https://kept/p.jpg", overview="kept", year=2008, title="")
+    cfg = test_config.model_copy(update={"acquire": AcquireConfig(db_path=db_path)})
+
+    tvdb = _BackfillTvdbClient()
+    event_bus = EventBus()
+    app_ctx = AppContext(
+        config=cfg,
+        settings=MagicMock(),
+        event_bus=event_bus,
+        provider_registry=_FakeRegistry(tvdb),
+        acquire=_acquire_ctx_for(db_path, event_bus),
+    )
+    monkeypatch.setattr("personalscraper.commands.follow.per_step_boundary", _fake_boundary(app_ctx))
+
+    from unittest.mock import patch
+
+    with (
+        patch(_PATCH_RESOLVE_PATH, return_value=cfg.paths.data_dir / "fake.json5"),
+        patch(_PATCH_LOAD_CONFIG, return_value=cfg),
+    ):
+        result = CliRunner().invoke(app, ["follow", "backfill-metadata"])
+
+    assert result.exit_code == 0, result.output
+    import sqlite3
+
+    conn = sqlite3.connect(str(db_path))
+    try:
+        title = conn.execute("SELECT title FROM followed_series WHERE id = ?", (follow_id,)).fetchone()[0]
+    finally:
+        conn.close()
+    assert title not in ("", None), "a nameless follow must be repaired, not left blank"
 
 
 def test_backfill_skips_rows_that_are_already_complete(tmp_path: Path, monkeypatch, test_config) -> None:

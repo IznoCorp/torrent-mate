@@ -239,6 +239,11 @@ class _WantedSubStore:
         concurrent grabbers; ``attempts + 1`` and ``last_search_at = now`` are
         stamped atomically (``attempts`` counts every tracker interaction).
 
+        The claim also CLEARS the previous attempt's failure columns: a new
+        attempt supersedes the old verdict, and this one will write its own.
+        Without it a stale « Récupération en échec » from a past cycle would
+        keep describing a row the pass is re-trying right now.
+
         Args:
             wanted_id: Rowid of the ``wanted`` row.
             now: Unix epoch seconds (stamps ``last_search_at``).
@@ -253,7 +258,9 @@ class _WantedSubStore:
                 UPDATE wanted
                 SET status = 'searching',
                     attempts = attempts + 1,
-                    last_search_at = ?
+                    last_search_at = ?,
+                    last_grab_reason = NULL,
+                    last_grab_at = NULL
                 WHERE id = ? AND status = 'available'
                 """,
                 (now, wanted_id),
@@ -463,7 +470,8 @@ class _WantedSubStore:
             self._conn.execute(
                 """
                 UPDATE wanted
-                SET status = 'grabbed', grabbed_hash = ?
+                SET status = 'grabbed', grabbed_hash = ?,
+                    last_grab_reason = NULL, last_grab_at = NULL
                 WHERE id = ?
                 """,
                 (info_hash, wanted_id),
@@ -790,7 +798,13 @@ class _WantedSubStore:
             )
             return cur.rowcount == 1
 
-    def record_search_outcome(self, wanted_id: int, outcome: str, found: int | None) -> None:
+    def record_search_outcome(
+        self,
+        wanted_id: int,
+        outcome: str,
+        found: int | None,
+        best: dict[str, object] | None = None,
+    ) -> None:
         """Persist the verdict of the search that just ran for this item.
 
         Called once per search attempt, at EVERY exit path — including failures
@@ -811,11 +825,38 @@ class _WantedSubStore:
                 ``min_seeders`` floor. ``None`` when the search did NOT
                 conclude (outage, open circuit, dead swarm): zero would
                 falsely claim « I looked, there is nothing ».
+            best: Summary of the top-ranked candidate (title/resolution/
+                source/codec/language/seeders), or ``None``. ALWAYS written:
+                a later search that chose nothing clears the column, so it
+                describes the LAST pass, never a stale one.
+        """
+        best_json = None if best is None else json.dumps(best)
+        with self._write_tx(self._conn):
+            self._conn.execute(
+                "UPDATE wanted SET last_search_outcome = ?, last_search_found = ?, "
+                "last_search_best_json = ? WHERE id = ?",
+                (outcome, found, best_json, wanted_id),
+            )
+
+    def record_grab_failure(self, wanted_id: int, reason: str, at: int) -> None:
+        """Persist the reason the LAST grab attempt for this item failed.
+
+        Written on every non-success grab disposition and cleared by a
+        successful :meth:`mark_grabbed` — the operator report behind it
+        (Ninja Turtles, 2026-08-08) was a card frozen on « À récupérer »
+        through four identical fetch failures with no on-screen trace (§8:
+        rien en silence).
+
+        Args:
+            wanted_id: The ``wanted`` row whose grab just failed.
+            reason: The orchestrator's outcome reason slug
+                (``fetch_failed``, ``add_failed``, ``circuit_open``, …).
+            at: Unix-epoch seconds of the failure.
         """
         with self._write_tx(self._conn):
             self._conn.execute(
-                "UPDATE wanted SET last_search_outcome = ?, last_search_found = ? WHERE id = ?",
-                (outcome, found, wanted_id),
+                "UPDATE wanted SET last_grab_reason = ?, last_grab_at = ? WHERE id = ?",
+                (reason, at, wanted_id),
             )
 
     def list_available(self) -> list[WantedItem]:

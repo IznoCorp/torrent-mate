@@ -14,7 +14,7 @@ import {
   type UseQueryOptions,
   type UseQueryResult,
 } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { useState } from "react";
 
 import {
   acqKeys,
@@ -26,8 +26,12 @@ import {
   getFollowed,
   getObligations,
   getOverview,
+  getJourneys,
+  getToHandle,
   getWanted,
+  grabSeason,
   searchMedia,
+  triggerFollowedSearch,
   updateFollow,
   type AcquisitionStatusResponse,
   type CreateFollowRequest,
@@ -39,6 +43,8 @@ import {
   type WantedResponse,
 } from "@/api/acquisition";
 import { ApiError } from "@/api/client";
+import { surfaceToast } from "@/components/acquisition/MqToast";
+import { formatRunResult } from "@/components/acquisition/meta";
 import { useRunToCompletion } from "@/hooks/useRunToCompletion";
 
 /**
@@ -51,18 +57,23 @@ import { useRunToCompletion } from "@/hooks/useRunToCompletion";
  *   err: The error thrown by the mutation.
  */
 function toastMutationError(action: string, err: unknown): void {
+  // Routed through the surface funnel: on the acquisition screens the sonner
+  // stack sits behind full-screen sheets, so a failure reported there is a
+  // failure the operator never sees — which is how « aucun message d'erreur »
+  // happened (operator, 2026-08-08).
   if (err instanceof ApiError) {
     // The staging read-only guard already carries a clean French message;
     // any other ApiError surfaces the backend ``detail`` (409/422/428).
-    toast.error(
+    surfaceToast(
       err.isReadOnly
         ? err.message
         : err.detail !== ""
           ? `${action} — ${err.detail}`
           : `${action}.`,
+      "error",
     );
   } else {
-    toast.error(`${action}.`);
+    surfaceToast(`${action}.`, "error");
   }
 }
 
@@ -83,10 +94,14 @@ function toastMutationError(action: string, err: unknown): void {
  * Returns:
  *   The TanStack Query result for a {@link FollowedResponse}.
  */
-export function useFollowed(params: FollowedParams = {}) {
+export function useFollowed(
+  params: FollowedParams = {},
+  options: { refetchInterval?: number; staleTime?: number } = {},
+) {
   return useQuery({
     queryKey: acqKeys.followed(params),
     queryFn: () => getFollowed(params),
+    ...options,
   });
 }
 
@@ -215,6 +230,24 @@ export function useOverview() {
   });
 }
 
+/** « À traiter » — les bloqués portés par une acquisition (§14.3). */
+export function useToHandle() {
+  return useQuery({
+    queryKey: acqKeys.toHandle(),
+    queryFn: getToHandle,
+    refetchInterval: 60_000,
+  });
+}
+
+/** « Parcours » — chaque acquisition tracée du grab au rangement (F1). */
+export function useJourneys() {
+  return useQuery({
+    queryKey: acqKeys.journeys(),
+    queryFn: getJourneys,
+    refetchInterval: 60_000,
+  });
+}
+
 /**
  * Poll the live progress of every grabbed torrent (A4).
  *
@@ -324,7 +357,7 @@ export function useFollow() {
         // the local "not followed" view that allowed this submit is stale, so
         // resync the acquisition namespace just like a success would.
         void qc.invalidateQueries({ queryKey: acqKeys.all });
-        toast.info("Déjà suivi — ce média est déjà dans les suivis.");
+        surfaceToast("Déjà suivi — ce média est déjà dans les suivis.");
         return;
       }
       toastMutationError("Échec de l'ajout au suivi", err);
@@ -333,18 +366,106 @@ export function useFollow() {
 }
 
 /**
- * Update a followed series (active flag / cadence).
+ * « What awaits the operator » — ONE derivation (§13).
  *
- * Sends ``PATCH /api/acquisition/followed/{followed_id}``.  On success
- * invalidates the entire acquisition query namespace; failures toast in
- * French with the backend detail (X3).
- *
- * Args:
- *   (none — pass ``{id, body}`` to ``mutateAsync``)
+ * The nav badge and the « Maintenant » tab badge answer the same question and
+ * must read the same computation: takeable follows + blocked items. An
+ * in-flight item awaits nothing from the operator and is not counted. When
+ * EITHER source fails — or the server admits a degraded read — the total is
+ * unknowable and ``unknown`` is true: showing the half we have would
+ * under-count what needs attention.
  *
  * Returns:
- *   The mutation result; call ``mutateAsync({id, body})`` from a toggle or
- *   cadence form.
+ *   ``{ count, unknown }``.
+ */
+export function useWaitingForOperator(): {
+  count: number;
+  unknown: boolean;
+} {
+  const followed = useFollowed({}, { refetchInterval: 60_000, staleTime: 55_000 });
+  const toHandle = useToHandle();
+  const takeable = (followed.data?.items ?? []).filter(
+    (i) => i.status === "a_recuperer",
+  ).length;
+  const blocked = toHandle.data?.items.length ?? 0;
+  return {
+    count: takeable + blocked,
+    unknown:
+      followed.isError || toHandle.isError || (toHandle.data?.degraded ?? false),
+  };
+}
+
+/**
+ * Launch the full search chain for one followed series and TRACK the run.
+ *
+ * Fire-and-track, not fire-and-forget: the 202 only means « launched », so the
+ * launch toast says what runs; the run is then tracked to its real end and the
+ * closing toast carries the NUMERIC result — an action whose outcome never
+ * comes back reads as an action that did nothing (§8).
+ *
+ * Returns:
+ *   The mutation; call ``mutate(followedId)``.
+ */
+export function useGrabNow() {
+  const qc = useQueryClient();
+  const [trackedRun, setTrackedRun] = useState<string | null>(null);
+  const finishedRun = useTrackedAcquisitionRun(trackedRun);
+  if (finishedRun?.ended_at != null && trackedRun != null) {
+    if (finishedRun.outcome === "success") {
+      const summary = formatRunResult(finishedRun.result);
+      surfaceToast(`Exécution terminée${summary ? ` — ${summary}` : ""}.`);
+    } else {
+      surfaceToast("L'exécution a échoué — voir les exécutions récentes.", "error");
+    }
+    setTrackedRun(null);
+    void qc.invalidateQueries({ queryKey: acqKeys.all });
+  }
+
+  return useMutation({
+    mutationFn: (id: number) => triggerFollowedSearch(id),
+    onSuccess: (res) => {
+      // The chain runs server-side end to end — say so, then follow the run.
+      surfaceToast("Vérification lancée — catalogue, trackers, puis récupération…");
+      setTrackedRun(res.run_uid);
+      void qc.invalidateQueries({ queryKey: acqKeys.all });
+    },
+    onError: (err: unknown) => {
+      toastMutationError("Échec du lancement de la recherche", err);
+    },
+  });
+}
+
+
+/**
+ * Manually enqueue one season of a followed series (idempotent server-side).
+ *
+ * Returns:
+ *   The mutation; call ``mutate({ id, season })``.
+ */
+export function useGrabSeason() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, season }: { id: number; season: number }) =>
+      grabSeason(id, season),
+    onSuccess: () => {
+      surfaceToast("Saison mise en file de recherche.");
+      void qc.invalidateQueries({ queryKey: acqKeys.all });
+    },
+    onError: (err: unknown) => {
+      toastMutationError("Échec de la mise en file de la saison", err);
+    },
+  });
+}
+
+/**
+ * Update a followed series (active flag / cadence).
+ *
+ * Sends ``PATCH /api/acquisition/followed/{followed_id}``. On success
+ * invalidates the acquisition namespace; failures toast in French with the
+ * backend detail (X3).
+ *
+ * Returns:
+ *   The mutation result; call ``mutate({id, body})``.
  */
 export function useUpdateFollow() {
   const qc = useQueryClient();

@@ -33,6 +33,28 @@ def _collect_paths(routes: list[BaseRoute]) -> list[str]:
     return paths
 
 
+def test_responses_are_compressed(test_config: Any) -> None:
+    """Responses above 1 KB ship compressed.
+
+    Measured on staging 2026-08-08: the SPA served 1.05 MB of JS with NO
+    ``content-encoding`` — seconds of blank screen on a phone. The app owns
+    the compression so it survives a reverse-proxy reconfiguration.
+    """
+    from starlette.middleware.gzip import GZipMiddleware
+
+    from personalscraper.config import Settings
+    from personalscraper.web.app import create_app
+
+    settings = Settings(_env_file=None)  # type: ignore[call-arg]
+    app = create_app(test_config, settings)
+
+    gzip_layers = [m for m in app.user_middleware if m.cls is GZipMiddleware]
+    assert len(gzip_layers) == 1, "the app must compress exactly once"
+    # The threshold is part of the contract: compressing tiny JSON costs more
+    # CPU than it saves bytes.
+    assert gzip_layers[0].kwargs.get("minimum_size") == 1024
+
+
 def test_decisions_router_registered(test_config: Any) -> None:
     """Decisions router is mounted at /api/decisions under the guarded perimeter."""
     from personalscraper.config import Settings

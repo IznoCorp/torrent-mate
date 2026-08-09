@@ -223,7 +223,7 @@ class TestFullAcquisitionChain:
             # resolve_source (the real .torrent byte-fetch over HTTP) is the one
             # network externality faked at this tier — everything else is real.
             with patch(
-                "personalscraper.acquire.orchestrator.resolve_source",
+                "personalscraper.acquire._resolve_walk.resolve_source",
                 return_value=MagicMock(spec=TorrentSource),
             ):
                 # F3: the grab command passes its CliRunRecorder.run_uid down to the pass.

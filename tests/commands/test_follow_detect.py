@@ -260,7 +260,8 @@ def test_detect_movie_follow_owned_closes_and_unfollows() -> None:
 
     store.wanted.add.assert_not_called()
     store.wanted.set_status.assert_called_once_with(99, "done")
-    store.follow.set_active.assert_called_once_with(7, False)
+    # REMOVED, not paused (operator 2026-08-08): the follow leaves the list.
+    store.follow.delete.assert_called_once_with(7)
     emitted = bus.emit.call_args[0][0]
     assert isinstance(emitted, FilmAcquired)
     assert emitted.title == "Le Robot sauvage"

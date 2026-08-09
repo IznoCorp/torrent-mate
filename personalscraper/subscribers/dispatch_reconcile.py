@@ -163,7 +163,10 @@ class PostDispatchReconcileSubscriber:
         """
         try:
             follow = self._store.follow.get(followed_id)
-            self._store.follow.set_active(followed_id, False)
+            # REMOVED, not paused — see the twin site in acquire/detect.py.
+            # This path runs after the dispatch reconcile, i.e. the file is
+            # confirmed at its destination.
+            self._store.follow.delete(followed_id)
         except Exception as exc:  # noqa: BLE001 — fail-soft: one bad follow never blocks the rest
             log.warning("acquire.post_dispatch_reconcile.film_unfollow_failed", followed_id=followed_id, error=str(exc))
             return

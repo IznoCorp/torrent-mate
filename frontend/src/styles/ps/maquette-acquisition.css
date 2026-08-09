@@ -1,0 +1,997 @@
+/* Acquisition — maquette-ported styles.
+ *
+ * Every rule here is transplanted from the operator-approved acquisition
+ * maquette (the interactive prototype), value for value: font sizes, paddings,
+ * radii (--r-sm 4 / --r-md 6 / --r-lg 8), gaps. The maquette is the source of
+ * truth for this surface — adjust THERE first, then mirror here. Scoped under
+ * `.mq` so nothing leaks into other pages.
+ *
+ * Token mapping: the maquette's --bg/--fg/--mutedfg/--primaryfg are this
+ * app's --background/--foreground/--muted-foreground/--primary-foreground;
+ * every other token (card, muted, border, primary, success, warning, danger,
+ * info, waiting, upcoming) already shares its name.
+ */
+
+/* ── View tabs — the « Maintenant | Suivis » segment + detached « ⋮ » ── */
+
+.mq .viewtabs {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 14px 8px;
+}
+.mq .seg {
+  flex: 1 1 auto;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--muted);
+  border-radius: 10px;
+}
+.mq .seg > button {
+  flex: 1;
+  border: 0;
+  padding: 9px 0;
+  border-radius: 7px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+}
+.mq .seg > button[aria-selected="true"] {
+  background: var(--background);
+  color: var(--foreground);
+  box-shadow: var(--mq-shadow-seg);
+}
+.mq .seg .n {
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 5px;
+  padding: 1px 5px;
+  border-radius: 99px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.mq .more {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted-foreground);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.mq .more svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* ── Fixed filter zone (Suivis) — search, pills, view switcher ── */
+
+.mq .filters {
+  padding: 0 14px 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--background);
+}
+.mq .search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--muted);
+  border-radius: 8px;
+  padding: 0 10px;
+}
+.mq .search svg {
+  width: 15px;
+  height: 15px;
+  color: var(--muted-foreground);
+  flex: 0 0 auto;
+}
+.mq .search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+  padding: 9px 0;
+  outline: none;
+}
+.mq .search input::placeholder {
+  color: var(--muted-foreground);
+}
+/* WebKit draws its own clear affordance on a type=search input — inconsistent
+   between iOS and desktop, and absent while the field is unfocused. Ours is
+   the only one. */
+.mq .search input[type="search"]::-webkit-search-cancel-button {
+  display: none;
+}
+.mq .search .searchclear {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-right: -6px;
+  border: 0;
+  border-radius: 99px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.mq .pillbar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-top: 8px;
+}
+/* The maquette scrolls this train sideways, and so do we — one line, always.
+   It stopped working on the phone because an ancestor declared
+   `touch-action: pan-y` and touch-action INTERSECTS down the whole chain: a
+   pan-x scroller under a pan-y ancestor can pan on neither axis, so iOS handed
+   the drag to the pager and « scrolling the pills » changed VIEW (operator,
+   2026-08-08). The restriction now lives on the regions below the filters, not
+   above this one, and this strip claims the horizontal axis for itself. The
+   pill bar also carries `data-noswipe`, so even a drag the browser declines to
+   turn into a scroll never reaches the view-swipe. */
+.mq .pillscroll {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  touch-action: pan-x;
+  padding-right: 8px;
+}
+.mq .pillscroll::-webkit-scrollbar {
+  display: none;
+}
+.mq .pill {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.mq .pill[aria-pressed="true"] {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+}
+.mq .pill .c {
+  opacity: 0.7;
+  margin-left: 4px;
+  font-weight: 500;
+}
+.mq .vswwrap {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 8px;
+  background: var(--background);
+}
+.mq .vswwrap::before {
+  content: "";
+  width: 1px;
+  height: 22px;
+  background: var(--border);
+}
+.mq .vsw {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--muted);
+  border-radius: 8px;
+}
+.mq .vsw button {
+  width: 32px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted-foreground);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.mq .vsw button[aria-pressed="true"] {
+  background: var(--background);
+  color: var(--primary);
+  box-shadow: var(--mq-shadow-vsw);
+}
+.mq .vsw svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* ── Key-value rows (maquette .kv — Veille et obligations) ── */
+
+.mq .kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.mq .kv:last-child {
+  border-bottom: 0;
+}
+.mq .kv span:first-child {
+  color: var(--muted-foreground);
+}
+.mq .kv span:last-child {
+  font-weight: 600;
+  text-align: right;
+}
+
+/* ── Add screen — « ‹ Retour », search form, results, footer ── */
+
+.mq .fichebar {
+  flex: 0 0 auto;
+  padding: 10px 8px;
+}
+.mq .fback {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+.mq .fback svg {
+  width: 18px;
+  height: 18px;
+}
+.mq .addform {
+  flex: 0 0 auto;
+  /* UA form bottom margin the maquette rides — preflight resets it. */
+  margin-bottom: 14px;
+  padding: 0 16px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mq .addrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.mq .btnprimary {
+  flex: 0 0 auto;
+  border: 0;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 9px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.mq .btnprimary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.mq .rescount {
+  /* UA <p> margins the maquette rides (1em at 12px) — preflight resets. */
+  margin: 12px 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  padding: 14px 16px 4px;
+}
+.mq .reslist {
+  padding: 6px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mq .res {
+  display: flex;
+  gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+}
+.mq .res .rp {
+  flex: 0 0 auto;
+  width: 54px;
+  height: 81px;
+  border-radius: 4px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: 18px;
+  font-weight: 700;
+}
+.mq .res .rp img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.mq .res .rb {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.mq .res .rt {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.mq .res .rm {
+  font-size: 11.5px;
+  color: var(--muted-foreground);
+}
+.mq .res .ro {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.mq .res .ra {
+  margin-top: 5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.mq .resbtn {
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 13px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.mq .resbtn.done {
+  background: transparent;
+  border-color: var(--success);
+  color: var(--success);
+  cursor: default;
+}
+.mq .resbtn.owned {
+  background: transparent;
+  border-color: var(--warning);
+  color: var(--warning);
+}
+.mq .empty {
+  text-align: center;
+  padding: 44px 20px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+/* Add-idle variant — the maquette sets these paddings inline on its
+   idle empty (32 up, 14 down before the sugg chips). */
+.mq .empty.addidle {
+  padding-top: 32px;
+  padding-bottom: 14px;
+}
+.mq .empty b {
+  display: block;
+  color: var(--foreground);
+  font-size: 14px;
+  margin-bottom: 5px;
+}
+.mq .sugg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  justify-content: center;
+  padding: 0 20px 20px;
+}
+.mq .sugg button {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 12.5px;
+  padding: 6px 13px;
+  border-radius: 99px;
+  cursor: pointer;
+}
+.mq .sugg button:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.mq .byid {
+  margin: 4px 16px 24px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.mq .byid > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 12px 13px;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.mq .byid > summary::-webkit-details-marker {
+  display: none;
+}
+.mq .byid > summary::before {
+  content: "›";
+  font-size: 15px;
+  color: var(--muted-foreground);
+  transition: transform 0.18s;
+}
+.mq .byid[open] > summary::before {
+  transform: rotate(90deg);
+}
+.mq .byidin {
+  padding: 0 13px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.mq .segmini {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  background: var(--muted);
+  border-radius: 8px;
+}
+.mq .segmini button {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.mq .segmini button[aria-pressed="true"] {
+  background: var(--background);
+  color: var(--foreground);
+}
+.mq .addfoot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--card);
+  font-size: 13px;
+}
+.mq .addfoot > button {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* ── In-screen toast (maquette .toast) — visible above the footer ── */
+
+.mq .mqtoast {
+  position: fixed;
+  left: 14px;
+  right: 14px;
+  bottom: 82px;
+  z-index: 60;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 11px 11px 11px 13px;
+  font-size: 13px;
+  line-height: 1.4;
+  opacity: 0;
+  transform: translateY(14px);
+  pointer-events: none;
+  transition: transform 0.28s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.2s;
+  box-shadow: var(--mq-shadow-toast);
+}
+.mq .mqtoast.show {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+.mq .mqtoast > span {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.mq .mqtoastclose {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  margin: -3px -2px 0 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+  border-radius: 4px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.mq .mqtoastclose:hover {
+  color: var(--foreground);
+  background: var(--background);
+}
+.mq .mqtoastclose svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ── FAB (maquette .fab) — 54 px, primary, maquette shadow ── */
+
+.mq .fab {
+  width: 54px;
+  height: 54px;
+  border: 0;
+  border-radius: 99px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: var(--mq-shadow-fab);
+}
+
+/* ── Confirmation dialog (maquette .dlg) ──
+   `fixed` where the maquette says `absolute`: its .device IS the viewport
+   on a phone. z 60/61 where the maquette says 45/46: the app's bottom bar
+   sits at z-50 and the scrim must cover it (the maquette had no such
+   neighbor). Everything else verbatim. */
+
+.mq .dlgscrim {
+  position: fixed;
+  inset: 0;
+  background: var(--mq-scrim);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  z-index: 60;
+}
+.mq .dlgscrim.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+.mq .dlg {
+  position: fixed;
+  left: 20px;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%) scale(0.96);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 61;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  transition: opacity 0.2s, transform 0.2s;
+  box-shadow: var(--mq-shadow-dlg);
+}
+.mq .dlg.open {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
+  pointer-events: auto;
+}
+.mq .dlg h3 {
+  margin: 0 0 7px;
+  font-size: 15.5px;
+  /* UA h3 bold the maquette relies on — the app preflight resets it. */
+  font-weight: 700;
+}
+.mq .dlg p {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+.mq .dlgacts {
+  display: flex;
+  gap: 8px;
+}
+.mq .dlgbtn {
+  flex: 1;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.mq .dlgbtn.danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--mq-white);
+}
+
+/* ── Crossref row (maquette .crossref) — dashed border, primary « → » ── */
+
+.mq .crossref {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 8px;
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--muted-foreground);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  padding: 10px 11px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.mq .crossref span {
+  margin-left: auto;
+  color: var(--primary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── Grid tiles (maquette .tile family) ──
+   The poster BOX is the maquette contract (aspect 2/3, radius 6, no
+   border); the poster fallback INSIDE stays the design-system's
+   (the maquette's gradients+initials were prototype stand-ins for real
+   artwork). overflow:hidden added for real <img> clipping. */
+
+.mq .tile {
+  position: relative;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  display: block;
+  width: 100%;
+}
+.mq .tile .p {
+  display: grid;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: 6px;
+  place-items: center;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--mq-white-70);
+  overflow: hidden;
+  background: var(--muted);
+}
+.mq .tile.off .p {
+  opacity: 0.42;
+}
+.mq .tile .nm {
+  display: block;
+  font-size: 11px;
+  margin-top: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mq .tile.off .nm {
+  opacity: 0.55;
+}
+.mq .tile .fr {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Fresh add (maquette .freshtag + .swipe.fresh glow) ──
+   What was just added SIGNALS itself — otherwise « c'est ajouté » is only a
+   claim and the operator hunts for proof. Keyframe renamed mq-pop. */
+
+.mq .freshtag {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 99px;
+  color: var(--primary-foreground);
+  background: var(--primary);
+  white-space: nowrap;
+}
+.mq .fresh [data-testid="acq-card"] {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--primary) 30%, transparent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mq .fresh [data-testid="acq-card"] {
+    animation: mq-pop 0.45s cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+  @keyframes mq-pop {
+    from {
+      transform: scale(0.97);
+    }
+    to {
+      transform: scale(1);
+    }
+  }
+}
+
+/* ── Skeleton shimmer (maquette .skel) ── */
+
+.mq .skel {
+  height: 101px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--card) 25%, var(--muted) 50%, var(--card) 75%);
+  background-size: 400% 100%;
+  animation: mq-sh 1.3s linear infinite;
+}
+@keyframes mq-sh {
+  to {
+    background-position: -400% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mq .skel {
+    animation: none;
+  }
+}
+
+/* ── Pull-to-refresh (maquette .ptr) ──
+   Keyframe renamed mq-spin: Tailwind already owns a global `spin`. */
+
+.mq .ptr {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  height: 0;
+  transition: height 0.22s ease;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.mq .ptr.armed {
+  color: var(--primary);
+}
+.mq .ptr .spin {
+  width: 16px;
+  height: 16px;
+  border-radius: 99px;
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
+}
+.mq .ptr.loading .spin {
+  animation: mq-spin 0.7s linear infinite;
+}
+@keyframes mq-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mq .ptr.loading .spin {
+    animation-duration: 2.4s;
+  }
+}
+
+/* ── Swipe action panes (maquette .actions/.act) ──
+   `.act.grab` is safe: the sheet handle is `sheetgrab` (the maquette named
+   it that way precisely to dodge this collision). */
+
+.mq .actions {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: stretch;
+}
+.mq .actions .side {
+  display: flex;
+}
+.mq .actions .side.left {
+  margin-right: auto;
+}
+.mq .actions .side.right {
+  margin-left: auto;
+}
+.mq .act {
+  border: 0;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--mq-white);
+  flex: 0 0 84px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 5px;
+  text-align: center;
+  cursor: pointer;
+}
+.mq .act svg {
+  width: 17px;
+  height: 17px;
+}
+.mq .act.grab {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.mq .act.pause {
+  background: var(--muted);
+  color: var(--foreground);
+}
+.mq .act.remove {
+  background: var(--danger);
+  color: var(--mq-white);
+}
+
+/* ── Bottom sheet chrome (maquette .sheet/.sheetgrab) ── */
+
+.mq .sheetgrab {
+  width: 36px;
+  height: 4px;
+  border-radius: 99px;
+  background: var(--border);
+  margin: 10px auto 8px;
+  flex: 0 0 auto;
+}
+
+/* ── Base typography (maquette .device: `font: 14px/1.35 var(--sans)`) ──
+   The maquette inherits 14px/1.35 everywhere through `font: inherit`; the
+   app's preflight base is 14px/1.5. Mirroring the .device declaration here
+   makes every ported control's line box match by construction (e.g. tabs:
+   9+9 + 13px×1.35 = 35.55) — the earlier `line-height: normal` parity
+   block mis-read the maquette (its base is 1.35, not `normal`) and pinned
+   heights compensated in the measuring environment's system font. */
+
+.mq {
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+/* ── Detail sheet text + action rows (maquette .sheet/.sact) ── */
+
+.mq .sheettitle {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0 0 2px;
+}
+.mq .sheetmeta {
+  font-size: 12px;
+  /* Re-pin the 1.35 base: shadcn's text-sm leaks its own line-height. */
+  line-height: 1.35;
+  color: var(--muted-foreground);
+  margin-bottom: 14px;
+}
+.mq .sheetacts {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 4px 0 14px;
+}
+.mq .sheetacts.secondary {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.mq .sact {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  padding: 11px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+}
+.mq .sact.primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 600;
+}
+.mq .sact.danger {
+  color: var(--danger);
+}
+.mq .sact:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.mq .nofiche {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 10px 11px;
+}
+.mq .rulenote {
+  margin: 0 0 14px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--muted-foreground);
+  border-left: 2px solid var(--border);
+  padding: 2px 0 2px 11px;
+}
+.mq .sact svg {
+  width: 16px;
+  height: 16px;
+  color: var(--muted-foreground);
+  flex: 0 0 auto;
+}
+.mq .sact.primary svg {
+  color: var(--primary-foreground);
+}
+
+
+/* ── Desktop ≥ md (operator arbitration §3.5d) ──
+   The mobile maquette grammar in a centered reading column (~672px, set on
+   the page section); element-level metrics stay the 390px truth. Only the
+   tile grid densifies — three phone-width columns would be posters the size
+   of hands. */
+
+@media (min-width: 768px) {
+  .mq .grid,
+  .mq [data-testid="grid-container"] {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+  .mq .dlg {
+    left: 50%;
+    right: auto;
+    width: 420px;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+  .mq .dlg.open {
+    transform: translate(-50%, -50%) scale(1);
+  }
+}

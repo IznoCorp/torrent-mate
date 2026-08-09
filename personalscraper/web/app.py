@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import cast
 
 from fastapi import APIRouter, Depends, FastAPI
+from starlette.middleware.gzip import GZipMiddleware
 
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
@@ -187,6 +188,14 @@ def create_app(config: Config, settings: Settings) -> FastAPI:
         A fully configured FastAPI application instance.
     """
     app = FastAPI(title="TorrentMate", version="0.1.0", lifespan=_lifespan)
+
+    # Compress every response above 1 KB. Measured on staging 2026-08-08: the
+    # SPA shipped 1.05 MB of JS RAW — no ``content-encoding`` at all — which on
+    # a phone is seconds of blank screen before the first paint (operator
+    # report: « certains chargements sont très longs »). The app owns this
+    # rather than the reverse proxy: the compression must survive a proxy
+    # reconfiguration, and it is the app that knows what it serves.
+    app.add_middleware(GZipMiddleware, minimum_size=1024)
 
     # Store config + settings on app.state for dependency access.
     app.state.config = config

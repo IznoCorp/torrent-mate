@@ -24,11 +24,14 @@ from personalscraper.acquire.stalled_grabs import StalledGrab, list_stalled_grab
 from personalscraper.acquire.store import AcquireStore, build_acquire_store
 from personalscraper.core.sqlite._pragmas import apply_pragmas
 from personalscraper.logger import get_logger
+from personalscraper.web.acquisition.to_handle import build_to_handle
 from personalscraper.web.models.acquisition import (
     AcquisitionOverviewResponse,
     PendingRunResponse,
     StalledGrabItem,
     StalledGrabsResponse,
+    ToHandleItemModel,
+    ToHandleResponse,
 )
 
 log = get_logger("web.acquisition.overview")
@@ -162,7 +165,10 @@ def get_stalled_grabs(request: Request) -> StalledGrabsResponse:
     accès à ce qu'il compte, et §14.1 fait de « récupéré » un état transitoire — une
     ligne qui y stagne doit se voir, avec sa raison.
 
-    Lecture seule, fail-soft, non staging-guarded (n'écrit rien).
+    Lecture seule, non staging-guardée (n'écrit rien). PAS fail-soft, et c'est
+    voulu : une lecture en échec répond 500, le client rend l'échec visible
+    sous le compteur (« la liste n'a pas pu être chargée ») — avaler l'erreur
+    ici rendrait une liste vide qui affirmerait le contraire du vrai.
 
     Args:
         request: La requête FastAPI entrante.
@@ -198,4 +204,37 @@ def get_stalled_grabs(request: Request) -> StalledGrabsResponse:
             )
             for s in stalled
         ]
+    )
+
+
+@router.get("/to-handle", response_model=ToHandleResponse)
+def get_to_handle(request: Request) -> ToHandleResponse:
+    """Blocked media CARRIED BY AN ACQUISITION, plus the count of the others.
+
+    §14.3: a journey has no hole. An item grabbed then ingested that stalls at
+    identification is in the middle of ITS journey; it must stay visible from the
+    acquisition surface. A manual deposit is not an acquisition: it is counted
+    (orphan_count) but never listed here; it belongs on the « À traiter » panel
+    in Contrôle.
+
+    Read-only, fail-soft, not staging-guarded (writes nothing).
+
+    Args:
+        request: The incoming FastAPI request.
+
+    Returns:
+        A :class:`ToHandleResponse` — the blocked items carried by an acquisition,
+        oldest first, plus the orphan count.
+    """
+    config = request.app.state.config
+    store = build_acquire_store(config.acquire)
+    try:
+        rollup = build_to_handle(indexer_db=config.indexer.db_path, store=store)
+    finally:
+        store.close()
+
+    return ToHandleResponse(
+        items=[ToHandleItemModel(**vars(item)) for item in rollup.items],
+        orphan_count=rollup.orphan_count,
+        degraded=rollup.degraded,
     )

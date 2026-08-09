@@ -179,6 +179,32 @@ export function relativeTime(epoch: number | null | undefined): string {
   return `il y a ${String(days)} j`;
 }
 
+/**
+ * Format a FUTURE epoch as a French relative delay — « dans 2 h ».
+ *
+ * The mirror of {@link relativeTime}, which is past-only: feeding it a future
+ * instant silently yields « à l'instant », a false statement. A scheduled
+ * instant already reached (the scheduler simply has not fired yet) reads
+ * « imminente » rather than a negative delay.
+ *
+ * Args:
+ *   epoch: Unix seconds, or null/undefined.
+ *
+ * Returns:
+ *   The relative delay, or "—" when unknown.
+ */
+export function relativeTimeUntil(epoch: number | null | undefined): string {
+  if (epoch == null) return "—";
+  const diff = epoch * 1000 - Date.now();
+  if (diff < 60_000) return "imminente";
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 60) return `dans ${String(mins)} min`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `dans ${String(hours)} h`;
+  const days = Math.floor(hours / 24);
+  return `dans ${String(days)} j`;
+}
+
 // ---------------------------------------------------------------------------
 // Pipeline run outcome → Badge tone + French label
 // ---------------------------------------------------------------------------

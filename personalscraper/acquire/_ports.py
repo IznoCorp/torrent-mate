@@ -77,6 +77,18 @@ class FollowSubStore(Protocol):
         """Set the ``active`` flag on a ``followed_series`` row."""
         ...
 
+    def delete(self, followed_id: int) -> None:
+        """REMOVE a follow and its still-queued wanted rows (not a pause)."""
+        ...
+
+    def set_replace_owned(self, followed_id: int, value: bool) -> None:
+        """Write the §5 replacement authorisation on an existing follow."""
+        ...
+
+    def clear_replace_owned(self, followed_id: int) -> None:
+        """Spend the §5 replacement authorisation once the wanted row exists."""
+        ...
+
     def set_kind(self, followed_id: int, kind: str) -> None:
         """Update the ``kind`` ('movie'|'show') of a ``followed_series`` row."""
         ...
@@ -118,12 +130,28 @@ class WantedSubStore(Protocol):
         """Return all ``wanted`` rows with ``status='available'`` — the grab pass queue."""
         ...
 
-    def record_search_outcome(self, wanted_id: int, outcome: str, found: int | None) -> None:
+    def record_search_outcome(
+        self,
+        wanted_id: int,
+        outcome: str,
+        found: int | None,
+        best: dict[str, object] | None = None,
+    ) -> None:
         """Persist the verdict of the last search on *wanted_id*.
 
         Called at EVERY exit path of the search pass. ``found`` is ``None``
         when the search did NOT conclude (outage / dead swarm / open circuit):
-        zero would falsely claim « I looked, there is nothing ».
+        zero would falsely claim « I looked, there is nothing ». ``best`` is
+        the top-ranked candidate's summary, always written (a chose-nothing
+        pass clears it).
+        """
+        ...
+
+    def record_grab_failure(self, wanted_id: int, reason: str, at: int) -> None:
+        """Persist the reason the LAST grab attempt failed (§8: rien en silence).
+
+        Written on every non-success grab disposition; a successful
+        ``mark_grabbed`` clears it.
         """
         ...
 
@@ -484,6 +512,7 @@ class ProvenanceSubStore(Protocol):
         run_uid: str | None = None,
         season: int | None = None,
         episode: int | None = None,
+        release_name: str | None = None,
     ) -> None:
         """Create/refresh the row for a follow-driven grab (the identity seed)."""
         ...

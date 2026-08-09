@@ -57,20 +57,31 @@ class FollowMetadata:
         overview: Plot summary, or ``None``.  Empty strings are normalised to
             ``None`` (``MediaDetails.overview`` defaults to ``""``).
         year: Release/first-air year, or ``None``.
+        title: The provider's display title, or ``None``.
     """
 
     poster_url: str | None = None
     overview: str | None = None
     year: int | None = None
+    #: The provider's display title. Filled by the enrichment so a client that
+    #: knows only an ID never creates a NAMELESS follow (the add-by-ID form
+    #: sent no title and the row showed as blank everywhere — operator report
+    #: 2026-08-08). Never overwrites a title the client did send.
+    title: str | None = None
 
     @property
     def is_complete(self) -> bool:
-        """Whether all three fields are populated.
+        """Whether every card field is populated.
 
         Returns:
             ``True`` when no field is ``None`` — nothing left to fetch.
         """
-        return self.poster_url is not None and self.overview is not None and self.year is not None
+        return (
+            self.poster_url is not None
+            and self.overview is not None
+            and self.year is not None
+            and self.title is not None
+        )
 
     @property
     def is_empty(self) -> bool:
@@ -98,6 +109,7 @@ class FollowMetadata:
             poster_url=self.poster_url if self.poster_url is not None else other.poster_url,
             overview=self.overview if self.overview is not None else other.overview,
             year=self.year if self.year is not None else other.year,
+            title=self.title if self.title is not None else other.title,
         )
 
 
@@ -238,10 +250,12 @@ def _extract(details: Any) -> FollowMetadata:
     """
     year = getattr(details, "year", None)
     overview = getattr(details, "overview", None)
+    title = getattr(details, "title", None)
     return FollowMetadata(
         poster_url=_first_poster_url(details),
         overview=str(overview) if isinstance(overview, str) and overview.strip() else None,
         year=int(year) if isinstance(year, int) else None,
+        title=str(title) if isinstance(title, str) and title.strip() else None,
     )
 
 

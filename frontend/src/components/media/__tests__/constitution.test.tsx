@@ -16,12 +16,12 @@
  * not that the helper itself is called.
  */
 
+import type { ReactElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 
-import type { FollowedSeriesItem } from "@/api/acquisition";
 import type { DecisionCandidate } from "@/api/decisions";
 import type { StagingMediaItem } from "@/api/staging";
 
@@ -45,41 +45,51 @@ vi.mock("react-router-dom", async (importOriginal) => {
 // ---------------------------------------------------------------------------
 
 const searchResultsMock = vi.fn();
+// Default: an empty followed list — AddMediaScreen now reads it for the
+// `.sugg` dedup even when a test never seeds follows.
+const followedMock = vi.fn((): unknown => ({
+  data: { items: [] },
+  isLoading: false,
+  isError: false,
+}));
+const completenessMock = vi.fn<() => {
+  data: unknown;
+  isLoading: boolean;
+  isError: boolean;
+}>(() => ({
+  data: undefined,
+  isLoading: false,
+  isError: false,
+}));
 vi.mock("@/hooks/useAcquisition", () => ({
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   useMediaSearch: (...a: unknown[]) => searchResultsMock(...a),
   useFollow: () => ({ mutate: vi.fn(), isPending: false }),
-  useCompleteness: () => ({
-    data: undefined,
+  useUpdateFollow: () => ({ mutate: vi.fn(), isPending: false }),
+  useUnfollow: () => ({ mutate: vi.fn(), isPending: false }),
+  useGrabNow: () => ({ mutate: vi.fn(), isPending: false }),
+  useCompleteness: () => completenessMock(),
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  useFollowed: () => followedMock(),
+  useToHandle: () => ({ data: { items: [], orphan_count: 0, degraded: false }, isLoading: false, isError: false }),
+  useWanted: () => ({ data: { items: [], total: 0 }, isLoading: false, isError: false }),
+  useJourneys: () => ({ data: { journeys: [] }, isLoading: false, isError: false }),
+  useDownloads: () => ({
+    data: { downloads: [], client_available: true },
+    isLoading: false,
+    isError: false,
+  }),
+  useOverview: () => ({
+    data: { stalled_grabs: 0 },
     isLoading: false,
     isError: false,
   }),
 }));
 
 // ---------------------------------------------------------------------------
-// Stub useFollowedPanel so FollowedPanel renders without a real hook machine.
+// (useFollowedPanel stub removed with its panel.)
 // ---------------------------------------------------------------------------
 
-vi.mock("@/hooks/useFollowedPanel", () => ({
-  useFollowedPanel: () => ({
-    grabSchedule: null,
-    triggerSearch: vi.fn(),
-    triggerPendingId: null,
-    grabNow: vi.fn(),
-    grabPendingId: null,
-    isGrabQueued: () => false,
-    handleUnfollow: vi.fn(),
-    unfollowPending: false,
-    handleToggleActive: vi.fn(),
-    updatePending: false,
-    editTarget: null,
-    setEditTarget: vi.fn(),
-    editInterval: "60",
-    setEditInterval: vi.fn(),
-    openEditCadence: vi.fn(),
-    handleSaveCadence: vi.fn(),
-  }),
-}));
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
@@ -114,26 +124,30 @@ vi.mock("@/hooks/useStagingMedia", () => ({
 // Imports under test (AFTER mocks — vitest hoists vi.mock calls).
 // ---------------------------------------------------------------------------
 
-import { MediaSearchAdd } from "@/components/acquisition/MediaSearchAdd";
-import { FollowedPanel } from "@/components/acquisition/FollowedPanel";
+import { AddMediaScreen } from "@/components/acquisition/AddMediaScreen";
+import { AcquisitionCard } from "@/components/acquisition/AcquisitionCard";
+import { MaintenantPanel } from "@/components/acquisition/MaintenantPanel";
+import { SuivisPanel } from "@/components/acquisition/SuivisPanel";
+import { FollowDetailSheet } from "@/components/acquisition/FollowDetailSheet";
 import { CandidateCard } from "@/components/decisions/CandidateCard";
 import { StagingLibrary } from "@/components/staging/StagingLibrary";
 import { ATraiterList } from "@/components/controle/ATraiterList";
 import { StageMediaList } from "@/components/staging/StageMediaList";
-import { ParcoursPanel } from "@/components/acquisition/ParcoursPanel";
 
 // ---------------------------------------------------------------------------
 // Enforcement: every surface that displays media cards MUST be listed here.
 // ---------------------------------------------------------------------------
 
 const WIRED_SURFACES = [
-  "MediaSearchAdd",
-  "FollowedPanel",
+  "AddMediaScreen",
+  "AcquisitionCard",
+  "MaintenantPanel",
+  "SuivisPanel",
+  "FollowDetailSheet",
   "CandidateCard",
   "StagingLibrary",
   "ATraiterList",
   "StageMediaList",
-  "ParcoursPanel",
 ] as const;
 type WiredSurface = (typeof WIRED_SURFACES)[number];
 
@@ -225,55 +239,7 @@ function unidentifiedStagingItem(
   });
 }
 
-/** A minimal FollowedSeriesItem (identified, tvdb). */
-function followedItem(
-  overrides: Partial<FollowedSeriesItem> = {},
-): FollowedSeriesItem {
-  return {
-    id: 1,
-    title: "House of the Dragon",
-    kind: "show",
-    active: true,
-    added_at: 0,
-    cadence: { interval_minutes: 60 },
-    cadence_tier: null,
-    next_search_at: null,
-    quality_profile: null,
-    wanted_pending: 0,
-    wanted_grabbed: 0,
-    season_count: 2,
-    year: 2022,
-    overview: null,
-    poster_url: null,
-    media_ref: { tvdb_id: 371572, tmdb_id: null, imdb_id: null },
-    status: "a_jour",
-    priming_running: false,
-    tvdb_unresolved: false,
-    aired_count: null,
-    owned_count: null,
-    a_recuperer_count: null,
-    en_acquisition_count: null,
-    en_attente_count: null,
-    non_verifie_count: null,
-    movie_facts: null,
-    ...overrides,
-  };
-}
 
-/** Render FollowedPanel with the given items. */
-function renderPanel(items: readonly FollowedSeriesItem[]): void {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(
-    <QueryClientProvider client={qc}>
-      <FollowedPanel
-        data={items}
-        isLoading={false}
-        isError={false}
-        error={null}
-      />
-    </QueryClientProvider>,
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -312,11 +278,11 @@ afterEach(cleanup);
 
 describe("§11 constitution — « Tout média est consultable »", () => {
   // -----------------------------------------------------------------------
-  // SURFACE 1 — MediaSearchAdd (onOpen → navigate)
+  // SURFACE 1 — AddMediaScreen (result row → navigate)
   // -----------------------------------------------------------------------
 
-  describe("MediaSearchAdd", () => {
-    coveredSurfaces.add("MediaSearchAdd");
+  describe("AddMediaScreen", () => {
+    coveredSurfaces.add("AddMediaScreen");
 
     it("navigates to the media sheet when clicking an identified result card", () => {
       searchResultsMock.mockReturnValue({
@@ -331,15 +297,16 @@ describe("§11 constitution — « Tout média est consultable »", () => {
         fetchNextPage: vi.fn(),
       });
 
-      render(<MediaSearchAdd />);
+      render(<AddMediaScreen open onOpenChange={vi.fn()} />);
       // Submit the search so results render.
       const input = screen.getByPlaceholderText("Titre (film ou série)");
       fireEvent.change(input, { target: { value: "Inception" } });
       fireEvent.submit(input);
 
-      // The card is a <button> (MediaCard with onOpen).  Click it.
-      const card = screen.getByRole("button", { name: /Inception/ });
-      fireEvent.click(card);
+      // The poster is the control that reaches the sheet (the row also
+      // carries the add action, so it cannot itself be a button).
+      const poster = screen.getByRole("button", { name: "Fiche de Inception" });
+      fireEvent.click(poster);
 
       expect(navigateMock).toHaveBeenCalledTimes(1);
       const firstCall = navigateMock.mock.calls[0];
@@ -360,7 +327,7 @@ describe("§11 constitution — « Tout média est consultable »", () => {
         fetchNextPage: vi.fn(),
       });
 
-      render(<MediaSearchAdd />);
+      render(<AddMediaScreen open onOpenChange={vi.fn()} />);
       const input = screen.getByPlaceholderText("Titre (film ou série)");
       fireEvent.change(input, { target: { value: "Nothing" } });
       fireEvent.submit(input);
@@ -370,96 +337,44 @@ describe("§11 constitution — « Tout média est consultable »", () => {
   });
 
   // -----------------------------------------------------------------------
-  // SURFACE 2 — FollowedPanel (DropdownMenuItem → useNavigate)
+  // SURFACE 2 — AcquisitionCard (poster → media sheet, or no control at all)
   // -----------------------------------------------------------------------
 
-  describe("FollowedPanel", () => {
-    coveredSurfaces.add("FollowedPanel");
+  describe("AcquisitionCard", () => {
+    coveredSurfaces.add("AcquisitionCard");
 
-    it("navigates to the media sheet when clicking the card poster", () => {
-      renderPanel([followedItem()]);
+    // This card is the shared primitive behind every acquisition list, so the
+    // §11 contract is enforced HERE once rather than in each panel: a poster is
+    // a control when it leads somewhere, and is not a control when it does not.
 
-      // The poster is wrapped in a button with aria-label "Fiche de ...".
-      const posterBtn = screen.getByRole("button", {
-        name: "Fiche de House of the Dragon",
-      });
-      fireEvent.click(posterBtn);
+    it("makes the poster a button that reaches the media sheet", () => {
+      const onPoster = vi.fn();
+      render(
+        <AcquisitionCard title="Inception" posterUrl={null} onPoster={onPoster} />,
+      );
 
-      expect(navigateMock).toHaveBeenCalledTimes(1);
-      const firstCall = navigateMock.mock.calls[0];
-      if (!firstCall) throw new Error("unreachable: navigate was not called");
-      const href = firstCall[0] as string;
-      expect(href).toMatch(/^\/media\/tvdb\/371572/);
-      expect(href).toContain("kind=tv");
+      const poster = screen.getByRole("button", { name: "Fiche de Inception" });
+      fireEvent.click(poster);
+      expect(onPoster).toHaveBeenCalledTimes(1);
     });
 
-    it("navigates to the media sheet when clicking the card title", () => {
-      renderPanel([followedItem()]);
+    it("renders NO poster control when the media has no sheet", () => {
+      // A blocked item is stuck at identification: there is no provider id, so
+      // there is nothing to link to. A button that does nothing is the dead
+      // control §11 forbids — the poster degrades to plain image.
+      render(<AcquisitionCard title="Inconnu" posterUrl={null} />);
 
-      // The title text is itself a button.
-      const titleBtn = screen.getByRole("button", {
-        name: "House of the Dragon",
-      });
-      fireEvent.click(titleBtn);
-
-      expect(navigateMock).toHaveBeenCalledTimes(1);
-      const firstCall = navigateMock.mock.calls[0];
-      if (!firstCall) throw new Error("unreachable: navigate was not called");
-      const href = firstCall[0] as string;
-      expect(href).toMatch(/^\/media\/tvdb\/371572/);
-      expect(href).toContain("kind=tv");
-    });
-
-    it("the card poster is NOT a button for an imdb-only item (§11)", () => {
-      renderPanel([
-        followedItem({
-          media_ref: { tvdb_id: null, tmdb_id: null, imdb_id: "tt0903747" },
-        }),
-      ]);
-
-      // The poster must NOT be a button — no sheet route for imdb-only items.
       expect(
-        screen.queryByRole("button", { name: "Fiche de House of the Dragon" }),
+        screen.queryByRole("button", { name: /Fiche de/ }),
       ).not.toBeInTheDocument();
     });
 
-    it("the dropdown « Voir la fiche » still navigates (menu item preserved)", () => {
-      renderPanel([followedItem()]);
+    it("renders NO body control when there is no detail sheet", () => {
+      // Same rule applied to the body: the card is tappable only when the tap
+      // has a destination.
+      render(<AcquisitionCard title="Inconnu" posterUrl={null} />);
 
-      fireEvent.pointerDown(
-        screen.getByRole("button", {
-          name: "Actions pour House of the Dragon",
-        }),
-      );
-
-      const menuItem = screen.getByText("Voir la fiche");
-      fireEvent.click(menuItem);
-
-      expect(navigateMock).toHaveBeenCalledTimes(1);
-      const firstCall = navigateMock.mock.calls[0];
-      if (!firstCall) throw new Error("unreachable: navigate was not called");
-      const href = firstCall[0] as string;
-      expect(href).toMatch(/^\/media\/tvdb\/371572/);
-      expect(href).toContain("kind=tv");
-    });
-
-    it("renders NO « Voir la fiche » for an imdb-only item (§11 exception)", () => {
-      renderPanel([
-        followedItem({
-          media_ref: { tvdb_id: null, tmdb_id: null, imdb_id: "tt0903747" },
-        }),
-      ]);
-
-      // Open the row's ⋯ dropdown.
-      fireEvent.pointerDown(
-        screen.getByRole("button", {
-          name: "Actions pour House of the Dragon",
-        }),
-      );
-
-      // The « Voir la fiche » menuitem must NOT appear — imdb-only items have
-      // no backend sheet route, and §11 forbids a dead link.
-      expect(screen.queryByText("Voir la fiche")).not.toBeInTheDocument();
+      expect(screen.queryByRole("button")).not.toBeInTheDocument();
     });
   });
 
@@ -732,114 +647,164 @@ describe("§11 constitution — « Tout média est consultable »", () => {
   });
 
   // -----------------------------------------------------------------------
-  // SURFACE 7 — ParcoursPanel (provenance F1 — acquisition journey cards).
-  //
-  // Each journey card renders the follow_title (or hash/id fallback) and,
-  // when the media_ref carries a tvdb_id or tmdb_id, wraps it in a sheet
-  // link.  An unidentified journey (no tvdb_id, no tmdb_id) renders a plain
-  // span — the §11 exception.
+  // SURFACES 3-5 — the acquisition panels and the detail sheet
   // -----------------------------------------------------------------------
 
-  describe("ParcoursPanel", () => {
-    coveredSurfaces.add("ParcoursPanel");
+  // These three render AcquisitionCard, so the poster contract is already
+  // enforced on the primitive above. What they own — and what is asserted here —
+  // is the DERIVATION: each must hand the card a real destination built from the
+  // item's provider ids, and hand it nothing when the item has none. A panel
+  // that passed a no-op would render a control that goes nowhere while the
+  // primitive's own tests stayed green.
 
-    function renderParcours(): void {
-      const qc = makeQueryClient();
-      render(
-        <QueryClientProvider client={qc}>
-          <MemoryRouter>
-            <ParcoursPanel />
-          </MemoryRouter>
-        </QueryClientProvider>,
-      );
-    }
+  /** A followed series carrying a tvdb id — it has a sheet. */
+  function identifiedFollow(): Record<string, unknown> {
+    return {
+      id: 1,
+      title: "Silo",
+      kind: "show",
+      status: "a_recuperer",
+      active: true,
+      added_at: 1_750_000_000,
+      wanted_pending: 0,
+      wanted_grabbed: 0,
+      year: 2023,
+      poster_url: null,
+      tvdb_unresolved: false,
+      priming_running: false,
+      media_ref: { tvdb_id: 400000, tmdb_id: null, imdb_id: null },
+      owned_count: 1,
+      aired_count: 2,
+    };
+  }
 
-    it("renders a sheet link for an identified journey with tvdb_id (priority tvdb > tmdb, with kind hint)", async () => {
-      getJourneysMock.mockResolvedValue({
-        journeys: [
-          {
-            info_hash: "abcd1234",
-            kind: "episode",
-            media_ref: { tvdb_id: 382389, tmdb_id: null, imdb_id: null },
-            scraped_ref: null,
-            followed_id: 12,
-            follow_title: "Star Trek: SNW",
-            status: "ingested",
-            ingest_path: "/stage/Star Trek",
-            current_path: "/stage/Star Trek",
-            dispatch_path: null,
-            grabbed_at: 1_700_000_000,
-            ingested_at: 1_700_000_100,
-            scraped_at: null,
-            dispatched_at: null,
-          },
-        ],
+  /** The same follow with no provider id at all — it has NO sheet. */
+  function unidentifiedFollow(): Record<string, unknown> {
+    return {
+      ...identifiedFollow(),
+      id: 2,
+      title: "Inconnu",
+      media_ref: { tvdb_id: null, tmdb_id: null, imdb_id: null },
+    };
+  }
+
+  function renderInRouter(node: ReactElement): void {
+    render(
+      <MemoryRouter>
+        <QueryClientProvider client={makeQueryClient()}>
+          {node}
+        </QueryClientProvider>
+      </MemoryRouter>,
+    );
+  }
+
+  describe("MaintenantPanel", () => {
+    coveredSurfaces.add("MaintenantPanel");
+
+    it("gives an identified item a poster that reaches its sheet", () => {
+      followedMock.mockReturnValue({
+        data: { items: [identifiedFollow()] },
+        isLoading: false,
+        isError: false,
       });
-      renderParcours();
-      const title = await screen.findByText("Star Trek: SNW");
-      // tvdb_id wins; kind "episode" → hint "tv".
-      expect(title.closest("a")).not.toBeNull();
-      expect(title.closest("a")?.getAttribute("href")).toBe(
-        "/media/tvdb/382389?kind=tv",
-      );
+      renderInRouter(<MaintenantPanel />);
+
+      expect(
+        screen.getByRole("button", { name: "Fiche de Silo" }),
+      ).toBeInTheDocument();
     });
 
-    it("falls back to tmdb href when only tmdb_id is present (priority proven, not assumed)", async () => {
-      getJourneysMock.mockResolvedValue({
-        journeys: [
-          {
-            info_hash: "abcd1234",
-            kind: "movie",
-            media_ref: { tvdb_id: null, tmdb_id: 27205, imdb_id: null },
-            scraped_ref: null,
-            followed_id: null,
-            follow_title: "Inception",
-            status: "ingested",
-            ingest_path: "/stage/Inception",
-            current_path: "/stage/Inception",
-            dispatch_path: null,
-            grabbed_at: 1_700_000_000,
-            ingested_at: 1_700_000_100,
-            scraped_at: null,
-            dispatched_at: null,
-          },
-        ],
+    it("gives an item with no provider id NO poster control", () => {
+      followedMock.mockReturnValue({
+        data: { items: [unidentifiedFollow()] },
+        isLoading: false,
+        isError: false,
       });
-      renderParcours();
-      const title = await screen.findByText("Inception");
-      expect(title.closest("a")).not.toBeNull();
-      expect(title.closest("a")?.getAttribute("href")).toBe(
-        "/media/tmdb/27205?kind=movie",
-      );
+      renderInRouter(<MaintenantPanel />);
+
+      expect(
+        screen.queryByRole("button", { name: "Fiche de Inconnu" }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  describe("SuivisPanel", () => {
+    coveredSurfaces.add("SuivisPanel");
+
+    it("gives an identified follow a poster that reaches its sheet", () => {
+      followedMock.mockReturnValue({
+        data: { items: [identifiedFollow()] },
+        isLoading: false,
+        isError: false,
+      });
+      renderInRouter(<SuivisPanel />);
+
+      expect(
+        screen.getByRole("button", { name: "Fiche de Silo" }),
+      ).toBeInTheDocument();
     });
 
-    it("renders NO link for an unidentified journey (no tvdb_id, no tmdb_id — §11 exception)", async () => {
-      getJourneysMock.mockResolvedValue({
-        journeys: [
-          {
-            info_hash: "feedbeef00112233445566778899aabbccddeeff",
-            kind: "movie",
-            media_ref: { tvdb_id: null, tmdb_id: null, imdb_id: null },
-            scraped_ref: null,
-            followed_id: null,
-            follow_title: null,
-            status: "grabbed",
-            ingest_path: null,
-            current_path: null,
-            dispatch_path: null,
-            grabbed_at: 1_700_000_000,
-            ingested_at: null,
-            scraped_at: null,
-            dispatched_at: null,
-          },
-        ],
+    it("gives a follow with no provider id NO poster control", () => {
+      followedMock.mockReturnValue({
+        data: { items: [unidentifiedFollow()] },
+        isLoading: false,
+        isError: false,
       });
-      renderParcours();
-      // journeyTitle falls back to the first 8 chars of the hash since there
-      // is no follow_title and no provider id.
-      const title = await screen.findByText("feedbeef");
-      // Must NOT be wrapped in an anchor — §11 forbids a dead link.
-      expect(title.closest("a")).toBeNull();
+      renderInRouter(<SuivisPanel />);
+
+      expect(
+        screen.queryByRole("button", { name: "Fiche de Inconnu" }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  describe("FollowDetailSheet", () => {
+    coveredSurfaces.add("FollowDetailSheet");
+
+    it("offers « Voir la fiche » when the follow has a sheet", () => {
+      completenessMock.mockReturnValue({
+        data: { title: "Silo", seasons: [] },
+        isLoading: false,
+        isError: false,
+      });
+      renderInRouter(
+        <FollowDetailSheet
+          followedId={1}
+          status="a_recuperer"
+          kind="show"
+          open
+          onOpenChange={vi.fn()}
+          mediaHref="/media/tvdb/400000?kind=tv"
+        />,
+      );
+
+      expect(
+        screen.getByRole("button", { name: /Voir la fiche/i }),
+      ).toBeInTheDocument();
+    });
+
+    it("omits « Voir la fiche » entirely when there is no sheet", () => {
+      // Absent, not disabled: a control the operator can see but never use is
+      // the dead link §11 forbids.
+      completenessMock.mockReturnValue({
+        data: { title: "Inconnu", seasons: [] },
+        isLoading: false,
+        isError: false,
+      });
+      renderInRouter(
+        <FollowDetailSheet
+          followedId={2}
+          status="a_recuperer"
+          kind="show"
+          open
+          onOpenChange={vi.fn()}
+          mediaHref={null}
+        />,
+      );
+
+      expect(
+        screen.queryByRole("button", { name: /Voir la fiche/i }),
+      ).not.toBeInTheDocument();
     });
   });
 

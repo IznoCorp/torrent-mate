@@ -42,8 +42,8 @@ const FOLLOWED: FollowedResponse = {
       active: true,
       added_at: 1_750_000_000,
       wanted_pending: 3,
-    wanted_grabbed: 0,
-    kind: "show",
+      wanted_grabbed: 0,
+      kind: "show",
       status: "a_recuperer",
       priming_running: false,
       tvdb_unresolved: false,
@@ -251,12 +251,22 @@ describe("createFollow", () => {
   });
 
   it("posts with body serialised and XRW header", async () => {
-    await createFollow({ tvdb_id: 123, title: "Test Show", kind: "show" });
+    await createFollow({
+      tvdb_id: 123,
+      title: "Test Show",
+      kind: "show",
+      replace_owned: false,
+    });
     const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
     expect(url).toBe("/api/acquisition/followed");
     expect(init.method).toBe("POST");
     expect(init.body).toBe(
-      JSON.stringify({ tvdb_id: 123, title: "Test Show", kind: "show" }),
+      JSON.stringify({
+        tvdb_id: 123,
+        title: "Test Show",
+        kind: "show",
+        replace_owned: false,
+      }),
     );
     expect((init.headers as Record<string, string>)["X-Requested-With"]).toBe(
       "TorrentMate",
@@ -264,9 +274,11 @@ describe("createFollow", () => {
   });
 
   it("omits undefined fields from body", async () => {
-    await createFollow({ tvdb_id: 456, kind: "show" });
+    await createFollow({ tvdb_id: 456, kind: "show", replace_owned: false });
     const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
-    expect(init.body).toBe(JSON.stringify({ tvdb_id: 456, kind: "show" }));
+    expect(init.body).toBe(
+      JSON.stringify({ tvdb_id: 456, kind: "show", replace_owned: false }),
+    );
   });
 
   it("throws ApiError on 409 (already followed)", async () => {
@@ -274,7 +286,7 @@ describe("createFollow", () => {
       jsonResponse({ detail: "Already actively followed" }, 409),
     );
     await expect(
-      createFollow({ tvdb_id: 123, kind: "show" }),
+      createFollow({ tvdb_id: 123, kind: "show", replace_owned: false }),
     ).rejects.toThrow(ApiError);
   });
 });
@@ -308,9 +320,7 @@ describe("updateFollow", () => {
 
   it("throws ApiError on 404", async () => {
     fetchSpy.mockResolvedValue(jsonResponse({ detail: "Not found" }, 404));
-    await expect(
-      updateFollow(999, { active: true }),
-    ).rejects.toThrow(ApiError);
+    await expect(updateFollow(999, { active: true })).rejects.toThrow(ApiError);
   });
 });
 
@@ -322,9 +332,7 @@ describe("deleteFollow", () => {
   let fetchSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    fetchSpy = vi.fn().mockResolvedValue(
-      new Response(null, { status: 204 }),
-    );
+    fetchSpy = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
     vi.stubGlobal("fetch", fetchSpy);
   });
 

@@ -143,13 +143,15 @@ export const acqKeys = {
   trackedRun: (runUid: string | null) =>
     [...acqKeys.status(), "tracked", runUid] as const,
 
-  /** Media search query key: ``['acquisition', 'search', {q, kind}]``. */
+  /** Media search query key — its OWN root, deliberately outside
+   *  ``acqKeys.all``: every follow mutation invalidates that namespace, and a
+   *  provider search re-fetching after each add burned quota for nothing.
+   *  Nothing a mutation changes lives in a search result. */
   search: (params: MediaSearchParams) =>
-    [...acqKeys.all, "search", params] as const,
+    ["acquisition-search", params] as const,
 
   /** Completeness query key: ``['acquisition', 'completeness', id]`` (§5). */
-  completeness: (id: number) =>
-    [...acqKeys.all, "completeness", id] as const,
+  completeness: (id: number) => [...acqKeys.all, "completeness", id] as const,
 
   /** Downloads query key: ``['acquisition', 'downloads']`` (A4). */
   downloads: () => [...acqKeys.all, "downloads"] as const,
@@ -157,6 +159,10 @@ export const acqKeys = {
   /** Machine-state overview query key: ``['acquisition', 'overview']`` (F5). */
   overview: () => [...acqKeys.all, "overview"] as const,
   stalledGrabs: () => [...acqKeys.all, "stalled-grabs"] as const,
+  toHandle: () => [...acqKeys.all, "to-handle"] as const,
+
+  /** Journeys query key: ``['acquisition', 'journeys']`` (F1). */
+  journeys: () => [...acqKeys.all, "journeys"] as const,
 };
 
 // ---------------------------------------------------------------------------
@@ -256,6 +262,37 @@ export function getDownloads(): Promise<AcquisitionDownloadsResponse> {
   return apiFetch("/api/acquisition/downloads", { method: "get" });
 }
 
+/** Query params for GET /api/acquisition/lookup */
+export type MediaLookupParams = QueryParamsOf<
+  paths["/api/acquisition/lookup"]["get"]
+>;
+
+/** One resolved media, as a search result. */
+export type MediaLookupResult = SuccessBody<
+  paths["/api/acquisition/lookup"]["get"]["responses"]
+>;
+
+/**
+ * Resolve ONE media by provider id.
+ *
+ * The add-by-ID path: it RESOLVES, it does not follow. The operator sees the
+ * real title and poster, then decides.
+ *
+ * Args:
+ *   params: provider, provider_id, kind.
+ *
+ * Returns:
+ *   The resolved result.
+ */
+export function lookupMedia(
+  params: MediaLookupParams,
+): Promise<MediaLookupResult> {
+  return apiFetch("/api/acquisition/lookup", {
+    method: "get",
+    params: { query: params },
+  });
+}
+
 /**
  * Search live providers for media to follow (add-by-search, OBJ3).
  *
@@ -337,6 +374,55 @@ export function updateFollow(
   });
 }
 
+/** The provider an add-by-id follow targets. */
+export type FollowProvider = "tvdb" | "tmdb" | "imdb";
+
+/** An IMDb id is ``tt`` followed by digits (e.g. ``tt0137523``). */
+const IMDB_ID_RE = /^tt\d+$/;
+
+/**
+ * Build the follow body for an add-by-id submit, or ``null`` when the id is
+ * invalid for the provider (TVDB/TMDB → plain positive digits, IMDB →
+ * ``tt\d+``).
+ *
+ * The plain-digits requirement is checked BEFORE ``Number()`` because the
+ * latter coerces ``"1e3"`` → 1000 and ``"0x10"`` → 16, both of which are
+ * safe integers — but the operator typing ``"1e3"`` into the by-ID field
+ * means the string ``"1e3"``, not the integer 1000, and following that as
+ * tvdb_id 1000 would fetch wrong artwork and wrong metadata on a real
+ * library.
+ *
+ * The form is series-only (``kind: 'show'``) — a TVDB id is a series id, and a
+ * film is followed from the search cards which carry ``kind: 'movie'``. The
+ * server resolves TVDB from a TMDB/IMDB series so detection works.
+ */
+export function buildIdFollowBody(
+  provider: FollowProvider,
+  rawId: string,
+): CreateFollowRequest | null {
+  const value = rawId.trim();
+  if (!value) return null;
+  if (provider === "imdb") {
+    return IMDB_ID_RE.test(value)
+      ? { imdb_id: value, kind: "show", replace_owned: false }
+      : null;
+  }
+  // Reject any non-IMDB value that is not plain digits — Number() alone
+  // cannot carry this: it coerces "1e3" → 1000 and "0x10" → 16, both of
+  // which pass Number.isSafeInteger.  The operator typing "1e3" into the
+  // by-ID field means the string 1e3, not the integer 1000.
+  if (!/^\d+$/.test(value)) return null;
+  const numeric = Number(value);
+  // Number.isSafeInteger, not isInteger: a 17-digit-or-longer id still passes
+  // isInteger but has already lost precision (JSON would emit 1e+23 for a
+  // 23-digit string) — a precision-mangled id must refuse here, never silently
+  // follow a wrong id.
+  if (!Number.isSafeInteger(numeric) || numeric <= 0) return null;
+  return provider === "tvdb"
+    ? { tvdb_id: numeric, kind: "show", replace_owned: false }
+    : { tmdb_id: numeric, kind: "show", replace_owned: false };
+}
+
 /** Response type for POST /api/acquisition/followed/{id}/search (OBJ3). */
 export type GrabTriggerResponse = SuccessBody<
   paths["/api/acquisition/followed/{followed_id}/search"]["post"]["responses"]
@@ -361,7 +447,9 @@ export type GrabTriggerResponse = SuccessBody<
  *   ApiError: 404 (unknown series) / 409 (a search for this series is already
  *     running — the only permitted refusal).
  */
-export function triggerFollowedSearch(id: number): Promise<GrabTriggerResponse> {
+export function triggerFollowedSearch(
+  id: number,
+): Promise<GrabTriggerResponse> {
   return apiFetch("/api/acquisition/followed/{followed_id}/search", {
     method: "post",
     headers: XRW_HEADERS,
@@ -401,8 +489,7 @@ export function triggerFollowedGrab(id: number): Promise<GrabTriggerResponse> {
  * The endpoint returns ``201``, not ``200``, so ``SuccessBody`` does not match —
  * the type is extracted directly from the generated schema.
  */
-export type SeasonGrabResponse =
-  components["schemas"]["SeasonGrabResponse"];
+export type SeasonGrabResponse = components["schemas"]["SeasonGrabResponse"];
 
 /**
  * Manually enqueue a season wanted for a followed series (R4).
@@ -587,6 +674,25 @@ export function getStalledGrabs(): Promise<StalledGrabsResponse> {
   return apiFetch("/api/acquisition/stalled-grabs", { method: "get" });
 }
 
+// ---------------------------------------------------------------------------
+// « À traiter » — blocked media carried by one of our acquisitions (§14.3)
+// ---------------------------------------------------------------------------
+
+/** One blocked media whose acquisition is ours (spec §3.1). */
+export type ToHandleItem = SuccessBody<
+  paths["/api/acquisition/to-handle"]["get"]["responses"]
+>["items"][number];
+
+/** Response for ``GET /api/acquisition/to-handle``. */
+export type ToHandleResponse = SuccessBody<
+  paths["/api/acquisition/to-handle"]["get"]["responses"]
+>;
+
+/** Fetch the « À traiter » rollup. Read-only, header-free. */
+export function getToHandle(): Promise<ToHandleResponse> {
+  return apiFetch("/api/acquisition/to-handle", { method: "get" });
+}
+
 /** Response of a spine-driven per-item action (rescrape / requeue) — the launched run. */
 export type JourneyActionResponse = SuccessBody<
   paths["/api/acquisition/journeys/{info_hash}/rescrape"]["post"]["responses"]
@@ -596,7 +702,9 @@ export type JourneyActionResponse = SuccessBody<
  * Re-scrape one tracked staging item (F4): ``POST /journeys/{info_hash}/rescrape``.
  * Mutating — carries the ``X-Requested-With`` header. 202 with the launched run_uid.
  */
-export function rescrapeJourney(infoHash: string): Promise<JourneyActionResponse> {
+export function rescrapeJourney(
+  infoHash: string,
+): Promise<JourneyActionResponse> {
   return apiFetch("/api/acquisition/journeys/{info_hash}/rescrape", {
     method: "post",
     params: { path: { info_hash: infoHash } },
@@ -608,7 +716,9 @@ export function rescrapeJourney(infoHash: string): Promise<JourneyActionResponse
  * Requeue one item's wanted row (F4): ``POST /journeys/{info_hash}/requeue``.
  * Mutating — carries the ``X-Requested-With`` header. 202 with the launched run_uid.
  */
-export function requeueJourney(infoHash: string): Promise<JourneyActionResponse> {
+export function requeueJourney(
+  infoHash: string,
+): Promise<JourneyActionResponse> {
   return apiFetch("/api/acquisition/journeys/{info_hash}/requeue", {
     method: "post",
     params: { path: { info_hash: infoHash } },

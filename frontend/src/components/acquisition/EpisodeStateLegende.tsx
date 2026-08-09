@@ -11,12 +11,11 @@
 
 import type { ReactElement } from "react";
 
-import { Badge } from "@/components/ui/badge";
-
 import {
   EPISODE_LEGEND_ORDER,
   EPISODE_STATE_LABEL,
   EPISODE_STATE_TONE,
+  TONE_SWATCH_CLASS,
 } from "./meta";
 
 /**
@@ -38,14 +37,18 @@ export function EpisodeStateLegende(): ReactElement {
   return (
     <div
       aria-label="Légende des statuts d'épisode"
-      className="flex flex-wrap gap-x-3 gap-y-1.5 pt-2"
+      className="flex flex-wrap gap-x-2.5 gap-y-1.5 border-y border-border py-2.5 text-[length:var(--text-2xs)] text-muted-foreground"
     >
       {LEGEND_ORDER.map((state) => (
-        // The chip IS the swatch: its tone shows the colour, its text the label
-        // — one element, no risk of a swatch and a caption drifting apart.
-        <Badge key={state} tone={EPISODE_STATE_TONE[state]} dot>
+        // SQUARE swatch + plain label — the matrix cells are squares, and a
+        // key drawn with a different shape than what it explains misleads.
+        <span key={state} className="inline-flex items-center gap-1.5">
+          <i
+            aria-hidden="true"
+            className={`inline-block size-[9px] rounded-[2px] ${TONE_SWATCH_CLASS[EPISODE_STATE_TONE[state]] ?? "bg-muted"}`}
+          />
           {EPISODE_STATE_LABEL[state]}
-        </Badge>
+        </span>
       ))}
     </div>
   );

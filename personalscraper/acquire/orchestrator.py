@@ -66,12 +66,12 @@ from typing import TYPE_CHECKING, Literal
 
 from personalscraper.acquire._dedup import SearchOutcome, dedup
 from personalscraper.acquire._filters import apply_hard_filters, filter_to_episode, filter_to_season
+from personalscraper.acquire._resolve_walk import resolve_first_available
 from personalscraper.acquire.events import GrabFailed, TrackerAuthFailed, WantedAbandoned
 from personalscraper.api._contracts import ApiError, MediaType
 from personalscraper.api.torrent._base import TorrentLimits
 from personalscraper.api.torrent._contracts import GlobalRateLimiter, TorrentLimiter
 from personalscraper.api.tracker._errors import TorrentFetchError, TrackerAuthError
-from personalscraper.api.tracker._fetch import resolve_source
 from personalscraper.api.tracker._ranking import rank
 from personalscraper.core._contracts import CircuitOpenError
 from personalscraper.logger import get_logger
@@ -942,14 +942,35 @@ class GrabOrchestrator:
         # (add then a separate add_tags) is gone — no category is forced to
         # dodge a gap, and a torrent is never added-but-untagged.
         try:
-            # Read transports FRESH (not a boot snapshot): by here the top
-            # result's tracker has already run its search() in THIS grab, so a
-            # login-style tracker would have materialized + cached its authed
-            # transport. transports() is cheap (cached transports;
-            # plain-attribute for every tracker wired today). A transient boot
-            # login blip can no longer strand a recovered tracker behind a stale
-            # snapshot.
-            source = resolve_source(top, self._tracker_registry.transports())
+            # A fetch failure is CANDIDATE-specific, so the walk tries a few
+            # ranked siblings rather than starving the item on one dead
+            # release; it also attributes a tracker-wide failure to the
+            # tracker that raised it (see `_resolve_walk`).
+            # Transports read FRESH (never a boot snapshot): by here the
+            # tracker has already run its search() in THIS grab, so a
+            # login-style tracker's authed transport exists — a transient boot
+            # login blip can no longer strand it for the process lifetime.
+            attempt = resolve_first_available(result.ranked, self._tracker_registry.transports(), top=top)
+            if attempt.source is None:
+                # Nothing resolved: conclude on the candidate the walk blames,
+                # so the operator alert names the tracker that broke rather
+                # than the ranked top.
+                chosen = attempt.chosen
+                if isinstance(attempt.error, CircuitOpenError):
+                    return self._retryable(media_ref, "circuit_open", chosen=chosen)
+                if isinstance(attempt.error, TrackerAuthError):
+                    self._event_bus.emit(
+                        TrackerAuthFailed(
+                            tracker=chosen.provider,
+                            http_status=attempt.error.http_status,
+                            media_ref=media_ref,
+                        )
+                    )
+                    return self._terminal(media_ref, "tracker_auth", chosen=chosen)
+                # Fetch failure, or any other transport error DURING the fetch
+                # (add() was never reached, so never « add_failed »).
+                return self._retryable(media_ref, "fetch_failed", chosen=chosen)
+            source, top = attempt.source, attempt.chosen
             # D2 — reserve the hash BEFORE handing the torrent to the client.
             # ``resolve_source`` has just cross-checked the fetched payload
             # against ``top.info_hash``, so the value written here is the hash

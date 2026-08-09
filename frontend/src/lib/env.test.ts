@@ -55,3 +55,33 @@ describe("BRAND_ICON", () => {
     expect(BRAND_ICON).toBe("/icon.svg");
   });
 });
+
+describe("env — l'identité staging après le retrait de la bannière (A17)", () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.resetModules(); });
+
+  async function loadEnvOn(hostname: string, port = "") {
+    vi.stubGlobal("window", { location: { hostname, port } });
+    vi.resetModules();
+    return import("@/lib/env");
+  }
+
+  it("garde le logo staging comme signal survivant", async () => {
+    const env = await loadEnvOn("tm-staging.iznogoudatall.xyz");
+    expect(env.isStaging()).toBe(true);
+    expect(env.BRAND_ICON).toBe("/icon-staging.svg");
+  });
+
+  it("garde le logo de prod ailleurs", async () => {
+    const env = await loadEnvOn("tm.iznogoudatall.xyz");
+    expect(env.isStaging()).toBe(false);
+    expect(env.BRAND_ICON).toBe("/icon.svg");
+  });
+
+  it("plus aucun module n'importe StagingBanner", () => {
+    const modules = import.meta.glob("/src/**/*.{ts,tsx}", { query: "?raw", import: "default", eager: true });
+    const offenders = Object.entries(modules)
+      .filter(([, source]) => source.includes("StagingBanner"))
+      .map(([path]) => path);
+    expect(offenders).toEqual([]);
+  });
+});

@@ -50,6 +50,17 @@ beforeEach(() => {
     if (url.includes("/api/auth/me")) {
       return Promise.resolve(buildResponse(200, { username: "izno" }));
     }
+    // The shell's Acquisition badge reads these two sources (D6). The `{}`
+    // fallback does NOT respect their contract (`items` is always serialized),
+    // and a body without `items` propagates the error to the router's
+    // ErrorBoundary — blank screen, not just a missing badge. This mock serves
+    // the real shape; the fragility itself is noted for the final review.
+    if (url.includes("/api/acquisition/followed")) {
+      return Promise.resolve(buildResponse(200, { items: [] }));
+    }
+    if (url.includes("/api/acquisition/to-handle")) {
+      return Promise.resolve(buildResponse(200, { items: [], orphan_count: 0 }));
+    }
     return Promise.resolve(buildResponse(200, {}));
   });
   vi.stubGlobal("fetch", fetchMock);
@@ -68,8 +79,9 @@ describe("App", () => {
     // The browser router boots at jsdom's default path ("/"); once `me` resolves
     // authenticated the guard renders the shell, and the root redirects to the
     // acquisitions landing (the main page, per the operator nav reorder).
+    // The acquisition page renders two view tabs — Maintenant and Suivis.
     expect(
-      await screen.findByRole("heading", { name: /acquisition/i }),
+      await screen.findByRole("tab", { name: /Maintenant/ }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /menu utilisateur/i }),

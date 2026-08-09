@@ -2,7 +2,7 @@
 
 Covers POST/PATCH/DELETE /api/acquisition/followed, including:
 - Create (201), reactivate (201), dedup conflict (409)
-- Staging guard (403), XRW guard (400)
+- Staging allowed (A18), XRW guard (400)
 - PATCH cadence / active toggle
 - DELETE soft-unfollow (204)
 - 404 for unknown IDs, 422 for missing provider IDs
@@ -273,8 +273,16 @@ class TestCreateFollow:
         conn.close()
         assert row == ("https://img.example/poster.jpg", "A great series.", 2021)
 
-    def test_create_no_title_returns_201(self, client: TestClient, tmp_path: Path) -> None:
-        """Sending a tvdb_id without title is accepted (title defaults to empty)."""
+    def test_create_no_title_is_never_nameless(self, client: TestClient, tmp_path: Path) -> None:
+        """A follow created without a title still HAS one.
+
+        Regression (operator, 2026-08-08): the add-by-ID form sends no title,
+        and the row was stored with an empty one — blank in the follow list
+        and blank in its own sheet. The provider's title is resolved first;
+        « Sans titre » is the last resort so the row stays findable and
+        removable. Here no provider is reachable, so that fallback is what we
+        must see — never an empty string.
+        """
         resp = client.post(
             "/api/acquisition/followed",
             json={"tvdb_id": 456},
@@ -283,7 +291,8 @@ class TestCreateFollow:
         )
         assert resp.status_code == 201, resp.text
         data = resp.json()
-        assert data["title"] == ""
+        assert data["title"] != "", "a nameless follow is unusable"
+        assert data["title"] == "Sans titre"
         assert data["media_ref"]["tvdb_id"] == 456
         assert data["active"] is True
 
@@ -419,8 +428,8 @@ class TestCreateFollow:
         )
         assert resp.status_code == 400, resp.text
 
-    def test_staging_role_returns_403(self, client: TestClient, tmp_path: Path, monkeypatch: Any) -> None:
-        """Setting PERSONALSCRAPER_WEB_ROLE=staging blocks writes with 403."""
+    def test_staging_role_is_allowed_to_create(self, client: TestClient, tmp_path: Path, monkeypatch: Any) -> None:
+        """A18 : le rôle staging peut créer un suivi — la route d'écriture est ouverte."""
         monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
         resp = client.post(
             "/api/acquisition/followed",
@@ -428,7 +437,7 @@ class TestCreateFollow:
             cookies=_auth_cookies(),
             headers=_xrw_headers(),
         )
-        assert resp.status_code == 403, resp.text
+        assert resp.status_code == 201, resp.text
 
 
 # ---------------------------------------------------------------------------
@@ -546,8 +555,8 @@ class TestUpdateFollow:
         )
         assert resp.status_code == 400, resp.text
 
-    def test_patch_staging_role_returns_403(self, client: TestClient, tmp_path: Path, monkeypatch: Any) -> None:
-        """Setting PERSONALSCRAPER_WEB_ROLE=staging blocks PATCH with 403."""
+    def test_staging_role_is_allowed_to_patch(self, client: TestClient, tmp_path: Path, monkeypatch: Any) -> None:
+        """A18 : le rôle staging peut modifier un suivi (PATCH) — la route d'écriture est ouverte."""
         acquire_path = tmp_path / "acquire.db"
         conn = sqlite3.connect(str(acquire_path))
         apply_pragmas(conn)
@@ -562,7 +571,7 @@ class TestUpdateFollow:
             cookies=_auth_cookies(),
             headers=_xrw_headers(),
         )
-        assert resp.status_code == 403, resp.text
+        assert resp.status_code == 200, resp.text
 
 
 # ---------------------------------------------------------------------------
@@ -573,12 +582,30 @@ class TestUpdateFollow:
 class TestDeleteFollow:
     """DELETE /api/acquisition/followed/{id} — soft unfollow."""
 
-    def test_delete_soft_unfollow_returns_204(self, client: TestClient, tmp_path: Path) -> None:
-        """Deleting an active series soft-unfollows it (active=0) and returns 204."""
+    def test_delete_really_removes_the_follow(self, client: TestClient, tmp_path: Path) -> None:
+        """DELETE removes the row — it is not a disguised pause.
+
+        Regression (operator, 2026-08-08): the route called set_active(False),
+        the exact write « Mettre en pause » performs. Two verbs, one effect —
+        the removal never happened and the follow reappeared « En pause ».
+        """
         acquire_path = tmp_path / "acquire.db"
         conn = sqlite3.connect(str(acquire_path))
         apply_pragmas(conn)
         fid = _seed_followed(conn, 1, "Test Show", active=True)
+        # A queued row and an in-flight one: the first must go with the follow
+        # (nothing should keep searching for it), the second must SURVIVE —
+        # its acquisition is real and its history stays readable.
+        conn.execute(
+            "INSERT INTO wanted (followed_id, media_ref_json, kind, season, episode, "
+            "status, enqueued_at, attempts) VALUES (?, ?, 'episode', 1, 1, 'pending', 0, 0)",
+            (fid, '{"tvdb_id": 1}'),
+        )
+        conn.execute(
+            "INSERT INTO wanted (followed_id, media_ref_json, kind, season, episode, "
+            "status, enqueued_at, attempts) VALUES (?, ?, 'episode', 1, 2, 'grabbed', 0, 0)",
+            (fid, '{"tvdb_id": 1}'),
+        )
         conn.commit()
         conn.close()
 
@@ -590,8 +617,19 @@ class TestDeleteFollow:
         assert resp.status_code == 204, resp.text
         assert resp.text == "" or resp.text is None or not resp.content
 
-        # Row still exists with active=0 (soft delete).
-        _assert_row_active(acquire_path, fid, False)
+        check = sqlite3.connect(str(acquire_path))
+        try:
+            gone = check.execute("SELECT COUNT(*) FROM followed_series WHERE id = ?", (fid,)).fetchone()[0]
+            assert gone == 0, "the follow must be REMOVED, not deactivated"
+            queued = check.execute(
+                "SELECT COUNT(*) FROM wanted WHERE followed_id = ? AND status = 'pending'",
+                (fid,),
+            ).fetchone()[0]
+            assert queued == 0, "nothing may keep searching for a removed follow"
+            in_flight = check.execute("SELECT COUNT(*) FROM wanted WHERE status = 'grabbed'").fetchone()[0]
+            assert in_flight == 1, "an acquisition already in flight keeps its row"
+        finally:
+            check.close()
 
     def test_delete_already_inactive_returns_204(self, client: TestClient, tmp_path: Path) -> None:
         """Deleting an already-inactive series returns 204 (idempotent)."""
@@ -626,8 +664,8 @@ class TestDeleteFollow:
         )
         assert resp.status_code == 400, resp.text
 
-    def test_delete_staging_role_returns_403(self, client: TestClient, tmp_path: Path, monkeypatch: Any) -> None:
-        """Setting PERSONALSCRAPER_WEB_ROLE=staging blocks DELETE with 403."""
+    def test_staging_role_is_allowed_to_delete(self, client: TestClient, tmp_path: Path, monkeypatch: Any) -> None:
+        """A18 : le rôle staging peut supprimer un suivi (DELETE) — la route d'écriture est ouverte."""
         acquire_path = tmp_path / "acquire.db"
         conn = sqlite3.connect(str(acquire_path))
         apply_pragmas(conn)
@@ -641,7 +679,7 @@ class TestDeleteFollow:
             cookies=_auth_cookies(),
             headers=_xrw_headers(),
         )
-        assert resp.status_code == 403, resp.text
+        assert resp.status_code == 204, resp.text
 
 
 # ---------------------------------------------------------------------------
@@ -763,15 +801,20 @@ class TestTriggerFollowedSearch:
         )
         assert resp.status_code == 400, resp.text
 
-    def test_trigger_staging_role_returns_403(self, client: TestClient, monkeypatch: Any) -> None:
-        """The staging role refuses the write (403), like every mutating route."""
+    def test_staging_role_is_allowed_to_search(self, client: TestClient, tmp_path: Path, monkeypatch: Any) -> None:
+        """A18 : le rôle staging peut déclencher une recherche — la route d'écriture est ouverte."""
+        monkeypatch.setattr(
+            "personalscraper.web.routes.acquisition_triggers._spawn_prime_runner",
+            lambda run_uid, followed_id: os.getpid(),
+        )
+        fid = _seed_follow_directly(tmp_path)
         monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
         resp = client.post(
-            "/api/acquisition/followed/1/search",
+            f"/api/acquisition/followed/{fid}/search",
             cookies=_auth_cookies(),
             headers=_xrw_headers(),
         )
-        assert resp.status_code == 403, resp.text
+        assert resp.status_code == 202, resp.text
 
 
 class TestTriggerFollowedGrab:
@@ -845,15 +888,20 @@ class TestTriggerFollowedGrab:
         )
         assert resp.status_code == 400, resp.text
 
-    def test_trigger_staging_role_returns_403(self, client: TestClient, monkeypatch: Any) -> None:
-        """The staging role refuses the write (403), like every mutating route."""
+    def test_staging_role_is_allowed_to_grab(self, client: TestClient, tmp_path: Path, monkeypatch: Any) -> None:
+        """A18 : le rôle staging peut déclencher un grab — la route d'écriture est ouverte."""
+        monkeypatch.setattr(
+            "personalscraper.web.routes.acquisition_triggers._spawn_grab_runner",
+            lambda run_uid, followed_id: os.getpid(),
+        )
+        fid = _seed_follow_directly(tmp_path)
         monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
         resp = client.post(
-            "/api/acquisition/followed/1/grab",
+            f"/api/acquisition/followed/{fid}/grab",
             cookies=_auth_cookies(),
             headers=_xrw_headers(),
         )
-        assert resp.status_code == 403, resp.text
+        assert resp.status_code == 202, resp.text
 
 
 class TestRunnerSpawnEnvContract:
@@ -949,11 +997,16 @@ class TestTriggerJourneyRescrape:
         resp = client.post("/api/acquisition/journeys/beef/rescrape", cookies=_auth_cookies())
         assert resp.status_code == 400, resp.text
 
-    def test_staging_role_returns_403(self, client: TestClient, monkeypatch: Any) -> None:
-        """The staging role refuses the write (403)."""
+    def test_staging_role_is_allowed_to_rescrape(self, client: TestClient, tmp_path: Path, monkeypatch: Any) -> None:
+        """A18 : le rôle staging peut déclencher un re-scrape — la route d'écriture est ouverte."""
+        monkeypatch.setattr(
+            "personalscraper.web.routes.acquisition_triggers._spawn_hash_runner",
+            lambda run_uid, action, info_hash: os.getpid(),
+        )
+        _seed_provenance_row(tmp_path, "beef")
         monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
         resp = client.post("/api/acquisition/journeys/beef/rescrape", cookies=_auth_cookies(), headers=_xrw_headers())
-        assert resp.status_code == 403, resp.text
+        assert resp.status_code == 202, resp.text
 
 
 class TestTriggerJourneyRequeue:
@@ -976,8 +1029,13 @@ class TestTriggerJourneyRequeue:
         assert resp.status_code == 202, resp.text
         assert spawned == [(resp.json()["run_uid"], "requeue", "cafe")]
 
-    def test_staging_role_returns_403(self, client: TestClient, monkeypatch: Any) -> None:
-        """The staging role refuses the write (403)."""
+    def test_staging_role_is_allowed_to_requeue(self, client: TestClient, tmp_path: Path, monkeypatch: Any) -> None:
+        """A18 : le rôle staging peut déclencher une remise en file — la route d'écriture est ouverte."""
+        monkeypatch.setattr(
+            "personalscraper.web.routes.acquisition_triggers._spawn_hash_runner",
+            lambda run_uid, action, info_hash: os.getpid(),
+        )
+        _seed_provenance_row(tmp_path, "cafe")
         monkeypatch.setenv("PERSONALSCRAPER_WEB_ROLE", "staging")
         resp = client.post("/api/acquisition/journeys/cafe/requeue", cookies=_auth_cookies(), headers=_xrw_headers())
-        assert resp.status_code == 403, resp.text
+        assert resp.status_code == 202, resp.text

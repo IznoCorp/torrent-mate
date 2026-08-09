@@ -397,6 +397,7 @@ describe("useFollow", () => {
       tvdb_id: 123,
       title: "Test Show",
       kind: "show",
+      replace_owned: false,
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -404,7 +405,12 @@ describe("useFollow", () => {
     expect(url).toBe("/api/acquisition/followed");
     expect(init.method).toBe("POST");
     expect(init.body).toBe(
-      JSON.stringify({ tvdb_id: 123, title: "Test Show", kind: "show" }),
+      JSON.stringify({
+        tvdb_id: 123,
+        title: "Test Show",
+        kind: "show",
+        replace_owned: false,
+      }),
     );
 
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: acqKeys.all });
@@ -421,7 +427,11 @@ describe("useFollow", () => {
     });
 
     await expect(
-      result.current.mutateAsync({ tvdb_id: 123, kind: "show" }),
+      result.current.mutateAsync({
+        tvdb_id: 123,
+        kind: "show",
+        replace_owned: false,
+      }),
     ).rejects.toThrow(ApiError);
   });
 
@@ -437,7 +447,11 @@ describe("useFollow", () => {
     });
 
     await expect(
-      result.current.mutateAsync({ tvdb_id: 123, kind: "show" }),
+      result.current.mutateAsync({
+        tvdb_id: 123,
+        kind: "show",
+        replace_owned: false,
+      }),
     ).rejects.toThrow(ApiError);
 
     expect(toastError).toHaveBeenCalledWith(
@@ -465,7 +479,11 @@ describe("useFollow", () => {
     const { result } = renderHook(() => useFollow(), { wrapper });
 
     await expect(
-      result.current.mutateAsync({ tvdb_id: 123, kind: "show" }),
+      result.current.mutateAsync({
+        tvdb_id: 123,
+        kind: "show",
+        replace_owned: false,
+      }),
     ).rejects.toThrow(ApiError);
 
     expect(toastInfo).toHaveBeenCalledWith(

@@ -1,8 +1,12 @@
 import { Menu } from "lucide-react";
-import type { ReactElement } from "react";
+import { useEffect, useRef, type ReactElement } from "react";
 import { Link } from "react-router-dom";
 
 import { BrandMark } from "@/components/ds/BrandMark";
+import {
+  TOPBAR_HEIGHT_VAR,
+  publishMeasuredHeight,
+} from "@/components/layout/bottom-bar-metrics";
 import { StatusDot, type PipelineStatus } from "@/components/ds/StatusDot";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 import { UserMenu } from "@/components/layout/UserMenu";
@@ -70,11 +74,47 @@ const CONNECTION_DISPLAY: Record<
  * @returns The top bar element.
  */
 export function TopBar({ onOpenNav }: TopBarProps): ReactElement {
+  const headerRef = useRef<HTMLElement | null>(null);
+
+  // Publish the sticky header's measured height (same contract as the bottom
+  // bar): the acquisition view pins its tab train and filter zone right under
+  // this header, and a hardcoded offset would drift on safe-area/rotation.
+  useEffect(() => {
+    const el = headerRef.current;
+    const root = document.documentElement;
+    if (el == null) return;
+    const publish = (): void => {
+      publishMeasuredHeight(TOPBAR_HEIGHT_VAR, el.getBoundingClientRect().height);
+    };
+    publish();
+    if (typeof ResizeObserver === "undefined") {
+      return () => {
+        root.style.removeProperty(TOPBAR_HEIGHT_VAR);
+      };
+    }
+    const observer = new ResizeObserver(publish);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty(TOPBAR_HEIGHT_VAR);
+    };
+  }, []);
+
   const { connectionState } = useEventStreamContext();
   const display = CONNECTION_DISPLAY[connectionState];
 
   return (
-    <header className="sticky top-0 z-40 flex items-center gap-4 border-b border-border bg-background/85 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] backdrop-blur-sm md:px-6">
+    <header
+      ref={headerRef}
+      // STATIC, opaque, and no backdrop-filter. Not sticky: the shell is a
+      // frame (see AppShell) and the scrollport is `main`, BELOW this row —
+      // so nothing ever scrolls under this bar and nothing ever re-places it
+      // mid-gesture. A translucent blurred bar would also have to re-sample
+      // the content moving underneath on every frame; the maquette asks for
+      // no blur here (its only blur is the decorative poster backdrop in the
+      // media sheet), so nothing is owed to the design by dropping it.
+      className="relative z-40 flex shrink-0 items-center gap-4 border-b border-border bg-background px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] md:px-6"
+    >
       <button
         type="button"
         onClick={onOpenNav}
