@@ -930,6 +930,28 @@ describe("SuivisPanel", () => {
     }
   });
 
+  it("l'écart entre les deux barres épinglées ne peut pas bouger au scroll", () => {
+    // Operator, 2026-08-09: « l'écart entre le changement d'onglet et le champ
+    // filtrer par nom diminue/augmente quand on scroll ». Measured on the
+    // deployed build: 8.00 px at rest, -0.55 px once pinned — the filter zone
+    // travelled 8.55 px relative to the tabs during the first pixels of scroll.
+    //
+    // jsdom computes no layout, so what is verifiable here is the contract that
+    // makes the two positions identical: no top padding in flow, and a flow
+    // offset (`-mt-px`) that is the exact mirror of the sticky one (`- 1px`).
+    // The real proof is the harness measurement; this is the guard that stops
+    // the pair drifting apart in an edit.
+    renderPanel([takeableShow()]);
+    const filters = document.querySelector(".filters");
+    if (!(filters instanceof HTMLElement)) throw new Error("filter zone");
+
+    expect(filters.className).toContain("-mt-px");
+    expect(filters.style.top).toContain("- 1rem - 1px");
+    // The panel body must not reintroduce flow between the bars.
+    const body = filters.parentElement;
+    expect(body?.className).not.toMatch(/\bp[ty]-/);
+  });
+
   it("mode grille : taper une tuile ouvre la fiche détail du suivi", () => {
     renderPanel([takeableShow()]);
     fireEvent.click(screen.getByRole("button", { name: /Grille/ }));

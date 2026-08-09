@@ -70,13 +70,26 @@ export function aboveBottomBar(gap: string): string {
  * open a sliver of list content between the two sticky bands during scroll —
  * trading one visual defect for another. Ceiling never under-states.
  *
+ * `exact` opts out of the quantisation, and one consumer needs it. When a var
+ * places a sticky element that must land on the SAME pixel as its own flow
+ * position, rounding is not conservative — it is the defect: it seats the
+ * pinned element up to a pixel away from where it sits at rest, so the gap
+ * above it CHANGES the moment it pins (operator, 2026-08-09: « l'écart entre le
+ * changement d'onglet et le champ filtrer par nom diminue quand on scroll »).
+ * Only use it for a var whose element does not resize during a scroll —
+ * anything the iOS URL bar can squeeze must stay quantised, or the sub-pixel
+ * churn comes back as a shimmer.
+ *
  * Args:
  *   varName: The custom property to publish.
  *   height: The freshly measured height, in CSS pixels.
+ *   exact: Publish the real height instead of its ceiling.
  */
-export function publishMeasuredHeight(varName: string, height: number): void {
+export function publishMeasuredHeight(varName: string, height: number, exact = false): void {
   const root = document.documentElement;
-  const next = `${String(Math.ceil(height))}px`;
+  // Two decimals, not the raw float: device-pixel arithmetic never needs more,
+  // and it keeps the "skip if unchanged" guard from firing on float noise.
+  const next = exact ? `${String(Math.round(height * 100) / 100)}px` : `${String(Math.ceil(height))}px`;
   if (root.style.getPropertyValue(varName) === next) return;
   root.style.setProperty(varName, next);
 }
