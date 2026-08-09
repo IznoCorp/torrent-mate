@@ -278,6 +278,11 @@ export const FOLLOW_STATUS_TONE: Record<FollowStatus, BadgeTone> = {
   en_attente: "waiting",
   non_verifie: "muted",
   a_jour: "success",
+  // « Terminé » shares the success family with « À jour » — both mean « rien à
+  // faire » — but reads as the calmer, settled one: a finished series is not
+  // waiting for anything, it is closed. The label carries the distinction; a
+  // third green would only make the list harder to scan.
+  termine: "neutral",
 };
 
 /** Followed-card status → French badge label, série wording (§5). */
@@ -289,6 +294,7 @@ export const FOLLOW_STATUS_LABEL: Record<FollowStatus, string> = {
   en_attente: "En attente de torrent",
   non_verifie: "Non vérifié",
   a_jour: "À jour",
+  termine: "Terminé",
 };
 
 /**
@@ -301,6 +307,10 @@ export const FOLLOW_STATUS_LABEL: Record<FollowStatus, string> = {
  */
 export const FOLLOW_STATUS_LABEL_MOVIE: Partial<Record<FollowStatus, string>> = {
   a_jour: "Acquis",
+  // A film is never « Terminé » — the derivation cannot produce it for a
+  // single-unit catalog — but the map stays total in effect: were one ever to
+  // arrive, « Acquis » is the only sentence that means anything on a film.
+  termine: "Acquis",
   // A film is not « en pause »: the operator simply stopped searching for it.
   disabled: "Recherche arrêtée",
 };
@@ -461,12 +471,15 @@ export const FOLLOW_STATUS_HINT: Record<FollowStatus, string> = {
     "Recherché sur les trackers : rien de conforme au profil pour l'instant.",
   non_verifie:
     "Pas encore vérifié sur les trackers — aucune conclusion à ce jour.",
-  a_jour: "Tout ce qui est sorti est en médiathèque.",
+  a_jour: "Tout ce qui est sorti est en médiathèque — la série continue.",
+  termine:
+    "Série terminée : tout est en médiathèque et plus aucun épisode n'est attendu.",
 };
 
 /** Film wording of {@link FOLLOW_STATUS_HINT}, for the overridden states only. */
 export const FOLLOW_STATUS_HINT_MOVIE: Partial<Record<FollowStatus, string>> = {
   a_jour: "Le film est en médiathèque.",
+  termine: "Le film est en médiathèque.",
   disabled:
     "Ce film n'est plus cherché — aucune recherche automatique n'est faite.",
 };

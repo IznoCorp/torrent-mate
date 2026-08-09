@@ -120,6 +120,32 @@ class AiredEpisode:
 
 
 @dataclass(frozen=True)
+class SeriesCatalog:
+    """Everything ONE provider poll learned about one followed series.
+
+    Emitted by :func:`~personalscraper.acquire.airing.poll_catalog`. It exists so
+    the production status can reach the store without a second round of provider
+    calls: the poll already fetches the series details to enumerate the seasons,
+    and used to discard every field but the season list.
+
+    Attributes:
+        followed_id: The ``followed_series`` rowid this catalogue belongs to, or
+            ``None`` for an unpersisted follow.
+        media_ref: Provider-ID key of the series (tvdb_id primary).
+        series_status: The provider's raw production status (TVDB « Continuing »
+            / « Ended », TMDB « Returning Series » / « Ended » / « Canceled »),
+            or ``None`` when the provider names none. ``None`` is IGNORANCE, not
+            « still running » — the card never claims « Terminé » on it.
+        episodes: Every episode with a known air date, futures included.
+    """
+
+    followed_id: int | None
+    media_ref: MediaRef
+    series_status: str | None
+    episodes: list[AiredEpisode]
+
+
+@dataclass(frozen=True)
 class WantedItem:
     """A specific episode or movie the acquisition engine wants to grab.
 

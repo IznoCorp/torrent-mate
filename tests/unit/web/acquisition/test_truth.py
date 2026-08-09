@@ -14,6 +14,7 @@ the honest-ignorance rules changed.
 from __future__ import annotations
 
 import sqlite3
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -577,3 +578,98 @@ def test_absorbed_episodes_stop_claiming_acquisition_once_the_season_is_requeued
 
     assert truth.en_acquisition_count == 0, "nothing is downloading — the card must not say it is"
     assert truth.non_verifie_count == 2, "a requeued season has concluded nothing yet"
+
+
+def _seed_dated(conn: sqlite3.Connection, rows: list[tuple[int, int, str]]) -> None:
+    """Insert catalog rows carrying an explicit air date.
+
+    Args:
+        conn: Open connection to the temp acquire.db.
+        rows: ``(season, episode, air_date)`` triples.
+    """
+    conn.executemany(
+        "INSERT INTO aired_episode (followed_id, season, episode, title, air_date, updated_at) "
+        "VALUES (1, ?, ?, NULL, ?, 1750000000)",
+        rows,
+    )
+    conn.commit()
+
+
+class TestAnnouncedCount:
+    """The futures are counted — and only ever tell « À jour » from « Terminé »."""
+
+    def test_futures_are_counted_but_enter_no_bucket(self, acquire_conn: sqlite3.Connection) -> None:
+        """Two aired owned, three announced: the card is caught up AND knows it is not over."""
+        _seed_dated(
+            acquire_conn,
+            [
+                (1, 1, "2026-01-01"),
+                (1, 2, "2026-01-08"),
+                (1, 3, "2027-01-01"),
+                (1, 4, "2027-01-08"),
+                (1, 5, "2027-01-15"),
+            ],
+        )
+
+        truth = compute_follow_truth(
+            acquire_conn,
+            _StubChecker({(1, 1), (1, 2)}),
+            followed_id=1,
+            media_ref=REF,
+            today=date(2026, 6, 1),
+        )
+
+        assert truth.aired_count == 2, "a future must never inflate the aired count"
+        assert truth.owned_count == 2
+        assert truth.non_verifie_count == 0, "a future must never land in a bucket"
+        assert truth.announced_count == 3
+
+    def test_no_future_leaves_the_count_at_zero(self, acquire_conn: sqlite3.Connection) -> None:
+        """Nothing ahead → 0, which is a fact, not an absence of one."""
+        _seed_dated(acquire_conn, [(1, 1, "2026-01-01"), (1, 2, "2026-01-08")])
+
+        truth = compute_follow_truth(
+            acquire_conn,
+            _StubChecker({(1, 1), (1, 2)}),
+            followed_id=1,
+            media_ref=REF,
+            today=date(2026, 6, 1),
+        )
+
+        assert truth.announced_count == 0
+
+    def test_dateless_legacy_rows_are_aired_not_announced(self, acquire_conn: sqlite3.Connection) -> None:
+        """A cache written before air dates existed reads as aired, as it always has."""
+        _seed_aired(acquire_conn, [(1, 1), (1, 2)])
+        acquire_conn.execute("UPDATE aired_episode SET air_date = '' WHERE followed_id = 1")
+        acquire_conn.commit()
+
+        truth = compute_follow_truth(
+            acquire_conn,
+            _StubChecker({(1, 1), (1, 2)}),
+            followed_id=1,
+            media_ref=REF,
+            today=date(2026, 6, 1),
+        )
+
+        assert truth.aired_count == 2
+        assert truth.announced_count == 0
+
+    def test_a_catalogue_of_only_futures_is_still_no_knowledge(self, acquire_conn: sqlite3.Connection) -> None:
+        """Announced-only → the all-None sentinel: there is nothing to be up to date ON.
+
+        The sentinel wins over the announced count: a series with no aired
+        episode reads ``non_verifie``, and must not carry a stray count that
+        would suggest we know something about its library state.
+        """
+        _seed_dated(acquire_conn, [(1, 1, "2027-01-01"), (1, 2, "2027-01-08")])
+
+        truth = compute_follow_truth(
+            acquire_conn,
+            _StubChecker(set()),
+            followed_id=1,
+            media_ref=REF,
+            today=date(2026, 6, 1),
+        )
+
+        assert truth == FollowTruth()

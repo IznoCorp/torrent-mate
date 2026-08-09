@@ -75,7 +75,7 @@ function isNew(item: FollowedSeriesItem): boolean {
   return Date.now() / 1000 - item.added_at < NEW_WINDOW_S;
 }
 
-const URGENCY: Record<string, number> = {
+const URGENCY: Record<FollowStatus, number> = {
   a_recuperer: 0,
   en_acquisition: 1,
   // Being verified is in motion — between « acquiring » and « waiting ».
@@ -83,7 +83,11 @@ const URGENCY: Record<string, number> = {
   en_attente: 3,
   non_verifie: 4,
   a_jour: 5,
-  disabled: 6,
+  // A finished series asks for less than a running one that happens to be
+  // caught up: nothing will ever move it again. It sits below « À jour » and
+  // above the follows the operator themself put down.
+  termine: 6,
+  disabled: 7,
 };
 
 /** Filter pill keys. */
@@ -151,6 +155,15 @@ const GROUPS: readonly {
     of: ["en_acquisition", "verification_en_cours"],
   },
   { key: "a-jour", label: "À jour", pipClass: "bg-success", of: ["a_jour"] },
+  // Its own group rather than a second tenant of « À jour »: folding it in
+  // would bury the very distinction the operator asked for (2026-08-09), and
+  // « mes séries finies » is a list they want to be able to look at.
+  {
+    key: "terminees",
+    label: "Terminées",
+    pipClass: "bg-muted-foreground",
+    of: ["termine"],
+  },
   {
     key: "en-pause",
     label: "En pause",

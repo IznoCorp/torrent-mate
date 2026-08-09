@@ -362,6 +362,29 @@ class _FollowSubStore:
                 (1 if value else 0, followed_id),
             )
 
+    def set_series_status(self, followed_id: int, series_status: str) -> None:
+        """Record the provider's production status for a followed series.
+
+        Written by the detect pass from the catalogue poll it already performs,
+        so the card can say « Terminé » on a positive fact rather than on the
+        absence of announced episodes — an absence that, on 2026-08-09, would
+        have declared « House of the Dragon » finished while it aired that day.
+
+        Only ever called with a NAMED status: the caller skips a silent provider
+        rather than blanking a stored value, because ``NULL`` reads as « not
+        known to have ended » and would silently demote « Terminé ».
+
+        Args:
+            followed_id: Rowid of the ``followed_series`` row.
+            series_status: The provider's raw status string (« Ended »,
+                « Continuing », « Returning Series », …).
+        """
+        with _write_tx(self._conn):
+            self._conn.execute(
+                "UPDATE followed_series SET series_status = ? WHERE id = ?",
+                (series_status, followed_id),
+            )
+
     def clear_replace_owned(self, followed_id: int) -> None:
         """Spend the §5 replacement authorisation.
 

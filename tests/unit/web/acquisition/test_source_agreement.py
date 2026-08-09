@@ -130,6 +130,8 @@ def test_card_and_completeness_agree_on_an_uncached_follow() -> None:
         en_acquisition_count=None,
         en_attente_count=None,
         non_verifie_count=None,
+        announced_count=None,
+        series_status=None,
     )
     assert card_status == "non_verifie", (
         "The card MUST read non_verifie when the catalog is absent — the founding incident's direct fix."
@@ -444,6 +446,8 @@ def test_provider_catalog_empty_stays_distinct() -> None:
         en_acquisition_count=None,
         en_attente_count=None,
         non_verifie_count=None,
+        announced_count=None,
+        series_status=None,
     )
     assert card_status == "non_verifie", (
         "The card reads non_verifie when the catalog is absent. The panel's "

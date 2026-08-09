@@ -117,6 +117,15 @@ class FollowedSeriesItem(BaseModel):
     en_attente_count: int | None = None
     #: Aired, unowned episodes never searched or inconclusive (``non_verifie``).
     non_verifie_count: int | None = None
+    #: Episodes cached with an air date STILL AHEAD. Enters no state bucket and
+    #: can never degrade the card; it only tells « À jour » (caught up, more to
+    #: come) from « Terminé » (caught up, nothing left).
+    announced_count: int | None = None
+    #: The provider's raw production status for the series (TVDB « Continuing »
+    #: / « Ended », TMDB « Returning Series » / « Ended » / « Canceled »), or
+    #: ``None`` when never polled. Served raw so the UI can say WHY a series
+    #: reads « Terminé » instead of restating a derivation.
+    series_status: str | None = None
     #: Films only: the single unit's facts driving the card (``None`` for shows,
     #: and for a film whose provider ids could not be resolved — which then
     #: reads ``non_verifie``, the honest « we know nothing »).
@@ -181,6 +190,8 @@ class FollowedSeriesItem(BaseModel):
             en_acquisition_count=self.en_acquisition_count,
             en_attente_count=self.en_attente_count,
             non_verifie_count=self.non_verifie_count,
+            announced_count=self.announced_count,
+            series_status=self.series_status,
         )
 
 

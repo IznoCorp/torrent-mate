@@ -1383,7 +1383,25 @@ surfaces can never disagree about the same episode.
 | `en_acquisition`        | En cours d'acquisition | ≥1 episode in `en_acquisition`.                                                                                  |
 | `en_attente`            | En attente             | ≥1 episode in `en_attente`.                                                                                      |
 | `non_verifie`           | Non vérifié            | ≥1 episode in `non_verifie`, OR no aired catalog exists (never detected).                                        |
-| `a_jour`                | À jour                 | Every aired episode is owned.                                                                                    |
+| `a_jour`                | À jour                 | Every aired episode is owned, and the series is not known to be finished.                                        |
+| `termine`               | Terminé                | Every aired episode is owned, nothing is announced ahead, AND the provider says the series has ended.            |
+
+**`termine` requires a positive end-of-series fact**, never merely an empty
+announcement list. The `followed_series.series_status` column (migration 023)
+holds the provider's raw production status — TVDB `Continuing` / `Ended`, TMDB
+`Returning Series` / `Ended` / `Canceled` — written by the detect pass from the
+catalogue poll it already performs (`acquire.airing.poll_catalog`, zero extra
+provider calls). `NULL` means « never polled » and reads as **not** ended, so a
+follow whose status is unknown stays `a_jour`.
+
+The reason is measured: on 2026-08-09 « House of the Dragon » had zero future
+episodes cached while airing that very day. An « nothing announced ⇒ finished »
+rule would have declared a running series over — the same shape of untruth as
+the founding « À jour » on zero knowledge.
+
+The response also carries `announced_count` (future episodes known from the
+catalogue). It enters **no** state bucket and can never degrade a card; it only
+ever separates `a_jour` from `termine`.
 
 Card-level aggregation is **most-actionable-first**: if any episode is
 `a_recuperer`, the card reads `a_recuperer` — the operator needs to see what

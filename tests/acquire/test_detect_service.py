@@ -19,12 +19,37 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from personalscraper.acquire.detect import DetectOutcome, DetectService, DetectStatus
-from personalscraper.acquire.domain import AiredEpisode, FollowedSeries, WantedItem
+from personalscraper.acquire.domain import AiredEpisode, FollowedSeries, SeriesCatalog, WantedItem
 from personalscraper.acquire.events import FilmAcquired, SeasonAbsorbedEpisodes, WantedEnqueued
 from personalscraper.acquire.store import ConcreteAcquireStore, build_acquire_store
 from personalscraper.conf.models.acquire import AcquireConfig, CadenceConfig
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.identity import MediaRef
+
+
+def _catalogs(episodes: list[AiredEpisode], *, series_status: str | None = None) -> list[SeriesCatalog]:
+    """Wrap a flat episode list the way ``poll_catalog`` returns it.
+
+    The detect pass reads catalogues (episodes + the series' production status)
+    rather than a flat episode list: « Terminé » needs a positive end-of-series
+    fact, and the poll already had it in hand. These tests still describe their
+    input as « the episodes the provider returns », so the shape conversion
+    lives here instead of in twenty call sites.
+
+    Args:
+        episodes: The episodes the fake provider returns, any series.
+        series_status: The production status to attribute to every series.
+
+    Returns:
+        One :class:`SeriesCatalog` per distinct ``media_ref``.
+    """
+    by_ref: dict[MediaRef, list[AiredEpisode]] = {}
+    for ep in episodes:
+        by_ref.setdefault(ep.media_ref, []).append(ep)
+    return [
+        SeriesCatalog(followed_id=None, media_ref=ref, series_status=series_status, episodes=eps)
+        for ref, eps in by_ref.items()
+    ]
 
 
 class _StubOwnership:
@@ -90,7 +115,7 @@ def test_detect_service_movie_enqueue_grab_parity(store: ConcreteAcquireStore) -
     emitted: list[WantedEnqueued] = []
     bus.subscribe(WantedEnqueued, emitted.append)
 
-    with patch("personalscraper.acquire.detect.poll_known", return_value=[]):
+    with patch("personalscraper.acquire.detect.poll_catalog", return_value=_catalogs([])):
         result = _service(store, _StubOwnership(set()), bus).run(
             series=None, dry_run=False, today=date(2024, 1, 1), now=100
         )
@@ -114,7 +139,7 @@ def test_detect_service_movie_owned_retires_and_emits(store: ConcreteAcquireStor
     films: list[FilmAcquired] = []
     bus.subscribe(FilmAcquired, films.append)
 
-    with patch("personalscraper.acquire.detect.poll_known", return_value=[]):
+    with patch("personalscraper.acquire.detect.poll_catalog", return_value=_catalogs([])):
         result = _service(store, _StubOwnership({ref}), bus).run(
             series=None, dry_run=False, today=date(2024, 1, 1), now=100
         )
@@ -151,7 +176,7 @@ def test_detect_service_replaces_an_owned_film_when_authorised(store: ConcreteAc
     films: list[FilmAcquired] = []
     bus.subscribe(FilmAcquired, films.append)
 
-    with patch("personalscraper.acquire.detect.poll_known", return_value=[]):
+    with patch("personalscraper.acquire.detect.poll_catalog", return_value=_catalogs([])):
         result = _service(store, _StubOwnership({ref}), bus).run(
             series=None, dry_run=False, today=date(2024, 1, 1), now=100
         )
@@ -185,7 +210,7 @@ def test_detect_service_resurrects_abandoned_within_cutoff(store: ConcreteAcquir
     store.wanted.set_status(wid, "abandoned")
     ep = AiredEpisode(media_ref=ref, season=3, episode=4, air_date=date(2024, 1, 1), title="Ep")
 
-    with patch("personalscraper.acquire.detect.poll_known", return_value=[ep]):
+    with patch("personalscraper.acquire.detect.poll_catalog", return_value=_catalogs([ep])):
         result = _service(store, _StubOwnership(set()), EventBus()).run(
             series=None, dry_run=False, today=date(2024, 1, 1), now=int(time.time())
         )
@@ -207,7 +232,7 @@ def test_detect_service_past_cutoff_stays_abandoned(store: ConcreteAcquireStore)
     store.wanted.set_status(wid, "abandoned")
     ep = AiredEpisode(media_ref=ref, season=3, episode=4, air_date=date(2024, 1, 1), title="Ep")
 
-    with patch("personalscraper.acquire.detect.poll_known", return_value=[ep]):
+    with patch("personalscraper.acquire.detect.poll_catalog", return_value=_catalogs([ep])):
         result = _service(store, _StubOwnership(set()), EventBus()).run(
             series=None, dry_run=False, today=date(2024, 1, 1), now=int(time.time())
         )
@@ -234,7 +259,7 @@ def test_future_episode_goes_to_cache_but_never_to_wanted(store: ConcreteAcquire
     aired = AiredEpisode(media_ref=ref, season=2, episode=1, air_date=date(2024, 6, 1), title="Aired")
     future = AiredEpisode(media_ref=ref, season=2, episode=2, air_date=date(2025, 1, 1), title="Announced")
 
-    with patch("personalscraper.acquire.detect.poll_known", return_value=[aired, future]):
+    with patch("personalscraper.acquire.detect.poll_catalog", return_value=_catalogs([aired, future])):
         result = _service(store, _StubOwnership(set()), EventBus()).run(
             series=None, dry_run=False, today=today, now=int(time.time())
         )
@@ -321,7 +346,7 @@ def test_season_detect_enqueues_when_conditions_met(store: ConcreteAcquireStore)
         event_bus=bus,
         config=_config(),
     )
-    with patch("personalscraper.acquire.detect.poll_known", return_value=eps):
+    with patch("personalscraper.acquire.detect.poll_catalog", return_value=_catalogs(eps)):
         result = svc.run(series=None, dry_run=False, today=today, now=100)
 
     assert result.status is DetectStatus.OK
@@ -391,7 +416,7 @@ def test_season_detect_skips_mid_season_break_and_keeps_episodes_live(store: Con
         event_bus=bus,
         config=_config(),
     )
-    with patch("personalscraper.acquire.detect.poll_known", return_value=known):
+    with patch("personalscraper.acquire.detect.poll_catalog", return_value=_catalogs(known)):
         result = svc.run(series=None, dry_run=False, today=today, now=100)
 
     # NO season action, NO season row.
@@ -423,7 +448,7 @@ def test_season_detect_skips_when_last_aired_six_days_ago(store: ConcreteAcquire
         event_bus=EventBus(),
         config=_config(),
     )
-    with patch("personalscraper.acquire.detect.poll_known", return_value=eps):
+    with patch("personalscraper.acquire.detect.poll_catalog", return_value=_catalogs(eps)):
         result = svc.run(series=None, dry_run=False, today=today, now=100)
 
     assert [a for a in result.actions if a.kind == "season"] == []
@@ -445,7 +470,7 @@ def test_season_detect_skips_when_last_ep_recent(store: ConcreteAcquireStore) ->
         event_bus=EventBus(),
         config=_config(),
     )
-    with patch("personalscraper.acquire.detect.poll_known", return_value=eps):
+    with patch("personalscraper.acquire.detect.poll_catalog", return_value=_catalogs(eps)):
         result = svc.run(series=None, dry_run=False, today=today, now=100)
 
     season_actions = [a for a in result.actions if a.kind == "season"]
@@ -467,7 +492,7 @@ def test_season_detect_skips_when_more_than_half_owned(store: ConcreteAcquireSto
         event_bus=EventBus(),
         config=_config(),
     )
-    with patch("personalscraper.acquire.detect.poll_known", return_value=eps):
+    with patch("personalscraper.acquire.detect.poll_catalog", return_value=_catalogs(eps)):
         result = svc.run(series=None, dry_run=False, today=today, now=100)
 
     season_actions = [a for a in result.actions if a.kind == "season"]
@@ -489,7 +514,7 @@ def test_season_detect_skips_when_fully_owned(store: ConcreteAcquireStore) -> No
         event_bus=EventBus(),
         config=_config(),
     )
-    with patch("personalscraper.acquire.detect.poll_known", return_value=eps):
+    with patch("personalscraper.acquire.detect.poll_catalog", return_value=_catalogs(eps)):
         result = svc.run(series=None, dry_run=False, today=today, now=100)
 
     season_actions = [a for a in result.actions if a.kind == "season"]
@@ -523,7 +548,7 @@ def test_season_detect_skips_when_duplicate(store: ConcreteAcquireStore) -> None
         event_bus=EventBus(),
         config=_config(),
     )
-    with patch("personalscraper.acquire.detect.poll_known", return_value=eps):
+    with patch("personalscraper.acquire.detect.poll_catalog", return_value=_catalogs(eps)):
         result = svc.run(series=None, dry_run=False, today=today, now=100)
 
     season_actions = [a for a in result.actions if a.kind == "season"]
@@ -561,7 +586,7 @@ def test_season_detect_absorbs_episode_wanteds(store: ConcreteAcquireStore) -> N
         event_bus=bus,
         config=_config(),
     )
-    with patch("personalscraper.acquire.detect.poll_known", return_value=eps):
+    with patch("personalscraper.acquire.detect.poll_catalog", return_value=_catalogs(eps)):
         result = svc.run(series=None, dry_run=False, today=today, now=100)
 
     assert result.status is DetectStatus.OK
@@ -594,7 +619,7 @@ def test_season_detect_boundary_exactly_7_days(store: ConcreteAcquireStore) -> N
         event_bus=EventBus(),
         config=_config(),
     )
-    with patch("personalscraper.acquire.detect.poll_known", return_value=eps):
+    with patch("personalscraper.acquire.detect.poll_catalog", return_value=_catalogs(eps)):
         result = svc.run(series=None, dry_run=False, today=today, now=100)
 
     season_actions = [a for a in result.actions if a.kind == "season"]
@@ -616,7 +641,7 @@ def test_season_detect_boundary_exactly_half_owned(store: ConcreteAcquireStore) 
         event_bus=EventBus(),
         config=_config(),
     )
-    with patch("personalscraper.acquire.detect.poll_known", return_value=eps):
+    with patch("personalscraper.acquire.detect.poll_catalog", return_value=_catalogs(eps)):
         result = svc.run(series=None, dry_run=False, today=today, now=100)
 
     season_actions = [a for a in result.actions if a.kind == "season"]
@@ -642,7 +667,7 @@ def test_season_detect_dry_run_no_writes(store: ConcreteAcquireStore) -> None:
         event_bus=bus,
         config=_config(),
     )
-    with patch("personalscraper.acquire.detect.poll_known", return_value=eps):
+    with patch("personalscraper.acquire.detect.poll_catalog", return_value=_catalogs(eps)):
         result = svc.run(series=None, dry_run=True, today=today, now=100)
 
     season_actions = [a for a in result.actions if a.kind == "season"]
@@ -651,3 +676,92 @@ def test_season_detect_dry_run_no_writes(store: ConcreteAcquireStore) -> None:
     assert store.wanted.find(followed_id=1, kind="season", season=2, episode=None) is None
     # Dry-run: no events emitted
     assert len(emitted) == 0
+
+
+class TestSeriesStatusPersistence:
+    """Detect records the provider's production status — and never blanks it.
+
+    « Terminé » on a card rests on this column. What writes it must therefore be
+    as careful as what reads it: a poll that says nothing is ignorance, and
+    overwriting a known « Ended » with ignorance silently demotes a finished
+    series back to « À jour ».
+    """
+
+    def test_a_named_status_is_written(self, store: ConcreteAcquireStore) -> None:
+        """The status the provider named lands on the follow row."""
+        ref = MediaRef(tvdb_id=371572)
+        fid = store.follow.add(FollowedSeries(media_ref=ref, title="Silo", added_at=1))
+        catalog = SeriesCatalog(followed_id=fid, media_ref=ref, series_status="Ended", episodes=[])
+
+        with patch("personalscraper.acquire.detect.poll_catalog", return_value=[catalog]):
+            _service(store, _StubOwnership(set()), EventBus()).run(
+                series=None, dry_run=False, today=date(2024, 1, 1), now=100
+            )
+
+        assert _series_status_of(store, fid) == "Ended"
+
+    def test_a_silent_provider_does_not_blank_a_known_status(self, store: ConcreteAcquireStore) -> None:
+        """A poll that names no status leaves the stored one alone.
+
+        This is the demotion guard: ``NULL`` reads as « not known to have
+        ended », so blanking « Ended » on one silent pass would move a finished
+        series back to « À jour » with nothing having changed in the world.
+        """
+        ref = MediaRef(tvdb_id=371572)
+        fid = store.follow.add(FollowedSeries(media_ref=ref, title="Silo", added_at=1))
+        store.follow.set_series_status(fid, "Ended")
+        silent = SeriesCatalog(followed_id=fid, media_ref=ref, series_status=None, episodes=[])
+
+        with patch("personalscraper.acquire.detect.poll_catalog", return_value=[silent]):
+            _service(store, _StubOwnership(set()), EventBus()).run(
+                series=None, dry_run=False, today=date(2024, 1, 1), now=100
+            )
+
+        assert _series_status_of(store, fid) == "Ended"
+
+    def test_a_dry_run_writes_nothing(self, store: ConcreteAcquireStore) -> None:
+        """--dry-run stays read-only, statuses included."""
+        ref = MediaRef(tvdb_id=371572)
+        fid = store.follow.add(FollowedSeries(media_ref=ref, title="Silo", added_at=1))
+        catalog = SeriesCatalog(followed_id=fid, media_ref=ref, series_status="Ended", episodes=[])
+
+        with patch("personalscraper.acquire.detect.poll_catalog", return_value=[catalog]):
+            _service(store, _StubOwnership(set()), EventBus()).run(
+                series=None, dry_run=True, today=date(2024, 1, 1), now=100
+            )
+
+        assert _series_status_of(store, fid) is None
+
+    def test_a_status_change_is_followed(self, store: ConcreteAcquireStore) -> None:
+        """A series that ends between two polls has its row updated.
+
+        The status is not write-once: « Continuing » becomes « Ended » the day
+        the provider says so, and the card must follow the same day.
+        """
+        ref = MediaRef(tvdb_id=371572)
+        fid = store.follow.add(FollowedSeries(media_ref=ref, title="Silo", added_at=1))
+        store.follow.set_series_status(fid, "Continuing")
+        ended = SeriesCatalog(followed_id=fid, media_ref=ref, series_status="Ended", episodes=[])
+
+        with patch("personalscraper.acquire.detect.poll_catalog", return_value=[ended]):
+            _service(store, _StubOwnership(set()), EventBus()).run(
+                series=None, dry_run=False, today=date(2024, 1, 1), now=100
+            )
+
+        assert _series_status_of(store, fid) == "Ended"
+
+
+def _series_status_of(store: ConcreteAcquireStore, followed_id: int) -> str | None:
+    """Read the stored production status straight from the row.
+
+    Args:
+        store: The open acquire store.
+        followed_id: Rowid of the follow.
+
+    Returns:
+        The stored ``series_status``, or ``None``.
+    """
+    row = store._conn.execute(  # noqa: SLF001 — the column has no reader yet
+        "SELECT series_status FROM followed_series WHERE id = ?", (followed_id,)
+    ).fetchone()
+    return None if row is None else row[0]

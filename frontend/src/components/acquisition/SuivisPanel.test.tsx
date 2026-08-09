@@ -865,6 +865,71 @@ describe("SuivisPanel", () => {
     renderPanel([takeableShow()]);
     expect(screen.queryByRole("button", { name: "Actions pour Silo" })).toBeNull();
   });
+  it("une série terminée porte « Terminé », pas « À jour » (opérateur 2026-08-09)", () => {
+    renderPanel([
+      { ...upToDateShow(), id: 10, title: "Fini", status: "termine" },
+      { ...upToDateShow(), id: 11, title: "Continue", status: "a_jour" },
+    ]);
+
+    // The whole point of the split: the two settled series must not read the
+    // same. « À jour » says « rien à faire pour l'instant », « Terminé » says
+    // « rien à faire, jamais plus ».
+    expect(screen.getByText("Terminé")).toBeInTheDocument();
+    expect(screen.getByText("À jour")).toBeInTheDocument();
+  });
+
+  it("mode groupé : les terminées ont leur propre groupe", () => {
+    renderPanel([
+      { ...upToDateShow(), id: 10, title: "Fini", status: "termine" },
+      { ...upToDateShow(), id: 11, title: "Continue", status: "a_jour" },
+    ]);
+    act(() => {
+      fireEvent.click(screen.getByRole("button", { name: /Groupé par état/ }));
+    });
+
+    // Folded into « À jour », the distinction the operator asked for would be
+    // invisible in exactly the mode meant for reading the list by state.
+    const terminees = screen.getByTestId("group-terminees");
+    expect(within(terminees).getByText("Fini")).toBeInTheDocument();
+    expect(within(screen.getByTestId("group-a-jour")).getByText("Continue")).toBeInTheDocument();
+  });
+
+  it("mode groupé : AUCUN statut ne fait disparaître sa carte", () => {
+    // Grouped mode renders `GROUPS.map(...)` and filters by membership, so a
+    // status belonging to no group is not « ungrouped » — it is GONE, with no
+    // error and no empty state. That is a silent data loss, and the kind of
+    // thing a new status introduces without anyone noticing.
+    const statuses: readonly FollowedSeriesItem["status"][] = [
+      "a_recuperer",
+      "en_acquisition",
+      "verification_en_cours",
+      "en_attente",
+      "non_verifie",
+      "a_jour",
+      "termine",
+      "disabled",
+    ];
+    renderPanel(
+      statuses.map((status, i) => ({
+        ...upToDateShow(),
+        id: 100 + i,
+        title: `Suivi ${status}`,
+        status,
+        active: status !== "disabled",
+      })),
+    );
+    act(() => {
+      fireEvent.click(screen.getByRole("button", { name: /Groupé par état/ }));
+    });
+
+    const shown = screen
+      .getAllByTestId("acq-card-title")
+      .map((t) => t.textContent);
+    for (const status of statuses) {
+      expect(shown).toContain(`Suivi ${status}`);
+    }
+  });
+
   it("mode grille : taper une tuile ouvre la fiche détail du suivi", () => {
     renderPanel([takeableShow()]);
     fireEvent.click(screen.getByRole("button", { name: /Grille/ }));

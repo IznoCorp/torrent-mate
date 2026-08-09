@@ -3210,6 +3210,8 @@ export interface components {
             added_at: number;
             /** Aired Count */
             aired_count?: number | null;
+            /** Announced Count */
+            announced_count?: number | null;
             /** Cadence */
             cadence?: {
                 [key: string]: unknown;
@@ -3252,6 +3254,8 @@ export interface components {
             } | null;
             /** Season Count */
             season_count?: number | null;
+            /** Series Status */
+            series_status?: string | null;
             /**
              * Status
              * @description Lifecycle status — pure delegation to the single state derivation.
@@ -3281,7 +3285,7 @@ export interface components {
              *         The derived lifecycle status.
              * @enum {string}
              */
-            readonly status: "disabled" | "verification_en_cours" | "a_recuperer" | "en_acquisition" | "en_attente" | "non_verifie" | "a_jour";
+            readonly status: "disabled" | "verification_en_cours" | "a_recuperer" | "en_acquisition" | "en_attente" | "non_verifie" | "a_jour" | "termine";
             /** Title */
             title: string;
             /**
