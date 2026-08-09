@@ -120,13 +120,13 @@ class TestAnnonceExcludedFromCard:
     """ACC-03 — an announced future never degrades the aggregated card status."""
 
     def test_all_aired_owned_stays_a_jour_with_announced_ahead(self) -> None:
-        """The card counts AIRED episodes only; announced ones are simply not fed in.
+        """The card counts AIRED episodes only; announced ones enter no bucket.
 
         ``derive_follow_status`` aggregates the five per-state counts. A future
         episode is ``annonce`` — which has no counter — so a series whose aired
-        episodes are all owned stays « À jour ». The announced count is display
-        only; if it ever leaked into the aggregation, this series would read
-        ``non_verifie``.
+        episodes are all owned stays « À jour ». The announced count reaches the
+        aggregation (it is what tells « À jour » from « Terminé ») but never as a
+        bucket: were it counted as one, this series would read ``non_verifie``.
         """
         status = derive_follow_status(
             active=True,
@@ -135,14 +135,47 @@ class TestAnnonceExcludedFromCard:
             en_acquisition_count=0,
             en_attente_count=0,
             non_verifie_count=0,  # ...all owned (aired_count == owned, nothing pending)
+            announced_count=3,  # ...and three announced ahead
+            series_status="Continuing",
         )
         assert status == "a_jour", "announced futures must not degrade an up-to-date series"
 
-    def test_follow_status_has_no_annonce_input(self) -> None:
-        """``derive_follow_status`` takes no announced parameter — annonce is structurally out."""
-        import inspect
+    @pytest.mark.parametrize(
+        ("counts", "expected"),
+        [
+            ({"a_recuperer_count": 1}, "a_recuperer"),
+            ({"en_acquisition_count": 1}, "en_acquisition"),
+            ({"en_attente_count": 1}, "en_attente"),
+            ({"non_verifie_count": 1}, "non_verifie"),
+        ],
+    )
+    def test_announced_count_never_changes_an_actionable_status(self, counts: dict[str, int], expected: str) -> None:
+        """The announced count may only ever pick between ``a_jour`` and ``termine``.
 
-        params = inspect.signature(derive_follow_status).parameters
-        assert not any("annonc" in p or "announced" in p for p in params), (
-            "the card aggregation must not accept an announced count"
-        )
+        ``derive_follow_status`` now RECEIVES an announced count (operator,
+        2026-08-09: « À jour » had to split in two). The reason it was kept out
+        before still stands and is what this pins: an announced future must
+        never DEGRADE a series. Whatever the futures say, a series with
+        something takeable still reads « à récupérer », one being acquired still
+        reads « en acquisition », and so on — the announced count is only
+        consulted once every other bucket is empty.
+        """
+        base = {
+            "a_recuperer_count": 0,
+            "en_acquisition_count": 0,
+            "en_attente_count": 0,
+            "non_verifie_count": 0,
+        }
+        for announced in (0, 7):
+            for series_status in (None, "Ended", "Continuing"):
+                status = derive_follow_status(
+                    active=True,
+                    aired_count=8,
+                    **{**base, **counts},
+                    announced_count=announced,
+                    series_status=series_status,
+                )
+                assert status == expected, (
+                    f"announced={announced} series_status={series_status!r} changed an "
+                    f"actionable status into {status!r}"
+                )

@@ -185,12 +185,18 @@ export default function AcquisitionPage(): ReactElement {
 
   // Publish the view-tabs height: the Suivis filter zone pins directly under
   // this bar and needs its real measured height (same contract as the bars).
+  // EXACT, not ceiled: the filter zone must pin on the very pixel it already
+  // occupies at rest, or the gap between the two bars changes the moment it
+  // pins — which is what the operator sees as « l'écart diminue quand on
+  // scroll ». This bar lives inside the scrollport, so the iOS URL bar cannot
+  // resize it mid-gesture; the sub-pixel churn the quantisation guards against
+  // does not apply here.
   useEffect(() => {
     const el = viewtabsRef.current;
     const root = document.documentElement;
     if (el == null) return;
     const publish = (): void => {
-      publishMeasuredHeight(VIEWTABS_HEIGHT_VAR, el.getBoundingClientRect().height);
+      publishMeasuredHeight(VIEWTABS_HEIGHT_VAR, el.getBoundingClientRect().height, true);
     };
     publish();
     if (typeof ResizeObserver === "undefined") {

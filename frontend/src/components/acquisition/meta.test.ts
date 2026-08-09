@@ -18,7 +18,9 @@ import {
   EPISODE_STATE_LABEL,
   EPISODE_STATE_TONE,
   FOLLOW_STATUS_HINT,
+  FOLLOW_STATUS_HINT_MOVIE,
   FOLLOW_STATUS_LABEL,
+  FOLLOW_STATUS_LABEL_MOVIE,
   FOLLOW_STATUS_TONE,
   OBLIGATION_STATUS_OPTIONS,
   RUN_OUTCOME_LABEL,
@@ -36,7 +38,7 @@ import {
   type MediaKind,
 } from "./meta";
 
-/** The seven card statuses the backend serves (schema.d.ts truth). */
+/** The eight card statuses the backend serves (schema.d.ts truth). */
 const FOLLOW_STATUSES: readonly FollowStatus[] = [
   "disabled",
   "verification_en_cours",
@@ -45,6 +47,7 @@ const FOLLOW_STATUSES: readonly FollowStatus[] = [
   "en_attente",
   "non_verifie",
   "a_jour",
+  "termine",
 ];
 
 /** The per-episode states the backend serves (schema.d.ts truth). */
@@ -103,11 +106,17 @@ describe("followStatusLabel / followStatusHint (film vs série)", () => {
   });
 
   it("shares the série wording for every non-overridden state", () => {
+    // Which states are overridden is read from the override maps themselves,
+    // not from a list repeated here: a hardcoded skip list silently stops
+    // covering a state the day a new override lands.
     for (const status of FOLLOW_STATUSES) {
-      if (status === "a_jour" || status === "disabled") continue;
+      if (status in FOLLOW_STATUS_LABEL_MOVIE) continue;
       expect(followStatusLabel(status, "movie")).toBe(
         FOLLOW_STATUS_LABEL[status],
       );
+    }
+    for (const status of FOLLOW_STATUSES) {
+      if (status in FOLLOW_STATUS_HINT_MOVIE) continue;
       expect(followStatusHint(status, "movie")).toBe(FOLLOW_STATUS_HINT[status]);
     }
   });

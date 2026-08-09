@@ -78,7 +78,40 @@ FollowStatus = Literal[
     "en_attente",
     "non_verifie",
     "a_jour",
+    "termine",
 ]
+
+#: Provider production-status values that mean « no further episode will come ».
+#: Compared case-folded, so TVDB's ``Ended`` and TMDB's ``Ended`` / ``Canceled``
+#: all land here. Any other value — and ``None`` — means the series is NOT known
+#: to be finished; see :func:`series_has_ended`.
+SERIES_ENDED_STATUSES = frozenset({"ended", "canceled", "cancelled"})
+
+
+def series_has_ended(series_status: str | None) -> bool:
+    """Whether the provider POSITIVELY states the series is finished.
+
+    The distinction « À jour » vs « Terminé » rests on this and nothing else,
+    because the obvious alternative does not hold: an absence of announced
+    episodes is not the end of a series. On 2026-08-09 « House of the Dragon »
+    had zero future episodes in the catalogue while airing that very day — a
+    rule reading « plus rien d'annoncé ⇒ terminé » would have declared a running
+    series finished, the same shape of untruth as the founding « À jour » on
+    zero knowledge.
+
+    So silence is never a verdict here: ``None`` (never polled, or a provider
+    that names no status) returns ``False``.
+
+    Args:
+        series_status: The provider's raw production-status string, or ``None``.
+
+    Returns:
+        ``True`` only when the provider names a terminal status.
+    """
+    if series_status is None:
+        return False
+    return series_status.strip().casefold() in SERIES_ENDED_STATUSES
+
 
 #: Card-level reading of a single-unit state (a followed film). Every value is
 #: the identity except ``en_mediatheque`` — a film held by the library reads
@@ -331,6 +364,8 @@ def derive_follow_status(
     en_acquisition_count: int | None,
     en_attente_count: int | None,
     non_verifie_count: int | None,
+    announced_count: int | None,
+    series_status: str | None,
 ) -> FollowStatus:
     """Aggregate a followed SHOW's per-state episode counts into its card status.
 
@@ -346,7 +381,22 @@ def derive_follow_status(
     4. any ``en_acquisition`` → ``en_acquisition``.
     5. any ``en_attente`` → ``en_attente``.
     6. any ``non_verifie`` → ``non_verifie`` (we still owe a verification).
-    7. otherwise every aired episode is owned → ``a_jour``.
+    7. every aired episode is owned, and the series is FINISHED with nothing
+       announced ahead → ``termine``.
+    8. otherwise every aired episode is owned → ``a_jour``.
+
+    Rules 7-8 are the operator's 2026-08-09 split: « À jour » was covering two
+    situations they need to tell apart — a series caught up but still running,
+    and one that is over. ``announced_count`` therefore reaches this function,
+    which it deliberately did not before; the invariant it was kept out for
+    still holds and is what rules 3-6 above guarantee: **an announced future
+    never DEGRADES a series**. It can only ever decide between ``termine`` and
+    ``a_jour``, both of which mean « nothing to do ».
+
+    ``termine`` demands a POSITIVE end-of-series fact from the provider
+    (:func:`series_has_ended`), not merely an empty announcement list — see that
+    function for the running series an announcement-only rule would have
+    declared finished.
 
     ``verification_en_cours`` is deliberately never returned here: a priming run
     in flight is a runtime fact the route layer overlays (phase 6), not a
@@ -360,6 +410,12 @@ def derive_follow_status(
         en_acquisition_count: Aired episodes taken / carried by the pipeline.
         en_attente_count: Aired episodes searched with nothing takeable.
         non_verifie_count: Aired episodes never searched or inconclusive.
+        announced_count: Future episodes (``air_date > today``) known from the
+            catalog cache, or ``None`` when no catalog was read. Only ever
+            distinguishes ``termine`` from ``a_jour``.
+        series_status: The provider's raw production status for this series, or
+            ``None`` when never polled. Only ever distinguishes ``termine`` from
+            ``a_jour``.
 
     Returns:
         The card's :data:`FollowStatus`.
@@ -376,6 +432,8 @@ def derive_follow_status(
         return "en_attente"
     if (non_verifie_count or 0) > 0:
         return "non_verifie"
+    if (announced_count or 0) == 0 and series_has_ended(series_status):
+        return "termine"
     return "a_jour"
 
 
@@ -422,9 +480,11 @@ def derive_movie_status(
 
 __all__ = [
     "NO_WANTED_FACTS",
+    "SERIES_ENDED_STATUSES",
     "EpisodeState",
     "FollowStatus",
     "WantedFacts",
+    "series_has_ended",
     "derive_episode_state",
     "governing_facts_by_episode",
     "substitute_absorbed_facts",

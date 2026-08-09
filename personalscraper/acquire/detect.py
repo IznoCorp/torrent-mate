@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from personalscraper.acquire.airing import poll_known
+from personalscraper.acquire.airing import poll_catalog
 from personalscraper.acquire.cadence import is_past_cutoff
 from personalscraper.acquire.desired import cadence_from_config, cadence_from_json, effective_cadence
 from personalscraper.acquire.domain import WantedItem
@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     from datetime import date
 
     from personalscraper.acquire._ports import AcquireStore
-    from personalscraper.acquire.domain import AiredEpisode, FollowedSeries
+    from personalscraper.acquire.domain import AiredEpisode, FollowedSeries, SeriesCatalog
     from personalscraper.api.metadata.registry import ProviderRegistry
     from personalscraper.conf.models.config import Config
     from personalscraper.core.event_bus import EventBus
@@ -194,13 +194,16 @@ class DetectService:
         show_follows = [s for s in active if s.kind != "movie"]
         by_ref = {s.media_ref: s for s in show_follows}
 
-        # ONE poll per series (episode-states D1 + ACC-04): the widened
-        # ``poll_known`` returns every known-date episode, futures included.
-        known = self._poll(show_follows, today=today)
+        # ONE poll per series (episode-states D1 + ACC-04): the catalogue poll
+        # returns every known-date episode, futures included, plus the series'
+        # production status — the same single provider poll, nothing added.
+        catalogs = self._poll(show_follows, today=today)
+        known = [ep for catalog in catalogs for ep in catalog.episodes]
         if not dry_run:
             # The cache stores EVERY known episode — the future ones are what the
             # completeness matrix reads as ``annonce``.
             self._persist_aired_cache(known, by_ref, now=now)
+            self._persist_series_status(catalogs)
 
         closed_owned = 0
         if not dry_run:
@@ -249,20 +252,43 @@ class DetectService:
         )
         return DetectResult(DetectStatus.OK, actions, summary)
 
-    def _poll(self, show_follows: "list[FollowedSeries]", *, today: "date") -> "list[AiredEpisode]":
-        """Poll EVERY known-date episode over the active shows (fail-soft → empty).
+    def _poll(self, show_follows: "list[FollowedSeries]", *, today: "date") -> "list[SeriesCatalog]":
+        """Poll every active show's catalogue (fail-soft → empty).
 
-        Uses ``poll_known`` (futures included) so the cache learns announced
-        episodes; the caller applies the ``air_date <= today`` filter before the
-        enqueue pass so a future never becomes a ``wanted`` row.
+        Uses ``poll_catalog`` (futures included, production status carried) so
+        the cache learns announced episodes AND the card can tell « À jour » from
+        « Terminé »; the caller applies the ``air_date <= today`` filter before
+        the enqueue pass so a future never becomes a ``wanted`` row.
         """
         if not show_follows:
             return []
         try:
-            return poll_known(show_follows, self._registry, today=today)
-        except Exception as exc:  # noqa: BLE001 — defensive; poll_known is already fail-soft per series
+            return poll_catalog(show_follows, self._registry, today=today)
+        except Exception as exc:  # noqa: BLE001 — defensive; poll_catalog is already fail-soft per series
             log.warning("acquire.detect.poll_failed", error=str(exc))
             return []
+
+    def _persist_series_status(self, catalogs: "list[SeriesCatalog]") -> None:
+        """Record each polled series' production status (best-effort).
+
+        Only a NAMED status is written. A provider that returns none leaves the
+        stored value alone rather than overwriting it with ``NULL``: the card
+        reads ``NULL`` as « not known to have ended », so blanking a known
+        « Ended » on one silent poll would silently demote « Terminé » back to
+        « À jour ». A series the poll never reached is simply absent from
+        ``catalogs`` and is not touched either.
+        """
+        for catalog in catalogs:
+            if catalog.followed_id is None or catalog.series_status is None:
+                continue
+            try:
+                self._store.follow.set_series_status(catalog.followed_id, catalog.series_status)
+            except Exception as exc:  # noqa: BLE001 — a status is never worth aborting detect
+                log.warning(
+                    "acquire.detect.series_status_write_failed",
+                    followed_id=catalog.followed_id,
+                    error=str(exc),
+                )
 
     def _persist_aired_cache(
         self, aired: "list[AiredEpisode]", by_ref: "dict[MediaRef, FollowedSeries]", *, now: int

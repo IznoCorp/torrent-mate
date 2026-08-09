@@ -275,7 +275,12 @@ export function MaintenantPanel(): ReactElement {
   }
   const rangeAujourdhui: readonly FollowedSeriesItem[] =
     followed.data?.items.filter(
-      (i) => i.status === "a_jour" && dispatchedToday.has(i.title),
+      // Both settled statuses, not just « à jour »: a série whose LAST episode
+      // landed today reads « Terminé » from that moment on, and it is exactly
+      // the one the operator most wants to see in « rangé aujourd'hui ».
+      (i) =>
+        (i.status === "a_jour" || i.status === "termine") &&
+        dispatchedToday.has(i.title),
     ) ?? [];
 
   // ── Download ↔ journey correlation (info_hash) ────────────────────────

@@ -75,7 +75,7 @@ function isNew(item: FollowedSeriesItem): boolean {
   return Date.now() / 1000 - item.added_at < NEW_WINDOW_S;
 }
 
-const URGENCY: Record<string, number> = {
+const URGENCY: Record<FollowStatus, number> = {
   a_recuperer: 0,
   en_acquisition: 1,
   // Being verified is in motion — between « acquiring » and « waiting ».
@@ -83,7 +83,11 @@ const URGENCY: Record<string, number> = {
   en_attente: 3,
   non_verifie: 4,
   a_jour: 5,
-  disabled: 6,
+  // A finished series asks for less than a running one that happens to be
+  // caught up: nothing will ever move it again. It sits below « À jour » and
+  // above the follows the operator themself put down.
+  termine: 6,
+  disabled: 7,
 };
 
 /** Filter pill keys. */
@@ -151,6 +155,15 @@ const GROUPS: readonly {
     of: ["en_acquisition", "verification_en_cours"],
   },
   { key: "a-jour", label: "À jour", pipClass: "bg-success", of: ["a_jour"] },
+  // Its own group rather than a second tenant of « À jour »: folding it in
+  // would bury the very distinction the operator asked for (2026-08-09), and
+  // « mes séries finies » is a list they want to be able to look at.
+  {
+    key: "terminees",
+    label: "Terminées",
+    pipClass: "bg-muted-foreground",
+    of: ["termine"],
+  },
   {
     key: "en-pause",
     label: "En pause",
@@ -179,8 +192,11 @@ function sortItems(items: readonly FollowedSeriesItem[]): FollowedSeriesItem[] {
     const na = isNew(a) ? 0 : 1;
     const nb = isNew(b) ? 0 : 1;
     if (na !== nb) return na - nb;
-    const ua = URGENCY[a.status] ?? 99;
-    const ub = URGENCY[b.status] ?? 99;
+    // No `?? 99` fallback: the map is keyed by the closed FollowStatus union,
+    // so `tsc` proves it total and a new status cannot silently sort last —
+    // it fails the build instead, which is where that discovery belongs.
+    const ua = URGENCY[a.status];
+    const ub = URGENCY[b.status];
     if (ua !== ub) return ua - ub;
     return a.title.localeCompare(b.title, "fr");
   });
@@ -520,7 +536,11 @@ export function SuivisPanel(): ReactElement {
 
   return (
     <>
-      <div className="flex flex-col gap-4 px-[14px] py-2">
+      {/* No padding-top: it was 8 px of flow between the two pinned bars, and
+          the filter zone closed it as soon as it pinned — the gap the operator
+          watched shrink while scrolling (2026-08-09). The bars must be flush at
+          rest AND pinned; the panel's own breathing room lives in `gap-4`. */}
+      <div className="flex flex-col gap-4 px-[14px] pb-2">
         {/* ── Sticky filter zone ──────────────────────────────────────── */}
 
         {/* Filter zone — the maquette's .filters block, pinned under the
@@ -531,14 +551,20 @@ export function SuivisPanel(): ReactElement {
         {/* Pinned directly under the view tabs, inside the scrollport.
             `- 1rem` cancels the shell's `main` padding, exactly as the tabs do
             — the two are one slab and must pin against the same edge.
-            `- 1px` closes the seam: the published height is CEILED (61.55 →
-            62), so aligning on it exactly left a 0.45 px hairline through
-            which the list was visible, scrolling. A sub-pixel gap on a 3×
-            screen is over a physical pixel of moving content — the « ça
+            `- 1px`, matched by `-mt-px`, is a ONE PIXEL OVERLAP, not an
+            adjustment: butting the two bars edge to edge left a sub-pixel
+            hairline through which the list showed, scrolling, and on a 3×
+            screen that is over a physical pixel of moving content — the « ça
             tremble » the operator kept seeing. Overlapping is free: the tabs
-            paint above (z-30 vs z-20). */}
+            paint above (z-30 vs z-20).
+            The two offsets are deliberately the SAME expression, and the
+            published height is exact rather than ceiled, so this zone pins on
+            the very pixel it already occupies at rest. Anything else makes the
+            gap above it jump the moment it pins — « l'écart diminue quand on
+            scroll » (opérateur, 2026-08-09). Changing one without the other
+            reopens that. */}
         <div
-          className="filters sticky z-20 -mx-[14px]"
+          className="filters sticky z-20 -mx-[14px] -mt-px"
           style={{ top: `calc(var(${VIEWTABS_HEIGHT_VAR}, 58px) - 1rem - 1px)` }}
         >
           <label className="search">

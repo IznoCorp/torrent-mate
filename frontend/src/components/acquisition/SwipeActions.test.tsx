@@ -245,6 +245,53 @@ describe("SwipeActions", () => {
     expect(screen.getByTestId("swipe-card").style.transform).toBe(translated(0));
   });
 
+  it("la carte suit ses panneaux quand le jeu d'actions change sous elle", () => {
+    // Operator photo, 2026-08-09: a row open at TWO panes' width with only ONE
+    // pane rendered — an 84 px empty band between the card's right edge and the
+    // button, « Retirer » reduced to a sliver. `offset` is state computed
+    // against the widths of an earlier render; nothing made it follow when the
+    // action set changed. Whatever strands it there (a settle snapped against
+    // stale widths, a refetch mid-gesture, a drag the platform interrupted),
+    // the card must never sit further out than the panes it actually has.
+    const { rerender } = render(
+      <SwipeActions right={[action("a", "Ne plus chercher"), action("b", "Retirer")]}>
+        <div data-testid="the-card">Silo</div>
+      </SwipeActions>,
+    );
+    drag(-60);
+    expect(screen.getByTestId("swipe-card").style.transform).toBe(translated(-168));
+
+    rerender(
+      <SwipeActions right={[action("a", "Ne plus chercher")]}>
+        <div data-testid="the-card">Silo</div>
+      </SwipeActions>,
+    );
+
+    expect(screen.getByTestId("swipe-card").style.transform).toBe(translated(-84));
+  });
+
+  it("la carte se repose quand son dernier panneau disparaît", () => {
+    // The degenerate end of the same defect: no pane left at all, so the only
+    // honest place for the card is home. Left translated, it would show a gap
+    // onto nothing — the very thing the clamp in onPointerMove already forbids
+    // DURING a drag, and which must hold after one too.
+    const { rerender } = render(
+      <SwipeActions right={[action("a", "Ne plus chercher")]}>
+        <div data-testid="the-card">Silo</div>
+      </SwipeActions>,
+    );
+    drag(-60);
+    expect(screen.getByTestId("swipe-card").style.transform).toBe(translated(-84));
+
+    rerender(
+      <SwipeActions>
+        <div data-testid="the-card">Silo</div>
+      </SwipeActions>,
+    );
+
+    expect(screen.getByTestId("swipe-card").style.transform).toBe(translated(0));
+  });
+
   it("ouvrir une carte referme celle qui était ouverte", () => {
     // Operator, 2026-08-08: « une seule carte à la fois — en ouvrir une
     // seconde doit refermer la première ». Two rows left open at once made

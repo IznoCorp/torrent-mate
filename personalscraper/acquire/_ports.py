@@ -89,6 +89,10 @@ class FollowSubStore(Protocol):
         """Spend the §5 replacement authorisation once the wanted row exists."""
         ...
 
+    def set_series_status(self, followed_id: int, series_status: str) -> None:
+        """Record the provider's production status ('Ended', 'Continuing', …)."""
+        ...
+
     def set_kind(self, followed_id: int, kind: str) -> None:
         """Update the ``kind`` ('movie'|'show') of a ``followed_series`` row."""
         ...

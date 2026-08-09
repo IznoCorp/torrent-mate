@@ -332,7 +332,7 @@ class TestMigration012RunLinkage:
         conn = store._ensure_open()  # noqa: SLF001 — test reaches the migrated schema
         cols = {r[1] for r in conn.execute("PRAGMA table_info('staging_provenance')")}
         assert {"grab_run_uid", "ingest_run_uid", "scrape_run_uid", "dispatch_run_uid"} <= cols
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 22  # latest chain: 022 followed replace_owned
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 23  # latest chain: 023 followed series_status
 
 
 class TestRunLinkage:

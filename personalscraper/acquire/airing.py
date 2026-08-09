@@ -26,7 +26,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Sequence, cast
 
-from personalscraper.acquire.domain import AiredEpisode, FollowedSeries
+from personalscraper.acquire.domain import AiredEpisode, FollowedSeries, SeriesCatalog
 from personalscraper.api._contracts import ApiError, CircuitOpenError
 from personalscraper.api.metadata._base import EpisodeInfo
 from personalscraper.api.metadata._contracts import EpisodeFetcher, TvDetailsProvider
@@ -95,21 +95,59 @@ def poll_known(
 ) -> list[AiredEpisode]:
     """Return EVERY known-date episode across a set of followed series (episode-states D1).
 
-    Widened sibling of :func:`poll_aired`: it keeps the future episodes too
-    (``air_date > today``), which the ``aired_episode`` cache needs so the
-    completeness matrix can show them as ``annonce``. Only episodes with NO
-    parseable air date (TBA / malformed) are dropped — without a date there is
-    nothing to announce and nothing to schedule.
+    Flat view over :func:`poll_catalog` — the same single poll, with the
+    per-series envelope dropped. Callers that need the series' production status
+    (« Ended » vs « Continuing ») take :func:`poll_catalog` instead; they do NOT
+    poll twice.
+
+    Args:
+        series: The set of followed series to poll.
+        registry: The live ``ProviderRegistry`` from the composition root.
+        today: Reference date (injected for determinism).
+
+    Returns:
+        Flat list of :class:`~personalscraper.acquire.domain.AiredEpisode`, one
+        per known-date episode (aired AND announced) across all series.
+    """
+    return [ep for catalog in poll_catalog(series, registry, today=today) for ep in catalog.episodes]
+
+
+def poll_catalog(
+    series: Sequence[FollowedSeries],
+    registry: "ProviderRegistry",
+    *,
+    today: date,
+) -> list["SeriesCatalog"]:
+    """Return one :class:`SeriesCatalog` per successfully polled series.
+
+    The widest view over the single provider poll: the episodes AND the series'
+    production status, which the poll already had in hand (it fetches the series
+    details to enumerate the seasons) and used to throw away. Surfacing it costs
+    ZERO extra provider calls — the same NE-DOIT-PAS-8 discipline that governed
+    widening the episode result.
+
+    That status is what lets a card say « Terminé » honestly. The obvious
+    alternative — « nothing announced ahead » — is not a statement about the end
+    of a series: on 2026-08-09 « House of the Dragon » had no future episode in
+    the catalogue while airing that very day.
+
+    Fail-soft per series exactly like the episode poll: a series whose details
+    call fails is ABSENT from the result rather than present with a ``None``
+    status, so a provider outage never overwrites a known status with ignorance.
+
+    The future episodes are kept (``air_date > today``), which the
+    ``aired_episode`` cache needs so the completeness matrix can show them as
+    ``annonce``. Only episodes with NO parseable air date (TBA / malformed) are
+    dropped — without a date there is nothing to announce and nothing to
+    schedule.
 
     For each series whose ``media_ref.tvdb_id`` is set, fetches the season catalog
     via ``registry.chain(TvDetailsProvider)`` then the episode details per
     non-special season (``season_number >= 1``) via ``registry.chain(EpisodeFetcher)``
-    — exactly ONE catalog call + one per-season call per series. Widening the
-    result does NOT add provider calls (NE-DOIT-PAS-8): the provider already
-    returns the full season list; this simply stops discarding the futures.
+    — exactly ONE catalog call + one per-season call per series.
 
     Provider chain fall-through, fail-soft per series / per season: identical to
-    :func:`poll_aired` (they share this body — ``poll_aired`` filters the result).
+    :func:`poll_aired` (they all share this body).
 
     Args:
         series: The set of followed series to poll (typically
@@ -119,13 +157,13 @@ def poll_known(
             aired-vs-future callers downstream — this function keeps both).
 
     Returns:
-        Flat list of :class:`~personalscraper.acquire.domain.AiredEpisode`, one
-        per known-date episode (aired AND announced) across all series. Empty
-        when nothing has a known date or all providers are unavailable.
+        One :class:`~personalscraper.acquire.domain.SeriesCatalog` per series the
+        poll reached. Empty when every provider is unavailable.
     """
-    result: list[AiredEpisode] = []
+    catalogs: list[SeriesCatalog] = []
 
     for fs in series:
+        result: list[AiredEpisode] = []
         media_ref = fs.media_ref
         tvdb_id = media_ref.tvdb_id
         if tvdb_id is None:
@@ -190,7 +228,16 @@ def poll_known(
                         )
                     )
 
-    return result
+        catalogs.append(
+            SeriesCatalog(
+                followed_id=fs.id,
+                media_ref=media_ref,
+                series_status=details.series_status,
+                episodes=result,
+            )
+        )
+
+    return catalogs
 
 
 def poll_aired(

@@ -24,12 +24,37 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 from personalscraper.acquire.context import AcquireContext
-from personalscraper.acquire.domain import AiredEpisode, FollowedSeries, WantedItem
+from personalscraper.acquire.domain import AiredEpisode, FollowedSeries, SeriesCatalog, WantedItem
 from personalscraper.acquire.store import build_acquire_store
 from personalscraper.conf.models.acquire import AcquireConfig
 from personalscraper.core.event_bus import EventBus
 from personalscraper.core.identity import MediaRef
 from personalscraper.core.ownership import NullOwnershipChecker
+
+
+def _catalogs(episodes: list[AiredEpisode], *, series_status: str | None = None) -> list[SeriesCatalog]:
+    """Wrap a flat episode list the way ``poll_catalog`` returns it.
+
+    The detect pass reads catalogues (episodes + the series' production status)
+    rather than a flat episode list: « Terminé » needs a positive end-of-series
+    fact, and the poll already had it in hand. These tests still describe their
+    input as « the episodes the provider returns », so the shape conversion
+    lives here instead of in twenty call sites.
+
+    Args:
+        episodes: The episodes the fake provider returns, any series.
+        series_status: The production status to attribute to every series.
+
+    Returns:
+        One :class:`SeriesCatalog` per distinct ``media_ref``.
+    """
+    by_ref: dict[MediaRef, list[AiredEpisode]] = {}
+    for ep in episodes:
+        by_ref.setdefault(ep.media_ref, []).append(ep)
+    return [
+        SeriesCatalog(followed_id=None, media_ref=ref, series_status=series_status, episodes=eps)
+        for ref, eps in by_ref.items()
+    ]
 
 
 def _fs(followed_id: int = 1, tvdb_id: int = 99) -> FollowedSeries:
@@ -142,7 +167,7 @@ def _run_detect(
 
     with (
         patch("personalscraper.commands.follow.per_step_boundary", _boundary),
-        patch("personalscraper.acquire.detect.poll_known", return_value=aired_eps),
+        patch("personalscraper.acquire.detect.poll_catalog", return_value=_catalogs(aired_eps)),
     ):
         ctx = MagicMock()
         ctx.obj.config = MagicMock()
@@ -427,11 +452,11 @@ def test_detect_integration_enqueues_into_real_store(tmp_path: Path) -> None:
         def _boundary(config: Any, settings: Any, *, build_torrent_client: bool = False) -> Any:
             yield app_context
 
-        poll_spy = MagicMock(return_value=[aired])
+        poll_spy = MagicMock(return_value=_catalogs([aired]))
         with (
             _pinned_today(date(2024, 1, 12)),
             patch("personalscraper.commands.follow.per_step_boundary", _boundary),
-            patch("personalscraper.acquire.detect.poll_known", poll_spy),
+            patch("personalscraper.acquire.detect.poll_catalog", poll_spy),
         ):
             ctx = MagicMock()
             ctx.obj.config = MagicMock()
@@ -539,7 +564,7 @@ def test_detect_resurrects_wrongfully_abandoned_episode() -> None:
     ctx.obj.config.acquire.cadence = CadenceConfig()
     with (
         patch("personalscraper.commands.follow.per_step_boundary", _boundary),
-        patch("personalscraper.acquire.detect.poll_known", return_value=[ep]),
+        patch("personalscraper.acquire.detect.poll_catalog", return_value=_catalogs([ep])),
     ):
         follow_detect(ctx, dry_run=False, series=None)
 
@@ -578,7 +603,7 @@ def test_detect_past_cutoff_abandoned_stays_abandoned() -> None:
     ctx.obj.config.acquire.cadence = CadenceConfig()
     with (
         patch("personalscraper.commands.follow.per_step_boundary", _boundary),
-        patch("personalscraper.acquire.detect.poll_known", return_value=[ep]),
+        patch("personalscraper.acquire.detect.poll_catalog", return_value=_catalogs([ep])),
     ):
         follow_detect(ctx, dry_run=False, series=None)
 

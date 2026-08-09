@@ -62,6 +62,11 @@ class FollowTruth:
         en_attente_count: Aired, unowned episodes searched with nothing takeable.
         non_verifie_count: Aired, unowned episodes never searched or whose last
             search did not conclude.
+        announced_count: Episodes cached with an air date STILL AHEAD
+            (``air_date > today``). Never a card tally — it does not enter any
+            of the five buckets and cannot degrade a status; it exists so the
+            card can tell « À jour » (caught up, more to come) from « Terminé »
+            (caught up, nothing left), the operator's 2026-08-09 split.
     """
 
     aired_count: int | None = None
@@ -70,6 +75,7 @@ class FollowTruth:
     en_acquisition_count: int | None = None
     en_attente_count: int | None = None
     non_verifie_count: int | None = None
+    announced_count: int | None = None
 
 
 def compute_follow_truth(
@@ -87,12 +93,14 @@ def compute_follow_truth(
     its own facts — ownership, its open ``wanted`` row (if any) and that row's
     last search verdict — and the result is tallied. No state is inferred here.
 
-    The FUTURE episodes the cache now stores (episode-states D1) are excluded
-    from this count entirely: the card aggregates aired episodes only, so an
-    announced episode never degrades a series' status — a show whose aired
-    episodes are all owned stays « À jour » with futures ahead. The
-    ``air_date > today`` rows are dropped at the source query below; they never
-    reach the derivation, so ``annonce`` cannot leak into ``FollowStatus``.
+    The FUTURE episodes the cache stores (episode-states D1) enter NONE of the
+    five buckets: the card aggregates aired episodes only, so an announced
+    episode can never degrade a series' status — a show whose aired episodes are
+    all owned stays « À jour » with futures ahead, and ``annonce`` never leaks
+    into a bucket. They are nonetheless COUNTED, into
+    :attr:`FollowTruth.announced_count`, because that count is what tells « À
+    jour » (caught up, more to come) from « Terminé » (caught up, nothing left)
+    — the operator's 2026-08-09 split.
 
     Which row supplies those facts is NOT decided here: every row of the follow
     is handed to
@@ -119,19 +127,20 @@ def compute_follow_truth(
     """
     ref_today = (today if today is not None else date.today()).isoformat()
     try:
-        aired_rows = acquire_conn.execute(
-            # Aired-only: a future episode (air_date > today) is cached for the
-            # matrix's ``annonce`` display but is NOT a card fact. NULL/empty
-            # air_date rows are kept (legacy caches without a date read as aired,
-            # the pre-episode-states behaviour).
-            "SELECT season, episode FROM aired_episode "
-            "WHERE followed_id = ? AND (air_date IS NULL OR air_date = '' OR air_date <= ?)",
-            (followed_id, ref_today),
+        # One read, split in memory. The futures are NOT a card tally — they
+        # enter no bucket and cannot degrade a status — but their COUNT is what
+        # separates « À jour » (caught up, more to come) from « Terminé »
+        # (caught up, nothing left). NULL/empty air_date rows are aired (legacy
+        # caches without a date read as aired, the pre-episode-states behaviour).
+        cached_rows = acquire_conn.execute(
+            "SELECT season, episode, air_date FROM aired_episode WHERE followed_id = ?",
+            (followed_id,),
         ).fetchall()
     except sqlite3.Error as exc:
         logger.debug("acquisition_truth_cache_read_failed", followed_id=followed_id, error=str(exc))
         return FollowTruth()
-    aired = {(int(r[0]), int(r[1])) for r in aired_rows}
+    aired = {(int(r[0]), int(r[1])) for r in cached_rows if not r[2] or str(r[2]) <= ref_today}
+    announced = sum(1 for r in cached_rows if r[2] and str(r[2]) > ref_today)
     if not aired:
         return FollowTruth()
 
@@ -209,6 +218,7 @@ def compute_follow_truth(
         en_acquisition_count=counts["en_acquisition"] + counts["absorbed"],
         en_attente_count=counts["en_attente"],
         non_verifie_count=counts["non_verifie"],
+        announced_count=announced,
     )
 
 
