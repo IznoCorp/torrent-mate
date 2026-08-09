@@ -44,7 +44,7 @@ from typing import TYPE_CHECKING, Literal
 
 from personalscraper.conf import resolver
 from personalscraper.core.delete_permit import ALLOW
-from personalscraper.core.media_types import VIDEO_EXTENSIONS
+from personalscraper.core.media_types import TV_TRAILER_SUBFOLDER, VIDEO_EXTENSIONS
 from personalscraper.dispatch import _transfer
 from personalscraper.dispatch._types import DispatchResult
 from personalscraper.dispatch.disk_scanner import get_disk_status
@@ -235,9 +235,27 @@ def merge_transfer(source: Path, dest: Path, capability: FilesystemCapability) -
     )
 
 
-def _is_video(path: Path) -> bool:
-    """Return True when ``path`` is a media video file (not a metadata sidecar)."""
-    return path.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
+def _is_library_content(rel: Path) -> bool:
+    """Return True when ``rel`` is collected media, not a derived asset.
+
+    Library content is what the operator actually collected and cannot get back:
+    the episode / movie videos. Everything the app can re-download or regenerate
+    on its own — NFO, artwork, and the **trailers** under
+    :data:`personalscraper.core.media_types.TV_TRAILER_SUBFOLDER` — is a derived
+    asset. Trailers matter here because they ARE videos by extension: without
+    this exclusion a re-downloaded trailer reads as a destroyed episode.
+
+    Args:
+        rel: The file path relative to its show/movie folder.
+
+    Returns:
+        True for a video that is not a trailer.
+    """
+    if rel.suffix.lstrip(".").lower() not in VIDEO_EXTENSIONS:
+        return False
+    # Case-insensitive: the storage volumes are NTFS/macFUSE (case-insensitive),
+    # so the on-disk spelling of the folder is not guaranteed.
+    return not any(part.lower() == TV_TRAILER_SUBFOLDER.lower() for part in rel.parts)
 
 
 def _classify_merge_impact(source: Path, dest: Path) -> MergeImpact:
@@ -256,18 +274,18 @@ def _classify_merge_impact(source: Path, dest: Path) -> MergeImpact:
        (``purge_episode_conflicts`` destroys it — a re-scrape rename).
 
     ``"metadata-refresh"`` — no episode is superseded, but at least one
-    pre-existing **sidecar** (``tvshow.nfo``, ``poster.jpg``, a per-episode
-    ``.nfo`` / ``-thumb.jpg``, …) is rewritten. The scraper regenerates these on
-    every pass, so an already-scraped destination ALWAYS shares them: treating
-    that as a destruction is what made every weekly-episode merge claim
-    « épisode(s) écrasé(s) ». No media is lost, so it is not an overwrite.
+    pre-existing **derived asset** is rewritten: a sidecar (``tvshow.nfo``,
+    ``poster.jpg``, a per-episode ``.nfo`` / ``-thumb.jpg``, …) or a re-downloaded
+    trailer. The scraper regenerates these on every pass, so an already-scraped
+    destination ALWAYS shares them: treating that as a destruction is what made
+    every weekly-episode merge claim « épisode(s) écrasé(s) ». No media is lost,
+    so it is not an overwrite.
 
     ``"add-only"`` — nothing pre-existing is touched at all.
 
     Reuses the same ``_extract_season_episode`` key parser the purge step uses,
-    so the two stay in lock-step, and the canonical
-    :data:`personalscraper.core.media_types.VIDEO_EXTENSIONS` SSOT to decide what
-    counts as media content.
+    so the two stay in lock-step, and :func:`_is_library_content` to decide what
+    counts as collected media rather than a re-downloadable asset.
 
     Args:
         source: Staging show directory (the new version).
@@ -289,16 +307,17 @@ def _classify_merge_impact(source: Path, dest: Path) -> MergeImpact:
         if not src_file.is_file():
             continue
         rel = src_file.relative_to(source)
-        source_is_video = _is_video(src_file)
-        # (1) Same relative path already on disk → rsync overwrites it. Only a
-        # video is library content; a sidecar rewrite is a metadata refresh.
+        source_is_content = _is_library_content(rel)
+        # (1) Same relative path already on disk → rsync overwrites it. Only
+        # library content is a destruction; rewriting a sidecar or a trailer is
+        # a metadata refresh.
         if (dest / rel).exists():
-            if source_is_video:
+            if source_is_content:
                 return "overwrite"
             sidecar_rewritten = True
-        if not source_is_video:
-            # Rule (2) is about episode identity — only videos carry it. A
-            # renamed sidecar is swept along with the episode it belongs to.
+        if not source_is_content:
+            # Rule (2) is about episode identity — only episode videos carry it.
+            # A renamed sidecar is swept along with the episode it belongs to.
             continue
         # (2) Same (season, episode) key under a different filename in the same
         # season subdir → the purge step destroys the on-disk episode.
@@ -309,7 +328,7 @@ def _classify_merge_impact(source: Path, dest: Path) -> MergeImpact:
         if not dest_season.is_dir():
             continue
         for dest_file in dest_season.iterdir():
-            if not dest_file.is_file() or not _is_video(dest_file):
+            if not dest_file.is_file() or not _is_library_content(dest_file.relative_to(dest)):
                 continue
             d_season, d_episode = _extract_season_episode(dest_file.name)
             if (d_season, d_episode) == (season, episode):

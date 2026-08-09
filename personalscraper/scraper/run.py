@@ -31,8 +31,48 @@ if TYPE_CHECKING:
 
     from personalscraper.acquire.store import ConcreteAcquireStore
     from personalscraper.api.metadata.registry import ProviderRegistry
+    from personalscraper.core.identity import MediaRef
 
 log = get_logger("run")
+
+
+def lookup_ref_for_folder(prov_index: "dict[str, MediaRef]", folder: Path) -> "MediaRef | None":
+    """Resolve the provenance seed for a media folder, tolerating a deeper path.
+
+    The index is keyed on ``current_path``, which the sorter now records as the
+    media folder — but rows written before that, or by any producer that tracked
+    the file rather than its folder, sit one level deeper. An exact lookup alone
+    silently misses those and the scrape free-matches by title, which is how a
+    single-file movie whose TMDB id was known since the grab ended up ambiguous
+    across 27 candidates (« The Odyssey », 2026-08-06).
+
+    So: exact match first, then any indexed path that lives UNDER ``folder``. The
+    fallback is deliberately not a prefix-string test — it compares path parts,
+    so ``…/The Odyssey (2026)`` never swallows ``…/The Odyssey (2026) Remastered``.
+    Unicode forms are normalised (macFUSE yields NFD, the DB stores NFC).
+
+    Args:
+        prov_index: The ``{current_path: MediaRef}`` snapshot.
+        folder: The media folder the scrape is about to identify.
+
+    Returns:
+        The seed :class:`MediaRef`, or ``None`` on a genuine miss.
+    """
+    import unicodedata  # noqa: PLC0415 — stdlib, only needed on this path
+
+    def _norm(text: str) -> str:
+        return unicodedata.normalize("NFC", text)
+
+    target = _norm(str(folder))
+    exact = prov_index.get(str(folder)) or prov_index.get(target)
+    if exact is not None:
+        return exact
+    target_parts = Path(target).parts
+    for raw_path, ref in prov_index.items():
+        candidate_parts = Path(_norm(raw_path)).parts
+        if len(candidate_parts) > len(target_parts) and candidate_parts[: len(target_parts)] == target_parts:
+            return ref
+    return None
 
 
 def _has_unscraped_items(settings: Settings, config: Config) -> bool:
@@ -195,7 +235,7 @@ def _build_follow_tvdb_resolver(config: Config) -> "Callable[[Path], int | None]
         # Provenance FIRST — a deterministic hash→folder→identity link beats the
         # title/episode inference. Only its tvdb feeds the tvshow forced path here;
         # a provenance miss (or a tmdb-only movie ref) falls through to #29.
-        ref = prov_index.get(str(show_dir))
+        ref = lookup_ref_for_folder(prov_index, show_dir)
         if ref is not None and ref.tvdb_id is not None:
             return ref.tvdb_id
         return resolve_followed_tvdb(show_dir, grabbed, follow_titles, follow_years)
@@ -230,7 +270,7 @@ def _build_provenance_movie_resolver(config: Config) -> "Callable[[Path], int | 
         return None
 
     def _resolver(movie_dir: Path) -> int | None:
-        ref = prov_index.get(str(movie_dir))
+        ref = lookup_ref_for_folder(prov_index, movie_dir)
         return ref.tmdb_id if (ref is not None and ref.tmdb_id is not None) else None
 
     return _resolver

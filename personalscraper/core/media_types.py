@@ -46,6 +46,12 @@ VIDEO_EXTENSIONS: frozenset[str] = frozenset(
     }
 )
 
+#: Plex's subfolder for TV-show trailer extras (``{show}/Trailers/…`` and
+#: ``{show}/Saison NN/Trailers/…``). A video living under it is a re-downloadable
+#: auxiliary asset, NOT the collected media — callers that must tell library
+#: content from derived assets key off this name.
+TV_TRAILER_SUBFOLDER: str = "Trailers"
+
 AUDIO_EXTENSIONS: frozenset[str] = frozenset(
     {
         "mp3",

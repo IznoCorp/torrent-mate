@@ -38,7 +38,7 @@ from typing import Literal
 from xml.etree import ElementTree as ET
 
 from personalscraper.core.artwork_naming import ArtworkStatus, artwork_status
-from personalscraper.core.media_types import VIDEO_EXTENSIONS
+from personalscraper.core.media_types import TV_TRAILER_SUBFOLDER, VIDEO_EXTENSIONS
 from personalscraper.naming_patterns import PATTERNS
 from personalscraper.nfo_utils import is_nfo_complete, parse_title_year
 
@@ -54,7 +54,7 @@ MediaType = Literal["movie", "tvshow"]
 # ``{name}-trailer.{ext}`` form; TV shows use the ``Trailers/{name}.{ext}``
 # subfolder. Extensions mirror ``_KNOWN_TRAILER_EXTENSIONS`` in that module.
 _TRAILER_EXTENSIONS: tuple[str, ...] = ("mp4", "mkv", "webm")
-_TV_TRAILER_SUBFOLDER: str = "Trailers"
+_TV_TRAILER_SUBFOLDER: str = TV_TRAILER_SUBFOLDER
 
 
 @dataclass(frozen=True)

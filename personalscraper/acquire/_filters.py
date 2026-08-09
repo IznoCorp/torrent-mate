@@ -131,10 +131,36 @@ def _passes_resolution(result: TrackerResult, profile: QualityProfile) -> bool:
 #: never satisfy a wanted item — whichever tracker published it.
 #:
 #: Deliberately a REJECT list, not an accept list: the video classes (2=Movies,
-#: 5=TV) are not the only ones a video release may legitimately carry (6=XXX,
-#: 8=Other/Misc), and an accept list would silently drop them. Only what we
-#: positively know is non-video gets dropped.
+#: 5=TV) are not the only ones a video release may legitimately carry
+#: (8=Other/Misc), and an accept list would silently drop them. Only what we
+#: positively know is non-video gets dropped. Class 6 (XXX) IS video and so is
+#: absent here — it is rejected on its own grounds by
+#: :data:`_ADULT_CATEGORY_CLASS`.
 _NON_VIDEO_CATEGORY_CLASSES = frozenset({1, 3, 4, 7})
+
+#: Newznab category class 6 = XXX. Adult content is never what a movie/TV wanted
+#: item asked for, so it is eliminated outright rather than left to rank badly.
+#:
+#: Live incident 2026-08-06: the wanted film « The Odyssey » (TMDB 1368337) was
+#: satisfied by ``[Cosplayground].The.Odyssey.Part.1.2026…-ONYXA``, published as
+#: ``6010``. Its title carries no adult word at all, so only the tracker's own
+#: category could stop it — and nothing looked at class 6. The two legitimate
+#: class-2 releases scored twice as high but were filtered upstream, leaving the
+#: adult one as the sole survivor (``last_search_found=1``) and therefore grabbed.
+_ADULT_CATEGORY_CLASS = 6
+
+#: Unambiguous adult-release markers, for the case where a tracker mis-files an
+#: adult release under a video class. Every token here is a word a mainstream
+#: release title does not carry.
+#:
+#: A bare ``XXX`` is deliberately ABSENT: « xXx » (2002) and « xXx: Return of
+#: Xander Cage » are mainstream films, and the token alone would drop them. XXX
+#: only counts when paired with ``PARODY`` — the standard adult-parody tag. The
+#: category rule stays the authority; this is defense in depth, not a substitute.
+_ADULT_TITLE_RE = re.compile(
+    r"\b(PORN|PORNO|HENTAI|SEXTAPE|XXX[.\-_ ]?PARODY|PARODY[.\-_ ]?XXX)\b",
+    re.IGNORECASE,
+)
 
 
 def _passes_video_category(result: TrackerResult) -> bool:
@@ -166,6 +192,35 @@ def _passes_video_category(result: TrackerResult) -> bool:
     if not text.isdigit():
         return True
     return int(text) // 1000 not in _NON_VIDEO_CATEGORY_CLASSES
+
+
+def _passes_not_adult(result: TrackerResult) -> bool:
+    """Return True unless *result* is adult content.
+
+    Two independent signals, because neither alone is sufficient:
+
+    1. **The tracker's Newznab class 6** — authoritative metadata, and the only
+       thing that could have caught the 2026-08-06 incident (the offending title
+       carried no adult word whatsoever).
+    2. **An unambiguous adult marker in the title** — the fallback for a tracker
+       that mis-files the release under a video class.
+
+    FAIL-OPEN on an unparseable category, exactly like
+    :func:`_passes_video_category`: a tracker publishing a slug dialect must not
+    have its result set wiped. The title guard still applies in that case.
+
+    Args:
+        result: Candidate torrent result.
+
+    Returns:
+        ``True`` when the result should survive the adult filter.
+    """
+    raw = result.category
+    if raw is not None:
+        text = raw.strip()
+        if text.isdigit() and int(text) // 1000 == _ADULT_CATEGORY_CLASS:
+            return False
+    return _ADULT_TITLE_RE.search(result.title) is None
 
 
 def _passes_not_3d(result: TrackerResult, profile: QualityProfile) -> bool:
@@ -257,6 +312,16 @@ def apply_hard_filters(
         if not _passes_video_category(r):
             log.debug(
                 "acquire.filter.non_video_category_dropped",
+                title=r.title,
+                category=r.category,
+                provider=r.provider,
+            )
+            continue
+        if not _passes_not_adult(r):
+            # info, not debug: the operator must be able to see that an adult
+            # release was offered for one of their wanted items.
+            log.info(
+                "acquire.filter.adult_dropped",
                 title=r.title,
                 category=r.category,
                 provider=r.provider,
