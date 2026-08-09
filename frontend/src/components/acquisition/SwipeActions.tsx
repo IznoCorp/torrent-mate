@@ -111,6 +111,23 @@ export function SwipeActions({
   const rightWidth = (right?.length ?? 0) * ACTION_WIDTH_PX;
   const leftWidth = left != null ? ACTION_WIDTH_PX : 0;
 
+  /**
+   * Where the card may actually sit, given the panes it has RIGHT NOW.
+   *
+   * `offset` is state: it was computed against the widths of an earlier render,
+   * and nothing forced it to follow when the action set changed under it. A row
+   * left parked at two panes' width while one pane remains renders exactly what
+   * the operator photographed on 2026-08-09 — an 84 px empty band between the
+   * card's right edge and the only button, the destructive one reduced to a
+   * sliver at the row's edge.
+   *
+   * Clamping at RENDER time rather than patching every writer makes that
+   * geometry unreachable whatever produced the stale value: a settle that
+   * snapped against stale widths, a refetch mid-gesture, a drag the platform
+   * interrupted. The card can only ever sit where its panes are.
+   */
+  const placed = Math.max(-rightWidth, Math.min(leftWidth, offset));
+
   const close = useCallback(() => {
     setOffset(0);
   }, []);
@@ -208,14 +225,14 @@ export function SwipeActions({
         e.stopPropagation();
         return;
       }
-      if (offset === 0) return;
+      if (placed === 0) return;
       // Maquette: a LATER tap on a swiped card settles it first — it is
       // never ALSO the tap that opens the sheet.
       e.preventDefault();
       e.stopPropagation();
       close();
     },
-    [offset, close],
+    [placed, close],
   );
 
   function renderAction(action: SwipeAction): ReactElement {
@@ -250,10 +267,10 @@ export function SwipeActions({
           hidden control that still takes focus is a trap. The kebab is the
           keyboard path to the same actions. */}
       <div className="actions">
-        <div className="side left" aria-hidden={offset <= 0} inert={offset <= 0}>
+        <div className="side left" aria-hidden={placed <= 0} inert={placed <= 0}>
           {left != null && renderAction(left)}
         </div>
-        <div className="side right" aria-hidden={offset >= 0} inert={offset >= 0}>
+        <div className="side right" aria-hidden={placed >= 0} inert={placed >= 0}>
           {right?.map(renderAction)}
         </div>
       </div>
@@ -261,7 +278,7 @@ export function SwipeActions({
       <div
         data-testid="swipe-card"
         className="relative touch-pan-y transition-transform"
-        style={{ transform: `translateX(${String(offset)}px)` }}
+        style={{ transform: `translateX(${String(placed)}px)` }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
