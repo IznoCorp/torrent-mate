@@ -691,6 +691,10 @@ def collect_anomalies(
     # empty catalog and the founding lie. The day the derivation itself
     # refuses ``aired_count == 0``, this guard falls silent on its own instead
     # of drifting into a rule the product no longer has.
+    # The two facts that split « À jour » from « Terminé » are pinned to the
+    # values that CANNOT produce « Terminé » (nothing announced, no provider
+    # verdict): this probe asks about the empty-catalog fallthrough, and a
+    # « Terminé » answer would silence the guard for the wrong reason.
     empty_catalog_reads_a_jour = (
         derive_follow_status(
             active=True,
@@ -699,6 +703,8 @@ def collect_anomalies(
             en_acquisition_count=0,
             en_attente_count=0,
             non_verifie_count=0,
+            announced_count=0,
+            series_status=None,
         )
         == "a_jour"
     )
