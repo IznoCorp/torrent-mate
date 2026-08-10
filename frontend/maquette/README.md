@@ -77,6 +77,49 @@ that view was checked, and another page shipped blank.
 
 ---
 
+## Every state has a name, and knows how to reach itself
+
+`window.__go("<id>")` drives the prototype into a state **without clicking**. `window.__states()`
+returns the 37 ids. The **≡** button in the harness opens a panel listing them all.
+
+This is what makes the parity probe deterministic. Without it, measuring « the blocked card »
+requires knowing how to make one appear — and that knowledge is exactly what evaporates between
+two sessions. With it, the probe iterates `regions.json` → for each region, the states it is
+visible in → `__go(state)` → measure.
+
+Three orthogonal dials the panel exposes:
+
+| Dial | Values | What it changes |
+|---|---|---|
+| Data scenario | `reel` · `charge` | real system state of 2026-08-10 vs a dense one |
+| Surface phase | `prete` · `chargement` · `erreur` | every surface goes through all three |
+| TMDB account | connected · not | Découvrir's full vs degraded mode |
+
+The 37 states cover: the five urgency sections in both scenarios, Suivis in its three modes plus
+its two empty cases (filter with no match, « En pause » with none), Découvrir full / degraded /
+exhausted / loading, the add screen idle and with real results, the follow sheet on a
+22-season complete catalogue and on a holed one, the journey sheet, the « ⋮ » sheet, the library
+in grid and list, its empty search, its three lenses, selection mode, single and bulk delete
+dialogs, loading and error on every surface, the resolution screen, the media sheet, and Système.
+
+`harness/states.py` drives all 37 and asserts each one renders content, has no horizontal
+overflow and raises no JS error. **A state that renders nothing fails the pass.**
+
+## `regions.json` — the extraction contract and the measurement map
+
+One file, three jobs:
+
+- **`exportedSelectors`** (264) — the allowlist `extract-maquette-css.py` exports. Anything not
+  listed is not exported.
+- **`harnessSelectors`** (26) — the prototype's own chrome, listed so its exclusion is explicit
+  rather than implied.
+- **`regions`** (36) — what `parity-probe.py` measures, each naming the states it is visible in,
+  so the probe never has to guess how to reach a card state.
+
+It also carries the probe's emulation settings, the `computedStyle` subset to diff, and the
+(currently empty) allowlist of accepted divergences — **every future entry must carry an inline
+justification.**
+
 ## What is real in here, and what is not
 
 Real, read from the live system on 2026-08-10:

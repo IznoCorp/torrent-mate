@@ -1,39 +1,43 @@
+"""Balaye les 8 vues dans les DEUX scénarios de données, via le pilote __go.
+
+Une vue qui ne rend rien FAIT ÉCHOUER la passe : c'est la garde qui manquait
+le jour où une page est partie blanche parce qu'une constante avait disparu.
+"""
 import asyncio
 from playwright.async_api import async_playwright
-VIEWS=[("acq/encours",'[data-page="acq"]|[data-acqtab="maintenant"]'),("acq/suivis",'[data-acqtab="suivis"]'),
-       ("acq/decouvrir",'[data-acqtab="decouvrir"]'),("lib/medias",'[data-page="lib"]|[data-lens="cat"]'),
-       ("lib/incomplets",'[data-lens="inc"]'),("lib/recents",'[data-lens="rec"]'),
-       ("arrivees",'[data-page="arr"]'),("systeme",'[data-page="sys"]')]
+
+VUES = [("acq/encours", "acq-encours-{s}"), ("acq/suivis", "acq-suivis-liste"),
+        ("acq/decouvrir", "acq-decouvrir"), ("lib/medias", "lib-grille"),
+        ("lib/incomplets", "lib-incomplets"), ("lib/recents", "lib-recents"),
+        ("arrivees", "arr-{s}"), ("systeme", "systeme")]
+
 async def main():
   async with async_playwright() as p:
-    b=await p.chromium.launch(channel="chrome")
-    ctx=await b.new_context(viewport={"width":390,"height":844},device_scale_factor=2,is_mobile=True,has_touch=True)
-    pg=await ctx.new_page(); errs=[]
+    b = await p.chromium.launch(channel="chrome")
+    ctx = await b.new_context(viewport={"width": 390, "height": 844},
+                              device_scale_factor=2, is_mobile=True, has_touch=True)
+    pg = await ctx.new_page(); errs = []
     pg.on("pageerror", lambda e: errs.append(str(e)))
     await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
-    await pg.evaluate("()=>document.querySelector('#toastx').click()")
-    for scen in ("réel","charge"):
-        if scen=="charge":
-            await pg.click("#scenBtn"); await pg.wait_for_timeout(400)
-            await pg.evaluate("()=>document.querySelector('#toastx').click()")
+    total_bad = 0
+    for scen, mot in (("reel", "repos"), ("charge", "charge")):
         print(f"\n═══ scénario {scen} ═══")
-        print("  badges :", await pg.evaluate("()=>[...document.querySelectorAll('.navbadge')].map(e=>e.parentElement.textContent.replace(/\\d+$/,'').trim()+'='+e.textContent)"))
-        bad=0
-        for name,sel in VIEWS:
-            for one in sel.split("|"):
-                await pg.click(one); await pg.wait_for_timeout(260)
-            r=await pg.evaluate("""()=>{const v=document.querySelector('#view');
+        await pg.evaluate("(s)=>{S.scen=s;render();}", scen)
+        for nom, sid in VUES:
+            await pg.evaluate("(i)=>window.__go(i)", sid.format(s=mot))
+            await pg.evaluate("(s)=>{S.scen=s;render();}", scen)
+            await pg.wait_for_timeout(320)
+            r = await pg.evaluate("""()=>{const v=document.querySelector('#view');
               return {txt:v.textContent.replace(/\\s+/g,' ').trim().length,
                       cartes:v.querySelectorAll('.card,.tile,.sug,.kv').length,
                       vide:!!v.querySelector('.empty'),
-                      img:v.querySelectorAll('img').length,
                       doc:document.documentElement.scrollWidth,
                       deb:[...v.querySelectorAll('*')].filter(e=>e.getBoundingClientRect().right>390.5&&!e.closest('.pillscroll')).length};}""")
-            ok = r['txt']>100 and r['doc']<=390 and r['deb']==0 and (r['cartes']>0 or r['vide'])
-            if not ok: bad+=1
-            print(("  OK  " if ok else "  FAIL"), f"{name:16}", r)
-            await pg.screenshot(path=f"z_{scen}_{name.replace('/','_')}.png")
-        print("  verdict :", "conforme" if bad==0 else f"{bad} échec(s)")
+            ok = r['txt'] > 100 and r['doc'] <= 390 and r['deb'] == 0 and (r['cartes'] > 0 or r['vide'])
+            if not ok: total_bad += 1
+            print(("  OK  " if ok else "  FAIL"), f"{nom:16}", r)
+            await pg.screenshot(path=f"z_{scen}_{nom.replace('/','_')}.png")
     print("\nerreurs JS :", errs or "aucune")
+    print("VERDICT :", "16/16 rendus conformes" if total_bad == 0 and not errs else f"{total_bad} échec(s)")
     await b.close()
 asyncio.run(main())
