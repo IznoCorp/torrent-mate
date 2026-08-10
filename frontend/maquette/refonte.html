@@ -4097,31 +4097,74 @@
   }
 
   /* ── Écrans et feuilles ──────────────────────────────────────── */
+  /* ── Fiche média (§11, DOIT-11) ───────────────────────────────────────
+     Une DESTINATION, pas une feuille : URL stable /media/:provider/:id, sa
+     propre barre « ‹ Retour ». Elle dit ce QU'EST le média et où il en est
+     CHEZ NOUS. Une donnée absente s'écrit « inconnu » — jamais un tiret muet
+     (§14.3 : une étape inconnue se dit inconnue, jamais « pas faite »). */
+  const FICHES = {
+    Silo: {
+      y: "2023", kind: "Série", prov: "TVDB 400458 · TMDB 125988", note: "8,2",
+      g: "Science-Fiction & Fantastique · Drame",
+      cr: "Graham Yost",
+      ov: "Dans un monde futur dévasté et toxique, des milliers de survivants habitent un gigantesque silo souterrain. Après la transgression d'une règle d'or par leur shérif et la mort mystérieuse de plusieurs résidents, Juliette, une mécanicienne, perce peu à peu les terribles secrets du Silo.",
+      saisons: [[3, 6, 6], [2, 10, 10], [1, 10, 10]],
+    },
+  };
+
   function openFiche(title) {
-    openScreen(`<div class="fichebar"><button class="fback" onclick="__close('screen')">${svg(I.left)}Retour</button></div>
-  <div class="port"><div class="body">
-    <div style="display:flex;gap:12px">
-      <span class="poster" style="width:96px;font-size:30px">${posterBox(title)}</span>
-      <div style="min-width:0">
-        <h2 style="margin:0;font-size:17px;font-weight:700">${esc(title)}</h2>
-        <p style="margin:4px 0 0;font-size:12px;color:var(--muted-foreground)">2024 · Série · TVDB 447631<br>Drame · Historique</p>
+    const f = FICHES[title] ?? null;
+    const ss = f ? f.saisons : (SEASONS[title] ?? []).slice().sort((a, b) => b[0] - a[0]);
+    const own = ss.reduce((n, x) => n + x[2], 0);
+    const aired = ss.reduce((n, x) => n + x[1], 0);
+    const pct = aired ? Math.round((own / aired) * 100) : null;
+    openScreen(`<div class="fichebar">
+      <button class="fback" onclick="__close('screen')">${svg(I.left)}Retour</button>
+      <span style="margin-left:auto;font-size:11px;color:var(--muted-foreground)">/media/tvdb/400458</span>
+    </div>
+    <div class="port"><div class="body">
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <span class="sheetposter" style="width:96px;font-size:30px">${posterBox(title, "show")}</span>
+        <div style="min-width:0;flex:1">
+          <h2 style="margin:0;font-size:17px;font-weight:700;letter-spacing:-.01em">${esc(title)}</h2>
+          <p style="margin:5px 0 0;font-size:12px;color:var(--muted-foreground);line-height:1.5">
+            ${f ? `${f.y} · ${f.kind} · note ${f.note}<br>${esc(f.g)}<br><span style="font-size:11px">${esc(f.prov)}</span>` : "Métadonnées inconnues"}
+          </p>
+        </div>
       </div>
-    </div>
-    <div class="note"><b>La fiche existe déjà</b> (<code>/media/:provider/:id</code>, §11). La refonte ne la refait pas : chaque poster de chaque page y mène, c'est tout ce qui manquait.</div>
-    <h2 class="h2">Médiathèque</h2>
-    <div class="panel">
-      <div class="kv"><span>Saisons</span><span>1</span></div>
-      <div class="kv"><span>Épisodes diffusés</span><span>10</span></div>
-      <div class="kv"><span>Possédés</span><span>10</span></div>
-      <div class="kv"><span>Complétude</span><span><span class="pip success"></span>100 %</span></div>
-    </div>
-    <h2 class="h2">Informations</h2>
-    <div class="panel">
-      <div class="kv"><span>Créateur</span><span>inconnu</span></div>
-      <div class="kv"><span>Suivi</span><span>actif</span></div>
-      <div class="kv"><span>Prochaine recherche</span><span>dans 2 h 10</span></div>
-    </div>
-  </div></div>`);
+
+      <div>
+        <h2 class="h2" style="margin-bottom:6px">Synopsis</h2>
+        <p style="margin:0;font-size:12.5px;line-height:1.55;color:var(--muted-foreground)">${f ? esc(f.ov) : "Synopsis inconnu — le provider n'en fournit pas."}</p>
+      </div>
+
+      <div>
+        <h2 class="h2" style="margin-bottom:6px">Médiathèque</h2>
+        <div class="panel">
+          <div class="kv"><span>Saisons</span><span>${ss.length || "inconnu"}</span></div>
+          <div class="kv"><span>Épisodes diffusés</span><span>${aired || "inconnu"}</span></div>
+          <div class="kv"><span>Possédés</span><span>${own}</span></div>
+          <div class="kv"><span>Complétude</span><span><span class="pip ${pct === 100 ? "success" : "warning"}"></span>${pct === null ? "inconnue" : pct + " %"}</span></div>
+        </div>
+        ${
+          ss.length
+            ? `<div style="margin-top:10px">${ss.map((x) => `<div class="kv" style="border:0;padding:6px 0"><span>Saison ${x[0]}</span><span style="font-family:ui-monospace,Menlo,monospace">${x[2]}/${x[1]}</span></div>`).join("")}</div>`
+            : ""
+        }
+      </div>
+
+      <div>
+        <h2 class="h2" style="margin-bottom:6px">Informations</h2>
+        <div class="panel">
+          <div class="kv"><span>Créateur</span><span>${f ? esc(f.cr) : "inconnu"}</span></div>
+          <div class="kv"><span>Suivi</span><span>${FOLLOWS.some((x) => x.t === title) ? "actif" : "non suivi"}</span></div>
+          <div class="kv"><span>Bande-annonce</span><span>présente</span></div>
+          <div class="kv"><span>Dernière mise à jour</span><span>10 août, 04 h 12</span></div>
+        </div>
+      </div>
+
+      <div class="note"><b>La fiche existe déjà</b> (<code>/media/:provider/:id</code>) et cette refonte ne la refait pas. Ce qui manquait, c'est qu'on puisse y ARRIVER : chaque affiche de chaque page y mène désormais (NE-DOIT-PAS-9).</div>
+    </div></div>`);
   }
 
   function openResolve() {
