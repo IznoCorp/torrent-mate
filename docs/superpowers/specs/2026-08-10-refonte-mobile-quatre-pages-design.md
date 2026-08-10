@@ -340,6 +340,49 @@ so the set of exported rules and the set of measured regions cannot drift apart.
 - Consequence: a value can no longer be « improvised in the app » (post-mortem error #1). To
   change a pixel, you change the maquette.
 
+### 7.2 bis The chrome's truth flows the OTHER way
+
+**For the pages, the maquette is the source. For the shell chrome, the app is.**
+
+`AppShell`, `TopBar` and `BottomTabBar` were rebuilt, measured and proven during `acq-mobile`:
+the app frame, the published measured heights, the end of the iOS sticky shimmer. Redrawing them
+would re-open solved problems. The maquette therefore **mirrors** them — value for value,
+converted from their Tailwind classes — and they are promoted from harness to **measured
+regions**, so they cannot drift afterwards.
+
+This matters more than it sounds. Every page is composed *inside* the chrome: the scrollport
+height, the bottom reservation, and therefore the density judgement, all depend on it. A region
+measured at zero divergence inside an invented frame can be wrong inside the real one. The first
+version of this maquette had a top bar on `--sidebar` instead of `--background`, no hamburger, a
+19 px mark instead of 28, and a **red** nav badge where `NavCountBadge` is amber.
+
+Any deliberate change to the chrome is an **exception, named in this spec** — never a side
+effect of page work.
+
+**One declared divergence.** The real bottom bar is `position: fixed` against the viewport,
+correct in the app where the viewport *is* the phone. Inside a phone frame inset in a wide
+window, `fixed` would pin it to the window. The maquette overrides it to `absolute` (same for
+the FAB and the selection bar). This lives in `regions.json`'s probe allowlist **with its
+justification** — a declared deviation, not a discovered one.
+
+### 7.2 ter Out-of-scope surfaces — quarantined, not forgotten
+
+`/config` and the interior of `/systeme` stay out of scope (B5). They render in the same shell as
+converted pages, so three rules keep that honest:
+
+1. **Never a half-conversion.** A surface speaks the maquette's language or the old one, never
+   both. The `.tm` scope class is applied per page, which makes it structural rather than
+   disciplinary.
+2. **Not-measured is *declared*.** `regions.json` carries a `horsPerimetre` map naming every
+   uncovered surface **and why**. « Not tested » stops being a possible oversight.
+3. **Opposable non-regression.** Their existing component tests plus a screenshot baseline are
+   frozen before phase 1 and replayed at every phase. A pixel that moves there fails the build
+   unless declared. **Corollary:** the `PageHeader` removal applies only to converted pages,
+   never globally — an out-of-scope surface must not be touched by a rule it never asked for.
+
+The residual cost is a visible seam: two languages coexist until Système and Config are
+converted. That is the price of B5, and it is **listed here** so it is never discovered.
+
 ### 7.3 The DOM is a contract, checked offline
 
 `frontend/maquette/regions.json` maps each region to a CSS selector present in **both** the
@@ -384,6 +427,19 @@ meaningful rather than a comparison of chrome.
 The maquette already runs on the operator's **real data** — 260 library titles, 12 real follows,
 150 real TMDB suggestions produced by executing the engine. Fixtures keep that property: the
 comparison is done on data that actually exists.
+
+### 7.5 bis Behaviour is part of the contract, not just pixels
+
+The maquette's actions **mutate state**. Grabbing moves the card out of « À récupérer » into
+« En vol » at the *pris* station and decrements the nav badge. Resolving empties « Ça coince ».
+Pause, removal and deletion act, each with an undo where a gesture triggered them.
+
+This exists because a screenshot cannot say « grabbing moves the card ». `harness/actions.py`
+asserts the six behaviours by reading state before and after, so the developer inherits an
+opposable behavioural contract rather than an impression.
+
+`window.__reset()` restores the seed, and `__go()` calls it by default: a measurement must never
+inherit a previous measurement's mutations.
 
 ### 7.6 Gestures are proven under real touch, or not at all
 
