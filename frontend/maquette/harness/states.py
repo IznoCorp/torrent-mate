@@ -23,7 +23,7 @@ async def main():
           const cible = couche ? (dg.classList.contains('open')?dg:sc.classList.contains('open')?sc:sh) : v;
           return {sk:cible.querySelectorAll('.sk').length, txt:cible.textContent.replace(/\\s+/g,' ').trim().length,
                   doc:document.documentElement.scrollWidth,
-                  deb:[...cible.querySelectorAll('*')].filter(e=>e.getBoundingClientRect().right>390.5&&!e.closest('.pillscroll')&&!e.closest('.eps')).length,
+                  deb:[...cible.querySelectorAll('*')].filter(e=>e.getBoundingClientRect().right>390.5&&!e.closest('.pillscroll')&&!e.closest('.eps')&&!e.closest('.cast')).length,
                   couche};}""")
         ok = (r['txt']>60 or r['sk']>0) and r['doc']<=390 and r['deb']==0
         if not ok: bad.append((i,r))

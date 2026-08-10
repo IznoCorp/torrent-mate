@@ -513,6 +513,51 @@
       "states": [
         "acq-encours-repos"
       ]
+    },
+    "chassis/topbar": {
+      "selector": ".topbar",
+      "states": [
+        "acq-encours-repos"
+      ],
+      "$note": "Sens de la vérité INVERSÉ : l'app fait foi pour le châssis, la maquette en est le miroir."
+    },
+    "chassis/bottombar": {
+      "selector": ".bottombar",
+      "states": [
+        "acq-encours-repos"
+      ],
+      "$note": "idem"
+    },
+    "chassis/navbadge": {
+      "selector": ".navbadge",
+      "states": [
+        "arr-repos"
+      ],
+      "$note": "idem"
+    },
+    "fiche/hero": {
+      "selector": ".hero",
+      "states": [
+        "fiche-serie"
+      ]
+    },
+    "fiche/cast": {
+      "selector": ".cast",
+      "states": [
+        "fiche-serie"
+      ]
+    },
+    "fiche/trailer": {
+      "selector": ".trailer",
+      "states": [
+        "fiche-serie"
+      ]
+    },
+    "fiche/episode-row": {
+      "selector": ".eprow",
+      "states": [
+        "fiche-serie"
+      ]
     }
   },
   "states": [
@@ -551,7 +596,9 @@
     "arr-chargement",
     "arr-erreur",
     "arr-resolution",
-    "fiche",
+    "fiche-serie",
+    "fiche-film",
+    "fiche-sans-trailer",
     "systeme"
   ],
   "probe": {
@@ -581,6 +628,21 @@
       "align-items",
       "justify-content"
     ],
-    "allowlist": []
+    "allowlist": [
+      {
+        "selector": ".bottombar",
+        "property": "position",
+        "maquette": "absolute",
+        "app": "fixed",
+        "justification": "Déviation de harnais DÉCLARÉE : la vraie barre est fixed sur le viewport, ce qui est juste dans l'app où le viewport EST le téléphone ; dans un cadre inséré, fixed la collerait au bas de la fenêtre. Idem .fab et .selbar."
+      }
+    ]
+  },
+  "horsPerimetre": {
+    "$comment": "Surfaces présentes dans l'app mais VOLONTAIREMENT non couvertes par la maquette. Déclarées ici pour que « non mesuré » soit une décision et jamais un oubli. Règle : jamais de conversion à moitié — une surface parle la langue de la maquette (classe .tm) ou l'ancienne, jamais les deux.",
+    "/config": "Hors périmètre par décision opérateur en ouverture de mission. Non converti, non mesuré. Baseline de non-régression à figer avant la phase 1.",
+    "/systeme (intérieur)": "Reçoit la santé, les runs et les contrôles (arbitrage B5) mais sa refonte mobile est différée. Seule sa réception est dessinée ; son gabarit interne n'est pas mesuré.",
+    "/media/:provider/:id (implémentation)": "La fiche EXISTE et est conforme ; la maquette en dessine la cible mais la mission ne la reconstruit pas. Mesurée pour la structure, pas imposée au pixel sur l'existant.",
+    "desktop >= md": "§12 fait du téléphone l'origine du dessin ; le grand écran reste fonctionnel mais n'est pas spécifié au pixel."
   }
 }

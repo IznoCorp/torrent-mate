@@ -86,6 +86,12 @@
   :root[data-theme="light"] body {
     background: oklch(0.93 0.002 286);
   }
+  /* L'app hérite ça du preflight Tailwind ; la maquette doit le déclarer,
+     sinon le lien de la marque s'affiche en bleu souligné. */
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
   button {
     font: inherit;
     color: inherit;
@@ -94,6 +100,61 @@
   :focus-visible {
     outline: 2px solid var(--primary);
     outline-offset: 2px;
+  }
+
+  /* ── DÉVIATION DE HARNAIS, DÉCLARÉE ────────────────────────────────────
+     La vraie barre du bas est `position: fixed` sur le viewport — ce qui est
+     juste dans l'app, où le viewport EST le téléphone. Dans un cadre de
+     téléphone inséré au milieu d'un écran large, `fixed` la collerait au bas
+     de la FENÊTRE. La maquette la repositionne donc en `absolute` dans le
+     cadre. C'est la SEULE divergence assumée du châssis, et la sonde de
+     parité la porte comme une entrée d'allowlist justifiée — pas comme un
+     écart qu'on découvre. Idem pour le « + » et la barre de sélection. */
+  .device .bottombar,
+  .device .fab,
+  .device .selbar {
+    position: absolute;
+  }
+  .device .bottombar {
+    inset-inline: 0;
+    bottom: 0;
+  }
+
+  /* Boutons du harnais — hors châssis, puisque le châssis est désormais une
+     région MESURÉE et ne doit rien porter qui ne soit pas dans l'app.
+     `window.__measure(true)` les efface avant toute capture. */
+  .hbtn {
+    position: fixed;
+    top: 6px;
+    right: 6px;
+    z-index: 70;
+    display: flex;
+    gap: 4px;
+  }
+  .hbtn button {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: color-mix(in oklab, var(--background) 80%, transparent);
+    color: var(--muted-foreground);
+    display: grid;
+    place-items: center;
+    backdrop-filter: blur(4px);
+  }
+  .hbtn svg {
+    width: 13px;
+    height: 13px;
+  }
+  html.measuring .hbtn,
+  html.measuring .note {
+    display: none !important;
+  }
+  @media (min-width: 520px) {
+    .hbtn {
+      top: 26px;
+      right: calc(50% - 250px);
+    }
   }
 
   /* ── Phone frame ───────────────────────────────────────────── */
@@ -138,28 +199,63 @@
      la portée `.tm`, par extraction MÉCANIQUE — jamais par recopie.
      ═══════════════════════════════════════════════════════════════════════ */
 
-  /* ── Top bar ───────────────────────────────────────────────── */
+  /* ── Châssis — TRANSPLANTÉ DEPUIS L'APP, pas dessiné ici ──────────────
+     Sens de la vérité INVERSÉ pour cette région : pour les pages, la maquette
+     fait foi ; pour le châssis, c'est `layout/TopBar.tsx` et
+     `layout/BottomTabBar.tsx` qui font foi. Ils ont été refondus, mesurés et
+     prouvés pendant acq-mobile (cadre d'app, hauteurs mesurées, fin du
+     tremblement iOS) — les redessiner rouvrirait des problèmes résolus.
+     Les valeurs ci-dessous sont les leurs, converties depuis Tailwind.
+     Toute évolution VOLONTAIRE du châssis doit être une exception nommée. */
+
   .topbar {
-    flex: 0 0 auto;
+    position: relative;
+    z-index: 40;
     display: flex;
+    flex-shrink: 0;
     align-items: center;
-    gap: 9px;
-    padding: 11px 14px;
+    gap: 16px;
     border-bottom: 1px solid var(--border);
-    background: var(--sidebar);
+    background: var(--background);
+    padding: calc(env(safe-area-inset-top) + 12px) 16px 12px;
+  }
+  @media (min-width: 768px) {
+    .topbar {
+      padding-left: 24px;
+      padding-right: 24px;
+    }
+  }
+  .topbar .burger {
+    margin-left: -4px;
+    display: inline-flex;
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted-foreground);
+  }
+  .topbar .burger svg {
+    width: 20px;
+    height: 20px;
   }
   .brand {
     display: flex;
     align-items: center;
-    gap: 7px;
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
+    gap: 8px;
   }
   .brand .mk {
-    width: 19px;
-    height: 19px;
+    width: 28px;
+    height: 28px;
     color: var(--primary);
+  }
+  .brand .wm {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: -0.025em;
   }
   .brand em {
     font-style: normal;
@@ -169,31 +265,45 @@
     margin-left: auto;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 12px;
   }
-  .iconbtn {
+  /* StatusDot, verbatim depuis components/ds/StatusDot.css */
+  .ps-dot {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: var(--muted-foreground);
+  }
+  .ps-dot__d {
+    position: relative;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex: none;
+    background: var(--success);
+  }
+  /* Le libellé est masqué sous 640 px : à 390 px il ne s'affiche donc PAS —
+     « Reconnexion… » déborderait l'en-tête. */
+  .ps-dot__label {
+    display: none;
+  }
+  @media (min-width: 640px) {
+    .ps-dot__label {
+      display: inline;
+    }
+  }
+  .avatar {
     width: 32px;
     height: 32px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    background: transparent;
+    border-radius: 9999px;
+    border: 0;
+    background: var(--muted);
     color: var(--muted-foreground);
+    font-size: 12px;
+    font-weight: 500;
     display: grid;
     place-items: center;
-  }
-  .iconbtn svg {
-    width: 15px;
-    height: 15px;
-  }
-  .iconbtn[aria-pressed="true"] {
-    color: var(--primary);
-    border-color: var(--primary);
-  }
-  .livedot {
-    width: 7px;
-    height: 7px;
-    border-radius: 99px;
-    background: var(--success);
   }
 
   /* ── Scrollport ────────────────────────────────────────────── */
@@ -1186,58 +1296,87 @@
     display: none;
   }
 
-  /* ── Bottom bar ────────────────────────────────────────────── */
+  /* ── Bottom bar — transplantée depuis BottomTabBar.tsx ──────────────── */
+  html.selecting .bottombar {
+    display: none;
+  }
   .bottombar {
-    flex: 0 0 auto;
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 50;
     display: flex;
     border-top: 1px solid var(--border);
     background: var(--sidebar);
     padding-bottom: env(safe-area-inset-bottom);
-    z-index: 40;
   }
+  @media (min-width: 768px) {
+    .bottombar {
+      display: none;
+    }
+  }
+  .bottombar a,
   .bottombar button {
-    flex: 1;
+    display: flex;
+    min-height: 44px;
     min-width: 0;
+    flex: 1 1 0%;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding-block: 8px;
+    font-size: 12px;
     border: 0;
     background: transparent;
     color: var(--muted-foreground);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 3px;
-    padding: 9px 2px 8px;
-    position: relative;
+    transition: color 0.15s;
   }
   .bottombar button[aria-current="page"] {
     color: var(--primary);
   }
   .bottombar svg {
-    width: 19px;
-    height: 19px;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
   }
   .bottombar .lb {
-    font-size: 10px;
-    font-weight: 600;
-    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
     max-width: 100%;
+  }
+  /* Le badge est un EXPOSANT D'ANGLE sur l'icône — jamais un troisième enfant
+     de flux, qui rendrait l'onglet plus haut (SHELL-2). */
+  .bottombar .ic {
+    position: relative;
+    display: inline-flex;
   }
   .navbadge {
     position: absolute;
-    top: 5px;
-    left: calc(50% + 6px);
-    min-width: 16px;
-    height: 16px;
-    padding: 0 4px;
-    border-radius: 99px;
+    right: -10px;
+    top: -6px;
+    display: inline-flex;
+    height: 18px;
+    min-width: 18px;
+    align-items: center;
+    justify-content: center;
+    padding-inline: 4px;
+    border-radius: 9999px;
+    /* PRIMARY, pas danger : c'est la valeur de NavCountBadge. Le rouge est
+       réservé au « ? » d'un compteur indisponible. */
+    background: var(--primary);
+    color: var(--primary-foreground);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+    outline: 2px solid var(--sidebar);
+  }
+  .navbadge.unknown {
     background: var(--danger);
     color: #fff;
-    font-size: 10px;
-    font-weight: 700;
-    display: grid;
-    place-items: center;
-    box-shadow: 0 0 0 2px var(--sidebar);
   }
 
   /* ── Screens (résolution, fiche) ───────────────────────────── */
@@ -1385,6 +1524,163 @@
   }
   .sact.primary svg {
     color: var(--primary-foreground);
+  }
+
+  /* ── Fiche média — un SEUL gabarit pour tous ───────────────────────────
+     Les différences entre un film et une série sont celles que leur nature
+     impose, et rien d'autre : un film a un réalisateur et une durée, une série
+     a un créateur, un statut et un catalogue d'épisodes. Tout le reste —
+     hero, synopsis, distribution, bande-annonce, identifiants, médiathèque —
+     est identique, dans le même ordre. Une donnée absente s'écrit
+     « inconnu », jamais un tiret muet (§14.3). */
+  .hero {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .hero .ht {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+  .hero .hm {
+    margin: 5px 0 0;
+    font-size: 12px;
+    color: var(--muted-foreground);
+    line-height: 1.55;
+  }
+  .hero .hn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 7px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--primary);
+  }
+  .hero .hn svg {
+    width: 13px;
+    height: 13px;
+  }
+  .cast {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    touch-action: pan-x;
+    padding-bottom: 2px;
+  }
+  .cast::-webkit-scrollbar {
+    display: none;
+  }
+  .cast figure {
+    flex: 0 0 auto;
+    width: 74px;
+    margin: 0;
+  }
+  .cast .ca {
+    width: 74px;
+    height: 74px;
+    border-radius: 9999px;
+    background: var(--muted);
+    display: grid;
+    place-items: center;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 19px;
+    font-weight: 600;
+    color: var(--muted-foreground);
+    overflow: hidden;
+  }
+  .cast figcaption {
+    margin-top: 6px;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+  .cast figcaption b {
+    display: block;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .cast figcaption span {
+    display: block;
+    color: var(--muted-foreground);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .trailer {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    border: 1px solid var(--border);
+    background: var(--card);
+    border-radius: 8px;
+    padding: 11px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: left;
+  }
+  .trailer .pl {
+    flex: 0 0 auto;
+    width: 30px;
+    height: 30px;
+    border-radius: 9999px;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    display: grid;
+    place-items: center;
+  }
+  .trailer .pl svg {
+    width: 14px;
+    height: 14px;
+  }
+  .trailer small {
+    display: block;
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--muted-foreground);
+    margin-top: 1px;
+  }
+  .eprow {
+    display: flex;
+    align-items: baseline;
+    gap: 9px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12.5px;
+  }
+  .eprow:last-child {
+    border-bottom: 0;
+  }
+  .eprow .en {
+    flex: 0 0 auto;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted-foreground);
+    min-width: 34px;
+  }
+  .eprow .et {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .eprow .ed {
+    flex: 0 0 auto;
+    font-size: 11px;
+    color: var(--muted-foreground);
+    font-variant-numeric: tabular-nums;
+  }
+  .eprow.avenir .et,
+  .eprow.avenir .en {
+    color: var(--upcoming);
   }
 
   /* ── Matrice de saisons (feuille de détail d'un suivi) ─────────
@@ -2062,12 +2358,16 @@
     outline: 2px solid var(--primary);
     outline-offset: -2px;
   }
+  /* Pendant une sélection, cette barre REMPLACE la barre d'onglets : les
+     empiler couvrait « Supprimer » (z-index 41 sous 50) et coûtait 57 px de
+     hauteur sur un écran de téléphone. On est dans un mode ; « Annuler » en
+     est la sortie, et elle est là. */
   .selbar {
     position: absolute;
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 41;
+    z-index: 51;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -2201,54 +2501,18 @@
 <div class="stage">
   <div class="device" id="device">
     <header class="topbar">
-      <div class="brand">
-        <svg
-          class="mk"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M3 4h18l-7 8v7l-4 2v-9z" />
-        </svg>
-        <span>Torrent<em>Mate</em></span>
-      </div>
-      <div class="sp">
-        <button
-          class="iconbtn"
-          id="notesBtn"
-          aria-pressed="false"
-          aria-label="Afficher les notes de conception"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 16v-4M12 8h.01" />
-          </svg>
-        </button>
-        <button class="iconbtn" id="scenBtn" aria-label="Basculer le scénario de données" title="Données : réel / charge">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h12M3 18h6"/></svg>
+      <button class="burger" aria-label="Ouvrir le menu de navigation">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
       </button>
-      <button class="iconbtn" id="themeBtn" aria-label="Basculer le thème">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-          >
-            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z" />
-          </svg>
-        </button>
-        <span class="livedot" title="Connecté"></span>
+      <a class="brand" href="#" onclick="return false">
+        <svg class="mk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h18l-7 8v7l-4 2v-9z"/></svg>
+        <span class="wm">Torrent<em>Mate</em></span>
+      </a>
+      <div class="sp">
+        <span class="ps-dot ps-dot--done" title="Temps réel connecté">
+          <span class="ps-dot__d"></span><span class="ps-dot__label">Connecté</span>
+        </span>
+        <button class="avatar" aria-label="Menu utilisateur">I</button>
       </div>
     </header>
 
@@ -2257,7 +2521,19 @@
       <div id="view"></div>
     </div>
 
-    <button class="fab" id="fab" aria-label="Ajouter un média" hidden>
+    <div class="hbtn">
+    <button id="notesBtn" aria-pressed="false" aria-label="Notes de conception" title="Notes de conception">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+    </button>
+    <button id="scenBtn" aria-label="Harnais" title="Harnais — états et données">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h12M3 18h6"/></svg>
+    </button>
+    <button id="themeBtn" aria-label="Thème" title="Clair / sombre">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg>
+    </button>
+  </div>
+
+  <button class="fab" id="fab" aria-label="Ajouter un média" hidden>
       <svg
         viewBox="0 0 24 24"
         fill="none"
@@ -2334,6 +2610,7 @@
     check: '<path d="M20 6 9 17l-5-5"/>',
     x: '<path d="M18 6 6 18M6 6l12 12"/>',
     file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
+    star: '<path d="m12 3 2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"/>',
     film: '<rect x="2" y="3" width="20" height="18" rx="2"/><path d="M7 3v18M17 3v18M2 9h5M2 15h5M17 9h5M17 15h5"/>',
     tv: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="m17 2-5 5-5-5"/>',
     clap: '<path d="M3 8h18v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="m3 8 2-5 16 2-2 3"/><path d="m8 3 1.5 4M14 4l1.5 4"/>',
@@ -2349,13 +2626,19 @@
     );
   /* initialsOf() du composant livré : les premières lettres des DEUX premiers
      mots, en majuscules. Le prototype n'en prenait qu'une. */
+  /* Certains titres de library.db portent un suffixe d'année — parfois
+     DOUBLÉ (« Silo (2023) (2023) »). Il n'est pas un mot du titre : ni les
+     initiales ni la recherche d'affiche ne doivent le voir. */
+  function baseTitle(t) {
+    return String(t).replace(/\s*\((?:19|20)\d{2}\)\s*/g, " ").trim();
+  }
   function initials(t) {
-    const w = String(t).trim().split(/\s+/).filter(Boolean);
+    const w = baseTitle(t).split(/\s+/).filter(Boolean);
     return ((w[0]?.[0] ?? "") + (w.length > 1 ? (w[1]?.[0] ?? "") : "")).toUpperCase();
   }
   /* Contenu d'une boîte d'affiche : l'image réelle, sinon le repli fidèle. */
   function posterBox(t, kind) {
-    const src = POSTERS[t];
+    const src = POSTERS[t] ?? POSTERS[baseTitle(t)];
     if (src) return `<img src="${src}" alt="" loading="lazy">`;
     const ic = kind === "movie" ? I.film : kind === "show" ? I.tv : I.clap;
     return `<span class="pfall">${svg(ic, 1.25)}<b>${initials(t)}</b></span>`;
@@ -2719,6 +3002,7 @@
     libCat: "all",
     libMode: "grid",
     scen: "reel",
+    resolveTarget: null,
     phase: "prete",
     tmdb: true,
     q: "",
@@ -2798,17 +3082,111 @@
   </section>`;
   }
 
+  /* ═══ ÉTAT DE TRAVAIL — les actions MUTENT vraiment ════════════════════
+     Les jeux de données ci-dessus sont la graine ; `W` en est la copie
+     vivante. Une action ne se contente pas d'un toast : elle déplace la
+     carte, décrémente le badge, vide la section. C'est ce qui fait de la
+     maquette un contrat de COMPORTEMENT et pas seulement de pixels — le
+     développeur peut opposer « dans la maquette, récupérer fait passer la
+     carte en vol », ce qu'aucune capture ne dit.
+
+     `window.__reset()` remet la graine ; `__go()` l'appelle systématiquement,
+     pour que chaque mesure parte du même état. */
+  let W = null;
+  function seed() {
+    const c = (x) => JSON.parse(JSON.stringify(x));
+    W = {
+      takeable: c(TAKEABLE), blocked: c(BLOCKED), inflight: c(INFLIGHT),
+      notfound: c(NOTFOUND), notfoundReel: c(NOTFOUND_REEL), doneToday: c(DONE_TODAY),
+      stuck: c(STUCK), stuckReel: c(STUCK_REEL), moving: c(MOVING), settled: c(SETTLED),
+      // La graine, PAS l'état courant — sinon seed() se clone lui-même.
+      follows: c(FOLLOWS), lib: LIB.slice(), removedLib: new Set(),
+    };
+  }
+  seed();
+  /* ── Comportements simulés ─────────────────────────────────────────────
+     Chaque action déplace vraiment la donnée. Ce que le développeur doit
+     reproduire n'est pas « un toast s'affiche » mais « la carte quitte
+     À récupérer, apparaît En vol à l'étape pris, et le badge perd 1 ». */
+
+  function actionRecuperer(titre) {
+    const i = W.takeable.findIndex((x) => x.t === titre);
+    if (i < 0) return;
+    const [o] = W.takeable.splice(i, 1);
+    W.inflight.unshift({ ...o, strip: ["now", 0, 0, 0, 0], chip: ["info", "Récupération lancée"] });
+    render();
+    toast(`« ${baseTitle(titre)} » récupéré — suivez-le dans « En vol ».`);
+  }
+
+  function actionResoudre(titre, choix) {
+    const i = W.stuck.findIndex((x) => x.t === titre);
+    const j = W.stuckReel.findIndex((x) => x.t === titre);
+    const src = i >= 0 ? W.stuck : j >= 0 ? W.stuckReel : null;
+    if (!src) return;
+    const [o] = src.splice(i >= 0 ? i : j, 1);
+    const carte = { t: choix ?? o.t, s: o.s, strip: [1, 1, 1, "now", 0], chip: ["info", "Scraping"] };
+    if (i >= 0) W.moving.unshift(carte);
+    else (W.movingReel ??= []).unshift(carte);
+    render();
+    toast(`Identifié comme « ${choix ?? o.t} » — le pipeline reprend jusqu'à la médiathèque.`);
+  }
+
+  function actionPause(titre) {
+    const o = W.follows.find((x) => x.t === titre);
+    if (!o) return;
+    const avant = o.st;
+    o.st = o.st === "disabled" ? (o.k === "movie" ? "en_attente" : "a_jour") : "disabled";
+    const remis = o.st !== "disabled";
+    render();
+    toastUndo(
+      remis ? `« ${o.t} » réactivé.` : `« ${o.t} » ${o.k === "movie" ? "ne sera plus cherché" : "mis en pause"}.`,
+      () => { o.st = avant; render(); },
+    );
+  }
+
+  function actionRetirer(titre) {
+    const i = W.follows.findIndex((x) => x.t === titre);
+    if (i < 0) return;
+    const [o] = W.follows.splice(i, 1);
+    render();
+    toastUndo(`« ${o.t} » retiré de vos suivis.`, () => { W.follows.splice(i, 0, o); render(); });
+  }
+
+  function actionSuivre(titre, kind) {
+    if (W.follows.some((x) => baseTitle(x.t) === baseTitle(titre))) return;
+    W.follows.unshift({ t: titre, k: kind === "Film" ? "movie" : "show", st: "non_verifie", fresh: true });
+    toast(`« ${titre} » ${kind === "Film" ? "ajouté à votre liste" : "ajouté à vos suivis"} — il apparaît en tête de « Suivis », marqué Nouveau.`);
+  }
+
+  function actionSupprimer(titres) {
+    titres.forEach((t) => W.removedLib.add(t));
+    W.lib = W.lib.filter((x) => !W.removedLib.has(x.t));
+    S.selMode = false;
+    S.selected = new Set();
+    render();
+    toast(`${titres.length} média${titres.length > 1 ? "s" : ""} supprimé${titres.length > 1 ? "s" : ""} — simulation, aucun fichier touché.`);
+  }
+
+  window.__reset = () => {
+    seed();
+    Object.assign(S, { pill: "tout", filtre: "", q: "", libCount: 24, sugCount: 30,
+      selMode: false, selected: new Set(), sugGone: new Set(), added: new Set(),
+      libErr: false, libFailedOnce: false });
+    return true;
+  };
+
   /* Jeux de données actifs, résolus par scénario. Le reste du code ne sait
      pas quel scénario tourne — il lit ces accesseurs. */
   const D = {
-    takeable: () => (S.scen === "reel" ? [] : TAKEABLE),
-    blocked: () => (S.scen === "reel" ? [] : BLOCKED),
-    inflight: () => (S.scen === "reel" ? [] : INFLIGHT),
-    notfound: () => (S.scen === "reel" ? NOTFOUND_REEL : NOTFOUND),
-    doneToday: () => (S.scen === "reel" ? [] : DONE_TODAY),
-    stuck: () => (S.scen === "reel" ? STUCK_REEL : STUCK),
-    moving: () => (S.scen === "reel" ? [] : MOVING),
-    settled: () => (S.scen === "reel" ? [] : SETTLED),
+    takeable: () => (S.scen === "reel" ? [] : W.takeable),
+    blocked: () => (S.scen === "reel" ? [] : W.blocked),
+    inflight: () => (S.scen === "reel" ? W.inflightReel ?? [] : W.inflight),
+    notfound: () => (S.scen === "reel" ? W.notfoundReel : W.notfound),
+    doneToday: () => (S.scen === "reel" ? W.doneReel ?? [] : W.doneToday),
+    stuck: () => (S.scen === "reel" ? W.stuckReel : W.stuck),
+    moving: () => (S.scen === "reel" ? W.movingReel ?? [] : W.moving),
+    settled: () => (S.scen === "reel" ? W.settledReel ?? [] : W.settled),
+    follows: () => W.follows,
   };
 
   /* ── Trois phases par surface, pilotées par le harnais ────────────────
@@ -2889,10 +3267,10 @@
 
     if (S.acqTab === "suivis") {
       const pills = [
-        { id: "tout", l: "Tout", n: FOLLOWS.length },
-        { id: "series", l: "Séries", n: FOLLOWS.filter((o) => o.k !== "movie").length },
-        { id: "films", l: "Films", n: FOLLOWS.filter((o) => o.k === "movie").length },
-        { id: "pause", l: "En pause", n: FOLLOWS.filter((o) => o.st === "disabled").length },
+        { id: "tout", l: "Tout", n: W.follows.length },
+        { id: "series", l: "Séries", n: W.follows.filter((o) => o.k !== "movie").length },
+        { id: "films", l: "Films", n: W.follows.filter((o) => o.k === "movie").length },
+        { id: "pause", l: "En pause", n: W.follows.filter((o) => o.st === "disabled").length },
       ];
       const match = (o) =>
         S.pill === "tout" ||
@@ -2902,7 +3280,7 @@
       const terme = S.filtre.trim().toLocaleLowerCase();
       const norm = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase();
       const matchNom = (o) => terme === "" || norm(o.t).includes(norm(terme));
-      const visible = FOLLOWS.filter((o) => match(o) && matchNom(o)).sort(
+      const visible = W.follows.filter((o) => match(o) && matchNom(o)).sort(
         (a, b) =>
           (a.fresh ? 0 : 1) - (b.fresh ? 0 : 1) ||
           URGENCY[a.st] - URGENCY[b.st] ||
@@ -2963,7 +3341,7 @@
               ? "Aucun suivi en pause."
               : "Aucun suivi.",
           terme !== ""
-            ? `Sur vos <b>${FOLLOWS.length}</b> suivis, aucun ne porte ce nom. Le filtre ignore la casse et les accents.`
+            ? `Sur vos <b>${W.follows.length}</b> suivis, aucun ne porte ce nom. Le filtre ignore la casse et les accents.`
             : S.pill === "pause"
               ? "Mettre un suivi en pause l'arrête sans le supprimer : il reste ici, et se réactive d'un geste."
               : "Le <b>+</b> en bas à droite ajoute un film ou une série.",
@@ -3223,14 +3601,14 @@
     fab = $("#fab");
 
   function renderNav() {
-    nav.innerHTML = PAGES_OF().map(
-      (
-        p,
-      ) => `<button data-page="${p.id}" ${S.page === p.id ? 'aria-current="page"' : ""}>
-    ${svg(p.ic)}<span class="lb">${p.l}</span>
-    ${p.badge ? `<span class="navbadge">${p.badge}</span>` : ""}
-  </button>`,
-    ).join("");
+    nav.innerHTML = PAGES_OF()
+      .map(
+        (p) => `<button data-page="${p.id}" ${S.page === p.id ? 'aria-current="page"' : ""}>
+      <span class="ic">${svg(p.ic)}${p.badge ? `<span class="navbadge">${p.badge}</span>` : ""}</span>
+      <span class="lb">${p.l}</span>
+    </button>`,
+      )
+      .join("");
   }
   function render() {
     const p = PAGES_OF().find((x) => x.id === S.page);
@@ -3301,6 +3679,7 @@
   function paintSelBar() {
     const old = document.querySelector(".selbar");
     if (old) old.remove();
+    document.documentElement.classList.toggle("selecting", !!S.selMode);
     if (!S.selMode) return;
     const n = S.selected.size;
     const bar = document.createElement("div");
@@ -3361,9 +3740,9 @@
 
   function libFiltered() {
     const t = S.q.trim();
-    if (t === "") return LIB;
+    if (t === "") return W.lib;
     const norm = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase();
-    return LIB.filter((o) => norm(o.t).includes(norm(t)));
+    return W.lib.filter((o) => norm(o.t).includes(norm(t)));
   }
 
   function fillLib() {
@@ -3406,7 +3785,7 @@
     if (S.libCount >= libFiltered().length) {
       // La maquette ne porte que 260 titres réels ; le dire, plutôt que de
       // laisser une fin de liste contredire le « sur 1 861 » du compteur.
-      foot.innerHTML = `<p class="endmark">Fin de l'échantillon — cette maquette charge ${LIB.length} titres réels sur les 1 861 de votre médiathèque. En vrai, le défilement continuerait jusqu'au bout.</p>`;
+      foot.innerHTML = `<p class="endmark">Fin de l'échantillon — cette maquette charge ${W.lib.length} titres réels sur les 1 861 de votre médiathèque. En vrai, le défilement continuerait jusqu'au bout.</p>`;
       return;
     }
     if (S.libErr) {
@@ -3745,7 +4124,9 @@
     ["arr-chargement", "Arrivées — chargement", () => set({ page: "arr", phase: "chargement" })],
     ["arr-erreur", "Arrivées — erreur", () => set({ page: "arr", phase: "erreur" })],
     ["arr-resolution", "Arrivées — écran de résolution", () => { set({ page: "arr", phase: "prete" }); openResolve(); }],
-    ["fiche", "Fiche média", () => { set({ page: "lib", phase: "prete" }); openFiche("Silo"); }],
+    ["fiche-serie", "Fiche — série avec épisodes datés", () => { set({ page: "lib", phase: "prete" }); openFiche("Silo (2023)"); }],
+    ["fiche-film", "Fiche — film", () => { set({ page: "lib", phase: "prete" }); openFiche("Marjorie Prime"); }],
+    ["fiche-sans-trailer", "Fiche — sans bande-annonce", () => { set({ page: "lib", phase: "prete" }); openFiche("Les aventures de Tintin"); }],
     ["systeme", "Système — réception", () => set({ page: "sys", phase: "prete" })],
   ];
 
@@ -3757,14 +4138,26 @@
     render();
   }
 
-  window.__go = (id) => {
+  window.__go = (id, opts) => {
     const s = STATES.find((x) => x[0] === id);
     if (!s) throw new Error("état inconnu : " + id);
     closeHarness();
+    // Remise à la graine par DÉFAUT : une mesure ne doit jamais hériter des
+    // mutations d'une mesure précédente. `__go(id, {keep:true})` conserve
+    // l'état, pour enchaîner un scénario d'action.
+    if (!opts?.keep) window.__reset();
     s[2]();
     return id;
   };
   window.__states = () => STATES.map((s) => s[0]);
+
+  /* Efface TOUT le harnais avant une capture ou une comparaison en pixels :
+     les boutons du harnais flottent au-dessus du châssis, qui est désormais
+     une région mesurée et ne doit rien porter qui n'existe pas dans l'app. */
+  window.__measure = (on) => {
+    document.documentElement.classList.toggle("measuring", on !== false);
+    return on !== false;
+  };
 
   function closeHarness() {
     const el = document.querySelector(".hpanel");
@@ -3902,10 +4295,16 @@
           setTimeout(() => el.remove(), 320);
         }
       }
-      toast(`« ${b.dataset.follow} » ${verb} — la recherche commence maintenant.`);
+      actionSuivre(b.dataset.follow, s?.k ?? "Série");
       return;
     }
 
+    if (b.dataset.resolve) {
+      const cible = S.resolveTarget;
+      closeScreen();
+      setTimeout(() => actionResoudre(cible, b.dataset.resolve), 240);
+      return;
+    }
     if (b.dataset.hclose) {
       closeHarness();
       return;
@@ -4000,8 +4399,8 @@
         return;
       }
       S.added.add(i);
+      actionSuivre(r.t, r.k);
       openAddScreen();
-      toast(`« ${r.t} » ${r.k === "Film" ? "ajouté à votre liste" : "ajouté à vos suivis"} — la recherche commence maintenant.`);
       return;
     }
     if (b.dataset.confirmadd) {
@@ -4025,15 +4424,26 @@
       return;
     }
     if (b.classList.contains("cfoot")) {
+      const t = b.closest(".card")?.querySelector(".ctitle")?.textContent ?? "";
+      const lab = b.textContent.trim();
+      if (lab.startsWith("Récupérer")) return actionRecuperer(t);
+      if (lab.startsWith("Résoudre")) return openResolve(t);
+      if (lab.startsWith("Compléter")) {
+        S.page = "acq";
+        S.acqTab = "maintenant";
+        render();
+        return toast(`« ${baseTitle(t)} » : recherche des épisodes manquants lancée.`);
+      }
       toast("Action lancée — le résultat s'affichera ici.");
       return;
     }
     if (b.classList.contains("act")) {
       const t = b.closest(".swipe").querySelector(".ctitle").textContent;
-      if (b.classList.contains("remove") && S.page === "lib")
-        return openDeleteDialog(t);
-      toast(`${b.textContent.trim()} — ${t}`);
       b.closest(".swipe").querySelector(".card").style.transform = "";
+      if (b.classList.contains("remove"))
+        return S.page === "lib" ? openDeleteDialog(t) : actionRetirer(t);
+      if (b.classList.contains("pause")) return actionPause(t);
+      toast(`${b.textContent.trim()} — ${t}`);
       return;
     }
   });
@@ -4043,7 +4453,7 @@
     const titles = many && many.length > 0 ? many : [title];
     const multi = titles.length > 1;
     const inc = (t) => INCOMPLETE.find((x) => x.t === t);
-    const followed = titles.filter((t) => FOLLOWS.some((f) => f.t === t) || !!inc(t));
+    const followed = titles.filter((t) => W.follows.some((f) => f.t === t) || !!inc(t));
     const files = titles.reduce((n, t) => n + (inc(t) ? inc(t).o : 1), 0);
     const size = (files * 0.41).toFixed(1).replace(".", ",") + " Go";
     const head = multi
@@ -4087,11 +4497,7 @@
       .forEach((x) =>
         x.addEventListener("click", () => {
           closeDlg();
-          if (S.selMode) {
-            S.selMode = false;
-            S.selected.clear();
-            render();
-          }
+          actionSupprimer(titles);
         }),
       );
   }
@@ -4102,7 +4508,8 @@
      propre barre « ‹ Retour ». Elle dit ce QU'EST le média et où il en est
      CHEZ NOUS. Une donnée absente s'écrit « inconnu » — jamais un tiret muet
      (§14.3 : une étape inconnue se dit inconnue, jamais « pas faite »). */
-  const FICHES = {
+  const FICHES_RAW = {"Silo (2023)": {"k": "show", "y": "2023", "note": 8.2, "g": "Science-Fiction & Fantastique · Drame", "duree": null, "ov": "Dans un monde futur dévasté et toxique, des milliers de survivants habitent un gigantesque silo souterrain. Après la transgression d'une règle d'or par leur shérif et la mort mystérieuse de plusieurs résidents, Juliette, une mécanicienne, perce peu à peu les terribles secrets du Silo.", "real": null, "crea": "Graham Yost", "cast": [{"n": "Rebecca Ferguson", "r": "Juliette Nichols"}, {"n": "Common", "r": "Robert Sims"}, {"n": "Chinaza Uche", "r": "Paul Billings"}, {"n": "Ashley Zukerman", "r": "Daniel Keene"}, {"n": "Shane McRae", "r": "Knox"}, {"n": "Remmie Milner", "r": "Shirley Campbell"}], "trailer": "Bande-annonce officielle", "ids": {"tvdb": "403245", "imdb": "tt14688458", "tmdb": "125988"}, "statut": "En cours", "saisons": [{"n": 1, "ep": 10, "air": "2023-05-04"}, {"n": 2, "ep": 10, "air": "2024-11-14"}, {"n": 3, "ep": 10, "air": "2026-07-02"}, {"n": 4, "ep": 0, "air": ""}], "tmdbTv": "125988", "eps": {"3": [{"n": 1, "t": "Qui êtes-vous ?", "air": "2026-07-02", "d": 56}, {"n": 2, "t": "Tout va bien", "air": "2026-07-09", "d": 51}, {"n": 3, "t": "Dark Web", "air": "2026-07-16", "d": 49}, {"n": 4, "t": "Ne rentre pas chez toi", "air": "2026-07-23", "d": 48}, {"n": 5, "t": "Souvenirs", "air": "2026-07-30", "d": 52}, {"n": 6, "t": "La voiture", "air": "2026-08-06", "d": 55}, {"n": 7, "t": "Radio", "air": "2026-08-13", "d": 56}, {"n": 8, "t": "Épisode 8", "air": "2026-08-20", "d": null}, {"n": 9, "t": "Épisode 9", "air": "2026-08-27", "d": null}, {"n": 10, "t": "Épisode 10", "air": "2026-09-03", "d": null}]}}, "Silo": {"k": "show", "y": "2023", "note": 8.2, "g": "Science-Fiction & Fantastique · Drame", "duree": null, "ov": "Dans un monde futur dévasté et toxique, des milliers de survivants habitent un gigantesque silo souterrain. Après la transgression d'une règle d'or par leur shérif et la mort mystérieuse de plusieurs résidents, Juliette, une mécanicienne, perce peu à peu les terribles secrets du Silo.", "real": null, "crea": "Graham Yost", "cast": [{"n": "Rebecca Ferguson", "r": "Juliette Nichols"}, {"n": "Common", "r": "Robert Sims"}, {"n": "Chinaza Uche", "r": "Paul Billings"}, {"n": "Ashley Zukerman", "r": "Daniel Keene"}, {"n": "Shane McRae", "r": "Knox"}, {"n": "Remmie Milner", "r": "Shirley Campbell"}], "trailer": "Bande-annonce officielle", "ids": {"tvdb": "403245", "imdb": "tt14688458", "tmdb": "125988"}, "statut": "En cours", "saisons": [{"n": 1, "ep": 10, "air": "2023-05-04"}, {"n": 2, "ep": 10, "air": "2024-11-14"}, {"n": 3, "ep": 10, "air": "2026-07-02"}, {"n": 4, "ep": 0, "air": ""}], "tmdbTv": "125988", "eps": {"3": [{"n": 1, "t": "Qui êtes-vous ?", "air": "2026-07-02", "d": 56}, {"n": 2, "t": "Tout va bien", "air": "2026-07-09", "d": 51}, {"n": 3, "t": "Dark Web", "air": "2026-07-16", "d": 49}, {"n": 4, "t": "Ne rentre pas chez toi", "air": "2026-07-23", "d": 48}, {"n": 5, "t": "Souvenirs", "air": "2026-07-30", "d": 52}, {"n": 6, "t": "La voiture", "air": "2026-08-06", "d": 55}, {"n": 7, "t": "Radio", "air": "2026-08-13", "d": 56}, {"n": 8, "t": "Épisode 8", "air": "2026-08-20", "d": null}, {"n": 9, "t": "Épisode 9", "air": "2026-08-27", "d": null}, {"n": 10, "t": "Épisode 10", "air": "2026-09-03", "d": null}]}}, "Furious (2026)": {"k": "show", "y": "2026", "note": 6.4, "g": "Drame · Crime", "duree": null, "ov": "Alice Black, agent du FBI, est à la poursuite d'une mystérieuse tueuse en série, d'un esprit calculateur. Chacune suit son propre chemin vers la justice, et à mesure que leurs vies commencent à s'entremêler, la frontière entre le bien et le mal s'estompe peu à peu.", "real": null, "crea": "Elizabeth Meriwether", "cast": [{"n": "Emmy Rossum", "r": "Alice Black"}, {"n": "Lola Petticrew", "r": "Catherine"}, {"n": "Scoot McNairy", "r": "Danny Kelly"}, {"n": "Quincy Tyler Bernstine", "r": "Nora Washington"}], "trailer": "Furious - Bande-annonce officielle (VOST) | Disney+", "ids": {"tvdb": "468000", "tmdb": "287238", "imdb": "tt36303968"}, "statut": "En cours", "saisons": [{"n": 1, "ep": 8, "air": "2026-07-27"}], "tmdbTv": "287238", "eps": {"1": [{"n": 1, "t": "La Gorgone", "air": "2026-07-27", "d": 52}, {"n": 2, "t": "Ma vie était un fusil chargé", "air": "2026-07-27", "d": 55}, {"n": 3, "t": "Faux souvenirs", "air": "2026-07-27", "d": 54}, {"n": 4, "t": "Inondation", "air": "2026-08-03", "d": 56}, {"n": 5, "t": "Épisode 5", "air": "2026-08-10", "d": null}, {"n": 6, "t": "Épisode 6", "air": "2026-08-17", "d": null}, {"n": 7, "t": "Épisode 7", "air": "2026-08-24", "d": null}, {"n": 8, "t": "Épisode 8", "air": "2026-08-31", "d": null}]}}, "Furious": {"k": "show", "y": "2026", "note": 6.4, "g": "Drame · Crime", "duree": null, "ov": "Alice Black, agent du FBI, est à la poursuite d'une mystérieuse tueuse en série, d'un esprit calculateur. Chacune suit son propre chemin vers la justice, et à mesure que leurs vies commencent à s'entremêler, la frontière entre le bien et le mal s'estompe peu à peu.", "real": null, "crea": "Elizabeth Meriwether", "cast": [{"n": "Emmy Rossum", "r": "Alice Black"}, {"n": "Lola Petticrew", "r": "Catherine"}, {"n": "Scoot McNairy", "r": "Danny Kelly"}, {"n": "Quincy Tyler Bernstine", "r": "Nora Washington"}], "trailer": "Furious - Bande-annonce officielle (VOST) | Disney+", "ids": {"tvdb": "468000", "tmdb": "287238", "imdb": "tt36303968"}, "statut": "En cours", "saisons": [{"n": 1, "ep": 8, "air": "2026-07-27"}], "tmdbTv": "287238", "eps": {"1": [{"n": 1, "t": "La Gorgone", "air": "2026-07-27", "d": 52}, {"n": 2, "t": "Ma vie était un fusil chargé", "air": "2026-07-27", "d": 55}, {"n": 3, "t": "Faux souvenirs", "air": "2026-07-27", "d": 54}, {"n": 4, "t": "Inondation", "air": "2026-08-03", "d": 56}, {"n": 5, "t": "Épisode 5", "air": "2026-08-10", "d": null}, {"n": 6, "t": "Épisode 6", "air": "2026-08-17", "d": null}, {"n": 7, "t": "Épisode 7", "air": "2026-08-24", "d": null}, {"n": 8, "t": "Épisode 8", "air": "2026-08-31", "d": null}]}}, "Ninja Turtles": {"k": "movie", "y": "2014", "note": 5.9, "g": "Science-Fiction · Action · Aventure · Comédie", "duree": 101, "ov": "Quand une cheville ouvrière menace la ville de New York, un groupe de guerriers tortues mutés doit sortir de l'ombre pour protéger leur maison.", "real": "Jonathan Liebesman", "crea": null, "cast": [{"n": "Pete Ploszek", "r": "Leonardo"}, {"n": "Alan Ritchson", "r": "Raphael"}, {"n": "Jeremy Howard", "r": "Donatello"}, {"n": "Noel Fisher", "r": "Michelangelo"}, {"n": "Megan Fox", "r": "April O'Neil"}, {"n": "Will Arnett", "r": "Vern Fenwick"}], "trailer": "Ninja Turtles - Bande Annonce VOST", "ids": {"tmdb": "98566", "imdb": "tt1291150"}, "statut": "Sorti"}, "Marjorie Prime": {"k": "movie", "y": "2017", "note": 6.1, "g": "Drame · Mystère · Science-Fiction", "duree": 99, "ov": "Alors qu'elle sent sa dernière heure venir, la violoncelliste Marjorie achète les services d'une société permettant de recréer, via des hologrammes, les souvenirs passés...", "real": "Michael Almereyda", "crea": null, "cast": [{"n": "Geena Davis", "r": "Tess"}, {"n": "Hannah Gross", "r": "Young Marjorie"}, {"n": "Jon Hamm", "r": "Walter"}, {"n": "India Reed Kotis", "r": "Young Tess (as India Kotis)"}, {"n": "Leslie Lyles", "r": "Mrs. Salveson"}, {"n": "Cashus Muse", "r": "Bartender"}], "trailer": "Marjorie Prime v.f.", "ids": {"tmdb": "426254", "imdb": "tt4978710"}, "statut": "Sorti"}, "American Dad!": {"k": "show", "y": "2005", "note": 7.0, "g": "Animation · Comédie", "duree": null, "ov": "Agent de la CIA, Stan Smith est aussi l'époux comblé de la douce Francine et le fier papa de Hayley et Steve. Le tableau est idyllique. Le problème c'est que Stan a une légère tendance à verser dans la paranoïa. Prêt à tout pour défendre son Amérique chérie et ses valeurs conservatrices, il n'hésiterait pas à tirer sur son grille-pain si celui-ci était suspecté de trahison... Rajoutez à cela la présence dans la maison des Smith de Roger, l'alien sarcastique, et de Klaus, le poisson rouge d'origine germanique, et vous aurez le portrait haut en couleurs de ce père américain si parfait !", "real": null, "crea": "Matt Weitzman, Seth MacFarlane, Mike Barker", "cast": [{"n": "Seth MacFarlane", "r": "Stan Smith / Roger (voice)"}, {"n": "Wendy Schaal", "r": "Francine Smith (voice)"}, {"n": "Rachael MacFarlane", "r": "Hayley Smith (voice)"}, {"n": "Scott Grimes", "r": "Steve Smith (voice)"}, {"n": "Dee Bradley Baker", "r": "Klaus (voice)"}], "trailer": null, "ids": {"tvdb": "73141", "tmdb": "1433", "imdb": "tt0397306"}, "statut": "En cours", "saisons": [{"n": 1, "ep": 7, "air": "2005-02-06"}, {"n": 2, "ep": 16, "air": "2005-09-11"}, {"n": 3, "ep": 19, "air": "2006-09-10"}, {"n": 4, "ep": 16, "air": "2007-09-30"}, {"n": 5, "ep": 20, "air": "2008-09-28"}, {"n": 6, "ep": 18, "air": "2009-09-27"}, {"n": 7, "ep": 19, "air": "2010-10-03"}, {"n": 8, "ep": 18, "air": "2011-09-25"}, {"n": 9, "ep": 19, "air": "2012-09-30"}, {"n": 10, "ep": 20, "air": "2013-09-29"}, {"n": 11, "ep": 3, "air": "2014-09-14"}, {"n": 12, "ep": 15, "air": "2014-10-20"}, {"n": 13, "ep": 22, "air": "2016-01-25"}, {"n": 14, "ep": 22, "air": "2016-11-07"}, {"n": 15, "ep": 22, "air": "2017-12-25"}, {"n": 16, "ep": 20, "air": "2019-04-15"}, {"n": 17, "ep": 24, "air": "2020-04-13"}, {"n": 18, "ep": 22, "air": "2021-04-19"}, {"n": 19, "ep": 22, "air": "2022-01-24"}, {"n": 20, "ep": 22, "air": "2023-03-27"}, {"n": 21, "ep": 22, "air": "2024-10-28"}, {"n": 22, "ep": 13, "air": "2026-02-22"}], "tmdbTv": "1433", "eps": {"22": [{"n": 1, "t": "Crotte, un rat de piscine !", "air": "2026-02-22", "d": 22}, {"n": 2, "t": "Le dingo des rondins", "air": "2026-03-01", "d": 22}, {"n": 3, "t": "Le repos, c'est pour les faibles", "air": "2026-03-08", "d": 22}, {"n": 4, "t": "Caméra Stan", "air": "2026-03-15", "d": 22}, {"n": 5, "t": "Merci, Mertz!", "air": "2026-04-12", "d": 22}, {"n": 6, "t": "Le trésor de Chinatown", "air": "2026-04-26", "d": 22}, {"n": 7, "t": "Flip Trip", "air": "2026-05-03", "d": 22}, {"n": 8, "t": "Del père, Del fils", "air": "2026-05-10", "d": 22}, {"n": 9, "t": "Épisode 9", "air": "2026-05-17", "d": 22}, {"n": 10, "t": "Épisode 10", "air": "2026-06-21", "d": 22}, {"n": 11, "t": "Épisode 11", "air": "2026-06-21", "d": 22}, {"n": 12, "t": "Épisode 12", "air": "2026-09-13", "d": null}, {"n": 13, "t": "Épisode 13", "air": "2026-09-13", "d": null}]}}, "Les aventures de Tintin": {"k": "show", "y": "1991", "note": 7.9, "g": "Animation · Action & Adventure · Mystère", "duree": 22, "ov": "Grand reporter, Tintin, accompagné de son fidèle ami à quatre pattes Milou, enquête sur divers événements de par le monde. Ses reportages lui vaudront de rencontrer de fidèles amis : le colérique Capitaine Haddock, le talentueux (mais sourd) professeur Tournesol et les maladroits détectives Dupont et Dupond, qui l'accompagneront ensuite dans ses aventures...", "real": null, "crea": null, "cast": [{"n": "Thierry Wermuth", "r": "Tintin (voice)"}, {"n": "Christian Pelissier", "r": "Haddock (voice)"}, {"n": "Henri Labussière", "r": "Tournesol (voice)"}, {"n": "Yves Barsacq", "r": "Dupont (voice)"}, {"n": "Jean-Pierre Moulin", "r": "Dupond (voice)"}, {"n": "Susan Roman", "r": "Milou (voice)"}], "trailer": null, "ids": {"tvdb": "72668", "tmdb": "1570", "imdb": "tt0179552"}, "statut": "Terminée", "saisons": [{"n": 1, "ep": 13, "air": "1991-10-02"}, {"n": 2, "ep": 13, "air": "1992-01-06"}, {"n": 3, "ep": 13, "air": "1992-07-06"}], "tmdbTv": "1570", "eps": {"3": [{"n": 1, "t": "Coke en stock (1)", "air": "1992-07-06", "d": 22}, {"n": 2, "t": "Coke en stock (2)", "air": "1992-07-13", "d": 22}, {"n": 3, "t": "Les 7 Boules de cristal (1)", "air": "1992-07-20", "d": 22}, {"n": 4, "t": "Les 7 Boules de cristal (2)", "air": "1992-07-27", "d": 22}, {"n": 5, "t": "Le Temple du Soleil (1)", "air": "1992-08-03", "d": 22}, {"n": 6, "t": "Le Temple du Soleil (2)", "air": "1992-08-10", "d": 22}, {"n": 7, "t": "Les Bijoux de la Castafiore (1)", "air": "1992-08-17", "d": 22}, {"n": 8, "t": "Les Bijoux de la Castafiore (2)", "air": "1992-08-24", "d": 22}, {"n": 9, "t": "Objectif Lune (1)", "air": "1992-08-31", "d": 22}, {"n": 10, "t": "Objectif Lune (2)", "air": "1992-09-07", "d": 22}, {"n": 11, "t": "On a marché sur la Lune (1)", "air": "1992-09-14", "d": 22}, {"n": 12, "t": "On a marché sur la Lune (2)", "air": "1992-09-21", "d": 22}, {"n": 13, "t": "Tintin en Amérique", "air": "1992-09-28", "d": 22}]}}, "On l'appelait Robin des Bois": {"k": "movie", "y": "2026", "note": 6.4, "g": "Aventure · Drame · Action", "duree": 123, "ov": "Hanté par son passé après une vie de crimes et de violence, Robin des Bois est laissé pour mort à l’issue d’un combat qu’il pensait être le dernier. Recueilli par une femme mystérieuse, il se voit offrir une ultime chance de rédemption…", "real": "Michael Sarnoski", "crea": null, "cast": [{"n": "Hugh Jackman", "r": "Robin Hood"}, {"n": "Jodie Comer", "r": "Sister Brigid"}, {"n": "Bill Skarsgård", "r": "Little John"}, {"n": "Murray Bartlett", "r": "The Leper"}, {"n": "Noah Jupe", "r": "Arthur / Godwyn"}, {"n": "Jade Croot", "r": "Wainwright"}], "trailer": "ON L'APPELAIT ROBIN DES BOIS - Bande-annonce n°2 VF", "ids": {"tmdb": "1284465", "imdb": "tt32273171"}, "statut": "Sorti"}, "Batman Caped Crusader (2024)": {"k": "show", "y": "2024", "note": 7.3, "g": "Animation · Crime · Action & Adventure · Mystère", "duree": null, "ov": "Bienvenue à Gotham City, où les criminels sévissent et les honnêtes citoyens vivent dans la peur. Forgé dans le feu de la tragédie, le riche mondain Bruce Wayne devient quelque chose d'à la fois plus et moins humain-BATMAN. Sa croisade solitaire pour la justice attire des alliés inattendus au sein de la police et de la mairie de Gotham, mais ses actions ont des conséquences imprévues.", "real": null, "crea": "Bruce Timm", "cast": [{"n": "Hamish Linklater", "r": "Batman / Bruce Wayne (voice)"}], "trailer": "Bande-Annonce", "ids": {"tvdb": "403170", "tmdb": "125909", "imdb": "tt14681596"}, "statut": "En cours", "saisons": [{"n": 1, "ep": 10, "air": "2024-08-01"}, {"n": 2, "ep": 10, "air": "2026-07-31"}], "tmdbTv": "125909", "eps": {"2": [{"n": 1, "t": "Force brute", "air": "2026-07-31", "d": 29}, {"n": 2, "t": "Une fusée pour l'avenir", "air": "2026-07-31", "d": 25}, {"n": 3, "t": "Infiltration", "air": "2026-07-31", "d": 26}, {"n": 4, "t": "La part du diable", "air": "2026-07-31", "d": 25}, {"n": 5, "t": "Le revenant de Noël", "air": "2026-07-31", "d": 28}, {"n": 6, "t": "Le poison de la peur", "air": "2026-07-31", "d": 28}, {"n": 7, "t": "Son côté obscur", "air": "2026-07-31", "d": 26}, {"n": 8, "t": "L'heure zéro", "air": "2026-07-31", "d": 26}, {"n": 9, "t": "Mort avant l'aube", "air": "2026-07-31", "d": 25}, {"n": 10, "t": "Le rire de la mort", "air": "2026-07-31", "d": 28}]}}, "Batman Caped Crusader": {"k": "show", "y": "2024", "note": 7.3, "g": "Animation · Crime · Action & Adventure · Mystère", "duree": null, "ov": "Bienvenue à Gotham City, où les criminels sévissent et les honnêtes citoyens vivent dans la peur. Forgé dans le feu de la tragédie, le riche mondain Bruce Wayne devient quelque chose d'à la fois plus et moins humain-BATMAN. Sa croisade solitaire pour la justice attire des alliés inattendus au sein de la police et de la mairie de Gotham, mais ses actions ont des conséquences imprévues.", "real": null, "crea": "Bruce Timm", "cast": [{"n": "Hamish Linklater", "r": "Batman / Bruce Wayne (voice)"}], "trailer": "Bande-Annonce", "ids": {"tvdb": "403170", "tmdb": "125909", "imdb": "tt14681596"}, "statut": "En cours", "saisons": [{"n": 1, "ep": 10, "air": "2024-08-01"}, {"n": 2, "ep": 10, "air": "2026-07-31"}], "tmdbTv": "125909", "eps": {"2": [{"n": 1, "t": "Force brute", "air": "2026-07-31", "d": 29}, {"n": 2, "t": "Une fusée pour l'avenir", "air": "2026-07-31", "d": 25}, {"n": 3, "t": "Infiltration", "air": "2026-07-31", "d": 26}, {"n": 4, "t": "La part du diable", "air": "2026-07-31", "d": 25}, {"n": 5, "t": "Le revenant de Noël", "air": "2026-07-31", "d": 28}, {"n": 6, "t": "Le poison de la peur", "air": "2026-07-31", "d": 28}, {"n": 7, "t": "Son côté obscur", "air": "2026-07-31", "d": 26}, {"n": 8, "t": "L'heure zéro", "air": "2026-07-31", "d": 26}, {"n": 9, "t": "Mort avant l'aube", "air": "2026-07-31", "d": 25}, {"n": 10, "t": "Le rire de la mort", "air": "2026-07-31", "d": 28}]}}, "The Bombing of Pan Am 103": {"k": "show", "y": "2025", "note": 7.3, "g": "Drame · Crime", "duree": null, "ov": "Le 21 décembre 1988, le vol Pan Am 103 explose au-dessus de la petite ville écossaise de Lockerbie, faisant 270 morts. S'ensuit la plus vaste enquête criminelle de l'histoire de la police écossaise, sur l'attentat terroriste le plus meurtrier jamais commis sur le sol britannique. À travers les témoignages de ceux qui l'ont vécu, voici l'histoire vraie de la collaboration entre la police écossaise et les forces de l'ordre américaines, et du combat des familles pour obtenir justice.", "real": null, "crea": "Jonathan Lee", "cast": [{"n": "Connor Swindells", "r": "Ed McCusker"}, {"n": "Patrick J. Adams", "r": "Dick Marquise"}, {"n": "Tony Curran", "r": "Harry Bell"}, {"n": "Eddie Marsan", "r": "Tom Thurman"}, {"n": "Phyllis Logan", "r": "Moira Shearer"}, {"n": "Lauren Lyle", "r": "June McCusker"}], "trailer": null, "ids": {"tvdb": "456595", "tmdb": "248226", "imdb": "tt13592494"}, "statut": "Terminée", "saisons": [{"n": 1, "ep": 6, "air": "2025-05-18"}], "tmdbTv": "248226", "eps": {"1": [{"n": 1, "t": "Épisode 1", "air": "2025-05-18", "d": 55}, {"n": 2, "t": "Épisode 2", "air": "2025-05-19", "d": 57}, {"n": 3, "t": "Épisode 3", "air": "2025-05-25", "d": 58}, {"n": 4, "t": "Épisode 4", "air": "2025-05-26", "d": 57}, {"n": 5, "t": "Épisode 5", "air": "2025-06-01", "d": 58}, {"n": 6, "t": "Épisode 6", "air": "2025-06-02", "d": 59}]}}, "Big Chicken Le complot de la malbouffe": {"k": "movie", "y": "2026", "note": 4.8, "g": "Documentaire", "duree": 96, "ov": "L'humoriste Mo Gilligan s'alimente de poulet frit pendant 28 jours en parcourant le Royaume-Uni et les États-Unis pour révéler l'impact de cet engouement et de son industrie.", "real": "Liana Stewart", "crea": null, "cast": [{"n": "Mo Gilligan", "r": "Self"}, {"n": "Marcus Collins", "r": "Self - Interviewer"}, {"n": "Enam Abood", "r": "Self - Medical Expert"}, {"n": "Alice Driver", "r": "Self - Investigative Journo"}, {"n": "David Ajao", "r": "Self - The Wingman"}, {"n": "Laura Schmidt", "r": "Self - The Health Prof."}], "trailer": null, "ids": {"tmdb": "1728056", "imdb": "tt43657327"}, "statut": "Sorti"}, "Margin Call": {"k": "movie", "y": "2011", "note": 6.9, "g": "Thriller · Drame", "duree": 107, "ov": "Automne 2008. Expert en gestion de risque dans une banque d'investissement de Wall Street, Eric Dale est brutalement congédié, à l'instar de 80% des employés de son service. Avant de quitter l'immeuble, il remet à son protégé, le jeune Peter Sullivan, une clé USB contenant le dossier sur lequel il travaillait ce matin-là. Le soir venu, Peter examine ledit dossier et, à la suite de différents calculs, en déduit que la firme détient une quantité inquiétante de produits financiers toxiques, liés à la spéculation sur le marché immobilier. Peter fait alors venir d'urgence son superviseur, le fantasque Will Emerson. En voyant les conclusions obtenues par son jeune employé, le cadre s'empresse de contacter son directeur, Sam Rogers, qui a passé la soirée chez le vétérinaire auprès de son chien mourant. Ébranlé à son tour par les découvertes de Peter, Sam convoque une réunion exceptionnelle des cadres supérieurs de la firme.", "real": "J.C. Chandor", "crea": null, "cast": [{"n": "Kevin Spacey", "r": "Sam Rogers"}, {"n": "Zachary Quinto", "r": "Peter Sullivan"}, {"n": "Paul Bettany", "r": "Will Emerson"}, {"n": "Jeremy Irons", "r": "John Tuld"}, {"n": "Simon Baker", "r": "Jared Cohen"}, {"n": "Penn Badgley", "r": "Seth Bregman"}], "trailer": "MARGIN CALL : BANDE ANNONCE OFFICIELLE VOSTF HD", "ids": {"tmdb": "50839", "imdb": "tt1615147"}, "statut": "Sorti"}, "President Curtis (2026)": {"k": "show", "y": "2026", "note": 5.7, "g": "Animation · Comédie", "duree": null, "ov": "Suivez le commandant en chef et son équipe excentrique alors qu'ils s'attaquent à des crises dont Rick Sanchez ne se soucierait jamais : de la diplomatie interdimensionnelle aux enquêtes sur le paranormal en passant par les phénomènes inexpliqués.", "real": null, "crea": "Dan Harmon, James Siciliano", "cast": [{"n": "Keith David", "r": "President Andre Curtis (voice)"}, {"n": "Stephanie Beatriz", "r": "Roe Banks (voice)"}, {"n": "Jim Rash", "r": "Special Agent Francis O'Doyle (voice)"}], "trailer": null, "ids": {"tvdb": "466198", "tmdb": "296756", "imdb": "tt37692332"}, "statut": "En cours", "saisons": [{"n": 1, "ep": 10, "air": "2026-07-26"}], "tmdbTv": "296756", "eps": {"1": [{"n": 1, "t": "Pilote", "air": "2026-07-26", "d": 24}, {"n": 2, "t": "Le Triangle", "air": "2026-08-02", "d": 23}, {"n": 3, "t": "Ex", "air": "2026-08-09", "d": 23}, {"n": 4, "t": "Achat", "air": "2026-08-16", "d": null}, {"n": 5, "t": "David", "air": "2026-08-23", "d": null}, {"n": 6, "t": "Épisode 6", "air": "2026-08-30", "d": null}, {"n": 7, "t": "Épisode 7", "air": "2026-09-06", "d": null}, {"n": 8, "t": "Épisode 8", "air": "2026-09-13", "d": null}, {"n": 9, "t": "Épisode 9", "air": "2026-09-20", "d": null}, {"n": 10, "t": "Épisode 10", "air": "2026-09-27", "d": null}]}}, "President Curtis": {"k": "show", "y": "2026", "note": 5.7, "g": "Animation · Comédie", "duree": null, "ov": "Suivez le commandant en chef et son équipe excentrique alors qu'ils s'attaquent à des crises dont Rick Sanchez ne se soucierait jamais : de la diplomatie interdimensionnelle aux enquêtes sur le paranormal en passant par les phénomènes inexpliqués.", "real": null, "crea": "Dan Harmon, James Siciliano", "cast": [{"n": "Keith David", "r": "President Andre Curtis (voice)"}, {"n": "Stephanie Beatriz", "r": "Roe Banks (voice)"}, {"n": "Jim Rash", "r": "Special Agent Francis O'Doyle (voice)"}], "trailer": null, "ids": {"tvdb": "466198", "tmdb": "296756", "imdb": "tt37692332"}, "statut": "En cours", "saisons": [{"n": 1, "ep": 10, "air": "2026-07-26"}], "tmdbTv": "296756", "eps": {"1": [{"n": 1, "t": "Pilote", "air": "2026-07-26", "d": 24}, {"n": 2, "t": "Le Triangle", "air": "2026-08-02", "d": 23}, {"n": 3, "t": "Ex", "air": "2026-08-09", "d": 23}, {"n": 4, "t": "Achat", "air": "2026-08-16", "d": null}, {"n": 5, "t": "David", "air": "2026-08-23", "d": null}, {"n": 6, "t": "Épisode 6", "air": "2026-08-30", "d": null}, {"n": 7, "t": "Épisode 7", "air": "2026-09-06", "d": null}, {"n": 8, "t": "Épisode 8", "air": "2026-09-13", "d": null}, {"n": 9, "t": "Épisode 9", "air": "2026-09-20", "d": null}, {"n": 10, "t": "Épisode 10", "air": "2026-09-27", "d": null}]}}};
+  const FICHES_OLD = {
     Silo: {
       y: "2023", kind: "Série", prov: "TVDB 400458 · TMDB 125988", note: "8,2",
       g: "Science-Fiction & Fantastique · Drame",
@@ -4112,66 +4519,136 @@
     },
   };
 
+  function fiche(title) {
+    return FICHES_RAW[title] ?? FICHES_RAW[title.split(" (")[0]] ?? null;
+  }
+  const MOIS = ["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
+  function dateFR(iso) {
+    if (!iso) return null;
+    const [y, m, d] = iso.split("-").map(Number);
+    return `${d} ${MOIS[m - 1]} ${y}`;
+  }
+  const AUJOURDHUI = "2026-08-10";
+
+  /* ── Fiche média — UN gabarit, pour tout média (§11, DOIT-11) ──────────
+     Ordre fixe : hero → bande-annonce → synopsis → distribution →
+     médiathèque → épisodes datés (séries) → informations. Les seules
+     variations sont celles que la nature impose : « Réalisateur » et une
+     durée pour un film, « Créateur », un statut et un catalogue pour une
+     série. Ce qui manque s'écrit « inconnu », jamais un tiret. */
   function openFiche(title) {
-    const f = FICHES[title] ?? null;
-    const ss = f ? f.saisons : (SEASONS[title] ?? []).slice().sort((a, b) => b[0] - a[0]);
+    const f = fiche(title);
+    const isFilm = f ? f.k === "movie" : false;
+    const ss = (SEASONS[title] ?? SEASONS[title.split(" (")[0]] ?? []).slice().sort((a, b) => b[0] - a[0]);
     const own = ss.reduce((n, x) => n + x[2], 0);
     const aired = ss.reduce((n, x) => n + x[1], 0);
     const pct = aired ? Math.round((own / aired) * 100) : null;
+    const eps = f?.eps ? Object.entries(f.eps)[0] : null;
+    const prov = f?.ids ?? {};
+    const url = prov.tvdb ? `/media/tvdb/${prov.tvdb}` : prov.tmdb ? `/media/tmdb/${prov.tmdb}` : null;
+
     openScreen(`<div class="fichebar">
       <button class="fback" onclick="__close('screen')">${svg(I.left)}Retour</button>
-      <span style="margin-left:auto;font-size:11px;color:var(--muted-foreground)">/media/tvdb/400458</span>
+      <span style="margin-left:auto;font-size:11px;color:var(--muted-foreground)">${url ?? "média non identifié"}</span>
     </div>
     <div class="port"><div class="body">
-      <div style="display:flex;gap:12px;align-items:flex-start">
-        <span class="sheetposter" style="width:96px;font-size:30px">${posterBox(title, "show")}</span>
+
+      <div class="hero">
+        <span class="sheetposter" style="width:104px;font-size:30px">${posterBox(title, isFilm ? "movie" : "show")}</span>
         <div style="min-width:0;flex:1">
-          <h2 style="margin:0;font-size:17px;font-weight:700;letter-spacing:-.01em">${esc(title)}</h2>
-          <p style="margin:5px 0 0;font-size:12px;color:var(--muted-foreground);line-height:1.5">
-            ${f ? `${f.y} · ${f.kind} · note ${f.note}<br>${esc(f.g)}<br><span style="font-size:11px">${esc(f.prov)}</span>` : "Métadonnées inconnues"}
+          <h2 class="ht">${esc(title.split(" (")[0])}</h2>
+          <p class="hm">
+            ${f ? `${f.y || "année inconnue"} · ${isFilm ? "Film" : "Série"}${f.duree ? ` · ${f.duree} min` : ""}` : "Métadonnées inconnues"}
+            ${f?.g ? `<br>${esc(f.g)}` : "<br>Genres inconnus"}
+            ${f && !isFilm && f.statut ? `<br>Série ${esc(f.statut.toLowerCase())}` : ""}
           </p>
+          ${f?.note ? `<span class="hn">${svg(I.star)}${String(f.note).replace(".", ",")}<span style="color:var(--muted-foreground);font-weight:400"> sur TMDB</span></span>` : ""}
         </div>
       </div>
 
+      ${
+        f?.trailer
+          ? `<button class="trailer" data-toast="Lecture de la bande-annonce — dans l'app, elle s'ouvre en plein écran.">
+               <span class="pl">${svg(I.play)}</span>
+               <span>Bande-annonce<small>${esc(f.trailer)}</small></span>
+             </button>`
+          : `<p class="nofiche">Aucune bande-annonce fournie par le provider. La fiche le dit plutôt que de masquer la section — §8.</p>`
+      }
+
       <div>
         <h2 class="h2" style="margin-bottom:6px">Synopsis</h2>
-        <p style="margin:0;font-size:12.5px;line-height:1.55;color:var(--muted-foreground)">${f ? esc(f.ov) : "Synopsis inconnu — le provider n'en fournit pas."}</p>
+        <p style="margin:0;font-size:12.5px;line-height:1.55;color:var(--muted-foreground)">${f?.ov ? esc(f.ov) : "Synopsis inconnu — le provider n'en fournit pas."}</p>
+      </div>
+
+      <div>
+        <h2 class="h2" style="margin-bottom:8px">${isFilm ? "Réalisation et distribution" : "Création et distribution"}</h2>
+        <div class="panel" style="margin-bottom:10px">
+          <div class="kv"><span>${isFilm ? "Réalisateur" : "Créateur"}</span><span>${esc((isFilm ? f?.real : f?.crea) ?? "inconnu")}</span></div>
+        </div>
+        ${
+          f?.cast?.length
+            ? `<div class="cast" data-noswipe>${f.cast.map((c) => `<figure><span class="ca">${initials(c.n)}</span><figcaption><b>${esc(c.n)}</b><span>${esc(c.r || "rôle inconnu")}</span></figcaption></figure>`).join("")}</div>`
+            : `<p class="nofiche">Distribution inconnue.</p>`
+        }
       </div>
 
       <div>
         <h2 class="h2" style="margin-bottom:6px">Médiathèque</h2>
         <div class="panel">
-          <div class="kv"><span>Saisons</span><span>${ss.length || "inconnu"}</span></div>
-          <div class="kv"><span>Épisodes diffusés</span><span>${aired || "inconnu"}</span></div>
-          <div class="kv"><span>Possédés</span><span>${own}</span></div>
-          <div class="kv"><span>Complétude</span><span><span class="pip ${pct === 100 ? "success" : "warning"}"></span>${pct === null ? "inconnue" : pct + " %"}</span></div>
+          ${isFilm
+            ? `<div class="kv"><span>Possédé</span><span><span class="pip success"></span>oui</span></div>
+               <div class="kv"><span>Fichier</span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px">${esc(title.split(" (")[0])}.2026.MULTi.1080p.mkv</span></div>`
+            : `<div class="kv"><span>Saisons</span><span>${ss.length || "inconnu"}</span></div>
+               <div class="kv"><span>Épisodes diffusés</span><span>${aired || "inconnu"}</span></div>
+               <div class="kv"><span>Possédés</span><span>${own}</span></div>
+               <div class="kv"><span>Complétude</span><span><span class="pip ${pct === 100 ? "success" : pct === null ? "neutral" : "warning"}"></span>${pct === null ? "inconnue" : pct + " %"}</span></div>`}
         </div>
-        ${
-          ss.length
-            ? `<div style="margin-top:10px">${ss.map((x) => `<div class="kv" style="border:0;padding:6px 0"><span>Saison ${x[0]}</span><span style="font-family:ui-monospace,Menlo,monospace">${x[2]}/${x[1]}</span></div>`).join("")}</div>`
-            : ""
-        }
+        ${ss.length ? `<div style="margin-top:8px">${ss.map((x) => `<div class="kv" style="border:0;padding:5px 0"><span>Saison ${x[0]}</span><span style="font-family:ui-monospace,Menlo,monospace">${x[2]}/${x[1]}</span></div>`).join("")}</div>` : ""}
       </div>
+
+      ${
+        eps
+          ? `<div>
+              <h2 class="h2" style="margin-bottom:6px">Épisodes — saison ${eps[0]}</h2>
+              <div class="panel">
+                ${eps[1].map((x) => {
+                  const futur = x.air && x.air > AUJOURDHUI;
+                  return `<div class="eprow${futur ? " avenir" : ""}">
+                    <span class="en">E${String(x.n).padStart(2, "0")}</span>
+                    <span class="et">${esc(x.t)}</span>
+                    <span class="ed">${x.air ? dateFR(x.air) : "date inconnue"}${futur ? " · à venir" : ""}</span>
+                  </div>`;
+                }).join("")}
+              </div>
+              <p class="rulenote" style="margin-top:8px">Un épisode dont la date est postérieure à aujourd'hui est <b>annoncé</b>, pas manquant : il ne compte jamais au dénominateur de la complétude (§5.4).</p>
+            </div>`
+          : ""
+      }
 
       <div>
         <h2 class="h2" style="margin-bottom:6px">Informations</h2>
         <div class="panel">
-          <div class="kv"><span>Créateur</span><span>${f ? esc(f.cr) : "inconnu"}</span></div>
-          <div class="kv"><span>Suivi</span><span>${FOLLOWS.some((x) => x.t === title) ? "actif" : "non suivi"}</span></div>
-          <div class="kv"><span>Bande-annonce</span><span>présente</span></div>
-          <div class="kv"><span>Dernière mise à jour</span><span>10 août, 04 h 12</span></div>
+          <div class="kv"><span>Suivi</span><span>${W.follows.some((x) => x.t === title || x.t === title.split(" (")[0]) ? "actif" : "non suivi"}</span></div>
+          ${Object.entries(prov).map(([k, v]) => `<div class="kv"><span>${k.toUpperCase()}</span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px">${esc(String(v))}</span></div>`).join("")}
+          <div class="kv"><span>Métadonnées rafraîchies</span><span>10 août, 04 h 12</span></div>
         </div>
       </div>
 
-      <div class="note"><b>La fiche existe déjà</b> (<code>/media/:provider/:id</code>) et cette refonte ne la refait pas. Ce qui manquait, c'est qu'on puisse y ARRIVER : chaque affiche de chaque page y mène désormais (NE-DOIT-PAS-9).</div>
+      <div class="sheetacts secondary">
+        <button class="sact" data-toast="Re-scrape lancé — NFO et affiches seront refaits.">${svg(I.refresh)}Re-scraper les métadonnées</button>
+        <button class="sact danger" data-del="${esc(title)}">${svg(I.trash)}Supprimer de la médiathèque</button>
+      </div>
+
+      <div class="note"><b>Un seul gabarit pour tout média.</b> Les différences visibles ici sont celles que la nature impose — réalisateur et durée pour un film, créateur, statut et catalogue pour une série. Toute autre différence serait une dérive.</div>
     </div></div>`);
   }
 
-  function openResolve() {
+  function openResolve(cible) {
+    S.resolveTarget = cible ?? D.stuck()[0]?.t ?? null;
     openScreen(`<div class="fichebar"><button class="fback" onclick="__close('screen')">${svg(I.left)}Retour</button></div>
   <div class="port"><div class="body">
     <div class="note"><b>La résolution est un écran, pas un panneau.</b> Sur <code>/medias</code> elle apparaissait <em>sous</em> la liste qu'on lisait : au téléphone, on ne la voyait jamais.</div>
-    <h2 class="h2">Backrooms.2026.MULTi.2160p.WEB-DL</h2>
+    <h2 class="h2">${esc(S.resolveTarget ?? "élément inconnu")}</h2>
     <p style="margin:0;font-size:12px;color:var(--muted-foreground)">Aucun média identifié. Voici ce que les providers proposent pour ce nom.</p>
     ${[
       ["Backrooms", "2026 · Film · TMDB 1284120", "92 %"],
@@ -4186,7 +4663,7 @@
         ]) => `<div class="card"><div class="ctop"><span class="poster">${posterBox(t)}</span>
         <span class="cbody"><span class="ctitle">${t}</span><span class="csub">${m}</span>
         <span class="cmeta"><span class="chip info">confiance ${s}</span></span></span></div>
-        <button class="cfoot solid" data-toast="Identifié — le pipeline reprend jusqu'à la médiathèque.">C'est celui-ci</button></div>`,
+        <button class="cfoot solid" data-resolve="${esc(t)}">C'est celui-ci</button></div>`,
       )
       .join("")}
     <div class="empty"><b>Aucun de ceux-là ?</b>Une recherche manuelle pré-remplie avec « Backrooms 2026 » — jamais un cul-de-sac (DOIT-7).</div>
@@ -4196,14 +4673,14 @@
   function openDetailSheet(title) {
     // Une carte de suivi ou de média ouvre la feuille COMPLÈTE (matrice
     // comprise) — c'était une esquisse jusqu'ici.
-    if (FOLLOWS.some((x) => x.t === title) || SEASONS[title] || INCOMPLETE.some((x) => x.t === title)) {
+    if (W.follows.some((x) => x.t === title) || SEASONS[title] || INCOMPLETE.some((x) => x.t === title)) {
       return openFollowSheet(title);
     }
     return openDetailSheetLegacy(title);
   }
 
   function openDetailSheetLegacy(title) {
-    const f = FOLLOWS.find((x) => x.t === title);
+    const f = W.follows.find((x) => x.t === title);
     const isFilm = f && f.k === "film";
     openSheet(`
     <h3 class="sheettitle">${esc(title)}</h3>
@@ -4255,7 +4732,7 @@
   }
 
   function openFollowSheet(title) {
-    const o = FOLLOWS.find((x) => x.t === title) ||
+    const o = W.follows.find((x) => x.t === title) ||
       INCOMPLETE.map((x) => ({ t: x.t, k: "show", st: "a_recuperer", own: x.o, aired: x.a })).find((x) => x.t === title) ||
       { t: title, k: "show", st: "a_jour" };
     const seasons = (SEASONS[title] || []).slice().sort((a, b) => b[0] - a[0]);

@@ -32,7 +32,7 @@ async def main():
                       cartes:v.querySelectorAll('.card,.tile,.sug,.kv').length,
                       vide:!!v.querySelector('.empty'),
                       doc:document.documentElement.scrollWidth,
-                      deb:[...v.querySelectorAll('*')].filter(e=>e.getBoundingClientRect().right>390.5&&!e.closest('.pillscroll')).length};}""")
+                      deb:[...v.querySelectorAll('*')].filter(e=>e.getBoundingClientRect().right>390.5&&!e.closest('.pillscroll')&&!e.closest('.cast')).length};}""")
             ok = r['txt'] > 100 and r['doc'] <= 390 and r['deb'] == 0 and (r['cartes'] > 0 or r['vide'])
             if not ok: total_bad += 1
             print(("  OK  " if ok else "  FAIL"), f"{nom:16}", r)
