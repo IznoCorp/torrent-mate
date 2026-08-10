@@ -1387,6 +1387,341 @@
     color: var(--primary-foreground);
   }
 
+  /* ── Matrice de saisons (feuille de détail d'un suivi) ─────────
+     Géométrie reprise du composant livré : cellule 31 × 27, radius 5, mono
+     11 semibold, fond du ton à 20 %. Le « non vérifié » est un fantôme en
+     pointillés, pas une couleur : l'absence de verdict n'est pas un état. */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px 12px;
+    margin-bottom: 12px;
+    font-size: 11px;
+    color: var(--muted-foreground);
+  }
+  .legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+  }
+  .legend i {
+    width: 9px;
+    height: 9px;
+    border-radius: 2px;
+    display: block;
+  }
+  .sw-success {
+    background: color-mix(in oklab, var(--success) 60%, transparent);
+  }
+  .sw-warning {
+    background: color-mix(in oklab, var(--warning) 60%, transparent);
+  }
+  .sw-info {
+    background: color-mix(in oklab, var(--info) 60%, transparent);
+  }
+  .sw-waiting {
+    background: color-mix(in oklab, var(--waiting) 60%, transparent);
+  }
+  .sw-upcoming {
+    background: color-mix(in oklab, var(--upcoming) 60%, transparent);
+  }
+  .sw-muted {
+    border: 1px dashed var(--border);
+    background: transparent;
+  }
+  .season {
+    border-top: 1px solid var(--border);
+    padding: 8px 0;
+  }
+  .season:first-of-type {
+    border-top: 0;
+  }
+  .season > summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted-foreground);
+    list-style: none;
+  }
+  .season > summary::-webkit-details-marker {
+    display: none;
+  }
+  .season > summary::before {
+    content: "▸";
+    font-size: 9px;
+    transition: transform 0.15s;
+  }
+  .season[open] > summary::before {
+    transform: rotate(90deg);
+  }
+  .season .sfr {
+    margin-left: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--foreground);
+    font-variant-numeric: tabular-nums;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+  .season .miss {
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 99px;
+    text-transform: none;
+    letter-spacing: normal;
+    background: color-mix(in oklab, var(--warning) 20%, transparent);
+    color: var(--warning);
+  }
+  .eps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 8px;
+  }
+  .ep {
+    display: grid;
+    place-items: center;
+    width: 31px;
+    height: 27px;
+    border-radius: 5px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    font-weight: 600;
+    border: 0;
+  }
+  .ep.en_mediatheque {
+    background: color-mix(in oklab, var(--success) 20%, transparent);
+    color: var(--success);
+  }
+  .ep.a_recuperer {
+    background: color-mix(in oklab, var(--warning) 20%, transparent);
+    color: var(--warning);
+  }
+  .ep.en_acquisition {
+    background: color-mix(in oklab, var(--info) 20%, transparent);
+    color: var(--info);
+  }
+  .ep.en_attente {
+    background: color-mix(in oklab, var(--waiting) 20%, transparent);
+    color: var(--waiting);
+  }
+  .ep.annonce {
+    background: color-mix(in oklab, var(--upcoming) 20%, transparent);
+    color: var(--upcoming);
+  }
+  .ep.non_verifie {
+    border: 1px dashed var(--border);
+    background: transparent;
+    color: var(--muted-foreground);
+  }
+  .sheetposter {
+    flex: 0 0 auto;
+    width: 84px;
+    aspect-ratio: 2/3;
+    border-radius: 6px;
+    overflow: hidden;
+    font-size: 26px;
+    background: var(--muted);
+  }
+  .sheetposter img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* ── Écran d'ajout (« + ») ─────────────────────────────────────── */
+  .addform {
+    padding: 12px 14px 0;
+  }
+  .addrow {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .btnprimary {
+    flex: 0 0 auto;
+    border: 0;
+    border-radius: 8px;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 0 16px;
+  }
+  .btnprimary:disabled {
+    opacity: 0.5;
+  }
+  .segmini {
+    display: flex;
+    gap: 3px;
+    padding: 3px;
+    background: var(--muted);
+    border-radius: 8px;
+  }
+  .segmini button {
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted-foreground);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+  }
+  .segmini button[aria-pressed="true"] {
+    background: var(--background);
+    color: var(--foreground);
+    box-shadow: var(--mq-shadow-vsw);
+  }
+  .rescount {
+    padding: 12px 14px 0;
+    font-size: 11.5px;
+    color: var(--muted-foreground);
+  }
+  .reslist {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px 14px 18px;
+  }
+  .res {
+    display: flex;
+    gap: 11px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    border-radius: 8px;
+    padding: 10px;
+  }
+  .res .rp {
+    flex: 0 0 auto;
+    align-self: flex-start;
+    width: 54px;
+    aspect-ratio: 2/3;
+    border-radius: 5px;
+    overflow: hidden;
+    background: var(--muted);
+    font-size: 16px;
+  }
+  .res .rb {
+    min-width: 0;
+    flex: 1;
+  }
+  .res .rt {
+    display: block;
+    font-size: 13.5px;
+    font-weight: 600;
+  }
+  .res .rm {
+    display: block;
+    font-size: 11.5px;
+    color: var(--muted-foreground);
+    margin-top: 2px;
+  }
+  .res .ro {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 11.5px;
+    color: var(--muted-foreground);
+    margin-top: 5px;
+    line-height: 1.4;
+  }
+  .resbtn {
+    margin-top: 9px;
+    width: 100%;
+    border: 1px solid var(--primary);
+    background: transparent;
+    color: var(--primary);
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 8px;
+    border-radius: 7px;
+  }
+  .resbtn.done {
+    border-color: var(--border);
+    color: var(--muted-foreground);
+    opacity: 0.7;
+  }
+  .resbtn.owned {
+    border-color: var(--warning);
+    color: var(--warning);
+  }
+  .sugg {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 12px 14px 0;
+  }
+  .sugg button {
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted-foreground);
+    font-size: 12px;
+    padding: 5px 11px;
+    border-radius: 99px;
+  }
+  .byid {
+    margin: 14px 14px 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .byid > summary {
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    list-style: none;
+  }
+  .byid > summary::-webkit-details-marker {
+    display: none;
+  }
+  .byid > summary::before {
+    content: "▸ ";
+    font-size: 10px;
+  }
+  .byid[open] > summary::before {
+    content: "▾ ";
+  }
+  .byidin {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .whyoff {
+    font-size: 11.5px;
+    color: var(--danger);
+  }
+  .addfoot {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 14px calc(env(safe-area-inset-bottom) + 11px);
+    background: var(--popover);
+    border-top: 1px solid var(--border);
+    font-size: 12.5px;
+  }
+  .addfoot button {
+    margin-left: auto;
+    border: 0;
+    background: transparent;
+    color: var(--primary);
+    font-weight: 600;
+    font-size: 12.5px;
+  }
+
   /* ── Dialog ────────────────────────────────────────────────── */
   .dlg {
     position: absolute;
@@ -2091,6 +2426,39 @@
     return null;
   }
 
+  /* Saisons RÉELLES (library.db, 2026-08-10) : [n° saison, diffusés, possédés].
+     American Dad! éprouve les règles des gros catalogues (22 saisons, 403 ép.,
+     toutes complètes → toutes repliées) ; Tintin éprouve la matrice à trous. */
+  /* Résultats d'une VRAIE recherche TMDB « star wars », exécutée le
+     2026-08-10 et croisée avec la médiathèque : 3 déjà possédés, 3 absents.
+     257 résultats trouvés, 6 affichés — ce que §7 impose de dire. */
+  const SEARCH = {"total": 257, "shown": 6, "results": [{"t": "La Guerre des étoiles", "y": "1977", "k": "Film", "ov": "Il y a bien longtemps, dans une galaxie très lointaine... La guerre civile fait rage entre l'Empire galactique et l'Alliance rebelle. Capturée par les troupes de choc de l'Empereur menées pa", "owned": true, "followed": false}, {"t": "Star Wars : The Clone Wars", "y": "2008", "k": "Série", "ov": "La galaxie est en proie à la Guerre des Clones, un conflit à grande échelle qui oppose les maléfiques Séparatistes et leurs immenses armées d'androïdes à la République. Les Chevaliers Jedi, ", "owned": true, "followed": false}, {"t": "Star Wars : The Mandalorian and Grogu", "y": "2026", "k": "Film", "ov": "L'Empire maléfique est tombé et les seigneurs de guerre impériaux restent dispersés dans toute la galaxie. Alors que la nouvelle République naissante travaille pour protéger tout ce que la r", "owned": true, "followed": false}, {"t": "Star Wars : Les Aventures des Petits Jedi", "y": "2023", "k": "Série", "ov": "L'incroyable parcours des Younglings, de jeunes recrues entamant un long cheminement dans l'espoir de devenir un jour des chevaliers Jedi dignes de ce nom. Leur formation va les amener à se ", "owned": false, "followed": false}, {"t": "Star Wars : The Clone Wars", "y": "2008", "k": "Film", "ov": "La galaxie est en proie à la Guerre des Clones, un conflit à grande échelle qui oppose les maléfiques Séparatistes et leurs immenses armées d'androïdes à la République. Les Chevaliers Jedi, ", "owned": false, "followed": false}, {"t": "Star Wars Vintage : Clone Wars", "y": "2003", "k": "Série", "ov": "Dans une galaxie très lointaine, se noue un drame. Le chaos règne et une guerre impitoyable se déclare entre la République et les forces séparatistes menées par les sinistres Sith du côté ob", "owned": false, "followed": false}]};
+
+  const SEASONS = {
+    "American Dad!": [[1,7,7],[2,16,16],[3,19,19],[4,16,16],[5,20,20],[6,18,18],[7,19,19],[8,18,18],[9,19,19],[10,20,20],[11,3,3],[12,15,15],[13,22,22],[14,22,22],[15,22,22],[16,24,24],[17,24,24],[18,22,22],[19,22,22],[20,22,22],[21,22,22],[22,11,11]],
+    "Les aventures de Tintin": [[1,13,7],[2,13,7],[3,13,7]],
+    "Dexter: Resurrection": [[1,10,10]],
+    "Silo": [[1,10,10],[2,10,10],[3,6,6]],
+    "Furious": [[1,5,5]],
+    "President Curtis": [[1,3,3]],
+    "House of the Dragon": [[1,10,10],[2,8,8],[3,8,8]],
+    "Star Trek: Strange New Worlds": [[1,10,10],[2,10,10],[3,10,10],[4,3,3]],
+    "Ted Lasso": [[1,10,10],[2,12,12],[3,12,12],[4,1,1]],
+    "Les Animaniacs": [[1,134,93],[2,15,11],[3,26,13]],
+  };
+
+  const EP_LABEL = {
+    en_mediatheque: "En médiathèque", a_recuperer: "À récupérer",
+    en_acquisition: "En cours d'acquisition", en_attente: "En attente de torrent",
+    annonce: "Annoncé", non_verifie: "Non vérifié",
+  };
+  /* Ordre du cycle de vie, tel que l'opérateur le lit. */
+  const EP_ORDER = ["non_verifie","annonce","en_attente","a_recuperer","en_acquisition","en_mediatheque"];
+  const EP_SWATCH = {
+    non_verifie:"sw-muted", annonce:"sw-upcoming", en_attente:"sw-waiting",
+    a_recuperer:"sw-warning", en_acquisition:"sw-info", en_mediatheque:"sw-success",
+  };
+
   const SUGGESTIONS = [{"t": "Superman : L'Homme de demain", "y": "2020", "k": "Film", "note": 7.1, "why": "Recoupé par <b>4</b> titres de votre médiathèque, dont The Mandalorian and Grogu et Disclosure Day."}, {"t": "Alita : Battle Angel", "y": "2019", "k": "Film", "note": 7.3, "why": "Recoupé par <b>3</b> titres de votre médiathèque, dont The Mandalorian and Grogu et Supergirl."}, {"t": "Numéro quatre", "y": "2011", "k": "Film", "note": 6.2, "why": "Recoupé par <b>3</b> titres de votre médiathèque, dont The Mandalorian and Grogu et Disclosure Day."}, {"t": "Avengers : Endgame", "y": "2019", "k": "Film", "note": 8.2, "why": "Parce que vous avez <b>The Mandalorian and Grogu</b> et Supergirl."}, {"t": "L'Incroyable Hulk", "y": "2008", "k": "Film", "note": 6.3, "why": "Parce que vous avez <b>The Mandalorian and Grogu</b> et Ninja Turtles."}, {"t": "Man of Steel", "y": "2013", "k": "Film", "note": 6.7, "why": "Parce que vous avez <b>The Mandalorian and Grogu</b> et Supergirl."}, {"t": "X-Men : Dark Phoenix", "y": "2019", "k": "Film", "note": 6.0, "why": "Parce que vous avez <b>The Mandalorian and Grogu</b> et Supergirl."}, {"t": "The Venture Bros", "y": "2004", "k": "Série", "note": 7.8, "why": "Parce que vous avez <b>President Curtis (2026)</b> et Batman Caped Crusader (2024)."}, {"t": "Double piège", "y": "2024", "k": "Série", "note": 7.1, "why": "Parce que vous avez <b>Furious (2026)</b> et Batman Caped Crusader (2024)."}, {"t": "Fast Charlie", "y": "2023", "k": "Film", "note": 6.2, "why": "Parce que vous avez <b>Margin Call</b> et On l'appelait Robin des Bois."}, {"t": "Grimsburg", "y": "2024", "k": "Série", "note": 6.1, "why": "Parce que vous avez <b>President Curtis (2026)</b> et Batman Caped Crusader (2024)."}, {"t": "L'Assassin", "y": "2025", "k": "Série", "note": 6.8, "why": "Parce que vous avez <b>Furious (2026)</b> et Batman Caped Crusader (2024)."}, {"t": "A.I. Intelligence artificielle", "y": "2001", "k": "Film", "note": 7.1, "why": "Parce que vous avez <b>Disclosure Day</b> et Marjorie Prime."}, {"t": "Solo: A Star Wars Story", "y": "2018", "k": "Film", "note": 6.6, "why": "Parce que vous avez <b>The Mandalorian and Grogu</b> et Supergirl."}, {"t": "Power Rangers", "y": "2017", "k": "Film", "note": 6.2, "why": "Parce que vous avez <b>The Mandalorian and Grogu</b> et Supergirl."}, {"t": "Valérian et la cité des mille planètes", "y": "2017", "k": "Film", "note": 6.7, "why": "Parce que vous avez <b>The Mandalorian and Grogu</b> et Supergirl."}, {"t": "Agent Elvis", "y": "2023", "k": "Série", "note": 6.9, "why": "Parce que vous avez <b>President Curtis (2026)</b> et Batman Caped Crusader (2024)."}, {"t": "Man Down", "y": "2013", "k": "Série", "note": 6.7, "why": "Parce que vous avez <b>The Hawk</b> et President Curtis (2026)."}, {"t": "Super-héros malgré lui", "y": "2022", "k": "Film", "note": 6.3, "why": "Parce que vous avez <b>Alexandre Kominek Bâtard sensible</b> et Alison Wheeler La Promesse d'un soir."}, {"t": "Marvel's M.O.D.O.K.", "y": "2021", "k": "Série", "note": 6.6, "why": "Parce que vous avez <b>President Curtis (2026)</b> et Batman Caped Crusader (2024)."}, {"t": "Les Trois Corniauds", "y": "2012", "k": "Film", "note": 5.8, "why": "Parce que vous avez <b>Alexandre Kominek Bâtard sensible</b> et Alison Wheeler La Promesse d'un soir."}, {"t": "Un Duplex pour 3", "y": "2003", "k": "Film", "note": 6.1, "why": "Parce que vous avez <b>Alexandre Kominek Bâtard sensible</b> et Alison Wheeler La Promesse d'un soir."}, {"t": "Solaris", "y": "2002", "k": "Film", "note": 5.9, "why": "Parce que vous avez <b>Disclosure Day</b> et Marjorie Prime."}, {"t": "L'Embrouille est dans le sac", "y": "1991", "k": "Film", "note": 6.4, "why": "Parce que vous avez <b>Alexandre Kominek Bâtard sensible</b> et Alison Wheeler La Promesse d'un soir."}, {"t": "Impostor", "y": "2001", "k": "Film", "note": 6.1, "why": "Parce que vous avez <b>The Mandalorian and Grogu</b> et Disclosure Day."}, {"t": "Green Lantern : Le Complot", "y": "2009", "k": "Film", "note": 6.9, "why": "Parce que vous avez <b>The Mandalorian and Grogu</b> et Supergirl."}, {"t": "Green Lantern : Méfiez-vous de mon pouvoir", "y": "2022", "k": "Film", "note": 6.7, "why": "Parce que vous avez <b>Supergirl</b> et Ninja Turtles."}, {"t": "Thunderstruck", "y": "2012", "k": "Film", "note": 6.2, "why": "Parce que vous avez <b>Alexandre Kominek Bâtard sensible</b> et Alison Wheeler La Promesse d'un soir."}, {"t": "LOL 2.0", "y": "2026", "k": "Film", "note": 6.0, "why": "Parce que vous avez <b>Alexandre Kominek Bâtard sensible</b> et Alison Wheeler La Promesse d'un soir."}, {"t": "American Dreamer", "y": "2022", "k": "Film", "note": 6.0, "why": "Parce que vous avez <b>Alexandre Kominek Bâtard sensible</b> et Alison Wheeler La Promesse d'un soir."}, {"t": "Monsieur le député", "y": "1992", "k": "Film", "note": 6.0, "why": "Parce que vous avez <b>Alexandre Kominek Bâtard sensible</b> et Alison Wheeler La Promesse d'un soir."}, {"t": "Held Up", "y": "1999", "k": "Film", "note": 5.9, "why": "Parce que vous avez <b>Alexandre Kominek Bâtard sensible</b> et Alison Wheeler La Promesse d'un soir."}, {"t": "Y-a-t'il quelqu'un pour l'ambulance ?", "y": "1992", "k": "Film", "note": 6.1, "why": "Parce que vous avez <b>Alexandre Kominek Bâtard sensible</b> et Alison Wheeler La Promesse d'un soir."}, {"t": "Gabriel Iglesias: I'm Sorry for What I Said When I Was Hungry", "y": "2016", "k": "Film", "note": 7.0, "why": "Parce que vous avez <b>Alexandre Kominek Bâtard sensible</b> et Alison Wheeler La Promesse d'un soir."}, {"t": "Jim Gaffigan: Beyond the Pale", "y": "2006", "k": "Film", "note": 7.0, "why": "Parce que vous avez <b>Alexandre Kominek Bâtard sensible</b> et Alison Wheeler La Promesse d'un soir."}, {"t": "Gabriel Iglesias: Stadium Fluffy", "y": "2022", "k": "Film", "note": 7.6, "why": "Parce que vous avez <b>Alexandre Kominek Bâtard sensible</b> et Alison Wheeler La Promesse d'un soir."}, {"t": "Eddie Murphy: Delirious", "y": "1983", "k": "Film", "note": 7.6, "why": "Parce que vous avez <b>Alexandre Kominek Bâtard sensible</b> et Alison Wheeler La Promesse d'un soir."}, {"t": "Jim Gaffigan: Mr. Universe", "y": "2012", "k": "Film", "note": 6.8, "why": "Parce que vous avez <b>Alexandre Kominek Bâtard sensible</b> et Alison Wheeler La Promesse d'un soir."}, {"t": "Les Griffin", "y": "1999", "k": "Série", "note": 7.4, "why": "Parce que vous avez <b>President Curtis (2026)</b>."}, {"t": "Esprits criminels", "y": "2005", "k": "Série", "note": 8.3, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "Avengers : Infinity War", "y": "2018", "k": "Film", "note": 8.2, "why": "Parce que vous avez <b>Supergirl</b>."}, {"t": "Avatar : De feu et de cendres", "y": "2025", "k": "Film", "note": 7.6, "why": "Parce que vous avez <b>The Mandalorian and Grogu</b>."}, {"t": "Arrow", "y": "2012", "k": "Série", "note": 6.8, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Person of Interest", "y": "2011", "k": "Série", "note": 8.1, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Marvel's The Punisher", "y": "2017", "k": "Série", "note": 8.2, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Avengers", "y": "2012", "k": "Film", "note": 8.1, "why": "Parce que vous avez <b>Ninja Turtles</b>."}, {"t": "Hercule Poirot", "y": "1989", "k": "Série", "note": 8.2, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "On Cinema", "y": "2012", "k": "Série", "note": 8.4, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "Cape Fear - Les Nerfs à vif", "y": "2026", "k": "Série", "note": 7.2, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "Marvel's Daredevil", "y": "2015", "k": "Série", "note": 8.2, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "The Night Agent", "y": "2023", "k": "Série", "note": 7.7, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Robot Chicken", "y": "2005", "k": "Série", "note": 7.6, "why": "Parce que vous avez <b>President Curtis (2026)</b>."}, {"t": "The Shield", "y": "2002", "k": "Série", "note": 8.2, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Big Mouth", "y": "2017", "k": "Série", "note": 7.6, "why": "Parce que vous avez <b>President Curtis (2026)</b>."}, {"t": "56 jours", "y": "2026", "k": "Série", "note": 7.3, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "Capitaine Furillo", "y": "1981", "k": "Série", "note": 7.6, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Black Panther", "y": "2018", "k": "Film", "note": 7.4, "why": "Parce que vous avez <b>Ninja Turtles</b>."}, {"t": "Miss Marple", "y": "2004", "k": "Série", "note": 7.8, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Following", "y": "2013", "k": "Série", "note": 6.9, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "21 Jump Street", "y": "1987", "k": "Série", "note": 7.3, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Homicide", "y": "1993", "k": "Série", "note": 8.1, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Cyberpunk : Edgerunners", "y": "2022", "k": "Série", "note": 8.5, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Line of Duty : Enquêtes internes", "y": "2012", "k": "Série", "note": 8.2, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "The Larry Sanders Show", "y": "1992", "k": "Série", "note": 7.7, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "Aquaman et le Royaume perdu", "y": "2023", "k": "Film", "note": 6.5, "why": "Parce que vous avez <b>Ninja Turtles</b>."}, {"t": "Beast", "y": "2026", "k": "Film", "note": 6.3, "why": "Parce que vous avez <b>On l'appelait Robin des Bois</b>."}, {"t": "Copains pour toujours", "y": "2010", "k": "Film", "note": 6.4, "why": "Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b>."}, {"t": "Le Prestige", "y": "2006", "k": "Film", "note": 8.2, "why": "Parce que vous avez <b>Marjorie Prime</b>."}, {"t": "Harley Quinn", "y": "2019", "k": "Série", "note": 8.3, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Citadel", "y": "2023", "k": "Série", "note": 6.9, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "En eaux troubles", "y": "2018", "k": "Film", "note": 6.3, "why": "Parce que vous avez <b>Disclosure Day</b>."}, {"t": "Mr. Mercedes", "y": "2017", "k": "Série", "note": 7.1, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "Aqua Teen Hunger Force", "y": "2000", "k": "Série", "note": 7.5, "why": "Parce que vous avez <b>President Curtis (2026)</b>."}, {"t": "Lazarus", "y": "2025", "k": "Série", "note": 7.6, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Les Dessous de Palm Beach", "y": "1991", "k": "Série", "note": 6.1, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Sneaky Pete", "y": "2015", "k": "Série", "note": 7.5, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "Portlandia", "y": "2011", "k": "Série", "note": 6.9, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "Hunting Season", "y": "2025", "k": "Film", "note": 7.4, "why": "Parce que vous avez <b>On l'appelait Robin des Bois</b>."}, {"t": "Barnaby Jones", "y": "1973", "k": "Série", "note": 7.0, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Murder in a Small Town", "y": "2024", "k": "Série", "note": 6.9, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "Marvel's Luke Cage", "y": "2016", "k": "Série", "note": 6.9, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Batman v Superman : L'Aube de la Justice", "y": "2016", "k": "Film", "note": 6.0, "why": "Parce que vous avez <b>Ninja Turtles</b>."}, {"t": "Taken", "y": "2017", "k": "Série", "note": 6.5, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Devil May Cry", "y": "2025", "k": "Série", "note": 8.2, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "New York Undercover", "y": "1994", "k": "Série", "note": 7.3, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "Chad Powers", "y": "2025", "k": "Série", "note": 8.0, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "La Guerre des mondes", "y": "2005", "k": "Film", "note": 6.6, "why": "Parce que vous avez <b>Disclosure Day</b>."}, {"t": "Baretta", "y": "1975", "k": "Série", "note": 6.5, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "American Psycho", "y": "2000", "k": "Film", "note": 7.4, "why": "Parce que vous avez <b>Margin Call</b>."}, {"t": "Ant-Man et la Guêpe : Quantumania", "y": "2023", "k": "Film", "note": 6.2, "why": "Parce que vous avez <b>Ninja Turtles</b>."}, {"t": "Steal", "y": "2026", "k": "Série", "note": 7.4, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "The Rookie : FBI", "y": "2022", "k": "Série", "note": 7.0, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "Colin from Accounts", "y": "2022", "k": "Série", "note": 7.5, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "The Creator", "y": "2023", "k": "Film", "note": 7.0, "why": "Parce que vous avez <b>Disclosure Day</b>."}, {"t": "L'Aliéniste", "y": "2018", "k": "Série", "note": 7.5, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "Scream", "y": "2015", "k": "Série", "note": 6.9, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Manhunt", "y": "2017", "k": "Série", "note": 7.6, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Countdown", "y": "2025", "k": "Série", "note": 7.3, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "Transformers : L’Âge de l’extinction", "y": "2014", "k": "Film", "note": 6.0, "why": "Parce que vous avez <b>The Mandalorian and Grogu</b>."}, {"t": "Tim and Eric Awesome Show, Great Job!", "y": "2007", "k": "Série", "note": 7.1, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "Dragnet", "y": "1967", "k": "Série", "note": 7.0, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Power Book IV: Force", "y": "2022", "k": "Série", "note": 8.3, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "Marvel's The Defenders", "y": "2017", "k": "Série", "note": 7.0, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Meurtres à l'anglaise", "y": "2002", "k": "Série", "note": 7.4, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Les Frères Hardy", "y": "2021", "k": "Série", "note": 7.3, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "The Mighty Nein", "y": "2025", "k": "Série", "note": 8.2, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Monty Python's Flying Circus", "y": "1969", "k": "Série", "note": 8.3, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "Departure", "y": "2019", "k": "Série", "note": 6.5, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Nancy Drew", "y": "2019", "k": "Série", "note": 7.7, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Watchmen", "y": "2019", "k": "Série", "note": 7.6, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Fenêtre sur cour", "y": "1954", "k": "Film", "note": 8.3, "why": "Parce que vous avez <b>Marjorie Prime</b>."}, {"t": "Squidbillies", "y": "2005", "k": "Série", "note": 6.9, "why": "Parce que vous avez <b>President Curtis (2026)</b>."}, {"t": "SkyMed", "y": "2022", "k": "Série", "note": 6.7, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Bad Thoughts", "y": "2025", "k": "Série", "note": 5.8, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "Mike Judge's Beavis and Butt-Head", "y": "2022", "k": "Série", "note": 7.9, "why": "Parce que vous avez <b>President Curtis (2026)</b>."}, {"t": "The Purge", "y": "2018", "k": "Série", "note": 6.9, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Coroner", "y": "2019", "k": "Série", "note": 7.0, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Cloud Atlas", "y": "2012", "k": "Film", "note": 6.9, "why": "Parce que vous avez <b>Margin Call</b>."}, {"t": "Condor", "y": "2018", "k": "Série", "note": 7.1, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "Minority Report", "y": "2002", "k": "Film", "note": 7.4, "why": "Parce que vous avez <b>Disclosure Day</b>."}, {"t": "Robin des Bois", "y": "2018", "k": "Film", "note": 5.9, "why": "Parce que vous avez <b>On l'appelait Robin des Bois</b>."}, {"t": "The Boys présentent - Les Diaboliques", "y": "2022", "k": "Série", "note": 7.1, "why": "Parce que vous avez <b>President Curtis (2026)</b>."}, {"t": "The Passenger", "y": "2018", "k": "Film", "note": 6.4, "why": "Parce que vous avez <b>Margin Call</b>."}, {"t": "12 O'Clock High", "y": "1964", "k": "Série", "note": 7.2, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "DCI Banks", "y": "2011", "k": "Série", "note": 7.1, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "Bodyguard", "y": "2018", "k": "Série", "note": 7.8, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "The Last Stand of Ellen Cole", "y": "2024", "k": "Film", "note": 8.2, "why": "Parce que vous avez <b>On l'appelait Robin des Bois</b>."}, {"t": "Hung", "y": "2009", "k": "Série", "note": 6.5, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "Code rouge", "y": "2024", "k": "Série", "note": 7.1, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Geostorm", "y": "2017", "k": "Film", "note": 6.1, "why": "Parce que vous avez <b>Disclosure Day</b>."}, {"t": "Le coup du siècle", "y": "2019", "k": "Film", "note": 6.2, "why": "Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b>."}, {"t": "Harlem", "y": "2021", "k": "Série", "note": 7.1, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "Legends", "y": "2014", "k": "Série", "note": 6.4, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Rogue", "y": "2013", "k": "Série", "note": 6.7, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "In Living Color", "y": "1990", "k": "Série", "note": 7.6, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "The Bay", "y": "2019", "k": "Série", "note": 6.5, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "Mission Pizza", "y": "2026", "k": "Film", "note": 6.4, "why": "Parce que vous avez <b>Scary Movie</b>."}, {"t": "Little Britain", "y": "2003", "k": "Série", "note": 7.0, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "Chronicle", "y": "2012", "k": "Film", "note": 6.9, "why": "Parce que vous avez <b>Disclosure Day</b>."}, {"t": "Men in Black III", "y": "2012", "k": "Film", "note": 6.5, "why": "Parce que vous avez <b>Ninja Turtles</b>."}, {"t": "American Pie 4", "y": "2012", "k": "Film", "note": 6.3, "why": "Parce que vous avez <b>Scary Movie</b>."}, {"t": "Battleship", "y": "2012", "k": "Film", "note": 5.9, "why": "Parce que vous avez <b>Disclosure Day</b>."}, {"t": "Les branchés débranchés", "y": "1982", "k": "Série", "note": 7.9, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "The Town", "y": "2010", "k": "Film", "note": 7.2, "why": "Parce que vous avez <b>Margin Call</b>."}, {"t": "La Tour sombre", "y": "2017", "k": "Film", "note": 5.8, "why": "Parce que vous avez <b>Disclosure Day</b>."}, {"t": "'Til Death", "y": "2006", "k": "Série", "note": 6.5, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "La Stratégie Ender", "y": "2013", "k": "Film", "note": 6.6, "why": "Parce que vous avez <b>The Mandalorian and Grogu</b>."}, {"t": "Sous ses yeux", "y": "2026", "k": "Série", "note": 6.4, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "Benny Hill", "y": "1969", "k": "Série", "note": 7.3, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "The Family Business", "y": "2018", "k": "Série", "note": 8.5, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}];
 
   /* 260 titres RÉELS extraits de library.db (lecture seule) — de quoi
@@ -2242,6 +2610,9 @@
     libCat: "all",
     libMode: "grid",
     scen: "reel",
+    addQ: "star wars",
+    added: new Set(),
+    recents: ["star wars", "silo", "the bear"],
     followMode: "list",
     pill: "tout",
     notes: false,
@@ -3085,7 +3456,10 @@
     e.currentTarget.setAttribute("aria-pressed", String(S.notes));
     toast(S.notes ? "Notes de conception affichées." : "Notes masquées.");
   };
-  $("#scenBtn").onclick = (e) => {
+  $("#fab").onclick = () => {
+    openAddScreen();
+  };
+    $("#scenBtn").onclick = (e) => {
     S.scen = S.scen === "reel" ? "charge" : "reel";
     e.currentTarget.setAttribute("aria-pressed", String(S.scen === "charge"));
     port.scrollTop = 0;
@@ -3229,6 +3603,40 @@
       openPlusSheet();
       return;
     }
+    if (b.dataset.add) {
+      const i = Number(b.dataset.add);
+      const r = SEARCH.results[i];
+      if (r.owned) {
+        openDlg(`<h3>Remplacer « ${esc(r.t)} » ?</h3>
+          <p>Ce ${r.k === "Film" ? "film est déjà" : "média est déjà"} en médiathèque. L'acquisition <b>remplacera</b> la version en place par celle qui sera récupérée.</p>
+          <div class="dlgacts">
+            <button class="dlgbtn danger" data-confirmadd="${i}">Remplacer</button>
+            <button class="dlgbtn ghost" id="dlgcancel">Annuler</button>
+          </div>`);
+        document.querySelector("#dlgcancel").onclick = closeDlg;
+        return;
+      }
+      S.added.add(i);
+      openAddScreen();
+      toast(`« ${r.t} » ${r.k === "Film" ? "ajouté à votre liste" : "ajouté à vos suivis"} — la recherche commence maintenant.`);
+      return;
+    }
+    if (b.dataset.confirmadd) {
+      S.added.add(Number(b.dataset.confirmadd));
+      closeDlg();
+      openAddScreen();
+      toast("Ajouté — la version en place sera remplacée une fois la nouvelle récupérée.");
+      return;
+    }
+    if (b.dataset.search) {
+      openAddScreen(b.dataset.search === "1" ? (document.querySelector("#addq")?.value ?? "") : b.dataset.search);
+      return;
+    }
+    if (b.dataset.journey) {
+      closeSheet();
+      setTimeout(() => openJourneySheet(b.dataset.journey), 260);
+      return;
+    }
     if (b.dataset.sheet) {
       openDetailSheet(b.dataset.sheet);
       return;
@@ -3360,6 +3768,15 @@
   }
 
   function openDetailSheet(title) {
+    // Une carte de suivi ou de média ouvre la feuille COMPLÈTE (matrice
+    // comprise) — c'était une esquisse jusqu'ici.
+    if (FOLLOWS.some((x) => x.t === title) || SEASONS[title] || INCOMPLETE.some((x) => x.t === title)) {
+      return openFollowSheet(title);
+    }
+    return openDetailSheetLegacy(title);
+  }
+
+  function openDetailSheetLegacy(title) {
     const f = FOLLOWS.find((x) => x.t === title);
     const isFilm = f && f.k === "film";
     openSheet(`
@@ -3377,6 +3794,184 @@
     </div>
     ${isFilm ? `<p class="note" style="display:block">Une fois acquis, ce film quittera automatiquement votre liste (§5).</p>` : ""}
   `);
+  }
+
+  /* ── Feuille de détail d'un suivi, avec sa matrice de saisons ──────────
+     Règles des GROS catalogues, mesurées sur American Dad! (22 saisons,
+     403 épisodes) : saison la plus récente en premier ; une saison complète
+     est REPLIÉE (son en-tête suffit à dire qu'il n'y a rien) ; une saison
+     incomplète est OUVERTE et porte « N manquant(s) » ; la légende est
+     AU-DESSUS de la matrice — sous 403 épisodes elle serait invisible
+     exactement quand on en a besoin. */
+
+  function epState(o, sn, num, owned) {
+    if (num <= owned) return "en_mediatheque";
+    if (o && o.st === "en_attente") return "en_attente";
+    if (o && o.st === "en_acquisition") return "en_acquisition";
+    return "a_recuperer";
+  }
+
+  function seasonHTML(o, s) {
+    const [num, aired, owned] = s;
+    const complete = owned >= aired;
+    const manque = aired - owned;
+    const cells = Array.from({ length: aired }, (_, i) => {
+      const n = i + 1, st = epState(o, num, n, owned);
+      return `<button class="ep ${st}" title="S${String(num).padStart(2, "0")}E${String(n).padStart(2, "0")} — ${EP_LABEL[st]}">${String(n).padStart(2, "0")}</button>`;
+    }).join("");
+    return `<details class="season"${complete ? "" : " open"}>
+      <summary>Saison ${num}
+        <span class="sfr">${owned}/${aired}</span>
+        ${complete ? "" : `<span class="miss">${manque} manquant${manque > 1 ? "s" : ""}</span>`}
+      </summary>
+      <div class="eps">${cells}</div>
+    </details>`;
+  }
+
+  function openFollowSheet(title) {
+    const o = FOLLOWS.find((x) => x.t === title) ||
+      INCOMPLETE.map((x) => ({ t: x.t, k: "show", st: "a_recuperer", own: x.o, aired: x.a })).find((x) => x.t === title) ||
+      { t: title, k: "show", st: "a_jour" };
+    const seasons = (SEASONS[title] || []).slice().sort((a, b) => b[0] - a[0]);
+    const isFilm = o.k === "movie";
+    const own = seasons.reduce((n, s) => n + s[2], 0);
+    const aired = seasons.reduce((n, s) => n + s[1], 0);
+    /* §5.4 — une seule dérivation : la fraction de la carte, celle de l'en-tête
+       et la somme des en-têtes de saison lisent le MÊME calcul. */
+    const frac = isFilm ? null : seasons.length ? `${own}/${aired}` : (stFraction(o) ?? "—");
+    const etats = seasons.length
+      ? [...new Set(seasons.flatMap((s) => [
+          ...(s[2] > 0 ? ["en_mediatheque"] : []),
+          ...(s[1] > s[2] ? [epState(o, s[0], s[1], s[2])] : []),
+        ]))]
+      : [];
+
+    openSheet(`
+      <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:12px">
+        <span class="sheetposter">${posterBox(o.t, o.k)}</span>
+        <div style="min-width:0;flex:1">
+          <h3 class="sheettitle">${esc(o.t)}</h3>
+          <p class="sheetmeta" style="margin-bottom:6px">${o.y ? esc(String(o.y)) + " · " : ""}${isFilm ? "Film" : "Série"}${frac ? " · " + frac + " épisodes" : ""}</p>
+          <span class="chip ${ST_TONE[o.st]}">${esc(stLabel(o))}</span>
+        </div>
+      </div>
+      <div class="sheetacts">
+        <button class="sact primary">${svg(I.play)}${o.st === "a_recuperer" ? "Récupérer maintenant" : "Chercher maintenant"}</button>
+      </div>
+      ${
+        seasons.length
+          ? `<div class="legend">${EP_ORDER.filter((s) => etats.includes(s)).map((s) => `<span><i class="${EP_SWATCH[s]}"></i>${EP_LABEL[s]}</span>`).join("")}</div>
+             ${seasons.map((s) => seasonHTML(o, s)).join("")}`
+          : isFilm
+            ? `<p class="rulenote">Un film n'a pas de catalogue d'épisodes : il est acquis, ou il ne l'est pas.</p>`
+            : `<p class="rulenote">Aucune donnée de saison connue pour cette série — le catalogue n'a pas encore été récupéré. La fraction affiche « — », jamais « 0/0 » qui se lirait comme une série vide.</p>`
+      }
+      <div class="sheetacts secondary">
+        <button class="sact" data-fiche="${esc(o.t)}">${svg(I.eye)}Voir la fiche</button>
+        <button class="sact" data-journey="${esc(o.t)}">${svg(I.refresh)}Voir le parcours</button>
+        <button class="sact">${svg(I.search)}Chercher une autre release</button>
+        <button class="sact">${svg(I.sort)}Profil de qualité</button>
+        <button class="sact">${svg(I.x)}${isFilm ? "Ne plus chercher" : "Mettre en pause"}</button>
+        <button class="sact danger">${svg(I.trash)}${isFilm ? "Retirer de la liste" : "Retirer le suivi"}</button>
+      </div>
+      ${isFilm ? `<p class="rulenote">Une fois acquis, ce film quittera automatiquement votre liste (§5).</p>` : ""}
+    `);
+  }
+
+  /* ── Feuille de parcours ──────────────────────────────────────────────
+     §14.3 : un parcours n'a pas de trou. Une étape non atteinte se dit
+     « à venir », jamais « pas faite » ; une étape sans date se dit
+     « inconnue », jamais une date inventée. */
+  function openJourneySheet(title) {
+    const etapes = [
+      ["Pris chez le tracker", "10 août, 03 h 21", "done"],
+      ["Téléchargé", "10 août, 03 h 48", "done"],
+      ["Ingéré dans le staging", "10 août, 04 h 02", "done"],
+      ["Scrapé", "en cours depuis 4 min", "now"],
+      ["Rangé en médiathèque", "à venir", "todo"],
+    ];
+    openSheet(`
+      <h3 class="sheettitle">${esc(title)}</h3>
+      <p class="sheetmeta">Parcours de l'acquisition · release <code>Furious.S01E01.MULTi.1080p.WEB-DL</code></p>
+      <div class="panel" style="margin-bottom:14px">
+        ${etapes.map(([l, d, st]) => `<div class="kv"><span style="display:flex;align-items:center;gap:8px"><span class="pip ${st === "done" ? "success" : st === "now" ? "info" : "neutral"}"></span>${l}</span><span style="font-weight:${st === "todo" ? "400" : "600"};color:${st === "todo" ? "var(--muted-foreground)" : "inherit"}">${d}</span></div>`).join("")}
+      </div>
+      <p class="rulenote">Les dates viennent de la spine de provenance. Une étape non encore atteinte affiche « à venir » — jamais une date reconstruite.</p>
+      <div class="sheetacts">
+        <button class="sact" data-fiche="${esc(title)}">${svg(I.eye)}Voir la fiche</button>
+      </div>`);
+  }
+
+  /* ── Écran d'ajout (« + ») ────────────────────────────────────────────
+     Un ÉCRAN plein, pas une feuille basse : le clavier mange la moitié du
+     téléphone. Liste VERTICALE de résultats, jamais un rail horizontal — un
+     rail montre trois affiches et cache l'année, le type et le synopsis,
+     c'est-à-dire exactement ce qui sépare deux homonymes (§12).
+     L'état « déjà connu » vit SUR LE BOUTON, pas à côté (§7). */
+  function openAddScreen(q) {
+    const query = q ?? S.addQ;
+    S.addQ = query;
+    const hasQ = query !== "";
+    const rows = SEARCH.results
+      .map((r, i) => {
+        const verbe = r.k === "Film" ? "Ajouter" : "Suivre";
+        const fait = S.added.has(i);
+        const cls = fait ? "resbtn done" : r.owned ? "resbtn owned" : "resbtn";
+        const lab = fait
+          ? r.k === "Film" ? "✓ Ajouté" : "✓ Suivi"
+          : r.owned ? `${verbe}…` : verbe;
+        return `<article class="res">
+          <span class="rp">${posterBox(r.t, r.k === "Film" ? "movie" : "show")}</span>
+          <div class="rb">
+            <span class="rt">${esc(r.t)}</span>
+            <span class="rm">${esc(r.y)} · ${esc(r.k)} · TMDB${r.owned ? " · <b style=\"color:var(--warning)\">déjà en médiathèque</b>" : ""}</span>
+            <p class="ro">${esc(r.ov)}</p>
+            <button class="${cls}" data-add="${i}" ${fait ? "disabled" : ""}>${lab}</button>
+          </div>
+        </article>`;
+      })
+      .join("");
+
+    openScreen(`<div class="fichebar">
+      <button class="fback" onclick="__close('screen')">${svg(I.left)}Retour</button>
+    </div>
+    <div class="port">
+      <div class="addform">
+        <div class="search">${svg(I.search)}<input type="search" id="addq" value="${esc(query)}" placeholder="Titre du film ou de la série" aria-label="Chercher un média à ajouter"></div>
+        <div class="addrow">
+          <div class="segmini">
+            <button aria-pressed="true">Tout</button><button aria-pressed="false">Séries</button><button aria-pressed="false">Films</button>
+          </div>
+          <button class="btnprimary" data-search="1">Chercher</button>
+        </div>
+      </div>
+      ${
+        hasQ
+          ? `<p class="rescount"><b>${SEARCH.shown}</b> résultats affichés sur <b>${SEARCH.total}</b> trouvés — les plus pertinents d'abord.</p>
+             <div class="reslist">${rows}</div>`
+          : `<div class="sugg">${S.recents.map((r) => `<button data-search="${esc(r)}">${esc(r)}</button>`).join("")}</div>
+             <div style="padding:14px">${emptyHTML("Cherchez un titre.", "Vos recherches récentes sont au-dessus. La recherche part à la validation, jamais à chaque frappe — sinon chaque lettre coûte un appel aux providers.")}</div>`
+      }
+      <details class="byid">
+        <summary>Ou ajouter par identifiant</summary>
+        <div class="byidin">
+          <div class="segmini" style="align-self:flex-start"><button aria-pressed="true">TMDB</button><button aria-pressed="false">TVDB</button><button aria-pressed="false">IMDB</button></div>
+          <div class="search"><input id="byidv" placeholder="12e34" aria-label="Identifiant"></div>
+          <p class="whyoff">Identifiant refusé : « 12e34 » n'est pas un nombre — <code>Number()</code> le lirait comme une notation scientifique. Un id TMDB ne contient que des chiffres ; IMDB attend <code>tt1234567</code>.</p>
+          <button class="btnprimary" disabled style="align-self:flex-start;padding:9px 16px">Ajouter</button>
+        </div>
+      </details>
+      ${
+        S.added.size > 0
+          ? `<div class="addfoot"><span><b>${S.added.size}</b> média${S.added.size > 1 ? "s" : ""} ajouté${S.added.size > 1 ? "s" : ""}</span><button data-go="acq">Voir mes suivis →</button></div>`
+          : ""
+      }
+    </div>`);
+    const inp = document.querySelector("#addq");
+    if (inp)
+      inp.onkeydown = (e) => {
+        if (e.key === "Enter") openAddScreen(inp.value);
+      };
   }
 
   function openPlusSheet() {
