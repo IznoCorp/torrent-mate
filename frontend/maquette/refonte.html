@@ -1583,10 +1583,86 @@
      hero, synopsis, distribution, bande-annonce, identifiants, médiathèque —
      est identique, dans le même ordre. Une donnée absente s'écrit
      « inconnu », jamais un tiret muet (§14.3). */
+  /* ── Hero de fiche : l'affiche en fond fondu ──────────────────────────
+     L'affiche sert deux fois : en vignette nette à gauche, et en fond flouté
+     derrière le titre. C'est le SEUL flou de l'interface — la barre du haut le
+     refuse explicitement, pour ne pas re-échantillonner du contenu en
+     mouvement à chaque frame. Ici rien ne bouge derrière : le coût est payé
+     une fois.
+
+     Trois précautions, parce qu'un fond décoratif ne doit jamais coûter en
+     lisibilité (§12) :
+     · un dégradé opaque ramène au fond AVANT le bas du bloc, donc le texte se
+       lit toujours sur une couleur pleine et non sur une image ;
+     · le fond est légèrement désaturé et plafonné en opacité, pour qu'une
+       affiche très colorée ne fasse pas vibrer le titre ;
+     · aucune information ne vit dans l'image — la retirer ne perd rien. */
+  .herowrap {
+    position: relative;
+    margin: -10px -14px 0;
+    padding: 18px 14px 6px;
+    isolation: isolate;
+    /* Sans rognage, le fond débordait latéralement de son propre décalage. */
+    overflow: hidden;
+  }
+  .herobg {
+    position: absolute;
+    inset: -30% -12% auto -12%;
+    height: 132%;
+    z-index: -1;
+    background-position: center 22%;
+    background-size: cover;
+    filter: blur(26px) saturate(1.05);
+    opacity: 0.72;
+    /* Le fond NAÎT sous la barre du haut et MEURT avant le contenu, au lieu
+       de commencer par une couture nette. Le masque fait la forme ; le
+       dégradé ci-dessous fait la lisibilité. Les deux sont nécessaires. */
+    -webkit-mask-image: linear-gradient(to bottom, transparent 23%, #000 41%, #000 72%, transparent 96%);
+    mask-image: linear-gradient(to bottom, transparent 23%, #000 41%, #000 72%, transparent 96%);
+    transform: translateZ(0);
+  }
+  /* En clair, le même réglage pose une dalle grise sous un titre sombre :
+     l'effet est pensé pour un fond noir. On le tempère au lieu de le retirer,
+     pour que les deux thèmes racontent la même chose. */
+  :root[data-theme="light"] .herobg,
+  html.light .herobg {
+    opacity: 0.34;
+    filter: blur(30px) saturate(1.15);
+  }
+
+  .herobg::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    /* Le fond respire en haut et se referme complètement en bas : le texte se
+       lit toujours sur une couleur pleine, jamais sur une image. */
+    background: linear-gradient(
+      to bottom,
+      color-mix(in oklab, var(--background) 8%, transparent) 0%,
+      color-mix(in oklab, var(--background) 30%, transparent) 38%,
+      color-mix(in oklab, var(--background) 72%, transparent) 72%,
+      var(--background) 100%
+    );
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .herobg {
+      animation: heroin 0.5s ease both;
+    }
+  }
+  @keyframes heroin {
+    from {
+      opacity: 0;
+      transform: scale(1.06) translateZ(0);
+    }
+  }
   .hero {
+    position: relative;
     display: flex;
     gap: 12px;
     align-items: flex-start;
+  }
+  .hero .sheetposter {
+    box-shadow: 0 10px 30px rgb(0 0 0 / 0.55);
   }
   .hero .ht {
     margin: 0;
@@ -5581,7 +5657,9 @@
     </div>
     <div class="port"><div class="body">
 
-      <div class="hero">
+      <div class="herowrap">
+        ${POSTERS[title] || POSTERS[baseTitle(title)] ? `<div class="herobg" aria-hidden="true" style="background-image:url('${POSTERS[title] ?? POSTERS[baseTitle(title)]}')"></div>` : ""}
+        <div class="hero">
         <span class="sheetposter" style="width:104px;font-size:30px">${posterBox(title, isFilm ? "movie" : "show")}</span>
         <div style="min-width:0;flex:1">
           <h2 class="ht">${esc(title.split(" (")[0])}</h2>
@@ -5591,6 +5669,7 @@
             ${f && !isFilm && f.statut ? `<br>Série ${esc(f.statut.toLowerCase())}` : ""}
           </p>
           ${f?.note ? `<span class="hn">${svg(I.star)}${String(f.note).replace(".", ",")}<span style="color:var(--muted-foreground);font-weight:400"> sur TMDB</span></span>` : ""}
+        </div>
         </div>
       </div>
 

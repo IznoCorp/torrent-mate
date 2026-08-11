@@ -130,6 +130,32 @@ async def main():
       return out;}""")
     for x in rev: note("R17 destruction sans garde-fou", x)
 
+    # R26 — le fond d'affiche fondu est un trait de TOUTES les fiches, pas de
+    # celles que j'ai regardées. La règle est conditionnelle et le dit : un
+    # média SANS affiche dégrade en fond plat (différence justifiée par son
+    # contexte propre, cf. README). Un média AVEC affiche qui n'a pas son fond
+    # signale un second chemin de rendu non converti — le défaut de fond de la
+    # refonte précédente.
+    fonds=await pg.evaluate("""async ()=>{const out=[];
+      for (const s of window.__states()) {
+        window.__go(s); await new Promise(r=>setTimeout(r,180));
+        const racine=document.querySelector('#screen.open, #sheet.open');
+        const hero=racine && racine.querySelector('.hero');
+        if (!hero) continue;
+        const wrap=hero.closest('.herowrap');
+        if (!wrap) { out.push(`${s} : fiche sans .herowrap`); continue; }
+        const bg=wrap.querySelector('.herobg');
+        const aAffiche=!!hero.querySelector('.sheetposter img');
+        if (aAffiche && !bg) out.push(`${s} : affiche présente mais aucun fond`);
+        if (bg && getComputedStyle(bg).backgroundImage==='none')
+          out.push(`${s} : fond déclaré mais vide`);
+        // Le texte ne doit JAMAIS reposer sur l'image : le dégradé de
+        // fermeture est ce qui rend la règle vraie, pas la bonne volonté.
+        if (bg && !getComputedStyle(bg,'::after').backgroundImage.includes('gradient'))
+          out.push(`${s} : fond sans dégradé de lisibilité`);
+      } return out;}""")
+    for x in fonds: note("R26 fond d'affiche non généralisé", x)
+
     print()
     if not viol: print("Aucune violation sur ce second tour.")
     for r,l in sorted(viol.items()):

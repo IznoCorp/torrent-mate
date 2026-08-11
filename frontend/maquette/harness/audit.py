@@ -63,11 +63,33 @@ async def main():
           }).map(el=>(el.className||el.tagName)+' '+Math.round(el.getBoundingClientRect().height)+'px');
 
           // R4 — débordement horizontal hors défileurs DÉCLARÉS
+          //
+          // getBoundingClientRect rapporte la géométrie AVANT rognage : une
+          // couche décorative volontairement plus large que son cadre (le fond
+          // d'affiche flouté) y ressemble à un débordement alors qu'un ancêtre
+          // la rogne. On ne blanchit pas la classe — on VÉRIFIE le rognage :
+          // il faut un ancêtre qui rogne vraiment (overflow-x hidden/clip) ET
+          // qui tienne lui-même dans le cadre. Un ancêtre rogneur qui déborde
+          // ne rogne rien, il déplace le problème.
           const SCROLLERS = '.pillscroll,.cast,.eps,.hpanel';
+          const rogne = (el) => {
+            for (let p = el.parentElement; p && p !== racine.parentElement; p = p.parentElement) {
+              const ox = getComputedStyle(p).overflowX;
+              if (ox === 'hidden' || ox === 'clip') return p.getBoundingClientRect().right <= 390.5;
+            }
+            return false;
+          };
           R.debordements = [...racine.querySelectorAll('*')].filter(el=>{
             const bb=el.getBoundingClientRect();
-            return bb.right>390.5 && bb.width>0 && !el.closest(SCROLLERS);
+            return bb.right>390.5 && bb.width>0 && !el.closest(SCROLLERS) && !rogne(el);
           }).map(el=>(el.className||el.tagName)+' →'+Math.round(el.getBoundingClientRect().right));
+
+          // R4 bis — la mesure qui ne se laisse pas raconter d'histoire : le
+          // défileur lui-même ne doit offrir AUCUN défilement horizontal.
+          // Si un rognage était illusoire, il apparaîtrait ici.
+          R.panHorizontal = [...racine.querySelectorAll('.port,[data-scroll-root]')]
+            .filter(el=>el.scrollWidth > el.clientWidth + 1)
+            .map(el=>(el.className||el.tagName)+' scrollWidth '+el.scrollWidth+' > '+el.clientWidth);
 
           // R5 — un défileur horizontal ne doit JAMAIS bloquer le pan vertical
           R.scrollersBloquants = [...racine.querySelectorAll('*')].filter(el=>{
@@ -166,6 +188,7 @@ async def main():
                        "boutonsMorts":"R2 bouton sans effet",
                        "ciblesTropPetites":"R3 cible tactile < 32 px",
                        "debordements":"R4 débordement horizontal",
+                       "panHorizontal":"R4 bis défilement horizontal réel",
                        "scrollersBloquants":"R5 défileur qui bloque le pan vertical",
                        "titresTronques":"R6 titre tronqué"}[k]
                 for x in (v if isinstance(v, list) else [v]):

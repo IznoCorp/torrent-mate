@@ -12,7 +12,17 @@ async def main():
     ctx=await b.new_context(viewport={"width":390,"height":844},device_scale_factor=2,is_mobile=True,has_touch=True)
     pg=await ctx.new_page(); errs=[]
     pg.on("pageerror", lambda e: errs.append(str(e)))
-    pg.on("console", lambda m: errs.append("console:"+m.text) if m.type=="error" and "favicon" not in m.text else None)
+    # Chrome demande /favicon.ico de lui-même ; la maquette n'a AUCUNE ressource
+    # externe (tout est en data: URI), donc ce 404 ne vient jamais d'elle. Le nom
+    # du fichier est dans l'URL, pas dans le message — d'où la lecture de location.
+    def _console(m):
+        if m.type != "error":
+            return
+        url = (m.location or {}).get("url", "")
+        if "favicon" in url or "favicon" in m.text:
+            return
+        errs.append("console:" + m.text + " ← " + url)
+    pg.on("console", _console)
     await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
     await pg.evaluate("()=>document.querySelector('#toastx').click()")
     bad = 0

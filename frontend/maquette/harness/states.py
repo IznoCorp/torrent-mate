@@ -23,7 +23,19 @@ async def main():
           const cible = couche ? (dg.classList.contains('open')?dg:sc.classList.contains('open')?sc:sh) : v;
           return {sk:cible.querySelectorAll('.sk').length, txt:cible.textContent.replace(/\\s+/g,' ').trim().length,
                   doc:document.documentElement.scrollWidth,
-                  deb:[...cible.querySelectorAll('*')].filter(e=>e.getBoundingClientRect().right>390.5&&!e.closest('.pillscroll')&&!e.closest('.eps')&&!e.closest('.cast')).length,
+                  // Un dépassement rogné par un ancêtre (le fond d'affiche
+                  // flouté) n'est pas un débordement : getBoundingClientRect
+                  // mesure AVANT rognage. On vérifie le rognage au lieu de
+                  // blanchir la classe — et le rogneur doit tenir lui-même.
+                  deb:[...cible.querySelectorAll('*')].filter(e=>{
+                    if (e.getBoundingClientRect().right<=390.5) return false;
+                    if (e.closest('.pillscroll')||e.closest('.eps')||e.closest('.cast')) return false;
+                    for (let p=e.parentElement; p; p=p.parentElement) {
+                      const ox=getComputedStyle(p).overflowX;
+                      if (ox==='hidden'||ox==='clip') return p.getBoundingClientRect().right>390.5;
+                    }
+                    return true;
+                  }).length,
                   couche};}""")
         ok = (r['txt']>60 or r['sk']>0) and r['doc']<=390 and r['deb']==0
         if not ok: bad.append((i,r))
