@@ -2293,6 +2293,145 @@
     border-color: var(--danger);
     color: var(--mq-white);
   }
+  /* Interrupteur — dimensions FIXES, toujours les mêmes. Un chip « Oui/Non »
+     dans une rangée flex prenait la hauteur du libellé (align-items: stretch)
+     et changeait de largeur selon le mot : deux bascules identiques n'avaient
+     donc pas la même taille selon la section. Un interrupteur dit aussi son
+     état par sa FORME, pas seulement par un mot. */
+  .switch {
+    flex: 0 0 auto;
+    align-self: center;
+    position: relative;
+    width: 46px;
+    height: 28px;
+    min-height: 28px;
+    padding: 0;
+    border-radius: 9999px;
+    border: 1px solid var(--border);
+    background: var(--muted);
+    transition: background 0.18s, border-color 0.18s;
+  }
+  .switch::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 22px;
+    height: 22px;
+    border-radius: 9999px;
+    background: var(--muted-foreground);
+    transition: transform 0.18s cubic-bezier(0.22, 0.61, 0.36, 1), background 0.18s;
+  }
+  .switch[aria-checked="true"] {
+    background: var(--primary);
+    border-color: var(--primary);
+  }
+  .switch[aria-checked="true"]::after {
+    transform: translateX(18px);
+    background: var(--primary-foreground);
+  }
+  .switch:disabled {
+    opacity: 0.5;
+  }
+  /* La rangée d'un réglage ne s'étire pas : le libellé peut passer à la
+     ligne sans emporter la commande avec lui. */
+  .kv.reglage {
+    align-items: flex-start;
+  }
+  .kv.reglage > span:first-child {
+    padding-right: 4px;
+  }
+
+  /* ── Contrôles de formulaire ───────────────────────────────────────────
+     La FORME dit la règle : un cercle = un seul choix possible, un carré =
+     plusieurs. Des pastilles identiques pour les deux ne disaient rien, et
+     leur largeur suivait la longueur du mot — deux options du même groupe
+     n'avaient donc pas la même taille. Ici la rangée est pleine largeur :
+     toutes les options sont identiques, dans tous les groupes. */
+  .optlist {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .opt {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    width: 100%;
+    min-height: 48px;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: transparent;
+    text-align: left;
+  }
+  .opt[aria-checked="true"] {
+    border-color: var(--primary);
+    background: color-mix(in oklab, var(--primary) 8%, transparent);
+  }
+  .opt .mark {
+    position: relative;
+    flex: 0 0 auto;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border);
+    background: transparent;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .opt.radio .mark {
+    border-radius: 9999px;
+  }
+  .opt.check .mark {
+    border-radius: 5px;
+  }
+  .opt[aria-checked="true"] .mark {
+    border-color: var(--primary);
+    background: var(--primary);
+  }
+  /* Radio coché : un point plein. Case cochée : une coche. Deux formes
+     distinctes, y compris une fois cochées. */
+  .opt.radio[aria-checked="true"] .mark::after {
+    content: "";
+    position: absolute;
+    inset: 4px;
+    border-radius: 9999px;
+    background: var(--primary-foreground);
+  }
+  .opt.check[aria-checked="true"] .mark::after {
+    content: "";
+    position: absolute;
+    left: 5px;
+    top: 1px;
+    width: 5px;
+    height: 10px;
+    border: solid var(--primary-foreground);
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+  .opt .lb {
+    flex: 1;
+    min-width: 0;
+    font-size: 13.5px;
+    font-weight: 500;
+  }
+  .opt .lb small {
+    display: block;
+    /* Une aide qui passe à la ligne rend la rangée plus haute que ses
+       voisines : le groupe n'a plus une taille unique. Une seule ligne. */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11.5px;
+    font-weight: 400;
+    color: var(--muted-foreground);
+    margin-top: 1px;
+  }
+  .optkind {
+    font-size: 11px;
+    color: var(--muted-foreground);
+    margin: 0 0 6px;
+  }
+
   .qhint {
     font-size: 11.5px;
     color: var(--muted-foreground);
@@ -2776,6 +2915,121 @@
     color: var(--muted-foreground);
   }
 
+  /* ── Tiroir de navigation — le gabarit de l'app, au complet ────────────
+     Le hamburger ne faisait rien et rien ne le signalait : mon détecteur le
+     blanchissait par sa classe. Reprend `NavSections` : trois sections
+     titrées, les mêmes badges que la barre du bas, et la `VersionCard` en
+     pied — elle vit dans le rail desktop, et le tiroir mobile est le SEUL
+     endroit où la version atteint le téléphone. */
+  .drawer {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 288px;
+    max-width: 86%;
+    z-index: 55;
+    background: var(--sidebar);
+    border-right: 1px solid var(--sidebar-border, var(--border));
+    display: flex;
+    flex-direction: column;
+    transform: translateX(-100%);
+    transition: transform 0.26s cubic-bezier(0.22, 0.61, 0.36, 1);
+    visibility: hidden;
+  }
+  .drawer.open {
+    transform: none;
+    visibility: visible;
+  }
+  .drawer .dh {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: calc(env(safe-area-inset-top) + 14px) 14px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .drawer nav {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px;
+  }
+  .drawer .sect {
+    padding: 10px 12px 4px;
+    font-size: 10.5px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted-foreground);
+  }
+  .drawer .sect + .sect,
+  .drawer .grp + .grp {
+    border-top: 1px solid var(--border);
+    margin-top: 6px;
+    padding-top: 10px;
+  }
+  .drawer a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 44px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    color: var(--sidebar-foreground, var(--foreground));
+  }
+  .drawer a[aria-current="page"] {
+    background: var(--sidebar-accent, var(--accent));
+    color: var(--primary);
+    font-weight: 600;
+  }
+  .drawer a svg {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 auto;
+  }
+  .drawer a .nb {
+    margin-left: auto;
+    display: inline-flex;
+    height: 18px;
+    min-width: 18px;
+    align-items: center;
+    justify-content: center;
+    padding-inline: 4px;
+    border-radius: 9999px;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .drawer .ver {
+    border-top: 1px solid var(--border);
+    padding: 12px 14px calc(env(safe-area-inset-bottom) + 12px);
+  }
+  .drawer .ver .vt {
+    font-size: 11px;
+    color: var(--muted-foreground);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+  }
+  .drawer .ver .vv {
+    font-size: 18px;
+    font-weight: 700;
+    margin-top: 3px;
+  }
+  .drawer .ver .vc {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 11px;
+    color: var(--muted-foreground);
+    margin-top: 2px;
+  }
+
   /* ── Design notes overlay ──────────────────────────────────── */
   .note {
     display: none;
@@ -2813,7 +3067,7 @@
 <div class="stage">
   <div class="device" id="device">
     <header class="topbar">
-      <button class="burger" aria-label="Ouvrir le menu de navigation">
+      <button class="burger" aria-label="Ouvrir le menu de navigation" data-drawer="1">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
       </button>
       <a class="brand" href="#" onclick="return false">
@@ -2859,7 +3113,8 @@
 
     <nav class="bottombar" id="nav" aria-label="Navigation principale"></nav>
 
-    <div class="screen" id="screen"></div>
+    <aside class="drawer" id="drawer" aria-label="Navigation principale"></aside>
+  <div class="screen" id="screen"></div>
     <div class="scrim" id="scrim"></div>
     <div class="sheet" id="sheet">
       <div class="sheetgrab" id="sheetgrab"></div>
@@ -4422,6 +4677,7 @@
      à la chaîne faisait remonter `history.back()` au-delà de nos entrées et
      quittait carrément la page. */
   function hideLayers() {
+    $("#drawer").classList.remove("open");
     $("#screen").classList.remove("open");
     $("#sheet").classList.remove("open");
     $("#scrim").classList.remove("open");
@@ -4469,6 +4725,7 @@
   }
 
   window.addEventListener("popstate", () => {
+    if ($("#drawer").classList.contains("open")) return fermerTiroir(true);
     if ($("#screen").classList.contains("open")) return closeScreen(true);
     if ($("#sheet").classList.contains("open")) return closeSheet(true);
   });
@@ -4476,6 +4733,7 @@
   $("#scrim").onclick = () => {
     closeDlg();
     closeSheet();
+    fermerTiroir();
   };
 
   /* Notes de conception */
@@ -4537,6 +4795,7 @@
     ["fiche-serie", "Fiche — série avec épisodes datés", () => { set({ page: "lib", phase: "prete" }); openFiche("Silo (2023)"); }],
     ["fiche-film", "Fiche — film", () => { set({ page: "lib", phase: "prete" }); openFiche("Marjorie Prime"); }],
     ["fiche-sans-trailer", "Fiche — sans bande-annonce", () => { set({ page: "lib", phase: "prete" }); openFiche("Les aventures de Tintin"); }],
+    ["tiroir-navigation", "Tiroir de navigation (hamburger)", () => { set({ page: "acq", phase: "prete" }); ouvrirTiroir(); }],
     ["systeme", "Système — réception", () => set({ page: "sys", phase: "prete" })],
   ];
 
@@ -4585,6 +4844,51 @@
     document.documentElement.classList.toggle("measuring", on !== false);
     return on !== false;
   };
+
+  /* Le modèle de navigation, groupé comme `layout/nav.ts` : Supervision,
+     Système, Configuration. Config n'est PAS dans la barre du bas — le tiroir
+     est son seul chemin, ce qui est exactement pourquoi il doit exister. */
+  const NAV = [
+    ["Supervision", [
+      ["acq", "Acquisition", I.radar],
+      ["lib", "Médiathèque", I.library],
+      ["arr", "Arrivées", I.inbox],
+    ]],
+    ["Système", [["sys", "Système", I.wrench]]],
+    ["Configuration", [["config", "Config", I.sort]]],
+  ];
+
+  function ouvrirTiroir() {
+    const badges = Object.fromEntries(PAGES_OF().map((p) => [p.id, p.badge]));
+    const el = $("#drawer");
+    el.innerHTML = `
+      <div class="dh">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;color:var(--primary)"><path d="M3 4h18l-7 8v7l-4 2v-9z"/></svg>
+        <span>Torrent<em style="font-style:normal;color:var(--primary)">Mate</em></span>
+      </div>
+      <nav>
+        ${NAV.map(([titre, items]) => `<div class="grp">
+          <p class="sect">${titre}</p>
+          ${items.map(([id, lab, ic]) => `<a href="#" data-navgo="${id}" ${S.page === id ? 'aria-current="page"' : ""}>
+            ${svg(ic)}<span>${lab}</span>${badges[id] ? `<span class="nb">${badges[id]}</span>` : ""}
+          </a>`).join("")}
+        </div>`).join("")}
+      </nav>
+      <div class="ver">
+        <p class="vt">Version déployée</p>
+        <p class="vv">0.89.0</p>
+        <p class="vc">build 720d2536 · à jour</p>
+      </div>`;
+    el.classList.add("open");
+    $("#scrim").classList.add("open");
+    try { history.pushState({ layer: "drawer" }, ""); } catch (e) {}
+  }
+  function fermerTiroir(pop) {
+    if (!$("#drawer").classList.contains("open")) return;
+    $("#drawer").classList.remove("open");
+    $("#scrim").classList.remove("open");
+    if (!pop) { try { if (history.state && history.state.layer) history.back(); } catch (e) {} }
+  }
 
   function closeHarness() {
     const el = document.querySelector(".hpanel");
@@ -4640,8 +4944,11 @@
 
   /* Délégation globale */
   document.addEventListener("click", (e) => {
-    const b = e.target.closest("button");
+    // Un lien de navigation est un <a>, pas un <button> : la délégation qui
+    // ne regardait que les boutons rendait le tiroir inerte.
+    const b = e.target.closest("button, a[data-navgo]");
     if (!b) return;
+    if (b.tagName === "A") e.preventDefault();
 
     if (b.dataset.page) {
       // Naviguer FERME ce qui est ouvert par-dessus : sans ça, on changeait
@@ -4801,6 +5108,22 @@
     }
     if (b.dataset.ep) {
       ouvrirPopEp(b);
+      return;
+    }
+    if (b.dataset.drawer) {
+      ouvrirTiroir();
+      return;
+    }
+    if (b.dataset.navgo) {
+      const id = b.dataset.navgo;
+      fermerTiroir();
+      if (id === "config") {
+        toast("Config — hors périmètre de cette refonte, conservée telle quelle (arbitrage B5).");
+        return;
+      }
+      S.page = id;
+      port.scrollTop = 0;
+      render();
       return;
     }
     if (b.dataset.hclose) {
@@ -5662,27 +5985,29 @@
       <div class="qgroup">
         <h2 class="h2">Résolution minimale</h2>
         <p class="qhint">Un plancher, pas une liste : tout ce qui est en dessous est écarté. « Aucun plancher » laisse passer les sources sans résolution lisible (REMUX, COMPLETE.BLURAY) que le classement note au mérite.</p>
-        <div class="qrow">
-          <button class="qchip" aria-pressed="${P.min_resolution === null}" data-qres="">Aucun plancher</button>
-          ${RESOS.map((r) => `<button class="qchip" aria-pressed="${P.min_resolution === r}" data-qres="${r}">${r} ou mieux</button>`).join("")}
+        <p class="optkind">Un seul choix</p>
+        <div class="optlist" role="radiogroup" aria-label="Résolution minimale">
+          <button class="opt radio" role="radio" aria-checked="${P.min_resolution === null}" data-qres=""><span class="mark"></span><span class="lb">Aucun plancher<small>Aucune résolution n'est écartée</small></span></button>
+          ${RESOS.map((r) => `<button class="opt radio" role="radio" aria-checked="${P.min_resolution === r}" data-qres="${r}"><span class="mark"></span><span class="lb">${r} ou mieux<small>${r === "720p" ? "Écarte tout ce qui est sous 720p" : r === "1080p" ? "Écarte le 720p et en dessous" : "N'accepte que la 4K"}</small></span></button>`).join("")}
         </div>
       </div>
 
       <div class="qgroup">
         <h2 class="h2">Pistes audio exigées</h2>
         <p class="qhint">Aucune sélection = aucun filtre de langue. Une release doit porter <b>au moins une</b> des pistes cochées.</p>
-        <div class="qrow">
-          ${AUDIOS.map(([k, l]) => `<button class="qchip" aria-pressed="${P.required_audio.includes(k)}" data-qaud="${k}" title="${esc(l)}">${k}</button>`).join("")}
+        <p class="optkind">Plusieurs choix possibles${P.required_audio.length === 0 ? " — aucun coché = aucun filtre" : ""}</p>
+        <div class="optlist">
+          ${AUDIOS.map(([k, l]) => `<button class="opt check" role="checkbox" aria-checked="${P.required_audio.includes(k)}" data-qaud="${k}"><span class="mark"></span><span class="lb">${k}<small>${esc(l)}</small></span></button>`).join("")}
         </div>
       </div>
 
       <div class="qgroup">
         <h2 class="h2">Deux verrous</h2>
         <div class="panel">
-          <div class="kv"><span>Écarter la 3D<br><span class="qhint">Une release SBS / Over-Under est illisible sur un écran 2D. Activé par défaut : c'est un plancher de correction, pas un goût.</span></span>
-            <button class="qchip" aria-pressed="${P.exclude_3d}" data-qflag="exclude_3d">${P.exclude_3d ? "Oui" : "Non"}</button></div>
-          <div class="kv"><span>Refuser une résolution illisible<br><span class="qhint">Par défaut on laisse passer : un nom non analysable est le plus souvent un REMUX, pas un mauvais fichier.</span></span>
-            <button class="qchip" aria-pressed="${P.require_known_resolution}" data-qflag="require_known_resolution">${P.require_known_resolution ? "Oui" : "Non"}</button></div>
+          <div class="kv reglage"><span>Écarter la 3D<br><span class="qhint">Une release SBS / Over-Under est illisible sur un écran 2D. Activé par défaut : c'est un plancher de correction, pas un goût.</span></span>
+            <button class="switch" role="switch" aria-checked="${P.exclude_3d}" aria-label="Écarter la 3D" data-qflag="exclude_3d"></button></div>
+          <div class="kv reglage"><span>Refuser une résolution illisible<br><span class="qhint">Par défaut on laisse passer : un nom non analysable est le plus souvent un REMUX, pas un mauvais fichier.</span></span>
+            <button class="switch" role="switch" aria-checked="${P.require_known_resolution}" aria-label="Refuser une résolution illisible" data-qflag="require_known_resolution"></button></div>
         </div>
       </div>
 

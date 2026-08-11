@@ -601,6 +601,25 @@
       "states": [
         "feuille-suivi-trous"
       ]
+    },
+    "chassis/tiroir": {
+      "selector": ".drawer",
+      "states": [
+        "tiroir-navigation"
+      ],
+      "$note": "Le gabarit au complet : trois sections titrées comme nav.ts, les mêmes badges que la barre du bas, et la VersionCard — le tiroir est le SEUL chemin vers la version sur téléphone, et le seul vers Config."
+    },
+    "form/option": {
+      "selector": ".opt",
+      "states": [
+        "ecran-profil"
+      ]
+    },
+    "form/switch": {
+      "selector": ".switch",
+      "states": [
+        "ecran-profil"
+      ]
     }
   },
   "states": [
@@ -622,6 +641,7 @@
     "acq-ajout-resultats",
     "feuille-suivi-complet",
     "feuille-suivi-trous",
+    "acq-identifier",
     "ecran-releases",
     "ecran-profil",
     "feuille-parcours",
@@ -646,6 +666,7 @@
     "fiche-serie",
     "fiche-film",
     "fiche-sans-trailer",
+    "tiroir-navigation",
     "systeme"
   ],
   "probe": {
@@ -733,9 +754,12 @@
       "R12 acceptait `justify-content: normal` comme équivalent à « centré » : trop molle, elle a laissé passer ce que l'opérateur a vu au doigt.",
       "R8 ne couvrait que les écrans : le même défaut est revenu par les feuilles. Une règle doit viser la FAMILLE, pas le cas.",
       "R8 durcie a d'abord accusé à tort un bouton d'un <details> replié — Chrome lui laisse une boîte de mise en page. Une règle doit juger le VISIBLE, pas l'ordre du DOM.",
-      "R2 blanchissait par CLASSE au lieu d'exiger une destination : trois règles de suite trop indulgentes (« normal » pour centré, les écrans sans les feuilles, la classe pour la destination). Une règle qui blanchit par catégorie finit toujours par blanchir un défaut."
+      "R2 blanchissait par CLASSE au lieu d'exiger une destination : trois règles de suite trop indulgentes (« normal » pour centré, les écrans sans les feuilles, la classe pour la destination). Une règle qui blanchit par catégorie finit toujours par blanchir un défaut.",
+      "Le hamburger et les liens du tiroir échappaient aux audits : l'un blanchi par sa classe, les autres parce que la détection ne regardait que les <button>. Un audit qui ne regarde qu'un type d'élément a un angle mort de la taille de ce qu'il ignore."
     ],
     "R20": "La médiathèque n'a qu'UNE grammaire de sous-ligne : « année · type ». Les films disaient « 2026 · Film » et les séries « 6 ép. » — deux grammaires rendent les rangées incomparables.",
-    "R21": "La couleur d'état d'un épisode est SUBTILE : une pastille de 6 px et le numéro dans le ton. Le titre reste neutre — c'est ce qu'on lit en premier. Un seul signal de couleur par ligne."
+    "R21": "La couleur d'état d'un épisode est SUBTILE : une pastille de 6 px et le numéro dans le ton. Le titre reste neutre — c'est ce qu'on lit en premier. Un seul signal de couleur par ligne.",
+    "R22": "Tout interrupteur a exactement les mêmes dimensions (46 × 28), quelle que soit la longueur du libellé voisin. Un chip « Oui/Non » dans une rangée flex prenait la hauteur du texte.",
+    "R23": "Dans un groupe d'options, toutes les rangées ont la même taille, et la FORME dit la règle : cercle = choix unique, carré = choix multiple. Des pastilles identiques ne disaient pas si l'on pouvait en cocher plusieurs."
   }
 }

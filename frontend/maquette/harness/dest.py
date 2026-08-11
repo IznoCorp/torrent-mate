@@ -16,7 +16,7 @@ async def main():
             :document.querySelector('#screen').classList.contains('open')?document.querySelector('#screen')
             :document.querySelector('#sheet').classList.contains('open')?document.querySelector('#sheet')
             :document.querySelector('#view');
-          return [...racine.querySelectorAll('button')]
+          return [...racine.querySelectorAll('button, a')]
             .filter(x=>x.getBoundingClientRect().height>0 && !x.disabled
                        && !x.closest('.hbtn') && !x.closest('.hpanel')
                        && !x.closest('details:not([open])'))

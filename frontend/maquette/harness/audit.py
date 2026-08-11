@@ -42,7 +42,7 @@ async def main():
           // seulement une classe connue. La version par classe blanchissait
           // tout `.sact`, donc « Profil de qualité » menait nulle part sans
           // que la règle bronche — trouvé au doigt par l'opérateur.
-          R.boutonsMorts = [...racine.querySelectorAll('button')]
+          R.boutonsMorts = [...racine.querySelectorAll('button, a')]
             .filter(el=>el.getBoundingClientRect().height>0 && !el.disabled
                     && !el.closest('.hbtn') && !el.closest('.hpanel')
                     && !el.closest('details:not([open])'))
@@ -84,6 +84,32 @@ async def main():
           R.panneauxVides = [...racine.querySelectorAll('.panel')].filter(el=>
             el.children.length===0).length;
 
+          // R23 — dans un groupe d'options, toutes les rangées ont la même
+          // taille, et la FORME distingue choix unique (cercle) et choix
+          // multiple (carré). Des pastilles identiques ne disaient pas la règle.
+          R.optionsIrregulieres = [];
+          for (const grp of racine.querySelectorAll('.optlist')) {
+            const opts = [...grp.querySelectorAll('.opt')];
+            const t = opts.map(e=>{const b=e.getBoundingClientRect();
+              return Math.round(b.width)+'×'+Math.round(b.height);});
+            if (new Set(t).size > 1) R.optionsIrregulieres.push('tailles '+[...new Set(t)].join(' / '));
+            const formes = new Set(opts.map(e=>e.classList.contains('radio')?'radio':'check'));
+            if (formes.size > 1) R.optionsIrregulieres.push('groupe mixte radio/case');
+            const roles = new Set(opts.map(e=>e.getAttribute('role')));
+            if (roles.size > 1) R.optionsIrregulieres.push('rôles mélangés');
+          }
+
+          // R22 — tout interrupteur a EXACTEMENT les mêmes dimensions, quelle
+          // que soit la longueur du libellé à côté. Un chip « Oui/Non » dans
+          // une rangée flex prenait la hauteur du texte.
+          R.switchsIrreguliers = [];
+          const sw = [...racine.querySelectorAll('.switch')];
+          if (sw.length > 1) {
+            const tailles = sw.map(e=>{const b=e.getBoundingClientRect();
+              return Math.round(b.width)+'×'+Math.round(b.height);});
+            if (new Set(tailles).size > 1) R.switchsIrreguliers = tailles;
+          }
+
           // R20 — la médiathèque n'a qu'UNE grammaire de sous-ligne :
           // « année · type ». Deux grammaires rendent les rangées
           // incomparables entre elles.
@@ -111,7 +137,7 @@ async def main():
             port.scrollTop = port.scrollHeight;
             // Un <details> replié laisse une boîte de mise en page à ses
             // enfants : filtrer sur la VISIBILITÉ, pas sur l'ordre du DOM.
-            const btns = [...port.querySelectorAll('button')]
+            const btns = [...port.querySelectorAll('button, a')]
               .filter(x => !x.closest('details:not([open])') && x.getBoundingClientRect().height > 0);
             const dernier = btns[btns.length-1];
             if (dernier) {
@@ -123,7 +149,11 @@ async def main():
           return R;
         }""", e)
         for k, v in r.items():
-            if k == "sousLignes":
+            if k == "optionsIrregulieres":
+                for x in v: note("R23 groupe d'options incohérent", f"{e} : {x}")
+            elif k == "switchsIrreguliers":
+                if v: note("R22 interrupteurs de tailles différentes", f"{e} : {v}")
+            elif k == "sousLignes":
                 for x in v: note("R20 grammaire de sous-ligne divergente", f"{e} : « {x} »")
             elif k == "reserveEcran":
                 if v: note("R8 réserve d'écran insuffisante", f"{e} : {v}")
