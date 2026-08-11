@@ -570,6 +570,13 @@
       "states": [
         "arr-resolution"
       ]
+    },
+    "fiche/non-possede": {
+      "selector": ".panel",
+      "states": [
+        "fiche-suggestion-serie"
+      ],
+      "$note": "Une suggestion n'est PAS en médiathèque : le bloc dit « non », montre le catalogue connu, et l'action du bas est « Suivre »/« Ajouter » et non « Supprimer »."
     }
   },
   "states": [
@@ -608,6 +615,8 @@
     "arr-chargement",
     "arr-erreur",
     "arr-resolution",
+    "fiche-suggestion-serie",
+    "fiche-suggestion-film",
     "fiche-serie",
     "fiche-film",
     "fiche-sans-trailer",
@@ -665,6 +674,8 @@
     "carrousel-bloque-le-scroll": "`touch-action: pan-x` SEUL interdit le pan vertical : un doigt sur le carrousel d'acteurs figeait la fiche. Les deux axes sont autorisés, le navigateur tranche par la direction.",
     "action-collee-a-la-barre": "Un écran doit réserver la hauteur de la barre d'onglets, qui passe au-dessus de lui (R4).",
     "resultat-sans-fiche": "Les résultats de recherche n'offraient aucun chemin vers la fiche — violation de NE-DOIT-PAS-9. L'affiche est un bouton.",
-    "porte-de-sortie-absente": "La résolution PROMETTAIT une recherche manuelle pré-remplie sans la fournir. Elle existe, et nettoie le nom de dossier en requête (DOIT-7)."
+    "porte-de-sortie-absente": "La résolution PROMETTAIT une recherche manuelle pré-remplie sans la fournir. Elle existe, et nettoie le nom de dossier en requête (DOIT-7).",
+    "decouvrir-fiche-vide": "La fiche d'une suggestion affichait « Métadonnées inconnues / Genres inconnus » : la table des fiches ne portait que les 12 titres de la médiathèque. Les 32 premières suggestions ont leurs vraies données, et la liste affichée vient de la MÊME source que les fiches (elles n'en partageaient que 8 sur 32).",
+    "nofiche-jamais-portee": "La classe .nofiche était utilisée sans avoir été transplantée : le message « aucune bande-annonce » sortait en 14 px sans encadré. Le CSS doit être EXTRAIT, jamais réécrit de mémoire (§7.2)."
   }
 }
