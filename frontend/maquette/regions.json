@@ -872,7 +872,11 @@
       "R8 ne couvrait que les écrans : le même défaut est revenu par les feuilles. Une règle doit viser la FAMILLE, pas le cas.",
       "R8 durcie a d'abord accusé à tort un bouton d'un <details> replié — Chrome lui laisse une boîte de mise en page. Une règle doit juger le VISIBLE, pas l'ordre du DOM.",
       "R2 blanchissait par CLASSE au lieu d'exiger une destination : trois règles de suite trop indulgentes (« normal » pour centré, les écrans sans les feuilles, la classe pour la destination). Une règle qui blanchit par catégorie finit toujours par blanchir un défaut.",
-      "Le hamburger et les liens du tiroir échappaient aux audits : l'un blanchi par sa classe, les autres parce que la détection ne regardait que les <button>. Un audit qui ne regarde qu'un type d'élément a un angle mort de la taille de ce qu'il ignore."
+      "Le hamburger et les liens du tiroir échappaient aux audits : l'un blanchi par sa classe, les autres parce que la détection ne regardait que les <button>. Un audit qui ne regarde qu'un type d'élément a un angle mort de la taille de ce qu'il ignore.",
+      "Une empreinte de capture d'écran N'EST PAS un oracle ici : deux captures du MÊME fichier divergent sur 8 à 15 des 45 états (chatoiement des squelettes, entrée du fond d'affiche, décodage asynchrone des affiches WebP). Geler les animations et attendre img.decode() réduit sans clore. Cet oracle a accusé 20 états d'avoir changé après une suppression qui était juste. Utiliser rects + getComputedStyle ; et pour « cette règle est-elle morte ? », la preuve exacte : querySelectorAll du sélecteur sur les 45 états, plus le fait que le code n'écrit jamais la classe.",
+      "« 0 violation sur 0 règles » se lit pareil quand tout va bien et quand plus rien ne tourne. Les deux tours d'audit annoncent les règles EXÉCUTÉES (12/12, 8/8) et crient dès qu'une règle déclarée cesse de s'exécuter.",
+      "L'allowlist d'export avait dérivé à 107 classes sur 237 : plus de la moitié du CSS n'aurait jamais atteint l'app. harness/export.py classe chaque classe par ce qu'elle fait réellement et échoue sur toute classe non couverte ou morte.",
+      "Découper la feuille de style sur la chaîne « BLOC 2 » coupe le /* de l'en-tête et laisse un */ orphelin : la prose de l'en-tête se lit alors comme des sélecteurs (.css, .tm en fausses classes mortes). Découper sur l'ouvreur de commentaire."
     ],
     "R20": "La médiathèque n'a qu'UNE grammaire de sous-ligne : « année · type ». Les films disaient « 2026 · Film » et les séries « 6 ép. » — deux grammaires rendent les rangées incomparables.",
     "R21": "La couleur d'état d'un épisode est SUBTILE : une pastille de 6 px et le numéro dans le ton. Le titre reste neutre — c'est ce qu'on lit en premier. Un seul signal de couleur par ligne.",
@@ -880,6 +884,7 @@
     "R23": "Dans un groupe d'options, toutes les rangées ont la même taille, et la FORME dit la règle : cercle = choix unique, carré = choix multiple. Des pastilles identiques ne disaient pas si l'on pouvait en cocher plusieurs.",
     "R24": "Aucune interaction de formulaire ne déplace le défilement. Un re-rendu du MÊME écran conserve la position, la valeur et le curseur du champ actif ; un écran DIFFÉRENT repart à zéro. La garde vit dans openScreen(), une seule fois — sinon le prochain contrôle ajouté réintroduit le défaut.",
     "$defautsOperateur": {},
-    "R25": "Un filtre FILTRE, et ses parts somment au tout : 717 + 528 + 382 + 73 + 66 + 56 + 31 + 8 = 1 861. Un filtre dont les parts ne somment pas au total est un filtre qui ment. Les catégories sont celles du rangement RÉEL (categories.json5 → dossiers des disques), pas des étiquettes inventées."
+    "R25": "Un filtre FILTRE, et ses parts somment au tout : 717 + 528 + 382 + 73 + 66 + 56 + 31 + 8 = 1 861. Un filtre dont les parts ne somment pas au total est un filtre qui ment. Les catégories sont celles du rangement RÉEL (categories.json5 → dossiers des disques), pas des étiquettes inventées.",
+    "R26": "Le fond d'affiche fondu est un trait de TOUTES les fiches. Toute fiche dont le média a une affiche porte son fond ET son dégradé de lisibilité ; un média sans affiche dégrade en fond plat — différence assumée, pas oubli. Vérifiée par mutation : retirer le fond fait tomber la règle sur les 4 fiches concernées."
   }
 }
