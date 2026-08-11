@@ -225,6 +225,32 @@ title+year fallback, and the fallback is _stated_, not silent.
 - swipe **either direction** → dismissed, with **« Annuler »** in the toast. A gesture-triggered
   action must be reversible: a sliding thumb errs more than a tapping finger.
 
+**Three formats, one grammar (R32).** A switcher — the same control Suivis already uses — offers
+list, posters and **slide cards**. The formats change how much of the poster you see, never what
+the gestures mean and never which actions exist:
+
+| Format | Layout | Poster taps | Body taps | Swipe |
+|---|---|---|---|---|
+| list | full-width rows | media sheet | bottom sheet | either direction dismisses |
+| posters | two-column grid | media sheet | bottom sheet | — |
+| slide cards | one card filling the surface, the next ones stacked behind | the whole card opens the media sheet | — | **left « Passer »** decides nothing and the card comes round again; **right « Pas intéressé »** removes it, with an undo |
+
+No format carries actions of its own: « Suivre » / « Ajouter » / « Pas intéressé » live in the
+bottom sheet, reached the same way everywhere. A drag born on a card belongs to the card — without
+that claim the page-swipe handler fires too and navigates away mid-gesture.
+
+**The pile is animated, never rebuilt (R33).** Advancing moves the existing nodes: the outgoing
+card flies out, the ones behind change depth and their transition carries them forward, and a new
+card is inserted at the back, rising from under the deck. Rebuilding the markup replaces every
+node, and a replaced node cannot transition — the pile then cuts instead of moving. This must be
+checked **mid-flight**, not at rest: a check at the destination cannot tell a pile that moved from
+a pile that was rebuilt.
+
+**Slide cards carry their own poster source (R34).** The thumbnail poster is right at thumbnail
+size and mush once blown up to fill a phone screen. The format uses posters sized for the surface
+they fill, for the suggestions actually served — the weight follows what is reachable, not the
+whole catalogue.
+
 **Degraded mode:** with no TMDB account connected, the view does not blank. It serves similars
 of the library and **says what is missing and why** (§8, DOIT-7). The account token is stored
 with the other secrets — never in a document, never in a log.
