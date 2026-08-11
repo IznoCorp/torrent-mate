@@ -1088,6 +1088,247 @@
     opacity: 0;
     margin-bottom: -14px;
   }
+  /* Poster format: the poster carries the identity, the two lines under it
+     carry just enough to tell two homonyms apart. Same two tap targets as the
+     list — poster to the sheet, body to the bottom panel. */
+  /* The id rule on the container beats a bare class, so the grid declares
+     itself on both — the same specificity family as R8: an author rule wins
+     over what you meant to say. */
+  #sugitems.sugtiles {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .sugtile {
+    position: relative;
+    min-width: 0;
+    display: block;
+  }
+
+  .sugtile .p {
+    display: block;
+    width: 100%;
+    aspect-ratio: 2/3;
+    border: 0;
+    padding: 0;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--muted);
+    font-size: 28px;
+    line-height: 1;
+  }
+
+  .sugtile .p img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .sugtile .b {
+    display: block;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    padding: 6px 0 0;
+    text-align: left;
+  }
+
+  .sugtile .t {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .sugtile .m {
+    display: block;
+    margin-top: 2px;
+    font-size: 11px;
+    color: var(--muted-foreground);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .sugtile .n {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    padding: 2px 6px;
+    border-radius: 99px;
+    background: rgb(0 0 0 / 0.62);
+    color: var(--mq-white);
+    font-size: 10.5px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    backdrop-filter: none;
+  }
+
+  /* Deck format: one card at a time, the next ones stacked behind it. The card
+     fills the surface, so the body must take the scrollport's height rather
+     than its own content's. The scrollport becomes a column only when it holds
+     a deck — every other surface keeps its ordinary block flow. */
+
+
+  /* The deck's height is MEASURED from the scrollport rather than derived from
+     a chain of ancestors: the scrollport holds siblings the deck knows nothing
+     about, and a universal child selector reached them. Nothing here positions
+     itself by a distance to an edge — the height comes from what was measured,
+     which is the same rule the bars follow. */
+  .body.deckbody {
+    padding-bottom: 10px;
+  }
+
+  .deck {
+    position: relative;
+    /* No `flex: 1` here: in a column flex container that sets a 0 basis on the
+       vertical axis, which silently overrides the measured height. */
+    flex: 0 0 auto;
+    min-height: 340px;
+    touch-action: pan-y;
+  }
+
+  .dcard {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--card);
+    overflow: hidden;
+    box-shadow: 0 12px 32px rgb(0 0 0 / 0.32);
+    transform-origin: 50% 100%;
+    transition:
+      transform 0.3s cubic-bezier(0.22, 0.61, 0.36, 1),
+      opacity 0.3s ease;
+  }
+
+  /* The cards behind are the deck: they say « there is more » without
+     costing a pixel of the card being read. */
+  .dcard[data-depth="1"] {
+    transform: translateY(9px) scale(0.955);
+    opacity: 0.75;
+  }
+
+  .dcard[data-depth="2"] {
+    transform: translateY(18px) scale(0.91);
+    opacity: 0.45;
+  }
+
+  .dcard.dragging {
+    transition: none;
+  }
+
+  .dcard.out {
+    opacity: 0;
+  }
+
+  .dcard .p {
+    flex: 1;
+    min-height: 0;
+    display: block;
+    width: 100%;
+    border: 0;
+    padding: 0;
+    background: var(--muted);
+    position: relative;
+    font-size: 54px;
+    line-height: 1;
+  }
+
+  .dcard .p img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* The title sits on the poster's foot, on a gradient that closes on a
+     solid colour — same precaution as the media sheet's header. */
+  .dcard .cap {
+    position: absolute;
+    inset: auto 0 0;
+    /* The floating « + » lives at the bottom-right of the surface: the caption
+       reserves its footprint rather than running underneath it. */
+    padding: 40px 76px 12px 14px;
+    background: linear-gradient(
+      to bottom,
+      transparent,
+      color-mix(in oklab, var(--card) 72%, transparent) 46%,
+      var(--card)
+    );
+    text-align: left;
+  }
+
+  .dcard .t {
+    display: block;
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    line-height: 1.15;
+  }
+
+  .dcard .m {
+    display: block;
+    margin-top: 3px;
+    font-size: 12px;
+    color: var(--muted-foreground);
+  }
+
+  .dcard .why {
+    display: block;
+    margin-top: 6px;
+    font-size: 11.5px;
+    color: var(--muted-foreground);
+    border-left: 2px solid var(--border);
+    padding-left: 8px;
+    line-height: 1.4;
+  }
+
+
+
+
+
+  /* Swipe feedback: the verb appears under the thumb, on the side the card is
+     going. The two directions do NOT mean the same thing — left « Passer »
+     decides nothing and the card comes round again, right « Pas intéressé »
+     removes it with an undo. The verbs are the ones the other formats use. */
+  .dhint {
+    position: absolute;
+    top: 14px;
+    padding: 5px 10px;
+    border-radius: 99px;
+    border: 2px solid var(--danger);
+    color: var(--danger);
+    background: color-mix(in oklab, var(--danger) 14%, var(--card));
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    opacity: 0;
+    transition: opacity 0.12s ease;
+    pointer-events: none;
+  }
+
+  /* « Passer » decides nothing, so it does not wear the colour of a refusal. */
+  .dhint.l {
+    left: 14px;
+    transform: rotate(-9deg);
+    border-color: var(--muted-foreground);
+    color: var(--muted-foreground);
+    background: color-mix(in oklab, var(--muted-foreground) 12%, var(--card));
+  }
+
+  .dhint.r {
+    right: 14px;
+    transform: rotate(9deg);
+  }
+
+
   .sugback {
     position: absolute;
     inset: 0;
@@ -3188,6 +3429,7 @@
     film: '<rect x="2" y="3" width="20" height="18" rx="2"/><path d="M7 3v18M17 3v18M2 9h5M2 15h5M17 9h5M17 15h5"/>',
     tv: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="m17 2-5 5-5-5"/>',
     clap: '<path d="M3 8h18v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="m3 8 2-5 16 2-2 3"/><path d="m8 3 1.5 4M14 4l1.5 4"/>',
+    cards: '<rect x="3" y="7" width="13" height="14" rx="2"/><path d="M8 3h10a2 2 0 0 1 2 2v10"/>',
     ext: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
     refresh:
       '<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/>',
@@ -3669,6 +3911,8 @@
     libFailedOnce: false,
     sugCount: 30,
     sugGone: new Set(),
+    sugMode: "list",
+    sugOrder: null,
     sugLoading: false,
   };
 
@@ -3827,6 +4071,9 @@
     seed();
     Object.assign(S, { pill: "tout", filtre: "", q: "", libCount: 24, sugCount: 30,
       selMode: false, selected: new Set(), sugGone: new Set(), added: new Set(),
+      // The deck order is state too: without this a measurement inherits the
+      // card order left by the previous one.
+      sugOrder: null,
       libErr: false, libFailedOnce: false });
     return true;
   };
@@ -4042,9 +4289,30 @@
       );
     }
 
+    const modes = [
+      ["list", I.list, "Liste"],
+      ["poster", I.grid, "Affiches"],
+      ["deck", I.cards, "Carte à carte"],
+    ];
+    const selecteur = `<div class="filters"><div class="pillbar">
+      <div class="pillscroll"></div>
+      <div class="vswwrap"><div class="vsw">${modes
+        .map(([id, ic, lb]) => `<button aria-pressed="${S.sugMode === id}" data-sugmode="${id}" aria-label="${lb}">${svg(ic)}</button>`)
+        .join("")}</div></div>
+    </div></div>`;
+
+    if (S.sugMode === "deck" && S.phase === "prete") {
+      return (
+        head +
+        selecteur +
+        `<div class="body deckbody">${deckHTML()}</div>`
+      );
+    }
+
     return (
       head +
-      `<div class="body">
+      selecteur +
+      `<div class="body${S.sugMode === "deck" ? " deckbody" : ""}">
     <div class="note"><b>Vue neuve.</b> La reco vit ici parce qu'elle débouche sur « Suivre » — l'action du (+) juste à côté. Le badge de la barre ne la compte jamais : elle n'attend rien de vous.</div>
     ${
       S.tmdb
@@ -4060,7 +4328,7 @@
     <div class="note"><b>Gestes.</b> Le poster ouvre la fiche. Le reste de la carte ouvre le panneau du bas (« Suivre » / « Ajouter », « Voir la fiche »). Un glissé <em>dans un sens ou dans l'autre</em> écarte la suggestion — avec un « Annuler » dans la notification, parce qu'un geste rapide se trompe.</div>
     ${S.phase === "chargement" ? skelCards(4) : S.phase === "erreur" ? surfErr("les suggestions") : ""}
     <div id="sugitems"${S.phase !== "prete" ? " hidden" : ""}></div>
-    <div id="sugload" class="loadfoot"${S.phase !== "prete" ? " hidden" : ""}></div>
+    <div id="sugload" class="loadfoot"${S.phase !== "prete" || S.sugMode === "deck" ? " hidden" : ""}></div>
     <div class="note"><b>Si le compte TMDB n'est pas connecté</b>, la vue ne se vide pas : elle sert les similaires de votre médiathèque et dit ce qui manque et pourquoi. §8 — aucun rien silencieux.</div>
   </div>`
     );
@@ -4270,6 +4538,7 @@
     const p = PAGES_OF().find((x) => x.id === S.page);
     view.innerHTML = p.render();
     fab.hidden = !p.fab;
+    mountDeck();
     renderNav();
     mountLoaders();
     mountSearch();
@@ -4557,6 +4826,59 @@
     return s.k === "Film" ? "Ajouter" : "Suivre";
   }
 
+  /* Poster format — the same two destinations as the list card: the poster
+     opens the sheet, the body opens the bottom panel. */
+  function sugTileHTML(s, i) {
+    return `<div class="sugtile" data-sugwrap="${i}">
+      <button class="p" data-fiche="${esc(s.t)}" aria-label="Fiche de ${esc(s.t)}">${posterBox(s.t, s.k === "Film" ? "movie" : "show")}<span class="n">${esc(String(s.note))}</span></button>
+      <button class="b" data-sug="${i}" aria-label="${esc(s.t)} — actions">
+        <span class="t">${esc(s.t)}</span>
+        <span class="m">${esc(s.y)} · ${esc(s.k)}</span>
+      </button>
+    </div>`;
+  }
+
+  /* Deck format — one card fills the surface, the next ones are stacked
+     behind it. Tapping the card opens the sheet; a swipe either way dismisses
+     it, exactly as in the list, and the next card rises from the deck. */
+  function deckCardHTML(s, i, depth) {
+    return `<article class="dcard" data-deck="${i}" data-depth="${depth}">
+      <button class="p" data-fiche="${esc(s.t)}" aria-label="Fiche de ${esc(s.t)}">
+        ${posterBox(s.t, s.k === "Film" ? "movie" : "show")}
+        <span class="cap">
+          <span class="t">${esc(s.t)}</span>
+          <span class="m">${esc(s.y)} · ${esc(s.k)} · ${esc(String(s.note))} sur TMDB</span>
+          <span class="why">${s.why}</span>
+        </span>
+      </button>
+      ${depth === 0 ? `<span class="dhint l">Passer</span><span class="dhint r">Pas intéressé</span>` : ""}
+    </article>`;
+  }
+
+  /* Deck order. « Passer » does not decide anything: it sends the card to the
+     back, so it comes round again. « Pas intéressé » removes it, with an undo. */
+  function deckOrdre() {
+    if (!S.sugOrder) S.sugOrder = SUGGESTIONS.map((_, i) => i);
+    return S.sugOrder.filter((i) => !S.sugGone.has(i));
+  }
+
+  function passerSug(i) {
+    const o = deckOrdre().filter((x) => x !== i);
+    S.sugOrder = [...o, i];
+    refreshDeck();
+  }
+
+  function deckHTML() {
+    const restants = deckOrdre().map((i) => [SUGGESTIONS[i], i]);
+    if (!restants.length) {
+      return `<div class="empty"><b>Vous avez tout parcouru.</b>
+        <p>Les ${SUGGESTIONS.length} suggestions du lot ont été vues. La réserve en garde d'autres.</p>
+        <button class="btnprimary" data-sugmore="1">${svg(I.refresh)}Charger 30 de plus</button></div>`;
+    }
+    const pile = restants.slice(0, 3).map(([s, i], d) => deckCardHTML(s, i, d)).reverse().join("");
+    return `<div class="deck">${pile}</div>`;
+  }
+
   function sugCardHTML(s, i) {
     return `<div class="sugwrap" data-sugwrap="${i}">
       <div class="sugback">
@@ -4574,16 +4896,61 @@
     </div>`;
   }
 
+  /* Gives the deck the height actually left in the scrollport, once. Re-run on
+     every render and on resize, because a rotated phone is a different height. */
+  /* The deck lives in the body, not in the list container — it needs its own
+     re-render, otherwise a gesture reorders the data and nothing moves. */
+  function refreshDeck() {
+    const corps = document.querySelector(".deckbody");
+    if (!corps) return;
+    corps.innerHTML = deckHTML();
+    mountDeck();
+  }
+
+  function mountDeck() {
+    const d = document.querySelector(".deck");
+    const port = document.querySelector("#port");
+    if (!d || !port) return;
+    const haut = d.getBoundingClientRect().top - port.getBoundingClientRect().top;
+    let hauteur = Math.max(340, Math.round(port.clientHeight - haut - 12));
+    d.style.height = hauteur + "px";
+    // Self-correcting: whatever still overflows is taken back, once. A deck
+    // that makes the page scroll is a deck that is not full-screen.
+    const trop = port.scrollHeight - port.clientHeight;
+    if (trop > 0) d.style.height = Math.max(340, hauteur - trop) + "px";
+  }
+
+  window.addEventListener("resize", mountDeck, { passive: true });
+
   function fillSug() {
     const box = document.querySelector("#sugitems");
     if (!box) return;
+    if (S.sugMode === "deck") {
+      box.innerHTML = deckHTML();
+      box.className = "";
+      mountDeck();
+      return;
+    }
+    const rendu = S.sugMode === "poster" ? sugTileHTML : sugCardHTML;
+    box.className = S.sugMode === "poster" ? "sugtiles" : "";
     box.innerHTML = SUGGESTIONS.slice(0, S.sugCount)
-      .map((s, i) => (S.sugGone.has(i) ? "" : sugCardHTML(s, i)))
+      .map((s, i) => (S.sugGone.has(i) ? "" : rendu(s, i)))
       .join("");
   }
 
   /* Dismiss — reversible. A quick gesture gets it wrong, hence « Annuler ». */
   function dismissSug(i) {
+    if (S.sugMode === "deck") {
+      // In the deck the whole pile changes, not one row: re-render, and the
+      // undo restores both the suggestion and its place in the order.
+      S.sugGone.add(i);
+      refreshDeck();
+      toastUndo(`« ${SUGGESTIONS[i].t} » écarté.`, () => {
+        S.sugGone.delete(i);
+        refreshDeck();
+      });
+      return;
+    }
     const el = document.querySelector(`[data-sugwrap="${i}"]`);
     if (!el) return;
     S.sugGone.add(i);
@@ -4870,6 +5237,8 @@
     ["acq-suivis-pause-vide", "Acquisition · Suivis — « En pause » vide", () => set({ page: "acq", acqTab: "suivis", followMode: "list", pill: "pause", filtre: "", phase: "prete" })],
     ["acq-suivis-erreur", "Acquisition · Suivis — erreur", () => set({ page: "acq", acqTab: "suivis", phase: "erreur" })],
     ["acq-decouvrir", "Acquisition · Découvrir — réserve pleine", () => set({ page: "acq", acqTab: "decouvrir", tmdb: true, phase: "prete", sugCount: 30 })],
+    ["acq-decouvrir-affiches", "Découvrir · affiches", () => { set({ page: "acq", acqTab: "decouvrir", phase: "prete" }); S.sugMode = "poster"; render(); }],
+    ["acq-decouvrir-deck", "Découvrir · carte à carte", () => { set({ page: "acq", acqTab: "decouvrir", phase: "prete" }); S.sugMode = "deck"; render(); }],
     ["acq-decouvrir-degrade", "Acquisition · Découvrir — sans compte TMDB", () => set({ page: "acq", acqTab: "decouvrir", tmdb: false, phase: "prete" })],
     ["acq-decouvrir-epuise", "Acquisition · Découvrir — réserve épuisée", () => set({ page: "acq", acqTab: "decouvrir", tmdb: true, phase: "prete", sugCount: 999 })],
     ["acq-decouvrir-chargement", "Acquisition · Découvrir — chargement", () => set({ page: "acq", acqTab: "decouvrir", phase: "chargement" })],
@@ -5109,6 +5478,22 @@
     if (b.dataset.fmode) {
       S.followMode = b.dataset.fmode;
       render();
+      return;
+    }
+    if (b.dataset.sugmode) {
+      S.sugMode = b.dataset.sugmode;
+      render();
+      return;
+    }
+    if (b.dataset.dismiss) {
+      dismissSug(Number(b.dataset.dismiss));
+      return;
+    }
+    if (b.dataset.sugmore) {
+      S.sugGone = new Set();
+      S.sugOrder = null;
+      render();
+      toast("Nouveau lot chargé — 30 suggestions de plus.");
       return;
     }
     if (b.dataset.toast) {
@@ -6368,6 +6753,67 @@
   port.addEventListener("touchend", endSugDrag);
   port.addEventListener("touchcancel", endSugDrag);
 
+  /* Deck gesture. Left « Passer » sends the card to the back of the order —
+     it decides nothing and comes round again. Right « Pas intéressé » removes
+     it, with an undo. Listeners are passive; the card claims the horizontal
+     axis through `touch-action: pan-y` on `.deck`. */
+  let deckDrag = null;
+  port.addEventListener(
+    "touchstart",
+    (e) => {
+      const card = e.target.closest?.('.dcard[data-depth="0"]');
+      if (!card || e.touches.length !== 1) return;
+      deckDrag = { card, x: e.touches[0].clientX, y: e.touches[0].clientY, dx: 0, axis: null };
+    },
+    { passive: true },
+  );
+  port.addEventListener(
+    "touchmove",
+    (e) => {
+      if (!deckDrag || e.touches.length !== 1) return;
+      const t = e.touches[0];
+      const dx = t.clientX - deckDrag.x, dy = t.clientY - deckDrag.y;
+      if (deckDrag.axis === null) {
+        if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+        deckDrag.axis = Math.abs(dx) > Math.abs(dy) * 1.2 ? "x" : "y";
+        if (deckDrag.axis === "x") deckDrag.card.classList.add("dragging");
+      }
+      if (deckDrag.axis !== "x") return;
+      deckDrag.dx = dx;
+      // The card leans into the movement: the rotation is what makes it read
+      // as a card being pulled off a deck rather than a panel sliding.
+      deckDrag.card.style.transform = `translateX(${dx}px) rotate(${dx / 26}deg)`;
+      const l = deckDrag.card.querySelector(".dhint.l");
+      const r = deckDrag.card.querySelector(".dhint.r");
+      const f = Math.min(1, Math.max(0, (Math.abs(dx) - 20) / 70));
+      if (l) l.style.opacity = dx < 0 ? String(f) : "0";
+      if (r) r.style.opacity = dx > 0 ? String(f) : "0";
+    },
+    { passive: true },
+  );
+  function endDeckDrag() {
+    if (!deckDrag) return;
+    const d = deckDrag;
+    deckDrag = null;
+    d.card.classList.remove("dragging");
+    if (d.axis !== "x") return;
+    const i = Number(d.card.dataset.deck);
+    if (Math.abs(d.dx) > 88) {
+      d.card.style.transform = `translateX(${d.dx > 0 ? 460 : -460}px) rotate(${d.dx > 0 ? 22 : -22}deg)`;
+      d.card.classList.add("out");
+      if (d.dx > 0) {
+        setTimeout(() => dismissSug(i), 180);
+      } else {
+        setTimeout(() => passerSug(i), 180);
+      }
+      return;
+    }
+    d.card.style.transform = "";
+    d.card.querySelectorAll(".dhint").forEach((x) => (x.style.opacity = "0"));
+  }
+  port.addEventListener("touchend", endDeckDrag);
+  port.addEventListener("touchcancel", endDeckDrag);
+
   /* 2) Swipe between views + 3) Pull-to-refresh — on the rest of the
      surface. ALL listeners are passive: a single non-passive touchmove
      takes iOS out of the compositor and makes the sticky chrome shimmer. */
@@ -6381,6 +6827,9 @@
         e.touches.length !== 1 ||
         e.target.closest(".swipe") ||
         e.target.closest(".sugwrap") ||
+        // A drag born on a deck card belongs to the card: without this the
+        // page-swipe handler also fires and navigates away mid-gesture.
+        e.target.closest(".deck") ||
         e.target.closest(".pillscroll")
       ) {
         pageDrag = null;
