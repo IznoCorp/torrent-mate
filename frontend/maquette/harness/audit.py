@@ -55,6 +55,9 @@ async def main():
             .filter(el=>el.getBoundingClientRect().height>0 && !el.disabled
                     && !el.closest('.hbtn') && !el.closest('.hpanel')
                     && !el.closest('details:not([open])'))
+            // Un href EST une destination — et depuis l'arbitrage du 11 août la
+            // bande-annonce est un vrai lien sortant vers YouTube.
+            .filter(el=>!el.getAttribute('href') || el.getAttribute('href')==='#')
             .filter(el=>Object.keys(el.dataset).length===0 && !el.id && !el.onclick
                     && !/searchclear|burger|avatar|fback|more\b|fab|sel\b|vsw|seg\b|pill|tile|ep\b/.test(el.className))
             .map(el=>'« '+el.textContent.trim().slice(0,28)+' »');

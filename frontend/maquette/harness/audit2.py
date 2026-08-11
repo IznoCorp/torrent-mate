@@ -20,7 +20,7 @@ async def main():
     # qu'un audit devenu muet ne se lise plus comme un audit vert.
     evaluees=set()
     def evalue(*r): evaluees.update(r)
-    REGLES_ATTENDUES=8
+    REGLES_ATTENDUES=10
     print(f"{BAR}\nRevue adversariale — second tour, {len(etats)} états\n{BAR}")
 
     evalue('R11')
@@ -170,7 +170,12 @@ async def main():
           const sb=getComputedStyle(bg), rb=bg.getBoundingClientRect(), rh=hero.getBoundingClientRect();
           // Le bandeau OCCUPE le haut : il pousse le contenu, il ne flotte pas.
           if (sb.position!=='relative') out.push(`${nom} : bandeau en ${sb.position}`);
-          if (rb.height < 90) out.push(`${nom} : bandeau haut de ${Math.round(rb.height)}px`);
+          const aVisuelIci=!wrap.classList.contains('noaffiche');
+          // Sans visuel, le champ est volontairement court : il tient la place,
+          // il ne prétend rien. Le seuil ne s'applique qu'à une vraie image.
+          const seuil = aVisuelIci ? 240 : 48;
+          if (rb.height < seuil)
+            out.push(`${nom} : bandeau haut de ${Math.round(rb.height)}px (< ${seuil})`);
           // Le titre vient SOUS l'image, en la chevauchant par le bas.
           if (rh.top <= rb.top) out.push(`${nom} : titre au-dessus du bandeau`);
           if (rh.top >= rb.bottom) out.push(`${nom} : titre décollé du bandeau`);
@@ -185,6 +190,69 @@ async def main():
       racineDoc.removeAttribute('data-theme');
       return out;}""")
     for x in fonds: note("R26 fond d'affiche non généralisé", x)
+
+    evalue('R27')
+    # R27 — ARBITRAGE OPÉRATEUR du 11 août : la bande-annonce s'ouvre TOUJOURS
+    # dans YouTube, jamais dans l'application, et la fiche la propose quel que
+    # soit l'endroit d'où l'on vient — médiathèque, acquisitions ou Découvrir.
+    # La règle porte l'arbitrage : une fiche qui promettrait une lecture interne
+    # serait fausse même si elle était jolie.
+    bandes=await pg.evaluate("""async ()=>{const out=[];
+      for (const s of window.__states()) {
+        window.__go(s); await new Promise(r=>setTimeout(r,150));
+        const racine=document.querySelector('#screen.open, #sheet.open');
+        if (!racine || !racine.querySelector('.hero')) continue;
+        const el=racine.querySelector('.trailer');
+        if (!el) continue;                       // absence assumée : dit ailleurs
+        if (el.tagName!=='A') { out.push(`${s} : bande-annonce en <${el.tagName}>, pas un lien`); continue; }
+        const href=el.getAttribute('href')||'';
+        if (!/^https:\\/\\/www\\.youtube\\.com\\/watch\\?v=[\\w-]{6,}$/.test(href))
+          out.push(`${s} : href non conforme « ${href.slice(0,48)} »`);
+        if (el.getAttribute('target')!=='_blank') out.push(`${s} : le lien ne quitte pas l'app`);
+        if (!(el.getAttribute('rel')||'').includes('noopener')) out.push(`${s} : lien sortant sans noopener`);
+        if (/lecture ici|plein écran|dans l.app/i.test(el.textContent+(el.dataset.toast||'')))
+          out.push(`${s} : promet une lecture interne`);
+      } return out;}""")
+    for x in bandes: note("R27 bande-annonce non conforme à l'arbitrage", x)
+
+    evalue('R28')
+    # R28 — EXIGENCE OPÉRATEUR du 11 août : « il ne devrait y avoir qu'UN design
+    # de retour compatible avec toutes les pages ». Une barre flottante blanche
+    # par-dessus l'image avait créé un second design qui, sur les écrans sans
+    # image, RECOUVRAIT le titre au lieu de le pousser. La règle mesure les deux
+    # choses : une seule signature, et jamais de contenu collé ni recouvert.
+    retours=await pg.evaluate("""async ()=>{const sig={}, colles=[];
+      for (const s of window.__states()) {
+        window.__go(s); await new Promise(r=>setTimeout(r,150));
+        const bar=document.querySelector('#screen.open .fichebar');
+        if (!bar) continue;
+        const btn=bar.querySelector('.fback');
+        if (!btn) { colles.push(`${s} : barre sans retour`); continue; }
+        const sb=getComputedStyle(bar), sx=getComputedStyle(btn), rb=bar.getBoundingClientRect();
+        // Une barre hors flux ne pousse rien : elle finit par recouvrir.
+        if (sb.position!=='static' && sb.position!=='relative')
+          colles.push(`${s} : barre en ${sb.position} — elle ne pousse pas le contenu`);
+        const k=[sb.position, sb.backgroundColor, sx.color, Math.round(rb.height)].join('|');
+        (sig[k] ||= []).push(s);
+        // On mesure le premier PIXEL DE TEXTE, pas la première boîte : un
+        // conteneur peut toucher la barre par son padding sans que rien ne
+        // soit collé. C'est du texte collé que l'opérateur a signalé.
+        const port=document.querySelector('#screen .port');
+        const texte=port && [...port.querySelectorAll('h1,h2,h3,p,span,button,a,label')]
+          .find(e=>{const r=e.getBoundingClientRect();
+                    return r.height>0 && (e.textContent||'').trim().length>1 && !e.closest('.note');});
+        if (texte) {
+          const ecart=texte.getBoundingClientRect().top-rb.bottom;
+          if (ecart < 8) colles.push(`${s} : texte à ${Math.round(ecart)}px de la barre`);
+        }
+      }
+      return {sig, colles};}""")
+    if len(retours["sig"]) > 1:
+        for k, l in retours["sig"].items():
+            note("R28 plusieurs designs de retour", f"{k} → {', '.join(l[:4])}")
+    for x in retours["colles"]: note("R28 retour mal posé", x)
+    print(f"\nDesigns de retour distincts : {len(retours['sig'])} sur "
+          f"{sum(len(v) for v in retours['sig'].values())} écrans")
 
     print()
     if not viol: print("Aucune violation sur ce second tour.")
