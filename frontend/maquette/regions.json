@@ -558,6 +558,18 @@
       "states": [
         "fiche-serie"
       ]
+    },
+    "fiche/cast-photo": {
+      "selector": ".cast .ca img",
+      "states": [
+        "fiche-serie"
+      ]
+    },
+    "resolution/porte-de-sortie": {
+      "selector": "[data-manual]",
+      "states": [
+        "arr-resolution"
+      ]
     }
   },
   "states": [
@@ -644,5 +656,15 @@
     "/systeme (intérieur)": "Reçoit la santé, les runs et les contrôles (arbitrage B5) mais sa refonte mobile est différée. Seule sa réception est dessinée ; son gabarit interne n'est pas mesuré.",
     "/media/:provider/:id (implémentation)": "La fiche EXISTE et est conforme ; la maquette en dessine la cible mais la mission ne la reconstruit pas. Mesurée pour la structure, pas imposée au pixel sur l'existant.",
     "desktop >= md": "§12 fait du téléphone l'origine du dessin ; le grand écran reste fonctionnel mais n'est pas spécifié au pixel."
+  },
+  "$defautsOperateur": {
+    "$comment": "Défauts rapportés au doigt par l'opérateur le 2026-08-11, chacun couvert par un test dans harness/bugs.py — la règle du projet est qu'un bug a son test, écrit avec le correctif.",
+    "cadence-cron": "La cadence s'affichait « 20 3,15 * * * » — jargon brut (NE-DOIT-PAS-4). Traduite ; repli explicite si le motif n'est pas reconnu.",
+    "fiche-sous-la-feuille": "« Voir la fiche » depuis une feuille ouvrait l'écran SOUS elle (z-45 contre z-47). La feuille se ferme d'abord.",
+    "navigation-ne-ferme-pas": "Changer de page laissait la fiche ouverte. La navigation ferme les couches.",
+    "carrousel-bloque-le-scroll": "`touch-action: pan-x` SEUL interdit le pan vertical : un doigt sur le carrousel d'acteurs figeait la fiche. Les deux axes sont autorisés, le navigateur tranche par la direction.",
+    "action-collee-a-la-barre": "Un écran doit réserver la hauteur de la barre d'onglets, qui passe au-dessus de lui (R4).",
+    "resultat-sans-fiche": "Les résultats de recherche n'offraient aucun chemin vers la fiche — violation de NE-DOIT-PAS-9. L'affiche est un bouton.",
+    "porte-de-sortie-absente": "La résolution PROMETTAIT une recherche manuelle pré-remplie sans la fournir. Elle existe, et nettoie le nom de dossier en requête (DOIT-7)."
   }
 }
