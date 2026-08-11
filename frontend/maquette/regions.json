@@ -181,6 +181,7 @@
     ".manifest b",
     ".manifest li",
     ".manifest li:last-child",
+    ".manquants",
     ".mark",
     ".miss",
     ".mk",

@@ -20,7 +20,7 @@ async def main():
     # qu'un audit devenu muet ne se lise plus comme un audit vert.
     evaluees=set()
     def evalue(*r): evaluees.update(r)
-    REGLES_ATTENDUES=10
+    REGLES_ATTENDUES=11
     print(f"{BAR}\nRevue adversariale — second tour, {len(etats)} états\n{BAR}")
 
     evalue('R11')
@@ -253,6 +253,43 @@ async def main():
     for x in retours["colles"]: note("R28 retour mal posé", x)
     print(f"\nDesigns de retour distincts : {len(retours['sig'])} sur "
           f"{sum(len(v) for v in retours['sig'].values())} écrans")
+
+    evalue('R29')
+    # R29 — la présence d'un épisode se lit dans la LISTE des numéros possédés,
+    # jamais au seuil « numéro <= nombre possédés ». Ce seuil suppose le trou en
+    # fin de saison : faux pour 35 séries de cette médiathèque. La règle vérifie
+    # l'accord entre ce qui est AFFICHÉ et la donnée, sur des séries à trou
+    # INTERNE — là où les deux méthodes divergent.
+    ep=await pg.evaluate("""async ()=>{const out=[];
+      // TOUTES les séries à trou INTERNE, pas un échantillon : c'est là que le
+      // seuil et la liste divergent, donc là que la règle a une chance de mordre.
+      const atrous=Object.entries(POSSEDES).filter(([t,s])=>
+        Object.values(s).some(l=>l.length && l.some((n,i)=>n!==i+1))).map(([t])=>t);
+      if (!atrous.length) return ['aucune série à trou interne — la règle serait vacante'];
+      let inspectes=0;
+      for (const titre of atrous) {
+        window.__reset(); set({page:'lib', phase:'prete'}); openFiche(titre);
+        await new Promise(r=>setTimeout(r,160));
+        for (const det of document.querySelectorAll('#screen details.season')) {
+          const num=Number((det.querySelector('summary')?.textContent||'').match(/Saison\\s+(\\d+)/)?.[1]);
+          const detenus=possedesDe(titre, num);
+          if (!detenus) continue;
+          // Les DEUX rendus : lignes à titres ET matrice de numéros.
+          const cases=[...det.querySelectorAll('.eprow')].map(r=>[
+              Number((r.querySelector('.en')?.textContent||'').replace(/\\D/g,'')), r])
+            .concat([...det.querySelectorAll('.eps .ep')].map(c=>[Number(c.textContent), c]));
+          for (const [n, el] of cases) {
+            if (!n || el.classList.contains('annonce')) continue;
+            inspectes++;
+            const affiche=el.classList.contains('en_mediatheque');
+            if (affiche !== detenus.has(n))
+              out.push(`${titre} S${num}E${n} : affiché ${affiche?'présent':'manquant'}, réellement ${detenus.has(n)?'présent':'manquant'}`);
+          }
+        }
+      }
+      if (!inspectes) out.push('aucun épisode inspecté — la règle ne prouve rien');
+      return out.slice(0, 12);}""")
+    for x in ep: note("R29 présence d'épisode non conforme à la donnée", x)
 
     print()
     if not viol: print("Aucune violation sur ce second tour.")
