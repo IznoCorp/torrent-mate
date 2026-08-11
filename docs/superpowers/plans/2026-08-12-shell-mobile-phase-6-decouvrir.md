@@ -26,6 +26,15 @@
 - **Comments in English**, no session/phase/date references. Interface copy stays French.
 - **Commits:** Conventional Commits, scope `(shell-mobile)`. No AI attribution. **Version bump on every PR.**
 
+
+> **Test fixtures — read this before writing a backend test.** This repository has
+> no `client` or `staging_client` fixture. Web tests build their own client from
+> the `make_web_client` factory and `test_config` (see `tests/web/conftest.py` and
+> the `auth_client` fixture at the top of `tests/web/test_auth.py`). The test code
+> below names its client `client` for readability: **replace it with a fixture
+> built the repository's way**, and set the staging role through the settings the
+> factory takes rather than inventing a second fixture name.
+
 ---
 
 ## File Structure
@@ -225,7 +234,7 @@ Run: `pytest tests/web/test_suggestions_route.py -v` → FAIL, then write the mo
 Run: `make openapi && make lint && make test`
 
 ```bash
-git add personalscraper/web tests/web/test_suggestions_route.py openapi.json frontend/src/api/schema.d.ts
+git add personalscraper/web tests/web/test_suggestions_route.py frontend/openapi.json frontend/src/api/schema.d.ts
 git commit -m "feat(shell-mobile): suggestions are served from the reserve, and say when degraded
 
 Reading the view never calls the provider — a test asserts the call count does

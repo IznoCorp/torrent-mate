@@ -187,7 +187,7 @@ async def main():
       for (const theme of [null,'light']) {
         theme ? racineDoc.setAttribute('data-theme',theme) : racineDoc.removeAttribute('data-theme');
         for (const s of window.__states()) {
-          window.__go(s); await new Promise(r=>setTimeout(r,150));
+          window.__go(s); await new Promise(r=>setTimeout(r,300));
           const racine=document.querySelector('#screen.open, #sheet.open');
           const hero=racine && racine.querySelector('.hero');
           if (!hero) continue;
@@ -227,7 +227,7 @@ async def main():
     # playback would be wrong even if it were pretty.
     bandes=await pg.evaluate("""async ()=>{const out=[];
       for (const s of window.__states()) {
-        window.__go(s); await new Promise(r=>setTimeout(r,150));
+        window.__go(s); await new Promise(r=>setTimeout(r,300));
         const racine=document.querySelector('#screen.open, #sheet.open');
         if (!racine || !racine.querySelector('.hero')) continue;
         const el=racine.querySelector('.trailer');
@@ -251,7 +251,7 @@ async def main():
     # glued or covered.
     retours=await pg.evaluate("""async ()=>{const sig={}, colles=[];
       for (const s of window.__states()) {
-        window.__go(s); await new Promise(r=>setTimeout(r,150));
+        window.__go(s); await new Promise(r=>setTimeout(r,300));
         const bar=document.querySelector('#screen.open .fichebar');
         if (!bar) continue;
         const btn=bar.querySelector('.fback');
@@ -355,7 +355,7 @@ async def main():
     dest=await pg.evaluate("""async ()=>{const out=[];
       for (const etat of ['lib-incomplets','lib-liste','lib-recents']) {
         for (let i=0; i<6; i++) {
-          window.__go(etat); await new Promise(r=>setTimeout(r,180));
+          window.__go(etat); await new Promise(r=>setTimeout(r,300));
           const cartes=[...document.querySelectorAll('#view .card .cbody')];
           if (i>=cartes.length) break;
           const titre=cartes[i].querySelector('.ctitle')?.textContent?.slice(0,26) ?? '?';

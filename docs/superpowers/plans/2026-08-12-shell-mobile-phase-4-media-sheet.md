@@ -26,6 +26,15 @@
 - **Comments in English**, no session/phase/date references. Interface copy stays French.
 - **Commits:** Conventional Commits, scope `(shell-mobile)`. No AI attribution. **Version bump on every PR.**
 
+
+> **Test fixtures — read this before writing a backend test.** This repository has
+> no `client` or `staging_client` fixture. Web tests build their own client from
+> the `make_web_client` factory and `test_config` (see `tests/web/conftest.py` and
+> the `auth_client` fixture at the top of `tests/web/test_auth.py`). The test code
+> below names its client `client` for readability: **replace it with a fixture
+> built the repository's way**, and set the staging role through the settings the
+> factory takes rather than inventing a second fixture name.
+
 ---
 
 ## File Structure
@@ -169,12 +178,12 @@ Expected: PASS — 4 passed.
 - [ ] **Step 6: Regenerate the typed contract and run the backend gates**
 
 Run: `make openapi && make lint && make test`
-Expected: all pass. Commit `openapi.json` and `frontend/src/api/schema.d.ts`.
+Expected: all pass. Commit `frontend/openapi.json` and `frontend/src/api/schema.d.ts`.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add personalscraper/web tests/web/test_media_sheet_seasons.py openapi.json frontend/src/api/schema.d.ts
+git add personalscraper/web tests/web/test_media_sheet_seasons.py frontend/openapi.json frontend/src/api/schema.d.ts
 git commit -m "feat(shell-mobile): the media sheet payload says WHICH episodes are held
 
 A list of numbers, never a count. « 21 of 26 » does not say which are missing,
@@ -626,7 +635,7 @@ Expected: all pass. Commit the regenerated files.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add personalscraper/web tests/web/test_follow_quality_profile.py openapi.json frontend/src/api/schema.d.ts
+git add personalscraper/web tests/web/test_follow_quality_profile.py frontend/openapi.json frontend/src/api/schema.d.ts
 git commit -m "feat(shell-mobile): the quality profile becomes writable, in its four real fields
 
 The read path, the overlay precedence and the hard filter already existed; only

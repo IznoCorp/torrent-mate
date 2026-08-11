@@ -13,7 +13,7 @@
 - **The prototype is the source.** `frontend/maquette/refonte.html` is the design reference (§15 of `docs/reference/product-intent.md`).
 - **CSS is extracted, never retyped.** Run `python scripts/extract-maquette-css.py`.
 - **A read model, never a scan.** This surface reads the indexer database. It must never walk a disk, and never trigger a scan: a page that scans on open is a page that hangs on a cold disk.
-- **Typed API:** the new route carries a Pydantic `response_model`; after any route change run `make openapi` and **commit** `openapi.json` and `frontend/src/api/schema.d.ts` — CI regenerates them and fails on drift.
+- **Typed API:** the new route carries a Pydantic `response_model`; after any route change run `make openapi` and **commit** `frontend/openapi.json` and `frontend/src/api/schema.d.ts` — CI regenerates them and fails on drift.
 - **The auth perimeter is the single `guarded_api` dependency.** Never add a per-route `Depends(require_session)`.
 - **Read-only endpoint ⇒ no staging guard needed**, but any mutating route added later must carry `require_not_staging`.
 - **One sub-line grammar** for every row: « année · type ». Two grammars make rows incomparable.
@@ -24,6 +24,15 @@
 - **Frontend gates:** `npx tsc -b --noEmit`, `npx eslint src`, `npx vitest run`, `make check-frontend`. **Backend gates:** `make lint`, `make test`.
 - **Comments in English**, no session/phase/date references. Interface copy stays French.
 - **Commits:** Conventional Commits, scope `(shell-mobile)`. No AI attribution. **Version bump on every PR.**
+
+
+> **Test fixtures — read this before writing a backend test.** This repository has
+> no `client` or `staging_client` fixture. Web tests build their own client from
+> the `make_web_client` factory and `test_config` (see `tests/web/conftest.py` and
+> the `auth_client` fixture at the top of `tests/web/test_auth.py`). The test code
+> below names its client `client` for readability: **replace it with a fixture
+> built the repository's way**, and set the staging role through the settings the
+> factory takes rather than inventing a second fixture name.
 
 ---
 
@@ -176,7 +185,7 @@ Expected: PASS — 6 passed.
 - [ ] **Step 7: Regenerate the typed contract**
 
 Run: `make openapi`
-Expected: `openapi.json` and `frontend/src/api/schema.d.ts` change. **Commit both** — CI regenerates them and fails on drift.
+Expected: `frontend/openapi.json` and `frontend/src/api/schema.d.ts` change. **Commit both** — CI regenerates them and fails on drift.
 
 - [ ] **Step 8: Run the backend gates**
 
@@ -188,7 +197,7 @@ Expected: zero errors, and the summary line shows `NNNN passed` with no ERROR. A
 ```bash
 git add personalscraper/web/models/library.py personalscraper/web/routes/library.py \
         personalscraper/web/routes/__init__.py tests/web/test_library_route.py \
-        openapi.json frontend/src/api/schema.d.ts
+        frontend/openapi.json frontend/src/api/schema.d.ts
 git commit -m "feat(shell-mobile): an endpoint that lists what the operator owns
 
 The library had no route at all: /medias serves the staging area despite its
