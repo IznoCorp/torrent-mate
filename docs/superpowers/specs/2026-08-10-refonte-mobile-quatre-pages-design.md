@@ -1,6 +1,7 @@
 # TorrentMate — mobile-first rebuild of the whole shell (design)
 
-**Date:** 2026-08-10 · **Status:** DRAFT — awaiting operator review
+**Date:** 2026-08-10 · **Status:** approved — the maquette is the engraved design reference (§15
+of the constitution)
 **Base:** `origin/main` @ `720d2536`, version `0.89.0`
 **Surfaces:** the entire authenticated app except `/config` — `/acquisition` (third view added),
 a NEW `/mediatheque`, a NEW `/arrivees` replacing `/medias` + `/pipeline`, and `/systeme` in
@@ -8,8 +9,10 @@ reception only. Plus a new TMDB suggestion engine and a destructive delete path.
 **Constitution:** `docs/reference/product-intent.md` — §3, §5, §8, §9, §11, §12, §13, §14 +
 DOIT-1, DOIT-2, DOIT-7, DOIT-9, DOIT-10, DOIT-11, NE-DOIT-PAS-1, NE-DOIT-PAS-4, NE-DOIT-PAS-6,
 NE-DOIT-PAS-8, NE-DOIT-PAS-9. Cited inline.
-**Interactive maquette (the contract):** published prototype, to be committed at
-`frontend/maquette/refonte.html` — see §7.1.
+**Interactive maquette (the contract):** `frontend/maquette/refonte.html`, committed, with its
+harness under `frontend/maquette/harness/` and its rule set in `frontend/maquette/regions.json`
+— see §7.1. It is the **binding visual reference** for this rebuild and for every later
+evolution of the interface.
 
 ---
 
@@ -261,6 +264,106 @@ not an assertion. See §11.
 
 ---
 
+### 5.4 Two verbs must never share a screen
+
+The search surface is reached from two places that mean opposite things, and the maquette
+originally sent both to the same screen — a fault of intent found by the operator:
+
+| Reached from             | Intent                        | Verb                          | Effect                                                                                                                                    |
+| ------------------------ | ----------------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| the `+` on Acquisition   | **surveiller** a media        | « Suivre » / « Ajouter » (§9) | creates a follow; an owned film passes the replacement confirmation (DOIT-8)                                                              |
+| a resolution in Arrivées | **identifier** a stuck folder | « Associer »                  | binds the media so the pipeline resumes its scrape. **No follow is created** — an already-owned media is the expected case, not a warning |
+
+The verb follows the **context that opened the screen**, and the screen states its intent in a
+banner. Proposing « add to follows » where the operator wanted to unblock a folder is not a
+labelling detail: it performs the wrong action.
+
+### 5.5 The per-series quality profile — what the backend actually holds
+
+Verified in `acquire/desired.py`. `QualityProfile` has **four fields, and no others**:
+
+| Field                      | Meaning                                                         | Default                                                          |
+| -------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `min_resolution`           | a **floor**, not a multi-select — everything below is dropped   | `None` (no floor)                                                |
+| `required_audio`           | tiers `{VF, VOSTFR, VO}`; a release must carry **at least one** | empty (no language filter)                                       |
+| `require_known_resolution` | fail closed on an unparseable resolution                        | `False` (fail open — usually a REMUX naming gap)                 |
+| `exclude_3d`               | drop SBS / Over-Under encodes                                   | **`True`** — the one non-permissive default, a correctness floor |
+
+**What is NOT per-series**: the ranking weights (resolution, codec, format, audio, language,
+source, seeders, size, provider) live in `config/ranking.json5` and already have an editor at
+`/config?tab=classement`. **The profile FILTERS (it eliminates); the ranking ORDERS (it breaks
+ties among survivors).** Losing that distinction is how an editor ends up promising settings the
+engine never reads.
+
+**Backend gap to close, and it is bounded.** The profile is _read_ at grab time
+(`_pass_gates.resolve_effective_profile` → `_filters`), but `UpdateFollowRequest` deliberately
+excludes `quality_profile` with the comment « do NOT expose an editor until the backend consumes
+it ». Shipping this screen therefore requires **opening the write path**: add the field to the
+PATCH body, validate the four keys, persist to `quality_profile_json`, `make openapi`. Nothing
+else — the read path, the overlay precedence and the hard filter already exist and are tested.
+
+**Out of scope**: `SourceCriteria` (the per-item override) is decode-only with no live producer
+(« no live producer until Follow D4 »). The maquette does not draw it.
+
+### 5.6 The media sheet — one template, and it is reached from everywhere
+
+The media sheet is the surface most often reached and the one that most easily grows two faces.
+Four rules make it single, each with a rule in `regions.json` → `$adversarialReview`.
+
+**The visual is the top of the sheet (R26).** A wide TMDB backdrop occupies the top band at
+full width, sharp, in the flow, and melts into the body colour through a closing gradient; the
+title sits under it, overlapping the melt's lower edge. There is no thumbnail beside the title —
+the visual already is the anchor. Three precautions carry it: the gradient closes on a solid
+colour _before_ the text, opacity and saturation are capped, and no information lives in the
+image. A medium with no backdrop degrades to a short muted field — a declared difference, and
+the only one. Verified in **both themes**: a light-theme-only regression already happened here
+when a deletion left an orphan selector.
+
+**One back control, in the flow (R28).** Exactly one design, on every screen that has one. It
+lives in the flow so it _pushes_ content instead of covering it — a floating variant over the
+image created a second design that overlapped the title on screens without an image. No text
+sits closer than 8px to it.
+
+**The trailer always opens YouTube (R27).** A trailer is a real `<a>` to
+`https://www.youtube.com/watch?v=…`, `target="_blank"`, `rel="noopener"`, offered wherever one
+arrives from — library, acquisitions or Découvrir. **Playback never happens in the app**, even
+when a local trailer file exists next to the media. The backend already exposes
+`trailer_url` on the media model; file presence is a separate fact and must not change this
+control.
+
+**Sections are identical everywhere (R13).** Fixed order: hero → trailer → synopsis → cast →
+library state → seasons (series) → identifiers → actions. The only variations are the ones
+nature imposes. Sections that are optional by nature (no trailer, unknown catalogue) do not
+count as divergence. The conformity sample is **drawn from the data** — complete, incomplete,
+without visual, film, series — never from a fixed handful of states: sampling five frozen
+states is exactly how a divergence stayed invisible.
+
+**A library card opens the media sheet, never the acquisition sheet (R31).** A card's
+destination follows the page it lives on. Opening « Récupérer maintenant / Mettre en pause »
+from the library created a second sheet design whose content also varied with the follow state.
+« Compléter → Acquisition » remains the path to acquisition.
+
+### 5.7 Seasons and missing episodes — the answer is _which_, not _how many_
+
+For an incomplete series the operator's question is **which episodes are missing**. Two rules.
+
+**Presence is read, never inferred (R29).** Episode presence comes from the **list of owned
+episode numbers**, per season, derived from `library.db` (an episode counts if it carries at
+least one file). A `number <= owned count` threshold assumes the hole sits at the end of the
+season and is **false for 35 series in this library** — one shipped example owns episodes
+1, 3, 5, 7, 9, 11, 13 and was displayed as owning 1 to 7. The same threshold existed in the
+follow sheet and must go there too.
+
+**One season rendering (R30).** Seasons are derived from the provider catalogue crossed with
+the owned numbers, and every season renders the same way: expandable, complete seasons
+collapsed, incomplete ones open and carrying « N manquant(s) », the missing numbers named in
+readable ranges (« Manquants : 2, 4, 6, 8, 10, 12 ») above the list, then the episodes with
+their air date and a subtle state dot. The numbered matrix is the **declared fallback** when a
+provider gives no episode titles — never a second design chosen by accident.
+
+Three cases stay honest rather than invented: an unknown aired total shows `?` and reasons only
+up to the highest owned episode; an announced season shows « à venir »; nothing known says so.
+
 ## 6. Gestures and platform invariants
 
 The app frame is already paid for: `AppShell` is one viewport tall (`h-svh overflow-clip`) with
@@ -506,106 +609,6 @@ dialog, toast and empty state.
 
 ---
 
-### 5.4 Two verbs must never share a screen
-
-The search surface is reached from two places that mean opposite things, and the maquette
-originally sent both to the same screen — a fault of intent found by the operator:
-
-| Reached from             | Intent                        | Verb                          | Effect                                                                                                                                    |
-| ------------------------ | ----------------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| the `+` on Acquisition   | **surveiller** a media        | « Suivre » / « Ajouter » (§9) | creates a follow; an owned film passes the replacement confirmation (DOIT-8)                                                              |
-| a resolution in Arrivées | **identifier** a stuck folder | « Associer »                  | binds the media so the pipeline resumes its scrape. **No follow is created** — an already-owned media is the expected case, not a warning |
-
-The verb follows the **context that opened the screen**, and the screen states its intent in a
-banner. Proposing « add to follows » where the operator wanted to unblock a folder is not a
-labelling detail: it performs the wrong action.
-
-### 5.5 The per-series quality profile — what the backend actually holds
-
-Verified in `acquire/desired.py`. `QualityProfile` has **four fields, and no others**:
-
-| Field                      | Meaning                                                         | Default                                                          |
-| -------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------- |
-| `min_resolution`           | a **floor**, not a multi-select — everything below is dropped   | `None` (no floor)                                                |
-| `required_audio`           | tiers `{VF, VOSTFR, VO}`; a release must carry **at least one** | empty (no language filter)                                       |
-| `require_known_resolution` | fail closed on an unparseable resolution                        | `False` (fail open — usually a REMUX naming gap)                 |
-| `exclude_3d`               | drop SBS / Over-Under encodes                                   | **`True`** — the one non-permissive default, a correctness floor |
-
-**What is NOT per-series**: the ranking weights (resolution, codec, format, audio, language,
-source, seeders, size, provider) live in `config/ranking.json5` and already have an editor at
-`/config?tab=classement`. **The profile FILTERS (it eliminates); the ranking ORDERS (it breaks
-ties among survivors).** Losing that distinction is how an editor ends up promising settings the
-engine never reads.
-
-**Backend gap to close, and it is bounded.** The profile is _read_ at grab time
-(`_pass_gates.resolve_effective_profile` → `_filters`), but `UpdateFollowRequest` deliberately
-excludes `quality_profile` with the comment « do NOT expose an editor until the backend consumes
-it ». Shipping this screen therefore requires **opening the write path**: add the field to the
-PATCH body, validate the four keys, persist to `quality_profile_json`, `make openapi`. Nothing
-else — the read path, the overlay precedence and the hard filter already exist and are tested.
-
-**Out of scope**: `SourceCriteria` (the per-item override) is decode-only with no live producer
-(« no live producer until Follow D4 »). The maquette does not draw it.
-
-### 5.6 The media sheet — one template, and it is reached from everywhere
-
-The media sheet is the surface most often reached and the one that most easily grows two faces.
-Four rules make it single, each with a rule in `regions.json` → `$adversarialReview`.
-
-**The visual is the top of the sheet (R26).** A wide TMDB backdrop occupies the top band at
-full width, sharp, in the flow, and melts into the body colour through a closing gradient; the
-title sits under it, overlapping the melt's lower edge. There is no thumbnail beside the title —
-the visual already is the anchor. Three precautions carry it: the gradient closes on a solid
-colour _before_ the text, opacity and saturation are capped, and no information lives in the
-image. A medium with no backdrop degrades to a short muted field — a declared difference, and
-the only one. Verified in **both themes**: a light-theme-only regression already happened here
-when a deletion left an orphan selector.
-
-**One back control, in the flow (R28).** Exactly one design, on every screen that has one. It
-lives in the flow so it _pushes_ content instead of covering it — a floating variant over the
-image created a second design that overlapped the title on screens without an image. No text
-sits closer than 8px to it.
-
-**The trailer always opens YouTube (R27).** A trailer is a real `<a>` to
-`https://www.youtube.com/watch?v=…`, `target="_blank"`, `rel="noopener"`, offered wherever one
-arrives from — library, acquisitions or Découvrir. **Playback never happens in the app**, even
-when a local trailer file exists next to the media. The backend already exposes
-`trailer_url` on the media model; file presence is a separate fact and must not change this
-control.
-
-**Sections are identical everywhere (R13).** Fixed order: hero → trailer → synopsis → cast →
-library state → seasons (series) → identifiers → actions. The only variations are the ones
-nature imposes. Sections that are optional by nature (no trailer, unknown catalogue) do not
-count as divergence. The conformity sample is **drawn from the data** — complete, incomplete,
-without visual, film, series — never from a fixed handful of states: sampling five frozen
-states is exactly how a divergence stayed invisible.
-
-**A library card opens the media sheet, never the acquisition sheet (R31).** A card's
-destination follows the page it lives on. Opening « Récupérer maintenant / Mettre en pause »
-from the library created a second sheet design whose content also varied with the follow state.
-« Compléter → Acquisition » remains the path to acquisition.
-
-### 5.7 Seasons and missing episodes — the answer is _which_, not _how many_
-
-For an incomplete series the operator's question is **which episodes are missing**. Two rules.
-
-**Presence is read, never inferred (R29).** Episode presence comes from the **list of owned
-episode numbers**, per season, derived from `library.db` (an episode counts if it carries at
-least one file). A `number <= owned count` threshold assumes the hole sits at the end of the
-season and is **false for 35 series in this library** — one shipped example owns episodes
-1, 3, 5, 7, 9, 11, 13 and was displayed as owning 1 to 7. The same threshold existed in the
-follow sheet and must go there too.
-
-**One season rendering (R30).** Seasons are derived from the provider catalogue crossed with
-the owned numbers, and every season renders the same way: expandable, complete seasons
-collapsed, incomplete ones open and carrying « N manquant(s) », the missing numbers named in
-readable ranges (« Manquants : 2, 4, 6, 8, 10, 12 ») above the list, then the episodes with
-their air date and a subtle state dot. The numbered matrix is the **declared fallback** when a
-provider gives no episode titles — never a second design chosen by accident.
-
-Three cases stay honest rather than invented: an unknown aired total shows `?` and reasons only
-up to the highest owned episode; an announced season shows « à venir »; nothing known says so.
-
 ## 8. Delivery
 
 ### 8.1 Integration branch — B12, non-negotiable
@@ -637,13 +640,25 @@ costing infrastructure. What protects production is that **nothing reaches `main
 | **1** | Scope rename `.mq`→`.tm`, eight primitives extracted to `ds/`, `PageHeader` off mobile              | Nothing — same gate: parity on Acquisition still zero                                                      |
 | **2** | **Arrivées** + reception into Système; `/medias`, `/pipeline`, `/controle` demoted to redirects     | The largest step: three pages become one                                                                   |
 | **3** | **Médiathèque** read-only (three lenses, pagination, thumbnails)                                    | Browsing the library becomes possible for the first time                                                   |
-| **4** | **Delete**, dry-run enforced, three paths, bulk                                                     | Deleting becomes possible, showing first what would go                                                     |
-| **5** | **Découvrir**: TMDB client extension, account auth, background pool, third view                     | The suggestion view lights up                                                                              |
+| **4** | **Media sheet** (§5.6, §5.7): visual header, single back control, YouTube trailer, seasons naming their missing episodes | Every poster in the library leads somewhere worth arriving at |
+| **5** | **Delete**, dry-run enforced, three paths, bulk                                                     | Deleting becomes possible, showing first what would go                                                     |
+| **6** | **Découvrir**: TMDB client extension, account auth, background pool, third view                     | The suggestion view lights up                                                                              |
 
 Order is not arbitrary: phase 2 must carry the Système reception **in the same PR**, or removing
 `/pipeline` from the bar orphans its runs. Phases 0–1 come first because they are the only ones
-whose failure is visible on a page that already works. Phases 0–3 have **no TMDB dependency**, so
-a blocked account in phase 5 cannot hold the rebuild hostage.
+whose failure is visible on a page that already works. Phase 4 follows phase 3 because the
+library is what makes the media sheet reachable at scale — rebuilding the sheet first would leave
+it without traffic to prove it. Phases 0–4 have **no TMDB account dependency**, so a blocked
+account in phase 6 cannot hold the rebuild hostage.
+
+**Two backend openings, both bounded, both named here so they are not discovered late:**
+
+- **Phase 4** needs owned episode numbers per season exposed to the web layer. `library.db`
+  already holds them (`media_item` → `season` → `episode` → `media_release` → `media_file`); no
+  schema change, a read model and a typed route.
+- **Phase 4** also opens the quality-profile write path described in §5.5: add
+  `quality_profile` to `UpdateFollowRequest`, validate its four keys, persist to
+  `quality_profile_json`, `make openapi`. The read path and the hard filter already exist.
 
 ### 8.3 Gates on every commit
 
@@ -706,7 +721,7 @@ output**. Prose criteria are invalid.
 ## 11. Open items — carried, not hidden
 
 1. **Plex deletion.** `api/plex.py` only refreshes. Which route actually removes the entry on
-   this server is a **verification step of phase 4**, not a claim of this spec.
+   this server is a **verification step of phase 5** (Delete), not a claim of this spec.
 2. **Real deletion cannot be validated before production.** Staging writes to the real disks and
    the real databases, and fabricating a media for the proof is forbidden by a standing operator
    rule. Protocol: on staging, dry-run only; the first real deletion happens **after** the
@@ -714,12 +729,12 @@ output**. Prose criteria are invalid.
    `library.db` (a file copy of a WAL database is not a backup), with the destructive journal as
    evidence. This is the single item of the mission that B12 cannot cover, and it was flagged
    before the phase was planned.
-3. **Cron shown raw.** Suivis renders the automatic-search cadence exactly as the scheduler
-   returns it — `20 3,15 * * *`. A cron expression on a phone card is raw jargon
-   (**NE-DOIT-PAS-4**). It should read « twice a day, at 3:20 and 15:20 ». Not fixed in the
-   maquette on purpose, so the operator sees the defect rather than the correction.
+3. ~~**Cron shown raw.**~~ **Closed.** The cadence is translated — « Recherche automatique :
+   2 fois par jour, à 3 h 20 et 15 h 20 » — with an explicit fallback to the raw form when the
+   pattern is not recognised, rather than an invented sentence. Covered by
+   `harness/bugs.py` (« cadence in words »). The app must carry the same translation.
 4. **`?tab=maintenant`.** The label became « En cours » (B13); whether the URL param migrates
-   (with a legacy redirect) or stays is an implementation detail of phase 5's sibling work — the
+   (with a legacy redirect) or stays is an implementation detail of phase 6's sibling work — the
    deep link must keep working either way.
 5. **The 19 media with no TMDB id** fall back to title+year for suggestion exclusion. The
    fallback must be visible, never silent.
@@ -733,8 +748,10 @@ output**. Prose criteria are invalid.
 ## 12. Out of scope
 
 - `/config` — untouched, as the operator asked at mission start.
-- The media sheet `/media/:provider/:id` — it exists and is conformant; this mission links to it,
-  it does not rebuild it.
+- ~~The media sheet~~ — **now IN scope.** It was listed here when the mission opened; §5.6 and
+  §5.7 supersede that. The sheet is rebuilt: melting visual header, single back control, trailer
+  as an outbound YouTube link, and seasons naming their missing episodes. It keeps its URL
+  `/media/:provider/:id` and its status as a destination, not a sheet.
 - Desktop beyond « fully functional »: the 672 px centred column, a denser tile grid, and the
   « ⋮ » where there is no swipe. §12 makes the phone the origin of the drawing; wide-screen
   refinement is deliberately unspecified.
