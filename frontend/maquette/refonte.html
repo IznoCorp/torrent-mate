@@ -4707,12 +4707,62 @@
     $("#scrim").classList.remove("open");
   }
 
-  function openScreen(html) {
-    $("#screen").innerHTML = html;
-    $("#screen").classList.add("open");
-    try {
-      history.pushState({ layer: "screen" }, "");
-    } catch (e) {}
+  /* Re-rendre un écran ne doit JAMAIS ramener l'opérateur en haut : cocher
+     une case au bas d'un formulaire renvoyait au sommet, ce qui rend le
+     formulaire impraticable. Un re-rendu du MÊME écran (même clé) conserve la
+     position de défilement, la valeur et le curseur des champs ; un écran
+     DIFFÉRENT repart à zéro, ce qui est correct.
+     La garde est ici, une fois, plutôt que dans chaque contrôle — sinon le
+     prochain contrôle ajouté réintroduira le défaut. */
+  function openScreen(html, cle) {
+    const el = $("#screen");
+    const memeEcran = el.classList.contains("open") && cle != null && el.dataset.cle === cle;
+    let y = 0;
+    let champ = null;
+    if (memeEcran) {
+      y = el.querySelector(".port")?.scrollTop ?? 0;
+      const a = document.activeElement;
+      if (a && el.contains(a) && a.id) champ = { id: a.id, pos: a.selectionStart };
+    }
+    el.innerHTML = html;
+    if (cle != null) el.dataset.cle = cle;
+    else delete el.dataset.cle;
+    if (memeEcran) {
+      const port = el.querySelector(".port");
+      if (port && y > 0) {
+        /* Restaurer UNE fois ne suffit pas : les affiches se chargent après le
+           remplacement du contenu, la page est alors trop courte et le
+           navigateur ramène le défilement à 0. On re-pose la position à la
+           frame suivante, puis une dernière fois quand les images ont fini —
+           faute de quoi l'écran d'ajout remonte tout seul. */
+        port.scrollTop = y;
+        requestAnimationFrame(() => {
+          port.scrollTop = y;
+        });
+        const imgs = [...el.querySelectorAll("img")].filter((i) => !i.complete);
+        let restant = imgs.length;
+        imgs.forEach((i) =>
+          i.addEventListener(
+            "load",
+            () => {
+              if (--restant <= 0) port.scrollTop = y;
+            },
+            { once: true },
+          ),
+        );
+      }
+      if (champ) {
+        const n = el.querySelector("#" + champ.id);
+        if (n) {
+          n.focus();
+          try { n.setSelectionRange(champ.pos, champ.pos); } catch (e) {}
+        }
+      }
+    }
+    if (!el.classList.contains("open")) {
+      el.classList.add("open");
+      try { history.pushState({ layer: "screen" }, ""); } catch (e) {}
+    }
   }
   function closeScreen(pop) {
     if (!$("#screen").classList.contains("open")) return;
@@ -5916,7 +5966,7 @@
           ? `<div class="addfoot"><span><b>${S.added.size}</b> média${S.added.size > 1 ? "s" : ""} ajouté${S.added.size > 1 ? "s" : ""}</span><button data-go="acq">Voir mes suivis →</button></div>`
           : ""
       }
-    </div>`);
+    </div>`, "ajout:" + S.addMode);
     const inp = document.querySelector("#addq");
     if (inp)
       inp.onkeydown = (e) => {
@@ -6023,7 +6073,7 @@
       <div class="sheetacts">
         <button class="sact primary" data-toast="Profil enregistré — la prochaine recherche l'appliquera.">${svg(I.check)}Enregistrer</button>
       </div>
-    </div></div>`);
+    </div></div>`, "profil:" + (titre ?? ""));
   }
 
   function openPlusSheet() {

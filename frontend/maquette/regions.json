@@ -727,7 +727,9 @@
     "fiches-vides-en-cours": "Les 4 films suivis n'avaient pas de fiche : ils sont dans acquire.db mais PAS dans library.db (non possédés). Couverture désormais systématique : 326 des 331 titres atteignables ont leur fiche ; les 5 restants sont des noms de release et des dossiers de staging, qui n'en ont légitimement pas.",
     "affiche-lien-mort": "Une affiche était un bouton même sans fiche derrière — §11 interdit le lien mort autant que le bouton grisé. L'affiche n'est un bouton que si `fiche()` résout.",
     "identite-par-titre": "Les sources ne s'accordent pas sur les titres (« Dexter Resurrection » vs « Dexter: Resurrection », listes tronquées). La maquette résout par clé normalisée ; l'APP doit résoudre par ID provider — l'identité par le titre n'est jamais l'identité.",
-    "bouton-ajouter-fiche": "Le bouton d'ajout de la fiche était aligné à gauche comme une rangée d'actions et ne changeait pas d'état. Il est centré et bascule en contour + « Ajouté »/« Suivi », comme le bouton d'un résultat de recherche : un même geste doit avoir partout la même réponse."
+    "bouton-ajouter-fiche": "Le bouton d'ajout de la fiche était aligné à gauche comme une rangée d'actions et ne changeait pas d'état. Il est centré et bascule en contour + « Ajouté »/« Suivi », comme le bouton d'un résultat de recherche : un même geste doit avoir partout la même réponse.",
+    "scroll-remonte-au-clic": "Cocher une case en bas d'un formulaire renvoyait en haut de page : chaque bascule re-rendait tout l'écran. Corrigé dans openScreen (position + focus + curseur), avec une restauration APRÈS chargement des images — la page est trop courte tant qu'elles n'ont pas leur hauteur.",
+    "tiroir-inerte": "Le hamburger n'ouvrait rien et les liens du tiroir n'étaient pas cliquables : la délégation d'événements ne regardait que les <button>, or un lien de navigation est un <a>."
   },
   "$revueAdversariale": {
     "$comment": "Chaque retour de l'opérateur a été généralisé en RÈGLE vérifiée sur tous les états (harness/audit.py et audit2.py), pas corrigé sur le cas signalé. 573 violations au premier tour, 0 après. Le développeur doit faire porter ces mêmes règles au code.",
@@ -760,6 +762,8 @@
     "R20": "La médiathèque n'a qu'UNE grammaire de sous-ligne : « année · type ». Les films disaient « 2026 · Film » et les séries « 6 ép. » — deux grammaires rendent les rangées incomparables.",
     "R21": "La couleur d'état d'un épisode est SUBTILE : une pastille de 6 px et le numéro dans le ton. Le titre reste neutre — c'est ce qu'on lit en premier. Un seul signal de couleur par ligne.",
     "R22": "Tout interrupteur a exactement les mêmes dimensions (46 × 28), quelle que soit la longueur du libellé voisin. Un chip « Oui/Non » dans une rangée flex prenait la hauteur du texte.",
-    "R23": "Dans un groupe d'options, toutes les rangées ont la même taille, et la FORME dit la règle : cercle = choix unique, carré = choix multiple. Des pastilles identiques ne disaient pas si l'on pouvait en cocher plusieurs."
+    "R23": "Dans un groupe d'options, toutes les rangées ont la même taille, et la FORME dit la règle : cercle = choix unique, carré = choix multiple. Des pastilles identiques ne disaient pas si l'on pouvait en cocher plusieurs.",
+    "R24": "Aucune interaction de formulaire ne déplace le défilement. Un re-rendu du MÊME écran conserve la position, la valeur et le curseur du champ actif ; un écran DIFFÉRENT repart à zéro. La garde vit dans openScreen(), une seule fois — sinon le prochain contrôle ajouté réintroduit le défaut.",
+    "$defautsOperateur": {}
   }
 }
