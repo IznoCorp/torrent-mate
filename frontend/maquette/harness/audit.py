@@ -38,20 +38,17 @@ async def main():
           R.fichesCreuses = [...racine.querySelectorAll('[data-fiche]')].map(el=>el.dataset.fiche)
             .filter(t=>{const f=fiche(t); return !f || !f.ov || !f.g || !(f.cast||[]).length;});
 
-          // R2 — aucun bouton mort : tout bouton visible doit être branché
-          const CONNUS = ['page','go','acqtab','lens','cat','lmode','fmode','pill','toast','sug','dropsug',
-            'follow','sugidx','fkind','refiche','del','delsel','selmode','tile','fiche','act','journey',
-            'sheet','add','confirmadd','search','manual','resolve','phase','tmdb','clearq','hgo','hscen',
-            'hphase','htmdb','hclose','swipe','noswipe','addkind','idprov','sort','settri'];
-          R.boutonsMorts = [...racine.querySelectorAll('button')].filter(el=>{
-            if (!vis(el) || el.disabled) return false;
-            if (el.closest('.hbtn') || el.closest('.hpanel')) return false;
-            if (Object.keys(el.dataset).some(k=>CONNUS.includes(k))) return false;
-            if (/cfoot|act|sact|resbtn|tile|pill|seg|vsw|more|fab|dlgbtn|ficheadd|fback|searchclear|burger|avatar|mqtoastclose|trailer|btnprimary|segmini|linkbtn|ep\\b/.test(el.className)) return false;
-            if (el.id) return false;
-            if (el.onclick) return false;
-            return true;
-          }).map(el=>(el.className||el.tagName)+' « '+el.textContent.trim().slice(0,26)+' »');
+          // R2 — DURCIE : un bouton doit avoir une DESTINATION déclarée, pas
+          // seulement une classe connue. La version par classe blanchissait
+          // tout `.sact`, donc « Profil de qualité » menait nulle part sans
+          // que la règle bronche — trouvé au doigt par l'opérateur.
+          R.boutonsMorts = [...racine.querySelectorAll('button')]
+            .filter(el=>el.getBoundingClientRect().height>0 && !el.disabled
+                    && !el.closest('.hbtn') && !el.closest('.hpanel')
+                    && !el.closest('details:not([open])'))
+            .filter(el=>Object.keys(el.dataset).length===0 && !el.id && !el.onclick
+                    && !/searchclear|burger|avatar|fback|more\b|fab|sel\b|vsw|seg\b|pill|tile|ep\b/.test(el.className))
+            .map(el=>'« '+el.textContent.trim().slice(0,28)+' »');
 
           // R3 — cibles tactiles : toute commande fait au moins 40 px dans un sens
           R.ciblesTropPetites = [...racine.querySelectorAll('button,a')].filter(el=>{
@@ -87,6 +84,16 @@ async def main():
           R.panneauxVides = [...racine.querySelectorAll('.panel')].filter(el=>
             el.children.length===0).length;
 
+          // R20 — la médiathèque n'a qu'UNE grammaire de sous-ligne :
+          // « année · type ». Deux grammaires rendent les rangées
+          // incomparables entre elles.
+          R.sousLignes = [];
+          if (etat.startsWith('lib-') && !etat.includes('incomplets')) {
+            const attendu = /^(\d{4}|année inconnue) · (Film|Série)$/;
+            R.sousLignes = [...racine.querySelectorAll('#libitems .csub, #libitems .fr')]
+              .map(e=>e.textContent.trim()).filter(t=>t && !attendu.test(t)).slice(0,5);
+          }
+
           // R8 — TOUTE couche réserve la hauteur de la barre d'onglets, qui
           // passe au-dessus d'elle : écran, feuille et dialogue. La règle ne
           // couvrait que l'écran, et le défaut est réapparu sur la feuille.
@@ -116,8 +123,12 @@ async def main():
           return R;
         }""", e)
         for k, v in r.items():
-            if k == "reserveEcran":
+            if k == "sousLignes":
+                for x in v: note("R20 grammaire de sous-ligne divergente", f"{e} : « {x} »")
+            elif k == "reserveEcran":
                 if v: note("R8 réserve d'écran insuffisante", f"{e} : {v}")
+            elif k == "sousLignes":
+                for x in v: note("R20 grammaire de sous-ligne divergente", f"{e} : « {x} »")
             elif k == "panneauxVides":
                 if v: note("R7 panneau vide", f"{e} : {v}")
             elif v:

@@ -577,6 +577,30 @@
         "fiche-suggestion-serie"
       ],
       "$note": "Une suggestion n'est PAS en médiathèque : le bloc dit « non », montre le catalogue connu, et l'action du bas est « Suivre »/« Ajouter » et non « Supprimer »."
+    },
+    "releases/candidat": {
+      "selector": ".rel",
+      "states": [
+        "ecran-releases"
+      ]
+    },
+    "profil/critere": {
+      "selector": ".qchip",
+      "states": [
+        "ecran-profil"
+      ]
+    },
+    "fiche/episode-datee": {
+      "selector": ".eprow",
+      "states": [
+        "fiche-sans-trailer"
+      ]
+    },
+    "matrice/popover-date": {
+      "selector": ".eppop",
+      "states": [
+        "feuille-suivi-trous"
+      ]
     }
   },
   "states": [
@@ -598,6 +622,8 @@
     "acq-ajout-resultats",
     "feuille-suivi-complet",
     "feuille-suivi-trous",
+    "ecran-releases",
+    "ecran-profil",
     "feuille-parcours",
     "feuille-plus",
     "lib-grille",
@@ -685,7 +711,7 @@
   "$revueAdversariale": {
     "$comment": "Chaque retour de l'opérateur a été généralisé en RÈGLE vérifiée sur tous les états (harness/audit.py et audit2.py), pas corrigé sur le cas signalé. 573 violations au premier tour, 0 après. Le développeur doit faire porter ces mêmes règles au code.",
     "R1": "Toute affiche cliquable mène à une fiche RENSEIGNÉE (synopsis, genres, distribution). Sinon l'affiche n'est pas un bouton.",
-    "R2": "Aucun bouton visible sans effet. 18 commandes étaient décoratives : segments de type et de provider, contrôle de tri.",
+    "R2": "Un bouton doit avoir une DESTINATION déclarée, pas seulement une classe connue. La version par classe blanchissait tout `.sact` : « Profil de qualité » ne menait nulle part sans que la règle bronche — trouvé au doigt. TOUT écran atteignable doit être maquetté.",
     "R3": "Cible tactile ≥ 32 px. EXCEPTION DÉCLARÉE : la cellule d'épisode fait 31 × 27 dans le composant livré — à 13 par ligne, 44 px demanderait 572 px. Contrainte géométrique, pas oubli.",
     "R4": "Aucun débordement horizontal hors défileurs déclarés (.pillscroll, .cast, .eps).",
     "R5": "Un défileur horizontal ne pose JAMAIS touch-action: pan-x seul — il bloquerait le pan vertical.",
@@ -706,7 +732,10 @@
     "$leconsDeMethode": [
       "R12 acceptait `justify-content: normal` comme équivalent à « centré » : trop molle, elle a laissé passer ce que l'opérateur a vu au doigt.",
       "R8 ne couvrait que les écrans : le même défaut est revenu par les feuilles. Une règle doit viser la FAMILLE, pas le cas.",
-      "R8 durcie a d'abord accusé à tort un bouton d'un <details> replié — Chrome lui laisse une boîte de mise en page. Une règle doit juger le VISIBLE, pas l'ordre du DOM."
-    ]
+      "R8 durcie a d'abord accusé à tort un bouton d'un <details> replié — Chrome lui laisse une boîte de mise en page. Une règle doit juger le VISIBLE, pas l'ordre du DOM.",
+      "R2 blanchissait par CLASSE au lieu d'exiger une destination : trois règles de suite trop indulgentes (« normal » pour centré, les écrans sans les feuilles, la classe pour la destination). Une règle qui blanchit par catégorie finit toujours par blanchir un défaut."
+    ],
+    "R20": "La médiathèque n'a qu'UNE grammaire de sous-ligne : « année · type ». Les films disaient « 2026 · Film » et les séries « 6 ép. » — deux grammaires rendent les rangées incomparables.",
+    "R21": "La couleur d'état d'un épisode est SUBTILE : une pastille de 6 px et le numéro dans le ton. Le titre reste neutre — c'est ce qu'on lit en premier. Un seul signal de couleur par ligne."
   }
 }
