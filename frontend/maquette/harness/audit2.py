@@ -36,7 +36,8 @@ async def main():
       const out={};
       const mesure=(sel,nom)=>{const el=document.querySelector(sel); if(!el) return;
         const s=getComputedStyle(el); const b=el.getBoundingClientRect();
-        out[nom]={h:Math.round(b.height),poids:s.fontWeight,taille:s.fontSize,centre:s.justifyContent,radius:s.borderRadius};};
+        out[nom]={h:Math.round(b.height),poids:s.fontWeight,taille:s.fontSize,centre:s.justifyContent,
+                  radius:s.borderRadius,icone:!!el.querySelector(':scope > svg')};};
       window.__go('acq-encours-charge'); await new Promise(r=>setTimeout(r,220));
       mesure('.cfoot.solid','pied de carte (primaire)');
       window.__go('feuille-suivi-trous'); await new Promise(r=>setTimeout(r,240));
@@ -55,7 +56,10 @@ async def main():
     for k,v in geo.items():
         # « normal » N'EST PAS centré : c'est la mollesse de règle qui avait
         # laissé passer la violation que l'opérateur a trouvée au doigt.
-        if v["centre"] != "center": note("R12 bouton non centré", f"{k} : justify-content {v['centre']}")
+        # Arbitrage 2026-08-11 : icône → aligné à gauche ; sans icône → centré.
+        attendu = "flex-start" if v.get("icone") else "center"
+        if v["centre"] != attendu:
+            note("R12 alignement non conforme", f"{k} : {v['centre']} au lieu de {attendu} (icône: {v.get('icone')})")
         if v["radius"] != "8px": note("R12 radius hétérogène", f"{k} : {v['radius']}")
         if v["taille"] != "13.5px": note("R12 taille de texte hétérogène", f"{k} : {v['taille']}")
 

@@ -87,14 +87,31 @@ async def main():
           R.panneauxVides = [...racine.querySelectorAll('.panel')].filter(el=>
             el.children.length===0).length;
 
-          // R8 — un écran réserve la hauteur de la barre d'onglets
+          // R8 — TOUTE couche réserve la hauteur de la barre d'onglets, qui
+          // passe au-dessus d'elle : écran, feuille et dialogue. La règle ne
+          // couvrait que l'écran, et le défaut est réapparu sur la feuille.
           R.reserveEcran = null;
-          const sc = document.querySelector('#screen');
-          if (sc.classList.contains('open')) {
-            const port = sc.querySelector('.port');
+          const bar = document.querySelector('.bottombar').getBoundingClientRect().height;
+          const couches = [['#screen','.port'],['#sheet','.sheetin']];
+          for (const [sel, inner] of couches) {
+            const el = document.querySelector(sel);
+            if (!el.classList.contains('open')) continue;
+            const port = el.querySelector(inner);
+            if (!port) continue;
             const pb = parseFloat(getComputedStyle(port).paddingBottom);
-            const bar = document.querySelector('.bottombar').getBoundingClientRect().height;
-            R.reserveEcran = pb >= bar ? null : `${Math.round(pb)}px < ${Math.round(bar)}px`;
+            if (pb < bar) R.reserveEcran = `${sel} ${Math.round(pb)}px < barre ${Math.round(bar)}px`;
+            // Et le dernier bouton doit être ATTEIGNABLE au défilement max.
+            port.scrollTop = port.scrollHeight;
+            // Un <details> replié laisse une boîte de mise en page à ses
+            // enfants : filtrer sur la VISIBILITÉ, pas sur l'ordre du DOM.
+            const btns = [...port.querySelectorAll('button')]
+              .filter(x => !x.closest('details:not([open])') && x.getBoundingClientRect().height > 0);
+            const dernier = btns[btns.length-1];
+            if (dernier) {
+              const bb = dernier.getBoundingClientRect();
+              const barTop = document.querySelector('.bottombar').getBoundingClientRect().top;
+              if (bb.bottom > barTop + 1) R.reserveEcran = `${sel} : dernier bouton sous la barre (${Math.round(bb.bottom - barTop)}px)`;
+            }
           }
           return R;
         }""", e)

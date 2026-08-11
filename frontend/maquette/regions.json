@@ -691,16 +691,22 @@
     "R5": "Un défileur horizontal ne pose JAMAIS touch-action: pan-x seul — il bloquerait le pan vertical.",
     "R6": "Aucun titre essentiel tronqué (.ht, .sheettitle, titre de dialogue).",
     "R7": "Aucun panneau ne rend le vide en silence.",
-    "R8": "Un écran réserve la hauteur de la barre d'onglets, qui passe au-dessus de lui.",
+    "R8": "TOUTE couche (écran, feuille) réserve la hauteur de la barre d'onglets, qui passe au-dessus d'elle, ET son dernier bouton VISIBLE est atteignable au défilement maximal. La règle ne couvrait que l'écran ; le défaut est réapparu sur la feuille, signalé par l'opérateur.",
     "R9": "Vocabulaire film/série cohérent partout (§9).",
     "R10": "Toute action mute l'état, navigue, ou ouvre une couche — jamais rien.",
     "R11": "Aucun jargon ni valeur technique visible : undefined, NaN, null, [object, 0/0, expression cron.",
-    "R12": "UN SEUL système de boutons d'action : contenu centré, hauteur 44, radius 8, 600, 13,5 px. Les hauteurs allaient de 35 à 45 px selon la surface. Arbitrage opérateur : le centrage prime sur l'alignement à gauche du composant livré.",
+    "R12": "UN système de boutons : hauteur 44, radius 8, 600, 13,5 px. Alignement — avec icône : à gauche (l'icône ancre la rangée) ; sans icône : centré (rien n'ancre le bord gauche). Arbitrage opérateur du 2026-08-11, après essai du centrage partout.",
     "R13": "Ordre de sections identique sur toutes les fiches ; seules varient celles que la nature impose.",
     "R14": "Toute couche se ferme par le scrim (feuilles, dialogues) ou par Retour (écrans).",
     "R15": "Les trois modes de Suivis montrent le même nombre d'items.",
     "R16": "Le badge de nav ET le badge d'onglet valent à-récupérer + à-traiter, dans les deux scénarios.",
     "R17": "Toute destruction est confirmée (dialogue) ou réversible (Annuler), et ne mute jamais avant confirmation.",
-    "$leconDeMethode": "R12 avait été écrite en acceptant justify-content:normal comme équivalent à « centré » — la règle était trop molle et laissait passer la violation que l'opérateur a trouvée au doigt. Une règle qui ne tombe jamais mérite d'être durcie avant d'être crue."
+    "R18": "La sélection multiple fonctionne dans les DEUX modes de la médiathèque. Elle n'existait que sur les tuiles : « Sélectionner » s'activait en liste sans que rien ne soit sélectionnable — un mode qu'on peut entrer et où l'on ne peut rien faire est pire qu'un mode absent.",
+    "R19": "Rien ne se positionne par une distance au bord de l'écran : la barre publie sa hauteur mesurée dans `--tm-bottom-bar-h` et tout ce qui se pose au-dessus la lit. Trois nombres magiques (74, 76 px) traînaient dans la maquette — le défaut R4 que l'app avait déjà corrigé.",
+    "$leconsDeMethode": [
+      "R12 acceptait `justify-content: normal` comme équivalent à « centré » : trop molle, elle a laissé passer ce que l'opérateur a vu au doigt.",
+      "R8 ne couvrait que les écrans : le même défaut est revenu par les feuilles. Une règle doit viser la FAMILLE, pas le cas.",
+      "R8 durcie a d'abord accusé à tort un bouton d'un <details> replié — Chrome lui laisse une boîte de mise en page. Une règle doit juger le VISIBLE, pas l'ordre du DOM."
+    ]
   }
 }
