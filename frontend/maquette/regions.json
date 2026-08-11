@@ -729,7 +729,8 @@
     "identite-par-titre": "Les sources ne s'accordent pas sur les titres (« Dexter Resurrection » vs « Dexter: Resurrection », listes tronquées). La maquette résout par clé normalisée ; l'APP doit résoudre par ID provider — l'identité par le titre n'est jamais l'identité.",
     "bouton-ajouter-fiche": "Le bouton d'ajout de la fiche était aligné à gauche comme une rangée d'actions et ne changeait pas d'état. Il est centré et bascule en contour + « Ajouté »/« Suivi », comme le bouton d'un résultat de recherche : un même geste doit avoir partout la même réponse.",
     "scroll-remonte-au-clic": "Cocher une case en bas d'un formulaire renvoyait en haut de page : chaque bascule re-rendait tout l'écran. Corrigé dans openScreen (position + focus + curseur), avec une restauration APRÈS chargement des images — la page est trop courte tant qu'elles n'ont pas leur hauteur.",
-    "tiroir-inerte": "Le hamburger n'ouvrait rien et les liens du tiroir n'étaient pas cliquables : la délégation d'événements ne regardait que les <button>, or un lien de navigation est un <a>."
+    "tiroir-inerte": "Le hamburger n'ouvrait rien et les liens du tiroir n'étaient pas cliquables : la délégation d'événements ne regardait que les <button>, or un lien de navigation est un <a>.",
+    "filtres-inertes": "Les pastilles de catégorie de la Médiathèque étaient décoratives : elles changeaient d'état sans rien filtrer. Elles portent désormais la catégorie réelle de chaque item, se combinent avec la recherche, et l'échantillon de la maquette est STRATIFIÉ pour qu'aucune catégorie ne soit vide — on ne juge pas un filtre qui n'a rien à montrer."
   },
   "$revueAdversariale": {
     "$comment": "Chaque retour de l'opérateur a été généralisé en RÈGLE vérifiée sur tous les états (harness/audit.py et audit2.py), pas corrigé sur le cas signalé. 573 violations au premier tour, 0 après. Le développeur doit faire porter ces mêmes règles au code.",
@@ -764,6 +765,7 @@
     "R22": "Tout interrupteur a exactement les mêmes dimensions (46 × 28), quelle que soit la longueur du libellé voisin. Un chip « Oui/Non » dans une rangée flex prenait la hauteur du texte.",
     "R23": "Dans un groupe d'options, toutes les rangées ont la même taille, et la FORME dit la règle : cercle = choix unique, carré = choix multiple. Des pastilles identiques ne disaient pas si l'on pouvait en cocher plusieurs.",
     "R24": "Aucune interaction de formulaire ne déplace le défilement. Un re-rendu du MÊME écran conserve la position, la valeur et le curseur du champ actif ; un écran DIFFÉRENT repart à zéro. La garde vit dans openScreen(), une seule fois — sinon le prochain contrôle ajouté réintroduit le défaut.",
-    "$defautsOperateur": {}
+    "$defautsOperateur": {},
+    "R25": "Un filtre FILTRE, et ses parts somment au tout : 717 + 528 + 382 + 73 + 66 + 56 + 31 + 8 = 1 861. Un filtre dont les parts ne somment pas au total est un filtre qui ment. Les catégories sont celles du rangement RÉEL (categories.json5 → dossiers des disques), pas des étiquettes inventées."
   }
 }
