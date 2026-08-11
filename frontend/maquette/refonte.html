@@ -419,6 +419,27 @@
   .search input::placeholder {
     color: var(--muted-foreground);
   }
+  /* Transplantée depuis maquette-acquisition.css — troisième classe utilisée
+     sans avoir été portée (après .nofiche et .rulenote). Le bouton n'avait
+     aucune taille propre : 26 px, sous la cible tactile. Porté ici À 32 px,
+     et l'écart avec l'app est une exception à déclarer. */
+  .search .searchclear {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    margin-right: -8px;
+    border: 0;
+    border-radius: 9999px;
+    background: transparent;
+    color: var(--muted-foreground);
+  }
+  .search .searchclear svg {
+    width: 15px;
+    height: 15px;
+  }
+
   .pillbar {
     display: flex;
     align-items: center;
@@ -2082,6 +2103,50 @@
     font-size: 12.5px;
   }
 
+  /* ═══ UN SEUL SYSTÈME DE BOUTONS D'ACTION ═══════════════════════════
+     Arbitrage opérateur : toute action pleine largeur a son contenu CENTRÉ.
+     Le composant livré alignait les rangées de feuille à gauche comme un
+     menu ; l'opérateur a tranché l'inverse, et une décision opérateur prime
+     sur la maquette d'origine.
+
+     Une seule échelle, partout : hauteur 44 (la cible tactile), radius 8,
+     600, 13,5 px, icône 16. Avant cette règle les hauteurs allaient de 35 à
+     45 px selon la surface et un même geste n'avait pas la même allure selon
+     l'endroit — ce qui est exactement ce qu'« uniformiser » veut dire. */
+  .sact,
+  .cfoot,
+  .ficheadd,
+  .dlgbtn,
+  .resbtn,
+  .moreblk,
+  .btnprimary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    width: 100%;
+    min-height: 44px;
+    padding: 11px 12px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    font-weight: 600;
+    text-align: center;
+  }
+  .sact svg,
+  .cfoot svg,
+  .ficheadd svg,
+  .resbtn svg {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 auto;
+  }
+  /* Le bouton « Chercher » reste à sa largeur : il partage sa ligne avec le
+     segment de type, il ne peut pas être pleine largeur. */
+  .addrow .btnprimary {
+    width: auto;
+    padding-inline: 16px;
+  }
+
   /* ── Dialog ────────────────────────────────────────────────── */
   .dlg {
     position: absolute;
@@ -2178,7 +2243,7 @@
     border: 1px solid var(--border);
     background: transparent;
     color: var(--foreground);
-    font-size: 13px;
+    font-size: 13.5px;
     font-weight: 600;
     padding: 10px;
     border-radius: 8px;
@@ -2932,7 +2997,13 @@
     a_recuperer:"sw-warning", en_acquisition:"sw-info", en_mediatheque:"sw-success",
   };
 
-  const SUGGESTIONS = [{"t": "Superman : L'Homme de demain", "y": "2020", "k": "Film", "note": 7.1, "why": "Recoupé par <b>4</b> titres de votre médiathèque, dont Ninja Turtles et Supergirl."}, {"t": "Alita : Battle Angel", "y": "2019", "k": "Film", "note": 7.3, "why": "Recoupé par <b>3</b> titres de votre médiathèque, dont Ninja Turtles et Supergirl."}, {"t": "Numéro quatre", "y": "2011", "k": "Film", "note": 6.2, "why": "Recoupé par <b>3</b> titres de votre médiathèque, dont Supergirl et Disclosure Day."}, {"t": "Avengers : Endgame", "y": "2019", "k": "Film", "note": 8.2, "why": "Parce que vous avez <b>Supergirl</b> et The Mandalorian and Grogu."}, {"t": "L'Incroyable Hulk", "y": "2008", "k": "Film", "note": 6.2, "why": "Parce que vous avez <b>Ninja Turtles</b> et The Mandalorian and Grogu."}, {"t": "Man of Steel", "y": "2013", "k": "Film", "note": 6.7, "why": "Parce que vous avez <b>Supergirl</b> et The Mandalorian and Grogu."}, {"t": "X-Men : Dark Phoenix", "y": "2019", "k": "Film", "note": 6.0, "why": "Parce que vous avez <b>Supergirl</b> et The Mandalorian and Grogu."}, {"t": "Premier Contact", "y": "2016", "k": "Film", "note": 7.6, "why": "Parce que vous avez <b>Marjorie Prime</b> et Disclosure Day."}, {"t": "Ant-Man et la Guêpe : Quantumania", "y": "2023", "k": "Film", "note": 6.2, "why": "Parce que vous avez <b>Ninja Turtles</b> et Supergirl."}, {"t": "The Venture Bros", "y": "2004", "k": "Série", "note": 7.8, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b> et President Curtis (2026)."}, {"t": "Fast Charlie", "y": "2023", "k": "Film", "note": 6.2, "why": "Parce que vous avez <b>On l'appelait Robin des Bois</b> et Margin Call."}, {"t": "Grimsburg", "y": "2024", "k": "Série", "note": 6.1, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b> et President Curtis (2026)."}, {"t": "Solo: A Star Wars Story", "y": "2018", "k": "Film", "note": 6.6, "why": "Parce que vous avez <b>Supergirl</b> et The Mandalorian and Grogu."}, {"t": "L'Assassin", "y": "2025", "k": "Série", "note": 6.9, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b> et Furious (2026)."}, {"t": "Power Rangers", "y": "2017", "k": "Film", "note": 6.2, "why": "Parce que vous avez <b>Supergirl</b> et The Mandalorian and Grogu."}, {"t": "Agent Elvis", "y": "2023", "k": "Série", "note": 6.9, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b> et President Curtis (2026)."}, {"t": "Marvel's M.O.D.O.K.", "y": "2021", "k": "Série", "note": 6.6, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b> et President Curtis (2026)."}, {"t": "Un Duplex pour 3", "y": "2003", "k": "Film", "note": 6.1, "why": "Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."}, {"t": "Les Trois Corniauds", "y": "2012", "k": "Film", "note": 5.8, "why": "Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."}, {"t": "L'Embrouille est dans le sac", "y": "1991", "k": "Film", "note": 6.4, "why": "Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."}, {"t": "Impostor", "y": "2001", "k": "Film", "note": 6.1, "why": "Parce que vous avez <b>Disclosure Day</b> et The Mandalorian and Grogu."}, {"t": "Green Lantern : Le Complot", "y": "2009", "k": "Film", "note": 6.9, "why": "Parce que vous avez <b>Supergirl</b> et The Mandalorian and Grogu."}, {"t": "Green Lantern : Méfiez-vous de mon pouvoir", "y": "2022", "k": "Film", "note": 6.7, "why": "Parce que vous avez <b>Ninja Turtles</b> et Supergirl."}, {"t": "Monsieur le député", "y": "1992", "k": "Film", "note": 6.0, "why": "Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."}, {"t": "Touche pas à mon gazon", "y": "1977", "k": "Film", "note": 6.6, "why": "Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Scary Movie."}, {"t": "LOL 2.0", "y": "2026", "k": "Film", "note": 6.0, "why": "Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."}, {"t": "Thunderstruck", "y": "2012", "k": "Film", "note": 6.2, "why": "Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."}, {"t": "American Dreamer", "y": "2022", "k": "Film", "note": 6.0, "why": "Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."}, {"t": "Y-a-t'il quelqu'un pour l'ambulance ?", "y": "1992", "k": "Film", "note": 6.1, "why": "Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."}, {"t": "Jim Gaffigan: Beyond the Pale", "y": "2006", "k": "Film", "note": 7.0, "why": "Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."}, {"t": "Gabriel Iglesias: I'm Sorry for What I Said When I Was Hungry", "y": "2016", "k": "Film", "note": 7.0, "why": "Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."}, {"t": "Eddie Murphy: Delirious", "y": "1983", "k": "Film", "note": 7.6, "why": "Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."}, {"t": "Chris Rock: Kill the Messenger", "y": "2008", "k": "Film", "note": 7.6, "why": "Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."}, {"t": "Jim Gaffigan: Mr. Universe", "y": "2012", "k": "Film", "note": 6.8, "why": "Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."}, {"t": "Spider-Man : Brand New Day", "y": "2026", "k": "Film", "note": 7.9, "why": "Parce que vous avez <b>Ninja Turtles</b>."}, {"t": "Esprits criminels", "y": "2005", "k": "Série", "note": 8.3, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "Avengers : Infinity War", "y": "2018", "k": "Film", "note": 8.2, "why": "Parce que vous avez <b>Supergirl</b>."}, {"t": "Arrow", "y": "2012", "k": "Série", "note": 6.8, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Avatar : De feu et de cendres", "y": "2025", "k": "Film", "note": 7.6, "why": "Parce que vous avez <b>The Mandalorian and Grogu</b>."}, {"t": "Avengers", "y": "2012", "k": "Film", "note": 8.1, "why": "Parce que vous avez <b>Ninja Turtles</b>."}, {"t": "Person of Interest", "y": "2011", "k": "Série", "note": 8.1, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Marvel's The Punisher", "y": "2017", "k": "Série", "note": 8.2, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Hercule Poirot", "y": "1989", "k": "Série", "note": 8.2, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "On Cinema", "y": "2012", "k": "Série", "note": 8.4, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "Marvel's Daredevil", "y": "2015", "k": "Série", "note": 8.2, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Cape Fear - Les Nerfs à vif", "y": "2026", "k": "Série", "note": 7.2, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "The Night Agent", "y": "2023", "k": "Série", "note": 7.7, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Robot Chicken", "y": "2005", "k": "Série", "note": 7.6, "why": "Parce que vous avez <b>President Curtis (2026)</b>."}, {"t": "The Shield", "y": "2002", "k": "Série", "note": 8.2, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "56 jours", "y": "2026", "k": "Série", "note": 7.3, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "Big Mouth", "y": "2017", "k": "Série", "note": 7.6, "why": "Parce que vous avez <b>President Curtis (2026)</b>."}, {"t": "Capitaine Furillo", "y": "1981", "k": "Série", "note": 7.6, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Miss Marple", "y": "2004", "k": "Série", "note": 7.8, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Cyberpunk : Edgerunners", "y": "2022", "k": "Série", "note": 8.5, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Black Panther", "y": "2018", "k": "Film", "note": 7.4, "why": "Parce que vous avez <b>Ninja Turtles</b>."}, {"t": "Following", "y": "2013", "k": "Série", "note": 6.9, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "Homicide", "y": "1993", "k": "Série", "note": 8.1, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "21 Jump Street", "y": "1987", "k": "Série", "note": 7.3, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Line of Duty : Enquêtes internes", "y": "2012", "k": "Série", "note": 8.2, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Veep", "y": "2012", "k": "Série", "note": 7.5, "why": "Parce que vous avez <b>President Curtis (2026)</b>."}, {"t": "The Larry Sanders Show", "y": "1992", "k": "Série", "note": 7.7, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "Aquaman et le Royaume perdu", "y": "2023", "k": "Film", "note": 6.5, "why": "Parce que vous avez <b>Ninja Turtles</b>."}, {"t": "Copains pour toujours", "y": "2010", "k": "Film", "note": 6.4, "why": "Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b>."}, {"t": "Beast", "y": "2026", "k": "Film", "note": 6.3, "why": "Parce que vous avez <b>On l'appelait Robin des Bois</b>."}, {"t": "Harley Quinn", "y": "2019", "k": "Série", "note": 8.3, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "The Boondocks", "y": "2005", "k": "Série", "note": 8.3, "why": "Parce que vous avez <b>President Curtis (2026)</b>."}, {"t": "Citadel", "y": "2023", "k": "Série", "note": 6.9, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Aqua Teen Hunger Force", "y": "2000", "k": "Série", "note": 7.5, "why": "Parce que vous avez <b>President Curtis (2026)</b>."}, {"t": "Happy Tree Friends", "y": "1999", "k": "Série", "note": 7.8, "why": "Parce que vous avez <b>President Curtis (2026)</b>."}, {"t": "Mr. Mercedes", "y": "2017", "k": "Série", "note": 7.1, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "Lazarus", "y": "2025", "k": "Série", "note": 7.6, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "En eaux troubles", "y": "2018", "k": "Film", "note": 6.3, "why": "Parce que vous avez <b>Disclosure Day</b>."}, {"t": "Les Dessous de Palm Beach", "y": "1991", "k": "Série", "note": 6.1, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "American Psycho", "y": "2000", "k": "Film", "note": 7.4, "why": "Parce que vous avez <b>Margin Call</b>."}, {"t": "Marvel's Luke Cage", "y": "2016", "k": "Série", "note": 6.9, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Portlandia", "y": "2011", "k": "Série", "note": 6.9, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "La Guerre des mondes", "y": "2005", "k": "Film", "note": 6.6, "why": "Parce que vous avez <b>Disclosure Day</b>."}, {"t": "Barnaby Jones", "y": "1973", "k": "Série", "note": 7.0, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Batman v Superman : L'Aube de la Justice", "y": "2016", "k": "Film", "note": 6.0, "why": "Parce que vous avez <b>Ninja Turtles</b>."}, {"t": "Devil May Cry", "y": "2025", "k": "Série", "note": 8.2, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Hunting Season", "y": "2025", "k": "Film", "note": 7.4, "why": "Parce que vous avez <b>On l'appelait Robin des Bois</b>."}, {"t": "Murder in a Small Town", "y": "2024", "k": "Série", "note": 7.0, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "New York Undercover", "y": "1994", "k": "Série", "note": 7.3, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "Taken", "y": "2017", "k": "Série", "note": 6.5, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Baretta", "y": "1975", "k": "Série", "note": 6.5, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Sneaky Pete", "y": "2015", "k": "Série", "note": 7.5, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "Chad Powers", "y": "2025", "k": "Série", "note": 8.0, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "Transformers : L’Âge de l’extinction", "y": "2014", "k": "Film", "note": 6.0, "why": "Parce que vous avez <b>The Mandalorian and Grogu</b>."}, {"t": "Minority Report", "y": "2002", "k": "Film", "note": 7.4, "why": "Parce que vous avez <b>Disclosure Day</b>."}, {"t": "The Creator", "y": "2023", "k": "Film", "note": 7.0, "why": "Parce que vous avez <b>Disclosure Day</b>."}, {"t": "Steal", "y": "2026", "k": "Série", "note": 7.4, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Countdown", "y": "2025", "k": "Série", "note": 7.3, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "The Rookie : FBI", "y": "2022", "k": "Série", "note": 7.0, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "Double piège", "y": "2024", "k": "Série", "note": 7.1, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "L'Aliéniste", "y": "2018", "k": "Série", "note": 7.5, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "Tim and Eric Awesome Show, Great Job!", "y": "2007", "k": "Série", "note": 7.1, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "Dragnet", "y": "1967", "k": "Série", "note": 7.0, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Colin from Accounts", "y": "2022", "k": "Série", "note": 7.5, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "Scream", "y": "2015", "k": "Série", "note": 6.9, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Power Book IV: Force", "y": "2022", "k": "Série", "note": 8.3, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "Manhunt", "y": "2017", "k": "Série", "note": 7.6, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Les Frères Hardy", "y": "2021", "k": "Série", "note": 7.3, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Monty Python's Flying Circus", "y": "1969", "k": "Série", "note": 8.3, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "The Mighty Nein", "y": "2025", "k": "Série", "note": 8.2, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Squidbillies", "y": "2005", "k": "Série", "note": 6.9, "why": "Parce que vous avez <b>President Curtis (2026)</b>."}, {"t": "Marvel's The Defenders", "y": "2017", "k": "Série", "note": 7.0, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Nancy Drew", "y": "2019", "k": "Série", "note": 7.7, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Departure", "y": "2019", "k": "Série", "note": 6.5, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Mike Judge's Beavis and Butt-Head", "y": "2022", "k": "Série", "note": 7.9, "why": "Parce que vous avez <b>President Curtis (2026)</b>."}, {"t": "Meurtres à l'anglaise", "y": "2002", "k": "Série", "note": 7.4, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Coroner", "y": "2019", "k": "Série", "note": 7.0, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Men in Black III", "y": "2012", "k": "Film", "note": 6.5, "why": "Parce que vous avez <b>Ninja Turtles</b>."}, {"t": "Watchmen", "y": "2019", "k": "Série", "note": 7.6, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "Bad Thoughts", "y": "2025", "k": "Série", "note": 5.8, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "La Tour sombre", "y": "2017", "k": "Film", "note": 5.8, "why": "Parce que vous avez <b>Disclosure Day</b>."}, {"t": "The Town", "y": "2010", "k": "Film", "note": 7.2, "why": "Parce que vous avez <b>Margin Call</b>."}, {"t": "The Purge", "y": "2018", "k": "Série", "note": 6.9, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "The Boys présentent - Les Diaboliques", "y": "2022", "k": "Série", "note": 7.1, "why": "Parce que vous avez <b>President Curtis (2026)</b>."}, {"t": "Condor", "y": "2018", "k": "Série", "note": 7.1, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "Contact", "y": "1997", "k": "Film", "note": 7.4, "why": "Parce que vous avez <b>Disclosure Day</b>."}, {"t": "12 O'Clock High", "y": "1964", "k": "Série", "note": 7.2, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Code rouge", "y": "2024", "k": "Série", "note": 7.1, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Conan le barbare", "y": "1982", "k": "Film", "note": 6.8, "why": "Parce que vous avez <b>On l'appelait Robin des Bois</b>."}, {"t": "Rogue", "y": "2013", "k": "Série", "note": 6.7, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "Bodyguard", "y": "2018", "k": "Série", "note": 7.8, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "DCI Banks", "y": "2011", "k": "Série", "note": 7.1, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "Little Britain", "y": "2003", "k": "Série", "note": 7.0, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "Legends", "y": "2014", "k": "Série", "note": 6.4, "why": "Parce que vous avez <b>Batman Caped Crusader (2024)</b>."}, {"t": "A.I. Intelligence artificielle", "y": "2001", "k": "Film", "note": 7.1, "why": "Parce que vous avez <b>Marjorie Prime</b>."}, {"t": "Harlem", "y": "2021", "k": "Série", "note": 7.1, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "SkyMed", "y": "2022", "k": "Série", "note": 6.7, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Hung", "y": "2009", "k": "Série", "note": 6.5, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "Robin des Bois", "y": "2018", "k": "Film", "note": 5.9, "why": "Parce que vous avez <b>On l'appelait Robin des Bois</b>."}, {"t": "In Living Color", "y": "1990", "k": "Série", "note": 7.6, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "The Passenger", "y": "2018", "k": "Film", "note": 6.4, "why": "Parce que vous avez <b>Margin Call</b>."}, {"t": "The Bay", "y": "2019", "k": "Série", "note": 6.5, "why": "Parce que vous avez <b>Furious (2026)</b>."}, {"t": "Chronicle", "y": "2012", "k": "Film", "note": 6.9, "why": "Parce que vous avez <b>Disclosure Day</b>."}, {"t": "American Pie 4", "y": "2012", "k": "Film", "note": 6.3, "why": "Parce que vous avez <b>Scary Movie</b>."}, {"t": "Gemini Man", "y": "2019", "k": "Film", "note": 6.3, "why": "Parce que vous avez <b>Marjorie Prime</b>."}, {"t": "The Last Stand of Ellen Cole", "y": "2024", "k": "Film", "note": 8.2, "why": "Parce que vous avez <b>On l'appelait Robin des Bois</b>."}, {"t": "The Family Business", "y": "2018", "k": "Série", "note": 8.5, "why": "Parce que vous avez <b>The Bombing of Pan Am 103</b>."}, {"t": "Geostorm", "y": "2017", "k": "Film", "note": 6.1, "why": "Parce que vous avez <b>Disclosure Day</b>."}, {"t": "'Til Death", "y": "2006", "k": "Série", "note": 6.5, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "Henry Danger : Le Film", "y": "2025", "k": "Film", "note": 7.6, "why": "Parce que vous avez <b>Ninja Turtles</b>."}, {"t": "Jackass", "y": "2000", "k": "Série", "note": 6.6, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "Sex Academy", "y": "2001", "k": "Film", "note": 5.8, "why": "Parce que vous avez <b>Scary Movie</b>."}, {"t": "Les branchés débranchés", "y": "1982", "k": "Série", "note": 7.9, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "Benny Hill", "y": "1969", "k": "Série", "note": 7.3, "why": "Parce que vous avez <b>The Hawk</b>."}, {"t": "Frangins malgré eux", "y": "2008", "k": "Film", "note": 6.6, "why": "Parce que vous avez <b>Scary Movie</b>."}, {"t": "La 5ème Vague", "y": "2016", "k": "Film", "note": 5.9, "why": "Parce que vous avez <b>Disclosure Day</b>."}];
+  /* Seules les suggestions RENSEIGNÉES sont servies : une carte qui
+     ouvre une fiche creuse est un cul-de-sac, et la réserve annonce
+     honnêtement combien elle porte sur les 503 calculées. */
+  /* Seules les suggestions dont la fiche est COMPLÈTE (synopsis, genres,
+     distribution) sont servies : une carte qui ouvre une fiche creuse est
+     un cul-de-sac. La réserve dit honnêtement combien elle porte. */
+  const SUGGESTIONS = [{"t":"Superman : L'Homme de demain","y":"2020","k":"Film","note":7.1,"why":"Recoupé par <b>4</b> titres de votre médiathèque, dont Ninja Turtles et Supergirl."},{"t":"Alita : Battle Angel","y":"2019","k":"Film","note":7.3,"why":"Recoupé par <b>3</b> titres de votre médiathèque, dont Ninja Turtles et Supergirl."},{"t":"Numéro quatre","y":"2011","k":"Film","note":6.2,"why":"Recoupé par <b>3</b> titres de votre médiathèque, dont Supergirl et Disclosure Day."},{"t":"Avengers : Endgame","y":"2019","k":"Film","note":8.2,"why":"Parce que vous avez <b>Supergirl</b> et The Mandalorian and Grogu."},{"t":"L'Incroyable Hulk","y":"2008","k":"Film","note":6.2,"why":"Parce que vous avez <b>Ninja Turtles</b> et The Mandalorian and Grogu."},{"t":"Man of Steel","y":"2013","k":"Film","note":6.7,"why":"Parce que vous avez <b>Supergirl</b> et The Mandalorian and Grogu."},{"t":"X-Men : Dark Phoenix","y":"2019","k":"Film","note":6.0,"why":"Parce que vous avez <b>Supergirl</b> et The Mandalorian and Grogu."},{"t":"Premier Contact","y":"2016","k":"Film","note":7.6,"why":"Parce que vous avez <b>Marjorie Prime</b> et Disclosure Day."},{"t":"Ant-Man et la Guêpe : Quantumania","y":"2023","k":"Film","note":6.2,"why":"Parce que vous avez <b>Ninja Turtles</b> et Supergirl."},{"t":"The Venture Bros","y":"2004","k":"Série","note":7.8,"why":"Parce que vous avez <b>Batman Caped Crusader (2024)</b> et President Curtis (2026)."},{"t":"Fast Charlie","y":"2023","k":"Film","note":6.2,"why":"Parce que vous avez <b>On l'appelait Robin des Bois</b> et Margin Call."},{"t":"Grimsburg","y":"2024","k":"Série","note":6.1,"why":"Parce que vous avez <b>Batman Caped Crusader (2024)</b> et President Curtis (2026)."},{"t":"Solo: A Star Wars Story","y":"2018","k":"Film","note":6.6,"why":"Parce que vous avez <b>Supergirl</b> et The Mandalorian and Grogu."},{"t":"L'Assassin","y":"2025","k":"Série","note":6.9,"why":"Parce que vous avez <b>Batman Caped Crusader (2024)</b> et Furious (2026)."},{"t":"Power Rangers","y":"2017","k":"Film","note":6.2,"why":"Parce que vous avez <b>Supergirl</b> et The Mandalorian and Grogu."},{"t":"Agent Elvis","y":"2023","k":"Série","note":6.9,"why":"Parce que vous avez <b>Batman Caped Crusader (2024)</b> et President Curtis (2026)."},{"t":"Marvel's M.O.D.O.K.","y":"2021","k":"Série","note":6.6,"why":"Parce que vous avez <b>Batman Caped Crusader (2024)</b> et President Curtis (2026)."},{"t":"Un Duplex pour 3","y":"2003","k":"Film","note":6.1,"why":"Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."},{"t":"Les Trois Corniauds","y":"2012","k":"Film","note":5.8,"why":"Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."},{"t":"L'Embrouille est dans le sac","y":"1991","k":"Film","note":6.4,"why":"Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."},{"t":"Impostor","y":"2001","k":"Film","note":6.1,"why":"Parce que vous avez <b>Disclosure Day</b> et The Mandalorian and Grogu."},{"t":"Green Lantern : Le Complot","y":"2009","k":"Film","note":6.9,"why":"Parce que vous avez <b>Supergirl</b> et The Mandalorian and Grogu."},{"t":"Green Lantern : Méfiez-vous de mon pouvoir","y":"2022","k":"Film","note":6.7,"why":"Parce que vous avez <b>Ninja Turtles</b> et Supergirl."},{"t":"Monsieur le député","y":"1992","k":"Film","note":6.0,"why":"Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."},{"t":"Touche pas à mon gazon","y":"1977","k":"Film","note":6.6,"why":"Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Scary Movie."},{"t":"LOL 2.0","y":"2026","k":"Film","note":6.0,"why":"Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."},{"t":"Thunderstruck","y":"2012","k":"Film","note":6.2,"why":"Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."},{"t":"American Dreamer","y":"2022","k":"Film","note":6.0,"why":"Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."},{"t":"Y-a-t'il quelqu'un pour l'ambulance ?","y":"1992","k":"Film","note":6.1,"why":"Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."},{"t":"Jim Gaffigan: Beyond the Pale","y":"2006","k":"Film","note":7.0,"why":"Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."},{"t":"Eddie Murphy: Delirious","y":"1983","k":"Film","note":7.6,"why":"Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."},{"t":"Jim Gaffigan: Mr. Universe","y":"2012","k":"Film","note":6.8,"why":"Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."},{"t":"Spider-Man : Brand New Day","y":"2026","k":"Film","note":7.9,"why":"Parce que vous avez <b>Ninja Turtles</b>."},{"t":"Esprits criminels","y":"2005","k":"Série","note":8.3,"why":"Parce que vous avez <b>Furious (2026)</b>."},{"t":"Avengers : Infinity War","y":"2018","k":"Film","note":8.2,"why":"Parce que vous avez <b>Supergirl</b>."},{"t":"Arrow","y":"2012","k":"Série","note":6.8,"why":"Parce que vous avez <b>Batman Caped Crusader (2024)</b>."},{"t":"Avatar : De feu et de cendres","y":"2025","k":"Film","note":7.6,"why":"Parce que vous avez <b>The Mandalorian and Grogu</b>."},{"t":"Manhunt","y":"2017","k":"Série","note":7.6,"why":"Parce que vous avez <b>The Bombing of Pan Am 103</b>."}];
 
   /* 260 titres RÉELS extraits de library.db (lecture seule) — de quoi
      éprouver le défilement sur autre chose qu'une poignée d'exemples. */
@@ -3083,6 +3154,9 @@
     libCat: "all",
     libMode: "grid",
     scen: "reel",
+    addKind: "Tout",
+    idProv: "TMDB",
+    tri: "recent",
     resolveTarget: null,
     phase: "prete",
     tmdb: true,
@@ -3584,7 +3658,7 @@
       head +
       `<div class="countline"><span id="libcount"></span>
     <button class="linkbtn" data-selmode="1">Sélectionner</button>
-    <button style="margin-left:12px">${svg(I.sort)}Ajout récent</button></div>
+    <button style="margin-left:12px" data-sort="1">${svg(I.sort)}${TRIS[S.tri]}</button></div>
   <div class="body">
     <div class="note"><b>Page entièrement neuve.</b> Aucune route ne listait ce que vous possédez : la fiche <code>/media/:provider/:id</code> n'était atteignable qu'en connaissant déjà l'identifiant. En mode liste, un glissé vers la gauche révèle « Supprimer ».</div>
     <div id="libitems" class="${S.libMode === "grid" ? "grid" : "sec"}"></div>
@@ -3723,6 +3797,7 @@
      comme « il n'y a plus rien », ce qui est un mensonge.
      ═════════════════════════════════════════════════════════════════════ */
 
+  const TRIS = { recent: "Ajout récent", az: "A → Z", manque: "Les plus incomplets" };
   const LIB_PAGE = 24;
   const SUG_BATCH = 30;
   let sugObserver = null;
@@ -3823,11 +3898,25 @@
         : `<b>${tot}</b> résultat${tot > 1 ? "s" : ""} pour « ${esc(S.q)} » sur <b>1 861</b>`;
   }
 
+  function trierLib(a) {
+    const l = a.slice();
+    if (S.tri === "az") return l.sort((x, y) => x.t.localeCompare(y.t, "fr"));
+    if (S.tri === "manque") {
+      const manque = (o) => {
+        const m = /^(\d+)\/(\d+)/.exec(o.f ?? "");
+        const inc = INCOMPLETE.find((i) => i.t === o.t);
+        return inc ? inc.a - inc.o : m ? Number(m[2]) - Number(m[1]) : -1;
+      };
+      return l.sort((x, y) => manque(y) - manque(x));
+    }
+    return l; // « récent » = l'ordre de la source (date_created décroissante)
+  }
+
   function libFiltered() {
     const t = S.q.trim();
-    if (t === "") return W.lib;
+    if (t === "") return trierLib(W.lib);
     const norm = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase();
-    return W.lib.filter((o) => norm(o.t).includes(norm(t)));
+    return trierLib(W.lib.filter((o) => norm(o.t).includes(norm(t))));
   }
 
   function fillLib() {
@@ -4437,6 +4526,32 @@
       openHarness();
       return;
     }
+    if (b.dataset.addkind) {
+      S.addKind = b.dataset.addkind;
+      openAddScreen();
+      return;
+    }
+    if (b.dataset.idprov) {
+      S.idProv = b.dataset.idprov;
+      openAddScreen();
+      return;
+    }
+    if (b.dataset.sort) {
+      openSheet(`<h3 class="sheettitle">Trier la médiathèque</h3>
+        <p class="sheetmeta">Le tri est une préférence, pas un emplacement : il reste sur cet appareil et n'entre pas dans l'URL (A7).</p>
+        <div class="sheetacts">
+          ${Object.entries(TRIS).map(([k, l]) => `<button class="sact${S.tri === k ? " primary" : ""}" data-settri="${k}">${svg(I.sort)}${l}</button>`).join("")}
+        </div>`);
+      return;
+    }
+    if (b.dataset.settri) {
+      S.tri = b.dataset.settri;
+      S.libCount = LIB_PAGE;
+      closeSheet();
+      render();
+      toast(`Trié par ${TRIS[S.tri].toLowerCase()}.`);
+      return;
+    }
     if (b.dataset.phase) {
       S.phase = b.dataset.phase;
       render();
@@ -4990,8 +5105,11 @@
     const query = q ?? S.addQ;
     S.addQ = query;
     const hasQ = query !== "";
-    const rows = SEARCH.results
-      .map((r, i) => {
+    const filtres = SEARCH.results
+      .map((r, i) => ({ r, i }))
+      .filter(({ r }) => S.addKind === "Tout" || (S.addKind === "Films") === (r.k === "Film"));
+    const rows = filtres
+      .map(({ r, i }) => {
         const verbe = r.k === "Film" ? "Ajouter" : "Suivre";
         const fait = S.added.has(i);
         const cls = fait ? "resbtn done" : r.owned ? "resbtn owned" : "resbtn";
@@ -5018,14 +5136,14 @@
         <div class="search">${svg(I.search)}<input type="search" id="addq" value="${esc(query)}" placeholder="Titre du film ou de la série" aria-label="Chercher un média à ajouter"></div>
         <div class="addrow">
           <div class="segmini">
-            <button aria-pressed="true">Tout</button><button aria-pressed="false">Séries</button><button aria-pressed="false">Films</button>
+            ${["Tout", "Séries", "Films"].map((x) => `<button aria-pressed="${S.addKind === x}" data-addkind="${x}">${x}</button>`).join("")}
           </div>
           <button class="btnprimary" data-search="1">Chercher</button>
         </div>
       </div>
       ${
         hasQ
-          ? `<p class="rescount"><b>${SEARCH.shown}</b> résultats affichés sur <b>${SEARCH.total}</b> trouvés — les plus pertinents d'abord.</p>
+          ? `<p class="rescount"><b>${filtres.length}</b> résultat${filtres.length > 1 ? "s" : ""} affiché${filtres.length > 1 ? "s" : ""} sur <b>${SEARCH.total}</b> trouvé${SEARCH.total > 1 ? "s" : ""}${S.addKind !== "Tout" ? ` · filtré sur « ${S.addKind} »` : ""} — les plus pertinents d'abord.</p>
              <div class="reslist">${rows}</div>`
           : `<div class="sugg">${S.recents.map((r) => `<button data-search="${esc(r)}">${esc(r)}</button>`).join("")}</div>
              <div style="padding:14px">${emptyHTML("Cherchez un titre.", "Vos recherches récentes sont au-dessus. La recherche part à la validation, jamais à chaque frappe — sinon chaque lettre coûte un appel aux providers.")}</div>`
@@ -5033,9 +5151,15 @@
       <details class="byid">
         <summary>Ou ajouter par identifiant</summary>
         <div class="byidin">
-          <div class="segmini" style="align-self:flex-start"><button aria-pressed="true">TMDB</button><button aria-pressed="false">TVDB</button><button aria-pressed="false">IMDB</button></div>
-          <div class="search"><input id="byidv" placeholder="12e34" aria-label="Identifiant"></div>
-          <p class="whyoff">Identifiant refusé : « 12e34 » n'est pas un nombre — <code>Number()</code> le lirait comme une notation scientifique. Un id TMDB ne contient que des chiffres ; IMDB attend <code>tt1234567</code>.</p>
+          <div class="segmini" style="align-self:flex-start">${["TMDB", "TVDB", "IMDB"].map((x) => `<button aria-pressed="${S.idProv === x}" data-idprov="${x}">${x}</button>`).join("")}</div>
+          <div class="search"><input id="byidv" placeholder="${S.idProv === "IMDB" ? "tt1234567" : "12e34"}" aria-label="Identifiant ${S.idProv}"></div>
+          <p class="whyoff">${
+            S.idProv === "IMDB"
+              ? `Un identifiant IMDB commence par <code>tt</code> suivi de chiffres — « 12e34 » est refusé.`
+              : S.idProv === "TVDB"
+                ? `Un identifiant TVDB ne contient que des chiffres. Si TVDB ne le résout pas, le suivi sera créé mais la détection d'épisodes restera indisponible — et on vous le dira.`
+                : `Identifiant refusé : « 12e34 » n'est pas un nombre — <code>Number()</code> le lirait comme une notation scientifique.`
+          }</p>
           <button class="btnprimary" disabled style="align-self:flex-start;padding:9px 16px">Ajouter</button>
         </div>
       </details>

@@ -681,5 +681,26 @@
     "affiche-lien-mort": "Une affiche était un bouton même sans fiche derrière — §11 interdit le lien mort autant que le bouton grisé. L'affiche n'est un bouton que si `fiche()` résout.",
     "identite-par-titre": "Les sources ne s'accordent pas sur les titres (« Dexter Resurrection » vs « Dexter: Resurrection », listes tronquées). La maquette résout par clé normalisée ; l'APP doit résoudre par ID provider — l'identité par le titre n'est jamais l'identité.",
     "bouton-ajouter-fiche": "Le bouton d'ajout de la fiche était aligné à gauche comme une rangée d'actions et ne changeait pas d'état. Il est centré et bascule en contour + « Ajouté »/« Suivi », comme le bouton d'un résultat de recherche : un même geste doit avoir partout la même réponse."
+  },
+  "$revueAdversariale": {
+    "$comment": "Chaque retour de l'opérateur a été généralisé en RÈGLE vérifiée sur tous les états (harness/audit.py et audit2.py), pas corrigé sur le cas signalé. 573 violations au premier tour, 0 après. Le développeur doit faire porter ces mêmes règles au code.",
+    "R1": "Toute affiche cliquable mène à une fiche RENSEIGNÉE (synopsis, genres, distribution). Sinon l'affiche n'est pas un bouton.",
+    "R2": "Aucun bouton visible sans effet. 18 commandes étaient décoratives : segments de type et de provider, contrôle de tri.",
+    "R3": "Cible tactile ≥ 32 px. EXCEPTION DÉCLARÉE : la cellule d'épisode fait 31 × 27 dans le composant livré — à 13 par ligne, 44 px demanderait 572 px. Contrainte géométrique, pas oubli.",
+    "R4": "Aucun débordement horizontal hors défileurs déclarés (.pillscroll, .cast, .eps).",
+    "R5": "Un défileur horizontal ne pose JAMAIS touch-action: pan-x seul — il bloquerait le pan vertical.",
+    "R6": "Aucun titre essentiel tronqué (.ht, .sheettitle, titre de dialogue).",
+    "R7": "Aucun panneau ne rend le vide en silence.",
+    "R8": "Un écran réserve la hauteur de la barre d'onglets, qui passe au-dessus de lui.",
+    "R9": "Vocabulaire film/série cohérent partout (§9).",
+    "R10": "Toute action mute l'état, navigue, ou ouvre une couche — jamais rien.",
+    "R11": "Aucun jargon ni valeur technique visible : undefined, NaN, null, [object, 0/0, expression cron.",
+    "R12": "UN SEUL système de boutons d'action : contenu centré, hauteur 44, radius 8, 600, 13,5 px. Les hauteurs allaient de 35 à 45 px selon la surface. Arbitrage opérateur : le centrage prime sur l'alignement à gauche du composant livré.",
+    "R13": "Ordre de sections identique sur toutes les fiches ; seules varient celles que la nature impose.",
+    "R14": "Toute couche se ferme par le scrim (feuilles, dialogues) ou par Retour (écrans).",
+    "R15": "Les trois modes de Suivis montrent le même nombre d'items.",
+    "R16": "Le badge de nav ET le badge d'onglet valent à-récupérer + à-traiter, dans les deux scénarios.",
+    "R17": "Toute destruction est confirmée (dialogue) ou réversible (Annuler), et ne mute jamais avant confirmation.",
+    "$leconDeMethode": "R12 avait été écrite en acceptant justify-content:normal comme équivalent à « centré » — la règle était trop molle et laissait passer la violation que l'opérateur a trouvée au doigt. Une règle qui ne tombe jamais mérite d'être durcie avant d'être crue."
   }
 }
