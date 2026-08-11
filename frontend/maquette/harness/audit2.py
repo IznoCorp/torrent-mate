@@ -20,7 +20,7 @@ async def main():
     # qu'un audit devenu muet ne se lise plus comme un audit vert.
     evaluees=set()
     def evalue(*r): evaluees.update(r)
-    REGLES_ATTENDUES=11
+    REGLES_ATTENDUES=13
     print(f"{BAR}\nRevue adversariale — second tour, {len(etats)} états\n{BAR}")
 
     evalue('R11')
@@ -319,6 +319,56 @@ async def main():
       if (!inspectes) out.push('aucun épisode inspecté — la règle ne prouve rien');
       return out.slice(0, 12);}""")
     for x in ep: note("R29 présence d'épisode non conforme à la donnée", x)
+
+    evalue('R30')
+    # R30 — UN SEUL rendu de saisons. Deux existaient : liste à titres (29
+    # séries) et matrice de numéros (177), et DOUZE fiches contenaient les deux
+    # à la fois. « Pourquoi Animaniacs affiche les saisons comme dans les
+    # suivis ? » — parce que la fiche avait deux visages selon la donnée.
+    rendus=await pg.evaluate("""async ()=>{const c={lignes:[], matrice:[], mixte:[]};
+      const series=Object.keys(FICHES_RAW).filter(t=>fiche(t)?.k!=='movie');
+      for (const t of series) {
+        window.__reset(); set({page:'lib',phase:'prete'}); openFiche(t);
+        await new Promise(r=>setTimeout(r,35));
+        const dets=[...document.querySelectorAll('#screen details.season')];
+        if (!dets.length) continue;
+        const formes=new Set(dets.map(d=>
+          d.querySelector('.eprow') ? 'lignes' : d.querySelector('.eps .ep') ? 'matrice' : 'vide'));
+        formes.delete('vide');
+        if (formes.size>1) c.mixte.push(t);
+        else if (formes.has('lignes')) c.lignes.push(t);
+        else if (formes.has('matrice')) c.matrice.push(t);
+      }
+      return c;}""")
+    print(f"\nRendu des saisons — liste : {len(rendus['lignes'])} · "
+          f"matrice : {len(rendus['matrice'])} · MIXTE : {len(rendus['mixte'])}")
+    for t in rendus["mixte"][:6]:
+        note("R30 deux rendus de saisons dans UNE fiche", t)
+    if rendus["lignes"] and rendus["matrice"]:
+        note("R30 deux rendus de saisons entre fiches",
+             f"{len(rendus['lignes'])} en liste (ex. {rendus['lignes'][0]}) contre "
+             f"{len(rendus['matrice'])} en matrice (ex. {rendus['matrice'][0]})")
+
+    evalue('R31')
+    # R31 — depuis la MÉDIATHÈQUE, une carte ouvre la fiche, jamais la feuille
+    # d'acquisition. Ouvrir « Récupérer maintenant / Mettre en pause » depuis la
+    # médiathèque créait un second design de fiche, dont le contenu variait en
+    # plus selon que le titre était suivi.
+    dest=await pg.evaluate("""async ()=>{const out=[];
+      for (const etat of ['lib-incomplets','lib-liste','lib-recents']) {
+        for (let i=0; i<6; i++) {
+          window.__go(etat); await new Promise(r=>setTimeout(r,180));
+          const cartes=[...document.querySelectorAll('#view .card .cbody')];
+          if (i>=cartes.length) break;
+          const titre=cartes[i].querySelector('.ctitle')?.textContent?.slice(0,26) ?? '?';
+          cartes[i].click(); await new Promise(r=>setTimeout(r,260));
+          if (document.querySelector('#sheet').classList.contains('open'))
+            out.push(`${etat} · « ${titre} » ouvre la feuille d'acquisition`);
+          else if (!document.querySelector('#screen').classList.contains('open'))
+            out.push(`${etat} · « ${titre} » n'ouvre rien`);
+        }
+      } return out;}""")
+    for x in dest: note("R31 carte de médiathèque mal destinée", x)
 
     print()
     if not viol: print("Aucune violation sur ce second tour.")
