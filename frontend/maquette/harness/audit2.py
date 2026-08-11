@@ -15,8 +15,15 @@ async def main():
     etats=await pg.evaluate("()=>window.__states()")
     viol={}
     def note(r,d): viol.setdefault(r,[]).append(d)
+
+    # Même exigence qu'au premier tour : on compte les règles EXÉCUTÉES, pour
+    # qu'un audit devenu muet ne se lise plus comme un audit vert.
+    evaluees=set()
+    def evalue(*r): evaluees.update(r)
+    REGLES_ATTENDUES=8
     print(f"{BAR}\nRevue adversariale — second tour, {len(etats)} états\n{BAR}")
 
+    evalue('R11')
     # R11 — jargon, valeurs techniques et anglais machine dans le texte rendu
     for e in etats:
         await pg.evaluate("(i)=>window.__go(i)",e); await pg.wait_for_timeout(240)
@@ -31,6 +38,7 @@ async def main():
           return motifs.filter(([re])=>re.test(t)).map(([,n])=>n);}""")
         for x in bad: note("R11 jargon ou valeur technique visible", f"{e} : {x}")
 
+    evalue('R12')
     # R12 — uniformité des boutons d'action principaux
     geo=await pg.evaluate("""async ()=>{
       const out={};
@@ -63,6 +71,7 @@ async def main():
         if v["radius"] != "8px": note("R12 radius hétérogène", f"{k} : {v['radius']}")
         if v["taille"] != "13.5px": note("R12 taille de texte hétérogène", f"{k} : {v['taille']}")
 
+    evalue('R13')
     # R13 — uniformité des fiches : même ordre de sections partout
     ordres=await pg.evaluate("""async ()=>{
       const out={};
@@ -80,6 +89,7 @@ async def main():
         got=[s.replace("Création","X").replace("Réalisation","X") for s in base]
         if got!=attendu: note("R13 ordre de sections divergent", f"{k} : {base}")
 
+    evalue('R14')
     # R14 — chaque couche se ferme par le scrim ET par Retour
     for id_,sel in [("feuille-suivi-trous","#sheet"),("lib-suppression","#dlg"),("fiche-serie","#screen"),("acq-ajout-resultats","#screen")]:
         await pg.evaluate("(i)=>window.__go(i)",id_); await pg.wait_for_timeout(300)
@@ -94,6 +104,7 @@ async def main():
                 note("R14 écran non fermable par Retour", f"{id_}")
         if not ouvert: note("R14 couche qui ne s'ouvre pas", id_)
 
+    evalue('R15')
     # R15 — les trois modes de Suivis montrent le MÊME nombre d'items
     n=await pg.evaluate("""async ()=>{const o={};
       for (const m of ['acq-suivis-liste','acq-suivis-groupe','acq-suivis-grille']) {
@@ -103,6 +114,7 @@ async def main():
     print("\nItems par mode de Suivis :", n)
     if len(set(n.values()))>1: note("R15 modes de Suivis incohérents", json.dumps(n))
 
+    evalue('R16')
     # R16 — le badge est la somme qu'il prétend être
     bad=await pg.evaluate("""async ()=>{const out=[];
       for (const s of ['reel','charge']) { S.scen=s; window.__go('acq-encours-'+(s==='reel'?'repos':'charge'));
@@ -117,6 +129,7 @@ async def main():
       } return out;}""")
     for x in bad: note("R16 badge non dérivé", x)
 
+    evalue('R17')
     # R17 — toute mutation destructive est confirmée ou réversible
     rev=await pg.evaluate("""async ()=>{const out=[];
       window.__go('acq-suivis-liste'); await new Promise(r=>setTimeout(r,240));
@@ -130,6 +143,7 @@ async def main():
       return out;}""")
     for x in rev: note("R17 destruction sans garde-fou", x)
 
+    evalue('R26')
     # R26 — le fond d'affiche fondu est un trait de TOUTES les fiches, pas de
     # celles que j'ai regardées. La règle est conditionnelle et le dit : un
     # média SANS affiche dégrade en fond plat (différence justifiée par son
@@ -162,6 +176,10 @@ async def main():
         print(f"■ {r} — {len(l)}")
         for x in l[:5]: print("   ",x)
     print(f"\nerreurs JS : {errs or 'aucune'}")
-    print(f"{BAR}\nTOTAL second tour : {sum(len(v) for v in viol.values())} violations")
+    print(f"{BAR}\nTOTAL second tour : {sum(len(v) for v in viol.values())} violations "
+          f"· {len(evaluees)}/{REGLES_ATTENDUES} règles exécutées")
+    if len(evaluees) != REGLES_ATTENDUES:
+        print(f"⚠ {REGLES_ATTENDUES - len(evaluees)} règle(s) jamais exécutée(s) : "
+              "un audit muet n'est pas un audit vert.")
     await b.close()
 asyncio.run(main())

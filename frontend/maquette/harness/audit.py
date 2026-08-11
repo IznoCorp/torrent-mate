@@ -22,10 +22,19 @@ async def main():
     def note(regle, detail):
         viol.setdefault(regle, []).append(detail)
 
+    # Une règle qui disparaît doit se VOIR. Compter les règles violées donne
+    # « 0 sur 0 » aussi bien quand tout va bien que quand plus rien ne tourne :
+    # on compte donc les règles EXÉCUTÉES, et on exige le compte attendu.
+    evaluees = set()
+    def evalue(*regles):
+        evaluees.update(regles)
+    REGLES_ATTENDUES = 12
+
     print(f"{BAR}\nRevue adversariale — {len(etats)} états\n{BAR}")
 
     for e in etats:
         await pg.evaluate("(i)=>window.__go(i)", e); await pg.wait_for_timeout(280)
+        evalue('R1','R2','R3','R4','R4bis','R5','R6','R7','R22','R23')
         r = await pg.evaluate("""(etat)=>{
           const R = {};
           const vis = (el)=>el.offsetParent!==null || el.getClientRects().length>0;
@@ -204,6 +213,7 @@ async def main():
         if (f.k==='movie' && /jour|Terminé/.test(lab)) out.push(`film « ${f.t} » porte « ${lab} » (vocabulaire série)`);
       }
       return out;}""")
+    evalue('R9')
     for x in voc: note("R9 vocabulaire film/série", x)
 
     # ── R10 : toute action ouvre une couche, navigue, ou mute — jamais rien ─
@@ -224,6 +234,7 @@ async def main():
         }
       }
       return out;}""")
+    evalue('R10')
     for x in inertes: note("R10 action sans effet", x)
 
     print()
@@ -234,7 +245,12 @@ async def main():
         for x in lst[:6]: print("   ", x)
         if len(lst) > 6: print(f"    … et {len(lst)-6} autres")
     print(f"\nerreurs JS : {errs or 'aucune'}")
-    print(f"{BAR}\nTOTAL : {sum(len(v) for v in viol.values())} violations sur {len(viol)} règles")
+    manquantes = REGLES_ATTENDUES - len(evaluees)
+    print(f"{BAR}\nTOTAL : {sum(len(v) for v in viol.values())} violations "
+          f"· {len(evaluees)}/{REGLES_ATTENDUES} règles exécutées")
+    if manquantes:
+        print(f"⚠ {manquantes} règle(s) déclarée(s) mais jamais exécutée(s) : "
+              f"un audit muet n'est pas un audit vert.")
     json.dump({k:v for k,v in viol.items()}, open("violations.json","w"), ensure_ascii=False, indent=1)
     await b.close()
 asyncio.run(main())
