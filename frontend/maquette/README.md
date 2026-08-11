@@ -162,6 +162,50 @@ They are labelled as such in the design notes.
   `el.hidden = true` did nothing and the « + » stayed visible on pages that must not have it.
   Any class declaring a `display` must declare its own hidden case.
 
+## A trap that cost real time here: **screenshots are not an oracle**
+
+Deleting CSS looked like it needed a before/after pixel comparison. It doesn't — and the
+attempt actively misled. Two captures of the **same, unmodified file** disagreed on 8 to 15
+of the 45 states. Skeleton shimmer, the hero backdrop's entrance, async decode of the
+embedded WebP posters: none of it settles on a schedule you can wait out reliably. Freezing
+animations and awaiting `img.decode()` narrowed it and did not close it.
+
+A run of that oracle "proved" 20 states changed after a deletion. They hadn't. The deletion
+was correct all along.
+
+**Use the deterministic oracle instead** — the one `parity-probe.py` already uses:
+`getBoundingClientRect` plus a fixed `getComputedStyle` subset. And for the specific question
+"is this rule dead?", there is an exact answer that needs no oracle at all:
+
+```js
+document.querySelectorAll('.act.grab').length   // over all 45 states → 0 means it can never apply
+```
+
+combined with "the source never writes this class name" (so no interaction can produce it).
+That is a proof, not a sample. `harness/export.py` runs exactly that.
+
+## `harness/export.py` — the allowlist cannot drift again
+
+`regions.json`'s `exportedSelectors` is what `extract-maquette-css.py` exports. It had drifted
+badly: **107 of 237 classes covered**. Everything else — including whole surfaces — would have
+been silently absent from the app, visible only once the screen was already wrong.
+
+`export.py` classifies every BLOC 2 class by what it actually does, across all 45 states:
+
+| Bucket | Meaning |
+|---|---|
+| `app` | at least one element carries it, outside the prototype chrome |
+| `posée` | never present in a frozen state, but written by the code (armed gesture, loading, selection) |
+| `harnais` | seen only inside the prototype's own chrome |
+| **`MORTE`** | defined in CSS, never carried, never written — **fails the run** |
+
+It then fails if any `app`/`posée` class is missing from the allowlist. The first run found 117
+missing and 16 dead rules; both are now zero. Run it after any CSS change.
+
+Two false positives it taught: slicing the stylesheet at the string `BLOC 2` cuts the header
+comment's `/*`, leaving a stray `*/` — the header's own prose (`app-surface.css`, `.tm`) then
+parses as selectors. Slice from the comment opener.
+
 ## And one trap that no synthetic test can catch
 
 Swipe gestures **must claim the horizontal axis** with `touch-action: pan-y` on the row itself
