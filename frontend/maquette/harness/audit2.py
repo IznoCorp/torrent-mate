@@ -72,22 +72,51 @@ async def main():
         if v["taille"] != "13.5px": note("R12 taille de texte hétérogène", f"{k} : {v['taille']}")
 
     evalue('R13')
-    # R13 — uniformité des fiches : même ordre de sections partout
+    # R13 — uniformité des fiches : MÊME BASE pour toutes.
+    #
+    # L'ancienne version échantillonnait 5 états figés, dont aucun média
+    # INCOMPLET — et c'est exactement par là qu'une divergence est passée sans
+    # être vue. On tire désormais l'échantillon de la DONNÉE : complète,
+    # incomplète, sans visuel, suggestion, film et série.
     ordres=await pg.evaluate("""async ()=>{
-      const out={};
-      for (const [id,] of [['fiche-serie'],['fiche-film'],['fiche-sans-trailer'],['fiche-suggestion-serie'],['fiche-suggestion-film']]) {
-        window.__go(id); await new Promise(r=>setTimeout(r,240));
-        out[id]=[...document.querySelectorAll('#screen .h2')].map(x=>x.textContent);
+      const out={}, choix=[];
+      const titres=Object.keys(FICHES_RAW ?? {});
+      const prend=(pred, n)=>titres.filter(pred).slice(0, n);
+      const incomplet=(t)=>{const s=POSSEDES[t]??POSSEDES[baseTitle(t)];
+        if(!s) return false; const f=fiche(t); if(!f?.saisons) return false;
+        return f.saisons.some(x=>x.ep && (s[String(x.n)]??[]).length < x.ep);};
+      choix.push(...prend(t=>fiche(t)?.k==='movie', 2));
+      choix.push(...prend(t=>fiche(t)?.k==='show' && !incomplet(t), 2));
+      choix.push(...prend(incomplet, 4));
+      choix.push(...prend(t=>!(HEROS[t]??HEROS[baseTitle(t)]), 2));
+      for (const t of [...new Set(choix)]) {
+        window.__reset(); set({page:'lib', phase:'prete'}); openFiche(t);
+        await new Promise(r=>setTimeout(r,200));
+        const b=document.querySelector('#screen .body');
+        if (!b) { out[t]=['FICHE VIDE']; continue; }
+        out[t]=[...b.children]
+          .filter(x=>x.getBoundingClientRect().height>0 && !x.classList.contains('note'))
+          .map(x=>{const hh=x.querySelector('.h2');
+            return hh ? hh.textContent.trim() : (x.className||x.tagName).toString().split(' ')[0];});
       }
       return out;}""")
-    print("\nOrdre des sections de fiche :")
-    for k,v in ordres.items(): print(f"   {k:26} {' → '.join(v)}")
-    ref=[s for s in ordres["fiche-serie"] if s!="Épisodes — saison 3"]
-    for k,v in ordres.items():
-        base=[s for s in v if not s.startswith("Épisodes")]
-        attendu=[s.replace("Création","X").replace("Réalisation","X") for s in ref]
-        got=[s.replace("Création","X").replace("Réalisation","X") for s in base]
-        if got!=attendu: note("R13 ordre de sections divergent", f"{k} : {base}")
+    print(f"\nBase des fiches, sur {len(ordres)} médias tirés de la donnée :")
+    # Les sections FACULTATIVES par nature (bande-annonce absente, catalogue
+    # inconnu) ne comptent pas comme divergence ; l'ossature, si.
+    OPT = {"trailer", "nofiche", "rulenote"}
+    def ossature(l):
+        return [s.replace("Création", "X").replace("Réalisation", "X") for s in l if s not in OPT]
+    formes = {}
+    for k, v in ordres.items():
+        formes.setdefault(tuple(ossature(v)), []).append(k)
+    for f, l in formes.items():
+        print(f"   {len(l):2d} médias · {' → '.join(f)}")
+    if len(formes) > 1:
+        ref = max(formes.items(), key=lambda kv: len(kv[1]))[0]
+        for f, l in formes.items():
+            if f != ref:
+                note("R13 fiche qui ne suit pas la base commune",
+                     f"{', '.join(l[:3])} : {' → '.join(f)} au lieu de {' → '.join(ref)}")
 
     evalue('R14')
     # R14 — chaque couche se ferme par le scrim ET par Retour
