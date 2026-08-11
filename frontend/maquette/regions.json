@@ -676,6 +676,10 @@
     "resultat-sans-fiche": "Les résultats de recherche n'offraient aucun chemin vers la fiche — violation de NE-DOIT-PAS-9. L'affiche est un bouton.",
     "porte-de-sortie-absente": "La résolution PROMETTAIT une recherche manuelle pré-remplie sans la fournir. Elle existe, et nettoie le nom de dossier en requête (DOIT-7).",
     "decouvrir-fiche-vide": "La fiche d'une suggestion affichait « Métadonnées inconnues / Genres inconnus » : la table des fiches ne portait que les 12 titres de la médiathèque. Les 32 premières suggestions ont leurs vraies données, et la liste affichée vient de la MÊME source que les fiches (elles n'en partageaient que 8 sur 32).",
-    "nofiche-jamais-portee": "La classe .nofiche était utilisée sans avoir été transplantée : le message « aucune bande-annonce » sortait en 14 px sans encadré. Le CSS doit être EXTRAIT, jamais réécrit de mémoire (§7.2)."
+    "nofiche-jamais-portee": "La classe .nofiche était utilisée sans avoir été transplantée : le message « aucune bande-annonce » sortait en 14 px sans encadré. Le CSS doit être EXTRAIT, jamais réécrit de mémoire (§7.2).",
+    "fiches-vides-en-cours": "Les 4 films suivis n'avaient pas de fiche : ils sont dans acquire.db mais PAS dans library.db (non possédés). Couverture désormais systématique : 326 des 331 titres atteignables ont leur fiche ; les 5 restants sont des noms de release et des dossiers de staging, qui n'en ont légitimement pas.",
+    "affiche-lien-mort": "Une affiche était un bouton même sans fiche derrière — §11 interdit le lien mort autant que le bouton grisé. L'affiche n'est un bouton que si `fiche()` résout.",
+    "identite-par-titre": "Les sources ne s'accordent pas sur les titres (« Dexter Resurrection » vs « Dexter: Resurrection », listes tronquées). La maquette résout par clé normalisée ; l'APP doit résoudre par ID provider — l'identité par le titre n'est jamais l'identité.",
+    "bouton-ajouter-fiche": "Le bouton d'ajout de la fiche était aligné à gauche comme une rangée d'actions et ne changeait pas d'état. Il est centré et bascule en contour + « Ajouté »/« Suivi », comme le bouton d'un résultat de recherche : un même geste doit avoir partout la même réponse."
   }
 }
