@@ -1,7 +1,7 @@
-"""Balaye les 8 vues dans les DEUX scénarios de données, via le pilote __go.
+"""Sweeps the 8 views in BOTH data scenarios, through the __go driver.
 
-Une vue qui ne rend rien FAIT ÉCHOUER la passe : c'est la garde qui manquait
-le jour où une page est partie blanche parce qu'une constante avait disparu.
+A view that renders nothing FAILS the pass: that is the guard that was missing
+the day a page went blank because a constant had disappeared.
 """
 import asyncio
 from playwright.async_api import async_playwright
@@ -21,7 +21,7 @@ async def main():
     await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
     total_bad = 0
     for scen, mot in (("reel", "repos"), ("charge", "charge")):
-        print(f"\n═══ scénario {scen} ═══")
+        print(f"\n=== scenario {scen} ===")
         await pg.evaluate("(s)=>{S.scen=s;render();}", scen)
         for nom, sid in VUES:
             await pg.evaluate("(i)=>window.__go(i)", sid.format(s=mot))
@@ -37,7 +37,7 @@ async def main():
             if not ok: total_bad += 1
             print(("  OK  " if ok else "  FAIL"), f"{nom:16}", r)
             await pg.screenshot(path=f"z_{scen}_{nom.replace('/','_')}.png")
-    print("\nerreurs JS :", errs or "aucune")
-    print("VERDICT :", "16/16 rendus conformes" if total_bad == 0 and not errs else f"{total_bad} échec(s)")
+    print("\nJS errors:", errs or "none")
+    print("VERDICT:", "16/16 renders conform" if total_bad == 0 and not errs else f"{total_bad} failec(s)")
     await b.close()
 asyncio.run(main())

@@ -1,5 +1,5 @@
 {
-  "$comment": "Contrat d'extraction ET carte de mesure. `exportedSelectors` est la LISTE BLANCHE : extract-maquette-css.py n'exporte que ce qui est ici. `regions` est ce que parity-probe.py mesure ; chaque région nomme les états où elle est visible. `states` sont les identifiants de window.__go().",
+  "$comment": "Extraction contract AND measurement map. `exportedSelectors` is the ALLOWLIST: extract-maquette-css.py exports only what is listed here. `regions` is what parity-probe.py measures; each region names the states it is visible in. `states` are the ids accepted by window.__go().",
   "scope": ".tm",
   "source": "frontend/maquette/refonte.html",
   "target": "frontend/src/styles/ps/app-surface.css",
@@ -637,7 +637,7 @@
       "states": [
         "acq-encours-repos"
       ],
-      "$note": "Sens de la vérité INVERSÉ : l'app fait foi pour le châssis, la maquette en est le miroir."
+      "$note": "Direction of truth is INVERTED: the app is authoritative for the shell, the prototype for the pages. Measured against the shipped TopBar."
     },
     "chassis/bottombar": {
       "selector": ".bottombar",
@@ -694,7 +694,7 @@
       "states": [
         "fiche-suggestion-serie"
       ],
-      "$note": "Une suggestion n'est PAS en médiathèque : le bloc dit « non », montre le catalogue connu, et l'action du bas est « Suivre »/« Ajouter » et non « Supprimer »."
+      "$note": "A suggestion is NOT in the library: the block says « non », shows the follow state, and offers to add — never to delete. Same template, with the only variation reality imposes."
     },
     "releases/candidat": {
       "selector": ".rel",
@@ -725,7 +725,7 @@
       "states": [
         "tiroir-navigation"
       ],
-      "$note": "Le gabarit au complet : trois sections titrées comme nav.ts, les mêmes badges que la barre du bas, et la VersionCard — le tiroir est le SEUL chemin vers la version sur téléphone, et le seul vers Config."
+      "$note": "The full template: three titled sections as in nav.ts, the same badges as the bottom bar, and the VersionCard in the footer — the drawer is the only path through which the version reaches the phone."
     },
     "form/option": {
       "selector": ".opt",
@@ -820,75 +820,84 @@
         "property": "position",
         "maquette": "absolute",
         "app": "fixed",
-        "justification": "Déviation de harnais DÉCLARÉE : la vraie barre est fixed sur le viewport, ce qui est juste dans l'app où le viewport EST le téléphone ; dans un cadre inséré, fixed la collerait au bas de la fenêtre. Idem .fab et .selbar."
+        "justification": "DECLARED harness deviation: the real bar is fixed against the viewport, which is correct in the app where the viewport is the phone. Inside an embedded phone frame it would pin to the window, so the prototype makes it absolute within the frame. The only accepted shell divergence."
       }
     ]
   },
-  "horsPerimetre": {
-    "$comment": "Surfaces présentes dans l'app mais VOLONTAIREMENT non couvertes par la maquette. Déclarées ici pour que « non mesuré » soit une décision et jamais un oubli. Règle : jamais de conversion à moitié — une surface parle la langue de la maquette (classe .tm) ou l'ancienne, jamais les deux.",
-    "/config": "Hors périmètre par décision opérateur en ouverture de mission. Non converti, non mesuré. Baseline de non-régression à figer avant la phase 1.",
-    "/systeme (intérieur)": "Reçoit la santé, les runs et les contrôles (arbitrage B5) mais sa refonte mobile est différée. Seule sa réception est dessinée ; son gabarit interne n'est pas mesuré.",
-    "/media/:provider/:id (implémentation)": "La fiche EXISTE et est conforme ; la maquette en dessine la cible mais la mission ne la reconstruit pas. Mesurée pour la structure, pas imposée au pixel sur l'existant.",
-    "desktop >= md": "§12 fait du téléphone l'origine du dessin ; le grand écran reste fonctionnel mais n'est pas spécifié au pixel."
+  "outOfScope": {
+    "$comment": "Surfaces that exist in the app but are DELIBERATELY not covered by this prototype. Declared here so that « not measured » is a decision and never an oversight. Rule: never a half conversion — a surface speaks either the prototype's language (the .tm scope) or the old one, never both.",
+    "/config": "Out of scope by product decision. Not converted, not measured. A non-regression baseline must be frozen before conversion work begins.",
+    "/systeme (interior)": "Receives health, runs and controls, but its mobile redesign is deferred. Only its reception is drawn; its internal template is not measured.",
+    "/media/:provider/:id (implementation)": "The media sheet EXISTS and is conformant; the prototype draws its target but does not rebuild it. Measured for structure, not imposed pixel-wise on what already ships.",
+    "desktop >= md": "The phone is the origin of the design; the large screen stays functional but is not specified to the pixel."
   },
-  "$defautsOperateur": {
-    "$comment": "Défauts rapportés au doigt par l'opérateur le 2026-08-11, chacun couvert par un test dans harness/bugs.py — la règle du projet est qu'un bug a son test, écrit avec le correctif.",
-    "cadence-cron": "La cadence s'affichait « 20 3,15 * * * » — jargon brut (NE-DOIT-PAS-4). Traduite ; repli explicite si le motif n'est pas reconnu.",
-    "fiche-sous-la-feuille": "« Voir la fiche » depuis une feuille ouvrait l'écran SOUS elle (z-45 contre z-47). La feuille se ferme d'abord.",
-    "navigation-ne-ferme-pas": "Changer de page laissait la fiche ouverte. La navigation ferme les couches.",
-    "carrousel-bloque-le-scroll": "`touch-action: pan-x` SEUL interdit le pan vertical : un doigt sur le carrousel d'acteurs figeait la fiche. Les deux axes sont autorisés, le navigateur tranche par la direction.",
-    "action-collee-a-la-barre": "Un écran doit réserver la hauteur de la barre d'onglets, qui passe au-dessus de lui (R4).",
-    "resultat-sans-fiche": "Les résultats de recherche n'offraient aucun chemin vers la fiche — violation de NE-DOIT-PAS-9. L'affiche est un bouton.",
-    "porte-de-sortie-absente": "La résolution PROMETTAIT une recherche manuelle pré-remplie sans la fournir. Elle existe, et nettoie le nom de dossier en requête (DOIT-7).",
-    "decouvrir-fiche-vide": "La fiche d'une suggestion affichait « Métadonnées inconnues / Genres inconnus » : la table des fiches ne portait que les 12 titres de la médiathèque. Les 32 premières suggestions ont leurs vraies données, et la liste affichée vient de la MÊME source que les fiches (elles n'en partageaient que 8 sur 32).",
-    "nofiche-jamais-portee": "La classe .nofiche était utilisée sans avoir été transplantée : le message « aucune bande-annonce » sortait en 14 px sans encadré. Le CSS doit être EXTRAIT, jamais réécrit de mémoire (§7.2).",
-    "fiches-vides-en-cours": "Les 4 films suivis n'avaient pas de fiche : ils sont dans acquire.db mais PAS dans library.db (non possédés). Couverture désormais systématique : 326 des 331 titres atteignables ont leur fiche ; les 5 restants sont des noms de release et des dossiers de staging, qui n'en ont légitimement pas.",
-    "affiche-lien-mort": "Une affiche était un bouton même sans fiche derrière — §11 interdit le lien mort autant que le bouton grisé. L'affiche n'est un bouton que si `fiche()` résout.",
-    "identite-par-titre": "Les sources ne s'accordent pas sur les titres (« Dexter Resurrection » vs « Dexter: Resurrection », listes tronquées). La maquette résout par clé normalisée ; l'APP doit résoudre par ID provider — l'identité par le titre n'est jamais l'identité.",
-    "bouton-ajouter-fiche": "Le bouton d'ajout de la fiche était aligné à gauche comme une rangée d'actions et ne changeait pas d'état. Il est centré et bascule en contour + « Ajouté »/« Suivi », comme le bouton d'un résultat de recherche : un même geste doit avoir partout la même réponse.",
-    "scroll-remonte-au-clic": "Cocher une case en bas d'un formulaire renvoyait en haut de page : chaque bascule re-rendait tout l'écran. Corrigé dans openScreen (position + focus + curseur), avec une restauration APRÈS chargement des images — la page est trop courte tant qu'elles n'ont pas leur hauteur.",
-    "tiroir-inerte": "Le hamburger n'ouvrait rien et les liens du tiroir n'étaient pas cliquables : la délégation d'événements ne regardait que les <button>, or un lien de navigation est un <a>.",
-    "filtres-inertes": "Les pastilles de catégorie de la Médiathèque étaient décoratives : elles changeaient d'état sans rien filtrer. Elles portent désormais la catégorie réelle de chaque item, se combinent avec la recherche, et l'échantillon de la maquette est STRATIFIÉ pour qu'aucune catégorie ne soit vide — on ne juge pas un filtre qui n'a rien à montrer."
+  "$reportedDefects": {
+    "$comment": "Defects found by hand on the running prototype, each covered by a test in harness/bugs.py — the project rule is that a bug gets its test, written together with the fix.",
+    "cron-cadence": "The cadence displayed « 20 3,15 * * * » — raw jargon. Now translated, with an explicit fallback when the pattern is not recognised.",
+    "sheet-hidden-under-layer": "« Voir la fiche » from a sheet opened the screen UNDER it (z-45 against z-47). The sheet now closes first.",
+    "navigation-does-not-close": "Changing page left the media sheet open. Navigation now closes the layers.",
+    "carousel-blocks-scroll": "`touch-action: pan-x` ALONE forbids vertical panning: a finger on the cast carousel froze the sheet. Both axes are allowed and the browser decides from the gesture direction.",
+    "action-glued-to-bar": "A screen must reserve the height of the tab bar, which passes above it.",
+    "result-without-sheet": "Search results offered no path to the media sheet. The poster is a button.",
+    "missing-way-out": "The resolution screen PROMISED a pre-filled manual search without providing one. It exists, and turns the folder name into a query.",
+    "hollow-suggestion-sheet": "A suggestion's sheet showed « Métadonnées inconnues / Genres inconnus »: the sheet table only carried library titles. Suggestions now carry real data, and only filled-in ones are served.",
+    "class-never-ported": "The .nofiche class was used in markup without ever having been transplanted: the « no trailer » message rendered at 14px without its frame. CSS must be EXTRACTED, never rewritten from memory.",
+    "sheets-missing-for-follows": "Followed films had no sheet: they live in acquire.db but NOT in library.db (not owned). Coverage is now systematic; the remaining gaps are unidentified release names, which have no sheet by definition.",
+    "poster-dead-link": "A poster was a button even with no sheet behind it — a dead link is as bad as a greyed-out button. A poster is a button only when the sheet resolves.",
+    "identity-by-title": "Sources disagree on titles (« Dexter Resurrection » vs « Dexter: Resurrection », truncated lists). The prototype resolves by normalised key; the APP must resolve by provider ID — identity by title is never identity.",
+    "add-button-inert": "The media sheet's add button was left-aligned like an action row and never changed state. It is centred and toggles to outline + « Ajouté »/« Suivi », like a search result's button: one gesture, one answer, everywhere.",
+    "scroll-jumps-to-top": "Ticking a box at the bottom of a form jumped back to the top: every toggle re-rendered the whole screen. Fixed in openScreen (position + focus + caret), with a restore AFTER images load, since the page is briefly too short.",
+    "inert-drawer": "The hamburger opened nothing and the drawer links were not clickable: event delegation looked only at <button>, and a navigation link is an <a>.",
+    "inert-filters": "The library's category pills were decorative: they changed state without filtering. They now carry each item's real category, combine with the search, and the sample guarantees no category is empty.",
+    "library-card-opens-acquisition-sheet": "From the library, a card opened the ACQUISITION sheet — a second sheet design whose content also varied depending on whether the title was followed. A card's destination follows the page it lives on.",
+    "two-season-renderings": "Media sheets rendered seasons either as a titled list or as a numbered matrix, and twelve sheets contained both at once. Episode titles and dates were fetched for every series so that one rendering serves them all.",
+    "episode-presence-guessed": "Episode presence was derived from « number <= owned count », which assumes the hole sits at the end of the season. False for 35 series in this library. Presence is read from the list of owned numbers.",
+    "visual-on-one-sheet-in-six": "Only media that already had a poster had received a wide visual, so one sheet in six opened on an image and the rest on a muted field. Every sheet now carries a visual at the same definition."
   },
-  "$revueAdversariale": {
-    "$comment": "Chaque retour de l'opérateur a été généralisé en RÈGLE vérifiée sur tous les états (harness/audit.py et audit2.py), pas corrigé sur le cas signalé. 573 violations au premier tour, 0 après. Le développeur doit faire porter ces mêmes règles au code.",
-    "R1": "Toute affiche cliquable mène à une fiche RENSEIGNÉE (synopsis, genres, distribution). Sinon l'affiche n'est pas un bouton.",
-    "R2": "Un bouton doit avoir une DESTINATION déclarée, pas seulement une classe connue. La version par classe blanchissait tout `.sact` : « Profil de qualité » ne menait nulle part sans que la règle bronche — trouvé au doigt. TOUT écran atteignable doit être maquetté.",
-    "R3": "Cible tactile ≥ 32 px. EXCEPTION DÉCLARÉE : la cellule d'épisode fait 31 × 27 dans le composant livré — à 13 par ligne, 44 px demanderait 572 px. Contrainte géométrique, pas oubli.",
-    "R4": "Aucun débordement horizontal hors défileurs déclarés (.pillscroll, .cast, .eps).",
-    "R5": "Un défileur horizontal ne pose JAMAIS touch-action: pan-x seul — il bloquerait le pan vertical.",
-    "R6": "Aucun titre essentiel tronqué (.ht, .sheettitle, titre de dialogue).",
-    "R7": "Aucun panneau ne rend le vide en silence.",
-    "R8": "TOUTE couche (écran, feuille) réserve la hauteur de la barre d'onglets, qui passe au-dessus d'elle, ET son dernier bouton VISIBLE est atteignable au défilement maximal. La règle ne couvrait que l'écran ; le défaut est réapparu sur la feuille, signalé par l'opérateur.",
-    "R9": "Vocabulaire film/série cohérent partout (§9).",
-    "R10": "Toute action mute l'état, navigue, ou ouvre une couche — jamais rien.",
-    "R11": "Aucun jargon ni valeur technique visible : undefined, NaN, null, [object, 0/0, expression cron.",
-    "R12": "UN système de boutons : hauteur 44, radius 8, 600, 13,5 px. Alignement — avec icône : à gauche (l'icône ancre la rangée) ; sans icône : centré (rien n'ancre le bord gauche). Arbitrage opérateur du 2026-08-11, après essai du centrage partout.",
-    "R13": "Ordre de sections identique sur toutes les fiches ; seules varient celles que la nature impose.",
-    "R14": "Toute couche se ferme par le scrim (feuilles, dialogues) ou par Retour (écrans).",
-    "R15": "Les trois modes de Suivis montrent le même nombre d'items.",
-    "R16": "Le badge de nav ET le badge d'onglet valent à-récupérer + à-traiter, dans les deux scénarios.",
-    "R17": "Toute destruction est confirmée (dialogue) ou réversible (Annuler), et ne mute jamais avant confirmation.",
-    "R18": "La sélection multiple fonctionne dans les DEUX modes de la médiathèque. Elle n'existait que sur les tuiles : « Sélectionner » s'activait en liste sans que rien ne soit sélectionnable — un mode qu'on peut entrer et où l'on ne peut rien faire est pire qu'un mode absent.",
-    "R19": "Rien ne se positionne par une distance au bord de l'écran : la barre publie sa hauteur mesurée dans `--tm-bottom-bar-h` et tout ce qui se pose au-dessus la lit. Trois nombres magiques (74, 76 px) traînaient dans la maquette — le défaut R4 que l'app avait déjà corrigé.",
-    "$leconsDeMethode": [
-      "R12 acceptait `justify-content: normal` comme équivalent à « centré » : trop molle, elle a laissé passer ce que l'opérateur a vu au doigt.",
-      "R8 ne couvrait que les écrans : le même défaut est revenu par les feuilles. Une règle doit viser la FAMILLE, pas le cas.",
-      "R8 durcie a d'abord accusé à tort un bouton d'un <details> replié — Chrome lui laisse une boîte de mise en page. Une règle doit juger le VISIBLE, pas l'ordre du DOM.",
-      "R2 blanchissait par CLASSE au lieu d'exiger une destination : trois règles de suite trop indulgentes (« normal » pour centré, les écrans sans les feuilles, la classe pour la destination). Une règle qui blanchit par catégorie finit toujours par blanchir un défaut.",
-      "Le hamburger et les liens du tiroir échappaient aux audits : l'un blanchi par sa classe, les autres parce que la détection ne regardait que les <button>. Un audit qui ne regarde qu'un type d'élément a un angle mort de la taille de ce qu'il ignore.",
-      "Une empreinte de capture d'écran N'EST PAS un oracle ici : deux captures du MÊME fichier divergent sur 8 à 15 des 45 états (chatoiement des squelettes, entrée du fond d'affiche, décodage asynchrone des affiches WebP). Geler les animations et attendre img.decode() réduit sans clore. Cet oracle a accusé 20 états d'avoir changé après une suppression qui était juste. Utiliser rects + getComputedStyle ; et pour « cette règle est-elle morte ? », la preuve exacte : querySelectorAll du sélecteur sur les 45 états, plus le fait que le code n'écrit jamais la classe.",
-      "« 0 violation sur 0 règles » se lit pareil quand tout va bien et quand plus rien ne tourne. Les deux tours d'audit annoncent les règles EXÉCUTÉES (12/12, 8/8) et crient dès qu'une règle déclarée cesse de s'exécuter.",
-      "L'allowlist d'export avait dérivé à 107 classes sur 237 : plus de la moitié du CSS n'aurait jamais atteint l'app. harness/export.py classe chaque classe par ce qu'elle fait réellement et échoue sur toute classe non couverte ou morte.",
-      "Découper la feuille de style sur la chaîne « BLOC 2 » coupe le /* de l'en-tête et laisse un */ orphelin : la prose de l'en-tête se lit alors comme des sélecteurs (.css, .tm en fausses classes mortes). Découper sur l'ouvreur de commentaire."
+  "$adversarialReview": {
+    "$comment": "Every reported defect was generalised into a RULE checked across all states (harness/audit.py and audit2.py), not fixed on the reported case alone. The implementer inherits the rules, not the anecdotes.",
+    "R1": "Every tappable poster leads to a FILLED-IN sheet (synopsis, genres, cast). Otherwise the poster is not a button.",
+    "R2": "A button must have a declared DESTINATION, not merely a known class. A real href counts as a destination.",
+    "R3": "Touch target >= 32px. DECLARED EXCEPTION: the episode cell is 31 × 27 in the shipped component — at 13 per row, 44px would demand 572px. A geometric constraint, not an oversight.",
+    "R4": "No horizontal overflow outside declared scrollers (.pillscroll, .cast, .eps). An element clipped by an ancestor does not count, provided the clipping ancestor itself fits; the scrollport must also offer no real horizontal scrolling.",
+    "R5": "A horizontal scroller NEVER sets touch-action: pan-x alone — it would block vertical panning.",
+    "R6": "No essential title is truncated (.ht, .sheettitle, dialog title).",
+    "R7": "No panel renders emptiness in silence.",
+    "R8": "EVERY layer (screen, sheet) reserves the height of the tab bar that passes above it, AND its last VISIBLE button is reachable at maximum scroll.",
+    "R9": "Film/series vocabulary is consistent everywhere.",
+    "R10": "Every action mutates state, navigates, or opens a layer — never nothing.",
+    "R11": "No visible jargon or technical value: undefined, NaN, null, [object, 0/0, cron expressions.",
+    "R12": "ONE button system: height 44, radius 8, weight 600, 13.5px. Alignment — with an icon: left (the icon anchors the row); without: centred (nothing anchors the left edge).",
+    "R13": "Identical section order across all media sheets; only nature-imposed sections vary. The sample is drawn from the data: complete, incomplete, without visual, film, series.",
+    "R14": "Every layer closes via the scrim (sheets, dialogs) or via Back (screens).",
+    "R15": "The three Suivis modes show the same number of items.",
+    "R16": "The nav badge AND the tab badge equal to-grab + to-resolve, in both scenarios.",
+    "R17": "Every destruction is confirmed (dialog) or reversible (undo), and never mutates before confirmation.",
+    "R18": "Multiple selection works in BOTH library modes. It existed only on tiles: « Sélectionner » switched on in list mode with nothing selectable — a mode one can enter and do nothing in is worse than no mode.",
+    "R19": "Nothing positions itself by a distance to a screen edge: the bar publishes its measured height into `--tm-bottom-bar-h` and everything sitting above it reads that.",
+    "R20": "The library has ONE sub-line grammar: « year · type ». Films said « 2026 · Film » and series « 6 ép. » — two grammars make rows incomparable.",
+    "R21": "An episode's state colour is SUBTLE: a 6px dot and the number in the tone. The title stays neutral — it is what one reads first. One colour signal per row.",
+    "R22": "Every switch has exactly the same dimensions (46 × 28), whatever the neighbouring label's length. A « Oui/Non » chip in a flex row took the text's height.",
+    "R23": "Within an option group, every row has the same size, and SHAPE states the rule: circle = single choice, square = multiple. Identical pills said nothing about how many could be picked.",
+    "R24": "No form interaction moves the scroll position. Re-rendering the SAME screen preserves position, value and caret of the active field; a DIFFERENT screen starts at zero. The guard lives in one place.",
+    "R25": "A filter FILTERS, and its parts sum to the whole: 717 + 528 + 382 + 73 + 66 + 56 + 31 + 8 = 1,861. A filter whose parts do not sum to the total is a filter that lies. Categories are the real storage ones.",
+    "R26": "The melting visual header is a trait of ALL media sheets. Every sheet whose medium has a visual carries the header AND its legibility gradient, in BOTH themes, with the header in flow and the title overlapping its lower edge. A medium without a visual degrades to a short muted field — a declared difference, not an oversight.",
+    "$methodLessons": [
+      "R12 accepted `justify-content: normal` as equivalent to « centred »: too slack, and it let through a misalignment that was later found by hand.",
+      "R8 covered screens only: the same defect came back through sheets. A rule must target the FAMILY, not the case.",
+      "A hardened R8 first accused a button inside a collapsed <details> — Chrome still gives it a layout box. A rule must judge what is VISIBLE, not DOM order.",
+      "R2 whitelisted by CLASS instead of requiring a destination. Three lenient rules in a row (« normal » for centred, screens without sheets, class for destination): a rule that is easy to satisfy proves nothing.",
+      "The hamburger and the drawer links escaped the audits: one whitelisted by its class, the others because detection looked only at <button>. An audit that inspects one element type has a blind spot the size of the other.",
+      "A screenshot fingerprint is NOT an oracle here: two captures of the SAME file diverge on 8 to 15 of the 45 states (skeleton shimmer, header entrance, async decode of embedded posters). Use bounding rects plus a computed-style subset; and for « is this rule dead? », the exact proof: querySelectorAll of the selector over all states, plus the fact that the code never writes the class.",
+      "« 0 violations across 0 rules » reads the same when all is well and when nothing runs. Both audit passes announce the rules EXECUTED and shout as soon as a declared rule stops running.",
+      "The export allowlist had drifted to 107 classes out of 237: more than half the CSS would never have reached the app. harness/export.py classifies every class by what it actually does and fails on anything uncovered or dead.",
+      "Slicing the stylesheet on the string « BLOCK 2 » cuts the header comment's opener and leaves an orphan closer: the header's own prose then parses as selectors. Slice from the comment opener.",
+      "Sampling a fixed handful of states hides whole families. R13 sampled five frozen states, none of them an incomplete medium — which is exactly where a divergence went unseen. Draw the sample from the DATA."
     ],
-    "R20": "La médiathèque n'a qu'UNE grammaire de sous-ligne : « année · type ». Les films disaient « 2026 · Film » et les séries « 6 ép. » — deux grammaires rendent les rangées incomparables.",
-    "R21": "La couleur d'état d'un épisode est SUBTILE : une pastille de 6 px et le numéro dans le ton. Le titre reste neutre — c'est ce qu'on lit en premier. Un seul signal de couleur par ligne.",
-    "R22": "Tout interrupteur a exactement les mêmes dimensions (46 × 28), quelle que soit la longueur du libellé voisin. Un chip « Oui/Non » dans une rangée flex prenait la hauteur du texte.",
-    "R23": "Dans un groupe d'options, toutes les rangées ont la même taille, et la FORME dit la règle : cercle = choix unique, carré = choix multiple. Des pastilles identiques ne disaient pas si l'on pouvait en cocher plusieurs.",
-    "R24": "Aucune interaction de formulaire ne déplace le défilement. Un re-rendu du MÊME écran conserve la position, la valeur et le curseur du champ actif ; un écran DIFFÉRENT repart à zéro. La garde vit dans openScreen(), une seule fois — sinon le prochain contrôle ajouté réintroduit le défaut.",
-    "$defautsOperateur": {},
-    "R25": "Un filtre FILTRE, et ses parts somment au tout : 717 + 528 + 382 + 73 + 66 + 56 + 31 + 8 = 1 861. Un filtre dont les parts ne somment pas au total est un filtre qui ment. Les catégories sont celles du rangement RÉEL (categories.json5 → dossiers des disques), pas des étiquettes inventées.",
-    "R26": "Le fond d'affiche fondu est un trait de TOUTES les fiches. Toute fiche dont le média a une affiche porte son fond ET son dégradé de lisibilité ; un média sans affiche dégrade en fond plat — différence assumée, pas oubli. Vérifiée par mutation : retirer le fond fait tomber la règle sur les 4 fiches concernées."
+    "R27": "A trailer ALWAYS opens in YouTube, never inside the application, and the sheet offers it wherever one arrives from. A real anchor, a conformant watch URL, target=_blank and noopener; no promise of in-app playback.",
+    "R28": "Exactly ONE back-control design, compatible with every page, in the flow so it pushes content instead of covering it — and never text glued closer than 8px to it.",
+    "R29": "Episode presence is read from the LIST of owned numbers, never from a « number <= owned count » threshold. Checked on every series with an internal hole, in both renderings.",
+    "R30": "ONE season rendering, within a sheet and between sheets. The numbered matrix remains the declared fallback when a provider gives nothing.",
+    "R31": "From the library, a card opens the media sheet, never the acquisition sheet."
   }
 }

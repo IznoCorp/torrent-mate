@@ -1,4 +1,4 @@
-"""Aucune interaction de formulaire ne doit déplacer le défilement."""
+"""No form interaction may move the scroll position."""
 import asyncio
 from playwright.async_api import async_playwright
 async def main():
@@ -19,20 +19,20 @@ async def main():
         await pg.evaluate(f"([s,i])=>document.querySelectorAll(s)[i].click()", [sel, idx])
         await pg.wait_for_timeout(380)
         ap = await pg.evaluate("(s)=>document.querySelector(s)?.scrollTop ?? -1", port)
-        # Après un filtrage, la page peut devenir plus COURTE que l'écran : il
-        # n'y a alors nulle part où défiler, et exiger l'ancienne position
-        # serait exiger l'impossible. On compare au maximum atteignable.
+        # After filtering, the page can become SHORTER than the viewport:
+        # there is then nowhere to scroll, and demanding the old position
+        # would demand the impossible. Compare against the reachable maximum.
         maxi = await pg.evaluate("(s)=>{const p=document.querySelector(s);return Math.max(0,p.scrollHeight-p.clientHeight);}", port)
         attendu = min(av, maxi)
         bon = abs(attendu-ap) < 5
         if not bon: ko.append(label)
         print(("  OK  " if bon else "  ÉCHEC"), f"{label:34} {av} → {ap}" + (f"  (max atteignable {maxi})" if maxi < av else ""))
 
-    print("── profil de qualité ──")
-    await essai("ecran-profil", ".opt.check", 2, "case à cocher")
+    print("── quality profile ──")
+    await essai("ecran-profil", ".opt.check", 2, "checkbox")
     await essai("ecran-profil", ".opt.radio", 3, "bouton radio")
     await essai("ecran-profil", ".switch", 0, "interrupteur")
-    print("── écran d'ajout ──")
+    print("── add screen ──")
     await essai("acq-ajout-resultats", ".segmini button", 1, "segment de type")
 
     print("\n── saisie au clavier (valeur et curseur) ──")
@@ -43,7 +43,7 @@ async def main():
     print("  champ de recherche :", r, "OK" if r["focus"]=="libq" else "PERD LE FOCUS")
     if r["focus"] != "libq": ko.append("focus du champ")
 
-    print("\nerreurs JS :", errs or "aucune")
-    print("VERDICT :", "aucune interaction ne déplace le défilement" if not ko and not errs else f"restants : {ko}")
+    print("\nJS errors:", errs or "none")
+    print("VERDICT:", "no interaction moves the scroll position" if not ko and not errs else f"remaining: {ko}")
     await b.close()
 asyncio.run(main())

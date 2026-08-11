@@ -9,7 +9,7 @@ async def main():
     await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
     await pg.evaluate("()=>document.querySelector('#toastx').click()")
 
-    print("── écran d'ajout ──")
+    print("── add screen ──")
     await pg.click("#fab"); await pg.wait_for_timeout(500)
     r=await pg.evaluate("""()=>{const s=document.querySelector('#screen');
       return {ouvert:s.classList.contains('open'),
@@ -20,9 +20,9 @@ async def main():
     print(" ", r)
     await pg.screenshot(path="y_ajout.png")
     await pg.click("[data-add='3']"); await pg.wait_for_timeout(450)
-    print("  après ajout d'un absent :", await pg.evaluate("()=>document.querySelector('.addfoot')?.textContent.trim()"))
+    print("  after adding an absent title:", await pg.evaluate("()=>document.querySelector('.addfoot')?.textContent.trim()"))
     await pg.click("[data-add='0']"); await pg.wait_for_timeout(450)
-    print("  ajout d'un DÉJÀ possédé :", await pg.evaluate("()=>{const g=document.querySelector('#dlg');return {ouvert:g.classList.contains('open'),titre:g.querySelector('h3')?.textContent};}"))
+    print("  adding an ALREADY owned title:", await pg.evaluate("()=>{const g=document.querySelector('#dlg');return {ouvert:g.classList.contains('open'),titre:g.querySelector('h3')?.textContent};}"))
     await pg.screenshot(path="y_remplacer.png")
     await pg.evaluate("()=>document.querySelector('#dlgcancel').click()"); await pg.wait_for_timeout(300)
     await pg.evaluate("()=>__close('screen')"); await pg.wait_for_timeout(400)
@@ -50,6 +50,6 @@ async def main():
               legende:[...s.querySelectorAll('.legend span')].map(x=>x.textContent.trim())};}""")
     print(" ", r)
     await pg.screenshot(path="y_matrice_trous.png")
-    print("\nerreurs JS :", errs or "aucune")
+    print("\nJS errors:", errs or "none")
     await b.close()
 asyncio.run(main())

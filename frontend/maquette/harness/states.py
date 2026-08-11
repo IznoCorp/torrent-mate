@@ -9,13 +9,13 @@ async def main():
     await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
     await pg.evaluate("()=>document.querySelector('#toastx').click()")
     ids = await pg.evaluate("()=>window.__states()")
-    print(f"{len(ids)} états déclarés\n")
+    print(f"{len(ids)} declared states\n")
     bad=[]
     for i in ids:
         try:
             await pg.evaluate("(id)=>window.__go(id)", i)
         except Exception as ex:
-            bad.append((i,"__go a échoué: "+str(ex)[:60])); print(f"  FAIL {i:28} __go"); continue
+            bad.append((i,"__go failed: "+str(ex)[:60])); print(f"  FAIL {i:28} __go"); continue
         await pg.wait_for_timeout(320)
         r=await pg.evaluate("""()=>{const v=document.querySelector('#view');
           const sh=document.querySelector('#sheet'), sc=document.querySelector('#screen'), dg=document.querySelector('#dlg');
@@ -23,10 +23,10 @@ async def main():
           const cible = couche ? (dg.classList.contains('open')?dg:sc.classList.contains('open')?sc:sh) : v;
           return {sk:cible.querySelectorAll('.sk').length, txt:cible.textContent.replace(/\\s+/g,' ').trim().length,
                   doc:document.documentElement.scrollWidth,
-                  // Un dépassement rogné par un ancêtre (le fond d'affiche
-                  // flouté) n'est pas un débordement : getBoundingClientRect
-                  // mesure AVANT rognage. On vérifie le rognage au lieu de
-                  // blanchir la classe — et le rogneur doit tenir lui-même.
+                  // An overflow clipped by an ancestor is not overflow:
+                  // getBoundingClientRect measures BEFORE clipping. Verify the
+                  // clipping instead of whitelisting the class — and the
+                  // clipper must itself fit.
                   deb:[...cible.querySelectorAll('*')].filter(e=>{
                     if (e.getBoundingClientRect().right<=390.5) return false;
                     if (e.closest('.pillscroll')||e.closest('.eps')||e.closest('.cast')) return false;
@@ -41,7 +41,7 @@ async def main():
         if not ok: bad.append((i,r))
         print(("  OK  " if ok else "  FAIL"), f"{i:28}", r)
         await pg.screenshot(path=f"st_{i}.png")
-    print("\nerreurs JS :", errs or "aucune")
-    print("VERDICT :", f"{len(ids)-len(bad)}/{len(ids)} états conformes" + ("" if not bad else f" — échecs: {[x[0] for x in bad]}"))
+    print("\nJS errors:", errs or "none")
+    print("VERDICT:", f"{len(ids)-len(bad)}/{len(ids)} states conform" + ("" if not bad else f" — failures: {[x[0] for x in bad]}"))
     await b.close()
 asyncio.run(main())

@@ -218,7 +218,7 @@ L'interface **garantit** de montrer l'état réel des données — **acquisition
 et cette dérivation doit être **vérifiable par les données**.
 
 - **Aucun état affiché n'est une constante.** Un libellé qui ne peut pas changer quand la
-  réalité change est un mensonge en attente. Un état qui *pointe* vers autre chose (un épisode
+  réalité change est un mensonge en attente. Un état qui _pointe_ vers autre chose (un épisode
   « absorbé » par une saison) doit **suivre le pointeur**, jamais le rapporter tel quel.
 - **Une seule dérivation par question.** Deux surfaces qui répondent à la même question
   (« où en est cet épisode ? ») lisent le **même** code. Deux implémentations de la même règle,
@@ -231,7 +231,7 @@ et cette dérivation doit être **vérifiable par les données**.
   correction se termine par : (1) le code corrigé, (2) **l'état existant réparé**, (3) le
   contrôle exécutable à zéro anomalie. Les trois, ou rien.
 
-**Corollaire** : aucun verdict « c'est conforme » sans avoir *regardé les données* après le
+**Corollaire** : aucun verdict « c'est conforme » sans avoir _regardé les données_ après le
 correctif.
 
 ---
@@ -288,6 +288,37 @@ Les deux workflows se rejoignent, et cette jonction est un **engagement**, pas u
 - **Chaque garde-fou couvre les DEUX workflows en entier.** Une règle qui ne voit qu'un genre
   de ligne (un épisode mais pas une saison) laisse passer précisément ce qu'elle prétend
   garder.
+
+---
+
+## §15 — La maquette est la référence du design (règle gravée)
+
+`frontend/maquette/refonte.html` **est la référence visuelle de la web-UI**. Ce n'est pas une
+illustration ni un souvenir de conception : c'est la source dont l'interface livrée est
+dérivée, et l'étalon auquel toute mesure se compare.
+
+**Toute évolution du design part de la maquette, jamais du code.**
+
+- **On modifie la maquette D'ABORD**, on la vérifie avec son harnais, puis on en dérive le
+  code. Jamais l'inverse.
+- **Une divergence entre l'app et la maquette est un défaut de l'app**, sauf si la maquette a
+  été amendée explicitement au préalable, avec la raison écrite.
+- **Si une région ne peut pas être construite telle que dessinée**, on amende la maquette et
+  on note pourquoi. Le code ne diverge jamais « provisoirement » : c'est ainsi qu'une
+  interface devient un patchwork.
+- **Rien ne part en production que la maquette ne montre.** Une surface nouvelle s'y dessine
+  avant d'être codée.
+- **Le CSS de l'app est EXTRAIT de la maquette, jamais recopié** (`scripts/extract-maquette-css.py`),
+  et la dérive est bloquée par `make check` — même garde que `openapi.json` / `schema.d.ts`.
+
+Cette règle vaut pour toutes les évolutions futures, pas seulement pour la refonte initiale.
+Elle se lit aussi dans `frontend/maquette/README.md`, qui porte la méthode, les 45 états
+nommés, le jeu de règles vérifiées et les pièges déjà payés.
+
+**Langue des sources.** Tout commentaire de la maquette et de son harnais est écrit **en
+anglais** et ne fait référence ni à une session de travail, ni à une phase, ni à une décision
+datée : il doit se lire dans plusieurs années, hors de tout contexte. Le texte d'interface
+cité dans un commentaire reste en français, puisque c'est ce que l'écran affiche.
 
 ---
 

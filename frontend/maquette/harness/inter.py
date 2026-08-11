@@ -22,23 +22,23 @@ async def main():
     await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
     await pg.evaluate("()=>document.querySelector('#toastx').click()")
 
-    print("── Suivis : glissé d'actions ──")
+    print("── Suivis: action swipe ──")
     await pg.click('[data-acqtab="suivis"]'); await pg.wait_for_timeout(300)
     await pg.evaluate(SW, ["#view .swipe", -1, 9])
     print("  transform :", await pg.evaluate("()=>getComputedStyle(document.querySelector('#view .swipe .card')).transform"))
 
-    print("── Médiathèque : défilement + erreur + fin ──")
+    print("── Library: scrolling + error + end ──")
     await pg.click('[data-page="lib"]'); await pg.wait_for_timeout(400)
-    print("  tuiles initiales :", await pg.evaluate("()=>document.querySelectorAll('#libitems .tile').length"),
+    print("  initial tiles:", await pg.evaluate("()=>document.querySelectorAll('#libitems .tile').length"),
           "|", (await pg.evaluate("()=>document.querySelector('#libcount').textContent")).strip())
     for _ in range(3):
         await pg.evaluate("()=>{const p=document.querySelector('#port');p.scrollTop=p.scrollHeight;}")
         await pg.wait_for_timeout(900)
     err = await pg.evaluate("()=>{const e=document.querySelector('.loaderr');return !!e;}")
-    print("  chemin d'erreur affiché :", err)
+    print("  error path shown:", err)
     if err:
         await pg.click("#libretry"); await pg.wait_for_timeout(900)
-    print("  tuiles après réessai :", await pg.evaluate("()=>document.querySelectorAll('#libitems .tile').length"))
+    print("  tiles after retry:", await pg.evaluate("()=>document.querySelectorAll('#libitems .tile').length"))
 
     print("── Médiathèque : suppression ──")
     await pg.click('[data-lmode="list"]'); await pg.wait_for_timeout(350)
@@ -57,9 +57,9 @@ async def main():
     await pg.click('[data-page="acq"]'); await pg.click('[data-acqtab="decouvrir"]'); await pg.wait_for_timeout(450)
     print("  lot initial :", await pg.evaluate("()=>document.querySelectorAll('.sugwrap').length"))
     await pg.evaluate(SW, ["[data-sugwrap='0']", 1, 9])
-    print("  après glissé droite :", await pg.evaluate("()=>document.querySelectorAll('.sugwrap').length"))
+    print("  after right swipe:", await pg.evaluate("()=>document.querySelectorAll('.sugwrap').length"))
     await pg.click("#toastundo"); await pg.wait_for_timeout(350)
     print("  après Annuler :", await pg.evaluate("()=>document.querySelectorAll('.sugwrap').length"))
-    print("\nerreurs JS :", errs or "aucune")
+    print("\nJS errors:", errs or "none")
     await b.close()
 asyncio.run(main())

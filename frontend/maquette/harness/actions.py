@@ -1,4 +1,4 @@
-"""Prouve que les actions MUTENT l'état, pas seulement l'affichage."""
+"""Proves that actions MUTATE the state, not merely the display."""
 import asyncio
 from playwright.async_api import async_playwright
 
@@ -16,20 +16,20 @@ async def main():
                    badgeAcq:(document.querySelector('[data-page=acq] .navbadge')||{}).textContent||null})"""
 
     await pg.evaluate("()=>window.__go('acq-encours-charge')"); await pg.wait_for_timeout(300)
-    a=await pg.evaluate(cnt); print("avant récupérer      :", a)
+    a=await pg.evaluate(cnt); print("before grabbing      :", a)
     await pg.evaluate("()=>[...document.querySelectorAll('.cfoot')].find(x=>x.textContent.includes('Récupérer')).click()")
     await pg.wait_for_timeout(400)
-    b1=await pg.evaluate(cnt); print("après récupérer      :", b1)
-    assert b1["aRecup"]==a["aRecup"]-1 and b1["enVol"]==a["enVol"]+1, "la carte n'a pas bougé"
-    print("  → carte déplacée vers En vol, badge", a["badgeAcq"], "→", b1["badgeAcq"])
+    b1=await pg.evaluate(cnt); print("after grabbing       :", b1)
+    assert b1["aRecup"]==a["aRecup"]-1 and b1["enVol"]==a["enVol"]+1, "the card did not move"
+    print("  → card moved to En vol, badge", a["badgeAcq"], "→", b1["badgeAcq"])
 
     await pg.evaluate("()=>window.__go('arr-repos')"); await pg.wait_for_timeout(300)
-    a=await pg.evaluate(cnt); print("\navant résolution     :", {k:a[k] for k in ('coince','avance')})
+    a=await pg.evaluate(cnt); print("\nbefore resolution    :", {k:a[k] for k in ('coince','avance')})
     await pg.evaluate("()=>[...document.querySelectorAll('.cfoot')].find(x=>x.textContent.includes('Résoudre')).click()")
     await pg.wait_for_timeout(450)
     await pg.evaluate("()=>document.querySelector('[data-resolve]').click()"); await pg.wait_for_timeout(700)
-    b2=await pg.evaluate(cnt); print("après résolution     :", {k:b2[k] for k in ('coince','avance')})
-    assert b2["coince"]==a["coince"]-1, "l'élément est resté coincé"
+    b2=await pg.evaluate(cnt); print("after resolution     :", {k:b2[k] for k in ('coince','avance')})
+    assert b2["coince"]==a["coince"]-1, "the item stayed stuck"
     print("  → sorti de « Ça coince »")
 
     await pg.evaluate("()=>window.__go('acq-suivis-liste')"); await pg.wait_for_timeout(300)
@@ -64,7 +64,7 @@ async def main():
     b7=await pg.evaluate(cnt); print("\nsuppression multiple :", a["lib"], "→", b7["lib"])
     assert b7["lib"]==a["lib"]-3
 
-    print("\nerreurs JS :", errs or "aucune")
-    print("VERDICT : les 6 comportements mutent réellement l'état")
+    print("\nJS errors:", errs or "none")
+    print("VERDICT: all 6 behaviours really mutate the state")
     await b.close()
 asyncio.run(main())

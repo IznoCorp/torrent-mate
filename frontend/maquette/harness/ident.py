@@ -1,5 +1,6 @@
-"""Le parcours complet signalé par l'opérateur : Arrivées → Résoudre → aucun
-match → Chercher manuellement → ASSOCIER, et non « ajouter au suivi »."""
+"""The full reported journey: Arrivées → Résoudre → no match → manual search
+→ ASSOCIATE, and not « add to follows ».
+"""
 import asyncio
 from playwright.async_api import async_playwright
 
@@ -14,11 +15,11 @@ async def main():
 
     await pg.evaluate("()=>window.__go('arr-charge')"); await pg.wait_for_timeout(320)
     avant = await pg.evaluate("()=>({coince:D.stuck().length, avance:D.moving().length, suivis:W.follows.length})")
-    print("état de départ           :", avant)
+    print("starting state           :", avant)
 
     await pg.evaluate("()=>[...document.querySelectorAll('.cfoot')].find(x=>x.textContent.includes('Résoudre')).click()")
     await pg.wait_for_timeout(420)
-    print("écran de résolution      :", await pg.evaluate("()=>document.querySelector('#screen .h2')?.textContent"))
+    print("resolution screen        :", await pg.evaluate("()=>document.querySelector('#screen .h2')?.textContent"))
 
     await pg.evaluate("()=>document.querySelector('[data-manual]').click()"); await pg.wait_for_timeout(600)
     r = await pg.evaluate("""()=>{const s=document.querySelector('#screen');
@@ -26,7 +27,7 @@ async def main():
               verbes:[...new Set([...s.querySelectorAll('.resbtn')].map(x=>x.textContent.trim()))],
               requete:s.querySelector('#addq')?.value,
               blocId:(s.querySelector('.byid summary')||{}).textContent};}""")
-    print("écran de recherche       :", r)
+    print("search screen            :", r)
     await pg.screenshot(path="p_identifier.png")
 
     await pg.evaluate("()=>document.querySelector('.resbtn').click()"); await pg.wait_for_timeout(700)
@@ -38,14 +39,14 @@ async def main():
           and apres["suivis"] == avant["suivis"] and "Associer" in r["verbes"])
     print("\n— le dossier quitte « Ça coince » :", apres["coince"] == avant["coince"] - 1)
     print("— il rejoint « Ça avance »        :", apres["avance"] == avant["avance"] + 1)
-    print("— AUCUN suivi n'a été créé        :", apres["suivis"] == avant["suivis"])
+    print("— NO follow was created           :", apres["suivis"] == avant["suivis"])
 
-    # et le « + » revient bien au mode suivi
+    # and the « + » returns to follow mode
     await pg.evaluate("()=>window.__go('acq-encours-charge')"); await pg.wait_for_timeout(300)
     await pg.evaluate("()=>document.querySelector('#fab').click()"); await pg.wait_for_timeout(500)
     v = await pg.evaluate("()=>[...new Set([...document.querySelectorAll('.resbtn')].map(x=>x.textContent.trim()))]")
     print("— le « + » redit « Suivre/Ajouter » :", v)
-    print("\nerreurs JS :", errs or "aucune")
-    print("VERDICT :", "identifier ≠ suivre, et le contexte choisit le verbe" if ok and not errs else "à revoir")
+    print("\nJS errors:", errs or "none")
+    print("VERDICT:", "identify != follow, and context picks the verb" if ok and not errs else "needs review")
     await b.close()
 asyncio.run(main())

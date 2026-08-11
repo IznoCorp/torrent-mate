@@ -9,13 +9,13 @@ async def main():
     await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
     await pg.evaluate("()=>document.querySelector('#toastx').click()")
 
-    print("libellés d'onglets :", await pg.evaluate("()=>[...document.querySelectorAll('.seg button')].map(b=>b.textContent.trim())"))
+    print("tab labels:", await pg.evaluate("()=>[...document.querySelectorAll('.seg button')].map(b=>b.textContent.trim())"))
     await pg.click('[data-page="lib"]'); await pg.wait_for_timeout(400)
     print("lentilles          :", await pg.evaluate("()=>[...document.querySelectorAll('.seg button')].map(b=>b.textContent.trim())"))
 
     print("\n── grille au repos ──")
     print("  pastilles visibles :", await pg.evaluate("()=>document.querySelectorAll('.tile .sel').length"), "(attendu 0)")
-    print("  barre de sélection :", await pg.evaluate("()=>!!document.querySelector('.selbar')"), "(attendu False)")
+    print("  selection bar:", await pg.evaluate("()=>!!document.querySelector('.selbar')"), "(attendu False)")
     print("  tap ouvre la fiche :", await pg.evaluate("()=>!!document.querySelector('[data-tile]').dataset.fiche"))
     await pg.screenshot(path="x_grille_repos.png")
 
@@ -31,19 +31,19 @@ async def main():
     await pg.screenshot(path="x_appuilong.png")
     await pg.evaluate("()=>document.querySelector('#scrim').click()"); await pg.wait_for_timeout(350)
 
-    print("\n── mode sélection ──")
+    print("\n── selection mode ──")
     await pg.click('[data-selmode="1"]'); await pg.wait_for_timeout(350)
     print("  pastilles :", await pg.evaluate("()=>document.querySelectorAll('.tile .sel').length"))
     print("  barre     :", (await pg.evaluate("()=>document.querySelector('.selbar').textContent")).strip()[:52])
     for i in (0,2,5):
         await pg.click(f"[data-tile='{i}']"); await pg.wait_for_timeout(120)
-    print("  après 3 taps :", (await pg.evaluate("()=>document.querySelector('.selbar .n').textContent")).strip())
+    print("  after 3 taps:", (await pg.evaluate("()=>document.querySelector('.selbar .n').textContent")).strip())
     await pg.screenshot(path="x_selection.png")
     await pg.click("[data-delsel]"); await pg.wait_for_timeout(400)
     print("  dialogue :", await pg.evaluate("""()=>{const g=document.querySelector('#dlg');
         return {titre:g.querySelector('h3').textContent, lignes:g.querySelectorAll('.manifest li').length,
                 choix:[...g.querySelectorAll('.dlgbtn')].map(x=>x.textContent.trim())};}"""))
     await pg.screenshot(path="x_supprmulti.png")
-    print("\nerreurs JS :", errs or "aucune")
+    print("\nJS errors:", errs or "none")
     await b.close()
 asyncio.run(main())

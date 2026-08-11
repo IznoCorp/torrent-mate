@@ -1,4 +1,4 @@
-"""R2 durcie : un bouton doit avoir une DESTINATION, pas seulement une classe connue."""
+"""R2, hardened: a button must have a DESTINATION, not merely a known class."""
 import asyncio
 from playwright.async_api import async_playwright
 async def main():
@@ -24,7 +24,7 @@ async def main():
                        && !/searchclear|burger|avatar|fback|more\b|fab|sel\b|vsw|seg\b|pill|tile|ep\b/.test(x.className))
             .map(x=>x.textContent.trim().slice(0,32));}""",)
         for x in r: sans.append((e,x))
-    print(f"boutons SANS destination : {len(sans)}")
+    print(f"buttons WITHOUT a destination: {len(sans)}")
     vus=set()
     for e,x in sans:
         if x in vus: continue

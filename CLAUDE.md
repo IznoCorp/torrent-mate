@@ -41,6 +41,28 @@ raison d'être de l'application, dictée par l'opérateur. **En cas de conflit e
 et cette constitution, c'est l'implémentation qui est fausse.** Lis `product-intent.md` **avant de
 coder** toute surface web ; chaque PR web **cite les § qu'elle sert**.
 
+### Design Reference — la maquette fait foi (web-UI — CONTRAIGNANT)
+
+**`frontend/maquette/refonte.html` est la référence visuelle de la web-UI** (§15 de la
+constitution). Toute évolution du design **part de la maquette, jamais du code** :
+
+1. On modifie **la maquette d'abord**, on la vérifie avec son harnais (`frontend/maquette/harness/`),
+   puis on en dérive le code.
+2. **Une divergence entre l'app et la maquette est un défaut de l'app**, sauf amendement
+   explicite et motivé de la maquette au préalable.
+3. **Rien ne part en production que la maquette ne montre.** Une surface nouvelle s'y dessine
+   avant d'être codée.
+4. Le CSS de l'app est **extrait** de la maquette (`scripts/extract-maquette-css.py`), jamais
+   recopié ; la dérive est bloquée par `make check`.
+
+Lis `frontend/maquette/README.md` avant toute modification de design : il porte la méthode, les
+45 états nommés, le jeu de règles vérifiées (`regions.json` → `$adversarialReview`) et les
+pièges déjà payés.
+
+**Langue des sources de la maquette** : commentaires **en anglais**, sans référence à une
+session, une phase ou une décision datée — ils doivent se lire dans plusieurs années hors
+contexte. Le texte d'interface cité dans un commentaire reste en français.
+
 ### Search Safety (MANDATORY — machine crash prevention)
 
 `tests/e2e/perf/.fixture/` is **14 GB** of binary media files. `rg` without type
@@ -263,7 +285,8 @@ Load these docs on-demand based on your task — they are **not** auto-loaded:
 | Module-size budget tracking, BLOCK-threshold promise status                                                           | `docs/reference/promises.md`                    |
 | Post-merge operator checklist (DB schema, config/CLI migrations, ACC re-exercise)                                     | `docs/reference/runbook-post-merge.md`          |
 | TorrentMate web UI — architecture, auth, WS protocol, Redis relay, PWA, deploy runbook, S2-S7 REST conventions        | `docs/reference/web-ui.md`                      |
-| **Product intent — constitution produit (CONTRAIGNANT) : web-UI raison d'être, §1–§10 + DOIT/NE-DOIT-PAS + §méthode** | `docs/reference/product-intent.md`              |
+| **Product intent — constitution produit (CONTRAIGNANT) : web-UI raison d'être, §1–§15 + DOIT/NE-DOIT-PAS + §méthode** | `docs/reference/product-intent.md`              |
+| **Maquette — référence VISUELLE de la web-UI (CONTRAIGNANT) : on la modifie AVANT le code** | `frontend/maquette/README.md`                    |
 
 Also check archived alpha versions under `docs/archive/legacy-alpha/` and archived features under `docs/archive/features/`.
 

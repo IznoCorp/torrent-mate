@@ -1,20 +1,20 @@
-"""L'extraction CSS ne doit RIEN laisser derrière elle sans le dire.
+"""CSS extraction must leave NOTHING behind without saying so.
 
-`regions.json` porte une allowlist : `extract-maquette-css.py` n'exporte que ce
-qui y figure. Une classe définie dans BLOC 2 mais absente des deux listes serait
-silencieusement absente de l'app — le défaut le plus coûteux possible, parce
-qu'il ne se voit qu'au moment où l'écran est déjà faux.
+`regions.json` carries an allowlist: `extract-maquette-css.py` exports only
+what it lists. A class defined in BLOCK 2 but absent from both lists would be
+silently missing from the app — the most expensive defect possible, because it
+only becomes visible once the screen is already wrong.
 
-Ce script classe CHAQUE classe de BLOC 2 par ce qu'elle fait vraiment :
+This script classifies EVERY BLOCK 2 class by what it actually does:
 
-  app      — au moins un élément la porte, hors chrome du prototype
-  harnais  — vue uniquement dans le harnais (panneau d'états, notes, cadre)
-  posée    — jamais présente dans un état figé, mais écrite par le code
-             (classes transitoires : geste armé, chargement, sélection)
-  MORTE    — définie en CSS, jamais portée, jamais écrite par le code
+  app      — at least one element carries it, outside the prototype chrome
+  harness  — seen only in the harness (state panel, notes, phone frame)
+  written  — never present in a frozen state, but written by the code
+             (transient classes: armed gesture, loading, selection)
+  DEAD     — defined in CSS, never carried, never written by the code
 
-« MORTE » est un échec : du CSS mort dans la maquette devient du CSS mort dans
-l'app, et pire, laisse croire qu'une classe existe.
+« DEAD » is a failure: dead CSS in the prototype becomes dead CSS in the app
+and, worse, suggests a class exists when it does not.
 """
 import asyncio, json, pathlib, re, sys
 from playwright.async_api import async_playwright
@@ -22,21 +22,20 @@ from playwright.async_api import async_playwright
 RACINE = pathlib.Path(__file__).resolve().parent.parent
 BAR = "─" * 62
 
-# Le harnais est physiquement identifiable dans le DOM.
+# The harness is physically identifiable in the DOM.
 CHROME_PROTO = ".hpanel,.hbtn,.note,.states"
 HARNAIS_CONNUS = {"hpanel", "states", "notes", "stage", "device", "note", "hbtn"}
 
 
 def classes_bloc2() -> set[str]:
-    """Les classes définies par une règle CSS dans BLOC 2 — commentaires exclus."""
+    """Classes defined by a CSS rule inside BLOCK 2 — comments excluded."""
     h = (RACINE / "refonte.html").read_text()
-    i = h.find("BLOC 2")
+    i = h.find("BLOCK 2")
     if i < 0:
-        sys.exit("BLOC 2 introuvable : la maquette a perdu sa séparation harnais/app.")
-    # Remonter à l'OUVREUR du commentaire d'en-tête : découper sur « BLOC 2 »
-    # laisse un `*/` orphelin, et le texte de l'en-tête (« app-surface.css »,
-    # « .tm ») se lit alors comme des sélecteurs. Deux fausses classes mortes
-    # sont nées exactement de là.
+        sys.exit("BLOCK 2 not found: the prototype lost its harness/app separation.")
+    # Go back to the OPENER of the header comment: slicing on « BLOCK 2 »
+    # leaves an orphan `*/`, and the header's own prose then parses as
+    # selectors, producing false dead classes.
     i = h.rfind("/*", 0, i)
     css = re.sub(r"/\*.*?\*/", "", h[i : h.find("</style>", i)], flags=re.S)
     css = re.sub(r"\"[^\"]*\"|'[^']*'", '""', css)
@@ -76,8 +75,8 @@ async def main():
 
     har -= app
     reste = set(cl) - app - har
-    # Le harnais est écrit par le code lui aussi : sans cette soustraction il
-    # atterrirait dans « posées », donc dans l'allowlist d'export.
+    # The harness is written by the code too: without this subtraction it
+    # would land in « written », hence in the export allowlist.
     posees = {c for c in reste - HARNAIS_CONNUS
               if re.search(r"[\"'` ]" + re.escape(c) + r"[\"'` ]", src)}
     mortes = sorted(reste - posees - HARNAIS_CONNUS)
@@ -85,27 +84,28 @@ async def main():
 
     print(f"{BAR}\nClassement des {len(cl)} classes de BLOC 2\n{BAR}")
     print(f"  app       {len(app):4d}")
-    print(f"  posées    {len(posees):4d}  (transitoires : {', '.join(sorted(posees)) or '—'})")
+    print(f"  written   {len(posees):4d}  (transient: {', '.join(sorted(posees)) or '—'})")
     print(f"  harnais   {len(har):4d}")
     print(f"  MORTES    {len(mortes):4d}  {', '.join(mortes) or '—'}")
 
-    # L'allowlist doit couvrir tout ce qui part vers l'app : le rendu ET le transitoire.
+    # The allowlist must cover everything bound for the app: rendered AND
+    # transient.
     regions = json.loads((RACINE / "regions.json").read_text())
     attendu = {"." + c for c in (app | posees)}
     manquantes = sorted(attendu - set(regions["exportedSelectors"]))
 
     echecs = []
     if mortes:
-        echecs.append(f"{len(mortes)} règle(s) CSS morte(s) : {', '.join(mortes)}")
+        echecs.append(f"{len(mortes)} dead CSS rule(s): {', '.join(mortes)}")
     if manquantes:
-        echecs.append(f"{len(manquantes)} classe(s) hors allowlist : {', '.join(manquantes)}")
+        echecs.append(f"{len(manquantes)} class(es) outside the allowlist: {', '.join(manquantes)}")
 
     print()
     if echecs:
         for x in echecs:
             print("■", x)
-        print(f"{BAR}\nÉCHEC — l'extraction laisserait du CSS derrière elle.")
+        print(f"{BAR}\nFAILURE - extraction would leave CSS behind.")
         sys.exit(1)
-    print(f"{BAR}\nOK — chaque classe de BLOC 2 est classée, et l'allowlist les couvre toutes.")
+    print(f"{BAR}\nOK - every BLOCK 2 class is classified, and the allowlist covers them all.")
 
 asyncio.run(main())

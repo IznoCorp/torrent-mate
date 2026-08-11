@@ -1,7 +1,7 @@
-"""Revue adversariale — chaque retour de l'opérateur devient une RÈGLE
-vérifiée sur TOUS les états, pas un correctif sur le cas signalé.
+"""Adversarial review — every reported defect becomes a RULE checked across
+ALL states, never a patch on the single case that was reported.
 
-Le parti pris est de chercher à faire ÉCHOUER la maquette, pas à la confirmer.
+The stance is to try to make the prototype FAIL, not to confirm it.
 """
 import asyncio, json
 from playwright.async_api import async_playwright
@@ -22,15 +22,15 @@ async def main():
     def note(regle, detail):
         viol.setdefault(regle, []).append(detail)
 
-    # Une règle qui disparaît doit se VOIR. Compter les règles violées donne
-    # « 0 sur 0 » aussi bien quand tout va bien que quand plus rien ne tourne :
-    # on compte donc les règles EXÉCUTÉES, et on exige le compte attendu.
+    # A rule that disappears must be VISIBLE. Counting violated rules reads «
+    # 0 of 0 » both when everything is fine and when nothing runs at all:
+    # count the rules EXECUTED instead, and require the expected total.
     evaluees = set()
     def evalue(*regles):
         evaluees.update(regles)
     REGLES_ATTENDUES = 12
 
-    print(f"{BAR}\nRevue adversariale — {len(etats)} états\n{BAR}")
+    print(f"{BAR}\nAdversarial review — {len(etats)} states\n{BAR}")
 
     for e in etats:
         await pg.evaluate("(i)=>window.__go(i)", e); await pg.wait_for_timeout(280)
@@ -43,46 +43,45 @@ async def main():
                        : document.querySelector('#sheet').classList.contains('open') ? document.querySelector('#sheet')
                        : document.querySelector('#view');
 
-          // R1 — toute affiche cliquable mène à une fiche RENSEIGNÉE
+          // R1 — every tappable poster leads to a FILLED-IN sheet
           R.fichesCreuses = [...racine.querySelectorAll('[data-fiche]')].map(el=>el.dataset.fiche)
             .filter(t=>{const f=fiche(t); return !f || !f.ov || !f.g || !(f.cast||[]).length;});
 
-          // R2 — DURCIE : un bouton doit avoir une DESTINATION déclarée, pas
-          // seulement une classe connue. La version par classe blanchissait
-          // tout `.sact`, donc « Profil de qualité » menait nulle part sans
-          // que la règle bronche — trouvé au doigt par l'opérateur.
+          // R2 — HARDENED: a button must have a declared DESTINATION, not
+          // merely a known class. Whitelisting by class blessed every `.sact`,
+          // so a control could lead nowhere without the rule flinching.
           R.boutonsMorts = [...racine.querySelectorAll('button, a')]
             .filter(el=>el.getBoundingClientRect().height>0 && !el.disabled
                     && !el.closest('.hbtn') && !el.closest('.hpanel')
                     && !el.closest('details:not([open])'))
-            // Un href EST une destination — et depuis l'arbitrage du 11 août la
-            // bande-annonce est un vrai lien sortant vers YouTube.
+            // An href IS a destination — the trailer is a genuine outbound
+            // link to YouTube.
             .filter(el=>!el.getAttribute('href') || el.getAttribute('href')==='#')
             .filter(el=>Object.keys(el.dataset).length===0 && !el.id && !el.onclick
                     && !/searchclear|burger|avatar|fback|more\b|fab|sel\b|vsw|seg\b|pill|tile|ep\b/.test(el.className))
             .map(el=>'« '+el.textContent.trim().slice(0,28)+' »');
 
-          // R3 — cibles tactiles : toute commande fait au moins 40 px dans un sens
+          // R3 — touch targets: every control is at least 40px on one axis
           R.ciblesTropPetites = [...racine.querySelectorAll('button,a')].filter(el=>{
             if (!vis(el) || el.closest('.hbtn') || el.closest('.hpanel')) return false;
             const b=el.getBoundingClientRect();
-            // EXCEPTION DÉCLARÉE : la cellule d'épisode fait 31 × 27 dans le
-            // composant LIVRÉ. À 13 cellules par ligne, 44 px demanderait
-            // 572 px de large : la contrainte est géométrique, pas un oubli.
-            // La règle porte son exception plutôt que de la taire.
+            // DECLARED EXCEPTION: the episode cell is 31 × 27 in the SHIPPED
+            // component. At 13 cells per row, 44px would demand 572px of
+            // width: a geometric constraint, not an oversight. The rule
+            // carries its exception rather than hiding it.
             if (el.classList.contains('ep')) return false;
             return b.width>0 && b.height>0 && b.height<32 && b.width<32;
           }).map(el=>(el.className||el.tagName)+' '+Math.round(el.getBoundingClientRect().height)+'px');
 
-          // R4 — débordement horizontal hors défileurs DÉCLARÉS
+          // R4 — horizontal overflow outside DECLARED scrollers
           //
-          // getBoundingClientRect rapporte la géométrie AVANT rognage : une
-          // couche décorative volontairement plus large que son cadre (le fond
-          // d'affiche flouté) y ressemble à un débordement alors qu'un ancêtre
-          // la rogne. On ne blanchit pas la classe — on VÉRIFIE le rognage :
-          // il faut un ancêtre qui rogne vraiment (overflow-x hidden/clip) ET
-          // qui tienne lui-même dans le cadre. Un ancêtre rogneur qui déborde
-          // ne rogne rien, il déplace le problème.
+          // getBoundingClientRect reports geometry BEFORE clipping: a
+          // decorative layer deliberately wider than its frame looks like
+          // overflow while an ancestor clips it. Do not whitelist the class —
+          // VERIFY the clipping: there must be an ancestor that really clips
+          // (overflow-x hidden/clip) AND that fits within the frame itself. A
+          // clipping ancestor that overflows clips nothing, it moves the
+          // problem.
           const SCROLLERS = '.pillscroll,.cast,.eps,.hpanel';
           const rogne = (el) => {
             for (let p = el.parentElement; p && p !== racine.parentElement; p = p.parentElement) {
@@ -96,31 +95,32 @@ async def main():
             return bb.right>390.5 && bb.width>0 && !el.closest(SCROLLERS) && !rogne(el);
           }).map(el=>(el.className||el.tagName)+' →'+Math.round(el.getBoundingClientRect().right));
 
-          // R4 bis — la mesure qui ne se laisse pas raconter d'histoire : le
-          // défileur lui-même ne doit offrir AUCUN défilement horizontal.
-          // Si un rognage était illusoire, il apparaîtrait ici.
+          // R4b — the measurement that cannot be talked out of it: the
+          // scrollport itself must offer NO horizontal scrolling. An illusory
+          // clip would show up here.
           R.panHorizontal = [...racine.querySelectorAll('.port,[data-scroll-root]')]
             .filter(el=>el.scrollWidth > el.clientWidth + 1)
             .map(el=>(el.className||el.tagName)+' scrollWidth '+el.scrollWidth+' > '+el.clientWidth);
 
-          // R5 — un défileur horizontal ne doit JAMAIS bloquer le pan vertical
+          // R5 — a horizontal scroller must NEVER block vertical panning
           R.scrollersBloquants = [...racine.querySelectorAll('*')].filter(el=>{
             const s=getComputedStyle(el);
             return s.overflowX==='auto'||s.overflowX==='scroll';
           }).filter(el=>{const ta=getComputedStyle(el).touchAction; return ta==='pan-x';})
             .map(el=>el.className+' touch-action:'+getComputedStyle(el).touchAction);
 
-          // R6 — un titre essentiel n'est jamais tronqué au point d'être une devinette
+          // R6 — an essential title is never truncated to the point of being a
+          // guess
           R.titresTronques = [...racine.querySelectorAll('.ht,.sheettitle,.dlg h3')].filter(el=>
             el.scrollWidth>el.clientWidth+1).map(el=>el.textContent.trim().slice(0,30));
 
-          // R7 — aucune section ne rend le vide en silence
+          // R7 — no panel renders emptiness in silence
           R.panneauxVides = [...racine.querySelectorAll('.panel')].filter(el=>
             el.children.length===0).length;
 
-          // R23 — dans un groupe d'options, toutes les rangées ont la même
-          // taille, et la FORME distingue choix unique (cercle) et choix
-          // multiple (carré). Des pastilles identiques ne disaient pas la règle.
+          // R23 — within an option group every row has the same size, and
+          // SHAPE distinguishes single choice (circle) from multiple choice
+          // (square). Identical pills stated no rule.
           R.optionsIrregulieres = [];
           for (const grp of racine.querySelectorAll('.optlist')) {
             const opts = [...grp.querySelectorAll('.opt')];
@@ -128,14 +128,14 @@ async def main():
               return Math.round(b.width)+'×'+Math.round(b.height);});
             if (new Set(t).size > 1) R.optionsIrregulieres.push('tailles '+[...new Set(t)].join(' / '));
             const formes = new Set(opts.map(e=>e.classList.contains('radio')?'radio':'check'));
-            if (formes.size > 1) R.optionsIrregulieres.push('groupe mixte radio/case');
+            if (formes.size > 1) R.optionsIrregulieres.push('mixed radio/checkbox group');
             const roles = new Set(opts.map(e=>e.getAttribute('role')));
-            if (roles.size > 1) R.optionsIrregulieres.push('rôles mélangés');
+            if (roles.size > 1) R.optionsIrregulieres.push('mixed roles');
           }
 
-          // R22 — tout interrupteur a EXACTEMENT les mêmes dimensions, quelle
-          // que soit la longueur du libellé à côté. Un chip « Oui/Non » dans
-          // une rangée flex prenait la hauteur du texte.
+          // R22 — every switch has EXACTLY the same dimensions, whatever the
+          // length of the label beside it. A chip inside a flex row took the
+          // text's height.
           R.switchsIrreguliers = [];
           const sw = [...racine.querySelectorAll('.switch')];
           if (sw.length > 1) {
@@ -144,9 +144,8 @@ async def main():
             if (new Set(tailles).size > 1) R.switchsIrreguliers = tailles;
           }
 
-          // R20 — la médiathèque n'a qu'UNE grammaire de sous-ligne :
-          // « année · type ». Deux grammaires rendent les rangées
-          // incomparables entre elles.
+          // R20 — the library has only ONE sub-line grammar: « année · type ».
+          // Two grammars make rows incomparable.
           R.sousLignes = [];
           if (etat.startsWith('lib-') && !etat.includes('incomplets')) {
             const attendu = /^(\d{4}|année inconnue) · (Film|Série)$/;
@@ -154,9 +153,9 @@ async def main():
               .map(e=>e.textContent.trim()).filter(t=>t && !attendu.test(t)).slice(0,5);
           }
 
-          // R8 — TOUTE couche réserve la hauteur de la barre d'onglets, qui
-          // passe au-dessus d'elle : écran, feuille et dialogue. La règle ne
-          // couvrait que l'écran, et le défaut est réapparu sur la feuille.
+          // R8 — EVERY layer reserves the height of the tab bar that passes
+          // above it: screen, sheet and dialog. The rule once covered screens
+          // only, and the defect came back through sheets.
           R.reserveEcran = null;
           const bar = document.querySelector('.bottombar').getBoundingClientRect().height;
           const couches = [['#screen','.port'],['#sheet','.sheetin']];
@@ -167,10 +166,10 @@ async def main():
             if (!port) continue;
             const pb = parseFloat(getComputedStyle(port).paddingBottom);
             if (pb < bar) R.reserveEcran = `${sel} ${Math.round(pb)}px < barre ${Math.round(bar)}px`;
-            // Et le dernier bouton doit être ATTEIGNABLE au défilement max.
+            // And the last button must be REACHABLE at maximum scroll.
             port.scrollTop = port.scrollHeight;
-            // Un <details> replié laisse une boîte de mise en page à ses
-            // enfants : filtrer sur la VISIBILITÉ, pas sur l'ordre du DOM.
+            // A collapsed <details> still gives its children a layout box:
+            // filter on VISIBILITY, not on DOM order.
             const btns = [...port.querySelectorAll('button, a')]
               .filter(x => !x.closest('details:not([open])') && x.getBoundingClientRect().height > 0);
             const dernier = btns[btns.length-1];
@@ -184,29 +183,29 @@ async def main():
         }""", e)
         for k, v in r.items():
             if k == "optionsIrregulieres":
-                for x in v: note("R23 groupe d'options incohérent", f"{e} : {x}")
+                for x in v: note("R23 inconsistent option group", f"{e} : {x}")
             elif k == "switchsIrreguliers":
-                if v: note("R22 interrupteurs de tailles différentes", f"{e} : {v}")
+                if v: note("R22 switches of differing sizes", f"{e} : {v}")
             elif k == "sousLignes":
                 for x in v: note("R20 grammaire de sous-ligne divergente", f"{e} : « {x} »")
             elif k == "reserveEcran":
-                if v: note("R8 réserve d'écran insuffisante", f"{e} : {v}")
+                if v: note("R8 insufficient screen reservation", f"{e} : {v}")
             elif k == "sousLignes":
                 for x in v: note("R20 grammaire de sous-ligne divergente", f"{e} : « {x} »")
             elif k == "panneauxVides":
-                if v: note("R7 panneau vide", f"{e} : {v}")
+                if v: note("R7 empty panel", f"{e} : {v}")
             elif v:
-                cle = {"fichesCreuses":"R1 fiche creuse derrière une affiche",
-                       "boutonsMorts":"R2 bouton sans effet",
-                       "ciblesTropPetites":"R3 cible tactile < 32 px",
-                       "debordements":"R4 débordement horizontal",
-                       "panHorizontal":"R4 bis défilement horizontal réel",
-                       "scrollersBloquants":"R5 défileur qui bloque le pan vertical",
-                       "titresTronques":"R6 titre tronqué"}[k]
+                cle = {"fichesCreuses":"R1 hollow sheet behind a poster",
+                       "boutonsMorts":"R2 button with no effect",
+                       "ciblesTropPetites":"R3 touch target < 32px",
+                       "debordements":"R4 horizontal overflow",
+                       "panHorizontal":"R4b real horizontal scrolling",
+                       "scrollersBloquants":"R5 scroller blocking vertical panning",
+                       "titresTronques":"R6 truncated title"}[k]
                 for x in (v if isinstance(v, list) else [v]):
                     note(cle, f"{e} : {x}")
 
-    # ── R9 : vocabulaire film/série, sur TOUTES les surfaces ──────────────
+    # R9 — film/series vocabulary, across ALL surfaces
     voc = await pg.evaluate("""()=>{
       const out=[];
       const attendu={movie:{ajout:'Ajouter',pause:'Ne plus chercher',retrait:'Retirer de la liste'},
@@ -217,9 +216,9 @@ async def main():
       }
       return out;}""")
     evalue('R9')
-    for x in voc: note("R9 vocabulaire film/série", x)
+    for x in voc: note("R9 film/series vocabulary", x)
 
-    # ── R10 : toute action ouvre une couche, navigue, ou mute — jamais rien ─
+    # R10 — every action opens a layer, navigates, or mutates — never nothing
     inertes = await pg.evaluate("""async ()=>{
       const out=[]; const snap=()=>JSON.stringify({t:W.takeable.length,i:W.inflight.length,s:W.stuck.length,
         m:W.moving.length,f:W.follows.length,l:W.lib.length,p:S.page,tab:S.acqTab,lens:S.libLens});
@@ -238,22 +237,22 @@ async def main():
       }
       return out;}""")
     evalue('R10')
-    for x in inertes: note("R10 action sans effet", x)
+    for x in inertes: note("R10 action with no effect", x)
 
     print()
     if not viol and not errs:
-        print("Aucune violation. (Ce qui, pour une revue adversariale, mérite méfiance.)")
+        print("No violations. (For an adversarial review, that deserves suspicion.)")
     for regle, lst in sorted(viol.items()):
         print(f"■ {regle} — {len(lst)}")
         for x in lst[:6]: print("   ", x)
         if len(lst) > 6: print(f"    … et {len(lst)-6} autres")
-    print(f"\nerreurs JS : {errs or 'aucune'}")
+    print(f"\nJS errors: {errs or 'none'}")
     manquantes = REGLES_ATTENDUES - len(evaluees)
-    print(f"{BAR}\nTOTAL : {sum(len(v) for v in viol.values())} violations "
-          f"· {len(evaluees)}/{REGLES_ATTENDUES} règles exécutées")
+    print(f"{BAR}\nTOTAL: {sum(len(v) for v in viol.values())} violations "
+          f"· {len(evaluees)}/{REGLES_ATTENDUES} rules executed")
     if manquantes:
-        print(f"⚠ {manquantes} règle(s) déclarée(s) mais jamais exécutée(s) : "
-              f"un audit muet n'est pas un audit vert.")
+        print(f"⚠ {manquantes} rule(s) declared but never executed: "
+              f"a mute audit is not a green audit.")
     json.dump({k:v for k,v in viol.items()}, open("violations.json","w"), ensure_ascii=False, indent=1)
     await b.close()
 asyncio.run(main())

@@ -12,9 +12,9 @@ async def main():
     ctx=await b.new_context(viewport={"width":390,"height":844},device_scale_factor=2,is_mobile=True,has_touch=True)
     pg=await ctx.new_page(); errs=[]
     pg.on("pageerror", lambda e: errs.append(str(e)))
-    # Chrome demande /favicon.ico de lui-même ; la maquette n'a AUCUNE ressource
-    # externe (tout est en data: URI), donc ce 404 ne vient jamais d'elle. Le nom
-    # du fichier est dans l'URL, pas dans le message — d'où la lecture de location.
+    # Chrome requests /favicon.ico on its own; the prototype has NO external
+    # resource (everything is a data: URI), so that 404 never comes from it.
+    # The filename is in the URL, not in the message — hence reading location.
     def _console(m):
         if m.type != "error":
             return
@@ -40,7 +40,7 @@ async def main():
         if not ok: bad += 1
         print(("OK  " if ok else "FAIL"), f"{name:16}", r)
         await pg.screenshot(path=f"w_{name.replace('/','_')}.png")
-    print("\nerreurs JS :", errs or "aucune")
-    print("VERDICT :", "les 8 vues rendent du contenu, sans débordement" if bad==0 and not errs else f"{bad} vue(s) en échec")
+    print("\nJS errors:", errs or "none")
+    print("VERDICT:", "all 8 views render content, with no overflow" if bad==0 and not errs else f"{bad} view(s) failed")
     await b.close()
 asyncio.run(main())

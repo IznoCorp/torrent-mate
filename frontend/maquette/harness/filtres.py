@@ -1,4 +1,4 @@
-"""Les filtres de catégorie doivent FILTRER, et leurs parts sommer au tout."""
+"""Category filters must FILTER, and their parts must sum to the whole."""
 import asyncio
 from playwright.async_api import async_playwright
 async def main():
@@ -14,9 +14,9 @@ async def main():
     cats = await pg.evaluate("()=>CATS.map(c=>({id:c.id,l:c.l,c:c.c}))")
     somme = sum(c["c"] for c in cats if c["id"] != "all")
     tout = next(c["c"] for c in cats if c["id"] == "all")
-    print(f"parts des catégories : {somme} · total annoncé : {tout}",
+    print(f"category parts: {somme} · announced total: {tout}",
           "OK" if somme == tout else "ÉCHEC — les parts ne somment pas au tout")
-    if somme != tout: ko.append("somme des catégories")
+    if somme != tout: ko.append("category sum")
 
     for cat in cats:
         await pg.evaluate("(id)=>document.querySelector(`[data-cat=${JSON.stringify(id)}]`).click()", cat["id"])
@@ -30,13 +30,13 @@ async def main():
         if not bon: ko.append(cat["l"])
         print(("  OK  " if bon else "  ÉCHEC"), f"{cat['l']:16} {r['affiches']:3} rendus · {r['compte']}")
 
-    # le filtre se combine avec la recherche
+    # the filter combines with the search
     await pg.evaluate("()=>document.querySelector('[data-cat=\"tv\"]').click()"); await pg.wait_for_timeout(280)
     await pg.evaluate("()=>{const i=document.querySelector('#libq');i.value='dex';i.dispatchEvent(new Event('input',{bubbles:true}));}")
     await pg.wait_for_timeout(350)
     print("\ncombiné (Séries + « dex ») :", await pg.evaluate("()=>({n:libFiltered().length, titres:libFiltered().map(x=>x.t), compte:document.querySelector('#libcount').textContent.replace(/\\s+/g,' ').trim()})"))
     await pg.screenshot(path="v_filtres.png")
-    print("\nerreurs JS :", errs or "aucune")
-    print("VERDICT :", "les filtres filtrent, et les parts somment au tout" if not ko and not errs else f"restants : {ko}")
+    print("\nJS errors:", errs or "none")
+    print("VERDICT:", "filters filter, and the parts sum to the whole" if not ko and not errs else f"remaining: {ko}")
     await b.close()
 asyncio.run(main())
