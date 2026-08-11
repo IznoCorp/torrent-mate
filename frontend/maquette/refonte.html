@@ -3340,9 +3340,11 @@
     libCat: "all",
     libMode: "grid",
     scen: "reel",
+    addMode: "suivi",
     relTitre: null,
     profilTitre: null,
-    profil: { resolutions: ["2160p", "1080p"], sources: ["BluRay", "WEB-DL"], langues: ["MULTi", "FRENCH"], exclusions: ["CAM", "TS", "HDCAM"] },
+    /* Les valeurs par défaut du backend : permissif partout SAUF exclude_3d. */
+    profil: { min_resolution: "1080p", required_audio: ["VF"], require_known_resolution: false, exclude_3d: true },
     addKind: "Tout",
     idProv: "TMDB",
     tri: "recent",
@@ -3995,12 +3997,24 @@
     { n: "Silo.S03E07.VOSTFR.1080p.WEB-DL.H264-BRiNK", res: "1080p", src: "WEB-DL", lang: "VOSTFR", s: 74, go: 2.8, sc: 61 },
     { n: "Silo.S03E07.FRENCH.720p.WEBRip.x264-JiHEFF", res: "720p", src: "WEBRip", lang: "FRENCH", s: 22, go: 1.2, sc: 34 },
   ];
-  const PROFIL = {
-    resolutions: ["2160p", "1080p", "720p"],
-    sources: ["BluRay", "WEB-DL", "WEBRip", "HDTV"],
-    langues: ["MULTi", "FRENCH", "VOSTFR", "VO"],
-    exclusions: ["CAM", "TS", "HDCAM", "R5"],
-  };
+  /* ── Le profil RÉEL, vérifié dans acquire/desired.py ────────────────────
+     `QualityProfile` n'a que QUATRE champs, et c'est tout ce qu'un suivi peut
+     régler. Ma première version de cet écran en inventait d'autres (sources
+     acceptées, exclusions CAM/TS) : ils n'existent pas par suivi.
+
+     Ce qui est global et vit dans `ranking.json5` (déjà éditable dans
+     /config ?tab=classement) : les POIDS du classement — résolution, codec,
+     format, audio, langue, source, seeders, taille, provider. Un suivi ne les
+     redéfinit pas ; il pose seulement des PLANCHERS et des exigences.
+
+     Distinction à ne jamais perdre : le profil FILTRE (il élimine), le
+     classement ORDONNE (il départage ce qui reste). */
+  const RESOS = ["720p", "1080p", "2160p"];
+  const AUDIOS = [
+    ["VF", "Piste française (VF, VFF, VFQ, TRUEFRENCH)"],
+    ["VOSTFR", "Sous-titres français"],
+    ["VO", "Version originale"],
+  ];
 
   const TRIS = { recent: "Ajout récent", az: "A → Z", manque: "Les plus incomplets" };
   const LIB_PAGE = 24;
@@ -4498,6 +4512,7 @@
     ["acq-ajout-resultats", "Écran d'ajout — résultats réels", () => { set({ page: "acq", phase: "prete" }); openAddScreen("star wars"); }],
     ["feuille-suivi-complet", "Feuille de suivi — gros catalogue complet", () => { set({ page: "acq", acqTab: "suivis", phase: "prete" }); openFollowSheet("American Dad!"); }],
     ["feuille-suivi-trous", "Feuille de suivi — matrice à trous", () => { set({ page: "lib", libLens: "inc", phase: "prete" }); openFollowSheet("Les aventures de Tintin"); }],
+    ["acq-identifier", "Recherche en mode IDENTIFIER (depuis une résolution)", () => { set({ page: "arr", phase: "prete" }); S.resolveTarget = "Backrooms.2026.MULTi.2160p.WEB-DL"; openAddScreen("Backrooms 2026", "identifier"); }],
     ["ecran-releases", "Écran — choisir une autre release", () => { set({ page: "acq", acqTab: "suivis", phase: "prete" }); openReleases("Silo"); }],
     ["ecran-profil", "Écran — profil de qualité", () => { set({ page: "acq", acqTab: "suivis", phase: "prete" }); openProfil("Silo"); }],
     ["feuille-parcours", "Feuille de parcours", () => { set({ page: "acq", phase: "prete" }); openJourneySheet("Furious"); }],
@@ -4608,7 +4623,9 @@
   }
 
   $("#fab").onclick = () => {
-    openAddScreen();
+    // Le « + » veut TOUJOURS dire « suivre » : le mode ne doit jamais rester
+    // collé d'une résolution précédente.
+    openAddScreen(S.addQ, "suivi");
   };
     $("#scenBtn").onclick = () => {
     openHarness();
@@ -4727,7 +4744,7 @@
         .replace(/\s{2,}/g, " ")
         .trim();
       closeScreen();
-      setTimeout(() => openAddScreen(q), 260);
+      setTimeout(() => openAddScreen(q, "identifier"), 260);
       return;
     }
     if (b.dataset.resolve) {
@@ -4754,11 +4771,20 @@
       else { closeSheet(); setTimeout(() => openProfil(t), 260); }
       return;
     }
-    if (b.dataset.qtog) {
-      const [cle, val] = b.dataset.qtog.split("|");
-      const l = S.profil[cle];
-      const i = l.indexOf(val);
-      if (i >= 0) l.splice(i, 1); else l.push(val);
+    if (b.dataset.qres !== undefined) {
+      S.profil.min_resolution = b.dataset.qres === "" ? null : b.dataset.qres;
+      openProfil(S.profilTitre);
+      return;
+    }
+    if (b.dataset.qaud) {
+      const l = S.profil.required_audio;
+      const i = l.indexOf(b.dataset.qaud);
+      if (i >= 0) l.splice(i, 1); else l.push(b.dataset.qaud);
+      openProfil(S.profilTitre);
+      return;
+    }
+    if (b.dataset.qflag) {
+      S.profil[b.dataset.qflag] = !S.profil[b.dataset.qflag];
       openProfil(S.profilTitre);
       return;
     }
@@ -4896,6 +4922,18 @@
     if (b.dataset.add) {
       const i = Number(b.dataset.add);
       const r = SEARCH.results[i];
+      if (S.addMode === "identifier") {
+        // On ASSOCIE : le dossier coincé devient ce média, le pipeline
+        // reprend. Aucun suivi n'est créé — ce n'était pas la demande.
+        const cible = S.resolveTarget;
+        S.added.add(i);
+        closeScreen();
+        setTimeout(() => {
+          actionResoudre(cible, r.t);
+          toast(`« ${baseTitle(cible ?? "")} » identifié comme « ${r.t} » — le scrape reprend, aucun suivi créé.`);
+        }, 260);
+        return;
+      }
       if (r.owned) {
         openDlg(`<h3>Remplacer « ${esc(r.t)} » ?</h3>
           <p>Ce ${r.k === "Film" ? "film est déjà" : "média est déjà"} en médiathèque. L'acquisition <b>remplacera</b> la version en place par celle qui sera récupérée.</p>
@@ -5463,26 +5501,42 @@
      rail montre trois affiches et cache l'année, le type et le synopsis,
      c'est-à-dire exactement ce qui sépare deux homonymes (§12).
      L'état « déjà connu » vit SUR LE BOUTON, pas à côté (§7). */
-  function openAddScreen(q) {
+  /* ── Une recherche, DEUX verbes ────────────────────────────────────────
+     Le même écran sert deux intentions que rien ne doit confondre :
+
+     · mode « suivi » (depuis le +) — on veut SURVEILLER un média : le bouton
+       dit « Suivre » / « Ajouter », et un média déjà possédé passe par la
+       confirmation de remplacement.
+     · mode « identifier » (depuis une résolution) — on ne veut RIEN ajouter :
+       on veut DIRE au pipeline quel média est ce dossier, pour qu'il reprenne
+       son scrape. Le bouton dit « Associer », et un média déjà possédé est
+       normal — c'est même le cas attendu.
+
+     Envoyer le second sur le premier était une faute d'intention : on
+     proposait d'ajouter un suivi là où l'opérateur voulait débloquer un
+     dossier. Le verbe suit le CONTEXTE qui a ouvert l'écran. */
+  function openAddScreen(q, mode) {
     const query = q ?? S.addQ;
     S.addQ = query;
+    if (mode) S.addMode = mode;
+    const identifier = S.addMode === "identifier";
     const hasQ = query !== "";
     const filtres = SEARCH.results
       .map((r, i) => ({ r, i }))
       .filter(({ r }) => S.addKind === "Tout" || (S.addKind === "Films") === (r.k === "Film"));
     const rows = filtres
       .map(({ r, i }) => {
-        const verbe = r.k === "Film" ? "Ajouter" : "Suivre";
+        const verbe = identifier ? "Associer" : r.k === "Film" ? "Ajouter" : "Suivre";
         const fait = S.added.has(i);
-        const cls = fait ? "resbtn done" : r.owned ? "resbtn owned" : "resbtn";
+        const cls = fait ? "resbtn done" : r.owned && !identifier ? "resbtn owned" : "resbtn";
         const lab = fait
-          ? r.k === "Film" ? "✓ Ajouté" : "✓ Suivi"
-          : r.owned ? `${verbe}…` : verbe;
+          ? identifier ? "✓ Associé" : r.k === "Film" ? "✓ Ajouté" : "✓ Suivi"
+          : r.owned && !identifier ? `${verbe}…` : verbe;
         return `<article class="res">
           <button class="rp" data-fiche="${esc(r.t)}" aria-label="Fiche de ${esc(r.t)}">${posterBox(r.t, r.k === "Film" ? "movie" : "show")}</button>
           <div class="rb">
             <span class="rt">${esc(r.t)}</span>
-            <span class="rm">${esc(r.y)} · ${esc(r.k)} · TMDB${r.owned ? " · <b style=\"color:var(--warning)\">déjà en médiathèque</b>" : ""}</span>
+            <span class="rm">${esc(r.y)} · ${esc(r.k)} · TMDB${r.owned ? identifier ? " · <b style=\"color:var(--success)\">déjà en médiathèque</b>" : " · <b style=\"color:var(--warning)\">déjà en médiathèque</b>" : ""}</span>
             <p class="ro">${esc(r.ov)}</p>
             <button class="${cls}" data-add="${i}" ${fait ? "disabled" : ""}>${lab}</button>
           </div>
@@ -5492,8 +5546,17 @@
 
     openScreen(`<div class="fichebar">
       <button class="fback" onclick="__close('screen')">${svg(I.left)}Retour</button>
+      ${identifier ? `<span style="margin-left:auto;font-size:11px;color:var(--muted-foreground)">identifier un dossier</span>` : ""}
     </div>
     <div class="port">
+      ${
+        identifier
+          ? `<div style="padding:12px 14px 0"><div class="surferr" style="border-color:color-mix(in oklab,var(--info) 45%,transparent);background:color-mix(in oklab,var(--info) 8%,transparent)">
+               <b style="color:var(--info)">Identifier « ${esc(baseTitle(S.resolveTarget ?? ""))} »</b>
+               Vous ne créez PAS un suivi : vous dites au pipeline quel média est ce dossier. Il reprendra son scrape — renommage, métadonnées, affiches — puis le rangera en médiathèque.
+             </div></div>`
+          : ""
+      }
       <div class="addform">
         <div class="search">${svg(I.search)}<input type="search" id="addq" value="${esc(query)}" placeholder="Titre du film ou de la série" aria-label="Chercher un média à ajouter"></div>
         <div class="addrow">
@@ -5511,7 +5574,7 @@
              <div style="padding:14px">${emptyHTML("Cherchez un titre.", "Vos recherches récentes sont au-dessus. La recherche part à la validation, jamais à chaque frappe — sinon chaque lettre coûte un appel aux providers.")}</div>`
       }
       <details class="byid">
-        <summary>Ou ajouter par identifiant</summary>
+        <summary>${identifier ? "Ou identifier par identifiant provider" : "Ou ajouter par identifiant"}</summary>
         <div class="byidin">
           <div class="segmini" style="align-self:flex-start">${["TMDB", "TVDB", "IMDB"].map((x) => `<button aria-pressed="${S.idProv === x}" data-idprov="${x}">${x}</button>`).join("")}</div>
           <div class="search"><input id="byidv" placeholder="${S.idProv === "IMDB" ? "tt1234567" : "12e34"}" aria-label="Identifiant ${S.idProv}"></div>
@@ -5575,26 +5638,63 @@
      elles retirent, elles n'ajoutent pas — la couleur dit le sens de l'action. */
   function openProfil(titre) {
     S.profilTitre = titre;
-    const grp = (cle, lab, aide, exclu) => `<div class="qgroup">
-      <h2 class="h2">${lab}</h2>
-      <p class="qhint">${aide}</p>
-      <div class="qrow">${PROFIL[cle].map((x) => `<button class="qchip${exclu ? " exclu" : ""}" aria-pressed="${S.profil[cle].includes(x)}" data-qtog="${cle}|${x}">${x}</button>`).join("")}</div>
-    </div>`;
+    const P = S.profil;
+    const retenus = RELEASES.filter((r) => {
+      const ordre = { "720p": 0, "1080p": 1, "2160p": 2 };
+      if (P.min_resolution && ordre[r.res] < ordre[P.min_resolution]) return false;
+      if (P.required_audio.length) {
+        const tier = r.lang === "VOSTFR" ? "VOSTFR" : r.lang === "VO" ? "VO" : "VF";
+        if (!P.required_audio.includes(tier)) return false;
+      }
+      return true;
+    }).length;
+
     openScreen(`<div class="fichebar">
       <button class="fback" onclick="__close('screen')">${svg(I.left)}Retour</button>
       <span style="margin-left:auto;font-size:11px;color:var(--muted-foreground)">${titre ? esc(baseTitle(titre)) : "profil par défaut"}</span>
     </div>
     <div class="port"><div class="body">
-      <div class="note"><b>Écran neuf.</b> Le bouton « Profil de qualité » existait sans destination. Ce profil décide de ce que le moteur accepte : le modifier change ce qui sera récupéré, donc il doit être visible et modifiable là où on le subit.</div>
-      ${grp("resolutions", "Résolutions acceptées", "Par ordre de préférence — la première disponible l'emporte.", false)}
-      ${grp("sources", "Sources acceptées", "Une source absente d'ici ne sera jamais récupérée.", false)}
-      ${grp("langues", "Langues acceptées", "MULTi contient le français ; VOSTFR ne l'est qu'en sous-titres.", false)}
-      ${grp("exclusions", "Exclusions", "Ces mentions écartent une release, quel que soit son score.", true)}
-      <div class="panel">
-        <div class="kv"><span>Candidats retenus par ce profil</span><span>${RELEASES.filter((r) => S.profil.resolutions.includes(r.res) && S.profil.sources.includes(r.src) && S.profil.langues.includes(r.lang)).length} sur ${RELEASES.length}</span></div>
-        <div class="kv"><span>Portée</span><span>${titre ? "ce suivi" : "tous les suivis"}</span></div>
+
+      <div class="note"><b>Corrigé après vérification du backend.</b> Ma première version de cet écran réglait des « sources acceptées » et des exclusions CAM/TS qui <em>n'existent pas</em> par suivi. Le <code>QualityProfile</code> réel n'a que les quatre champs ci-dessous. Le reste — les poids qui départagent — est global et vit déjà dans <code>/config ?tab=classement</code>.</div>
+
+      <p class="qhint">Ce profil <b>filtre</b> : il élimine ce qui ne conviendra jamais. Il n'ordonne pas — ce qui survit est départagé par le classement global.</p>
+
+      <div class="qgroup">
+        <h2 class="h2">Résolution minimale</h2>
+        <p class="qhint">Un plancher, pas une liste : tout ce qui est en dessous est écarté. « Aucun plancher » laisse passer les sources sans résolution lisible (REMUX, COMPLETE.BLURAY) que le classement note au mérite.</p>
+        <div class="qrow">
+          <button class="qchip" aria-pressed="${P.min_resolution === null}" data-qres="">Aucun plancher</button>
+          ${RESOS.map((r) => `<button class="qchip" aria-pressed="${P.min_resolution === r}" data-qres="${r}">${r} ou mieux</button>`).join("")}
+        </div>
       </div>
+
+      <div class="qgroup">
+        <h2 class="h2">Pistes audio exigées</h2>
+        <p class="qhint">Aucune sélection = aucun filtre de langue. Une release doit porter <b>au moins une</b> des pistes cochées.</p>
+        <div class="qrow">
+          ${AUDIOS.map(([k, l]) => `<button class="qchip" aria-pressed="${P.required_audio.includes(k)}" data-qaud="${k}" title="${esc(l)}">${k}</button>`).join("")}
+        </div>
+      </div>
+
+      <div class="qgroup">
+        <h2 class="h2">Deux verrous</h2>
+        <div class="panel">
+          <div class="kv"><span>Écarter la 3D<br><span class="qhint">Une release SBS / Over-Under est illisible sur un écran 2D. Activé par défaut : c'est un plancher de correction, pas un goût.</span></span>
+            <button class="qchip" aria-pressed="${P.exclude_3d}" data-qflag="exclude_3d">${P.exclude_3d ? "Oui" : "Non"}</button></div>
+          <div class="kv"><span>Refuser une résolution illisible<br><span class="qhint">Par défaut on laisse passer : un nom non analysable est le plus souvent un REMUX, pas un mauvais fichier.</span></span>
+            <button class="qchip" aria-pressed="${P.require_known_resolution}" data-qflag="require_known_resolution">${P.require_known_resolution ? "Oui" : "Non"}</button></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="kv"><span>Candidats retenus par ce profil</span><span>${retenus} sur ${RELEASES.length}</span></div>
+        <div class="kv"><span>Portée</span><span>${titre ? "ce suivi seulement" : "tous les suivis"}</span></div>
+      </div>
+
+      <button class="cfoot" data-toast="Dans l'app, ce bouton mènera à /config ?tab=classement — l'éditeur de classement existe déjà.">${svg(I.sort)}Poids du classement (global) →</button>
+
       <p class="rulenote">Un profil qui n'accepte plus rien se dit : la carte affichera « cherché, rien trouvé » avec la raison, jamais un silence (§8).</p>
+
       <div class="sheetacts">
         <button class="sact primary" data-toast="Profil enregistré — la prochaine recherche l'appliquera.">${svg(I.check)}Enregistrer</button>
       </div>

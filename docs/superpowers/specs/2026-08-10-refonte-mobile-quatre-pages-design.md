@@ -473,6 +473,47 @@ dialog, toast and empty state.
 
 ---
 
+### 5.4 Two verbs must never share a screen
+
+The search surface is reached from two places that mean opposite things, and the maquette
+originally sent both to the same screen — a fault of intent found by the operator:
+
+| Reached from | Intent | Verb | Effect |
+|---|---|---|---|
+| the `+` on Acquisition | **surveiller** a media | « Suivre » / « Ajouter » (§9) | creates a follow; an owned film passes the replacement confirmation (DOIT-8) |
+| a resolution in Arrivées | **identifier** a stuck folder | « Associer » | binds the media so the pipeline resumes its scrape. **No follow is created** — an already-owned media is the expected case, not a warning |
+
+The verb follows the **context that opened the screen**, and the screen states its intent in a
+banner. Proposing « add to follows » where the operator wanted to unblock a folder is not a
+labelling detail: it performs the wrong action.
+
+### 5.5 The per-series quality profile — what the backend actually holds
+
+Verified in `acquire/desired.py`. `QualityProfile` has **four fields, and no others**:
+
+| Field | Meaning | Default |
+|---|---|---|
+| `min_resolution` | a **floor**, not a multi-select — everything below is dropped | `None` (no floor) |
+| `required_audio` | tiers `{VF, VOSTFR, VO}`; a release must carry **at least one** | empty (no language filter) |
+| `require_known_resolution` | fail closed on an unparseable resolution | `False` (fail open — usually a REMUX naming gap) |
+| `exclude_3d` | drop SBS / Over-Under encodes | **`True`** — the one non-permissive default, a correctness floor |
+
+**What is NOT per-series**: the ranking weights (resolution, codec, format, audio, language,
+source, seeders, size, provider) live in `config/ranking.json5` and already have an editor at
+`/config?tab=classement`. **The profile FILTERS (it eliminates); the ranking ORDERS (it breaks
+ties among survivors).** Losing that distinction is how an editor ends up promising settings the
+engine never reads.
+
+**Backend gap to close, and it is bounded.** The profile is *read* at grab time
+(`_pass_gates.resolve_effective_profile` → `_filters`), but `UpdateFollowRequest` deliberately
+excludes `quality_profile` with the comment « do NOT expose an editor until the backend consumes
+it ». Shipping this screen therefore requires **opening the write path**: add the field to the
+PATCH body, validate the four keys, persist to `quality_profile_json`, `make openapi`. Nothing
+else — the read path, the overlay precedence and the hard filter already exist and are tested.
+
+**Out of scope**: `SourceCriteria` (the per-item override) is decode-only with no live producer
+(« no live producer until Follow D4 »). The maquette does not draw it.
+
 ## 8. Delivery
 
 ### 8.1 Integration branch — B12, non-negotiable
