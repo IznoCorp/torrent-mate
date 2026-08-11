@@ -320,6 +320,39 @@ The maquette is **allowed and expected to change** (B15). When implementation re
 region cannot be built as drawn, the maquette is amended **first**, the change is recorded, and
 the code follows. The code never diverges "temporarily".
 
+**This outlives the rebuild.** The maquette is now the engraved design reference for the web UI
+— recorded as **§15 of `docs/reference/product-intent.md`**, in the root `CLAUDE.md`, and in
+`frontend/maquette/README.md`. Every future evolution of the interface starts there: a
+divergence between the app and the maquette is **a defect in the app**, unless the maquette was
+amended first with the reason written down; and nothing ships that the maquette does not show.
+The implementer inherits a reference, not a snapshot.
+
+### 7.1 bis The rule set is the deliverable, not the anecdotes
+
+`regions.json` → `$adversarialReview` carries **31 rules (R1…R31)**, each generalised from a
+defect rather than patched on the case where it was seen, plus `$methodLessons` — what a rule
+that _failed to bite_ taught. `$reportedDefects` lists the defects found by hand, each with its
+test in `harness/bugs.py`.
+
+Three of those lessons bind the implementer directly:
+
+- **A screenshot fingerprint is not an oracle.** Two captures of the same unmodified file
+  diverge on 8 to 15 of the 45 states. Use `getBoundingClientRect` plus a fixed
+  `getComputedStyle` subset — which is what §7.4's probe already does — and, for "is this rule
+  dead?", the exact proof: `querySelectorAll` over every state plus the fact that the code never
+  writes the class.
+- **An audit must announce how many rules it EXECUTED.** "0 violations across 0 rules" reads
+  identically when all is well and when nothing runs.
+- **A rule that never bit proves nothing.** Every rule added must be mutation-tested: break the
+  behaviour on purpose, confirm the rule falls, restore.
+
+### 7.1 ter Source language
+
+Every comment in `frontend/maquette/` — HTML, CSS, JavaScript, Python — is written **in
+English** and carries no reference to a work session, a phase, or a dated decision: it must read
+years from now, out of context. Interface copy quoted inside a comment stays in French, because
+that is what the screen says. The same rule applies to any code derived from the maquette.
+
 ### 7.2 CSS is extracted, never retyped
 
 `scripts/extract-maquette-css.py` reads `frontend/maquette/refonte.html`, lifts its `<style>`
@@ -350,7 +383,7 @@ would re-open solved problems. The maquette therefore **mirrors** them — value
 converted from their Tailwind classes — and they are promoted from harness to **measured
 regions**, so they cannot drift afterwards.
 
-This matters more than it sounds. Every page is composed *inside* the chrome: the scrollport
+This matters more than it sounds. Every page is composed _inside_ the chrome: the scrollport
 height, the bottom reservation, and therefore the density judgement, all depend on it. A region
 measured at zero divergence inside an invented frame can be wrong inside the real one. The first
 version of this maquette had a top bar on `--sidebar` instead of `--background`, no hamburger, a
@@ -360,7 +393,7 @@ Any deliberate change to the chrome is an **exception, named in this spec** — 
 effect of page work.
 
 **One declared divergence.** The real bottom bar is `position: fixed` against the viewport,
-correct in the app where the viewport *is* the phone. Inside a phone frame inset in a wide
+correct in the app where the viewport _is_ the phone. Inside a phone frame inset in a wide
 window, `fixed` would pin it to the window. The maquette overrides it to `absolute` (same for
 the FAB and the selection bar). This lives in `regions.json`'s probe allowlist **with its
 justification** — a declared deviation, not a discovered one.
@@ -373,7 +406,7 @@ converted pages, so three rules keep that honest:
 1. **Never a half-conversion.** A surface speaks the maquette's language or the old one, never
    both. The `.tm` scope class is applied per page, which makes it structural rather than
    disciplinary.
-2. **Not-measured is *declared*.** `regions.json` carries a `horsPerimetre` map naming every
+2. **Not-measured is _declared_.** `regions.json` carries a `horsPerimetre` map naming every
    uncovered surface **and why**. « Not tested » stops being a possible oversight.
 3. **Opposable non-regression.** Their existing component tests plus a screenshot baseline are
    frozen before phase 1 and replayed at every phase. A pixel that moves there fails the build
@@ -431,7 +464,7 @@ comparison is done on data that actually exists.
 ### 7.5 bis Behaviour is part of the contract, not just pixels
 
 The maquette's actions **mutate state**. Grabbing moves the card out of « À récupérer » into
-« En vol » at the *pris* station and decrements the nav badge. Resolving empties « Ça coince ».
+« En vol » at the _pris_ station and decrements the nav badge. Resolving empties « Ça coince ».
 Pause, removal and deletion act, each with an undo where a gesture triggered them.
 
 This exists because a screenshot cannot say « grabbing moves the card ». `harness/actions.py`
@@ -478,10 +511,10 @@ dialog, toast and empty state.
 The search surface is reached from two places that mean opposite things, and the maquette
 originally sent both to the same screen — a fault of intent found by the operator:
 
-| Reached from | Intent | Verb | Effect |
-|---|---|---|---|
-| the `+` on Acquisition | **surveiller** a media | « Suivre » / « Ajouter » (§9) | creates a follow; an owned film passes the replacement confirmation (DOIT-8) |
-| a resolution in Arrivées | **identifier** a stuck folder | « Associer » | binds the media so the pipeline resumes its scrape. **No follow is created** — an already-owned media is the expected case, not a warning |
+| Reached from             | Intent                        | Verb                          | Effect                                                                                                                                    |
+| ------------------------ | ----------------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| the `+` on Acquisition   | **surveiller** a media        | « Suivre » / « Ajouter » (§9) | creates a follow; an owned film passes the replacement confirmation (DOIT-8)                                                              |
+| a resolution in Arrivées | **identifier** a stuck folder | « Associer »                  | binds the media so the pipeline resumes its scrape. **No follow is created** — an already-owned media is the expected case, not a warning |
 
 The verb follows the **context that opened the screen**, and the screen states its intent in a
 banner. Proposing « add to follows » where the operator wanted to unblock a folder is not a
@@ -491,12 +524,12 @@ labelling detail: it performs the wrong action.
 
 Verified in `acquire/desired.py`. `QualityProfile` has **four fields, and no others**:
 
-| Field | Meaning | Default |
-|---|---|---|
-| `min_resolution` | a **floor**, not a multi-select — everything below is dropped | `None` (no floor) |
-| `required_audio` | tiers `{VF, VOSTFR, VO}`; a release must carry **at least one** | empty (no language filter) |
-| `require_known_resolution` | fail closed on an unparseable resolution | `False` (fail open — usually a REMUX naming gap) |
-| `exclude_3d` | drop SBS / Over-Under encodes | **`True`** — the one non-permissive default, a correctness floor |
+| Field                      | Meaning                                                         | Default                                                          |
+| -------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `min_resolution`           | a **floor**, not a multi-select — everything below is dropped   | `None` (no floor)                                                |
+| `required_audio`           | tiers `{VF, VOSTFR, VO}`; a release must carry **at least one** | empty (no language filter)                                       |
+| `require_known_resolution` | fail closed on an unparseable resolution                        | `False` (fail open — usually a REMUX naming gap)                 |
+| `exclude_3d`               | drop SBS / Over-Under encodes                                   | **`True`** — the one non-permissive default, a correctness floor |
 
 **What is NOT per-series**: the ranking weights (resolution, codec, format, audio, language,
 source, seeders, size, provider) live in `config/ranking.json5` and already have an editor at
@@ -504,7 +537,7 @@ source, seeders, size, provider) live in `config/ranking.json5` and already have
 ties among survivors).** Losing that distinction is how an editor ends up promising settings the
 engine never reads.
 
-**Backend gap to close, and it is bounded.** The profile is *read* at grab time
+**Backend gap to close, and it is bounded.** The profile is _read_ at grab time
 (`_pass_gates.resolve_effective_profile` → `_filters`), but `UpdateFollowRequest` deliberately
 excludes `quality_profile` with the comment « do NOT expose an editor until the backend consumes
 it ». Shipping this screen therefore requires **opening the write path**: add the field to the
@@ -513,6 +546,65 @@ else — the read path, the overlay precedence and the hard filter already exist
 
 **Out of scope**: `SourceCriteria` (the per-item override) is decode-only with no live producer
 (« no live producer until Follow D4 »). The maquette does not draw it.
+
+### 5.6 The media sheet — one template, and it is reached from everywhere
+
+The media sheet is the surface most often reached and the one that most easily grows two faces.
+Four rules make it single, each with a rule in `regions.json` → `$adversarialReview`.
+
+**The visual is the top of the sheet (R26).** A wide TMDB backdrop occupies the top band at
+full width, sharp, in the flow, and melts into the body colour through a closing gradient; the
+title sits under it, overlapping the melt's lower edge. There is no thumbnail beside the title —
+the visual already is the anchor. Three precautions carry it: the gradient closes on a solid
+colour _before_ the text, opacity and saturation are capped, and no information lives in the
+image. A medium with no backdrop degrades to a short muted field — a declared difference, and
+the only one. Verified in **both themes**: a light-theme-only regression already happened here
+when a deletion left an orphan selector.
+
+**One back control, in the flow (R28).** Exactly one design, on every screen that has one. It
+lives in the flow so it _pushes_ content instead of covering it — a floating variant over the
+image created a second design that overlapped the title on screens without an image. No text
+sits closer than 8px to it.
+
+**The trailer always opens YouTube (R27).** A trailer is a real `<a>` to
+`https://www.youtube.com/watch?v=…`, `target="_blank"`, `rel="noopener"`, offered wherever one
+arrives from — library, acquisitions or Découvrir. **Playback never happens in the app**, even
+when a local trailer file exists next to the media. The backend already exposes
+`trailer_url` on the media model; file presence is a separate fact and must not change this
+control.
+
+**Sections are identical everywhere (R13).** Fixed order: hero → trailer → synopsis → cast →
+library state → seasons (series) → identifiers → actions. The only variations are the ones
+nature imposes. Sections that are optional by nature (no trailer, unknown catalogue) do not
+count as divergence. The conformity sample is **drawn from the data** — complete, incomplete,
+without visual, film, series — never from a fixed handful of states: sampling five frozen
+states is exactly how a divergence stayed invisible.
+
+**A library card opens the media sheet, never the acquisition sheet (R31).** A card's
+destination follows the page it lives on. Opening « Récupérer maintenant / Mettre en pause »
+from the library created a second sheet design whose content also varied with the follow state.
+« Compléter → Acquisition » remains the path to acquisition.
+
+### 5.7 Seasons and missing episodes — the answer is _which_, not _how many_
+
+For an incomplete series the operator's question is **which episodes are missing**. Two rules.
+
+**Presence is read, never inferred (R29).** Episode presence comes from the **list of owned
+episode numbers**, per season, derived from `library.db` (an episode counts if it carries at
+least one file). A `number <= owned count` threshold assumes the hole sits at the end of the
+season and is **false for 35 series in this library** — one shipped example owns episodes
+1, 3, 5, 7, 9, 11, 13 and was displayed as owning 1 to 7. The same threshold existed in the
+follow sheet and must go there too.
+
+**One season rendering (R30).** Seasons are derived from the provider catalogue crossed with
+the owned numbers, and every season renders the same way: expandable, complete seasons
+collapsed, incomplete ones open and carrying « N manquant(s) », the missing numbers named in
+readable ranges (« Manquants : 2, 4, 6, 8, 10, 12 ») above the list, then the episodes with
+their air date and a subtle state dot. The numbered matrix is the **declared fallback** when a
+provider gives no episode titles — never a second design chosen by accident.
+
+Three cases stay honest rather than invented: an unknown aired total shows `?` and reasons only
+up to the highest owned episode; an announced season shows « à venir »; nothing known says so.
 
 ## 8. Delivery
 
