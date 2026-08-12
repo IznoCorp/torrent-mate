@@ -4085,6 +4085,26 @@
      surface disappears the moment that surface is displayed differently: the
      poster view of « Incomplets » had no way to complete a series, because the
      only « Compléter » was a button drawn on a card. */
+  /* The card DESCRIPTOR — every list builds one of these and nothing else.
+
+       t        title, and the identity everything else is addressed by
+       k        kind, for the poster's aspect
+       s        sub-line
+       r        reason, when the card must justify a state
+       f        fraction, in mono
+       chip     [tone, label]
+       caption  a numeric aside, after the chip
+       fresh    marks what has just arrived
+       strip    the progress strip
+       noposter forces the placeholder even when a sheet exists
+
+     Anything a view wants to show that is not in here is a fact the card does
+     not yet know about — the fix is to add the fact, not a second builder. A
+     view that passes ready-made HTML makes the card an envelope, and an
+     envelope guarantees nothing about what it carries.
+
+     opts carries what belongs to the LIST rather than to the medium: an
+     inline action, and whether it is the section's primary one. */
   function cardHTML(o, opts) {
     opts = opts || {};
     // A poster is a button only if a sheet genuinely EXISTS.
@@ -4094,17 +4114,38 @@
     const poster = o.noposter || !aFiche
       ? `<span class="poster" title="Média non identifié — pas de fiche disponible"><span class="pfall"><b>?</b></span></span>`
       : `<button class="poster" aria-label="Fiche de ${esc(o.t)}" data-fiche="${esc(o.t)}">${posterBox(o.t, o.k)}</button>`;
-    return `<div class="card">
+    const meta = `${o.f ? `<span class="frac">${esc(o.f)}</span>` : ""}${chipHTML(o.chip)}${o.caption ? `<span class="caption">${esc(o.caption)}</span>` : ""}${o.fresh ? `<span class="freshtag">Nouveau</span>` : ""}`;
+    return `<div class="card${o.fresh ? " fresh" : ""}">
     <div class="ctop">${poster}
       <button class="cbody" data-panel="media:${esc(o.t)}">
         <span class="ctitle" title="${esc(o.t)}">${esc(o.t)}</span>
         ${o.s ? `<span class="csub">${esc(o.s)}</span>` : ""}
         ${o.r ? `<span class="creason">${esc(o.r)}</span>` : ""}
-        <span class="cmeta">${o.f ? `<span class="frac">${esc(o.f)}</span>` : ""}${chipHTML(o.chip)}</span>
+        <span class="cmeta">${meta}</span>
       </button>
     </div>
     ${o.strip ? stripHTML(o.strip) : ""}
     ${opts.foot ? `<button class="cfoot ${opts.footSolid ? "solid" : ""}" data-act="${esc(opts.footAct || "")}">${esc(opts.foot)}</button>` : ""}
+  </div>`;
+  }
+
+  /* A RELEASE is not a medium, and its card is deliberately a different object.
+     A release has no media sheet and no panel — it is one candidate among
+     several for a medium that is already named elsewhere on the screen. Giving
+     it a card that addresses a panel would promise a sheet that cannot exist.
+
+     It is marked `data-nonmedia` so the contract check can tell the two apart
+     by construction rather than by knowing which screens draw which. */
+  function releaseCardHTML(titre, meta, confiance) {
+    return `<div class="card" data-nonmedia="release">
+    <div class="ctop"><span class="poster">${posterBox(titre)}</span>
+      <span class="cbody">
+        <span class="ctitle">${esc(titre)}</span>
+        <span class="csub">${esc(meta)}</span>
+        <span class="cmeta"><span class="chip info">confiance ${esc(confiance)}</span></span>
+      </span>
+    </div>
+    <button class="cfoot solid" data-resolve="${esc(titre)}">C'est celui-ci</button>
   </div>`;
   }
 
@@ -4340,31 +4381,21 @@
           a.t.localeCompare(b.t, "fr"),
       );
 
-      /* Meta line: fraction (mono) · status chip · numeric caption. In «
-         grouped » mode the status LEAVES the line — it lives in the section
-         header, because nothing repeats. */
-      const metaOf = (o, showStatus) => {
-        const bits = [];
-        const fr = stFraction(o);
-        if (fr != null) bits.push(`<span class="frac">${fr}</span>`);
-        if (showStatus) bits.push(`<span class="chip ${ST_TONE[o.st]}">${esc(stLabel(o))}</span>`);
-        if (o.st === "en_attente")
-          bits.push(`<span class="caption">${o.k === "movie" ? "1 en attente" : "en attente"}</span>`);
-        if (o.fresh) bits.push(`<span class="freshtag">Nouveau</span>`);
-        return bits.join("");
-      };
+      /* A follow, described as a CARD. The meta line is fraction (mono) ·
+         status chip · numeric caption. In « grouped » mode the status LEAVES
+         the line — it lives in the section header, because nothing repeats. */
+      const descripteurSuivi = (o, showStatus) => ({
+        t: o.t,
+        k: o.k,
+        f: stFraction(o) ?? undefined,
+        chip: showStatus ? [ST_TONE[o.st], stLabel(o)] : undefined,
+        caption: o.st === "en_attente" ? (o.k === "movie" ? "1 en attente" : "en attente") : undefined,
+        fresh: o.fresh,
+      });
 
       const rowOf = (o, showStatus) =>
         swipeHTML(
-          `<div class="card${o.fresh ? " fresh" : ""}">
-            <div class="ctop">
-              <button class="poster" data-fiche="${esc(o.t)}" aria-label="Fiche de ${esc(o.t)}">${posterBox(o.t, o.k)}</button>
-              <button class="cbody" data-panel="media:${esc(o.t)}">
-                <span class="ctitle" title="${esc(o.t)}">${esc(o.t)}</span>
-                <span class="cmeta">${metaOf(o, showStatus)}</span>
-              </button>
-            </div>
-          </div>`,
+          cardHTML(descripteurSuivi(o, showStatus)),
           o.k === "movie"
             ? `<button class="act pause" data-swipeact="pause">${svg(I.x)}Ne plus chercher</button><button class="act remove" data-swipeact="remove">${svg(I.trash)}Retirer</button>`
             : `<button class="act pause" data-swipeact="pause">${svg(I.x)}Pause</button><button class="act remove" data-swipeact="remove">${svg(I.trash)}Retirer</button>`,
@@ -4372,13 +4403,10 @@
 
       const tileOf = (o) => {
         const b = gridBadge(o);
-        const fr = stFraction(o) ?? (o.st === "disabled" ? "en pause" : String(o.y));
-        return `<button class="tile${o.st === "disabled" ? " off" : ""}" data-fiche="${esc(o.t)}" data-panel="media:${esc(o.t)}">
-          <span class="p">${posterBox(o.t, o.k)}</span>
-          ${b ? `<span class="tilebadge" style="background:var(--${b.tone === "muted" ? "neutral-signal" : b.tone === "en_attente" ? "waiting" : b.tone === "en_acquisition" ? "info" : "warning"})">${b.txt}</span>` : ""}
-          <span class="nm">${esc(o.t)}</span>
-          <span class="fr">${esc(fr)}</span>
-        </button>`;
+        return tileHTML(o, stFraction(o) ?? (o.st === "disabled" ? "en pause" : String(o.y)), {
+          muted: o.st === "disabled",
+          badge: b,
+        });
       };
 
       let content;
@@ -4524,7 +4552,7 @@
         "Séries incomplètes",
         "47",
         S.libMode === "grid"
-          ? `<div class="grid">${INCOMPLETE.map((o) => libTileHTML(o, `${o.o}/${o.a} épisodes`)).join("")}</div>`
+          ? `<div class="grid">${INCOMPLETE.map((o) => tileHTML(o, `${o.o}/${o.a} épisodes`)).join("")}</div>`
           : INCOMPLETE.map((o) =>
               cardHTML(
                 {
@@ -4558,7 +4586,7 @@
     const grid = rows
       .map(
         (o) =>
-          libTileHTML(o, o.f),
+          tileHTML(o, o.f),
       )
       .join("");
     const list = rows
@@ -4744,25 +4772,39 @@
   let sugObserver = null;
   let libObserver = null;
 
-  /* ONE tile for every library lens. A lens that draws its own tile drifts from
-     its neighbours one detail at a time — and the whole point of a gallery is
-     that its pictures are comparable. The sub-line carries whatever the lens
-     came to answer: « année · type » for browsing, a fraction for what is
-     incomplete, a date for what is recent.
+  /* ONE tile, in every gallery of the interface — the library's three lenses
+     and the follows grid alike. A gallery that draws its own tile drifts from
+     its neighbours one detail at a time, and the whole point of a gallery is
+     that its pictures are comparable.
 
-     The tile does not change at rest: the selection checkbox exists ONLY in
-     selection mode, and the long press stays a pixel-free affordance.
+     The sub-line carries whatever the gallery came to answer: « année · type »
+     for browsing, a fraction for what is incomplete, a date for what is
+     recent, a status for what is followed.
+
+     At most ONE overlay sits on the poster, and the two that exist cannot
+     coexist: the selection checkbox belongs to selection mode, where the
+     status badge is not drawn.
+
+     The tile does not change at rest: the checkbox exists only in selection
+     mode, and the long press stays a pixel-free affordance.
 
      The panel is addressed by TITLE, never by index. An index belongs to the
      list currently on screen, not to the medium, so it means something
-     different in each lens — and a numeric title (« 1917 ») read as an index
-     opens the panel of whatever film sits at that rank. */
-  function libTileHTML(o, sousLigne, i) {
-    const sel = S.selMode && i != null;
-    const on = sel && S.selected.has(i);
-    return `<button class="tile" ${i != null ? `data-tile="${i}"` : ""} data-panel="media:${esc(o.t)}" ${sel ? `aria-selected="${on}"` : `data-fiche="${esc(o.t)}"`}>
+     different in each gallery — and a numeric title (« 1917 ») read as an
+     index opens the panel of whatever film sits at that rank. */
+  function tileHTML(o, sousLigne, opts) {
+    opts = opts || {};
+    const sel = S.selMode && opts.index != null;
+    const on = sel && S.selected.has(opts.index);
+    const b = opts.badge;
+    const teinte = b
+      ? b.tone === "muted" ? "neutral-signal"
+        : b.tone === "en_attente" ? "waiting"
+          : b.tone === "en_acquisition" ? "info" : "warning"
+      : null;
+    return `<button class="tile${opts.muted ? " off" : ""}" ${opts.index != null ? `data-tile="${opts.index}"` : ""} data-panel="media:${esc(o.t)}" ${sel ? `aria-selected="${on}"` : `data-fiche="${esc(o.t)}"`}>
       <span class="p">${posterBox(o.t, o.k)}</span>
-      ${sel ? `<span class="sel">${svg(I.check, 3)}</span>` : ""}
+      ${sel ? `<span class="sel">${svg(I.check, 3)}</span>` : b ? `<span class="tilebadge" style="background:var(--${teinte})">${esc(b.txt)}</span>` : ""}
       <span class="nm">${esc(o.t)}</span>
       <span class="fr">${esc(sousLigne)}</span>
     </button>`;
@@ -4958,7 +5000,7 @@
       return;
     }
     box.innerHTML = src.slice(0, S.libCount)
-      .map((o, i) => (grid ? libTileHTML(o, o.f, i) : libRowHTML(o, i)))
+      .map((o, i) => (grid ? tileHTML(o, o.f, { index: i }) : libRowHTML(o, i)))
       .join("");
     paintSelBar();
     paintLibCount();
@@ -6504,10 +6546,7 @@
           t,
           m,
           s,
-        ]) => `<div class="card"><div class="ctop"><span class="poster">${posterBox(t)}</span>
-        <span class="cbody"><span class="ctitle">${t}</span><span class="csub">${m}</span>
-        <span class="cmeta"><span class="chip info">confiance ${s}</span></span></span></div>
-        <button class="cfoot solid" data-resolve="${esc(t)}">C'est celui-ci</button></div>`,
+        ]) => releaseCardHTML(t, m, s),
       )
       .join("")}
     <div class="empty"><b>Aucun de ceux-là ?</b>La recherche manuelle s'ouvre pré-remplie avec le nom du dossier. Jamais un cul-de-sac (DOIT-7).

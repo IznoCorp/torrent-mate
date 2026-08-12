@@ -917,7 +917,10 @@
       "An action drawn on ONE surface is an action the interface does not really have. « Compléter » existed only as a button on a card, so the poster view of the same list could not complete anything. R43, the rule written for it, found the identical hole in « Récupérer » and « Résoudre » the first time it ran — neither had been reported.",
       "Two builders for one object drift apart in silence. A medium had a rich panel from a card and a thin one from a gallery, and neither carried every action. Deriving ONE panel from what is true about the medium — followed, incomplete, in the library, blocked — makes the two paths equal by construction rather than by vigilance.",
       "A rule can encode the workaround instead of the concern. R31 forbade library cards from opening the acquisition sheet, because that sheet offered follow actions to media nobody followed. Fixing the cause made the rule fail on correct code. Rewrite such a rule onto what it protects.",
-      "A failing check must still REPORT. Breaking R41 on purpose made the run crash inside R43 on a null it no longer guarded: the exit code was right and the output was a stack trace. A rule whose failure buries the other findings is half a rule."
+      "A failing check must still REPORT. Breaking R41 on purpose made the run crash inside R43 on a null it no longer guarded: the exit code was right and the output was a stack trace. A rule whose failure buries the other findings is half a rule.",
+      "Uniformity is measurable: breaking the shared card builder on purpose now produces 332 failures across every list, where the same edit once reached only the lists that happened to use it. Three views rebuilt a card by hand, and one of them had already drifted.",
+      "« One component with variable display » fails when the variation is named after appearance. The card takes a DESCRIPTOR of facts — fraction, chip, caption, fresh — and a view that wants something not in it must add the fact, never pass ready-made markup. An envelope guarantees nothing about what it carries.",
+      "Not everything that looks like a card is one. The release candidate shares the markup and is a different object: no sheet, no panel. Forcing it into the shared component would have made it promise both. It is marked instead, so the contract check tells them apart by construction rather than by knowing which screens draw which."
     ],
     "R27": "A trailer ALWAYS opens in YouTube, never inside the application, and the sheet offers it wherever one arrives from. A real anchor, a conformant watch URL, target=_blank and noopener; no promise of in-app playback.",
     "R28": "Exactly ONE back-control design, compatible with every page, in the flow so it pushes content instead of covering it — and never text glued closer than 8px to it.",
@@ -938,6 +941,7 @@
     "R42": "A card poster opens the media SHEET, whenever that medium has one.",
     "R43": "An action offered inline on a card is ALSO in that medium's panel. No action is reachable from a single surface.",
     "R44": "The same medium reached from a card and from a gallery opens the SAME panel, action for action.",
-    "R45": "A tile addresses its panel by title, never by list index."
+    "R45": "A tile addresses its panel by title, never by list index.",
+    "R46": "A card that is not a medium declares it (`data-nonmedia`), and promises neither a media sheet nor a panel. A release is one candidate among several for a medium named elsewhere on the screen; it has no sheet of its own."
   }
 }

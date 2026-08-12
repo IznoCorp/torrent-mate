@@ -139,7 +139,7 @@ One file, four jobs:
   rather than implied.
 - **`regions`** — what `parity-probe.py` measures, each naming the states it is visible in,
   so the probe never has to guess how to reach a card state.
-- **`$adversarialReview`** — the rule set (R1…R45) plus `$methodLessons`: what each rule
+- **`$adversarialReview`** — the rule set (R1…R46) plus `$methodLessons`: what each rule
   exists for, and what a rule that failed to bite taught. `$reportedDefects` lists the
   defects found by hand, each with its test in `harness/bugs.py`.
 
@@ -220,7 +220,41 @@ to the list on screen rather than to the medium, so it means something different
 in each lens, and a numeric title (« 1917 ») read as an index opens the panel of
 whatever film sits at that rank.
 
-`harness/cartes.py` proves all of it; R41–R45 in `regions.json` state it.
+### Two builders, and a descriptor between them
+
+The contract above is enforced by there being **one builder per shape**, not one per
+screen:
+
+| Shape | Builder | Who uses it |
+|---|---|---|
+| Card | `cardHTML(descripteur, opts)` | every list — urgency sections, follows, library, arrivals |
+| Tile | `tileHTML(o, sousLigne, opts)` | every gallery — the library's three lenses, the follows grid |
+| Release card | `releaseCardHTML(...)` | the resolution and release screens — **not a medium** |
+| Selection row | `libRowHTML` | a mode of the LIST, not a variant of the card |
+
+Three views used to rebuild a card by hand. One of them had already drifted, and it
+took a separate edit to bring it back in line — the kind of edit that is silently
+forgotten. Breaking the shared builder on purpose now produces **332 failures across
+every list**; the same edit once reached only the lists that happened to use it.
+
+**The card takes a descriptor of FACTS**, listed in the source next to the function:
+title, kind, sub-line, reason, fraction, chip, caption, fresh, strip. A view that
+wants to show something not in that list is describing a fact the card does not yet
+know about — the fix is to add the fact, never to pass ready-made markup. *An envelope
+guarantees nothing about what it carries.* This is what keeps « one component with
+variable display » from turning into a component with a dozen appearance flags.
+
+**A tile is not a card with a flag.** It is a different layout — all poster, name
+below — so it stays a separate builder. What the two share is the descriptor and the
+behaviour contract, which is where the guarantees actually live.
+
+**Not everything that looks like a card is one.** A release candidate shares the markup
+and is a different object: it has no sheet and no panel, because it is one candidate
+among several for a medium already named on the screen. It says so with
+`data-nonmedia`, so the check tells them apart by construction rather than by knowing
+which screen draws which (R46).
+
+`harness/cartes.py` proves all of it; R41–R46 in `regions.json` state it.
 
 ## A trap that cost real time: **screenshots are not an oracle**
 
@@ -281,7 +315,7 @@ They are committed because they encode recipes that cost time to get right.
 | `states.py` | all 45 named states render, without overflow or JS error |
 | `audit.py` | rules R1–R10 and R20–R23 across every state, and it announces how many rules it EXECUTED |
 | `audit2.py` | rules R11–R17 and R26–R31: uniformity, honesty of the text, one back design, one season rendering, episode presence against the data, a panel that never offers an action the medium does not support |
-| `cartes.py` | rules R41–R45: the card contract — poster to the sheet, body to the panel, no action reachable from a single surface, the same panel from a card and from a gallery |
+| `cartes.py` | rules R41–R46: the card contract — poster to the sheet, body to the panel, no action reachable from a single surface, the same panel from a card and from a gallery |
 | `export.py` | every BLOCK 2 class is classified; fails on dead CSS or on a class missing from the allowlist |
 | `bugs.py` | one test per defect found by hand |
 | `inter.py` | swipe, infinite scroll, load error + retry, delete dialog |

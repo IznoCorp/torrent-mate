@@ -398,6 +398,16 @@ the two paths equal by construction instead of by vigilance; it is also what ret
 older form of R31, which forbade a destination rather than protecting the concern (a panel
 offering « Mettre en pause » for a medium nobody follows).
 
+**One builder per shape, not per screen.** `cardHTML` serves every list, `tileHTML` every
+gallery. A tile is not a card with a flag — it is a different layout — so what the two share is
+the descriptor and the behaviour contract, not the markup. A release candidate has its own
+builder: it is not a medium, it has no sheet and no panel, and it says so with `data-nonmedia`
+(R46). The card takes a **descriptor of facts** — title, kind, sub-line, reason, fraction, chip,
+caption, fresh, strip — and a view that wants something outside that list is naming a fact the
+card does not know yet. Add the fact; never pass ready-made markup, because an envelope
+guarantees nothing about what it carries. Props naming an appearance (`dense`, `compact`,
+`showChip`) are the failure mode this exists to avoid.
+
 An element states **which** panel it addresses (`data-panel="media:<title>"`) and never how to
 build it. Addressing it by list index is forbidden: an index belongs to the list on screen
 rather than to the medium, and a numeric title (« 1917 ») read as an index opens the panel of

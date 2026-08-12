@@ -24,8 +24,9 @@ from playwright.async_api import async_playwright
 
 URL = "http://127.0.0.1:8899/wrapped.html"
 
-# Every state that draws cards. Screens whose cards belong to an open overlay
-# are covered through the state that opens them.
+# Every state that draws cards, overlays included. The list was once shorter,
+# and the two screens missing from it — resolution and release choice — were
+# exactly the two drawing a card that is not a medium.
 ETATS_CARTES = [
     "acq-encours-repos",
     "acq-encours-charge",
@@ -36,6 +37,9 @@ ETATS_CARTES = [
     "lib-recents",
     "arr-repos",
     "arr-charge",
+    "arr-resolution",
+    "ecran-releases",
+    "acq-identifier",
 ]
 
 # States drawing tiles, and how to reach the tile layout from them.
@@ -114,6 +118,7 @@ async def main():
                     const b=c.querySelector('.cbody');
                     const p=c.querySelector('.poster');
                     return {titre:c.querySelector('.ctitle')?.textContent||'',
+                            nonMedia:c.dataset.nonmedia||null,
                             panneau:b?b.dataset.panel||null:null,
                             feuilleDirecte:b?b.dataset.sheet||null:null,
                             posterEstBouton:p?p.tagName==='BUTTON':false,
@@ -123,8 +128,18 @@ async def main():
             if not releve:
                 echecs.append(f"R41 {etat}: no card at all — the state draws nothing")
                 continue
-            executees += 2
+            executees += 3
             for c in releve:
+                # R46 — a card that is not a medium says so, and promises
+                # neither a sheet nor a panel. A release is one candidate among
+                # several for a medium already named on the screen; it has no
+                # sheet of its own, and offering one would be a dead promise.
+                if c["nonMedia"]:
+                    if c["panneau"]:
+                        echecs.append(f"R46 {etat} « {c['titre']} »: a {c['nonMedia']} addresses a media panel")
+                    if c["posterEstBouton"]:
+                        echecs.append(f"R46 {etat} « {c['titre']} »: a {c['nonMedia']} offers a media sheet")
+                    continue
                 if not c["panneau"]:
                     echecs.append(f"R41 {etat} « {c['titre']} »: the body addresses no panel")
                 if c["feuilleDirecte"]:
@@ -135,7 +150,9 @@ async def main():
                     echecs.append(f"R42 {etat} « {c['titre']} »: the poster is a button leading nowhere")
                 if not c["posterEstBouton"] and not c["posterInerte"]:
                     echecs.append(f"R42 {etat} « {c['titre']} »: no poster at all")
-            print(f"  R41/R42 {etat:22} {len(releve):3} cards")
+            horsMedia = sum(1 for c in releve if c["nonMedia"])
+            print(f"  R41/R42 {etat:22} {len(releve):3} cards"
+                  + (f" ({horsMedia} non-media)" if horsMedia else ""))
 
         # ---- R43 -------------------------------------------------------
         for etat in ETATS_CARTES:
@@ -145,7 +162,7 @@ async def main():
                 await mode(pg, "list")
             inlines = await pg.evaluate(
                 """()=>[...document.querySelectorAll('.card')]
-                    .filter(c=>c.querySelector('.cfoot'))
+                    .filter(c=>c.querySelector('.cfoot') && !c.dataset.nonmedia)
                     .map(c=>({titre:c.querySelector('.ctitle')?.textContent||'',
                               action:c.querySelector('.cfoot').textContent.trim(),
                               panneau:c.querySelector('.cbody')?.dataset.panel||null}))"""

@@ -35,6 +35,14 @@
   addresses (`data-panel="media:<title>"`) and never how to build it; addressing it by list
   index is forbidden. `frontend/maquette/harness/cartes.py` is the executable form of this
   contract — port it, do not re-derive it.
+- **One builder per SHAPE, not per screen.** `cardHTML` serves every list, `tileHTML`
+  every gallery; a release candidate has its own builder because it is not a medium
+  (no sheet, no panel — marked `data-nonmedia`, R46), and the selection row is a mode
+  of the list rather than a variant of the card. The card takes a **descriptor of
+  facts** — title, kind, sub-line, reason, fraction, chip, caption, fresh, strip. A
+  view wanting something outside that list is naming a fact the card does not know
+  yet: add the fact, never pass ready-made markup. Props that name an appearance
+  (`dense`, `compact`, `showChip`) are the failure mode this avoids.
 
 
 > **Test fixtures — read this before writing a backend test.** This repository has

@@ -66,7 +66,7 @@ cannot fail, and a script that cannot fail is a report nobody is obliged to read
 ## What the prototype already settles
 
 These were argued, measured and recorded. Re-opening one costs a day; the reasons are in
-`frontend/maquette/regions.json` → `$adversarialReview` (46 rules) and `$methodLessons` (20).
+`frontend/maquette/regions.json` → `$adversarialReview` (47 rules) and `$methodLessons` (23).
 
 - **The prototype is the reference.** A divergence between the app and it is a defect in the app,
   unless the prototype was amended first with the reason written down.
@@ -82,6 +82,10 @@ These were argued, measured and recorded. Re-opening one costs a day; the reason
   panel, a gallery tile answers a long press. The panel carries EVERY action for that medium;
   an inline button is a shortcut, never the only way in. The panel is derived from what is true
   about the medium, so the one reached from a gallery equals the one reached from a card.
+- **One builder per shape, not per screen.** `cardHTML` for every list, `tileHTML` for every
+  gallery, a separate builder for a release candidate (not a medium: no sheet, no panel). The
+  card takes a descriptor of FACTS; a view wanting something outside it adds the fact rather
+  than passing markup. Breaking the shared builder now fails 332 checks across every list.
 - **One season rendering**, within a sheet and across sheets.
 - **Identify is not follow.** Resolving a stuck folder associates a medium so the pipeline
   finishes; it never creates a follow.
