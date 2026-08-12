@@ -288,7 +288,7 @@ Create `frontend/src/components/ds/SwipeRow.test.tsx`:
 
 ```tsx
 import { render } from "@testing-library/react";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { SwipeRow } from "./SwipeRow";
 
 test("the row claims the horizontal axis", () => {
@@ -303,6 +303,35 @@ test("the row claims the horizontal axis", () => {
   );
   const row = container.firstElementChild as HTMLElement;
   expect(row.style.touchAction).toBe("pan-y");
+});
+
+test("the drag ends are listened for on the window, not on the scrollport", () => {
+  // A touch is captured implicitly by the element that received the start; a
+  // mouse is not. Released outside the frame, the up never reaches a listener
+  // bound to the scrollport and the gesture hangs half-done — invisible to a
+  // touch test, fatal to a mouse one.
+  const spy = vi.spyOn(window, "addEventListener");
+  render(
+    <SwipeRow actions={<button type="button">Retirer</button>}>
+      <span>Silo</span>
+    </SwipeRow>,
+  );
+  const events = spy.mock.calls.map(([name]) => name);
+  expect(events).toContain("pointerup");
+  spy.mockRestore();
+});
+
+test("images inside the row do not start the browser's native picture drag", () => {
+  // Dragging a picture is a browser default and it swallows the pointer stream:
+  // the handler gets a couple of moves and never an up.
+  const { container } = render(
+    <SwipeRow actions={<button type="button">Retirer</button>}>
+      <img src="data:," alt="" />
+    </SwipeRow>,
+  );
+  const img = container.querySelector("img") as HTMLElement;
+  expect(img.style.userDrag || getComputedStyle(img).getPropertyValue("-webkit-user-drag"))
+    .not.toBe("auto");
 });
 
 test("the actions are rendered behind the row", () => {

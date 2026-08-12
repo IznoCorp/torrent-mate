@@ -102,7 +102,7 @@ that view was checked, and another page shipped blank.
 ## Every state has a name, and knows how to reach itself
 
 `window.__go("<id>")` drives the prototype into a state **without clicking**.
-`window.__states()` returns the 45 ids. The **≡** button in the harness opens a panel listing
+`window.__states()` returns the 47 ids. The **≡** button in the harness opens a panel listing
 them all.
 
 This is what makes the parity probe deterministic. Without it, measuring "the blocked card"
@@ -118,14 +118,14 @@ Three orthogonal dials the panel exposes:
 | Surface phase | `prete` · `chargement` · `erreur` | every surface goes through all three |
 | TMDB account | connected · not | Découvrir's full vs degraded mode |
 
-The 45 states cover: the five urgency sections in both scenarios, Suivis in its three modes
+The 47 states cover: the five urgency sections in both scenarios, Suivis in its three modes
 plus its two empty cases, Découvrir full / degraded / exhausted / loading, the add screen idle
 and with real results, the follow sheet on a 22-season complete catalogue and on a holed one,
 the journey sheet, the "⋮" sheet, the library in grid and list, its empty search, its three
 lenses, selection mode, single and bulk delete dialogs, loading and error on every surface,
 the resolution screen, the media sheet in its variants, the navigation drawer, and Système.
 
-`harness/states.py` drives all 45 and asserts each one renders content, has no horizontal
+`harness/states.py` drives all 47 and asserts each one renders content, has no horizontal
 overflow and raises no JS error. **A state that renders nothing fails the pass.**
 
 ## `regions.json` — the extraction contract and the measurement map
@@ -187,7 +187,7 @@ judged. Both are labelled as such in the design notes.
 
 ## A trap that cost real time: **screenshots are not an oracle**
 
-Two captures of the **same, unmodified file** disagreed on 8 to 15 of the 45 states. Skeleton
+Two captures of the **same, unmodified file** disagreed on 8 to 15 of the 47 states. Skeleton
 shimmer, the media-sheet header entrance, async decode of the embedded WebP visuals: none of
 it settles on a schedule you can wait out reliably. Freezing animations and awaiting
 `img.decode()` narrowed it and did not close it.
@@ -200,7 +200,7 @@ was correct all along.
 "is this rule dead?", there is an exact answer that needs no oracle:
 
 ```js
-document.querySelectorAll('.act.grab').length   // over all 45 states → 0 means it can never apply
+document.querySelectorAll('.act.grab').length   // over all 47 states → 0 means it can never apply
 ```
 
 combined with "the source never writes this class name" (so no interaction can produce it).

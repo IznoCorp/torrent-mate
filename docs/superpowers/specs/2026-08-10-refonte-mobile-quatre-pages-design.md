@@ -400,6 +400,26 @@ up to the highest owned episode; an announced season shows « à venir »; nothi
 
 ## 6. Gestures and platform invariants
 
+**Every gesture answers a pointer, not only a finger (R35).** The handlers listen for pointer
+events, so one path serves finger, mouse and pen — the interface is used from a desktop browser
+too, including at a phone width, and a gesture that only answers a thumb is a gesture half the
+sessions cannot reach. Three things a touch-only implementation never meets:
+
+- **The end of a drag is listened for on the window.** A touch is captured implicitly by the
+  element that received the start; a mouse is not, so a release outside the frame never reaches a
+  listener bound to the scrollport, and the gesture hangs half-done.
+- **Images inside a draggable surface disable the browser's native picture drag.** Dragging a
+  picture is a browser default and it swallows the pointer stream outright: the handler receives
+  a couple of moves and never an up.
+- **The axis claim stays in `touch-action`.** It is what makes a real touch gesture arrive at all,
+  and no synthetic event exercises it — so it is asserted on the declaration itself.
+
+**A long press opens the actions of whatever poster is under the finger (R36),** in every gallery.
+In a poster format the tile has no body to tap — the poster fills it — so without this the verbs
+the other formats offer would be unreachable there.
+
+
+
 The app frame is already paid for: `AppShell` is one viewport tall (`h-svh overflow-clip`) with
 a single named scrollport. New pages inherit it.
 
