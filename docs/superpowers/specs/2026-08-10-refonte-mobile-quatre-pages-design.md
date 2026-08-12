@@ -372,10 +372,36 @@ count as divergence. The conformity sample is **drawn from the data** — comple
 without visual, film, series — never from a fixed handful of states: sampling five frozen
 states is exactly how a divergence stayed invisible.
 
-**A library card opens the media sheet, never the acquisition sheet (R31).** A card's
-destination follows the page it lives on. Opening « Récupérer maintenant / Mettre en pause »
-from the library created a second sheet design whose content also varied with the follow state.
-« Compléter → Acquisition » remains the path to acquisition.
+**One card, one behaviour, and one panel per medium (R31, R41–R45).** This contract holds in
+every list of the interface, and it is the reference for anything added later.
+
+- The **poster** opens the media sheet — one tap, the most frequent path.
+- The **card body** opens the bottom panel.
+- A **gallery tile** is all poster, so its tap is already spoken for: there the panel answers
+  a **long press**.
+- The **panel carries every action** available for that medium, including any action also
+  drawn inline on a card.
+- An **inline action** appears only where a section exists *for* that action (« À récupérer »,
+  « Ça coince »). It is a shortcut, never the only way in.
+
+The last two clauses are the ones that matter. An action reachable from a single surface
+disappears the moment that surface is displayed differently: the poster view of « Incomplets »
+offered no way to complete a series, because the only « Compléter » was a button drawn on a
+card and a gallery draws no cards. When R43 was first run it found the same hole in
+« Récupérer » and in « Résoudre ».
+
+**The panel is derived, never passed in.** One builder reads what is true about the medium —
+followed, incomplete, in the library, to grab, blocked, has a sheet — and every action follows
+from that, including which one is primary. Two builders existed before, one reached from a
+card and one from a gallery, and neither offered everything. Deriving one panel is what makes
+the two paths equal by construction instead of by vigilance; it is also what retires the
+older form of R31, which forbade a destination rather than protecting the concern (a panel
+offering « Mettre en pause » for a medium nobody follows).
+
+An element states **which** panel it addresses (`data-panel="media:<title>"`) and never how to
+build it. Addressing it by list index is forbidden: an index belongs to the list on screen
+rather than to the medium, and a numeric title (« 1917 ») read as an index opens the panel of
+whatever film sits at that rank.
 
 ### 5.7 Seasons and missing episodes — the answer is _which_, not _how many_
 

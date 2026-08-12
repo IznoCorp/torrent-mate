@@ -348,25 +348,40 @@ async def main():
              f"{len(rendus['matrice'])} en matrice (ex. {rendus['matrice'][0]})")
 
     evalue('R31')
-    # R31 — from the LIBRARY, a card opens the media sheet, never the
-    # acquisition sheet. Opening « Récupérer maintenant / Mettre en pause »
-    # from the library created a second sheet design, whose content also
-    # varied depending on whether the title was followed.
+    # R31 — a card body opens the panel, and that panel offers follow actions
+    # ONLY for a medium that is actually followed.
+    #
+    # What this guards has not changed, only where it is enforced. Offering
+    # « Mettre en pause » or « Retirer le suivi » from the library produced a
+    # panel whose content varied with something the screen never showed —
+    # whether the title happened to be followed. The panel is now built from
+    # what is true about the medium, so the rule checks that derivation instead
+    # of forbidding a destination.
     dest=await pg.evaluate("""async ()=>{const out=[];
+      const suivis=new Set(W.follows.map(x=>x.t));
       for (const etat of ['lib-incomplets','lib-liste','lib-recents']) {
         for (let i=0; i<6; i++) {
           window.__go(etat); await new Promise(r=>setTimeout(r,300));
+          const bascule=document.querySelector('[data-lmode="list"]');
+          if (bascule) { bascule.click(); await new Promise(r=>setTimeout(r,260)); }
           const cartes=[...document.querySelectorAll('#view .card .cbody')];
           if (i>=cartes.length) break;
-          const titre=cartes[i].querySelector('.ctitle')?.textContent?.slice(0,26) ?? '?';
-          cartes[i].click(); await new Promise(r=>setTimeout(r,260));
-          if (document.querySelector('#sheet').classList.contains('open'))
-            out.push(`${etat} · « ${titre} » opens the acquisition sheet`);
-          else if (!document.querySelector('#screen').classList.contains('open'))
-            out.push(`${etat} · « ${titre} » opens nothing`);
+          const complet=cartes[i].querySelector('.ctitle')?.textContent ?? '?';
+          const titre=complet.slice(0,26);
+          cartes[i].click(); await new Promise(r=>setTimeout(r,300));
+          const feuille=document.querySelector('#sheet');
+          if (!feuille.classList.contains('open')) { out.push(`${etat} · « ${titre} » opens nothing`); continue; }
+          const actions=[...feuille.querySelectorAll('.sact')].map(x=>x.textContent.trim());
+          if (!suivis.has(complet)) {
+            for (const a of actions)
+              if (/^(Mettre en pause|Ne plus chercher|Retirer)/.test(a))
+                out.push(`${etat} · « ${titre} » is not followed yet offers « ${a} »`);
+          }
+          document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+          await new Promise(r=>setTimeout(r,260));
         }
       } return out;}""")
-    for x in dest: note("R31 library card with the wrong destination", x)
+    for x in dest: note("R31 panel offering an action the medium does not support", x)
 
     print()
     if not viol: print("No violations on this second pass.")

@@ -37,7 +37,7 @@ it Chrome falls back to the legacy 980px layout viewport and every measurement i
 ```bash
 cd frontend/maquette/harness
 for s in audit audit2 states sweep scen dest scroll filtres actions deck souris \
-         inter sel bugs ident pop suivis surfaces export; do
+         cartes galerie inter sel bugs ident pop suivis surfaces export; do
   python3 $s.py > /dev/null || echo "FAILED: $s"
 done
 ```
@@ -66,7 +66,7 @@ cannot fail, and a script that cannot fail is a report nobody is obliged to read
 ## What the prototype already settles
 
 These were argued, measured and recorded. Re-opening one costs a day; the reasons are in
-`frontend/maquette/regions.json` → `$adversarialReview` (37 rules) and `$methodLessons` (15).
+`frontend/maquette/regions.json` → `$adversarialReview` (46 rules) and `$methodLessons` (20).
 
 - **The prototype is the reference.** A divergence between the app and it is a defect in the app,
   unless the prototype was amended first with the reason written down.
@@ -78,6 +78,10 @@ These were argued, measured and recorded. Re-opening one costs a day; the reason
   hole is at the end of a season; it is false for 35 series in this library.
 - **A trailer always opens YouTube**, never in-app playback, wherever one arrives from.
 - **One back control**, in the flow, on every screen that has one.
+- **One card, one behaviour.** The poster opens the media sheet, the card body opens the bottom
+  panel, a gallery tile answers a long press. The panel carries EVERY action for that medium;
+  an inline button is a shortcut, never the only way in. The panel is derived from what is true
+  about the medium, so the one reached from a gallery equals the one reached from a card.
 - **One season rendering**, within a sheet and across sheets.
 - **Identify is not follow.** Resolving a stuck folder associates a medium so the pipeline
   finishes; it never creates a follow.

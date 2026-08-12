@@ -4074,6 +4074,17 @@
     return c ? `<span class="chip ${c[0]}">${esc(c[1])}</span>` : "";
   }
 
+  /* ONE card, one behaviour, in every list of the interface:
+       · the POSTER opens the media sheet — the most frequent path, one tap;
+       · the BODY opens the bottom panel, which carries every action available
+         for that medium;
+       · an inline action, when a section exists FOR that action, is a shortcut
+         to something the panel also offers — never the only way to reach it.
+
+     The last clause is the one that matters. An action reachable from a single
+     surface disappears the moment that surface is displayed differently: the
+     poster view of « Incomplets » had no way to complete a series, because the
+     only « Compléter » was a button drawn on a card. */
   function cardHTML(o, opts) {
     opts = opts || {};
     // A poster is a button only if a sheet genuinely EXISTS.
@@ -4085,11 +4096,7 @@
       : `<button class="poster" aria-label="Fiche de ${esc(o.t)}" data-fiche="${esc(o.t)}">${posterBox(o.t, o.k)}</button>`;
     return `<div class="card">
     <div class="ctop">${poster}
-      <button class="cbody" ${
-        opts.vers === "fiche" && aFiche
-          ? `data-fiche="${esc(o.t)}"`
-          : `data-sheet="${esc(o.t)}"`
-      }>
+      <button class="cbody" data-panel="media:${esc(o.t)}">
         <span class="ctitle" title="${esc(o.t)}">${esc(o.t)}</span>
         ${o.s ? `<span class="csub">${esc(o.s)}</span>` : ""}
         ${o.r ? `<span class="creason">${esc(o.r)}</span>` : ""}
@@ -4352,7 +4359,7 @@
           `<div class="card${o.fresh ? " fresh" : ""}">
             <div class="ctop">
               <button class="poster" data-fiche="${esc(o.t)}" aria-label="Fiche de ${esc(o.t)}">${posterBox(o.t, o.k)}</button>
-              <button class="cbody" data-sheet="${esc(o.t)}">
+              <button class="cbody" data-panel="media:${esc(o.t)}">
                 <span class="ctitle" title="${esc(o.t)}">${esc(o.t)}</span>
                 <span class="cmeta">${metaOf(o, showStatus)}</span>
               </button>
@@ -4366,7 +4373,7 @@
       const tileOf = (o) => {
         const b = gridBadge(o);
         const fr = stFraction(o) ?? (o.st === "disabled" ? "en pause" : String(o.y));
-        return `<button class="tile${o.st === "disabled" ? " off" : ""}" data-fiche="${esc(o.t)}" data-panel="follow:${esc(o.t)}">
+        return `<button class="tile${o.st === "disabled" ? " off" : ""}" data-fiche="${esc(o.t)}" data-panel="media:${esc(o.t)}">
           <span class="p">${posterBox(o.t, o.k)}</span>
           ${b ? `<span class="tilebadge" style="background:var(--${b.tone === "muted" ? "neutral-signal" : b.tone === "en_attente" ? "waiting" : b.tone === "en_acquisition" ? "info" : "warning"})">${b.txt}</span>` : ""}
           <span class="nm">${esc(o.t)}</span>
@@ -4477,19 +4484,6 @@
     );
   }
 
-  /* ONE tile for every library lens. A lens that draws its own tile is a lens
-     that drifts from its neighbours one detail at a time — and the whole point
-     of a gallery is that its pictures are comparable. The sub-line carries
-     whatever the lens came to answer: « année · type » for browsing, a fraction
-     for what is incomplete, a date for what is recent. */
-  function libTileHTML(o, sousLigne) {
-    return `<button class="tile" data-fiche="${esc(o.t)}" data-panel="lib:${esc(o.t)}">
-      <span class="p">${posterBox(o.t, o.k)}</span>
-      <span class="nm">${esc(o.t)}</span>
-      <span class="fr">${esc(sousLigne)}</span>
-    </button>`;
-  }
-
   function viewLibrary() {
     const lenses = [
       { id: "cat", l: "Médias" },
@@ -4539,7 +4533,6 @@
                   f: `${o.o}/${o.a}`,
                   chip: ["warning", "Incomplet"],
                 },
-                { foot: "Compléter → Acquisition", vers: "fiche" },
               ),
             ).join(""),
       )}
@@ -4571,7 +4564,7 @@
     const list = rows
       .map((o) =>
         swipeHTML(
-          cardHTML({ t: o.t, s: o.f }, { vers: "fiche" }),
+          cardHTML({ t: o.t, s: o.f }),
           `<button class="act remove" data-swipeact="del" data-del="${esc(o.t)}">${svg(I.trash)}Supprimer</button>`,
         ),
       )
@@ -4751,16 +4744,27 @@
   let sugObserver = null;
   let libObserver = null;
 
-  /* The tile does not change at rest: the selection checkbox exists ONLY in
-     selection mode, and long-press remains a pixel-free affordance. */
-  function libTileHTML(o, i) {
-    const sel = S.selMode;
-    const on = S.selected.has(i);
-    return `<button class="tile" data-tile="${i}" data-panel="lib:${i}" ${sel ? `aria-selected="${on}"` : `data-fiche="${esc(o.t)}"`}>
+  /* ONE tile for every library lens. A lens that draws its own tile drifts from
+     its neighbours one detail at a time — and the whole point of a gallery is
+     that its pictures are comparable. The sub-line carries whatever the lens
+     came to answer: « année · type » for browsing, a fraction for what is
+     incomplete, a date for what is recent.
+
+     The tile does not change at rest: the selection checkbox exists ONLY in
+     selection mode, and the long press stays a pixel-free affordance.
+
+     The panel is addressed by TITLE, never by index. An index belongs to the
+     list currently on screen, not to the medium, so it means something
+     different in each lens — and a numeric title (« 1917 ») read as an index
+     opens the panel of whatever film sits at that rank. */
+  function libTileHTML(o, sousLigne, i) {
+    const sel = S.selMode && i != null;
+    const on = sel && S.selected.has(i);
+    return `<button class="tile" ${i != null ? `data-tile="${i}"` : ""} data-panel="media:${esc(o.t)}" ${sel ? `aria-selected="${on}"` : `data-fiche="${esc(o.t)}"`}>
       <span class="p">${posterBox(o.t, o.k)}</span>
       ${sel ? `<span class="sel">${svg(I.check, 3)}</span>` : ""}
       <span class="nm">${esc(o.t)}</span>
-      <span class="fr">${esc(o.f)}</span>
+      <span class="fr">${esc(sousLigne)}</span>
     </button>`;
   }
   /* Multiple selection must work in BOTH modes: it existed only on tiles,
@@ -4776,7 +4780,7 @@
       </button>`;
     }
     return swipeHTML(
-      cardHTML({ t: o.t, s: o.f }, { vers: "fiche" }),
+      cardHTML({ t: o.t, s: o.f }),
       `<button class="act remove" data-swipeact="del" data-del="${esc(o.t)}">${svg(I.trash)}Supprimer</button>`,
     );
   }
@@ -4809,22 +4813,37 @@
     document.querySelector("#device").appendChild(bar);
   }
 
+  /* Reads the panel an element addresses.
+     Split on the FIRST colon only: titles carry their own — « Dexter:
+     Resurrection » would otherwise address a panel for « Dexter ». */
+  function refPanel(el) {
+    const s = el.dataset.panel;
+    const i = s.indexOf(":");
+    return { genre: s.slice(0, i), ref: s.slice(i + 1) };
+  }
+
+  /* Opens the panel an element addresses. One entry point, so a surface that
+     wants a panel states WHICH one and never how to build it. */
+  function openPanel(el) {
+    const { genre, ref } = refPanel(el);
+    if (genre === "sug") openSugSheet(Number(ref));
+    else openFollowSheet(ref);
+  }
+
   let pressTimer = null;
   port.addEventListener(
     "pointerdown",
     (e) => {
-      // ONE pattern for every poster gallery: a tap opens the media sheet, a
-      // long press opens the bottom panel. Which panel is stated by the tile
-      // itself, so a new gallery declares its destination instead of teaching
-      // the handler a new special case.
+      /* The long press is the GALLERY's gesture, and only the gallery's.
+         There the tile IS the poster, so a tap is already spoken for by the
+         media sheet, and the panel needs a second gesture. A card has a body
+         of its own and opens the panel on a simple tap — arming a timer on it
+         would fire the panel twice, once on the press and once on the click. */
       const cible = e.target.closest("[data-panel]");
-      if (S.selMode || !cible) return;
-      const [genre, ref] = cible.dataset.panel.split(":");
+      if (S.selMode || !cible || cible.classList.contains("cbody")) return;
       pressTimer = window.setTimeout(() => {
         pressTimer = null;
-        if (genre === "lib") openLibSheet(/^\d+$/.test(ref) ? Number(ref) : ref);
-        else if (genre === "sug") openSugSheet(Number(ref));
-        else if (genre === "follow") openFollowSheet(ref);
+        openPanel(cible);
       }, 480);
     },
     { passive: true },
@@ -4868,19 +4887,6 @@
   /* Accepts an index into the library or a plain title: the gallery of a lens
      shows rows that are not library indices, and a panel that only answers an
      index would be unreachable from half the galleries. */
-  function openLibSheet(ref) {
-    const o = typeof ref === "number" ? LIB[ref] : LIB.find((x) => x.t === ref) ?? { t: ref };
-    openSheet(`
-      <h3 class="sheettitle">${esc(o.t)}</h3>
-      <p class="sheetmeta">${esc(o.f)} · en médiathèque</p>
-      <div class="sheetacts">
-        <button class="sact primary" data-fiche="${esc(o.t)}">${svg(I.eye)}Voir la fiche</button>
-        <button class="sact">${svg(I.refresh)}Re-scraper les métadonnées</button>
-      </div>
-      <div class="sheetacts secondary">
-        <button class="sact danger" data-del="${esc(o.t)}">${svg(I.trash)}Supprimer de la médiathèque</button>
-      </div>`);
-  }
 
   function paintLibCount() {
     const el = document.querySelector("#libcount");
@@ -4952,7 +4958,7 @@
       return;
     }
     box.innerHTML = src.slice(0, S.libCount)
-      .map((o, i) => (grid ? libTileHTML(o, i) : libRowHTML(o, i)))
+      .map((o, i) => (grid ? libTileHTML(o, o.f, i) : libRowHTML(o, i)))
       .join("");
     paintSelBar();
     paintLibCount();
@@ -6029,17 +6035,41 @@
       openDetailSheet(b.dataset.sheet);
       return;
     }
+    /* A card body opens the panel on a simple tap. The gallery reaches the
+       same panel by a long press, handled where the press is timed. */
+    if (b.dataset.panel) {
+      openPanel(b);
+      return;
+    }
+    if (b.dataset.completer) {
+      S.page = "acq";
+      S.acqTab = "maintenant";
+      closeSheet();
+      render();
+      toast(`« ${baseTitle(b.dataset.completer)} » : recherche des épisodes manquants lancée.`);
+      return;
+    }
+    if (b.dataset.resolve) {
+      const t = b.dataset.resolve;
+      closeSheet();
+      setTimeout(() => openResolve(t), 260);
+      return;
+    }
+    if (b.dataset.recuperer) {
+      const t = b.dataset.recuperer;
+      closeSheet();
+      setTimeout(() => actionRecuperer(t), 260);
+      return;
+    }
+    if (b.dataset.rescrape) {
+      toast(`« ${baseTitle(b.dataset.rescrape)} » : métadonnées à re-récupérer au prochain passage.`);
+      return;
+    }
     if (b.classList.contains("cfoot")) {
       const t = b.closest(".card")?.querySelector(".ctitle")?.textContent ?? "";
       const lab = b.textContent.trim();
       if (lab.startsWith("Récupérer")) return actionRecuperer(t);
       if (lab.startsWith("Résoudre")) return openResolve(t);
-      if (lab.startsWith("Compléter")) {
-        S.page = "acq";
-        S.acqTab = "maintenant";
-        render();
-        return toast(`« ${baseTitle(t)} » : recherche des épisodes manquants lancée.`);
-      }
       toast("Action lancée — le résultat s'affichera ici.");
       return;
     }
@@ -6603,6 +6633,21 @@
       { t: title, k: "show", st: "a_jour" };
     const seasons = (SEASONS[title] || []).slice().sort((a, b) => b[0] - a[0]);
     const isFilm = o.k === "movie";
+    /* What is TRUE about this medium, gathered once. Every action below is
+       derived from these three facts and nothing else — never from the screen
+       the panel was opened from. That is what makes the panel the same object
+       everywhere, instead of a family of look-alikes. */
+    const incomplet = INCOMPLETE.some((x) => x.t === title);
+    const suivi = W.follows.some((x) => x.t === title);
+    const enMediatheque = incomplet || LIB.some((x) => x.t === title);
+    /* Read from the SAME derivations the urgency sections read. A section that
+       computes what to grab while the panel computes it separately is two
+       answers to one question, and they part company on the first change. */
+    const aRecuperer = D.takeable().some((x) => x.t === title);
+    const aResoudre = D.blocked().concat(D.stuck()).some((x) => x.t === title);
+    // An unidentified release has no sheet. Offering to open one is the same
+    // broken promise as a poster that leads nowhere.
+    const aFiche = fiche(title) != null;
     const own = seasons.reduce((n, s) => n + s[2], 0);
     const aired = seasons.reduce((n, s) => n + s[1], 0);
     /* One derivation: the card's fraction, the header's, and the sum of the
@@ -6627,7 +6672,26 @@
         </div>
       </div>
       <div class="sheetacts">
-        <button class="sact primary" data-sheetprim="${esc(o.t)}|${o.st}">${svg(I.play)}${o.st === "a_recuperer" ? "Récupérer maintenant" : "Chercher maintenant"}</button>
+        ${
+          /* The primary action answers the medium's STATE, not the screen it
+             came from — which is why it is read from the derivations above and
+             not passed in. Blocked outranks everything: nothing else can
+             happen until it is resolved. Then what can be grabbed, then what
+             is incomplete, then what is merely watched. A medium that is owned
+             and whole has nothing left to chase, so the panel leads to its
+             sheet rather than offering a search that would find nothing. */
+          aResoudre
+            ? `<button class="sact primary" data-resolve="${esc(o.t)}">${svg(I.play)}Résoudre →</button>`
+            : aRecuperer
+              ? `<button class="sact primary" data-recuperer="${esc(o.t)}">${svg(I.play)}Récupérer maintenant</button>`
+              : incomplet
+                ? `<button class="sact primary" data-completer="${esc(o.t)}">${svg(I.play)}Compléter → Acquisitions</button>`
+                : suivi
+                  ? `<button class="sact primary" data-sheetprim="${esc(o.t)}|${o.st}">${svg(I.play)}${o.st === "a_recuperer" ? "Récupérer maintenant" : "Chercher maintenant"}</button>`
+                  : aFiche
+                    ? `<button class="sact primary" data-fiche="${esc(o.t)}">${svg(I.eye)}Voir la fiche</button>`
+                    : `<button class="sact primary" data-journey="${esc(o.t)}">${svg(I.refresh)}Voir le parcours</button>`
+        }
       </div>
       ${
         seasons.length
@@ -6638,12 +6702,35 @@
             : `<p class="rulenote">Aucune donnée de saison connue pour cette série — le catalogue n'a pas encore été récupéré. La fraction affiche « — », jamais « 0/0 » qui se lirait comme une série vide.</p>`
       }
       <div class="sheetacts secondary">
-        <button class="sact" data-fiche="${esc(o.t)}">${svg(I.eye)}Voir la fiche</button>
+        ${
+          /* « Voir la fiche » is reachable from the panel whenever a sheet
+             exists. It is omitted only when it is ALREADY the primary action,
+             which happens for a medium that is owned and whole. */
+          aFiche && (aResoudre || aRecuperer || incomplet || suivi)
+            ? `<button class="sact" data-fiche="${esc(o.t)}">${svg(I.eye)}Voir la fiche</button>`
+            : ""
+        }
         <button class="sact" data-journey="${esc(o.t)}">${svg(I.refresh)}Voir le parcours</button>
-        <button class="sact" data-releases="${esc(o.t)}">${svg(I.search)}Chercher une autre release</button>
-        <button class="sact" data-profil="${esc(o.t)}">${svg(I.sort)}Profil de qualité</button>
-        <button class="sact" data-pause="${esc(o.t)}">${svg(I.x)}${isFilm ? "Ne plus chercher" : "Mettre en pause"}</button>
-        <button class="sact danger" data-retirer="${esc(o.t)}">${svg(I.trash)}${isFilm ? "Retirer de la liste" : "Retirer le suivi"}</button>
+        ${
+          /* Chasing a release only means something for a medium still being
+             acquired. Offered on a complete one it is a button that can only
+             disappoint. */
+          suivi || incomplet || aRecuperer
+            ? `<button class="sact" data-releases="${esc(o.t)}">${svg(I.search)}Chercher une autre release</button>
+               <button class="sact" data-profil="${esc(o.t)}">${svg(I.sort)}Profil de qualité</button>`
+            : ""
+        }
+        ${enMediatheque ? `<button class="sact" data-rescrape="${esc(o.t)}">${svg(I.refresh)}Re-scraper les métadonnées</button>` : ""}
+        ${
+          /* Pausing or dropping a follow requires a follow. An incomplete
+             series in the library is not one: nothing is watching it, so
+             there is nothing to stop. */
+          suivi
+            ? `<button class="sact" data-pause="${esc(o.t)}">${svg(I.x)}${isFilm ? "Ne plus chercher" : "Mettre en pause"}</button>
+               <button class="sact danger" data-retirer="${esc(o.t)}">${svg(I.trash)}${isFilm ? "Retirer de la liste" : "Retirer le suivi"}</button>`
+            : ""
+        }
+        ${enMediatheque ? `<button class="sact danger" data-del="${esc(o.t)}">${svg(I.trash)}Supprimer de la médiathèque</button>` : ""}
       </div>
       ${isFilm ? `<p class="rulenote">Une fois acquis, ce film quittera automatiquement votre liste (§5).</p>` : ""}
     `);

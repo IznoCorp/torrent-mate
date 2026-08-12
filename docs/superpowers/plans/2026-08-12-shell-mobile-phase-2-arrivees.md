@@ -21,6 +21,17 @@
 - **Frontend gates on every commit:** `npx tsc -b --noEmit`, `npx eslint src`, `npx vitest run`, `make check-frontend`.
 - **Comments in English**, with no reference to a session, a phase number, or a dated decision. Interface copy stays French.
 - **Commits:** Conventional Commits, scope `(shell-mobile)`. No AI attribution. **Version bump on every PR.**
+- **One card, one behaviour, and one panel per medium (R31, R41–R45).** In every list:
+  the **poster** opens the media sheet; the **card body** opens the bottom panel; a **gallery
+  tile**, being all poster, answers a **long press** for the panel. The **panel carries every
+  action** available for that medium, and an inline action on a card is a shortcut to
+  something the panel also offers — never the only way in. The panel is **derived** from what
+  is true about the medium (followed, incomplete, in the library, to grab, blocked, has a
+  sheet), never passed in by the calling screen: that is what makes the panel reached from a
+  gallery identical to the one reached from a card. An element states **which** panel it
+  addresses (`data-panel="media:<title>"`) and never how to build it; addressing it by list
+  index is forbidden. `frontend/maquette/harness/cartes.py` is the executable form of this
+  contract — port it, do not re-derive it.
 
 - **Resolving must FINISH the pipeline, not label a folder.** Choosing a candidate relaunches
   the scrape and the medium completes its whole pipeline — metadata, posters, trailer,

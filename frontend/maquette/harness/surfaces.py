@@ -29,7 +29,8 @@ async def main():
 
     print("── matrice de saisons ──")
     await pg.click('[data-acqtab="suivis"]'); await pg.wait_for_timeout(350)
-    await pg.click("[data-sheet='American Dad!']"); await pg.wait_for_timeout(500)
+    # A card body addresses its panel; it no longer opens a sheet of its own.
+    await pg.click('[data-panel="media:American Dad!"]'); await pg.wait_for_timeout(500)
     r=await pg.evaluate("""()=>{const s=document.querySelector('#sheet');
       const ss=[...s.querySelectorAll('.season')];
       return {saisons:ss.length, ordre:ss.slice(0,3).map(x=>x.querySelector('summary').textContent.replace(/\\s+/g,' ').trim()),

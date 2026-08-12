@@ -139,7 +139,7 @@ One file, four jobs:
   rather than implied.
 - **`regions`** — what `parity-probe.py` measures, each naming the states it is visible in,
   so the probe never has to guess how to reach a card state.
-- **`$adversarialReview`** — the rule set (R1…R36) plus `$methodLessons`: what each rule
+- **`$adversarialReview`** — the rule set (R1…R45) plus `$methodLessons`: what each rule
   exists for, and what a rule that failed to bite taught. `$reportedDefects` lists the
   defects found by hand, each with its test in `harness/bugs.py`.
 
@@ -185,6 +185,42 @@ judged. Both are labelled as such in the design notes.
 - **R8 — an author `display` rule beats `[hidden]`.** A class declaring `display: grid` made
   `el.hidden = true` do nothing. Any class declaring a `display` must declare its own hidden
   case.
+
+## One card, one behaviour — and one panel per medium
+
+This is the contract every list in the interface obeys. It is written here because
+it is the kind of thing that gets re-decided per screen, and then the screens
+disagree.
+
+- The **poster** opens the media sheet. One tap, the most frequent path.
+- The **card body** opens the bottom panel.
+- A **gallery tile** is all poster, so the tap is already spoken for: there the
+  panel answers a **long press**.
+- The **panel carries every action** available for that medium — including any
+  action also drawn inline on a card.
+- An **inline action** exists only where a section exists *for* that action
+  (« À récupérer », « Ça coince »). It is a shortcut, never the only way in.
+
+The last two clauses are the ones that matter. An action reachable from a single
+surface disappears the moment that surface is displayed differently: the poster
+view of « Incomplets » offered no way to complete a series, because the only
+« Compléter » was a button drawn on a card, and a gallery draws no cards. When
+the rule that forbids this (R43) was first run, it found the same hole in
+« Récupérer » and in « Résoudre » — neither of which anyone had reported.
+
+**The panel is derived, not passed in.** One builder reads what is true about the
+medium — followed, incomplete, in the library, to grab, blocked, has a sheet —
+and every action follows from that. This is what makes the panel reached from a
+gallery identical to the panel reached from a card, by construction rather than
+by vigilance. Two builders existed before, and neither offered everything.
+
+An element states **which** panel it addresses (`data-panel="media:<title>"`) and
+never how to build it. Addressing it by list index is forbidden: an index belongs
+to the list on screen rather than to the medium, so it means something different
+in each lens, and a numeric title (« 1917 ») read as an index opens the panel of
+whatever film sits at that rank.
+
+`harness/cartes.py` proves all of it; R41–R45 in `regions.json` state it.
 
 ## A trap that cost real time: **screenshots are not an oracle**
 
@@ -244,7 +280,8 @@ They are committed because they encode recipes that cost time to get right.
 | `scen.py` | the same sweep across both data scenarios, with explicit sub-view reset between runs |
 | `states.py` | all 45 named states render, without overflow or JS error |
 | `audit.py` | rules R1–R10 and R20–R23 across every state, and it announces how many rules it EXECUTED |
-| `audit2.py` | rules R11–R17 and R26–R31: uniformity, honesty of the text, one back design, one season rendering, episode presence against the data |
+| `audit2.py` | rules R11–R17 and R26–R31: uniformity, honesty of the text, one back design, one season rendering, episode presence against the data, a panel that never offers an action the medium does not support |
+| `cartes.py` | rules R41–R45: the card contract — poster to the sheet, body to the panel, no action reachable from a single surface, the same panel from a card and from a gallery |
 | `export.py` | every BLOCK 2 class is classified; fails on dead CSS or on a class missing from the allowlist |
 | `bugs.py` | one test per defect found by hand |
 | `inter.py` | swipe, infinite scroll, load error + retry, delete dialog |
