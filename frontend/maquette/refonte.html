@@ -12172,10 +12172,85 @@
     }
   }
 
-  window.addEventListener("popstate", () => {
+  /* ── LE RETOUR SUIT LE CHEMIN PARCOURU ────────────────────────────────
+
+     Only the LAYERS used to push history, so the back gesture closed a sheet
+     and then, with nothing left to close, left the application — losing every
+     page the operator had walked through. A tab is a place one navigates to;
+     it belongs in the history exactly as a screen does.
+
+     Every navigation now pushes where it came FROM, so popping restores it.
+     Driving the prototype from the harness does not: `__go` is not a journey,
+     and a measurement must not depend on how many states ran before it.
+
+     At the bottom of the stack a GUARD entry sits, so a back at the root has
+     something to pop and the application is never left by surprise. Popping it
+     says so and puts it back; a second back within five seconds does not put
+     it back, and lets the stack run out — which is what closes an installed
+     app on Android. A page cannot close itself; exhausting its history is the
+     only thing it can honestly do. */
+  const RETOUR_FENETRE = 5000;
+  let pilotage = false;
+  let sortieArmee = 0;
+
+  function etatDeNavigation() {
+    return {
+      tm: "nav",
+      page: state.page,
+      acqTab: state.acqTab,
+      libLens: state.libLens,
+      libMode: state.libMode,
+      libCat: state.libCat,
+    };
+  }
+
+  /* Records where the operator has ARRIVED. The pushed entry carries the state
+     one is now in, so it is the CURRENT entry and popping it lands on the
+     previous arrival. Pushing the state being left instead puts the history
+     one step ahead of the interface, and every back then overshoots by one —
+     measured, and it is the mistake this ordering exists to avoid. */
+  function noterLeChemin() {
+    if (pilotage) return;
+    try {
+      history.pushState(etatDeNavigation(), "");
+    } catch (error) {}
+  }
+
+  window.addEventListener("popstate", (evenement) => {
+    // A layer first: it is what sits on top, and it is what a back closes.
     if (select("#drawer").classList.contains("open")) return fermerTiroir(true);
     if (select("#screen").classList.contains("open")) return closeScreen(true);
     if (select("#sheet").classList.contains("open")) return closeSheet(true);
+
+    const etat = evenement.state;
+    if (etat && etat.tm === "nav") {
+      sortieArmee = 0;
+      pilotage = true;
+      applyState({
+        page: etat.page,
+        acqTab: etat.acqTab,
+        libLens: etat.libLens,
+        libMode: etat.libMode,
+        libCat: etat.libCat,
+      });
+      pilotage = false;
+      return;
+    }
+
+    // The guard was popped: there is nowhere left to go back to.
+    const maintenant = Date.now();
+    if (sortieArmee && maintenant - sortieArmee < RETOUR_FENETRE) {
+      sortieArmee = 0;
+      // Nothing is put back: from the guard, one more back leaves the
+      // document — which is what closes an installed app on Android.
+      history.back();
+      return;
+    }
+    sortieArmee = maintenant;
+    // Where one IS is pushed back on, so the route does not change and the
+    // next back lands on the guard again.
+    noterLeChemin();
+    toast("Encore un retour pour quitter TorrentMate.");
   });
 
   select("#scrim").onclick = () => {
@@ -12863,7 +12938,14 @@
     // mutations of a previous one. `__go(id, {keep:true})` preserves
     // state, to chain an action scenario.
     if (!opts?.keep) window.__reset();
-    found[2]();
+    // Driving is not a journey: a measurement must not depend on how many
+    // states ran before it.
+    pilotage = true;
+    try {
+      found[2]();
+    } finally {
+      pilotage = false;
+    }
     return stateId;
   };
   window.__states = () => STATES.map((STATES2) => STATES2[0]);
@@ -13032,6 +13114,7 @@
       state.page = closest.dataset.page;
       port.scrollTop = 0;
       render();
+      noterLeChemin();
       return;
     }
     if (closest.dataset.go) {
@@ -13039,12 +13122,14 @@
       if (closest.dataset.go === "acq") state.acqTab = "maintenant";
       port.scrollTop = 0;
       render();
+      noterLeChemin();
       return;
     }
     if (closest.dataset.acqtab) {
       state.acqTab = closest.dataset.acqtab;
       port.scrollTop = 0;
       render();
+      noterLeChemin();
       return;
     }
     if (closest.dataset.lens) {
@@ -13054,6 +13139,7 @@
       state.libErr = false;
       port.scrollTop = 0;
       render();
+      noterLeChemin();
       return;
     }
     if (closest.dataset.cat) {
@@ -36070,6 +36156,13 @@
      a timer: a timer would either uncover a frame that is not drawn yet or hold
      a ready interface hostage, and both are visible. */
   masquerDemarrage();
+  /* The guard is the FIRST entry, and the opening page sits on top of it. It
+     cannot be anywhere else: nothing can be inserted below the entry a
+     document opens on, so the guard has to BE that entry. */
+  try {
+    history.replaceState({ tm: "garde" }, "");
+  } catch (error) {}
+  noterLeChemin();
   /* The welcome hint disappears on first interaction: a bubble that returns
      over an open sheet is a nuisance, not help. */
   let hintShown = false;
