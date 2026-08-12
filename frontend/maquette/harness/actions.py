@@ -10,7 +10,7 @@ async def main():
     pg.on("pageerror", lambda e: errs.append(str(e)))
     await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
     await pg.evaluate("()=>window.__measure(true)")
-    cnt = """()=>({aRecup:derived.takeable().length, enVol:derived.inflight().length, coince:derived.stuck().length,
+    cnt = """()=>({aRecup:derived.takeable().length, enVol:derived.inflight().length, coince:derived.stuck().length, aTraiter:derived.blocked().length,
                    avance:derived.moving().length, suivis:world.follows.length,
                    pause:world.follows.filter(f=>f.st==='disabled').length, lib:world.lib.length,
                    badgeAcq:(document.querySelector('[data-page=acq] .navbadge')||{}).textContent||null})"""
@@ -23,14 +23,31 @@ async def main():
     assert b1["aRecup"]==a["aRecup"]-1 and b1["enVol"]==a["enVol"]+1, "the card did not move"
     print("  → card moved to En vol, badge", a["badgeAcq"], "→", b1["badgeAcq"])
 
+    # A folder the providers answered nothing for has NO candidate to pick, and
+    # that is the real state of both stuck folders in the calm scenario. The
+    # way out is the one that used to be missing: agreeing with the machine.
     await pg.evaluate("()=>window.__go('arr-repos')"); await pg.wait_for_timeout(300)
     a=await pg.evaluate(cnt); print("\nbefore resolution    :", {k:a[k] for k in ('coince','avance')})
     await pg.evaluate("()=>[...document.querySelectorAll('.cfoot')].find(x=>x.textContent.includes('Résoudre')).click()")
     await pg.wait_for_timeout(450)
-    await pg.evaluate("()=>document.querySelector('[data-resolve]').click()"); await pg.wait_for_timeout(700)
-    b2=await pg.evaluate(cnt); print("after resolution     :", {k:b2[k] for k in ('coince','avance')})
+    assert await pg.evaluate("()=>document.querySelectorAll('[data-nonmedia=candidat]').length")==0, \
+        "a folder with no provider answer must offer no candidate"
+    await pg.evaluate("()=>document.querySelector('[data-laisser]').click()"); await pg.wait_for_timeout(700)
+    b2=await pg.evaluate(cnt); print("after « laisser »    :", {k:b2[k] for k in ('coince','avance')})
     assert b2["coince"]==a["coince"]-1, "the item stayed stuck"
-    print("  → sorti de « Ça coince »")
+    print("  → sorti de « Ça coince » sans rien re-scraper")
+
+    # And a folder that DOES have candidates is settled by picking one.
+    await pg.evaluate("()=>window.__go('arr-decision')"); await pg.wait_for_timeout(450)
+    a=await pg.evaluate(cnt); print("\nbefore pick          :", {k:a[k] for k in ('coince','avance')})
+    nb=await pg.evaluate("()=>document.querySelectorAll('[data-nonmedia=candidat]').length")
+    assert nb==5, f"expected the five real candidates, got {nb}"
+    await pg.evaluate("()=>document.querySelector('[data-resolve]').click()"); await pg.wait_for_timeout(700)
+    b2b=await pg.evaluate(cnt); print("after pick           :", {k:b2b[k] for k in ('coince','avance')})
+    # The folder was on « À traiter », the acquisition side of the same queue.
+    # Answering there used to change nothing at all.
+    assert b2b["aTraiter"]==a["aTraiter"]-1, "the arbitrated item stayed in the queue"
+    print("  → candidat choisi, et l'item quitte « À traiter »")
 
     await pg.evaluate("()=>window.__go('acq-suivis-liste')"); await pg.wait_for_timeout(300)
     a=await pg.evaluate(cnt)

@@ -186,6 +186,46 @@ Both are named states (`demarrage`, `connexion`) and both carry a rule (R53, R54
 became a named state too: its only dangerous button was measured by nothing.
 
 
+### 5.0 bis The arbitration screen — a decision is a FOLDER
+
+The engine enqueues a `scrape_decision` when it cannot name what is in a folder. Four surfaces
+answered that on the desktop — a queue, a detail, a keyboard-driven deck and a journal — and none
+of them is drawn for a phone. One screen replaces all four, and it belongs to **Arrivées**,
+because « Ça coince » already IS the queue: a folder the scrape could not name is a folder that
+is stuck.
+
+What the screen is asked about is the folder, set in the mono face and never cleaned up.
+Recognising what is on disk is the whole point, so its card promises neither a media sheet nor a
+panel — there is no medium here yet. It says so with `data-nonmedia`, the marker R46 defines for
+a release candidate, which is the same kind of object.
+
+Four decisions the drawing makes, each with a reason:
+
+1. **The entry reason is a fact worth a chip** — « Candidats ambigus », « Confiance moyenne »,
+   « Confiance faible », « Envoi manuel ». « Ça coince » holds two populations and merging them
+   would be the defect: a folder can be stuck because the scrape could not CHOOSE, which an
+   arbitration fixes, or because nothing in it can go through the pipeline at all, which no
+   arbitration will ever fix. Only the first carries a reason chip.
+2. **The score is printed only when it separates.** Four of « Lucky »'s five real candidates came
+   back at exactly 1.00; printing it four times suggests a ranking that does not exist. When the
+   leaders tie the screen says so, and that sentence is why a human is being asked.
+3. **A candidate wears only its own poster.** The year-stripped fallback that is right for a
+   medium with one identity handed « Lucky (2006) » the picture of « Lucky (2026) » — on the one
+   screen whose job is to tell them apart.
+4. **Three ways out, and the third was missing.** Pick, search by hand, or LEAVE IT AS IT IS.
+   `dismissed` exists in the engine and existed nowhere in the interface: a folder whose automatic
+   result was right had no way of being agreed with. Answering, whichever way, takes it out of the
+   queue on BOTH lists — « À traiter » on the acquisition side used to keep it forever, because
+   the answer only ever looked in the Arrivées list.
+
+The deck's keyboard shortcuts have no phone; what they were for survives as a progression
+(« 1 sur 2 », « Passer à la suivante »). The journal becomes a « Réglées récemment » block at the
+foot of the same screen — where the question « ai-je déjà tranché celle-là ? » is actually asked.
+
+Data: the ten real rows of `scrape_decision`, their real candidates, scores and posters. One
+ambiguity is replayed as pending so the screen can be judged; nothing else is invented. R57,
+`harness/decision.py`.
+
 ### 5.1 Médiathèque — a read-model, never a scan
 
 `GET /api/library/items`, reading `library.db` only. Same discipline as `insights/`: no
@@ -905,10 +945,10 @@ output**. Prose criteria are invalid.
    name (« TorrentMate Design », R52), but this host serves the app's own `pwa-*.png`. The
    shipped app already solves that for staging with a recoloured set; the design host has none of
    its own yet, so only the labels tell the two apart on a home screen.
-10. **`RecentResolutions` and `ResolutionDeck` keep their hand-built rows.** The duplication audit
-    proposed converting them to the shared card; both are pipeline and decision surfaces, whose
-    mobile redesign is deferred (§7.2 ter). §15 forbids shipping a drawing the maquette does not
-    show, so the conversion waits until those screens are drawn.
+10. **`RecentResolutions` and `ResolutionDeck` are now drawn** (§5.0 bis), and the audit's
+    proposal is answered: they must NOT take the media card. A decision is a folder, not a medium,
+    so it takes the non-medium card — the app's missing third builder, the counterpart of the
+    prototype's `decisionCardHTML`. Deriving it is the next step; the drawing exists now.
 
 ---
 

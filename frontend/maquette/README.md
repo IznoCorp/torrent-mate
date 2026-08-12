@@ -103,7 +103,7 @@ that view was checked, and another page shipped blank.
 ## Every state has a name, and knows how to reach itself
 
 `window.__go("<id>")` drives the prototype into a state **without clicking**.
-`window.__states()` returns the 53 ids. The **≡** button in the harness opens a panel listing
+`window.__states()` returns the 54 ids. The **≡** button in the harness opens a panel listing
 them all.
 
 This is what makes the parity probe deterministic. Without it, measuring "the blocked card"
@@ -119,15 +119,15 @@ Three orthogonal dials the panel exposes:
 | Surface phase | `prete` · `chargement` · `erreur` | every surface goes through all three |
 | TMDB account | connected · not | Découvrir's full vs degraded mode |
 
-The 53 states cover: the startup screen, the entry screen and its refusal, the five urgency
+The 54 states cover: the startup screen, the entry screen and its refusal, the five urgency
 sections in both scenarios, Suivis in its three modes plus its two empty cases, Découvrir full /
 degraded / exhausted / loading, the add screen idle and with real results, the follow sheet on a
 22-season complete catalogue and on a holed one, the journey sheet, the "⋮" sheet, the library in
 grid and list, its empty search, its three lenses, selection mode, single and bulk delete
 dialogs, loading and error on every surface, the resolution screen, the media sheet in its
-variants, the navigation drawer, the two install proposals, and Système.
+variants, the navigation drawer, the two install proposals, the arbitration screen in both of its shapes, and Système.
 
-`harness/states.py` drives all 53 and asserts each one renders content, has no horizontal
+`harness/states.py` drives all 54 and asserts each one renders content, has no horizontal
 overflow and raises no JS error. **A state that renders nothing fails the pass.**
 
 ## `regions.json` — the extraction contract and the measurement map
@@ -140,7 +140,7 @@ One file, four jobs:
   rather than implied.
 - **`regions`** — what `parity-probe.py` measures, each naming the states it is visible in,
   so the probe never has to guess how to reach a card state.
-- **`$adversarialReview`** — the rule set (R1…R56) plus `$methodLessons`: what each rule
+- **`$adversarialReview`** — the rule set (R1…R57) plus `$methodLessons`: what each rule
   exists for, and what a rule that failed to bite taught. `$reportedDefects` lists the
   defects found by hand, each with its test in `harness/bugs.py`.
 
@@ -350,6 +350,38 @@ home screen. The very icon the operator would see would be the one saying nothin
 
 R52 compares every served icon against the application's, byte for byte.
 
+## A decision is a FOLDER, and the screen never forgets it
+
+The scrape could not name what is inside it — that is the whole reason the question exists — so
+what the operator is asked about is the thing on disk, set in the mono face and never cleaned
+up. Its card promises neither a media sheet nor a panel, for the same reason a release candidate
+promises neither: there is no medium here yet. It says so with `data-nonmedia`, the marker R46
+already defines.
+
+**The score is printed only when it separates.** « Lucky » is the case that settles it, and it is
+real: four of its five candidates came back at exactly 1.00. Printing « 100 % » four times
+suggests a ranking that does not exist and invites the operator to trust it. When the leaders
+tie, the screen says so instead — and that sentence is the reason a human is being asked at all.
+
+**A candidate wears only its own poster.** The lookup falls back to a year-stripped title
+elsewhere, which is right for a medium with one identity and wrong here: it handed « Lucky
+(2006) » the picture of « Lucky (2026) », on the one screen whose job is to tell four
+nearly-identically-named series apart — while the row underneath said the provider had none.
+Where a title is a proposition rather than an identity, only its own picture will do.
+
+**Three ways out, and the third was missing.** Pick a candidate, search by hand, or LEAVE IT AS
+IT IS. The last exists in the engine (`dismissed`) and existed nowhere in the interface, so a
+folder whose automatic result was right had no way of being agreed with — one could only ever
+contradict the machine. Answering, whichever way, takes the folder out of the queue, on BOTH
+lists it appears on: « À traiter » on the acquisition side used to keep it forever, because the
+answer only ever looked in the Arrivées list.
+
+The desktop deck's keyboard shortcuts (← → ⏎) have no phone. What they were for — going through
+several in a row — survives as a plain progression: « 1 sur 2 », and « Passer à la suivante ».
+
+`harness/decision.py` states all of it; the data is the ten real rows of `scrape_decision`, with
+one ambiguity replayed as pending so the screen can be judged.
+
 ## Signing in is followed by a wait, and the wait is drawn
 
 Two waits follow a sign-in, and both used to be blank: the browser fetching a document of
@@ -451,7 +483,7 @@ They are committed because they encode recipes that cost time to get right.
 |---|---|
 | `sweep.py` | all views render content, no horizontal overflow, device at 390px, no JS error. **A view that renders nothing fails.** |
 | `scen.py` | the same sweep across both data scenarios, with explicit sub-view reset between runs |
-| `states.py` | all 53 named states render, without overflow or JS error |
+| `states.py` | all 54 named states render, without overflow or JS error |
 | `audit.py` | rules R1–R10 and R20–R23 across every state, and it announces how many rules it EXECUTED |
 | `audit2.py` | rules R11–R17 and R26–R31: uniformity, honesty of the text, one back design, one season rendering, episode presence against the data, a panel that never offers an action the medium does not support |
 | `cartes.py` | rules R41–R50: the card and gallery contract — poster to the sheet, body to the panel, no action reachable from a single surface, the same panel from a card and from a gallery |
@@ -471,6 +503,7 @@ They are committed because they encode recipes that cost time to get right.
 | `demarrage.py` | R53: the startup screen is declared first, covers the frame, offers no control, is gone after the first render, and the gate the server builds shows the same screen — extracted — from the submit onwards. Starts `serve.py` on a scratch port |
 | `deconnexion.py` | R54: signing out lands on the entry screen AND the server stops accepting the session. Starts `serve.py` on a scratch port |
 | `panneau.py` | R56: one panel builder, no caller passing markup, no inline style inside a panel, one heading, no action without a destination, and an undeclared block refused |
+| `decision.py` | R57: the arbitration screen — the folder as subject, no sheet or panel promised, no engine token on screen, a score printed only when it separates, each candidate wearing only its own poster, three ways out, and answering emptying the queue on both lists |
 | `doigt.py` | R55: every gesture under REAL touch input (`Input.dispatchTouchEvent`), which the compositor can cancel — the pull to refresh on seven surfaces, the swipe between views, ordinary scrolling, the swipeable row and the deck |
 
 Run them with the Python that carries Playwright, against a local static server on
