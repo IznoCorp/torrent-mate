@@ -64,8 +64,8 @@ async def main():
 
     # 7 — a search result leads to its media sheet
     await pg.evaluate("()=>window.__go('acq-ajout-resultats')"); await pg.wait_for_timeout(450)
-    has = await pg.evaluate("()=>!!document.querySelector('.res .rp[data-fiche]')")
-    await pg.evaluate("()=>document.querySelector('.res .rp[data-fiche]').click()"); await pg.wait_for_timeout(600)
+    has = await pg.evaluate("()=>!!document.querySelector('.reslist .card .poster[data-fiche]')")
+    await pg.evaluate("()=>document.querySelector('.reslist .card .poster[data-fiche]').click()"); await pg.wait_for_timeout(600)
     titre = await pg.evaluate("()=>document.querySelector('#screen .ht')?.textContent")
     chk("7. résultat → fiche", has and bool(titre), f"→ « {titre} »")
 

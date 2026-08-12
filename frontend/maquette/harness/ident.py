@@ -24,13 +24,13 @@ async def main():
     await pg.evaluate("()=>document.querySelector('[data-manual]').click()"); await pg.wait_for_timeout(600)
     r = await pg.evaluate("""()=>{const s=document.querySelector('#screen');
       return {bandeau:(s.querySelector('.surferr b')||{}).textContent,
-              verbes:[...new Set([...s.querySelectorAll('.resbtn')].map(x=>x.textContent.trim()))],
+              verbes:[...new Set([...s.querySelectorAll('.reslist .cfoot')].map(x=>x.textContent.trim()))],
               requete:s.querySelector('#addq')?.value,
               blocId:(s.querySelector('.byid summary')||{}).textContent};}""")
     print("search screen            :", r)
     await pg.screenshot(path="p_identifier.png")
 
-    await pg.evaluate("()=>document.querySelector('.resbtn').click()"); await pg.wait_for_timeout(700)
+    await pg.evaluate("()=>document.querySelector('.reslist .cfoot').click()"); await pg.wait_for_timeout(700)
     apres = await pg.evaluate("()=>({coince:derived.stuck().length, avance:derived.moving().length, suivis:world.follows.length})")
     print("après « Associer »       :", apres)
     print("notification             :", (await pg.evaluate("()=>document.querySelector('#toastmsg')?.textContent"))[:90])
@@ -44,7 +44,7 @@ async def main():
     # and the « + » returns to follow mode
     await pg.evaluate("()=>window.__go('acq-encours-charge')"); await pg.wait_for_timeout(300)
     await pg.evaluate("()=>document.querySelector('#fab').click()"); await pg.wait_for_timeout(500)
-    v = await pg.evaluate("()=>[...new Set([...document.querySelectorAll('.resbtn')].map(x=>x.textContent.trim()))]")
+    v = await pg.evaluate("()=>[...new Set([...document.querySelectorAll('.reslist .cfoot')].map(x=>x.textContent.trim()))]")
     print("— le « + » redit « Suivre/Ajouter » :", v)
     print("\nJS errors:", errs or "none")
     print("VERDICT:", "identify != follow, and context picks the verb" if ok and not errs else "needs review")

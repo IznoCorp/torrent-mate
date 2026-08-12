@@ -825,6 +825,20 @@
     line-height: 1.4;
     color: var(--muted-foreground);
   }
+  /* A synopsis is not a reason: a reason must never truncate, because the card
+     is justifying itself and half a justification is worse than none (R48). A
+     synopsis is background, and clamping it keeps the list scannable — which is
+     why the two are separate facts rather than one field used both ways. */
+  .cov {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-top: 5px;
+    font-size: 11.5px;
+    line-height: 1.4;
+    color: var(--muted-foreground);
+  }
   .cmeta {
     margin-top: 6px;
     display: flex;
@@ -1003,6 +1017,19 @@
   .cfoot.solid {
     background: var(--primary);
     color: var(--primary-foreground);
+  }
+  /* An action already carried out stays readable, and stays in place: it is
+     the receipt for the tap, not a button that vanished. */
+  .cfoot.done {
+    border-color: var(--border);
+    color: var(--muted-foreground);
+    opacity: 0.7;
+  }
+  /* The action is still offered, but it will REPLACE something already owned —
+     the tone says so before the dialog does. */
+  .cfoot.owned {
+    border-color: var(--warning);
+    color: var(--warning);
   }
 
   /* Crossref */
@@ -2344,76 +2371,11 @@
     font-size: 11.5px;
     color: var(--muted-foreground);
   }
+  /* Search results are a card LIST like any other: the gap comes from `.sec`,
+     so the list cannot drift from the others by editing one number here. This
+     rule carries the screen's padding and nothing else. */
   .reslist {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
     padding: 10px 14px 18px;
-  }
-  .res {
-    display: flex;
-    gap: 11px;
-    border: 1px solid var(--border);
-    background: var(--card);
-    border-radius: 8px;
-    padding: 10px;
-  }
-  .res .rp {
-    border: 0;
-    padding: 0;
-    flex: 0 0 auto;
-    align-self: flex-start;
-    width: 54px;
-    aspect-ratio: 2/3;
-    border-radius: 5px;
-    overflow: hidden;
-    background: var(--muted);
-    font-size: 16px;
-  }
-  .res .rb {
-    min-width: 0;
-    flex: 1;
-  }
-  .res .rt {
-    display: block;
-    font-size: 13.5px;
-    font-weight: 600;
-  }
-  .res .rm {
-    display: block;
-    font-size: 11.5px;
-    color: var(--muted-foreground);
-    margin-top: 2px;
-  }
-  .res .ro {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    font-size: 11.5px;
-    color: var(--muted-foreground);
-    margin-top: 5px;
-    line-height: 1.4;
-  }
-  .resbtn {
-    margin-top: 9px;
-    width: 100%;
-    border: 1px solid var(--primary);
-    background: transparent;
-    color: var(--primary);
-    font-size: 12.5px;
-    font-weight: 600;
-    padding: 8px;
-    border-radius: 7px;
-  }
-  .resbtn.done {
-    border-color: var(--border);
-    color: var(--muted-foreground);
-    opacity: 0.7;
-  }
-  .resbtn.owned {
-    border-color: var(--warning);
-    color: var(--warning);
   }
   .sugg {
     display: flex;
@@ -2502,7 +2464,6 @@
   .cfoot,
   .ficheadd,
   .dlgbtn,
-  .resbtn,
   .btnprimary {
     display: flex;
     align-items: center;
@@ -2518,8 +2479,7 @@
   }
   .sact svg,
   .cfoot svg,
-  .ficheadd svg,
-  .resbtn svg {
+  .ficheadd svg {
     width: 16px;
     height: 16px;
     flex: 0 0 auto;
@@ -2529,8 +2489,7 @@
      remember to add. */
   .sact:has(> svg),
   .cfoot:has(> svg),
-  .ficheadd:has(> svg),
-  .resbtn:has(> svg) {
+  .ficheadd:has(> svg) {
     justify-content: flex-start;
     text-align: left;
   }
@@ -9777,6 +9736,7 @@
        s        sub-line
        r        reason, when the card must justify a state — plain text, or
                 segments carrying emphasis (see richText)
+       overview a synopsis, clamped to two lines — background, not a reason
        f        fraction, in mono
        chip     [tone, label]
        note     a rating, as an outlined pill
@@ -9793,7 +9753,11 @@
      envelope guarantees nothing about what it carries.
 
      opts carries what belongs to the LIST rather than to the medium: an
-     inline action, and whether it is the section's primary one. */
+     inline action, whether it is the section's primary one, the tone that
+     action carries ("owned" — it will replace something already held) and
+     whether it has already been carried out ("done"). Those two are list
+     state, not facts about the medium: the same film is « Ajouter » in a
+     search and « Ajouté » one tap later, while the film has not changed. */
   function cardHTML(descriptor, opts) {
     opts = opts || {};
     // A poster is a button only if a sheet genuinely EXISTS.
@@ -9817,12 +9781,13 @@
         <span class="ctitle" title="${escapeHtml(descriptor.t)}">${escapeHtml(descriptor.t)}</span>
         ${descriptor.s ? `<span class="csub">${escapeHtml(descriptor.s)}</span>` : ""}
         ${descriptor.r ? `<span class="creason">${richText(descriptor.r)}</span>` : ""}
+        ${descriptor.overview ? `<span class="cov">${escapeHtml(descriptor.overview)}</span>` : ""}
         ${ligneEtat ? `<span class="cmeta">${ligneEtat}</span>` : ""}
         ${ligneAnnotations ? `<span class="cannotations">${ligneAnnotations}</span>` : ""}
       </button>
     </div>
     ${descriptor.strip ? stripHTML(descriptor.strip) : ""}
-    ${opts.foot ? `<button class="cfoot ${opts.footSolid ? "solid" : ""}" data-act="${escapeHtml(opts.footAct || "")}">${escapeHtml(opts.foot)}</button>` : ""}
+    ${opts.foot ? `<button class="cfoot ${opts.footSolid ? "solid" : ""} ${opts.footTone || ""}" data-act="${escapeHtml(opts.footAct || "")}" ${opts.footDone ? "disabled" : ""}>${escapeHtml(opts.foot)}</button>` : ""}
   </div>`;
   }
 
@@ -10720,6 +10685,7 @@
   function openPanel(element) {
     const { genre, ref } = refPanel(element);
     if (genre === "sug") openSugSheet(Number(ref));
+    else if (genre === "add") openAddSheet(Number(ref));
     else openFollowSheet(ref);
   }
 
@@ -11147,6 +11113,41 @@
         <button class="sact danger" data-dropsug="${index}">${svgIcon(icons.x)}Pas intéressé</button>
       </div>
       ${suggestion.k === "Film" ? `<p class="rulenote">Une fois acquis, ce film quittera automatiquement votre liste (§5).</p>` : ""}
+    `);
+  }
+
+  /* The label a search result's action carries, computed ONCE. The card foot
+     and the panel entry must say the same thing, and the only way to be sure
+     of that is for there to be one sentence to say it.
+
+     « Associer » is not a synonym of « Ajouter »: identifying a stuck folder
+     tells the pipeline WHICH medium that folder is, and creates no follow. */
+  function addVerb(result, index) {
+    const identifier = state.addMode === "identifier";
+    if (state.added.has(index)) {
+      return identifier ? "✓ Associé" : result.k === "Film" ? "✓ Ajouté" : "✓ Suivi";
+    }
+    const verbe = identifier ? "Associer" : result.k === "Film" ? "Ajouter" : "Suivre";
+    // The ellipsis warns that the act opens a question — it will replace
+    // something already held — rather than happening on the spot.
+    return result.owned && !identifier ? `${verbe}…` : verbe;
+  }
+
+  /* A search result is not one of your media yet, so it has a panel of its own
+     rather than a follow's: what it offers is the act that WOULD make it one,
+     and the sheet to judge it by. The card's inline button is a shortcut to
+     the first of those, never the only way to reach it. */
+  function openAddSheet(index) {
+    const result = SEARCH.results[index];
+    const fait = state.added.has(index);
+    openSheet(`
+      <h3 class="sheettitle">${escapeHtml(result.t)}</h3>
+      <p class="sheetmeta">${escapeHtml(result.y)} · ${escapeHtml(result.k)} · TMDB</p>
+      ${result.owned && state.addMode !== "identifier" ? `<p class="rulenote">Déjà en médiathèque — l'acquisition <b>remplacera</b> la version en place.</p>` : ""}
+      <div class="sheetacts">
+        <button class="sact primary" data-act="add:${index}" ${fait ? "disabled" : ""}>${svgIcon(icons.plus)}${escapeHtml(addVerb(result, index))}</button>
+        <button class="sact" data-fiche="${escapeHtml(result.t)}">${svgIcon(icons.eye)}Voir la fiche</button>
+      </div>
     `);
   }
 
@@ -12397,9 +12398,15 @@
       openPlusSheet();
       return;
     }
-    if (closest.dataset.add) {
-      const index = Number(closest.dataset.add);
+    if (closest.dataset.act?.startsWith("add:")) {
+      // The card foot carries the list POSITION, not the title: a search can
+      // return the same title twice — « Star Wars : The Clone Wars » is both a
+      // film and a series here — so the title does not identify the result.
+      const index = Number(closest.dataset.act.slice(4));
       const result = SEARCH.results[index];
+      // The act is reachable from the card foot AND from the panel; whichever
+      // fired it, the panel must not stay open behind what comes next.
+      closeSheet();
       if (state.addMode === "identifier") {
         // This ASSOCIATES: the stuck folder becomes this medium and the pipeline
         // resumes. No follow is created — that was not the request.
@@ -34186,35 +34193,36 @@
       );
     const rows = filtres
       .map(({ r: result, i: index }) => {
-        const verbe = identifier
-          ? "Associer"
-          : result.k === "Film"
-            ? "Ajouter"
-            : "Suivre";
         const fait = state.added.has(index);
-        const cls = fait
-          ? "resbtn done"
-          : result.owned && !identifier
-            ? "resbtn owned"
-            : "resbtn";
-        const lab = fait
-          ? identifier
-            ? "✓ Associé"
-            : result.k === "Film"
-              ? "✓ Ajouté"
-              : "✓ Suivi"
-          : result.owned && !identifier
-            ? `${verbe}…`
-            : verbe;
-        return `<article class="res">
-          <button class="rp" data-fiche="${escapeHtml(result.t)}" aria-label="Fiche de ${escapeHtml(result.t)}">${posterBox(result.t, result.k === "Film" ? "movie" : "show")}</button>
-          <div class="rb">
-            <span class="rt">${escapeHtml(result.t)}</span>
-            <span class="rm">${escapeHtml(result.y)} · ${escapeHtml(result.k)} · TMDB${result.owned ? (identifier ? ' · <b style="color:var(--success)">déjà en médiathèque</b>' : ' · <b style="color:var(--warning)">déjà en médiathèque</b>') : ""}</span>
-            <p class="ro">${escapeHtml(result.ov)}</p>
-            <button class="${cls}" data-add="${index}" ${fait ? "disabled" : ""}>${lab}</button>
-          </div>
-        </article>`;
+        const tone = fait ? "done" : result.owned && !identifier ? "owned" : "";
+        /* A search result is a medium like any other, so it is drawn by the
+           one card builder: its poster opens the sheet, its body opens the
+           panel, and « Ajouter » is a shortcut the panel also offers. It used
+           to be a hand-rolled row, and the row had drifted — its poster box
+           was sized but the image inside it was not, so every thumbnail showed
+           the top-left corner of a full-size poster.
+
+           « déjà en médiathèque » is a CHIP rather than coloured text inside
+           the meta line: the same fact is a chip everywhere else, and a card
+           that accepts ready-made markup is an envelope. */
+        return cardHTML(
+          {
+            t: result.t,
+            k: result.k === "Film" ? "movie" : "show",
+            s: `${result.y} · ${result.k} · TMDB`,
+            overview: result.ov,
+            chip: result.owned
+              ? [identifier ? "success" : "warning", "Déjà en médiathèque"]
+              : null,
+            panel: `add:${index}`,
+          },
+          {
+            foot: addVerb(result, index),
+            footAct: `add:${index}`,
+            footTone: tone,
+            footDone: fait,
+          },
+        );
       })
       .join("");
 
@@ -34244,7 +34252,7 @@
       ${
         hasQ
           ? `<p class="rescount"><b>${filtres.length}</b> résultat${filtres.length > 1 ? "s" : ""} affiché${filtres.length > 1 ? "s" : ""} sur <b>${SEARCH.total}</b> trouvé${SEARCH.total > 1 ? "s" : ""}${state.addKind !== "Tout" ? ` · filtré sur « ${state.addKind} »` : ""} — les plus pertinents d'abord.</p>
-             <div class="reslist">${rows}</div>`
+             <div class="reslist sec">${rows}</div>`
           : `<div class="sugg">${state.recents.map((recent) => `<button data-search="${escapeHtml(recent)}">${escapeHtml(recent)}</button>`).join("")}</div>
              <div style="padding:14px">${emptyHTML("Cherchez un titre.", "Vos recherches récentes sont au-dessus. La recherche part à la validation, jamais à chaque frappe — sinon chaque lettre coûte un appel aux providers.")}</div>`
       }

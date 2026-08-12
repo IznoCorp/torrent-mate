@@ -51,6 +51,11 @@ ETATS_CARTES = [
     "acq-identifier",
     "acq-decouvrir",
     "acq-decouvrir-degrade",
+    # Search results were absent from this list, and the surface had drifted
+    # exactly as far as the absence allowed: its poster box was sized, the
+    # image inside it was not, and every thumbnail showed the top-left corner
+    # of a 240x360 poster clipped into 54x81.
+    "acq-ajout-resultats",
 ]
 
 # States drawing tiles, and how to reach the tile layout from them.
@@ -117,6 +122,12 @@ async def main():
         pg.on("pageerror", lambda e: erreurs.append(str(e)))
         await pg.goto(URL, wait_until="load")
         await pg.evaluate("()=>window.__measure(true)")
+        # A closed screen keeps its markup in the DOM. Cards left behind there
+        # are unreachable, so measuring them measures nothing the operator can
+        # touch — and it charges one screen's cards to every later state.
+        await pg.evaluate(
+            "()=>{window.visible = (el)=>el.getClientRects().length > 0;}"
+        )
 
         # ---- R41 / R42 -------------------------------------------------
         for etat in ETATS_CARTES:
@@ -125,7 +136,7 @@ async def main():
             if etat.startswith("lib-"):
                 await mode(pg, "list")
             releve = await pg.evaluate(
-                """()=>[...document.querySelectorAll('.card')].map(c=>{
+                """()=>[...document.querySelectorAll('.card')].filter(visible).map(c=>{
                     const b=c.querySelector('.cbody');
                     const p=c.querySelector('.poster');
                     return {titre:c.querySelector('.ctitle')?.textContent||'',
@@ -172,7 +183,7 @@ async def main():
             if etat.startswith("lib-"):
                 await mode(pg, "list")
             inlines = await pg.evaluate(
-                """()=>[...document.querySelectorAll('.card')]
+                """()=>[...document.querySelectorAll('.card')].filter(visible)
                     .filter(c=>c.querySelector('.cfoot') && !c.dataset.nonmedia)
                     .map(c=>({titre:c.querySelector('.ctitle')?.textContent||'',
                               action:c.querySelector('.cfoot').textContent.trim(),
