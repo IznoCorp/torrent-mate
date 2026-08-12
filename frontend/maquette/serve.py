@@ -77,9 +77,23 @@ ASSETS = {
     "/favicon.svg": "image/svg+xml",
 }
 
+# The prototype is a SEPARATE application, and it has to say so everywhere the
+# system reads a name.
+#
+# The shipped app installs as « TorrentMate », and this one used to install as
+# « TM design » — an abbreviation nobody recognises next to it, over the same
+# icon. Two entries on one home screen that differ only by an abbreviation are
+# two entries nobody can tell apart, and the one that gets opened is whichever
+# was tapped last.
+#
+# `id` is declared rather than left to default: without it the identity falls
+# back to `start_url`, which is « / » here and « / » there, so nothing but the
+# origin separates them. Naming it removes the ambiguity instead of relying on
+# a browser to resolve it.
 MANIFESTE = b"""{
-  "name": "TorrentMate \\u2014 design",
-  "short_name": "TM design",
+  "id": "/?app=torrentmate-design",
+  "name": "TorrentMate Design",
+  "short_name": "TorrentMate Design",
   "description": "Prototype de r\\u00e9f\\u00e9rence de l'interface TorrentMate.",
   "lang": "fr",
   "start_url": "/",
@@ -126,7 +140,7 @@ self.addEventListener("fetch", (e) => {
 HORS_LIGNE = (
     '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
     '<meta name="viewport" content="width=device-width,initial-scale=1">'
-    "<title>TorrentMate — hors ligne</title>"
+    "<title>TorrentMate Design — hors ligne</title>"
     "<style>html,body{margin:0;height:100%;display:grid;place-items:center;"
     "background:#0b0b0d;color:#ededf0;font-family:system-ui,sans-serif;"
     "text-align:center;padding:24px}p{color:#9b9ba4;font-size:14px;"
@@ -156,7 +170,10 @@ TETE_PWA = (
     '<meta name="apple-mobile-web-app-capable" content="yes">'
     '<meta name="mobile-web-app-capable" content="yes">'
     '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">'
-    '<meta name="apple-mobile-web-app-title" content="TM design">'
+    # iOS reads this and never the manifest's short_name, so the distinct name
+    # has to be repeated here or the home-screen label falls back to the page
+    # title — which is what put two « TorrentMate » side by side.
+    '<meta name="apple-mobile-web-app-title" content="TorrentMate Design">'
     '<script>if("serviceWorker" in navigator)'
     'addEventListener("load",()=>navigator.serviceWorker.register("/sw.js"));</script>'
 )
@@ -165,7 +182,7 @@ HEAD = (
     '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
     '<meta name="viewport" '
     'content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">'
-    "<title>TorrentMate — refonte mobile</title>"
+    "<title>TorrentMate Design</title>"
     f"{TETE_PWA}"
     "</head><body>"
 ).encode()
@@ -280,7 +297,7 @@ def page_connexion(refusee: bool) -> bytes:
     return (
         '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
-        "<title>TorrentMate — connexion</title>"
+        "<title>TorrentMate Design — connexion</title>"
         f"{TETE_PWA}"
         "<style>"
         f"{socle}{styles}{ajustements}</style></head><body>{balisage}"

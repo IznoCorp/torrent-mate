@@ -93,6 +93,38 @@ async def main():
                 if r.status != 200:
                     echecs.append(f"R52 icon {icone['src']} answers {r.status}")
 
+        # --- and it installs as a DIFFERENT application ----------------------
+        #
+        # The shipped app installs as « TorrentMate ». A prototype that installs
+        # under the same name, or under an abbreviation of it, puts two entries
+        # on one home screen that nobody can tell apart — and the one that gets
+        # opened is whichever was tapped last. The name has to be distinct
+        # everywhere the system reads one: the manifest's `name`, its
+        # `short_name` (the home-screen label on Android), and the iOS meta
+        # (the label there, because Safari reads neither manifest field).
+        #
+        # `id` is checked as well. Left out, the identity defaults to
+        # `start_url` — « / » on both — so nothing but the origin separates
+        # them, and an origin is not something a home screen shows.
+        NOM_APP = "TorrentMate"
+        if reponse.status == 200:
+            identite = {
+                "manifest name": m.get("name"),
+                "manifest short_name": m.get("short_name"),
+                "iOS title": declare.get("iosTitre"),
+            }
+            for quoi, valeur in identite.items():
+                executees += 1
+                if valeur == NOM_APP or valeur is None:
+                    echecs.append(
+                        f"R52 the {quoi} does not tell this apart from the app: {valeur!r}"
+                    )
+                elif "design" not in (valeur or "").lower():
+                    echecs.append(f"R52 the {quoi} does not say it is the design: {valeur!r}")
+            executees += 1
+            if not m.get("id"):
+                echecs.append("R52 the manifest declares no id — identity falls back to start_url")
+
         # --- the worker registers and takes control --------------------------
         # Bounded on purpose. `serviceWorker.ready` never rejects — a document
         # that registers no worker leaves it pending forever, so an unbounded

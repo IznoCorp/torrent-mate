@@ -326,6 +326,19 @@ iOS also reads neither the manifest's `display` nor its `short_name`: standalone
 home-screen label need `apple-mobile-web-app-capable` and `apple-mobile-web-app-title`, or the
 icon opens a Safari tab instead of an app.
 
+**And it installs as a DIFFERENT application.** The shipped app installs as « TorrentMate »;
+this one installs as « TorrentMate Design », in the manifest's `name`, in its `short_name` —
+the home-screen label on Android — and in the iOS meta, because Safari reads neither manifest
+field. An abbreviation is not a distinction: two entries on one home screen that differ only
+by one teaches nobody which is which, and the one that gets opened is whichever was tapped
+last. The manifest also declares an explicit `id`; left out, the identity falls back to
+`start_url`, which is « / » on both, so nothing but the origin separates them — and an origin
+is not something a home screen shows.
+
+What is still shared is the ICON: this host serves the app's own `pwa-*.png`. The shipped app
+already solves that for staging with a recoloured set; the design host has no set of its own
+yet, so the two pictures are identical and only the label tells them apart.
+
 ## Signing in is followed by a wait, and the wait is drawn
 
 Two waits follow a sign-in, and both used to be blank: the browser fetching a document of
