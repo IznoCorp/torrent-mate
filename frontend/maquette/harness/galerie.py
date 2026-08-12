@@ -9,9 +9,7 @@ from playwright.async_api import async_playwright
 
 GALERIES = [
   ("Médiathèque · Médias",    "lib-grille",                ".tile[data-panel]"),
-  # « Incomplets » is deliberately NOT a poster gallery: what one comes to read
-  # there is a fraction, and a poster hides it. The pattern applies to galleries,
-  # and this lens is a card list — asserted below so the exemption is a decision.
+  ("Médiathèque · Incomplets","lib-incomplets",            None),
   ("Médiathèque · Récents",   "lib-recents",               None),
   ("Suivis · grille",         "acq-suivis-grille",         ".tile[data-panel]"),
   ("Découvrir · affiches",    "acq-decouvrir-affiches",    ".sugtile[data-panel]"),
@@ -67,19 +65,28 @@ async def main():
       if errs: echecs.append(f"JS errors: {errs}")
       await ctx.close()
 
-    # The card lenses must NOT sprout a gallery by accident.
+    # Every library lens offers the SAME two layouts. A lens that draws only
+    # one teaches that its content is a different kind of thing, and it is not.
     ctx = await b.new_context(viewport={"width":390,"height":844},
                               device_scale_factor=2, is_mobile=True, has_touch=True)
     pg = await ctx.new_page()
     await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
     await pg.evaluate("()=>window.__measure(true)")
-    await pg.evaluate("()=>window.__go('lib-incomplets')")
-    await pg.wait_for_timeout(450)
-    forme = await pg.evaluate("""()=>({tuiles:document.querySelectorAll('#view .tile').length,
-                                      cartes:document.querySelectorAll('#view .card').length})""")
-    print(f"\n  Médiathèque · Incomplets   card list, not a gallery: {forme}")
-    if forme["tuiles"] or not forme["cartes"]:
-        echecs.append(f"the incomplete lens changed shape: {forme}")
+    print()
+    for lens in ("cat", "inc", "rec"):
+        formes = {}
+        for mode in ("grid", "list"):
+            await pg.evaluate("([l,m])=>{window.__reset(); set({page:'lib',libLens:l,libMode:m,phase:'prete'}); render();}", [lens, mode])
+            await pg.wait_for_timeout(420)
+            formes[mode] = await pg.evaluate("""()=>({
+                tuiles:document.querySelectorAll('#view .tile[data-panel]').length,
+                cartes:document.querySelectorAll('#view .card').length,
+                bascule:!!document.querySelector('#view .vsw')})""")
+        ok = (formes["grid"]["tuiles"] > 0 and formes["list"]["cartes"] > 0
+              and formes["grid"]["bascule"] and formes["list"]["bascule"])
+        print(f"  library lens « {lens} »        both layouts: {'OK' if ok else 'FAIL'}  {formes}")
+        if not ok:
+            echecs.append(f"lens {lens} does not offer both layouts: {formes}")
     await ctx.close()
 
     print("\nVERDICT:", "one pattern in every gallery" if not echecs else f"FAILED - {echecs}")
