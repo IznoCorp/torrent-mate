@@ -19,11 +19,17 @@ honestly absent.
 """
 import asyncio
 import json
+import pathlib
 import sys
 
 from playwright.async_api import async_playwright
 
 HOTE = "https://tm-design.iznogoudatall.xyz"
+
+# The icons the shipped application serves. What this host hands out is
+# compared against them: an icon identical to the app's tells a home screen
+# nothing, whatever the label under it says.
+APPLICATION = pathlib.Path(__file__).resolve().parents[2] / "public"
 
 # Chrome's install criteria, as facts about the manifest.
 TAILLES_REQUISES = {"192x192", "512x512"}
@@ -86,12 +92,33 @@ async def main():
                 if not bon:
                     echecs.append(f"R52 the manifest fails: {quoi}")
             # Every icon must actually load — a declared icon that 404s costs
-            # the prompt as surely as a missing one.
+            # the prompt as surely as a missing one — and it must be THIS
+            # host's icon. A name distinguishes two entries in a list; on a
+            # home screen what is seen first is the picture, and two identical
+            # pictures under different labels are still two identical
+            # pictures. Compared byte for byte against what the app serves.
             for icone in m.get("icons", []):
                 executees += 1
                 r = await pg.request.get(f"{HOTE}{icone['src']}")
                 if r.status != 200:
                     echecs.append(f"R52 icon {icone['src']} answers {r.status}")
+                    continue
+                executees += 1
+                servi = await r.body()
+                attendu = APPLICATION / icone["src"].lstrip("/")
+                if attendu.is_file() and servi == attendu.read_bytes():
+                    echecs.append(
+                        f"R52 icon {icone['src']} is the app's own — nothing tells them apart"
+                    )
+            executees += 1
+            apple = declare.get("iconeIos")
+            if apple:
+                r = await pg.request.get(apple)
+                fichier = APPLICATION / apple.rsplit("/", 1)[-1]
+                if r.status != 200:
+                    echecs.append(f"R52 the iOS icon answers {r.status}")
+                elif fichier.is_file() and await r.body() == fichier.read_bytes():
+                    echecs.append("R52 the iOS icon is the app's own — the home screen shows no difference")
 
         # --- and it installs as a DIFFERENT application ----------------------
         #
