@@ -1393,6 +1393,26 @@
     align-items: center;
     gap: 6px;
   }
+  /* A row whose dot qualifies the STEP rather than the figure. The two are
+     different statements and both exist, so the descriptor names which.
+
+     The child combinator is not decoration: `.kv span:first-child` also matches
+     the dot itself, which is the first child of the caption. */
+  .kv.avecpip > span:first-child {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  /* A value that has not happened yet is not a value: it reads as an
+     announcement, not as a measurement. */
+  .kv.avenir > span:last-child {
+    font-weight: 400;
+    color: var(--muted-foreground);
+  }
+  /* A block of facts inside a panel keeps its distance from what follows. */
+  .sheetfaits {
+    margin-bottom: 14px;
+  }
   .h2 {
     font-size: 12.5px;
     font-weight: 700;
@@ -1692,6 +1712,25 @@
     align-items: center;
     gap: 12px;
     padding-bottom: 4px;
+  }
+
+  /* A head carrying a POSTER aligns to the top: an 84px picture next to two
+     short lines centred against it leaves the title floating in the middle of
+     nothing. It also breathes below rather than inside: an 84px picture makes
+     the same 4px read as nothing at all. */
+  .sheethead.avecaffiche {
+    align-items: flex-start;
+    padding-bottom: 0;
+    margin-bottom: 12px;
+  }
+
+  .sheetid {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .sheethead .sheetmeta {
+    margin-bottom: 6px;
   }
 
   .sheethead .sheetsub {
@@ -9925,18 +9964,127 @@
 
   /* Renders a text that carries emphasis, WITHOUT any caller supplying markup.
      A value is either a plain string, or a list of segments where a bare
-     string is plain text and `{e}` is emphasised. Everything is escaped; only
-     what the data explicitly named comes out bold, at the position the data
-     put it — nothing is matched back into the sentence afterwards, which is
-     how the wrong « 4 » or the wrong title ends up emphasised. */
+     string is plain text, `{e}` is emphasised and `{m}` is a machine name — a
+     release, a path, an identifier — set in the mono face. Everything is
+     escaped; only what the data explicitly named comes out marked, at the
+     position the data put it — nothing is matched back into the sentence
+     afterwards, which is how the wrong « 4 » or the wrong title ends up
+     emphasised. */
   function richText(value) {
     if (value == null) return "";
     if (typeof value === "string") return escapeHtml(value);
     return value
-      .map((v) =>
-        typeof v === "string" ? escapeHtml(v) : `<b>${escapeHtml(v.e)}</b>`,
-      )
+      .map((v) => {
+        if (typeof v === "string") return escapeHtml(v);
+        if (v.m != null) return `<code>${escapeHtml(v.m)}</code>`;
+        return `<b>${escapeHtml(v.e)}</b>`;
+      })
       .join("");
+  }
+
+  /* ONE bottom panel, and its shape follows the facts it is given.
+
+     Every panel in the interface is built here. A panel that accepted
+     ready-made markup would be an envelope, and an envelope guarantees nothing
+     about what it carries: three head shapes had grown that way — one with a
+     poster, one with an avatar, one with neither — two of them assembled from
+     inline styles, which belong to no stylesheet and are therefore exported
+     nowhere. The same drift the card and the tile were cured of.
+
+     THE DESCRIPTOR — facts, never markup:
+
+       titre      the heading
+       meta       the line of facts under it (plain, or rich segments)
+       sousTitre  a second identity line under the title (an account's mail)
+       affiche    { t, k } — the medium's poster, at panel size
+       avatar     an image URL — an account's portrait
+       puce       [tone, label]
+       blocs      the body, IN ORDER, as typed blocks
+
+     A BLOC is { type, … }, never HTML. Order matters and is the caller's, so
+     the actions are a block like any other rather than a fixed slot: the
+     follow panel puts its primary action above the season matrix and its
+     secondary group below, while a suggestion panel puts a note first.
+
+       { type: "note",    texte }               a rule note, emphasis allowed
+       { type: "faits",   lignes }              key/value rows
+       { type: "actions", actions, secondaire } a group of actions
+       { type: "saisons", suivi, saisons }      the season matrix and its legend
+
+     A LIGNE of « faits » is { c, v, pip, pipValeur, terne }: caption, value, a
+     status dot on either side — the two say different things, one qualifies
+     the step and the other the figure — and whether the value is still to
+     come.
+
+     An ACTION is { texte, icone, cible, ton, desactive, mention, infobulle },
+     where `cible` is a map of DATA ATTRIBUTES — never a handler and never
+     markup. The click delegation reads those attributes, exactly as it does
+     for a card.
+
+     A view wanting something outside this list is describing a fact the panel
+     does not know about yet. The fix is to add the fact. */
+  function panneauActionHTML(action) {
+    if (!action) return "";
+    const attributs = Object.entries(action.cible || {})
+      .map(([nom, valeur]) => ` data-${nom}="${escapeHtml(String(valeur))}"`)
+      .join("");
+    return `<button class="sact${action.ton ? " " + action.ton : ""}"${attributs}${
+      action.desactive ? " disabled" : ""
+    }${action.infobulle ? ` title="${escapeHtml(action.infobulle)}"` : ""}>${
+      action.icone ? svgIcon(action.icone) : ""
+    }${escapeHtml(action.texte)}${
+      action.mention ? `<span class="soon">${escapeHtml(action.mention)}</span>` : ""
+    }</button>`;
+  }
+
+  function panneauBlocHTML(bloc) {
+    if (!bloc) return "";
+    if (bloc.type === "note") return `<p class="rulenote">${richText(bloc.texte)}</p>`;
+    if (bloc.type === "actions") {
+      const liste = (bloc.actions || []).filter(Boolean);
+      if (!liste.length) return "";
+      return `<div class="sheetacts${bloc.secondaire ? " secondary" : ""}">${liste
+        .map(panneauActionHTML)
+        .join("")}</div>`;
+    }
+    if (bloc.type === "faits")
+      return `<div class="panel sheetfaits">${(bloc.lignes || [])
+        .map(
+          (ligne) =>
+            `<div class="kv${ligne.pip ? " avecpip" : ""}${ligne.terne ? " avenir" : ""}"><span>${
+              ligne.pip ? `<span class="pip ${ligne.pip}"></span>` : ""
+            }${escapeHtml(ligne.c)}</span><span>${
+              ligne.pipValeur ? `<span class="pip ${ligne.pipValeur}"></span>` : ""
+            }${escapeHtml(ligne.v)}</span></div>`,
+        )
+        .join("")}</div>`;
+    if (bloc.type === "saisons") return saisonsHTML(bloc.suivi, bloc.saisons);
+    // Silence here would draw an empty panel and blame the data. A block type
+    // nobody renders is a fact nobody declared.
+    throw new Error("bloc de panneau inconnu : " + bloc.type);
+  }
+
+  /* Lets the contract check prove the refusal rather than trust the comment
+     above it: a block type nobody declared must raise, not draw nothing. */
+  window.__panneauInconnu = () => panneauBlocHTML({ type: "ceci-n-existe-pas" });
+
+  function panneauHTML(descripteur) {
+    const identite = `<h3 class="sheettitle">${escapeHtml(descripteur.titre)}</h3>${
+      descripteur.sousTitre
+        ? `<span class="sheetsub">${escapeHtml(descripteur.sousTitre)}</span>`
+        : ""
+    }${descripteur.meta ? `<p class="sheetmeta">${richText(descripteur.meta)}</p>` : ""}${chipHTML(
+      descripteur.puce,
+    )}`;
+    const portrait = descripteur.affiche
+      ? `<span class="sheetposter">${posterBox(descripteur.affiche.t, descripteur.affiche.k)}</span>`
+      : descripteur.avatar
+        ? `<span class="avatar big" aria-hidden="true"><img src="${descripteur.avatar}" alt=""></span>`
+        : "";
+    const tete = portrait
+      ? `<div class="sheethead${descripteur.affiche ? " avecaffiche" : ""}">${portrait}<div class="sheetid">${identite}</div></div>`
+      : identite;
+    return `${tete}${(descripteur.blocs || []).map(panneauBlocHTML).join("")}`;
   }
 
   function swipeHTML(inner, actions) {
@@ -10868,23 +11016,34 @@
      says why, rather than being absent: a menu that grows an item later teaches
      its shape twice. */
   function openUserSheet() {
-    openSheet(`
-      <div class="sheethead">
-        <span class="avatar big" aria-hidden="true"><img src="${COMPTE.avatar}" alt=""></span>
-        <div>
-          <span class="sheettitle">${escapeHtml(COMPTE.nom)}</span>
-          <span class="sheetsub">${escapeHtml(COMPTE.mail)}</span>
-        </div>
-      </div>
-      <div class="sheetacts secondary">
-        <button class="sact" disabled title="Disponible avec les comptes multiples">
-          ${svgIcon(icons.user)}Profil et préférences
-          <span class="soon">bientôt</span>
-        </button>
-        <button class="sact danger" data-deconnexion="1">
-          ${svgIcon(icons.logout)}Se déconnecter
-        </button>
-      </div>`);
+    openSheet(
+      panneauHTML({
+        titre: COMPTE.nom,
+        sousTitre: COMPTE.mail,
+        avatar: COMPTE.avatar,
+        blocs: [
+          {
+            type: "actions",
+            secondaire: true,
+            actions: [
+              {
+                texte: "Profil et préférences",
+                icone: icons.user,
+                desactive: true,
+                infobulle: "Disponible avec les comptes multiples",
+                mention: "bientôt",
+              },
+              {
+                texte: "Se déconnecter",
+                icone: icons.logout,
+                ton: "danger",
+                cible: { deconnexion: "1" },
+              },
+            ],
+          },
+        ],
+      }),
+    );
   }
 
   /* Accepts an index into the library or a plain title: the gallery of a lens
@@ -11279,19 +11438,37 @@
 
   function openSugSheet(index) {
     const suggestion = SUGGESTIONS[index];
-    openSheet(`
-      <h3 class="sheettitle">${escapeHtml(suggestion.t)}</h3>
-      <p class="sheetmeta">${escapeHtml(suggestion.y)} · ${escapeHtml(suggestion.k)} · note TMDB ${escapeHtml(String(suggestion.note))}</p>
-      <p class="rulenote">${richText(suggestion.why)}</p>
-      <div class="sheetacts">
-        <button class="sact primary" data-follow="${escapeHtml(suggestion.t)}" data-sugidx="${index}">${svgIcon(icons.plus)}${sugVerb(suggestion)}</button>
-        <button class="sact" data-fiche="${escapeHtml(suggestion.t)}">${svgIcon(icons.eye)}Voir la fiche</button>
-      </div>
-      <div class="sheetacts secondary">
-        <button class="sact danger" data-dropsug="${index}">${svgIcon(icons.x)}Pas intéressé</button>
-      </div>
-      ${suggestion.k === "Film" ? `<p class="rulenote">Une fois acquis, ce film quittera automatiquement votre liste (§5).</p>` : ""}
-    `);
+    openSheet(
+      panneauHTML({
+        titre: suggestion.t,
+        meta: `${suggestion.y} · ${suggestion.k} · note TMDB ${suggestion.note}`,
+        blocs: [
+          { type: "note", texte: suggestion.why },
+          {
+            type: "actions",
+            actions: [
+              {
+                texte: sugVerb(suggestion),
+                icone: icons.plus,
+                ton: "primary",
+                cible: { follow: suggestion.t, sugidx: index },
+              },
+              { texte: "Voir la fiche", icone: icons.eye, cible: { fiche: suggestion.t } },
+            ],
+          },
+          {
+            type: "actions",
+            secondaire: true,
+            actions: [
+              { texte: "Pas intéressé", icone: icons.x, ton: "danger", cible: { dropsug: index } },
+            ],
+          },
+          suggestion.k === "Film"
+            ? { type: "note", texte: "Une fois acquis, ce film quittera automatiquement votre liste (§5)." }
+            : null,
+        ],
+      }),
+    );
   }
 
   /* The label a search result's action carries, computed ONCE. The card foot
@@ -11326,15 +11503,33 @@
   function openAddSheet(index) {
     const result = SEARCH.results[index];
     const fait = state.added.has(index);
-    openSheet(`
-      <h3 class="sheettitle">${escapeHtml(result.t)}</h3>
-      <p class="sheetmeta">${escapeHtml(result.y)} · ${escapeHtml(result.k)} · TMDB</p>
-      ${result.owned && state.addMode !== "identifier" ? `<p class="rulenote">Déjà en médiathèque — l'acquisition <b>remplacera</b> la version en place.</p>` : ""}
-      <div class="sheetacts">
-        <button class="sact primary" data-act="add:${index}" ${fait ? "disabled" : ""}>${svgIcon(icons.plus)}${escapeHtml(addVerb(result, index))}</button>
-        <button class="sact" data-fiche="${escapeHtml(result.t)}">${svgIcon(icons.eye)}Voir la fiche</button>
-      </div>
-    `);
+    openSheet(
+      panneauHTML({
+        titre: result.t,
+        meta: `${result.y} · ${result.k} · TMDB`,
+        blocs: [
+          result.owned && state.addMode !== "identifier"
+            ? {
+                type: "note",
+                texte: ["Déjà en médiathèque — l'acquisition ", { e: "remplacera" }, " la version en place."],
+              }
+            : null,
+          {
+            type: "actions",
+            actions: [
+              {
+                texte: addVerb(result, index),
+                icone: icons.plus,
+                ton: "primary",
+                desactive: fait,
+                cible: { act: `add:${index}` },
+              },
+              { texte: "Voir la fiche", icone: icons.eye, cible: { fiche: result.t } },
+            ],
+          },
+        ],
+      }),
+    );
   }
 
   function sugFoot() {
@@ -12596,16 +12791,23 @@
       return;
     }
     if (closest.dataset.sort) {
-      openSheet(`<h3 class="sheettitle">Trier la médiathèque</h3>
-        <p class="sheetmeta">Le tri est une préférence, pas un emplacement : il reste sur cet appareil et n'entre pas dans l'URL (A7).</p>
-        <div class="sheetacts">
-          ${Object.entries(TRIS)
-            .map(
-              ([key, label]) =>
-                `<button class="sact${state.tri === key ? " primary" : ""}" data-settri="${key}">${svgIcon(icons.sort)}${label}</button>`,
-            )
-            .join("")}
-        </div>`);
+      openSheet(
+        panneauHTML({
+          titre: "Trier la médiathèque",
+          meta: "Le tri est une préférence, pas un emplacement : il reste sur cet appareil et n'entre pas dans l'URL (A7).",
+          blocs: [
+            {
+              type: "actions",
+              actions: Object.entries(TRIS).map(([cle, libelle]) => ({
+                texte: libelle,
+                icone: icons.sort,
+                ton: state.tri === cle ? "primary" : null,
+                cible: { settri: cle },
+              })),
+            },
+          ],
+        }),
+      );
       return;
     }
     if (closest.dataset.settri) {
@@ -34204,37 +34406,15 @@
   </div></div>`);
   }
 
+  /* Every medium opens the SAME panel, and this function exists only to say
+     so. A second builder used to answer for whatever the first did not
+     recognise, and it offered six buttons that led nowhere at all — three of
+     them carrying no destination whatsoever. That is what a fallback builder
+     becomes: it is never the one being looked at, so it is never the one being
+     fixed. The panel derives what it offers from what is true about the
+     medium, and « nothing is known about this one » is one of those truths. */
   function openDetailSheet(title) {
-    // A follow or media card opens the COMPLETE sheet, matrix
-    // included.
-    if (
-      world.follows.some((follow) => follow.t === title) ||
-      SEASONS[title] ||
-      INCOMPLETE.some((INCOMPLETE2) => INCOMPLETE2.t === title)
-    ) {
-      return openFollowSheet(title);
-    }
-    return openDetailSheetLegacy(title);
-  }
-
-  function openDetailSheetLegacy(title) {
-    const found = world.follows.find((follow) => follow.t === title);
-    const isFilm = found && found.k === "film";
-    openSheet(`
-    <h3 class="sheettitle">${escapeHtml(title)}</h3>
-    <p class="sheetmeta">${found ? `${escapeHtml(found.f)} épisodes possédés · ${escapeHtml(found.chip[1])}` : "Détail de l'élément"}</p>
-    <div class="sheetacts">
-      <button class="sact primary">${svgIcon(icons.play)}Récupérer maintenant</button>
-      <button class="sact" data-fiche="${escapeHtml(title)}">${svgIcon(icons.eye)}Voir la fiche</button>
-      <button class="sact">${svgIcon(icons.refresh)}Voir le parcours</button>
-    </div>
-    <div class="sheetacts secondary">
-      <button class="sact">${svgIcon(icons.search)}Chercher une autre release</button>
-      <button class="sact">${svgIcon(icons.x)}${isFilm ? "Ne plus chercher" : "Mettre en pause"}</button>
-      <button class="sact danger">${svgIcon(icons.trash)}${isFilm ? "Retirer de la liste" : "Retirer le suivi"}</button>
-    </div>
-    ${isFilm ? `<p class="note" style="display:block">Une fois acquis, ce film quittera automatiquement votre liste (§5).</p>` : ""}
-  `);
+    return openFollowSheet(title);
   }
 
   /* Follow detail sheet, with its season matrix
@@ -34290,6 +34470,37 @@
       </summary>
       <div class="eps">${cells}</div>
     </details>`;
+  }
+
+  /* The season matrix and the legend that reads it — ONE block, so a panel
+     asking for seasons cannot get the matrix without the key to it.
+
+     The legend lists only the states actually PRESENT, and it sits above the
+     matrix: under 403 episodes it would be invisible exactly when it is
+     needed. */
+  function saisonsHTML(follow, saisons) {
+    const catalogue = (number) =>
+      sheetFor(follow.t)?.eps?.[String(number)] ?? null;
+    const aDesAnnonces = saisons.some((saison) =>
+      (catalogue(saison[0]) ?? []).some(
+        (episode) => episode.air && episode.air > AUJOURDHUI,
+      ),
+    );
+    const etats = [
+      ...new Set([
+        ...(aDesAnnonces ? ["annonce"] : []),
+        ...saisons.flatMap((saison) => [
+          ...(saison[2] > 0 ? ["en_mediatheque"] : []),
+          ...(saison[1] > saison[2]
+            ? [epState(follow, saison[0], saison[1], saison[2])]
+            : []),
+        ]),
+      ]),
+    ];
+    return `<div class="legend">${EP_ORDER.filter((etat) => etats.includes(etat))
+      .map((etat) => `<span><i class="${EP_SWATCH[etat]}"></i>${EP_LABEL[etat]}</span>`)
+      .join("")}</div>
+      ${saisons.map((saison) => seasonHTML(follow, saison)).join("")}`;
   }
 
   /* Tapping a cell: its air date, in French. The sentence follows the state
@@ -34388,105 +34599,108 @@
       : seasons.length
         ? `${own}/${aired}`
         : (stFraction(follow) ?? "—");
-    const cat0 = (number) => sheetFor(follow.t)?.eps?.[String(number)] ?? null;
-    const aDesAnnonces = seasons.some((season) =>
-      (cat0(season[0]) ?? []).some(
-        (element) => element.air && element.air > AUJOURDHUI,
-      ),
+    openSheet(
+      panneauHTML({
+        titre: follow.t,
+        affiche: { t: follow.t, k: follow.k },
+        meta: `${follow.y ? String(follow.y) + " · " : ""}${isFilm ? "Film" : "Série"}${frac ? " · " + frac + " épisodes" : ""}`,
+        puce: [ST_TONE[follow.st], stLabel(follow)],
+        blocs: [
+          {
+            type: "actions",
+            actions: [
+              /* The primary action answers the medium's STATE, not the screen
+                 it came from — which is why it is read from the derivations
+                 above and not passed in. Blocked outranks everything: nothing
+                 else can happen until it is resolved. Then what can be
+                 grabbed, then what is incomplete, then what is merely watched.
+                 A medium that is owned and whole has nothing left to chase, so
+                 the panel leads to its sheet rather than offering a search
+                 that would find nothing. */
+              aResoudre
+                ? { texte: "Résoudre →", icone: icons.play, ton: "primary", cible: { resolve: follow.t } }
+                : aRecuperer
+                  ? { texte: "Récupérer maintenant", icone: icons.play, ton: "primary", cible: { recuperer: follow.t } }
+                  : incomplet
+                    ? { texte: "Compléter → Acquisitions", icone: icons.play, ton: "primary", cible: { completer: follow.t } }
+                    : suivi
+                      ? {
+                          texte: follow.st === "a_recuperer" ? "Récupérer maintenant" : "Chercher maintenant",
+                          icone: icons.play,
+                          ton: "primary",
+                          cible: { sheetprim: `${follow.t}|${follow.st}` },
+                        }
+                      : aFiche
+                        ? { texte: "Voir la fiche", icone: icons.eye, ton: "primary", cible: { fiche: follow.t } }
+                        : { texte: "Voir le parcours", icone: icons.refresh, ton: "primary", cible: { journey: follow.t } },
+            ],
+          },
+          seasons.length
+            ? { type: "saisons", suivi: follow, saisons: seasons }
+            : isFilm
+              ? { type: "note", texte: "Un film n'a pas de catalogue d'épisodes : il est acquis, ou il ne l'est pas." }
+              : {
+                  type: "note",
+                  texte:
+                    "Aucune donnée de saison connue pour cette série — le catalogue n'a pas encore été récupéré. La fraction affiche « — », jamais « 0/0 » qui se lirait comme une série vide.",
+                },
+          {
+            type: "actions",
+            secondaire: true,
+            actions: [
+              /* « Voir la fiche » is reachable from the panel whenever a sheet
+                 exists. It is omitted only when it is ALREADY the primary
+                 action, which happens for a medium that is owned and whole. */
+              aFiche && (aResoudre || aRecuperer || incomplet || suivi)
+                ? { texte: "Voir la fiche", icone: icons.eye, cible: { fiche: follow.t } }
+                : null,
+              { texte: "Voir le parcours", icone: icons.refresh, cible: { journey: follow.t } },
+              /* Chasing a release only means something for a medium still
+                 being acquired. Offered on a complete one it is a button that
+                 can only disappoint. */
+              suivi || incomplet || aRecuperer
+                ? { texte: "Chercher une autre release", icone: icons.search, cible: { releases: follow.t } }
+                : null,
+              suivi || incomplet || aRecuperer
+                ? { texte: "Profil de qualité", icone: icons.sort, cible: { profil: follow.t } }
+                : null,
+              enMediatheque
+                ? { texte: "Re-scraper les métadonnées", icone: icons.refresh, cible: { rescrape: follow.t } }
+                : null,
+              /* Pausing or dropping a follow requires a follow. An incomplete
+                 series in the library is not one: nothing is watching it, so
+                 there is nothing to stop. */
+              suivi
+                ? {
+                    texte: isFilm ? "Ne plus chercher" : "Mettre en pause",
+                    icone: icons.x,
+                    cible: { pause: follow.t },
+                  }
+                : null,
+              suivi
+                ? {
+                    texte: isFilm ? "Retirer de la liste" : "Retirer le suivi",
+                    icone: icons.trash,
+                    ton: "danger",
+                    cible: { retirer: follow.t },
+                  }
+                : null,
+              enMediatheque
+                ? {
+                    texte: "Supprimer de la médiathèque",
+                    icone: icons.trash,
+                    ton: "danger",
+                    cible: { del: follow.t },
+                  }
+                : null,
+            ],
+          },
+          isFilm
+            ? { type: "note", texte: "Une fois acquis, ce film quittera automatiquement votre liste (§5)." }
+            : null,
+        ],
+      }),
     );
-    const etats = seasons.length
-      ? [
-          ...new Set([
-            ...(aDesAnnonces ? ["annonce"] : []),
-            ...seasons.flatMap((season) => [
-              ...(season[2] > 0 ? ["en_mediatheque"] : []),
-              ...(season[1] > season[2]
-                ? [epState(follow, season[0], season[1], season[2])]
-                : []),
-            ]),
-          ]),
-        ]
-      : [];
-
-    openSheet(`
-      <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:12px">
-        <span class="sheetposter">${posterBox(follow.t, follow.k)}</span>
-        <div style="min-width:0;flex:1">
-          <h3 class="sheettitle">${escapeHtml(follow.t)}</h3>
-          <p class="sheetmeta" style="margin-bottom:6px">${follow.y ? escapeHtml(String(follow.y)) + " · " : ""}${isFilm ? "Film" : "Série"}${frac ? " · " + frac + " épisodes" : ""}</p>
-          <span class="chip ${ST_TONE[follow.st]}">${escapeHtml(stLabel(follow))}</span>
-        </div>
-      </div>
-      <div class="sheetacts">
-        ${
-          /* The primary action answers the medium's STATE, not the screen it
-             came from — which is why it is read from the derivations above and
-             not passed in. Blocked outranks everything: nothing else can
-             happen until it is resolved. Then what can be grabbed, then what
-             is incomplete, then what is merely watched. A medium that is owned
-             and whole has nothing left to chase, so the panel leads to its
-             sheet rather than offering a search that would find nothing. */
-          aResoudre
-            ? `<button class="sact primary" data-resolve="${escapeHtml(follow.t)}">${svgIcon(icons.play)}Résoudre →</button>`
-            : aRecuperer
-              ? `<button class="sact primary" data-recuperer="${escapeHtml(follow.t)}">${svgIcon(icons.play)}Récupérer maintenant</button>`
-              : incomplet
-                ? `<button class="sact primary" data-completer="${escapeHtml(follow.t)}">${svgIcon(icons.play)}Compléter → Acquisitions</button>`
-                : suivi
-                  ? `<button class="sact primary" data-sheetprim="${escapeHtml(follow.t)}|${follow.st}">${svgIcon(icons.play)}${follow.st === "a_recuperer" ? "Récupérer maintenant" : "Chercher maintenant"}</button>`
-                  : aFiche
-                    ? `<button class="sact primary" data-fiche="${escapeHtml(follow.t)}">${svgIcon(icons.eye)}Voir la fiche</button>`
-                    : `<button class="sact primary" data-journey="${escapeHtml(follow.t)}">${svgIcon(icons.refresh)}Voir le parcours</button>`
-        }
-      </div>
-      ${
-        seasons.length
-          ? `<div class="legend">${EP_ORDER.filter((EP_ORDER2) =>
-              etats.includes(EP_ORDER2),
-            )
-              .map(
-                (filter) =>
-                  `<span><i class="${EP_SWATCH[filter]}"></i>${EP_LABEL[filter]}</span>`,
-              )
-              .join("")}</div>
-             ${seasons.map((season) => seasonHTML(follow, season)).join("")}`
-          : isFilm
-            ? `<p class="rulenote">Un film n'a pas de catalogue d'épisodes : il est acquis, ou il ne l'est pas.</p>`
-            : `<p class="rulenote">Aucune donnée de saison connue pour cette série — le catalogue n'a pas encore été récupéré. La fraction affiche « — », jamais « 0/0 » qui se lirait comme une série vide.</p>`
-      }
-      <div class="sheetacts secondary">
-        ${
-          /* « Voir la fiche » is reachable from the panel whenever a sheet
-             exists. It is omitted only when it is ALREADY the primary action,
-             which happens for a medium that is owned and whole. */
-          aFiche && (aResoudre || aRecuperer || incomplet || suivi)
-            ? `<button class="sact" data-fiche="${escapeHtml(follow.t)}">${svgIcon(icons.eye)}Voir la fiche</button>`
-            : ""
-        }
-        <button class="sact" data-journey="${escapeHtml(follow.t)}">${svgIcon(icons.refresh)}Voir le parcours</button>
-        ${
-          /* Chasing a release only means something for a medium still being
-             acquired. Offered on a complete one it is a button that can only
-             disappoint. */
-          suivi || incomplet || aRecuperer
-            ? `<button class="sact" data-releases="${escapeHtml(follow.t)}">${svgIcon(icons.search)}Chercher une autre release</button>
-               <button class="sact" data-profil="${escapeHtml(follow.t)}">${svgIcon(icons.sort)}Profil de qualité</button>`
-            : ""
-        }
-        ${enMediatheque ? `<button class="sact" data-rescrape="${escapeHtml(follow.t)}">${svgIcon(icons.refresh)}Re-scraper les métadonnées</button>` : ""}
-        ${
-          /* Pausing or dropping a follow requires a follow. An incomplete
-             series in the library is not one: nothing is watching it, so
-             there is nothing to stop. */
-          suivi
-            ? `<button class="sact" data-pause="${escapeHtml(follow.t)}">${svgIcon(icons.x)}${isFilm ? "Ne plus chercher" : "Mettre en pause"}</button>
-               <button class="sact danger" data-retirer="${escapeHtml(follow.t)}">${svgIcon(icons.trash)}${isFilm ? "Retirer de la liste" : "Retirer le suivi"}</button>`
-            : ""
-        }
-        ${enMediatheque ? `<button class="sact danger" data-del="${escapeHtml(follow.t)}">${svgIcon(icons.trash)}Supprimer de la médiathèque</button>` : ""}
-      </div>
-      ${isFilm ? `<p class="rulenote">Une fois acquis, ce film quittera automatiquement votre liste (§5).</p>` : ""}
-    `);
   }
 
   /* Journey sheet
@@ -34501,16 +34715,32 @@
       ["Scrapé", "en cours depuis 4 min", "now"],
       ["Rangé en médiathèque", "à venir", "todo"],
     ];
-    openSheet(`
-      <h3 class="sheettitle">${escapeHtml(title)}</h3>
-      <p class="sheetmeta">Parcours de l'acquisition · release <code>Furious.S01E01.MULTi.1080p.WEB-DL</code></p>
-      <div class="panel" style="margin-bottom:14px">
-        ${etapes.map(([label, detail, tone]) => `<div class="kv"><span style="display:flex;align-items:center;gap:8px"><span class="pip ${tone === "done" ? "success" : tone === "now" ? "info" : "neutral"}"></span>${label}</span><span style="font-weight:${tone === "todo" ? "400" : "600"};color:${tone === "todo" ? "var(--muted-foreground)" : "inherit"}">${detail}</span></div>`).join("")}
-      </div>
-      <p class="rulenote">Les dates viennent de la spine de provenance. Une étape non encore atteinte affiche « à venir » — jamais une date reconstruite.</p>
-      <div class="sheetacts">
-        <button class="sact" data-fiche="${escapeHtml(title)}">${svgIcon(icons.eye)}Voir la fiche</button>
-      </div>`);
+    openSheet(
+      panneauHTML({
+        titre: title,
+        meta: ["Parcours de l'acquisition · release ", { m: "Furious.S01E01.MULTi.1080p.WEB-DL" }],
+        blocs: [
+          {
+            type: "faits",
+            lignes: etapes.map(([libelle, detail, ton]) => ({
+              c: libelle,
+              v: detail,
+              pip: ton === "done" ? "success" : ton === "now" ? "info" : "neutral",
+              terne: ton === "todo",
+            })),
+          },
+          {
+            type: "note",
+            texte:
+              "Les dates viennent de la spine de provenance. Une étape non encore atteinte affiche « à venir » — jamais une date reconstruite.",
+          },
+          {
+            type: "actions",
+            actions: [{ texte: "Voir la fiche", icone: icons.eye, cible: { fiche: title } }],
+          },
+        ],
+      }),
+    );
   }
 
   /* Add screen (« + »)
@@ -34761,18 +34991,34 @@
   }
 
   function openPlusSheet() {
-    openSheet(`
-    <h3 class="sheettitle">Veille et obligations</h3>
-    <p class="sheetmeta">Second rang — consulté, pas surveillé.</p>
-    <div class="panel" style="margin-bottom:14px">
-      <div class="kv"><span>Dernier passage</span><span>il y a 22 min</span></div>
-      <div class="kv"><span>Prochain passage</span><span>dans 38 min</span></div>
-      <div class="kv"><span>Ratio global</span><span><span class="pip success"></span>2,41</span></div>
-      <div class="kv"><span>Obligations en cours</span><span>3 torrents</span></div>
-    </div>
-    <div class="sheetacts">
-      <button class="sact primary" data-veille="1">${svgIcon(icons.refresh)}Lancer la veille maintenant</button>
-    </div>`);
+    openSheet(
+      panneauHTML({
+        titre: "Veille et obligations",
+        meta: "Second rang — consulté, pas surveillé.",
+        blocs: [
+          {
+            type: "faits",
+            lignes: [
+              { c: "Dernier passage", v: "il y a 22 min" },
+              { c: "Prochain passage", v: "dans 38 min" },
+              { c: "Ratio global", v: "2,41", pipValeur: "success" },
+              { c: "Obligations en cours", v: "3 torrents" },
+            ],
+          },
+          {
+            type: "actions",
+            actions: [
+              {
+                texte: "Lancer la veille maintenant",
+                icone: icons.refresh,
+                ton: "primary",
+                cible: { veille: "1" },
+              },
+            ],
+          },
+        ],
+      }),
+    );
   }
 
   window.__close = (layer) =>

@@ -51,6 +51,9 @@
     ".annonce",
     ".armed",
     ".avatar",
+    ".avecaffiche",
+    ".avecpip",
+    ".avenir",
     ".b",
     ".best",
     ".big",
@@ -339,8 +342,10 @@
     ".sheet.open",
     ".sheetacts",
     ".sheetacts.secondary",
+    ".sheetfaits",
     ".sheetgrab",
     ".sheethead",
+    ".sheetid",
     ".sheetin",
     ".sheetmeta",
     ".sheetposter",
@@ -974,6 +979,7 @@
     "R52": "Every document the server hands out declares the manifest, the icons and the worker, and the worker answers a navigation with the network gone. Declarations carried by the prototype ALONE reach no phone: the only document reachable before signing in is the gate, and a browser reads the manifest of the page in front of it.",
     "R53": "The wait that follows a sign-in is covered by ONE startup screen, extracted from the prototype like the gate. It is declared FIRST in the frame, because a browser paints what it has parsed and a screen sitting after the embedded artwork appears only once the wait is over; it covers the frame, offers no control, and is gone as soon as the first render has run.",
     "R54": "Signing out asks the SERVER to drop the session, and only then shows the entry screen. The session is the cookie; a screen that showed the entry form while the cookie was still valid would be contradicted by the next reload. The button ends on that screen and never on a message saying it happened.",
-    "R55": "Every gesture answers a REAL finger, measured through real touch input rather than synthetic events. A gesture living inside the scrollport reads the finger from TOUCH events: the compositor fires `pointercancel` and stops delivering `pointermove` the moment it claims the pan, so a pointer-only handler passes every synthetic test and does nothing under a thumb. Claiming the axis in `touch-action` is not available on the scrollport — `pan-y` there intersects down onto `.pillscroll` and `.cast`, which pan on neither axis afterwards — so the gestures that CAN claim it keep the pointer path and the ones that cannot read touch."
+    "R55": "Every gesture answers a REAL finger, measured through real touch input rather than synthetic events. A gesture living inside the scrollport reads the finger from TOUCH events: the compositor fires `pointercancel` and stops delivering `pointermove` the moment it claims the pan, so a pointer-only handler passes every synthetic test and does nothing under a thumb. Claiming the axis in `touch-action` is not available on the scrollport — `pan-y` there intersects down onto `.pillscroll` and `.cast`, which pan on neither axis afterwards — so the gestures that CAN claim it keep the pointer path and the ones that cannot read touch.",
+    "R56": "ONE bottom panel, and its shape follows the FACTS it is given — title, meta, an optional poster or avatar, a chip, then ordered blocks of declared kinds. No caller hands it markup: an envelope guarantees nothing about what it carries, and three head shapes had already grown that way, two of them out of inline styles that belong to no stylesheet and are exported nowhere. A block type nobody declared is refused rather than drawn empty, and no action in a panel is offered without a destination — a second, fallback builder had shipped six buttons of which three led nowhere, because a fallback is never the one being looked at and therefore never the one being fixed."
   }
 }

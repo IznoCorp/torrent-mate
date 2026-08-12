@@ -140,7 +140,7 @@ One file, four jobs:
   rather than implied.
 - **`regions`** — what `parity-probe.py` measures, each naming the states it is visible in,
   so the probe never has to guess how to reach a card state.
-- **`$adversarialReview`** — the rule set (R1…R55) plus `$methodLessons`: what each rule
+- **`$adversarialReview`** — the rule set (R1…R56) plus `$methodLessons`: what each rule
   exists for, and what a rule that failed to bite taught. `$reportedDefects` lists the
   defects found by hand, each with its test in `harness/bugs.py`.
 
@@ -248,6 +248,21 @@ variable display » from turning into a component with a dozen appearance flags.
 **A tile is not a card with a flag.** It is a different layout — all poster, name
 below — so it stays a separate builder. What the two share is the descriptor and the
 behaviour contract, which is where the guarantees actually live.
+
+**The panel is built the same way, and was the last envelope.** `openSheet` used to take
+ready-made markup, so every surface assembled its own: three head shapes had grown that way —
+one with a poster, one with an avatar, one with neither — two of them out of inline styles,
+which belong to no stylesheet and are therefore exported nowhere. It now takes a descriptor
+(title, meta, an optional poster or avatar, a chip) plus ORDERED blocks of declared kinds —
+`note`, `faits`, `actions`, `saisons` — because the order is the caller's: a follow panel puts
+its primary action above the season matrix and its secondary group below. A block type nobody
+declared raises rather than drawing nothing.
+
+A **fallback** builder had also appeared, answering for whatever the first did not recognise,
+and it shipped six buttons of which three led nowhere at all. That is what a fallback becomes:
+never the one being looked at, so never the one being fixed. There is one builder now, and
+« nothing is known about this medium » is one of the truths it derives from. R56
+(`harness/panneau.py`) states it.
 
 **Not everything that looks like a card is one.** A release candidate shares the markup
 and is a different object: it has no sheet and no panel, because it is one candidate
@@ -431,6 +446,7 @@ They are committed because they encode recipes that cost time to get right.
 | `pwa.py` | R52: the LIVE host is installable from the first document a phone reaches — manifest, icons that load, worker registered and controlling, offline fallback cached. Runs against `tm-design.iznogoudatall.xyz`, not the local server |
 | `demarrage.py` | R53: the startup screen is declared first, covers the frame, offers no control, is gone after the first render, and the gate the server builds shows the same screen — extracted — from the submit onwards. Starts `serve.py` on a scratch port |
 | `deconnexion.py` | R54: signing out lands on the entry screen AND the server stops accepting the session. Starts `serve.py` on a scratch port |
+| `panneau.py` | R56: one panel builder, no caller passing markup, no inline style inside a panel, one heading, no action without a destination, and an undeclared block refused |
 | `doigt.py` | R55: every gesture under REAL touch input (`Input.dispatchTouchEvent`), which the compositor can cancel — the pull to refresh on seven surfaces, the swipe between views, ordinary scrolling, the swipeable row and the deck |
 
 Run them with the Python that carries Playwright, against a local static server on
