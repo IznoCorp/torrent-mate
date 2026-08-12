@@ -328,7 +328,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
                                   ("Set-Cookie", f"{NOM_COOKIE}=; Path=/; Max-Age=0")])
             return
         if chemin not in ("/", "/index.html"):
-            self._send(404, b"<!doctype html><title>404</title>Rien ici.")
+            # Anything else goes back to the one document, instead of dead-ending.
+            #
+            # A 404 here is not a smaller failure than a broken page, it IS the
+            # broken page: `/connexion` accepts only POST, so a reload or a
+            # back-navigation after signing in used to answer « Rien ici » — and
+            # an installed PWA, whose whole scope is `/`, has no address bar to
+            # get out of it with. The scope must therefore be a place one cannot
+            # leave by accident.
+            self._send(303, b"", [("Location", "/")])
             return
         if not self._authentifie():
             self._send(401, page_connexion(refusee="refus" in self.path))
@@ -344,7 +352,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802 — name imposed by BaseHTTPRequestHandler
         """Answers the login form: a session cookie, or the rejection state."""
         if self.path.split("?", 1)[0] != "/connexion":
-            self._send(404, b"<!doctype html><title>404</title>Rien ici.")
+            self._send(303, b"", [("Location", "/")])
             return
         taille = min(int(self.headers.get("Content-Length") or 0), 4096)
         champs = urllib.parse.parse_qs(self.rfile.read(taille).decode("utf-8", "replace"))
