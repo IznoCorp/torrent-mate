@@ -22,6 +22,18 @@
 - **Comments in English**, with no reference to a session, a phase number, or a dated decision. Interface copy stays French.
 - **Commits:** Conventional Commits, scope `(shell-mobile)`. No AI attribution. **Version bump on every PR.**
 
+- **Resolving must FINISH the pipeline, not label a folder.** Choosing a candidate relaunches
+  the scrape and the medium completes its whole pipeline — metadata, posters, trailer,
+  verification, dispatch — by reusing the **single trigger authority** (the pipeline lock and
+  the existing runner), **never a second mechanism**. The interface must show that
+  continuation: the card advances, its journey fills, and it ends dispatched. A medium still
+  stuck in staging after « resolution » is a breach of the constitution, not a rough edge.
+- **Work on `feat/shell-mobile`, never on `main`.** Every phase of this rebuild targets the
+  same integration branch; `main` — and therefore production — is touched once, at the end,
+  after everything has been validated together. This is the mission's one non-negotiable
+  arbitration. Before the first commit of any task, run `git branch --show-current` and stop
+  if it is not `feat/shell-mobile`: a phase committed to `main` cannot be un-shipped, and a
+  local `main` that has drifted produces a pull request with no checks at all.
 ---
 
 ## File Structure
@@ -608,6 +620,28 @@ test("choosing a candidate associates it — it never creates a follow", () => {
   expect(screen.queryByRole("button", { name: /suivre|ajouter/i })).toBeNull();
 });
 
+test("associating relaunches the pipeline, it does not merely label the folder", () => {
+  // Resolving is not « writing an NFO ». The medium must complete its pipeline —
+  // metadata, posters, trailer, verification, dispatch — through the existing
+  // runner and its lock, never through a second mechanism. A medium still stuck
+  // in staging after « resolution » is a breach of the constitution.
+  const onAssociate = vi.fn();
+  render(
+    <ResolutionScreen
+      folder="Backrooms 2026"
+      candidates={CANDIDATES}
+      onAssociate={onAssociate}
+      onManualSearch={() => {}}
+    />,
+  );
+  fireEvent.click(screen.getAllByRole("button", { name: /c'est celui-ci/i })[0]);
+  // The screen hands the choice over; the caller is what relaunches. What this
+  // test pins is that the screen does NOT offer a « write metadata only » path,
+  // which is the shape the breach takes.
+  expect(onAssociate).toHaveBeenCalledTimes(1);
+  expect(screen.queryByRole("button", { name: /écrire la nfo|métadonnées seules/i })).toBeNull();
+});
+
 test("none of the candidates is never a dead end", () => {
   // The way out is not a sentence, it is a pre-filled screen.
   const onManualSearch = vi.fn();
@@ -721,7 +755,17 @@ export function ResolutionScreen({
 Run: `cd frontend && npx vitest run src/components/arrivees/ResolutionScreen.test.tsx`
 Expected: PASS — 4 passed.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Verify the continuation, on the real pipeline**
+
+Resolve a genuinely stuck folder on staging and watch what follows. Expected: the scrape
+relaunches through the existing runner, the card leaves « À traiter », its journey fills, and
+the medium ends dispatched. Check the pipeline lock was taken by that runner and not by a
+second mechanism.
+
+A medium still sitting in staging after « resolution » means the screen labelled a folder
+instead of restarting it — which is the failure this whole surface exists to prevent.
+
+- [ ] **Step 5: Commit**
 
 ```bash
 git add frontend/src/components/arrivees

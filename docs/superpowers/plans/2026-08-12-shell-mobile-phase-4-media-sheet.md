@@ -35,6 +35,12 @@
 > built the repository's way**, and set the staging role through the settings the
 > factory takes rather than inventing a second fixture name.
 
+- **Work on `feat/shell-mobile`, never on `main`.** Every phase of this rebuild targets the
+  same integration branch; `main` — and therefore production — is touched once, at the end,
+  after everything has been validated together. This is the mission's one non-negotiable
+  arbitration. Before the first commit of any task, run `git branch --show-current` and stop
+  if it is not `feat/shell-mobile`: a phase committed to `main` cannot be un-shipped, and a
+  local `main` that has drifted produces a pull request with no checks at all.
 ---
 
 ## File Structure

@@ -304,6 +304,14 @@ The verb follows the **context that opened the screen**, and the screen states i
 banner. Proposing « add to follows » where the operator wanted to unblock a folder is not a
 labelling detail: it performs the wrong action.
 
+**And associating must FINISH the pipeline (§4).** Choosing a candidate relaunches the scrape and
+the medium completes its whole pipeline — metadata, posters, trailer, verification, dispatch —
+by reusing the **single trigger authority** (the pipeline lock and the existing runner), **never a
+second mechanism**. The interface shows that continuation: the card advances, its journey fills,
+and it ends dispatched and visible in the player. A medium still stuck in staging after
+« resolution » is a breach of §4, not a rough edge — and « resolving » that only writes metadata
+is exactly the shape that breach takes.
+
 ### 5.5 The per-series quality profile — what the backend actually holds
 
 Verified in `acquire/desired.py`. `QualityProfile` has **four fields, and no others**:

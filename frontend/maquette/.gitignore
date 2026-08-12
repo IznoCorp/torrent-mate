@@ -1,0 +1,8 @@
+# Harness output, regenerated on every run.
+#
+# These screenshots are what the scripts produce while measuring, not what they
+# measure. Tracking them made every test run dirty the worktree with binary
+# diffs — and a worktree that is always dirty is a worktree whose real changes
+# nobody notices.
+harness/*.png
+_probe.html
