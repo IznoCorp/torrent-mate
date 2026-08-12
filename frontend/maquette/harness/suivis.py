@@ -42,4 +42,7 @@ async def main():
     print("film actions     :", await pg.evaluate("()=>[...document.querySelectorAll('.swipe .act')].slice(0,2).map(e=>e.textContent.trim())"))
     print("\nJS errors:", errs or "none")
     await b.close()
+    # A script that only prints can never fail, and a script that cannot fail
+    # proves nothing: the verdict has to reach the exit code.
+    if errs: raise SystemExit(1)
 asyncio.run(main())

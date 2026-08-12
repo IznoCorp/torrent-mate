@@ -40,4 +40,7 @@ async def main():
     print("\nJS errors:", errs or "none")
     print("VERDICT:", "16/16 renders conform" if total_bad == 0 and not errs else f"{total_bad} failec(s)")
     await b.close()
+    # A script that only prints can never fail, and a script that cannot fail
+    # proves nothing: the verdict has to reach the exit code.
+    if total_bad or errs: raise SystemExit(1)
 asyncio.run(main())

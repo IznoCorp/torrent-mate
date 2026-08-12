@@ -39,4 +39,7 @@ async def main():
     print("\nJS errors:", errs or "none")
     print("VERDICT:", "filters filter, and the parts sum to the whole" if not ko and not errs else f"remaining: {ko}")
     await b.close()
+    # A script that only prints can never fail, and a script that cannot fail
+    # proves nothing: the verdict has to reach the exit code.
+    if ko or errs: raise SystemExit(1)
 asyncio.run(main())

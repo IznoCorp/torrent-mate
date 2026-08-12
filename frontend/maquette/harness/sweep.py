@@ -43,4 +43,7 @@ async def main():
     print("\nJS errors:", errs or "none")
     print("VERDICT:", "all 8 views render content, with no overflow" if bad==0 and not errs else f"{bad} view(s) failed")
     await b.close()
+    # A script that only prints can never fail, and a script that cannot fail
+    # proves nothing: the verdict has to reach the exit code.
+    if bad or errs: raise SystemExit(1)
 asyncio.run(main())

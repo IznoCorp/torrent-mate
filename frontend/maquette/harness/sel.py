@@ -6,6 +6,7 @@ async def main():
     ctx=await b.new_context(viewport={"width":390,"height":844},device_scale_factor=2,is_mobile=True,has_touch=True)
     pg=await ctx.new_page(); errs=[]
     pg.on("pageerror", lambda e: errs.append(str(e)))
+    echecs = []
     await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
     await pg.evaluate("()=>document.querySelector('#toastx').click()")
 
@@ -20,14 +21,17 @@ async def main():
     await pg.screenshot(path="x_grille_repos.png")
 
     print("\n── appui long ──")
+    # A pointer event of type « touch »: the handlers serve finger, mouse and pen
+    # through one path, and a raw TouchEvent no longer reaches them.
     await pg.evaluate("""()=>{const el=document.querySelector('[data-tile]'),r=el.getBoundingClientRect();
-      const mk=(t,x,y)=>new TouchEvent(t,{bubbles:true,cancelable:true,
-        touches:t==='touchend'?[]:[new Touch({identifier:1,target:el,clientX:x,clientY:y})],
-        changedTouches:[new Touch({identifier:1,target:el,clientX:x,clientY:y})]});
-      el.dispatchEvent(mk('touchstart',r.left+r.width/2,r.top+r.height/2));}""")
+      el.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,cancelable:true,isPrimary:true,
+        pointerId:1,pointerType:'touch',clientX:r.left+r.width/2,clientY:r.top+r.height/2}));}""")
     await pg.wait_for_timeout(700)
-    print("  feuille ouverte :", await pg.evaluate("""()=>{const s=document.querySelector('#sheet');
-        return {ouverte:s.classList.contains('open'), actions:[...s.querySelectorAll('.sact')].map(x=>x.textContent.trim())};}"""))
+    appui = await pg.evaluate("""()=>{const s=document.querySelector('#sheet');
+        return {ouverte:s.classList.contains('open'), actions:[...s.querySelectorAll('.sact')].map(x=>x.textContent.trim())};}""")
+    print("  feuille ouverte :", appui)
+    if not appui["ouverte"]:
+        echecs.append("long press opens nothing")
     await pg.screenshot(path="x_appuilong.png")
     await pg.evaluate("()=>document.querySelector('#scrim').click()"); await pg.wait_for_timeout(350)
 
@@ -45,5 +49,9 @@ async def main():
                 choix:[...g.querySelectorAll('.dlgbtn')].map(x=>x.textContent.trim())};}"""))
     await pg.screenshot(path="x_supprmulti.png")
     print("\nJS errors:", errs or "none")
+    print("VERDICT:", "both delete paths are reachable"
+          if not echecs and not errs else f"FAILED - {echecs or errs}")
     await b.close()
+    if echecs or errs:
+        raise SystemExit(1)
 asyncio.run(main())

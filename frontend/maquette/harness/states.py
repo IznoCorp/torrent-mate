@@ -44,4 +44,7 @@ async def main():
     print("\nJS errors:", errs or "none")
     print("VERDICT:", f"{len(ids)-len(bad)}/{len(ids)} states conform" + ("" if not bad else f" — failures: {[x[0] for x in bad]}"))
     await b.close()
+    # A script that only prints can never fail, and a script that cannot fail
+    # proves nothing: the verdict has to reach the exit code.
+    if bad or errs: raise SystemExit(1)
 asyncio.run(main())

@@ -29,11 +29,15 @@ async def main():
         await pg.evaluate("""(dx)=>{
           const c=document.querySelector('.dcard[data-depth="0"]');
           const r=c.getBoundingClientRect(), x=r.left+r.width/2, y=r.top+r.height/2;
-          const mk=(cx)=>new Touch({identifier:1,target:c,clientX:cx,clientY:y});
-          const T=(t,pts)=>new TouchEvent(t,{bubbles:true,cancelable:true,touches:pts,targetTouches:pts,changedTouches:pts});
-          c.dispatchEvent(T('touchstart',[mk(x)]));
-          for (let i=1;i<=6;i++) c.dispatchEvent(T('touchmove',[mk(x+dx*i/6)]));
-          c.dispatchEvent(T('touchend',[mk(x+dx)]));
+          // Real PointerEvents of type « touch »: the handlers now serve finger,
+          // mouse and pen through one path, and the axis claim still lives in
+          // `touch-action`, which a synthetic event cannot exercise — that claim
+          // is asserted separately, below.
+          const P=(t,cx,extra)=>new PointerEvent(t,{bubbles:true,cancelable:true,isPrimary:true,
+            pointerId:1,pointerType:'touch',clientX:cx,clientY:y,...(extra||{})});
+          c.dispatchEvent(P('pointerdown',x));
+          for (let i=1;i<=6;i++) c.dispatchEvent(P('pointermove',x+dx*i/6));
+          window.dispatchEvent(P('pointerup',x+dx));
         }""", dx)
         await pg.wait_for_timeout(700)
 
@@ -53,10 +57,18 @@ async def main():
     print(f"RIGHT  « {t2[:26]} » → « {t3[:26]} »")
     print(f"       dismissed {n3} · undo offered: {annul}")
 
-    ok = (t1 != t0 and n1 == n0 and revient) and (t3 != t2 and n3 == 1 and annul)
+    # The axis claim is what makes a REAL touch gesture reach us instead of
+    # being taken by the browser. A synthetic event never exercises it, so it is
+    # asserted on the declaration itself.
+    axe = await pg.evaluate("()=>getComputedStyle(document.querySelector('.deck')).touchAction")
+    print(f"       axis claim on the deck: {axe}")
+    ok = (t1 != t0 and n1 == n0 and revient) and (t3 != t2 and n3 == 1 and annul) and axe == "pan-y"
     print("\nJS errors:", errs or "none")
     print("VERDICT:", "left skips and comes back, right dismisses with an undo"
           if ok and not errs else "needs review")
     await b.close()
 
+    # A script that only prints can never fail, and a script that cannot fail
+    # proves nothing: the verdict has to reach the exit code.
+    if not ok or errs: raise SystemExit(1)
 asyncio.run(main())

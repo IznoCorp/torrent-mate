@@ -40,8 +40,10 @@ async def main():
     await pg.evaluate("()=>document.querySelector('#scrim').click()"); await pg.wait_for_timeout(350)
 
     await pg.click('[data-page="lib"]'); await pg.click('[data-lens="inc"]'); await pg.wait_for_timeout(400)
-    await pg.click("[data-sheet='Les aventures de Tintin']"); await pg.wait_for_timeout(500)
-    r=await pg.evaluate("""()=>{const s=document.querySelector('#sheet');
+    # A library card leads to the media SHEET now, not to the acquisition
+    # panel: the seasons are read on the screen it opens.
+    await pg.click("[data-fiche='Les aventures de Tintin']"); await pg.wait_for_timeout(600)
+    r=await pg.evaluate("""()=>{const s=document.querySelector('#screen');
       const ss=[...s.querySelectorAll('.season')];
       return {saisons:ss.length, ouvertes:ss.filter(x=>x.open).length,
               manquants:[...s.querySelectorAll('.miss')].map(x=>x.textContent),
@@ -52,4 +54,7 @@ async def main():
     await pg.screenshot(path="y_matrice_trous.png")
     print("\nJS errors:", errs or "none")
     await b.close()
+    # A script that only prints can never fail, and a script that cannot fail
+    # proves nothing: the verdict has to reach the exit code.
+    if errs: raise SystemExit(1)
 asyncio.run(main())

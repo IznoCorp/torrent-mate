@@ -380,4 +380,7 @@ async def main():
         print(f"⚠ {REGLES_ATTENDUES - len(evaluees)} rule(s) never executed: "
               "a mute audit is not a green audit.")
     await b.close()
+    # A script that only prints can never fail, and a script that cannot fail
+    # proves nothing: the verdict has to reach the exit code.
+    if viol or errs: raise SystemExit(1)
 asyncio.run(main())

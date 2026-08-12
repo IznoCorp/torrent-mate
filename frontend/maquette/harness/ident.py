@@ -49,4 +49,7 @@ async def main():
     print("\nJS errors:", errs or "none")
     print("VERDICT:", "identify != follow, and context picks the verb" if ok and not errs else "needs review")
     await b.close()
+    # A script that only prints can never fail, and a script that cannot fail
+    # proves nothing: the verdict has to reach the exit code.
+    if not ok or errs: raise SystemExit(1)
 asyncio.run(main())

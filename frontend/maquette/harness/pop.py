@@ -54,4 +54,7 @@ async def annonce():
     print("  erreurs :", errs or "none")
     print("  VERDICT :", "the date appears, following the episode state" if txt and "Sortie prévue" in txt else "needs review")
     await b.close()
+    # A script that only prints can never fail, and a script that cannot fail
+    # proves nothing: the verdict has to reach the exit code.
+    if errs or not (txt and "Sortie prévue" in txt): raise SystemExit(1)
 asyncio.run(annonce())

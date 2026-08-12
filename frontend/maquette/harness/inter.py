@@ -1,16 +1,19 @@
 import asyncio
 from playwright.async_api import async_playwright
 
+# Pointer events of type « touch »: the handlers serve finger, mouse and pen
+# through one path now. The END of a drag is dispatched on the window, because
+# that is where it is listened for — a mouse released outside the frame would
+# otherwise never arrive, and the gesture would hang half-done.
 SW = """([sel,dir,n]) => new Promise(res => {
   const el=document.querySelector(sel), r=el.getBoundingClientRect();
   const x0=dir<0? r.left+r.width-30 : r.left+r.width/2, y0=r.top+r.height/2;
-  const mk=(t,x,y)=>new TouchEvent(t,{bubbles:true,cancelable:true,
-    touches:t==='touchend'?[]:[new Touch({identifier:1,target:el,clientX:x,clientY:y})],
-    changedTouches:[new Touch({identifier:1,target:el,clientX:x,clientY:y})]});
-  el.dispatchEvent(mk('touchstart',x0,y0)); let i=0;
-  const step=()=>{i++;el.dispatchEvent(mk('touchmove',x0+dir*i*18,y0));
+  const mk=(t,x)=>new PointerEvent(t,{bubbles:true,cancelable:true,isPrimary:true,
+    pointerId:1,pointerType:'touch',clientX:x,clientY:y0});
+  el.dispatchEvent(mk('pointerdown',x0)); let i=0;
+  const step=()=>{i++;el.dispatchEvent(mk('pointermove',x0+dir*i*18));
     if(i<n)requestAnimationFrame(step);
-    else{el.dispatchEvent(mk('touchend',x0+dir*n*18,y0));setTimeout(()=>res(true),520);}};
+    else{window.dispatchEvent(mk('pointerup',x0+dir*n*18));setTimeout(()=>res(true),520);}};
   requestAnimationFrame(step);})"""
 
 async def main():
@@ -62,4 +65,7 @@ async def main():
     print("  après Annuler :", await pg.evaluate("()=>document.querySelectorAll('.sugwrap').length"))
     print("\nJS errors:", errs or "none")
     await b.close()
+    # A script that only prints can never fail, and a script that cannot fail
+    # proves nothing: the verdict has to reach the exit code.
+    if errs: raise SystemExit(1)
 asyncio.run(main())

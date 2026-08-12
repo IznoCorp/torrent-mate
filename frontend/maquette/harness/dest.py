@@ -5,7 +5,11 @@ async def main():
   async with async_playwright() as p:
     b=await p.chromium.launch(channel="chrome")
     c=await b.new_context(viewport={"width":390,"height":844},device_scale_factor=2,is_mobile=True,has_touch=True)
-    pg=await c.new_page(); await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
+    pg=await c.new_page(); errs=[]
+    # Driving every state without watching for a JS error walks past the
+    # loudest evidence there is.
+    pg.on("pageerror", lambda e: errs.append(str(e)))
+    await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
     await pg.evaluate("()=>window.__measure(true)")
     etats=await pg.evaluate("()=>window.__states()")
     sans=[]
@@ -29,5 +33,9 @@ async def main():
     for e,x in sans:
         if x in vus: continue
         vus.add(x); print(f"   « {x} »   (ex. {e})")
+    print("JS errors:", errs or "none")
     await b.close()
+    # A script that only prints can never fail, and a script that cannot fail
+    # proves nothing: the verdict has to reach the exit code.
+    if sans or errs: raise SystemExit(1)
 asyncio.run(main())

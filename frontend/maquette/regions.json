@@ -53,6 +53,7 @@
     ".avatar",
     ".b",
     ".best",
+    ".big",
     ".blocked",
     ".body",
     ".bottombar",
@@ -324,10 +325,12 @@
     ".sheetacts",
     ".sheetacts.secondary",
     ".sheetgrab",
+    ".sheethead",
     ".sheetin",
     ".sheetmeta",
     ".sheetposter",
     ".sheetposter img",
+    ".sheetsub",
     ".sheettitle",
     ".show",
     ".side",
@@ -337,6 +340,7 @@
     ".skcard",
     ".skline",
     ".solid",
+    ".soon",
     ".sp",
     ".spin",
     ".sr",
@@ -906,7 +910,9 @@
       "Sampling a fixed handful of states hides whole families. R13 sampled five frozen states, none of them an incomplete medium — which is exactly where a divergence went unseen. Draw the sample from the DATA.",
       "A geometric measurement taken before the layout has settled is worthless in BOTH directions. Measuring at 110 ms reported three states as overflowing; at 400 ms the same states are clean — and the same margin can hide a real overflow behind a green. Rules that read boxes wait 300 ms; rules that read a rendering choice do not need to, and R30's verdict was verified identical at 35, 200 and 450 ms rather than assumed.",
       "An adversarial probe is as capable of being wrong as the thing it probes. A first pass accused the light theme and narrow viewports; both were artefacts of the probe — a stale open layer counted as content, and a settle time too short. Isolate the variable before reporting a defect, or the review costs more than it finds.",
-      "Three adversarial passes on new angles found nothing in the prototype and three faults in the probes themselves: a stale open layer counted as content, a settle time too short, a « Tout » pill summed alongside the parts it totals, and an undo tested by bypassing the function that creates the undo. A probe is as capable of being wrong as the thing it probes — isolate the variable and re-measure before reporting, or the review costs more than it finds. What the passes DID find was one real defect, and it was found by asking a question no existing rule asked."
+      "Three adversarial passes on new angles found nothing in the prototype and three faults in the probes themselves: a stale open layer counted as content, a settle time too short, a « Tout » pill summed alongside the parts it totals, and an undo tested by bypassing the function that creates the undo. A probe is as capable of being wrong as the thing it probes — isolate the variable and re-measure before reporting, or the review costs more than it finds. What the passes DID find was one real defect, and it was found by asking a question no existing rule asked.",
+      "SIXTEEN of nineteen harness scripts could not fail: they computed their verdict, printed it, and exited zero. Any orchestration would have seen them all green regardless. Wiring each verdict to its exit code immediately surfaced a test that had been broken and silent — it waited on a selector the library stopped using once its cards led to the media sheet. A script that cannot fail is not a test; it is a report nobody is obliged to read.",
+      "A gesture proven only under synthetic touch is a gesture proven on half the sessions. Testing with a real mouse on a browser with no touch at all found two defects a thumb would never meet: the browser's native image drag eating the pointer stream after two moves, and a release outside the frame never reaching a listener bound to the scrollport."
     ],
     "R27": "A trailer ALWAYS opens in YouTube, never inside the application, and the sheet offers it wherever one arrives from. A real anchor, a conformant watch URL, target=_blank and noopener; no promise of in-app playback.",
     "R28": "Exactly ONE back-control design, compatible with every page, in the flow so it pushes content instead of covering it — and never text glued closer than 8px to it.",
@@ -916,6 +922,8 @@
     "R32": "Découvrir offers three formats — list, posters, slide cards — and the gesture keeps ONE meaning across them. In the list and poster formats a swipe dismisses. In the slide cards, left « Passer » decides nothing and the card comes round again, right « Pas intéressé » removes it with an undo — the verbs are the ones the other formats already use, and no format invents an action of its own. A drag born on a card belongs to the card: without that claim the page-swipe handler fires too and navigates away mid-gesture.",
     "R33": "The slide-cards pile is ANIMATED, never rebuilt. Advancing moves the existing nodes — the outgoing card flies out, the ones behind change depth and their transition carries them forward, a new card is inserted at the back and rises from under the deck. Rebuilding the HTML replaces every node, and a replaced node cannot transition: the pile then cuts instead of moving. Checked mid-flight, not at rest: the same nodes must still be present, in motion, shortly after the gesture.",
     "R34": "A format that shows one poster full-screen carries its own source. The thumbnail poster is right at thumbnail size and mush once blown up; the slide cards use posters sized for the surface they fill. Only the served suggestions carry one, so the weight follows what is actually reachable.",
-    "R6bis": "A card title MAY ellipsize — a list is a list — but the full string must stay reachable through a title attribute. For an unidentified arrival the release name IS its identity, and the truncation lands on the group: exactly what tells two versions of the same media apart."
+    "R6bis": "A card title MAY ellipsize — a list is a list — but the full string must stay reachable through a title attribute. For an unidentified arrival the release name IS its identity, and the truncation lands on the group: exactly what tells two versions of the same media apart.",
+    "R35": "Every gesture answers a pointer, not only a finger. The handlers listen for pointer events — one path for finger, mouse and pen — the END of a drag is listened for on the window because a mouse released outside the frame never reaches the scrollport, and images inside a draggable surface disable the browser's native picture drag, which otherwise swallows the pointer stream outright. The axis claim stays in `touch-action`: it is what makes a real touch gesture arrive at all.",
+    "R36": "A long press opens the actions of whatever poster is under the finger, in every gallery. In a poster format the tile has no body to tap — the poster fills it — so without this the verbs the other formats offer would be unreachable there, and a format that hides them quietly does less."
   }
 }

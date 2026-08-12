@@ -264,4 +264,7 @@ async def main():
               f"a mute audit is not a green audit.")
     json.dump({k:v for k,v in viol.items()}, open("violations.json","w"), ensure_ascii=False, indent=1)
     await b.close()
+    # A script that only prints can never fail, and a script that cannot fail
+    # proves nothing: the verdict has to reach the exit code.
+    if viol or errs: raise SystemExit(1)
 asyncio.run(main())
