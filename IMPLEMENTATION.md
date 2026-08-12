@@ -13,7 +13,7 @@ touched **once, at the end**, after everything has been validated together. Non-
 
 Read, in this order:
 
-1. `frontend/maquette/README.md` — the prototype's contract, the 47 named states, the rule set,
+1. `frontend/maquette/README.md` — the prototype's contract, the 53 named states, the rule set,
    and the traps already paid for. It is short and it saves days.
 2. `docs/superpowers/specs/2026-08-10-refonte-mobile-quatre-pages-design.md` — §7 is the parity
    methodology and is the part that matters most.
@@ -32,18 +32,38 @@ cd frontend/maquette && python3 -m http.server 8899
 The prototype needs a wrapper supplying a viewport meta; the harness scripts build one. Without
 it Chrome falls back to the legacy 980px layout viewport and every measurement is wrong.
 
-**Run the harness** with the Python that carries Playwright:
+**Run the harness** with the Python that carries Playwright — it is the only one that has it:
 
 ```bash
 cd frontend/maquette/harness
-for s in audit audit2 states sweep scen dest scroll filtres actions deck souris \
-         cartes galerie inter sel bugs ident pop suivis surfaces export; do
-  python3 $s.py > /dev/null || echo "FAILED: $s"
+for s in sweep scen states audit audit2 cartes export bugs inter suivis sel scroll filtres \
+         actions dest ident pop galerie deck surfaces souris chrome demarrage deconnexion \
+         doigt panneau pwa; do
+  /Users/izno/.pyenv/versions/3.11.9/bin/python3 $s.py > /dev/null || echo "FAILED: $s"
 done
 ```
 
 Every script fails through its exit code, not through its output. A script that only prints
 cannot fail, and a script that cannot fail is a report nobody is obliged to read.
+
+**Two traps, each already paid for twice.** A stale copy of the scripts lives in
+`/tmp/tm-refonte`; running from there measures the previous version. And `/tmp/tm-refonte/
+wrapped.html` must be re-synced from `refonte.html` before every run, or the same thing happens
+one level down:
+
+```bash
+/Users/izno/.pyenv/versions/3.11.9/bin/python3 - <<'EOF'
+from pathlib import Path
+src = Path("frontend/maquette/refonte.html").read_text()
+head = ('<!doctype html><html><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1,'
+        'maximum-scale=1,user-scalable=no"></head><body>\n')
+Path("/tmp/tm-refonte/wrapped.html").write_text(head + src)
+EOF
+```
+
+`pwa.py` measures the LIVE host `tm-design.iznogoudatall.xyz`, not the local server. After
+editing `serve.py`: `pm2 restart torrentmate-design`.
 
 ---
 
@@ -52,28 +72,64 @@ cannot fail, and a script that cannot fail is a report nobody is obliged to read
 | Phase | Delivers                                                                    | Status      |
 | ----- | --------------------------------------------------------------------------- | ----------- |
 | 0     | Parity tooling: CSS extractor, drift guard, class-coverage guard, probe, CI | not started |
-| 1     | Scope rename, four shared primitives, `PageHeader` off mobile               | not started |
+| 1     | Scope rename, shared primitives, `PageHeader` off mobile                    | in progress |
 | 2     | Arrivées + reception into Système; old routes demoted to redirects          | not started |
 | 3     | Médiathèque, read-only, three lenses                                        | not started |
 | 4     | Media sheet: visual header, single back control, YouTube trailer, seasons   | not started |
 | 5     | Delete, dry-run enforced, three paths                                       | not started |
 | 6     | Découvrir: three formats, TMDB account, background pool                     | not started |
 
-**Next action:** execute phase 0.
+**Next action:** execute phase 0. Its guards are what every later phase leans on, and the
+app-side primitives phase 1 was to create now exist ahead of it — see below.
+
+---
+
+## What is already done, ahead of the phase plan
+
+The prototype and its harness carry the design; some app-side work was pulled forward because
+the audit that motivated it was done. Neither replaces a phase.
+
+**In the prototype.**
+
+- The **startup screen** (`demarrage`) covers the wait between signing in and an interface being
+  there, and the **gate** shows the same screen — extracted, never retyped — from the submit
+  onwards. R53, `harness/demarrage.py`.
+- **Signing out** ends the session on the server and lands on the entry screen, instead of
+  answering with a message over an interface that had not moved. R54,
+  `harness/deconnexion.py`.
+- **Every gesture answers a real finger.** The pull to refresh and the swipe between views had
+  both been lost to the compositor and worked only under synthetic events. R55,
+  `harness/doigt.py`.
+- **One bottom panel**, taking a descriptor of facts and ordered blocks of declared kinds. The
+  fallback builder that answered for « whatever the first does not recognise » is gone. R56,
+  `harness/panneau.py`.
+- The prototype **installs as its own application** — « TorrentMate Design », with an explicit
+  manifest `id`. R52 extended.
+
+**In the app** (`frontend/src`), from
+`docs/analysis/2026-08-12-app-component-duplication-audit.md`:
+
+- `ds/Panel` extracted; eleven files stopped writing the surface string by hand, and a test
+  fails naming any file that starts again.
+- `AcquisitionCard` → `ds/MediaRow`, with `facts: MediaFact[]` in place of `meta: ReactNode`,
+  `journey` in place of `strip` and `action` in place of `footer`.
+- `ds/MediaCard` → `ds/MediaTile`, and `Chip` moved out of `acquisition/`.
+- `EmptyState` adopted on nine surfaces.
 
 ---
 
 ## What the prototype already settles
 
 These were argued, measured and recorded. Re-opening one costs a day; the reasons are in
-`frontend/maquette/regions.json` → `$adversarialReview` (51 rules) and `$methodLessons` (30).
+`frontend/maquette/regions.json` → `$adversarialReview` (56 rules) and `$methodLessons` (35).
 
 - **The prototype is the reference.** A divergence between the app and it is a defect in the app,
   unless the prototype was amended first with the reason written down.
 - **CSS is extracted, never retyped.** A hand edit to the generated stylesheet is reverted by the
   drift guard.
-- **Every gesture answers a pointer**, not only a finger — the interface is used from a desktop
-  browser too, at a phone width.
+- **Every gesture answers a pointer** — and a finger is read from the stream the compositor does
+  not cancel. A gesture living inside the scrollport reads touch events; one that can claim its
+  axis in `touch-action` keeps the pointer path.
 - **Episode presence is read, never inferred.** A `number <= owned count` threshold assumes the
   hole is at the end of a season; it is false for 35 series in this library.
 - **A trailer always opens YouTube**, never in-app playback, wherever one arrives from.
@@ -82,22 +138,24 @@ These were argued, measured and recorded. Re-opening one costs a day; the reason
   panel, a gallery tile answers a long press. The panel carries EVERY action for that medium;
   an inline button is a shortcut, never the only way in. The panel is derived from what is true
   about the medium, so the one reached from a gallery equals the one reached from a card.
-- **One builder per shape, not per screen.** `cardHTML` for every list, `tileHTML` for every
-  gallery, a separate builder for a release candidate (not a medium: no sheet, no panel). The
-  card takes a descriptor of FACTS; a view wanting something outside it adds the fact rather
-  than passing markup. Breaking the shared builder now fails 332 checks across every list.
+- **One builder per shape, not per screen** — and none of them takes markup. `cardHTML` for every
+  list, `tileHTML` for every gallery, `panneauHTML` for every bottom panel, a separate builder
+  for a release candidate (not a medium: no sheet, no panel). Each takes a descriptor of FACTS;
+  a view wanting something outside it adds the fact rather than passing markup.
 - **One season rendering**, within a sheet and across sheets.
 - **Identify is not follow.** Resolving a stuck folder associates a medium so the pipeline
   finishes; it never creates a follow.
 
-## Three method lessons that cost the most
+## Four method lessons that cost the most
 
 - **A screenshot fingerprint is not an oracle.** Two captures of the same unmodified file diverge
-  on 8 to 15 of the 47 states. Use bounding rects plus a computed-style subset.
+  on 8 to 15 of the states. Use bounding rects plus a computed-style subset.
+- **A synthetic event is not a finger.** It is never cancelled, so it cannot tell whether a
+  gesture survives the compositor. Two gestures were lost that way and no script noticed.
 - **A rule that never bit proves nothing.** Every rule added is mutation-tested: break the
-  behaviour on purpose, confirm the rule falls, restore.
-- **An audit must announce how many rules it EXECUTED.** « 0 violations across 0 rules » reads
-  the same when all is well and when nothing runs.
+  behaviour on purpose, confirm the rule falls and names the right defect, restore.
+- **A derivation must not read back its own output.** The list poster was sized against the
+  median card and now sets it, so the computation returns its own answer.
 
 ---
 
@@ -115,3 +173,11 @@ These were argued, measured and recorded. Re-opening one costs a day; the reason
 4. **`?tab=maintenant`.** The label became « En cours »; whether the URL param migrates with a
    legacy redirect or stays is an implementation detail of phase 6's sibling work. The deep link
    must keep working either way.
+5. **The list poster cannot be enlarged by its own derivation** — it already fills the median card
+   at the pixel, and 113 of 192 cards sit on its floor, so the median card IS the poster. Growing
+   it is a change of REFERENCE, and that is the operator's call. Measured alternative: sizing
+   against the median LIST rather than the median card gives 64px, a 52 % increase.
+6. **The design host and the app share their icons.** Only the labels tell them apart on a home
+   screen; the design host has no recoloured icon set of its own, the way staging does.
+7. **`RecentResolutions` and `ResolutionDeck` keep their hand-built rows.** §15 forbids shipping a
+   drawing the maquette does not show, and those screens are not drawn yet.

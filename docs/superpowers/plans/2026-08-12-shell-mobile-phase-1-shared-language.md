@@ -8,6 +8,35 @@
 
 **Tech Stack:** React 19, TypeScript, Vite 7, vitest + Testing Library, the phase-0 guards (`extract-maquette-css.py`, `check-maquette-classes.py`, `parity-probe.py`).
 
+## Already delivered ahead of this plan
+
+Part of §4.2 landed before phase 0, because the duplication audit that motivated it was already
+done (`docs/analysis/2026-08-12-app-component-duplication-audit.md`). Do **not** re-create these;
+check them and move on:
+
+| Primitive        | State                                                                                  |
+| ---------------- | -------------------------------------------------------------------------------------- |
+| `ds/Chip`        | **exists.** Moved out of `acquisition/`, unchanged. Do not rewrite it from the plan below. |
+| `ds/Panel`       | **exists.** The bordered surface; `Panel.test.tsx` fails naming any file that writes the string by hand. |
+| `ds/MediaRow`    | **exists.** The former `AcquisitionCard`, with `facts: MediaFact[]` in place of `meta: ReactNode`, `journey` in place of `strip`, `action` in place of `footer`. |
+| `ds/MediaTile`   | **exists.** The former `ds/MediaCard`, renamed for what it draws.                       |
+| `ds/EmptyState`  | **exists since `41f6bec2`** and is now adopted on nine surfaces. The work left is adoption, never creation. |
+| `ds/ErrorState`  | **exists**, adopted in 19 files. Nothing to do.                                          |
+
+What this plan still owes: `ViewTabs`, `FilterBar`, `SectionHeader`, `SheetShell`,
+`PullToRefresh`, the `.tm` scope rename, and `PageHeader` off mobile.
+
+**`PullToRefresh` carries a trap the maquette has already paid for.** Inside a scrollport the
+compositor claims the vertical pan and fires `pointercancel`, so a pointer-only implementation
+passes every synthetic test and does nothing under a thumb. Port the prototype's split — the
+finger from touch events, everything else from pointer events — and port `harness/doigt.py` with
+it. Do not re-derive it.
+
+**`SheetShell` is not a shell.** The prototype's panel takes a descriptor of facts plus ordered
+blocks of declared kinds (`note`, `faits`, `actions`, `saisons`); a component that accepts
+children is the envelope this mission removed. Port `panneauHTML`, and `harness/panneau.py`
+with it.
+
 ## Global Constraints
 
 - **The prototype is the source.** `frontend/maquette/refonte.html` is the design reference (§15 of `docs/reference/product-intent.md`). A design change starts there; the code follows. A divergence between the app and the prototype is a defect **in the app**.

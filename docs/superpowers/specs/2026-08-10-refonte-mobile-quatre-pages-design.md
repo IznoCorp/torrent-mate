@@ -125,7 +125,10 @@ abstraction is how the previous rebuild produced a monster.
 | --------------- | --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | `ViewTabs`      | pinned `.viewtabs` = equal-width `.seg` + optional detached `.more` + `.n` badge; publishes its measured height | Acquisition (3), Médiathèque (3), Arrivées (0 — sections only) |
 | `FilterBar`     | `.filters` = `.search` + `.pillbar` (`.pillscroll` `touch-action: pan-x` + `.vswwrap` divider + `.vsw`)         | Médiathèque, Suivis                                            |
-| `MediaCard`     | `AcquisitionCard` moved to `ds/`, unchanged                                                                     | all four pages                                                 |
+| `MediaRow`      | `AcquisitionCard` moved to `ds/` and given a DESCRIPTOR OF FACTS in place of its `meta: ReactNode`             | all four pages                                                 |
+| `MediaTile`     | the former `ds/MediaCard`, renamed for what it draws: a gallery tile, not a list row                           | Médiathèque, staging                                           |
+| `Panel`         | `rounded-lg border border-border bg-card` — the bordered surface eleven files were writing out by hand         | dashboards, pipeline, decisions, `MediaRow`                    |
+| `Chip`          | moved out of `acquisition/`: nothing about a status chip belongs to acquisition                                | Suivis, En cours, everywhere a status is said                  |
 | `PosterTile`    | `.tile` + `.p` + numeric badge + `.nm`/`.fr`, dimmed variant                                                    | Médiathèque, Découvrir, Suivis                                 |
 | `SectionHeader` | pip + label + count, itself the drill-down                                                                      | Arrivées, En cours                                             |
 | `SheetShell`    | `.sheetgrab`, `.sheettitle`, `.sheetmeta`, `.sheetacts(.secondary)`, `.sact`, `.fichebar`                       | everywhere                                                     |
@@ -156,6 +159,32 @@ for in pixels — and becomes visible again from `md`.
 ---
 
 ## 5. New surfaces
+
+### 5.0 The session's two ends — startup and sign-out
+
+Two moments had no drawing at all, and both were discovered from a phone rather than from a
+review.
+
+**Startup.** Signing in is followed by two waits: the browser fetching a document of several
+megabytes, then the interface rendering out of it. The first belongs to the gate — it is still
+on screen while the POST and the download run, so a tap on « Se connecter » answered with
+nothing at all. One screen covers both: the brand held still, an indeterminate bar (nothing
+knows how far along the load is, and a bar that pretended to would lie at every frame), and no
+control, because there is nothing to do yet. It is **declared first inside the frame**, which is
+a correctness property and not tidiness: a browser paints what it has parsed, so a screen sitting
+after the embedded artwork appears only once the wait it exists to cover is over. The first
+render drops it, synchronously. The gate gets the same screen by extraction (§7.2's rule, the one
+the login card already obeys) and reveals it on submit.
+
+**Sign-out.** « Se déconnecter » answered with a message saying the session had been closed, over
+an interface that had not moved and was still signed in. A message is not a destination. The
+session IS the cookie, and the cookie belongs to the server: the server is asked to drop it
+first, and the entry screen only reflects what has already happened — an entry form shown over a
+live cookie is contradicted by the next reload.
+
+Both are named states (`demarrage`, `connexion`) and both carry a rule (R53, R54). The user menu
+became a named state too: its only dangerous button was measured by nothing.
+
 
 ### 5.1 Médiathèque — a read-model, never a scan
 
@@ -684,10 +713,25 @@ inherit a previous measurement's mutations.
 
 ### 7.6 Gestures are proven under real touch, or not at all
 
-Every gesture claim requires a run in a real browser with **`TouchEvent`s dispatched on the app
-surface** — never `PointerEvent`s, never a synthetic shortcut around the listener under test —
-plus a recording. §6 explains why: passive listeners that claim no axis pass synthetic tests and
-fail a thumb.
+Every gesture claim requires a run in a real browser with **real touch input**, dispatched
+through `Input.dispatchTouchEvent` so it goes through hit-testing and the compositor — never a
+synthetic event object handed to a listener, which nothing can ever cancel. §6 explains why:
+passive listeners that claim no axis pass synthetic tests and fail a thumb.
+
+**This has now cost two gestures, and neither was reported.** The pull to refresh and the swipe
+between views both live inside the scrollport, where the compositor owns vertical panning: the
+moment it claims the gesture it fires `pointercancel` and stops delivering `pointermove`, while
+the touch stream for the same finger keeps arriving. Measured: one pointer move, then cancel,
+against ten `touchmove`. Both worked under every synthetic test in the harness and did nothing at
+all on the operator's phone.
+
+The usual cure — claim the axis in `touch-action` — is **not available on the scrollport**:
+`pan-y` there intersects down onto `.pillscroll` and `.cast`, which declare `pan-x pan-y` and
+would then pan on neither axis. So the surfaces that CAN claim their axis (a swipeable row, a
+deck card) keep the pointer path, and the scrollport reads the finger from touch events and
+everything else from pointer events — one implementation, two sources, never both for the same
+finger. `pointercancel` is deliberately ignored for a finger. R55 (`harness/doigt.py`) is the
+executable form.
 
 The operator's phone validation stays the closing gate. It is not a substitute for the above; it
 is what the above earns the right to ask for.
@@ -845,8 +889,26 @@ output**. Prose criteria are invalid.
    fallback must be visible, never silent.
 6. **Système's own mobile redesign** is deferred by B5. Until then one bar entry will not speak
    the same language as the other three — the accepted cost.
-7. **`IMPLEMENTATION.md` at the repo root is stale** (it still describes `file-absorbee`). It is
-   rewritten at `create-branch`; noted so it is not mistaken for the current tracker.
+7. ~~**`IMPLEMENTATION.md` at the repo root is stale.**~~ **Closed.** It tracks this mission.
+8. **The list poster cannot be enlarged by its own derivation.** Re-measured over the 192 cards
+   the interface draws: the median card is 83px, 63px of it usable — 9px of padding and 1px of
+   border a side — and 2/3 of 63 is exactly the 42px in place. The poster therefore fills the
+   median card at the pixel, and 113 of the 192 cards sit on its floor, which means the median
+   card IS the poster: re-running the computation returns the same number. Two findings from the
+   same measurement: the arithmetic as written dropped the borders, which turned it into a
+   ratchet adding 1.33px per application; and the population is bimodal — 13 of 18 lists have a
+   median card of 115.9px while five long lists of compact rows pull the overall median to 83 —
+   so no derivation lands between +2 % and +52 %. **Enlarging is a change of REFERENCE, not a new
+   computation, and that is the operator's call.** Sizing against the median LIST rather than the
+   median card gives 64px.
+9. **The design host and the app share their ICONS.** The prototype now installs under its own
+   name (« TorrentMate Design », R52), but this host serves the app's own `pwa-*.png`. The
+   shipped app already solves that for staging with a recoloured set; the design host has none of
+   its own yet, so only the labels tell the two apart on a home screen.
+10. **`RecentResolutions` and `ResolutionDeck` keep their hand-built rows.** The duplication audit
+    proposed converting them to the shared card; both are pipeline and decision surfaces, whose
+    mobile redesign is deferred (§7.2 ter). §15 forbids shipping a drawing the maquette does not
+    show, so the conversion waits until those screens are drawn.
 
 ---
 
