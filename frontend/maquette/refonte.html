@@ -739,9 +739,15 @@
      otherwise TWO initials in mono over an accent/50 → card → muted
      gradient, with an icon watermark at 5% bottom-right. A single initial
      on a flat fill is an approximation, not a variant. */
+  /* The poster fills the MEDIAN card, and the shorter cards rise to meet it.
+     Derived, not chosen: the median list card is 81px tall over the 147 cards
+     the interface draws, its vertical padding is 9px a side, so 63px of usable
+     height — and 2/3 of that is 42px wide. Sizing it against the shortest card
+     instead would have frozen it at today's value forever; sizing it against
+     the tallest would have left a hole in every compact row. */
   .poster {
     flex: 0 0 auto;
-    width: 38px;
+    width: 42px;
     aspect-ratio: 2/3;
     border-radius: 4px;
     background: var(--muted);
@@ -822,6 +828,15 @@
   }
   .cmeta {
     margin-top: 6px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+  }
+
+  /* The annotations sit under the state, not beside it. */
+  .cannotations {
+    margin-top: 4px;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -1369,7 +1384,7 @@
     width: 16px;
     height: 16px;
   }
-  .cnote {
+  .crating {
     font-size: 10.5px;
     font-weight: 700;
     padding: 1px 6px;
@@ -3611,7 +3626,7 @@
     { t: "Furious", k: "show", y: 2026, st: "a_jour", own: 5, aired: 5 },
     { t: "House of the Dragon", k: "show", y: 2022, st: "a_jour", own: 26, aired: 26 },
     { t: "President Curtis", k: "show", y: 2026, st: "a_jour", own: 3, aired: 3 },
-    { t: "Silo", k: "show", y: 2023, st: "a_jour", own: 26, aired: 26 },
+    { t: "Silo", k: "show", y: 2023, st: "en_attente", own: 26, aired: 27 },
     { t: "Star Trek: Strange New Worlds", k: "show", y: 2022, st: "a_jour", own: 33, aired: 33 },
     { t: "Ted Lasso", k: "show", y: 2020, st: "a_jour", own: 35, aired: 35 },
   ];
@@ -3700,7 +3715,7 @@
     "American Dad!": [[1,7,7],[2,16,16],[3,19,19],[4,16,16],[5,20,20],[6,18,18],[7,19,19],[8,18,18],[9,19,19],[10,20,20],[11,3,3],[12,15,15],[13,22,22],[14,22,22],[15,22,22],[16,24,24],[17,24,24],[18,22,22],[19,22,22],[20,22,22],[21,22,22],[22,11,11]],
     "Les aventures de Tintin": [[1,13,7],[2,13,7],[3,13,7]],
     "Dexter: Resurrection": [[1,10,10]],
-    "Silo": [[1,10,10],[2,10,10],[3,6,6]],
+    "Silo": [[1,10,10],[2,10,10],[3,7,6]],
     "Furious": [[1,5,5]],
     "President Curtis": [[1,3,3]],
     "House of the Dragon": [[1,10,10],[2,8,8],[3,8,8]],
@@ -4041,14 +4056,21 @@
     const poster = o.noposter || !aFiche
       ? `<span class="poster" title="Média non identifié — pas de fiche disponible"><span class="pfall"><b>?</b></span></span>`
       : `<button class="poster" aria-label="Fiche de ${esc(o.t)}" data-fiche="${esc(o.t)}">${posterBox(o.t, o.k)}</button>`;
-    const meta = `${o.f ? `<span class="frac">${esc(o.f)}</span>` : ""}${chipHTML(o.chip)}${o.note != null ? `<span class="cnote">${esc(String(o.note))}</span>` : ""}${o.caption ? `<span class="caption">${esc(o.caption)}</span>` : ""}${o.fresh ? `<span class="freshtag">Nouveau</span>` : ""}`;
+    /* Two lines, because they answer two questions. The first says WHAT THIS
+       MEDIUM IS — how much of it is owned, what state it is in, how it is
+       rated. The second annotates that state: what is pending, what has just
+       arrived. Mixed on one line they competed for the same row and the state
+       stopped reading at a glance, which is the only thing that line is for. */
+    const ligneEtat = `${o.f ? `<span class="frac">${esc(o.f)}</span>` : ""}${chipHTML(o.chip)}${o.note != null ? `<span class="crating">${esc(String(o.note))}</span>` : ""}`;
+    const ligneAnnotations = `${o.caption ? `<span class="caption">${esc(o.caption)}</span>` : ""}${o.fresh ? `<span class="freshtag">Nouveau</span>` : ""}`;
     return `<div class="card${o.fresh ? " fresh" : ""}">
     <div class="ctop">${poster}
       <button class="cbody" data-panel="${esc(o.panel || `media:${o.t}`)}">
         <span class="ctitle" title="${esc(o.t)}">${esc(o.t)}</span>
         ${o.s ? `<span class="csub">${esc(o.s)}</span>` : ""}
         ${o.r ? `<span class="creason">${richText(o.r)}</span>` : ""}
-        <span class="cmeta">${meta}</span>
+        ${ligneEtat ? `<span class="cmeta">${ligneEtat}</span>` : ""}
+        ${ligneAnnotations ? `<span class="cannotations">${ligneAnnotations}</span>` : ""}
       </button>
     </div>
     ${o.strip ? stripHTML(o.strip) : ""}
