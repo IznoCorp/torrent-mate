@@ -2370,12 +2370,18 @@
   /* Air-date popover on an episode cell — mirrors the shipped
      EpisodeDatePopover: « Diffusé le … » or « Sortie prévue le … », never a
      bare ISO date. Portalled to the body so sheet scrolling cannot clip it. */
+  /* The episode popover, and why its outline is the BRAND colour rather than
+     the border one. It floats over a matrix of dark cells on a dark surface,
+     and a border in `--border` put a near-black line on a near-black
+     background: its edges could not be found, so it read as text hovering in
+     mid-air rather than as a thing with limits. The accent is the only colour
+     in the palette that separates from everything the app draws behind it. */
   .eppop {
     position: fixed;
     z-index: 60;
     width: 220px;
     border-radius: 6px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--primary);
     background: var(--popover);
     padding: 8px 12px;
     font-size: 12px;
@@ -3678,21 +3684,31 @@
     overflow: hidden;
   }
 
+  /* The bar FILLS, from nothing to full, over the five seconds a cold load is
+     budgeted. It is not a measurement of the load — nothing here knows how far
+     along that is — it is a measurement of the WAIT, which is what the person
+     watching is actually living through. A bar that fills answers « how much
+     longer », where a shuttle that slides back and forth answers nothing and
+     reads the same at one second and at ten.
+
+     It never reaches the end on its own: the interface arrives first and takes
+     the screen away. Should the load outlast the budget, the bar stops full
+     and the message below is what keeps speaking. */
   .splashbar i {
     display: block;
-    width: 40%;
+    width: 0%;
     height: 100%;
     border-radius: 99px;
     background: var(--accent);
-    animation: splashslide 1.15s ease-in-out infinite;
+    animation: splashremplit 5s linear forwards;
   }
 
-  @keyframes splashslide {
+  @keyframes splashremplit {
     from {
-      transform: translateX(-110%);
+      width: 0%;
     }
     to {
-      transform: translateX(320%);
+      width: 100%;
     }
   }
 
@@ -12674,7 +12690,17 @@
      to its named state puts it back, so it can be judged like any other
      surface. */
   function afficherDemarrage() {
-    document.querySelector("#splash").hidden = false;
+    const ecran = document.querySelector("#splash");
+    ecran.hidden = false;
+    /* Restarted from zero every time the screen is shown, so driving to its
+       named state twice does not measure a bar left where the previous visit
+       stopped it. */
+    const barre = ecran.querySelector(".splashbar i");
+    if (barre) {
+      barre.style.animation = "none";
+      void barre.offsetWidth;
+      barre.style.animation = "";
+    }
   }
 
   function masquerDemarrage() {

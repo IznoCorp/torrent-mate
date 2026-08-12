@@ -51,10 +51,35 @@ async def annonce():
     txt = await pg.evaluate("()=>document.querySelector('.eppop')?.innerText.replace(/\\n/g,' | ')")
     print("  popover for an ANNOUNCED episode:", txt)
     await pg.screenshot(path="m_annonce.png")
-    print("  erreurs :", errs or "none")
+
+    # ITS EDGES MUST BE FINDABLE. The popover floats over a matrix of dark
+    # cells on a dark surface: a border in `--border` drew a near-black line on
+    # a near-black background, and the thing read as text hovering in mid-air
+    # rather than as an object with limits. The brand colour is the only one in
+    # the palette that separates from everything the app draws behind it.
+    contour = await pg.evaluate("""()=>{
+      const el = document.querySelector('.eppop');
+      const cs = getComputedStyle(el);
+      const marque = getComputedStyle(document.documentElement)
+        .getPropertyValue('--primary').trim();
+      const sonde = document.createElement('span');
+      sonde.style.color = marque; document.body.appendChild(sonde);
+      const attendu = getComputedStyle(sonde).color;
+      sonde.remove();
+      return {bord: cs.borderTopColor, attendu,
+              fond: cs.backgroundColor,
+              cadre: getComputedStyle(document.querySelector('#device')).backgroundColor,
+              epaisseur: cs.borderTopWidth};}""")
+    distinct = (contour["bord"] == contour["attendu"]
+                and contour["bord"] != contour["fond"]
+                and contour["bord"] != contour["cadre"])
+    print("  contour :", contour)
     print("  VERDICT :", "the date appears, following the episode state" if txt and "Sortie prévue" in txt else "needs review")
+    if not distinct:
+        print("  ECHEC le contour ne se distingue pas du fond de l'app")
+    print("  erreurs :", errs or "none")
     await b.close()
     # A script that only prints can never fail, and a script that cannot fail
     # proves nothing: the verdict has to reach the exit code.
-    if errs or not (txt and "Sortie prévue" in txt): raise SystemExit(1)
+    if errs or not (txt and "Sortie prévue" in txt) or not distinct: raise SystemExit(1)
 asyncio.run(annonce())

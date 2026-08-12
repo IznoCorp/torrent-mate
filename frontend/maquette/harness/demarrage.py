@@ -110,6 +110,39 @@ async def main():
         verifier("porte la marque", mesure["marque"])
         verifier("porte une progression animée",
                  mesure["progression"] and mesure["anime"] not in ("none", ""), mesure["anime"])
+
+        # The bar FILLS over the five seconds a cold load is budgeted, rather
+        # than shuttling back and forth: a shuttle answers « how much longer »
+        # with nothing, and reads the same at one second and at ten.
+        remplissage = await pg.evaluate("""()=>{
+          const i = document.querySelector('#splash .splashbar i');
+          const cs = getComputedStyle(i);
+          return {duree: cs.animationDuration, sens: cs.animationDirection,
+                  fin: cs.animationFillMode, iterations: cs.animationIterationCount};}""")
+        verifier("la barre se remplit sur 5 s, une seule fois",
+                 remplissage["duree"] == "5s" and remplissage["iterations"] == "1",
+                 str(remplissage))
+
+        # Measured while it runs: from nothing to full, monotonically. The
+        # harness freezes animations for its own measurements, so this one asks
+        # for them back.
+        largeurs = await pg.evaluate("""async()=>{
+          document.documentElement.classList.remove('measuring');
+          const i = document.querySelector('#splash .splashbar i');
+          i.style.animation = 'none'; void i.offsetWidth; i.style.animation = '';
+          const piste = i.parentElement.getBoundingClientRect().width;
+          const prises = [];
+          for (let n = 0; n < 6; n++) {
+            prises.push(Math.round(i.getBoundingClientRect().width / piste * 100));
+            await new Promise(r => setTimeout(r, 500));
+          }
+          return prises;}""")
+        verifier("elle part de zéro", largeurs[0] <= 5, str(largeurs))
+        verifier("et ne fait que croître",
+                 all(b >= a for a, b in zip(largeurs, largeurs[1:])), str(largeurs))
+        verifier("à mi-parcours elle est à mi-course",
+                 40 <= largeurs[5] <= 60, f"{largeurs[5]} % à 2,5 s")
+        await pg.evaluate("()=>document.documentElement.classList.add('measuring')")
         verifier("dit ce qui se passe", len(mesure["texte"]) > 20, mesure["texte"][:60])
         verifier("n'offre aucun contrôle", mesure["aucunControle"] == 0,
                  f"{mesure['aucunControle']} contrôle(s)")
