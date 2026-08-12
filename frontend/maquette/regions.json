@@ -418,7 +418,15 @@
     ".warning",
     ".why",
     ".whyoff",
-    ".wm"
+    ".wm",
+    ".loginscreen",
+    ".loginbrand",
+    ".logincard",
+    ".logintitle",
+    ".loginsub",
+    ".loginfield",
+    ".loginerr",
+    ".loginsubmit"
   ],
   "regions": {
     "acquisition/viewtabs": {
@@ -914,7 +922,8 @@
       "« One component with variable display » fails when the variation is named after appearance. The card takes a DESCRIPTOR of facts — fraction, chip, caption, fresh — and a view that wants something not in it must add the fact, never pass ready-made markup. An envelope guarantees nothing about what it carries.",
       "Not everything that looks like a card is one. The release candidate shares the markup and is a different object: no sheet, no panel. Forcing it into the shared component would have made it promise both. It is marked instead, so the contract check tells them apart by construction rather than by knowing which screens draw which.",
       "A shared component is worth what its LAST holdout is worth. Découvrir kept its own builder and its own class vocabulary, and drew a poster 63 % larger than every other list — on a page that already offers two visual formats for browsing. Measuring geometry across the five list surfaces found it in one pass; reading the code had not.",
-      "« The data already contains markup » is not a reason to accept markup. The suggestion reasons shipped their own <b>, so the card would have had to trust them. Converting the data to segments — plain text plus what is emphasised, at its position — keeps the escape total and emphasises the right « 4 », which re-matching a string into a sentence does not."
+      "« The data already contains markup » is not a reason to accept markup. The suggestion reasons shipped their own <b>, so the card would have had to trust them. Converting the data to segments — plain text plus what is emphasised, at its position — keeps the escape total and emphasises the right « 4 », which re-matching a string into a sentence does not.",
+      "A screen extracted from its context loses what it INHERITED there. The login gate came out of the prototype without the reset that surrounds it: the wordmark fell back to Times, and `max-width: 340px` applied to a content box instead of a border box, so the card rendered 378px wide. Worse, the title was black on black — legible-looking in the DOM, invisible on screen. Extraction must carry the inherited foundations, or restate them."
     ],
     "R27": "A trailer ALWAYS opens in YouTube, never inside the application, and the sheet offers it wherever one arrives from. A real anchor, a conformant watch URL, target=_blank and noopener; no promise of in-app playback.",
     "R28": "Exactly ONE back-control design, compatible with every page, in the flow so it pushes content instead of covering it — and never text glued closer than 8px to it.",
@@ -938,6 +947,7 @@
     "R45": "A tile addresses its panel by title, never by list index.",
     "R46": "A card that is not a medium declares it (`data-nonmedia`), and promises neither a media sheet nor a panel. A release is one candidate among several for a medium named elsewhere on the screen; it has no sheet of its own.",
     "R47": "Every list draws its cards with the same builder and the same metrics — poster, padding, radius, title size. A view needing a bigger picture uses the gallery or the deck format, which exist for exactly that.",
-    "R48": "A reason never truncates (§12). It wraps, and the card grows."
+    "R48": "A reason never truncates (§12). It wraps, and the card grows.",
+    "R49": "The login gate is EXTRACTED from the prototype, never retyped — markup, styles and typeface, between explicit markers. A gate that reproduces the design by hand shows a copy of it, and copies drift."
   }
 }

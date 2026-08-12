@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Serve the design prototype over HTTP, wrapped in a real document.
+"""Serve the design prototype over HTTP, behind its own login screen.
 
 `refonte.html` is a head-less fragment: it starts at `<title>` and owns no
 `<html>` or `<head>`, because it is authored to be embedded by a host page.
@@ -15,19 +15,54 @@ the reference it is meant to be.
 It serves one document and nothing else. The directory around the prototype
 holds the extraction contract, the harness and its scratch output; none of that
 belongs on a public host.
+
+**The credential check runs here, not in the page.** The prototype carries the
+real library index, the follows and the staging contents. A check written in
+the page it protects is readable by everyone that page reaches, so it protects
+nothing; and the page cannot be sent before the check without giving away what
+the check was for. The gate is therefore built by EXTRACTING the login screen
+from the prototype — markup, styles and typeface, between explicit markers —
+so the screen a visitor meets is the screen the design defines, never a copy of
+it that drifts.
+
+Only a scrypt hash of the password is stored. Set `TM_DESIGN_PASSWORD_HASH` to
+rotate it without touching this file:
+
+    python3 -c "import hashlib,os,base64; s=os.urandom(16); \\
+        print(base64.b64encode(s).decode()+':'+base64.b64encode( \\
+        hashlib.scrypt(b'<password>', salt=s, n=16384, r=8, p=1, dklen=32)).decode())"
 """
 
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
+import http.cookies
 import http.server
+import os
+import secrets
 import socketserver
 import sys
+import urllib.parse
 from pathlib import Path
 
 PROTOTYPE = Path(__file__).resolve().parent / "refonte.html"
 
-# Identical to the wrapper the harness scripts build. Keep the two in step: the
-# whole point of this server is that what is published equals what is measured.
+IDENTIFIANT = os.environ.get("TM_DESIGN_USER", "izno")
+
+# scrypt, salt included, both base64. The password itself is nowhere here, and
+# nowhere in the repository.
+EMPREINTE = os.environ.get(
+    "TM_DESIGN_PASSWORD_HASH",
+    "6AyZBOfVp7Qj5pwFOepikA==:7sVyqbzeLHD4/FA8pUfqPb7RPSe+wmesEZi7fhXm9hw=",
+)
+
+# Regenerated at every boot: a restart ends every session, which is the right
+# trade for a design host and removes any need to persist secrets.
+SECRET_SESSION = secrets.token_bytes(32)
+NOM_COOKIE = "tm_design"
+
 HEAD = (
     b'<!doctype html><html lang="fr"><head><meta charset="utf-8">'
     b'<meta name="viewport" '
@@ -36,9 +71,7 @@ HEAD = (
 )
 TAIL = b"</body></html>"
 
-# Encoded rather than written as a bytes literal: interface copy stays in
-# French, and a bytes literal accepts no accented character.
-MISSING = (
+MANQUANT = (
     '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
     '<meta name="viewport" content="width=device-width,initial-scale=1">'
     "<title>Prototype indisponible</title></head><body "
@@ -51,8 +84,106 @@ MISSING = (
 ).encode()
 
 
+def extraire(source: str, marque: str) -> str:
+    """Returns the text between a pair of markers.
+
+    Args:
+        source: The prototype's full text.
+        marque: The marker name, without its `login:` prefix or `:start` /
+            `:end` suffix.
+
+    Returns:
+        The text between the two markers.
+
+    Raises:
+        ValueError: When either marker is missing — the gate must fail loudly
+            rather than serve a login screen stripped of its design.
+    """
+    debut = source.find(f"login:{marque}:start")
+    fin = source.find(f"login:{marque}:end")
+    if debut < 0 or fin < 0 or fin < debut:
+        raise ValueError(f"marqueurs login:{marque} introuvables dans le prototype")
+    return source[source.index("\n", debut) + 1 : source.rindex("\n", debut, fin) + 1]
+
+
+def page_connexion(refusee: bool) -> bytes:
+    """Builds the login page out of the prototype's own login screen.
+
+    Args:
+        refusee: True to show the rejection state.
+
+    Returns:
+        A complete HTML document.
+    """
+    source = PROTOTYPE.read_text()
+    balisage = extraire(source, "markup")
+    # The screen is drawn hidden inside the shell and centred against it. Here
+    # it IS the page, so it drops both.
+    balisage = balisage.replace(' id="login" hidden', ' id="login"', 1)
+    balisage = balisage.replace('<form class="logincard" id="loginform"',
+                                '<form class="logincard" id="loginform" method="post" action="/connexion"', 1)
+    if refusee:
+        balisage = balisage.replace('id="loginerr" hidden', 'id="loginerr"', 1)
+    styles = extraire(source, "font") + extraire(source, "style")
+    # The palette, the box model and the typeface the screen INHERITS inside
+    # the prototype. They live in the reset, outside the extracted range, and
+    # without them the design silently degrades rather than breaking: the
+    # wordmark falls back to Times, and `max-width: 340px` applies to a content
+    # box instead of a border box, so the card renders 378px wide.
+    socle = """
+  :root {
+    --background: #0b0b0d; --card: #131316; --border: #26262b;
+    --foreground: #ededf0; --muted-foreground: #9b9ba4;
+    --accent: #f5a524; --accent-foreground: #1a1a1d; --danger: #f4515b;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: "Geist", system-ui, sans-serif;
+  }
+"""
+    # After the extract, so they win: inside the prototype the screen covers a
+    # phone frame; here it IS the page.
+    ajustements = """
+  .loginscreen { position: static; min-height: 100vh; }
+"""
+    return (
+        '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        "<title>TorrentMate — connexion</title><style>"
+        f"{socle}{styles}{ajustements}</style></head><body>{balisage}</body></html>"
+    ).encode()
+
+
+def jeton() -> str:
+    """Returns the session value a cookie must carry to be accepted."""
+    return hmac.new(SECRET_SESSION, b"session", hashlib.sha256).hexdigest()
+
+
+def mot_de_passe_correct(propose: str) -> bool:
+    """Checks a password against the stored scrypt hash.
+
+    Args:
+        propose: The submitted password.
+
+    Returns:
+        True when it matches.
+    """
+    try:
+        sel_b64, attendu_b64 = EMPREINTE.split(":", 1)
+        sel = base64.b64decode(sel_b64)
+        attendu = base64.b64decode(attendu_b64)
+    except (ValueError, TypeError):
+        return False
+    calcule = hashlib.scrypt(propose.encode(), salt=sel, n=16384, r=8, p=1, dklen=32)
+    return hmac.compare_digest(calcule, attendu)
+
+
 class Handler(http.server.BaseHTTPRequestHandler):
-    """Serves the wrapped prototype at the root, and 404s everything else."""
+    """Serves the wrapped prototype to a session, the login screen otherwise."""
 
     # The file is ~15 MB and changes only when the design does, so it is read
     # once per modification rather than once per request. mtime_ns, not mtime:
@@ -78,12 +209,26 @@ class Handler(http.server.BaseHTTPRequestHandler):
             Handler._cache = (stamp, HEAD + PROTOTYPE.read_bytes() + TAIL)
         return Handler._cache[1]  # type: ignore[index]
 
-    def _send(self, status: int, body: bytes) -> None:
+    def _authentifie(self) -> bool:
+        """Returns True when the request carries a valid session cookie."""
+        brut = self.headers.get("Cookie")
+        if not brut:
+            return False
+        biscuits = http.cookies.SimpleCookie()
+        try:
+            biscuits.load(brut)
+        except http.cookies.CookieError:
+            return False
+        valeur = biscuits.get(NOM_COOKIE)
+        return valeur is not None and hmac.compare_digest(valeur.value, jeton())
+
+    def _send(self, status: int, body: bytes, entetes: list[tuple[str, str]] | None = None) -> None:
         """Writes one complete response, headers included.
 
         Args:
             status: HTTP status code.
             body: Response body; sent verbatim.
+            entetes: Extra headers to add.
         """
         self.send_response(status)
         self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -91,22 +236,54 @@ class Handler(http.server.BaseHTTPRequestHandler):
         # The design is read to be judged, and a judgement passed on a stale
         # copy is worse than no judgement. Revalidate every time.
         self.send_header("Cache-Control", "no-store")
+        for nom, valeur in entetes or []:
+            self.send_header(nom, valeur)
         self.end_headers()
         if self.command != "HEAD":
             self.wfile.write(body)
 
     def do_GET(self) -> None:  # noqa: N802 — name imposed by BaseHTTPRequestHandler
-        """Answers a GET: the prototype at the root, 404 anywhere else."""
-        if self.path.split("?", 1)[0] not in ("/", "/index.html"):
+        """Answers a GET: the prototype to a session, the login screen otherwise."""
+        chemin = self.path.split("?", 1)[0]
+        if chemin == "/deconnexion":
+            self._send(303, b"", [("Location", "/"),
+                                  ("Set-Cookie", f"{NOM_COOKIE}=; Path=/; Max-Age=0")])
+            return
+        if chemin not in ("/", "/index.html"):
             self._send(404, b"<!doctype html><title>404</title>Rien ici.")
+            return
+        if not self._authentifie():
+            self._send(401, page_connexion(refusee="refus" in self.path))
             return
         body = self._document()
         if body is None:
-            self._send(503, MISSING)
+            self._send(503, MANQUANT)
             return
         self._send(200, body)
 
     do_HEAD = do_GET
+
+    def do_POST(self) -> None:  # noqa: N802 — name imposed by BaseHTTPRequestHandler
+        """Answers the login form: a session cookie, or the rejection state."""
+        if self.path.split("?", 1)[0] != "/connexion":
+            self._send(404, b"<!doctype html><title>404</title>Rien ici.")
+            return
+        taille = min(int(self.headers.get("Content-Length") or 0), 4096)
+        champs = urllib.parse.parse_qs(self.rfile.read(taille).decode("utf-8", "replace"))
+        identifiant = (champs.get("identifiant") or [""])[0].strip()
+        motdepasse = (champs.get("motdepasse") or [""])[0]
+        # Both sides compared in constant time, and the username checked even
+        # when it is wrong, so a wrong name and a wrong password cost the same.
+        nom_ok = hmac.compare_digest(identifiant, IDENTIFIANT)
+        mdp_ok = mot_de_passe_correct(motdepasse)
+        if not (nom_ok and mdp_ok):
+            self._send(303, b"", [("Location", "/?refus=1")])
+            return
+        self._send(303, b"", [
+            ("Location", "/"),
+            ("Set-Cookie",
+             f"{NOM_COOKIE}={jeton()}; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=2592000"),
+        ])
 
     def log_message(self, fmt: str, *args: object) -> None:
         """Silences per-request logging.
