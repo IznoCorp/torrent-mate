@@ -89,7 +89,8 @@ This catches "translating" at the moment it happens.
 ### 4. Zero divergence is a build condition, not a ticket.
 
 `scripts/parity-probe.py` walks `regions.json` in two headless contexts — the prototype and a
-local `vite preview` build — at 390 × 844 / DPR 2 / mobile / touch, and diffs
+production build it serves itself from `frontend/dist` — at 390 × 844 / DPR 2 / mobile / touch,
+and diffs
 `getBoundingClientRect` plus a fixed `getComputedStyle` subset. The allowlist is explicit and
 **every entry carries an inline justification**. Wired into `make check` and CI.
 
@@ -138,7 +139,7 @@ One file, four jobs:
   rather than implied.
 - **`regions`** — what `parity-probe.py` measures, each naming the states it is visible in,
   so the probe never has to guess how to reach a card state.
-- **`$adversarialReview`** — the rule set (R1…R31) plus `$methodLessons`: what each rule
+- **`$adversarialReview`** — the rule set (R1…R36) plus `$methodLessons`: what each rule
   exists for, and what a rule that failed to bite taught. `$reportedDefects` lists the
   defects found by hand, each with its test in `harness/bugs.py`.
 
@@ -159,7 +160,7 @@ Read from the live system:
 | Episode titles and air dates (9,779 episodes) | TMDB |
 | Staging contents | the staging directory |
 | TMDB suggestions | the engine, actually executed |
-| 319 wide visuals, 46 posters, 55 cast portraits | TMDB / TVDB, re-encoded as WebP |
+| 319 wide visuals, 172 posters (64 of them at gallery definition), 55 cast portraits | TMDB / TVDB, re-encoded as WebP |
 | 288 YouTube trailer ids | TMDB `/videos` |
 | The grab cadence | the live scheduler |
 
@@ -214,8 +215,21 @@ that claims nothing lets the browser take the gesture and fire `touchcancel`: th
 works **only under synthetic events**, which are never cancelled. This exact divergence has
 happened here — the code was present, the test was green, and a real thumb found nothing.
 
-**Every gesture claim requires `TouchEvent`s dispatched on the real surface.** Never
-`PointerEvent`s, never a shortcut around the listener under test.
+**Every gesture answers a pointer, not only a finger.** The handlers listen for pointer events,
+so one path serves finger, mouse and pen — the interface is used from a desktop browser too, at a
+phone width. Two things a touch-only implementation never meets, both found by testing with a
+real mouse on a browser with no touch at all:
+
+- **The end of a drag is listened for on the window.** A touch is captured implicitly by the
+  element that received the start; a mouse is not, so a release outside the frame never reaches a
+  listener bound to the scrollport, and the gesture hangs half-done.
+- **Images inside a draggable surface disable the browser's native picture drag**, which
+  otherwise swallows the pointer stream outright — two moves, never an up.
+
+The **axis claim** stays in `touch-action`: it is what makes a real touch gesture arrive at all,
+and no synthetic event exercises it, so it is asserted on the declaration itself.
+`harness/souris.py` proves every gesture with a real mouse; `harness/deck.py` proves the deck
+with pointer events of type « touch ».
 
 ---
 
