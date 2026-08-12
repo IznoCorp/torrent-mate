@@ -739,11 +739,26 @@
      gradient, with an icon watermark at 5% bottom-right. A single initial
      on a flat fill is an approximation, not a variant. */
   /* The poster fills the MEDIAN card, and the shorter cards rise to meet it.
-     Derived, not chosen: the median list card is 81px tall over the 147 cards
-     the interface draws, its vertical padding is 9px a side, so 63px of usable
-     height — and 2/3 of that is 42px wide. Sizing it against the shortest card
-     instead would have frozen it at today's value forever; sizing it against
-     the tallest would have left a hole in every compact row. */
+     Derived, not chosen: the median list card is 83px tall over the cards the
+     interface draws, of which 9px of padding a side and 1px of border a side
+     are not usable — 63px remain, and 2/3 of that is 42px wide. Sizing it
+     against the shortest card instead would have frozen it at today's value
+     forever; sizing it against the tallest would have left a hole in every
+     compact row.
+
+     THE DERIVATION IS NOW STATIONARY, and knowing that is the point of writing
+     it down. A poster 63px tall makes a card 83px tall, which is the median it
+     was derived from: it fills that card exactly, and re-running the
+     computation returns the same 42. Enlarging it further is not a new
+     derivation, it is a new REFERENCE — the poster would stop filling the
+     median card and start defining it. Two figures for whoever takes that
+     decision: the population is bimodal, 13 of the 18 card lists draw a median
+     card of 115.9px while five long lists of compact rows pull the overall
+     median down to 83, and sizing against the median LIST rather than the
+     median card yields 64px. Nothing in between is derived from anything.
+
+     Beware the arithmetic: dropping the 1px borders turns the formula into a
+     ratchet that grows the poster by 1.33px every time it is applied. */
   .poster {
     flex: 0 0 auto;
     width: 42px;
