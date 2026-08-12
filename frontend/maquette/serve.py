@@ -63,10 +63,68 @@ EMPREINTE = os.environ.get(
 SECRET_SESSION = secrets.token_bytes(32)
 NOM_COOKIE = "tm_design"
 
+PUBLIC = PROTOTYPE.parent.parent / "public"
+
+# Brand assets and the manifest are served WITHOUT a session: they carry no
+# private data, and a `<link rel="manifest">` is fetched without credentials
+# unless asked otherwise — a 401 there costs the install prompt entirely.
+ASSETS = {
+    "/pwa-192.png": "image/png",
+    "/pwa-512.png": "image/png",
+    "/maskable-192.png": "image/png",
+    "/maskable-512.png": "image/png",
+    "/apple-touch-icon.png": "image/png",
+    "/favicon.svg": "image/svg+xml",
+}
+
+MANIFESTE = b"""{
+  "name": "TorrentMate \\u2014 design",
+  "short_name": "TM design",
+  "description": "Prototype de r\\u00e9f\\u00e9rence de l'interface TorrentMate.",
+  "lang": "fr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b0b0d",
+  "theme_color": "#0b0b0d",
+  "icons": [
+    { "src": "/pwa-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/pwa-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
+"""
+
+# A fetch handler is what makes a page installable, and this one deliberately
+# does nothing else. A caching worker would serve yesterday's prototype to
+# someone judging today's design — the exact failure a design reference cannot
+# afford.
+WORKER = b"""self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
+self.addEventListener("fetch", () => {});
+"""
+
 HEAD = (
     b'<!doctype html><html lang="fr"><head><meta charset="utf-8">'
     b'<meta name="viewport" '
     b'content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">'
+    # An HTML entity, not the character: a bytes literal accepts no accent and
+    # no dash beyond ASCII, and this file has already paid for that twice.
+    b"<title>TorrentMate &mdash; refonte mobile</title>"
+    b'<link rel="manifest" href="/manifest.webmanifest">'
+    b'<meta name="theme-color" content="#0b0b0d">'
+    b'<link rel="apple-touch-icon" href="/apple-touch-icon.png">'
+    b'<link rel="icon" href="/favicon.svg" type="image/svg+xml">'
+    # iOS reads neither the manifest's display nor its short_name: standalone
+    # mode and the home-screen label are declared with these two, or the icon
+    # opens a Safari tab instead of an app.
+    b'<meta name="apple-mobile-web-app-capable" content="yes">'
+    b'<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">'
+    b'<meta name="apple-mobile-web-app-title" content="TM design">'
+    b'<script>if("serviceWorker" in navigator)'
+    b'addEventListener("load",()=>navigator.serviceWorker.register("/sw.js"));</script>'
     b"</head><body>"
 )
 TAIL = b"</body></html>"
@@ -222,16 +280,23 @@ class Handler(http.server.BaseHTTPRequestHandler):
         valeur = biscuits.get(NOM_COOKIE)
         return valeur is not None and hmac.compare_digest(valeur.value, jeton())
 
-    def _send(self, status: int, body: bytes, entetes: list[tuple[str, str]] | None = None) -> None:
+    def _send(
+        self,
+        status: int,
+        body: bytes,
+        entetes: list[tuple[str, str]] | None = None,
+        type_mime: str = "text/html; charset=utf-8",
+    ) -> None:
         """Writes one complete response, headers included.
 
         Args:
             status: HTTP status code.
             body: Response body; sent verbatim.
             entetes: Extra headers to add.
+            type_mime: The Content-Type to declare.
         """
         self.send_response(status)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Type", type_mime)
         self.send_header("Content-Length", str(len(body)))
         # The design is read to be judged, and a judgement passed on a stale
         # copy is worse than no judgement. Revalidate every time.
@@ -245,6 +310,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802 — name imposed by BaseHTTPRequestHandler
         """Answers a GET: the prototype to a session, the login screen otherwise."""
         chemin = self.path.split("?", 1)[0]
+        if chemin == "/manifest.webmanifest":
+            self._send(200, MANIFESTE, type_mime="application/manifest+json")
+            return
+        if chemin == "/sw.js":
+            self._send(200, WORKER, type_mime="text/javascript")
+            return
+        if chemin in ASSETS:
+            fichier = PUBLIC / chemin.lstrip("/")
+            if not fichier.is_file():
+                self._send(404, b"")
+                return
+            self._send(200, fichier.read_bytes(), type_mime=ASSETS[chemin])
+            return
         if chemin == "/deconnexion":
             self._send(303, b"", [("Location", "/"),
                                   ("Set-Cookie", f"{NOM_COOKIE}=; Path=/; Max-Age=0")])

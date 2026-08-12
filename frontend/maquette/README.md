@@ -103,7 +103,7 @@ that view was checked, and another page shipped blank.
 ## Every state has a name, and knows how to reach itself
 
 `window.__go("<id>")` drives the prototype into a state **without clicking**.
-`window.__states()` returns the 47 ids. The **≡** button in the harness opens a panel listing
+`window.__states()` returns the 51 ids. The **≡** button in the harness opens a panel listing
 them all.
 
 This is what makes the parity probe deterministic. Without it, measuring "the blocked card"
@@ -139,7 +139,7 @@ One file, four jobs:
   rather than implied.
 - **`regions`** — what `parity-probe.py` measures, each naming the states it is visible in,
   so the probe never has to guess how to reach a card state.
-- **`$adversarialReview`** — the rule set (R1…R50) plus `$methodLessons`: what each rule
+- **`$adversarialReview`** — the rule set (R1…R52) plus `$methodLessons`: what each rule
   exists for, and what a rule that failed to bite taught. `$reportedDefects` lists the
   defects found by hand, each with its test in `harness/bugs.py`.
 
@@ -287,6 +287,28 @@ actually available, and the app gets the same answer because there the scrollpor
 window.
 
 `harness/cartes.py` proves all of it; R41–R50 in `regions.json` state it.
+
+## It installs, and the invitation depends on the platform
+
+`serve.py` serves a manifest, the brand icons and a service worker, so the prototype installs
+to a home screen like the app does. **The worker caches nothing.** Its only job is to satisfy
+the installability criterion; a caching worker would serve yesterday's prototype to someone
+judging today's design, which is the single failure a design reference cannot afford.
+
+The invitation has two forms, and they are not cosmetic variants (R51):
+
+- **Android and desktop** fire `beforeinstallprompt`, which a page may capture and replay on a
+  gesture — so the banner offers a button.
+- **iOS Safari** fires nothing. There is no event to await and no API to call, so the banner
+  *is* the guide: it walks Partager → « Sur l'écran d'accueil » → Ajouter. A single banner
+  saying « installez-moi » on both would be a dead end on one of them.
+
+It sits **above** the tab bar. Anchored to the bottom edge its close button lands under the
+fixed bar and cannot be reached — reported from a real phone, on both platforms.
+
+iOS also reads neither the manifest's `display` nor its `short_name`: standalone mode and the
+home-screen label need `apple-mobile-web-app-capable` and `apple-mobile-web-app-title`, or the
+icon opens a Safari tab instead of an app.
 
 ## A trap that cost real time: **screenshots are not an oracle**
 
