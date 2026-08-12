@@ -473,7 +473,7 @@ library's three lenses, the follows grid and Découvrir's posters; the column co
 scrollport's width through a container query — 3 / 4 / 5 / 6 at 460 / 620 / 820px — never the
 window's. A media query would give a 390px frame the column count of the desktop behind it.
 
-**Every list uses the same metrics (R47).** Poster 38 × 57, padding 9, radius 8, title 13.5,
+**Every list uses the same metrics (R47).** Poster 49 × 73.5, padding 9, radius 8, title 13.5,
 gap 10. Card heights differ only because their content does — a card carrying a reason is taller.
 Découvrir was the last holdout: its own builder, its own class vocabulary, and a poster 63 %
 larger, on a page that already offers a poster gallery and a deck for visual browsing. **A reason

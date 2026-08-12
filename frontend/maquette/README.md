@@ -270,8 +270,14 @@ among several for a medium already named on the screen. It says so with
 `data-nonmedia`, so the check tells them apart by construction rather than by knowing
 which screen draws which (R46).
 
-**Every list uses the same metrics** — poster 38 × 57, padding 9, radius 8, title 13.5,
-gap 10 (R47). Card HEIGHTS differ, and that is content: a card carrying a reason is taller
+**Every list uses the same metrics** — poster 49 × 73.5, padding 9, radius 8, title 13.5,
+gap 10 (R47). That 49 is derived from the card's own ANATOMY, not from a percentile: the 135
+cards the interface draws fall into eight shapes by which blocks they carry, and the poster
+fills the one whose purpose is RECOGNISING a medium — title, sub-line and synopsis, 72.9px of
+content, two thirds of which is 49. It used to fill the median card (60.7 → 42) and that
+reference had run out: the poster had become what set the median, so re-running the computation
+returned its own answer. The two neighbouring shapes, for another notch: a card carrying a
+reason gives 58, the fullest card gives 63. Card HEIGHTS differ, and that is content: a card carrying a reason is taller
 than one that does not. Découvrir was the last holdout, with its own builder and a poster
 63 % larger, on a page that already offers a gallery and a deck for visual browsing. A list
 is a list.

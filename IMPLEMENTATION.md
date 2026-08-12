@@ -186,10 +186,11 @@ These were argued, measured and recorded. Re-opening one costs a day; the reason
 4. **`?tab=maintenant`.** The label became « En cours »; whether the URL param migrates with a
    legacy redirect or stays is an implementation detail of phase 6's sibling work. The deep link
    must keep working either way.
-5. **The list poster cannot be enlarged by its own derivation** — it already fills the median card
-   at the pixel, and 113 of 192 cards sit on its floor, so the median card IS the poster. Growing
-   it is a change of REFERENCE, and that is the operator's call. Measured alternative: sizing
-   against the median LIST rather than the median card gives 64px, a 52 % increase.
+5. ~~**The list poster cannot be enlarged by its own derivation.**~~ **Closed.** The reference was
+   changed, deliberately and by measurement: the poster now fills the card whose purpose is
+   RECOGNISING a medium — title, sub-line, synopsis — which is 49px, from the card's own anatomy
+   rather than from a percentile. Two further notches exist and are named in R47: a card carrying
+   a reason gives 58, the fullest card 63.
 6. **The design host and the app share their icons.** Only the labels tell them apart on a home
    screen; the design host has no recoloured icon set of its own, the way staging does.
 7. **The arbitration SCREEN itself is drawn but not built.** `ds/DecisionRow` and the vocabulary

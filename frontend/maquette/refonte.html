@@ -738,30 +738,38 @@
      otherwise TWO initials in mono over an accent/50 → card → muted
      gradient, with an icon watermark at 5% bottom-right. A single initial
      on a flat fill is an approximation, not a variant. */
-  /* The poster fills the MEDIAN card, and the shorter cards rise to meet it.
-     Derived, not chosen: the median list card is 83px tall over the cards the
-     interface draws, of which 9px of padding a side and 1px of border a side
-     are not usable — 63px remain, and 2/3 of that is 42px wide. Sizing it
-     against the shortest card instead would have frozen it at today's value
-     forever; sizing it against the tallest would have left a hole in every
-     compact row.
+  /* THE POSTER FILLS THE CARD THAT ASKS YOU TO RECOGNISE A MEDIUM.
 
-     THE DERIVATION IS NOW STATIONARY, and knowing that is the point of writing
-     it down. A poster 63px tall makes a card 83px tall, which is the median it
-     was derived from: it fills that card exactly, and re-running the
-     computation returns the same 42. Enlarging it further is not a new
-     derivation, it is a new REFERENCE — the poster would stop filling the
-     median card and start defining it. Two figures for whoever takes that
-     decision: the population is bimodal, 13 of the 18 card lists draw a median
-     card of 115.9px while five long lists of compact rows pull the overall
-     median down to 83, and sizing against the median LIST rather than the
-     median card yields 64px. Nothing in between is derived from anything.
+     Derived, and the derivation is the anatomy of the card rather than a
+     percentile. Grouping the 135 cards the interface draws by which blocks
+     they carry gives eight shapes, and each has a content height of its own:
 
-     Beware the arithmetic: dropping the 1px borders turns the formula into a
-     ratchet that grows the poster by 1.33px every time it is applied. */
+         title + sub                        35.7  →  24px
+         title + facts                      41.5  →  28px
+         title + sub + facts                60.7  →  40px
+         title + sub + SYNOPSIS             72.9  →  49px
+         title + sub + reason               87.0  →  58px
+         title + sub + reason + facts       95.1  →  63px
+
+     The poster is 2/3 of the usable height (the 2:3 ratio never moves), and
+     usable means the card minus 9px of padding and 1px of border a side.
+
+     It used to fill the MEDIAN card — 60.7, hence 42px — and that reference had
+     run out: the poster had become what set the median, so re-running the
+     computation returned its own answer. The reference is now the card that
+     carries a SYNOPSIS, and that is not a percentile: it is the one shape whose
+     purpose is recognising a medium from its picture, which is exactly the job
+     a 42px poster was too small for. 49px, and the compact cards rise from 83
+     to 93.
+
+     The two neighbours, for whoever wants another notch: the card carrying a
+     REASON gives 58px, and the fullest card of all gives 63px — which is also
+     what sizing against the median LIST rather than the median card gives, the
+     population being bimodal. Everything here is a shape the interface really
+     draws; nothing in between is derived from anything. */
   .poster {
     flex: 0 0 auto;
-    width: 42px;
+    width: 49px;
     aspect-ratio: 2/3;
     border-radius: 4px;
     background: var(--muted);
