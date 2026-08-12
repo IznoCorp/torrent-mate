@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 
 import { decisionsKeys, fetchDecisionActivity } from "@/api/decisions";
+import { Panel } from "@/components/ds/Panel";
 
 /** Poll cadence while scrapes are in flight (ms). */
 const ACTIVE_POLL_MS = 2000;
@@ -42,9 +43,10 @@ export function ScrapeActivityPanel(): ReactElement | null {
   }
 
   return (
-    <section
+    <Panel
+      as="section"
       aria-label="Scrapes en cours"
-      className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3"
+      className="flex flex-col gap-2 p-3"
     >
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium">Scrapes en cours</span>
@@ -90,6 +92,6 @@ export function ScrapeActivityPanel(): ReactElement | null {
           ))}
         </ul>
       )}
-    </section>
+    </Panel>
   );
 }

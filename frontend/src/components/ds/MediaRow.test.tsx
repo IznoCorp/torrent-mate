@@ -1,17 +1,17 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { AcquisitionCard } from "./AcquisitionCard";
+import { MediaRow } from "./MediaRow";
 
 const base = { title: "Silo", posterUrl: null, onOpen: vi.fn() };
 
-describe("AcquisitionCard", () => {
+describe("MediaRow", () => {
   afterEach(cleanup);
 
   it("expose DEUX cibles distinctes : l'affiche et le corps (A13)", () => {
     const onOpen = vi.fn();
     const onPoster = vi.fn();
-    render(<AcquisitionCard {...base} onOpen={onOpen} onPoster={onPoster} />);
+    render(<MediaRow {...base} onOpen={onOpen} onPoster={onPoster} />);
 
     // Poster button carries aria-label="Fiche de Silo"
     fireEvent.click(screen.getByRole("button", { name: /Fiche de Silo/i }));
@@ -24,13 +24,13 @@ describe("AcquisitionCard", () => {
   });
 
   it("§11 exception — sans onPoster, l'affiche n'est PAS un bouton", () => {
-    render(<AcquisitionCard {...base} />);
+    render(<MediaRow {...base} />);
     expect(screen.queryByRole("button", { name: /Fiche de/i })).toBeNull();
   });
 
   it("§11 — sans onOpen, le corps n'est PAS un bouton (aucun faux contrôle)", () => {
     render(
-      <AcquisitionCard title="Silo" posterUrl={null} />,
+      <MediaRow title="Silo" posterUrl={null} />,
     );
     // The body must not be a <button>.
     expect(screen.queryByRole("button", { name: "Silo" })).toBeNull();
@@ -40,18 +40,36 @@ describe("AcquisitionCard", () => {
 
   it("R3 — la ligne du titre ne contient QUE le titre", () => {
     render(
-      <AcquisitionCard {...base} meta={<span data-testid="chip">Nouveau</span>} />,
+      <MediaRow {...base} facts={[{ kind: "note", text: "Nouveau" }]} />,
     );
     const titleLine = screen.getByTestId("acq-card-title");
     expect(titleLine).toHaveTextContent("Silo");
-    expect(within(titleLine).queryByTestId("chip")).toBeNull();
+    expect(titleLine).not.toHaveTextContent("Nouveau");
   });
 
   it("R2 — la frise est sur sa propre ligne, hors de la rangée du haut", () => {
-    render(<AcquisitionCard {...base} strip={<div data-testid="strip" />} />);
+    const { container } = render(<MediaRow {...base} journey={{ stage: "pris" }} />);
     const top = screen.getByTestId("acq-card-top");
-    expect(within(top).queryByTestId("strip")).toBeNull();
-    expect(screen.getByTestId("strip")).toBeInTheDocument();
+    // The strip is the card's last block, a sibling of the top row.
+    const frise = container.querySelector('[data-testid="acq-card"] > :last-child');
+    expect(frise).not.toBeNull();
+    expect(top.contains(frise)).toBe(false);
+  });
+
+  it("le panneau ne prend QUE des faits : une note, une puce, une jauge", () => {
+    render(
+      <MediaRow
+        {...base}
+        facts={[
+          { kind: "fraction", text: "5/8" },
+          { kind: "chip", tone: "warning", text: "En attente" },
+          { kind: "fresh" },
+        ]}
+      />,
+    );
+    expect(screen.getByText("5/8")).toBeInTheDocument();
+    expect(screen.getByText("En attente")).toBeInTheDocument();
+    expect(screen.getByTestId("chip-nouveau")).toBeInTheDocument();
   });
 
   /** Make matchMedia report a fine pointer, or a touch one. */
@@ -70,20 +88,20 @@ describe("AcquisitionCard", () => {
     // The kebab is gone on every pointer — the card's actions live in the
     // detail sheet (tap) and the swipe panes.
     stubPointer(true);
-    render(<AcquisitionCard {...base} />);
+    render(<MediaRow {...base} />);
     expect(screen.queryByText("···")).toBeNull();
     vi.unstubAllGlobals();
   });
 
   it("§12 — la raison enroule et n'est jamais tronquée par nowrap", () => {
-    render(<AcquisitionCard {...base} reason="titre ambigu — 3 candidats proposés" />);
+    render(<MediaRow {...base} reason="titre ambigu — 3 candidats proposés" />);
     const reason = screen.getByText(/titre ambigu/);
     expect(reason.className).not.toMatch(/whitespace-nowrap/);
     expect(reason.className).toMatch(/line-clamp-2/);
   });
 
   it("le sous-titre, lui, tronque sur une ligne", () => {
-    render(<AcquisitionCard {...base} subtitle="S02E05 · 1080p WEB-DL · 42 sources" />);
+    render(<MediaRow {...base} subtitle="S02E05 · 1080p WEB-DL · 42 sources" />);
     const sub = screen.getByText(/S02E05/);
     expect(sub.className).toMatch(/truncate/);
   });

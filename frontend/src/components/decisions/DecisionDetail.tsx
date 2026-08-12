@@ -24,6 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useDecisionDetailPanel } from "@/hooks/useDecisionDetailPanel";
+import { EmptyState } from "@/components/ds/EmptyState";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -291,9 +292,11 @@ export function DecisionDetail({
 
         {/* ---- Candidate grid ------------------------------------------------ */}
         {candidates.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Aucun candidat disponible pour cette décision.
-          </p>
+          <EmptyState
+            compact
+            title="Aucun candidat pour cette décision"
+            description="Aucune correspondance n'a été retenue : la recherche n'a rien rapporté d'exploitable."
+          />
         ) : (
           // DECISIONS-5 (ticket 250): the wide 3fr detail track fits a 4th
           // candidate column from xl up.

@@ -3,8 +3,8 @@ import type { ReactElement, ReactNode } from "react";
 import { MediaPoster } from "@/components/ds/MediaPoster";
 import { cn } from "@/lib/utils";
 
-/** Props for {@link MediaCard}. */
-export interface MediaCardProps {
+/** Props for {@link MediaTile}. */
+export interface MediaTileProps {
   /** Media title. */
   readonly title: string;
   /** Release year, when known. */
@@ -32,7 +32,13 @@ export interface MediaCardProps {
 }
 
 /**
- * MediaCard — the catalog card used by the library, search results, candidates,
+ * MediaTile — the gallery tile: all poster, name below.
+ *
+ * It was called `MediaCard`, next to a `MediaRow` that is a different object:
+ * one is a vertical gallery tile, the other a horizontal list row. Two names
+ * a token apart for two different shapes is how a surface picks the wrong one,
+ * so each is now named for what it draws. The catalog card used by the library,
+ * search results, candidates,
  * and the watch list: a poster hero over title/year, an optional overview, a
  * chips slot, and an optional actions footer.
  *
@@ -50,7 +56,7 @@ export interface MediaCardProps {
  * Returns:
  *   The media card element.
  */
-export function MediaCard({
+export function MediaTile({
   title,
   year,
   kind,
@@ -61,7 +67,7 @@ export function MediaCard({
   selected = false,
   onOpen,
   density = "comfortable",
-}: MediaCardProps): ReactElement {
+}: MediaTileProps): ReactElement {
   const isCompact = density === "compact";
   const meta = (
     <>

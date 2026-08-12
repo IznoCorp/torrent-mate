@@ -145,6 +145,6 @@ describe("SchedulersPanel", () => {
 
     renderPanel();
 
-    expect(await screen.findByText("Aucun planificateur.")).toBeInTheDocument();
+    expect(await screen.findByText("Aucun planificateur")).toBeInTheDocument();
   });
 });

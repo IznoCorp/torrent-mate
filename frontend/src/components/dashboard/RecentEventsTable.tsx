@@ -35,6 +35,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Panel } from "@/components/ds/Panel";
+import { EmptyState } from "@/components/ds/EmptyState";
 
 /** How many of the most-recent events the table shows. */
 export const RECENT_LIMIT = 50;
@@ -172,7 +174,7 @@ export function RecentEventsTable({
       <h2 className="text-sm font-semibold tracking-tight">
         Événements récents
       </h2>
-      <div className="rounded-lg border border-border bg-card">
+      <Panel>
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -210,11 +212,12 @@ export function RecentEventsTable({
           <TableBody>
             {table.getRowModel().rows.length === 0 ? (
               <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="text-center text-xs text-muted-foreground"
-                >
-                  Aucun événement pour l’instant.
+                <TableCell colSpan={columns.length}>
+                  <EmptyState
+                    compact
+                    title="Aucun événement pour l’instant"
+                    description="Les événements du pipeline apparaissent ici dès qu'il tourne."
+                  />
                 </TableCell>
               </TableRow>
             ) : (
@@ -230,7 +233,7 @@ export function RecentEventsTable({
             )}
           </TableBody>
         </Table>
-      </div>
+      </Panel>
     </section>
   );
 }

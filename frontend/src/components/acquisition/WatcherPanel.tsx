@@ -39,6 +39,7 @@ import {
   RUN_OUTCOME_LABEL,
   RUN_OUTCOME_TONE,
 } from "./meta";
+import { EmptyState } from "@/components/ds/EmptyState";
 
 /**
  * WatcherPanel — watcher status card + recent-runs table.
@@ -212,9 +213,11 @@ export function WatcherPanel(): ReactElement {
         </CardHeader>
         <CardContent>
           {recent_runs.length === 0 ? (
-            <p className="py-4 text-center text-muted-foreground">
-              Aucune exécution récente enregistrée.
-            </p>
+            <EmptyState
+              compact
+              title="Aucune exécution récente"
+              description="La surveillance n'a encore rien enregistré sur cet hôte."
+            />
           ) : (
             // ACQUISITION-4 (ticket 250): the numeric « Résultat » column is
             // the lowest-priority one — collapse it below md so the nowrap

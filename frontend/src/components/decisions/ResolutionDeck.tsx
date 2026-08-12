@@ -36,6 +36,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useResolutionDeck } from "@/hooks/useResolutionDeck";
 import { cn } from "@/lib/utils";
+import { Panel } from "@/components/ds/Panel";
 
 /** Props for {@link ResolutionDeck}. */
 export interface ResolutionDeckProps {
@@ -148,7 +149,7 @@ export function ResolutionDeck({
           </div>
         )}
         {/* Header: extracted media + trigger + progress + shortcuts */}
-        <div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+        <Panel className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0 flex-1 flex flex-col gap-1">
             <div className="flex flex-wrap items-center gap-2">
               <span className="min-w-0 break-words text-base font-semibold">
@@ -187,7 +188,7 @@ export function ResolutionDeck({
               <Kbd>s</Kbd> chercher
             </span>
           </div>
-        </div>
+        </Panel>
 
         {/* Manual search override */}
         <form

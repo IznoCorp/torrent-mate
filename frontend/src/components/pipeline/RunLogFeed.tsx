@@ -29,6 +29,7 @@ import {
   severityForEventType,
   type Severity,
 } from "@/components/dashboard/eventRow.utils";
+import { Panel } from "@/components/ds/Panel";
 
 /** Distance from the bottom, in px, still considered "at the tail" (auto-follow). */
 const FOLLOW_THRESHOLD = 24;
@@ -170,13 +171,13 @@ export function RunLogFeed({ runUid }: RunLogFeedProps): ReactElement {
         )}
       </div>
 
-      <div
+      <Panel
         ref={scrollRef}
         onScroll={handleScroll}
         role="log"
         aria-live="polite"
         aria-label="Journal d'exécution du pipeline"
-        className="h-80 overflow-y-auto rounded-lg border border-border bg-card p-2 md:h-[28rem]"
+        className="h-80 overflow-y-auto p-2 md:h-[28rem]"
       >
         {isEmpty ? (
           <p className="flex h-full items-center justify-center text-xs text-muted-foreground">
@@ -214,7 +215,7 @@ export function RunLogFeed({ runUid }: RunLogFeedProps): ReactElement {
             })}
           </div>
         )}
-      </div>
+      </Panel>
     </section>
   );
 }

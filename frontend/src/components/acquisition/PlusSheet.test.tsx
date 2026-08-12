@@ -106,7 +106,7 @@ describe("PlusSheet", () => {
     // matched the drawer's own description — the assertion then survived
     // deleting the panel, which is the vacuous test this guard exists to avoid.
     expect(
-      screen.getByText("Aucune obligation de seed enregistrée."),
+      screen.getByText("Aucune obligation de seed"),
     ).toBeInTheDocument();
   });
 

@@ -22,6 +22,7 @@ import type { EventMessage } from "@/api/events";
 import { EventRow } from "@/components/dashboard/EventRow";
 import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 import { cn } from "@/lib/utils";
+import { Panel } from "@/components/ds/Panel";
 
 /** Fixed row height, in px — a constant estimate keeps virtualization cheap. */
 const ROW_HEIGHT = 28;
@@ -109,13 +110,13 @@ export function EventFeed({ events }: EventFeedProps): ReactElement {
         </button>
       </div>
 
-      <div
+      <Panel
         ref={scrollRef}
         onScroll={handleScroll}
         role="log"
         aria-live="polite"
         aria-label="Flux d’événements en direct"
-        className="h-80 overflow-y-auto rounded-lg border border-border bg-card md:h-[28rem]"
+        className="h-80 overflow-y-auto md:h-[28rem]"
       >
         {events.length === 0 ? (
           wsDead ? (
@@ -158,7 +159,7 @@ export function EventFeed({ events }: EventFeedProps): ReactElement {
             })}
           </div>
         )}
-      </div>
+      </Panel>
     </section>
   );
 }

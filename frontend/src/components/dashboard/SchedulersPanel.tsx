@@ -24,6 +24,8 @@ import {
 import { relativeTime } from "@/lib/format";
 import { useSchedulers } from "@/hooks/useSchedulers";
 import { OUTCOME_TONE, outcomeLabel } from "@/lib/outcome-labels";
+import { Panel } from "@/components/ds/Panel";
+import { EmptyState } from "@/components/ds/EmptyState";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -71,7 +73,7 @@ function SchedulerRow({
   const kindLabel = item.kind === "watcher" ? "Surveillance" : "Cron";
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
+    <Panel className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 flex-col gap-1">
         <div className="flex items-center gap-2">
           <Badge tone={kindTone}>{kindLabel}</Badge>
@@ -92,7 +94,7 @@ function SchedulerRow({
           {relativeTime(item.last_run_at)}
         </span>
       </div>
-    </div>
+    </Panel>
   );
 }
 
@@ -138,7 +140,11 @@ export function SchedulersPanel(): ReactElement {
             <SchedulerRow key={item.name} item={item} />
           ))}
         {!isLoading && !isError && schedulers.length === 0 && (
-          <p className="text-sm text-muted-foreground">Aucun planificateur.</p>
+          <EmptyState
+            compact
+            title="Aucun planificateur"
+            description="Ni surveillance ni cron n'est enregistré sur cet hôte."
+          />
         )}
       </CardContent>
     </Card>

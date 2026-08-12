@@ -39,6 +39,7 @@ import {
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { maintenanceKeys } from "@/hooks/useMaintenanceKeys";
+import { EmptyState } from "@/components/ds/EmptyState";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -190,9 +191,11 @@ export function ActionCatalog(): ReactElement {
         )}
 
         {!isLoading && !isError && actions.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            Aucune action disponible.
-          </p>
+          <EmptyState
+            compact
+            title="Aucune action disponible"
+            description="Le catalogue est vide : aucune action de maintenance n'est déclarée."
+          />
         )}
       </CardContent>
 

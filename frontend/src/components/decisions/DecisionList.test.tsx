@@ -102,7 +102,7 @@ describe("DecisionList", () => {
 
   it("affiche le message vide quand la liste est vide", () => {
     renderList([]);
-    expect(screen.getByText("Aucune décision.")).toBeInTheDocument();
+    expect(screen.getByText("Aucune décision")).toBeInTheDocument();
   });
 
   // -----------------------------------------------------------------------

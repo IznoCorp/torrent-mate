@@ -13,6 +13,7 @@ import type { ReactElement } from "react";
 
 import { TRIGGER_LABEL } from "@/components/decisions/triggers";
 import { useDecisions } from "@/hooks/useDecisions";
+import { Panel } from "@/components/ds/Panel";
 
 /** How many recent resolutions to surface in the summary. */
 const RECENT_LIMIT = 8;
@@ -35,7 +36,7 @@ export function RecentResolutions(): ReactElement | null {
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4">
+    <Panel className="flex flex-col gap-2 p-4">
       <div className="flex items-center gap-2">
         <CheckCircle2 className="size-4 text-success" aria-hidden="true" />
         <h3 className="text-sm font-semibold">
@@ -65,6 +66,6 @@ export function RecentResolutions(): ReactElement | null {
           </li>
         ))}
       </ul>
-    </div>
+    </Panel>
   );
 }

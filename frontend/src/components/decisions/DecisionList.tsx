@@ -30,6 +30,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { EmptyState } from "@/components/ds/EmptyState";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -128,7 +129,11 @@ export function DecisionList({
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
         {items.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aucune décision.</p>
+          <EmptyState
+            compact
+            title="Aucune décision"
+            description="Rien n'attend d'arbitrage : aucun média n'est resté ambigu."
+          />
         ) : (
           items.map((item) => {
             const triggerTone = TRIGGER_VARIANT[item.trigger] ?? "info";

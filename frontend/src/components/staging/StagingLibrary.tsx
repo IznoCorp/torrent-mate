@@ -18,7 +18,7 @@ import { useSearchParams } from "react-router-dom";
 import type { StagingMediaItem, StagingMediaParams } from "@/api/staging";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { ErrorState } from "@/components/ds/ErrorState";
-import { MediaCard } from "@/components/ds/MediaCard";
+import { MediaTile } from "@/components/ds/MediaTile";
 import { StatusBadge } from "@/components/ds/StatusBadge";
 import { StagingMediaDetail } from "@/components/staging/StagingMediaDetail";
 import { matchBadge, posterKind } from "@/components/staging/meta";
@@ -171,7 +171,7 @@ export function StagingLibrary({
     "comfortable",
   );
 
-  // Compact packs more columns and drops the overview (via MediaCard density);
+  // Compact packs more columns and drops the overview (via MediaTile density);
   // comfortable keeps the roomy 2→5 grid. No per-card overrides (C17).
   const gridClass =
     density === "compact"
@@ -418,7 +418,7 @@ export function StagingLibrary({
               const kind = posterKind(item.media_kind);
               const seasonCount = item.seasons?.length ?? 0;
               return (
-                <MediaCard
+                <MediaTile
                   key={item.id}
                   title={item.title}
                   year={item.year ?? null}

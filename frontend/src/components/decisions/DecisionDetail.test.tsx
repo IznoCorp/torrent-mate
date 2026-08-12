@@ -245,7 +245,7 @@ describe("DecisionDetail", () => {
   it("affiche le message quand il n'y a aucun candidat", () => {
     renderDetail(makeDecision({ candidates: [], candidates_count: 0 }));
     expect(
-      screen.getByText("Aucun candidat disponible pour cette décision."),
+      screen.getByText("Aucun candidat pour cette décision"),
     ).toBeInTheDocument();
   });
 

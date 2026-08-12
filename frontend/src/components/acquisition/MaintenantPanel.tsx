@@ -1,7 +1,7 @@
 /**
  * MaintenantPanel — the five-section urgency-ordered « Maintenant » view.
  *
- * Composes five building blocks — ``AcquisitionCard``, ``JourneyStrip``,
+ * Composes five building blocks — ``MediaRow``, ``JourneyStrip``,
  * ``FollowDetailSheet``, the ``actionWords`` vocabulary, and the
  * ``useToHandle`` hook — each tested in its own module. This component
  * owns the composition: card/strip linkage, section ordering, and the
@@ -43,8 +43,9 @@ import {
 
 import { ErrorState } from "@/components/ds/ErrorState";
 
-import { AcquisitionCard } from "./AcquisitionCard";
-import { Chip } from "./Chip";
+import type { AcquisitionDownload } from "@/api/acquisition";
+import type { MediaFact } from "@/components/ds/MediaRow";
+import { MediaRow } from "@/components/ds/MediaRow";
 import { SwipeActions } from "./SwipeActions";
 import { useFollowActions } from "./followActions";
 import { useBackCloses } from "@/lib/use-back-closes";
@@ -53,7 +54,6 @@ import { FollowDetailSheet } from "./FollowDetailSheet";
 import { JourneyDetailSheet } from "./JourneyDetailSheet";
 import { deriveStage, formatSince, journeyMatchKey, stageElapsed } from "./journey";
 import { PendingRunLine } from "./PendingRunLine";
-import { JourneyStrip } from "./JourneyStrip";
 import { DownloadRow, formatEta } from "./DownloadRow";
 import { StalledGrabsAlert } from "./StalledGrabsAlert";
 import {
@@ -67,7 +67,6 @@ import {
   followWaitingReason,
   followFraction,
   relativeTime,
-  TONE_CHIP_CLASS,
 } from "./meta";
 
 // ---------------------------------------------------------------------------
@@ -136,6 +135,84 @@ function resolveHref(item: ToHandleItem): string {
 // Stage derivation from journey timestamps
 // ---------------------------------------------------------------------------
 
+
+/**
+ * The facts an « en vol » card carries, in reading order.
+ *
+ * Built here rather than inline in the card so what is TRUE about an
+ * acquisition in flight is stated once: how far the download is, what state it
+ * is in, how long it has been there, and which release was actually grabbed.
+ *
+ * Args:
+ *   download: The live download correlated through the journey, if any.
+ *   journey: The correlated acquisition journey, if any.
+ *   journeysEnErreur: Whether the journeys read itself failed.
+ *
+ * Returns:
+ *   The facts line, possibly empty.
+ */
+function enVolFacts(
+  download: AcquisitionDownload | undefined,
+  journey: JourneyItem | undefined,
+  journeysEnErreur: boolean,
+): readonly MediaFact[] {
+  // A failed journeys read with no live download says nothing here: the
+  // section-level error already names the failure, and anything else would
+  // claim knowledge we do not have.
+  if (journeysEnErreur && download == null) {
+    return [];
+  }
+  const faits: MediaFact[] = [];
+  if (download != null) {
+    // Live progress folded into the card — percentage, state, and a broken
+    // torrent's reason in French (§8).
+    faits.push({
+      kind: "gauge",
+      tone: DOWNLOAD_STATE_TONE[download.state] ?? "neutral",
+      text: `${String(Math.round(download.progress * 100))} %`,
+    });
+    faits.push({
+      kind: "note",
+      text: DOWNLOAD_STATE_LABEL[download.state] ?? "état inconnu",
+    });
+    // Maquette FROM card: « 12 min restantes » folded into the card — only
+    // while downloading AND known (addition B).
+    if (download.state === "downloading" && download.eta_seconds != null) {
+      faits.push({ kind: "note", text: formatEta(download.eta_seconds) });
+    }
+    if (download.error_reason != null && download.error_reason !== "") {
+      faits.push({ kind: "alert", text: download.error_reason });
+    }
+  }
+  // Maquette « depuis 4 min » — time spent in the CURRENT stage, when no live
+  // download carries the pace; « ~ » marks the spine computed rather than
+  // observed (§13).
+  if (download == null && journey != null) {
+    const ecoule = stageElapsed(journey);
+    if (ecoule != null) {
+      faits.push({
+        kind: "note",
+        text: `${ecoule.approx ? "~ " : ""}${formatSince(ecoule.seconds)}`,
+      });
+    }
+  }
+  if (!journeysEnErreur) {
+    // §14 — two DIFFERENT unknowns, never merged into one sentence: a
+    // correlated acquisition whose release name was not recorded, versus a
+    // download we could not tie to any recorded acquisition at all. « Non
+    // enregistré » claims we consulted the record; that is only true in the
+    // first case.
+    faits.push({
+      kind: "release",
+      text:
+        journey == null
+          ? "Acquisition non corrélée"
+          : (journey.release_name ?? "Nom de release non enregistré"),
+      hint: journey?.release_name ?? undefined,
+    });
+  }
+  return faits;
+}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -479,7 +556,7 @@ export function MaintenantPanel(): ReactElement {
         key={item.id}
         {...actions.swipeFor(item, { remove: searchMeta })}
       >
-        <AcquisitionCard
+        <MediaRow
           title={item.title}
           posterUrl={item.poster_url ?? null}
           {...(searchMeta
@@ -492,31 +569,29 @@ export function MaintenantPanel(): ReactElement {
           grabFailureLine(item) != null
             ? { reason: grabFailureLine(item) ?? "" }
             : {})}
-          meta={
-            /* Maquette followRow: mono fraction + dotted status chip on the
-               takeable card; the resting card carries its verdict as the
-               subtitle and NOTHING else — no fraction there (maquette). */
-            <>
-              {!searchMeta && followFraction(item) != null && (
-                <span className="font-mono text-xs text-muted-foreground tabular-nums">
-                  {followFraction(item)}
-                </span>
-              )}
-              {!searchMeta && (
-                <Chip tone={FOLLOW_STATUS_TONE[item.status]}>
-                  {followStatusLabel(item.status, item.kind)}
-                </Chip>
-              )}
-              {item.tvdb_unresolved && (
-                <Chip
-                  tone="warning"
-                  title="Détection d'épisodes indisponible : l'ID TVDB n'a pas pu être résolu."
-                >
-                  Sans ID TVDB
-                </Chip>
-              )}
-            </>
-          }
+          /* Maquette followRow: mono fraction + dotted status chip on the
+             takeable card; the resting card carries its verdict as the
+             subtitle and NOTHING else — no fraction there (maquette). */
+          facts={[
+            ...(!searchMeta && followFraction(item) != null
+              ? [{ kind: "fraction" as const, text: followFraction(item) ?? "" }]
+              : []),
+            ...(!searchMeta
+              ? [{
+                  kind: "chip" as const,
+                  tone: FOLLOW_STATUS_TONE[item.status],
+                  text: followStatusLabel(item.status, item.kind),
+                }]
+              : []),
+            ...(item.tvdb_unresolved
+              ? [{
+                  kind: "chip" as const,
+                  tone: "warning",
+                  text: "Sans ID TVDB",
+                  hint: "Détection d'épisodes indisponible : l'ID TVDB n'a pas pu être résolu.",
+                }]
+              : []),
+          ]}
           onOpen={() => {
             setSheet(item);
           }}
@@ -580,29 +655,21 @@ export function MaintenantPanel(): ReactElement {
         ? `S${String(item.season).padStart(2, "0")}E${String(item.episode).padStart(2, "0")}`
         : null;
     return (
-      <AcquisitionCard
+      <MediaRow
         key={item.decision_id}
         title={item.title}
         posterUrl={null}
         {...(item.year != null ? { subtitle: String(item.year) } : {})}
         // §12: blocking reason wraps, never truncates — `reason`, not `subtitle`.
         reason={epLabel != null ? `${epLabel} · ${item.reason}` : item.reason}
-        meta={null}
         // Blocked items have no resolved provider id — no poster link (§11).
         // No onOpen either — a button that does nothing is a dead control (§11).
-        strip={<JourneyStrip stage={item.stage} blocked />}
-        // « Résoudre → » lives in footer (full width, under the strip),
-        // NOT in meta — nested interactive regions are invalid HTML,
-        // so placing a Link inside the meta span would produce a button
-        // inside another button at any width below md.
-        footer={
-          <Link
-            to={resolveHref(item)}
-            className="mt-[10px] block w-full rounded-md border border-danger/40 bg-danger/10 py-2 text-center text-sm font-medium text-danger hover:bg-danger/20"
-          >
-            Résoudre →
-          </Link>
-        }
+        journey={{ stage: item.stage, blocked: true }}
+        // « Résoudre → » is the card's own action (full width, under the
+        // strip), NOT a fact — nested interactive regions are invalid HTML, so
+        // a link inside the facts line would put a button inside another
+        // button at any width below md.
+        action={{ label: "Résoudre →", href: resolveHref(item), tone: "danger" }}
       />
     );
   }
@@ -629,7 +696,7 @@ export function MaintenantPanel(): ReactElement {
         : null;
 
     return (
-      <AcquisitionCard
+      <MediaRow
         key={item.id}
         title={item.title}
         // Operator report: the in-flight card showed a bare monogram while
@@ -663,71 +730,7 @@ export function MaintenantPanel(): ReactElement {
         // one (admit it was not recorded), and a FAILED journeys read (say
         // nothing here — the section-level error already names the failure,
         // and « non enregistré » would claim knowledge we do not have).
-        meta={
-          journeys.isError && download == null ? null : (
-            <>
-              {/* Live progress folded into the card — percentage, state,
-                  and a broken torrent's reason in French (§8). */}
-              {download != null && (
-                <>
-                  <span
-                    className={`rounded px-1.5 py-px text-xs font-medium tabular-nums ${TONE_CHIP_CLASS[DOWNLOAD_STATE_TONE[download.state] ?? "neutral"] ?? "bg-muted text-muted-foreground"}`}
-                  >
-                    {Math.round(download.progress * 100)} %
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {DOWNLOAD_STATE_LABEL[download.state] ?? "état inconnu"}
-                  </span>
-                  {/* Maquette FROM card: « 12 min restantes » folded into the
-                      card — only while downloading AND known (addition B). */}
-                  {download.state === "downloading" &&
-                    download.eta_seconds != null && (
-                      <span className="text-xs text-muted-foreground">
-                        {formatEta(download.eta_seconds)}
-                      </span>
-                    )}
-                  {download.error_reason != null &&
-                    download.error_reason !== "" && (
-                      <span className="text-xs text-danger">
-                        {download.error_reason}
-                      </span>
-                    )}
-                </>
-              )}
-              {/* Maquette « depuis 4 min » — time spent in the CURRENT stage,
-                  when no live download carries the pace; « ~ » marks stamps
-                  the spine computed rather than observed (§13). */}
-              {download == null &&
-                journey != null &&
-                stageElapsed(journey) != null && (
-                  <span className="text-xs text-muted-foreground">
-                    {(() => {
-                      const e = stageElapsed(journey);
-                      return e == null
-                        ? null
-                        : `${e.approx ? "~ " : ""}${formatSince(e.seconds)}`;
-                    })()}
-                  </span>
-                )}
-              {!journeys.isError && (
-                <span
-                  className="min-w-0 truncate font-mono text-[length:var(--text-2xs)] text-muted-foreground"
-                  title={journey?.release_name ?? undefined}
-                >
-                  {/* §14 — two DIFFERENT unknowns, never merged into one
-                      sentence: a correlated acquisition whose release name
-                      was not recorded, versus a download we could not tie to
-                      any recorded acquisition at all. « Non enregistré »
-                      claims we consulted the record; that is only true in
-                      the first case. */}
-                  {journey == null
-                    ? "Acquisition non corrélée"
-                    : (journey.release_name ?? "Nom de release non enregistré")}
-                </span>
-              )}
-            </>
-          )
-        }
+        facts={enVolFacts(download, journey, journeys.isError)}
         // §3 — « Voir le parcours » per item: the body opens the journey
         // detail when a correlated journey exists. Without one there is
         // nothing to open, so no onOpen (§11).
@@ -742,7 +745,7 @@ export function MaintenantPanel(): ReactElement {
         // When the stage cannot be established (no journey match or a
         // reconstructed row with gaps), the strip is omitted entirely —
         // §14.3: « inconnue » is NOT « pas faite ».
-        strip={stage != null ? <JourneyStrip stage={stage} /> : undefined}
+        {...(stage != null ? { journey: { stage } } : {})}
       />
     );
   }
