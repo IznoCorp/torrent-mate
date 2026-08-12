@@ -24,9 +24,14 @@ async def main():
     # A pointer event of type « touch »: the handlers serve finger, mouse and pen
     # through one path, and a raw TouchEvent no longer reaches them.
     await pg.evaluate("""()=>{const el=document.querySelector('[data-tile]'),r=el.getBoundingClientRect();
-      el.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,cancelable:true,isPrimary:true,
-        pointerId:1,pointerType:'touch',clientX:r.left+r.width/2,clientY:r.top+r.height/2}));}""")
-    await pg.wait_for_timeout(700)
+      const p={bubbles:true,cancelable:true,isPrimary:true,pointerId:1,pointerType:'touch',
+               clientX:r.left+r.width/2,clientY:r.top+r.height/2};
+      el.dispatchEvent(new PointerEvent('pointerdown',p));
+      // The finger LIFTS. A press that never ends is not an input anyone can
+      // make, and modelling one leaves the interface in a state real use never
+      // reaches.
+      window.setTimeout(()=>window.dispatchEvent(new PointerEvent('pointerup',p)), 600);}""")
+    await pg.wait_for_timeout(900)
     appui = await pg.evaluate("""()=>{const s=document.querySelector('#sheet');
         return {ouverte:s.classList.contains('open'), actions:[...s.querySelectorAll('.sact')].map(x=>x.textContent.trim())};}""")
     print("  feuille ouverte :", appui)

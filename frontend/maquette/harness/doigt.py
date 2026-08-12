@@ -25,6 +25,23 @@ from playwright.async_api import async_playwright
 
 BAR = "─" * 62
 
+# The phone's OWN long press — select, copy, save — cannot be outrun by a
+# listener, and no synthetic input raises it. It is therefore asserted on the
+# DECLARATION, exactly like the `touch-action` axis claim.
+GARDE_APPUI = """(selecteurs) => {
+  const manquants = [];
+  for (const sel of selecteurs) {
+    const el = document.querySelector(sel);
+    if (!el) { manquants.push(sel + ' (absent de cet état)'); continue; }
+    const cs = getComputedStyle(el);
+    if ((cs.webkitUserSelect || cs.userSelect) !== 'none')
+      manquants.push(sel + ' sélectionnable');
+    if (cs.webkitTouchCallout && cs.webkitTouchCallout !== 'none')
+      manquants.push(sel + ' callout=' + cs.webkitTouchCallout);
+  }
+  return manquants;
+}"""
+
 echecs = []
 faits = 0
 
@@ -102,26 +119,22 @@ async def main():
         verifier(f"le tirer-pour-recharger arme et tourne sur les {len(surfaces)} surfaces",
                  not sans_charge, " · ".join(sans_charge))
 
-        # 2. Swipe between views — the other gesture on the same scrollport,
-        #    lost to the same cause and by the same silence.
-        await pg.evaluate("()=>window.__go('acq-encours-repos')")
-        await pg.wait_for_timeout(250)
-        r = await rect("#port")
-        await glisser(cdp, r["x"] + r["width"] / 2, r["y"] + 200, 10, -20, 0)
-        await pg.wait_for_timeout(350)
-        onglet = await pg.evaluate(
-            "()=>(document.querySelector('.seg [aria-selected=\"true\"]')||{}).textContent")
-        verifier("le glissé horizontal change de vue", "Suivis" in (onglet or ""), str(onglet))
-
-        await pg.evaluate("()=>window.__go('lib-grille')")
-        await pg.wait_for_timeout(250)
-        r = await rect("#port")
-        await glisser(cdp, r["x"] + r["width"] / 2, r["y"] + 200, 10, -20, 0)
-        await pg.wait_for_timeout(350)
-        lentille = await pg.evaluate(
-            "()=>(document.querySelector('.seg [aria-selected=\"true\"]')||{}).textContent")
-        verifier("y compris entre les lentilles de la médiathèque",
-                 "Incomplets" in (lentille or ""), str(lentille))
+        # 2. And the scrollport has NO horizontal gesture of its own. It used
+        #    to change tab or lens, and it fired by accident constantly: every
+        #    horizontal component of a vertical scroll, every aborted row
+        #    swipe. Its absence is now the contract — a gesture that triggers
+        #    what nobody asked for costs more than the taps it saves.
+        for etat, attendu in (("acq-encours-repos", "En cours"), ("lib-grille", "Médias")):
+            await pg.evaluate("(s)=>window.__go(s)", etat)
+            await pg.wait_for_timeout(250)
+            r = await rect("#port")
+            for direction in (-20, 20):
+                await glisser(cdp, r["x"] + r["width"] / 2, r["y"] + 200, 10, direction, 0)
+                await pg.wait_for_timeout(300)
+            reste = await pg.evaluate(
+                "()=>(document.querySelector('.seg [aria-selected=\"true\"]')||{}).textContent")
+            verifier(f"aucun glissé ne change de vue ({etat})",
+                     (reste or "").startswith(attendu), str(reste))
 
         # 3. A vertical drag further down the surface must still SCROLL. The
         #    cure for one gesture must not swallow the browser's own.
@@ -154,6 +167,82 @@ async def main():
         bouge = await pg.evaluate("""()=>{const c=document.querySelector(".deck .dcard[data-depth='0']");
             return c ? c.textContent.replace(/\\s+/g,' ').trim().slice(0,40) : null;}""")
         verifier("le deck avance encore d'une carte", bool(bouge) and avant > 0, str(bouge))
+
+        # 5. THE LONG PRESS, on every surface where a tap is already spoken
+        #    for. Three things a thumb taught that a mouse never does: it is
+        #    never still, its pointer stream is cancelled by the compositor,
+        #    and the phone offers its own select/copy menu instead.
+        async def presser(x, y, ms=700):
+            await cdp.send("Input.dispatchTouchEvent",
+                           {"type": "touchStart", "touchPoints": [{"x": x, "y": y, "id": 1}]})
+            # A real thumb drifts several pixels over half a second. Below one,
+            # Chrome delivers no `touchmove` at all — and a drift the browser
+            # suppresses cannot test the tolerance that exists for it.
+            for i in range(int(ms / 60)):
+                ecart = 5 if i % 2 else -5
+                await cdp.send("Input.dispatchTouchEvent",
+                               {"type": "touchMove",
+                                "touchPoints": [{"x": x + ecart, "y": y + ecart, "id": 1}]})
+                await asyncio.sleep(0.06)
+            await cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+
+        surfaces_appui = [
+            ("galerie des suivis", "acq-suivis-grille", ".tile"),
+            ("galerie de la médiathèque", "lib-grille", ".tile"),
+            ("affiche d'une carte", "acq-suivis-liste", "#view .card .poster"),
+            ("corps d'une carte", "acq-suivis-liste", "#view .card .cbody"),
+            ("carte du deck", "acq-decouvrir-deck", ".deck .dcard[data-depth='0']"),
+        ]
+        sans_panneau, avec_selection, agis = [], [], []
+        for nom, etat, sel in surfaces_appui:
+            await pg.evaluate("(s)=>window.__go(s)", etat)
+            await pg.wait_for_timeout(420)
+            await pg.evaluate("()=>{window.__actes=[];"
+                              "document.addEventListener('click', e=>window.__actes.push("
+                              "(e.target.tagName||'')+'.'+(e.target.className||'')), false);}")
+            r = await rect(sel)
+            if r is None:
+                sans_panneau.append(f"{nom} (cible absente)")
+                continue
+            await presser(r["x"] + r["width"] / 2, r["y"] + r["height"] / 2)
+            await pg.wait_for_timeout(400)
+            out = await pg.evaluate("""()=>({
+              panneau: document.querySelector('#sheet').classList.contains('open'),
+              selection: String(window.getSelection() || '').length,
+              actes: window.__actes})""")
+            if not out["panneau"]:
+                sans_panneau.append(nom)
+            if out["selection"] > 0:
+                avec_selection.append(nom)
+            # The panel opens UNDER the finger: the lift must not activate its
+            # primary action. That is what a long press on a follow was doing.
+            if any(".sact" in acte for acte in out["actes"]):
+                agis.append(f"{nom} → {out['actes']}")
+            await pg.evaluate("()=>window.__close && window.__close('sheet')")
+            await pg.wait_for_timeout(150)
+        verifier(f"l'appui long ouvre le panneau sur les {len(surfaces_appui)} surfaces",
+                 not sans_panneau, " · ".join(sans_panneau))
+        verifier("et ne sélectionne jamais rien", not avec_selection, " · ".join(avec_selection))
+        verifier("le relâchement n'actionne pas le panneau qui vient d'apparaître",
+                 not agis, " · ".join(agis))
+
+        # The phone's OWN long press — select, copy, save — cannot be outrun by
+        # a listener, and no synthetic input raises it, so it is asserted on the
+        # declaration itself. Exactly like the `touch-action` axis claim.
+        # Each surface is checked in a state that DRAWS it: the deck state has
+        # no list poster, and a rule that skips what is absent proves nothing.
+        for etat, selecteurs in (("acq-suivis-liste", [".poster"]),
+                                 ("lib-grille", [".tile"]),
+                                 ("acq-decouvrir-deck", [".dcard"]),
+                                 ("feuille-suivi-complet", [".sheetposter"])):
+            await pg.evaluate("(s)=>window.__go(s)", etat)
+            await pg.wait_for_timeout(320)
+            refus = await pg.evaluate(GARDE_APPUI, selecteurs)
+            if refus:
+                break
+        verifier("les surfaces pressables refusent le menu du téléphone",
+                 not refus, " · ".join(refus))
+
 
         verifier("aucune erreur JS", not erreurs, str(erreurs))
         await b.close()
