@@ -29,7 +29,7 @@ async def main():
             await pg.wait_for_timeout(320)
             r = await pg.evaluate("""()=>{const v=document.querySelector('#view');
               return {txt:v.textContent.replace(/\\s+/g,' ').trim().length,
-                      cartes:v.querySelectorAll('.card,.tile,.sug,.kv').length,
+                      cartes:v.querySelectorAll('.card,.tile,.kv').length,
                       vide:!!v.querySelector('.empty'),
                       doc:document.documentElement.scrollWidth,
                       deb:[...v.querySelectorAll('*')].filter(e=>e.getBoundingClientRect().right>390.5&&!e.closest('.pillscroll')&&!e.closest('.cast')).length};}""")

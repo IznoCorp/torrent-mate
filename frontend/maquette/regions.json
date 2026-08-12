@@ -33,7 +33,7 @@
   ],
   "exportedSelectors": [
     "#libitems[hidden]",
-    "#sugitems",
+    "#sugitems:not(.grid)",
     ".a_recuperer",
     ".act",
     ".act svg",
@@ -366,7 +366,6 @@
     ".sugback svg",
     ".sugg",
     ".sugg button",
-    ".sugtile",
     ".sugtiles",
     ".sugwrap",
     ".sugwrap.gone",
@@ -923,7 +922,11 @@
       "Not everything that looks like a card is one. The release candidate shares the markup and is a different object: no sheet, no panel. Forcing it into the shared component would have made it promise both. It is marked instead, so the contract check tells them apart by construction rather than by knowing which screens draw which.",
       "A shared component is worth what its LAST holdout is worth. Découvrir kept its own builder and its own class vocabulary, and drew a poster 63 % larger than every other list — on a page that already offers two visual formats for browsing. Measuring geometry across the five list surfaces found it in one pass; reading the code had not.",
       "« The data already contains markup » is not a reason to accept markup. The suggestion reasons shipped their own <b>, so the card would have had to trust them. Converting the data to segments — plain text plus what is emphasised, at its position — keeps the escape total and emphasises the right « 4 », which re-matching a string into a sentence does not.",
-      "A screen extracted from its context loses what it INHERITED there. The login gate came out of the prototype without the reset that surrounds it: the wordmark fell back to Times, and `max-width: 340px` applied to a content box instead of a border box, so the card rendered 378px wide. Worse, the title was black on black — legible-looking in the DOM, invisible on screen. Extraction must carry the inherited foundations, or restate them."
+      "A screen extracted from its context loses what it INHERITED there. The login gate came out of the prototype without the reset that surrounds it: the wordmark fell back to Times, and `max-width: 340px` applied to a content box instead of a border box, so the card rendered 378px wide. Worse, the title was black on black — legible-looking in the DOM, invisible on screen. Extraction must carry the inherited foundations, or restate them.",
+      "A media query asks the wrong question for a component. It reads the viewport, so a 390px frame sitting on a 1280px desktop is told it has room for six columns it does not have — which is why a harness deviation had to pin three columns by hand. A container query asks the width actually available, and the app gets the same answer because there the scrollport IS the window; the deviation could then be deleted.",
+      "Deleting a CSS rule by its selector destroys the rule when that selector is LAST in a group. Removing `.sugtile img` took the whole `user-drag: none` block with it and left `.swipe img, .sugwrap img, .deck img, .tile img,` dangling. Native picture drag came back and swallowed the pointer stream — one down, two moves, never an up — and three gesture tests failed for a reason that looked nothing like a CSS deletion.",
+      "Renaming an attribute must check the name is FREE. `data-sugwrap` was renamed to `data-dismiss`, which already existed as the control that dismisses a suggestion: a tap on a poster then read as a press on that control and threw the suggestion away. The element removed and the control that removes it are two things and need two words.",
+      "The harness serves a COPY. Editing the prototype and running the suite without re-syncing measures the previous version, and the report looks like a fix that did not take."
     ],
     "R27": "A trailer ALWAYS opens in YouTube, never inside the application, and the sheet offers it wherever one arrives from. A real anchor, a conformant watch URL, target=_blank and noopener; no promise of in-app playback.",
     "R28": "Exactly ONE back-control design, compatible with every page, in the flow so it pushes content instead of covering it — and never text glued closer than 8px to it.",
@@ -948,6 +951,7 @@
     "R46": "A card that is not a medium declares it (`data-nonmedia`), and promises neither a media sheet nor a panel. A release is one candidate among several for a medium named elsewhere on the screen; it has no sheet of its own.",
     "R47": "Every list draws its cards with the same builder and the same metrics — poster, padding, radius, title size. A view needing a bigger picture uses the gallery or the deck format, which exist for exactly that.",
     "R48": "A reason never truncates (§12). It wraps, and the card grows.",
-    "R49": "The login gate is EXTRACTED from the prototype, never retyped — markup, styles and typeface, between explicit markers. A gate that reproduces the design by hand shows a copy of it, and copies drift."
+    "R49": "The login gate is EXTRACTED from the prototype, never retyped — markup, styles and typeface, between explicit markers. A gate that reproduces the design by hand shows a copy of it, and copies drift.",
+    "R50": "Every gallery draws its tiles with the same builder and the same metrics, and its column count follows the CONTAINER's width, never the window's."
   }
 }

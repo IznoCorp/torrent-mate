@@ -59,7 +59,7 @@ async def main():
     await pg.evaluate("()=>document.querySelector('#dlgcancel').click()"); await pg.wait_for_timeout(300)
     await pg.click('[data-page="acq"]'); await pg.click('[data-acqtab="decouvrir"]'); await pg.wait_for_timeout(450)
     print("  lot initial :", await pg.evaluate("()=>document.querySelectorAll('.sugwrap').length"))
-    await pg.evaluate(SW, ["[data-sugwrap='0']", 1, 9])
+    await pg.evaluate(SW, ["[data-dismissable='0']", 1, 9])
     print("  after right swipe:", await pg.evaluate("()=>document.querySelectorAll('.sugwrap').length"))
     await pg.click("#toastundo"); await pg.wait_for_timeout(350)
     print("  après Annuler :", await pg.evaluate("()=>document.querySelectorAll('.sugwrap').length"))

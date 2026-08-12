@@ -44,6 +44,10 @@
   view wanting something outside that list is naming a fact the card does not know
   yet: add the fact, never pass ready-made markup. Props that name an appearance
   (`dense`, `compact`, `showChip`) are the failure mode this avoids.
+- **Galleries answer their CONTAINER (R50).** One tile builder for every gallery, one set of
+  metrics, and a column ladder driven by a container query on the scrollport — 3 / 4 / 5 / 6
+  at 460 / 620 / 820px. A media query reads the viewport and would give a 390px frame the
+  column count of the desktop behind it.
 - **Same metrics in every list (R47), and a reason that never truncates (R48).** Poster
   38 × 57, padding 9, radius 8, title 13.5, gap 10 — everywhere. Card heights differ only
   because their content does. A surface wanting a bigger picture uses the gallery or deck

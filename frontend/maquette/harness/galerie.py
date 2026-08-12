@@ -12,7 +12,7 @@ GALERIES = [
   ("Médiathèque · Incomplets","lib-incomplets",            None),
   ("Médiathèque · Récents",   "lib-recents",               None),
   ("Suivis · grille",         "acq-suivis-grille",         ".tile[data-panel]"),
-  ("Découvrir · affiches",    "acq-decouvrir-affiches",    ".sugtile[data-panel]"),
+  ("Découvrir · affiches",    "acq-decouvrir-affiches",    ".tile[data-panel]"),
 ]
 
 async def main():

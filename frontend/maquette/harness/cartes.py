@@ -229,6 +229,65 @@ async def main():
                     echecs.append(f"R45 {etat} « {t['nom']} »: sub-line reads « {t['sousLigne']} »")
             print(f"  R45     {etat:22} {len(refs):3} tiles")
 
+        # ---- R50 -------------------------------------------------------
+        # Every gallery draws its tiles with the same builder and the same
+        # metrics, and its column count follows the CONTAINER's width. A media
+        # query would read the window instead, and a 390px frame on a 1280px
+        # desktop would be told it has room for six columns it does not have.
+        geometries = {}
+        for etat in ETATS_TUILES + ["acq-decouvrir-affiches"]:
+            await pg.evaluate("(i)=>window.__go(i)", etat)
+            await pg.wait_for_timeout(400)
+            await mode(pg, "grid")
+            g = await pg.evaluate(
+                """()=>{const t=document.querySelector('.tile'); if(!t) return null;
+                const grille=t.parentElement, r=t.getBoundingClientRect();
+                return {colonnes:getComputedStyle(grille).gridTemplateColumns.split(' ').length,
+                        gap:getComputedStyle(grille).gap,
+                        tuile:[Math.round(r.width),Math.round(r.height)],
+                        nom:getComputedStyle(t.querySelector('.nm')).fontSize,
+                        sousLigne:getComputedStyle(t.querySelector('.fr')).fontSize};}"""
+            )
+            if g is None:
+                echecs.append(f"R50 {etat}: no tile at all")
+                continue
+            geometries[etat] = g
+        if len(geometries) < 2:
+            echecs.append("R50: fewer than two galleries to compare")
+        else:
+            executees += 1
+            reference = next(iter(geometries.items()))
+            for etat, g in geometries.items():
+                if g != reference[1]:
+                    ecarts = {k: (reference[1][k], v) for k, v in g.items() if v != reference[1][k]}
+                    echecs.append(f"R50 {etat} draws a tile unlike {reference[0]}: {ecarts}")
+            print(f"  R50     {len(geometries)} galleries, "
+                  f"{'one' if all(g == reference[1] for g in geometries.values()) else 'SEVERAL'} metric(s)")
+
+        # The ladder answers the container. Widening the frame must add
+        # columns without the window moving at all.
+        await pg.evaluate("(i)=>window.__go(i)", "lib-grille")
+        await pg.wait_for_timeout(400)
+        await mode(pg, "grid")
+        echelle = await pg.evaluate(
+            """async ()=>{const d=document.querySelector('#device'), out=[];
+            const avant=d.style.width;
+            for (const w of [390, 500, 700, 900]) {
+                d.style.width = w+'px'; d.style.maxWidth = w+'px';
+                await new Promise(r=>setTimeout(r,180));
+                out.push([Math.round(document.querySelector('#port').getBoundingClientRect().width),
+                          getComputedStyle(document.querySelector('.grid')).gridTemplateColumns.split(' ').length]);
+            }
+            d.style.width = avant; d.style.maxWidth = '';
+            return out;}"""
+        )
+        executees += 1
+        colonnes = [n for _, n in echelle]
+        if colonnes != sorted(colonnes) or len(set(colonnes)) < 2:
+            echecs.append(f"R50 the column ladder does not answer the container: {echelle}")
+        else:
+            print(f"  R50     container ladder {echelle}")
+
         # ---- R47 / R48 -------------------------------------------------
         metriques = {}
         tronquees = []

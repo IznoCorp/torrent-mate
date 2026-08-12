@@ -32,7 +32,7 @@ async def main():
           const v=document.querySelector('#view');
           return {contenu: v.textContent.replace(/\\s+/g,' ').trim().length,
                   noeuds: v.querySelectorAll('*').length,
-                  cartes: v.querySelectorAll('.card,.tile,.sug,.kv').length,
+                  cartes: v.querySelectorAll('.card,.tile,.kv').length,
                   doc: document.documentElement.scrollWidth,
                   dev: Math.round(document.querySelector('.device').getBoundingClientRect().width),
                   deborde: [...v.querySelectorAll('*')].filter(e=>e.getBoundingClientRect().right>390.5&&!e.closest('.pillscroll')).length};}""")

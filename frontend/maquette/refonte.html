@@ -185,10 +185,6 @@
       padding-left: 14px;
       padding-right: 14px;
     }
-
-    .device .grid {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
   }
 
   /* Phone frame */
@@ -349,6 +345,7 @@
 
   /* Scrollport */
   .port {
+    container: port / inline-size;
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
@@ -660,8 +657,7 @@
   .swipe img,
   .sugwrap img,
   .deck img,
-  .tile img,
-  .sugtile img {
+  .tile img {
     -webkit-user-drag: none;
     user-drag: none;
   }
@@ -912,6 +908,12 @@
     color: var(--muted-foreground);
     padding: 8px 14px 0;
   }
+  /* A rating reads over the picture without claiming a place in the status
+     palette, so it gets a neutral scrim rather than a semantic colour. */
+  :root {
+    --tile-overlay: rgb(0 0 0 / 0.62);
+  }
+
   .tilebadge {
     position: absolute;
     top: 5px;
@@ -1031,14 +1033,33 @@
   }
 
   /* Grid tiles */
+  /* ONE gallery grid, and its column count follows the width available to it
+     — the scrollport — never the window's. A media query reads the viewport,
+     so a 390px frame sitting on a 1280px desktop would be told it has room for
+     six columns it does not have. A container query asks the right question,
+     and the app gets the same answer because there its scrollport IS the
+     window. */
   .grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px;
   }
-  @media (min-width: 768px) {
+
+  @container port (min-width: 460px) {
     .grid {
-      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  @container port (min-width: 620px) {
+    .grid {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+  }
+
+  @container port (min-width: 820px) {
+    .grid {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
     }
   }
   .tile {
@@ -1117,79 +1138,13 @@
   /* The id rule on the container beats a bare class, so the grid declares
      itself on both — the same specificity family as R8: an author rule wins
      over what you meant to say. */
-  #sugitems.sugtiles {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-  }
 
-  .sugtile {
-    position: relative;
-    min-width: 0;
-    display: block;
-  }
 
-  .sugtile .p {
-    display: block;
-    width: 100%;
-    aspect-ratio: 2/3;
-    border: 0;
-    padding: 0;
-    border-radius: 8px;
-    overflow: hidden;
-    background: var(--muted);
-    font-size: 28px;
-    line-height: 1;
-  }
 
-  .sugtile .p img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
 
-  .sugtile .b {
-    display: block;
-    width: 100%;
-    border: 0;
-    background: transparent;
-    padding: 6px 0 0;
-    text-align: left;
-  }
 
-  .sugtile .t {
-    display: block;
-    font-size: 12.5px;
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
 
-  .sugtile .m {
-    display: block;
-    margin-top: 2px;
-    font-size: 11px;
-    color: var(--muted-foreground);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
 
-  .sugtile .n {
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    padding: 2px 6px;
-    border-radius: 99px;
-    background: rgb(0 0 0 / 0.62);
-    color: var(--mq-white);
-    font-size: 10.5px;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    backdrop-filter: none;
-  }
 
   /* Deck format: one card at a time, the next ones stacked behind it. The card
      fills the surface, so the body must take the scrollport's height rather
@@ -2997,7 +2952,11 @@
   /* R8 again: `#sugitems` carried its `display` as an INLINE style, which
      beats the `[hidden]` attribute — the list stayed visible under the
      loading skeletons. Display lives here, with its hidden case. */
-  #sugitems {
+  /* The list format stacks; the poster format takes the shared gallery grid,
+     which is a CLASS. An id rule would win over it by specificity alone — one
+     of the two would then have to be written twice, and the one written twice
+     is the one that drifts. */
+  #sugitems:not(.grid) {
     display: flex;
     flex-direction: column;
     gap: 14px;
@@ -4909,12 +4868,15 @@
     const sel = S.selMode && opts.index != null;
     const on = sel && S.selected.has(opts.index);
     const b = opts.badge;
+    // A rating is not a status: it reads over the picture without claiming a
+    // meaning in the status palette, so it takes the neutral overlay.
     const teinte = b
-      ? b.tone === "muted" ? "neutral-signal"
-        : b.tone === "en_attente" ? "waiting"
-          : b.tone === "en_acquisition" ? "info" : "warning"
+      ? b.tone === "note" ? "tile-overlay"
+        : b.tone === "muted" ? "neutral-signal"
+          : b.tone === "en_attente" ? "waiting"
+            : b.tone === "en_acquisition" ? "info" : "warning"
       : null;
-    return `<button class="tile${opts.muted ? " off" : ""}" ${opts.index != null ? `data-tile="${opts.index}"` : ""} data-panel="media:${esc(o.t)}" ${sel ? `aria-selected="${on}"` : `data-fiche="${esc(o.t)}"`}>
+    return `<button class="tile${opts.muted ? " off" : ""}" ${opts.index != null ? `data-tile="${opts.index}"` : ""} ${opts.dismiss != null ? `data-dismissable="${esc(String(opts.dismiss))}"` : ""} data-panel="${esc(opts.panel || `media:${o.t}`)}" ${sel ? `aria-selected="${on}"` : `data-fiche="${esc(o.t)}"`}>
       <span class="p">${posterBox(o.t, o.k)}</span>
       ${sel ? `<span class="sel">${svg(I.check, 3)}</span>` : b ? `<span class="tilebadge" style="background:var(--${teinte})">${esc(b.txt)}</span>` : ""}
       <span class="nm">${esc(o.t)}</span>
@@ -5180,16 +5142,21 @@
     return s.k === "Film" ? "Ajouter" : "Suivre";
   }
 
-  /* Poster format — the same two destinations as the list card: the poster
-     opens the sheet, the body opens the bottom panel. */
-  function sugTileHTML(s, i) {
-    return `<div class="sugtile" data-sugwrap="${i}" data-panel="sug:${i}">
-      <button class="p" data-fiche="${esc(s.t)}" aria-label="Fiche de ${esc(s.t)}">${posterBox(s.t, s.k === "Film" ? "movie" : "show")}<span class="n">${esc(String(s.note))}</span></button>
-      <button class="b" data-sug="${i}" aria-label="${esc(s.t)} — actions">
-        <span class="t">${esc(s.t)}</span>
-        <span class="m">${esc(s.y)} · ${esc(s.k)}</span>
-      </button>
-    </div>`;
+  /* Poster format — the shared gallery tile. A suggestion is a medium one does
+     not own yet, not a different kind of picture: the same tap opens its
+     sheet, the same long press opens its panel, at the same size as every
+     other gallery. What it alone carries is a rating to show and a handle to
+     be dismissed by. */
+  function sugTileHTML(suggestion, rang) {
+    return tileHTML(
+      { t: suggestion.t, k: suggestion.k === "Film" ? "movie" : "show" },
+      `${suggestion.y} · ${suggestion.k}`,
+      {
+        panel: `sug:${rang}`,
+        dismiss: rang,
+        badge: { tone: "note", txt: String(suggestion.note) },
+      },
+    );
   }
 
   /* Deck format — one card fills the surface, the next ones are stacked
@@ -5244,7 +5211,7 @@
      What stays its own is the swipe wrapper: dismissing a suggestion is a
      gesture no other list has. */
   function sugCardHTML(s, i) {
-    return `<div class="sugwrap" data-sugwrap="${i}">
+    return `<div class="sugwrap" data-dismissable="${i}">
       <div class="sugback">
         <span>${svg(I.x)}Pas intéressé</span>
         <span>Pas intéressé${svg(I.x)}</span>
@@ -5340,7 +5307,7 @@
       return;
     }
     const rendu = S.sugMode === "poster" ? sugTileHTML : sugCardHTML;
-    box.className = S.sugMode === "poster" ? "sugtiles" : "";
+    box.className = S.sugMode === "poster" ? "grid" : "";
     box.innerHTML = SUGGESTIONS.slice(0, S.sugCount)
       .map((s, i) => (S.sugGone.has(i) ? "" : rendu(s, i)))
       .join("");
@@ -5359,7 +5326,7 @@
       });
       return;
     }
-    const el = document.querySelector(`[data-sugwrap="${i}"]`);
+    const el = document.querySelector(`[data-dismissable="${i}"]`);
     if (!el) return;
     S.sugGone.add(i);
     el.style.height = el.getBoundingClientRect().height + "px";
@@ -5962,7 +5929,7 @@
       closeSheet();
       if (idx != null) {
         S.sugGone.add(Number(idx));
-        const el = document.querySelector(`[data-sugwrap="${idx}"]`);
+        const el = document.querySelector(`[data-dismissable="${idx}"]`);
         if (el) {
           el.style.height = el.getBoundingClientRect().height + "px";
           requestAnimationFrame(() => el.classList.add("gone"));
@@ -7275,7 +7242,7 @@
     d.card.classList.remove("dragging");
     if (Math.abs(d.dx) > 92) {
       d.card.style.transform = `translateX(${d.dx > 0 ? 420 : -420}px)`;
-      dismissSug(Number(d.w.dataset.sugwrap));
+      dismissSug(Number(d.w.dataset.dismissable));
     } else {
       d.card.style.transform = "";
       d.card.style.opacity = "";
