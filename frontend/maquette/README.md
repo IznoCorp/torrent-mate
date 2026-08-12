@@ -140,7 +140,7 @@ One file, four jobs:
   rather than implied.
 - **`regions`** — what `parity-probe.py` measures, each naming the states it is visible in,
   so the probe never has to guess how to reach a card state.
-- **`$adversarialReview`** — the rule set (R1…R54) plus `$methodLessons`: what each rule
+- **`$adversarialReview`** — the rule set (R1…R55) plus `$methodLessons`: what each rule
   exists for, and what a rule that failed to bite taught. `$reportedDefects` lists the
   defects found by hand, each with its test in `harness/bugs.py`.
 
@@ -383,6 +383,24 @@ and no synthetic event exercises it, so it is asserted on the declaration itself
 `harness/souris.py` proves every gesture with a real mouse; `harness/deck.py` proves the deck
 with pointer events of type « touch ».
 
+**And a pointer stream is not a touch stream.** Two gestures on the scrollport — the pull to
+refresh and the swipe between views — were lost the day the gesture layer moved to pointer
+events, and no script noticed, because every script drove them synthetically. The cause is that
+the compositor owns vertical panning inside a scroller: the moment it claims the gesture it
+fires `pointercancel` and stops delivering `pointermove`, while the touch stream for the same
+finger keeps arriving. Measured: one pointer move, then cancel, against ten `touchmove`.
+
+The usual answer — claim the axis in `touch-action` — is **not available on the scrollport**:
+`pan-y` there intersects down onto `.pillscroll` and `.cast`, which declare `pan-x pan-y` and
+would then pan on neither axis. So the surfaces that CAN claim their axis (a swipeable row, a
+deck card) keep the pointer path, and the scrollport reads the finger from touch events and
+everything else from pointer events — one implementation, two sources, never both for the same
+finger. `pointercancel` is deliberately ignored for a finger; ending on it would undo the fix.
+
+`harness/doigt.py` drives all of it through `Input.dispatchTouchEvent`, which is real browser
+input rather than an event object handed to a listener. That is the only oracle that can tell
+the two apart.
+
 ---
 
 ## `harness/` — the probe's working prototype
@@ -413,6 +431,7 @@ They are committed because they encode recipes that cost time to get right.
 | `pwa.py` | R52: the LIVE host is installable from the first document a phone reaches — manifest, icons that load, worker registered and controlling, offline fallback cached. Runs against `tm-design.iznogoudatall.xyz`, not the local server |
 | `demarrage.py` | R53: the startup screen is declared first, covers the frame, offers no control, is gone after the first render, and the gate the server builds shows the same screen — extracted — from the submit onwards. Starts `serve.py` on a scratch port |
 | `deconnexion.py` | R54: signing out lands on the entry screen AND the server stops accepting the session. Starts `serve.py` on a scratch port |
+| `doigt.py` | R55: every gesture under REAL touch input (`Input.dispatchTouchEvent`), which the compositor can cancel — the pull to refresh on seven surfaces, the swipe between views, ordinary scrolling, the swipeable row and the deck |
 
 Run them with the Python that carries Playwright, against a local static server on
 **127.0.0.1:8899** — **never** 8710 / 8711, which the reverse proxy routes to prod and

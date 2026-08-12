@@ -3389,7 +3389,10 @@
     padding: 8px 12px;
     border: 0;
     border-radius: 8px;
-    font: 600 12.5px "Geist", system-ui, sans-serif;
+    font:
+      600 12.5px "Geist",
+      system-ui,
+      sans-serif;
     color: var(--accent-foreground);
     background: var(--accent);
   }
@@ -3969,7 +3972,8 @@
   const escapeHtml = (value) =>
     String(value).replace(
       /[&<>"]/g,
-      (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[character],
+      (character) =>
+        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[character],
     );
   /* initialsOf() from the shipped component: the first letters of the FIRST
      TWO words, uppercased. */
@@ -3992,7 +3996,8 @@
   function posterBox(title, kind) {
     const src = POSTERS[title] ?? POSTERS[baseTitle(title)];
     if (src) return `<img src="${src}" alt="" loading="lazy">`;
-    const iconPath = kind === "movie" ? icons.film : kind === "show" ? icons.tv : icons.clap;
+    const iconPath =
+      kind === "movie" ? icons.film : kind === "show" ? icons.tv : icons.clap;
     return `<span class="pfall">${svgIcon(iconPath, 1.25)}<b>${initials(title)}</b></span>`;
   }
 
@@ -9820,7 +9825,9 @@
       .join("")}</div>`;
   }
   function chipHTML(chip) {
-    return chip ? `<span class="chip ${chip[0]}">${escapeHtml(chip[1])}</span>` : "";
+    return chip
+      ? `<span class="chip ${chip[0]}">${escapeHtml(chip[1])}</span>`
+      : "";
   }
 
   /* ONE card, one behaviour, in every list of the interface:
@@ -9926,7 +9933,9 @@
     if (value == null) return "";
     if (typeof value === "string") return escapeHtml(value);
     return value
-      .map((v) => (typeof v === "string" ? escapeHtml(v) : `<b>${escapeHtml(v.e)}</b>`))
+      .map((v) =>
+        typeof v === "string" ? escapeHtml(v) : `<b>${escapeHtml(v.e)}</b>`,
+      )
       .join("");
   }
 
@@ -9986,7 +9995,9 @@
      in En vol at the taken step, and the badge loses 1 ». */
 
   function actionRecuperer(titre) {
-    const findIndex = world.takeable.findIndex((takeable) => takeable.t === titre);
+    const findIndex = world.takeable.findIndex(
+      (takeable) => takeable.t === titre,
+    );
     if (findIndex < 0) return;
     const [splice] = world.takeable.splice(findIndex, 1);
     world.inflight.unshift({
@@ -10000,8 +10011,11 @@
 
   function actionResoudre(titre, choix) {
     const findIndex = world.stuck.findIndex((stuck) => stuck.t === titre);
-    const findIndex2 = world.stuckReel.findIndex((stuckReel) => stuckReel.t === titre);
-    const src = findIndex >= 0 ? world.stuck : findIndex2 >= 0 ? world.stuckReel : null;
+    const findIndex2 = world.stuckReel.findIndex(
+      (stuckReel) => stuckReel.t === titre,
+    );
+    const src =
+      findIndex >= 0 ? world.stuck : findIndex2 >= 0 ? world.stuckReel : null;
     if (!src) return;
     const [splice] = src.splice(findIndex >= 0 ? findIndex : findIndex2, 1);
     const carte = {
@@ -10053,7 +10067,10 @@
   }
 
   function actionSuivre(titre, kind) {
-    if (world.follows.some((follow) => baseTitle(follow.t) === baseTitle(titre))) return;
+    if (
+      world.follows.some((follow) => baseTitle(follow.t) === baseTitle(titre))
+    )
+      return;
     world.follows.unshift({
       t: titre,
       k: kind === "Film" ? "movie" : "show",
@@ -10099,6 +10116,11 @@
       libErr: false,
       libFailedOnce: false,
     });
+    // The pull indicator lives outside the state object — classes and an
+    // inline height on one element — and a refresh in flight outlives a change
+    // of state. Reset here, or a measurement inherits the previous one's
+    // spinner.
+    if (window.__reposPTR) window.__reposPTR();
     return true;
   };
 
@@ -10107,12 +10129,17 @@
   const derived = {
     takeable: () => (state.scen === "reel" ? [] : world.takeable),
     blocked: () => (state.scen === "reel" ? [] : world.blocked),
-    inflight: () => (state.scen === "reel" ? (world.inflightReel ?? []) : world.inflight),
-    notfound: () => (state.scen === "reel" ? world.notfoundReel : world.notfound),
-    doneToday: () => (state.scen === "reel" ? (world.doneReel ?? []) : world.doneToday),
+    inflight: () =>
+      state.scen === "reel" ? (world.inflightReel ?? []) : world.inflight,
+    notfound: () =>
+      state.scen === "reel" ? world.notfoundReel : world.notfound,
+    doneToday: () =>
+      state.scen === "reel" ? (world.doneReel ?? []) : world.doneToday,
     stuck: () => (state.scen === "reel" ? world.stuckReel : world.stuck),
-    moving: () => (state.scen === "reel" ? (world.movingReel ?? []) : world.moving),
-    settled: () => (state.scen === "reel" ? (world.settledReel ?? []) : world.settled),
+    moving: () =>
+      state.scen === "reel" ? (world.movingReel ?? []) : world.moving,
+    settled: () =>
+      state.scen === "reel" ? (world.settledReel ?? []) : world.settled,
     follows: () => world.follows,
   };
 
@@ -10162,7 +10189,12 @@
         notfound = derived.notfound(),
         doneToday = derived.doneToday();
       const rien =
-        takeable.length + blocked.length + inflight.length + notfound.length + doneToday.length === 0;
+        takeable.length +
+          blocked.length +
+          inflight.length +
+          notfound.length +
+          doneToday.length ===
+        0;
       if (state.phase !== "prete")
         return (
           head +
@@ -10230,7 +10262,8 @@
           .normalize("NFD")
           .replace(/[\u0300-\u036f]/g, "")
           .toLocaleLowerCase();
-      const matchNom = (follow) => terme === "" || norm(follow.t).includes(norm(terme));
+      const matchNom = (follow) =>
+        terme === "" || norm(follow.t).includes(norm(terme));
       const visible = world.follows
         .filter((follow) => match(follow) && matchNom(follow))
         .sort(
@@ -10269,7 +10302,8 @@
         const gridBadge2 = gridBadge(follow);
         return tileHTML(
           follow,
-          stFraction(follow) ?? (follow.st === "disabled" ? "en pause" : String(follow.y)),
+          stFraction(follow) ??
+            (follow.st === "disabled" ? "en pause" : String(follow.y)),
           {
             muted: follow.st === "disabled",
             badge: gridBadge2,
@@ -10299,7 +10333,9 @@
         content = `<div class="grid">${visible.map(tileOf).join("")}</div>`;
       } else if (state.followMode === "group") {
         content = GROUPS.map((GROUPS2) => {
-          const items = visible.filter((visible2) => GROUPS2.of.includes(visible2.st));
+          const items = visible.filter((visible2) =>
+            GROUPS2.of.includes(visible2.st),
+          );
           if (items.length === 0) return "";
           // A heterogeneous group KEEPS the chip on its cards: its header
           // cannot say which of its three values each card carries.
@@ -10451,7 +10487,10 @@
     }
 
     const rows = RECENT.concat(
-      INCOMPLETE.map((INCOMPLETE2) => ({ t: INCOMPLETE2.t, f: `${INCOMPLETE2.o}/${INCOMPLETE2.a} épisodes` })),
+      INCOMPLETE.map((INCOMPLETE2) => ({
+        t: INCOMPLETE2.t,
+        f: `${INCOMPLETE2.o}/${INCOMPLETE2.a} épisodes`,
+      })),
     );
     const grid = rows.map((row) => tileHTML(row, row.f)).join("");
     const list = rows
@@ -10868,12 +10907,17 @@
 
   function trierLib(items) {
     const slice = items.slice();
-    if (state.tri === "az") return slice.sort((l, index) => l.t.localeCompare(index.t, "fr"));
+    if (state.tri === "az")
+      return slice.sort((l, index) => l.t.localeCompare(index.t, "fr"));
     if (state.tri === "manque") {
       const manque = (item) => {
         const exec = /^(\d+)\/(\d+)/.exec(item.f ?? "");
         const inc = INCOMPLETE.find((INCOMPLETE2) => INCOMPLETE2.t === item.t);
-        return inc ? inc.a - inc.o : exec ? Number(exec[2]) - Number(exec[1]) : -1;
+        return inc
+          ? inc.a - inc.o
+          : exec
+            ? Number(exec[2]) - Number(exec[1])
+            : -1;
       };
       return slice.sort((l, index) => manque(index) - manque(l));
     }
@@ -10882,7 +10926,10 @@
 
   function libFiltered() {
     const cat = CATS.find((CATS2) => CATS2.id === state.libCat);
-    let items = cat && cat.of ? world.lib.filter((lib) => cat.of.includes(lib.c)) : world.lib;
+    let items =
+      cat && cat.of
+        ? world.lib.filter((lib) => cat.of.includes(lib.c))
+        : world.lib;
     const trim = state.q.trim();
     if (trim !== "") {
       const norm = (text) =>
@@ -10927,7 +10974,11 @@
     }
     box.innerHTML = src
       .slice(0, state.libCount)
-      .map((slice, index) => (grid ? tileHTML(slice, slice.f, { index: index }) : libRowHTML(slice, index)))
+      .map((slice, index) =>
+        grid
+          ? tileHTML(slice, slice.f, { index: index })
+          : libRowHTML(slice, index),
+      )
       .join("");
     paintSelBar();
     paintLibCount();
@@ -10967,7 +11018,12 @@
   }
 
   function loadMoreLib() {
-    if (state.libLoading || state.libErr || state.libCount >= libFiltered().length) return;
+    if (
+      state.libLoading ||
+      state.libErr ||
+      state.libCount >= libFiltered().length
+    )
+      return;
     state.libLoading = true;
     if (libObserver) libObserver.disconnect();
     setTimeout(() => {
@@ -10979,7 +11035,10 @@
         libFoot();
         return;
       }
-      state.libCount = Math.min(libFiltered().length, state.libCount + LIB_PAGE);
+      state.libCount = Math.min(
+        libFiltered().length,
+        state.libCount + LIB_PAGE,
+      );
       fillLib();
       libFoot();
     }, 620);
@@ -11021,7 +11080,10 @@
         ${
           AFFICHES_HD[suggestion.t]
             ? `<img src="${AFFICHES_HD[suggestion.t]}" alt="" loading="lazy">`
-            : posterBox(suggestion.t, suggestion.k === "Film" ? "movie" : "show")
+            : posterBox(
+                suggestion.t,
+                suggestion.k === "Film" ? "movie" : "show",
+              )
         }
         <span class="cap">
           <span class="t">${escapeHtml(suggestion.t)}</span>
@@ -11036,7 +11098,8 @@
   /* Deck order. « Passer » does not decide anything: it sends the card to the
      back, so it comes round again. « Pas intéressé » removes it, with an undo. */
   function deckOrdre() {
-    if (!state.sugOrder) state.sugOrder = SUGGESTIONS.map((SUGGESTIONS2, index) => index);
+    if (!state.sugOrder)
+      state.sugOrder = SUGGESTIONS.map((SUGGESTIONS2, index) => index);
     return state.sugOrder.filter((sugOrder) => !state.sugGone.has(sugOrder));
   }
 
@@ -11046,7 +11109,10 @@
   }
 
   function deckHTML() {
-    const restants = deckOrdre().map((element) => [SUGGESTIONS[element], element]);
+    const restants = deckOrdre().map((element) => [
+      SUGGESTIONS[element],
+      element,
+    ]);
     if (!restants.length) {
       return `<div class="empty"><b>Vous avez tout parcouru.</b>
         <p>Les ${SUGGESTIONS.length} suggestions du lot ont été vues. La réserve en garde d'autres.</p>
@@ -11054,7 +11120,9 @@
     }
     const pile = restants
       .slice(0, 3)
-      .map(([suggestion, index], index2) => deckCardHTML(suggestion, index, index2))
+      .map(([suggestion, index], index2) =>
+        deckCardHTML(suggestion, index, index2),
+      )
       .reverse()
       .join("");
     return `<div class="deck">${pile}</div>`;
@@ -11104,7 +11172,8 @@
 
     deck.querySelectorAll(".dcard[data-depth]").forEach((querySelectorAll) => {
       const depth = Number(querySelectorAll.dataset.depth);
-      if (!Number.isNaN(depth) && depth > 0) querySelectorAll.dataset.depth = String(depth - 1);
+      if (!Number.isNaN(depth) && depth > 0)
+        querySelectorAll.dataset.depth = String(depth - 1);
     });
 
     // The card that takes the place of the top one becomes the swipeable one,
@@ -11119,7 +11188,9 @@
 
     // Feed the back of the pile from the order, skipping what is already shown.
     const affichees = new Set(
-      [...deck.querySelectorAll(".dcard")].map((element) => Number(element.dataset.deck)),
+      [...deck.querySelectorAll(".dcard")].map((element) =>
+        Number(element.dataset.deck),
+      ),
     );
     const suivante = deckOrdre().find((element) => !affichees.has(element));
     if (suivante != null) {
@@ -11174,7 +11245,9 @@
     const rendu = state.sugMode === "poster" ? sugTileHTML : sugCardHTML;
     box.className = state.sugMode === "poster" ? "grid" : "";
     box.innerHTML = SUGGESTIONS.slice(0, state.sugCount)
-      .map((slice, index) => (state.sugGone.has(index) ? "" : rendu(slice, index)))
+      .map((slice, index) =>
+        state.sugGone.has(index) ? "" : rendu(slice, index),
+      )
       .join("");
   }
 
@@ -11230,9 +11303,17 @@
   function addVerb(result, index) {
     const identifier = state.addMode === "identifier";
     if (state.added.has(index)) {
-      return identifier ? "✓ Associé" : result.k === "Film" ? "✓ Ajouté" : "✓ Suivi";
+      return identifier
+        ? "✓ Associé"
+        : result.k === "Film"
+          ? "✓ Ajouté"
+          : "✓ Suivi";
     }
-    const verbe = identifier ? "Associer" : result.k === "Film" ? "Ajouter" : "Suivre";
+    const verbe = identifier
+      ? "Associer"
+      : result.k === "Film"
+        ? "Ajouter"
+        : "Suivre";
     // The ellipsis warns that the act opens a question — it will replace
     // something already held — rather than happening on the spot.
     return result.owned && !identifier ? `${verbe}…` : verbe;
@@ -11341,7 +11422,10 @@
     select("#toastmsg").textContent = msg;
     select("#toast").classList.add("show");
     clearTimeout(toast._t);
-    toast._t = setTimeout(() => select("#toast").classList.remove("show"), 5000);
+    toast._t = setTimeout(
+      () => select("#toast").classList.remove("show"),
+      5000,
+    );
   }
   select("#toastx").onclick = () => select("#toast").classList.remove("show");
 
@@ -11416,7 +11500,9 @@
   function openScreen(html, cle) {
     const element = select("#screen");
     const memeEcran =
-      element.classList.contains("open") && cle != null && element.dataset.cle === cle;
+      element.classList.contains("open") &&
+      cle != null &&
+      element.dataset.cle === cle;
     let startY = 0;
     let champ = null;
     if (memeEcran) {
@@ -11440,7 +11526,9 @@
         requestAnimationFrame(() => {
           port.scrollTop = startY;
         });
-        const imgs = [...element.querySelectorAll("img")].filter((element2) => !element2.complete);
+        const imgs = [...element.querySelectorAll("img")].filter(
+          (element2) => !element2.complete,
+        );
         let restant = imgs.length;
         imgs.forEach((img) =>
           img.addEventListener(
@@ -11507,8 +11595,22 @@
      knowledge is exactly what evaporates over time.
      These ids are the ones `regions.json` references. */
   const STATES = [
-    ["pwa-android", "Installation — Android et bureau", () => { applyState({ page: "acq", acqTab: "maintenant", phase: "prete" }); afficherInstallation("android"); }],
-    ["pwa-ios", "Installation — iOS, méthode manuelle", () => { applyState({ page: "acq", acqTab: "maintenant", phase: "prete" }); afficherInstallation("ios"); }],
+    [
+      "pwa-android",
+      "Installation — Android et bureau",
+      () => {
+        applyState({ page: "acq", acqTab: "maintenant", phase: "prete" });
+        afficherInstallation("android");
+      },
+    ],
+    [
+      "pwa-ios",
+      "Installation — iOS, méthode manuelle",
+      () => {
+        applyState({ page: "acq", acqTab: "maintenant", phase: "prete" });
+        afficherInstallation("ios");
+      },
+    ],
     [
       "demarrage",
       "Démarrage — l'interface se charge",
@@ -11548,7 +11650,8 @@
     [
       "acq-encours-chargement",
       "Acquisition · En cours — chargement",
-      () => applyState({ page: "acq", acqTab: "maintenant", phase: "chargement" }),
+      () =>
+        applyState({ page: "acq", acqTab: "maintenant", phase: "chargement" }),
     ],
     [
       "acq-encours-erreur",
@@ -11658,7 +11761,12 @@
       "acq-decouvrir-degrade",
       "Acquisition · Découvrir — sans compte TMDB",
       () =>
-        applyState({ page: "acq", acqTab: "decouvrir", tmdb: false, phase: "prete" }),
+        applyState({
+          page: "acq",
+          acqTab: "decouvrir",
+          tmdb: false,
+          phase: "prete",
+        }),
     ],
     [
       "acq-decouvrir-epuise",
@@ -11675,7 +11783,8 @@
     [
       "acq-decouvrir-chargement",
       "Acquisition · Découvrir — chargement",
-      () => applyState({ page: "acq", acqTab: "decouvrir", phase: "chargement" }),
+      () =>
+        applyState({ page: "acq", acqTab: "decouvrir", phase: "chargement" }),
     ],
     [
       "acq-ajout-vide",
@@ -11788,7 +11897,8 @@
     [
       "lib-recherche-vide",
       "Médiathèque — recherche sans résultat",
-      () => applyState({ page: "lib", libLens: "cat", q: "zzzz", phase: "prete" }),
+      () =>
+        applyState({ page: "lib", libLens: "cat", q: "zzzz", phase: "prete" }),
     ],
     [
       "lib-incomplets",
@@ -12025,7 +12135,9 @@
     document.querySelector("#installbar").hidden = true;
   }
 
-  document.querySelector("#installclose").addEventListener("click", masquerInstallation);
+  document
+    .querySelector("#installclose")
+    .addEventListener("click", masquerInstallation);
   document.querySelector("#installgo").addEventListener("click", () => {
     masquerInstallation();
     toast("Installation demandée — le navigateur prend la main.");
@@ -12095,7 +12207,9 @@
   ];
 
   function ouvrirTiroir() {
-    const badges = Object.fromEntries(PAGES_OF().map((element2) => [element2.id, element2.badge]));
+    const badges = Object.fromEntries(
+      PAGES_OF().map((element2) => [element2.id, element2.badge]),
+    );
     const element = select("#drawer");
     element.innerHTML = `
       <div class="dh">
@@ -12300,7 +12414,9 @@
             ? { k: closest.dataset.fkind }
             : null;
       const verb =
-        suggestion && suggestion.k === "Film" ? "ajouté à votre liste" : "ajouté à vos suivis";
+        suggestion && suggestion.k === "Film"
+          ? "ajouté à votre liste"
+          : "ajouté à vos suivis";
       closeSheet();
       if (idx != null) {
         state.sugGone.add(Number(idx));
@@ -12369,7 +12485,10 @@
       setTimeout(() => openReleases(closest.dataset.releases), 260);
       return;
     }
-    if (closest.dataset.profil !== undefined && closest.dataset.profil !== null) {
+    if (
+      closest.dataset.profil !== undefined &&
+      closest.dataset.profil !== null
+    ) {
       const profil = closest.dataset.profil;
       if (select("#screen").classList.contains("open")) {
         closeScreen();
@@ -12381,7 +12500,8 @@
       return;
     }
     if (closest.dataset.qres !== undefined) {
-      state.profil.min_resolution = closest.dataset.qres === "" ? null : closest.dataset.qres;
+      state.profil.min_resolution =
+        closest.dataset.qres === "" ? null : closest.dataset.qres;
       openProfil(state.profilTitre);
       return;
     }
@@ -12394,7 +12514,8 @@
       return;
     }
     if (closest.dataset.qflag) {
-      state.profil[closest.dataset.qflag] = !state.profil[closest.dataset.qflag];
+      state.profil[closest.dataset.qflag] =
+        !state.profil[closest.dataset.qflag];
       openProfil(state.profilTitre);
       return;
     }
@@ -12403,7 +12524,9 @@
       closeScreen();
       setTimeout(() => {
         actionRecuperer(state.relTitre);
-        toast(`« ${release.res} ${release.src} ${release.lang} » retenue — récupération lancée.`);
+        toast(
+          `« ${release.res} ${release.src} ${release.lang} » retenue — récupération lancée.`,
+        );
       }, 260);
       return;
     }
@@ -12665,7 +12788,8 @@
       return;
     }
     if (closest.classList.contains("cfoot")) {
-      const title = closest.closest(".card")?.querySelector(".ctitle")?.textContent ?? "";
+      const title =
+        closest.closest(".card")?.querySelector(".ctitle")?.textContent ?? "";
       const lab = closest.textContent.trim();
       if (lab.startsWith("Récupérer")) return actionRecuperer(title);
       if (lab.startsWith("Résoudre")) return openResolve(title);
@@ -12673,10 +12797,14 @@
       return;
     }
     if (closest.classList.contains("act")) {
-      const textContent = closest.closest(".swipe").querySelector(".ctitle").textContent;
+      const textContent = closest
+        .closest(".swipe")
+        .querySelector(".ctitle").textContent;
       closest.closest(".swipe").querySelector(".card").style.transform = "";
       if (closest.classList.contains("remove"))
-        return state.page === "lib" ? openDeleteDialog(textContent) : actionRetirer(textContent);
+        return state.page === "lib"
+          ? openDeleteDialog(textContent)
+          : actionRetirer(textContent);
       if (closest.classList.contains("pause")) return actionPause(textContent);
       toast(`${closest.textContent.trim()} — ${textContent}`);
       return;
@@ -12687,11 +12815,17 @@
   function openDeleteDialog(title, many) {
     const titles = many && many.length > 0 ? many : [title];
     const multi = titles.length > 1;
-    const inc = (title2) => INCOMPLETE.find((INCOMPLETE2) => INCOMPLETE2.t === title2);
+    const inc = (title2) =>
+      INCOMPLETE.find((INCOMPLETE2) => INCOMPLETE2.t === title2);
     const followed = titles.filter(
-      (title2) => world.follows.some((follow) => follow.t === title2) || !!inc(title2),
+      (title2) =>
+        world.follows.some((follow) => follow.t === title2) || !!inc(title2),
     );
-    const files = titles.reduce((accumulator, element) => accumulator + (inc(element) ? inc(element).o : 1), 0);
+    const files = titles.reduce(
+      (accumulator, element) =>
+        accumulator + (inc(element) ? inc(element).o : 1),
+      0,
+    );
     const size = (files * 0.41).toFixed(1).replace(".", ",") + " Go";
     const head = multi
       ? `Supprimer ${titles.length} médias ?`
@@ -33724,7 +33858,9 @@
       return cat.map((cat2) => {
         const ownedNumbers = detenus?.[String(cat2.n)] ?? [];
         const diffuses = typeof cat2.ep === "number" ? cat2.ep : null;
-        const own = diffuses ? ownedNumbers.filter((l) => l <= diffuses).length : ownedNumbers.length;
+        const own = diffuses
+          ? ownedNumbers.filter((l) => l <= diffuses).length
+          : ownedNumbers.length;
         return [cat2.n, diffuses, own];
       });
     }
@@ -33735,11 +33871,9 @@
         .sort((map, index) => map - index)
         .map((sort) => [sort, null, detenus[String(sort)].length]);
     }
-    return (SEASONS[titre] ?? SEASONS[baseTitle(titre)] ?? []).map((element) => [
-      element[0],
-      element[1],
-      element[2],
-    ]);
+    return (SEASONS[titre] ?? SEASONS[baseTitle(titre)] ?? []).map(
+      (element) => [element[0], element[1], element[2]],
+    );
   }
 
   /* Owned episodes of a season, as a set. Null when the series is unknown
@@ -33758,7 +33892,11 @@
     for (let start = 0; start < sort.length;) {
       let end = start;
       while (end + 1 < sort.length && sort[end + 1] === sort[end] + 1) end++;
-      out.push(end > start + 1 ? `${sort[start]}–${sort[end]}` : sort.slice(start, end + 1).join(", "));
+      out.push(
+        end > start + 1
+          ? `${sort[start]}–${sort[end]}`
+          : sort.slice(start, end + 1).join(", "),
+      );
       start = end + 1;
     }
     return out.join(", ");
@@ -33768,7 +33906,12 @@
     const eps = sheet?.eps ?? {};
     const lignes = possede
       ? seasons.map(([number, aired, own]) => ({ n: number, aired, own }))
-      : cat.map((cat2) => ({ n: cat2.n, aired: cat2.ep, own: 0, air: cat2.air }));
+      : cat.map((cat2) => ({
+          n: cat2.n,
+          aired: cat2.ep,
+          own: 0,
+          air: cat2.air,
+        }));
     if (!lignes.length) return "";
     return `<div style="margin-top:10px">${lignes
       .map((ligne) => {
@@ -33778,7 +33921,9 @@
            a total that does not say where the holes are is no longer
            trusted. */
         const nbOwn = detenus
-          ? [...detenus].filter((element) => !ligne.aired || element <= ligne.aired).length
+          ? [...detenus].filter(
+              (element) => !ligne.aired || element <= ligne.aired,
+            ).length
           : ligne.own;
         const complete = possede && ligne.aired != null && nbOwn >= ligne.aired;
         const manque = ligne.aired != null ? ligne.aired - nbOwn : null;
@@ -33793,9 +33938,10 @@
               : ligne.aired || 0;
         const numsManquants =
           possede && detenus && ligne.aired
-            ? Array.from({ length: ligne.aired }, (ignored, index) => index + 1).filter(
-                (from) => !detenus.has(from),
-              )
+            ? Array.from(
+                { length: ligne.aired },
+                (ignored, index) => index + 1,
+              ).filter((from) => !detenus.has(from))
             : [];
         const corps = liste
           ? `<div class="panel" style="margin-top:8px">${liste
@@ -33832,7 +33978,9 @@
                 { length: borne },
                 (ignored, index) => {
                   const number = index + 1;
-                  const episodeState = detenus.has(number) ? "en_mediatheque" : "a_recuperer";
+                  const episodeState = detenus.has(number)
+                    ? "en_mediatheque"
+                    : "a_recuperer";
                   return `<span class="ep ${episodeState}" aria-label="Épisode ${number} — ${EP_LABEL[episodeState]}">${String(number).padStart(2, "0")}</span>`;
                 },
               ).join("")}</div>${
@@ -33876,17 +34024,30 @@
     const sort = saisonsDe(title)
       .slice()
       .sort((slice, index) => index[0] - slice[0]);
-    const own = sort.reduce((accumulator, element) => accumulator + element[2], 0);
-    const aired = sort.reduce((accumulator, element) => accumulator + element[1], 0);
+    const own = sort.reduce(
+      (accumulator, element) => accumulator + element[2],
+      0,
+    );
+    const aired = sort.reduce(
+      (accumulator, element) => accumulator + element[1],
+      0,
+    );
     const pct = aired ? Math.round((own / aired) * 100) : null;
     const eps = fiche2?.eps ? Object.entries(fiche2.eps)[0] : null;
     // A suggestion is NOT in the library: the sheet must say so and
     // offer to add it, not to delete it. Same template, with the only
     // variation reality imposes.
     const possede = fiche2?.possede !== false;
-    const suivi = world.follows.some((follow) => baseTitle(follow.t) === baseTitle(title));
-    const cat = (fiche2?.saisons ?? []).slice().sort((slice, index) => index.n - slice.n);
-    const catEp = cat.reduce((accumulator, element) => accumulator + element.ep, 0);
+    const suivi = world.follows.some(
+      (follow) => baseTitle(follow.t) === baseTitle(title),
+    );
+    const cat = (fiche2?.saisons ?? [])
+      .slice()
+      .sort((slice, index) => index.n - slice.n);
+    const catEp = cat.reduce(
+      (accumulator, element) => accumulator + element.ep,
+      0,
+    );
     const prov = fiche2?.ids ?? {};
     const url = prov.tvdb
       ? `/media/tvdb/${prov.tvdb}`
@@ -34033,7 +34194,9 @@
       ["The Backrooms", "2024 · Film · TMDB 1109371", "61 %"],
       ["Backrooms: Found Footage", "2023 · Film · TMDB 998221", "44 %"],
     ]
-      .map(([title, meta, confidence]) => releaseCardHTML(title, meta, confidence))
+      .map(([title, meta, confidence]) =>
+        releaseCardHTML(title, meta, confidence),
+      )
       .join("")}
     <div class="empty"><b>Aucun de ceux-là ?</b>La recherche manuelle s'ouvre pré-remplie avec le nom du dossier. Jamais un cul-de-sac (DOIT-7).
       <button class="cfoot" style="margin-top:10px" data-manual="${escapeHtml(state.resolveTarget ?? "")}">Chercher manuellement →</button>
@@ -34112,9 +34275,12 @@
     const total = Math.max(aired, catalogue ? catalogue.length : 0);
     const cells = Array.from({ length: total }, (ignored, index) => {
       const number = index + 1;
-      const info = catalogue?.find((catalogue2) => catalogue2.n === number) ?? null;
+      const info =
+        catalogue?.find((catalogue2) => catalogue2.n === number) ?? null;
       const futur = info?.air && info.air > AUJOURDHUI;
-      const episodeState = futur ? "annonce" : epState(follow, num, number, owned);
+      const episodeState = futur
+        ? "annonce"
+        : epState(follow, num, number, owned);
       return `<button class="ep ${episodeState}" data-ep="${escapeHtml(follow.t)}|${num}|${number}|${episodeState}" aria-label="S${String(num).padStart(2, "0")}E${String(number).padStart(2, "0")} — ${EP_LABEL[episodeState]}">${String(number).padStart(2, "0")}</button>`;
     }).join("");
     return `<details class="season"${complete ? "" : " open"}>
@@ -34130,14 +34296,17 @@
      — « Sortie prévue » for an announced episode, « Diffusé » otherwise —
      and a missing date is stated, not invented. */
   function fermerPopEp() {
-    document.querySelectorAll(".eppop").forEach((querySelectorAll) => querySelectorAll.remove());
+    document
+      .querySelectorAll(".eppop")
+      .forEach((querySelectorAll) => querySelectorAll.remove());
   }
   function ouvrirPopEp(btn) {
     fermerPopEp();
     const [titre, saison, episodeNumber, etat] = btn.dataset.ep.split("|");
     const fiche2 = sheetFor(titre);
     const liste = fiche2?.eps?.[saison] ?? null;
-    const episode = liste?.find((liste2) => String(liste2.n) === episodeNumber) ?? null;
+    const episode =
+      liste?.find((liste2) => String(liste2.n) === episodeNumber) ?? null;
     const airDate = episode?.air ? dateFR(episode.air) : null;
     const futur = episode?.air && episode.air > AUJOURDHUI;
     const phrase =
@@ -34175,8 +34344,14 @@
         st: "a_recuperer",
         own: INCOMPLETE2.o,
         aired: INCOMPLETE2.a,
-      })).find((map) => map.t === title) || { t: title, k: "show", st: "a_jour" };
-    const seasons = (SEASONS[title] || []).slice().sort((slice, index) => index[0] - slice[0]);
+      })).find((map) => map.t === title) || {
+        t: title,
+        k: "show",
+        st: "a_jour",
+      };
+    const seasons = (SEASONS[title] || [])
+      .slice()
+      .sort((slice, index) => index[0] - slice[0]);
     const isFilm = follow.k === "movie";
     /* What is TRUE about this medium, gathered once. Every action below is
        derived from these three facts and nothing else — never from the screen
@@ -34188,15 +34363,24 @@
     /* Read from the SAME derivations the urgency sections read. A section that
        computes what to grab while the panel computes it separately is two
        answers to one question, and they part company on the first change. */
-    const aRecuperer = derived.takeable().some((takeable) => takeable.t === title);
-    const aResoudre = derived.blocked()
+    const aRecuperer = derived
+      .takeable()
+      .some((takeable) => takeable.t === title);
+    const aResoudre = derived
+      .blocked()
       .concat(derived.stuck())
       .some((concat) => concat.t === title);
     // An unidentified release has no sheet. Offering to open one is the same
     // broken promise as a poster that leads nowhere.
     const aFiche = sheetFor(title) != null;
-    const own = seasons.reduce((accumulator, element) => accumulator + element[2], 0);
-    const aired = seasons.reduce((accumulator, element) => accumulator + element[1], 0);
+    const own = seasons.reduce(
+      (accumulator, element) => accumulator + element[2],
+      0,
+    );
+    const aired = seasons.reduce(
+      (accumulator, element) => accumulator + element[1],
+      0,
+    );
     /* One derivation: the card's fraction, the header's, and the sum of the
        season headers all read the SAME computation. */
     const frac = isFilm
@@ -34206,7 +34390,9 @@
         : (stFraction(follow) ?? "—");
     const cat0 = (number) => sheetFor(follow.t)?.eps?.[String(number)] ?? null;
     const aDesAnnonces = seasons.some((season) =>
-      (cat0(season[0]) ?? []).some((element) => element.air && element.air > AUJOURDHUI),
+      (cat0(season[0]) ?? []).some(
+        (element) => element.air && element.air > AUJOURDHUI,
+      ),
     );
     const etats = seasons.length
       ? [
@@ -34214,7 +34400,9 @@
             ...(aDesAnnonces ? ["annonce"] : []),
             ...seasons.flatMap((season) => [
               ...(season[2] > 0 ? ["en_mediatheque"] : []),
-              ...(season[1] > season[2] ? [epState(follow, season[0], season[1], season[2])] : []),
+              ...(season[1] > season[2]
+                ? [epState(follow, season[0], season[1], season[2])]
+                : []),
             ]),
           ]),
         ]
@@ -34253,7 +34441,9 @@
       </div>
       ${
         seasons.length
-          ? `<div class="legend">${EP_ORDER.filter((EP_ORDER2) => etats.includes(EP_ORDER2))
+          ? `<div class="legend">${EP_ORDER.filter((EP_ORDER2) =>
+              etats.includes(EP_ORDER2),
+            )
               .map(
                 (filter) =>
                   `<span><i class="${EP_SWATCH[filter]}"></i>${EP_LABEL[filter]}</span>`,
@@ -34353,7 +34543,8 @@
       .map((result, index) => ({ r: result, i: index }))
       .filter(
         ({ r: result }) =>
-          state.addKind === "Tout" || (state.addKind === "Films") === (result.k === "Film"),
+          state.addKind === "Tout" ||
+          (state.addKind === "Films") === (result.k === "Film"),
       );
     const rows = filtres
       .map(({ r: result, i: index }) => {
@@ -34464,7 +34655,10 @@
       <div class="note"><b>Écran neuf.</b> « Chercher une autre release » ne menait nulle part. Ce qui manquait n'est pas une liste : c'est <em>pourquoi</em> le moteur a classé ainsi — sans ça, choisir est un pari.</div>
       <p class="rescount" style="padding:0"><b>${RELEASES.length}</b> candidats retenus par le profil de qualité · dernière recherche il y a 12 min</p>
       ${RELEASES.map(
-        (RELEASES2, index) => `<article class="rel${index === 0 ? " best" : ""}">
+        (
+          RELEASES2,
+          index,
+        ) => `<article class="rel${index === 0 ? " best" : ""}">
         <span class="rn">${escapeHtml(RELEASES2.n)}</span>
         <span class="rt">
           <span class="chip ${RELEASES2.res === "2160p" ? "success" : RELEASES2.res === "1080p" ? "info" : "neutral"}">${RELEASES2.res}</span>
@@ -34492,11 +34686,18 @@
     const profile = state.profil;
     const retenus = RELEASES.filter((RELEASES2) => {
       const ordre = { "720p": 0, "1080p": 1, "2160p": 2 };
-      if (profile.min_resolution && ordre[RELEASES2.res] < ordre[profile.min_resolution])
+      if (
+        profile.min_resolution &&
+        ordre[RELEASES2.res] < ordre[profile.min_resolution]
+      )
         return false;
       if (profile.required_audio.length) {
         const tier =
-          RELEASES2.lang === "VOSTFR" ? "VOSTFR" : RELEASES2.lang === "VO" ? "VO" : "VF";
+          RELEASES2.lang === "VOSTFR"
+            ? "VOSTFR"
+            : RELEASES2.lang === "VO"
+              ? "VO"
+              : "VF";
         if (!profile.required_audio.includes(tier)) return false;
       }
       return true;
@@ -34574,7 +34775,8 @@
     </div>`);
   }
 
-  window.__close = (layer) => (layer === "screen" ? closeScreen() : closeSheet());
+  window.__close = (layer) =>
+    layer === "screen" ? closeScreen() : closeSheet();
 
   /* Gestures — pointer events, so one path serves finger, mouse and pen.
      Two differences a touch-only implementation never meets:
@@ -34702,7 +34904,13 @@
     (event) => {
       const card = event.target.closest?.('.dcard[data-depth="0"]');
       if (!card || !event.isPrimary) return;
-      deckDrag = { card, x: event.clientX, y: event.clientY, dx: 0, axis: null };
+      deckDrag = {
+        card,
+        x: event.clientX,
+        y: event.clientY,
+        dx: 0,
+        axis: null,
+      };
     },
     { passive: true },
   );
@@ -34756,67 +34964,141 @@
       return;
     }
     drag.card.style.transform = "";
-    drag.card.querySelectorAll(".dhint").forEach((querySelectorAll) => (querySelectorAll.style.opacity = "0"));
+    drag.card
+      .querySelectorAll(".dhint")
+      .forEach((querySelectorAll) => (querySelectorAll.style.opacity = "0"));
   }
   window.addEventListener("pointerup", endDeckDrag);
   window.addEventListener("pointercancel", endDeckDrag);
 
   /* 2) Swipe between views + 3) Pull-to-refresh — on the rest of the
      surface. ALL listeners are passive: a single non-passive touchmove
-     takes iOS out of the compositor and makes the sticky chrome shimmer. */
+     takes iOS out of the compositor and makes the sticky chrome shimmer.
+
+     THE FINGER IS READ FROM TOUCH EVENTS, everything else from pointer
+     events, and one implementation serves both.
+
+     The reason is not stylistic. These two gestures live INSIDE the
+     scrollport, and the browser owns vertical panning there. The moment it
+     decides a drag is a scroll it fires `pointercancel` and stops delivering
+     `pointermove` for that pointer — measured: one move delivered, then
+     cancel, while ten `touchmove` arrive for the same finger. A pointer-only
+     implementation therefore works under synthetic events, which are never
+     cancelled, and does nothing at all under a real thumb.
+
+     Claiming the axis in `touch-action` is the usual answer and is not
+     available here: `pan-y` on the scrollport intersects down onto
+     `.pillscroll` and `.cast`, which declare `pan-x pan-y`, and a `pan-x`
+     scroller under a `pan-y` ancestor pans on neither axis. The gestures that
+     CAN claim their axis — a swipeable row, a deck card — keep the pointer
+     path, and their stream is never cancelled. */
   let pageDrag = null,
-    refreshing = false;
+    refreshing = false,
+    minuteurRefresh = null;
   const ptr = select("#ptr");
+
+  /* Puts the indicator back to rest, pending refresh included.
+
+     A refresh in flight outlives a change of state, and the indicator's classes
+     are not part of the state object, so without this a measurement inherits
+     the spinner of the one before it — which is exactly how a first pass at
+     this gesture reported it working on half the surfaces and broken on the
+     other half, in alternation. */
+  window.__reposPTR = () => {
+    if (minuteurRefresh !== null) {
+      clearTimeout(minuteurRefresh);
+      minuteurRefresh = null;
+    }
+    refreshing = false;
+    pageDrag = null;
+    ptr.className = "ptr";
+    ptr.style.height = "0px";
+    ptr.style.transition = "";
+    return true;
+  };
+
+  function debutGestePage(point, cible) {
+    if (
+      cible.closest?.(".swipe") ||
+      cible.closest?.(".sugwrap") ||
+      // A drag born on a deck card belongs to the card: without this the
+      // page-swipe handler also fires and navigates away mid-gesture.
+      cible.closest?.(".deck") ||
+      cible.closest?.(".pillscroll")
+    ) {
+      pageDrag = null;
+      return;
+    }
+    if (point.clientX - port.getBoundingClientRect().left < 30) {
+      pageDrag = null;
+      return;
+    } /* zone morte iOS */
+    pageDrag = {
+      x: point.clientX,
+      y: point.clientY,
+      axis: null,
+      dx: 0,
+      dy: 0,
+      atTop: port.scrollTop <= 0,
+    };
+  }
+
+  function avancerGestePage(point) {
+    if (!pageDrag) return;
+    const deltaX = point.clientX - pageDrag.x,
+      deltaY = point.clientY - pageDrag.y;
+    if (pageDrag.axis === null) {
+      if (Math.abs(deltaX) < 8 && Math.abs(deltaY) < 8) return;
+      pageDrag.axis = Math.abs(deltaX) > Math.abs(deltaY) ? "x" : "y";
+    }
+    pageDrag.dx = deltaX;
+    pageDrag.dy = deltaY;
+    if (pageDrag.axis === "y" && pageDrag.atTop && deltaY > 0 && !refreshing) {
+      const min = Math.min(72, deltaY * 0.45);
+      ptr.style.height = min + "px";
+      ptr.style.transition = "none";
+      ptr.classList.toggle("armed", min >= 44);
+    }
+  }
+
   port.addEventListener(
-    "pointerdown",
+    "touchstart",
     (event) => {
-      if (
-        !event.isPrimary ||
-        event.target.closest(".swipe") ||
-        event.target.closest(".sugwrap") ||
-        // A drag born on a deck card belongs to the card: without this the
-        // page-swipe handler also fires and navigates away mid-gesture.
-        event.target.closest(".deck") ||
-        event.target.closest(".pillscroll")
-      ) {
+      if (event.touches.length !== 1) {
         pageDrag = null;
         return;
       }
-      const point = event;
-      if (point.clientX - port.getBoundingClientRect().left < 30) {
+      debutGestePage(event.touches[0], event.target);
+    },
+    { passive: true },
+  );
+  port.addEventListener(
+    "touchmove",
+    (event) => {
+      if (event.touches.length !== 1) return;
+      avancerGestePage(event.touches[0]);
+    },
+    { passive: true },
+  );
+  port.addEventListener(
+    "pointerdown",
+    (event) => {
+      // The same finger also arrives as a pointer event. Reading it twice
+      // would double every delta.
+      if (event.pointerType === "touch") return;
+      if (!event.isPrimary) {
         pageDrag = null;
         return;
-      } /* zone morte iOS */
-      pageDrag = {
-        x: point.clientX,
-        y: point.clientY,
-        axis: null,
-        dx: 0,
-        dy: 0,
-        atTop: port.scrollTop <= 0,
-      };
+      }
+      debutGestePage(event, event.target);
     },
     { passive: true },
   );
   port.addEventListener(
     "pointermove",
     (event) => {
-      if (!pageDrag) return;
-      const point = event,
-        deltaX = point.clientX - pageDrag.x,
-        deltaY = point.clientY - pageDrag.y;
-      if (pageDrag.axis === null) {
-        if (Math.abs(deltaX) < 8 && Math.abs(deltaY) < 8) return;
-        pageDrag.axis = Math.abs(deltaX) > Math.abs(deltaY) ? "x" : "y";
-      }
-      pageDrag.dx = deltaX;
-      pageDrag.dy = deltaY;
-      if (pageDrag.axis === "y" && pageDrag.atTop && deltaY > 0 && !refreshing) {
-        const min = Math.min(72, deltaY * 0.45);
-        ptr.style.height = min + "px";
-        ptr.style.transition = "none";
-        ptr.classList.toggle("armed", min >= 44);
-      }
+      if (event.pointerType === "touch") return;
+      avancerGestePage(event);
     },
     { passive: true },
   );
@@ -34835,7 +35117,8 @@
         refreshing = true;
         ptr.classList.add("loading");
         ptr.style.height = "44px";
-        setTimeout(() => {
+        minuteurRefresh = window.setTimeout(() => {
+          minuteurRefresh = null;
           refreshing = false;
           ptr.classList.remove("loading", "armed");
           ptr.style.height = "0px";
@@ -34852,7 +35135,9 @@
         const order = ["maintenant", "suivis", "decouvrir"],
           indexOf = order.indexOf(state.acqTab);
         const count =
-          drag.dx < 0 ? Math.min(order.length - 1, indexOf + 1) : Math.max(0, indexOf - 1);
+          drag.dx < 0
+            ? Math.min(order.length - 1, indexOf + 1)
+            : Math.max(0, indexOf - 1);
         if (count !== indexOf) {
           state.acqTab = order[count];
           port.scrollTop = 0;
@@ -34862,7 +35147,9 @@
         const order = ["cat", "inc", "rec"],
           indexOf = order.indexOf(state.libLens);
         const count =
-          drag.dx < 0 ? Math.min(order.length - 1, indexOf + 1) : Math.max(0, indexOf - 1);
+          drag.dx < 0
+            ? Math.min(order.length - 1, indexOf + 1)
+            : Math.max(0, indexOf - 1);
         if (count !== indexOf) {
           state.libLens = order[count];
           port.scrollTop = 0;
@@ -34871,8 +35158,22 @@
       }
     }
   }
-  window.addEventListener("pointerup", endPageDrag);
-  window.addEventListener("pointercancel", endPageDrag);
+  /* The END is listened for on the window, because a mouse released outside
+     the frame never reaches a listener bound to the scrollport and the gesture
+     would hang half-done.
+
+     `pointercancel` is IGNORED for a finger, and that is the whole point: it
+     arrives as soon as the browser claims the pan — one move in — while the
+     touch stream carrying the gesture keeps running. Ending on it would undo
+     the fix one line further down. */
+  window.addEventListener("pointerup", (event) => {
+    if (event.pointerType !== "touch") endPageDrag();
+  });
+  window.addEventListener("pointercancel", (event) => {
+    if (event.pointerType !== "touch") endPageDrag();
+  });
+  window.addEventListener("touchend", endPageDrag);
+  window.addEventListener("touchcancel", endPageDrag);
 
   /* 4) Sheet: drag the handle to close */
   let sheetDrag = null;
