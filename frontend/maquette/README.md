@@ -311,6 +311,15 @@ to a home screen like the app does. **The worker caches nothing.** Its only job 
 the installability criterion; a caching worker would serve yesterday's prototype to someone
 judging today's design, which is the single failure a design reference cannot afford.
 
+**And it is actually offered**, which is the half that was missing: the banner existed and nothing
+ever showed it — it was reachable only by driving to its named state, so on a real phone it never
+appeared. Android and desktop capture `beforeinstallprompt` **and prevent its default**, or the
+browser posts its own proposal in its own place and ours never gets a turn; the event is then
+replayed on a gesture, the only moment a browser accepts a prompt. iOS Safari fires nothing and
+offers no API, so nothing waits for an event there: the page knows it is Safari on iOS and not
+already standalone, and that is enough. Nobody is asked while already installed, nobody is asked
+over the entry screen, and a refusal is not repeated in the same session.
+
 The invitation has two forms, and they are not cosmetic variants (R51):
 
 - **Android and desktop** fire `beforeinstallprompt`, which a page may capture and replay on a
@@ -499,6 +508,7 @@ They are committed because they encode recipes that cost time to get right.
 | `ident.py` | identify ≠ follow: the context picks the verb |
 | `pop.py` | the episode date popover, in all its states |
 | `chrome.py` | R51: the harness bar covers none of the app's fixed controls, in every named state, at both sides of the 520px breakpoint |
+| `installation.py` | R51: the install offer is actually OFFERED — `beforeinstallprompt` captured, its default prevented and replayed on a gesture; the iOS guide raised by an iPhone user agent; nothing offered to an installed app, over the entry screen, or after a refusal |
 | `pwa.py` | R52: the LIVE host is installable from the first document a phone reaches — manifest, icons that load, worker registered and controlling, offline fallback cached. Runs against `tm-design.iznogoudatall.xyz`, not the local server |
 | `demarrage.py` | R53: the startup screen is declared first, covers the frame, offers no control, is gone after the first render, and the gate the server builds shows the same screen — extracted — from the submit onwards. Starts `serve.py` on a scratch port |
 | `deconnexion.py` | R54: signing out lands on the entry screen AND the server stops accepting the session. Starts `serve.py` on a scratch port |

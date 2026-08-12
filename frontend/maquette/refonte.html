@@ -12752,11 +12752,97 @@
 
   document
     .querySelector("#installclose")
-    .addEventListener("click", masquerInstallation);
-  document.querySelector("#installgo").addEventListener("click", () => {
+    .addEventListener("click", () => {
+      masquerInstallation();
+      // Refused: not asked again this session. The next visit may ask again —
+      // a banner that never returns after one dismissal is a feature nobody
+      // finds twice.
+      installRefusee = true;
+    });
+  document.querySelector("#installgo").addEventListener("click", async () => {
     masquerInstallation();
-    toast("Installation demandée — le navigateur prend la main.");
+    if (!installEvenement) {
+      toast("Installation demandée — le navigateur prend la main.");
+      return;
+    }
+    /* The captured event is REPLAYED here, on a gesture, which is the only
+       moment a browser accepts it. It can be used exactly once. */
+    installEvenement.prompt();
+    const choix = await installEvenement.userChoice.catch(() => null);
+    installEvenement = null;
+    toast(
+      choix && choix.outcome === "accepted"
+        ? "Installation en cours — l'icône arrive sur votre écran d'accueil."
+        : "Installation refusée — le bandeau reviendra à la prochaine visite.",
+    );
   });
+
+  /* WHO GETS ASKED, AND WHEN — the half that was missing.
+
+     The banner existed and nothing ever showed it: it was reachable only by
+     driving to its named state, so on a real phone it never appeared at all.
+     Two platforms, two entirely different mechanisms, and neither is optional:
+
+     · Android and desktop fire `beforeinstallprompt`. The event must be
+       captured and its default prevented, or the browser shows its own
+       proposal in its own place and ours never gets a turn. It is then
+       replayed on a gesture — that is the only moment a prompt is accepted.
+
+     · iOS Safari fires NOTHING, and offers no API. There is no event to await,
+       so the page cannot know whether it is installable; what it can know is
+       that it is Safari on iOS and not already standalone. There the banner IS
+       the guide, and it walks the actual steps.
+
+     Nobody is asked while already installed: `display-mode: standalone` means
+     the icon is already on the home screen, and a banner there is noise about
+     something already done. */
+  let installEvenement = null;
+  let installRefusee = false;
+
+  function dejaInstallee() {
+    return (
+      window.matchMedia("(display-mode: standalone)").matches ||
+      window.navigator.standalone === true
+    );
+  }
+
+  function surIOSSafari() {
+    const ua = navigator.userAgent;
+    const ios =
+      /iPad|iPhone|iPod/.test(ua) ||
+      // iPadOS 13+ reports itself as a Mac; the touch points give it away.
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    // Every browser on iOS is Safari underneath, but only Safari can install.
+    const safari = !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+    return ios && safari;
+  }
+
+  function proposerInstallation(plateforme) {
+    if (installRefusee || dejaInstallee()) return;
+    // Never over the entry screen: there is nothing to install yet, and the
+    // banner would cover the only field on it.
+    if (!document.querySelector("#login").hidden) return;
+    afficherInstallation(plateforme);
+  }
+
+  window.addEventListener("beforeinstallprompt", (evenement) => {
+    // Without this the browser posts its own proposal and ours never runs.
+    evenement.preventDefault();
+    installEvenement = evenement;
+    proposerInstallation("android");
+  });
+
+  window.addEventListener("appinstalled", () => {
+    installEvenement = null;
+    masquerInstallation();
+    toast("TorrentMate est installé.");
+  });
+
+  /* iOS has no event to wait for, so the offer is made once the interface is
+     there — after the startup screen, not over it. */
+  if (surIOSSafari()) {
+    window.setTimeout(() => proposerInstallation("ios"), 1200);
+  }
 
   window.__go = (stateId, opts) => {
     const found = STATES.find((STATES2) => STATES2[0] === stateId);
