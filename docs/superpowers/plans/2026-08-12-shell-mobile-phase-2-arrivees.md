@@ -822,8 +822,8 @@ In `frontend/maquette/regions.json`, move `arr-repos`, `arr-charge`, `arr-charge
 Run:
 
 ```bash
-cd frontend && npm run build && (npm run preview -- --port 4173 &) && sleep 4
-cd .. && python scripts/parity-probe.py --app-url http://127.0.0.1:4173
+cd frontend && npm run build
+cd .. && python scripts/parity-probe.py --app-dir frontend/dist
 ```
 
 Expected: `OK`. A divergence here is a defect in the app: fix the code, or amend the prototype **first** and write down why.

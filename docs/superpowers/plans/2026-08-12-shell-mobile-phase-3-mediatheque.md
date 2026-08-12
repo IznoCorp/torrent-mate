@@ -365,8 +365,8 @@ Run:
 ```bash
 make lint && make test
 make check-frontend
-cd frontend && npm run build && (npm run preview -- --port 4173 &) && sleep 4
-cd .. && python scripts/parity-probe.py --app-url http://127.0.0.1:4173
+cd frontend && npm run build
+cd .. && python scripts/parity-probe.py --app-dir frontend/dist
 ```
 
 Expected: all pass, probe `OK`.

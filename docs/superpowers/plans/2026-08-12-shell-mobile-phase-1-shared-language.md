@@ -60,8 +60,8 @@
 Run:
 
 ```bash
-cd frontend && npm run build && (npm run preview -- --port 4173 &) && sleep 4
-cd .. && python scripts/parity-probe.py --app-url http://127.0.0.1:4173 --only shell/
+cd frontend && npm run build
+cd .. && python scripts/parity-probe.py --app-dir frontend/dist --only shell/
 ```
 
 Expected: `OK`. Write the region count down — it must be identical at the end of the phase. A phase that quietly measures fewer regions is a phase that quietly stopped checking.
@@ -81,17 +81,22 @@ Run:
 
 ```bash
 git mv frontend/src/components/acquisition/MqToast.tsx frontend/src/components/acquisition/SurfaceToast.tsx
-rg -l "MqToast" -g '*.tsx' -g '*.ts' frontend/src | xargs sed -i '' 's/MqToast/SurfaceToast/g'
+rg -l "MqToast" -g '*.tsx' -g '*.ts' frontend/src \
+  | xargs python3 -c "import pathlib,sys;[pathlib.Path(f).write_text(pathlib.Path(f).read_text().replace('MqToast','SurfaceToast')) for f in sys.argv[1:]]"
 ```
 
-Note: macOS `sed` needs the empty `-i ''`. The `Mq` prefix named a scope that no longer exists; leaving it would teach the next reader a vocabulary the codebase abandoned.
+The rename goes through Python rather than `sed -i`, whose in-place flag takes an argument on macOS and none on Linux — a step that only runs on the machine it was written on is a step the next person cannot run. The `Mq` prefix named a scope that no longer exists; leaving it would teach the next reader a vocabulary the codebase abandoned.
 
 - [ ] **Step 5: Point the mirrored stylesheet at the new scope, temporarily**
 
 In `frontend/src/styles/ps/maquette-acquisition.css`, replace the `.mq` prefix with `.tm` throughout:
 
 ```bash
-sed -i '' 's/\.mq\b/.tm/g' frontend/src/styles/ps/maquette-acquisition.css
+python3 - <<'EOF'
+import pathlib, re
+p = pathlib.Path("frontend/src/styles/ps/maquette-acquisition.css")
+p.write_text(re.sub(r"\.mq\b", ".tm", p.read_text()))
+EOF
 ```
 
 This file is deleted in Task 4; until then it must keep serving the Acquisition page under the new scope, or the page loses its styling mid-phase.
@@ -106,8 +111,8 @@ Expected: all pass. A failing import here means a `MqToast` reference the rename
 Run:
 
 ```bash
-cd frontend && npm run build && (npm run preview -- --port 4173 &) && sleep 4
-cd .. && python scripts/parity-probe.py --app-url http://127.0.0.1:4173 --only shell/
+cd frontend && npm run build
+cd .. && python scripts/parity-probe.py --app-dir frontend/dist --only shell/
 ```
 
 Expected: `OK`, with the same region count as Step 1.
@@ -568,7 +573,7 @@ Run:
 
 ```bash
 cd frontend && npx vitest run src/pages/AcquisitionPage.test.tsx && npm run build && (npm run preview -- --port 4173 &) && sleep 4
-cd .. && python scripts/parity-probe.py --app-url http://127.0.0.1:4173 --only shell/
+cd .. && python scripts/parity-probe.py --app-dir frontend/dist --only shell/
 ```
 
 Expected: tests pass and the probe reports `OK` with the same region count as Task 1 Step 1.

@@ -410,7 +410,7 @@ with nothing selectable, which is worse than no mode."
 
 - [ ] **Step 1: Run every gate**
 
-Run: `make lint && make test && make check-frontend && python scripts/parity-probe.py --app-url http://127.0.0.1:4173`
+Run: `make lint && make test && make check-frontend && python scripts/parity-probe.py --app-dir frontend/dist`
 Expected: all pass.
 
 - [ ] **Step 2: Exercise the dry run on staging, against the real library**

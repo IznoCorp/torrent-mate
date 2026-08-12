@@ -3970,7 +3970,7 @@
           ? `data-fiche="${esc(o.t)}"`
           : `data-sheet="${esc(o.t)}"`
       }>
-        <span class="ctitle">${esc(o.t)}</span>
+        <span class="ctitle" title="${esc(o.t)}">${esc(o.t)}</span>
         ${o.s ? `<span class="csub">${esc(o.s)}</span>` : ""}
         ${o.r ? `<span class="creason">${esc(o.r)}</span>` : ""}
         <span class="cmeta">${o.f ? `<span class="frac">${esc(o.f)}</span>` : ""}${chipHTML(o.chip)}</span>
@@ -4228,7 +4228,7 @@
             <div class="ctop">
               <button class="poster" data-fiche="${esc(o.t)}" aria-label="Fiche de ${esc(o.t)}">${posterBox(o.t, o.k)}</button>
               <button class="cbody" data-sheet="${esc(o.t)}">
-                <span class="ctitle">${esc(o.t)}</span>
+                <span class="ctitle" title="${esc(o.t)}">${esc(o.t)}</span>
                 <span class="cmeta">${metaOf(o, showStatus)}</span>
               </button>
             </div>
@@ -4632,7 +4632,7 @@
       return `<button class="selrow" data-tile="${i}" aria-selected="${on}">
         <span class="sel">${svg(I.check, 3)}</span>
         <span class="poster">${posterBox(o.t)}</span>
-        <span class="rowtxt"><span class="ctitle">${esc(o.t)}</span><span class="csub">${esc(o.f)}</span></span>
+        <span class="rowtxt"><span class="ctitle" title="${esc(o.t)}">${esc(o.t)}</span><span class="csub">${esc(o.f)}</span></span>
       </button>`;
     }
     return swipeHTML(

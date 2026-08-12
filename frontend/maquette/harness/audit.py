@@ -28,13 +28,13 @@ async def main():
     evaluees = set()
     def evalue(*regles):
         evaluees.update(regles)
-    REGLES_ATTENDUES = 12
+    REGLES_ATTENDUES = 13
 
     print(f"{BAR}\nAdversarial review — {len(etats)} states\n{BAR}")
 
     for e in etats:
         await pg.evaluate("(i)=>window.__go(i)", e); await pg.wait_for_timeout(280)
-        evalue('R1','R2','R3','R4','R4bis','R5','R6','R7','R22','R23')
+        evalue('R1','R2','R3','R4','R4bis','R5','R6','R6bis','R7','R22','R23')
         r = await pg.evaluate("""(etat)=>{
           const R = {};
           const vis = (el)=>el.offsetParent!==null || el.getClientRects().length>0;
@@ -113,6 +113,14 @@ async def main():
           // guess
           R.titresTronques = [...racine.querySelectorAll('.ht,.sheettitle,.dlg h3')].filter(el=>
             el.scrollWidth>el.clientWidth+1).map(el=>el.textContent.trim().slice(0,30));
+
+          // R6 bis — a card title MAY ellipsize; the list is a list. But the full
+          // string must stay reachable, because for an unidentified arrival the
+          // release name IS its identity, and the truncation lands on the group —
+          // exactly what tells two versions of the same media apart.
+          R.titresPerdus = [...racine.querySelectorAll('.ctitle')].filter(el=>
+            el.scrollWidth>el.clientWidth+1 && !el.getAttribute('title'))
+            .map(el=>el.textContent.trim().slice(0,34));
 
           // R7 — no panel renders emptiness in silence
           R.panneauxVides = [...racine.querySelectorAll('.panel')].filter(el=>
@@ -201,7 +209,8 @@ async def main():
                        "debordements":"R4 horizontal overflow",
                        "panHorizontal":"R4b real horizontal scrolling",
                        "scrollersBloquants":"R5 scroller blocking vertical panning",
-                       "titresTronques":"R6 truncated title"}[k]
+                       "titresTronques":"R6 truncated title",
+                       "titresPerdus":"R6 bis title cut with no recourse"}[k]
                 for x in (v if isinstance(v, list) else [v]):
                     note(cle, f"{e} : {x}")
 

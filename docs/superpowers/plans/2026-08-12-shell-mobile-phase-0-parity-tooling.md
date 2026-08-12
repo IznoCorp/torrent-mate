@@ -1188,7 +1188,7 @@ Measures the prototype against a locally built app and diffs geometry plus a fix
 - Produces:
   - `diff_region(a: dict, b: dict, subset: list[str], tolerance: float) -> list[str]` — pure; returns one message per difference.
   - `is_allowed(region: str, prop: str, allowlist: list[dict]) -> bool` — pure; True when a divergence carries a justified allowlist entry.
-  - CLI: `python scripts/parity-probe.py [--app-url URL] [--only REGION]`. Exit 0 when every measured region matches; exit 1 otherwise, listing region, property, and the two values.
+  - CLI: `python scripts/parity-probe.py [--app-dir DIR] [--only REGION]`. Exit 0 when every measured region matches; exit 1 otherwise, listing region, property, and the two values.
 
 **Note on the gate in this phase.** No page has been rebuilt yet, so the probe cannot compare page regions. What it _can_ compare — and what this phase's gate is — are the **shell regions**, whose truth flows the other way: the prototype transplanted them from `layout/TopBar.tsx` and `layout/BottomTabBar.tsx`. If the probe reports a divergence there, the prototype is wrong and must be corrected, which is exactly the direction §7.2 bis defines. Page regions are added to the measured set as their phase lands.
 
@@ -1331,8 +1331,12 @@ MAQUETTE = ROOT / "frontend" / "maquette"
 REGIONS = MAQUETTE / "regions.json"
 
 #: Never 8710 or 8711: the reverse proxy routes production and staging there.
+#: The probe serves BOTH sides itself, on ephemeral ports, rather than expecting a
+#: preview server to be running: a target that starts a background server has to
+#: stop one too, and stopping it by process name kills whatever else matched —
+#: including the preview a developer had open beside their editor.
 PROTOTYPE_PORT = 8899
-DEFAULT_APP_URL = "http://127.0.0.1:4173"
+APP_PORT = 8898
 
 #: Sub-pixel rounding differs between two layout passes; a real difference does
 #: not hide under half a pixel.
@@ -1406,7 +1410,7 @@ MEASURE = """([selector, subset])=>{
 }"""
 
 
-async def _run(app_url: str, only: str | None) -> int:
+async def _run(app_dir: Path, only: str | None) -> int:
     from playwright.async_api import async_playwright
 
     regions = json.loads(REGIONS.read_text(encoding="utf-8"))
@@ -1419,6 +1423,8 @@ async def _run(app_url: str, only: str | None) -> int:
     wrapper.write_text(_wrapper((MAQUETTE / "refonte.html").read_text(encoding="utf-8")),
                        encoding="utf-8")
     server = _serve(MAQUETTE, PROTOTYPE_PORT)
+    app_server = _serve(app_dir, APP_PORT)
+    app_url = f"http://127.0.0.1:{APP_PORT}/"
 
     failures: list[str] = []
     measured = 0
@@ -1469,6 +1475,7 @@ async def _run(app_url: str, only: str | None) -> int:
             await browser.close()
     finally:
         server.shutdown()
+        app_server.shutdown()
         wrapper.unlink(missing_ok=True)
 
     print(f"Parity probe — {measured} region(s) measured")
@@ -1484,11 +1491,15 @@ async def _run(app_url: str, only: str | None) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--app-url", default=DEFAULT_APP_URL,
-                        help="URL of a locally served production build")
+    parser.add_argument("--app-dir", type=Path, default=ROOT / "frontend" / "dist",
+                        help="directory holding a production build; the probe serves it itself")
     parser.add_argument("--only", help="measure only the regions whose name contains this")
     args = parser.parse_args()
-    return asyncio.run(_run(args.app_url, args.only))
+    if not (args.app_dir / "index.html").is_file():
+        print(f"No build found in {args.app_dir}. Run: cd frontend && npm run build",
+              file=sys.stderr)
+        return 1
+    return asyncio.run(_run(args.app_dir, args.only))
 
 
 if __name__ == "__main__":
@@ -1502,13 +1513,11 @@ Expected: PASS — 8 passed.
 
 - [ ] **Step 5: Run the probe against a real build**
 
-Run, in two terminals:
+Run:
 
 ```bash
-# terminal 1
-cd frontend && npm run build && npm run preview
-# terminal 2 — note the port printed by `npm run preview`, usually 4173
-python scripts/parity-probe.py --app-url http://127.0.0.1:4173
+cd frontend && npm run build
+cd .. && python scripts/parity-probe.py --app-dir frontend/dist
 ```
 
 Expected: the probe prints how many regions it measured. Regions whose selector exists on neither side are skipped as "not yet built", which is correct in this phase — only the shell is expected to match.
@@ -1580,15 +1589,13 @@ Modify `Makefile`, in `check-frontend`, after the build step (the probe needs a 
 
 ```makefile
 	@echo "Running the parity probe against the built app..."
-	cd frontend && (npm run preview -- --port 4173 &) && sleep 4
-	python scripts/parity-probe.py --app-url http://127.0.0.1:4173 --only shell/
-	@pkill -f "vite preview" || true
+	python scripts/parity-probe.py --app-dir frontend/dist --only shell/
 ```
 
 - [ ] **Step 2: Run the local gate end to end**
 
 Run: `make check-frontend`
-Expected: drift guard OK, class-coverage OK, typecheck, lint, tests, build, then `OK - every measured region matches the prototype.` If the preview server is slow to start on your machine, raise the `sleep` — a flaky gate is a gate people disable.
+Expected: drift guard OK, class-coverage OK, typecheck, lint, tests, build, then `OK - every measured region matches the prototype.` The probe serves the build itself, so there is no server to start and none to kill: a gate that leaves a process behind is a gate people disable.
 
 - [ ] **Step 3: Read the CI workflow before editing it**
 
@@ -1614,7 +1621,7 @@ Modify `.github/workflows/ci.yml` — in the job that already sets up Node and t
 - name: Build the app and run the parity probe
   run: |
     cd frontend && npm run build && (npm run preview -- --port 4173 &) && sleep 5
-    cd .. && python scripts/parity-probe.py --app-url http://127.0.0.1:4173 --only shell/
+    cd .. && python scripts/parity-probe.py --app-dir frontend/dist --only shell/
 ```
 
 - [ ] **Step 5: Push and watch CI**
