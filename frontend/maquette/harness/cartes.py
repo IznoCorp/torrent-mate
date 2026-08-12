@@ -1,7 +1,9 @@
 """One card, one behaviour, in every list of the interface.
 
 R41 — a card body opens the bottom PANEL, never a screen of its own.
-R42 — a card poster opens the media SHEET, whenever that medium has one.
+R42 — a card poster ALWAYS leads somewhere: to the media sheet when that
+      medium has one, to the panel when it does not. It used to lead nowhere,
+      and the tooltip explaining the absence is invisible on a phone.
 R43 — an action offered inline on a card is ALSO in that medium's panel.
 R44 — the same medium reached from a card and from a gallery opens the SAME
       panel, action for action.
@@ -145,7 +147,8 @@ async def main():
                             feuilleDirecte:b?b.dataset.sheet||null:null,
                             posterEstBouton:p?p.tagName==='BUTTON':false,
                             posterVersFiche:p?p.dataset.fiche||null:null,
-                            posterInerte:p?p.querySelector('.pfall')!==null:false};})"""
+                            posterVersPanneau:p?p.dataset.panel||null:null,
+                            posterInconnu:p?(p.querySelector('.pfall b')||{}).textContent==='?':false};})"""
             )
             if not releve:
                 echecs.append(f"R41 {etat}: no card at all — the state draws nothing")
@@ -166,12 +169,22 @@ async def main():
                     echecs.append(f"R41 {etat} « {c['titre']} »: the body addresses no panel")
                 if c["feuilleDirecte"]:
                     echecs.append(f"R41 {etat} « {c['titre']} »: the body still opens a sheet directly")
-                # A poster with no sheet renders as an inert placeholder, not a
-                # button — an unidentified medium must not promise a sheet.
-                if c["posterEstBouton"] and not c["posterVersFiche"]:
+                # A poster leads to the SHEET when the medium has one, and to
+                # the PANEL when it does not — never nowhere. An unidentified
+                # folder still has actions, and « Résoudre → » is what one is
+                # after; a dead zone on the page where things are stuck is the
+                # worst possible place for one.
+                if c["posterEstBouton"] and not (c["posterVersFiche"] or c["posterVersPanneau"]):
                     echecs.append(f"R42 {etat} « {c['titre']} »: the poster is a button leading nowhere")
-                if not c["posterEstBouton"] and not c["posterInerte"]:
-                    echecs.append(f"R42 {etat} « {c['titre']} »: no poster at all")
+                if not c["posterEstBouton"]:
+                    echecs.append(f"R42 {etat} « {c['titre']} »: the poster is not a control at all")
+                # Two DIFFERENT absences, never merged: « ? » says there is no
+                # MEDIUM, initials say there is no artwork. A card whose medium
+                # is known keeps its sheet even when nothing illustrates it.
+                if c["posterInconnu"] and c["posterVersFiche"]:
+                    echecs.append(f"R42 {etat} « {c['titre']} »: « ? » over a medium that has a sheet")
+                if not c["posterInconnu"] and c["posterVersPanneau"]:
+                    echecs.append(f"R42 {etat} « {c['titre']} »: an identified poster leading to the panel")
             horsMedia = sum(1 for c in releve if c["nonMedia"])
             print(f"  R41/R42 {etat:22} {len(releve):3} cards"
                   + (f" ({horsMedia} non-media)" if horsMedia else ""))

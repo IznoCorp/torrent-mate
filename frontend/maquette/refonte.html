@@ -770,6 +770,12 @@
     padding: 0;
     border: 0;
   }
+  /* A poster with no sheet behind it. It is still a button — it opens the
+     panel — and it says by its outline that what it shows is a placeholder
+     rather than an artwork. */
+  .poster.sansfiche {
+    border: 1px dashed var(--border);
+  }
   .poster img,
   .tile .p img,
   .pfall {
@@ -10055,14 +10061,25 @@
      search and « Ajouté » one tap later, while the film has not changed. */
   function cardHTML(descriptor, opts) {
     opts = opts || {};
-    // A poster is a button only if a sheet genuinely EXISTS.
-    // An unidentified medium (a release name) has none: it must not offer
-    // a dead link, nor a greyed-out button — the same broken promise.
+    /* A POSTER ALWAYS LEADS SOMEWHERE.
+
+       To the media sheet when one exists — the frequent path, one tap. To the
+       PANEL when it does not, because an unidentified folder still has actions
+       and « Résoudre → » is exactly what one is after. It used to lead
+       nowhere, and the tooltip that explained the absence is invisible on a
+       phone: tapping it simply did nothing, on the one page where things are
+       stuck. A dead zone is worse than a wrong destination, and §11 forbids
+       both a dead link and a greyed control — not a second real destination. */
+    /* Two DIFFERENT absences, and merging them was a defect: `noposter` says
+       there is no artwork, `!aFiche` says there is no medium. A card with no
+       artwork still has a sheet, and must still lead to it. */
     const aFiche = sheetFor(descriptor.t) != null;
-    const poster =
-      descriptor.noposter || !aFiche
-        ? `<span class="poster" title="Média non identifié — pas de fiche disponible"><span class="pfall"><b>?</b></span></span>`
-        : `<button class="poster" aria-label="Fiche de ${escapeHtml(descriptor.t)}" data-fiche="${escapeHtml(descriptor.t)}">${posterBox(descriptor.t, descriptor.k)}</button>`;
+    const image = descriptor.noposter
+      ? `<span class="pfall"><b>${escapeHtml(initials(descriptor.t))}</b></span>`
+      : posterBox(descriptor.t, descriptor.k);
+    const poster = aFiche
+      ? `<button class="poster" aria-label="Fiche de ${escapeHtml(descriptor.t)}" data-fiche="${escapeHtml(descriptor.t)}">${image}</button>`
+      : `<button class="poster sansfiche" aria-label="Actions pour ${escapeHtml(descriptor.t)}" title="Média non identifié — pas de fiche. Ce bouton ouvre les actions." data-panel="${escapeHtml(descriptor.panel || `media:${descriptor.t}`)}"><span class="pfall"><b>?</b></span></button>`;
     /* Two lines, because they answer two questions. The first says WHAT THIS
        MEDIUM IS — how much of it is owned, what state it is in, how it is
        rated. The second annotates that state: what is pending, what has just
@@ -11269,7 +11286,7 @@
   const APPUI_MS = 480;
   const APPUI_TOLERANCE = 12;
   let appui = null;
-  let clicAvaler = false;
+  let clicAvaler = null;
 
   /* Which panel a press addresses, from wherever the finger landed.
 
@@ -11304,11 +11321,14 @@
            and a long press on a follow fired « Récupérer maintenant » before
            the panel had finished appearing.
 
-           ONE click, not a time window: the lift produces exactly one, and it
-           may come three seconds later if the finger stays down. A window
-           measured from the panel's opening swallowed a deliberate second tap
-           instead. */
-        clicAvaler = true;
+           The click to swallow is identified by its POINT, not by a delay and
+           not by a target. The lift lands within the press's own tolerance of
+           where it started — beyond that the press was cancelled — so the very
+           click this press caused is exactly the one that matches, and a
+           deliberate tap somewhere else never does. Measured: the click
+           arrives 1 ms after the lift, which is why no timer can tell them
+           apart. */
+        clicAvaler = { x: point.clientX, y: point.clientY };
         openPanel(element);
       }, APPUI_MS),
     };
@@ -11330,7 +11350,7 @@
     "pointerdown",
     (event) => {
       // A new gesture clears any mark the previous one left unconsumed.
-      clicAvaler = false;
+      clicAvaler = null;
       if (event.isPrimary) armerAppui(event, event.target);
     },
     { passive: true },
@@ -11338,18 +11358,16 @@
   port.addEventListener("pointermove", (event) => suivreAppui(event), {
     passive: true,
   });
-  window.addEventListener("pointerup", () => {
+  /* The mark is NEVER cleared on pointerup: for a real finger the click comes
+     1 ms later, in a later task, so clearing there — even deferred by a
+     macrotask — clears it before the click it exists for. */
+  window.addEventListener("pointerup", annulerAppui);
+  window.addEventListener("pointercancel", () => {
+    // The compositor claimed the gesture: it is a scroll, not a press — and no
+    // click will follow it, so nothing is left waiting to be swallowed.
     annulerAppui();
-    /* Released: the synthesized click is next in line, so the mark is cleared
-       AFTER it, never before. Without this a press whose click never arrives —
-       a gesture cancelled mid-air, a programmatic call — would leave the mark
-       set and eat something unrelated much later. */
-    window.setTimeout(() => {
-      clicAvaler = false;
-    }, 0);
+    clicAvaler = null;
   });
-  // The compositor claimed the gesture: it is a scroll, not a press.
-  window.addEventListener("pointercancel", annulerAppui);
 
   /* A press that opened the panel must not ALSO fire what the lift lands on.
 
@@ -11357,14 +11375,18 @@
      whose click would open the sheet over the panel) and the PANEL ITSELF,
      which has just appeared under the finger. The second is the dangerous one
      — a long press on a follow fired « Récupérer maintenant » — and it is why
-     ONE click is swallowed wherever it lands, rather than a click on a given
-     target or a click within a given delay. The lift produces exactly one, and
-     a new press clears the mark, so nothing deliberate is ever eaten. */
+     the click caused by the lift is swallowed WHEREVER it lands, identified by
+     its point rather than by its target or by a delay. */
   document.addEventListener(
     "click",
     (event) => {
       if (!clicAvaler) return;
-      clicAvaler = false;
+      const ecart = Math.hypot(
+        event.clientX - clicAvaler.x,
+        event.clientY - clicAvaler.y,
+      );
+      clicAvaler = null;
+      if (ecart > APPUI_TOLERANCE) return;
       event.preventDefault();
       event.stopPropagation();
     },
