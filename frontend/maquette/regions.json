@@ -58,6 +58,10 @@
     ".body",
     ".bottombar",
     ".brand",
+    ".brandbig",
+    ".brandbig .mk",
+    ".brandbig .wm",
+    ".brandbig em",
     ".btnprimary",
     ".btnprimary:disabled",
     ".burger",
@@ -196,7 +200,6 @@
     ".loaderr button",
     ".loadfoot",
     ".loading",
-    ".loginbrand",
     ".logincard",
     ".loginerr",
     ".loginfield",
@@ -355,6 +358,11 @@
     ".soon",
     ".sp",
     ".spin",
+    ".splash",
+    ".splash[hidden]",
+    ".splashbar",
+    ".splashbar i",
+    ".splashmsg",
     ".sr",
     ".st",
     ".st .d",
@@ -756,6 +764,7 @@
     }
   },
   "states": [
+    "demarrage",
     "acq-encours-repos",
     "acq-encours-charge",
     "acq-encours-chargement",
@@ -960,6 +969,8 @@
     "R48": "A reason never truncates (§12). It wraps, and the card grows.",
     "R49": "The login gate is EXTRACTED from the prototype, never retyped — markup, styles and typeface, between explicit markers. A gate that reproduces the design by hand shows a copy of it, and copies drift.",
     "R50": "Every gallery draws its tiles with the same builder and the same metrics, and its column count follows the CONTAINER's width, never the window's.",
-    "R51": "The install proposal offers what the platform actually allows: a button where `beforeinstallprompt` exists, the manual steps on iOS where it does not — and it sits ABOVE the tab bar, or its close button cannot be reached."
+    "R51": "The install proposal offers what the platform actually allows: a button where `beforeinstallprompt` exists, the manual steps on iOS where it does not — and it sits ABOVE the tab bar, or its close button cannot be reached.",
+    "R52": "Every document the server hands out declares the manifest, the icons and the worker, and the worker answers a navigation with the network gone. Declarations carried by the prototype ALONE reach no phone: the only document reachable before signing in is the gate, and a browser reads the manifest of the page in front of it.",
+    "R53": "The wait that follows a sign-in is covered by ONE startup screen, extracted from the prototype like the gate. It is declared FIRST in the frame, because a browser paints what it has parsed and a screen sitting after the embedded artwork appears only once the wait is over; it covers the frame, offers no control, and is gone as soon as the first render has run."
   }
 }

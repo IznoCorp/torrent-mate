@@ -3442,7 +3442,11 @@
     display: none;
   }
 
-  .loginbrand {
+  /* The tall brand block. `.brand` is the topbar's — small and horizontal —
+     and this one belongs to the full-screen surfaces that carry no interface
+     yet: the entry screen and the startup screen. They share it so that
+     signing in never changes identity halfway through. */
+  .brandbig {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -3450,19 +3454,19 @@
     color: var(--foreground);
   }
 
-  .loginbrand .mk {
+  .brandbig .mk {
     width: 40px;
     height: 40px;
     color: var(--accent);
   }
 
-  .loginbrand .wm {
+  .brandbig .wm {
     font-size: 21px;
     font-weight: 600;
     letter-spacing: -0.02em;
   }
 
-  .loginbrand em {
+  .brandbig em {
     font-style: normal;
     color: var(--accent);
   }
@@ -3544,10 +3548,111 @@
   }
 
   /* login:style:end */
+
+  /* login:splashstyle:start */
+  /* Startup — the wait between signing in and an interface being there.
+
+     This document is large, and a phone spends seconds fetching and parsing it
+     before a single pixel of the interface exists. A wait shown blank is read
+     as a failure, so the screen holds the brand still and says what is
+     happening. It is the FIRST thing the document paints, which is why it sits
+     at the top of the frame in source order: an element declared after
+     megabytes of embedded artwork would appear only once the wait is over.
+
+     The bar is deliberately indeterminate. Nothing here knows how far along
+     the load is, and a bar that pretends to would be lying at every frame. */
+  .splash {
+    position: absolute;
+    inset: 0;
+    z-index: 70;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    padding: 24px 20px;
+    background: var(--background);
+  }
+
+  /* An author `display` rule beats `[hidden]`: without this the attribute is
+     set and nothing happens. */
+  .splash[hidden] {
+    display: none;
+  }
+
+  .splashbar {
+    width: 132px;
+    height: 3px;
+    border-radius: 99px;
+    background: var(--border);
+    overflow: hidden;
+  }
+
+  .splashbar i {
+    display: block;
+    width: 40%;
+    height: 100%;
+    border-radius: 99px;
+    background: var(--accent);
+    animation: splashslide 1.15s ease-in-out infinite;
+  }
+
+  @keyframes splashslide {
+    from {
+      transform: translateX(-110%);
+    }
+    to {
+      transform: translateX(320%);
+    }
+  }
+
+  .splashmsg {
+    margin: 0;
+    font-size: 12px;
+    color: var(--muted-foreground);
+  }
+  /* login:splashstyle:end */
 </style>
 
 <div class="stage">
   <div class="device" id="device">
+    <!-- login:splash:start -->
+    <!-- The startup screen, and it is FIRST on purpose.
+
+         A browser paints what it has parsed so far; anything declared after the
+         embedded artwork would appear only once the wait it exists to cover is
+         already over. Being first, it is on screen within the first frames and
+         stays until the interface has rendered.
+
+         It carries no controls: there is nothing to do yet, and a disabled
+         control would only invite a tap that answers nothing. -->
+    <div class="splash" id="splash">
+      <div class="brandbig">
+        <svg
+          class="mk"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M3 4h18l-7 8v7l-4 2v-9z" />
+        </svg>
+        <span class="wm">Torrent<em>Mate</em></span>
+      </div>
+      <div
+        class="splashbar"
+        role="progressbar"
+        aria-label="Chargement de l'interface"
+      >
+        <i></i>
+      </div>
+      <p class="splashmsg">Chargement de votre médiathèque…</p>
+    </div>
+    <!-- login:splash:end -->
+
     <header class="topbar">
       <button
         class="burger"
@@ -3675,7 +3780,7 @@
          It carries no credentials of its own — the server decides, and a
          password living in a page anyone can read is not a password. -->
     <div class="loginscreen" id="login" hidden>
-      <div class="loginbrand">
+      <div class="brandbig">
         <svg
           class="mk"
           viewBox="0 0 24 24"
@@ -11404,6 +11509,14 @@
   const STATES = [
     ["pwa-android", "Installation — Android et bureau", () => { applyState({ page: "acq", acqTab: "maintenant", phase: "prete" }); afficherInstallation("android"); }],
     ["pwa-ios", "Installation — iOS, méthode manuelle", () => { applyState({ page: "acq", acqTab: "maintenant", phase: "prete" }); afficherInstallation("ios"); }],
+    [
+      "demarrage",
+      "Démarrage — l'interface se charge",
+      () => {
+        applyState({ page: "acq", acqTab: "maintenant", phase: "prete" });
+        afficherDemarrage();
+      },
+    ],
     ["connexion", "Connexion — écran d'entrée", () => afficherConnexion(false)],
     [
       "connexion-erreur",
@@ -11829,6 +11942,20 @@
     document.querySelector("#loginerr").hidden = true;
   }
 
+  /* The startup screen, shown for as long as there is no interface to show.
+
+     It is on screen from the first painted frame — the markup is the first
+     thing in the frame — and comes off once the first render has run. Driving
+     to its named state puts it back, so it can be judged like any other
+     surface. */
+  function afficherDemarrage() {
+    document.querySelector("#splash").hidden = false;
+  }
+
+  function masquerDemarrage() {
+    document.querySelector("#splash").hidden = true;
+  }
+
   document
     .querySelector("#loginform")
     .addEventListener("submit", (evenement) => {
@@ -11844,6 +11971,12 @@
         return;
       }
       masquerConnexion();
+      /* What actually follows a sign-in: the interface is not there yet, and
+         the wait is covered rather than left blank. Here it is played out on a
+         timer, because nothing is being fetched; where the file is served from,
+         it lasts exactly as long as the load does. */
+      afficherDemarrage();
+      window.setTimeout(masquerDemarrage, 1100);
     });
 
   /* Install proposal — two platforms, two paths.
@@ -11877,6 +12010,7 @@
     if (!found) throw new Error("état inconnu : " + stateId);
     closeHarness();
     if (!stateId.startsWith("connexion")) masquerConnexion();
+    if (stateId !== "demarrage") masquerDemarrage();
     if (!stateId.startsWith("pwa-")) masquerInstallation();
     // Reset to seed by DEFAULT: a measurement must never inherit the
     // mutations of a previous one. `__go(id, {keep:true})` preserves
@@ -34739,6 +34873,11 @@
   });
 
   render();
+  /* The interface exists from here on, so the startup screen has nothing left
+     to cover. It is dropped SYNCHRONOUSLY after the first render rather than on
+     a timer: a timer would either uncover a frame that is not drawn yet or hold
+     a ready interface hostage, and both are visible. */
+  masquerDemarrage();
   /* The welcome hint disappears on first interaction: a bubble that returns
      over an open sheet is a nuisance, not help. */
   let hintShown = false;

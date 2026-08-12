@@ -103,7 +103,7 @@ that view was checked, and another page shipped blank.
 ## Every state has a name, and knows how to reach itself
 
 `window.__go("<id>")` drives the prototype into a state **without clicking**.
-`window.__states()` returns the 51 ids. The **≡** button in the harness opens a panel listing
+`window.__states()` returns the 52 ids. The **≡** button in the harness opens a panel listing
 them all.
 
 This is what makes the parity probe deterministic. Without it, measuring "the blocked card"
@@ -119,14 +119,15 @@ Three orthogonal dials the panel exposes:
 | Surface phase | `prete` · `chargement` · `erreur` | every surface goes through all three |
 | TMDB account | connected · not | Découvrir's full vs degraded mode |
 
-The 47 states cover: the five urgency sections in both scenarios, Suivis in its three modes
-plus its two empty cases, Découvrir full / degraded / exhausted / loading, the add screen idle
-and with real results, the follow sheet on a 22-season complete catalogue and on a holed one,
-the journey sheet, the "⋮" sheet, the library in grid and list, its empty search, its three
-lenses, selection mode, single and bulk delete dialogs, loading and error on every surface,
-the resolution screen, the media sheet in its variants, the navigation drawer, and Système.
+The 52 states cover: the startup screen, the entry screen and its refusal, the five urgency
+sections in both scenarios, Suivis in its three modes plus its two empty cases, Découvrir full /
+degraded / exhausted / loading, the add screen idle and with real results, the follow sheet on a
+22-season complete catalogue and on a holed one, the journey sheet, the "⋮" sheet, the library in
+grid and list, its empty search, its three lenses, selection mode, single and bulk delete
+dialogs, loading and error on every surface, the resolution screen, the media sheet in its
+variants, the navigation drawer, the two install proposals, and Système.
 
-`harness/states.py` drives all 47 and asserts each one renders content, has no horizontal
+`harness/states.py` drives all 52 and asserts each one renders content, has no horizontal
 overflow and raises no JS error. **A state that renders nothing fails the pass.**
 
 ## `regions.json` — the extraction contract and the measurement map
@@ -310,6 +311,25 @@ iOS also reads neither the manifest's `display` nor its `short_name`: standalone
 home-screen label need `apple-mobile-web-app-capable` and `apple-mobile-web-app-title`, or the
 icon opens a Safari tab instead of an app.
 
+## Signing in is followed by a wait, and the wait is drawn
+
+Two waits follow a sign-in, and both used to be blank: the browser fetching a document of
+several megabytes, then the interface rendering out of it. The first belongs to the gate — it
+still shows while the POST and the download run, so a tap on « Se connecter » answered with
+nothing at all. The second belongs to the document.
+
+One screen covers both. It is **declared first inside the frame**, and that is a correctness
+property rather than tidiness: a browser paints what it has parsed, so a screen sitting after
+the embedded artwork would appear only once the wait it exists to cover is over. It carries the
+brand, an indeterminate bar — nothing here knows how far along the load is, and a bar that
+pretended to would lie at every frame — and no control at all, because there is nothing to do
+yet. The first render drops it, synchronously: a timer either uncovers a frame that is not
+drawn or holds a ready interface, and both are visible.
+
+The gate gets the same screen by **extraction**, the rule it already obeys for the login card
+(R49), and reveals it on submit. R53 (`harness/demarrage.py`) checks all of it, gate included —
+it starts `serve.py` on a scratch port and drives a real submit.
+
 ## A trap that cost real time: **screenshots are not an oracle**
 
 Two captures of the **same, unmodified file** disagreed on 8 to 15 of the 47 states. Skeleton
@@ -366,7 +386,7 @@ They are committed because they encode recipes that cost time to get right.
 |---|---|
 | `sweep.py` | all views render content, no horizontal overflow, device at 390px, no JS error. **A view that renders nothing fails.** |
 | `scen.py` | the same sweep across both data scenarios, with explicit sub-view reset between runs |
-| `states.py` | all 45 named states render, without overflow or JS error |
+| `states.py` | all 52 named states render, without overflow or JS error |
 | `audit.py` | rules R1–R10 and R20–R23 across every state, and it announces how many rules it EXECUTED |
 | `audit2.py` | rules R11–R17 and R26–R31: uniformity, honesty of the text, one back design, one season rendering, episode presence against the data, a panel that never offers an action the medium does not support |
 | `cartes.py` | rules R41–R50: the card and gallery contract — poster to the sheet, body to the panel, no action reachable from a single surface, the same panel from a card and from a gallery |
@@ -383,6 +403,7 @@ They are committed because they encode recipes that cost time to get right.
 | `pop.py` | the episode date popover, in all its states |
 | `chrome.py` | R51: the harness bar covers none of the app's fixed controls, in every named state, at both sides of the 520px breakpoint |
 | `pwa.py` | R52: the LIVE host is installable from the first document a phone reaches — manifest, icons that load, worker registered and controlling, offline fallback cached. Runs against `tm-design.iznogoudatall.xyz`, not the local server |
+| `demarrage.py` | R53: the startup screen is declared first, covers the frame, offers no control, is gone after the first render, and the gate the server builds shows the same screen — extracted — from the submit onwards. Starts `serve.py` on a scratch port |
 
 Run them with the Python that carries Playwright, against a local static server on
 **127.0.0.1:8899** — **never** 8710 / 8711, which the reverse proxy routes to prod and

@@ -206,6 +206,25 @@ def extraire(source: str, marque: str) -> str:
     return source[source.index("\n", debut) + 1 : source.rindex("\n", debut, fin) + 1]
 
 
+# Signing in navigates to a document of several megabytes. Until its first
+# frame is painted the browser still shows THIS page, so the wait belongs here:
+# without it, a tap on « Se connecter » answers with nothing at all for as long
+# as the load takes, which reads as a form that did not submit.
+#
+# The screen shown is the prototype's own startup screen, extracted like the
+# rest of the gate, so the wait that follows a sign-in is the same surface the
+# document then keeps showing — not a copy of it that drifts.
+BASCULE_DEMARRAGE = """
+<script>
+document.querySelector('#loginform').addEventListener('submit', function (e) {
+  if (!e.currentTarget.checkValidity()) return;
+  document.querySelector('#login').hidden = true;
+  document.querySelector('#splash').hidden = false;
+});
+</script>
+"""
+
+
 def page_connexion(refusee: bool) -> bytes:
     """Builds the login page out of the prototype's own login screen.
 
@@ -224,7 +243,12 @@ def page_connexion(refusee: bool) -> bytes:
                                 '<form class="logincard" id="loginform" method="post" action="/connexion"', 1)
     if refusee:
         balisage = balisage.replace('id="loginerr" hidden', 'id="loginerr"', 1)
-    styles = extraire(source, "font") + extraire(source, "style")
+    # Inside the prototype the startup screen is what the document opens on;
+    # here it waits for the submit that makes it true.
+    balisage += extraire(source, "splash").replace(
+        ' id="splash"', ' id="splash" hidden', 1
+    )
+    styles = extraire(source, "font") + extraire(source, "style") + extraire(source, "splashstyle")
     # The palette, the box model and the typeface the screen INHERITS inside
     # the prototype. They live in the reset, outside the extracted range, and
     # without them the design silently degrades rather than breaking: the
@@ -249,6 +273,9 @@ def page_connexion(refusee: bool) -> bytes:
     # phone frame; here it IS the page.
     ajustements = """
   .loginscreen { position: static; min-height: 100vh; }
+  /* No positioned frame to cover here: the startup screen answers to the
+     viewport instead, so it stays put whatever the page does. */
+  .splash { position: fixed; }
 """
     return (
         '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
@@ -256,7 +283,8 @@ def page_connexion(refusee: bool) -> bytes:
         "<title>TorrentMate — connexion</title>"
         f"{TETE_PWA}"
         "<style>"
-        f"{socle}{styles}{ajustements}</style></head><body>{balisage}</body></html>"
+        f"{socle}{styles}{ajustements}</style></head><body>{balisage}"
+        f"{BASCULE_DEMARRAGE}</body></html>"
     ).encode()
 
 
