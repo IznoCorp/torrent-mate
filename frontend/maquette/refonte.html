@@ -4303,7 +4303,7 @@
       const tileOf = (o) => {
         const b = gridBadge(o);
         const fr = stFraction(o) ?? (o.st === "disabled" ? "en pause" : String(o.y));
-        return `<button class="tile${o.st === "disabled" ? " off" : ""}" data-sheet="${esc(o.t)}">
+        return `<button class="tile${o.st === "disabled" ? " off" : ""}" data-fiche="${esc(o.t)}" data-panel="follow:${esc(o.t)}">
           <span class="p">${posterBox(o.t, o.k)}</span>
           ${b ? `<span class="tilebadge" style="background:var(--${b.tone === "muted" ? "neutral-signal" : b.tone === "en_attente" ? "waiting" : b.tone === "en_acquisition" ? "info" : "warning"})">${b.txt}</span>` : ""}
           <span class="nm">${esc(o.t)}</span>
@@ -4487,7 +4487,7 @@
     const grid = rows
       .map(
         (o) =>
-          `<button class="tile" data-fiche="${esc(o.t)}"><span class="p">${posterBox(o.t, o.k)}</span><span class="nm">${esc(o.t)}</span><span class="fr">${esc(o.f)}</span></button>`,
+          `<button class="tile" data-fiche="${esc(o.t)}" data-panel="lib:${esc(o.t)}"><span class="p">${posterBox(o.t, o.k)}</span><span class="nm">${esc(o.t)}</span><span class="fr">${esc(o.f)}</span></button>`,
       )
       .join("");
     const list = rows
@@ -4678,7 +4678,7 @@
   function libTileHTML(o, i) {
     const sel = S.selMode;
     const on = S.selected.has(i);
-    return `<button class="tile" data-tile="${i}" ${sel ? `aria-selected="${on}"` : `data-fiche="${esc(o.t)}"`}>
+    return `<button class="tile" data-tile="${i}" data-panel="lib:${i}" ${sel ? `aria-selected="${on}"` : `data-fiche="${esc(o.t)}"`}>
       <span class="p">${posterBox(o.t, o.k)}</span>
       ${sel ? `<span class="sel">${svg(I.check, 3)}</span>` : ""}
       <span class="nm">${esc(o.t)}</span>
@@ -4735,18 +4735,18 @@
   port.addEventListener(
     "pointerdown",
     (e) => {
-      // A long press opens the actions of whatever poster is under the finger,
-      // in both galleries. In the poster format the tile has no body to tap —
-      // the poster fills it — so without this the two verbs would be
-      // unreachable there, and a format that hides the verbs the others offer
-      // is a format that quietly does less.
-      const t = e.target.closest("[data-tile]");
-      const s = e.target.closest(".sugtile");
-      if (S.selMode || (!t && !s)) return;
+      // ONE pattern for every poster gallery: a tap opens the media sheet, a
+      // long press opens the bottom panel. Which panel is stated by the tile
+      // itself, so a new gallery declares its destination instead of teaching
+      // the handler a new special case.
+      const cible = e.target.closest("[data-panel]");
+      if (S.selMode || !cible) return;
+      const [genre, ref] = cible.dataset.panel.split(":");
       pressTimer = window.setTimeout(() => {
         pressTimer = null;
-        if (t) openLibSheet(Number(t.dataset.tile));
-        else openSugSheet(Number(s.dataset.sugwrap));
+        if (genre === "lib") openLibSheet(/^\d+$/.test(ref) ? Number(ref) : ref);
+        else if (genre === "sug") openSugSheet(Number(ref));
+        else if (genre === "follow") openFollowSheet(ref);
       }, 480);
     },
     { passive: true },
@@ -4787,8 +4787,11 @@
       </div>`);
   }
 
-  function openLibSheet(i) {
-    const o = LIB[i];
+  /* Accepts an index into the library or a plain title: the gallery of a lens
+     shows rows that are not library indices, and a panel that only answers an
+     index would be unreachable from half the galleries. */
+  function openLibSheet(ref) {
+    const o = typeof ref === "number" ? LIB[ref] : LIB.find((x) => x.t === ref) ?? { t: ref };
     openSheet(`
       <h3 class="sheettitle">${esc(o.t)}</h3>
       <p class="sheetmeta">${esc(o.f)} · en médiathèque</p>
@@ -4942,7 +4945,7 @@
   /* Poster format — the same two destinations as the list card: the poster
      opens the sheet, the body opens the bottom panel. */
   function sugTileHTML(s, i) {
-    return `<div class="sugtile" data-sugwrap="${i}">
+    return `<div class="sugtile" data-sugwrap="${i}" data-panel="sug:${i}">
       <button class="p" data-fiche="${esc(s.t)}" aria-label="Fiche de ${esc(s.t)}">${posterBox(s.t, s.k === "Film" ? "movie" : "show")}<span class="n">${esc(String(s.note))}</span></button>
       <button class="b" data-sug="${i}" aria-label="${esc(s.t)} — actions">
         <span class="t">${esc(s.t)}</span>
