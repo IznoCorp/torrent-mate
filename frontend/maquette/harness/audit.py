@@ -45,7 +45,7 @@ async def main():
 
           // R1 — every tappable poster leads to a FILLED-IN sheet
           R.fichesCreuses = [...racine.querySelectorAll('[data-fiche]')].map(el=>el.dataset.fiche)
-            .filter(t=>{const f=fiche(t); return !f || !f.ov || !f.g || !(f.cast||[]).length;});
+            .filter(t=>{const f=sheetFor(t); return !f || !f.ov || !f.g || !(f.cast||[]).length;});
 
           // R2 — HARDENED: a button must have a declared DESTINATION, not
           // merely a known class. Whitelisting by class blessed every `.sact`,
@@ -219,7 +219,7 @@ async def main():
       const out=[];
       const attendu={movie:{ajout:'Ajouter',pause:'Ne plus chercher',retrait:'Retirer de la liste'},
                      show:{ajout:'Suivre',pause:'Mettre en pause',retrait:'Retirer le suivi'}};
-      for (const f of W.follows) {
+      for (const f of world.follows) {
         const lab = stLabel(f);
         if (f.k==='movie' && /jour|Terminé/.test(lab)) out.push(`film « ${f.t} » porte « ${lab} » (vocabulaire série)`);
       }
@@ -229,8 +229,8 @@ async def main():
 
     # R10 — every action opens a layer, navigates, or mutates — never nothing
     inertes = await pg.evaluate("""async ()=>{
-      const out=[]; const snap=()=>JSON.stringify({t:W.takeable.length,i:W.inflight.length,s:W.stuck.length,
-        m:W.moving.length,f:W.follows.length,l:W.lib.length,p:S.page,tab:S.acqTab,lens:S.libLens});
+      const out=[]; const snap=()=>JSON.stringify({t:world.takeable.length,i:world.inflight.length,s:world.stuck.length,
+        m:world.moving.length,f:world.follows.length,l:world.lib.length,p:state.page,tab:state.acqTab,lens:state.libLens});
       for (const id of ['acq-encours-charge','arr-charge','lib-incomplets']) {
         window.__go(id); await new Promise(r=>setTimeout(r,220));
         const btns=[...document.querySelectorAll('#view .cfoot')];

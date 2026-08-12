@@ -14,7 +14,7 @@ async def main():
     await pg.evaluate("()=>window.__measure(true)")
 
     await pg.evaluate("()=>window.__go('arr-charge')"); await pg.wait_for_timeout(320)
-    avant = await pg.evaluate("()=>({coince:D.stuck().length, avance:D.moving().length, suivis:W.follows.length})")
+    avant = await pg.evaluate("()=>({coince:derived.stuck().length, avance:derived.moving().length, suivis:world.follows.length})")
     print("starting state           :", avant)
 
     await pg.evaluate("()=>[...document.querySelectorAll('.cfoot')].find(x=>x.textContent.includes('Résoudre')).click()")
@@ -31,7 +31,7 @@ async def main():
     await pg.screenshot(path="p_identifier.png")
 
     await pg.evaluate("()=>document.querySelector('.resbtn').click()"); await pg.wait_for_timeout(700)
-    apres = await pg.evaluate("()=>({coince:D.stuck().length, avance:D.moving().length, suivis:W.follows.length})")
+    apres = await pg.evaluate("()=>({coince:derived.stuck().length, avance:derived.moving().length, suivis:world.follows.length})")
     print("après « Associer »       :", apres)
     print("notification             :", (await pg.evaluate("()=>document.querySelector('#toastmsg')?.textContent"))[:90])
 

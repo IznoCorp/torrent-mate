@@ -84,14 +84,14 @@ async def main():
       const titres=Object.keys(FICHES_RAW ?? {});
       const prend=(pred, n)=>titres.filter(pred).slice(0, n);
       const incomplet=(t)=>{const s=POSSEDES[t]??POSSEDES[baseTitle(t)];
-        if(!s) return false; const f=fiche(t); if(!f?.saisons) return false;
+        if(!s) return false; const f=sheetFor(t); if(!f?.saisons) return false;
         return f.saisons.some(x=>x.ep && (s[String(x.n)]??[]).length < x.ep);};
-      choix.push(...prend(t=>fiche(t)?.k==='movie', 2));
-      choix.push(...prend(t=>fiche(t)?.k==='show' && !incomplet(t), 2));
+      choix.push(...prend(t=>sheetFor(t)?.k==='movie', 2));
+      choix.push(...prend(t=>sheetFor(t)?.k==='show' && !incomplet(t), 2));
       choix.push(...prend(incomplet, 4));
       choix.push(...prend(t=>!(HEROS[t]??HEROS[baseTitle(t)]), 2));
       for (const t of [...new Set(choix)]) {
-        window.__reset(); set({page:'lib', phase:'prete'}); openFiche(t);
+        window.__reset(); applyState({page:'lib', phase:'prete'}); openFiche(t);
         await new Promise(r=>setTimeout(r,200));
         const b=document.querySelector('#screen .body');
         if (!b) { out[t]=['FICHE VIDE']; continue; }
@@ -147,10 +147,10 @@ async def main():
     evalue('R16')
     # R16 — the badge is the sum it claims to be
     bad=await pg.evaluate("""async ()=>{const out=[];
-      for (const s of ['reel','charge']) { S.scen=s; window.__go('acq-encours-'+(s==='reel'?'repos':'charge'));
+      for (const s of ['reel','charge']) { state.scen=s; window.__go('acq-encours-'+(s==='reel'?'repos':'charge'));
         await new Promise(r=>setTimeout(r,240));
         const badge=document.querySelector('[data-page=acq] .navbadge');
-        const attendu=D.takeable().length+D.blocked().length;
+        const attendu=derived.takeable().length+derived.blocked().length;
         const lu=badge?Number(badge.textContent):0;
         if (lu!==attendu) out.push(`${s}: badge ${lu} != to-grab+to-resolve ${attendu}`);
         const onglet=document.querySelector('.seg .n');
@@ -166,10 +166,10 @@ async def main():
       document.querySelector('#view .swipe .act.remove').click(); await new Promise(r=>setTimeout(r,320));
       if (!document.querySelector('#toastundo')) out.push('removing a follow: no undo');
       window.__go('lib-liste'); await new Promise(r=>setTimeout(r,260));
-      const av=W.lib.length;
+      const av=world.lib.length;
       document.querySelector('#libitems .swipe .act.remove').click(); await new Promise(r=>setTimeout(r,320));
       if (!document.querySelector('#dlg').classList.contains('open')) out.push('deleting a medium: no confirmation');
-      if (W.lib.length!==av) out.push('deleting a medium: mutation BEFORE confirmation');
+      if (world.lib.length!==av) out.push('deleting a medium: mutation BEFORE confirmation');
       return out;}""")
     for x in rev: note("R17 destruction without a guard", x)
 
@@ -296,7 +296,7 @@ async def main():
       if (!atrous.length) return ['no series with an internal hole — the rule would be vacuous'];
       let inspectes=0;
       for (const titre of atrous) {
-        window.__reset(); set({page:'lib', phase:'prete'}); openFiche(titre);
+        window.__reset(); applyState({page:'lib', phase:'prete'}); openFiche(titre);
         await new Promise(r=>setTimeout(r,160));
         for (const det of document.querySelectorAll('#screen details.season')) {
           const num=Number((det.querySelector('summary')?.textContent||'').match(/Saison\\s+(\\d+)/)?.[1]);
@@ -324,9 +324,9 @@ async def main():
     # numbered matrix (177), and twelve sheets contained both at once. A sheet
     # must not have two faces depending on the data it happens to have.
     rendus=await pg.evaluate("""async ()=>{const c={lignes:[], matrice:[], mixte:[]};
-      const series=Object.keys(FICHES_RAW).filter(t=>fiche(t)?.k!=='movie');
+      const series=Object.keys(FICHES_RAW).filter(t=>sheetFor(t)?.k!=='movie');
       for (const t of series) {
-        window.__reset(); set({page:'lib',phase:'prete'}); openFiche(t);
+        window.__reset(); applyState({page:'lib',phase:'prete'}); openFiche(t);
         await new Promise(r=>setTimeout(r,35));
         const dets=[...document.querySelectorAll('#screen details.season')];
         if (!dets.length) continue;
@@ -358,7 +358,7 @@ async def main():
     # what is true about the medium, so the rule checks that derivation instead
     # of forbidding a destination.
     dest=await pg.evaluate("""async ()=>{const out=[];
-      const suivis=new Set(W.follows.map(x=>x.t));
+      const suivis=new Set(world.follows.map(x=>x.t));
       for (const etat of ['lib-incomplets','lib-liste','lib-recents']) {
         for (let i=0; i<6; i++) {
           window.__go(etat); await new Promise(r=>setTimeout(r,300));

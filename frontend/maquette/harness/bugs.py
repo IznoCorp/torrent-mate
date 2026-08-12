@@ -37,7 +37,7 @@ async def main():
     # 3 — changing page closes the media sheet
     await pg.evaluate("()=>window.__go('fiche-serie')"); await pg.wait_for_timeout(400)
     await pg.evaluate("()=>document.querySelector('[data-page=lib]').click()"); await pg.wait_for_timeout(400)
-    r = await pg.evaluate("()=>({ecran:document.querySelector('#screen').classList.contains('open'), page:S.page})")
+    r = await pg.evaluate("()=>({ecran:document.querySelector('#screen').classList.contains('open'), page:state.page})")
     chk("3. navigation ferme la fiche", not r["ecran"] and r["page"]=="lib", str(r))
 
     # 4 — the cast carousel no longer blocks vertical scrolling

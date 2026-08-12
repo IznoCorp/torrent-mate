@@ -19,7 +19,7 @@ async def main():
     await pg.evaluate("()=>window.__measure(true)")
 
     async def deck():
-        await pg.evaluate('()=>{window.__reset(); set({page:"acq",acqTab:"decouvrir",phase:"prete"}); S.sugMode="deck"; render();}')
+        await pg.evaluate('()=>{window.__reset(); applyState({page:"acq",acqTab:"decouvrir",phase:"prete"}); state.sugMode="deck"; render();}')
         await pg.wait_for_timeout(600)
 
     async def titre():
@@ -42,9 +42,9 @@ async def main():
         await pg.wait_for_timeout(700)
 
     await deck()
-    t0 = await titre(); n0 = await pg.evaluate("()=>S.sugGone.size")
+    t0 = await titre(); n0 = await pg.evaluate("()=>state.sugGone.size")
     await glisser(-170)
-    t1 = await titre(); n1 = await pg.evaluate("()=>S.sugGone.size")
+    t1 = await titre(); n1 = await pg.evaluate("()=>state.sugGone.size")
     revient = await pg.evaluate("(t)=>deckOrdre().map(i=>SUGGESTIONS[i].t).includes(t)", t0)
     print(f"LEFT   « {t0[:26]} » → « {t1[:26]} »")
     print(f"       dismissed {n0} → {n1} · comes round again: {revient}")
@@ -52,7 +52,7 @@ async def main():
     await deck()
     t2 = await titre()
     await glisser(170)
-    t3 = await titre(); n3 = await pg.evaluate("()=>S.sugGone.size")
+    t3 = await titre(); n3 = await pg.evaluate("()=>state.sugGone.size")
     annul = await pg.evaluate("()=>!!document.querySelector('#toastundo')")
     print(f"RIGHT  « {t2[:26]} » → « {t3[:26]} »")
     print(f"       dismissed {n3} · undo offered: {annul}")

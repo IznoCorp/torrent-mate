@@ -10,9 +10,9 @@ async def main():
     pg.on("pageerror", lambda e: errs.append(str(e)))
     await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
     await pg.evaluate("()=>window.__measure(true)")
-    cnt = """()=>({aRecup:D.takeable().length, enVol:D.inflight().length, coince:D.stuck().length,
-                   avance:D.moving().length, suivis:W.follows.length,
-                   pause:W.follows.filter(f=>f.st==='disabled').length, lib:W.lib.length,
+    cnt = """()=>({aRecup:derived.takeable().length, enVol:derived.inflight().length, coince:derived.stuck().length,
+                   avance:derived.moving().length, suivis:world.follows.length,
+                   pause:world.follows.filter(f=>f.st==='disabled').length, lib:world.lib.length,
                    badgeAcq:(document.querySelector('[data-page=acq] .navbadge')||{}).textContent||null})"""
 
     await pg.evaluate("()=>window.__go('acq-encours-charge')"); await pg.wait_for_timeout(300)

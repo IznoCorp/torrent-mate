@@ -29,7 +29,7 @@ async def main():
         await pg.wait_for_timeout(700)
 
     # 1. Slide cards — the case the operator reported.
-    await pg.evaluate("()=>{window.__reset(); set({page:'acq',acqTab:'decouvrir',phase:'prete'}); S.sugMode='deck'; render();}")
+    await pg.evaluate("()=>{window.__reset(); applyState({page:'acq',acqTab:'decouvrir',phase:'prete'}); state.sugMode='deck'; render();}")
     await pg.wait_for_timeout(600)
     t0 = await pg.evaluate("()=>document.querySelector('.dcard[data-depth=\"0\"] .t').textContent")
     await glisser('.dcard[data-depth="0"]', -180)
@@ -38,10 +38,10 @@ async def main():
     if not (t1 != t0): echecs.append("slide cards, mouse left")
     # Reset between gestures: chaining two drags without one measures the
     # second against the state the first left, which is not what is being asked.
-    await pg.evaluate("()=>{window.__reset(); set({page:'acq',acqTab:'decouvrir',phase:'prete'}); S.sugMode='deck'; render();}")
+    await pg.evaluate("()=>{window.__reset(); applyState({page:'acq',acqTab:'decouvrir',phase:'prete'}); state.sugMode='deck'; render();}")
     await pg.wait_for_timeout(600)
     await glisser('.dcard[data-depth="0"]', 180)
-    n = await pg.evaluate("()=>S.sugGone.size")
+    n = await pg.evaluate("()=>state.sugGone.size")
     print(f"slide cards, mouse right: dismissed {n}  {'OK' if n == 1 else 'FAIL'}")
     if not (n == 1): echecs.append("slide cards, mouse right")
 
@@ -53,7 +53,7 @@ async def main():
     if not (tr != 'none'): echecs.append("follow row, mouse swipe")
 
     # 3. Suggestion card swipe in the list format.
-    await pg.evaluate("()=>{window.__reset(); set({page:'acq',acqTab:'decouvrir',phase:'prete'}); S.sugMode='list'; render();}")
+    await pg.evaluate("()=>{window.__reset(); applyState({page:'acq',acqTab:'decouvrir',phase:'prete'}); state.sugMode='list'; render();}")
     await pg.wait_for_timeout(600)
     avant = await pg.evaluate("()=>document.querySelectorAll('.sugwrap').length")
     await glisser(".sugwrap", 200)

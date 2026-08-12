@@ -76,7 +76,7 @@ async def main():
     for lens in ("cat", "inc", "rec"):
         formes = {}
         for mode in ("grid", "list"):
-            await pg.evaluate("([l,m])=>{window.__reset(); set({page:'lib',libLens:l,libMode:m,phase:'prete'}); render();}", [lens, mode])
+            await pg.evaluate("([l,m])=>{window.__reset(); applyState({page:'lib',libLens:l,libMode:m,phase:'prete'}); render();}", [lens, mode])
             await pg.wait_for_timeout(420)
             formes[mode] = await pg.evaluate("""()=>({
                 tuiles:document.querySelectorAll('#view .tile[data-panel]').length,

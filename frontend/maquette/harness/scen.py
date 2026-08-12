@@ -22,10 +22,10 @@ async def main():
     total_bad = 0
     for scen, mot in (("reel", "repos"), ("charge", "charge")):
         print(f"\n=== scenario {scen} ===")
-        await pg.evaluate("(s)=>{S.scen=s;render();}", scen)
+        await pg.evaluate("(s)=>{state.scen=s;render();}", scen)
         for nom, sid in VUES:
             await pg.evaluate("(i)=>window.__go(i)", sid.format(s=mot))
-            await pg.evaluate("(s)=>{S.scen=s;render();}", scen)
+            await pg.evaluate("(s)=>{state.scen=s;render();}", scen)
             await pg.wait_for_timeout(320)
             r = await pg.evaluate("""()=>{const v=document.querySelector('#view');
               return {txt:v.textContent.replace(/\\s+/g,' ').trim().length,
