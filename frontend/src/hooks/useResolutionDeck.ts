@@ -246,7 +246,7 @@ export function useResolutionDeck(
 
   const dismissMut = useDismissDecision({
     onDismissed: (_data, id) => {
-      toast.success("Décision ignorée — dossier laissé tel quel");
+      toast.success("Dossier laissé tel quel — le résultat automatique est conservé.");
       markProcessed(id);
     },
     onError: (err: unknown) => {

@@ -205,7 +205,7 @@ export default function Medias(): ReactElement {
       { replace: true },
     );
   }, [setSearchParams]);
-  // The decision id whose inline "Ignorer" quick-dismiss is in flight.
+  // The decision id whose inline « Laisser tel quel » shortcut is in flight.
   const [dismissingId, setDismissingId] = useState<number | null>(null);
 
   // Stable array for the hook: an empty filter fetches (and merges) all statuses.

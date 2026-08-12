@@ -171,7 +171,7 @@ describe("ResolutionDeck", () => {
   it("dismisses the current decision", async () => {
     setup({});
     renderDeck();
-    fireEvent.click(screen.getByRole("button", { name: "Ignorer" }));
+    fireEvent.click(screen.getByRole("button", { name: "Laisser tel quel" }));
     await waitFor(() => {
       expect(dismissMock).toHaveBeenCalledWith(1);
     });
@@ -264,8 +264,8 @@ describe("ResolutionDeck", () => {
   it("opens positioned on initialDecisionId when it is in the queue (C18)", () => {
     setup({
       items: [
-        listItem({ id: 1, extracted_title: "Inception" }),
-        listItem({ id: 2, extracted_title: "Interstellar" }),
+        listItem({ id: 1, staging_path: "/staging/001-MOVIES/Inception (2010)" }),
+        listItem({ id: 2, staging_path: "/staging/001-MOVIES/Interstellar (2014)" }),
       ],
     });
     // Without a target the head (Inception) would show; targeting id 2 jumps
@@ -274,8 +274,9 @@ describe("ResolutionDeck", () => {
     expect(
       screen.getByRole("group", { name: /résolution/i }),
     ).toBeInTheDocument();
-    // The header shows the targeted decision's extracted title.
-    expect(screen.getAllByText("Interstellar").length).toBeGreaterThan(0);
+    // The header shows the targeted decision's FOLDER — the subject of an
+    // arbitration is what is on disk, never the title the scrape guessed (R57).
+    expect(screen.getAllByText("Interstellar (2014)").length).toBeGreaterThan(0);
   });
 });
 

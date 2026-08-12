@@ -9871,7 +9871,7 @@
      hangs on the dense scenario's folder, whose stated reason already says
      precisely that. */
   const DECISIONS_ATTENTE = [
-    {"d": "Lucky", "k": "show", "t": "Lucky", "motif": "ambiguous", "quand": "15 juillet, 14 h 52", "c": [{"t": "Lucky!", "y": 2022, "p": "tvdb", "id": 427619, "s": 1.0, "sans": false}, {"t": "Lucky (2026)", "y": 2026, "p": "tvdb", "id": 457437, "s": 1.0, "sans": false}, {"t": "Lucky (2006)", "y": 2006, "p": "tvdb", "id": 317944, "s": 1.0, "sans": true}, {"t": "Lucky (2003)", "y": 2003, "p": "tvdb", "id": 70876, "s": 1.0, "sans": false}, {"t": "Lucky Chances", "y": 1990, "p": "tvdb", "id": 298989, "s": 0.9, "sans": false}]},
+    {"d": "Lucky", "k": "show", "t": "Lucky", "motif": "ambiguous", "quand": "15 juillet, 14 h 52", "c": [{"t": "Lucky!", "y": 2022, "p": "tvdb", "id": 427619, "s": 1.0, "sans": false, "resume": "The extraordinary story of Bernie Ecclestone's meteoric rise from post-war car dealer to the creation and 50-year reign over the cutthroat world of Formula One."}, {"t": "Lucky (2026)", "y": 2026, "p": "tvdb", "id": 457437, "s": 1.0, "sans": false, "resume": "A reformed criminal is forced to confront her past and return to illicit activities for one final job, hoping to secure her freedom and leave her former life behind for good."}, {"t": "Lucky (2006)", "y": 2006, "p": "tvdb", "id": 317944, "s": 1.0, "sans": true, "resume": "About a young man Lucky, who runs a fake antique shop in Chor Bazaar and has the simplest ways of living, i.e. conning people by selling them fake antiques and actually making them believe that the artifacts are genuine. Lucky is a street smart, confident and intelligent character, who loves life the way it comes until he gets to know about the Rakshaks who were born for protecting sacred and priceless treasures and that now he is going to be the chosen one...the fifth Rakshak."}, {"t": "Lucky (2003)", "y": 2003, "p": "tvdb", "id": 70876, "s": 1.0, "sans": false, "resume": "After winning $1 million in the World Series of Poker at a Las Vegas casino, Michael 'Lucky' Linkletter lived like a king... briefly. Now, one year later, he's penniless. Although Lucky's been clean from his gambling addiction for six months, his debts continue to mount - including money owed to his deceased wife's parents and a mobster."}, {"t": "Lucky Chances", "y": 1990, "p": "tvdb", "id": 298989, "s": 0.9, "sans": false, "resume": "Based on the novels \"Chances\" and \"Lucky\" by Jackie Collins, this miniseries features the rise of Gino Santangelo in the Las Vegas casino industry, and his daughter Lucky's subsequent struggle to maintain the family empire."}]},
     {"d": "Backrooms.2026.MULTi.2160p.WEB-DL", "k": "movie", "t": "Backrooms", "y": 2026, "motif": "below_threshold", "quand": "aujourd'hui, 06 h 16", "c": []},
   ];
 
@@ -10073,6 +10073,16 @@
       <span class="cbody">
         <span class="ctitle">${escapeHtml(titre)}</span>
         <span class="csub">${escapeHtml(meta)}</span>
+        ${
+          /* The synopsis is what actually SEPARATES four series with nearly
+             the same name, so it belongs on the card that asks to choose
+             between them. It is an `overview`, not a reason: it clamps
+             (R48 — a reason wraps and the card grows, a synopsis does not).
+             Carrying it here is also what makes leaving the screen
+             unnecessary: an arbitration that sends you to a full sheet to
+             decide loses the queue you were working through. */
+          opts.resume ? `<span class="cov">${escapeHtml(opts.resume)}</span>` : ""
+        }
         ${confiance ? `<span class="cmeta"><span class="chip info">confiance ${escapeHtml(confiance)}</span></span>` : ""}
       </span>
     </div>
@@ -34687,7 +34697,13 @@
              picture: a candidate wearing a neighbour's poster is the one
              mistake this screen cannot make. The absence is said by the
              placeholder itself, not by a sentence in a line that truncates. */
-          { genre: "candidat", k: decision.k, exact: true, sansAffiche: candidat.sans },
+          {
+            genre: "candidat",
+            k: decision.k,
+            exact: true,
+            sansAffiche: candidat.sans,
+            resume: candidat.resume,
+          },
         ),
       )
       .join("")}`;

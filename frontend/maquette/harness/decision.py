@@ -60,6 +60,8 @@ ECRAN = """() => {
       panneau: (c.querySelector('.cbody') || {}).dataset?.panel || null,
       affiche: (c.querySelector('.poster img') || {}).src || null,
       sansAffiche: !!c.querySelector('.poster .pfall'),
+      resume: (c.querySelector('.cov') || {}).textContent || null,
+      lien: c.querySelectorAll('a, [data-fiche]').length,
     })),
     decisions: decisions.map(c => ({
       dossier: (c.querySelector('.ctitle') || {}).textContent || '',
@@ -117,6 +119,14 @@ async def main():
         verifier("aucun candidat ne porte l'affiche d'un autre",
                  len(affiches) == len(set(affiches)),
                  f"{len(affiches)} affiches, {len(set(affiches))} distinctes")
+        # What actually separates four series with nearly the same name is what
+        # they are about. Without it, the only way to decide was to leave the
+        # screen — and leaving loses the queue.
+        verifier("chaque candidat dit de quoi il parle",
+                 all(c["resume"] for c in avec["candidats"]),
+                 str([c["titre"] for c in avec["candidats"] if not c["resume"]]))
+        verifier("et rien n'invite à quitter l'écran pour décider",
+                 not any(c["lien"] for c in avec["candidats"]))
         verifier("celui que le provider n'illustre pas montre le substitut",
                  sum(1 for c in avec["candidats"] if c["sansAffiche"]) == 1,
                  str([c["titre"] for c in avec["candidats"] if c["sansAffiche"]]))

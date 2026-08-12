@@ -11,7 +11,8 @@
 import { CheckCircle2 } from "lucide-react";
 import type { ReactElement } from "react";
 
-import { TRIGGER_LABEL } from "@/components/decisions/triggers";
+import { decisionFacts } from "@/components/decisions/decisionFacts";
+import { DecisionRow } from "@/components/ds/DecisionRow";
 import { useDecisions } from "@/hooks/useDecisions";
 import { Panel } from "@/components/ds/Panel";
 
@@ -39,30 +40,19 @@ export function RecentResolutions(): ReactElement | null {
     <Panel className="flex flex-col gap-2 p-4">
       <div className="flex items-center gap-2">
         <CheckCircle2 className="size-4 text-success" aria-hidden="true" />
-        <h3 className="text-sm font-semibold">
-          Décisions de scraping résolues récemment
-        </h3>
+        <h3 className="text-sm font-semibold">Réglées récemment</h3>
         <span className="font-mono text-xs tabular-nums text-muted-foreground">
           {items.length}
         </span>
       </div>
-      <ul className="flex flex-col gap-1">
+      {/* The shared decision card, not a hand-built row: what these lines are
+          about is a FOLDER, and the queue and this journal are two views of one
+          thing. Drawing them differently made the same decision read « Réglée »
+          on one screen and « identifiée » on the other. */}
+      <ul className="flex flex-col gap-2">
         {items.map((d) => (
-          <li
-            key={d.id}
-            className="ps-enter-row flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 border-b border-border/60 py-1 text-sm last:border-b-0"
-          >
-            <span className="min-w-0 truncate">
-              {d.extracted_title}
-              {d.extracted_year != null && (
-                <span className="ml-1 font-mono text-xs text-muted-foreground">
-                  {d.extracted_year}
-                </span>
-              )}
-            </span>
-            <span className="shrink-0 text-xs text-muted-foreground">
-              {TRIGGER_LABEL[d.trigger] ?? d.trigger} — identifiée
-            </span>
+          <li key={d.id} className="ps-enter-row">
+            <DecisionRow {...decisionFacts(d)} />
           </li>
         ))}
       </ul>

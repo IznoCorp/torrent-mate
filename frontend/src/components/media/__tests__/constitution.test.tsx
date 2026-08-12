@@ -385,44 +385,28 @@ describe("§11 constitution — « Tout média est consultable »", () => {
   describe("CandidateCard", () => {
     coveredSurfaces.add("CandidateCard");
 
-    it("renders a « Voir la fiche » link with the correct sheet href", () => {
+    it("n'invite PAS à quitter l'écran pour décider (R57)", () => {
+      // A candidate is a proposition, not one of your media: it has no panel,
+      // and it does not send the operator to a full sheet to decide. What
+      // separates two candidates is what they are ABOUT, and the synopsis is
+      // on the card. Leaving loses the queue being worked through.
       const onClick = vi.fn();
-      render(
+      const { container } = render(
         <MemoryRouter>
           <CandidateCard
-            candidate={movieCandidate()}
+            candidate={movieCandidate({
+              overview: "Un voleur entre dans les rêves.",
+            })}
             isSelected={false}
             onClick={onClick}
           />
         </MemoryRouter>,
       );
 
-      const link = screen.getByText("Voir la fiche");
-      expect(link).toBeInTheDocument();
-      expect(link.tagName).toBe("A");
-      expect(link.getAttribute("href")).toBe("/media/tmdb/123");
-
-      // Clicking the link must NOT trigger the card's onClick (selection).
-      fireEvent.click(link);
-      expect(onClick).not.toHaveBeenCalled();
-    });
-
-    it("renders a sheet link for TVDB candidates too", () => {
-      render(
-        <MemoryRouter>
-          <CandidateCard
-            candidate={movieCandidate({
-              provider: "tvdb",
-              provider_id: 255968,
-            })}
-            isSelected={false}
-            onClick={vi.fn()}
-          />
-        </MemoryRouter>,
-      );
-
-      const link = screen.getByText("Voir la fiche");
-      expect(link.getAttribute("href")).toBe("/media/tvdb/255968");
+      expect(container.querySelector("a")).toBeNull();
+      expect(screen.queryByText("Voir la fiche")).toBeNull();
+      // What actually decides between two homonyms is on the card.
+      expect(screen.getByText(/entre dans les rêves/)).toBeInTheDocument();
     });
   });
 

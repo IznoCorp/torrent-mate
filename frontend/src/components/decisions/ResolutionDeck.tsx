@@ -12,7 +12,7 @@
  *
  * - ``←`` / ``→`` move the candidate selection
  * - ``Entrée`` validate the selected candidate
- * - ``d`` dismiss (leave the folder as-is)
+ * - ``d`` leave the folder as it is (the automatic result stands)
  * - ``s`` focus the manual search
  * - ``n`` skip to the next decision without deciding
  *
@@ -26,7 +26,9 @@ import { CheckCircle2 } from "lucide-react";
 import { type ReactElement } from "react";
 
 import { CandidateCard } from "@/components/decisions/CandidateCard";
-import { TRIGGER_LABEL, TRIGGER_TONE } from "@/components/decisions/triggers";
+import { tiedLeaders, tieNotice } from "@/components/decisions/tie";
+import { folderName } from "@/components/decisions/decisionFacts";
+import { TRIGGER_LABEL, TRIGGER_TONE, TRIGGER_TOOLTIP } from "@/components/decisions/triggers";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { ErrorState } from "@/components/ds/ErrorState";
 import { Kbd } from "@/components/ds/Kbd";
@@ -148,22 +150,27 @@ export function ResolutionDeck({
             />
           </div>
         )}
-        {/* Header: extracted media + trigger + progress + shortcuts */}
+        {/* Header: the FOLDER + why it is here + how many are left.
+            What is being arbitrated is a folder the scrape could not name, so
+            the folder is the subject — in the mono face, as it is on disk. The
+            extracted title used to stand in for it, which is the one thing that
+            could not be trusted here (R57). */}
         <Panel className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0 flex-1 flex flex-col gap-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="min-w-0 break-words text-base font-semibold">
-                {current.extracted_title}
+              <span
+                className="min-w-0 break-all font-mono text-base font-semibold"
+                title={current.staging_path}
+              >
+                {folderName(current.staging_path)}
               </span>
-              {current.extracted_year != null && (
-                <span className="font-mono text-sm tabular-nums text-muted-foreground">
-                  {current.extracted_year}
-                </span>
-              )}
               <Badge tone={TRIGGER_TONE[current.trigger] ?? "neutral"} dot>
                 {TRIGGER_LABEL[current.trigger] ?? current.trigger}
               </Badge>
             </div>
+            <span className="text-xs text-muted-foreground">
+              {TRIGGER_TOOLTIP[current.trigger] ?? ""}
+            </span>
             <span className="font-mono text-xs text-muted-foreground">
               {current.media_kind === "movie" ? "Film" : "Série"} ·{" "}
               {String(visibleCount)} restante(s)
@@ -247,27 +254,35 @@ export function ResolutionDeck({
         {candidates.length === 0 ? (
           <EmptyState
             title="Aucun candidat"
-            description="Aucun match automatique — utilise la recherche manuelle ci-dessus ou ignore ce dossier."
+            description="Les providers n\u2019ont renvoyé aucun candidat pour ce nom. Il n\u2019y a rien à choisir : la recherche manuelle est la seule voie."
           />
         ) : (
-          <div
-            ref={gridRef}
-            className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
-          >
-            {candidates.map((candidate, idx) => (
-              <div
-                key={`${candidate.provider}-${String(candidate.provider_id)}-${String(idx)}`}
-                data-candidate-idx={idx}
-              >
-                <CandidateCard
-                  candidate={candidate}
-                  isSelected={idx === selected}
-                  onClick={() => {
-                    setSelected(idx);
-                  }}
-                />
-              </div>
-            ))}
+          <div className="flex flex-col gap-3">
+            {/* Stated once, above the grid: the tie is a fact about the
+                ranking, not about any one candidate (R57). */}
+            {tieNotice(candidates) != null && (
+              <p className="text-xs text-muted-foreground">{tieNotice(candidates)}</p>
+            )}
+            <div
+              ref={gridRef}
+              className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
+            >
+              {candidates.map((candidate, idx) => (
+                <div
+                  key={`${candidate.provider}-${String(candidate.provider_id)}-${String(idx)}`}
+                  data-candidate-idx={idx}
+                >
+                  <CandidateCard
+                    candidate={candidate}
+                    isSelected={idx === selected}
+                    tied={tiedLeaders(candidates)[idx] ?? false}
+                    onClick={() => {
+                      setSelected(idx);
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -286,7 +301,7 @@ export function ResolutionDeck({
             onClick={handleDismiss}
             disabled={busy}
           >
-            Ignorer
+            Laisser tel quel
           </Button>
           <Button
             className="flex-1 sm:flex-none"

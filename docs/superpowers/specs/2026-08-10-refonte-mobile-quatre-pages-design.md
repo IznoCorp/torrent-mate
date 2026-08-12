@@ -127,6 +127,7 @@ abstraction is how the previous rebuild produced a monster.
 | `FilterBar`     | `.filters` = `.search` + `.pillbar` (`.pillscroll` `touch-action: pan-x` + `.vswwrap` divider + `.vsw`)         | Médiathèque, Suivis                                            |
 | `MediaRow`      | `AcquisitionCard` moved to `ds/` and given a DESCRIPTOR OF FACTS in place of its `meta: ReactNode`             | all four pages                                                 |
 | `MediaTile`     | the former `ds/MediaCard`, renamed for what it draws: a gallery tile, not a list row                           | Médiathèque, staging                                           |
+| `DecisionRow`   | the THIRD shape: a scrape decision is a FOLDER, so it promises neither media sheet nor panel                   | the decision queue and its journal                             |
 | `Panel`         | `rounded-lg border border-border bg-card` — the bordered surface eleven files were writing out by hand         | dashboards, pipeline, decisions, `MediaRow`                    |
 | `Chip`          | moved out of `acquisition/`: nothing about a status chip belongs to acquisition                                | Suivis, En cours, everywhere a status is said                  |
 | `PosterTile`    | `.tile` + `.p` + numeric badge + `.nm`/`.fr`, dimmed variant                                                    | Médiathèque, Découvrir, Suivis                                 |
@@ -945,10 +946,11 @@ output**. Prose criteria are invalid.
    name (« TorrentMate Design », R52), but this host serves the app's own `pwa-*.png`. The
    shipped app already solves that for staging with a recoloured set; the design host has none of
    its own yet, so only the labels tell the two apart on a home screen.
-10. **`RecentResolutions` and `ResolutionDeck` are now drawn** (§5.0 bis), and the audit's
-    proposal is answered: they must NOT take the media card. A decision is a folder, not a medium,
-    so it takes the non-medium card — the app's missing third builder, the counterpart of the
-    prototype's `decisionCardHTML`. Deriving it is the next step; the drawing exists now.
+10. ~~**`RecentResolutions` and `ResolutionDeck` keep their hand-built rows.**~~ **Closed.** The
+    screen is drawn (§5.0 bis) and the card is derived: `ds/DecisionRow`, the app's third shape.
+    The audit's proposal is answered in the negative — a decision is a folder, not a medium, so it
+    must NOT take the media card. What remains is the SCREEN's own shape, which belongs to the
+    Arrivées rebuild because that is where the queue lives.
 
 ---
 

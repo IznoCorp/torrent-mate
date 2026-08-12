@@ -48,24 +48,14 @@ describe("DecisionList", () => {
   // Rendering
   // -----------------------------------------------------------------------
 
-  it("affiche le titre extrait et l'année", () => {
+  it("prend le DOSSIER pour sujet, jamais le titre extrait (R57)", () => {
     renderList([makeItem()]);
-    // The title button carries the extracted title + year.
-    const titleBtn = screen.getByText("Inception").closest("button");
-    expect(titleBtn).toBeTruthy();
-    expect(titleBtn).toHaveTextContent(/Inception/);
-    expect(titleBtn).toHaveTextContent(/2010/);
-  });
-
-  it("affiche le titre sans année quand extracted_year est null", () => {
-    renderList([makeItem({ extracted_year: null })]);
-    // The title button (font-medium) should only contain the title, no year.
-    const titleBtn = screen
-      .getByText("Inception")
-      .closest("button.font-medium");
-    expect(titleBtn).toBeTruthy();
-    expect(titleBtn).toHaveTextContent("Inception");
-    expect(titleBtn).not.toHaveTextContent("(");
+    // The scrape could not name what is in the folder, so the extracted title
+    // is the one thing that cannot be trusted here.
+    const dossier = screen.getByTestId("decision-folder");
+    expect(dossier).toHaveTextContent("Inception (2010)");
+    expect(dossier.className).toContain("font-mono");
+    expect(screen.queryByText("Inception", { exact: true })).toBeNull();
   });
 
   it("affiche le nom du dossier (dernier segment du chemin)", () => {
@@ -82,18 +72,24 @@ describe("DecisionList", () => {
     );
   });
 
-  it("affiche le compteur de candidats", () => {
+  it("dit COMBIEN de candidats, en toutes lettres", () => {
+    // A bare number beside a status badge answers « 3 what ? ».
     renderList([makeItem({ candidates_count: 5 })]);
-    expect(screen.getByText("5")).toBeInTheDocument();
+    expect(screen.getByText(/5 candidats/)).toBeInTheDocument();
+  });
+
+  it("dit aussi quand il n'y en a aucun", () => {
+    renderList([makeItem({ candidates_count: 0 })]);
+    expect(screen.getByText(/aucun candidat/)).toBeInTheDocument();
   });
 
   it("affiche plusieurs lignes", () => {
     renderList([
-      makeItem({ id: 1, extracted_title: "Inception" }),
-      makeItem({ id: 2, extracted_title: "Interstellar" }),
+      makeItem({ id: 1, staging_path: "/s/Alpha" }),
+      makeItem({ id: 2, staging_path: "/s/Beta" }),
     ]);
-    expect(screen.getByText("Inception")).toBeInTheDocument();
-    expect(screen.getByText("Interstellar")).toBeInTheDocument();
+    expect(screen.getByText("Alpha")).toBeInTheDocument();
+    expect(screen.getByText("Beta")).toBeInTheDocument();
   });
 
   // -----------------------------------------------------------------------
@@ -113,9 +109,7 @@ describe("DecisionList", () => {
     const onSelect = vi.fn();
     renderList([makeItem({ id: 42 })], onSelect);
 
-    const btn = screen.getByText("Inception").closest("button");
-    expect(btn).toBeTruthy();
-    fireEvent.click(btn as HTMLElement);
+    fireEvent.click(screen.getByRole("button", { name: "Inception (2010)" }));
     expect(onSelect).toHaveBeenCalledTimes(1);
     expect(onSelect).toHaveBeenCalledWith(42);
   });
@@ -124,20 +118,16 @@ describe("DecisionList", () => {
     const onSelect = vi.fn();
     renderList(
       [
-        makeItem({ id: 10, extracted_title: "Alpha" }),
-        makeItem({ id: 20, extracted_title: "Beta" }),
+        makeItem({ id: 10, staging_path: "/s/Alpha" }),
+        makeItem({ id: 20, staging_path: "/s/Beta" }),
       ],
       onSelect,
     );
 
-    const btnAlpha = screen.getByText("Alpha").closest("button");
-    expect(btnAlpha).toBeTruthy();
-    fireEvent.click(btnAlpha as HTMLElement);
+    fireEvent.click(screen.getByRole("button", { name: "Alpha" }));
     expect(onSelect).toHaveBeenCalledWith(10);
 
-    const btnBeta = screen.getByText("Beta").closest("button");
-    expect(btnBeta).toBeTruthy();
-    fireEvent.click(btnBeta as HTMLElement);
+    fireEvent.click(screen.getByRole("button", { name: "Beta" }));
     expect(onSelect).toHaveBeenCalledWith(20);
   });
 
@@ -147,25 +137,20 @@ describe("DecisionList", () => {
 
   it("affiche le chip 'Confiance faible' avec le bon tone pour below_threshold", () => {
     renderList([makeItem({ trigger: "below_threshold" })]);
-    const badge = screen.getByText("Confiance faible");
-    expect(badge).toBeInTheDocument();
-    // The Badge component applies tone via the badgeVariants cva classes.
-    // Verify the element is present with the danger-tone styling.
-    expect(badge.closest("[data-slot='badge']")).toBeInTheDocument();
+    const puce = screen.getByText("Confiance faible");
+    expect(puce.closest("[data-slot='chip']")).toBeInTheDocument();
   });
 
   it("affiche le chip 'Confiance moyenne' avec le bon tone pour mid_band", () => {
     renderList([makeItem({ trigger: "mid_band" })]);
-    const badge = screen.getByText("Confiance moyenne");
-    expect(badge).toBeInTheDocument();
-    expect(badge.closest("[data-slot='badge']")).toBeInTheDocument();
+    const puce = screen.getByText("Confiance moyenne");
+    expect(puce.closest("[data-slot='chip']")).toBeInTheDocument();
   });
 
   it("affiche le chip 'Candidats ambigus' avec le bon tone pour ambiguous", () => {
     renderList([makeItem({ trigger: "ambiguous" })]);
-    const badge = screen.getByText("Candidats ambigus");
-    expect(badge).toBeInTheDocument();
-    expect(badge.closest("[data-slot='badge']")).toBeInTheDocument();
+    const puce = screen.getByText("Candidats ambigus");
+    expect(puce.closest("[data-slot='chip']")).toBeInTheDocument();
   });
 
   it("utilise le label brut pour un trigger inconnu", () => {
@@ -193,7 +178,7 @@ describe("DecisionList", () => {
 
   it("affiche le badge de statut relabellé avec tooltip pour 'dismissed'", () => {
     renderList([makeItem({ status: "dismissed" })]);
-    const badge = screen.getByText("Ignorée (laissée telle quelle)");
+    const badge = screen.getByText("Laissée telle quelle");
     expect(badge).toBeInTheDocument();
     // The tooltip lives on the wrapping span (Badge doesn't take a title prop).
     const wrapper = badge.closest("[title]");
@@ -205,7 +190,7 @@ describe("DecisionList", () => {
 
   it("affiche le badge de statut relabellé avec tooltip pour 'superseded'", () => {
     renderList([makeItem({ status: "superseded" })]);
-    const badge = screen.getByText("Remplacée (re-scrapée depuis)");
+    const badge = screen.getByText("Remplacée depuis");
     expect(badge).toBeInTheDocument();
     const wrapper = badge.closest("[title]");
     expect(wrapper).toHaveAttribute(
@@ -214,22 +199,25 @@ describe("DecisionList", () => {
     );
   });
 
-  it("affiche le badge 'En attente' pour un statut pending", () => {
+  it("une décision EN ATTENTE ne porte aucune puce d'issue", () => {
+    // There is no outcome yet, and drawing one would be an invented fact.
     renderList([makeItem({ status: "pending" })]);
-    expect(screen.getByText("En attente")).toBeInTheDocument();
+    expect(screen.queryByText("Réglée")).toBeNull();
+    expect(screen.queryByText("En attente")).toBeNull();
+    expect(screen.getByText("Confiance faible")).toBeInTheDocument();
   });
 
   // -----------------------------------------------------------------------
   // Inline quick-dismiss (§4.1)
   // -----------------------------------------------------------------------
 
-  it("affiche l'action 'Ignorer' inline sur une ligne pending quand onQuickDismiss est fourni", () => {
+  it("affiche l'action « Laisser tel quel » inline sur une ligne pending quand onQuickDismiss est fourni", () => {
     renderList([makeItem({ status: "pending" })]);
     // No onQuickDismiss → no inline action.
-    expect(screen.queryByText("Ignorer")).not.toBeInTheDocument();
+    expect(screen.queryByText("Laisser tel quel")).not.toBeInTheDocument();
   });
 
-  it("appelle onQuickDismiss avec l'id au clic sur 'Ignorer'", () => {
+  it("appelle onQuickDismiss avec l'id au clic sur « Laisser tel quel »", () => {
     const onQuickDismiss = vi.fn();
     const tree: ReactElement = (
       <DecisionList
@@ -240,12 +228,12 @@ describe("DecisionList", () => {
     );
     render(tree);
 
-    fireEvent.click(screen.getByText("Ignorer"));
+    fireEvent.click(screen.getByText("Laisser tel quel"));
     expect(onQuickDismiss).toHaveBeenCalledTimes(1);
     expect(onQuickDismiss).toHaveBeenCalledWith(7);
   });
 
-  it("donne à 'Ignorer' le minimum tactile mobile min-h-11 (X4)", () => {
+  it("donne au raccourci le minimum tactile mobile min-h-11 (X4)", () => {
     render(
       <DecisionList
         items={[makeItem({ id: 7, status: "pending" })]}
@@ -253,12 +241,12 @@ describe("DecisionList", () => {
         onQuickDismiss={vi.fn()}
       />,
     );
-    const button = screen.getByRole("button", { name: "Ignorer" });
+    const button = screen.getByRole("button", { name: "Laisser tel quel" });
     expect(button.className).toContain("min-h-11");
     expect(button.className).toContain("md:min-h-8");
   });
 
-  it("n'affiche pas 'Ignorer' inline sur une ligne non-pending", () => {
+  it("n'affiche pas le raccourci inline sur une ligne non-pending", () => {
     const tree: ReactElement = (
       <DecisionList
         items={[makeItem({ id: 8, status: "resolved" })]}
@@ -267,10 +255,10 @@ describe("DecisionList", () => {
       />
     );
     render(tree);
-    expect(screen.queryByText("Ignorer")).not.toBeInTheDocument();
+    expect(screen.queryByText("Laisser tel quel")).not.toBeInTheDocument();
   });
 
-  it("désactive 'Ignorer' quand dismissingId correspond à la ligne", () => {
+  it("désactive le raccourci quand dismissingId correspond à la ligne", () => {
     const tree: ReactElement = (
       <DecisionList
         items={[makeItem({ id: 9, status: "pending" })]}
@@ -280,8 +268,8 @@ describe("DecisionList", () => {
       />
     );
     render(tree);
-    // While in flight the label becomes an ellipsis and the button is disabled.
-    const btn = screen.getByText("…").closest("button");
+    // While in flight the label says so and the button is disabled.
+    const btn = screen.getByText("En cours…").closest("button");
     expect(btn).toBeDisabled();
   });
 });

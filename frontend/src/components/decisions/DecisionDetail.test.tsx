@@ -190,15 +190,16 @@ afterEach(() => {
 describe("DecisionDetail", () => {
   // ---- Render ----------------------------------------------------------------
 
-  it("affiche le titre extrait et l'année", () => {
+  it("prend le DOSSIER pour sujet, jamais le titre extrait (R57)", () => {
+    // The scrape could not name what is in the folder, so the extracted title
+    // is the one thing that cannot be trusted here.
     renderDetail(makeDecision());
-    expect(screen.getByText("Test Movie")).toBeInTheDocument();
-    expect(screen.getByText("(2024)")).toBeInTheDocument();
-  });
-
-  it("affiche « — » quand extracted_year est null", () => {
-    renderDetail(makeDecision({ extracted_year: null }));
-    expect(screen.getByText("(—)")).toBeInTheDocument();
+    const titre = screen.getByText("Test Movie (2024)");
+    expect(titre.className).toContain("font-mono");
+    expect(titre).toHaveAttribute(
+      "title",
+      "/staging/001-MOVIES/Test Movie (2024)",
+    );
   });
 
   it("affiche le badge de déclencheur", () => {
@@ -258,7 +259,7 @@ describe("DecisionDetail", () => {
         resolution_json: { provider: "tmdb", provider_id: 550, via: "pick" },
       }),
     );
-    expect(screen.getByText("Résolue")).toBeInTheDocument();
+    expect(screen.getByText("Réglée")).toBeInTheDocument();
     expect(screen.getByText("Correspondance retenue")).toBeInTheDocument();
     expect(screen.getByText(/TMDB #550/)).toBeInTheDocument();
     // No resolve/dismiss controls on a closed decision.
@@ -490,14 +491,16 @@ describe("DecisionDetail", () => {
     const onHandled = vi.fn();
     renderDetail(makeDecision(), onHandled);
 
-    fireEvent.click(screen.getByText("Ignorer"));
+    fireEvent.click(screen.getByText("Laisser tel quel"));
 
     await waitFor(() => {
       expect(dismissDecisionMock).toHaveBeenCalledWith(1);
     });
 
     await waitFor(() => {
-      expect(toast.success).toHaveBeenCalledWith("Décision ignorée.");
+      expect(toast.success).toHaveBeenCalledWith(
+        "Dossier laissé tel quel — le résultat automatique est conservé.",
+      );
       expect(onHandled).toHaveBeenCalled();
     });
   });
@@ -507,7 +510,7 @@ describe("DecisionDetail", () => {
     dismissDecisionMock.mockRejectedValueOnce(new ApiError(410, "Superseded"));
 
     renderDetail(makeDecision(), onHandled);
-    fireEvent.click(screen.getByText("Ignorer"));
+    fireEvent.click(screen.getByText("Laisser tel quel"));
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith(
@@ -646,11 +649,11 @@ describe("DecisionDetail", () => {
 
     renderDetail(makeDecision());
 
-    fireEvent.click(screen.getByText("Ignorer"));
+    fireEvent.click(screen.getByText("Laisser tel quel"));
 
     await waitFor(() => {
       expect(
-        screen.getByText("Cette décision a été ignorée."),
+        screen.getByText("Dossier laissé tel quel."),
       ).toBeInTheDocument();
     });
   });

@@ -120,6 +120,14 @@ the audit that motivated it was done. Neither replaces a phase.
   `journey` in place of `strip` and `action` in place of `footer`.
 - `ds/MediaCard` → `ds/MediaTile`, and `Chip` moved out of `acquisition/`.
 - `EmptyState` adopted on nine surfaces.
+- `ds/DecisionRow` — the interface's THIRD card shape, derived from the drawing: a
+  decision is a folder, so it promises neither sheet nor panel. `RecentResolutions` and
+  `DecisionList` take it; `decisionFacts()` derives the facts once for both.
+- The arbitration surfaces follow the drawing: the folder is the subject everywhere, the
+  score is printed only when it separates (`tie.ts`), a candidate no longer sends the
+  operator off-screen to decide, and « Ignorer » became « Laisser tel quel ».
+- `src/components/decisions/__tests__/contract.test.tsx` carries R57 app-side, mirroring
+  `harness/decision.py`, so the drawing and the code cannot drift apart in silence.
 
 ---
 
@@ -184,11 +192,12 @@ These were argued, measured and recorded. Re-opening one costs a day; the reason
    against the median LIST rather than the median card gives 64px, a 52 % increase.
 6. **The design host and the app share their icons.** Only the labels tell them apart on a home
    screen; the design host has no recoloured icon set of its own, the way staging does.
-7. **The app's third card builder is not written yet.** The arbitration screen is now drawn
-   (spec §5.0 bis), and it settles what `RecentResolutions` and `ResolutionDeck` must become: not
-   the media card — a decision is a folder, not a medium — but the NON-medium card, the app's
-   counterpart of the prototype's `decisionCardHTML`. Deriving it is the next step.
+7. **The arbitration SCREEN itself is drawn but not built.** `ds/DecisionRow` and the vocabulary
+   are derived; the screen's own shape — one folder at a time, the three ways out side by side,
+   the progression replacing the desktop deck's keyboard shortcuts — belongs to the Arrivées
+   rebuild (phase 2), because that is where the queue lives.
 8. **Answering a decision was a no-op on the acquisition side.** Found while drawing the screen:
    « Résoudre → » on « À traiter » opened the screen, took the choice, and left the item exactly
-   where it was, because the answer only ever looked in the Arrivées list. Fixed in the prototype;
-   the app has the same shape and must be checked when the screen is derived.
+   where it was, because the answer only ever looked in the Arrivées list. Fixed in the prototype.
+   The app's equivalent — whether resolving from one queue clears it from the other — is a
+   verification step of phase 2, on the real API, not a claim of this work.

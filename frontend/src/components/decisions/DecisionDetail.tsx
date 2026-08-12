@@ -3,7 +3,7 @@
  *
  * Displays the extracted title/year, trigger explanation, a grid of candidate
  * cards (reusing {@link CandidateCard}), a search-override form that replaces
- * candidates live, and action buttons ("Choisir" / "Ignorer").
+ * candidates live, and action buttons (« Choisir » / « Laisser tel quel »).
  *
  * On resolve success, renders {@link RunLogFeed} with the returned ``run_uid``.
  * All data logic — the local state, the three shared decision mutations with
@@ -16,6 +16,9 @@ import { type ReactElement } from "react";
 
 import type { DecisionDetail as DecisionDetailType } from "@/api/decisions";
 import { CandidateCard } from "@/components/decisions/CandidateCard";
+import { folderName } from "@/components/decisions/decisionFacts";
+import { tiedLeaders, tieNotice } from "@/components/decisions/tie";
+import { STATUS_LABEL, STATUS_TOOLTIP } from "@/components/decisions/triggers";
 import { TRIGGER_LABEL, TRIGGER_TONE } from "@/components/decisions/triggers";
 import { RunLogFeed } from "@/components/pipeline/RunLogFeed";
 import { Badge } from "@/components/ui/badge";
@@ -63,20 +66,23 @@ const STATUS_RESULT: Record<
   string,
   { tone: "success" | "neutral" | "warning"; label: string; desc: string }
 > = {
+  // One vocabulary, from `triggers.ts`, wherever a decision is drawn: the same
+  // decision reading « Réglée » here and « Résolue » there is two answers to
+  // one question (R57).
   resolved: {
     tone: "success",
-    label: "Résolue",
-    desc: "Un candidat a été choisi et le re-scraping ciblé a été lancé pour ce dossier.",
+    label: STATUS_LABEL.resolved,
+    desc: STATUS_TOOLTIP.resolved,
   },
   dismissed: {
     tone: "neutral",
-    label: "Ignorée",
-    desc: "Cette décision a été ignorée — le résultat du scraping automatique est conservé.",
+    label: STATUS_LABEL.dismissed,
+    desc: STATUS_TOOLTIP.dismissed,
   },
   superseded: {
     tone: "warning",
-    label: "Remplacée",
-    desc: "Cette décision a été remplacée par une version plus récente du dossier.",
+    label: STATUS_LABEL.superseded,
+    desc: STATUS_TOOLTIP.superseded,
   },
 };
 
@@ -104,7 +110,8 @@ export interface DecisionDetailProps {
  * 1. Header: extracted title + year, trigger badge, trigger explanation.
  * 2. Search override form: title + year inputs, "Re-chercher" button.
  * 3. Candidate grid (2 cols mobile, 3 desktop).
- * 4. Action bar: "Choisir" (resolve selected) + "Ignorer" (dismiss).
+ * 4. Action bar: « Choisir » (resolve selected) + « Laisser tel quel » (the
+ *    automatic result stands, nothing is re-scraped).
  * 5. Live output: {@link RunLogFeed} with the resolve ``run_uid``.
  *
  * Args:
@@ -145,11 +152,8 @@ export function DecisionDetail({
   const triggerLabel = TRIGGER_LABEL[decision.trigger] ?? decision.trigger;
   const triggerExplanation =
     TRIGGER_EXPLANATION[decision.trigger] ??
-    `Décision créée (déclencheur : ${decision.trigger}).`;
-
-  /** The year to display in the header (or "—" when unknown). */
-  const yearLabel =
-    decision.extracted_year != null ? String(decision.extracted_year) : "—";
+    // The engine's own token never reaches a screen (R57).
+    "Ce dossier attend un arbitrage.";
 
   // ---- render ----------------------------------------------------------------
 
@@ -158,7 +162,7 @@ export function DecisionDetail({
       <Card>
         <CardContent className="p-4">
           <p className="text-sm text-muted-foreground">
-            Cette décision a été ignorée.
+            Dossier laissé tel quel.
           </p>
         </CardContent>
       </Card>
@@ -183,11 +187,14 @@ export function DecisionDetail({
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <CardTitle className="min-w-0 break-words text-lg">
-              {decision.extracted_title}{" "}
-              <span className="font-normal text-muted-foreground">
-                ({yearLabel})
-              </span>
+            {/* The FOLDER is the subject: the scrape could not name what is
+                in it, so the extracted title is the one thing that cannot be
+                trusted here (R57). */}
+            <CardTitle
+              className="min-w-0 break-all font-mono text-lg"
+              title={decision.staging_path}
+            >
+              {folderName(decision.staging_path)}
             </CardTitle>
             <Badge tone={meta.tone}>{meta.label}</Badge>
           </div>
@@ -221,11 +228,11 @@ export function DecisionDetail({
     <Card>
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <CardTitle className="min-w-0 break-words text-lg">
-            {decision.extracted_title}{" "}
-            <span className="font-normal text-muted-foreground">
-              ({yearLabel})
-            </span>
+          <CardTitle
+            className="min-w-0 break-all font-mono text-lg"
+            title={decision.staging_path}
+          >
+            {folderName(decision.staging_path)}
           </CardTitle>
           <Badge tone={TRIGGER_TONE[decision.trigger] ?? "info"}>
             {triggerLabel}
@@ -300,22 +307,30 @@ export function DecisionDetail({
         ) : (
           // DECISIONS-5 (ticket 250): the wide 3fr detail track fits a 4th
           // candidate column from xl up.
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
-            {candidates.map((candidate, idx) => {
-              const isSelected =
-                selectedCandidate?.provider === candidate.provider &&
-                selectedCandidate.provider_id === candidate.provider_id;
-              return (
-                <CandidateCard
-                  key={`${candidate.provider}-${String(candidate.provider_id)}-${String(idx)}`}
-                  candidate={candidate}
-                  isSelected={isSelected}
-                  onClick={() => {
-                    setSelectedCandidate(candidate);
-                  }}
-                />
-              );
-            })}
+          <div className="flex flex-col gap-3">
+            {/* The tie is stated ONCE, above the grid: it is a fact about the
+                ranking, not about any one candidate (R57). */}
+            {tieNotice(candidates) != null && (
+              <p className="text-xs text-muted-foreground">{tieNotice(candidates)}</p>
+            )}
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+              {candidates.map((candidate, idx) => {
+                const isSelected =
+                  selectedCandidate?.provider === candidate.provider &&
+                  selectedCandidate.provider_id === candidate.provider_id;
+                return (
+                  <CandidateCard
+                    key={`${candidate.provider}-${String(candidate.provider_id)}-${String(idx)}`}
+                    candidate={candidate}
+                    isSelected={isSelected}
+                    tied={tiedLeaders(candidates)[idx] ?? false}
+                    onClick={() => {
+                      setSelectedCandidate(candidate);
+                    }}
+                  />
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -356,7 +371,7 @@ export function DecisionDetail({
             disabled={isDismissPending || isResolvePending}
             onClick={handleDismiss}
           >
-            {isDismissPending ? "En cours..." : "Ignorer"}
+            {isDismissPending ? "En cours…" : "Laisser tel quel"}
           </Button>
 
           <Button

@@ -346,8 +346,8 @@ describe("Medias", () => {
       name: /Filtrer les décisions par statut/,
     });
     expect(within(group).getByText("En attente")).toBeInTheDocument();
-    expect(within(group).getByText("Résolues")).toBeInTheDocument();
-    expect(within(group).getByText("Ignorées")).toBeInTheDocument();
+    expect(within(group).getByText("Réglées")).toBeInTheDocument();
+    expect(within(group).getByText("Laissées telles quelles")).toBeInTheDocument();
     expect(within(group).getByText("Remplacées")).toBeInTheDocument();
   });
 
@@ -383,12 +383,13 @@ describe("Medias", () => {
     // (which fetches + merges every status). The list shows all items.
     setupDecisionsList({
       items: [
-        makeListItem({ id: 1, extracted_title: "Movie A", status: "pending" }),
-        makeListItem({ id: 2, extracted_title: "Movie B", status: "resolved" }),
+        makeListItem({ id: 1, staging_path: "/s/Movie A", status: "pending" }),
+        makeListItem({ id: 2, staging_path: "/s/Movie B", status: "resolved" }),
       ],
     });
     renderPage("decisions");
 
+    // The rows are addressed by their FOLDER — the subject of a decision (R57).
     expect(screen.getByText("Movie A")).toBeInTheDocument();
     expect(screen.getByText("Movie B")).toBeInTheDocument();
 
@@ -434,11 +435,11 @@ describe("Medias", () => {
 
   // ---- Filter chips ---------------------------------------------------------
 
-  it("active le filtre 'resolved' quand le chip Résolues est cliqué", () => {
+  it("active le filtre 'resolved' quand le chip Réglées est cliqué", () => {
     setupDecisionsList();
     renderPage("decisions");
 
-    fireEvent.click(screen.getByText("Résolues"));
+    fireEvent.click(screen.getByText("Réglées"));
 
     // The active-status list now contains only 'resolved' (chip is a toggle).
     const call = lastArgs(useAllDecisionsMock);
@@ -451,8 +452,8 @@ describe("Medias", () => {
     setupDecisionsList();
     renderPage("decisions");
 
-    fireEvent.click(screen.getByText("Résolues"));
-    fireEvent.click(screen.getByText("Ignorées"));
+    fireEvent.click(screen.getByText("Réglées"));
+    fireEvent.click(screen.getByText("Laissées telles quelles"));
 
     // Both statuses active at once — the filter is multi-select, not a tab.
     const call = lastArgs(useAllDecisionsMock);
@@ -465,8 +466,8 @@ describe("Medias", () => {
     setupDecisionsList();
     renderPage("decisions");
 
-    fireEvent.click(screen.getByText("Résolues"));
-    fireEvent.click(screen.getByText("Résolues"));
+    fireEvent.click(screen.getByText("Réglées"));
+    fireEvent.click(screen.getByText("Réglées"));
 
     // Toggled off → back to "show all" (empty active list).
     const call = lastArgs(useAllDecisionsMock);
@@ -479,7 +480,7 @@ describe("Medias", () => {
     setupDecisionsList();
     renderPage("decisions");
 
-    const chip = screen.getByText("Résolues").closest("button");
+    const chip = screen.getByText("Réglées").closest("button");
     expect(chip).toHaveAttribute("aria-pressed", "false");
     fireEvent.click(chip as HTMLElement);
     expect(chip).toHaveAttribute("aria-pressed", "true");
@@ -496,14 +497,14 @@ describe("Medias", () => {
 
     renderPage("decisions");
 
-    // getAllByText — "Test Movie" appears in both the list row and the
+    // getAllByText — the folder appears in both the list row and the
     // detail-panel header after selection, so a single getByText would throw.
-    const rows = screen.getAllByText("Test Movie");
+    const rows = screen.getAllByText("Test Movie (2024)");
     const row = rows[0];
     if (row == null) throw new Error("No row found");
     fireEvent.click(row);
 
-    fireEvent.click(screen.getByText("Résolues"));
+    fireEvent.click(screen.getByText("Réglées"));
 
     const call = lastArgs(useDecisionDetailMock);
     expect(call).toBeDefined();
@@ -524,7 +525,7 @@ describe("Medias", () => {
 
     renderPage("decisions");
 
-    const selectRow = findButtonByText("Test Movie");
+    const selectRow = findButtonByText("Test Movie (2024)");
     fireEvent.click(selectRow);
 
     const call = lastArgs(useDecisionDetailMock);
@@ -544,7 +545,7 @@ describe("Medias", () => {
 
     renderPage("decisions");
 
-    const selectRow = findButtonByText("Test Movie");
+    const selectRow = findButtonByText("Test Movie (2024)");
     fireEvent.click(selectRow);
 
     expect(screen.getByText("← Retour à la liste")).toBeInTheDocument();
@@ -561,7 +562,7 @@ describe("Medias", () => {
 
     renderPage("decisions");
 
-    const selectRow = findButtonByText("Test Movie");
+    const selectRow = findButtonByText("Test Movie (2024)");
     fireEvent.click(selectRow);
 
     await waitFor(() => {
@@ -587,10 +588,10 @@ describe("Medias", () => {
 
     renderPage("decisions");
 
-    const selectRow = findButtonByText("Test Movie");
+    const selectRow = findButtonByText("Test Movie (2024)");
     fireEvent.click(selectRow);
 
-    fireEvent.click(screen.getByText("Résolues"));
+    fireEvent.click(screen.getByText("Réglées"));
 
     const call = lastArgs(useDecisionDetailMock);
     expect(call).toBeDefined();
@@ -619,7 +620,7 @@ describe("Medias", () => {
 
     renderPage("decisions");
 
-    const selectRow = findButtonByText("Test Movie");
+    const selectRow = findButtonByText("Test Movie (2024)");
     fireEvent.click(selectRow);
 
     const skeletons = document.querySelectorAll(".animate-pulse");
@@ -637,7 +638,7 @@ describe("Medias", () => {
     });
     renderPage("decisions");
 
-    fireEvent.click(screen.getByText("Ignorer"));
+    fireEvent.click(screen.getByText("Laisser tel quel"));
 
     await waitFor(() => {
       expect(dismissDecisionMock).toHaveBeenCalledWith(5);
@@ -658,7 +659,7 @@ describe("Medias", () => {
     setupDecisionsList({ items: [makeListItem({ id: 5, status: "pending" })] });
     renderPage("decisions");
 
-    fireEvent.click(screen.getByText("Ignorer"));
+    fireEvent.click(screen.getByText("Laisser tel quel"));
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith(
@@ -674,7 +675,7 @@ describe("Medias", () => {
     setupDecisionsList({ items: [makeListItem({ id: 5, status: "pending" })] });
     renderPage("decisions");
 
-    fireEvent.click(screen.getByText("Ignorer"));
+    fireEvent.click(screen.getByText("Laisser tel quel"));
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith(
@@ -690,7 +691,7 @@ describe("Medias", () => {
     setupDecisionsList({ items: [makeListItem({ id: 5, status: "pending" })] });
     renderPage("decisions");
 
-    fireEvent.click(screen.getByText("Ignorer"));
+    fireEvent.click(screen.getByText("Laisser tel quel"));
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("Boom generic");
@@ -702,7 +703,7 @@ describe("Medias", () => {
     setupDecisionsList({ items: [makeListItem({ id: 5, status: "pending" })] });
     renderPage("decisions");
 
-    fireEvent.click(screen.getByText("Ignorer"));
+    fireEvent.click(screen.getByText("Laisser tel quel"));
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("Erreur inattendue.");
@@ -714,20 +715,20 @@ describe("Medias", () => {
     setupDecisionsList({ items: [makeListItem({ id: 5, status: "pending" })] });
     renderPage("decisions");
 
-    const dismissButton = screen.getByText("Ignorer");
+    const dismissButton = screen.getByText("Laisser tel quel");
     fireEvent.click(dismissButton);
 
-    // While in flight the button shows the "…" spinner label (dismissingId set).
+    // While in flight the button says so (dismissingId set).
     await waitFor(() => {
-      expect(screen.getByText("…")).toBeInTheDocument();
+      expect(screen.getByText("En cours…")).toBeInTheDocument();
     });
 
-    // onSettled resets dismissingId → the button returns to its "Ignorer" label
+    // onSettled resets dismissingId → the button returns to its label
     // and is re-enabled (proves the reset fires on the ERROR path too).
     await waitFor(() => {
-      expect(screen.getByText("Ignorer")).toBeInTheDocument();
+      expect(screen.getByText("Laisser tel quel")).toBeInTheDocument();
     });
-    expect(screen.getByText("Ignorer")).not.toBeDisabled();
+    expect(screen.getByText("Laisser tel quel")).not.toBeDisabled();
   });
 
   // ---- Partial-failure: pending query failed (SF2) --------------------------
