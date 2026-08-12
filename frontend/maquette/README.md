@@ -103,7 +103,7 @@ that view was checked, and another page shipped blank.
 ## Every state has a name, and knows how to reach itself
 
 `window.__go("<id>")` drives the prototype into a state **without clicking**.
-`window.__states()` returns the 52 ids. The **≡** button in the harness opens a panel listing
+`window.__states()` returns the 53 ids. The **≡** button in the harness opens a panel listing
 them all.
 
 This is what makes the parity probe deterministic. Without it, measuring "the blocked card"
@@ -119,7 +119,7 @@ Three orthogonal dials the panel exposes:
 | Surface phase | `prete` · `chargement` · `erreur` | every surface goes through all three |
 | TMDB account | connected · not | Découvrir's full vs degraded mode |
 
-The 52 states cover: the startup screen, the entry screen and its refusal, the five urgency
+The 53 states cover: the startup screen, the entry screen and its refusal, the five urgency
 sections in both scenarios, Suivis in its three modes plus its two empty cases, Découvrir full /
 degraded / exhausted / loading, the add screen idle and with real results, the follow sheet on a
 22-season complete catalogue and on a holed one, the journey sheet, the "⋮" sheet, the library in
@@ -127,7 +127,7 @@ grid and list, its empty search, its three lenses, selection mode, single and bu
 dialogs, loading and error on every surface, the resolution screen, the media sheet in its
 variants, the navigation drawer, the two install proposals, and Système.
 
-`harness/states.py` drives all 52 and asserts each one renders content, has no horizontal
+`harness/states.py` drives all 53 and asserts each one renders content, has no horizontal
 overflow and raises no JS error. **A state that renders nothing fails the pass.**
 
 ## `regions.json` — the extraction contract and the measurement map
@@ -140,7 +140,7 @@ One file, four jobs:
   rather than implied.
 - **`regions`** — what `parity-probe.py` measures, each naming the states it is visible in,
   so the probe never has to guess how to reach a card state.
-- **`$adversarialReview`** — the rule set (R1…R52) plus `$methodLessons`: what each rule
+- **`$adversarialReview`** — the rule set (R1…R54) plus `$methodLessons`: what each rule
   exists for, and what a rule that failed to bite taught. `$reportedDefects` lists the
   defects found by hand, each with its test in `harness/bugs.py`.
 
@@ -330,6 +330,14 @@ The gate gets the same screen by **extraction**, the rule it already obeys for t
 (R49), and reveals it on submit. R53 (`harness/demarrage.py`) checks all of it, gate included —
 it starts `serve.py` on a scratch port and drives a real submit.
 
+**Leaving is the same story told backwards.** « Se déconnecter » used to answer with a message
+saying the session had been closed, over an interface that had not moved and was still signed
+in. A message is not a destination. The session IS the cookie, and the cookie belongs to the
+server, so the server is asked to drop it **first** and the entry screen only reflects what has
+already happened — an entry form shown over a live cookie is contradicted by the next reload.
+R54 (`harness/deconnexion.py`) checks both halves, and the invisible one is the one that
+matters: it asks the server, afterwards, whether the session is still accepted.
+
 ## A trap that cost real time: **screenshots are not an oracle**
 
 Two captures of the **same, unmodified file** disagreed on 8 to 15 of the 47 states. Skeleton
@@ -386,7 +394,7 @@ They are committed because they encode recipes that cost time to get right.
 |---|---|
 | `sweep.py` | all views render content, no horizontal overflow, device at 390px, no JS error. **A view that renders nothing fails.** |
 | `scen.py` | the same sweep across both data scenarios, with explicit sub-view reset between runs |
-| `states.py` | all 52 named states render, without overflow or JS error |
+| `states.py` | all 53 named states render, without overflow or JS error |
 | `audit.py` | rules R1–R10 and R20–R23 across every state, and it announces how many rules it EXECUTED |
 | `audit2.py` | rules R11–R17 and R26–R31: uniformity, honesty of the text, one back design, one season rendering, episode presence against the data, a panel that never offers an action the medium does not support |
 | `cartes.py` | rules R41–R50: the card and gallery contract — poster to the sheet, body to the panel, no action reachable from a single surface, the same panel from a card and from a gallery |
@@ -404,6 +412,7 @@ They are committed because they encode recipes that cost time to get right.
 | `chrome.py` | R51: the harness bar covers none of the app's fixed controls, in every named state, at both sides of the 520px breakpoint |
 | `pwa.py` | R52: the LIVE host is installable from the first document a phone reaches — manifest, icons that load, worker registered and controlling, offline fallback cached. Runs against `tm-design.iznogoudatall.xyz`, not the local server |
 | `demarrage.py` | R53: the startup screen is declared first, covers the frame, offers no control, is gone after the first render, and the gate the server builds shows the same screen — extracted — from the submit onwards. Starts `serve.py` on a scratch port |
+| `deconnexion.py` | R54: signing out lands on the entry screen AND the server stops accepting the session. Starts `serve.py` on a scratch port |
 
 Run them with the Python that carries Playwright, against a local static server on
 **127.0.0.1:8899** — **never** 8710 / 8711, which the reverse proxy routes to prod and

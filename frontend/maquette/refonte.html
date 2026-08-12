@@ -10842,7 +10842,7 @@
           ${svgIcon(icons.user)}Profil et préférences
           <span class="soon">bientôt</span>
         </button>
-        <button class="sact danger" data-toast="Déconnexion — la session est fermée et le cookie retiré.">
+        <button class="sact danger" data-deconnexion="1">
           ${svgIcon(icons.logout)}Se déconnecter
         </button>
       </div>`);
@@ -11752,6 +11752,14 @@
       },
     ],
     [
+      "feuille-utilisateur",
+      "Menu utilisateur — profil et déconnexion",
+      () => {
+        applyState({ page: "acq", phase: "prete" });
+        openUserSheet();
+      },
+    ],
+    [
       "lib-grille",
       "Médiathèque · Médias — grille",
       () =>
@@ -11940,6 +11948,24 @@
   function masquerConnexion() {
     document.querySelector("#login").hidden = true;
     document.querySelector("#loginerr").hidden = true;
+  }
+
+  /* Signing out ends the session and lands on the entry screen.
+
+     The session is the cookie, and the cookie belongs to the server, so the
+     server is asked to drop it FIRST and the screen only reflects what has
+     already happened. Showing the entry form over a session that is still
+     valid would be a lie the next reload exposes.
+
+     A failure is swallowed on purpose: served from a plain static server there
+     is no such route, and a design reference that dead-ends on a 404 teaches
+     nothing about the design. Nothing else here depends on the answer. */
+  async function deconnecter() {
+    closeSheet();
+    try {
+      await fetch("/deconnexion", { redirect: "manual" });
+    } catch (error) {}
+    afficherConnexion(false);
   }
 
   /* The startup screen, shown for as long as there is no interface to show.
@@ -12244,6 +12270,10 @@
       state.sugOrder = null;
       render();
       toast("Nouveau lot chargé — 30 suggestions de plus.");
+      return;
+    }
+    if (closest.dataset.deconnexion) {
+      deconnecter();
       return;
     }
     if (closest.dataset.toast) {
