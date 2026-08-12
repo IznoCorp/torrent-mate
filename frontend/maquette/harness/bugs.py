@@ -28,7 +28,7 @@ async def main():
 
     # 2b — from Découvrir
     await pg.evaluate("()=>window.__go('acq-decouvrir')"); await pg.wait_for_timeout(400)
-    await pg.evaluate("()=>document.querySelector('[data-sug]').click()"); await pg.wait_for_timeout(400)
+    await pg.evaluate("()=>[...document.querySelectorAll('[data-panel]')].find(e=>e.dataset.panel.startsWith('sug:')).click()"); await pg.wait_for_timeout(400)
     await pg.evaluate("()=>[...document.querySelectorAll('#sheet .sact')].find(x=>x.textContent.includes('Voir la fiche')).click()")
     await pg.wait_for_timeout(700)
     r = await pg.evaluate("()=>({feuille:document.querySelector('#sheet').classList.contains('open'), ecran:document.querySelector('#screen').classList.contains('open')})")

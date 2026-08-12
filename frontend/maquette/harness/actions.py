@@ -49,7 +49,7 @@ async def main():
 
     await pg.evaluate("()=>window.__go('acq-decouvrir')"); await pg.wait_for_timeout(350)
     a=await pg.evaluate(cnt)
-    await pg.evaluate("()=>document.querySelector('[data-sug]').click()"); await pg.wait_for_timeout(400)
+    await pg.evaluate("()=>[...document.querySelectorAll('[data-panel]')].find(e=>e.dataset.panel.startsWith('sug:')).click()"); await pg.wait_for_timeout(400)
     await pg.evaluate("()=>document.querySelector('#sheet .sact.primary').click()"); await pg.wait_for_timeout(450)
     b6=await pg.evaluate(cnt); print("\nsuivre une suggestion:", a["suivis"], "→", b6["suivis"])
     assert b6["suivis"]==a["suivis"]+1

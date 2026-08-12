@@ -398,6 +398,16 @@ the two paths equal by construction instead of by vigilance; it is also what ret
 older form of R31, which forbade a destination rather than protecting the concern (a panel
 offering « Mettre en pause » for a medium nobody follows).
 
+**Every list uses the same metrics (R47).** Poster 38 × 57, padding 9, radius 8, title 13.5,
+gap 10. Card heights differ only because their content does — a card carrying a reason is taller.
+Découvrir was the last holdout: its own builder, its own class vocabulary, and a poster 63 %
+larger, on a page that already offers a poster gallery and a deck for visual browsing. **A reason
+never truncates (§12, R48)** — it wraps and the card grows.
+
+Rich text reaches a card as **segments** — plain text plus what is emphasised, at its position —
+never as ready-made markup, even when the data already carries some. Re-matching a term back into
+a sentence emphasises the wrong « 4 ».
+
 **One builder per shape, not per screen.** `cardHTML` serves every list, `tileHTML` every
 gallery. A tile is not a card with a flag — it is a different layout — so what the two share is
 the descriptor and the behaviour contract, not the markup. A release candidate has its own

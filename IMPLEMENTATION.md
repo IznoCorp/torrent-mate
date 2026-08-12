@@ -66,7 +66,7 @@ cannot fail, and a script that cannot fail is a report nobody is obliged to read
 ## What the prototype already settles
 
 These were argued, measured and recorded. Re-opening one costs a day; the reasons are in
-`frontend/maquette/regions.json` → `$adversarialReview` (47 rules) and `$methodLessons` (23).
+`frontend/maquette/regions.json` → `$adversarialReview` (49 rules) and `$methodLessons` (25).
 
 - **The prototype is the reference.** A divergence between the app and it is a defect in the app,
   unless the prototype was amended first with the reason written down.

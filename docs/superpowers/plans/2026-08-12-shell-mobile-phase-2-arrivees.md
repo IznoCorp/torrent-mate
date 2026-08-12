@@ -40,6 +40,11 @@
   view wanting something outside that list is naming a fact the card does not know
   yet: add the fact, never pass ready-made markup. Props that name an appearance
   (`dense`, `compact`, `showChip`) are the failure mode this avoids.
+- **Same metrics in every list (R47), and a reason that never truncates (R48).** Poster
+  38 × 57, padding 9, radius 8, title 13.5, gap 10 — everywhere. Card heights differ only
+  because their content does. A surface wanting a bigger picture uses the gallery or deck
+  format, which exist for that. Rich text reaches a card as SEGMENTS (plain text plus what
+  is emphasised, at its position), never as ready-made markup — see `richText`.
 
 - **Resolving must FINISH the pipeline, not label a folder.** Choosing a candidate relaunches
   the scrape and the medium completes its whole pipeline — metadata, posters, trailer,

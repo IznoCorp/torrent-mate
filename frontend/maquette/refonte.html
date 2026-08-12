@@ -752,12 +752,6 @@
   }
   .poster img,
   .tile .p img,
-  .sug .p img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
   .pfall {
     position: relative;
     display: grid;
@@ -815,15 +809,16 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  /* The reason NEVER truncates (§12): it is what the operator decides on, and
+     half a sentence is not a reason. It wraps instead, and the card grows.
+     A two-line clamp lived here and cut « Aucune donnée d'épisode chez TVDB ni
+     chez TMDB pour… » exactly where the useful half began. */
   .creason {
     display: block;
     margin-top: 3px;
     font-size: 11.5px;
+    line-height: 1.4;
     color: var(--muted-foreground);
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
   }
   .cmeta {
     margin-top: 6px;
@@ -1074,61 +1069,11 @@
   }
 
   /* Suggestion card (Découvrir) */
-  .sug {
-    display: flex;
-    gap: 11px;
-    border: 1px solid var(--border);
-    background: var(--card);
-    border-radius: 8px;
-    padding: 10px;
-  }
-  .sug .p {
-    flex: 0 0 auto;
-    /* A flex item stretches to the line's cross size by default, which
-       overrides `aspect-ratio` on the height — the posters rendered at 0.47
-       and 0.53 instead of 0.667, and taller cards stretched them further. */
-    align-self: flex-start;
-    width: 62px;
-    aspect-ratio: 2/3;
-    border-radius: 5px;
-    background: var(--muted);
-    overflow: hidden;
-    font-size: 19px;
-    padding: 0;
-    border: 0;
-  }
-  .sug .b {
-    min-width: 0;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-  }
   /* R5 — a class placed on a <span> DECLARES its display. Without it the
      title shared its line with the year, the type and the rating: a literal
      breach of the rule that line 1 is the title, alone. */
-  .sug .t {
-    display: block;
-    font-size: 13.5px;
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .sug .m {
-    display: block;
-    font-size: 11.5px;
-    color: var(--muted-foreground);
-    margin-top: 2px;
-  }
-  .sug .why {
-    font-size: 11.5px;
-    color: var(--muted-foreground);
-    margin-top: 5px;
-    border-left: 2px solid var(--border);
-    padding-left: 8px;
-    line-height: 1.4;
-  }
-  .sug .why b {
+  .creason b,
+  .dcard .why b {
     color: var(--foreground);
     font-weight: 600;
   }
@@ -1424,29 +1369,7 @@
     width: 16px;
     height: 16px;
   }
-  .sug {
-    position: relative;
-    display: flex;
-    gap: 11px;
-    border: 1px solid var(--border);
-    background: var(--card);
-    border-radius: 8px;
-    padding: 10px;
-    transition: transform 0.24s cubic-bezier(0.22, 0.61, 0.36, 1);
-  }
-  .sug.dragging {
-    transition: none;
-  }
-  .sbody {
-    min-width: 0;
-    flex: 1;
-    border: 0;
-    background: transparent;
-    padding: 0;
-    text-align: left;
-    display: block;
-  }
-  .sugnote {
+  .cnote {
     font-size: 10.5px;
     font-weight: 700;
     padding: 1px 6px;
@@ -3804,7 +3727,7 @@
   /* Only suggestions whose sheet is COMPLETE (synopsis, genres, cast) are
      served: a card that opens a hollow sheet is a dead end. The reserve
      honestly states how many it carries. */
-  const SUGGESTIONS = [{"t":"Superman : L'Homme de demain","y":"2020","k":"Film","note":7.1,"why":"Recoupé par <b>4</b> titres de votre médiathèque, dont Ninja Turtles et Supergirl."},{"t":"Alita : Battle Angel","y":"2019","k":"Film","note":7.3,"why":"Recoupé par <b>3</b> titres de votre médiathèque, dont Ninja Turtles et Supergirl."},{"t":"Numéro quatre","y":"2011","k":"Film","note":6.2,"why":"Recoupé par <b>3</b> titres de votre médiathèque, dont Supergirl et Disclosure Day."},{"t":"Avengers : Endgame","y":"2019","k":"Film","note":8.2,"why":"Parce que vous avez <b>Supergirl</b> et The Mandalorian and Grogu."},{"t":"L'Incroyable Hulk","y":"2008","k":"Film","note":6.2,"why":"Parce que vous avez <b>Ninja Turtles</b> et The Mandalorian and Grogu."},{"t":"Man of Steel","y":"2013","k":"Film","note":6.7,"why":"Parce que vous avez <b>Supergirl</b> et The Mandalorian and Grogu."},{"t":"X-Men : Dark Phoenix","y":"2019","k":"Film","note":6.0,"why":"Parce que vous avez <b>Supergirl</b> et The Mandalorian and Grogu."},{"t":"Premier Contact","y":"2016","k":"Film","note":7.6,"why":"Parce que vous avez <b>Marjorie Prime</b> et Disclosure Day."},{"t":"Ant-Man et la Guêpe : Quantumania","y":"2023","k":"Film","note":6.2,"why":"Parce que vous avez <b>Ninja Turtles</b> et Supergirl."},{"t":"The Venture Bros","y":"2004","k":"Série","note":7.8,"why":"Parce que vous avez <b>Batman Caped Crusader (2024)</b> et President Curtis (2026)."},{"t":"Fast Charlie","y":"2023","k":"Film","note":6.2,"why":"Parce que vous avez <b>On l'appelait Robin des Bois</b> et Margin Call."},{"t":"Grimsburg","y":"2024","k":"Série","note":6.1,"why":"Parce que vous avez <b>Batman Caped Crusader (2024)</b> et President Curtis (2026)."},{"t":"Solo: A Star Wars Story","y":"2018","k":"Film","note":6.6,"why":"Parce que vous avez <b>Supergirl</b> et The Mandalorian and Grogu."},{"t":"L'Assassin","y":"2025","k":"Série","note":6.9,"why":"Parce que vous avez <b>Batman Caped Crusader (2024)</b> et Furious (2026)."},{"t":"Power Rangers","y":"2017","k":"Film","note":6.2,"why":"Parce que vous avez <b>Supergirl</b> et The Mandalorian and Grogu."},{"t":"Agent Elvis","y":"2023","k":"Série","note":6.9,"why":"Parce que vous avez <b>Batman Caped Crusader (2024)</b> et President Curtis (2026)."},{"t":"Marvel's M.O.D.O.K.","y":"2021","k":"Série","note":6.6,"why":"Parce que vous avez <b>Batman Caped Crusader (2024)</b> et President Curtis (2026)."},{"t":"Un Duplex pour 3","y":"2003","k":"Film","note":6.1,"why":"Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."},{"t":"Les Trois Corniauds","y":"2012","k":"Film","note":5.8,"why":"Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."},{"t":"L'Embrouille est dans le sac","y":"1991","k":"Film","note":6.4,"why":"Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."},{"t":"Impostor","y":"2001","k":"Film","note":6.1,"why":"Parce que vous avez <b>Disclosure Day</b> et The Mandalorian and Grogu."},{"t":"Green Lantern : Le Complot","y":"2009","k":"Film","note":6.9,"why":"Parce que vous avez <b>Supergirl</b> et The Mandalorian and Grogu."},{"t":"Green Lantern : Méfiez-vous de mon pouvoir","y":"2022","k":"Film","note":6.7,"why":"Parce que vous avez <b>Ninja Turtles</b> et Supergirl."},{"t":"Monsieur le député","y":"1992","k":"Film","note":6.0,"why":"Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."},{"t":"Touche pas à mon gazon","y":"1977","k":"Film","note":6.6,"why":"Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Scary Movie."},{"t":"LOL 2.0","y":"2026","k":"Film","note":6.0,"why":"Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."},{"t":"Thunderstruck","y":"2012","k":"Film","note":6.2,"why":"Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."},{"t":"American Dreamer","y":"2022","k":"Film","note":6.0,"why":"Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."},{"t":"Y-a-t'il quelqu'un pour l'ambulance ?","y":"1992","k":"Film","note":6.1,"why":"Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."},{"t":"Jim Gaffigan: Beyond the Pale","y":"2006","k":"Film","note":7.0,"why":"Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."},{"t":"Eddie Murphy: Delirious","y":"1983","k":"Film","note":7.6,"why":"Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."},{"t":"Jim Gaffigan: Mr. Universe","y":"2012","k":"Film","note":6.8,"why":"Parce que vous avez <b>Alison Wheeler La Promesse d'un soir</b> et Alexandre Kominek Bâtard sensible."},{"t":"Spider-Man : Brand New Day","y":"2026","k":"Film","note":7.9,"why":"Parce que vous avez <b>Ninja Turtles</b>."},{"t":"Esprits criminels","y":"2005","k":"Série","note":8.3,"why":"Parce que vous avez <b>Furious (2026)</b>."},{"t":"Avengers : Infinity War","y":"2018","k":"Film","note":8.2,"why":"Parce que vous avez <b>Supergirl</b>."},{"t":"Arrow","y":"2012","k":"Série","note":6.8,"why":"Parce que vous avez <b>Batman Caped Crusader (2024)</b>."},{"t":"Avatar : De feu et de cendres","y":"2025","k":"Film","note":7.6,"why":"Parce que vous avez <b>The Mandalorian and Grogu</b>."},{"t":"Manhunt","y":"2017","k":"Série","note":7.6,"why":"Parce que vous avez <b>The Bombing of Pan Am 103</b>."}];
+  const SUGGESTIONS = [{"t": "Superman : L'Homme de demain", "y": "2020", "k": "Film", "note": 7.1, "why": ["Recoupé par ", {"e": "4"}, " titres de votre médiathèque, dont Ninja Turtles et Supergirl."]}, {"t": "Alita : Battle Angel", "y": "2019", "k": "Film", "note": 7.3, "why": ["Recoupé par ", {"e": "3"}, " titres de votre médiathèque, dont Ninja Turtles et Supergirl."]}, {"t": "Numéro quatre", "y": "2011", "k": "Film", "note": 6.2, "why": ["Recoupé par ", {"e": "3"}, " titres de votre médiathèque, dont Supergirl et Disclosure Day."]}, {"t": "Avengers : Endgame", "y": "2019", "k": "Film", "note": 8.2, "why": ["Parce que vous avez ", {"e": "Supergirl"}, " et The Mandalorian and Grogu."]}, {"t": "L'Incroyable Hulk", "y": "2008", "k": "Film", "note": 6.2, "why": ["Parce que vous avez ", {"e": "Ninja Turtles"}, " et The Mandalorian and Grogu."]}, {"t": "Man of Steel", "y": "2013", "k": "Film", "note": 6.7, "why": ["Parce que vous avez ", {"e": "Supergirl"}, " et The Mandalorian and Grogu."]}, {"t": "X-Men : Dark Phoenix", "y": "2019", "k": "Film", "note": 6.0, "why": ["Parce que vous avez ", {"e": "Supergirl"}, " et The Mandalorian and Grogu."]}, {"t": "Premier Contact", "y": "2016", "k": "Film", "note": 7.6, "why": ["Parce que vous avez ", {"e": "Marjorie Prime"}, " et Disclosure Day."]}, {"t": "Ant-Man et la Guêpe : Quantumania", "y": "2023", "k": "Film", "note": 6.2, "why": ["Parce que vous avez ", {"e": "Ninja Turtles"}, " et Supergirl."]}, {"t": "The Venture Bros", "y": "2004", "k": "Série", "note": 7.8, "why": ["Parce que vous avez ", {"e": "Batman Caped Crusader (2024)"}, " et President Curtis (2026)."]}, {"t": "Fast Charlie", "y": "2023", "k": "Film", "note": 6.2, "why": ["Parce que vous avez ", {"e": "On l'appelait Robin des Bois"}, " et Margin Call."]}, {"t": "Grimsburg", "y": "2024", "k": "Série", "note": 6.1, "why": ["Parce que vous avez ", {"e": "Batman Caped Crusader (2024)"}, " et President Curtis (2026)."]}, {"t": "Solo: A Star Wars Story", "y": "2018", "k": "Film", "note": 6.6, "why": ["Parce que vous avez ", {"e": "Supergirl"}, " et The Mandalorian and Grogu."]}, {"t": "L'Assassin", "y": "2025", "k": "Série", "note": 6.9, "why": ["Parce que vous avez ", {"e": "Batman Caped Crusader (2024)"}, " et Furious (2026)."]}, {"t": "Power Rangers", "y": "2017", "k": "Film", "note": 6.2, "why": ["Parce que vous avez ", {"e": "Supergirl"}, " et The Mandalorian and Grogu."]}, {"t": "Agent Elvis", "y": "2023", "k": "Série", "note": 6.9, "why": ["Parce que vous avez ", {"e": "Batman Caped Crusader (2024)"}, " et President Curtis (2026)."]}, {"t": "Marvel's M.O.D.O.K.", "y": "2021", "k": "Série", "note": 6.6, "why": ["Parce que vous avez ", {"e": "Batman Caped Crusader (2024)"}, " et President Curtis (2026)."]}, {"t": "Un Duplex pour 3", "y": "2003", "k": "Film", "note": 6.1, "why": ["Parce que vous avez ", {"e": "Alison Wheeler La Promesse d'un soir"}, " et Alexandre Kominek Bâtard sensible."]}, {"t": "Les Trois Corniauds", "y": "2012", "k": "Film", "note": 5.8, "why": ["Parce que vous avez ", {"e": "Alison Wheeler La Promesse d'un soir"}, " et Alexandre Kominek Bâtard sensible."]}, {"t": "L'Embrouille est dans le sac", "y": "1991", "k": "Film", "note": 6.4, "why": ["Parce que vous avez ", {"e": "Alison Wheeler La Promesse d'un soir"}, " et Alexandre Kominek Bâtard sensible."]}, {"t": "Impostor", "y": "2001", "k": "Film", "note": 6.1, "why": ["Parce que vous avez ", {"e": "Disclosure Day"}, " et The Mandalorian and Grogu."]}, {"t": "Green Lantern : Le Complot", "y": "2009", "k": "Film", "note": 6.9, "why": ["Parce que vous avez ", {"e": "Supergirl"}, " et The Mandalorian and Grogu."]}, {"t": "Green Lantern : Méfiez-vous de mon pouvoir", "y": "2022", "k": "Film", "note": 6.7, "why": ["Parce que vous avez ", {"e": "Ninja Turtles"}, " et Supergirl."]}, {"t": "Monsieur le député", "y": "1992", "k": "Film", "note": 6.0, "why": ["Parce que vous avez ", {"e": "Alison Wheeler La Promesse d'un soir"}, " et Alexandre Kominek Bâtard sensible."]}, {"t": "Touche pas à mon gazon", "y": "1977", "k": "Film", "note": 6.6, "why": ["Parce que vous avez ", {"e": "Alison Wheeler La Promesse d'un soir"}, " et Scary Movie."]}, {"t": "LOL 2.0", "y": "2026", "k": "Film", "note": 6.0, "why": ["Parce que vous avez ", {"e": "Alison Wheeler La Promesse d'un soir"}, " et Alexandre Kominek Bâtard sensible."]}, {"t": "Thunderstruck", "y": "2012", "k": "Film", "note": 6.2, "why": ["Parce que vous avez ", {"e": "Alison Wheeler La Promesse d'un soir"}, " et Alexandre Kominek Bâtard sensible."]}, {"t": "American Dreamer", "y": "2022", "k": "Film", "note": 6.0, "why": ["Parce que vous avez ", {"e": "Alison Wheeler La Promesse d'un soir"}, " et Alexandre Kominek Bâtard sensible."]}, {"t": "Y-a-t'il quelqu'un pour l'ambulance ?", "y": "1992", "k": "Film", "note": 6.1, "why": ["Parce que vous avez ", {"e": "Alison Wheeler La Promesse d'un soir"}, " et Alexandre Kominek Bâtard sensible."]}, {"t": "Jim Gaffigan: Beyond the Pale", "y": "2006", "k": "Film", "note": 7.0, "why": ["Parce que vous avez ", {"e": "Alison Wheeler La Promesse d'un soir"}, " et Alexandre Kominek Bâtard sensible."]}, {"t": "Eddie Murphy: Delirious", "y": "1983", "k": "Film", "note": 7.6, "why": ["Parce que vous avez ", {"e": "Alison Wheeler La Promesse d'un soir"}, " et Alexandre Kominek Bâtard sensible."]}, {"t": "Jim Gaffigan: Mr. Universe", "y": "2012", "k": "Film", "note": 6.8, "why": ["Parce que vous avez ", {"e": "Alison Wheeler La Promesse d'un soir"}, " et Alexandre Kominek Bâtard sensible."]}, {"t": "Spider-Man : Brand New Day", "y": "2026", "k": "Film", "note": 7.9, "why": ["Parce que vous avez ", {"e": "Ninja Turtles"}, "."]}, {"t": "Esprits criminels", "y": "2005", "k": "Série", "note": 8.3, "why": ["Parce que vous avez ", {"e": "Furious (2026)"}, "."]}, {"t": "Avengers : Infinity War", "y": "2018", "k": "Film", "note": 8.2, "why": ["Parce que vous avez ", {"e": "Supergirl"}, "."]}, {"t": "Arrow", "y": "2012", "k": "Série", "note": 6.8, "why": ["Parce que vous avez ", {"e": "Batman Caped Crusader (2024)"}, "."]}, {"t": "Avatar : De feu et de cendres", "y": "2025", "k": "Film", "note": 7.6, "why": ["Parce que vous avez ", {"e": "The Mandalorian and Grogu"}, "."]}, {"t": "Manhunt", "y": "2017", "k": "Série", "note": 7.6, "why": ["Parce que vous avez ", {"e": "The Bombing of Pan Am 103"}, "."]}];
 
   /* 260 REAL titles extracted from library.db (read-only) — enough to
      exercise scrolling on more than a handful of examples. */
@@ -4090,13 +4013,17 @@
        t        title, and the identity everything else is addressed by
        k        kind, for the poster's aspect
        s        sub-line
-       r        reason, when the card must justify a state
+       r        reason, when the card must justify a state — plain text, or
+                segments carrying emphasis (see richText)
        f        fraction, in mono
        chip     [tone, label]
+       note     a rating, as an outlined pill
        caption  a numeric aside, after the chip
        fresh    marks what has just arrived
        strip    the progress strip
        noposter forces the placeholder even when a sheet exists
+       panel    the panel the body addresses, when it is not this medium's own
+                — a suggestion is not yet a medium and has its own
 
      Anything a view wants to show that is not in here is a fact the card does
      not yet know about — the fix is to add the fact, not a second builder. A
@@ -4114,13 +4041,13 @@
     const poster = o.noposter || !aFiche
       ? `<span class="poster" title="Média non identifié — pas de fiche disponible"><span class="pfall"><b>?</b></span></span>`
       : `<button class="poster" aria-label="Fiche de ${esc(o.t)}" data-fiche="${esc(o.t)}">${posterBox(o.t, o.k)}</button>`;
-    const meta = `${o.f ? `<span class="frac">${esc(o.f)}</span>` : ""}${chipHTML(o.chip)}${o.caption ? `<span class="caption">${esc(o.caption)}</span>` : ""}${o.fresh ? `<span class="freshtag">Nouveau</span>` : ""}`;
+    const meta = `${o.f ? `<span class="frac">${esc(o.f)}</span>` : ""}${chipHTML(o.chip)}${o.note != null ? `<span class="cnote">${esc(String(o.note))}</span>` : ""}${o.caption ? `<span class="caption">${esc(o.caption)}</span>` : ""}${o.fresh ? `<span class="freshtag">Nouveau</span>` : ""}`;
     return `<div class="card${o.fresh ? " fresh" : ""}">
     <div class="ctop">${poster}
-      <button class="cbody" data-panel="media:${esc(o.t)}">
+      <button class="cbody" data-panel="${esc(o.panel || `media:${o.t}`)}">
         <span class="ctitle" title="${esc(o.t)}">${esc(o.t)}</span>
         ${o.s ? `<span class="csub">${esc(o.s)}</span>` : ""}
-        ${o.r ? `<span class="creason">${esc(o.r)}</span>` : ""}
+        ${o.r ? `<span class="creason">${richText(o.r)}</span>` : ""}
         <span class="cmeta">${meta}</span>
       </button>
     </div>
@@ -4147,6 +4074,18 @@
     </div>
     <button class="cfoot solid" data-resolve="${esc(titre)}">C'est celui-ci</button>
   </div>`;
+  }
+
+  /* Renders a text that carries emphasis, WITHOUT any caller supplying markup.
+     A value is either a plain string, or a list of segments where a bare
+     string is plain text and `{e}` is emphasised. Everything is escaped; only
+     what the data explicitly named comes out bold, at the position the data
+     put it — nothing is matched back into the sentence afterwards, which is
+     how the wrong « 4 » or the wrong title ends up emphasised. */
+  function richText(v) {
+    if (v == null) return "";
+    if (typeof v === "string") return esc(v);
+    return v.map((x) => (typeof x === "string" ? esc(x) : `<b>${esc(x.e)}</b>`)).join("");
   }
 
   function swipeHTML(inner, actions) {
@@ -5094,7 +5033,7 @@
         <span class="cap">
           <span class="t">${esc(s.t)}</span>
           <span class="m">${esc(s.y)} · ${esc(s.k)} · ${esc(String(s.note))} sur TMDB</span>
-          <span class="why">${s.why}</span>
+          <span class="why">${richText(s.why)}</span>
         </span>
       </button>
       ${depth === 0 ? `<span class="dhint l">Passer</span><span class="dhint r">Pas intéressé</span>` : ""}
@@ -5124,20 +5063,27 @@
     return `<div class="deck">${pile}</div>`;
   }
 
+  /* A suggestion, described as a CARD. It had its own builder and its own class
+     vocabulary, and drew a poster 63 % larger than every other list on a page
+     that already offers two visual formats for browsing — the poster gallery
+     and the deck. A list is a list.
+
+     What stays its own is the swipe wrapper: dismissing a suggestion is a
+     gesture no other list has. */
   function sugCardHTML(s, i) {
     return `<div class="sugwrap" data-sugwrap="${i}">
       <div class="sugback">
         <span>${svg(I.x)}Pas intéressé</span>
         <span>Pas intéressé${svg(I.x)}</span>
       </div>
-      <article class="sug">
-        <button class="p" data-fiche="${esc(s.t)}" aria-label="Fiche de ${esc(s.t)}">${posterBox(s.t, s.k === "Film" ? "movie" : "show")}</button>
-        <button class="sbody" data-sug="${i}" aria-label="${esc(s.t)} — actions">
-          <span class="t">${esc(s.t)}</span>
-          <span class="m">${esc(s.y)} · ${esc(s.k)}<span class="sugnote">${esc(String(s.note))}</span></span>
-          <p class="why">${s.why}</p>
-        </button>
-      </article>
+      ${cardHTML({
+        t: s.t,
+        k: s.k === "Film" ? "movie" : "show",
+        s: `${s.y} · ${s.k}`,
+        note: s.note,
+        r: s.why,
+        panel: `sug:${i}`,
+      })}
     </div>`;
   }
 
@@ -5258,7 +5204,7 @@
     openSheet(`
       <h3 class="sheettitle">${esc(s.t)}</h3>
       <p class="sheetmeta">${esc(s.y)} · ${esc(s.k)} · note TMDB ${esc(String(s.note))}</p>
-      <p class="rulenote">${s.why}</p>
+      <p class="rulenote">${richText(s.why)}</p>
       <div class="sheetacts">
         <button class="sact primary" data-follow="${esc(s.t)}" data-sugidx="${i}">${svg(I.plus)}${sugVerb(s)}</button>
         <button class="sact" data-fiche="${esc(s.t)}">${svg(I.eye)}Voir la fiche</button>
@@ -7091,7 +7037,7 @@
       const w = e.target.closest(".sugwrap");
       if (!w || !e.isPrimary) return;
       const t = e;
-      sugDrag = { w, card: w.querySelector(".sug"), x: t.clientX, y: t.clientY, axis: null, dx: 0 };
+      sugDrag = { w, card: w.querySelector(".card"), x: t.clientX, y: t.clientY, axis: null, dx: 0 };
     },
     { passive: true },
   );

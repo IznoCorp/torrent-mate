@@ -6,6 +6,15 @@ R43 — an action offered inline on a card is ALSO in that medium's panel.
 R44 — the same medium reached from a card and from a gallery opens the SAME
       panel, action for action.
 R45 — a tile addresses its panel by title, never by list index.
+R46 — a card that is not a medium says so, and promises neither sheet nor panel.
+R47 — every list draws its cards with the same builder and the same metrics.
+R48 — a reason never truncates. It wraps, and the card grows.
+
+R47 exists because the last holdout is what a shared component is worth:
+Découvrir kept its own builder and drew a poster 63 % larger than every other
+list, on a page that already offers a gallery and a deck for browsing. Reading
+the code had not found it; measuring the geometry of all five surfaces did, in
+one pass.
 
 R43 and R44 are the two that matter. An action reachable from a single surface
 disappears the moment that surface is displayed differently — which is exactly
@@ -40,6 +49,8 @@ ETATS_CARTES = [
     "arr-resolution",
     "ecran-releases",
     "acq-identifier",
+    "acq-decouvrir",
+    "acq-decouvrir-degrade",
 ]
 
 # States drawing tiles, and how to reach the tile layout from them.
@@ -217,6 +228,46 @@ async def main():
                 if t["sousLigne"].strip() in ("undefined", "null", "NaN"):
                     echecs.append(f"R45 {etat} « {t['nom']} »: sub-line reads « {t['sousLigne']} »")
             print(f"  R45     {etat:22} {len(refs):3} tiles")
+
+        # ---- R47 / R48 -------------------------------------------------
+        metriques = {}
+        tronquees = []
+        for etat in ETATS_CARTES:
+            await pg.evaluate("(i)=>window.__go(i)", etat)
+            await pg.wait_for_timeout(360)
+            if etat.startswith("lib-"):
+                await mode(pg, "list")
+            m = await pg.evaluate(
+                """()=>{const c=document.querySelector('.card:not([data-nonmedia])');
+                if(!c) return null;
+                const p=c.querySelector('.poster'), t=c.querySelector('.ctitle');
+                const rp=p.getBoundingClientRect(), cs=getComputedStyle(c);
+                return {affiche:[Math.round(rp.width),Math.round(rp.height)],
+                        padding:cs.padding, rayon:cs.borderRadius,
+                        titre:getComputedStyle(t).fontSize,
+                        gap:getComputedStyle(c.querySelector('.ctop')).gap};}"""
+            )
+            if m:
+                metriques[etat] = m
+            tronquees += await pg.evaluate(
+                """()=>[...document.querySelectorAll('.creason')]
+                    .filter(e=>e.scrollHeight>e.clientHeight+1)
+                    .map(e=>e.textContent.slice(0,60))"""
+            )
+        if len(metriques) < 2:
+            echecs.append("R47: fewer than two surfaces to compare")
+        else:
+            executees += 1
+            reference = next(iter(metriques.items()))
+            for etat, m in metriques.items():
+                if m != reference[1]:
+                    ecarts = {k: (reference[1][k], v) for k, v in m.items() if v != reference[1][k]}
+                    echecs.append(f"R47 {etat} draws a card unlike {reference[0]}: {ecarts}")
+            print(f"  R47     {len(metriques)} list surfaces, "
+                  f"{'one' if all(m == reference[1] for m in metriques.values()) else 'SEVERAL'} metric(s)")
+        executees += 1
+        for texte in tronquees:
+            echecs.append(f"R48 a reason is truncated: « {texte}… »")
 
         # ---- R44 -------------------------------------------------------
         etat, attendue = COMPARAISON

@@ -71,6 +71,7 @@
     ".ca",
     ".cadence",
     ".cap",
+    ".cnote",
     ".caption",
     ".card",
     ".card.dragging",
@@ -277,7 +278,6 @@
     ".sact.danger",
     ".sact.primary",
     ".sact.primary svg",
-    ".sbody",
     ".sc",
     ".screen",
     ".screen .port",
@@ -355,15 +355,7 @@
     ".st:first-child::before",
     ".strip",
     ".success",
-    ".sug",
-    ".sug .b",
-    ".sug .m",
-    ".sug .p",
-    ".sug .p img",
-    ".sug .t",
-    ".sug .why",
     ".sug .why b",
-    ".sug.dragging",
     ".sugacts",
     ".sugacts button",
     ".sugacts button.ghost",
@@ -373,7 +365,6 @@
     ".sugback svg",
     ".sugg",
     ".sugg button",
-    ".sugnote",
     ".sugtile",
     ".sugtiles",
     ".sugwrap",
@@ -920,7 +911,9 @@
       "A failing check must still REPORT. Breaking R41 on purpose made the run crash inside R43 on a null it no longer guarded: the exit code was right and the output was a stack trace. A rule whose failure buries the other findings is half a rule.",
       "Uniformity is measurable: breaking the shared card builder on purpose now produces 332 failures across every list, where the same edit once reached only the lists that happened to use it. Three views rebuilt a card by hand, and one of them had already drifted.",
       "« One component with variable display » fails when the variation is named after appearance. The card takes a DESCRIPTOR of facts — fraction, chip, caption, fresh — and a view that wants something not in it must add the fact, never pass ready-made markup. An envelope guarantees nothing about what it carries.",
-      "Not everything that looks like a card is one. The release candidate shares the markup and is a different object: no sheet, no panel. Forcing it into the shared component would have made it promise both. It is marked instead, so the contract check tells them apart by construction rather than by knowing which screens draw which."
+      "Not everything that looks like a card is one. The release candidate shares the markup and is a different object: no sheet, no panel. Forcing it into the shared component would have made it promise both. It is marked instead, so the contract check tells them apart by construction rather than by knowing which screens draw which.",
+      "A shared component is worth what its LAST holdout is worth. Découvrir kept its own builder and its own class vocabulary, and drew a poster 63 % larger than every other list — on a page that already offers two visual formats for browsing. Measuring geometry across the five list surfaces found it in one pass; reading the code had not.",
+      "« The data already contains markup » is not a reason to accept markup. The suggestion reasons shipped their own <b>, so the card would have had to trust them. Converting the data to segments — plain text plus what is emphasised, at its position — keeps the escape total and emphasises the right « 4 », which re-matching a string into a sentence does not."
     ],
     "R27": "A trailer ALWAYS opens in YouTube, never inside the application, and the sheet offers it wherever one arrives from. A real anchor, a conformant watch URL, target=_blank and noopener; no promise of in-app playback.",
     "R28": "Exactly ONE back-control design, compatible with every page, in the flow so it pushes content instead of covering it — and never text glued closer than 8px to it.",
@@ -942,6 +935,8 @@
     "R43": "An action offered inline on a card is ALSO in that medium's panel. No action is reachable from a single surface.",
     "R44": "The same medium reached from a card and from a gallery opens the SAME panel, action for action.",
     "R45": "A tile addresses its panel by title, never by list index.",
-    "R46": "A card that is not a medium declares it (`data-nonmedia`), and promises neither a media sheet nor a panel. A release is one candidate among several for a medium named elsewhere on the screen; it has no sheet of its own."
+    "R46": "A card that is not a medium declares it (`data-nonmedia`), and promises neither a media sheet nor a panel. A release is one candidate among several for a medium named elsewhere on the screen; it has no sheet of its own.",
+    "R47": "Every list draws its cards with the same builder and the same metrics — poster, padding, radius, title size. A view needing a bigger picture uses the gallery or the deck format, which exist for exactly that.",
+    "R48": "A reason never truncates (§12). It wraps, and the card grows."
   }
 }
