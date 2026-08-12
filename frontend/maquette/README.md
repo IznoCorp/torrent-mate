@@ -382,6 +382,7 @@ They are committed because they encode recipes that cost time to get right.
 | `ident.py` | identify ≠ follow: the context picks the verb |
 | `pop.py` | the episode date popover, in all its states |
 | `chrome.py` | R51: the harness bar covers none of the app's fixed controls, in every named state, at both sides of the 520px breakpoint |
+| `pwa.py` | R52: the LIVE host is installable from the first document a phone reaches — manifest, icons that load, worker registered and controlling, offline fallback cached. Runs against `tm-design.iznogoudatall.xyz`, not the local server |
 
 Run them with the Python that carries Playwright, against a local static server on
 **127.0.0.1:8899** — **never** 8710 / 8711, which the reverse proxy routes to prod and

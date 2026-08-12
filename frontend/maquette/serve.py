@@ -97,36 +97,78 @@ MANIFESTE = b"""{
 }
 """
 
-# A fetch handler is what makes a page installable, and this one deliberately
-# does nothing else. A caching worker would serve yesterday's prototype to
-# someone judging today's design — the exact failure a design reference cannot
-# afford.
-WORKER = b"""self.addEventListener("install", () => self.skipWaiting());
+# Installability asks two things of a worker: that it handle fetches, and that
+# a navigation still get an answer with the network gone. An empty handler
+# satisfies the first and fails the second, so the prompt never came.
+#
+# The answer is NETWORK-FIRST, with one cached page as the only fallback, and
+# the prototype itself never cached. A caching worker would serve yesterday's
+# prototype to someone judging today's design — the exact failure a design
+# reference cannot afford. Being offline says so instead of lying quietly.
+WORKER = b"""const CACHE = "tm-design-offline";
+const HORS_LIGNE = "/hors-ligne.html";
+
+self.addEventListener("install", (e) => {
+  e.waitUntil(caches.open(CACHE).then((c) => c.add(HORS_LIGNE)));
+  self.skipWaiting();
+});
 self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
-self.addEventListener("fetch", () => {});
+self.addEventListener("fetch", (e) => {
+  if (e.request.mode !== "navigate") return;
+  e.respondWith(
+    fetch(e.request).catch(() => caches.match(HORS_LIGNE))
+  );
+});
 """
 
-HEAD = (
-    b'<!doctype html><html lang="fr"><head><meta charset="utf-8">'
-    b'<meta name="viewport" '
-    b'content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">'
-    # An HTML entity, not the character: a bytes literal accepts no accent and
-    # no dash beyond ASCII, and this file has already paid for that twice.
-    b"<title>TorrentMate &mdash; refonte mobile</title>"
-    b'<link rel="manifest" href="/manifest.webmanifest">'
-    b'<meta name="theme-color" content="#0b0b0d">'
-    b'<link rel="apple-touch-icon" href="/apple-touch-icon.png">'
-    b'<link rel="icon" href="/favicon.svg" type="image/svg+xml">'
+# The one page that exists offline. It says what is true — the prototype lives
+# on the server and is not available — rather than showing a stale copy of it.
+HORS_LIGNE = (
+    '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
+    '<meta name="viewport" content="width=device-width,initial-scale=1">'
+    "<title>TorrentMate — hors ligne</title>"
+    "<style>html,body{margin:0;height:100%;display:grid;place-items:center;"
+    "background:#0b0b0d;color:#ededf0;font-family:system-ui,sans-serif;"
+    "text-align:center;padding:24px}p{color:#9b9ba4;font-size:14px;"
+    "line-height:1.5;max-width:30ch}</style></head><body><div>"
+    "<h1 style=\"font-size:17px;margin:0 0 8px\">Hors ligne</h1>"
+    "<p>La maquette est servie par le serveur de design. Elle n'est pas "
+    "mise en cache, pour que ce que vous jugez soit toujours la version "
+    "du jour.</p></div></body></html>"
+).encode()
+
+# Everything that makes a document installable, declared ONCE and carried by
+# every document this server hands out.
+#
+# It used to sit on the prototype alone, and the prototype is behind the
+# session. A phone therefore never met an installable page: the only document
+# it could reach before signing in was the login gate, and a browser reads the
+# manifest of the page in front of it, never one waiting behind a cookie. The
+# install prompt had nothing to offer, so it never appeared.
+TETE_PWA = (
+    '<link rel="manifest" href="/manifest.webmanifest">'
+    '<meta name="theme-color" content="#0b0b0d">'
+    '<link rel="apple-touch-icon" href="/apple-touch-icon.png">'
+    '<link rel="icon" href="/favicon.svg" type="image/svg+xml">'
     # iOS reads neither the manifest's display nor its short_name: standalone
     # mode and the home-screen label are declared with these two, or the icon
     # opens a Safari tab instead of an app.
-    b'<meta name="apple-mobile-web-app-capable" content="yes">'
-    b'<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">'
-    b'<meta name="apple-mobile-web-app-title" content="TM design">'
-    b'<script>if("serviceWorker" in navigator)'
-    b'addEventListener("load",()=>navigator.serviceWorker.register("/sw.js"));</script>'
-    b"</head><body>"
+    '<meta name="apple-mobile-web-app-capable" content="yes">'
+    '<meta name="mobile-web-app-capable" content="yes">'
+    '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">'
+    '<meta name="apple-mobile-web-app-title" content="TM design">'
+    '<script>if("serviceWorker" in navigator)'
+    'addEventListener("load",()=>navigator.serviceWorker.register("/sw.js"));</script>'
 )
+
+HEAD = (
+    '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
+    '<meta name="viewport" '
+    'content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">'
+    "<title>TorrentMate — refonte mobile</title>"
+    f"{TETE_PWA}"
+    "</head><body>"
+).encode()
 TAIL = b"</body></html>"
 
 MANQUANT = (
@@ -211,7 +253,9 @@ def page_connexion(refusee: bool) -> bytes:
     return (
         '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
-        "<title>TorrentMate — connexion</title><style>"
+        "<title>TorrentMate — connexion</title>"
+        f"{TETE_PWA}"
+        "<style>"
         f"{socle}{styles}{ajustements}</style></head><body>{balisage}</body></html>"
     ).encode()
 
@@ -315,6 +359,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         if chemin == "/sw.js":
             self._send(200, WORKER, type_mime="text/javascript")
+            return
+        # Outside the session, like the manifest: the worker caches this page at
+        # install time, and that install happens before anyone has signed in.
+        if chemin == "/hors-ligne.html":
+            self._send(200, HORS_LIGNE, type_mime="text/html; charset=utf-8")
             return
         if chemin in ASSETS:
             fichier = PUBLIC / chemin.lstrip("/")
