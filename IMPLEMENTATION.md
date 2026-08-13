@@ -221,11 +221,11 @@ These were argued, measured and recorded. Re-opening one costs a day; the reason
 4. **`?tab=maintenant`.** The label became « En cours »; whether the URL param migrates with a
    legacy redirect or stays is an implementation detail of phase 6's sibling work. The deep link
    must keep working either way.
-5. ~~**The list poster cannot be enlarged by its own derivation.**~~ **Closed.** The reference was
-   changed, deliberately and by measurement: the poster now fills the card whose purpose is
-   RECOGNISING a medium — title, sub-line, synopsis — which is 49px, from the card's own anatomy
-   rather than from a percentile. Two further notches exist and are named in R47: a card carrying
-   a reason gives 58, the fullest card 63.
+5. ~~**The list poster cannot be enlarged by its own derivation.**~~ **Closed**, and the question
+   was replaced rather than answered: the poster is no longer a fraction of anything, it reaches
+   the card's edges. 84px wide, with the card's height as its floor, so a card at that floor
+   gives an exact 2:3 and its artwork is untouched. What remains named in R47 is the limit —
+   full height and the 2:3 ratio cannot both hold on a taller card, so cropping is bounded.
 6. ~~**The design host and the app share their icons.**~~ **Closed.** The design host carries a
    yellow-ringed set of its own, generated from staging's shape by
    `frontend/scripts/make-design-icons.py`.
@@ -233,7 +233,16 @@ These were argued, measured and recorded. Re-opening one costs a day; the reason
    are derived; the screen's own shape — one folder at a time, the three ways out side by side,
    the progression replacing the desktop deck's keyboard shortcuts — belongs to the Arrivées
    rebuild (phase 2), because that is where the queue lives.
-8. **Answering a decision was a no-op on the acquisition side.** Found while drawing the screen:
+8. **The synopsis is not in the read-model.** The library's rows carry it in the prototype, read
+   from the `<plot>` of each medium's own NFO — real data, but `library.db` has neither a column
+   of `media_item` nor a key of `item_attribute` for it. The app cannot render this surface until
+   the read-model grows the field, and the scan that fills it. Nine of 349 titles have no plot at
+   all, and those must show nothing rather than a filler.
+9. **Editing a setting is drawn only as far as the panel.** The settings surface shows the whole
+   cycle — reading, a pending change, the save bar that names the files it will write — but not
+   the FIELD types: a keyboard for a number, a list for an enum, a switch for a boolean. Each is
+   a shape the prototype has to settle before the code derives it.
+10. **Answering a decision was a no-op on the acquisition side.** Found while drawing the screen:
    « Résoudre → » on « À traiter » opened the screen, took the choice, and left the item exactly
    where it was, because the answer only ever looked in the Arrivées list. Fixed in the prototype.
    The app's equivalent — whether resolving from one queue clears it from the other — is a
