@@ -12917,6 +12917,7 @@
   const view = select("#view"),
     nav = select("#nav"),
     port = select("#port"),
+    cadre = select("#device"),
     fab = select("#fab");
 
   function renderNav() {
@@ -13238,7 +13239,7 @@
     appui = null;
   }
 
-  port.addEventListener(
+  cadre.addEventListener(
     "pointerdown",
     (event) => {
       // A new gesture clears any mark the previous one left unconsumed.
@@ -13247,7 +13248,7 @@
     },
     { passive: true },
   );
-  port.addEventListener("pointermove", (event) => suivreAppui(event), {
+  cadre.addEventListener("pointermove", (event) => suivreAppui(event), {
     passive: true,
   });
   /* The mark is NEVER cleared on pointerup: for a real finger the click comes
@@ -13259,6 +13260,21 @@
     // click will follow it, so nothing is left waiting to be swallowed.
     annulerAppui();
     clicAvaler = null;
+  });
+
+  /* The browser's own menu is refused wherever the interface answers a press.
+
+     `user-select: none` stops a selection and `-webkit-touch-callout: none`
+     answers iOS Safari, and neither touches the menu Android raises: that one
+     comes from `contextmenu`, and nothing was refusing it. A long press on a
+     poster therefore offered « copier l'image » on top of — or instead of —
+     the panel the same press was opening.
+
+     A text field keeps its menu: pasting into one has no other route, and the
+     interface offers nothing there of its own. */
+  cadre.addEventListener("contextmenu", (event) => {
+    if (event.target.closest("input, textarea, [contenteditable]")) return;
+    event.preventDefault();
   });
 
   /* A press that opened the panel must not ALSO fire what the lift lands on.

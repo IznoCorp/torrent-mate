@@ -23,6 +23,8 @@ import sys
 
 from playwright.async_api import async_playwright
 
+# The prototype's own long-press delay; a probe shorter than it proves nothing.
+APPUI_MS = 480
 BAR = "─" * 62
 
 # The phone's OWN long press — select, copy, save — cannot be outrun by a
@@ -243,6 +245,96 @@ async def main():
         verifier("les surfaces pressables refusent le menu du téléphone",
                  not refus, " · ".join(refus))
 
+
+        # ── the browser's own menu is refused where we answer ─────────────
+        # `user-select` stops a selection and `-webkit-touch-callout` answers
+        # iOS; neither touches the menu Android raises from `contextmenu`. The
+        # observable fact is that the event is prevented — a native menu itself
+        # is not observable from here, so asserting its absence would be a rule
+        # that can never fail.
+        refus = await pg.evaluate("""()=>{
+          const cible = document.querySelector('#view .poster') ||
+                        document.querySelector('#view .card');
+          const e = new MouseEvent('contextmenu', {bubbles:true, cancelable:true});
+          cible.dispatchEvent(e);
+          return {sur: cible.className, refuse: e.defaultPrevented};}""")
+        verifier("le menu du navigateur est refusé sur une affiche",
+                 refus["refuse"], refus["sur"])
+
+        # But never inside a text field: pasting has no other route there, and
+        # the interface offers nothing of its own.
+        champ = await pg.evaluate("""()=>{
+          const c = document.querySelector('#device input[type="search"], #device input');
+          if (!c) return null;
+          const e = new MouseEvent('contextmenu', {bubbles:true, cancelable:true});
+          c.dispatchEvent(e);
+          return e.defaultPrevented;}""")
+        verifier("mais gardé dans un champ de saisie", champ is False, str(champ))
+
+        # ── and the press answers ABOVE the scrollport too ─────────────────
+        # The listeners lived on the scrollport, which holds the pages and
+        # nothing else: every layer above it — sheet, screen, drawer, dialog —
+        # sits outside it, so eight states drew a card no press could reach.
+        # What is checked is the panel OPENING there, not which element the
+        # listeners happen to be bound to — that would be checking a choice
+        # against itself, and no such rule can ever fall.
+        # The layers above the scrollport — sheet, screen, drawer, dialog — sit
+        # OUTSIDE it, so a refusal bound to the scrollport leaves every card and
+        # poster drawn in one of them offering the browser's menu. Eight named
+        # states draw one.
+        #
+        # The long press is NOT checked here, and deliberately: on those cards
+        # the body opens the panel on a plain tap, so `armerAppui` refuses to arm
+        # a timer that would open it twice. A rule asserting a press there would
+        # be asserting a behaviour the design does not want.
+        await pg.evaluate("()=>window.__go('acq-identifier')")
+        await pg.wait_for_timeout(450)
+        couche = await pg.evaluate("""()=>{
+          const port = document.querySelector('#port');
+          const c = [...document.querySelectorAll('.card')]
+            .find(e => e.getBoundingClientRect().width > 0 && !port.contains(e));
+          if (!c) return null;
+          const e = new MouseEvent('contextmenu', {bubbles:true, cancelable:true});
+          c.dispatchEvent(e);
+          return {dansEcran: document.querySelector('#screen').contains(c),
+                  refuse: e.defaultPrevented};}""")
+        verifier("une carte est dessinée au-dessus du défilement",
+                 couche is not None and couche["dansEcran"], str(couche))
+        verifier("et le menu du navigateur y est refusé aussi",
+                 bool(couche and couche["refuse"]), str(couche))
+
+        # And a press there must ARM. Four states draw a poster above the
+        # scrollport — a poster is not a card body, so nothing refuses it a
+        # timer — and with the listeners bound to the scrollport the press never
+        # reached it at all. The panel is read WHILE THE FINGER IS DOWN: on that
+        # surface a tap opens it too, so anything measured after the lift cannot
+        # tell a press from a tap.
+        await pg.evaluate("()=>closeSheet()")
+        await pg.wait_for_timeout(340)
+        verifier("le panneau part fermé", not await pg.evaluate(
+            "()=>document.querySelector('#sheet').classList.contains('open')"))
+        cible = await pg.evaluate("""()=>{
+          const port = document.querySelector('#port');
+          const a = [...document.querySelectorAll('.poster')]
+            .find(e => e.getBoundingClientRect().width > 0 && !port.contains(e));
+          if (!a) return null;
+          const r = a.getBoundingClientRect();
+          const x = r.x + r.width / 2, y = r.y + r.height / 2;
+          return port.contains(document.elementFromPoint(x, y)) ? null : {x, y};}""")
+        verifier("une affiche est dessinée au-dessus du défilement", cible is not None)
+        if cible:
+            await cdp.send("Input.dispatchTouchEvent",
+                           {"type": "touchStart",
+                            "touchPoints": [{"x": cible["x"], "y": cible["y"], "id": 1}]})
+            await pg.wait_for_timeout(APPUI_MS + 240)
+            pendant = await pg.evaluate(
+                "()=>document.querySelector('#sheet').classList.contains('open')")
+            await cdp.send("Input.dispatchTouchEvent",
+                           {"type": "touchEnd", "touchPoints": []})
+            await pg.wait_for_timeout(320)
+            verifier("et un appui long y ouvre le panneau, doigt encore posé", pendant)
+            await pg.evaluate("()=>closeSheet()")
+            await pg.wait_for_timeout(300)
 
         verifier("aucune erreur JS", not erreurs, str(erreurs))
         await b.close()

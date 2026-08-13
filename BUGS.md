@@ -37,7 +37,7 @@ when the defect comes back.
 | B-002 | The startup bar is never seen on a real load | 2× | `open` |
 | B-003 | In Arrivées a poster does not lead where a poster leads | 2× | `open` |
 | B-004 | Dragging the sheet handle down no longer closes the panel | 2× | `open` |
-| B-005 | A long press on a poster raises the browser's own menu | 2× | `open` |
+| B-005 | ~~A long press on a poster raises the browser's own menu~~ | 2× | `to confirm` |
 | B-006 | ~~Two different sign-in screens: arrival and sign-out~~ | 1× | `to confirm` |
 | B-007 | ~~`--accent` referenced 11 times, defined nowhere~~ | 1× | `to confirm` |
 
@@ -132,7 +132,21 @@ claim the axis; then extend R55 to every draggable surface, sheet handle include
 
 ## B-005 — A long press on a poster raises the browser's own menu
 
-**Reported** 2×. **Status** `open`.
+**Reported** 2×. **Status** `to confirm`.
+
+**Fixed.** `contextmenu` is now refused across the whole frame, except inside a text field where
+pasting has no other route. Measuring it turned up a second defect the report had named without
+either of us knowing why: the press listeners lived on the SCROLLPORT, and every layer above it —
+sheet, screen, drawer, dialog — sits outside, so four states drew a poster no press could reach.
+Both listeners moved to the frame. Rule R55 extended, `harness/doigt.py` — 18 checks, four
+mutations proven: the refusal removed, the refusal reaching into text fields, the refusal back on
+the scrollport, and the press listeners back on the scrollport.
+
+**Two rules were thrown away before one worked**, and both failures are the same failure: asserting
+the panel is open AFTER the lift proves nothing, because on those surfaces a tap opens it too. The
+oracle for a press is that the panel is open while the finger is STILL DOWN. A first attempt also
+read the target's position before closing the sheet, and closing re-lays the screen out, so the
+press landed on whatever had moved underneath.
 
 **What happens.** On a phone, a long press on a poster raises the browser's copy / open-image
 menu instead of, or on top of, the bottom panel.
