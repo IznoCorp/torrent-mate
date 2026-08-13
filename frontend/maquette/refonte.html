@@ -1882,12 +1882,19 @@
     transition: none;
   }
   .sheetgrab {
+    height: 22px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    touch-action: none;
+    cursor: grab;
+  }
+  .sheetgrab::before {
+    content: "";
     width: 36px;
     height: 4px;
     border-radius: 99px;
     background: var(--border);
-    margin: 10px auto 8px;
-    flex: 0 0 auto;
   }
   .sheetin {
     overflow-y: auto;
@@ -38246,31 +38253,41 @@
 
   /* 4) Sheet: drag the handle to close */
   let sheetDrag = null;
-  select("#sheetgrab").addEventListener(
-    "pointerdown",
-    (event) => {
-      sheetDrag = { y: event.clientY, dy: 0 };
-      select("#sheet").classList.add("dragging");
-    },
-    { passive: true },
-  );
-  select("#sheetgrab").addEventListener(
-    "pointermove",
-    (event) => {
-      if (!sheetDrag) return;
-      sheetDrag.dy = Math.max(0, event.clientY - sheetDrag.y);
-      select("#sheet").style.transform = `translateY(${sheetDrag.dy}px)`;
-    },
-    { passive: true },
-  );
-  select("#sheetgrab").addEventListener("pointerup", () => {
+  // How far the sheet must travel before the lift closes it.
+  const SEUIL_FERMETURE = 70;
+  /* The handle CAPTURES the pointer and claims its axis.
+
+     Without both, a real finger delivered `pointerdown`, two `pointermove`s and
+     then `pointercancel`: the compositor took the vertical drag, the pointer
+     stream died, `pointerup` never came, and the sheet — whose closing hangs off
+     that lift — simply stayed open. Capture also keeps the events coming once
+     the finger leaves a 22px strip, which happens within the first centimetre of
+     a gesture that has to travel 70px. */
+  const poignee = select("#sheetgrab");
+
+  function finGlisseFeuille(annule) {
     if (!sheetDrag) return;
     const drag = sheetDrag;
     sheetDrag = null;
     select("#sheet").classList.remove("dragging");
     select("#sheet").style.transform = "";
-    if (drag.dy > 70) closeSheet();
+    if (!annule && drag.dy > SEUIL_FERMETURE) closeSheet();
+  }
+
+  poignee.addEventListener("pointerdown", (event) => {
+    sheetDrag = { y: event.clientY, dy: 0 };
+    select("#sheet").classList.add("dragging");
+    poignee.setPointerCapture(event.pointerId);
   });
+  poignee.addEventListener("pointermove", (event) => {
+    if (!sheetDrag) return;
+    sheetDrag.dy = Math.max(0, event.clientY - sheetDrag.y);
+    select("#sheet").style.transform = `translateY(${sheetDrag.dy}px)`;
+  });
+  poignee.addEventListener("pointerup", () => finGlisseFeuille(false));
+  /* A cancel is not a lift: it must put the sheet back where it was rather than
+     close it on a gesture the browser took away. */
+  poignee.addEventListener("pointercancel", () => finGlisseFeuille(true));
 
   render();
   /* The interface exists from here on, so the startup screen has nothing left

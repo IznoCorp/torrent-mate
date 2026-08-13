@@ -36,7 +36,7 @@ when the defect comes back.
 | B-001 | The list poster is still too small | 2× | `open` |
 | B-002 | The startup bar is never seen on a real load | 2× | `open` |
 | B-003 | In Arrivées a poster does not lead where a poster leads | 2× | `open` |
-| B-004 | Dragging the sheet handle down no longer closes the panel | 2× | `open` |
+| B-004 | ~~Dragging the sheet handle down no longer closes the panel~~ | 2× | `to confirm` |
 | B-005 | ~~A long press on a poster raises the browser's own menu~~ | 2× | `to confirm` |
 | B-006 | ~~Two different sign-in screens: arrival and sign-out~~ | 1× | `to confirm` |
 | B-007 | ~~`--accent` referenced 11 times, defined nowhere~~ | 1× | `to confirm` |
@@ -110,7 +110,20 @@ poster at all — and a rule that walks every page and fails when the same eleme
 
 ## B-004 — Dragging the sheet handle down no longer closes the panel
 
-**Reported** 2×. **Status** `open`.
+**Reported** 2×. **Status** `to confirm`.
+
+**Fixed.** The handle claims its axis with `touch-action: none` and captures the pointer, and its
+target is a 22px strip rather than the 4px bar it draws — a thumb aims at the bar and lands in the
+strip, and the events used to stop the moment the finger left it. A cancel springs the sheet back
+instead of closing it. Rule R55 extended, `harness/doigt.py` — 25 checks, four mutations proven:
+the axis unclaimed (the original defect, under a real finger), the closing threshold dropped to
+10px, the pointer capture removed (which only a MOUSE drag can catch — touch gets an implicit
+capture), and a cancel treated as a lift.
+
+**Two mutations passed at first and each named a hole in the rule.** Removing the capture changed
+nothing under touch, so the rule had to grow a mouse drag. Treating a cancel as a lift changed
+nothing because nothing cancelled any more, so the rule had to drive a real cancelled touch —
+a hand-built PointerEvent carries an id no pointer owns, and the capture throws on it.
 
 **What happens.** Reproduced under a real finger driven through CDP: a 150 px downward drag from
 the handle delivers `pointerdown` ×1, `pointermove` **×2**, then `pointercancel`, and `pointerup`

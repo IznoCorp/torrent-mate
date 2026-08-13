@@ -336,6 +336,97 @@ async def main():
             await pg.evaluate("()=>closeSheet()")
             await pg.wait_for_timeout(300)
 
+        # ── 6. THE SHEET HANDLE, dragged down by a real finger ────────────
+        # It read the pointer stream with neither capture nor a claimed axis, so
+        # a 150px drag delivered pointerdown, TWO pointermoves, then
+        # pointercancel — and never the pointerup its closing hangs off. The
+        # sheet stayed open. Same mechanism as the pull-to-refresh and the view
+        # swipe, on a third gesture no rule had looked at.
+        await pg.evaluate("()=>{closeSheet(); openFollowSheet('Silo');}")
+        await pg.wait_for_timeout(450)
+        verifier("une feuille est ouverte", await pg.evaluate(
+            "()=>document.querySelector('#sheet').classList.contains('open')"))
+
+        async def glisserPoignee(depuis, jusqua, pas=12):
+            """Drags one finger down the handle, in steps a thumb really makes."""
+            r = await pg.evaluate(
+                "()=>{const b=document.querySelector('#sheetgrab').getBoundingClientRect();"
+                "return {x:b.x+b.width/2, y:b.y+b.height/2};}")
+            await cdp.send("Input.dispatchTouchEvent",
+                           {"type": "touchStart",
+                            "touchPoints": [{"x": r["x"], "y": r["y"] + depuis, "id": 1}]})
+            for dy in range(pas, jusqua + 1, pas):
+                await cdp.send("Input.dispatchTouchEvent",
+                               {"type": "touchMove",
+                                "touchPoints": [{"x": r["x"], "y": r["y"] + dy, "id": 1}]})
+                await asyncio.sleep(0.016)
+            await cdp.send("Input.dispatchTouchEvent",
+                           {"type": "touchEnd", "touchPoints": []})
+            await pg.wait_for_timeout(420)
+
+        await glisserPoignee(0, 150)
+        verifier("un glissé de 150px ferme la feuille", not await pg.evaluate(
+            "()=>document.querySelector('#sheet').classList.contains('open')"))
+
+        # A short drag is not a dismissal: it must spring back, and it must not
+        # leave the sheet displaced.
+        await pg.evaluate("()=>openFollowSheet('Silo')")
+        await pg.wait_for_timeout(450)
+        await glisserPoignee(0, 24)
+        etat = await pg.evaluate("""()=>({
+          ouverte: document.querySelector('#sheet').classList.contains('open'),
+          deplacee: document.querySelector('#sheet').style.transform || ''})""")
+        verifier("un glissé trop court la laisse ouverte", etat["ouverte"], str(etat))
+        verifier("et remise en place", not etat["deplacee"], etat["deplacee"])
+        # A MOUSE drag must close it too — the interface is used from a desktop
+        # browser. Touch gets implicit pointer capture for free; a mouse does
+        # not, so without an explicit capture the events stop the moment the
+        # cursor leaves a 22px strip, which is the first centimetre of a 70px
+        # gesture.
+        await pg.evaluate("()=>openFollowSheet('Silo')")
+        await pg.wait_for_timeout(450)
+        r = await pg.evaluate(
+            "()=>{const b=document.querySelector('#sheetgrab').getBoundingClientRect();"
+            "return {x:b.x+b.width/2, y:b.y+b.height/2};}")
+        await pg.mouse.move(r["x"], r["y"])
+        await pg.mouse.down()
+        for dy in range(12, 151, 12):
+            await pg.mouse.move(r["x"], r["y"] + dy)
+            await asyncio.sleep(0.016)
+        await pg.mouse.up()
+        await pg.wait_for_timeout(420)
+        verifier("à la souris aussi, un glissé de 150px ferme", not await pg.evaluate(
+            "()=>document.querySelector('#sheet').classList.contains('open')"))
+
+        # A cancel is not a lift. The compositor can still take the gesture — a
+        # second finger, a system edge swipe — and the sheet must go back where
+        # it was rather than close on something the operator did not finish.
+        await pg.evaluate("()=>openFollowSheet('Silo')")
+        await pg.wait_for_timeout(450)
+        # Driven as a REAL cancelled touch, not as synthetic events: a
+        # hand-built PointerEvent carries an id no pointer owns, so the capture
+        # the handler takes throws and the probe measures its own artefact.
+        r = await pg.evaluate(
+            "()=>{const b=document.querySelector('#sheetgrab').getBoundingClientRect();"
+            "return {x:b.x+b.width/2, y:b.y+b.height/2};}")
+        await cdp.send("Input.dispatchTouchEvent",
+                       {"type": "touchStart",
+                        "touchPoints": [{"x": r["x"], "y": r["y"], "id": 1}]})
+        for dy in (40, 80, 120):
+            await cdp.send("Input.dispatchTouchEvent",
+                           {"type": "touchMove",
+                            "touchPoints": [{"x": r["x"], "y": r["y"] + dy, "id": 1}]})
+            await asyncio.sleep(0.016)
+        await cdp.send("Input.dispatchTouchEvent", {"type": "touchCancel", "touchPoints": []})
+        await pg.wait_for_timeout(420)
+        annule = await pg.evaluate("""()=>{
+          const s = document.querySelector('#sheet');
+          return {ouverte: s.classList.contains('open'), deplacee: s.style.transform || ''};}""")
+        verifier("une annulation ne ferme pas la feuille", annule["ouverte"], str(annule))
+        verifier("et la remet en place", not annule["deplacee"], annule["deplacee"])
+        await pg.evaluate("()=>closeSheet()")
+        await pg.wait_for_timeout(320)
+
         verifier("aucune erreur JS", not erreurs, str(erreurs))
         await b.close()
 
