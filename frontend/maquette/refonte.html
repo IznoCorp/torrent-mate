@@ -720,14 +720,23 @@
   }
   .card {
     position: relative;
-    display: flex;
+    display: grid;
+    grid-template-columns: auto 1fr;
     width: 100%;
-    flex-direction: column;
+    align-items: stretch;
     border-radius: 8px;
     border: 1px solid var(--border);
     background: var(--card);
-    padding: 9px;
+    overflow: hidden;
+    min-height: 95px;
     transition: transform 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+  .ccol {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    padding: 9px;
   }
   .card.dragging {
     transition: none;
@@ -778,6 +787,11 @@
 
   .dossier {
     width: 58px;
+    align-self: start;
+    justify-self: start;
+    margin: 9px 0 9px 9px;
+    aspect-ratio: 2 / 3;
+    border-radius: 6px;
     flex: 0 0 auto;
     aspect-ratio: 2 / 3;
     display: grid;
@@ -801,10 +815,10 @@
     text-transform: uppercase;
   }
   .poster {
-    flex: 0 0 auto;
-    width: 58px;
-    aspect-ratio: 2/3;
-    border-radius: 4px;
+    position: relative;
+    align-self: start;
+    width: 63px;
+    aspect-ratio: 2 / 3;
     background: var(--muted);
     overflow: hidden;
     font-size: 14px;
@@ -819,6 +833,7 @@
     place-items: center;
     width: 100%;
     height: 100%;
+    object-fit: cover;
     overflow: hidden;
     background: linear-gradient(
       to bottom right,
@@ -826,6 +841,14 @@
       var(--card),
       var(--muted)
     );
+  }
+  /* Out of flow, so the artwork contributes no width: the card's height decides
+     it through the poster's ratio. In flow, a 240px-wide picture made a 240px
+     column and the card followed it. */
+  .poster > img,
+  .poster > .pfall {
+    position: absolute;
+    inset: 0;
   }
   .pfall svg {
     position: absolute;
@@ -10475,7 +10498,9 @@
     const ligneEtat = `${descriptor.f ? `<span class="frac">${escapeHtml(descriptor.f)}</span>` : ""}${chipHTML(descriptor.chip)}${descriptor.note != null ? `<span class="crating">${escapeHtml(String(descriptor.note))}</span>` : ""}`;
     const ligneAnnotations = `${descriptor.caption ? `<span class="caption">${escapeHtml(descriptor.caption)}</span>` : ""}${descriptor.fresh ? `<span class="freshtag">Nouveau</span>` : ""}`;
     return `<div class="card${descriptor.fresh ? " fresh" : ""}"${aFiche ? "" : ' data-nonmedia="dossier"'}>
-    <div class="ctop">${poster}
+    ${poster}
+    <div class="ccol">
+    <div class="ctop">
       <button class="cbody" data-panel="${escapeHtml(descriptor.panel || (aFiche ? `media:${descriptor.t}` : `dossier:${descriptor.t}`))}">
         <span class="ctitle" title="${escapeHtml(descriptor.t)}">${escapeHtml(descriptor.t)}</span>
         ${descriptor.s ? `<span class="csub">${escapeHtml(descriptor.s)}</span>` : ""}
@@ -10487,6 +10512,7 @@
     </div>
     ${descriptor.strip ? stripHTML(descriptor.strip) : ""}
     ${opts.foot ? `<button class="cfoot ${opts.footSolid ? "solid" : ""} ${opts.footTone || ""}" data-act="${escapeHtml(opts.footAct || "")}" ${opts.footDone ? "disabled" : ""}>${escapeHtml(opts.foot)}</button>` : ""}
+    </div>
   </div>`;
   }
 

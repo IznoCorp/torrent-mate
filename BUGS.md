@@ -33,21 +33,23 @@ when the defect comes back.
 
 | ID | Defect | Reported | Status |
 | --- | --- | --- | --- |
-| B-001 | The list poster is still too small | 2× | `open` |
+| B-001 | ~~The list poster is still too small~~ | 2× | `to confirm` |
 | B-002 | ~~The startup bar is never seen on a real load~~ | 2× | `to confirm` |
 | B-003 | ~~In Arrivées a poster does not lead where a poster leads~~ | 2× | `to confirm` |
 | B-004 | ~~Dragging the sheet handle down no longer closes the panel~~ | 2× | `to confirm` |
 | B-005 | ~~A long press on a poster raises the browser's own menu~~ | 2× | `to confirm` |
 | B-006 | ~~Two different sign-in screens: arrival and sign-out~~ | 1× | `to confirm` |
 | B-007 | ~~`--accent` referenced 11 times, defined nowhere~~ | 1× | `to confirm` |
-| B-008 | The card poster should bleed to three edges of the card | 1× | `open` |
+| B-008 | ~~The card poster should bleed to the card's edges~~ | 1× | `to confirm` |
 | B-009 | Swiping a media card should reveal its quick actions | 1× | `open` |
 
 ---
 
 ## B-001 — The list poster is still too small
 
-**Reported** 2×. **Status** `open`.
+**Reported** 2×. **Status** `to confirm`. Closed together with B-008, which replaced the question:
+the poster is no longer a fraction of anything, it is bled to the card's edges. 63px wide, +50% on
+the original 42.
 
 **What happens.** Measured on the four pages at 390 px: every list poster is **49 × 74 px**. It
 was 42 px, so it did change — by 17 %, which reads as "unchanged" on a phone where 49 px is 12.5 %
@@ -270,9 +272,27 @@ defined. Seven other references live outside the login screen and must be checke
 
 ---
 
-## B-008 — The card poster should bleed to three edges of the card
+## B-008 — The card poster should bleed to the card's edges
 
-**Reported** 1×. **Status** `open`.
+**Reported** 1×. **Status** `to confirm`.
+
+**Fixed, with one limit measured rather than argued.** The card carries no padding of its own any
+more; it moved onto the column holding the text, and the poster reaches the card's top and left
+edge. The poster's own height is the card's FLOOR, so a card at that floor is bled on three edges;
+a taller card is bled on two.
+
+**Full height AND the 2:3 ratio cannot both hold.** That was asked for and attempted: a full-height
+2:3 poster means deriving the width from a height the text decides, and a grid sizes an `auto`
+column BEFORE the row's final height is known. Measured, on a 219px card the poster computed 146px
+against a column of 89 and ran over the text — on seventeen states. A `max-width` cap did not save
+it; the overlap merely shrank to one pixel. The ratio was kept, because a stretched poster stops
+being a poster; the bottom bleed is what gave way, and only on cards the text makes taller.
+
+One trap paid on the way: the artwork must contribute no intrinsic size of its own, or its pixels
+set the column — in flow, a 240px-wide picture made a 240px poster and dragged the card with it.
+
+Rule R47 rewritten, `harness/cartes.py` — 142 checks over every named state, three mutations
+proven: the padding restored around the poster, the ratio broken, the width shrunk back to 42.
 
 **Asked for.** The poster grows by DROPPING the padding around it: it touches the card's top, left
 and bottom edges. The rest of the card's content keeps its margins.

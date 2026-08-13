@@ -38,7 +38,7 @@ URL = "http://127.0.0.1:8899/wrapped.html"
 # Every state that draws cards, overlays included. The list was once shorter,
 # and the two screens missing from it — resolution and release choice — were
 # exactly the two drawing a card that is not a medium.
-AFFICHE_LISTE = 58  # the notch of the card that explains; see refonte.html
+AFFICHE_LISTE = 63  # the notch of the card that explains; see refonte.html
 ETATS_CARTES = [
     "acq-encours-repos",
     "acq-encours-charge",
@@ -338,7 +338,7 @@ async def main():
                 if(!c) return null;
                 const p=c.querySelector('.poster'), t=c.querySelector('.ctitle');
                 const rp=p.getBoundingClientRect(), cs=getComputedStyle(c);
-                return {affiche:[Math.round(rp.width),Math.round(rp.height)],
+                return {affiche:Math.round(rp.width),
                         padding:cs.padding, rayon:cs.borderRadius,
                         titre:getComputedStyle(t).fontSize,
                         gap:getComputedStyle(c.querySelector('.ctop')).gap};}"""
@@ -368,34 +368,67 @@ async def main():
         # EXPLAINS (title, sub-line, reason): 87px of text column, two thirds of
         # it, 58px. Shrinking it back now fails here.
         executees += 1
-        largeurs = {tuple(m["affiche"]) for m in metriques.values()}
-        if largeurs != {(AFFICHE_LISTE, round(AFFICHE_LISTE * 1.5))}:
+        largeurs = {m["affiche"] for m in metriques.values()}
+        if largeurs != {AFFICHE_LISTE}:
             echecs.append(f"R47 the list poster is not {AFFICHE_LISTE}px: {sorted(largeurs)}")
         else:
             print(f"  R47     the list poster is {AFFICHE_LISTE}px, the notch of the "
                   "card that explains")
 
-        # And no card CLIPS it: the card grows to the poster, which is the
-        # permission that made the size possible in the first place.
-        executees += 1
-        rognees = []
+        # The poster keeps a poster's RATIO and reaches the card's top and left.
+        # Deriving its width from the card's height — which is what a full-height
+        # 2:3 poster means — was tried and does not survive contact: a grid sizes
+        # an `auto` column before the row's final height is known, so on a 219px
+        # card the poster computed 146px against a column of 89 and ran over the
+        # text, on 17 states. The sound direction is the other one: the poster's
+        # own height is the card's FLOOR, so a card at that floor is bled on
+        # three edges and a taller card on two — with the ratio intact
+        # everywhere, which is what makes a poster a poster.
+        executees += 4
+        ratios, colles, marges, chevauche = set(), [], [], []
         for etat in await pg.evaluate("()=>window.__states()"):
             await pg.evaluate("(i)=>window.__go(i)", etat)
             await pg.wait_for_timeout(110)
-            rognees += [f"{etat}: {x}" for x in await pg.evaluate("""()=>{
-              const out = [];
+            vu = await pg.evaluate("""()=>{
+              const out = {ratios: [], colles: [], marges: [], chev: []};
               for (const c of document.querySelectorAll('.card')) {
-                const p = c.querySelector('.poster, .dossier');
+                const p = c.querySelector('.poster');
                 if (!p || !p.getBoundingClientRect().width) continue;
                 const rp = p.getBoundingClientRect(), rc = c.getBoundingClientRect();
-                if (rp.top < rc.top - 0.5 || rp.bottom > rc.bottom + 0.5)
-                  out.push((c.querySelector('.ctitle')||{}).textContent||'?');
+                const titre = (c.querySelector('.ctitle')||{}).textContent || '?';
+                out.ratios.push(Math.round(rp.height / rp.width * 100) / 100);
+                for (const [bord, ecart] of [['haut', rp.top - rc.top],
+                                             ['gauche', rp.left - rc.left]])
+                  if (Math.abs(ecart) > 1.5)
+                    out.colles.push(`${titre} — ${bord} à ${ecart.toFixed(1)}px`);
+                const t = c.querySelector('.ctitle');
+                if (t) {
+                  const rt = t.getBoundingClientRect();
+                  if (rt.left < rp.right - 0.5) out.chev.push(titre);
+                  else if (rt.left - rp.right < 6) out.marges.push(titre);
+                }
               }
-              return out;}""")]
-        if rognees:
-            echecs.append(f"R47 a card clips its poster: {rognees[:3]}")
+              return out;}""")
+            ratios |= set(vu["ratios"])
+            colles += [f"{etat}: {x}" for x in vu["colles"]]
+            marges += [f"{etat}: {x}" for x in vu["marges"]]
+            chevauche += [f"{etat}: {x}" for x in vu["chev"]]
+        if ratios != {1.5}:
+            echecs.append(f"R47 a poster is not 2:3: {sorted(ratios)}")
         else:
-            print("  R47     no card clips its poster — the card grows to it")
+            print("  R47     every poster keeps the 2:3 of a poster")
+        if colles:
+            echecs.append(f"R47 a poster does not reach the card's top and left: {colles[:3]}")
+        else:
+            print("  R47     and reaches the card's top and left edge")
+        if chevauche:
+            echecs.append(f"R47 a poster runs over the title: {chevauche[:3]}")
+        else:
+            print("  R47     without ever running over the title")
+        if marges:
+            echecs.append(f"R47 the text column lost its margin: {marges[:3]}")
+        else:
+            print("  R47     and the text beside it keeps its margin")
 
         executees += 1
         for texte in tronquees:
