@@ -38,7 +38,7 @@ when the defect comes back.
 | B-003 | In Arrivées a poster does not lead where a poster leads | 2× | `open` |
 | B-004 | Dragging the sheet handle down no longer closes the panel | 2× | `open` |
 | B-005 | A long press on a poster raises the browser's own menu | 2× | `open` |
-| B-006 | Two different sign-in screens: arrival and sign-out | 1× | `open` |
+| B-006 | ~~Two different sign-in screens: arrival and sign-out~~ | 1× | `to confirm` |
 | B-007 | ~~`--accent` referenced 11 times, defined nowhere~~ | 1× | `to confirm` |
 
 ---
@@ -153,7 +153,18 @@ rule that dispatches `contextmenu` and fails when `defaultPrevented` is false.
 
 ## B-006 — Two different sign-in screens: arrival and sign-out
 
-**Reported** 1×. **Status** `open`.
+**Reported** 1×. **Status** `to confirm`.
+
+**Fixed.** Measured, the two renderings differed in more than the palette: the host restated the
+typography too, so the wordmark had `line-height: normal` there against 1.35 here, and the whole
+screen rendered at 16 px instead of 14. The reset is now extracted through `login:socle` markers
+like the palette, and the host contributes only `.loginscreen { position: static }` and the
+startup screen's positioning — what a page needs that a layer does not. Rule R62,
+`harness/entree.py` — 10 checks comparing RENDERINGS, two mutations proven: the host taking back
+a palette of its own (the original fault), and the host dropping the typographic extract. A third
+mutation did not bite and earned its keep: removing the type scale I had first pinned on
+`.loginscreen` changed nothing once the reset was extracted, so that declaration was removed
+rather than left as something no rule defends.
 
 **What happens.** Arriving at the design host serves `serve.py`'s gate page. Signing out inside
 the prototype shows `#login`. They are two documents and they do not look the same.
