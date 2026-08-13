@@ -38,7 +38,7 @@ URL = "http://127.0.0.1:8899/wrapped.html"
 # Every state that draws cards, overlays included. The list was once shorter,
 # and the two screens missing from it — resolution and release choice — were
 # exactly the two drawing a card that is not a medium.
-AFFICHE_LISTE = 63  # the notch of the card that explains; see refonte.html
+AFFICHE_LISTE = 84  # two thirds of the card's floor, so a card at that floor is 2:3  # the notch of the card that explains; see refonte.html
 ETATS_CARTES = [
     "acq-encours-repos",
     "acq-encours-charge",
@@ -398,7 +398,8 @@ async def main():
                 const titre = (c.querySelector('.ctitle')||{}).textContent || '?';
                 out.ratios.push(Math.round(rp.height / rp.width * 100) / 100);
                 for (const [bord, ecart] of [['haut', rp.top - rc.top],
-                                             ['gauche', rp.left - rc.left]])
+                                             ['gauche', rp.left - rc.left],
+                                             ['bas', rc.bottom - rp.bottom]])
                   if (Math.abs(ecart) > 1.5)
                     out.colles.push(`${titre} — ${bord} à ${ecart.toFixed(1)}px`);
                 const t = c.querySelector('.ctitle');
@@ -413,14 +414,46 @@ async def main():
             colles += [f"{etat}: {x}" for x in vu["colles"]]
             marges += [f"{etat}: {x}" for x in vu["marges"]]
             chevauche += [f"{etat}: {x}" for x in vu["chev"]]
-        if ratios != {1.5}:
-            echecs.append(f"R47 a poster is not 2:3: {sorted(ratios)}")
+        if any(r < 1.45 for r in ratios):
+            echecs.append(f"R47 a poster is squatter than 2:3: {sorted(ratios)}")
         else:
-            print("  R47     every poster keeps the 2:3 of a poster")
+            print(f"  R47     no poster is squatter than 2:3 "
+                  f"({min(ratios)} to {max(ratios)})")
+
+        # Cropping is BOUNDED, not forbidden. Forbidding it means the poster
+        # stops before the card's bottom, which is the defect that was reported;
+        # allowing it unbounded turns a busy card's artwork into a strip. The
+        # bound is stated here, so a card that grows past it fails instead of
+        # quietly shaving the picture. Measured against each image's own natural
+        # size, never against the stylesheet.
+        executees += 1
+        rognees = []
+        for etat in await pg.evaluate("()=>window.__states()"):
+            await pg.evaluate("(i)=>window.__go(i)", etat)
+            await pg.wait_for_timeout(100)
+            rognees += await pg.evaluate("""()=>{
+              const out = [];
+              for (const img of document.querySelectorAll('.card .poster img')) {
+                const b = img.getBoundingClientRect();
+                if (!b.width || !img.naturalWidth) continue;
+                const rs = img.naturalHeight / img.naturalWidth, rb = b.height / b.width;
+                const perte = rs > rb ? 1 - rb / rs : 1 - rs / rb;
+                if (perte > 0.02)
+                  out.push([(img.closest('.card').querySelector('.ctitle')||{})
+                              .textContent.slice(0, 24), Math.round(perte * 100)]);
+              }
+              return out;}""")
+        trop = [x for x in rognees if x[1] > 40]
+        if trop:
+            echecs.append(f"R47 a poster loses more than 40% of its artwork: {trop[:3]}")
+        else:
+            pire = max((x[1] for x in rognees), default=0)
+            print(f"  R47     {len({x[0] for x in rognees})} poster(s) cropped, "
+                  f"worst {pire}% — bounded, never stretched")
         if colles:
-            echecs.append(f"R47 a poster does not reach the card's top and left: {colles[:3]}")
+            echecs.append(f"R47 a poster does not reach the card's edges: {colles[:3]}")
         else:
-            print("  R47     and reaches the card's top and left edge")
+            print("  R47     and reaches the card's top, left and bottom edge")
         if chevauche:
             echecs.append(f"R47 a poster runs over the title: {chevauche[:3]}")
         else:
