@@ -117,6 +117,7 @@ async def main():
           const s = document.querySelector('#sheetin');
           return {texte: (s.textContent||'').replace(/\\s+/g,' '),
                   mono: !!s.querySelector('code'),
+                  champ: !!s.querySelector('.champ'),
                   actions: [...s.querySelectorAll('.sact')].map(x=>x.textContent.trim())};}""")
         source = (CONFIG / "thresholds.json5").read_text()
         commentaire = re.search(r"//\s*(.+?)\n\s*min_free_space_staging_gb", source)
@@ -125,8 +126,8 @@ async def main():
                  and commentaire.group(1).strip().rstrip(".") in panneau["texte"],
                  (commentaire.group(1) if commentaire else "commentaire introuvable"))
         verifier("il nomme le fichier en chasse fixe", panneau["mono"])
-        verifier("et il offre de modifier",
-                 any("Modifier" in a for a in panneau["actions"]), str(panneau["actions"]))
+        verifier("et il porte le champ qui modifie",
+                 panneau["champ"], str(panneau["actions"]))
 
         # ── nothing is written until the bar is used ───────────────────────
         repos = await pg.evaluate("()=>!!document.querySelector('#savebar')")
@@ -228,6 +229,97 @@ async def main():
           REGLAGES.flatMap(r => r.r).forEach(libelleReglage);
           return [...window.__sujetsSansNom];}""")
         verifier("chaque sujet de réglage porte un nom écrit", not sansNom, str(sansNom))
+
+        # ── THE FIELD A VALUE ASKS FOR ─────────────────────────────────────
+        # « Modifier » used to be a button that flipped « oui »/« non » and
+        # otherwise appended « (modifié) » to the string — a placeholder that
+        # could express neither a number, nor a list, nor an empty value. The
+        # 153 real settings hold ten JSON shapes, and those ask for five fields,
+        # one refusal, and one state that crosses them.
+        #
+        # The field is derived from the VALUE, never from a list of keys, so a
+        # setting added tomorrow is editable without touching the rendering.
+        # Driven by TYPE for the same reason: naming a key here would pass the
+        # day that key moves and open something else.
+        attendus = {
+            "booleen": ".interrupteur",
+            "nombre": ".champsaisie[type=number]",
+            "texte": ".champsaisie[type=text]",
+            "chemin": ".champsaisie.mono",
+            "liste": ".lajout",
+            "duree": ".champsaisie",
+            "structure": ".champ.refus",
+            "nul": ".champsaisie",
+        }
+        vus = await pg.evaluate(
+            """()=>[...new Set(REGLAGES.flatMap(r => r.r).map(x => x.type))].sort()""")
+        verifier("chaque réglage porte le type de sa valeur",
+                 set(vus) == set(attendus), str(sorted(vus)))
+
+        for genre, selecteur in attendus.items():
+            await pg.evaluate("(g)=>window.__go(`reglages-champ-${g}`)", genre)
+            await pg.wait_for_timeout(320)
+            verifier(f"une valeur « {genre} » ouvre le champ qu'elle demande",
+                     await pg.evaluate("(s)=>!!document.querySelector('#sheetin ' + s)",
+                                       selecteur), selecteur)
+
+        # A structure is REFUSED rather than half-drawn: a form for a list of
+        # objects cannot be validated here, and drawing one would promise an
+        # edit that breaks the file.
+        await pg.evaluate("()=>window.__go('reglages-champ-structure')")
+        await pg.wait_for_timeout(320)
+        refus = await pg.evaluate("""()=>{
+          const s = document.querySelector('#sheetin');
+          return {saisie: !!s.querySelector('.champsaisie, .interrupteur, .lajout'),
+                  nomme: !!s.querySelector('.champ.refus code')};}""")
+        verifier("une structure n'offre aucun champ", not refus["saisie"], str(refus))
+        verifier("et elle nomme le fichier à ouvrir", refus["nomme"])
+
+        # The value a field files keeps its TYPE. Filed as a string, a number
+        # compares unequal to the file's for ever, and the change could never be
+        # undone by typing the original back — which is the check after.
+        await pg.evaluate("()=>window.__go('reglages-champ-nombre')")
+        await pg.wait_for_timeout(320)
+        await pg.fill("#sheetin .champsaisie", "42")
+        await pg.evaluate("()=>document.querySelector('#sheetin .champsaisie')"
+                          ".dispatchEvent(new Event('change'))")
+        await pg.wait_for_timeout(320)
+        depose = await pg.evaluate(
+            "()=>[...REG_ETAT.modifs.values()].map(v => [v, typeof v])")
+        verifier("un nombre est déposé comme un nombre",
+                 depose == [[42, "number"]], str(depose))
+
+        origine = await pg.evaluate(
+            """()=>String(REGLAGES.flatMap(r => r.r).find(x => x.type === 'nombre').brut)""")
+        await pg.fill("#sheetin .champsaisie", origine)
+        await pg.evaluate("()=>document.querySelector('#sheetin .champsaisie')"
+                          ".dispatchEvent(new Event('change'))")
+        await pg.wait_for_timeout(320)
+        verifier("et retaper la valeur du fichier annule la modification",
+                 await pg.evaluate("()=>REG_ETAT.modifs.size") == 0,
+                 f"valeur d'origine {origine}")
+
+        await pg.evaluate("()=>window.__go('reglages-champ-booleen')")
+        await pg.wait_for_timeout(320)
+        await pg.click("#sheetin .interrupteur")
+        await pg.wait_for_timeout(320)
+        bascule = await pg.evaluate(
+            "()=>[...REG_ETAT.modifs.values()].map(v => [v, typeof v])")
+        verifier("un interrupteur dépose un booléen",
+                 len(bascule) == 1 and bascule[0][1] == "boolean", str(bascule))
+
+        await pg.evaluate("""()=>{
+          const x = REGLAGES.flatMap(r => r.r)
+            .find(y => y.type === 'liste' && (y.brut || []).length > 1);
+          REG_ETAT.rubrique = REGLAGES.find(r => r.r.includes(x)).id;
+          render(); ouvrirReglage(reglageId(x));}""")
+        await pg.wait_for_timeout(330)
+        avant = await pg.evaluate("()=>document.querySelectorAll('#sheetin .litem').length")
+        await pg.click("#sheetin .lsupp")
+        await pg.wait_for_timeout(330)
+        apres = await pg.evaluate("()=>document.querySelectorAll('#sheetin .litem').length")
+        verifier("une liste perd vraiment un élément", apres == avant - 1,
+                 f"{avant} → {apres}")
 
         verifier("aucune erreur JS", not erreurs, str(erreurs))
         await b.close()

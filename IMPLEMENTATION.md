@@ -238,10 +238,10 @@ These were argued, measured and recorded. Re-opening one costs a day; the reason
    of `media_item` nor a key of `item_attribute` for it. The app cannot render this surface until
    the read-model grows the field, and the scan that fills it. Nine of 349 titles have no plot at
    all, and those must show nothing rather than a filler.
-9. **Editing a setting is drawn only as far as the panel.** The settings surface shows the whole
-   cycle — reading, a pending change, the save bar that names the files it will write — but not
-   the FIELD types: a keyboard for a number, a list for an enum, a switch for a boolean. Each is
-   a shape the prototype has to settle before the code derives it.
+9. ~~**Editing a setting is drawn only as far as the panel.**~~ **Closed.** Five fields, one
+   refusal and one state that crosses them, each derived from the setting's VALUE rather than
+   from a list of keys. R60 extended, `harness/reglages.py` — 42 checks, eight named states, one
+   per field.
 10. **Answering a decision was a no-op on the acquisition side.** Found while drawing the screen:
    « Résoudre → » on « À traiter » opened the screen, took the choice, and left the item exactly
    where it was, because the answer only ever looked in the Arrivées list. Fixed in the prototype.

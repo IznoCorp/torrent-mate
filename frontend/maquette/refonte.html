@@ -1659,6 +1659,119 @@
   /* The save bar exists only when there is something to save, and it says
      WHAT it will write — a save that names no file asks for trust nobody
      owes it. It sits above the tab bar, like every other fixed thing. */
+  /* A FIELD, inside the panel. The panel is the one place an action lives
+     (R56), so editing a setting does not get a screen of its own. */
+  .champ {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .champ.liste {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+  .champsaisie {
+    flex: 1;
+    min-width: 0;
+    padding: 11px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--background);
+    color: var(--foreground);
+    font: inherit;
+    font-size: 14px;
+  }
+  .champsaisie.mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+  }
+  .champsaisie:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 1px;
+  }
+  .champunite {
+    flex: 0 0 auto;
+    font-size: 12px;
+    color: var(--muted-foreground);
+  }
+  .champlbl {
+    font-size: 13px;
+    color: var(--muted-foreground);
+  }
+  /* The switch is the whole field: nothing to type, nothing to validate. */
+  .interrupteur {
+    flex: 0 0 auto;
+    width: 48px;
+    height: 28px;
+    padding: 3px;
+    border: 0;
+    border-radius: 99px;
+    background: var(--muted);
+    display: flex;
+    transition: background 0.18s ease;
+  }
+  .interrupteur.actif {
+    background: var(--primary);
+    justify-content: flex-end;
+  }
+  .pastille {
+    width: 22px;
+    height: 22px;
+    border-radius: 99px;
+    background: var(--mq-white);
+    transition: transform 0.18s ease;
+  }
+  .litem {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--background);
+    font-size: 13px;
+  }
+  .litem span {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .lsupp {
+    flex: 0 0 auto;
+    border: 0;
+    background: transparent;
+    color: var(--muted-foreground);
+    padding: 2px;
+    display: flex;
+  }
+  .lsupp svg {
+    width: 15px;
+    height: 15px;
+  }
+  .lajout {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px dashed var(--border);
+    background: transparent;
+    color: var(--foreground);
+    font-size: 12.5px;
+    font-weight: 600;
+  }
+  .lajout svg {
+    width: 15px;
+    height: 15px;
+  }
+  .champ.refus .rulenote {
+    margin: 0;
+  }
   .savebar {
     position: absolute;
     left: 0;
@@ -11077,6 +11190,7 @@
         )
         .join("")}</div>`;
     if (bloc.type === "saisons") return saisonsHTML(bloc.suivi, bloc.saisons);
+    if (bloc.type === "champ") return champReglageHTML(bloc.reglage);
     // Silence here would draw an empty panel and blame the data. A block type
     // nobody renders is a fact nobody declared.
     throw new Error("bloc de panneau inconnu : " + bloc.type);
@@ -11876,6 +11990,8 @@
         {
           f: "paths",
           c: "paths.torrent_complete_dir",
+          type: "chemin",
+          brut: "/Volumes/IznoServer SSD/torrents/complete",
           n: "torrent_complete_dir",
           v: "/Volumes/IznoServer SSD/torrents/complete",
           note: "Folder where qBittorrent deposits completed torrents.",
@@ -11883,6 +11999,8 @@
         {
           f: "paths",
           c: "paths.staging_dir",
+          type: "chemin",
+          brut: "/Volumes/IznoServer SSD/A TRIER",
           n: "staging_dir",
           v: "/Volumes/IznoServer SSD/A TRIER",
           note: "Intermediate staging folder before dispatch.",
@@ -11890,6 +12008,8 @@
         {
           f: "paths",
           c: "paths.data_dir",
+          type: "chemin",
+          brut: "/Users/izno/dev/PersonalScraper/.data",
           n: "data_dir",
           v: "/Users/izno/dev/PersonalScraper/.data",
           note: "Pipeline state directory (index, locks, analysis). Default: .data/ at repo root.",
@@ -11897,6 +12017,8 @@
         {
           f: "disks",
           c: "disks",
+          type: "structure",
+          brut: [{"id": "disk_1", "path": "/Volumes/Disk1/medias", "categories": ["movies", "movies_animation", "movies_documentary", "tv_shows", "tv_shows_animation", "tv_shows_documentary", "anime", "audiobooks", "standup", "theater", "tv_programs"]}, {"id": "disk_2", "path": "/Volumes/Disk2/medias", "categories": ["tv_shows", "anime"]}, {"id": "disk_3", "path": "/Volumes/Disk3/medias", "categories": ["movies", "movies_animation", "movies_documentary", "tv_shows", "tv_shows_animation", "tv_shows_documentary", "standup", "theater", "tv_programs"]}, {"id": "disk_4", "path": "/Volumes/Disk4/medias", "categories": ["movies", "movies_animation", "tv_shows", "tv_shows_animation", "tv_shows_documentary"]}],
           n: "disks",
           v: "4 entrées",
           note: "Storage disks (variable count). id: free-form identifier used in CLI --disk and logs. path: absolute mounted path. categories: IDs accepted on this disk (builtin + custom_categories).",
@@ -11904,6 +12026,8 @@
         {
           f: "categories",
           c: "custom_categories",
+          type: "liste",
+          brut: [],
           n: "custom_categories",
           v: "aucun",
           note: 'Category definitions, classification rules, and genre mappings. Custom category IDs beyond the 11 builtins (optional). Each custom ID must also appear in \'categories\' and be referenced by disks/rules. Example: custom_categories: ["concerts", "short_films"]',
@@ -11911,86 +12035,114 @@
         {
           f: "categories",
           c: "categories.movies.folder_name",
+          type: "texte",
+          brut: "films",
           n: "folder_name",
           v: "films",
         },
         {
           f: "categories",
           c: "categories.movies_animation.folder_name",
+          type: "texte",
+          brut: "films animations",
           n: "folder_name",
           v: "films animations",
         },
         {
           f: "categories",
           c: "categories.movies_animation.aliases",
+          type: "liste",
+          brut: ["Movies Animation"],
           n: "aliases",
           v: "Movies Animation",
         },
         {
           f: "categories",
           c: "categories.movies_documentary.folder_name",
+          type: "texte",
+          brut: "films documentaires",
           n: "folder_name",
           v: "films documentaires",
         },
         {
           f: "categories",
           c: "categories.tv_shows.folder_name",
+          type: "texte",
+          brut: "series",
           n: "folder_name",
           v: "series",
         },
         {
           f: "categories",
           c: "categories.tv_shows_animation.folder_name",
+          type: "texte",
+          brut: "series animations",
           n: "folder_name",
           v: "series animations",
         },
         {
           f: "categories",
           c: "categories.tv_shows_documentary.folder_name",
+          type: "texte",
+          brut: "series documentaires",
           n: "folder_name",
           v: "series documentaires",
         },
         {
           f: "categories",
           c: "categories.anime.folder_name",
+          type: "texte",
+          brut: "series animes",
           n: "folder_name",
           v: "series animes",
         },
         {
           f: "categories",
           c: "categories.audiobooks.folder_name",
+          type: "texte",
+          brut: "livres audios",
           n: "folder_name",
           v: "livres audios",
         },
         {
           f: "categories",
           c: "categories.standup.folder_name",
+          type: "texte",
+          brut: "spectacles",
           n: "folder_name",
           v: "spectacles",
         },
         {
           f: "categories",
           c: "categories.theater.folder_name",
+          type: "texte",
+          brut: "theatres",
           n: "folder_name",
           v: "theatres",
         },
         {
           f: "categories",
           c: "categories.tv_programs.folder_name",
+          type: "texte",
+          brut: "emissions",
           n: "folder_name",
           v: "emissions",
         },
         {
           f: "categories",
           c: "category_rules",
+          type: "liste",
+          brut: [],
           n: "category_rules",
           v: "aucun",
           note: "Pattern-based classification rules (evaluated in order, first match wins, BEFORE genre_mapping). Supports: path_contains, path_regex, title_regex, tmdb_genre_contains, tmdb_keyword. Exactly one match_* field per rule.",
         },
-        { f: "categories", c: "anime_rule.enabled", n: "enabled", v: "oui" },
+        { f: "categories", c: "anime_rule.enabled", type: "booleen", brut: true, n: "enabled", v: "oui" },
         {
           f: "categories",
           c: "anime_rule.requires_genre_id",
+          type: "nombre",
+          brut: 16,
           n: "requires_genre_id",
           v: "16",
           note: "TMDB Animation genre_id",
@@ -11998,6 +12150,8 @@
         {
           f: "categories",
           c: "anime_rule.requires_origin_country",
+          type: "liste",
+          brut: ["JP"],
           n: "requires_origin_country",
           v: "JP",
           note: "ISO origin_country codes that trigger the rule",
@@ -12005,6 +12159,8 @@
         {
           f: "categories",
           c: "anime_rule.maps_to",
+          type: "texte",
+          brut: "anime",
           n: "maps_to",
           v: "anime",
           note: "Result category_id",
@@ -12012,6 +12168,8 @@
         {
           f: "categories",
           c: "anime_rule.applies_to",
+          type: "texte",
+          brut: "tv",
           n: "applies_to",
           v: "tv",
           note: 'Media types to apply the rule to: "movies", "tv", "both"',
@@ -12019,79 +12177,105 @@
         {
           f: "categories",
           c: "genre_mapping.tmdb_movies.16",
+          type: "texte",
+          brut: "movies_animation",
           n: "16",
           v: "movies_animation",
         },
         {
           f: "categories",
           c: "genre_mapping.tmdb_movies.99",
+          type: "texte",
+          brut: "movies_documentary",
           n: "99",
           v: "movies_documentary",
         },
         {
           f: "categories",
           c: "genre_mapping.tmdb_tv.16",
+          type: "texte",
+          brut: "tv_shows_animation",
           n: "16",
           v: "tv_shows_animation",
         },
         {
           f: "categories",
           c: "genre_mapping.tmdb_tv.99",
+          type: "texte",
+          brut: "tv_shows_documentary",
           n: "99",
           v: "tv_shows_documentary",
         },
         {
           f: "categories",
           c: "genre_mapping.tmdb_tv.10764",
+          type: "texte",
+          brut: "tv_programs",
           n: "10764",
           v: "tv_programs",
         },
         {
           f: "categories",
           c: "genre_mapping.tmdb_tv.10767",
+          type: "texte",
+          brut: "tv_programs",
           n: "10767",
           v: "tv_programs",
         },
         {
           f: "categories",
           c: "genre_mapping.tmdb_tv.10763",
+          type: "texte",
+          brut: "tv_programs",
           n: "10763",
           v: "tv_programs",
         },
-        { f: "categories", c: "genre_mapping.tvdb.27", n: "27", v: "anime" },
+        { f: "categories", c: "genre_mapping.tvdb.27", type: "texte", brut: "anime", n: "27", v: "anime" },
         {
           f: "categories",
           c: "genre_mapping.tvdb.17",
+          type: "texte",
+          brut: "tv_shows_animation",
           n: "17",
           v: "tv_shows_animation",
         },
         {
           f: "categories",
           c: "genre_mapping.tvdb.3",
+          type: "texte",
+          brut: "tv_shows_documentary",
           n: "3",
           v: "tv_shows_documentary",
         },
         {
           f: "categories",
           c: "genre_mapping.tvdb.8",
+          type: "texte",
+          brut: "tv_programs",
           n: "8",
           v: "tv_programs",
         },
         {
           f: "categories",
           c: "genre_mapping.tvdb.10",
+          type: "texte",
+          brut: "tv_programs",
           n: "10",
           v: "tv_programs",
         },
         {
           f: "categories",
           c: "genre_mapping.tvdb.11",
+          type: "texte",
+          brut: "tv_programs",
           n: "11",
           v: "tv_programs",
         },
         {
           f: "categories",
           c: "genre_mapping.default_movies_category",
+          type: "texte",
+          brut: "movies",
           n: "default_movies_category",
           v: "movies",
           note: "Fallback when no genre matches",
@@ -12099,6 +12283,8 @@
         {
           f: "categories",
           c: "genre_mapping.default_tv_category",
+          type: "texte",
+          brut: "tv_shows",
           n: "default_tv_category",
           v: "tv_shows",
         },
@@ -12113,6 +12299,8 @@
         {
           f: "patterns",
           c: "staging_dirs",
+          type: "structure",
+          brut: [{"id": 1, "name": "movies", "file_type": "movie"}, {"id": 2, "name": "tvshows", "file_type": "tvshow"}, {"id": 3, "name": "ebooks", "file_type": "ebook"}, {"id": 4, "name": "audio", "file_type": "audio"}, {"id": 5, "name": "apps", "file_type": "app"}, {"id": 6, "name": "android", "file_type": "app"}, {"id": 97, "name": "temp", "file_type": null, "role": "ingest"}, {"id": 98, "name": "autres", "file_type": "other"}],
           n: "staging_dirs",
           v: "8 entrées",
           note: 'Staging subdirectory layout — folder patterns inside staging_dir. id: numeric prefix [0-999], name: kebab-case label, file_type: FileType value (null = no fixed type). Exactly one entry must declare role: "ingest" (the entry point for new downloads).',
@@ -12120,6 +12308,8 @@
         {
           f: "encoding",
           c: "library.video.preferred_codec",
+          type: "texte",
+          brut: "hevc",
           n: "preferred_codec",
           v: "hevc",
           note: "Target codec for encoding recommendations",
@@ -12127,6 +12317,8 @@
         {
           f: "encoding",
           c: "library.video.fallback_codecs",
+          type: "liste",
+          brut: ["av1"],
           n: "fallback_codecs",
           v: "av1",
           note: "Acceptable codecs (not flagged)",
@@ -12134,6 +12326,8 @@
         {
           f: "encoding",
           c: "library.video.rejected_codecs",
+          type: "liste",
+          brut: ["mpeg2", "mpeg4"],
           n: "rejected_codecs",
           v: "mpeg2, mpeg4",
           note: "Always-flagged codecs",
@@ -12141,6 +12335,8 @@
         {
           f: "encoding",
           c: "library.video.preferred_resolution",
+          type: "texte",
+          brut: "1080p",
           n: "preferred_resolution",
           v: "1080p",
           note: "Target resolution",
@@ -12148,6 +12344,8 @@
         {
           f: "encoding",
           c: "library.video.max_size_movie_gb",
+          type: "nombre",
+          brut: 4.0,
           n: "max_size_movie_gb",
           v: "4.0",
           note: "Maximum movie file size in GB",
@@ -12155,6 +12353,8 @@
         {
           f: "encoding",
           c: "library.video.max_size_episode_gb",
+          type: "nombre",
+          brut: 2.0,
           n: "max_size_episode_gb",
           v: "2.0",
           note: "Maximum episode file size in GB",
@@ -12162,6 +12362,8 @@
         {
           f: "encoding",
           c: "library.audio.profile_priority",
+          type: "liste",
+          brut: ["multi", "vf", "vostfr", "vo"],
           n: "profile_priority",
           v: "multi, vf, vostfr +1",
           note: "Ordered preference for audio profiles (multi=multilingual, vf=French dub, vostfr, vo)",
@@ -12169,6 +12371,8 @@
         {
           f: "encoding",
           c: "library.subtitles.required_languages",
+          type: "liste",
+          brut: ["fra"],
           n: "required_languages",
           v: "fra",
           note: "Required languages (error if absent) — ISO 639-2/T codes",
@@ -12176,6 +12380,8 @@
         {
           f: "encoding",
           c: "library.encoding_rules",
+          type: "liste",
+          brut: [],
           n: "encoding_rules",
           v: "aucun",
           note: 'Encoding override rules for specific media encoding_rules: [ { criteria: { genre: "Animation" }, codec: "hevc", max_size_gb: 6.0, }, ],',
@@ -12188,10 +12394,12 @@
       s: "Les trackers, le classement des releases, les seuils et les obligations de partage.",
       fichiers: ["acquire", "tracker", "thresholds", "torrent", "watch_seed"],
       r: [
-        { f: "acquire", c: "acquire.db_path", n: "db_path", v: "non défini" },
+        { f: "acquire", c: "acquire.db_path", type: "nul", brut: null, n: "db_path", v: "non défini" },
         {
           f: "acquire",
           c: "acquire.cadence.tiers",
+          type: "structure",
+          brut: [{"max_age_hours": 72, "interval_minutes": 120}, {"max_age_hours": 336, "interval_minutes": 1440}, {"max_age_hours": 720, "interval_minutes": 10080}],
           n: "tiers",
           v: "3 entrées",
           note: "Hot/Warm/Cold backoff — DESIGN §3 frozen policy (D2).",
@@ -12199,12 +12407,16 @@
         {
           f: "acquire",
           c: "acquire.cadence.cutoff_days",
+          type: "nombre",
+          brut: 30,
           n: "cutoff_days",
           v: "30",
         },
         {
           f: "tracker",
           c: "tracker.providers.lacale.enabled",
+          type: "booleen",
+          brut: false,
           n: "enabled",
           v: "non",
           note: "ACTIVE. Gated on TR4KER_API_KEY (profile API key, Mon compte → Paramètres), which is present in .env and was live-verified against `GET /api/torznab?t=caps` on 2026-07-28. TR4KER_PASSKEY holds the announce passkey — a different secret, embedded in the .torrent files, which never authenticates the search API.  This file is shared with prod/staging via PERSONALSCRAPER_CONFIG, so an enabled tracker whose gating credential is missing is a BOOT ERROR (build_tracker_registry raises TrackerConfigError) that takes down every command and cron: removing TR4KER_API_KEY from .env requires flipping this back to false in the same change.",
@@ -12212,12 +12424,16 @@
         {
           f: "tracker",
           c: "tracker.providers.lacale.cross_seed",
+          type: "booleen",
+          brut: false,
           n: "cross_seed",
           v: "non",
         },
         {
           f: "tracker",
           c: "tracker.providers.c411.enabled",
+          type: "booleen",
+          brut: true,
           n: "enabled",
           v: "oui",
           note: "ACTIVE. Gated on TR4KER_API_KEY (profile API key, Mon compte → Paramètres), which is present in .env and was live-verified against `GET /api/torznab?t=caps` on 2026-07-28. TR4KER_PASSKEY holds the announce passkey — a different secret, embedded in the .torrent files, which never authenticates the search API.  This file is shared with prod/staging via PERSONALSCRAPER_CONFIG, so an enabled tracker whose gating credential is missing is a BOOT ERROR (build_tracker_registry raises TrackerConfigError) that takes down every command and cron: removing TR4KER_API_KEY from .env requires flipping this back to false in the same change.",
@@ -12225,36 +12441,48 @@
         {
           f: "tracker",
           c: "tracker.providers.c411.cross_seed",
+          type: "booleen",
+          brut: false,
           n: "cross_seed",
           v: "non",
         },
         {
           f: "tracker",
           c: "tracker.providers.c411.economy.target_ratio",
+          type: "nombre",
+          brut: 2.0,
           n: "target_ratio",
           v: "2.0",
         },
         {
           f: "tracker",
           c: "tracker.providers.c411.economy.min_ratio",
+          type: "nombre",
+          brut: 1.0,
           n: "min_ratio",
           v: "1.0",
         },
         {
           f: "tracker",
           c: "tracker.providers.c411.economy.min_seed_time",
+          type: "duree",
+          brut: "72h",
           n: "min_seed_time",
           v: "72h",
         },
         {
           f: "tracker",
           c: "tracker.providers.c411.economy.hit_and_run_grace",
+          type: "duree",
+          brut: "0h",
           n: "hit_and_run_grace",
           v: "0h",
         },
         {
           f: "tracker",
           c: "tracker.providers.tr4ker.enabled",
+          type: "booleen",
+          brut: true,
           n: "enabled",
           v: "oui",
           note: "ACTIVE. Gated on TR4KER_API_KEY (profile API key, Mon compte → Paramètres), which is present in .env and was live-verified against `GET /api/torznab?t=caps` on 2026-07-28. TR4KER_PASSKEY holds the announce passkey — a different secret, embedded in the .torrent files, which never authenticates the search API.  This file is shared with prod/staging via PERSONALSCRAPER_CONFIG, so an enabled tracker whose gating credential is missing is a BOOT ERROR (build_tracker_registry raises TrackerConfigError) that takes down every command and cron: removing TR4KER_API_KEY from .env requires flipping this back to false in the same change.",
@@ -12262,12 +12490,16 @@
         {
           f: "tracker",
           c: "tracker.providers.tr4ker.cross_seed",
+          type: "booleen",
+          brut: false,
           n: "cross_seed",
           v: "non",
         },
         {
           f: "tracker",
           c: "tracker.priority",
+          type: "liste",
+          brut: ["c411", "tr4ker"],
           n: "priority",
           v: "c411, tr4ker",
           note: 'economy: TR4KER publishes no explicit seeding obligation (no documented min seed time / H&R grace), so no values are invented here. Until the operator fills this block in, dispatch records an honest tracker-unresolved MISS for tr4ker torrents instead of a wrong rule. economy: { target_ratio: 2.0, min_ratio: 1.0, min_seed_time: "72h", hit_and_run_grace: "0h", },',
@@ -12275,24 +12507,32 @@
         {
           f: "tracker",
           c: "tracker.max_total_results",
+          type: "nombre",
+          brut: 50,
           n: "max_total_results",
           v: "50",
         },
         {
           f: "tracker",
           c: "tracker.max_per_tracker",
+          type: "nombre",
+          brut: 30,
           n: "max_per_tracker",
           v: "30",
         },
         {
           f: "tracker",
           c: "tracker.timeout_per_tracker",
+          type: "nombre",
+          brut: 15,
           n: "timeout_per_tracker",
           v: "15",
         },
         {
           f: "thresholds",
           c: "thresholds.min_free_space_staging_gb",
+          type: "nombre",
+          brut: 20,
           n: "min_free_space_staging_gb",
           v: "20",
           note: "Minimum free space on the staging drive before ingest (GB).",
@@ -12300,6 +12540,8 @@
         {
           f: "thresholds",
           c: "thresholds.min_free_space_disk_gb",
+          type: "nombre",
+          brut: 100,
           n: "min_free_space_disk_gb",
           v: "100",
           note: "Minimum free space on storage disks before dispatch (GB).",
@@ -12307,6 +12549,8 @@
         {
           f: "thresholds",
           c: "thresholds.circuit_breaker_threshold",
+          type: "nombre",
+          brut: 5,
           n: "circuit_breaker_threshold",
           v: "5",
           note: "Consecutive API errors before the circuit breaker opens.",
@@ -12314,49 +12558,63 @@
         {
           f: "thresholds",
           c: "thresholds.circuit_breaker_cooldown",
+          type: "nombre",
+          brut: 300,
           n: "circuit_breaker_cooldown",
           v: "300",
           note: "Seconds to wait before retrying after the circuit breaker opens.",
         },
-        { f: "torrent", c: "torrent.active", n: "active", v: "qbittorrent" },
+        { f: "torrent", c: "torrent.active", type: "texte", brut: "qbittorrent", n: "active", v: "qbittorrent" },
         {
           f: "torrent",
           c: "torrent.clients.qbittorrent.enabled",
+          type: "booleen",
+          brut: true,
           n: "enabled",
           v: "oui",
         },
         {
           f: "torrent",
           c: "torrent.clients.qbittorrent.host",
+          type: "texte",
+          brut: "localhost",
           n: "host",
           v: "localhost",
         },
         {
           f: "torrent",
           c: "torrent.clients.qbittorrent.port",
+          type: "nombre",
+          brut: 8081,
           n: "port",
           v: "8081",
         },
         {
           f: "torrent",
           c: "torrent.clients.transmission.enabled",
+          type: "booleen",
+          brut: false,
           n: "enabled",
           v: "non",
         },
         {
           f: "torrent",
           c: "torrent.clients.transmission.host",
+          type: "texte",
+          brut: "localhost",
           n: "host",
           v: "localhost",
         },
         {
           f: "torrent",
           c: "torrent.clients.transmission.port",
+          type: "nombre",
+          brut: 9091,
           n: "port",
           v: "9091",
         },
-        { f: "watch_seed", c: "cross_seed.enabled", n: "enabled", v: "non" },
-        { f: "watch_seed", c: "watch.enabled", n: "enabled", v: "oui" },
+        { f: "watch_seed", c: "cross_seed.enabled", type: "booleen", brut: false, n: "enabled", v: "non" },
+        { f: "watch_seed", c: "watch.enabled", type: "booleen", brut: true, n: "enabled", v: "oui" },
       ],
     },
     {
@@ -12368,245 +12626,325 @@
         {
           f: "metadata",
           c: "metadata.providers.tmdb.enabled",
+          type: "booleen",
+          brut: true,
           n: "enabled",
           v: "oui",
         },
         {
           f: "metadata",
           c: "metadata.providers.tvdb.enabled",
+          type: "booleen",
+          brut: true,
           n: "enabled",
           v: "oui",
         },
         {
           f: "metadata",
           c: "metadata.providers.omdb.enabled",
+          type: "booleen",
+          brut: true,
           n: "enabled",
           v: "oui",
         },
         {
           f: "metadata",
           c: "metadata.providers.trakt.enabled",
+          type: "booleen",
+          brut: true,
           n: "enabled",
           v: "oui",
         },
         {
           f: "metadata",
           c: "metadata.priorities.movie_scraping.tmdb",
+          type: "nombre",
+          brut: 1,
           n: "tmdb",
           v: "1",
         },
         {
           f: "metadata",
           c: "metadata.priorities.movie_scraping.tvdb",
+          type: "nombre",
+          brut: 2,
           n: "tvdb",
           v: "2",
         },
         {
           f: "metadata",
           c: "metadata.priorities.series_scraping.tvdb",
+          type: "nombre",
+          brut: 1,
           n: "tvdb",
           v: "1",
         },
         {
           f: "metadata",
           c: "metadata.priorities.series_scraping.tmdb",
+          type: "nombre",
+          brut: 2,
           n: "tmdb",
           v: "2",
         },
         {
           f: "metadata",
           c: "metadata.priorities.episode_scraping.tvdb",
+          type: "nombre",
+          brut: 1,
           n: "tvdb",
           v: "1",
         },
         {
           f: "metadata",
           c: "metadata.priorities.episode_scraping.tmdb",
+          type: "nombre",
+          brut: 2,
           n: "tmdb",
           v: "2",
         },
         {
           f: "metadata",
           c: "metadata.priorities.recommendations.trakt",
+          type: "nombre",
+          brut: 1,
           n: "trakt",
           v: "1",
         },
         {
           f: "metadata",
           c: "metadata.priorities.recommendations.omdb",
+          type: "nombre",
+          brut: 2,
           n: "omdb",
           v: "2",
         },
         {
           f: "metadata",
           c: "metadata.priorities.notations.omdb",
+          type: "nombre",
+          brut: 1,
           n: "omdb",
           v: "1",
         },
         {
           f: "metadata",
           c: "metadata.priorities.notations.trakt",
+          type: "nombre",
+          brut: 2,
           n: "trakt",
           v: "2",
         },
         {
           f: "metadata",
           c: "metadata.defaults.language",
+          type: "texte",
+          brut: "fr-FR",
           n: "language",
           v: "fr-FR",
         },
         {
           f: "metadata",
           c: "metadata.defaults.fallback_language",
+          type: "texte",
+          brut: "en-US",
           n: "fallback_language",
           v: "en-US",
         },
         {
           f: "metadata",
           c: "metadata.defaults.prefer_local_title",
+          type: "booleen",
+          brut: true,
           n: "prefer_local_title",
           v: "oui",
         },
         {
           f: "metadata",
           c: "metadata.episode_scraping_policy.lock_to_series_provider",
+          type: "booleen",
+          brut: true,
           n: "lock_to_series_provider",
           v: "oui",
         },
         {
           f: "metadata",
           c: "metadata.episode_scraping_policy.allow_synthetic_rename_on_unmatched",
+          type: "booleen",
+          brut: false,
           n: "allow_synthetic_rename_on_unmatched",
           v: "non",
         },
         {
           f: "metadata",
           c: "metadata.season_pack_policy.enabled",
+          type: "booleen",
+          brut: true,
           n: "enabled",
           v: "oui",
         },
-        { f: "providers", c: "providers.Searchable.tvdb", n: "tvdb", v: "1" },
-        { f: "providers", c: "providers.Searchable.tmdb", n: "tmdb", v: "2" },
+        { f: "providers", c: "providers.Searchable.tvdb", type: "nombre", brut: 1, n: "tvdb", v: "1" },
+        { f: "providers", c: "providers.Searchable.tmdb", type: "nombre", brut: 2, n: "tmdb", v: "2" },
         {
           f: "providers",
           c: "providers.MovieDetailsProvider.tmdb",
+          type: "nombre",
+          brut: 1,
           n: "tmdb",
           v: "1",
         },
         {
           f: "providers",
           c: "providers.MovieDetailsProvider.tvdb",
+          type: "nombre",
+          brut: 2,
           n: "tvdb",
           v: "2",
         },
         {
           f: "providers",
           c: "providers.TvDetailsProvider.tvdb",
+          type: "nombre",
+          brut: 1,
           n: "tvdb",
           v: "1",
         },
         {
           f: "providers",
           c: "providers.TvDetailsProvider.tmdb",
+          type: "nombre",
+          brut: 2,
           n: "tmdb",
           v: "2",
         },
         {
           f: "providers",
           c: "providers.EpisodeFetcher.tvdb",
+          type: "nombre",
+          brut: 1,
           n: "tvdb",
           v: "1",
         },
         {
           f: "providers",
           c: "providers.EpisodeFetcher.tmdb",
+          type: "nombre",
+          brut: 2,
           n: "tmdb",
           v: "2",
         },
         {
           f: "providers",
           c: "providers.ArtworkProvider.tmdb",
+          type: "nombre",
+          brut: 1,
           n: "tmdb",
           v: "1",
         },
         {
           f: "providers",
           c: "providers.ArtworkProvider.tvdb",
+          type: "nombre",
+          brut: 2,
           n: "tvdb",
           v: "2",
         },
         {
           f: "providers",
           c: "providers.VideoProvider.tmdb",
+          type: "nombre",
+          brut: 1,
           n: "tmdb",
           v: "1",
         },
         {
           f: "providers",
           c: "providers.VideoProvider.tvdb",
+          type: "nombre",
+          brut: 2,
           n: "tvdb",
           v: "2",
         },
-        { f: "scraper", c: "scraper.language", n: "language", v: "fr-FR" },
+        { f: "scraper", c: "scraper.language", type: "texte", brut: "fr-FR", n: "language", v: "fr-FR" },
         {
           f: "scraper",
           c: "scraper.fallback_language",
+          type: "texte",
+          brut: "en-US",
           n: "fallback_language",
           v: "en-US",
         },
         {
           f: "scraper",
           c: "scraper.prefer_local_title",
+          type: "booleen",
+          brut: true,
           n: "prefer_local_title",
           v: "oui",
         },
         {
           f: "scraper",
           c: "scraper.episode_default_name",
+          type: "texte",
+          brut: "Episode",
           n: "episode_default_name",
           v: "Episode",
         },
         {
           f: "scraper",
           c: "scraper.artwork_language",
+          type: "texte",
+          brut: "en",
           n: "artwork_language",
           v: "en",
         },
-        { f: "scraper", c: "ingest.min_ratio", n: "min_ratio", v: "0.0" },
+        { f: "scraper", c: "ingest.min_ratio", type: "nombre", brut: 0.0, n: "min_ratio", v: "0.0" },
         {
           f: "scraper",
           c: "sort.verify_seed_pure",
+          type: "booleen",
+          brut: false,
           n: "verify_seed_pure",
           v: "non",
         },
         {
           f: "scraper",
           c: "fuzzy_match.min_length_ratio",
+          type: "nombre",
+          brut: 0.67,
           n: "min_length_ratio",
           v: "0.67",
         },
         {
           f: "scraper",
           c: "fuzzy_match.short_title_length",
+          type: "nombre",
+          brut: 10,
           n: "short_title_length",
           v: "10",
         },
         {
           f: "scraper",
           c: "fuzzy_match.short_title_threshold",
+          type: "nombre",
+          brut: 95.0,
           n: "short_title_threshold",
           v: "95.0",
         },
         {
           f: "scraper",
           c: "fuzzy_match.long_title_threshold",
+          type: "nombre",
+          brut: 90.0,
           n: "long_title_threshold",
           v: "90.0",
         },
-        { f: "trailers", c: "trailers.enabled", n: "enabled", v: "oui" },
+        { f: "trailers", c: "trailers.enabled", type: "booleen", brut: true, n: "enabled", v: "oui" },
         {
           f: "trailers",
           c: "trailers.languages",
+          type: "liste",
+          brut: ["fr-FR", "en-US"],
           n: "languages",
           v: "fr-FR, en-US",
           note: "Ordered language codes for TMDB video lookups. First match wins.",
@@ -12614,6 +12952,8 @@
         {
           f: "trailers",
           c: "trailers.search_query_format",
+          type: "texte",
+          brut: "{title} {year} bande annonce",
           n: "search_query_format",
           v: "{title} {year} bande annonce",
           note: "YouTube search query template when TMDB yields nothing. Placeholders: {title}, {year}",
@@ -12621,24 +12961,32 @@
         {
           f: "trailers",
           c: "trailers.seasons.enabled",
+          type: "booleen",
+          brut: false,
           n: "enabled",
           v: "non",
         },
         {
           f: "trailers",
           c: "trailers.library_check.movies",
+          type: "booleen",
+          brut: false,
           n: "movies",
           v: "non",
         },
         {
           f: "trailers",
           c: "trailers.library_check.tv_shows",
+          type: "booleen",
+          brut: true,
           n: "tv_shows",
           v: "oui",
         },
         {
           f: "trailers",
           c: "trailers.fallback_youtube_search",
+          type: "booleen",
+          brut: true,
           n: "fallback_youtube_search",
           v: "oui",
           note: "When a TMDB-found trailer URL fails to download (any failure except BOT_DETECTED — e.g. YTDLP_ERROR / HTTP_ERROR), attempt a YouTube search for an alternative upload and re-download once. Set to false to keep the pre-0.35.0 behavior (hard failure on first miss).",
@@ -12651,102 +12999,132 @@
       s: "L'index, les notifications et le serveur web.",
       fichiers: ["indexer", "notify", "web", "config"],
       r: [
-        { f: "indexer", c: "indexer.db_path", n: "db_path", v: "non défini" },
+        { f: "indexer", c: "indexer.db_path", type: "nul", brut: null, n: "db_path", v: "non défini" },
         {
           f: "indexer",
           c: "indexer.scan.budget_seconds",
+          type: "nombre",
+          brut: 1800,
           n: "budget_seconds",
           v: "1800",
         },
         {
           f: "indexer",
           c: "indexer.scan.checkpoint_every_n_files",
+          type: "nombre",
+          brut: 100,
           n: "checkpoint_every_n_files",
           v: "100",
         },
         {
           f: "indexer",
           c: "indexer.scan.max_workers_total",
+          type: "nombre",
+          brut: 2,
           n: "max_workers_total",
           v: "2",
         },
         {
           f: "indexer",
           c: "indexer.scan.n_strikes_for_softdelete",
+          type: "nombre",
+          brut: 3,
           n: "n_strikes_for_softdelete",
           v: "3",
         },
         {
           f: "indexer",
           c: "indexer.scan.read_rate_mb_per_sec",
+          type: "nombre",
+          brut: 80,
           n: "read_rate_mb_per_sec",
           v: "80",
         },
         {
           f: "indexer",
           c: "indexer.scan.drop_indexes_during_full_scan",
+          type: "booleen",
+          brut: true,
           n: "drop_indexes_during_full_scan",
           v: "oui",
         },
         {
           f: "indexer",
           c: "indexer.scan.paranoia_window_seconds",
+          type: "nombre",
+          brut: 86400,
           n: "paranoia_window_seconds",
           v: "86400",
         },
         {
           f: "indexer",
           c: "indexer.drift.merkle_delta_freeze_threshold",
+          type: "nombre",
+          brut: 0.5,
           n: "merkle_delta_freeze_threshold",
           v: "0.5",
         },
         {
           f: "indexer",
           c: "indexer.spotlight.use_when_available",
+          type: "booleen",
+          brut: true,
           n: "use_when_available",
           v: "oui",
         },
         {
           f: "indexer",
           c: "indexer.log.deleted_item_retention_days",
+          type: "nombre",
+          brut: 365,
           n: "deleted_item_retention_days",
           v: "365",
         },
-        { f: "notify", c: "notify.telegram.enabled", n: "enabled", v: "oui" },
+        { f: "notify", c: "notify.telegram.enabled", type: "booleen", brut: true, n: "enabled", v: "oui" },
         {
           f: "notify",
           c: "notify.healthchecks.enabled",
+          type: "booleen",
+          brut: true,
           n: "enabled",
           v: "oui",
         },
-        { f: "web", c: "web.enabled", n: "enabled", v: "oui" },
-        { f: "web", c: "web.host", n: "host", v: "127.0.0.1" },
-        { f: "web", c: "web.port", n: "port", v: "8710" },
-        { f: "web", c: "web.username", n: "username", v: "izno" },
+        { f: "web", c: "web.enabled", type: "booleen", brut: true, n: "enabled", v: "oui" },
+        { f: "web", c: "web.host", type: "texte", brut: "127.0.0.1", n: "host", v: "127.0.0.1" },
+        { f: "web", c: "web.port", type: "nombre", brut: 8710, n: "port", v: "8710" },
+        { f: "web", c: "web.username", type: "texte", brut: "izno", n: "username", v: "izno" },
         {
           f: "web",
           c: "web.redis_url",
+          type: "texte",
+          brut: "redis://127.0.0.1:6379/0",
           n: "redis_url",
           v: "redis://127.0.0.1:6379/0",
         },
         {
           f: "web",
           c: "web.stream_key",
+          type: "texte",
+          brut: "personalscraper:events",
           n: "stream_key",
           v: "personalscraper:events",
         },
-        { f: "web", c: "web.stream_maxlen", n: "stream_maxlen", v: "10000" },
+        { f: "web", c: "web.stream_maxlen", type: "nombre", brut: 10000, n: "stream_maxlen", v: "10000" },
         {
           f: "web",
           c: "web.session_ttl_hours",
+          type: "nombre",
+          brut: 720,
           n: "session_ttl_hours",
           v: "720",
         },
-        { f: "web", c: "web.cookie_secure", n: "cookie_secure", v: "oui" },
-        { f: "web", c: "web.dev_mode", n: "dev_mode", v: "non" },
+        { f: "web", c: "web.cookie_secure", type: "booleen", brut: true, n: "cookie_secure", v: "oui" },
+        { f: "web", c: "web.dev_mode", type: "booleen", brut: false, n: "dev_mode", v: "non" },
         {
           f: "config",
           c: "config_version",
+          type: "nombre",
+          brut: 1,
           n: "config_version",
           v: "1",
           note: "Master config file (v2 split layout). Copy this directory to ./config/ and fill in your values, or run `personalscraper init-config` to be guided through the setup.  The overlays list names the per-concern files merged in order. Each file must own distinct top-level keys (no key may appear in two overlays). Add a local.json5 (gitignored) for machine-specific overrides.",
@@ -12754,6 +13132,8 @@
         {
           f: "config",
           c: "overlays",
+          type: "liste",
+          brut: ["paths.json5", "disks.json5", "categories.json5", "patterns.json5", "encoding.json5", "scraper.json5", "trailers.json5", "indexer.json5", "acquire.json5", "thresholds.json5", "metadata.json5", "providers.json5", "torrent.json5", "tracker.json5", "ranking.json5", "notify.json5", "watch_seed.json5", "web.json5"],
           n: "overlays",
           v: "paths.json5, disks.json5, categories.json5 +15",
         },
@@ -13070,6 +13450,106 @@
   // `avecFichier` is false when a group header already names the file: repeating
   // it there prints « tracker » twice on one line and wraps the origin onto two,
   // which costs a phone more than it tells anyone.
+  /* THE FIELD A VALUE ASKS FOR.
+
+     The 153 settings the engine really keeps hold ten JSON shapes, and those
+     shapes ask for five fields, one refusal, and one state that crosses them
+     all. Deriving the field from the VALUE rather than from a list of keys is
+     what makes a setting added tomorrow editable without touching this:
+
+       · a boolean (33) is a switch — no keyboard, no validation, no « save »
+         inside the field, because there is nothing to get wrong;
+       · a number (54) is a number field with a numeric keyboard, and it says
+         its unit when the key names one;
+       · a text (44) is a text field;
+       · a path (3) is a text field in the mono face, full width: a path is read
+         character by character, and a proportional font hides a double slash;
+       · a list of texts (12) is a list — each item removable, one line to add.
+         A comma-separated text field would make « , » unusable inside an item;
+       · a DURATION (2) is a text field that states its format rather than
+         inventing a picker for two values;
+       · a STRUCTURE (3) is refused. `tiers` is a list of objects with their own
+         keys; a form for it cannot be validated here, and drawing one would
+         promise an edit that breaks the file. It says so, and names the file.
+
+     A value that is not set (2) keeps the field its type asks for and says it
+     is empty — never a zero, never an empty string standing in for « absent ». */
+  const UNITES = {
+    gb: "Go", days: "jours", hours: "heures", seconds: "secondes",
+    minutes: "minutes", m: "minutes", s: "secondes", ratio: "ratio",
+  };
+
+  function uniteDe(reglage) {
+    const dernier = reglage.n.split("_").pop();
+    return UNITES[dernier] ?? null;
+  }
+
+  function valeurEnCours(reglage) {
+    const id = reglageId(reglage);
+    return REG_ETAT.modifs.has(id) ? REG_ETAT.modifs.get(id) : reglage.brut;
+  }
+
+  function champReglageHTML(reglage) {
+    const id = escapeHtml(reglageId(reglage));
+    const v = valeurEnCours(reglage);
+    const unite = uniteDe(reglage);
+
+    if (reglage.type === "structure")
+      return `<div class="champ refus">
+        <p class="rulenote">Cette valeur est une <b>structure</b> — une liste d'objets avec leurs
+        propres clés. Elle ne s'édite pas ici : un formulaire qu'on ne peut pas valider promettrait
+        une modification qui casse le fichier. Ouvrez <code>${escapeHtml(reglage.f)}.json5</code>.</p>
+      </div>`;
+
+    if (reglage.type === "booleen")
+      return `<div class="champ">
+        <button class="interrupteur${v ? " actif" : ""}" role="switch"
+          aria-checked="${v ? "true" : "false"}" data-champ="${id}" data-vers="${v ? "non" : "oui"}">
+          <span class="pastille"></span>
+        </button>
+        <span class="champlbl">${v ? "Activé" : "Désactivé"}</span>
+      </div>`;
+
+    if (reglage.type === "liste") {
+      const items = Array.isArray(v) ? v : [];
+      return `<div class="champ liste">
+        ${
+          items.length
+            ? items
+                .map(
+                  (x, i) =>
+                    `<div class="litem"><span>${escapeHtml(x)}</span><button class="lsupp"
+                      data-champsupp="${id}" data-index="${i}" aria-label="Retirer ${escapeHtml(x)}">
+                      ${svgIcon(icons.x)}</button></div>`,
+                )
+                .join("")
+            : `<p class="rulenote">Aucune valeur. La liste est vide, ce qui n'est pas la même chose
+               qu'une valeur absente.</p>`
+        }
+        <button class="lajout" data-champajout="${id}">${svgIcon(icons.plus)}Ajouter</button>
+      </div>`;
+    }
+
+    const vide = v === null || v === undefined || v === "";
+    const mono = reglage.type === "chemin";
+    const numerique = reglage.type === "nombre";
+    return `<div class="champ">
+      <input class="champsaisie${mono ? " mono" : ""}" data-champ="${id}"
+        type="${numerique ? "number" : "text"}"
+        ${numerique ? 'inputmode="decimal"' : ""}
+        value="${vide ? "" : escapeHtml(String(v))}"
+        placeholder="${vide ? "non défini" : ""}"
+        aria-label="${escapeHtml(libelleReglage(reglage))}">
+      ${
+        unite
+          ? `<span class="champunite">${escapeHtml(unite)}</span>`
+          : reglage.type === "duree"
+            ? `<span class="champunite">format 72h</span>`
+            : ""
+      }
+    </div>`;
+  }
+
   function ligneReglageHTML(reglage, avecFichier = false) {
     const modifie = REG_ETAT.modifs.has(reglageId(reglage));
     const origine = avecFichier
@@ -13219,20 +13699,32 @@
   /* Changing a value. The prototype does not draw a keyboard: what it draws is
      that the change is PENDING — marked on its row, counted in the bar, and
      written by nothing until the bar is used. */
-  function modifierReglage(id) {
+  function memeValeur(a, b) {
+    return Array.isArray(a) || Array.isArray(b)
+      ? JSON.stringify(a) === JSON.stringify(b)
+      : a === b;
+  }
+
+  function modifierReglage(id, valeur) {
     const reglage = tousLesReglages().find((r) => reglageId(r) === id);
     if (!reglage) return;
-    const actuelle = String(valeurCourante(reglage));
-    const suivante =
-      actuelle === "oui"
-        ? "non"
-        : actuelle === "non"
-          ? "oui"
-          : actuelle + " (modifié)";
-    if (suivante === String(reglage.v)) REG_ETAT.modifs.delete(id);
-    else REG_ETAT.modifs.set(id, suivante);
+    // A value equal to the file's is not a pending change: it is no change, and
+    // leaving it in the map would make the save bar name a file it would write
+    // identically.
+    if (memeValeur(valeur, reglage.brut)) REG_ETAT.modifs.delete(id);
+    else REG_ETAT.modifs.set(id, valeur);
     render();
-    toast("Modifié — rien n'est écrit tant que vous n'enregistrez pas.");
+  }
+
+  /* What a field's value BECOMES, read from the field itself. A number field
+     returns a string; storing it as one would compare unequal to the file's
+     number for ever, so the type it goes back as is the type it came from. */
+  function valeurSaisie(reglage, texte) {
+    if (reglage.type === "nombre") {
+      const n = Number(texte);
+      return texte.trim() === "" ? null : Number.isNaN(n) ? reglage.brut : n;
+    }
+    return texte === "" ? null : texte;
   }
 
   function ouvrirSecret(secret) {
@@ -13298,6 +13790,7 @@
         ...(modifie ? { puce: ["info", "modifié, pas encore écrit"] } : {}),
         blocs: [
           reglage.note ? { type: "note", texte: reglage.note } : null,
+          REG_ETAT.lectureSeule ? null : { type: "champ", reglage },
           {
             type: "faits",
             lignes: [
@@ -13318,12 +13811,7 @@
                     icone: icons.x,
                     desactive: true,
                   }
-                : {
-                    texte: "Modifier",
-                    icone: icons.wrench,
-                    ton: "primary",
-                    cible: { modifier: id },
-                  },
+                : null,
               modifie
                 ? {
                     texte: "Annuler la modification",
@@ -14360,6 +14848,15 @@
           element3.setSelectionRange(pos, pos);
         }
       };
+    for (const champ of document.querySelectorAll(".champsaisie")) {
+      champ.onchange = () => {
+        const id = champ.dataset.champ;
+        const reglage = tousLesReglages().find((r) => reglageId(r) === id);
+        if (!reglage) return;
+        modifierReglage(id, valeurSaisie(reglage, champ.value));
+        ouvrirReglage(id);
+      };
+    }
     const element2 = document.querySelector("#follq");
     if (element2)
       element2.oninput = () => {
@@ -14425,6 +14922,7 @@
 
   function openSheet(html) {
     select("#sheetin").innerHTML = html;
+    mountSearch();
     select("#sheet").classList.add("open");
     select("#scrim").classList.add("open");
     try {
@@ -15135,12 +15633,35 @@
         REG_ETAT.rubrique = "acquisition";
         REG_ETAT.modifs.set(
           "thresholds:thresholds.min_free_space_staging_gb",
-          "40 (modifié)",
+          40,
         );
-        REG_ETAT.modifs.set("acquire:acquire.enabled", "non");
+        REG_ETAT.modifs.set("tracker:tracker.providers.c411.enabled", false);
         applyState({ page: "cfg", phase: "prete" });
       },
     ],
+    /* One state per FIELD, because a field is a shape one judges by looking at
+       it. The setting each opens is found by TYPE rather than named, so a
+       config change that moves a key does not silently open something else. */
+    ...[
+      ["booleen", "un interrupteur"],
+      ["nombre", "un nombre"],
+      ["texte", "un texte"],
+      ["chemin", "un chemin"],
+      ["liste", "une liste"],
+      ["duree", "une durée"],
+      ["structure", "une structure, qui refuse"],
+      ["nul", "une valeur non définie"],
+    ].map(([genre, quoi]) => [
+      `reglages-champ-${genre}`,
+      `Réglages — ${quoi}`,
+      () => {
+        reinitialiserReglages();
+        const trouve = REGLAGES.flatMap((r) => r.r).find((x) => x.type === genre);
+        REG_ETAT.rubrique = REGLAGES.find((r) => r.r.includes(trouve))?.id ?? null;
+        applyState({ page: "cfg", phase: "prete" });
+        if (trouve) ouvrirReglage(reglageId(trouve));
+      },
+    ]),
     [
       "reglages-secrets",
       "Réglages — secrets et accès",
@@ -15610,10 +16131,37 @@
       if (secret) ouvrirSecret(secret);
       return;
     }
-    if (closest.dataset.modifier) {
-      const id = closest.dataset.modifier;
-      closeSheet();
-      setTimeout(() => modifierReglage(id), 240);
+    if (closest.dataset.champ && closest.dataset.vers) {
+      const id = closest.dataset.champ;
+      const reglage = tousLesReglages().find((r) => reglageId(r) === id);
+      if (reglage) {
+        modifierReglage(id, closest.dataset.vers === "oui");
+        ouvrirReglage(id);
+      }
+      return;
+    }
+    if (closest.dataset.champsupp) {
+      const id = closest.dataset.champsupp;
+      const reglage = tousLesReglages().find((r) => reglageId(r) === id);
+      if (reglage) {
+        const liste = [...(valeurEnCours(reglage) || [])];
+        liste.splice(Number(closest.dataset.index), 1);
+        modifierReglage(id, liste);
+        ouvrirReglage(id);
+      }
+      return;
+    }
+    if (closest.dataset.champajout) {
+      const id = closest.dataset.champajout;
+      const reglage = tousLesReglages().find((r) => reglageId(r) === id);
+      if (reglage) {
+        // A prototype cannot show a keyboard; the added item is named after
+        // what the list already holds, so the shape of the row is judgeable.
+        const liste = [...(valeurEnCours(reglage) || [])];
+        liste.push(`valeur ${liste.length + 1}`);
+        modifierReglage(id, liste);
+        ouvrirReglage(id);
+      }
       return;
     }
     if (closest.dataset.annulerreg) {
