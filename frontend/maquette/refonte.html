@@ -684,9 +684,11 @@
     inset: 0;
     display: flex;
     align-items: stretch;
+    justify-content: flex-end;
   }
   .actions .side {
     display: flex;
+    flex: 0 0 auto;
   }
   .actions .side.right {
     margin-left: auto;
@@ -697,7 +699,8 @@
     font-weight: 700;
     line-height: 1.2;
     color: var(--mq-white);
-    flex: 0 0 84px;
+    flex: none;
+    width: 84px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -705,6 +708,10 @@
     gap: 4px;
     padding: 0 5px;
     text-align: center;
+  }
+  .act.chercher {
+    background: var(--primary);
+    color: var(--primary-foreground);
   }
   .act svg {
     width: 17px;
@@ -11099,8 +11106,10 @@
     return `${tete}${(descripteur.blocs || []).map(panneauBlocHTML).join("")}`;
   }
 
-  function swipeHTML(inner, actions) {
-    return `<div class="swipe"><div class="actions"><div class="side right">${actions}</div></div>${inner}</div>`;
+  function swipeHTML(inner, actions, actionsGauche) {
+    return `<div class="swipe"><div class="actions">${
+      actionsGauche ? `<div class="side left">${actionsGauche}</div>` : ""
+    }<div class="side right">${actions}</div></div>${inner}</div>`;
   }
 
   /* An empty section does not render — but an empty VIEW says so, with what
@@ -11536,6 +11545,9 @@
           follow.k === "movie"
             ? `<button class="act pause" data-swipeact="pause">${svgIcon(icons.x)}Ne plus chercher</button><button class="act remove" data-swipeact="remove">${svgIcon(icons.trash)}Retirer</button>`
             : `<button class="act pause" data-swipeact="pause">${svgIcon(icons.x)}Pause</button><button class="act remove" data-swipeact="remove">${svgIcon(icons.trash)}Retirer</button>`,
+          follow.st === "en_attente" || follow.st === "a_recuperer"
+            ? `<button class="act chercher" data-swipeact="chercher">${svgIcon(icons.refresh)}Chercher</button>`
+            : "",
         );
 
       const tileOf = (follow) => {
@@ -38358,40 +38370,83 @@
        release outside the frame would otherwise never arrive;
      · dragging a picture is a browser default that swallows the pointer stream
        outright, which is why images inside a draggable surface disable it. */
-  /* 1) Card swipe — a drag born on a card belongs to the card. */
+  /* 1) Card swipe — a drag born on a card belongs to the card.
+
+     It runs BOTH ways: the drawer on the right holds what one does to a medium
+     — pause it, drop it — and the one on the left holds the single thing the
+     card is FOR, the action its footer already names. A card with no such
+     action has no left drawer, and the gesture simply does not travel that
+     way rather than opening an empty one.
+
+     Only ONE card is open at a time. Two open drawers ask which one an action
+     belongs to, and the answer is never on screen; starting a drag anywhere
+     puts the previous card back first.
+
+     A drag is not a tap. The card body opens the bottom panel on a tap, so a
+     swipe that also fired it would open a panel over the drawer it just
+     revealed — the click that follows the release is swallowed, identified by
+     the DISTANCE travelled, not by a timer.
+
+     Listened for on the FRAME, not the scrollport: every layer above it — the
+     sheet, the screen, the drawer — sits outside, and a row drawn in one of
+     them would answer no gesture at all. */
   let cardDrag = null;
-  port.addEventListener(
+  let carteOuverte = null;
+  let clicApresGlisse = null;
+
+  function refermerCarte() {
+    if (!carteOuverte) return;
+    carteOuverte.style.transform = "";
+    carteOuverte = null;
+  }
+
+  function largeurTiroir(sw, sens) {
+    const cote = sw.querySelector(sens < 0 ? ".side.right" : ".side.left");
+    return cote ? cote.querySelectorAll(".act").length * 84 : 0;
+  }
+
+  cadre.addEventListener(
     "pointerdown",
     (event) => {
+      clicApresGlisse = null;
       const closest = event.target.closest(".swipe");
       if (!closest || !event.isPrimary) return;
-      const point = event;
+      // A new gesture anywhere puts the previously opened row back.
+      if (carteOuverte && carteOuverte !== closest.querySelector(".card"))
+        refermerCarte();
       cardDrag = {
         sw: closest,
         card: closest.querySelector(".card"),
-        x: point.clientX,
-        y: point.clientY,
+        x: event.clientX,
+        y: event.clientY,
+        depart: carteOuverte === closest.querySelector(".card")
+          ? -largeurTiroir(closest, -1)
+          : 0,
         axis: null,
         dx: 0,
-        max: closest.querySelectorAll(".act").length * 84,
       };
     },
     { passive: true },
   );
-  port.addEventListener(
+  cadre.addEventListener(
     "pointermove",
     (event) => {
       if (!cardDrag) return;
-      const point = event,
-        deltaX = point.clientX - cardDrag.x,
-        deltaY = point.clientY - cardDrag.y;
+      const deltaX = event.clientX - cardDrag.x,
+        deltaY = event.clientY - cardDrag.y;
       if (cardDrag.axis === null) {
         if (Math.abs(deltaX) < 6 && Math.abs(deltaY) < 6) return;
         cardDrag.axis = Math.abs(deltaX) > Math.abs(deltaY) * 1.2 ? "x" : "y";
         if (cardDrag.axis === "x") cardDrag.card.classList.add("dragging");
       }
       if (cardDrag.axis !== "x") return;
-      cardDrag.dx = Math.max(-cardDrag.max, Math.min(0, deltaX));
+      const brut = cardDrag.depart + deltaX;
+      cardDrag.dernierX = event.clientX;
+      cardDrag.dernierY = event.clientY;
+      cardDrag.dx = Math.max(
+        -largeurTiroir(cardDrag.sw, -1),
+        Math.min(largeurTiroir(cardDrag.sw, 1), brut),
+      );
       cardDrag.card.style.transform = `translateX(${cardDrag.dx}px)`;
     },
     { passive: true },
@@ -38402,11 +38457,37 @@
     cardDrag = null;
     if (drag.axis !== "x") return;
     drag.card.classList.remove("dragging");
-    drag.card.style.transform =
-      drag.dx < -drag.max / 2.4 ? `translateX(${-drag.max}px)` : "";
+    // Past a third of a drawer's width the row rests open on that side.
+    const gauche = largeurTiroir(drag.sw, 1);
+    const droite = largeurTiroir(drag.sw, -1);
+    let repos = 0;
+    if (drag.dx < -droite / 2.4) repos = -droite;
+    else if (drag.dx > gauche / 2.4) repos = gauche;
+    drag.card.style.transform = repos ? `translateX(${repos}px)` : "";
+    carteOuverte = repos ? drag.card : null;
+    // The release is followed by a click, and a drag must not also tap. The
+    // click is identified by its POINT — the same answer the long press
+    // already needed — because a bare flag stays armed until SOME click
+    // happens, and the next one it meets may be elsewhere entirely.
+    clicApresGlisse =
+      Math.abs(drag.dx - drag.depart) > 4
+        ? { x: drag.dernierX, y: drag.dernierY }
+        : null;
   }
   window.addEventListener("pointerup", endCardDrag);
   window.addEventListener("pointercancel", endCardDrag);
+  document.addEventListener(
+    "click",
+    (event) => {
+      if (!clicApresGlisse) return;
+      const mark = clicApresGlisse;
+      clicApresGlisse = null;
+      if (Math.hypot(event.clientX - mark.x, event.clientY - mark.y) > 24) return;
+      event.preventDefault();
+      event.stopPropagation();
+    },
+    { capture: true },
+  );
 
   /* 1b) Suggestion card: a swipe either way means dismiss. Same reason as
      `.swipe`: the row claims the horizontal axis, otherwise the browser

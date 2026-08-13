@@ -41,7 +41,9 @@ when the defect comes back.
 | B-006 | ~~Two different sign-in screens: arrival and sign-out~~ | 1× | `to confirm` |
 | B-007 | ~~`--accent` referenced 11 times, defined nowhere~~ | 1× | `to confirm` |
 | B-008 | ~~The card poster should bleed to the card's edges~~ | 1× | `to confirm` |
-| B-009 | Swiping a media card should reveal its quick actions | 1× | `open` |
+| B-009 | ~~Swiping a media card should reveal its quick actions~~ | 1× | `to confirm` |
+| B-010 | ~~Only one row open at a time~~ | 1× | `to confirm` |
+| B-011 | ~~The drawer renders wrong on iOS~~ | 1× | `to confirm` |
 
 ---
 
@@ -309,9 +311,34 @@ bottom flush — so restoring a margin fails.
 
 ---
 
-## B-009 — Swiping a media card should reveal its quick actions
+## B-009 / B-010 / B-011 — The row's drawer
 
-**Reported** 1×. **Status** `open`.
+**Reported** 1× each. **Status** `to confirm`.
+
+**B-009 — both directions, scoped with the tap.** The right drawer holds what one does to a
+medium; the left holds the one thing the row is for — a follow with nothing to look for has no
+left drawer, and the row does not travel that way rather than opening an empty one. The click
+after a drag is swallowed, identified by its POINT.
+
+**B-010 — one row at a time.** Starting a drag anywhere puts the previously opened row back.
+
+**B-011 — the iOS rendering.** Reproduced on WebKit and measured: the drawer was pushed right by
+an automatic margin, and WebKit sizes it without honouring its children's `flex-basis` — 148px for
+two 84px buttons — so they spilled twenty pixels past the rounded card. An explicit `width` leaves
+nothing to infer. Both engines now measure 168px, zero overflow.
+
+Rule R64, `harness/glisse.py` — 18 checks on BOTH engines, four mutations proven: the automatic
+margin restored (the iOS defect), one direction only, two rows open at once, the tap not scoped.
+
+**Two things the suite caught that I had just broken.** Clearing the swallow mark after the guard
+that ignores presses outside a row meant a press anywhere else never cleared it — a swipe made the
+interface miss the next tap on the navigation bar. And a bare flag stays armed until some click
+happens, which ate a button in a dialog; it is now identified by its point, the same answer the
+long press had already needed.
+
+**One line was removed rather than kept.** The exemption for the drawer's own buttons cannot be
+reached: the row follows the finger one for one, so a release is always over the row and never
+over what it uncovered.
 
 **Asked for.** A media card answers a horizontal swipe, left and right, revealing its quick
 actions. The tap that opens the bottom panel keeps working; the two gestures are scoped so neither
