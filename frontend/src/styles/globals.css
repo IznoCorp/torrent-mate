@@ -12,6 +12,7 @@
       `inline` keeps Tailwind from re-emitting these names, so there is no
       collision with the DS `:root` declarations. */
 @import "tailwindcss";
+@source not "../../maquette";
 @import "./ps/styles.css";
 @import "./ps/maquette-acquisition.css";
 
