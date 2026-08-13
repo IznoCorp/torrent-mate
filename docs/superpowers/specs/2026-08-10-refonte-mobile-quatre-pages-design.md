@@ -16,6 +16,26 @@ evolution of the interface.
 
 ---
 
+## 0. THE MISSION CHANGED — read this before §1
+
+Operator directive, 2026-08-13. **This is no longer a mobile restyling of the shipped app.** It
+is a REDESIGN: a finished v1, a version in its own right. The prototype is the product, and the
+app will be rebuilt onto it rather than brought towards it surface by surface.
+
+Consequences for everything below:
+
+- **§8's phases are history.** They describe deriving the app one surface at a time, which is the
+  order the mission reversed. Read them for the reasoning, not as instructions.
+- **§7's method still holds entirely** — real data, named states, a rule per decision, a mutation
+  per rule. It is the part that made the prototype trustworthy and none of it is relaxed.
+- **The prototype owes every page production serves**, including the ones no longer mentioned
+  below because they were deferred: Contrôle, Pipeline, Maintenance, the real Système, what a
+  wrong URL lands on, and the multi-user surfaces. The exhaustive inventory lives in
+  `IMPLEMENTATION.md` and is derived from the shipped router.
+- **Binding to the backend is a separate mission**, opened only when the operator judges the
+  design and the front-end architecture solid enough. That judgement is theirs and no set of
+  green rules substitutes for it.
+
 ## 1. Why this exists
 
 `/acquisition` was rebuilt mobile-first and shipped (PR #422, #423). The other three surfaces

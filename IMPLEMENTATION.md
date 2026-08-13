@@ -1,11 +1,31 @@
-# Current feature: shell-mobile
+# Current feature: shell-mobile — the v1 redesign
 
-**Branch:** `feat/shell-mobile` — every phase targets it. `main`, and therefore production, is
-touched **once, at the end**, after everything has been validated together. Non-negotiable.
+## THE MISSION CHANGED. Read this before anything else.
+
+**This is no longer a mobile restyling of the shipped app.** It is a REDESIGN — a finished v1,
+a version in its own right. The prototype is not a reference the current app is brought towards
+piece by piece; it is the product, and the app will be rebuilt onto it.
+
+That reverses the order of work:
+
+1. **Finish the prototype first — every page.** Especially the ones that exist IN PRODUCTION and
+   are not yet drawn here. A surface that production has and the prototype does not is a hole in
+   the v1, not a later phase. The inventory is below and it is exhaustive.
+2. **Then the operator judges.** The prototype is bound to the backend only once the operator
+   considers the design AND the front-end architecture solid enough. That judgement is theirs, it
+   is not a checklist, and no amount of green rules substitutes for it.
+3. **Then, and only then, it becomes the new version.** Binding it to the backend is a separate
+   mission with its own plan.
+
+Until step 2 is passed, **nothing here derives app code**. The phase table that used to sit in
+this file described the opposite order — deriving the app surface by surface — and it is gone.
+
+**Branch:** `feat/shell-mobile`. `main`, and therefore production, is touched **once, at the
+end**, after everything has been validated together. Non-negotiable.
 
 **Spec:** `docs/superpowers/specs/2026-08-10-refonte-mobile-quatre-pages-design.md`
-**Design reference:** `frontend/maquette/refonte.html` — §15 of `docs/reference/product-intent.md`
-**Plans:** one per phase, in `docs/superpowers/plans/2026-08-12-shell-mobile-phase-*.md`
+**The prototype:** `frontend/maquette/refonte.html` — §15 of `docs/reference/product-intent.md`
+**Bug register:** `BUGS.md` at the repo root — every reported defect, one closed at a time.
 
 ---
 
@@ -19,12 +39,12 @@ Read, in this order:
 
 1. `frontend/maquette/README.md` — the prototype's contract, its named states, the rule set,
    and the traps already paid for. It is short and it saves days.
-2. `docs/superpowers/specs/2026-08-10-refonte-mobile-quatre-pages-design.md` — §7 is the parity
-   methodology and is the part that matters most.
-3. `docs/superpowers/plans/2026-08-12-shell-mobile-phase-0-parity-tooling.md` — the first phase.
+2. `docs/superpowers/specs/2026-08-10-refonte-mobile-quatre-pages-design.md` — §7 carries the
+   method. Its §8 phases describe deriving the app surface by surface, which is the order the
+   mission reversed: read them as history, not as instructions.
+3. `BUGS.md` — what is reported and not yet confirmed.
 
-Then execute phase 0 task by task. Nothing else can start before it: every later phase leans on
-the guards it builds.
+Then draw the missing surfaces, in the order of the inventory below.
 
 **Serve the prototype locally** (never on 8710 or 8711, which the reverse proxy routes to
 production and staging):
@@ -70,20 +90,29 @@ editing `serve.py`: `pm2 restart torrentmate-design`.
 
 ---
 
-## Phases
+## What the v1 still owes, page by page
 
-| Phase | Delivers                                                                    | Status      |
-| ----- | --------------------------------------------------------------------------- | ----------- |
-| 0     | Parity tooling: CSS extractor, drift guard, class-coverage guard, probe, CI | not started |
-| 1     | Scope rename, shared primitives, `PageHeader` off mobile                    | in progress |
-| 2     | Arrivées + reception into Système; old routes demoted to redirects          | not started |
-| 3     | Médiathèque, read-only, three lenses                                        | not started |
-| 4     | Media sheet: visual header, single back control, YouTube trailer, seasons   | not started |
-| 5     | Delete, dry-run enforced, three paths                                       | not started |
-| 6     | Découvrir: three formats, TMDB account, background pool                     | not started |
+Read from the shipped router (`frontend/src/router.tsx`) against the prototype's named states.
+Every line is a surface production really serves.
 
-**Next action:** execute phase 0. Its guards are what every later phase leans on, and the
-app-side primitives phase 1 was to create now exist ahead of it — see below.
+| Production route | Drawn in the prototype? | What it owes |
+| --- | --- | --- |
+| `/login` | yes | — |
+| `/acquisition` | yes | — |
+| `/medias` | yes | — |
+| `/config` | yes | — |
+| `/media/:provider/:id` | yes | — |
+| `/controle` (Dashboard) | **no** | health at a glance, the last run's digest, what is stuck, the acquisition summary, the event feed, the schedulers |
+| `/pipeline` | **no** | the flow board, the controls and their banner, a run's detail, the run history, the interpreted feed |
+| `/maintenance` | **no** | the action catalogue, disks, index health, locks, the destructive log |
+| `/systeme` | **partly** | the prototype says so itself: « réception seule … sa refonte mobile est différée ». That deferral is lifted |
+| `*` (NotFound) | **no** | what a wrong URL says, and where it sends one |
+| — | **no** | the multi-user account surfaces. The user menu draws their PLACE, disabled; the surfaces themselves are not drawn |
+
+Nothing else in production is missing: `/scraping` and `/registry` are redirects.
+
+**Next action:** draw the missing surfaces, in the order above. Each one follows the method
+below — real data, named states, a rule that bites, a mutation that proves it.
 
 ---
 
@@ -210,7 +239,7 @@ These were argued, measured and recorded. Re-opening one costs a day; the reason
 ## Carried, not hidden
 
 1. **Plex deletion.** `api/plex.py` only refreshes. Which route removes an entry on this server is
-   a verification step of phase 5, not a claim.
+   a verification step of the binding mission, not a claim of this one.
 2. **A real deletion cannot be validated before production.** Staging writes to the real disks and
    the real databases, and fabricating a medium for the proof is forbidden. Protocol: dry-run only
    on staging; the first real deletion happens after the production merge, on a medium the
@@ -219,8 +248,8 @@ These were argued, measured and recorded. Re-opening one costs a day; the reason
 3. **The multi-user account system** is a later mission. The user menu draws its place — profile
    and preferences, disabled, saying why — so the shape is settled before the feature lands.
 4. **`?tab=maintenant`.** The label became « En cours »; whether the URL param migrates with a
-   legacy redirect or stays is an implementation detail of phase 6's sibling work. The deep link
-   must keep working either way.
+   legacy redirect or stays is decided when the prototype is bound to the backend. The deep link
+   must keep working either way, and the prototype has to DRAW what a legacy link lands on.
 5. ~~**The list poster cannot be enlarged by its own derivation.**~~ **Closed**, and the question
    was replaced rather than answered: the poster is no longer a fraction of anything, it reaches
    the card's edges. 84px wide, with the card's height as its floor, so a card at that floor
@@ -232,7 +261,8 @@ These were argued, measured and recorded. Re-opening one costs a day; the reason
 7. **The arbitration SCREEN itself is drawn but not built.** `ds/DecisionRow` and the vocabulary
    are derived; the screen's own shape — one folder at a time, the three ways out side by side,
    the progression replacing the desktop deck's keyboard shortcuts — belongs to the Arrivées
-   rebuild (phase 2), because that is where the queue lives.
+   screen the prototype already draws — what is missing is the app, and the app comes after the
+   operator's judgement.
 8. **The synopsis is not in the read-model.** The library's rows carry it in the prototype, read
    from the `<plot>` of each medium's own NFO — real data, but `library.db` has neither a column
    of `media_item` nor a key of `item_attribute` for it. The app cannot render this surface until
@@ -246,4 +276,4 @@ These were argued, measured and recorded. Re-opening one costs a day; the reason
    « Résoudre → » on « À traiter » opened the screen, took the choice, and left the item exactly
    where it was, because the answer only ever looked in the Arrivées list. Fixed in the prototype.
    The app's equivalent — whether resolving from one queue clears it from the other — is a
-   verification step of phase 2, on the real API, not a claim of this work.
+   verification step of the binding mission, on the real API, not a claim of this one.

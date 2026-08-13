@@ -1,4 +1,12 @@
-# The prototype — this directory is the visual reference
+# The prototype — this directory IS the product
+
+> **This prototype is the product, not a reference.** Operator directive of 2026-08-13: the
+> mission is no longer a mobile restyling of the shipped app but a REDESIGN — a finished v1. Every
+> page production serves is owed here, including the ones production has and this does not. The
+> app is bound to it afterwards, in a separate mission, and only once the operator judges the
+> design and the front-end architecture solid enough. The inventory of what is still owed is in
+> `IMPLEMENTATION.md`.
+
 
 **`refonte.html` is the design reference for the TorrentMate web UI. Any change to the
 design starts here, not in `frontend/src`.**
