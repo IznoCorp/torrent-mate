@@ -12538,9 +12538,9 @@
     anime_rule: "Règle des animés",
     recommendations: "Recommandations",
     notations: "Notations",
-    spotlight: "Mise en avant",
+    spotlight: "Spotlight",
     drift: "Dérive",
-    economy: "Économie d'appels",
+    economy: "Obligations de partage",
     fuzzy_match: "Rapprochement approximatif",
     library_check: "Contrôle de la médiathèque",
     library: "Médiathèque",
@@ -12564,13 +12564,22 @@
     VideoProvider: "Bandes-annonces",
   };
 
+  // A segment falling through to the humanised key is a subject nobody named: a
+  // tracker added tomorrow would show up as a raw machine word. The set is
+  // published so a rule can read it — it catches an ABSENT name, never a wrong
+  // one, and a wrong one is only caught by reading the file it comes from.
+  window.__sujetsSansNom = new Set();
+
   function sujetReglage(reglage) {
     const segments = reglage.c
       .split(".")
       .slice(0, -1)
       .filter((s) => s !== reglage.f && !CONTENANTS_REGLAGES.has(s));
     return segments
-      .map((s) => NOMS_SUJETS[s] ?? s.replace(/_/g, " "))
+      .map((s) => {
+        if (!NOMS_SUJETS[s]) window.__sujetsSansNom.add(s);
+        return NOMS_SUJETS[s] ?? s.replace(/_/g, " ");
+      })
       .join(" · ");
   }
 
@@ -12635,7 +12644,10 @@
                 "Cherchez par ce que le réglage FAIT — « espace », « seuil », « langue » — ou par le nom de sa clé.",
               )
             : `<p class="qhint">${trouves.length} réglage${trouves.length > 1 ? "s" : ""} sur ${tousLesReglages().length}</p>
-               <div class="panel">${trouves.slice(0, 40).map((r) => ligneReglageHTML(r, true)).join("")}</div>`
+               <div class="panel">${trouves
+                 .slice(0, 40)
+                 .map((r) => ligneReglageHTML(r, true))
+                 .join("")}</div>`
         }
       </div>`;
     }
@@ -12823,7 +12835,8 @@
               ...(modifie
                 ? [{ c: "Valeur écrite", v: String(reglage.v), terne: true }]
                 : []),
-              { c: "Fichier", v: `${reglage.f}.json5` },
+              // The file is on the mono line above; a « Fichier » fact under it
+              // says the same thing twice on a screen that has no room for it.
             ],
           },
           {

@@ -226,6 +226,16 @@ async def main():
         verifier("deux réglages d'une même rubrique ne portent pas le même libellé",
                  not collisions, f"{len(collisions)} : {collisions[:3]}")
 
+        # And every subject is NAMED — a tracker added tomorrow lands under a raw
+        # machine word otherwise. This catches an ABSENT name; a wrong one is
+        # caught only by reading the file the segment comes from, which is how
+        # « economy » stopped being « Économie d'appels » under a tracker whose
+        # `economy` block is its seeding obligation.
+        sansNom = await pg.evaluate("""()=>{
+          REGLAGES.flatMap(r => r.r).forEach(libelleReglage);
+          return [...window.__sujetsSansNom];}""")
+        verifier("chaque sujet de réglage porte un nom écrit", not sansNom, str(sansNom))
+
         verifier("aucune erreur JS", not erreurs, str(erreurs))
         await b.close()
 
