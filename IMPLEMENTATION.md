@@ -11,6 +11,10 @@ touched **once, at the end**, after everything has been validated together. Non-
 
 ## Where to start
 
+**`BUGS.md` at the repo root is the bug register.** Every defect the operator reports is written
+there when it is reported, one is closed at a time, and a fix closes only with a mutation-tested
+rule that covers the path the operator actually walks. Read it before starting anything.
+
 Read, in this order:
 
 1. `frontend/maquette/README.md` — the prototype's contract, its named states, the rule set,
