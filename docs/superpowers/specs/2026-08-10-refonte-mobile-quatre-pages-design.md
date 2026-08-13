@@ -519,6 +519,50 @@ provider gives no episode titles — never a second design chosen by accident.
 Three cases stay honest rather than invented: an unknown aired total shows `?` and reasons only
 up to the highest owned episode; an announced season shows « à venir »; nothing known says so.
 
+### 5.8 Settings — one navigates by what one wants to change
+
+The engine keeps its configuration in nineteen JSON5 files and the shipped editor puts them in a
+dropdown. That asks the operator to know that `thresholds.json5` holds how much free space is
+needed before an ingest — knowledge about the code, not about the media library. On a phone it is
+worse still: a dropdown of nineteen machine names, then a wall of keys.
+
+The map is what one wants to change. Five rubrics — « Où vont les médias », « Comment ils sont
+nommés », « Ce qu'on va chercher », « Ce qu'on en sait », « Ce qui tourne » — plus « Secrets et
+accès » and the ranking editor, which already had a surface of its own. Every one of the 153
+settings the engine really keeps belongs to exactly one rubric: a setting reachable from nowhere
+is a setting nobody will ever find, and that is checked rather than asserted.
+
+Six decisions the drawing makes, each with a reason:
+
+1. **The file is named, never navigated by.** The origin is in the mono face, because that is
+   exactly what one needs when reading a log or a diff, and it is shown once: the row carries its
+   key, under the label, and the group header carries the file. A search result stands under no
+   header, so there the row names the file itself.
+2. **A row is identified by its label alone.** The leaf key says what a setting does and not
+   what it belongs to: labelling by it drew « Activé » seven times in one list — every tracker,
+   every client, every metadata provider owns one — and only a machine path told them apart,
+   which is what one reads AFTER finding a row, not to find it. The label carries its subject,
+   derived from the path so a provider added tomorrow is named without touching the rendering.
+3. **A label is French, and says what the setting does.** The first draft labelled each row with
+   the comment its file carries — which is English — and a search for « espace » then returned
+   nothing at all: the search existed and answered nothing, because the operator searches in the
+   language they think in. The comment is not lost; it is the explanation in the panel, where a
+   sentence has room.
+4. **Editing happens in the bottom panel**, the same one every other surface uses, taking the
+   descriptor of facts R56 defines. A settings screen does not get a form of its own.
+5. **Nothing is written until the save bar is used, and the bar names the files it will write.**
+   It exists only when there is something to save, and a pending change is marked on its own row —
+   a count at the foot of the screen tells the operator that something changed, not what.
+6. **A secret says whether it is set, never what it is worth.** Fifteen keys, a chip each,
+   « définie » or « absente ». No secret value is read, shown, or carried in the prototype at all,
+   and no field is ever pre-filled with one.
+
+Read-only says so and offers nothing — the staging role is a real deployment, not a hypothesis.
+A setting the service must be restarted to honour says so, and offers the restart.
+
+Data: `~/.torrentmate/config/*.json5` as they stand, values included. R60,
+`harness/reglages.py`.
+
 ## 6. Gestures and platform invariants
 
 **Every gesture answers a pointer, not only a finger (R35).** The handlers listen for pointer

@@ -56,7 +56,7 @@ constitution). Toute évolution du design **part de la maquette, jamais du code*
    recopié ; la dérive est bloquée par `make check`.
 
 Lis `frontend/maquette/README.md` avant toute modification de design : il porte la méthode, les
-45 états nommés, le jeu de règles vérifiées (`regions.json` → `$adversarialReview`) et les
+états nommés, le jeu de règles vérifiées (`regions.json` → `$adversarialReview`) et les
 pièges déjà payés.
 
 **Langue des sources de la maquette** : commentaires **en anglais**, sans référence à une

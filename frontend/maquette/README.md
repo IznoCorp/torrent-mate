@@ -140,7 +140,7 @@ One file, four jobs:
   rather than implied.
 - **`regions`** — what `parity-probe.py` measures, each naming the states it is visible in,
   so the probe never has to guess how to reach a card state.
-- **`$adversarialReview`** — the rule set (R1…R59) plus `$methodLessons`: what each rule
+- **`$adversarialReview`** — the rule set (R1…R60) plus `$methodLessons`: what each rule
   exists for, and what a rule that failed to bite taught. `$reportedDefects` lists the
   defects found by hand, each with its test in `harness/bugs.py`.
 
@@ -498,7 +498,7 @@ They are committed because they encode recipes that cost time to get right.
 |---|---|
 | `sweep.py` | all views render content, no horizontal overflow, device at 390px, no JS error. **A view that renders nothing fails.** |
 | `scen.py` | the same sweep across both data scenarios, with explicit sub-view reset between runs |
-| `states.py` | all 54 named states render, without overflow or JS error |
+| `states.py` | every named state renders, without overflow or JS error |
 | `audit.py` | rules R1–R10 and R20–R23 across every state, and it announces how many rules it EXECUTED |
 | `audit2.py` | rules R11–R17 and R26–R31: uniformity, honesty of the text, one back design, one season rendering, episode presence against the data, a panel that never offers an action the medium does not support |
 | `cartes.py` | rules R41–R50: the card and gallery contract — poster to the sheet, body to the panel, no action reachable from a single surface, the same panel from a card and from a gallery |
@@ -515,6 +515,7 @@ They are committed because they encode recipes that cost time to get right.
 | `pop.py` | the episode date popover, in all its states |
 | `chrome.py` | R51: the harness bar covers none of the app's fixed controls, in every named state, at both sides of the 520px breakpoint |
 | `retour.py` | R59: the back gesture walks the path in reverse — tabs and lenses included — closes a layer first, and at the root warns instead of leaving, closing only on a second back within five seconds |
+| `reglages.py` | R60: the settings are navigated by what one wants to change, never by file; every real setting belongs to one rubric and is identified by its label alone — subject then action, in French; nothing is written until the save bar names the files it will write; a secret says only whether it is set |
 | `installation.py` | R51: the install offer is actually OFFERED — `beforeinstallprompt` captured, its default prevented and replayed on a gesture; the iOS guide raised by an iPhone user agent; nothing offered to an installed app, over the entry screen, or after a refusal |
 | `pwa.py` | R52: the LIVE host is installable from the first document a phone reaches — manifest, icons that load, worker registered and controlling, offline fallback cached. Runs against `tm-design.iznogoudatall.xyz`, not the local server |
 | `demarrage.py` | R53: the startup screen is declared first, covers the frame, offers no control, is gone after the first render, and the gate the server builds shows the same screen — extracted — from the submit onwards. Starts `serve.py` on a scratch port |
