@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Generates the design host's icon set: the app's icons, with a yellow ring.
 
-Three sets of icons live in `frontend/public`, and they exist so that three
-entries on one home screen can be told apart at a glance:
+Three sets of icons exist so that three entries on one home screen can be told
+apart at a glance. Two of them — prod and staging — live in `frontend/public`,
+which Vite copies whole into the bundle. The DESIGN set does not: it dresses a
+host production never serves, and shipping it would put 56 kB of nothing in the
+bundle. It sits beside the prototype, in `frontend/maquette/assets`.
 
     prod     the icons as drawn — no ring
     staging  the same, with a cyan ring
@@ -36,6 +39,9 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 PUBLIC = Path(__file__).resolve().parent.parent / "public"
+# Read from `public` (the app's own icons are the model), written beside the
+# prototype so the bundle never carries them.
+SORTIE = Path(__file__).resolve().parent.parent / "maquette" / "assets"
 
 # The icons' flat background, and the colour staging's ring is drawn in. Both
 # are read back from the files below and only declared here to be checked.
@@ -153,10 +159,10 @@ def main() -> int:
         Process exit status.
     """
     for prod, staging, sortie in BORDEES:
-        touches = anneau_depuis_staging(PUBLIC / prod, PUBLIC / staging, PUBLIC / sortie)
+        touches = anneau_depuis_staging(PUBLIC / prod, PUBLIC / staging, SORTIE / sortie)
         print(f"{sortie}: {touches} pixels of ring, shape read from {staging}")
     for prod, sortie in MASQUABLES:
-        anneau_circulaire(PUBLIC / prod, PUBLIC / sortie)
+        anneau_circulaire(PUBLIC / prod, SORTIE / sortie)
         print(f"{sortie}: circular ring inside the safe zone")
     return 0
 
