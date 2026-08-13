@@ -11693,23 +11693,21 @@
     if (state.libLens === "inc") {
       return (
         head +
-        `<div class="body">
+        `<div class="countline"><span class="pip warning"></span><span>Séries incomplètes</span><b style="margin-left:auto">47</b></div>
+  <div class="body">
       <div class="note"><b>Une seule dérivation par question (§13).</b> La fraction affichée ici lit le même calcul que la fiche et que les en-têtes de saison. Une saison dont le nombre d'épisodes est inconnu affiche <code>?</code> — jamais un <code>12/12</code> inventé.</div>
-      ${secHTML(
-        "warning",
-        "Séries incomplètes",
-        "47",
+      ${
         state.libMode === "grid"
           ? `<div class="grid">${INCOMPLETE.map((INCOMPLETE2) => tileHTML(INCOMPLETE2, `${INCOMPLETE2.o}/${INCOMPLETE2.a} épisodes`)).join("")}</div>`
-          : INCOMPLETE.map((INCOMPLETE2) =>
+          : `<div class="sec">${INCOMPLETE.map((INCOMPLETE2) =>
               cardHTML({
                 t: INCOMPLETE2.t,
                 s: `${INCOMPLETE2.y} · il manque ${INCOMPLETE2.a - INCOMPLETE2.o} épisode${INCOMPLETE2.a - INCOMPLETE2.o > 1 ? "s" : ""}`,
                 f: `${INCOMPLETE2.o}/${INCOMPLETE2.a}`,
                 chip: ["warning", "Incomplet"],
               }),
-            ).join(""),
-      )}
+            ).join("")}</div>`
+      }
     </div>`
       );
     }
@@ -11717,9 +11715,9 @@
     if (state.libLens === "rec") {
       return (
         head +
-        `<div class="body">
+        `<div class="countline"><span>Vu par l'index pour la première fois</span></div>
+  <div class="body">
       <div class="note"><b>Libellé honnête.</b> La base ne connaît pas la date d'arrivée sur le disque, seulement celle où <em>l'index a vu le média pour la première fois</em>. C'est donc ce que la page dit — §13 : aucun état affiché n'est une approximation muette.</div>
-      <div class="countline"><span>Vu par l'index pour la première fois</span></div>
       <div id="libitems" class="${state.libMode === "grid" ? "grid" : "sec"}"></div>
       <div id="libload" class="loadfoot"></div>
     </div>`

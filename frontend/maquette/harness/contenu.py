@@ -227,6 +227,29 @@ async def main():
             verifier("et sa ligne n'affiche aucun texte de remplacement",
                      vide is None, str(vide))
 
+        # ── the list starts at the same height on all three lenses ─────────
+        # Each put its context line somewhere else — outside the body, inside
+        # it, inside a section of its own — so switching tabs made the page
+        # jump. Checked in both modes, because a grid and a list are two
+        # different first elements and only one of them was ever looked at.
+        for mode in ("list", "grid"):
+            debuts = {}
+            for lentille in ("cat", "rec", "inc"):
+                await pg.evaluate("([l, m])=>{state.page='lib'; state.libLens=l; "
+                                  "state.libMode=m; render();}", [lentille, mode])
+                await pg.wait_for_timeout(620)
+                debuts[lentille] = await pg.evaluate("""()=>{
+                  const cadre = document.querySelector('#device').getBoundingClientRect();
+                  const p = document.querySelector('#view .card, #view .tile');
+                  return p ? Math.round(p.getBoundingClientRect().top - cadre.top) : null;}""")
+            manquant = [k for k, v in debuts.items() if v is None]
+            ecart = (max(debuts.values()) - min(debuts.values())) if not manquant else None
+            verifier(f"en {mode}, chaque lentille dessine une liste", not manquant,
+                     str(manquant))
+            if not manquant:
+                verifier(f"et en {mode} la liste démarre à la même hauteur",
+                         ecart <= 1, f"{debuts} — écart {ecart}px")
+
         # ── the lenses, in the order one reaches for them ───────────────────
         onglets = await pg.evaluate(
             """()=>[...document.querySelectorAll('[data-lens]')]
