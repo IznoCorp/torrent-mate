@@ -1,0 +1,1039 @@
+{
+  "$comment": "Extraction contract AND measurement map. `exportedSelectors` is the ALLOWLIST: extract-maquette-css.py exports only what is listed here. `regions` is what parity-probe.py measures; each region names the states it is visible in. `states` are the ids accepted by window.__go().",
+  "scope": ".tm",
+  "source": "frontend/maquette/refonte.html",
+  "target": "frontend/src/styles/ps/app-surface.css",
+  "harnessSelectors": [
+    ".topbar",
+    ".brand",
+    ".brand .mk",
+    ".brand em",
+    ".topbar .sp",
+    ".iconbtn",
+    ".iconbtn svg",
+    ".iconbtn[aria-pressed=\"true\"]",
+    ".livedot",
+    ".port",
+    ".bottombar",
+    ".bottombar button",
+    ".bottombar button[aria-current=\"page\"]",
+    ".bottombar svg",
+    ".bottombar .lb",
+    ".hpanel",
+    ".hpanel h4",
+    ".hpanel .row",
+    ".hpanel .row button",
+    ".hpanel .row button[aria-pressed=\"true\"]",
+    ".hpanel .states button",
+    ".hpanel .states code",
+    ".hpanel p",
+    ".note",
+    ".note b",
+    ".note code"
+  ],
+  "exportedSelectors": [
+    "#libitems[hidden]",
+    "#sugitems:not(.grid)",
+    ".a_recuperer",
+    ".act",
+    ".act svg",
+    ".act.grab",
+    ".act.pause",
+    ".act.remove",
+    ".actif",
+    ".actions",
+    ".actions .side",
+    ".actions .side.left",
+    ".actions .side.right",
+    ".addfoot",
+    ".addfoot button",
+    ".addform",
+    ".addrow",
+    ".annonce",
+    ".armed",
+    ".avatar",
+    ".avecaffiche",
+    ".avecpip",
+    ".avenir",
+    ".b",
+    ".best",
+    ".big",
+    ".blocked",
+    ".body",
+    ".bottombar",
+    ".brand",
+    ".brandbig",
+    ".brandbig .mk",
+    ".brandbig .wm",
+    ".brandbig em",
+    ".btnprimary",
+    ".btnprimary:disabled",
+    ".burger",
+    ".byid",
+    ".byid > summary",
+    ".byid > summary::-webkit-details-marker",
+    ".byid > summary::before",
+    ".byid[open] > summary::before",
+    ".byidin",
+    ".c",
+    ".ca",
+    ".cadence",
+    ".cannotations",
+    ".cap",
+    ".caption",
+    ".card",
+    ".card.dragging",
+    ".cast",
+    ".cbody",
+    ".ccol",
+    ".cfoot",
+    ".cfoot.done",
+    ".cfoot.owned",
+    ".cfoot.solid",
+    ".champ",
+    ".champlbl",
+    ".champsaisie",
+    ".champunite",
+    ".check",
+    ".chercher",
+    ".chip",
+    ".chip.danger",
+    ".chip.info",
+    ".chip.success",
+    ".chip.waiting",
+    ".chip.warning",
+    ".chip::before",
+    ".chip[hidden]",
+    ".cmeta",
+    ".countline",
+    ".countline button",
+    ".countline svg",
+    ".cov",
+    ".crating",
+    ".creason",
+    ".crossref",
+    ".crossref b",
+    ".crossref span",
+    ".csub",
+    ".ctitle",
+    ".ctop",
+    ".d",
+    ".danger",
+    ".dcard",
+    ".deck",
+    ".deckbody",
+    ".dh",
+    ".dhint",
+    ".dlabel",
+    ".dlg",
+    ".dlg h3",
+    ".dlg p",
+    ".dlg.open",
+    ".dlgacts",
+    ".dlgbtn",
+    ".dlgbtn.danger",
+    ".dlgbtn.ghost",
+    ".done",
+    ".dossier",
+    ".dragging",
+    ".drawer",
+    ".dryrun",
+    ".dryrun svg",
+    ".ed",
+    ".empty",
+    ".empty b",
+    ".en",
+    ".en_acquisition",
+    ".en_attente",
+    ".en_mediatheque",
+    ".endmark",
+    ".endmark::before",
+    ".ep",
+    ".ep.a_recuperer",
+    ".ep.annonce",
+    ".ep.en_acquisition",
+    ".ep.en_attente",
+    ".ep.en_mediatheque",
+    ".ep.non_verifie",
+    ".epdot",
+    ".eppop",
+    ".eprow",
+    ".eps",
+    ".et",
+    ".fab",
+    ".fab svg",
+    ".fback",
+    ".fback svg",
+    ".ficheadd",
+    ".fichebar",
+    ".filters",
+    ".fr",
+    ".frac",
+    ".freshtag",
+    ".ghost",
+    ".gone",
+    ".grid",
+    ".grp",
+    ".h2",
+    ".hero",
+    ".herobg",
+    ".herowrap",
+    ".hm",
+    ".hn",
+    ".ht",
+    ".ic",
+    ".info",
+    ".installbar",
+    ".installcard",
+    ".installclose",
+    ".installgo",
+    ".installkey",
+    ".installsteps",
+    ".installsub",
+    ".installtext",
+    ".installtitle",
+    ".interrupteur",
+    ".k",
+    ".kv",
+    ".kv span:first-child",
+    ".kv span:last-child",
+    ".kv:last-child",
+    ".l",
+    ".lajout",
+    ".lb",
+    ".legend",
+    ".legend i",
+    ".legend span",
+    ".light",
+    ".linkbtn",
+    ".liste",
+    ".litem",
+    ".live",
+    ".live .d",
+    ".live b",
+    ".loaderr",
+    ".loaderr b",
+    ".loaderr button",
+    ".loadfoot",
+    ".loading",
+    ".logincard",
+    ".loginerr",
+    ".loginfield",
+    ".loginscreen",
+    ".loginsub",
+    ".loginsubmit",
+    ".logintitle",
+    ".lsupp",
+    ".m",
+    ".manifest",
+    ".manifest b",
+    ".manifest li",
+    ".manifest li:last-child",
+    ".manquants",
+    ".mark",
+    ".miss",
+    ".mk",
+    ".modifie",
+    ".mono",
+    ".more",
+    ".more svg",
+    ".moreblk",
+    ".moreblk:disabled",
+    ".n",
+    ".navbadge",
+    ".nb",
+    ".neutral",
+    ".nm",
+    ".noaffiche",
+    ".nofiche",
+    ".non_verifie",
+    ".now",
+    ".off",
+    ".open",
+    ".opt",
+    ".optkind",
+    ".optlist",
+    ".out",
+    ".owned",
+    ".p",
+    ".panel",
+    ".pastille",
+    ".pause",
+    ".pfall",
+    ".pfall b",
+    ".pfall svg",
+    ".pill",
+    ".pill .c",
+    ".pill.warn[aria-pressed=\"false\"]",
+    ".pill[aria-pressed=\"true\"]",
+    ".pillbar",
+    ".pillscroll",
+    ".pillscroll::-webkit-scrollbar",
+    ".pip",
+    ".pip.danger",
+    ".pip.info",
+    ".pip.neutral",
+    ".pip.success",
+    ".pip.waiting",
+    ".pip.warning",
+    ".pl",
+    ".plein",
+    ".port",
+    ".poster",
+    ".poster.sansfiche",
+    ".primary",
+    ".ps-dot",
+    ".ps-dot__d",
+    ".ps-dot__label",
+    ".ptr",
+    ".ptr .spin",
+    ".ptr.armed",
+    ".ptr.loading .spin",
+    ".qgroup",
+    ".qhint",
+    ".quota",
+    ".r",
+    ".radio",
+    ".rb",
+    ".refus",
+    ".reg",
+    ".reg .rf",
+    ".reg .rl",
+    ".reg .rv",
+    ".reg.modifie",
+    ".reg.modifie .rv",
+    ".reg.modifie::before",
+    ".reg:last-child",
+    ".reglage",
+    ".rel",
+    ".remove",
+    ".rescount",
+    ".reslist",
+    ".rf",
+    ".right",
+    ".rl",
+    ".rm",
+    ".rn",
+    ".ro",
+    ".row",
+    ".rowtxt",
+    ".rp",
+    ".rs",
+    ".rt",
+    ".rub",
+    ".rub .rn",
+    ".rub .rs",
+    ".rub .rt",
+    ".rulenote",
+    ".rv",
+    ".sact",
+    ".sact svg",
+    ".sact.danger",
+    ".sact.primary",
+    ".sact.primary svg",
+    ".sansfiche",
+    ".savebar",
+    ".savebar .sn",
+    ".savebar .sn b",
+    ".savebar button",
+    ".savebar button:disabled",
+    ".savebar[hidden]",
+    ".sc",
+    ".screen",
+    ".screen .port",
+    ".screen.open",
+    ".scrim",
+    ".scrim.open",
+    ".search",
+    ".search input",
+    ".search input::placeholder",
+    ".search svg",
+    ".searchclear",
+    ".season",
+    ".season .miss",
+    ".season .sfr",
+    ".season > summary",
+    ".season > summary::-webkit-details-marker",
+    ".season > summary::before",
+    ".season:first-of-type",
+    ".season[open] > summary::before",
+    ".sec",
+    ".sechead",
+    ".sechead .k",
+    ".sechead .t",
+    ".secondary",
+    ".sect",
+    ".seg",
+    ".seg .n",
+    ".seg > button",
+    ".seg > button[aria-selected=\"true\"]",
+    ".segmini",
+    ".segmini button",
+    ".segmini button[aria-pressed=\"true\"]",
+    ".sel",
+    ".selbar",
+    ".selbar .n",
+    ".selbar button",
+    ".selbar button.danger",
+    ".selbar button.danger:disabled",
+    ".selecting",
+    ".selrow",
+    ".sfr",
+    ".sheet",
+    ".sheet.dragging",
+    ".sheet.open",
+    ".sheetacts",
+    ".sheetacts.secondary",
+    ".sheetfaits",
+    ".sheetgrab",
+    ".sheethead",
+    ".sheetid",
+    ".sheetin",
+    ".sheetmeta",
+    ".sheetposter",
+    ".sheetposter img",
+    ".sheetsub",
+    ".sheettitle",
+    ".show",
+    ".side",
+    ".sk",
+    ".sk.row",
+    ".sk.tile",
+    ".skcard",
+    ".skline",
+    ".sn",
+    ".solid",
+    ".soon",
+    ".sp",
+    ".spin",
+    ".splash",
+    ".splash[hidden]",
+    ".splashbar",
+    ".splashbar i",
+    ".splashmsg",
+    ".sr",
+    ".st",
+    ".st .d",
+    ".st .l",
+    ".st.blocked .d",
+    ".st.done .d",
+    ".st.now .d",
+    ".st.now::before",
+    ".st::before",
+    ".st:first-child::before",
+    ".strip",
+    ".success",
+    ".sug .why b",
+    ".sugacts",
+    ".sugacts button",
+    ".sugacts button.ghost",
+    ".sugacts button.primary",
+    ".sugback",
+    ".sugback span",
+    ".sugback svg",
+    ".sugg",
+    ".sugg button",
+    ".sugtiles",
+    ".sugwrap",
+    ".sugwrap.gone",
+    ".surferr",
+    ".surferr b",
+    ".surferr button",
+    ".sw-info",
+    ".sw-muted",
+    ".sw-success",
+    ".sw-upcoming",
+    ".sw-waiting",
+    ".sw-warning",
+    ".swipe",
+    ".switch",
+    ".t",
+    ".tile",
+    ".tile .bdg",
+    ".tile .fr",
+    ".tile .nm",
+    ".tile .p",
+    ".tile .sel",
+    ".tile .sel svg",
+    ".tile.off .nm",
+    ".tile.off .p",
+    ".tile[aria-selected=\"true\"] .p",
+    ".tile[aria-selected=\"true\"] .sel",
+    ".tilebadge",
+    ".toast",
+    ".toast button",
+    ".toast svg",
+    ".toast.show",
+    ".topbar",
+    ".trailer",
+    ".tsrc",
+    ".vc",
+    ".ver",
+    ".viewtabs",
+    ".vsw",
+    ".vsw button",
+    ".vsw button[aria-pressed=\"true\"]",
+    ".vsw svg",
+    ".vswwrap",
+    ".vswwrap::before",
+    ".vt",
+    ".vv",
+    ".waiting",
+    ".warnbox",
+    ".warnbox b",
+    ".warning",
+    ".why",
+    ".whyoff",
+    ".wm"
+  ],
+  "regions": {
+    "acquisition/viewtabs": {
+      "selector": ".viewtabs",
+      "states": [
+        "acq-encours-repos"
+      ]
+    },
+    "acquisition/segment": {
+      "selector": ".seg",
+      "states": [
+        "acq-encours-repos"
+      ]
+    },
+    "acquisition/card": {
+      "selector": "[data-testid=\"acq-card\"], .card",
+      "states": [
+        "acq-encours-charge"
+      ]
+    },
+    "acquisition/strip": {
+      "selector": ".strip",
+      "states": [
+        "acq-encours-charge"
+      ]
+    },
+    "acquisition/section-header": {
+      "selector": ".sechead",
+      "states": [
+        "acq-encours-charge"
+      ]
+    },
+    "acquisition/crossref": {
+      "selector": ".crossref",
+      "states": [
+        "acq-encours-charge"
+      ]
+    },
+    "suivis/filters": {
+      "selector": ".filters",
+      "states": [
+        "acq-suivis-liste"
+      ]
+    },
+    "suivis/pill": {
+      "selector": ".pill",
+      "states": [
+        "acq-suivis-liste"
+      ]
+    },
+    "suivis/switcher": {
+      "selector": ".vsw",
+      "states": [
+        "acq-suivis-liste"
+      ]
+    },
+    "suivis/chip": {
+      "selector": ".chip",
+      "states": [
+        "acq-suivis-liste"
+      ]
+    },
+    "suivis/tile": {
+      "selector": ".tile",
+      "states": [
+        "acq-suivis-grille"
+      ]
+    },
+    "suivis/empty": {
+      "selector": ".empty",
+      "states": [
+        "acq-suivis-filtre-vide"
+      ]
+    },
+    "decouvrir/card": {
+      "selector": ".sug",
+      "states": [
+        "acq-decouvrir"
+      ]
+    },
+    "decouvrir/degraded": {
+      "selector": ".surferr",
+      "states": [
+        "acq-decouvrir-degrade"
+      ]
+    },
+    "add/bar": {
+      "selector": ".fichebar",
+      "states": [
+        "acq-ajout-resultats"
+      ]
+    },
+    "add/form": {
+      "selector": ".addform",
+      "states": [
+        "acq-ajout-resultats"
+      ]
+    },
+    "add/result": {
+      "selector": ".reslist .card",
+      "states": [
+        "acq-ajout-resultats"
+      ]
+    },
+    "add/byid": {
+      "selector": ".byid",
+      "states": [
+        "acq-ajout-vide"
+      ]
+    },
+    "add/footer": {
+      "selector": ".addfoot",
+      "states": [
+        "acq-ajout-resultats"
+      ]
+    },
+    "sheet/shell": {
+      "selector": ".sheetgrab, .sheettitle, .sheetmeta",
+      "states": [
+        "feuille-suivi-trous"
+      ]
+    },
+    "sheet/actions": {
+      "selector": ".sact",
+      "states": [
+        "feuille-suivi-trous"
+      ]
+    },
+    "sheet/season": {
+      "selector": ".season",
+      "states": [
+        "feuille-suivi-trous"
+      ]
+    },
+    "sheet/episode-cell": {
+      "selector": ".ep",
+      "states": [
+        "feuille-suivi-trous"
+      ]
+    },
+    "sheet/legend": {
+      "selector": ".legend",
+      "states": [
+        "feuille-suivi-trous"
+      ]
+    },
+    "library/countline": {
+      "selector": ".countline",
+      "states": [
+        "lib-grille"
+      ]
+    },
+    "library/tile": {
+      "selector": ".tile",
+      "states": [
+        "lib-grille"
+      ]
+    },
+    "library/selection": {
+      "selector": ".selbar",
+      "states": [
+        "lib-selection"
+      ]
+    },
+    "library/skeleton": {
+      "selector": ".sk",
+      "states": [
+        "lib-chargement"
+      ]
+    },
+    "library/error": {
+      "selector": ".surferr",
+      "states": [
+        "lib-erreur"
+      ]
+    },
+    "dialog/delete": {
+      "selector": ".dlg",
+      "states": [
+        "lib-suppression"
+      ]
+    },
+    "dialog/dryrun": {
+      "selector": ".dryrun, .manifest, .warnbox",
+      "states": [
+        "lib-suppression"
+      ]
+    },
+    "arrivees/live": {
+      "selector": ".live",
+      "states": [
+        "arr-charge"
+      ]
+    },
+    "arrivees/empty": {
+      "selector": ".empty",
+      "states": [
+        "arr-repos"
+      ]
+    },
+    "swipe/actions": {
+      "selector": ".actions, .act",
+      "states": [
+        "acq-suivis-liste"
+      ]
+    },
+    "toast": {
+      "selector": ".toast",
+      "states": [
+        "acq-decouvrir"
+      ]
+    },
+    "fab": {
+      "selector": ".fab",
+      "states": [
+        "acq-encours-repos"
+      ]
+    },
+    "chassis/topbar": {
+      "selector": ".topbar",
+      "states": [
+        "acq-encours-repos"
+      ],
+      "$note": "Direction of truth is INVERTED: the app is authoritative for the shell, the prototype for the pages. Measured against the shipped TopBar."
+    },
+    "chassis/bottombar": {
+      "selector": ".bottombar",
+      "states": [
+        "acq-encours-repos"
+      ],
+      "$note": "idem"
+    },
+    "chassis/navbadge": {
+      "selector": ".navbadge",
+      "states": [
+        "arr-repos"
+      ],
+      "$note": "idem"
+    },
+    "fiche/hero": {
+      "selector": ".hero",
+      "states": [
+        "fiche-serie"
+      ]
+    },
+    "fiche/cast": {
+      "selector": ".cast",
+      "states": [
+        "fiche-serie"
+      ]
+    },
+    "fiche/trailer": {
+      "selector": ".trailer",
+      "states": [
+        "fiche-serie"
+      ]
+    },
+    "fiche/episode-row": {
+      "selector": ".eprow",
+      "states": [
+        "fiche-serie"
+      ]
+    },
+    "fiche/cast-photo": {
+      "selector": ".cast .ca img",
+      "states": [
+        "fiche-serie"
+      ]
+    },
+    "resolution/porte-de-sortie": {
+      "selector": "[data-manual]",
+      "states": [
+        "arr-resolution"
+      ]
+    },
+    "fiche/non-possede": {
+      "selector": ".panel",
+      "states": [
+        "fiche-suggestion-serie"
+      ],
+      "$note": "A suggestion is NOT in the library: the block says « non », shows the follow state, and offers to add — never to delete. Same template, with the only variation reality imposes."
+    },
+    "releases/candidat": {
+      "selector": ".rel",
+      "states": [
+        "ecran-releases"
+      ]
+    },
+    "profil/critere": {
+      "selector": ".qchip",
+      "states": [
+        "ecran-profil"
+      ]
+    },
+    "fiche/episode-datee": {
+      "selector": ".eprow",
+      "states": [
+        "fiche-sans-trailer"
+      ]
+    },
+    "matrice/popover-date": {
+      "selector": ".eppop",
+      "states": [
+        "feuille-suivi-trous"
+      ]
+    },
+    "chassis/tiroir": {
+      "selector": ".drawer",
+      "states": [
+        "tiroir-navigation"
+      ],
+      "$note": "The full template: three titled sections as in nav.ts, the same badges as the bottom bar, and the VersionCard in the footer — the drawer is the only path through which the version reaches the phone."
+    },
+    "form/option": {
+      "selector": ".opt",
+      "states": [
+        "ecran-profil"
+      ]
+    },
+    "form/switch": {
+      "selector": ".switch",
+      "states": [
+        "ecran-profil"
+      ]
+    }
+  },
+  "states": [
+    "demarrage",
+    "feuille-utilisateur",
+    "acq-encours-repos",
+    "acq-encours-charge",
+    "acq-encours-chargement",
+    "acq-encours-erreur",
+    "acq-suivis-liste",
+    "acq-suivis-groupe",
+    "acq-suivis-grille",
+    "acq-suivis-filtre-vide",
+    "acq-suivis-pause-vide",
+    "acq-suivis-erreur",
+    "acq-decouvrir",
+    "acq-decouvrir-affiches",
+    "acq-decouvrir-deck",
+    "acq-decouvrir-degrade",
+    "acq-decouvrir-epuise",
+    "acq-decouvrir-chargement",
+    "acq-ajout-vide",
+    "acq-ajout-resultats",
+    "feuille-suivi-complet",
+    "feuille-suivi-trous",
+    "acq-identifier",
+    "ecran-releases",
+    "ecran-profil",
+    "feuille-parcours",
+    "feuille-plus",
+    "lib-grille",
+    "lib-liste",
+    "lib-recherche-vide",
+    "lib-incomplets",
+    "lib-recents",
+    "lib-selection",
+    "lib-suppression",
+    "lib-suppression-multiple",
+    "lib-chargement",
+    "lib-erreur",
+    "arr-repos",
+    "arr-charge",
+    "arr-chargement",
+    "arr-erreur",
+    "arr-resolution",
+    "fiche-suggestion-serie",
+    "fiche-suggestion-film",
+    "fiche-serie",
+    "fiche-film",
+    "fiche-sans-trailer",
+    "tiroir-navigation",
+    "systeme"
+  ],
+  "probe": {
+    "viewport": {
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 2,
+      "isMobile": true,
+      "hasTouch": true
+    },
+    "assertBeforeMeasuring": "document.documentElement.clientWidth === 390",
+    "computedStyleSubset": [
+      "font-size",
+      "font-weight",
+      "line-height",
+      "padding",
+      "margin",
+      "border",
+      "border-radius",
+      "gap",
+      "color",
+      "background-color",
+      "box-shadow",
+      "animation",
+      "display",
+      "flex-direction",
+      "align-items",
+      "justify-content"
+    ],
+    "allowlist": [
+      {
+        "selector": ".bottombar",
+        "property": "position",
+        "maquette": "absolute",
+        "app": "fixed",
+        "justification": "DECLARED harness deviation: the real bar is fixed against the viewport, which is correct in the app where the viewport is the phone. Inside an embedded phone frame it would pin to the window, so the prototype makes it absolute within the frame. The only accepted shell divergence."
+      }
+    ]
+  },
+  "outOfScope": {
+    "$comment": "Surfaces that exist in the app but are DELIBERATELY not covered by this prototype. Declared here so that « not measured » is a decision and never an oversight. Rule: never a half conversion — a surface speaks either the prototype's language (the .tm scope) or the old one, never both.",
+    "/config": "Out of scope by product decision. Not converted, not measured. A non-regression baseline must be frozen before conversion work begins.",
+    "/systeme (interior)": "Receives health, runs and controls, but its mobile redesign is deferred. Only its reception is drawn; its internal template is not measured.",
+    "/media/:provider/:id (implementation)": "The media sheet EXISTS and is conformant; the prototype draws its target but does not rebuild it. Measured for structure, not imposed pixel-wise on what already ships.",
+    "desktop >= md": "The phone is the origin of the design; the large screen stays functional but is not specified to the pixel."
+  },
+  "$reportedDefects": {
+    "$comment": "Defects found by hand on the running prototype, each covered by a test in harness/bugs.py — the project rule is that a bug gets its test, written together with the fix.",
+    "cron-cadence": "The cadence displayed « 20 3,15 * * * » — raw jargon. Now translated, with an explicit fallback when the pattern is not recognised.",
+    "sheet-hidden-under-layer": "« Voir la fiche » from a sheet opened the screen UNDER it (z-45 against z-47). The sheet now closes first.",
+    "navigation-does-not-close": "Changing page left the media sheet open. Navigation now closes the layers.",
+    "carousel-blocks-scroll": "`touch-action: pan-x` ALONE forbids vertical panning: a finger on the cast carousel froze the sheet. Both axes are allowed and the browser decides from the gesture direction.",
+    "action-glued-to-bar": "A screen must reserve the height of the tab bar, which passes above it.",
+    "result-without-sheet": "Search results offered no path to the media sheet. The poster is a button.",
+    "missing-way-out": "The resolution screen PROMISED a pre-filled manual search without providing one. It exists, and turns the folder name into a query.",
+    "hollow-suggestion-sheet": "A suggestion's sheet showed « Métadonnées inconnues / Genres inconnus »: the sheet table only carried library titles. Suggestions now carry real data, and only filled-in ones are served.",
+    "class-never-ported": "The .nofiche class was used in markup without ever having been transplanted: the « no trailer » message rendered at 14px without its frame. CSS must be EXTRACTED, never rewritten from memory.",
+    "sheets-missing-for-follows": "Followed films had no sheet: they live in acquire.db but NOT in library.db (not owned). Coverage is now systematic; the remaining gaps are unidentified release names, which have no sheet by definition.",
+    "poster-dead-link": "A poster was a button even with no sheet behind it — a dead link is as bad as a greyed-out button. A poster is a button only when the sheet resolves.",
+    "identity-by-title": "Sources disagree on titles (« Dexter Resurrection » vs « Dexter: Resurrection », truncated lists). The prototype resolves by normalised key; the APP must resolve by provider ID — identity by title is never identity.",
+    "add-button-inert": "The media sheet's add button was left-aligned like an action row and never changed state. It is centred and toggles to outline + « Ajouté »/« Suivi », like a search result's button: one gesture, one answer, everywhere.",
+    "scroll-jumps-to-top": "Ticking a box at the bottom of a form jumped back to the top: every toggle re-rendered the whole screen. Fixed in openScreen (position + focus + caret), with a restore AFTER images load, since the page is briefly too short.",
+    "inert-drawer": "The hamburger opened nothing and the drawer links were not clickable: event delegation looked only at <button>, and a navigation link is an <a>.",
+    "inert-filters": "The library's category pills were decorative: they changed state without filtering. They now carry each item's real category, combine with the search, and the sample guarantees no category is empty.",
+    "library-card-opens-acquisition-sheet": "From the library, a card opened the ACQUISITION sheet — a second sheet design whose content also varied depending on whether the title was followed. A card's destination follows the page it lives on.",
+    "two-season-renderings": "Media sheets rendered seasons either as a titled list or as a numbered matrix, and twelve sheets contained both at once. Episode titles and dates were fetched for every series so that one rendering serves them all.",
+    "episode-presence-guessed": "Episode presence was derived from « number <= owned count », which assumes the hole sits at the end of the season. False for 35 series in this library. Presence is read from the list of owned numbers.",
+    "visual-on-one-sheet-in-six": "Only media that already had a poster had received a wide visual, so one sheet in six opened on an image and the rest on a muted field. Every sheet now carries a visual at the same definition."
+  },
+  "$adversarialReview": {
+    "$comment": "Every reported defect was generalised into a RULE checked across all states (harness/audit.py and audit2.py), not fixed on the reported case alone. The implementer inherits the rules, not the anecdotes.",
+    "R1": "Every tappable poster leads to a FILLED-IN sheet (synopsis, genres, cast). Otherwise the poster is not a button.",
+    "R2": "A button must have a declared DESTINATION, not merely a known class. A real href counts as a destination.",
+    "R3": "Touch target >= 32px. DECLARED EXCEPTION: the episode cell is 31 × 27 in the shipped component — at 13 per row, 44px would demand 572px. A geometric constraint, not an oversight.",
+    "R4": "No horizontal overflow outside declared scrollers (.pillscroll, .cast, .eps). An element clipped by an ancestor does not count, provided the clipping ancestor itself fits; the scrollport must also offer no real horizontal scrolling.",
+    "R5": "A horizontal scroller NEVER sets touch-action: pan-x alone — it would block vertical panning.",
+    "R6": "No essential title is truncated (.ht, .sheettitle, dialog title).",
+    "R7": "No panel renders emptiness in silence.",
+    "R8": "EVERY layer (screen, sheet) reserves the height of the tab bar that passes above it, AND its last VISIBLE button is reachable at maximum scroll.",
+    "R9": "Film/series vocabulary is consistent everywhere.",
+    "R10": "Every action mutates state, navigates, or opens a layer — never nothing.",
+    "R11": "No visible jargon or technical value: undefined, NaN, null, [object, 0/0, cron expressions.",
+    "R12": "ONE button system: height 44, radius 8, weight 600, 13.5px. Alignment — with an icon: left (the icon anchors the row); without: centred (nothing anchors the left edge).",
+    "R13": "Identical section order across all media sheets; only nature-imposed sections vary. The sample is drawn from the data: complete, incomplete, without visual, film, series.",
+    "R14": "Every layer closes via the scrim (sheets, dialogs) or via Back (screens).",
+    "R15": "The three Suivis modes show the same number of items.",
+    "R16": "The nav badge AND the tab badge equal to-grab + to-resolve, in both scenarios.",
+    "R17": "Every destruction is confirmed (dialog) or reversible (undo), and never mutates before confirmation.",
+    "R18": "Multiple selection works in BOTH library modes. It existed only on tiles: « Sélectionner » switched on in list mode with nothing selectable — a mode one can enter and do nothing in is worse than no mode.",
+    "R19": "Nothing positions itself by a distance to a screen edge: the bar publishes its measured height into `--tm-bottom-bar-h` and everything sitting above it reads that.",
+    "R20": "The library has ONE sub-line grammar: « year · type ». Films said « 2026 · Film » and series « 6 ép. » — two grammars make rows incomparable.",
+    "R21": "An episode's state colour is SUBTLE: a 6px dot and the number in the tone. The title stays neutral — it is what one reads first. One colour signal per row.",
+    "R22": "Every switch has exactly the same dimensions (46 × 28), whatever the neighbouring label's length. A « Oui/Non » chip in a flex row took the text's height.",
+    "R23": "Within an option group, every row has the same size, and SHAPE states the rule: circle = single choice, square = multiple. Identical pills said nothing about how many could be picked.",
+    "R24": "No form interaction moves the scroll position. Re-rendering the SAME screen preserves position, value and caret of the active field; a DIFFERENT screen starts at zero. The guard lives in one place.",
+    "R25": "A filter FILTERS, and its parts sum to the whole: 717 + 528 + 382 + 73 + 66 + 56 + 31 + 8 = 1,861. A filter whose parts do not sum to the total is a filter that lies. Categories are the real storage ones.",
+    "R26": "The melting visual header is a trait of ALL media sheets. Every sheet whose medium has a visual carries the header AND its legibility gradient, in BOTH themes, with the header in flow and the title overlapping its lower edge. A medium without a visual degrades to a short muted field — a declared difference, not an oversight.",
+    "$methodLessons": [
+      "R12 accepted `justify-content: normal` as equivalent to « centred »: too slack, and it let through a misalignment that was later found by hand.",
+      "R8 covered screens only: the same defect came back through sheets. A rule must target the FAMILY, not the case.",
+      "A hardened R8 first accused a button inside a collapsed <details> — Chrome still gives it a layout box. A rule must judge what is VISIBLE, not DOM order.",
+      "R2 whitelisted by CLASS instead of requiring a destination. Three lenient rules in a row (« normal » for centred, screens without sheets, class for destination): a rule that is easy to satisfy proves nothing.",
+      "The hamburger and the drawer links escaped the audits: one whitelisted by its class, the others because detection looked only at <button>. An audit that inspects one element type has a blind spot the size of the other.",
+      "A screenshot fingerprint is NOT an oracle here: two captures of the SAME file diverge on 8 to 15 of the 45 states (skeleton shimmer, header entrance, async decode of embedded posters). Use bounding rects plus a computed-style subset; and for « is this rule dead? », the exact proof: querySelectorAll of the selector over all states, plus the fact that the code never writes the class.",
+      "« 0 violations across 0 rules » reads the same when all is well and when nothing runs. Both audit passes announce the rules EXECUTED and shout as soon as a declared rule stops running.",
+      "The export allowlist had drifted to 107 classes out of 237: more than half the CSS would never have reached the app. harness/export.py classifies every class by what it actually does and fails on anything uncovered or dead.",
+      "Slicing the stylesheet on the string « BLOCK 2 » cuts the header comment's opener and leaves an orphan closer: the header's own prose then parses as selectors. Slice from the comment opener.",
+      "Sampling a fixed handful of states hides whole families. R13 sampled five frozen states, none of them an incomplete medium — which is exactly where a divergence went unseen. Draw the sample from the DATA.",
+      "A geometric measurement taken before the layout has settled is worthless in BOTH directions. Measuring at 110 ms reported three states as overflowing; at 400 ms the same states are clean — and the same margin can hide a real overflow behind a green. Rules that read boxes wait 300 ms; rules that read a rendering choice do not need to, and R30's verdict was verified identical at 35, 200 and 450 ms rather than assumed.",
+      "An adversarial probe is as capable of being wrong as the thing it probes. A first pass accused the light theme and narrow viewports; both were artefacts of the probe — a stale open layer counted as content, and a settle time too short. Isolate the variable before reporting a defect, or the review costs more than it finds.",
+      "Three adversarial passes on new angles found nothing in the prototype and three faults in the probes themselves: a stale open layer counted as content, a settle time too short, a « Tout » pill summed alongside the parts it totals, and an undo tested by bypassing the function that creates the undo. A probe is as capable of being wrong as the thing it probes — isolate the variable and re-measure before reporting, or the review costs more than it finds. What the passes DID find was one real defect, and it was found by asking a question no existing rule asked.",
+      "SIXTEEN of nineteen harness scripts could not fail: they computed their verdict, printed it, and exited zero. Any orchestration would have seen them all green regardless. Wiring each verdict to its exit code immediately surfaced a test that had been broken and silent — it waited on a selector the library stopped using once its cards led to the media sheet. A script that cannot fail is not a test; it is a report nobody is obliged to read.",
+      "A gesture proven only under synthetic touch is a gesture proven on half the sessions. Testing with a real mouse on a browser with no touch at all found two defects a thumb would never meet: the browser's native image drag eating the pointer stream after two moves, and a release outside the frame never reaching a listener bound to the scrollport.",
+      "The prototype draws a phone inside a wide page, so the app's breakpoints — which measure the WINDOW, correctly, because in the app the window IS the phone — switched the frame's contents to the desktop presentation on a desktop screen: the bottom bar vanished from something 390px wide. The frame re-asserts the mobile values, in the harness block, because the app rule is right. It must be revisited whenever a breakpoint is added: a rule that only holds for the breakpoints that existed when it was written rots quietly.",
+      "An action drawn on ONE surface is an action the interface does not really have. « Compléter » existed only as a button on a card, so the poster view of the same list could not complete anything. R43, the rule written for it, found the identical hole in « Récupérer » and « Résoudre » the first time it ran — neither had been reported.",
+      "Two builders for one object drift apart in silence. A medium had a rich panel from a card and a thin one from a gallery, and neither carried every action. Deriving ONE panel from what is true about the medium — followed, incomplete, in the library, blocked — makes the two paths equal by construction rather than by vigilance.",
+      "A rule can encode the workaround instead of the concern. R31 forbade library cards from opening the acquisition sheet, because that sheet offered follow actions to media nobody followed. Fixing the cause made the rule fail on correct code. Rewrite such a rule onto what it protects.",
+      "A failing check must still REPORT. Breaking R41 on purpose made the run crash inside R43 on a null it no longer guarded: the exit code was right and the output was a stack trace. A rule whose failure buries the other findings is half a rule.",
+      "Uniformity is measurable: breaking the shared card builder on purpose now produces 332 failures across every list, where the same edit once reached only the lists that happened to use it. Three views rebuilt a card by hand, and one of them had already drifted.",
+      "« One component with variable display » fails when the variation is named after appearance. The card takes a DESCRIPTOR of facts — fraction, chip, caption, fresh — and a view that wants something not in it must add the fact, never pass ready-made markup. An envelope guarantees nothing about what it carries.",
+      "Not everything that looks like a card is one. The release candidate shares the markup and is a different object: no sheet, no panel. Forcing it into the shared component would have made it promise both. It is marked instead, so the contract check tells them apart by construction rather than by knowing which screens draw which.",
+      "A shared component is worth what its LAST holdout is worth. Découvrir kept its own builder and its own class vocabulary, and drew a poster 63 % larger than every other list — on a page that already offers two visual formats for browsing. Measuring geometry across the five list surfaces found it in one pass; reading the code had not.",
+      "« The data already contains markup » is not a reason to accept markup. The suggestion reasons shipped their own <b>, so the card would have had to trust them. Converting the data to segments — plain text plus what is emphasised, at its position — keeps the escape total and emphasises the right « 4 », which re-matching a string into a sentence does not.",
+      "A screen extracted from its context loses what it INHERITED there. The login gate came out of the prototype without the reset that surrounds it: the wordmark fell back to Times, and `max-width: 340px` applied to a content box instead of a border box, so the card rendered 378px wide. Worse, the title was black on black — legible-looking in the DOM, invisible on screen. Extraction must carry the inherited foundations, or restate them.",
+      "A media query asks the wrong question for a component. It reads the viewport, so a 390px frame sitting on a 1280px desktop is told it has room for six columns it does not have — which is why a harness deviation had to pin three columns by hand. A container query asks the width actually available, and the app gets the same answer because there the scrollport IS the window; the deviation could then be deleted.",
+      "Deleting a CSS rule by its selector destroys the rule when that selector is LAST in a group. Removing `.sugtile img` took the whole `user-drag: none` block with it and left `.swipe img, .sugwrap img, .deck img, .tile img,` dangling. Native picture drag came back and swallowed the pointer stream — one down, two moves, never an up — and three gesture tests failed for a reason that looked nothing like a CSS deletion.",
+      "Renaming an attribute must check the name is FREE. `data-sugwrap` was renamed to `data-dismiss`, which already existed as the control that dismisses a suggestion: a tap on a poster then read as a press on that control and threw the suggestion away. The element removed and the control that removes it are two things and need two words.",
+      "The harness serves a COPY. Editing the prototype and running the suite without re-syncing measures the previous version, and the report looks like a fix that did not take.",
+      "A service worker on a design reference must not cache. Its only job is to make the page installable — a caching worker would serve yesterday's prototype to someone judging today's design, which is the one failure a reference cannot afford.",
+      "Renaming identifiers needs a PARSER, not a regex. The same short name is declared in many scopes with many meanings — `t` was a title, a trimmed query and a touch point — so a global replace preserves behaviour while lying about meaning. And a hand-rolled tokenizer desynchronises in the 14 MB of embedded base64: one attempt renamed 715 occurrences and silently missed posterBox, leaving the file half-renamed. Scope analysis gives the exact range of every reference, and touches nothing else.",
+      "Shorthand object syntax makes an identifier its own property KEY. Renaming the `n` in `{ n, aired, own }` renamed the key too, and every reader of `.n` downstream got undefined — sheets fell back to a list rendering. The rename must expand to `n: number` instead.",
+      "A collision check must read the FINAL names, not the original ones. Outer scopes are renamed first, so by the time an inner scope is examined its parent may already hold the name about to be chosen: `const el` and a nested `const f` both became `element`, legal to the parser and a temporal dead zone at runtime.",
+      "A derivation that sizes something against a population that thing already SETS reads back its own answer. The list poster was derived from the median card's height, and the size it produced now floors 113 of the 192 cards drawn — so the median card IS the poster, and re-running the derivation cannot move it. Two more things the re-measurement showed: the arithmetic as written dropped the card's 1px borders, which made it a RATCHET adding 1.33px on every application rather than a fixed point; and the population is bimodal — 13 of 18 lists draw a median card of 115.9px while five long lists of compact rows drag the global median to 83 — so the median over all cards and the median over lists disagree by 52 %, and no derivation lands between them. A derivation must be run on a population the derived value does not itself produce, and a median over a bimodal population answers a question nobody asked.",
+      "A named state must PIN everything a later reading is taken from, and the loudest of those is the data scenario. `__reset` restored the world and the filters but not `scen`, so a state that switched to the dense scenario left it switched for the next one: the same surface answered differently measured on its own and measured after its neighbour. It hid a mutation test — the rule under test passed because the state it ran on was not the state it was written against. The scenario now returns to rest with everything else.",
+      "A long press and a drag are opposite cases for the compositor, and one rule cannot serve both. It claims a DRAG on the first move and fires `pointercancel` straight away, which kills a gesture that was never going to be a scroll — so the pull to refresh reads the touch stream and ignores the cancel. It claims a PRESS only once the finger has really travelled, so there the same `pointercancel` is the honest signal that it became a scroll. Measured, and the measurement also showed why the tolerance has to live on the pointer stream: Chrome delivers NO `touchmove` at all for a drift of a few pixels, only `pointermove`, so a tolerance written on touch events would never run. And a probe that drifts by one pixel proves nothing — the browser suppresses it, so the mutation test passed against a tolerance of zero."
+    ],
+    "R27": "A trailer ALWAYS opens in YouTube, never inside the application, and the sheet offers it wherever one arrives from. A real anchor, a conformant watch URL, target=_blank and noopener; no promise of in-app playback.",
+    "R28": "Exactly ONE back-control design, compatible with every page, in the flow so it pushes content instead of covering it — and never text glued closer than 8px to it.",
+    "R29": "Episode presence is read from the LIST of owned numbers, never from a « number <= owned count » threshold. Checked on every series with an internal hole, in both renderings.",
+    "R30": "ONE season rendering, within a sheet and between sheets. The numbered matrix remains the declared fallback when a provider gives nothing.",
+    "R31": "A card body opens the panel, and that panel offers follow actions ONLY for a medium that is actually followed — its content never varies with something the screen does not show.",
+    "R32": "Découvrir offers three formats — list, posters, slide cards — and the gesture keeps ONE meaning across them. In the list and poster formats a swipe dismisses. In the slide cards, left « Passer » decides nothing and the card comes round again, right « Pas intéressé » removes it with an undo — the verbs are the ones the other formats already use, and no format invents an action of its own. A drag born on a card belongs to the card: without that claim the page-swipe handler fires too and navigates away mid-gesture.",
+    "R33": "The slide-cards pile is ANIMATED, never rebuilt. Advancing moves the existing nodes — the outgoing card flies out, the ones behind change depth and their transition carries them forward, a new card is inserted at the back and rises from under the deck. Rebuilding the HTML replaces every node, and a replaced node cannot transition: the pile then cuts instead of moving. Checked mid-flight, not at rest: the same nodes must still be present, in motion, shortly after the gesture.",
+    "R34": "A format that shows one poster full-screen carries its own source. The thumbnail poster is right at thumbnail size and mush once blown up; the slide cards use posters sized for the surface they fill. Only the served suggestions carry one, so the weight follows what is actually reachable.",
+    "R6bis": "A card title MAY ellipsize — a list is a list — but the full string must stay reachable through a title attribute. For an unidentified arrival the release name IS its identity, and the truncation lands on the group: exactly what tells two versions of the same media apart.",
+    "R35": "Every gesture answers a pointer, not only a finger. The handlers listen for pointer events — one path for finger, mouse and pen — the END of a drag is listened for on the window because a mouse released outside the frame never reaches the scrollport, and images inside a draggable surface disable the browser's native picture drag, which otherwise swallows the pointer stream outright. The axis claim stays in `touch-action`: it is what makes a real touch gesture arrive at all.",
+    "R36": "A long press opens the actions of whatever poster is under the finger, in every gallery. In a poster format the tile has no body to tap — the poster fills it — so without this the verbs the other formats offer would be unreachable there, and a format that hides them quietly does less.",
+    "R37": "ONE pattern in every poster gallery: a tap opens the media sheet, a long press opens the bottom panel. Which panel is stated by the tile itself through a data attribute, so a new gallery declares its destination instead of teaching the handler a new special case. The Suivis grid used to open the panel on a tap — a gallery that answers a tap differently from its neighbours teaches two vocabularies for the same picture.",
+    "R38": "Every library lens offers the SAME two layouts, through the same tile factory. A lens that draws only one teaches that its content is a different kind of thing, and it is not; a lens that draws its own tile drifts from its neighbours one detail at a time, and the whole point of a gallery is that its pictures are comparable. The sub-line carries whatever the lens came to answer — « année · type » for browsing, a fraction for what is incomplete, a date for what is recent.",
+    "R39": "The avatar comes from Gravatar, built from the SHA-256 of the lowercased trimmed email — not MD5, which Gravatar still answers but no longer documents — and always with a `d=` fallback: without one an account with no Gravatar gets the default silhouette, which says less than the initials this interface already draws. The prototype embeds what that URL returns, because a page that reaches the network renders differently depending on where it is opened.",
+    "R40": "Every title the prototype shows carries its real poster — in card lists as well as in galleries. A card list where most rows fall back to initials cannot be judged: one is looking at the layout of a thing that is missing. 326 of the 345 library titles, all follows, all served suggestions. What still falls back is what genuinely has no poster: an arrival is an unidentified release name, and a name is not a medium yet.",
+    "R41": "A card body opens the bottom PANEL, never a screen of its own.",
+    "R42": "A card poster ALWAYS leads somewhere: to the media SHEET when that medium has one, and to the PANEL when it does not. It used to lead nowhere at all, and the tooltip that explained the absence is invisible on a phone — so on the one page where things are stuck, tapping a poster simply did nothing. A dead zone is worse than a second real destination, and an unidentified folder still has actions: « Résoudre → » is exactly what one is after. Two absences are never merged: « ? » says there is no MEDIUM, initials say there is no artwork, and a card whose medium is known keeps its sheet even when nothing illustrates it.",
+    "R43": "An action offered inline on a card is ALSO in that medium's panel. No action is reachable from a single surface.",
+    "R44": "The same medium reached from a card and from a gallery opens the SAME panel, action for action.",
+    "R45": "A tile addresses its panel by title, never by list index.",
+    "R46": "A card that is not a medium declares it (`data-nonmedia`), and promises neither a media sheet nor a panel. A release is one candidate among several for a medium named elsewhere on the screen; it has no sheet of its own. A POSTER LEADS TO THE MEDIA SHEET — always, everywhere, one meaning. An unidentified folder has no sheet to lead to and was given a poster pointing at the PANEL instead: same object, same look, two destinations, on the one page where things are stuck. A reader cannot learn a rule that holds four pages out of five. So it is not a poster: a folder is not a medium — no artwork, no identity, nothing a sheet could show — and it wears a FOLDER, in a poster's footprint so the row still lines up, saying what it is rather than miming an artwork nobody has. The two kinds of non-medium are also no longer merged: a RELEASE is one candidate among several for a medium already named on screen and promises neither sheet nor panel, while a DOSSIER has its own actions — « Résoudre » is what one came for — so it must address a panel, and its OWN, never a `media:` one. Only a poster one can PRESS makes a promise; a candidate's poster is a span, a picture, and promises nothing. Read over every named state, because the divergence lived on one page and a rule reading a single screen would have agreed with it.",
+    "R47": "Every list draws its cards with the same builder and the same metrics — poster, padding, radius, title size. The poster is 49px wide, and that number is derived from the card's own ANATOMY rather than from a percentile: grouping the 135 cards the interface draws by which blocks they carry gives eight shapes, and the poster fills the one whose purpose is RECOGNISING a medium — title, sub-line and synopsis, 72.9px of content, two thirds of which is 49. It used to fill the median card (60.7 → 42px) and that reference had run out, the poster having become what set the median. The two neighbouring shapes, for another notch: a card carrying a reason gives 58px, the fullest card gives 63px. A view needing a bigger picture still uses the gallery or the deck, which exist for exactly that. The poster BLEEDS: the card carries no padding of its own, the padding moved onto the column holding everything else, and the poster reaches the card's top and left edge — the card itself is the measure now, not a fraction of the text beside it. It keeps 2:3, and its own height is the card's FLOOR, so a card at that floor is bled on three edges and a taller one on two. The other direction was tried and does not survive contact: a full-height 2:3 poster means deriving the width from a height the text decides, and a grid sizes an `auto` column BEFORE the row's final height is known — on a 219px card the poster computed 146px against a column of 89 and ran over the text, on seventeen states. A cap did not save it; the overlap merely shrank to a pixel. The artwork must also contribute no intrinsic size of its own, out of flow, or its own pixels set the column: in flow, a 240px-wide picture made a 240px poster and dragged the card with it. Width 63px — the notch of the fullest card the interface draws — and the rule PINS it: checking only that every surface agrees leaves the poster free to be any size at all as long as it is wrong everywhere, which is how it stayed at 42px and then 49px while the rule reported conformity. The poster reaches the card's BOTTOM as well: pinned to the top in a 2:3 box it stopped short on every card carrying a reason — those are taller than the box — and the gap under it read as a defect, which it was. It stretches to the card's height at a fixed width, and the card carries a FLOOR equal to the height of the surfaces that carry the most, so the short cards rise to meet them instead of each surface drawing a card of its own size. The width is two thirds of that floor, which makes a card AT the floor give an exact 2:3 — measured, that is 88% of the cards the interface draws, and their artwork is untouched. Cropping is therefore bounded rather than forbidden: forbidding it puts the gap back, allowing it unbounded turns a busy card's artwork into a strip. Raising the floor from 95 to 126 took the cropped posters from twelve to seven and the worst case from 44% to 38%. The artwork must also contribute no intrinsic size of its own, out of flow, or its own pixels set the column — in flow, a 240px-wide picture made a 240px poster and dragged the card with it.",
+    "R48": "A reason never truncates (§12). It wraps, and the card grows.",
+    "R49": "The login gate is EXTRACTED from the prototype, never retyped — markup, styles and typeface, between explicit markers. A gate that reproduces the design by hand shows a copy of it, and copies drift.",
+    "R50": "Every gallery draws its tiles with the same builder and the same metrics, and its column count follows the CONTAINER's width, never the window's.",
+    "R51": "The install proposal offers what the platform actually allows — and it is actually OFFERED, which is the half that was missing: the banner existed and nothing ever showed it, so on a real phone it never appeared at all. Android and desktop capture `beforeinstallprompt` AND prevent its default, or the browser posts its own proposal in its own place and ours never gets a turn; the event is then replayed on a gesture, the only moment a prompt is accepted. iOS Safari fires nothing and offers no API, so the banner IS the guide and it walks the three real steps. Nobody is asked while already installed, nobody is asked over the entry screen — there is nothing to install yet there and the banner would cover the only field — and a refusal is not repeated in the same session. It sits ABOVE the tab bar, or its close button cannot be reached.",
+    "R52": "Every document the server hands out declares the manifest, the icons and the worker, and the worker answers a navigation with the network gone. Declarations carried by the prototype ALONE reach no phone: the only document reachable before signing in is the gate, and a browser reads the manifest of the page in front of it. The prototype also installs as a DIFFERENT application from the shipped one — a distinct `name`, `short_name` and iOS title, and an explicit `id`: left out, the identity defaults to `start_url`, which is « / » on both, so nothing but the origin separates two entries on one home screen, and an origin is not something a home screen shows. It also serves its OWN icons — a yellow ring where the app has none and staging has a cyan one — checked byte for byte against what the application serves: a name distinguishes two entries in a list, but on a home screen what is seen first is the picture, and two identical pictures under different labels are still two identical pictures.",
+    "R53": "The wait that follows a sign-in is covered by ONE startup screen, extracted from the prototype like the gate. It is declared FIRST in the frame, because a browser paints what it has parsed and a screen sitting after the embedded artwork appears only once the wait is over; it covers the frame, offers no control, and is gone as soon as the first render has run. Its bar FILLS, from nothing to full, over the five seconds a cold load is budgeted — it measures the WAIT, which is what the person watching is living through, not the load, which nothing here knows. A shuttle sliding back and forth answers « how much longer » with nothing and reads the same at one second and at ten. It never reaches the end on its own: the interface arrives first and takes the screen away. The screen comes off when the wait it covers RESOLVES, never on the line after the first render. Dropping it there put it on screen for a single frame on a real load — visible at t=0, gone by 300ms — because the prototype fetches nothing and the first render returns immediately. Worse, a rule ASSERTED that: « retiré par le premier rendu » certified the defect, and the suite called it conformity. What a rule asserts is a decision, and asserting the current behaviour is not the same as asserting the intended one. So the wait is declared rather than observed — `window.__chargementTermine()` is the seam, called by a timer the length of the bar here and by whatever knows the interface is ready where the file is served from — and the early exit is not a second path: resolving sooner simply ends it sooner. It is measured on a COLD LOAD, sampling the bar's width over time, because every check driving `__go` agreed the screen worked. One consequence for the harness: a script that touches the interface must close that wait through the same seam, since the screen now covers the frame for five seconds. CORRECTED, after the rule was wrong in the other direction. The screen covers ONE wait: the gap between asking for the application and having an interface, which is the document itself — several megabytes — and it spans TWO pages. The gate paints the screen when the form is submitted; the new document paints it again from its own markup; the operator sees one continuous screen across a navigation. Holding it on a timer in the new document made the bar fill once while the document downloaded and then RESTART from zero on an interface that was already rendered — reported as loading twice, and it was. What ends it is the interface being there. The bar's five seconds are its PACE, not a floor: a bar half full means half way, and a load that ends sooner ends the screen sooner. A duration is passed only where the wait is PLAYED rather than observed — the sign-in inside the prototype, which fetches nothing and still has to show what the real one looks like. The seam is declared ONCE and not inside the function that plays a wait, or the screen painted from the markup has nothing to end it. This check has now been wrong in both directions: first it asserted the behaviour that existed, a screen flashing for one frame, and called it conformity; then it demanded a floor and put a second bar on screen. A rule states a decision, and the decision here is what the screen is FOR.",
+    "R54": "Signing out asks the SERVER to drop the session, and only then shows the entry screen. The session is the cookie; a screen that showed the entry form while the cookie was still valid would be contradicted by the next reload. The button ends on that screen and never on a message saying it happened.",
+    "R55": "Every gesture answers a REAL finger, measured through real touch input rather than synthetic events. A gesture living inside the scrollport reads the finger from TOUCH events: the compositor fires `pointercancel` and stops delivering `pointermove` the moment it claims the pan, so a pointer-only handler passes every synthetic test and does nothing under a thumb. Claiming the axis in `touch-action` is not available on the scrollport — `pan-y` there intersects down onto `.pillscroll` and `.cast`, which pan on neither axis afterwards. The scrollport carries NO horizontal gesture of its own: changing tab or lens by swiping fired by accident constantly and competed with the two gestures that are useful there. THE LONG PRESS opens the panel from anywhere on a medium — a tile, a card poster, a deck card — and it is the opposite case: a thumb is never still, so it tolerates 12px (measured: ±10px holds, ±20px does not), and there `pointercancel` is an ALLY, because the compositor only fires it once the finger has really travelled, which means a scroll. Exactly ONE click is swallowed after a press fires, wherever it lands: the panel opens under the finger and the lift was activating its primary action. And the phone's own select/copy menu is refused in CSS on the pressable surfaces, because no listener outruns it and no synthetic input raises it — asserted on the declaration, like the axis claim. The browser's OWN menu is refused wherever the interface answers a press. `user-select` stops a selection and `-webkit-touch-callout` answers iOS Safari; neither touches the menu Android raises, which comes from `contextmenu` and which nothing was refusing — so a long press on a poster offered « copier l'image » on top of the panel the same press was opening. A text field keeps its menu: pasting has no other route there. The observable fact asserted is that the EVENT is prevented; a native menu is not observable from a harness, so asserting its absence would be a rule that can never fail. And the listeners belong to the FRAME, not to the scrollport: every layer above it — sheet, screen, drawer, dialog — sits outside, so four states drew a poster no press could reach. The panel is read WHILE THE FINGER IS STILL DOWN, because on those surfaces a tap opens it too and anything measured after the lift cannot tell a press from a tap. A card BODY is excluded on purpose — it already opens on a tap — so a rule pressing one would assert a behaviour the design refuses. The SHEET HANDLE is the third gesture the compositor took: reading the pointer stream with neither capture nor a claimed axis, a 150px drag delivered pointerdown, TWO pointermoves and then pointercancel, never the pointerup the closing hangs off, so the sheet stayed open. It claims its axis with `touch-action: none` and captures the pointer — capture matters for a MOUSE, since touch gets an implicit one, and the interface is used from a desktop browser. Its target is a 22px strip and not the 4px bar it draws: a thumb aims at the bar and lands in the strip. A cancel is not a lift and springs the sheet back rather than closing it, and that branch is driven as a REAL cancelled touch — a hand-built PointerEvent carries an id no pointer owns, so the capture throws and the probe measures its own artefact.",
+    "R56": "ONE bottom panel, and its shape follows the FACTS it is given — title, meta, an optional poster or avatar, a chip, then ordered blocks of declared kinds. No caller hands it markup: an envelope guarantees nothing about what it carries, and three head shapes had already grown that way, two of them out of inline styles that belong to no stylesheet and are exported nowhere. A block type nobody declared is refused rather than drawn empty, and no action in a panel is offered without a destination — a second, fallback builder had shipped six buttons of which three led nowhere, because a fallback is never the one being looked at and therefore never the one being fixed.",
+    "R57": "The arbitration screen, and what a decision IS: a FOLDER the scrape could not name, never a medium — which is why its card promises neither a media sheet nor a panel, exactly as a release candidate does not. The folder is set in the mono face and never cleaned up. The entry reason is said in words, never in the engine's token. THE SCORE IS PRINTED ONLY WHEN IT SEPARATES — four of « Lucky »'s five real candidates came back at exactly the same score, and printing it four times would suggest a ranking that does not exist, which is the opposite of what the screen is asking. A candidate wears ONLY its own poster: matching on a year-stripped title handed « Lucky (2006) » the picture of « Lucky (2026) » on the very screen whose job is to tell them apart. There are always three ways out — pick, search by hand, or LEAVE IT AS IT IS; without the last one could only ever disagree with the machine, never agree with it. A folder with no pending decision borrows nobody's candidates. And answering takes it out of the queue on BOTH lists it appears on.",
+    "R58": "The episode popover's outline is the BRAND colour, not the border one. It floats over a matrix of dark cells on a dark surface, and a border in `--border` drew a near-black line on a near-black background: its edges could not be found, so it read as text hovering in mid-air rather than as a thing with limits.",
+    "R59": "The back gesture follows the path actually WALKED. Only the layers used to push history, so a back closed a sheet and then, with nothing left to close, left the application — losing every page the operator had walked through; a tab is a place one navigates to and belongs in the history exactly as a screen does. Each navigation pushes where it ARRIVED, never where it left: pushing the state being left puts the history one step ahead of the interface and every back overshoots by one. A GUARD entry is the document's first entry — nothing can be inserted below it — so a back at the root has something to pop and the application is never left by surprise: popping it says so and puts the current place back, and a second back within five seconds does not, letting the stack run out, which is what closes an installed app. A page cannot close itself; exhausting its history is the only honest thing it can do. Driving the prototype from the harness pushes nothing: `__go` is not a journey, and a measurement must not depend on how many states ran before it.",
+    "R60": "One navigates the settings by WHAT ONE WANTS TO CHANGE, never by file. The engine keeps nineteen JSON5 files and the shipped editor put them in a dropdown, which asks the operator to know that `thresholds.json5` holds how much free space is needed before an ingest — knowledge about the code, not about the media library. The files are never hidden: every setting names its own, in the mono face, because that is what one needs when reading a log or a diff; they are simply not the map. Every one of the 153 real settings belongs to exactly one rubric — a setting reachable from nowhere is a setting nobody will ever find. A row is IDENTIFIED by its label alone. The leaf key names what a setting does and not what it belongs to, so labelling by it drew « Activé » seven times in one list — every tracker, every torrent client and every metadata provider owns one — and the only thing telling them apart was a machine path, which is read after one has found the row, not to find it. The label carries its SUBJECT, derived from the path so a provider added tomorrow is named without touching the rendering. The label is FRENCH and says what the setting does; labelling a row with its file's English comment leaves the search answering nothing, since the operator searches in the language they think in, and the comment is not lost — it is the explanation in the panel, where a sentence has room. Nothing is written until the save bar is used, the bar exists only when there is something to save and NAMES the files it will write, and a pending change is marked on its own row rather than only counted at the bottom. A secret says whether it is set and never what it is worth: no secret value is read, shown, or carried in the prototype at all. The origin is shown once, where it is needed: the row carries its key and the group header carries the file, since printing « tracker.json5 · tracker.providers… » says tracker twice and wraps onto two lines; a search result stands under no header, so there the row names the file itself. EDITING is drawn, and the field a setting opens is derived from its VALUE rather than from a list of keys — so a setting added tomorrow is editable without touching the rendering. « Modifier » used to be a button that flipped « oui »/« non » and otherwise appended « (modifié) » to the string: a placeholder that could express neither a number, nor a list, nor an empty value. The 153 real settings hold ten JSON shapes, and those ask for five fields, one refusal and one state that crosses them. A boolean is a switch — nothing to type, nothing to validate. A number is a number field that names its unit when the key does. A path is a text field in the mono face, because a path is read character by character and a proportional font hides a double slash. A list is a list, each item removable: a comma-separated text field would make « , » unusable inside an item. A duration states its format rather than inventing a picker for two values. A STRUCTURE is refused and says why — a form for a list of objects cannot be validated here, and drawing one promises an edit that breaks the file. A value that is not set keeps the field its type asks for and says it is empty, never a zero standing in for absent. The value a field files keeps its TYPE: filed as a string, a number compares unequal to the file's for ever and the change can never be undone by typing the original back — which is checked. The field lives in the PANEL, since that is the one surface an action lives on (R56); a button opening a second screen to change one value was a step nobody needed. States are driven by type, never by key name, or the day a key moves the rule opens something else and still passes.",
+    "R61": "Every colour a rule names is a colour the document defines. A `var(--name)` whose property is never defined, and which carries no fallback, is invalid at computed-value time: it does not raise, it does not warn, a `color` falls back to the inherited one and a `background` disappears entirely. The screen keeps rendering, so it keeps passing — it simply stops being the design. The palette was renamed to `--primary` while ELEVEN declarations kept the old `--accent` name: the wordmark lost its second colour, the sign-in button and the install button lost their backgrounds, and the startup bar's fill turned invisible. The host page hid all of it by retyping `--accent: #f5a524` into a block of its own, so the one place the screen was ever looked at rendered correctly — which is exactly why CSS is EXTRACTED and never retyped: a retyped value does not just risk drifting, it conceals a defect in the reference. Two checks, because either alone is escapable: statically no bare `var(--x)` names an undefined property, covering the surfaces no state ever visits; and on screen the brand colour is actually painted where the design puts it, since a declaration can be present and still be overridden into nothing.",
+    "R62": "The sign-in screen is ONE screen wherever one meets it. It is met twice — as the whole page the host serves before a session exists, and as a layer over the phone frame after signing out — and nothing compared the two, so they drifted. The host restated what the screen INHERITS: a palette, and then a typography. Both copies rendered correctly while the reference was broken; the brand colour had been renamed to `--primary`, and the wordmark's line height was `normal` there against 1.35 here. That is the cost a retyped value really carries: not that it may drift, but that it CONCEALS a defect in the reference, because the copy is the only place anyone ever looks. Everything inherited is extracted through markers; the host contributes only what a page needs that a layer does not. Renderings are compared, never sources — a shared source proves nothing, since the host legitimately adjusts, and an adjustment is exactly where a difference hides. Colour, type and radius must match exactly; geometry is allowed one pixel and no more, because both boxes measure 390x844 to the pixel and what remains is a flex centring landing on a half pixel. A declaration no mutation can fell is removed rather than kept: fixing the type scale on the screen itself stopped changing anything once the host extracted the reset, so it went.",
+    "R63": "A card says what the engine knows, and two tabs say it the same way. A followed medium's card was three short lines beside a poster with the rest of it empty, while every fact it was missing already sat in `acquire.db` and « En cours » was already printing most of them for the same media: the void was not a lack of ideas, it was two tabs describing the same objects and saying different amounts about them. A follow now carries its identity — year, kind, and whether the series still RUNS, since waiting for an episode of a series that has ended is not the same thing — the sentence « En cours » already uses for a fruitless search, with the next slot derived from the same cron the cadence line prints so the two can never disagree, and the facts that tell a healthy follow from a stalled one: since when, and how many searches. « American Dad! » is at 79 and nothing said so. The numbers are compared against the DATABASE, never against the prototype, or a card printing a figure the engine never held would pass. The library's rows had the mirror problem — the year and the fraction say what a medium IS and nothing said what it is ABOUT — so they carry the synopsis, read from the `<plot>` of each medium's own NFO. It is NOT in `library.db`: no column of `media_item`, no key of `item_attribute`, so the app cannot render this until the read-model grows a field. Four clamped lines, and the number is measured rather than chosen: it is the largest that keeps every card at its floor, checked both ways so raising or lowering it without re-measuring fails. Two was inherited from a card that had no floor and left a third of the row empty. A medium whose NFO carries no plot shows NOTHING — checked by building the row for a title known to lack one, since the rows on screen all have one and a filler would never appear there. The three library lenses also start their list at the SAME height. Each put its context line somewhere else — outside the body, inside it below a design note, inside a section of its own — so the list began 251, 265 and 256 pixels down and the page jumped when one switched tabs. They share one slot, in one place, above the body. Checked in BOTH modes, because a grid and a list are two different first elements and only one of them was ever looked at.",
+    "R64": "A row's quick actions run BOTH ways, one row at a time, and the drag never fires the tap. The card body opens the bottom panel on a tap and the same card answers a horizontal drag: two gestures on one object is exactly where a scope conflict lives. The right drawer holds what one does TO a medium, the left holds the one thing the row is FOR — a follow with nothing to look for has no left drawer and the row does not travel that way, rather than opening an empty one. Only one row is open at a time, because two open drawers ask which one an action belongs to and the answer is never on screen. The click that follows a drag is swallowed and identified by its POINT, the same answer the long press already needed: a bare flag stays armed until SOME click happens, and the next one it meets may be minutes later on the navigation bar — that ate a tap there and a button in a dialog before the suite caught it. It is also cleared BEFORE the guard that ignores presses outside a row, or a press anywhere else never clears it at all. No exemption for the drawer's own buttons: that click cannot exist, since the row follows the finger one for one and a release is always over the row, never over what it uncovered — a branch no gesture can enter is a branch nobody can trust. Rendered on BOTH engines: the drawer was pushed right by an automatic margin, and WebKit sized it without honouring its children's flex-basis — 148px for two 84px buttons — so they spilled twenty pixels past the rounded card. An explicit width leaves nothing to infer. Measured on one engine, that defect is invisible. And the scoping itself is proven with a MOUSE: after a touch drag the browser suppresses the click on its own, so a touch probe cannot tell a swallowed click from one that never happened."
+  }
+}
