@@ -771,6 +771,31 @@
      what sizing against the median LIST rather than the median card gives, the
      population being bimodal. Everything here is a shape the interface really
      draws; nothing in between is derived from anything. */
+
+  .dossier {
+    width: 49px;
+    flex: 0 0 auto;
+    aspect-ratio: 2 / 3;
+    display: grid;
+    place-content: center;
+    gap: 4px;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    background: var(--muted);
+    color: var(--muted-foreground);
+    padding: 0;
+  }
+  .dossier svg {
+    width: 22px;
+    height: 22px;
+    margin: 0 auto;
+  }
+  .dlabel {
+    font-size: 8.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
   .poster {
     flex: 0 0 auto;
     width: 49px;
@@ -781,12 +806,6 @@
     font-size: 14px;
     padding: 0;
     border: 0;
-  }
-  /* A poster with no sheet behind it. It is still a button — it opens the
-     panel — and it says by its outline that what it shows is a placeholder
-     rather than an artwork. */
-  .poster.sansfiche {
-    border: 1px dashed var(--border);
   }
   .poster img,
   .tile .p img,
@@ -4197,6 +4216,8 @@
     group: '<path d="M3 5h18M3 12h12M3 19h7"/>',
     grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
     list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+    folder:
+      '<path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>',
     radar:
       '<path d="M19.07 4.93A10 10 0 1 1 4.93 19.07"/><path d="M12 12 8 8"/><circle cx="12" cy="12" r="4"/>',
     library: '<path d="M4 4h4v16H4zM10 4h4v16h-4z"/><path d="m17 5 3 15"/>',
@@ -10419,16 +10440,20 @@
      search and « Ajouté » one tap later, while the film has not changed. */
   function cardHTML(descriptor, opts) {
     opts = opts || {};
-    /* A POSTER ALWAYS LEADS SOMEWHERE.
+    /* A POSTER LEADS TO THE MEDIA SHEET. Always, everywhere, one meaning.
 
-       To the media sheet when one exists — the frequent path, one tap. To the
-       PANEL when it does not, because an unidentified folder still has actions
-       and « Résoudre → » is exactly what one is after. It used to lead
-       nowhere, and the tooltip that explained the absence is invisible on a
-       phone: tapping it simply did nothing, on the one page where things are
-       stuck. A dead zone is worse than a wrong destination, and §11 forbids
-       both a dead link and a greyed control — not a second real destination. */
-    /* Two DIFFERENT absences, and merging them was a defect: `noposter` says
+       An unidentified folder has no sheet to lead to, and it was given a poster
+       pointing at the PANEL instead — same object, same look, two destinations,
+       on the one page where things are stuck. That breaks the invariant the
+       whole card system rests on, and a reader cannot learn a rule that holds
+       four pages out of five.
+
+       So it is not a poster. A folder is not a medium — it has no artwork, no
+       identity, nothing a sheet could show — and it wears a FOLDER, which
+       promises the panel and nothing else. `data-nonmedia` marks it, the same
+       way R46 marks a release candidate, which is the same kind of object.
+
+       Two DIFFERENT absences, and merging them was a defect: `noposter` says
        there is no artwork, `!aFiche` says there is no medium. A card with no
        artwork still has a sheet, and must still lead to it. */
     const aFiche = sheetFor(descriptor.t) != null;
@@ -10437,7 +10462,7 @@
       : posterBox(descriptor.t, descriptor.k);
     const poster = aFiche
       ? `<button class="poster" aria-label="Fiche de ${escapeHtml(descriptor.t)}" data-fiche="${escapeHtml(descriptor.t)}">${image}</button>`
-      : `<button class="poster sansfiche" aria-label="Actions pour ${escapeHtml(descriptor.t)}" title="Média non identifié — pas de fiche. Ce bouton ouvre les actions." data-panel="${escapeHtml(descriptor.panel || `media:${descriptor.t}`)}"><span class="pfall"><b>?</b></span></button>`;
+      : `<button class="dossier" aria-label="Actions pour le dossier ${escapeHtml(descriptor.t)}" data-panel="${escapeHtml(descriptor.panel || `dossier:${descriptor.t}`)}">${svgIcon(icons.folder, 1.6)}<span class="dlabel">Dossier</span></button>`;
     /* Two lines, because they answer two questions. The first says WHAT THIS
        MEDIUM IS — how much of it is owned, what state it is in, how it is
        rated. The second annotates that state: what is pending, what has just
@@ -10445,9 +10470,9 @@
        stopped reading at a glance, which is the only thing that line is for. */
     const ligneEtat = `${descriptor.f ? `<span class="frac">${escapeHtml(descriptor.f)}</span>` : ""}${chipHTML(descriptor.chip)}${descriptor.note != null ? `<span class="crating">${escapeHtml(String(descriptor.note))}</span>` : ""}`;
     const ligneAnnotations = `${descriptor.caption ? `<span class="caption">${escapeHtml(descriptor.caption)}</span>` : ""}${descriptor.fresh ? `<span class="freshtag">Nouveau</span>` : ""}`;
-    return `<div class="card${descriptor.fresh ? " fresh" : ""}">
+    return `<div class="card${descriptor.fresh ? " fresh" : ""}"${aFiche ? "" : ' data-nonmedia="dossier"'}>
     <div class="ctop">${poster}
-      <button class="cbody" data-panel="${escapeHtml(descriptor.panel || `media:${descriptor.t}`)}">
+      <button class="cbody" data-panel="${escapeHtml(descriptor.panel || (aFiche ? `media:${descriptor.t}` : `dossier:${descriptor.t}`))}">
         <span class="ctitle" title="${escapeHtml(descriptor.t)}">${escapeHtml(descriptor.t)}</span>
         ${descriptor.s ? `<span class="csub">${escapeHtml(descriptor.s)}</span>` : ""}
         ${descriptor.r ? `<span class="creason">${richText(descriptor.r)}</span>` : ""}

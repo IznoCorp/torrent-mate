@@ -155,15 +155,27 @@ async def main():
                 continue
             executees += 3
             for c in releve:
-                # R46 — a card that is not a medium says so, and promises
-                # neither a sheet nor a panel. A release is one candidate among
-                # several for a medium already named on the screen; it has no
-                # sheet of its own, and offering one would be a dead promise.
+                # R46 — a card that is not a medium says so, and never offers a
+                # media sheet. What it may offer beyond that depends on WHICH
+                # kind of non-medium it is, and merging the two was a defect:
+                #
+                #   · a RELEASE is one candidate among several for a medium
+                #     already named on the screen. It has nothing of its own, so
+                #     it promises neither sheet nor panel.
+                #   · a DOSSIER is a folder the scrape could not name. It has no
+                #     medium behind it, but it has its own actions — « Résoudre »
+                #     is exactly what one came for — so it MUST address a panel,
+                #     and that panel is its own, not a medium's.
                 if c["nonMedia"]:
-                    if c["panneau"]:
-                        echecs.append(f"R46 {etat} « {c['titre']} »: a {c['nonMedia']} addresses a media panel")
                     if c["posterEstBouton"]:
                         echecs.append(f"R46 {etat} « {c['titre']} »: a {c['nonMedia']} offers a media sheet")
+                    if c["nonMedia"] == "dossier":
+                        if not c["panneau"]:
+                            echecs.append(f"R46 {etat} « {c['titre']} »: a folder addresses no panel")
+                        elif c["panneau"].startswith("media:"):
+                            echecs.append(f"R46 {etat} « {c['titre']} »: a folder addresses a MEDIA panel")
+                    elif c["panneau"]:
+                        echecs.append(f"R46 {etat} « {c['titre']} »: a {c['nonMedia']} addresses a media panel")
                     continue
                 if not c["panneau"]:
                     echecs.append(f"R41 {etat} « {c['titre']} »: the body addresses no panel")
@@ -398,6 +410,54 @@ async def main():
             else:
                 print(f"  R44     « {boite['titre']} » identical from both paths, "
                       f"{len(depuis_tuile)} actions")
+
+        # ── ONE ELEMENT, ONE DESTINATION, ACROSS EVERY PAGE ────────────────
+        # A poster used to lead to the media sheet on four pages and to the
+        # bottom PANEL on Arrivées, where a stuck folder has no sheet to lead
+        # to. Same object, same look, two meanings — and a reader cannot learn a
+        # rule that holds four times out of five. A folder is not a medium: it
+        # wears a FOLDER, which promises the panel and nothing else.
+        #
+        # Read over every named state, because the divergence lived on one page
+        # and a rule reading a single screen would have agreed with it.
+        confusions, dossiers = [], 0
+        for etat in await pg.evaluate("()=>window.__states()"):
+            try:
+                await pg.evaluate("(i)=>window.__go(i)", etat)
+            except Exception as err:  # noqa: BLE001 — the state itself is the finding
+                echecs.append(f"R46: l'état « {etat} » ne se joue pas — {err}")
+                continue
+            await pg.wait_for_timeout(110)
+            vu = await pg.evaluate("""()=>{
+              const out = {fautives: [], dossiers: 0};
+              // Only a poster one can PRESS makes a promise. A candidate's
+              // poster is a picture — a span — and promises nothing at all.
+              for (const a of document.querySelectorAll('button.poster')) {
+                if (!a.getBoundingClientRect().width) continue;
+                if (!a.hasAttribute('data-fiche'))
+                  out.fautives.push('affiche pressable sans data-fiche: ' + a.className);
+              }
+              for (const d of document.querySelectorAll('.dossier')) {
+                if (!d.getBoundingClientRect().width) continue;
+                out.dossiers++;
+                if (!d.hasAttribute('data-panel') || d.hasAttribute('data-fiche') ||
+                    d.closest('[data-nonmedia="dossier"]') === null)
+                  out.fautives.push('dossier mal marqué: ' + d.className);
+              }
+              return out;}""")
+            dossiers += vu["dossiers"]
+            confusions += [f"{etat}: {x}" for x in vu["fautives"]]
+        executees += 2
+        if confusions:
+            echecs.append("R46 poster/folder: " + "; ".join(confusions[:3]))
+        else:
+            print("  R46     a poster leads to the sheet and nowhere else, "
+                  "on every state")
+        if dossiers == 0:
+            echecs.append("R46: no folder drawn anywhere — the rule above is vacuous")
+        else:
+            print(f"  R46     {dossiers} folder(s) drawn, marked non-media, "
+                  "promising the panel")
 
         if erreurs:
             echecs.append(f"JS errors: {erreurs}")

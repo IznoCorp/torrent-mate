@@ -35,7 +35,7 @@ when the defect comes back.
 | --- | --- | --- | --- |
 | B-001 | The list poster is still too small | 2× | `open` |
 | B-002 | ~~The startup bar is never seen on a real load~~ | 2× | `to confirm` |
-| B-003 | In Arrivées a poster does not lead where a poster leads | 2× | `open` |
+| B-003 | ~~In Arrivées a poster does not lead where a poster leads~~ | 2× | `to confirm` |
 | B-004 | ~~Dragging the sheet handle down no longer closes the panel~~ | 2× | `to confirm` |
 | B-005 | ~~A long press on a poster raises the browser's own menu~~ | 2× | `to confirm` |
 | B-006 | ~~Two different sign-in screens: arrival and sign-out~~ | 1× | `to confirm` |
@@ -103,7 +103,20 @@ sampling the bar's width over time.
 
 ## B-003 — In Arrivées a poster does not lead where a poster leads
 
-**Reported** 2×. **Status** `open`.
+**Reported** 2×. **Status** `to confirm`.
+
+**Fixed.** A folder is not a medium, so it no longer wears a poster: it wears a FOLDER, in a
+poster's footprint so the row still lines up, saying « DOSSIER » rather than miming an artwork
+nobody has. Its card is marked `data-nonmedia="dossier"`, the way a release candidate's already
+was, and it addresses its own panel — never a `media:` one, which would promise a subject that
+does not exist. Rule R46 extended, `harness/cartes.py` — 137 checks over every named state, three
+mutations proven: the folder back as a poster (the original defect), the folder addressing no
+panel, the folder addressing a media panel.
+
+**The two kinds of non-medium had been merged**, and that merge is what made the defect hard to
+see: R46 said a non-medium promises neither sheet nor panel, which is right for a release
+candidate and wrong for a stuck folder — a folder has its own actions. Splitting them is what let
+the rule state the real invariant.
 
 **What happens.** Arrivées cards do come from `cardHTML`, the same builder as everywhere else. But
 their poster is `poster sansfiche`, carrying `data-panel`: it opens the **bottom panel**. Every
