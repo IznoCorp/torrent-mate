@@ -38377,6 +38377,20 @@
        release outside the frame would otherwise never arrive;
      · dragging a picture is a browser default that swallows the pointer stream
        outright, which is why images inside a draggable surface disable it. */
+  /* WHERE A GESTURE LISTENS, and it is not a matter of taste.
+
+     A gesture that belongs to the SCROLLPORT — the pull to refresh — listens
+     on the scrollport, because that is the thing it acts on. Every other
+     gesture belongs to an OBJECT: a row, a suggestion, a deck card. Objects
+     are drawn in layers ABOVE the scrollport too — the sheet, the screen, the
+     drawer — so an object gesture listens on the FRAME. Bound to the
+     scrollport it answers only where the object happens to be drawn today, and
+     four states already drew a poster no press could reach.
+
+     The guard is the same in every one of them: `closest(...)` decides whether
+     the press concerns this gesture, so listening wider costs nothing and
+     stops a surface from silently losing its gesture the day it moves. */
+
   /* 1) Card swipe — a drag born on a card belongs to the card.
 
      It runs BOTH ways: the drawer on the right holds what one does to a medium
@@ -38500,7 +38514,7 @@
      `.swipe`: the row claims the horizontal axis, otherwise the browser
      takes the gesture and cancels it at the first pixel. */
   let sugDrag = null;
-  port.addEventListener(
+  cadre.addEventListener(
     "pointerdown",
     (event) => {
       const closest = event.target.closest(".sugwrap");
@@ -38517,7 +38531,7 @@
     },
     { passive: true },
   );
-  port.addEventListener(
+  cadre.addEventListener(
     "pointermove",
     (event) => {
       if (!sugDrag) return;
@@ -38560,7 +38574,7 @@
      it, with an undo. Listeners are passive; the card claims the horizontal
      axis through `touch-action: pan-y` on `.deck`. */
   let deckDrag = null;
-  port.addEventListener(
+  cadre.addEventListener(
     "pointerdown",
     (event) => {
       const card = event.target.closest?.('.dcard[data-depth="0"]');
@@ -38575,7 +38589,7 @@
     },
     { passive: true },
   );
-  port.addEventListener(
+  cadre.addEventListener(
     "pointermove",
     (event) => {
       if (!deckDrag) return;

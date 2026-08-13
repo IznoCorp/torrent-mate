@@ -25,14 +25,13 @@ import time
 import urllib.error
 import urllib.request
 
+from commun import Journal
 from playwright.async_api import async_playwright
 
 RACINE = pathlib.Path(__file__).resolve().parent.parent
 PORT = 8713  # never 8710 / 8711: the reverse proxy routes production and staging there
-BAR = "─" * 62
 
-echecs = []
-faits = 0
+_journal = None
 
 
 class SortieAnticipee(Exception):
@@ -40,12 +39,8 @@ class SortieAnticipee(Exception):
 
 
 def verifier(nom, condition, detail=""):
-    """Records one executed check and its verdict."""
-    global faits
-    faits += 1
-    print(("  OK   " if condition else "  ECHEC") + f" {nom}" + (f" — {detail}" if detail else ""))
-    if not condition:
-        echecs.append(nom)
+    """Records one executed check and its verdict, in the shared journal."""
+    return _journal.verifier(nom, condition, detail)
 
 
 def extrait_prototype(marque):
@@ -74,7 +69,8 @@ async def main():
         await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
         await pg.evaluate("()=>document.querySelector('#toastx').click()")
 
-        print(f"{BAR}\nR53 — écran de démarrage\n{BAR}")
+        global _journal
+        _journal = Journal(f"R53 — écran de démarrage")
 
         # 1. Declared first, so it is painted first. Measured on the SOURCE,
         #    because that is what parse order follows; the DOM would answer the
@@ -320,12 +316,6 @@ async def main():
 
         await b.close()
 
-    print()
-    print(f"{BAR}\n{faits} règles EXÉCUTÉES — "
-          + ("aucune violation" if not echecs else f"{len(echecs)} violation(s) : {', '.join(echecs)}"))
-    if erreurs:
-        print("erreurs JS :", erreurs)
-    if echecs or erreurs:
-        raise SystemExit(1)
+    _journal.bilan(erreurs)
 
 asyncio.run(main())

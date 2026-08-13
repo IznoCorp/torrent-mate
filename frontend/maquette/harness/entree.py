@@ -22,11 +22,11 @@ import asyncio
 import pathlib
 import re
 
+from commun import Journal
 from playwright.async_api import async_playwright
 
 RACINE = pathlib.Path(__file__).resolve().parent.parent
 HOTE = "https://tm-design.iznogoudatall.xyz/"
-BAR = "─" * 62
 
 # Position is compared as a LOCAL geometry — each part against the screen's own
 # box — because the host page and the phone frame are not required to sit at
@@ -52,21 +52,17 @@ RELEVE = """() => {
   return out;
 }"""
 
-echecs = []
-faits = 0
+_journal = None
 
 
 def verifier(nom, condition, detail=""):
-    """Records one executed check and its verdict."""
-    global faits
-    faits += 1
-    print(("  OK   " if condition else "  ECHEC") + f" {nom}" + (f" — {detail}" if detail else ""))
-    if not condition:
-        echecs.append(nom)
+    """Records one executed check and its verdict, in the shared journal."""
+    return _journal.verifier(nom, condition, detail)
 
 
 async def main():
-    print(f"{BAR}\nR62 — un seul écran d'entrée\n{BAR}")
+    global _journal
+    _journal = Journal(f"R62 — un seul écran d'entrée")
 
     # The host must not carry a palette of its own: a retyped value renders
     # correctly here while the reference is broken, which is how the brand
@@ -132,10 +128,6 @@ async def main():
 
     verifier("aucune erreur JS", not erreurs, str(erreurs))
 
-    print()
-    print(f"{BAR}\n{faits} règles EXÉCUTÉES — "
-          + ("aucune violation" if not echecs else f"{len(echecs)} violation(s) : {', '.join(echecs)}"))
-    if echecs:
-        raise SystemExit(1)
+    _journal.bilan()
 
 asyncio.run(main())

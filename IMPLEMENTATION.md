@@ -40,10 +40,9 @@ it Chrome falls back to the legacy 980px layout viewport and every measurement i
 
 ```bash
 cd frontend/maquette/harness
-for s in sweep scen states audit audit2 cartes export bugs inter suivis sel scroll filtres \
-         actions dest ident pop galerie deck surfaces souris chrome demarrage deconnexion \
-         doigt panneau decision installation retour reglages pwa; do
-  /Users/izno/.pyenv/versions/3.11.9/bin/python3 $s.py > /dev/null || echo "FAILED: $s"
+for s in *.py; do
+  [ "$s" = commun.py ] && continue   # the shared plumbing, not a rule
+  /Users/izno/.pyenv/versions/3.11.9/bin/python3 "$s" > /dev/null || echo "FAILED: $s"
 done
 ```
 
@@ -117,9 +116,24 @@ the audit that motivated it was done. Neither replaces a phase.
 - **The back gesture follows the path actually walked**, tabs and lenses included, closes a layer
   first, and at the root warns instead of leaving — closing only on a second back within five
   seconds. R59, `harness/retour.py`.
-- **The list poster fills the card whose purpose is recognising**, at 49px, derived from the
-  card's anatomy; the episode popover carries the brand outline, so its limits can be found on a
-  dark surface. R47 amended, R58.
+- **The list poster reaches the card's edges**, 84px wide with the card's height as its floor,
+  so a card at that floor gives an exact 2:3 and its artwork is untouched. Full height AND the
+  ratio cannot both hold on a taller card — measured, a grid sizes the column before the row's
+  height is known — so cropping is bounded rather than forbidden. The episode popover carries the
+  brand outline, so its limits can be found on a dark surface. R47 rewritten, R58.
+- **The brand colour is painted where the design puts it.** `--accent` was referenced eleven
+  times and defined nowhere: the wordmark, the sign-in button, the install button and the startup
+  bar were all unlit, and the host hid it by retyping the palette. R61, `harness/palette.py`.
+- **One sign-in screen**, wherever one meets it: the host extracts everything the screen
+  inherits — palette, box model, typography — instead of restating it. R62, `harness/entree.py`.
+- **A card says what the engine knows.** A follow carries its identity, what is happening and
+  when, and what tells a healthy follow from a stalled one, all read from `acquire.db`; a library
+  row carries the synopsis, clamped to the largest number of lines that fits. R63,
+  `harness/contenu.py`.
+- **A row's drawer opens either way, one row at a time**, without firing the tap — and it renders
+  identically on WebKit, where it used to spill past the rounded card. R64, `harness/glisse.py`.
+- **The startup screen covers one wait and plays once**, across the two pages that wait spans.
+  R53 corrected. Its history is in `BUGS.md`: the rule was wrong in both directions.
 - **The settings are navigated by what one wants to change**, never by file: five rubrics plus
   secrets and ranking, over the 153 settings the engine really keeps. Each row is identified by
   its label alone — its subject, then what it does, in French — because the leaf key drew
@@ -155,7 +169,7 @@ the audit that motivated it was done. Neither replaces a phase.
 ## What the prototype already settles
 
 These were argued, measured and recorded. Re-opening one costs a day; the reasons are in
-`frontend/maquette/regions.json` → `$adversarialReview` (61 rules) and `$methodLessons` (37).
+`frontend/maquette/regions.json` → `$adversarialReview` (65 rules) and `$methodLessons` (37).
 
 - **The prototype is the reference.** A divergence between the app and it is a defect in the app,
   unless the prototype was amended first with the reason written down.

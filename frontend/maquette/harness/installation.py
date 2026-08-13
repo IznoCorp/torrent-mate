@@ -22,23 +22,18 @@ iPhone. Neither can be observed on a desktop headless run any other way.
 """
 import asyncio
 
+from commun import Journal
 from playwright.async_api import async_playwright
 
-BAR = "─" * 62
 IPHONE = ("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
           "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1")
 
-echecs = []
-faits = 0
+_journal = None
 
 
 def verifier(nom, condition, detail=""):
-    """Records one executed check and its verdict."""
-    global faits
-    faits += 1
-    print(("  OK   " if condition else "  ECHEC") + f" {nom}" + (f" — {detail}" if detail else ""))
-    if not condition:
-        echecs.append(nom)
+    """Records one executed check and its verdict, in the shared journal."""
+    return _journal.verifier(nom, condition, detail)
 
 
 # What Chrome dispatches, with the two members a page is allowed to use.
@@ -80,7 +75,8 @@ async def ouvrir(p, **kwargs):
 
 
 async def main():
-    print(f"{BAR}\nR51 — l'invitation à installer\n{BAR}")
+    global _journal
+    _journal = Journal(f"R51 — l'invitation à installer")
 
     async with async_playwright() as p:
         b = await p.chromium.launch(channel="chrome")
@@ -160,10 +156,6 @@ async def main():
         await ctx.close()
         await b.close()
 
-    print()
-    print(f"{BAR}\n{faits} règles EXÉCUTÉES — "
-          + ("aucune violation" if not echecs else f"{len(echecs)} violation(s) : {', '.join(echecs)}"))
-    if echecs:
-        raise SystemExit(1)
+    _journal.bilan()
 
 asyncio.run(main())

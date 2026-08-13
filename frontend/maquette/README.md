@@ -499,6 +499,11 @@ They are committed because they encode recipes that cost time to get right.
 | `sweep.py` | all views render content, no horizontal overflow, device at 390px, no JS error. **A view that renders nothing fails.** |
 | `scen.py` | the same sweep across both data scenarios, with explicit sub-view reset between runs |
 | `states.py` | every named state renders, without overflow or JS error |
+| `commun.py` | not a rule: the plumbing every script borrows — how a verdict prints, how a run ends, how the document is opened past the startup screen. Twelve copies of the same `verifier()` meant a fix to the reporting had to be made twelve times, and one change to the opening cost twenty-eight hand edits |
+| `deck.py` | the deck answers a swipe either way — left skips and comes back, right dismisses with an undo |
+| `galerie.py` | one tile pattern in every gallery |
+| `souris.py` | every gesture answers a MOUSE too: the interface is used from a desktop browser |
+| `surfaces.py` | every surface the interface draws is reachable and renders |
 | `audit.py` | rules R1–R10 and R20–R23 across every state, and it announces how many rules it EXECUTED |
 | `audit2.py` | rules R11–R17 and R26–R31: uniformity, honesty of the text, one back design, one season rendering, episode presence against the data, a panel that never offers an action the medium does not support |
 | `cartes.py` | rules R41–R50: the card and gallery contract — poster to the sheet, body to the panel, no action reachable from a single surface, the same panel from a card and from a gallery |

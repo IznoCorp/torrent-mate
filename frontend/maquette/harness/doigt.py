@@ -21,11 +21,11 @@ nothing else here proves it still holds.
 import asyncio
 import sys
 
+from commun import Journal
 from playwright.async_api import async_playwright
 
 # The prototype's own long-press delay; a probe shorter than it proves nothing.
 APPUI_MS = 480
-BAR = "─" * 62
 
 # The phone's OWN long press — select, copy, save — cannot be outrun by a
 # listener, and no synthetic input raises it. It is therefore asserted on the
@@ -44,17 +44,12 @@ GARDE_APPUI = """(selecteurs) => {
   return manquants;
 }"""
 
-echecs = []
-faits = 0
+_journal = None
 
 
 def verifier(nom, condition, detail=""):
-    """Records one executed check and its verdict."""
-    global faits
-    faits += 1
-    print(("  OK   " if condition else "  ECHEC") + f" {nom}" + (f" — {detail}" if detail else ""))
-    if not condition:
-        echecs.append(nom)
+    """Records one executed check and its verdict, in the shared journal."""
+    return _journal.verifier(nom, condition, detail)
 
 
 async def glisser(cdp, x0, y0, pas, dx, dy):
@@ -94,7 +89,8 @@ async def main():
         await pg.evaluate("()=>window.__chargementTermine?.()")
         await pg.evaluate("()=>document.querySelector('#toastx').click()")
 
-        print(f"{BAR}\nR55 — les gestes sous un vrai doigt\n{BAR}")
+        global _journal
+        _journal = Journal(f"R55 — les gestes sous un vrai doigt")
 
         async def rect(selecteur):
             return await pg.evaluate(
@@ -434,10 +430,6 @@ async def main():
         verifier("aucune erreur JS", not erreurs, str(erreurs))
         await b.close()
 
-    print()
-    print(f"{BAR}\n{faits} règles EXÉCUTÉES — "
-          + ("aucune violation" if not echecs else f"{len(echecs)} violation(s) : {', '.join(echecs)}"))
-    if echecs:
-        sys.exit(1)
+    _journal.bilan()
 
 asyncio.run(main())

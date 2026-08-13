@@ -14,21 +14,16 @@ this script checks that it does exactly that and nothing more.
 """
 import asyncio
 
+from commun import Journal, ouvrir
 from playwright.async_api import async_playwright
 
-BAR = "─" * 62
 
-echecs = []
-faits = 0
+_journal = None
 
 
 def verifier(nom, condition, detail=""):
-    """Records one executed check and its verdict."""
-    global faits
-    faits += 1
-    print(("  OK   " if condition else "  ECHEC") + f" {nom}" + (f" — {detail}" if detail else ""))
-    if not condition:
-        echecs.append(nom)
+    """Records one executed check and its verdict, in the shared journal."""
+    return _journal.verifier(nom, condition, detail)
 
 
 # Reading the interface AFTER a back that left the document raises instead of
@@ -57,20 +52,14 @@ OU = """() => ({
 
 
 async def main():
-    print(f"{BAR}\nR59 — le retour suit le chemin\n{BAR}")
+    global _journal
+    _journal = Journal(f"R59 — le retour suit le chemin")
 
     async with async_playwright() as p:
         b = await p.chromium.launch(channel="chrome")
-        ctx = await b.new_context(viewport={"width": 390, "height": 844},
-                                  device_scale_factor=2, is_mobile=True, has_touch=True)
-        pg = await ctx.new_page()
+        ctx, pg = await ouvrir(b)
         erreurs = []
         pg.on("pageerror", lambda e: erreurs.append(str(e)))
-        await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
-        # The startup screen covers the frame for as long as the load it stands
-        # for lasts. Nothing is being fetched here, so the harness closes that
-        # wait through the same seam the app uses, rather than sleeping it out.
-        await pg.evaluate("()=>window.__chargementTermine?.()")
         await pg.evaluate("()=>document.querySelector('#toastx').click()")
         await pg.wait_for_timeout(300)
 
@@ -154,10 +143,6 @@ async def main():
         verifier("aucune erreur JS", not erreurs, str(erreurs))
         await b.close()
 
-    print()
-    print(f"{BAR}\n{faits} règles EXÉCUTÉES — "
-          + ("aucune violation" if not echecs else f"{len(echecs)} violation(s) : {', '.join(echecs)}"))
-    if echecs:
-        raise SystemExit(1)
+    _journal.bilan()
 
 asyncio.run(main())

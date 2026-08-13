@@ -26,21 +26,16 @@ exactly what was wrong on it.
 """
 import asyncio
 
+from commun import Journal, ouvrir
 from playwright.async_api import async_playwright
 
-BAR = "─" * 62
 
-echecs = []
-faits = 0
+_journal = None
 
 
 def verifier(nom, condition, detail=""):
-    """Records one executed check and its verdict."""
-    global faits
-    faits += 1
-    print(("  OK   " if condition else "  ECHEC") + f" {nom}" + (f" — {detail}" if detail else ""))
-    if not condition:
-        echecs.append(nom)
+    """Records one executed check and its verdict, in the shared journal."""
+    return _journal.verifier(nom, condition, detail)
 
 
 GEOMETRIE = """() => {
@@ -64,15 +59,10 @@ GEOMETRIE = """() => {
 }"""
 
 
-async def ouvrir(p, lance):
+async def surLaListe(p, lance):
     """Opens the prototype past the startup screen, on the follows list."""
     b = await lance()
-    ctx = await b.new_context(viewport={"width": 390, "height": 844},
-                              device_scale_factor=2, is_mobile=True, has_touch=True)
-    pg = await ctx.new_page()
-    await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
-    await pg.evaluate("()=>window.__chargementTermine?.()")
-    await pg.evaluate("()=>document.querySelector('#toastx').click()")
+    ctx, pg = await ouvrir(b)
     await pg.wait_for_timeout(450)
     await pg.evaluate("()=>window.__go('acq-suivis-liste')")
     await pg.wait_for_timeout(550)
@@ -80,14 +70,15 @@ async def ouvrir(p, lance):
 
 
 async def main():
-    print(f"{BAR}\nR64 — le glissé d'une ligne\n{BAR}")
+    global _journal
+    _journal = Journal(f"R64 — le glissé d'une ligne")
 
     async with async_playwright() as p:
         # ── the geometry, on both engines ──────────────────────────────────
         mesures = {}
         for nom, lance in (("Chromium", lambda: p.chromium.launch(channel="chrome")),
                            ("WebKit", lambda: p.webkit.launch())):
-            b, _, pg = await ouvrir(p, lance)
+            b, _, pg = await surLaListe(p, lance)
             mesures[nom] = await pg.evaluate(GEOMETRIE)
             await b.close()
 
@@ -108,7 +99,7 @@ async def main():
                  f"{chrome and chrome['droite']} vs {webkit and webkit['droite']}")
 
         # ── the behaviour, under a real finger ─────────────────────────────
-        b, ctx, pg = await ouvrir(p, lambda: p.chromium.launch(channel="chrome"))
+        b, ctx, pg = await surLaListe(p, lambda: p.chromium.launch(channel="chrome"))
         cdp = await ctx.new_cdp_session(pg)
         erreurs = []
         pg.on("pageerror", lambda e: erreurs.append(str(e)))
@@ -229,10 +220,6 @@ async def main():
         verifier("aucune erreur JS", not erreurs, str(erreurs))
         await b.close()
 
-    print()
-    print(f"{BAR}\n{faits} règles EXÉCUTÉES — "
-          + ("aucune violation" if not echecs else f"{len(echecs)} violation(s) : {', '.join(echecs)}"))
-    if echecs:
-        raise SystemExit(1)
+    _journal.bilan()
 
 asyncio.run(main())
