@@ -39,7 +39,7 @@ when the defect comes back.
 | B-004 | Dragging the sheet handle down no longer closes the panel | 2× | `open` |
 | B-005 | A long press on a poster raises the browser's own menu | 2× | `open` |
 | B-006 | Two different sign-in screens: arrival and sign-out | 1× | `open` |
-| B-007 | `--accent` is referenced 11 times and defined nowhere | 1× | `open` |
+| B-007 | ~~`--accent` referenced 11 times, defined nowhere~~ | 1× | `to confirm` |
 
 ---
 
@@ -173,7 +173,13 @@ needs that a phone frame does not; and a rule comparing the two renderings.
 
 ## B-007 — `--accent` is referenced 11 times and defined nowhere
 
-**Reported** 1× (as "the sign-out screen has no TorrentMate style"). **Status** `open`.
+**Reported** 1× (as "the sign-out screen has no TorrentMate style"). **Status** `to confirm`.
+
+**Fixed.** The eleven references now name `--primary` / `--primary-foreground`. The host stopped
+retyping the palette and EXTRACTS it, through new `login:palette` markers around `:root`. Rule
+R61, `harness/palette.py` — 8 checks, three mutations proven: one reference back on the old name
+(the static check names it), the wordmark recoloured while staying defined (the painted check
+names it), the install button losing its background (the sweep over every state names it).
 
 **What happens.** On the prototype's sign-in screen the funnel is **white** instead of orange,
 « Mate » is white, and « Se connecter » has **no background**. Measured: `var(--accent)` appears

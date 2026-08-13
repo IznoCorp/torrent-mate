@@ -18,6 +18,7 @@
   }
   /* login:font:end */
 
+  /* login:palette:start */
   :root {
     --background: oklch(0.165 0.004 286);
     --foreground: oklch(0.96 0.003 286);
@@ -44,6 +45,7 @@
     --mq-shadow-dlg: 0 20px 60px rgb(0 0 0/0.7);
     --mq-scrim: rgb(0 0 0/0.6);
   }
+  /* login:palette:end */
   :root[data-theme="light"] {
     --background: oklch(0.995 0 0);
     --foreground: oklch(0.205 0.004 286);
@@ -795,7 +797,7 @@
     overflow: hidden;
     background: linear-gradient(
       to bottom right,
-      color-mix(in oklab, var(--accent) 50%, transparent),
+      color-mix(in oklab, var(--primary) 50%, transparent),
       var(--card),
       var(--muted)
     );
@@ -2085,7 +2087,7 @@
     min-height: 0;
     background-image: linear-gradient(
       160deg,
-      color-mix(in oklab, var(--accent) 45%, var(--background)),
+      color-mix(in oklab, var(--primary) 45%, var(--background)),
       var(--card) 58%,
       var(--muted)
     );
@@ -3461,7 +3463,7 @@
     color: var(--sidebar-foreground, var(--foreground));
   }
   .drawer a[aria-current="page"] {
-    background: var(--sidebar-accent, var(--accent));
+    background: var(--sidebar-accent, var(--primary));
     color: var(--primary);
     font-weight: 600;
   }
@@ -3631,8 +3633,8 @@
       600 12.5px "Geist",
       system-ui,
       sans-serif;
-    color: var(--accent-foreground);
-    background: var(--accent);
+    color: var(--primary-foreground);
+    background: var(--primary);
   }
 
   .installgo svg {
@@ -3698,7 +3700,7 @@
   .brandbig .mk {
     width: 40px;
     height: 40px;
-    color: var(--accent);
+    color: var(--primary);
   }
 
   .brandbig .wm {
@@ -3709,7 +3711,7 @@
 
   .brandbig em {
     font-style: normal;
-    color: var(--accent);
+    color: var(--primary);
   }
 
   .logincard {
@@ -3761,7 +3763,7 @@
   }
 
   .loginfield input:focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--primary);
     outline-offset: 1px;
   }
 
@@ -3784,8 +3786,8 @@
       600 14px "Geist",
       system-ui,
       sans-serif;
-    color: var(--accent-foreground);
-    background: var(--accent);
+    color: var(--primary-foreground);
+    background: var(--primary);
   }
 
   /* login:style:end */
@@ -3844,7 +3846,7 @@
     width: 0%;
     height: 100%;
     border-radius: 99px;
-    background: var(--accent);
+    background: var(--primary);
     animation: splashremplit 5s linear forwards;
   }
 

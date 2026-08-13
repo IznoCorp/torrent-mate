@@ -283,18 +283,19 @@ def page_connexion(refusee: bool) -> bytes:
     balisage += extraire(source, "splash").replace(
         ' id="splash"', ' id="splash" hidden', 1
     )
-    styles = extraire(source, "font") + extraire(source, "style") + extraire(source, "splashstyle")
-    # The palette, the box model and the typeface the screen INHERITS inside
-    # the prototype. They live in the reset, outside the extracted range, and
-    # without them the design silently degrades rather than breaking: the
-    # wordmark falls back to Times, and `max-width: 340px` applies to a content
-    # box instead of a border box, so the card renders 378px wide.
+    styles = (extraire(source, "font") + extraire(source, "palette")
+              + extraire(source, "style") + extraire(source, "splashstyle"))
+    # The box model and the typeface the screen INHERITS inside the prototype.
+    # They live in the reset, outside every extracted range, and without them
+    # the design silently degrades rather than breaking: the wordmark falls back
+    # to Times, and `max-width: 340px` applies to a content box instead of a
+    # border box, so the card renders 378px wide.
+    #
+    # The PALETTE is not here, and must never come back. Retyping it made this
+    # page render correctly while the prototype's own screen had lost its brand
+    # colour to a renamed property — the host hid the defect in the reference
+    # for as long as it carried its own copy.
     socle = """
-  :root {
-    --background: #0b0b0d; --card: #131316; --border: #26262b;
-    --foreground: #ededf0; --muted-foreground: #9b9ba4;
-    --accent: #f5a524; --accent-foreground: #1a1a1d; --danger: #f4515b;
-  }
   *, *::before, *::after { box-sizing: border-box; }
   html, body {
     margin: 0;

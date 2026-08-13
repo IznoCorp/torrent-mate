@@ -140,7 +140,7 @@ One file, four jobs:
   rather than implied.
 - **`regions`** — what `parity-probe.py` measures, each naming the states it is visible in,
   so the probe never has to guess how to reach a card state.
-- **`$adversarialReview`** — the rule set (R1…R60) plus `$methodLessons`: what each rule
+- **`$adversarialReview`** — the rule set (R1…R61) plus `$methodLessons`: what each rule
   exists for, and what a rule that failed to bite taught. `$reportedDefects` lists the
   defects found by hand, each with its test in `harness/bugs.py`.
 
@@ -516,6 +516,7 @@ They are committed because they encode recipes that cost time to get right.
 | `chrome.py` | R51: the harness bar covers none of the app's fixed controls, in every named state, at both sides of the 520px breakpoint |
 | `retour.py` | R59: the back gesture walks the path in reverse — tabs and lenses included — closes a layer first, and at the root warns instead of leaving, closing only on a second back within five seconds |
 | `reglages.py` | R60: the settings are navigated by what one wants to change, never by file; every real setting belongs to one rubric and is identified by its label alone — subject then action, in French; nothing is written until the save bar names the files it will write; a secret says only whether it is set |
+| `palette.py` | R61: no bare `var(--x)` names a property the document never defines, and the brand colour is actually painted on the wordmark, the sign-in button and the startup bar |
 | `installation.py` | R51: the install offer is actually OFFERED — `beforeinstallprompt` captured, its default prevented and replayed on a gesture; the iOS guide raised by an iPhone user agent; nothing offered to an installed app, over the entry screen, or after a refusal |
 | `pwa.py` | R52: the LIVE host is installable from the first document a phone reaches — manifest, icons that load, worker registered and controlling, offline fallback cached. Runs against `tm-design.iznogoudatall.xyz`, not the local server |
 | `demarrage.py` | R53: the startup screen is declared first, covers the frame, offers no control, is gone after the first render, and the gate the server builds shows the same screen — extracted — from the submit onwards. Starts `serve.py` on a scratch port |
