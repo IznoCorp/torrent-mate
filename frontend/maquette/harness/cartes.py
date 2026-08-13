@@ -38,6 +38,7 @@ URL = "http://127.0.0.1:8899/wrapped.html"
 # Every state that draws cards, overlays included. The list was once shorter,
 # and the two screens missing from it — resolution and release choice — were
 # exactly the two drawing a card that is not a medium.
+AFFICHE_LISTE = 58  # the notch of the card that explains; see refonte.html
 ETATS_CARTES = [
     "acq-encours-repos",
     "acq-encours-charge",
@@ -360,6 +361,42 @@ async def main():
                     echecs.append(f"R47 {etat} draws a card unlike {reference[0]}: {ecarts}")
             print(f"  R47     {len(metriques)} list surfaces, "
                   f"{'one' if all(m == reference[1] for m in metriques.values()) else 'SEVERAL'} metric(s)")
+        # R47 also PINS the size. Checking only that every surface agrees leaves
+        # the poster free to be any size at all, as long as it is wrong
+        # everywhere — which is how it stayed at 42px, then 49px, while the rule
+        # reported conformity. The value is the anatomy notch of the card that
+        # EXPLAINS (title, sub-line, reason): 87px of text column, two thirds of
+        # it, 58px. Shrinking it back now fails here.
+        executees += 1
+        largeurs = {tuple(m["affiche"]) for m in metriques.values()}
+        if largeurs != {(AFFICHE_LISTE, round(AFFICHE_LISTE * 1.5))}:
+            echecs.append(f"R47 the list poster is not {AFFICHE_LISTE}px: {sorted(largeurs)}")
+        else:
+            print(f"  R47     the list poster is {AFFICHE_LISTE}px, the notch of the "
+                  "card that explains")
+
+        # And no card CLIPS it: the card grows to the poster, which is the
+        # permission that made the size possible in the first place.
+        executees += 1
+        rognees = []
+        for etat in await pg.evaluate("()=>window.__states()"):
+            await pg.evaluate("(i)=>window.__go(i)", etat)
+            await pg.wait_for_timeout(110)
+            rognees += [f"{etat}: {x}" for x in await pg.evaluate("""()=>{
+              const out = [];
+              for (const c of document.querySelectorAll('.card')) {
+                const p = c.querySelector('.poster, .dossier');
+                if (!p || !p.getBoundingClientRect().width) continue;
+                const rp = p.getBoundingClientRect(), rc = c.getBoundingClientRect();
+                if (rp.top < rc.top - 0.5 || rp.bottom > rc.bottom + 0.5)
+                  out.push((c.querySelector('.ctitle')||{}).textContent||'?');
+              }
+              return out;}""")]
+        if rognees:
+            echecs.append(f"R47 a card clips its poster: {rognees[:3]}")
+        else:
+            print("  R47     no card clips its poster — the card grows to it")
+
         executees += 1
         for texte in tronquees:
             echecs.append(f"R48 a reason is truncated: « {texte}… »")

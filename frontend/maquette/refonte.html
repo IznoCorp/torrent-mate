@@ -760,20 +760,24 @@
 
      It used to fill the MEDIAN card — 60.7, hence 42px — and that reference had
      run out: the poster had become what set the median, so re-running the
-     computation returned its own answer. The reference is now the card that
-     carries a SYNOPSIS, and that is not a percentile: it is the one shape whose
-     purpose is recognising a medium from its picture, which is exactly the job
-     a 42px poster was too small for. 49px, and the compact cards rise from 83
-     to 93.
+     computation returned its own answer.
 
-     The two neighbours, for whoever wants another notch: the card carrying a
-     REASON gives 58px, and the fullest card of all gives 63px — which is also
-     what sizing against the median LIST rather than the median card gives, the
-     population being bimodal. Everything here is a shape the interface really
-     draws; nothing in between is derived from anything. */
+     Then it filled the card carrying a SYNOPSIS: 49px. That was still the wrong
+     question. The derivation was pinned to the TEXT beside the poster, so the
+     poster could never grow past it — while the constraint it was respecting,
+     card height, had been explicitly lifted. A card may be taller. 49px read as
+     unchanged on a phone, and it was: seven pixels.
+
+     The reference is the card that EXPLAINS — title, sub-line, reason — which is
+     58px. It is a shape the interface really draws, it is +38% over the original
+     42, and it stops short of the fullest card's 63px, which is the +50% already
+     judged too much. Where a card's own text is shorter than that, the CARD
+     grows: `.ctop` takes the poster as its floor. Nothing in between these
+     notches is derived from anything, and a number nobody derived is a number
+     nobody can defend. */
 
   .dossier {
-    width: 49px;
+    width: 58px;
     flex: 0 0 auto;
     aspect-ratio: 2 / 3;
     display: grid;
@@ -798,7 +802,7 @@
   }
   .poster {
     flex: 0 0 auto;
-    width: 49px;
+    width: 58px;
     aspect-ratio: 2/3;
     border-radius: 4px;
     background: var(--muted);

@@ -40,6 +40,8 @@ when the defect comes back.
 | B-005 | ~~A long press on a poster raises the browser's own menu~~ | 2× | `to confirm` |
 | B-006 | ~~Two different sign-in screens: arrival and sign-out~~ | 1× | `to confirm` |
 | B-007 | ~~`--accent` referenced 11 times, defined nowhere~~ | 1× | `to confirm` |
+| B-008 | The card poster should bleed to three edges of the card | 1× | `open` |
+| B-009 | Swiping a media card should reveal its quick actions | 1× | `open` |
 
 ---
 
@@ -265,6 +267,45 @@ renders "something".
 **What closing it requires.** Define the accent once, or point the eleven references at
 `--primary`; then a rule collecting every `var(--…)` in the file and failing on any name never
 defined. Seven other references live outside the login screen and must be checked with it.
+
+---
+
+## B-008 — The card poster should bleed to three edges of the card
+
+**Reported** 1×. **Status** `open`.
+
+**Asked for.** The poster grows by DROPPING the padding around it: it touches the card's top, left
+and bottom edges. The rest of the card's content keeps its margins.
+
+**Why this is the right shape and not just a bigger number.** B-001 sized the poster against the
+text column and then against a card-anatomy notch, and both are the same kind of answer — a
+fraction of something else. Bleeding it to three edges makes the CARD the measure: the poster is
+as tall as the card, whatever the card's content makes the card. There is nothing left to derive.
+
+**What closing it requires.** The poster spans the card's own height with no padding on three
+sides, its corner radius follows the card's on the two corners it now owns, and the text column
+keeps its padding. A rule that measures the poster's box against the CARD's box — top, left and
+bottom flush — so restoring a margin fails.
+
+---
+
+## B-009 — Swiping a media card should reveal its quick actions
+
+**Reported** 1×. **Status** `open`.
+
+**Asked for.** A media card answers a horizontal swipe, left and right, revealing its quick
+actions. The tap that opens the bottom panel keeps working; the two gestures are scoped so neither
+steals the other.
+
+**What is already there.** Follow rows answer a swipe today (`souris.py` measures
+`matrix(1,0,0,1,-168,0)`), and the deck answers one. What is asked is the same gesture on the
+media card, alongside the tap that opens the panel — which is exactly where a scope conflict
+lives: a horizontal drag must not fire the tap, and a tap must not be read as a drag.
+
+**What closing it requires.** The swipe reads the touch stream and claims only the horizontal axis,
+so a vertical scroll still scrolls; a drag past the threshold never fires the card's click; the
+panel still opens on a plain tap. Rules driven with a real finger for all three, and a mutation for
+each — the axis unclaimed, the click not swallowed, the threshold dropped to nothing.
 
 ---
 
