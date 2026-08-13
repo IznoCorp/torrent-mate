@@ -13,7 +13,7 @@ touched **once, at the end**, after everything has been validated together. Non-
 
 Read, in this order:
 
-1. `frontend/maquette/README.md` — the prototype's contract, the 54 named states, the rule set,
+1. `frontend/maquette/README.md` — the prototype's contract, its named states, the rule set,
    and the traps already paid for. It is short and it saves days.
 2. `docs/superpowers/specs/2026-08-10-refonte-mobile-quatre-pages-design.md` — §7 is the parity
    methodology and is the part that matters most.
@@ -38,7 +38,7 @@ it Chrome falls back to the legacy 980px layout viewport and every measurement i
 cd frontend/maquette/harness
 for s in sweep scen states audit audit2 cartes export bugs inter suivis sel scroll filtres \
          actions dest ident pop galerie deck surfaces souris chrome demarrage deconnexion \
-         doigt panneau decision pwa; do
+         doigt panneau decision installation retour reglages pwa; do
   /Users/izno/.pyenv/versions/3.11.9/bin/python3 $s.py > /dev/null || echo "FAILED: $s"
 done
 ```
@@ -151,7 +151,7 @@ the audit that motivated it was done. Neither replaces a phase.
 ## What the prototype already settles
 
 These were argued, measured and recorded. Re-opening one costs a day; the reasons are in
-`frontend/maquette/regions.json` → `$adversarialReview` (57 rules) and `$methodLessons` (36).
+`frontend/maquette/regions.json` → `$adversarialReview` (61 rules) and `$methodLessons` (37).
 
 - **The prototype is the reference.** A divergence between the app and it is a defect in the app,
   unless the prototype was amended first with the reason written down.
