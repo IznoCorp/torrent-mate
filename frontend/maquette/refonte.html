@@ -15238,36 +15238,43 @@
     document.querySelector("#splash").hidden = true;
   }
 
-  /* How long the screen covers the wait, and what ends it.
+  /* What the startup screen covers, and what ends it.
 
-     The screen exists to cover the gap between signing in and an interface
-     being there. In the APP that gap is a real fetch; in the prototype there is
-     nothing to fetch, so the first render returns immediately — and dropping
-     the screen on that line put it on screen for a single frame. It was
-     measurable only by driving to its named state, which is why every rule
-     agreed it worked.
+     It covers ONE wait: the gap between asking for the application and having
+     an interface. That gap is the document — several megabytes, seconds on a
+     phone — and it spans two pages: the gate paints the screen when the form is
+     submitted, the new document paints it again from its own markup, and the
+     operator sees one continuous screen across a navigation.
 
-     So the wait is declared rather than observed: something resolves it, and
-     the screen leaves WHEN IT RESOLVES. Here that is a timer of the same length
-     as the bar; where the file is served from, it is the fetch. Either way the
-     early exit is real — resolving sooner ends the screen sooner — and both
-     paths are the same code. */
+     What ends it is the interface being there. Not a timer: held on one, the
+     bar filled once while the document downloaded and then RESTARTED from zero
+     in a document that was already rendered. A screen that covers nothing is
+     not a startup screen, it is a delay.
+
+     The bar's five seconds are its PACE, not a floor — how long a full load is
+     budgeted, so a bar half full means half way. A load that ends sooner ends
+     the screen sooner, and that is not a second path: it is the same promise
+     resolving. */
   const DEMARRAGE_MS = 5000;
   let finDuChargement = null;
 
   /* Shows the screen and leaves it up until the wait it covers resolves.
 
-     `window.__chargementTermine()` is the seam: here it is called by a timer of
-     the same length as the bar, because nothing is being fetched; where the file
-     is served from, whatever really knows the interface is ready calls it. The
-     early exit is not a second path — resolving sooner simply ends it sooner. */
+     `window.__chargementTermine()` is the seam: whatever really knows the
+     interface is ready calls it. A duration is passed only where the wait is
+     PLAYED rather than observed — the sign-in inside the prototype, which
+     fetches nothing and has to show what the real one looks like. */
+  window.__chargementTermine = () => {
+    finDuChargement?.();
+    finDuChargement = null;
+    masquerDemarrage();
+  };
+
   function couvrirLeChargement(duree = DEMARRAGE_MS) {
     afficherDemarrage();
-    const attente = new Promise((resoudre) => {
+    new Promise((resoudre) => {
       finDuChargement = resoudre;
-    });
-    window.__chargementTermine = () => finDuChargement?.();
-    attente.then(masquerDemarrage);
+    }).then(masquerDemarrage);
     window.setTimeout(() => window.__chargementTermine(), duree);
   }
 
@@ -38853,10 +38860,7 @@
      to cover — but it does not come off on that line. It comes off when the
      wait it covers RESOLVES, which is the only rule that serves both a
      prototype with nothing to fetch and an app with a real one. */
-  /* Nothing is fetched here, so the wait the screen covers is played out at the
-     length the bar announces. The interface underneath is already rendered: the
-     screen is covering a wait, not hiding an unfinished page. */
-  couvrirLeChargement();
+  window.__chargementTermine();
   /* The guard is the FIRST entry, and the opening page sits on top of it. It
      cannot be anywhere else: nothing can be inserted below the entry a
      document opens on, so the guard has to BE that entry. */

@@ -42,6 +42,7 @@ when the defect comes back.
 | B-007 | ~~`--accent` referenced 11 times, defined nowhere~~ | 1× | `to confirm` |
 | B-008 | ~~The card poster should bleed to the card's edges~~ | 1× | `to confirm` |
 | B-009 | ~~Swiping a media card should reveal its quick actions~~ | 1× | `to confirm` |
+| B-012 | ~~The startup screen plays a second time once loaded~~ | 1× | `to confirm` |
 | B-010 | ~~Only one row open at a time~~ | 1× | `to confirm` |
 | B-011 | ~~The drawer renders wrong on iOS~~ | 1× | `to confirm` |
 
@@ -353,6 +354,32 @@ lives: a horizontal drag must not fire the tap, and a tap must not be read as a 
 so a vertical scroll still scrolls; a drag past the threshold never fires the card's click; the
 panel still opens on a plain tap. Rules driven with a real finger for all three, and a mutation for
 each — the axis unclaimed, the click not swallowed, the threshold dropped to nothing.
+
+---
+
+## B-012 — The startup screen plays a second time once loaded
+
+**Reported** 1×. **Status** `to confirm`.
+
+**What happened.** The screen covers one wait — the gap between asking for the application and
+having an interface — and that wait spans TWO pages: the gate paints the screen when the form is
+submitted, then the new document paints it again from its own markup. Held on a timer in the new
+document, the bar filled once while the document downloaded and then restarted from zero on an
+interface that was already rendered.
+
+**This is my own over-correction.** Closing B-002 I gave the boot a five-second timer so the bar
+could be seen; that turned the pace into a floor, and a floor in a document that is already
+rendered is a delay, not a startup screen. What ends the screen is the interface being there. The
+five seconds remain the bar's PACE — a bar half full means half way — and a duration is passed
+only where the wait is played rather than observed, which is the sign-in inside the prototype.
+
+**One implementation trap on the way.** The seam that ends the screen was declared inside the
+function that plays a wait, so at boot it did not exist at all and the screen never came off.
+
+Rule R53 corrected, `harness/demarrage.py` — 27 checks, three mutations proven: the timer back at
+boot (the reported defect), the screen never painted, the played sign-in made instant. The rule
+itself has now been wrong in both directions, and both times it said what the code did instead of
+what the screen is for.
 
 ---
 

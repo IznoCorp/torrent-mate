@@ -160,17 +160,18 @@ async def main():
                 restants.append(etat)
         verifier(f"absent des {len(etats) - 1} autres états", not restants, ", ".join(restants))
 
-        # 4. It is ON SCREEN when the document has loaded, without the harness
-        #    driving it. This check used to assert the opposite — that the first
-        #    render had already dropped it — which is how a rule came to CERTIFY
-        #    the defect: the screen flashed for one frame and the suite called
-        #    that conformity. What a rule asserts is a decision, and asserting
-        #    the current behaviour is not the same as asserting the intended one.
+        # 4. Once the document has loaded there is nothing left to cover, so the
+        #    screen is gone. This check has been wrong in BOTH directions: it
+        #    first asserted the current behaviour — a screen that flashed for one
+        #    frame — and called that conformity; then it demanded a floor, which
+        #    made the bar play a second time in a document that was already
+        #    rendered. What it asserts now is what the screen is FOR.
         page2 = await ctx.new_page()
         await page2.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
-        verifier("encore là quand le document a fini de charger",
+        await page2.wait_for_timeout(400)
+        verifier("parti une fois le document chargé — il ne couvre plus rien",
                  await page2.evaluate(
-                     "()=>getComputedStyle(document.querySelector('#splash')).display!=='none'"))
+                     "()=>getComputedStyle(document.querySelector('#splash')).display==='none'"))
         await page2.close()
 
         # 5. The gate the server builds shows the SAME screen, and reveals it on
@@ -237,61 +238,85 @@ async def main():
             serveur.wait(timeout=5)
 
         # ── THE COLD LOAD, the only one an operator ever sees ──────────────
-        # Every check above drives the screen up with `__go`. It was ALSO
-        # dropped synchronously on the line after the first render, so on a real
-        # load it lasted one frame — visible at t=0, gone by 300ms — and no rule
-        # noticed, because none had ever loaded the document and watched.
+        # The screen covers ONE wait: the gap between asking for the application
+        # and having an interface. That gap is the document itself — several
+        # megabytes — and it spans two pages: the gate paints the screen on
+        # submit, the new document paints it again from its own markup, and the
+        # operator sees one continuous screen across a navigation.
+        #
+        # Held on a TIMER here, the bar filled once while the document
+        # downloaded and then restarted from zero in a document that was already
+        # rendered. It was reported as loading twice, and it was. This checks
+        # the screen is up on the first frame and comes off when the interface
+        # is there — not after a fixed delay, which is what a rule of mine
+        # demanded and what put the second bar on screen.
         froide = await ctx.new_page()
         await froide.goto("http://127.0.0.1:8899/wrapped.html", wait_until="commit")
         depart = time.monotonic()
         releves = []
-        while time.monotonic() - depart < 7:
+        while time.monotonic() - depart < 3:
             releves.append((round((time.monotonic() - depart) * 1000),
-                            await froide.evaluate("""()=>{
-              const s = document.querySelector('#splash');
-              const i = document.querySelector('.splashbar i');
-              const b = document.querySelector('.splashbar');
-              return {vu: !!s && !s.hidden,
-                      part: i && b ? i.getBoundingClientRect().width /
-                                     b.getBoundingClientRect().width : 0};}""")))
-            await froide.wait_for_timeout(250)
+                            await froide.evaluate(
+                                "()=>{const s=document.querySelector('#splash');"
+                                "return s ? !s.hidden : null;}")))
+            await froide.wait_for_timeout(60)
 
-        vus = [(t, e) for t, e in releves if e["vu"]]
-        verifier("l'écran de démarrage couvre un chargement à froid",
-                 bool(vus) and vus[0][0] < 600,
-                 f"première vue à {vus[0][0] if vus else '—'}ms")
-        verifier("et il tient plusieurs secondes, pas une image",
-                 bool(vus) and vus[-1][0] >= 4000,
-                 f"dernière vue à {vus[-1][0] if vus else '—'}ms")
-
-        # The bar is READ, not assumed: an animation declared at 5s in the
-        # stylesheet and painted on nothing would satisfy any static check.
-        parts = [e["part"] for _, e in vus]
-        verifier("la barre avance sans jamais reculer",
-                 all(b >= a - 0.02 for a, b in zip(parts, parts[1:])),
-                 str([round(x, 2) for x in parts[:6]]))
-        pleine = [e["part"] for t, e in vus if t >= 4500]
-        verifier("et elle est pleine au bout de cinq secondes",
-                 bool(pleine) and max(pleine) > 0.9,
-                 f"{max(pleine):.0%}" if pleine else "aucun relevé")
-        partis = [t for t, e in releves if not e["vu"] and t > 1000]
-        verifier("puis l'écran part quand l'attente est finie",
-                 bool(partis) and 4500 < partis[0] < 6500,
-                 f"parti à {partis[0] if partis else '—'}ms")
+        vus = [t for t, v in releves if v]
+        verifier("l'écran de démarrage est là dès la première image",
+                 bool(vus) and vus[0] < 400, f"première vue à {vus[0] if vus else '—'}ms")
+        partis = [t for t, v in releves if v is False and t > (vus[0] if vus else 0)]
+        verifier("et il part dès que l'interface est là",
+                 bool(partis) and partis[0] < 1500,
+                 f"parti à {partis[0] if partis else 'jamais'}ms")
+        verifier("il ne revient pas une seconde fois",
+                 not [t for t, v in releves if v and partis and t > partis[0]],
+                 str([t for t, v in releves if v and partis and t > partis[0]][:3]))
         await froide.close()
 
-        # ── and it leaves EARLY when the load finishes early ───────────────
-        # Not a second path: the same promise, resolved sooner.
-        tot = await ctx.new_page()
-        await tot.goto("http://127.0.0.1:8899/wrapped.html", wait_until="commit")
-        await tot.wait_for_timeout(800)
-        avant = await tot.evaluate("()=>!document.querySelector('#splash').hidden")
-        await tot.evaluate("()=>window.__chargementTermine()")
-        await tot.wait_for_timeout(300)
-        apres = await tot.evaluate("()=>!document.querySelector('#splash').hidden")
+        # ── where the wait is PLAYED, it lasts what the bar announces ───────
+        # Signing in inside the prototype fetches nothing, so the wait that
+        # follows has to be played out to be judged at all. Same screen, same
+        # seam, a duration instead of an observation.
+        joue = await ctx.new_page()
+        await joue.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
+        await joue.evaluate("()=>window.__chargementTermine?.()")
+        await joue.evaluate("()=>window.__go('connexion')")
+        await joue.wait_for_timeout(350)
+        await joue.evaluate("""()=>{
+          document.querySelector('[name=identifiant]').value = 'izno';
+          document.querySelector('[name=motdepasse]').value = 'x';
+          document.querySelector('#loginform').requestSubmit();}""")
+        t1 = time.monotonic()
+        suite = []
+        while time.monotonic() - t1 < 7:
+            suite.append((round((time.monotonic() - t1) * 1000),
+                          await joue.evaluate(
+                              "()=>{const s=document.querySelector('#splash');"
+                              "return s ? !s.hidden : null;}")))
+            await joue.wait_for_timeout(120)
+        montes = [t for t, v in suite if v]
+        tombes = [t for t, v in suite if v is False and montes and t > montes[0]]
+        verifier("une connexion dans le prototype couvre l'attente",
+                 bool(montes) and montes[0] < 500, f"à {montes[0] if montes else '—'}ms")
+        verifier("et elle dure ce que la barre annonce",
+                 bool(tombes) and 4500 < tombes[0] < 6500,
+                 f"parti à {tombes[0] if tombes else 'jamais'}ms")
+
+        # The seam ends it early, which is the same promise resolving sooner.
+        await joue.evaluate("()=>window.__go('connexion')")
+        await joue.wait_for_timeout(300)
+        await joue.evaluate("""()=>{
+          document.querySelector('[name=identifiant]').value = 'izno';
+          document.querySelector('[name=motdepasse]').value = 'x';
+          document.querySelector('#loginform').requestSubmit();}""")
+        await joue.wait_for_timeout(700)
+        avant = await joue.evaluate("()=>!document.querySelector('#splash').hidden")
+        await joue.evaluate("()=>window.__chargementTermine()")
+        await joue.wait_for_timeout(300)
+        apres = await joue.evaluate("()=>!document.querySelector('#splash').hidden")
         verifier("un chargement qui finit tôt fait partir l'écran tôt",
-                 avant and not apres, f"à 800ms: {avant}, après résolution: {apres}")
-        await tot.close()
+                 avant and not apres, f"à 700ms: {avant}, après résolution: {apres}")
+        await joue.close()
 
         await b.close()
 
