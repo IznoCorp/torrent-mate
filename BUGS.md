@@ -34,7 +34,7 @@ when the defect comes back.
 | ID | Defect | Reported | Status |
 | --- | --- | --- | --- |
 | B-001 | The list poster is still too small | 2× | `open` |
-| B-002 | The startup bar is never seen on a real load | 2× | `open` |
+| B-002 | ~~The startup bar is never seen on a real load~~ | 2× | `to confirm` |
 | B-003 | In Arrivées a poster does not lead where a poster leads | 2× | `open` |
 | B-004 | ~~Dragging the sheet handle down no longer closes the panel~~ | 2× | `to confirm` |
 | B-005 | ~~A long press on a poster raises the browser's own menu~~ | 2× | `to confirm` |
@@ -67,7 +67,21 @@ poster to a share of the CARD, not of the text column, so shrinking it back is a
 
 ## B-002 — The startup bar is never seen on a real load
 
-**Reported** 2×. **Status** `open`.
+**Reported** 2×. **Status** `to confirm`.
+
+**Fixed.** The screen now comes off when the wait it covers RESOLVES, through a named seam
+(`window.__chargementTermine()`) called by a timer the length of the bar here and by whatever
+knows the interface is ready in the app. The early exit is not a second path: resolving sooner
+ends it sooner. Measured on a cold load: visible at 0 ms, still up at 5.1 s, the bar monotonic
+from 0 to 99 %, gone at 5.4 s; and resolving at 800 ms ends it at once. Rule R53 extended,
+`harness/demarrage.py` — 27 checks, three mutations proven: the screen dropped on the first
+render (the original defect), the bar filling in one second, the seam made inert.
+
+**A rule was asserting the defect.** « retiré par le premier rendu, sans le harnais » certified
+that the screen vanished immediately, and the suite called that conformity. What a rule asserts is
+a decision — writing down the behaviour that exists is not the same as writing down the one that
+is wanted. Twenty-eight harness scripts now close the startup wait through the same seam rather
+than racing it.
 
 **What happens.** Measured on a cold load: at the first frame the splash is visible with the bar
 at 0.4 px; by 300 ms it is **hidden** and the bar reset to 0 %. The five-second fill exists and

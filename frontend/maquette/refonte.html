@@ -14779,6 +14779,39 @@
     document.querySelector("#splash").hidden = true;
   }
 
+  /* How long the screen covers the wait, and what ends it.
+
+     The screen exists to cover the gap between signing in and an interface
+     being there. In the APP that gap is a real fetch; in the prototype there is
+     nothing to fetch, so the first render returns immediately — and dropping
+     the screen on that line put it on screen for a single frame. It was
+     measurable only by driving to its named state, which is why every rule
+     agreed it worked.
+
+     So the wait is declared rather than observed: something resolves it, and
+     the screen leaves WHEN IT RESOLVES. Here that is a timer of the same length
+     as the bar; where the file is served from, it is the fetch. Either way the
+     early exit is real — resolving sooner ends the screen sooner — and both
+     paths are the same code. */
+  const DEMARRAGE_MS = 5000;
+  let finDuChargement = null;
+
+  /* Shows the screen and leaves it up until the wait it covers resolves.
+
+     `window.__chargementTermine()` is the seam: here it is called by a timer of
+     the same length as the bar, because nothing is being fetched; where the file
+     is served from, whatever really knows the interface is ready calls it. The
+     early exit is not a second path — resolving sooner simply ends it sooner. */
+  function couvrirLeChargement(duree = DEMARRAGE_MS) {
+    afficherDemarrage();
+    const attente = new Promise((resoudre) => {
+      finDuChargement = resoudre;
+    });
+    window.__chargementTermine = () => finDuChargement?.();
+    attente.then(masquerDemarrage);
+    window.setTimeout(() => window.__chargementTermine(), duree);
+  }
+
   document
     .querySelector("#loginform")
     .addEventListener("submit", (evenement) => {
@@ -14795,11 +14828,9 @@
       }
       masquerConnexion();
       /* What actually follows a sign-in: the interface is not there yet, and
-         the wait is covered rather than left blank. Here it is played out on a
-         timer, because nothing is being fetched; where the file is served from,
-         it lasts exactly as long as the load does. */
-      afficherDemarrage();
-      window.setTimeout(masquerDemarrage, 1100);
+         the wait is covered rather than left blank — by the same screen, ended
+         the same way, as the one a cold load puts up. */
+      couvrirLeChargement();
     });
 
   /* Install proposal — two platforms, two paths.
@@ -38291,10 +38322,13 @@
 
   render();
   /* The interface exists from here on, so the startup screen has nothing left
-     to cover. It is dropped SYNCHRONOUSLY after the first render rather than on
-     a timer: a timer would either uncover a frame that is not drawn yet or hold
-     a ready interface hostage, and both are visible. */
-  masquerDemarrage();
+     to cover — but it does not come off on that line. It comes off when the
+     wait it covers RESOLVES, which is the only rule that serves both a
+     prototype with nothing to fetch and an app with a real one. */
+  /* Nothing is fetched here, so the wait the screen covers is played out at the
+     length the bar announces. The interface underneath is already rendered: the
+     screen is covering a wait, not hiding an unfinished page. */
+  couvrirLeChargement();
   /* The guard is the FIRST entry, and the opening page sits on top of it. It
      cannot be anywhere else: nothing can be inserted below the entry a
      document opens on, so the guard has to BE that entry. */

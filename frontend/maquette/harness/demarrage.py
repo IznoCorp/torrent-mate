@@ -160,13 +160,17 @@ async def main():
                 restants.append(etat)
         verifier(f"absent des {len(etats) - 1} autres états", not restants, ", ".join(restants))
 
-        # 4. It also comes off on its own, without the harness driving it: the
-        #    document opens ON the startup screen and the first render drops it.
+        # 4. It is ON SCREEN when the document has loaded, without the harness
+        #    driving it. This check used to assert the opposite — that the first
+        #    render had already dropped it — which is how a rule came to CERTIFY
+        #    the defect: the screen flashed for one frame and the suite called
+        #    that conformity. What a rule asserts is a decision, and asserting
+        #    the current behaviour is not the same as asserting the intended one.
         page2 = await ctx.new_page()
         await page2.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
-        verifier("retiré par le premier rendu, sans le harnais",
+        verifier("encore là quand le document a fini de charger",
                  await page2.evaluate(
-                     "()=>getComputedStyle(document.querySelector('#splash')).display==='none'"))
+                     "()=>getComputedStyle(document.querySelector('#splash')).display!=='none'"))
         await page2.close()
 
         # 5. The gate the server builds shows the SAME screen, and reveals it on
@@ -231,6 +235,63 @@ async def main():
         finally:
             serveur.terminate()
             serveur.wait(timeout=5)
+
+        # ── THE COLD LOAD, the only one an operator ever sees ──────────────
+        # Every check above drives the screen up with `__go`. It was ALSO
+        # dropped synchronously on the line after the first render, so on a real
+        # load it lasted one frame — visible at t=0, gone by 300ms — and no rule
+        # noticed, because none had ever loaded the document and watched.
+        froide = await ctx.new_page()
+        await froide.goto("http://127.0.0.1:8899/wrapped.html", wait_until="commit")
+        depart = time.monotonic()
+        releves = []
+        while time.monotonic() - depart < 7:
+            releves.append((round((time.monotonic() - depart) * 1000),
+                            await froide.evaluate("""()=>{
+              const s = document.querySelector('#splash');
+              const i = document.querySelector('.splashbar i');
+              const b = document.querySelector('.splashbar');
+              return {vu: !!s && !s.hidden,
+                      part: i && b ? i.getBoundingClientRect().width /
+                                     b.getBoundingClientRect().width : 0};}""")))
+            await froide.wait_for_timeout(250)
+
+        vus = [(t, e) for t, e in releves if e["vu"]]
+        verifier("l'écran de démarrage couvre un chargement à froid",
+                 bool(vus) and vus[0][0] < 600,
+                 f"première vue à {vus[0][0] if vus else '—'}ms")
+        verifier("et il tient plusieurs secondes, pas une image",
+                 bool(vus) and vus[-1][0] >= 4000,
+                 f"dernière vue à {vus[-1][0] if vus else '—'}ms")
+
+        # The bar is READ, not assumed: an animation declared at 5s in the
+        # stylesheet and painted on nothing would satisfy any static check.
+        parts = [e["part"] for _, e in vus]
+        verifier("la barre avance sans jamais reculer",
+                 all(b >= a - 0.02 for a, b in zip(parts, parts[1:])),
+                 str([round(x, 2) for x in parts[:6]]))
+        pleine = [e["part"] for t, e in vus if t >= 4500]
+        verifier("et elle est pleine au bout de cinq secondes",
+                 bool(pleine) and max(pleine) > 0.9,
+                 f"{max(pleine):.0%}" if pleine else "aucun relevé")
+        partis = [t for t, e in releves if not e["vu"] and t > 1000]
+        verifier("puis l'écran part quand l'attente est finie",
+                 bool(partis) and 4500 < partis[0] < 6500,
+                 f"parti à {partis[0] if partis else '—'}ms")
+        await froide.close()
+
+        # ── and it leaves EARLY when the load finishes early ───────────────
+        # Not a second path: the same promise, resolved sooner.
+        tot = await ctx.new_page()
+        await tot.goto("http://127.0.0.1:8899/wrapped.html", wait_until="commit")
+        await tot.wait_for_timeout(800)
+        avant = await tot.evaluate("()=>!document.querySelector('#splash').hidden")
+        await tot.evaluate("()=>window.__chargementTermine()")
+        await tot.wait_for_timeout(300)
+        apres = await tot.evaluate("()=>!document.querySelector('#splash').hidden")
+        verifier("un chargement qui finit tôt fait partir l'écran tôt",
+                 avant and not apres, f"à 800ms: {avant}, après résolution: {apres}")
+        await tot.close()
 
         await b.close()
 

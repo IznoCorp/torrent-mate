@@ -10,6 +10,10 @@ async def main():
     # loudest evidence there is.
     pg.on("pageerror", lambda e: errs.append(str(e)))
     await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
+    # The startup screen covers the frame for as long as the load it stands
+    # for lasts. Nothing is being fetched here, so the harness closes that
+    # wait through the same seam the app uses, rather than sleeping it out.
+    await pg.evaluate("()=>window.__chargementTermine?.()")
     await pg.evaluate("()=>window.__measure(true)")
     etats=await pg.evaluate("()=>window.__states()")
     sans=[]
