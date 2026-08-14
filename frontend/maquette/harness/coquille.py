@@ -58,6 +58,13 @@ RECTS = """(sels) => {
   return sortie;
 }"""
 
+# The HOST's half of the PWA contract: serve.py synthesizes these routes
+# (and the browser asks for favicon.ico uninvited). A static server serving
+# the same document legitimately lacks them, and R52 (pwa.py) already holds
+# them against the live host — excluding them here keeps this guard sharp
+# for every URL the prototype itself references, the assets above all.
+ROUTES_HOTE = ("/favicon.ico", "/favicon.svg", "/sw.js", "/manifest.webmanifest")
+
 
 def construire(journal):
     """Runs the build, installing first only when node_modules is absent."""
@@ -97,7 +104,7 @@ async def ouvrir_page(navigateur, url, erreurs):
     # environment, never the prototype's. Every URL the prototype itself
     # requests (the assets above all) stays guarded.
     pg.on("response", lambda r: erreurs.append(f"{url}: {r.status} {r.url}")
-          if r.status >= 400 and not r.url.endswith("/favicon.ico") else None)
+          if r.status >= 400 and not r.url.endswith(ROUTES_HOTE) else None)
     await pg.goto(url, wait_until="load")
     await pg.evaluate("()=>window.__chargementTermine?.()")
     await pg.evaluate("()=>document.querySelector('#toastx')?.click()")

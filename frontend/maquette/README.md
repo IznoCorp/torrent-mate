@@ -18,8 +18,16 @@ sub-project. `npm run build` emits `dist/` (gitignored): the real envelope from 
 with the prototype injected **verbatim** — a local plugin inserts the fragment after Vite's
 own HTML processing, so no minifier ever touches it — and `dist/assets` linked to the real
 files. R72 (`coquille.py`) is the contract: the built output must render identically to the
-source, DOM and geometry, or the shell is lying. The live host still serves the source;
-switching it to the built output is a later, explicit step, taken only while R72 holds.
+source, DOM and geometry, or the shell is lying.
+
+**The live host serves the BUILD.** `serve.py` compares the newest mtime of the build's
+inputs (`refonte.html`, `index.html`, `vite.config.mjs`) against `dist/index.html` and
+rebuilds under a lock before serving (0.4 s measured), so an edit is still visible at the
+next reload. A failed build answers 503 with its own last words — serving the previous
+output would date what is being judged falsely. R73 (`bascule.py`) holds all of it against
+a scratch design root. The harness, meanwhile, keeps measuring the SOURCE through
+`wrapped.html`: that copy is what isolates rule mutations from what the host serves, and
+R72 is the bridge that keeps source and build interchangeable.
 
 It is the operator-approved interactive prototype of the mobile-first interface:
 `/acquisition` (three views), `/mediatheque`, `/arrivees`, `/systeme`, plus the media
@@ -641,6 +649,7 @@ They are committed because they encode recipes that cost time to get right.
 | `images.py`       | R70: the source embeds no image and every `assets/` reference resolves to a file                                                                                                                                                                                                                                                        |
 | `ecrans.py`       | R71: a screen above another one — back redraws the screen it covered (query and scroll included) through both exits, one more back leaves the layer, and a result card carries no inline action in its foot: the panel is the single path to the act                                                                                    |
 | `coquille.py`     | R72: the Vite shell's build renders identically to the source — DOM serialization and region geometry compared per driven state on both pages, and no failed response (4xx/5xx) on either side (the uninvited /favicon.ico miss excepted)                                                                                               |
+| `bascule.py`      | R73: the host serves the build to the byte, rebuilds stale sources before serving, and a broken build answers 503 that says so — proven against a scratch design root, never the real source                                                                                                                                            |
 
 Run them with the Python that carries Playwright, against a local static server on
 **127.0.0.1:8899** — **never** 8710 / 8711, which the reverse proxy routes to prod and

@@ -7,10 +7,10 @@ Served raw as a top-level document it renders in quirks mode, and a phone with
 no viewport meta falls back to the legacy 980px layout viewport and scales the
 frame down to roughly 40 % — measured, not feared.
 
-This server supplies exactly the wrapper the harness builds, so the page a
-browser is shown here is byte-for-byte the page the harness measures. Any
-divergence between the two would make the published design unable to serve as
-the reference it is meant to be.
+This server serves the Vite build (`dist/index.html`), rebuilt when its
+inputs are newer. The harness measures the source through its own copy of the
+design root, and R72 is the bridge that keeps the two interchangeable: both
+read from the same inputs, both emit the same bytes.
 
 It serves one document and nothing else. The directory around the prototype
 holds the extraction contract, the harness and its scratch output; none of that
@@ -38,16 +38,37 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import html
 import http.cookies
 import http.server
 import os
 import secrets
 import socketserver
+import subprocess
 import sys
+import threading
 import urllib.parse
 from pathlib import Path
 
-PROTOTYPE = Path(__file__).resolve().parent / "design" / "refonte.html"
+# The design root is overridable so a harness rule can point the server at a
+# SCRATCH copy and mutate it freely: no measurement may ever write into the
+# operator's real source.
+RACINE_DESIGN = Path(
+    os.environ.get("TM_DESIGN_RACINE")
+    or Path(__file__).resolve().parent / "design"
+).resolve()
+PROTOTYPE = RACINE_DESIGN / "refonte.html"
+DIST = RACINE_DESIGN / "dist" / "index.html"
+# What staleness is measured against: every input the build reads.
+SOURCES_BUILD = (
+    PROTOTYPE,
+    RACINE_DESIGN / "index.html",
+    RACINE_DESIGN / "vite.config.mjs",
+)
+NPM = "/Users/izno/.nvm/versions/node/v22.13.1/bin/npm"
+# Overridable so the timeout path itself can be proven live, the same way
+# TM_DESIGN_RACINE lets a rule serve a scratch root.
+DELAI_BUILD = float(os.environ.get("TM_DESIGN_DELAI_BUILD") or 120)
 
 IDENTIFIANT = os.environ.get("TM_DESIGN_USER", "izno")
 
@@ -169,42 +190,31 @@ HORS_LIGNE = (
     "du jour.</p></div></body></html>"
 ).encode()
 
-# Everything that makes a document installable, declared ONCE and carried by
-# every document this server hands out.
-#
-# It used to sit on the prototype alone, and the prototype is behind the
-# session. A phone therefore never met an installable page: the only document
-# it could reach before signing in was the login gate, and a browser reads the
-# manifest of the page in front of it, never one waiting behind a cookie. The
-# install prompt had nothing to offer, so it never appeared.
-TETE_PWA = (
-    '<link rel="manifest" href="/manifest.webmanifest">'
-    '<meta name="theme-color" content="#0b0b0d">'
-    '<link rel="apple-touch-icon" href="/apple-touch-icon.png">'
-    '<link rel="icon" href="/favicon.svg" type="image/svg+xml">'
-    # iOS reads neither the manifest's display nor its short_name: standalone
-    # mode and the home-screen label are declared with these two, or the icon
-    # opens a Safari tab instead of an app.
-    '<meta name="apple-mobile-web-app-capable" content="yes">'
-    '<meta name="mobile-web-app-capable" content="yes">'
-    '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">'
-    # iOS reads this and never the manifest's short_name, so the distinct name
-    # has to be repeated here or the home-screen label falls back to the page
-    # title — which is what put two « TorrentMate » side by side.
-    '<meta name="apple-mobile-web-app-title" content="TorrentMate Design">'
-    '<script>if("serviceWorker" in navigator)'
-    'addEventListener("load",()=>navigator.serviceWorker.register("/sw.js"));</script>'
-)
+ENVELOPPE = RACINE_DESIGN / "index.html"
 
-HEAD = (
-    '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
-    '<meta name="viewport" '
-    'content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">'
-    "<title>TorrentMate Design</title>"
-    f"{TETE_PWA}"
-    "</head><body>"
-).encode()
-TAIL = b"</body></html>"
+
+def tete_pwa() -> str:
+    """Returns the PWA head block, extracted from the envelope.
+
+    The envelope (`design/index.html`) is the document's single source of
+    truth since the host began serving the build; the login gate sits in
+    front of that document and must be installable too, so it borrows the
+    same block rather than restating it — a restated copy is where drift
+    hides (measured twice on the login screen's styles).
+
+    Raises:
+        ValueError: When the markers are missing — the gate must fail loudly
+            rather than serve a page that silently lost its installability.
+        FileNotFoundError: When the envelope itself is absent.
+    """
+    source = ENVELOPPE.read_text()
+    debut = source.find("pwa:start")
+    fin = source.find("<!-- pwa:end -->")
+    ouvre = source.find("-->", debut, fin)
+    if debut < 0 or fin < 0 or fin < debut or ouvre < 0:
+        raise ValueError("marqueurs pwa introuvables dans design/index.html")
+    return source[ouvre + 3 : fin]
+
 
 MANQUANT = (
     '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
@@ -217,6 +227,34 @@ MANQUANT = (
     "est en dépôt. Revenir sur la branche qui le porte le remet en ligne "
     "aussitôt.</p></body></html>"
 ).encode()
+
+
+def panne_build(erreur: str) -> bytes:
+    """Builds the 503 shown when the build fails.
+
+    Serving the PREVIOUS build instead would be a stale reference wearing
+    today's date — the exact failure a design host exists to avoid. The page
+    says what broke, with the build's own last words.
+
+    Args:
+        erreur: The error message from the failed build, typically stderr output.
+
+    Returns:
+        A complete HTML 503 error page as bytes, with the error escaped.
+    """
+    return (
+        '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        "<title>Build en échec</title></head><body "
+        'style="font:16px system-ui;max-width:44em;margin:12vh auto;padding:0 1.5em">'
+        "<h1>Le build de la maquette a échoué</h1><p>Le serveur reconstruit le "
+        "document à chaque source modifiée ; cette reconstruction vient "
+        "d'échouer, et servir l'ancienne version serait mentir sur la date de "
+        "ce que vous jugez.</p><pre style=\"white-space:pre-wrap;background:#f6f6f6;"
+        'padding:12px;border-radius:8px">'
+        f"{html.escape(erreur)}"
+        "</pre></body></html>"
+    ).encode()
 
 
 def extraire(source: str, marque: str) -> str:
@@ -306,7 +344,7 @@ def page_connexion(refusee: bool) -> bytes:
         '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
         "<title>TorrentMate Design — connexion</title>"
-        f"{TETE_PWA}"
+        f"{tete_pwa()}"
         "<style>"
         f"{socle}{styles}{ajustements}</style></head><body>{balisage}"
         f"{BASCULE_DEMARRAGE}</body></html>"
@@ -340,29 +378,64 @@ def mot_de_passe_correct(propose: str) -> bool:
 class Handler(http.server.BaseHTTPRequestHandler):
     """Serves the wrapped prototype to a session, the login screen otherwise."""
 
-    # The file is ~15 MB and changes only when the design does, so it is read
-    # once per modification rather than once per request. mtime_ns, not mtime:
-    # a second-resolution stamp misses two edits within the same second, which
-    # is exactly the cadence of an editing session.
+    # The document is the BUILD, reconstructed on demand: comparing the
+    # newest source mtime against dist's answers « is what I would serve
+    # what the sources say? », and 0.4 s of vite build is cheaper than one
+    # stale judgement. mtime_ns, not mtime: a second-resolution stamp
+    # misses two edits within the same second — the cadence of an editing
+    # session. One lock, or two stale requests race the same build.
     _cache: tuple[int, bytes] | None = None
+    _verrou_build = threading.Lock()
 
     protocol_version = "HTTP/1.1"
 
-    def _document(self) -> bytes | None:
-        """Returns the wrapped prototype, or None when the file is absent.
+    def _document(self) -> bytes:
+        """Returns the built document, rebuilding it when sources changed.
 
         Returns:
-            The full HTML document as bytes, or None if `refonte.html` does not
-            exist in the served checkout.
+            The bytes of `dist/index.html`, freshly rebuilt if any build
+            input was newer.
+
+        Raises:
+            FileNotFoundError: When `refonte.html` is absent (branch without
+                the prototype) — the caller answers with MANQUANT.
+            RuntimeError: When the build fails or a build input is missing —
+                the caller answers with the error message, never with a stale
+                document.
         """
+        if not PROTOTYPE.exists():
+            raise FileNotFoundError(PROTOTYPE)
         try:
-            stamp = PROTOTYPE.stat().st_mtime_ns
-        except FileNotFoundError:
-            return None
-        cached = Handler._cache
-        if cached is None or cached[0] != stamp:
-            Handler._cache = (stamp, HEAD + PROTOTYPE.read_bytes() + TAIL)
-        return Handler._cache[1]  # type: ignore[index]
+            sources = max(chemin.stat().st_mtime_ns for chemin in SOURCES_BUILD)
+        except FileNotFoundError as absent:
+            # A missing build INPUT is a build problem, not a missing
+            # prototype: say which file, never the wrong diagnosis.
+            raise RuntimeError(f"entrée du build absente : {absent.filename}")
+        with Handler._verrou_build:
+            try:
+                bati = DIST.stat().st_mtime_ns
+            except FileNotFoundError:
+                bati = -1
+            if bati < sources:
+                try:
+                    fait = subprocess.run(
+                        [NPM, "run", "build"], cwd=RACINE_DESIGN,
+                        capture_output=True, text=True, timeout=DELAI_BUILD)
+                except subprocess.TimeoutExpired:
+                    raise RuntimeError(
+                        f"build interrompu après {DELAI_BUILD:g} s — "
+                        "le processus npm ne répondait plus")
+                if fait.returncode != 0:
+                    queue = (fait.stderr or fait.stdout).strip().splitlines()[-12:]
+                    raise RuntimeError("\n".join(queue))
+            try:
+                stamp = DIST.stat().st_mtime_ns
+            except FileNotFoundError:
+                raise RuntimeError("le build a abouti sans émettre dist/index.html")
+            cached = Handler._cache
+            if cached is None or cached[0] != stamp:
+                Handler._cache = (stamp, DIST.read_bytes())
+            return Handler._cache[1]  # type: ignore[index]
 
     def _authentifie(self) -> bool:
         """Returns True when the request carries a valid session cookie."""
@@ -465,11 +538,23 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self._send(303, b"", [("Location", "/")])
             return
         if not self._authentifie():
-            self._send(401, page_connexion(refusee="refus" in self.path))
+            try:
+                page = page_connexion(refusee="refus" in self.path)
+            except (ValueError, FileNotFoundError) as erreur:
+                # The gate's own inputs (the envelope, the prototype's login
+                # markers) can break under editing; answering nothing would
+                # hide it. Say what broke, like every other failure here.
+                self._send(503, panne_build(str(erreur)))
+                return
+            self._send(401, page)
             return
-        body = self._document()
-        if body is None:
+        try:
+            body = self._document()
+        except FileNotFoundError:
             self._send(503, MANQUANT)
+            return
+        except RuntimeError as erreur:
+            self._send(503, panne_build(str(erreur)))
             return
         self._send(200, body)
 
