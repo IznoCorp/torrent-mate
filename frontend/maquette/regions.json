@@ -522,220 +522,326 @@
   "regions": {
     "acquisition/viewtabs": {
       "selector": ".viewtabs",
-      "states": ["acq-encours-repos"]
+      "states": [
+        "acq-encours-repos"
+      ]
     },
     "acquisition/segment": {
       "selector": ".seg",
-      "states": ["acq-encours-repos"]
+      "states": [
+        "acq-encours-repos"
+      ]
     },
     "acquisition/card": {
       "selector": "[data-testid=\"acq-card\"], .card",
-      "states": ["acq-encours-charge"]
+      "states": [
+        "acq-encours-charge"
+      ]
     },
     "acquisition/strip": {
       "selector": ".strip",
-      "states": ["acq-encours-charge"]
+      "states": [
+        "acq-encours-charge"
+      ]
     },
     "acquisition/section-header": {
       "selector": ".sechead",
-      "states": ["acq-encours-charge"]
+      "states": [
+        "acq-encours-charge"
+      ]
     },
     "acquisition/crossref": {
       "selector": ".crossref",
-      "states": ["acq-encours-charge"]
+      "states": [
+        "acq-encours-charge"
+      ]
     },
     "suivis/filters": {
       "selector": ".filters",
-      "states": ["acq-suivis-liste"]
+      "states": [
+        "acq-suivis-liste"
+      ]
     },
     "suivis/pill": {
       "selector": ".pill",
-      "states": ["acq-suivis-liste"]
+      "states": [
+        "acq-suivis-liste"
+      ]
     },
     "suivis/switcher": {
       "selector": ".vsw",
-      "states": ["acq-suivis-liste"]
+      "states": [
+        "acq-suivis-liste"
+      ]
     },
     "suivis/chip": {
       "selector": ".chip",
-      "states": ["acq-suivis-liste"]
+      "states": [
+        "acq-suivis-liste"
+      ]
     },
     "suivis/tile": {
       "selector": ".tile",
-      "states": ["acq-suivis-grille"]
+      "states": [
+        "acq-suivis-grille"
+      ]
     },
     "suivis/empty": {
       "selector": ".empty",
-      "states": ["acq-suivis-filtre-vide"]
+      "states": [
+        "acq-suivis-filtre-vide"
+      ]
     },
     "decouvrir/card": {
       "selector": ".sug",
-      "states": ["acq-decouvrir"]
+      "states": [
+        "acq-decouvrir"
+      ]
     },
     "decouvrir/degraded": {
       "selector": ".surferr",
-      "states": ["acq-decouvrir-degrade"]
+      "states": [
+        "acq-decouvrir-degrade"
+      ]
     },
     "add/bar": {
       "selector": ".fichebar",
-      "states": ["acq-ajout-resultats"]
+      "states": [
+        "acq-ajout-resultats"
+      ]
     },
     "add/form": {
       "selector": ".addform",
-      "states": ["acq-ajout-resultats"]
+      "states": [
+        "acq-ajout-resultats"
+      ]
     },
     "add/result": {
       "selector": ".reslist .card",
-      "states": ["acq-ajout-resultats"]
+      "states": [
+        "acq-ajout-resultats"
+      ]
     },
     "add/byid": {
       "selector": ".byid",
-      "states": ["acq-ajout-vide"]
+      "states": [
+        "acq-ajout-vide"
+      ]
     },
     "add/footer": {
       "selector": ".addfoot",
-      "states": ["acq-ajout-resultats"]
+      "states": [
+        "acq-ajout-resultats"
+      ]
     },
     "sheet/shell": {
       "selector": ".sheetgrab, .sheettitle, .sheetmeta",
-      "states": ["feuille-suivi-trous"]
+      "states": [
+        "feuille-suivi-trous"
+      ]
     },
     "sheet/actions": {
       "selector": ".sact",
-      "states": ["feuille-suivi-trous"]
+      "states": [
+        "feuille-suivi-trous"
+      ]
     },
     "sheet/season": {
       "selector": ".season",
-      "states": ["feuille-suivi-trous"]
+      "states": [
+        "feuille-suivi-trous"
+      ]
     },
     "sheet/episode-cell": {
       "selector": ".ep",
-      "states": ["feuille-suivi-trous"]
+      "states": [
+        "feuille-suivi-trous"
+      ]
     },
     "sheet/legend": {
       "selector": ".legend",
-      "states": ["feuille-suivi-trous"]
+      "states": [
+        "feuille-suivi-trous"
+      ]
     },
     "library/countline": {
       "selector": ".countline",
-      "states": ["lib-grille"]
+      "states": [
+        "lib-grille"
+      ]
     },
     "library/tile": {
       "selector": ".tile",
-      "states": ["lib-grille"]
+      "states": [
+        "lib-grille"
+      ]
     },
     "library/selection": {
       "selector": ".selbar",
-      "states": ["lib-selection"]
+      "states": [
+        "lib-selection"
+      ]
     },
     "library/skeleton": {
       "selector": ".sk",
-      "states": ["lib-chargement"]
+      "states": [
+        "lib-chargement"
+      ]
     },
     "library/error": {
       "selector": ".surferr",
-      "states": ["lib-erreur"]
+      "states": [
+        "lib-erreur"
+      ]
     },
     "dialog/delete": {
       "selector": ".dlg",
-      "states": ["lib-suppression"]
+      "states": [
+        "lib-suppression"
+      ]
     },
     "dialog/dryrun": {
       "selector": ".dryrun, .manifest, .warnbox",
-      "states": ["lib-suppression"]
+      "states": [
+        "lib-suppression"
+      ]
     },
     "arrivees/live": {
       "selector": ".live",
-      "states": ["arr-charge"]
+      "states": [
+        "arr-charge"
+      ]
     },
     "arrivees/empty": {
       "selector": ".empty",
-      "states": ["arr-repos"]
+      "states": [
+        "arr-repos"
+      ]
     },
     "swipe/actions": {
       "selector": ".actions, .act",
-      "states": ["acq-suivis-liste"]
+      "states": [
+        "acq-suivis-liste"
+      ]
     },
     "toast": {
       "selector": ".toast",
-      "states": ["acq-decouvrir"]
+      "states": [
+        "acq-decouvrir"
+      ]
     },
     "fab": {
       "selector": ".fab",
-      "states": ["acq-encours-repos"]
+      "states": [
+        "acq-encours-repos"
+      ]
     },
     "chassis/topbar": {
       "selector": ".topbar",
-      "states": ["acq-encours-repos"],
+      "states": [
+        "acq-encours-repos"
+      ],
       "$note": "Direction of truth is INVERTED: the app is authoritative for the shell, the prototype for the pages. Measured against the shipped TopBar."
     },
     "chassis/bottombar": {
       "selector": ".bottombar",
-      "states": ["acq-encours-repos"],
+      "states": [
+        "acq-encours-repos"
+      ],
       "$note": "idem"
     },
     "chassis/navbadge": {
       "selector": ".navbadge",
-      "states": ["arr-repos"],
+      "states": [
+        "arr-repos"
+      ],
       "$note": "idem"
     },
     "fiche/hero": {
       "selector": ".hero",
-      "states": ["fiche-serie"]
+      "states": [
+        "fiche-serie"
+      ]
     },
     "fiche/cast": {
       "selector": ".cast",
-      "states": ["fiche-serie"]
+      "states": [
+        "fiche-serie"
+      ]
     },
     "fiche/trailer": {
       "selector": ".trailer",
-      "states": ["fiche-serie"]
+      "states": [
+        "fiche-serie"
+      ]
     },
     "fiche/episode-row": {
       "selector": ".eprow",
-      "states": ["fiche-serie"]
+      "states": [
+        "fiche-serie"
+      ]
     },
     "fiche/cast-photo": {
       "selector": ".cast .ca img",
-      "states": ["fiche-serie"]
+      "states": [
+        "fiche-serie"
+      ]
     },
     "resolution/porte-de-sortie": {
       "selector": "[data-manual]",
-      "states": ["arr-resolution"]
+      "states": [
+        "arr-resolution"
+      ]
     },
     "fiche/non-possede": {
       "selector": ".panel",
-      "states": ["fiche-suggestion-serie"],
+      "states": [
+        "fiche-suggestion-serie"
+      ],
       "$note": "A suggestion is NOT in the library: the block says « non », shows the follow state, and offers to add — never to delete. Same template, with the only variation reality imposes."
     },
     "releases/candidat": {
       "selector": ".rel",
-      "states": ["ecran-releases"]
+      "states": [
+        "ecran-releases"
+      ]
     },
     "profil/critere": {
       "selector": ".qchip",
-      "states": ["ecran-profil"]
+      "states": [
+        "ecran-profil"
+      ]
     },
     "fiche/episode-datee": {
       "selector": ".eprow",
-      "states": ["fiche-sans-trailer"]
+      "states": [
+        "fiche-sans-trailer"
+      ]
     },
     "matrice/popover-date": {
       "selector": ".eppop",
-      "states": ["feuille-suivi-trous"]
+      "states": [
+        "feuille-suivi-trous"
+      ]
     },
     "chassis/tiroir": {
       "selector": ".drawer",
-      "states": ["tiroir-navigation"],
+      "states": [
+        "tiroir-navigation"
+      ],
       "$note": "The full template: three titled sections as in nav.ts, the same badges as the bottom bar, and the VersionCard in the footer — the drawer is the only path through which the version reaches the phone."
     },
     "form/option": {
       "selector": ".opt",
-      "states": ["ecran-profil"]
+      "states": [
+        "ecran-profil"
+      ]
     },
     "form/switch": {
       "selector": ".switch",
-      "states": ["ecran-profil"]
+      "states": [
+        "ecran-profil"
+      ]
     }
   },
   "states": [
@@ -973,6 +1079,7 @@
     "R67": "Système says whether the MACHINE is unwell; Maintenance is what one does to the library. The cut is the operator's, and the boundary is what the rule is about — a panel on the wrong page is the defect, not a missing panel. No blocked medium is drawn on Système: a medium the pipeline refused is a DECISION and belongs to Arrivées, and drawn on both it would be reported twice and answered nowhere. A SCHEDULER between two runs is not stopped: PM2 reports `stopped`, which is the literal truth about the process and a lie about the system — six red rows on a machine in perfect health. A service is judged on whether it is UP, a scheduler on whether it RAN, and the two lists never share a vocabulary. Both lists are counted against `pm2 jlist` rather than against a list written beside them, splitting the processes by whether they carry a `cron_restart`. Maintenance is navigated by what one wants to DO — six rubrics, never a flat list of twenty-six lines whose order means nothing — and every command it draws is checked against the engine's own registry in BOTH directions: none invented, none forgotten, so a command cannot silently leave the drawing. The page's one decision is that a command which DELETES cannot be run for real before it has been run blank: the second control is inert and SAYS why. That is not a confirmation dialog renamed — a dialog asks « are you sure », which is answered without reading, while a blank run produces a list, which has to be looked at. A real deletion cannot be rehearsed on this machine, since staging writes to the real disks, so what the interface owes is the look BEFORE and not a net after. One builder serves the five lists that share the shape « a named fact, its value, a sub-line » — the nine pipeline steps, the services, the schedulers, the disks, the index — because five builders is how they start to disagree; a row that leads somewhere IS the control, since a list of facts beside a parallel column of buttons asks which of the two to aim at and the answer is never on screen. Every service and every scheduler carries a GREEN or RED pastille, and it answers one question only: does this thing work. The colour is DERIVED from a single declared field rather than written beside the sentence, so a row cannot show a green dot next to « hors ligne » — the two would live in different places and would eventually disagree — and the rule compares the rendered colour against that field rather than against the wording, because a first version matched the sentence with a pattern and failed on « le 9 août », which says nothing wrong: it was measuring its own pattern. A row with nothing to be up or down about carries no pastille at all, since a neutral dot on every line teaches the eye to stop seeing them. Ninety restarts on a service that is up stays GREEN with the count in its sub-line: the dot means « is it up », and colouring it for something it does not mean is how a green stops being trusted. And because this machine is green everywhere, a named state replays a SIMULATED fault and says so on screen — a screen that can only ever be green cannot be judged, and an invented outage passed off as read would be §13's exact prohibition. A stopped service and an overdue scheduler are two different sentences: a service is late by nothing, it is up or it is not, while a scheduler is late by a DURATION, and « il y a trois jours » on an hourly job says more than any word could. The badge carries the WORD rather than sitting beside it, and it has FOUR tones, each answering a different question: `success` — it works (en ligne, à l'heure, réussi, connecté, joignable, disponible); `alert` — it does not, and something must be done now; `warning` — important but not critical, a disk nearly full; `info` — a fact that is neither a success nor a fault, which is what a QUANTITY is. « 1 863 titres » is neither good nor bad, it is how big the library is, so it is info and never a success — the rule states exactly that, because badging a number green is how a green stops meaning « it works ». `alert` is the operator's word and `danger` is the stylesheet's; the mapping lives in ONE place rather than forcing everyone who writes a row to know the second vocabulary. The tone is DERIVED from a declared field and compared against it rather than against the wording. And the badge must be READABLE, measured as painted in BOTH themes — which is where the real finding was: a tone has two jobs and one colour cannot do both. `--danger` is a FILL, painted behind white text on a button, and reusing it as a label colour on a 20 % tint of itself put every red badge at 3.69, under AA, while every green sat at 5.5. The light theme was worse and had been for as long as the chips existed: success at 2.91 and warning at 2.02, on every chip in the interface. Each tone now has a text variant at the lightness a label needs on the surface it lands on, and all four clear AA on both — 5.5 to 6.4 dark, 5.7 to 6.7 light. A rule that measures one theme certifies half a design.",
     "R68": "An unknown address breaks nothing, and an account that does not exist is not invented. Two surfaces production serves that the prototype did not draw, sharing one discipline: answer honestly what you do not have. A WRONG ADDRESS is the one input an interface never controls — a stale bookmark, a shared link, a renamed route — and the prototype answered it by looking up a page table that did not carry the id and calling `.render()` on nothing: a TypeError, and the whole frame stopped. That is the worst possible answer to a bookmark, and it is what a `*` route exists to prevent. The surface now names the address that was asked for, in the mono face because it is not a sentence, says plainly that nothing is broken, and offers a way out (DOIT-7 — never a dead end); it deliberately does NOT offer « go back », because one usually arrives here from outside, where there is nothing behind. The ACCOUNT SURFACE draws what exists — one account, its session, and how that session ends, every figure compared against `web.json5` rather than written beside it — and marks the place of the others EMPTY. Drawing colleagues to fill the screen is what §13 forbids: an interface showing data the system does not hold teaches its operator to distrust the rest of it, and an empty place that explains itself is honest where a populated one is a lie with a nice layout. The check for invented accounts looks for ADDRESSES rather than for capitalised words: the first version of it read two adjacent headings as a person's name and failed on « Vous Identifiant », which names nobody.",
     "R69": "The URL carries the state, and a reload lands where one was (DOIT-10). « Chaque détail a son URL » is a rule of the constitution and the prototype was measurably not obeying it: `history.pushState` appeared four times and `location` was read ZERO times — the interface told the browser where it was and never once asked. That is not a debt to hand over with the binding mission, it is a NON-CONFORMITY, and one that showed: a reload landed on the opening page and no screen could be sent to anyone. The state travels in the QUERY rather than the path, which is a decision rather than a shortcut: this file is opened from a static server, from a design host and from `file://`, and a path-based route needs a server that rewrites every unknown path onto the document — two of those three cannot. A query is addressable everywhere, survives a reload and pastes into a message, which is the whole of what DOIT-10 asks; the binding mission maps `?page=lib` onto production's `/medias`. Only what DIFFERS from the opening state is written, so the common case has a clean address and a link carries only what it means to carry. A WRONG address is left exactly as typed: rendering an unknown id moves the state onto the not-found surface, and deriving the address from it rewrote a mistyped link into « ?page=404 » — the interface correcting the operator's address behind their back, which a browser answering 404 never does. That defect survived one fix and needed a second: the boot's `replaceState` was corrected first, and the GUARD entry pushed straight after it put the wrong address back. Back walks the addresses in reverse, not only the screens.",
-    "R70": "No image is embedded in the prototype source; every reference to an image is a path to a real file in `design/assets/`. Embedded data URIs regrow the source weight the source-versioning system exists to keep down — versioning the design and versioning a 14 MB file of base64 are incompatible. A missing file renders as a broken image only at runtime, when no harness sees it; both are source properties and this rule reads the source. Verified by two mutations: inserting a data URI causes the first check to fail and names it; hiding one asset file causes the second check to fail and names the missing path, leaving the first check green. Each check fells exactly its own defect and no cross-talk exists."
+    "R70": "No image is embedded in the prototype source; every reference to an image is a path to a real file in `design/assets/`. Embedded data URIs regrow the source weight the source-versioning system exists to keep down — versioning the design and versioning a 14 MB file of base64 are incompatible. A missing file renders as a broken image only at runtime, when no harness sees it; both are source properties and this rule reads the source. Verified by two mutations: inserting a data URI causes the first check to fail and names it; hiding one asset file causes the second check to fail and names the missing path, leaving the first check green. Each check fells exactly its own defect and no cross-talk exists.",
+    "R71": "A screen above another one: back redraws the screen it covered instead of closing the layer. The screen layer replaces its content in place, and it used to hold one history entry however many screens replaced each other inside it — a back from a media sheet opened off the search results closed the whole layer and landed under the list, losing query, filter and scroll. Each direct replacement now pushes its own entry and records how to redraw what it covers, as a closure, never as markup. The same rule holds the companion arbitration: a result card carries no inline action in its foot — the panel is the single path to the act, which keeps the card the size of what it lists, and the done state moves to a chip. Verified by `ecrans.py` through both exits (browser back and the sheet's own « Retour » button) and by two mutations, each felling exactly its own check: neutralising the screen stack fells the redraw checks while the card checks stay green; re-adding a card foot fells the no-inline-action check alone."
   }
 }
