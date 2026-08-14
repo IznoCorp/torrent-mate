@@ -99,7 +99,7 @@ what it is doing. It must leave no scratch server running on any exit path.
 Branch `refactor/maquette-sp2` from `main` (`aa88fc73`). Conventional Commits, scope
 `(shell-mobile)`, French messages, no AI attribution. One commit per item:
 
-1. the Vite project (package.json + lockfile, index.html, vite.config.ts, plugin)
+1. the Vite project (package.json + lockfile, index.html, vite.config.mjs, plugin)
 2. R72 `harness/coquille.py` + `regions.json` entry + README row (mutation evidence in
    the commit message)
 3. docs + version bump (patch → 0.97.2)
