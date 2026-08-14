@@ -34,8 +34,19 @@ end**, after everything has been validated together. Non-negotiable.
 **SP1 — dossier servi**: Branch `refactor/maquette-sp1`; prototype moved to `design/refonte.html`
 (1.9 MB, images extracted as files under `design/assets/`, committed via `.gitignore` negation);
 `serve.py` serves `/assets/` session-gated with `private, max-age=31536000, immutable` cache
-headers; new rule R70 (`images.py`) verifies asset extraction; sub-projects SP2 (Vite shell)
-through SP5 remain planned, SP2 launching next.
+headers; new rule R70 (`images.py`) verifies asset extraction; merged as PR #429. Post-merge
+operator corrections in the same PR: result cards carry no inline action (the panel is the
+single path to the act) and the screen layer stacks — back redraws the screen it covered —
+both held by R71 (`ecrans.py`).
+
+**SP2 — coquille Vite**: Branch `refactor/maquette-sp2`; `design/` is also a Vite project
+(`index.html` envelope + local plugin injecting `refonte.html` verbatim after Vite's HTML
+pass, `dist/assets` symlinked, bundled output reserved under `dist/vite`); R72
+(`coquille.py`) proves the built output renders identically to the source — DOM
+serialization of the three surfaces plus region geometry per driven state, failed-response
+guard on both sides — mutation-verified three ways. The live host still serves the source;
+the switch to the built output is a later, explicit step. Next: SP3 (routing) and the
+host-switch step; then SP4 (componentisation), SP5 (visual language).
 
 ---
 

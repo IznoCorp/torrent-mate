@@ -13,6 +13,14 @@ design starts here, not in `frontend/src`.**
 `design/` is the served root — everything a browser reaches lives there (the prototype, images,
 PWA assets). The `harness/`, `serve.py`, and `regions.json` siblings are never served.
 
+`design/` is also a Vite project — the chassis the conversion will move into, sub-project by
+sub-project. `npm run build` emits `dist/` (gitignored): the real envelope from `index.html`
+with the prototype injected **verbatim** — a local plugin inserts the fragment after Vite's
+own HTML processing, so no minifier ever touches it — and `dist/assets` linked to the real
+files. R72 (`coquille.py`) is the contract: the built output must render identically to the
+source, DOM and geometry, or the shell is lying. The live host still serves the source;
+switching it to the built output is a later, explicit step, taken only while R72 holds.
+
 It is the operator-approved interactive prototype of the mobile-first interface:
 `/acquisition` (three views), `/mediatheque`, `/arrivees`, `/systeme`, plus the media
 sheet and the shared shell. It is **not an illustration**. It is the source the shipped UI
@@ -632,6 +640,7 @@ They are committed because they encode recipes that cost time to get right.
 | `doigt.py`        | R55: every gesture under REAL touch input (`Input.dispatchTouchEvent`), which the compositor can cancel — the pull to refresh on seven surfaces, the swipe between views, ordinary scrolling, the swipeable row and the deck                                                                                                            |
 | `images.py`       | R70: the source embeds no image and every `assets/` reference resolves to a file                                                                                                                                                                                                                                                        |
 | `ecrans.py`       | R71: a screen above another one — back redraws the screen it covered (query and scroll included) through both exits, one more back leaves the layer, and a result card carries no inline action in its foot: the panel is the single path to the act                                                                                    |
+| `coquille.py`     | R72: the Vite shell's build renders identically to the source — DOM serialization and region geometry compared per driven state on both pages, and no failed response (4xx/5xx) on either side (the uninvited /favicon.ico miss excepted)                                                                                               |
 
 Run them with the Python that carries Playwright, against a local static server on
 **127.0.0.1:8899** — **never** 8710 / 8711, which the reverse proxy routes to prod and
