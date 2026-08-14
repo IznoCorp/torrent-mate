@@ -24,6 +24,9 @@
       name="apple-mobile-web-app-status-bar-style"
       content="black-translucent"
     />
+    <!-- iOS reads this and never the manifest's short_name: without it the
+         home-screen label falls back to the page title, which once put two
+         identical « TorrentMate » side by side. -->
     <meta name="apple-mobile-web-app-title" content="TorrentMate Design" />
     <script>
       if ("serviceWorker" in navigator)

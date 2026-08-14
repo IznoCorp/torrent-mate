@@ -184,13 +184,15 @@ def tete_pwa() -> str:
     Raises:
         ValueError: When the markers are missing — the gate must fail loudly
             rather than serve a page that silently lost its installability.
+        FileNotFoundError: When the envelope itself is absent.
     """
     source = ENVELOPPE.read_text()
     debut = source.find("pwa:start")
     fin = source.find("<!-- pwa:end -->")
-    if debut < 0 or fin < 0 or fin < debut:
+    ouvre = source.find("-->", debut, fin)
+    if debut < 0 or fin < 0 or fin < debut or ouvre < 0:
         raise ValueError("marqueurs pwa introuvables dans design/index.html")
-    return source[source.index("-->", debut) + 3 : fin]
+    return source[ouvre + 3 : fin]
 
 def _build_head() -> bytes:
     """Build the HEAD bytes with the PWA block extracted at runtime."""
