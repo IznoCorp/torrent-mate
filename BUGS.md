@@ -20,22 +20,70 @@ when the defect comes back.
 
 ## Status vocabulary
 
-| Status | Means |
-| --- | --- |
-| `open` | Reproduced and diagnosed, not yet fixed. |
-| `fixing` | Being worked on right now. Exactly one bug may hold this. |
+| Status       | Means                                                          |
+| ------------ | -------------------------------------------------------------- |
+| `open`       | Reproduced and diagnosed, not yet fixed.                       |
+| `fixing`     | Being worked on right now. Exactly one bug may hold this.      |
 | `to confirm` | Fixed, rule green, mutation proven — waiting for the operator. |
-| `closed` | Operator confirmed on a real device. |
+| `closed`     | Operator confirmed on a real device.                           |
 
 ---
 
 ## Open
 
-_Nothing open._
+| ID    | Defect                                        | Reported | Status |
+| ----- | --------------------------------------------- | -------- | ------ |
+| B-013 | The drawer's entries lead nowhere             | 1×       | `open` |
+| B-014 | The drawer's current entry is unreadable      | 1×       | `open` |
+| B-015 | Back reopens the drawer that was just closed  | 1×       | `open` |
+| B-016 | Swiping a row right, then left, makes it jump | 1×       | `open` |
 
-Every defect reported so far is closed. The operator confirmed them on a real device on
-2026-08-14, and that is the only signature that closes one: a green rule is what makes a fix
-credible, never what makes it confirmed.
+B-013 to B-015 arrived as **one** report about the navigation drawer. They are written as three
+because a fix closes only with a rule that bites, and three symptoms with three causes need three
+rules — merging them would let two hide behind the one that got fixed.
+
+---
+
+## B-013 — The drawer's entries lead nowhere
+
+**Reported** 1×. **Status** `open`. Not yet diagnosed.
+
+**What the operator sees.** The navigation drawer opens, and its entries are not clickable: a tap
+on a menu entry goes nowhere.
+
+---
+
+## B-014 — The drawer's current entry is unreadable
+
+**Reported** 1×. **Status** `open`. Not yet diagnosed.
+
+**What the operator sees.** The entry marking where one currently is cannot be read — its
+treatment leaves the label illegible against its own background.
+
+---
+
+## B-015 — Back reopens the drawer that was just closed
+
+**Reported** 1×. **Status** `open`. Not yet diagnosed.
+
+**What the operator sees.** Close the drawer, then use the back gesture: the drawer opens again.
+The operator's words are the diagnosis to test against — « ce n'est pas une route ». A layer that
+was opened and closed should leave nothing behind for back to walk into; R59 makes back close a
+layer FIRST, which is right for an open layer and wrong for one already closed.
+
+---
+
+## B-016 — Swiping a row right, then left, makes it jump
+
+**Reported** 1×. **Status** `open`. Not yet diagnosed.
+
+**What the operator sees.** Swipe a card right, then swipe it left: the card jumps. What it should
+do is settle back to rest, so that a second, deliberate left swipe is what reveals the actions on
+that side.
+
+This is the same surface R64 (`harness/glisse.py`) already covers — « a row opens a drawer either
+way, one at a time, without firing the tap ». The rule holds for one swipe in one direction and
+says nothing about a reversal, so it is green while the defect is on screen.
 
 ---
 
@@ -380,20 +428,20 @@ Confirmed by the operator on a real phone, on `tm-design.iznogoudatall.xyz`. Wha
 why no rule had seen it, and what proves it now stays in the sections above: a closed bug whose
 history has been erased is a bug that will be made again.
 
-| ID | Defect | Reported | Closed |
-| --- | --- | --- | --- |
-| B-001 | The list poster is still too small | 2× | 2026-08-14 |
-| B-002 | The startup bar is never seen on a real load | 2× | 2026-08-14 |
-| B-003 | In Arrivées a poster does not lead where a poster leads | 2× | 2026-08-14 |
-| B-004 | Dragging the sheet handle down no longer closes the panel | 2× | 2026-08-14 |
-| B-005 | A long press on a poster raises the browser's own menu | 2× | 2026-08-14 |
-| B-006 | Two different sign-in screens: arrival and sign-out | 1× | 2026-08-14 |
-| B-007 | `--accent` referenced 11 times, defined nowhere | 1× | 2026-08-14 |
-| B-008 | The card poster should bleed to the card's edges | 1× | 2026-08-14 |
-| B-009 | Swiping a media card should reveal its quick actions | 1× | 2026-08-14 |
-| B-010 | Only one row open at a time | 1× | 2026-08-14 |
-| B-011 | The drawer renders wrong on iOS | 1× | 2026-08-14 |
-| B-012 | The startup screen plays a second time once loaded | 1× | 2026-08-14 |
+| ID    | Defect                                                    | Reported | Closed     |
+| ----- | --------------------------------------------------------- | -------- | ---------- |
+| B-001 | The list poster is still too small                        | 2×       | 2026-08-14 |
+| B-002 | The startup bar is never seen on a real load              | 2×       | 2026-08-14 |
+| B-003 | In Arrivées a poster does not lead where a poster leads   | 2×       | 2026-08-14 |
+| B-004 | Dragging the sheet handle down no longer closes the panel | 2×       | 2026-08-14 |
+| B-005 | A long press on a poster raises the browser's own menu    | 2×       | 2026-08-14 |
+| B-006 | Two different sign-in screens: arrival and sign-out       | 1×       | 2026-08-14 |
+| B-007 | `--accent` referenced 11 times, defined nowhere           | 1×       | 2026-08-14 |
+| B-008 | The card poster should bleed to the card's edges          | 1×       | 2026-08-14 |
+| B-009 | Swiping a media card should reveal its quick actions      | 1×       | 2026-08-14 |
+| B-010 | Only one row open at a time                               | 1×       | 2026-08-14 |
+| B-011 | The drawer renders wrong on iOS                           | 1×       | 2026-08-14 |
+| B-012 | The startup screen plays a second time once loaded        | 1×       | 2026-08-14 |
 
 **What these twelve cost, and what is worth keeping from them.** Seven had been reported
 **twice** before being written down here — what was missing was this register, not memory. Four
