@@ -42,6 +42,11 @@
     <!-- pwa:end -->
   </head>
   <body>
+    <!-- The strangler shell: the router owns the URL and the history; the
+         legacy engine below keeps every surface until SP4 empties it. The
+         mount node is size-zero — in SP3 the shell renders nothing visual. -->
+    <div id="coquille"></div>
+    <script type="module" src="/src/coquille.tsx"></script>
     <!-- maquette -->
   </body>
 </html>

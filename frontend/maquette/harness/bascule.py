@@ -45,6 +45,11 @@ def preparer_scratch() -> None:
     design = RACINE / "design"
     for nom in ("refonte.html", "index.html", "vite.config.mjs", "package.json"):
         shutil.copy(design / nom, SCRATCH / nom)
+    # The envelope names a module entry: without its source the scratch build
+    # cannot resolve it, and the rule would report a broken host where there is
+    # only an incomplete copy. It is copied, not linked — a mutation probe may
+    # edit it, and no measurement writes into the operator's source.
+    shutil.copytree(design / "src", SCRATCH / "src")
     (SCRATCH / "node_modules").symlink_to(design / "node_modules")
     (SCRATCH / "assets").symlink_to(design / "assets")
 
