@@ -31,26 +31,17 @@ when the defect comes back.
 
 ## Open
 
-| ID | Defect | Reported | Status |
-| --- | --- | --- | --- |
-| B-001 | ~~The list poster is still too small~~ | 2× | `to confirm` |
-| B-002 | ~~The startup bar is never seen on a real load~~ | 2× | `to confirm` |
-| B-003 | ~~In Arrivées a poster does not lead where a poster leads~~ | 2× | `to confirm` |
-| B-004 | ~~Dragging the sheet handle down no longer closes the panel~~ | 2× | `to confirm` |
-| B-005 | ~~A long press on a poster raises the browser's own menu~~ | 2× | `to confirm` |
-| B-006 | ~~Two different sign-in screens: arrival and sign-out~~ | 1× | `to confirm` |
-| B-007 | ~~`--accent` referenced 11 times, defined nowhere~~ | 1× | `to confirm` |
-| B-008 | ~~The card poster should bleed to the card's edges~~ | 1× | `to confirm` |
-| B-009 | ~~Swiping a media card should reveal its quick actions~~ | 1× | `to confirm` |
-| B-012 | ~~The startup screen plays a second time once loaded~~ | 1× | `to confirm` |
-| B-010 | ~~Only one row open at a time~~ | 1× | `to confirm` |
-| B-011 | ~~The drawer renders wrong on iOS~~ | 1× | `to confirm` |
+_Nothing open._
+
+Every defect reported so far is closed. The operator confirmed them on a real device on
+2026-08-14, and that is the only signature that closes one: a green rule is what makes a fix
+credible, never what makes it confirmed.
 
 ---
 
 ## B-001 — The list poster is still too small
 
-**Reported** 2×. **Status** `to confirm`. Closed together with B-008, which replaced the question:
+**Reported** 2×. **Status** `closed` — confirmed 2026-08-14. Closed together with B-008, which replaced the question:
 the poster is no longer a fraction of anything, it is bled to the card's edges. 63px wide, +50% on
 the original 42.
 
@@ -74,7 +65,7 @@ poster to a share of the CARD, not of the text column, so shrinking it back is a
 
 ## B-002 — The startup bar is never seen on a real load
 
-**Reported** 2×. **Status** `to confirm`.
+**Reported** 2×. **Status** `closed` — confirmed 2026-08-14.
 
 **Fixed.** The screen now comes off when the wait it covers RESOLVES, through a named seam
 (`window.__chargementTermine()`) called by a timer the length of the bar here and by whatever
@@ -110,7 +101,7 @@ sampling the bar's width over time.
 
 ## B-003 — In Arrivées a poster does not lead where a poster leads
 
-**Reported** 2×. **Status** `to confirm`.
+**Reported** 2×. **Status** `closed` — confirmed 2026-08-14.
 
 **Fixed.** A folder is not a medium, so it no longer wears a poster: it wears a FOLDER, in a
 poster's footprint so the row still lines up, saying « DOSSIER » rather than miming an artwork
@@ -144,7 +135,7 @@ poster at all — and a rule that walks every page and fails when the same eleme
 
 ## B-004 — Dragging the sheet handle down no longer closes the panel
 
-**Reported** 2×. **Status** `to confirm`.
+**Reported** 2×. **Status** `closed` — confirmed 2026-08-14.
 
 **Fixed.** The handle claims its axis with `touch-action: none` and captures the pointer, and its
 target is a 22px strip rather than the 4px bar it draws — a thumb aims at the bar and lands in the
@@ -179,7 +170,7 @@ claim the axis; then extend R55 to every draggable surface, sheet handle include
 
 ## B-005 — A long press on a poster raises the browser's own menu
 
-**Reported** 2×. **Status** `to confirm`.
+**Reported** 2×. **Status** `closed` — confirmed 2026-08-14.
 
 **Fixed.** `contextmenu` is now refused across the whole frame, except inside a text field where
 pasting has no other route. Measuring it turned up a second defect the report had named without
@@ -214,7 +205,7 @@ rule that dispatches `contextmenu` and fails when `defaultPrevented` is false.
 
 ## B-006 — Two different sign-in screens: arrival and sign-out
 
-**Reported** 1×. **Status** `to confirm`.
+**Reported** 1×. **Status** `closed` — confirmed 2026-08-14.
 
 **Fixed.** Measured, the two renderings differed in more than the palette: the host restated the
 typography too, so the wordmark had `line-height: normal` there against 1.35 here, and the whole
@@ -245,7 +236,7 @@ needs that a phone frame does not; and a rule comparing the two renderings.
 
 ## B-007 — `--accent` is referenced 11 times and defined nowhere
 
-**Reported** 1× (as "the sign-out screen has no TorrentMate style"). **Status** `to confirm`.
+**Reported** 1× (as "the sign-out screen has no TorrentMate style"). **Status** `closed` — confirmed 2026-08-14.
 
 **Fixed.** The eleven references now name `--primary` / `--primary-foreground`. The host stopped
 retyping the palette and EXTRACTS it, through new `login:palette` markers around `:root`. Rule
@@ -277,7 +268,7 @@ defined. Seven other references live outside the login screen and must be checke
 
 ## B-008 — The card poster should bleed to the card's edges
 
-**Reported** 1×. **Status** `to confirm`.
+**Reported** 1×. **Status** `closed` — confirmed 2026-08-14.
 
 **Fixed, with one limit measured rather than argued.** The card carries no padding of its own any
 more; it moved onto the column holding the text, and the poster reaches the card's top and left
@@ -314,7 +305,7 @@ bottom flush — so restoring a margin fails.
 
 ## B-009 / B-010 / B-011 — The row's drawer
 
-**Reported** 1× each. **Status** `to confirm`.
+**Reported** 1× each. **Status** `closed` — confirmed 2026-08-14.
 
 **B-009 — both directions, scoped with the tap.** The right drawer holds what one does to a
 medium; the left holds the one thing the row is for — a follow with nothing to look for has no
@@ -359,7 +350,7 @@ each — the axis unclaimed, the click not swallowed, the threshold dropped to n
 
 ## B-012 — The startup screen plays a second time once loaded
 
-**Reported** 1×. **Status** `to confirm`.
+**Reported** 1×. **Status** `closed` — confirmed 2026-08-14.
 
 **What happened.** The screen covers one wait — the gap between asking for the application and
 having an interface — and that wait spans TWO pages: the gate paints the screen when the form is
@@ -385,4 +376,28 @@ what the screen is for.
 
 ## Closed
 
-_None yet._
+Confirmed by the operator on a real phone, on `tm-design.iznogoudatall.xyz`. What each one did,
+why no rule had seen it, and what proves it now stays in the sections above: a closed bug whose
+history has been erased is a bug that will be made again.
+
+| ID | Defect | Reported | Closed |
+| --- | --- | --- | --- |
+| B-001 | The list poster is still too small | 2× | 2026-08-14 |
+| B-002 | The startup bar is never seen on a real load | 2× | 2026-08-14 |
+| B-003 | In Arrivées a poster does not lead where a poster leads | 2× | 2026-08-14 |
+| B-004 | Dragging the sheet handle down no longer closes the panel | 2× | 2026-08-14 |
+| B-005 | A long press on a poster raises the browser's own menu | 2× | 2026-08-14 |
+| B-006 | Two different sign-in screens: arrival and sign-out | 1× | 2026-08-14 |
+| B-007 | `--accent` referenced 11 times, defined nowhere | 1× | 2026-08-14 |
+| B-008 | The card poster should bleed to the card's edges | 1× | 2026-08-14 |
+| B-009 | Swiping a media card should reveal its quick actions | 1× | 2026-08-14 |
+| B-010 | Only one row open at a time | 1× | 2026-08-14 |
+| B-011 | The drawer renders wrong on iOS | 1× | 2026-08-14 |
+| B-012 | The startup screen plays a second time once loaded | 1× | 2026-08-14 |
+
+**What these twelve cost, and what is worth keeping from them.** Seven had been reported
+**twice** before being written down here — what was missing was this register, not memory. Four
+were invisible because the rule measured a named state instead of the path actually walked: a cold
+load, a real finger, a real browser menu. One — B-012 — was my own over-correction of the one
+before it. And two rules had to be thrown away before one held, for the same reason both times:
+asserting that a panel is open AFTER the finger lifts proves nothing, since a tap opens it too.
