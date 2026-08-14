@@ -188,6 +188,15 @@ Trois questions que la maquette doit savoir répondre avant d'être jugée :
 **Ces questions ne se tranchent pas en dessinant des pages.** Elles se tranchent en regardant le
 fichier, et elles font partie de ce que l'opérateur juge.
 
+**Et l'une d'elles a déjà une preuve exécutable.** R63 (`harness/contenu.py`) compare les nombres
+d'une carte de suivi à ceux que `acquire.db` porte VRAIMENT. Elle est tombée toute seule, sans
+qu'aucune ligne ne soit touchée : le planificateur a tourné, trois compteurs de recherche ont
+avancé — Kyma 6 → 7, L'Odyssée 9 → 10, Silo 8 → 9 — et la maquette portait les anciens. Rafraîchir
+la constante rend la règle verte et ne règle rien : elle retombera. **Une règle qui échoue avec le
+temps ne signale pas un défaut, elle désigne une couture.** Chacune des 57 constantes lues d'une
+source vivante en est une, et la question « par où entre une donnée » a maintenant un test qui la
+pose tout seul.
+
 ---
 
 **Next action:** draw the missing surfaces in the order of the inventory above — Arrivées first,
