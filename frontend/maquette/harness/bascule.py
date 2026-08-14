@@ -65,14 +65,25 @@ def requete(chemin, cookie=None, methode="GET", corps=None):
 
 def main():
     journal = Journal("R73 — l'hôte sert le build")
-    preparer_scratch()
-    serveur = subprocess.Popen(
-        [sys.executable, str(RACINE / "serve.py"), str(PORT)],
-        env={**os.environ, "TM_DESIGN_RACINE": str(SCRATCH),
-             "TM_DESIGN_PASSWORD_HASH": empreinte()},
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    serveur = None
     try:
-        time.sleep(1)
+        preparer_scratch()
+        serveur = subprocess.Popen(
+            [sys.executable, str(RACINE / "serve.py"), str(PORT)],
+            env={**os.environ, "TM_DESIGN_RACINE": str(SCRATCH),
+                 "TM_DESIGN_PASSWORD_HASH": empreinte()},
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        # Boot wait: poll until the port answers (up to 50 × 0.1 s).
+        for tentative in range(50):
+            try:
+                requete("/")
+                break
+            except (OSError, http.client.HTTPException):
+                if tentative == 49:
+                    raise
+                time.sleep(0.1)
+
         reponse, _ = requete(
             "/connexion", methode="POST",
             corps=f"identifiant=izno&motdepasse={MOT_DE_PASSE}")
@@ -82,10 +93,13 @@ def main():
 
         # (a) The served document IS the build, to the byte.
         reponse, servi = requete("/", cookie)
-        bati = (SCRATCH / "dist" / "index.html").read_bytes()
+        chemin_bati = SCRATCH / "dist" / "index.html"
+        bati = chemin_bati.read_bytes() if chemin_bati.exists() else None
         journal.verifier("le document servi est le build, à l'octet",
-                         reponse.status == 200 and servi == bati,
-                         f"{len(servi)} octets servis, {len(bati)} au build")
+                         reponse.status == 200 and bati is not None and servi == bati,
+                         f"{len(servi)} octets servis, "
+                         + (f"{len(bati)} au build" if bati is not None
+                            else "dist jamais émis"))
 
         # (b) An edited source is served rebuilt — never yesterday's build.
         with open(SCRATCH / "refonte.html", "a") as fichier:
@@ -99,10 +113,21 @@ def main():
         (SCRATCH / "vite.config.mjs").write_text("ceci n'est pas du javascript {\n")
         # The config is a build input: its mtime alone must trigger the try.
         reponse, corps = requete("/", cookie)
+        corps_str = corps.decode("utf-8", "replace")
+        # Extract text between <pre and </pre> and check for non-empty error.
+        debut_pre = corps_str.find("<pre")
+        fin_pre = corps_str.find("</pre>")
+        erreur_extrait = ""
+        if debut_pre >= 0 and fin_pre > debut_pre:
+            fin_debut = corps_str.find(">", debut_pre)
+            if fin_debut >= 0 and fin_debut < fin_pre:
+                erreur_extrait = corps_str[fin_debut + 1:fin_pre].strip()
+        erreur_non_vide = len("".join(erreur_extrait.split())) >= 10
         journal.verifier("un build cassé répond 503 en le disant",
                          reponse.status == 503
-                         and "build de la maquette a" in corps.decode("utf-8", "replace"),
-                         f"{reponse.status}")
+                         and "build de la maquette a" in corps_str
+                         and erreur_non_vide,
+                         f"{reponse.status}, erreur: {erreur_extrait[:60]}")
 
         # And the way back: restoring the config heals the host on its own.
         shutil.copy(RACINE / "design" / "vite.config.mjs",
@@ -112,8 +137,13 @@ def main():
                          reponse.status == 200 and b"r73-probe" in servi,
                          f"{reponse.status}")
     finally:
-        serveur.terminate()
-        serveur.wait(timeout=5)
+        if serveur:
+            serveur.terminate()
+            try:
+                serveur.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                serveur.kill()
+                serveur.wait()
         shutil.rmtree(SCRATCH, ignore_errors=True)
     journal.bilan()
 
