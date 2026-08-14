@@ -41,6 +41,83 @@ from playwright.async_api import async_playwright
 
 RACINE = pathlib.Path(os.path.expanduser("~/dev/PersonalScraper"))
 
+# THE VOCABULARY BELONGS TO THE RULE, not to the data.
+#
+# Comparing the rendered tone against the declared one proves the renderer
+# follows the data and nothing else: mutate the data and both move together,
+# so a nearly-full disk coloured as a critical alert changed nothing. That is a
+# derivation reading back its own output. The mapping from a WORD to the tone
+# it deserves is stated here instead, once, and a disagreement is a defect —
+# whichever side wandered.
+VOCABULAIRE = {
+    "success": {"en ligne", "à l'heure", "réussi", "connecté", "joignable",
+                "disponibles", "de la place", "aucune"},
+    "alert": {"hors ligne", "en retard", "échoué", "des erreurs"},
+    "warning": {"bientôt plein", "à nettoyer"},
+}
+
+# WCAG AA for body text. A badge that cannot be read is a badge that is not
+# there, and the chip is a TINT of its own colour — exactly the shape that put
+# a label on its own background once already (B-014).
+PLANCHER_CONTRASTE = 4.5
+
+# Colours are converted through a canvas, never parsed: `getComputedStyle`
+# returns the space the author wrote — `oklch()` here — and three numbers pulled
+# out of that string with a regex built for `rgb()` mean nothing. Drawing over
+# white and again over black also recovers a tint's alpha, which compositing a
+# translucent chip needs.
+CONTRASTE = """() => {
+  const cnv = document.createElement('canvas');
+  cnv.width = cnv.height = 1;
+  const ctx = cnv.getContext('2d', { willReadFrequently: true });
+  const sur = (couleur, fond) => {
+    ctx.fillStyle = fond;
+    ctx.fillRect(0, 0, 1, 1);
+    ctx.fillStyle = couleur;
+    ctx.fillRect(0, 0, 1, 1);
+    return [...ctx.getImageData(0, 0, 1, 1).data].slice(0, 3);
+  };
+  const rgba = (couleur) => {
+    const blanc = sur(couleur, '#fff');
+    const noir = sur(couleur, '#000');
+    const a = 1 - (blanc[0] - noir[0]) / 255;
+    return { rgb: noir.map((v) => (a > 0 ? v / a : 0)), a };
+  };
+  const canal = (v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+  const lum = (c) =>
+    0.2126 * canal(c[0] / 255) + 0.7152 * canal(c[1] / 255) + 0.0722 * canal(c[2] / 255);
+  const derriere = (el) => {
+    const pile = [];
+    let noeud = el.parentElement;
+    while (noeud) {
+      const { rgb, a } = rgba(getComputedStyle(noeud).backgroundColor);
+      if (a > 0.001) pile.push([rgb, a]);
+      if (a > 0.999) break;
+      noeud = noeud.parentElement;
+    }
+    let sortie = [255, 255, 255];
+    for (let i = pile.length - 1; i >= 0; i--) {
+      const [c, a] = pile[i];
+      sortie = sortie.map((v, k) => c[k] * a + v * (1 - a));
+    }
+    return sortie;
+  };
+  return [...document.querySelectorAll('#view .flux .fr .chip')].map((el) => {
+    const s = getComputedStyle(el);
+    const propre = rgba(s.backgroundColor);
+    let fond = derriere(el);
+    if (propre.a > 0.001) {
+      fond = fond.map((v, k) => propre.rgb[k] * propre.a + v * (1 - propre.a));
+    }
+    const texte = rgba(s.color).rgb;
+    const [l1, l2] = [lum(texte), lum(fond)].sort((x, y) => y - x);
+    return {
+      mot: el.textContent.trim(),
+      contraste: Math.round(((l1 + 0.05) / (l2 + 0.05)) * 100) / 100,
+    };
+  });
+}"""
+
 LIRE = """() => {
   const port = document.querySelector('#port');
   const bloc = (titre) => {
@@ -54,15 +131,20 @@ LIRE = """() => {
     }
     return n
       ? [...n.querySelectorAll('.fx')].map((x) => {
-          const pastille = x.querySelector('.fn .pip');
+          // The badge IS the value: a row whose value is a state wears it as
+          // a chip. Reading a dot beside the label would measure a shape the
+          // interface no longer draws.
+          const badge = x.querySelector('.fr .chip');
+          const TONS = { success: 'success', danger: 'alert',
+                         warning: 'warning', info: 'info' };
           return {
             l: x.querySelector('.fn').textContent.trim(),
             v: x.querySelector('.fr').textContent.trim(),
             s: x.querySelector('.fs').textContent.trim(),
-            couleur: pastille
-              ? pastille.classList.contains('success')
-                ? 'vert'
-                : 'rouge'
+            // Reported in the operator's vocabulary, which is what the data is
+            // written in: the stylesheet's `danger` is their `alert`.
+            ton: badge
+              ? TONS[[...badge.classList].find((c) => TONS[c])] || 'inconnu'
               : null,
           };
         })
@@ -75,6 +157,9 @@ LIRE = """() => {
     titres: [...document.querySelectorAll('#view .h2')].map((x) => x.textContent.trim()),
     services: bloc('Services'),
     planificateurs: bloc('Planificateurs'),
+    disques: bloc('Disques'),
+    index: bloc('Index de la médiathèque'),
+    dependances: bloc('Dépendances'),
     rubriques: [...document.querySelectorAll('#view .rub .rt')].map((x) => x.textContent.trim()),
     commandes: [...document.querySelectorAll('#view .flux .fx .fk')].map((x) => x.textContent.trim()),
   };
@@ -154,9 +239,18 @@ async def main():
                                     for x in (sys_vue["planificateurs"] or [])).lower()]
         journal.verifier("aucun planificateur n'est dit « arrêté » entre deux passages",
                          not trouves, str(trouves) if trouves else "aucun")
-        journal.verifier("un planificateur se juge sur quand il a TOURNÉ",
-                         all(x["v"] for x in (sys_vue["planificateurs"] or [])),
+        # The badge carries the STATE; when it last ran is a detail and lives
+        # in the sub-line. A badge reading « ce matin à 03 h 20 » would be a
+        # date wearing a colour, which says nothing about whether that date is
+        # late.
+        journal.verifier("un planificateur se juge sur « à l'heure » ou « en retard »",
+                         all(x["v"] in ("à l'heure", "en retard")
+                             for x in (sys_vue["planificateurs"] or [])),
                          str([x["v"] for x in (sys_vue["planificateurs"] or [])]))
+        journal.verifier("et DIT quand il a tourné, sous le badge",
+                         all("dernier passage" in x["s"]
+                             for x in (sys_vue["planificateurs"] or [])),
+                         str([x["s"][:40] for x in (sys_vue["planificateurs"] or [])]))
         journal.verifier("un service se juge sur le fait qu'il TOURNE",
                          all("ligne" in x["v"] for x in (sys_vue["services"] or [])),
                          str([x["v"] for x in (sys_vue["services"] or [])]))
@@ -194,21 +288,91 @@ async def main():
         # measuring the pattern rather than the interface. Reading `ok` off the
         # page's own data proves the derivation was not bypassed by a colour
         # written in by hand, which is the only way the two could disagree.
+        # EVERY list that carries a tone, not only the two the page opens with:
+        # a mutation that coloured a nearly-full disk as an alert changed
+        # nothing, because nothing looked at the disks. A guard that covers two
+        # lists out of five is a guard for two lists.
         for nom, lignes, source in (
             ("service", sys_vue["services"], "SERVICES"),
             ("planificateur", sys_vue["planificateurs"], "PLANIFICATEURS"),
+            ("disque", sys_vue["disques"], "DISQUES"),
+            ("ligne d'index", sys_vue["index"], "INDEX"),
+            ("dépendance", sys_vue["dependances"], "DEPENDANCES"),
         ):
-            sans = [x["l"] for x in (lignes or []) if x["couleur"] is None]
-            journal.verifier(f"chaque {nom} porte une pastille", not sans, str(sans) or "toutes")
-            declare = await pg.evaluate(f"()=>{source}.map((x) => x.ok)")
-            rendu = [x["couleur"] == "vert" for x in (lignes or [])]
-            journal.verifier(f"la pastille d'un {nom} suit l'état déclaré, jamais une couleur écrite à la main",
+            sans = [x["l"] for x in (lignes or []) if x["ton"] is None]
+            journal.verifier(f"chaque {nom} porte un badge", not sans, str(sans) or "tous")
+            declare = await pg.evaluate(f"()=>{source}.map((x) => x.ton)")
+            rendu = [x["ton"] for x in (lignes or [])]
+            journal.verifier(f"le badge d'un {nom} suit l'état déclaré, jamais une couleur écrite à la main",
                              rendu == declare, f"rendu {rendu} vs déclaré {declare}")
+            # And the tone matches what the WORD means. This is the half that
+            # a comparison against the data cannot do.
+            mal_dites = [
+                f"« {x['v']} » en {x['ton']}"
+                for x in (lignes or [])
+                for attendu, mots in VOCABULAIRE.items()
+                if x["v"] in mots and x["ton"] != attendu
+            ]
+            journal.verifier(f"le ton d'un {nom} dit ce que son MOT veut dire",
+                             not mal_dites, "; ".join(mal_dites) or "tous concordent")
 
-        journal.verifier("au repos, rien n'est rouge sur cette machine",
-                         all(x["couleur"] == "vert"
+        # A QUANTITY is not a state, and badging one is how a badge stops
+        # meaning anything: « 1 863 titres » is neither good nor bad, it is how
+        # big the library is. Read from the whole page rather than from the two
+        # lists, because the temptation to badge a number lives everywhere.
+        quantites = await pg.evaluate("""() => [...document.querySelectorAll('#view .flux .fx')]
+          .map((x) => ({
+            l: x.querySelector('.fn').textContent.trim(),
+            v: x.querySelector('.fr').textContent.trim(),
+            badge: !!x.querySelector('.fr .chip'),
+            ton: (() => {
+              const c = x.querySelector('.fr .chip');
+              const T = { success: 'success', danger: 'alert',
+                          warning: 'warning', info: 'info' };
+              return c ? T[[...c.classList].find((k) => T[k])] || 'inconnu' : null;
+            })(),
+          }))
+          .filter((r) => r.badge && /^[\\d\\s  ]+$/.test(r.v.replace(/titres|éléments/g, '')))""")
+        mal_tonnees = [q for q in quantites if q["ton"] != "info"]
+        journal.verifier("une quantité ne porte que le ton « info », jamais un succès ni une alerte",
+                         not mal_tonnees, str(mal_tonnees) or f"{len(quantites)} quantité(s), toutes en info")
+
+        # And a badge that cannot be read is a badge that is not there. This is
+        # B-014's lesson applied before the defect: the chip is a TINT of its
+        # own colour, and a tint is exactly where a label lands on its own
+        # background.
+        # BOTH themes, and the second is the one that was broken: on a white
+        # card the same fills that read on near-black sat at 2.91 (success) and
+        # 2.02 (warning), under AA — true of every chip in the interface long
+        # before this page existed. A rule that measures one theme certifies
+        # half a design.
+        for theme, mise in (("sombre", "()=>document.documentElement.removeAttribute('data-theme')"),
+                            ("clair", "()=>document.documentElement.setAttribute('data-theme','light')")):
+            await pg.evaluate(mise)
+            await pg.wait_for_timeout(220)
+            for etat in (False, True):
+                await surPage(pg, "sys", panne=etat)
+                contrastes = await pg.evaluate(CONTRASTE)
+                illisibles = [f"{c['mot']} ({c['contraste']})"
+                              for c in contrastes if c["contraste"] < PLANCHER_CONTRASTE]
+                journal.verifier(
+                    f"chaque badge se lit sur son fond — thème {theme}"
+                    + (", en panne" if etat else ""),
+                    not illisibles,
+                    f"{len(contrastes)} badges, plancher {PLANCHER_CONTRASTE}, le plus faible "
+                    f"{min((c['contraste'] for c in contrastes), default='—')}"
+                    + (f" — illisibles : {', '.join(illisibles)}" if illisibles else ""))
+        await pg.evaluate("()=>document.documentElement.removeAttribute('data-theme')")
+        await pg.wait_for_timeout(200)
+        # `panne` is NAMED on the way back: a state driven without naming every
+        # dial inherits whatever the previous one left, which is the defect R10
+        # found in the interface and which this probe had just repeated.
+        sys_vue = await surPage(pg, "sys", panne=False)
+
+        journal.verifier("au repos, rien n'alerte sur cette machine",
+                         all(x["ton"] == "success"
                              for x in (sys_vue["services"] or []) + (sys_vue["planificateurs"] or [])),
-                         "vert partout")
+                         "success partout")
         journal.verifier("et l'état de repos ne se présente pas comme une simulation",
                          not sys_vue["simulee"])
 
@@ -216,18 +380,26 @@ async def main():
         # state replays a fault — and SAYS it is simulated, or the operator
         # would read an invented outage as a real one (§13).
         panne = await surPage(pg, "sys", panne=True)
-        rouges_s = [x for x in (panne["services"] or []) if x["couleur"] == "rouge"]
-        rouges_p = [x for x in (panne["planificateurs"] or []) if x["couleur"] == "rouge"]
-        journal.verifier("un état nommé montre ce que le rouge donne, côté services",
+        rouges_s = [x for x in (panne["services"] or []) if x["ton"] == "alert"]
+        rouges_p = [x for x in (panne["planificateurs"] or []) if x["ton"] == "alert"]
+        journal.verifier("un état nommé montre ce qu'une alerte donne, côté services",
                          len(rouges_s) == 1, str([x["l"] for x in rouges_s]))
         journal.verifier("et côté planificateurs",
                          len(rouges_p) == 1, str([x["l"] for x in rouges_p]))
         journal.verifier("un service en panne est dit HORS LIGNE, pas en retard",
                          rouges_s and rouges_s[0]["v"] == "hors ligne",
                          str([x["v"] for x in rouges_s]))
-        journal.verifier("un planificateur en retard est dit par une DURÉE, pas par un mot",
-                         rouges_p and "il y a" in rouges_p[0]["v"],
+        # The property has not changed, its PLACE has: the badge carries the
+        # state and the sub-line carries how long. « il y a trois jours » on an
+        # hourly job is still the whole of what one needs — a badge reading a
+        # date would be a date wearing a colour, saying nothing about whether
+        # that date is late.
+        journal.verifier("un planificateur en retard le dit par un mot dans son badge",
+                         rouges_p and rouges_p[0]["v"] == "en retard",
                          str([x["v"] for x in rouges_p]))
+        journal.verifier("et DIT de combien, sous le badge",
+                         rouges_p and "il y a" in rouges_p[0]["s"],
+                         str([x["s"][:60] for x in rouges_p]))
         journal.verifier("et l'écran dit que cette panne est SIMULÉE", panne["simulee"])
 
         journal.verifier("rien ne déborde du cadre sur Système",

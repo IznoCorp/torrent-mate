@@ -32,6 +32,16 @@
     --success: oklch(0.72 0.165 152);
     --warning: oklch(0.8 0.15 75);
     --danger: oklch(0.62 0.21 24);
+    /* A tone has TWO jobs, and one colour cannot do both. `--danger` is a
+       FILL — a button paints it behind white text — and reusing it as a label
+       colour on a 20 % tint of itself put a badge at 3.69, under AA, while
+       every green badge sat at 5.5. The text variant is the same hue at the
+       lightness a label needs on the surface it lands on: lighter on the dark
+       card, darker on the light one. */
+    --danger-texte: oklch(0.78 0.17 24);
+    --info-texte: oklch(0.78 0.11 225);
+    --success-texte: var(--success);
+    --warning-texte: var(--warning);
     --info: oklch(0.68 0.125 225);
     --waiting: oklch(0.74 0.16 345);
     --upcoming: oklch(0.72 0.145 285);
@@ -67,6 +77,10 @@
     --success: oklch(0.6 0.15 152);
     --warning: oklch(0.74 0.15 72);
     --danger: oklch(0.58 0.215 25);
+    --danger-texte: oklch(0.46 0.19 25);
+    --info-texte: oklch(0.44 0.11 225);
+    --success-texte: oklch(0.44 0.12 152);
+    --warning-texte: oklch(0.44 0.1 75);
     --info: oklch(0.62 0.115 225);
     --waiting: oklch(0.65 0.14 345);
     --upcoming: oklch(0.55 0.16 290);
@@ -980,19 +994,19 @@
   }
   .chip.warning {
     background: color-mix(in oklab, var(--warning) 20%, transparent);
-    color: var(--warning);
+    color: var(--warning-texte);
   }
   .chip.success {
     background: color-mix(in oklab, var(--success) 20%, transparent);
-    color: var(--success);
+    color: var(--success-texte);
   }
   .chip.danger {
     background: color-mix(in oklab, var(--danger) 20%, transparent);
-    color: var(--danger);
+    color: var(--danger-texte);
   }
   .chip.info {
     background: color-mix(in oklab, var(--info) 20%, transparent);
-    color: var(--info);
+    color: var(--info-texte);
   }
   .chip.waiting {
     background: color-mix(in oklab, var(--waiting) 20%, transparent);
@@ -11594,20 +11608,20 @@
      whether it RAN. They are not the same object and they do not share a
      vocabulary. */
   const SERVICES = [
-    { l: "TorrentMate", ok: true, v: "en ligne",
+    { l: "TorrentMate", ton: "success", v: "en ligne",
       s: "depuis ce matin 09 h 36 · 4 redémarrages" },
-    { l: "TorrentMate (staging)", ok: true, v: "en ligne",
+    { l: "TorrentMate (staging)", ton: "success", v: "en ligne",
       s: "depuis ce matin 08 h 25 · 3 redémarrages" },
-    { l: "Veille des téléchargements", ok: true, v: "en ligne",
+    { l: "Veille des téléchargements", ton: "success", v: "en ligne",
       s: "depuis le 10 août · aucun redémarrage" },
-    { l: "Déploiement automatique", ok: true, v: "en ligne",
+    { l: "Déploiement automatique", ton: "success", v: "en ligne",
       s: "depuis le 10 août · aucun redémarrage" },
     /* Ninety restarts on a service up for three hours is a fact worth reading,
        and it is NOT what the pastille answers. The dot says « is it up », and
        this one is; the count sits in the sub-line where a number belongs.
        Colouring the dot for something it does not mean is how a green stops
        being trusted. */
-    { l: "Hôte de la maquette", ok: true, v: "en ligne",
+    { l: "Hôte de la maquette", ton: "success", v: "en ligne",
       s: "depuis ce matin 08 h 28 · 90 redémarrages" },
   ];
 
@@ -11618,18 +11632,18 @@
      `ok` is « did it run when it was due », never « is the process alive »:
      between two passes the process is gone, and that is its healthy state. */
   const PLANIFICATEURS = [
-    { l: "Contrôle de santé", ok: true, v: "il y a moins d'une heure",
-      s: "toutes les heures à la 15ᵉ minute · 261 passages" },
-    { l: "Récupération des releases", ok: true, v: "ce matin à 03 h 20",
-      s: "à 03 h 20 et 15 h 20 · 24 passages" },
-    { l: "Recherche de releases", ok: true, v: "ce matin à 03 h 10",
-      s: "à 03 h 10 et 15 h 10 · 15 passages" },
-    { l: "Détection des suivis", ok: true, v: "ce matin à 03 h 00",
-      s: "chaque jour à 03 h 00 · 11 passages" },
-    { l: "Enrichissement de l'index", ok: true, v: "le 9 août",
-      s: "le dimanche à 04 h 30 · 2 passages" },
-    { l: "Complétion des identifiants", ok: true, v: "le 9 août",
-      s: "le dimanche à 05 h 00 · 2 passages" },
+    { l: "Contrôle de santé", ton: "success", v: "à l'heure",
+      s: "toutes les heures à la 15ᵉ minute · dernier passage il y a moins d'une heure · 261 passages" },
+    { l: "Récupération des releases", ton: "success", v: "à l'heure",
+      s: "à 03 h 20 et 15 h 20 · dernier passage ce matin à 03 h 20 · 24 passages" },
+    { l: "Recherche de releases", ton: "success", v: "à l'heure",
+      s: "à 03 h 10 et 15 h 10 · dernier passage ce matin à 03 h 10 · 15 passages" },
+    { l: "Détection des suivis", ton: "success", v: "à l'heure",
+      s: "chaque jour à 03 h 00 · dernier passage ce matin à 03 h 00 · 11 passages" },
+    { l: "Enrichissement de l'index", ton: "success", v: "à l'heure",
+      s: "le dimanche à 04 h 30 · dernier passage le 9 août · 2 passages" },
+    { l: "Complétion des identifiants", ton: "success", v: "à l'heure",
+      s: "le dimanche à 05 h 00 · dernier passage le 9 août · 2 passages" },
   ];
 
   /* WHAT A FAULT LOOKS LIKE — and it is SIMULATED, which the screen says.
@@ -11648,7 +11662,7 @@
     rang === 2
       ? {
           ...service,
-          ok: false,
+          ton: "alert",
           v: "hors ligne",
           s: "arrêté depuis 14 h 02 · sortie en erreur",
         }
@@ -11659,9 +11673,9 @@
     rang === 0
       ? {
           ...planificateur,
-          ok: false,
-          v: "il y a 3 jours",
-          s: "toutes les heures à la 15ᵉ minute · 261 passages · 71 passages manqués",
+          ton: "alert",
+          v: "en retard",
+          s: "toutes les heures à la 15ᵉ minute · dernier passage il y a 3 jours · 71 passages manqués",
         }
       : planificateur,
   );
@@ -11670,15 +11684,15 @@
      printed; a disk at 92 % says so before it says how many gigabytes remain,
      because « 335 Go » sounds like a lot and is four days of this library. */
   const DISQUES = [
-    { l: "Disk1", ok: true, v: "1,8 To libres", s: "15 To · rempli à 88 %" },
+    { l: "Disk1", ton: "success", v: "de la place", s: "1,8 To libres · 15 To · rempli à 88 %" },
     {
       l: "Disk2",
-      v: "335 Go libres",
-      s: "4,1 To · rempli à 92 %",
-      etat: "warning",
+      ton: "warning",
+      v: "bientôt plein",
+      s: "335 Go libres · 4,1 To · rempli à 92 % — quatre jours à ce rythme",
     },
-    { l: "Disk3", ok: true, v: "906 Go libres", s: "4,1 To · rempli à 78 %" },
-    { l: "Disk4", ok: true, v: "730 Go libres", s: "3,1 To · rempli à 76 %" },
+    { l: "Disk3", ton: "success", v: "de la place", s: "906 Go libres · 4,1 To · rempli à 78 %" },
+    { l: "Disk4", ton: "success", v: "de la place", s: "730 Go libres · 3,1 To · rempli à 76 %" },
   ];
 
   /* The index, read from `library.db`. « Anomalies » are counted by type
@@ -11686,31 +11700,27 @@
        607 of them are junk files, which is a housekeeping errand rather than
        a fault. What one does about them lives in Maintenance. */
   const INDEX = [
-    {
-      l: "Médiathèque",
-      v: "1 863 titres",
-      s: "97 999 fichiers · 25 939 épisodes",
-    },
-    {
-      l: "Dernier balayage",
-      v: "réussi",
-      s: "réparation, à la fin du dernier passage",
-    },
-    { l: "Réparations en attente", v: "aucune", s: "la file est vide" },
-    { l: "Écritures en attente", v: "aucune", s: "rien ne reste à propager" },
-    {
-      l: "Anomalies relevées",
-      v: "633",
-      s: "607 fichiers parasites · 18 restes de release · 8 autres",
-      etat: "warning",
-    },
+    /* A quantity is not a state, so it wears no badge: « 1 863 titres » is
+       neither good nor bad, it is how big the library is. */
+    { l: "Médiathèque", ton: "info", v: "1 863 titres",
+      s: "97 999 fichiers · 25 939 épisodes" },
+    { l: "Dernier balayage", ton: "success", v: "réussi",
+      s: "réparation, à la fin du dernier passage du pipeline" },
+    { l: "Réparations en attente", ton: "success", v: "aucune", s: "la file est vide" },
+    { l: "Écritures en attente", ton: "success", v: "aucune", s: "rien ne reste à propager" },
+    /* Where a quantity hides a state, the STATE is the badge and the quantity
+       moves underneath: « 633 » in red reads as a system falling apart, and
+       607 of them are junk files — a housekeeping errand, not a fault. */
+    { l: "Anomalies relevées", ton: "warning", v: "à nettoyer",
+      s: "633 en tout · 607 fichiers parasites · 18 restes de release · 8 autres" },
   ];
 
   const DEPENDANCES = [
-    { l: "Redis", ok: true, v: "connecté", s: "le relais d'événements répond" },
-    { l: "TMDB / TVDB", ok: true, v: "disponibles", s: "aucun disjoncteur ouvert" },
+    { l: "Redis", ton: "success", v: "connecté", s: "le relais d'événements répond" },
+    { l: "TMDB / TVDB", ton: "success", v: "disponibles", s: "aucun disjoncteur ouvert" },
     {
       l: "qBittorrent",
+      ton: "success",
       v: "joignable",
       s: "derrière le proxy, comme il doit l'être",
     },
@@ -11738,36 +11748,18 @@
      provider has episode data for it. A number that never moves says something
      the operator can act on, which is why it is printed. */
   const EXECUTIONS = [
-    {
-      q: "14/08 07 h 08",
-      d: "fin d'un téléchargement",
-      r: "1 rangé · 1 bloqué · 1 min 44",
-    },
-    {
-      q: "13/08 15 h 23",
-      d: "fin d'un téléchargement",
-      r: "1 rangé · 1 bloqué · 1 min 59",
-    },
-    {
-      q: "12/08 15 h 24",
-      d: "fin d'un téléchargement",
-      r: "2 rangés · 1 bloqué · 7 min 19",
-    },
-    {
-      q: "12/08 11 h 16",
-      d: "fin d'un téléchargement",
-      r: "1 rangé · 1 bloqué · 1 min 37",
-    },
-    {
-      q: "11/08 15 h 28",
-      d: "filet de sécurité",
-      r: "rien de nouveau · 1 bloqué · 2 s",
-    },
-    {
-      q: "10/08 15 h 23",
-      d: "fin d'un téléchargement",
-      r: "2 rangés · 1 bloqué · 2 min 31",
-    },
+    { q: "14/08 07 h 08", ok: true, d: "fin d'un téléchargement",
+      r: "1 rangé · 1 bloqué · 1 min 44" },
+    { q: "13/08 15 h 23", ok: true, d: "fin d'un téléchargement",
+      r: "1 rangé · 1 bloqué · 1 min 59" },
+    { q: "12/08 15 h 24", ok: true, d: "fin d'un téléchargement",
+      r: "2 rangés · 1 bloqué · 7 min 19" },
+    { q: "12/08 11 h 16", ok: true, d: "fin d'un téléchargement",
+      r: "1 rangé · 1 bloqué · 1 min 37" },
+    { q: "11/08 15 h 28", ok: true, d: "filet de sécurité",
+      r: "rien de nouveau · 1 bloqué · 2 s" },
+    { q: "10/08 15 h 23", ok: true, d: "fin d'un téléchargement",
+      r: "2 rangés · 1 bloqué · 2 min 31" },
   ];
 
   /* What really left the pipeline in the last 24 hours, read from the
@@ -12898,22 +12890,39 @@
               .join("")
           : "";
         const balise = ligne.cible ? "button" : "span";
-        /* A pastille answers one question and it is always the same one: does
-           this thing work. It is DERIVED from `ok` rather than passed as a
-           colour, so a row cannot show a green dot beside a sentence saying it
-           is down — the two would be written in different places and would
-           eventually disagree. A row with nothing to be up or down about
-           carries no pastille at all: a neutral dot on every line teaches the
-           eye to stop seeing them. */
-        const pastille =
-          ligne.ok === undefined
-            ? ""
-            : `<span class="pip ${ligne.ok ? "success" : "danger"}"></span>`;
+        /* A BADGE, and it carries the word rather than sitting beside it.
+
+           A row whose value is a STATE — en ligne / hors ligne, connecté /
+           déconnecté, joignable / injoignable, réussi / échoué — wears it as a
+           chip, in the interface's existing chip vocabulary rather than a
+           second one invented here. A row whose value is a QUANTITY does not:
+           « 1 863 titres » is not a state, and badging every line teaches the
+           eye to stop seeing badges. Where a quantity hides a state, the state
+           is the badge and the quantity moves to the sub-line — « à nettoyer »
+           on the badge, « 607 fichiers parasites » underneath.
+
+           The tone is DERIVED from `ok`, never passed as a colour, so a row
+           cannot show a green badge reading « hors ligne »: the two would be
+           written in different places and would eventually disagree. */
+        const valeur = ligne.v ? escapeHtml(ligne.v) : "—";
+        /* Four tones, and each answers a different question:
+             · success — ça marche : en ligne, à l'heure, réussi, connecté ;
+             · alert   — ça ne marche pas, et il faut agir maintenant ;
+             · warning — important, pas critique : un disque bientôt plein ;
+             · info    — une information qui n'est pas une réussite.
+           `alert` is the operator's word and `danger` is the stylesheet's; the
+           mapping lives HERE, once, rather than forcing everyone who writes a
+           row to know the second vocabulary. */
+        const TONS = { success: "success", alert: "danger",
+                       warning: "warning", info: "info" };
+        const badge = ligne.ton
+          ? `<span class="chip ${TONS[ligne.ton]}">${valeur}</span>`
+          : valeur;
         return `<li class="fx${vide ? " fvide" : ""}${ligne.etat === "danger" ? " fbloc" : ""}${
           ligne.cible ? " fclic" : ""
         }"><${balise} class="fw"${cible}>
-      <span class="fn">${pastille}${escapeHtml(ligne.l)}</span>
-      <span class="fr">${ligne.v ? escapeHtml(ligne.v) : "—"}</span>
+      <span class="fn">${escapeHtml(ligne.l)}</span>
+      <span class="fr">${badge}</span>
       <span class="fs">${ligne.k ? `<span class="fk">${escapeHtml(ligne.k)}</span>` : ""}${
         ligne.k && ligne.s ? " · " : ""
       }${ligne.s ? escapeHtml(ligne.s) : ""}</span>
@@ -13187,7 +13196,14 @@
     ${listeFaitsHTML(state.panne ? PLANIFICATEURS_PANNE : PLANIFICATEURS)}
 
     <h2 class="h2">Exécutions du pipeline</h2>
-    ${listeFaitsHTML(EXECUTIONS.map((e) => ({ l: e.q, v: e.r.split(" · ").slice(0, -1).join(" · "), s: e.d + " · " + e.r.split(" · ").slice(-1) })))}
+    ${listeFaitsHTML(
+      EXECUTIONS.map((execution) => ({
+        l: execution.q,
+        ton: execution.ok ? "success" : "alert",
+        v: execution.ok ? "réussi" : "échoué",
+        s: execution.d + " · " + execution.r,
+      })),
+    )}
     <button class="crossref" data-go="arr">Le pipeline se pilote depuis Arrivées, où l'on voit ce qu'il fait aux médias. <span>Arrivées →</span></button>
 
     <h2 class="h2">Disques</h2>
@@ -13203,10 +13219,10 @@
     <h2 class="h2">Erreurs de code</h2>
     ${listeFaitsHTML([
       {
-        l: "Exécutions en erreur",
-        v: `${ERREURS.total} sur ${ERREURS.sur}`,
-        s: `la dernière ${ERREURS.derniere} — ${ERREURS.quoi}`,
-        etat: "danger",
+        l: "Du code a levé",
+        ton: "alert",
+        v: "des erreurs",
+        s: `${ERREURS.total} exécutions sur ${ERREURS.sur} · la dernière ${ERREURS.derniere} — ${ERREURS.quoi}`,
       },
       { l: "Où", v: "", s: ERREURS.ou },
     ])}

@@ -457,6 +457,19 @@ health with nothing saying why they share a page; each of its seven panels has a
 rule, and none of those homes is a new page. The full mapping, panel by panel, is in
 `IMPLEMENTATION.md`.
 
+**A state wears a BADGE, and it has four tones.** `success` — it works. `alert` — it does not, and
+something must be done now. `warning` — important but not critical, a disk nearly full. `info` — a
+fact that is neither a success nor a fault, which is what a QUANTITY is: « 1 863 titres » is neither
+good nor bad, it is how big the library is. Badging a number green is how a green stops meaning
+« it works ».
+
+`alert` is the operator's word and `danger` is the stylesheet's; the mapping lives in ONE place.
+And **a tone has two jobs that one colour cannot do**: `--danger` is a FILL, painted behind white
+text on a button, and reusing it as a label colour on a 20 % tint of itself put every red badge at
+3.69, under AA, while every green sat at 5.5. The light theme was worse and had been for as long as
+the chips existed — success at 2.91, warning at 2.02, on every chip in the interface. Each tone now
+carries a text variant, and all four clear AA in **both** themes.
+
 **PM2 reports a scheduled job as `stopped` between two runs.** That is the literal truth about the
 process and a lie about the system — repeated on screen it paints six red rows on a machine in
 perfect health. A service is judged on whether it is UP, a scheduler on whether it RAN, and the two

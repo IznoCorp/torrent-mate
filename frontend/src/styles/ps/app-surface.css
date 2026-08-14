@@ -742,22 +742,22 @@
 
 .tm .chip.warning {
     background: color-mix(in oklab, var(--warning) 20%, transparent);
-    color: var(--warning);
+    color: var(--warning-texte);
 }
 
 .tm .chip.success {
     background: color-mix(in oklab, var(--success) 20%, transparent);
-    color: var(--success);
+    color: var(--success-texte);
 }
 
 .tm .chip.danger {
     background: color-mix(in oklab, var(--danger) 20%, transparent);
-    color: var(--danger);
+    color: var(--danger-texte);
 }
 
 .tm .chip.info {
     background: color-mix(in oklab, var(--info) 20%, transparent);
-    color: var(--info);
+    color: var(--info-texte);
 }
 
 .tm .chip.waiting {
