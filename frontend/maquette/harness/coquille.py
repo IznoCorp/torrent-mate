@@ -8,7 +8,8 @@ rule builds the shell, serves the output, drives the SOURCE and the BUILD to
 the same named states in the same browser, and requires the rendered DOM and
 the geometry of the exported regions to be identical. Rendered truth, never
 screenshots: two captures of one file diverge, measured twice on this
-project.
+project. R72_SANS_BUILD=1 skips the build gate so a mutation applied to dist/
+survives the run — mutation runs only, never a way to pass the build check.
 """
 import asyncio
 import json
@@ -73,7 +74,17 @@ def construire(journal):
     journal.verifier("le build de la coquille aboutit", fait.returncode == 0,
                      (fait.stderr or fait.stdout).strip().splitlines()[-1]
                      if fait.returncode else "vite build")
-    return fait.returncode == 0
+    if fait.returncode != 0:
+        return False
+    # Verify the fragment is emitted byte-for-byte (not minified, not extracted).
+    enveloppe = (DESIGN / "index.html").read_text(encoding="utf-8")
+    fragment = (DESIGN / "refonte.html").read_text(encoding="utf-8")
+    emis = (DESIGN / "dist" / "index.html").read_text(encoding="utf-8")
+    journal.verifier(
+        "le fragment est émis verbatim, à l'octet",
+        emis == enveloppe.replace("<!-- maquette -->", fragment),
+        f"{len(emis)} chars émis")
+    return True
 
 
 async def ouvrir_page(navigateur, url, erreurs):
@@ -92,6 +103,38 @@ async def ouvrir_page(navigateur, url, erreurs):
     await pg.evaluate("()=>document.querySelector('#toastx')?.click()")
     await pg.wait_for_timeout(250)
     return pg
+
+
+async def comparer(journal, src, bat, selecteurs, etat):
+    """Compare source and built pages on the same driven state.
+
+    Checks DOM serialization of three surfaces and region geometry,
+    named by the state label (e.g. 'acq-ajout-resultats' or 'arrivée').
+    """
+    for pg in (src, bat):
+        if etat != "arrivée":
+            await pg.evaluate("(e)=>window.__go(e)", etat)
+            await pg.wait_for_timeout(450)
+    for surface in ("#view", "#screen", "#sheet"):
+        a = await src.evaluate(SERIALISER, surface)
+        b = await bat.evaluate(SERIALISER, surface)
+        detail = ""
+        if a != b and a and b:
+            la, lb = a.split("\n"), b.split("\n")
+            i = next((k for k in range(min(len(la), len(lb)))
+                      if la[k] != lb[k]), min(len(la), len(lb)))
+            detail = f"premier écart au nœud {i}: {la[i:i+1]} ≠ {lb[i:i+1]}"
+        journal.verifier(f"{etat} · {surface} identique", a == b,
+                         detail or f"{(a or '').count(chr(10))+1} nœuds")
+    ra = await src.evaluate(RECTS, selecteurs)
+    rb = await bat.evaluate(RECTS, selecteurs)
+    ecarts = [s for s in ra
+              if s in rb and any(abs(x - y) > 1
+                                 for x, y in zip(ra[s], rb[s]))]
+    journal.verifier(f"{etat} · géométrie des régions identique",
+                     set(ra) == set(rb) and not ecarts,
+                     f"{len(ra)} régions"
+                     + (f" · écarts: {ecarts[:2]}" if ecarts else ""))
 
 
 async def main():
@@ -117,30 +160,13 @@ async def main():
             regions = json.loads((RACINE / "regions.json").read_text())
             selecteurs = regions["harnessSelectors"]
 
+            # Compare the arrival state (before any driving)
+            await comparer(journal, src, bat, selecteurs, "arrivée")
+
+            # Compare the driven states
             for etat in ETATS:
-                for pg in (src, bat):
-                    await pg.evaluate("(e)=>window.__go(e)", etat)
-                    await pg.wait_for_timeout(450)
-                for surface in ("#view", "#screen", "#sheet"):
-                    a = await src.evaluate(SERIALISER, surface)
-                    b = await bat.evaluate(SERIALISER, surface)
-                    detail = ""
-                    if a != b and a and b:
-                        la, lb = a.split("\n"), b.split("\n")
-                        i = next((k for k in range(min(len(la), len(lb)))
-                                  if la[k] != lb[k]), min(len(la), len(lb)))
-                        detail = f"premier écart au nœud {i}: {la[i:i+1]} ≠ {lb[i:i+1]}"
-                    journal.verifier(f"{etat} · {surface} identique", a == b,
-                                     detail or f"{(a or '').count(chr(10))+1} nœuds")
-                ra = await src.evaluate(RECTS, selecteurs)
-                rb = await bat.evaluate(RECTS, selecteurs)
-                ecarts = [s for s in ra
-                          if s in rb and any(abs(x - y) > 1
-                                             for x, y in zip(ra[s], rb[s]))]
-                journal.verifier(f"{etat} · géométrie des régions identique",
-                                 set(ra) == set(rb) and not ecarts,
-                                 f"{len(ra)} régions"
-                                 + (f" · écarts: {ecarts[:2]}" if ecarts else ""))
+                await comparer(journal, src, bat, selecteurs, etat)
+
             await navigateur.close()
     finally:
         serveur.terminate()

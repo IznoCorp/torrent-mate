@@ -44,7 +44,7 @@ language is SP5.
   This is knowingly the envelope's THIRD incarnation (serve.py's HEAD/TAIL and the
   harness re-sync recipe are the other two); unifying the three belongs to the
   host-switch step, not to SP2.
-- `vite.config.ts` — one tiny local plugin, `injecte-maquette`: in `transformIndexHtml`
+- `vite.config.mjs` — one tiny local plugin, `injecte-maquette`: in `transformIndexHtml`
   with `order: "post"`, replace the placeholder with the verbatim content of
   `refonte.html`. `order: "post"` runs after Vite's own HTML processing, so the fragment
   is emitted UNTRANSFORMED — no minification, no script extraction, byte-for-byte the
@@ -72,10 +72,15 @@ the source:
      subtrees (order included);
    - the geometry of the harness regions: bounding rects of the `harnessSelectors`
      present, within a 1px tolerance;
-   - zero console errors on either side.
+   - zero failed responses (status ≥ 400) on either side, with `/favicon.ico` excepted
+     (both servers generate uninvited requests for it, a harness-environment miss, not
+     the prototype's); plus `pageerror` events (JavaScript errors). Known blind spot:
+     sub-HTTP failures (`requestfailed`) are not guarded, acceptable for same-origin
+     static trees.
 4. Mutation-verified in both directions: (a) corrupt the emitted fragment (one class
    renamed in `dist/`'s html) → the DOM comparison falls naming the state and node;
-   (b) drop the assets from the scratch server → the console-error check falls.
+   (b) drop the assets from the scratch server → the response guard catches the failed
+   asset 404s on the built side alone.
 
 The rule is allowed to be the suite's slowest; it runs `npm` and a build, so it prints
 what it is doing. It must leave no scratch server running on any exit path.
