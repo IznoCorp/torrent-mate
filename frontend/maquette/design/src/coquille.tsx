@@ -37,6 +37,10 @@ declare global {
   interface Window {
     __pont: Pont;
     __routeur: typeof routeur;
+    // The envelope's pre-bridge, which records the verb calls the engine
+    // makes before this module evaluates. It removes itself once replayed,
+    // so its absence is the normal state, not an error.
+    __rejouerLePont?: (pont: Pont) => void;
   }
 }
 
@@ -46,16 +50,11 @@ declare global {
 // in two.
 //
 // Creating it stamps the current entry with the library's own bookkeeping
-// keys, and that stamp REPLACES whatever state the entry already carried.
-// The engine writes its arrival state before this module runs (a module tag
-// is deferred), so the state is read first and written back: a shell that
-// erased the entry it mounted on would break the walk back to it, silently.
-const etatALArrivee = window.history.state;
+// keys. Nothing is preserved across that stamp on purpose: the engine no
+// longer writes the entry itself — its arrival writes were recorded by the
+// pre-bridge and are replayed BELOW, onto this instance, so the entry the
+// shell mounts on is written once, by the single writer, in the right order.
 const historique = createBrowserHistory();
-if (etatALArrivee) {
-  historique.replace(historique.location.href, etatALArrivee);
-  historique.flush();
-}
 
 const racine = createRootRoute();
 const attrape = createRoute({
@@ -118,6 +117,12 @@ window.__pont = {
     }),
 };
 window.__routeur = routeur;
+
+// Whatever the engine asked for while only the recorder existed is played
+// back now, in its original order, before the first render: the address the
+// router mounts on is then the one the engine's boot settled on, not the one
+// the document happened to open with.
+window.__rejouerLePont?.(window.__pont);
 
 ReactDOM.createRoot(document.getElementById("coquille")!).render(
   <React.StrictMode>

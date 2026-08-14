@@ -16249,7 +16249,7 @@
     select("#sheet").classList.add("open");
     select("#scrim").classList.add("open");
     try {
-      history.pushState({ layer: "sheet" }, "");
+      __pont.coucher("sheet");
     } catch (error) {}
   }
   /* Closing WITHOUT touching history — the harness driver uses it to
@@ -16278,7 +16278,7 @@
        layer that pushed it may pop it. Three close functions run in a row on
        the scrim, and without the name the second would pop an entry belonging
        to the page underneath.
-     · One unwind is in flight at a time. `history.back()` is asynchronous, so
+     · One unwind is in flight at a time. A back is asynchronous, so
        `history.state` still reads the entry we just asked to pop, and a second
        call within the same task would ask for one entry too many. */
   let deroulementEnCours = 0;
@@ -16288,7 +16288,7 @@
     if (!history.state || history.state.layer !== nom) return;
     deroulementEnCours += 1;
     try {
-      history.back();
+      __pont.retour();
     } catch (error) {
       deroulementEnCours -= 1;
     }
@@ -16346,7 +16346,7 @@
         scrollY: element.querySelector(".port")?.scrollTop ?? 0,
       });
       try {
-        history.pushState({ layer: "screen" }, "");
+        __pont.coucher("screen");
       } catch (error) {}
     }
     let startY = 0;
@@ -16399,7 +16399,7 @@
     if (!dejaOuvert) {
       element.classList.add("open");
       try {
-        history.pushState({ layer: "screen" }, "");
+        __pont.coucher("screen");
       } catch (error) {}
     }
     renduCourant = rendre ?? null;
@@ -16540,11 +16540,15 @@
   function noterLeChemin() {
     if (pilotage) return;
     try {
-      history.pushState(etatDeNavigation(), "", urlDeLEtat());
+      __pont.noter(etatDeNavigation(), urlDeLEtat());
     } catch (error) {}
   }
 
-  window.addEventListener("popstate", (evenement) => {
+  /* The bridge announces a back the way `popstate` did — for a back, a
+     forward and a jump alike — and hands over the state of the entry now
+     CURRENT, which is the entry the gesture landed on. That is what
+     `popstate` reported too, so the reading below is unchanged. */
+  __pont.surRetour((etatCourant) => {
     // Our own unwind, announced by the layer that closed itself. It is not a
     // back gesture and carries no destination: consuming it is the whole
     // handling. Read before the layer guards, because the layer's class is
@@ -16559,7 +16563,7 @@
     if (select("#screen").classList.contains("open")) return closeScreen(true);
     if (select("#sheet").classList.contains("open")) return closeSheet(true);
 
-    const etat = evenement.state;
+    const etat = etatCourant;
     if (etat && etat.tm === "nav") {
       sortieArmee = 0;
       pilotage = true;
@@ -16580,7 +16584,7 @@
       sortieArmee = 0;
       // Nothing is put back: from the guard, one more back leaves the
       // document — which is what closes an installed app on Android.
-      history.back();
+      __pont.retour();
       return;
     }
     sortieArmee = maintenant;
@@ -17612,7 +17616,7 @@
     element.classList.add("open");
     select("#scrim").classList.add("open");
     try {
-      history.pushState({ layer: "drawer" }, "");
+      __pont.coucher("drawer");
     } catch (error) {}
   }
   function fermerTiroir(pop) {
@@ -18059,8 +18063,8 @@
          is the only thing a drawer can honestly promise.
 
          This is also why history is settled here rather than by letting the
-         close unwind and the arrival push: `history.back()` is asynchronous,
-         so its pop would land after the push and overwrite it. The close is
+         close unwind and the arrival push: a back is asynchronous, so its
+         pop would land after the push and overwrite it. The close is
          therefore told not to touch history at all. */
       const surLeTiroir = history.state && history.state.layer === "drawer";
       fermerTiroir(true);
@@ -18068,8 +18072,7 @@
       port.scrollTop = 0;
       render();
       try {
-        if (surLeTiroir)
-          history.replaceState(etatDeNavigation(), "", urlDeLEtat());
+        if (surLeTiroir) __pont.remplacer(etatDeNavigation(), urlDeLEtat());
         else noterLeChemin();
       } catch (error) {}
       return;
@@ -40929,7 +40932,7 @@
   /* The address is put back on the entry one arrives on, so a back from
      anywhere reaches the page the link named rather than a bare document. */
   try {
-    history.replaceState(etatDeNavigation(), "", adresseDArrivee);
+    __pont.remplacer(etatDeNavigation(), adresseDArrivee);
   } catch (error) {}
   /* The interface exists from here on, so the startup screen has nothing left
      to cover — but it does not come off on that line. It comes off when the
@@ -40940,7 +40943,7 @@
      cannot be anywhere else: nothing can be inserted below the entry a
      document opens on, so the guard has to BE that entry. */
   try {
-    history.replaceState({ tm: "garde" }, "");
+    __pont.remplacer({ tm: "garde" });
   } catch (error) {}
   /* Pushed with the address one ARRIVED at rather than with the one the state
      now implies. Rendering an unknown id moves the state onto the not-found
@@ -40948,7 +40951,7 @@
      into « ?page=404 » — the interface correcting the operator's address
      behind their back. A browser answering 404 leaves the address alone. */
   try {
-    history.pushState(etatDeNavigation(), "", adresseDArrivee);
+    __pont.noter(etatDeNavigation(), adresseDArrivee);
   } catch (error) {}
   /* The welcome hint disappears on first interaction: a bubble that returns
      over an open sheet is a nuisance, not help. */
