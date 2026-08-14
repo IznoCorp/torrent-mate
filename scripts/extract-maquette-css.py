@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Extract the prototype's application CSS into the stylesheet the app ships.
 
-`frontend/maquette/refonte.html` is the product (product-intent §15). Its
+`frontend/maquette/design/refonte.html` is the product (product-intent §15). Its
 `<style>` element is physically split in two, and only the second half ships:
 
 - **BLOCK 1 — PROTOTYPE HARNESS**: the phone frame, the demo bars, the design
@@ -47,7 +47,7 @@ PORTEE = ".tm"
 
 ENTETE = """/* GENERATED — do not edit.
  *
- * Extracted from `frontend/maquette/refonte.html` (BLOCK 2 — APPLICATION CSS)
+ * Extracted from `frontend/maquette/design/refonte.html` (BLOCK 2 — APPLICATION CSS)
  * by `scripts/extract-maquette-css.py`, and scoped under `{portee}`.
  *
  * The prototype IS the product (product-intent §15). A pixel changes there and
