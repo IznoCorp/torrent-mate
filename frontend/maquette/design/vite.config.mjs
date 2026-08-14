@@ -34,6 +34,12 @@ export default defineConfig({
   root: RACINE,
   // The prototype references `assets/...` itself; nothing else is public.
   publicDir: false,
-  build: { outDir: "dist", emptyOutDir: true },
+  build: {
+    outDir: "dist",
+    // The symlink below owns `dist/assets`; bundled output must live under
+    // another name or closeBundle would silently delete it on every build.
+    assetsDir: "vite",
+    emptyOutDir: true,
+  },
   plugins: [injecteMaquette()],
 });
