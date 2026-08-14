@@ -34,13 +34,13 @@ Konsta UI, Motion, TanStack DB/Store are evaluated in SP4/SP5, not before.
 
 1. **Image values become relative URLs** in the existing tables (option A). The four
    constants keep their keys and lookup semantics (`HEROS[t] ?? HEROS[baseTitle(t)]`);
-   only the 931 string values change from `data:` URIs to `assets/...` paths. No manifest
+   only the 930 string values change from `data:` URIs to `assets/...` paths. No manifest
    file, no path-from-title derivation (NFC/NFD and slug-collision traps already paid).
 2. **Files are named by content hash** (option A): first 8 hex chars of SHA-1 of the
    decoded bytes, one subdirectory per table. Readable identity stays in the table keys.
 3. **Library images stay behind the session gate.** They are the operator's real posters.
    Only the 6 brand assets (PWA icons, favicon) remain session-free, as today.
-4. **The ~925 webp files are committed** (~9.9 MB once, versus 13.2 MB of base64 rewritten
+4. **The 925 files (924 distinct table images + the account avatar) are committed** (~9.9 MB once, versus 13.2 MB of base64 rewritten
    into git on every prototype edit). Nothing on this path is gitignored — no `git add -f`
    for assets.
 5. **The design host serves from this working tree** (pm2 `torrentmate-design`, port 8712).
@@ -66,7 +66,7 @@ frontend/maquette/
 ```
 
 `design/` is named after the host (`tm-design`, pm2 `torrentmate-design`) and becomes the
-Vite project root in SP2. 931 references over ~925 files: duplicate images converge on the
+Vite project root in SP2. 930 references over 925 files: duplicate images converge on the
 same hash by construction — intended, not accidental.
 
 ## Image extraction
@@ -78,7 +78,7 @@ A one-shot conversion script (not committed; described in the commit message):
 3. Replace the value with the relative URL string. Keys, ordering, and every other byte
    of the file stay identical.
 4. **Proof**: re-read every written file, re-encode, compare against the original base64;
-   assert the rewritten HTML differs from the original only inside the 931 value strings.
+   assert the rewritten HTML differs from the original only inside the 930 value strings.
 
 Values are consumed as opaque strings (measured: no `startsWith('data:')`, no decoding);
 relative URLs flow through `src=` and `url()` unchanged. They resolve against the document
@@ -89,7 +89,7 @@ base URL — hence the symlink below.
 - `PROTOTYPE` → `design/refonte.html`; `DOSSIER_ASSETS` → `design/assets`.
 - New route `GET /assets/<subpath>`, **session-gated**: resolved path must stay under
   `design/assets/` (no traversal), `Content-Type: image/webp`,
-  `Cache-Control: public, max-age=31536000, immutable` (hash names: changed content
+  `Cache-Control: private, max-age=31536000, immutable` (hash names: changed content
   changes URL).
 - The 6 brand assets keep today's regime: served by exact name, session-free, from the
   new location. The manifest and login flow are untouched.

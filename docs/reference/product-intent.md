@@ -293,7 +293,7 @@ Les deux workflows se rejoignent, et cette jonction est un **engagement**, pas u
 
 ## §15 — La maquette EST le produit (règle gravée)
 
-`frontend/maquette/refonte.html` **est le produit**, pas une illustration ni un souvenir de
+`frontend/maquette/design/refonte.html` **est le produit**, pas une illustration ni un souvenir de
 conception. Directive opérateur du 2026-08-13 : ce n'est plus un habillage de l'app livrée,
 c'est une refonte — une **v1 aboutie**, une version à part entière. L'app sera rebâtie dessus,
 et non amenée vers elle surface par surface.
