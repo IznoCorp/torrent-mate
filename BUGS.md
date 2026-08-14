@@ -31,13 +31,18 @@ when the defect comes back.
 
 ## Open
 
-| ID    | Defect                                            | Reported     | Status       |
-| ----- | ------------------------------------------------- | ------------ | ------------ |
-| B-013 | The drawer's entries lead nowhere                 | 2×           | `to confirm` |
-| B-014 | The drawer's current entry is unreadable          | 1×           | `to confirm` |
-| B-015 | Back reopens the drawer that was just closed      | 1×           | `to confirm` |
-| B-016 | Swiping a row right, then left, makes it jump     | 1×           | `to confirm` |
-| B-017 | Closing a panel sends the list back to its top    | by mutation  | `to confirm` |
+| ID    | Defect                                         | Reported    | Status       |
+| ----- | ---------------------------------------------- | ----------- | ------------ |
+| B-013 | The drawer's entries lead nowhere              | 2×          | `to confirm` |
+| B-014 | The drawer's current entry is unreadable       | 1×          | `to confirm` |
+| B-015 | Back reopens the drawer that was just closed   | 1×          | `to confirm` |
+| B-016 | Swiping a row right, then left, makes it jump  | 1×          | `to confirm` |
+| B-017 | Closing a panel sends the list back to its top | by mutation | `to confirm` |
+| B-018 | On a desktop, dragging a row opens the panel   | 1×          | `to confirm` |
+
+**B-018 was written down as a regression from B-016, and that was wrong.** It has two ways in, one
+of which is older than this work — the correction is recorded here rather than quietly amended,
+because a register that only ever gets more accurate teaches nothing about how it goes wrong.
 
 B-013 to B-015 arrived as **one** report about the navigation drawer. They are written as three
 because a fix closes only with a rule that bites, and three symptoms with three causes need three
@@ -168,8 +173,47 @@ A third instance of the same class was found while fixing it: the quick-action b
 row's transform by hand without clearing what was RECORDED about it, so the next drag resumed from
 a drawer that was no longer open. They close through the shared close now.
 
-**Mutation.** Restore the deduced origin → « une ligne ouverte suit le doigt sans sauter » falls at
-252. Remove the clamp → « le glissé inverse la ramène au repos » falls.
+**Mutation.** Restore the deduced origin → « une ligne ouverte suit le doigt sans sauter » falls at 252. Remove the clamp → « le glissé inverse la ramène au repos » falls.
+
+---
+
+## B-018 — On a desktop, dragging a row opens the bottom panel
+
+**Reported** 1×. **Status** `to confirm` — R64 strengthened, `harness/souris.py`.
+
+**What the operator sees.** On a DESKTOP, dragging a row left or right opens the bottom panel
+instead of revealing the row's actions. The drag is read as a tap.
+
+**Measured.** On a library row dragged to the right, a click reaches the document with
+`defaultPrevented: false` — **the click is not swallowed**. On the same row dragged left, and on a
+follows row either way, it is.
+
+**Why.** The guard that stops a drag from also firing the tap was armed on how far the ROW moved:
+`|dx - depart| > 4`. A row is free to refuse to move — a library row has no drawer on its left, so
+a right drag ends exactly where it started — and then nothing is armed, the click goes through, and
+the panel opens over the row.
+
+**Two ways in, and only one is mine.** The right drag on a row with no left drawer has behaved this
+way from the beginning. The fix for B-016 added the second: since an open row can now only be
+CLOSED by a drag, dragging one further in the same direction also ends where it started. Calling
+the whole thing a regression, as this entry first did, was wrong.
+
+**Why no rule caught it — and this is the part worth keeping.** Two reasons, and they compound.
+
+1. **After a touch drag, the browser suppresses the click by itself.** Every finger measurement was
+   therefore green over the hole. Only a mouse can see it, and R64 already knew that — its own text
+   says a touch probe cannot tell a swallowed click from one that never happened.
+2. **`souris.py` asserted the weaker thing.** It checked that no panel appeared. A panel can fail to
+   appear because the release landed a few pixels off the card, which is exactly what happened in
+   the first four attempts to reproduce this: the click went through, unswallowed, and hit a `div`.
+   The rule now asserts the click was **actively swallowed**, which is the property that was
+   promised.
+
+**The fix.** The guard is armed on what the FINGER travelled, never on what the row moved. The
+distinction between a drag and a tap belongs to the pointer.
+
+**Mutation.** Restore the row-displacement test → « une ligne de médiathèque, glissé droite : le
+clic n'est pas avalé » falls. Disarm the guard entirely → all four fall.
 
 ---
 

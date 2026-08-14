@@ -40866,10 +40866,28 @@
     // click is identified by its POINT — the same answer the long press
     // already needed — because a bare flag stays armed until SOME click
     // happens, and the next one it meets may be elsewhere entirely.
+    /* Armed on what the FINGER travelled, never on what the row moved.
+
+       The guard exists to tell a drag from a tap, and that distinction belongs
+       to the pointer: a row is free to refuse to move — a list with no left
+       drawer does exactly that — and measuring its displacement turns every
+       such drag into a tap. Two ways in, one old and one new: a right drag on
+       a row with no left drawer has always ended at zero, and since an open
+       row can only be closed, dragging one further in the same direction now
+       ends where it started too. Both armed nothing, so the click went
+       through and the bottom panel opened over the row.
+
+       Only a MOUSE ever showed it. After a touch drag the browser suppresses
+       the click by itself, so every finger measurement was green over the
+       hole — which is why the check for this asserts the click was actively
+       SWALLOWED rather than that no panel appeared. A panel that fails to
+       appear can be an accident of where the release landed. */
+    const parcouru = Math.hypot(
+      (drag.dernierX ?? drag.x) - drag.x,
+      (drag.dernierY ?? drag.y) - drag.y,
+    );
     clicApresGlisse =
-      Math.abs(drag.dx - drag.depart) > 4
-        ? { x: drag.dernierX, y: drag.dernierY }
-        : null;
+      parcouru > 4 ? { x: drag.dernierX, y: drag.dernierY } : null;
   }
   window.addEventListener("pointerup", endCardDrag);
   window.addEventListener("pointercancel", endCardDrag);
