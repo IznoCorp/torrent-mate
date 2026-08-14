@@ -13,8 +13,18 @@ the prototype, never retyped, the rule the login gate already obeys — and that
 the screen is gone the moment there is an interface behind it.
 
 Position in source order is a correctness property here, not a detail: a
-browser paints what it has parsed, so a screen declared after the embedded
-artwork would appear only once the wait it exists to cover is over.
+browser paints what it has parsed, so a screen declared after the artwork would
+appear only once the wait it exists to cover is over.
+
+What the cold-load checks below prove is the state of the DOCUMENT — the screen
+is there, visible, from the instant it enters it, and gone once the interface
+exists. Not the state of a painted frame: served locally, this document is about
+a megabyte and a half and arrives in one burst, so the screen is parsed and then
+taken off before the browser gets a single rendering opportunity. Its visible
+window closes near 110 ms and the first paint lands near 290 ms — no frame here
+carries it, and no probe can invent one. A guarantee about what reaches the
+SCREEN needs a load slow enough to paint during, that is a throttled-network
+profile in the driver: a separate rule, and an open decision for the operator.
 """
 import asyncio
 import pathlib
@@ -243,9 +253,10 @@ async def main():
         # Held on a TIMER here, the bar filled once while the document
         # downloaded and then restarted from zero in a document that was already
         # rendered. It was reported as loading twice, and it was. What is
-        # asserted below is that the screen is up on the first frame and comes
-        # off when the interface is there — not after a fixed delay, which is
-        # what a rule of mine demanded and what put the second bar on screen.
+        # asserted below is that the screen is up from the moment it enters the
+        # document and comes off when the interface is there — not after a fixed
+        # delay, which is what a rule of mine demanded and what put the second
+        # bar on screen.
         #
         # The observation is taken from INSIDE the page, by a script injected
         # before any script of the document runs, and the clock is the
@@ -264,6 +275,17 @@ async def main():
         # afterwards, and one reading per animation frame on top of that. The
         # first two are what a fast document needs; the frames are what proves
         # the screen does not come back later.
+        #
+        # What this rule asserts is therefore the state of the DOCUMENT, and it
+        # is named for that. Served locally, a megabyte and a half arrives in one
+        # burst: the screen is parsed, then taken off by the closing line, before
+        # the browser has had a single rendering opportunity — measured, entered
+        # visible around 60 ms, off around 110 ms, first paint near 290 ms. No
+        # painted frame carries it here, and no reading can invent one. Proving
+        # the screen reaches the SCREEN needs a load slow enough to paint during
+        # — a throttled network profile in the driver — which is a rule of its
+        # own and an open decision for the operator, not something this one can
+        # claim.
         froide = await ctx.new_page()
         await froide.add_init_script("""(() => {
           window.__releves = [];
@@ -292,7 +314,7 @@ async def main():
         # could have been seen: before it, the browser has not parsed it yet and
         # a reading of « absent » says nothing about it.
         premiere = next(((t, v) for t, v in releves if v is not None), None)
-        verifier("l'écran de démarrage est là dès la première image",
+        verifier("l'écran de démarrage est là dès qu'il entre dans le document",
                  premiere is not None and premiere[1] and premiere[0] < 400,
                  f"présent à {round(premiere[0])}ms, visible : {premiere[1]}"
                  if premiere else f"absent des {len(releves)} lectures")
