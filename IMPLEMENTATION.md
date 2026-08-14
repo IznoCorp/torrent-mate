@@ -197,6 +197,11 @@ couplage.** R63 l'a démontré tout seul en tombant quand le planificateur a tou
 échoue avec le TEMPS ne signale pas un défaut, elle désigne une couture. Il reste à faire le tri :
 combien des 83 sont vérifiées, combien ne le sont pas.
 
+**Elle est retombée le même jour**, quelques heures plus tard : le passage de 15 h 20 a poussé Silo
+de 9 à 11. Deux fois en une session, sans qu'une ligne de la maquette ait été touchée. Ce n'est
+plus une illustration de la question, c'en est la réponse : **ces constantes-là ne se maintiennent
+pas à la main, et la liaison n'a pas le choix de les brancher.**
+
 **2. Qui possède l'état ?** Personne — 265 accès directs, contre 248. Rien n'a bougé sur ce front
 et c'est assumé : découper l'état demande de découper le fichier, et un fichier unique est
 exactement ce qui a rendu ces 71 règles écrivables. **C'est la question qui reste entière**, et la
@@ -398,6 +403,19 @@ These were argued, measured and recorded. Re-opening one costs a day; the reason
    refusal and one state that crosses them, each derived from the setting's VALUE rather than
    from a list of keys. R60 extended, `harness/reglages.py` — 42 checks, eight named states, one
    per field.
+11. **Five tokens the app will owe.** The design-system lint found nine hardcoded colours in the
+   prototype — a real C19 violation, and one of them (`var(--warning, #d97706)`) was the B-014
+   shape again: a fallback onto a token that IS defined, which is a landmine that has not gone
+   off. They are tokens now: `--mq-shadow-toast`, `--mq-shadow-pop`, `--mq-shadow-carte`,
+   `--mq-shadow-badge`, `--mq-scrim-doux`, `--mq-tile-overlay`. Their VALUES live in the
+   prototype's own palette, which sits in BLOCK 1 and is therefore not exported — so the
+   generated stylesheet names them and defines none of them, exactly as it already does for
+   `--border` and `--card`. **When the app adopts that stylesheet, `frontend/src/styles/ps/
+   tokens/maquette.css` must gain the five it does not yet carry.** Measured, because « it
+   cannot affect production » is a measurement: adding them now costs 170 bytes of unused
+   custom properties in the shipped CSS, and leaving them out keeps `frontend/dist`
+   byte-identical.
+
 10. **Answering a decision was a no-op on the acquisition side.** Found while drawing the screen:
     « Résoudre → » on « À traiter » opened the screen, took the choice, and left the item exactly
     where it was, because the answer only ever looked in the Arrivées list. Fixed in the prototype.

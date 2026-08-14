@@ -788,7 +788,7 @@
 }
 
 .tm {
-    --tile-overlay: rgb(0 0 0 / 0.62);
+    --tile-overlay: var(--mq-tile-overlay);
 }
 
 .tm .tilebadge {
@@ -1042,7 +1042,7 @@
     border-radius: 14px;
     background: var(--card);
     overflow: hidden;
-    box-shadow: 0 12px 32px rgb(0 0 0 / 0.32);
+    box-shadow: var(--mq-shadow-pop);
     transform-origin: 50% 100%;
     transition:
     transform 0.42s cubic-bezier(0.22, 1.02, 0.36, 1),
@@ -1816,7 +1816,7 @@
     font-weight: 600;
     line-height: 1;
     font-variant-numeric: tabular-nums;
-    box-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+    box-shadow: var(--mq-shadow-badge);
     outline: 2px solid var(--sidebar);
 }
 
@@ -2512,7 +2512,7 @@
     margin: 8px 0 0;
     font-size: 12px;
     font-weight: 600;
-    color: var(--warning, #d97706);
+    color: var(--warning);
     font-variant-numeric: tabular-nums;
 }
 
@@ -2577,7 +2577,7 @@
     font-size: 12px;
     line-height: 1.45;
     color: var(--foreground);
-    box-shadow: 0 8px 26px rgb(0 0 0 / 0.5);
+    box-shadow: var(--mq-shadow-toast);
 }
 
 .tm .eppop b {
@@ -3084,7 +3084,7 @@
 .tm .dlgbtn.danger {
     background: var(--danger);
     border-color: var(--danger);
-    color: #fff;
+    color: var(--mq-white);
 }
 
 .tm .dlgbtn.ghost {
@@ -3106,7 +3106,7 @@
     border-radius: 9px;
     padding: 11px 12px;
     font-size: 12.5px;
-    box-shadow: 0 8px 26px rgb(0 0 0/0.5);
+    box-shadow: var(--mq-shadow-toast);
     transform: translateY(14px);
     opacity: 0;
     visibility: hidden;
@@ -3292,7 +3292,7 @@
     height: 21px;
     border-radius: 99px;
     border: 2px solid var(--mq-white);
-    background: rgb(0 0 0 / 0.35);
+    background: var(--mq-scrim-doux);
     display: grid;
     place-items: center;
     color: transparent;
@@ -3567,7 +3567,7 @@
     border: 1px solid var(--border);
     border-radius: 12px;
     background: var(--card);
-    box-shadow: 0 10px 30px rgb(0 0 0 / 0.45);
+    box-shadow: var(--mq-shadow-carte);
 }
 
 .tm .installtext {
