@@ -92,24 +92,65 @@ editing `serve.py`: `pm2 restart torrentmate-design`.
 
 ## What the v1 still owes, page by page
 
-Read from the shipped router (`frontend/src/router.tsx`) against the prototype's named states.
-Every line is a surface production really serves.
+Read from the shipped router (`frontend/src/router.tsx`) and the shipped nav model
+(`frontend/src/components/layout/nav.ts`) against the prototype's named states.
 
-| Production route | Drawn in the prototype? | What it owes |
-| --- | --- | --- |
-| `/login` | yes | — |
-| `/acquisition` | yes | — |
-| `/medias` | yes | — |
-| `/config` | yes | — |
-| `/media/:provider/:id` | yes | — |
-| `/controle` (Dashboard) | **no** | health at a glance, the last run's digest, what is stuck, the acquisition summary, the event feed, the schedulers |
-| `/pipeline` | **no** | the flow board, the controls and their banner, a run's detail, the run history, the interpreted feed |
-| `/maintenance` | **no** | the action catalogue, disks, index health, locks, the destructive log |
-| `/systeme` | **partly** | the prototype says so itself: « réception seule … sa refonte mobile est différée ». That deferral is lifted |
-| `*` (NotFound) | **no** | what a wrong URL says, and where it sends one |
-| — | **no** | the multi-user account surfaces. The user menu draws their PLACE, disabled; the surfaces themselves are not drawn |
+Two of production's routes are already redirects and owe nothing: `/scraping` → `/medias`,
+`/registry` → `/systeme`. A third, `/maintenance`, is **also** a redirect — `MaintenanceRunRedirect`
+sends it to `/systeme?tab=journal`, or to `/pipeline?run=…` when it carries a run. The page it
+names has not existed for some time; its panels live on `/systeme`.
 
-Nothing else in production is missing: `/scraping` and `/registry` are redirects.
+### The v1's structure, and it is settled
+
+The prototype's four tabs and production's four do not agree: production's bar is
+`Acquisition · Médias · Pipeline · Contrôle`, the prototype's is
+`Acquisition · Médiathèque · Arrivées · Système`. The disagreement was arbitrated by the
+operator rather than split down the middle, and the arbitration replaced the question:
+
+> **The cut is by the NATURE OF THE TROUBLE.** A medium in trouble is Arrivées. A machine in
+> trouble is Système. A setting is Configuration. A command run against the library is
+> Maintenance.
+
+That axis is the reason the panels can be placed at all. Production's `/controle` has no axis —
+it stacks blocked media (`ATraiterList`) on top of disk and provider health (`CompactHealth`)
+with nothing saying why they share a page. **So `Contrôle` does not survive as a destination**:
+its seven panels each have a home under the rule, and none of those homes is a new page.
+
+|         |                                                                           |
+| ------- | ------------------------------------------------------------------------- |
+| Bar     | `Acquisition · Médiathèque · Arrivées · Système` — unchanged              |
+| Off-bar | `Maintenance` · `Configuration`, reached from Système and from the drawer |
+| Gone    | `Contrôle` — the binding mission redirects `/controle` to Arrivées        |
+
+Where every shipped panel lands. The first block places itself; the second was arbitrated;
+the third is derived from the rule rather than asked again.
+
+| Shipped panel                                         | Home            | Why                                                                                                                                                                               |
+| ----------------------------------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ATraiterList` — blocked staged media                 | **Arrivées**    | a medium in trouble                                                                                                                                                               |
+| `ScrapeActivityPanel`                                 | **Arrivées**    | a medium being identified                                                                                                                                                         |
+| `RecentResolutions`                                   | **Arrivées**    | a medium just unblocked                                                                                                                                                           |
+| `FlowBoard` — the eight stages                        | **Arrivées**    | the pipeline's health is where its media are                                                                                                                                      |
+| `CompactHealth` — disks, index, Redis, providers      | **Système**     | a machine in trouble                                                                                                                                                              |
+| `ActionCatalog`, index repairs, `DestructiveLogPanel` | **Maintenance** | commands run against the library                                                                                                                                                  |
+| `PipelineControls` + `PipelineActionBanner`           | **Arrivées**    | DOIT-3 — act where one observes. The blocked stage and the button to relaunch it are one glance                                                                                   |
+| `RunHistoryTable` · `RunDetail` · `RunLogFeed`        | **Système**     | « succès d'exécution » and « logs ». Arrivées keeps the PRESENT — what is stuck, what arrived in 24 h — and never becomes an archive                                              |
+| `AcquisitionSummaryCard`                              | **Acquisition** | the tab already shows it in full; it does not owe a second, shorter copy                                                                                                          |
+| `SchedulersPanel`                                     | **Système**     | did it fire, did it succeed. Its HOUR is a setting and lives in Configuration — the schedule and its health are two objects that share a name                                     |
+| `LastRunDigest` — « X détectés, Y récupérés »         | **Arrivées**    | a count of media, not of executions. The run's _history_ is Système's; the last run's _result_ is the story of what arrived                                                       |
+| `StalledPanel` — per-step reasons                     | **split**       | a torrent deferred for ratio is a medium (Arrivées); a step that raised is code (Système). The operator's rule is explicit: no blocked medium in Système, but its code errors yes |
+
+### What is therefore still owed
+
+| Surface                                                                | State                                                                                                                    | What it owes                                                                                                                                                                                |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/login`, `/acquisition`, `/medias`, `/config`, `/media/:provider/:id` | drawn                                                                                                                    | —                                                                                                                                                                                           |
+| **Arrivées**                                                           | drawn, but as an inbox only                                                                                              | the pipeline controls and their banner, the flow board, the scrape feed, the recent resolutions, the last run's digest, the media half of the stalled reasons, and « arrivé dans les 24 h » |
+| **Système**                                                            | **partly** — the prototype says so itself: « réception seule … sa refonte mobile est différée ». That deferral is lifted | PM2 services, the pipeline's executions (history, detail, raw log), the schedulers and their success, disks / index / Redis / providers, and code errors                                    |
+| **Maintenance**                                                        | **not drawn**                                                                                                            | the action catalogue, index repairs, the destructive log                                                                                                                                    |
+| **Configuration**                                                      | drawn (R60, five rubrics over 153 real settings)                                                                         | the configuration FILES, and the schedulers' frequency and hour                                                                                                                             |
+| `*` (NotFound)                                                         | **not drawn**                                                                                                            | what a wrong URL says, and where it sends one                                                                                                                                               |
+| multi-user account                                                     | **not drawn**                                                                                                            | the user menu draws their PLACE, disabled; the surfaces themselves are not drawn                                                                                                            |
 
 ---
 
@@ -119,16 +160,16 @@ The operator's judgement is on the design **and the front-end architecture**. Th
 measured by 65 rules; the architecture is not measured by anything yet, and these are its real
 numbers, read from the file rather than remembered:
 
-| Mesure | Aujourd'hui | Ce que ça veut dire pour la liaison |
-| --- | --- | --- |
-| lignes de code (hors jaquettes) | 39 454 | un seul fichier, aucun module |
-| jeux de données en dur | **57** | 57 constantes à remplacer par autant de sources réelles |
-| appels réseau | **1** | rien n'entre par le réseau : tout est inline |
-| accès à `state.` | **248** | l'état n'a pas de propriétaire ; toute fonction y touche |
-| `render()` | 1 défini, 43 appels | une seule fonction redessine tout |
-| écouteurs | 43 | délégation par `closest()`, pas de composants |
-| coutures `window.__` | 21 | les points d'accroche déjà nommés |
-| `history.pushState` | 4 | la navigation existe, mais l'URL ne porte pas l'état |
+| Mesure                          | Aujourd'hui         | Ce que ça veut dire pour la liaison                      |
+| ------------------------------- | ------------------- | -------------------------------------------------------- |
+| lignes de code (hors jaquettes) | 39 454              | un seul fichier, aucun module                            |
+| jeux de données en dur          | **57**              | 57 constantes à remplacer par autant de sources réelles  |
+| appels réseau                   | **1**               | rien n'entre par le réseau : tout est inline             |
+| accès à `state.`                | **248**             | l'état n'a pas de propriétaire ; toute fonction y touche |
+| `render()`                      | 1 défini, 43 appels | une seule fonction redessine tout                        |
+| écouteurs                       | 43                  | délégation par `closest()`, pas de composants            |
+| coutures `window.__`            | 21                  | les points d'accroche déjà nommés                        |
+| `history.pushState`             | 4                   | la navigation existe, mais l'URL ne porte pas l'état     |
 
 Aucun de ces chiffres n'est un défaut **du prototype** : un fichier unique sans dépendance est
 exactement ce qui l'a rendu vérifiable. Ce sont les **coutures** que la mission de liaison devra
@@ -149,9 +190,14 @@ fichier, et elles font partie de ce que l'opérateur juge.
 
 ---
 
-**Next action:** draw the missing surfaces, in the order of the inventory above, and answer the
-three questions of this section. Each surface follows the method below — real data, named states,
+**Next action:** draw the missing surfaces in the order of the inventory above — Arrivées first,
+because it takes the largest transfer and the arbitration hangs on it — then answer the three
+questions of this section. Each surface follows the method below — real data, named states,
 a rule that bites, a mutation that proves it.
+
+Note that question 3 is not only architecture: **DOIT-10 requires every detail to have its URL**,
+and the prototype's routes live in `state.page`. That is a non-conformity with the constitution,
+not merely a debt to hand over.
 
 ---
 
@@ -320,7 +366,7 @@ These were argued, measured and recorded. Re-opening one costs a day; the reason
    from a list of keys. R60 extended, `harness/reglages.py` — 42 checks, eight named states, one
    per field.
 10. **Answering a decision was a no-op on the acquisition side.** Found while drawing the screen:
-   « Résoudre → » on « À traiter » opened the screen, took the choice, and left the item exactly
-   where it was, because the answer only ever looked in the Arrivées list. Fixed in the prototype.
-   The app's equivalent — whether resolving from one queue clears it from the other — is a
-   verification step of the binding mission, on the real API, not a claim of this one.
+    « Résoudre → » on « À traiter » opened the screen, took the choice, and left the item exactly
+    where it was, because the answer only ever looked in the Arrivées list. Fixed in the prototype.
+    The app's equivalent — whether resolving from one queue clears it from the other — is a
+    verification step of the binding mission, on the real API, not a claim of this one.
