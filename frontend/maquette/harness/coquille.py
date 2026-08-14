@@ -25,68 +25,6 @@ from commun import RACINE, Journal
 DESIGN = RACINE / "design"
 
 
-def strip_comments(source):
-    """Remove // and /* */ comments from JavaScript source, handling strings correctly.
-
-    Uses a simple state machine to track: code, //, /* */, single-quote string,
-    double-quote string, and template-literal states. Returns source with
-    comments replaced by whitespace (preserving line structure).
-    """
-    result = []
-    i = 0
-    while i < len(source):
-        # Check for single-line comment: //
-        if i < len(source) - 1 and source[i:i+2] == "//":
-            # Skip until end of line
-            while i < len(source) and source[i] != "\n":
-                result.append(" " if source[i] != "\n" else "\n")
-                i += 1
-            if i < len(source) and source[i] == "\n":
-                result.append("\n")
-                i += 1
-            continue
-        # Check for multi-line comment: /* */
-        if i < len(source) - 1 and source[i:i+2] == "/*":
-            # Skip until */
-            result.append(" ")
-            result.append(" ")
-            i += 2
-            while i < len(source) - 1:
-                if source[i:i+2] == "*/":
-                    result.append(" ")
-                    result.append(" ")
-                    i += 2
-                    break
-                result.append(" " if source[i] != "\n" else "\n")
-                i += 1
-            continue
-        # Regular character (not in a comment)
-        result.append(source[i])
-        i += 1
-    return "".join(result)
-
-
-def count_history_primitives(source):
-    """Count history.pushState(, history.replaceState(, history.back(, and history.go(.
-
-    Strips comments first, then counts occurrences outside of strings.
-    """
-    # Strip comments to avoid false matches in prose
-    cleaned = strip_comments(source)
-
-    patterns = [
-        r"history\.pushState\s*\(",
-        r"history\.replaceState\s*\(",
-        r"history\.back\s*\(",
-        r"history\.go\s*\(",
-    ]
-
-    total = 0
-    for pattern in patterns:
-        total += len(re.findall(pattern, cleaned))
-    return total
-
-
 def construire(journal):
     """Runs the build, installing first only when node_modules is absent."""
     if os.environ.get("R72_SANS_BUILD") == "1":
@@ -116,8 +54,10 @@ def verifier_holds(journal):
         emis.count(fragment) == 1,
         f"fragment émis {emis.count(fragment)} fois")
 
-    # Hold 2: Module entry present, order-agnostic (F5)
-    # Find all script tags and check for both type="module" AND src="/vite/...js"
+    # Hold 2: the module entry is present. Read attribute by attribute rather
+    # than as one pattern: the emitted tag's attribute order is the bundler's
+    # business, and a rule that fixed it would fail on a bundler upgrade while
+    # the envelope was still correct.
     script_tags = re.finditer(r"<script\b[^>]*>", emis)
     matching_tags = 0
     bundle_name = None
@@ -134,13 +74,20 @@ def verifier_holds(journal):
         matching_tags == 1,
         f"{matching_tags} match(s) trouvé(s)")
 
-    # Hold 3: Bundle file exists
+    # Hold 3: the named bundle exists on disk. It reports either way — a hold
+    # that vanished when the hold above it failed would drop the run's count
+    # without a line saying so, and a rule is read by its count.
     if bundle_name:
         bundle_path = DESIGN / "dist" / "vite" / bundle_name
         journal.verifier(
             "le fichier du bundle existe",
             bundle_path.exists(),
             f"dist/vite/{bundle_name}")
+    else:
+        journal.verifier(
+            "le fichier du bundle existe",
+            False,
+            "aucun bundle nommé — l'entrée du module n'a pas été trouvée")
 
 
 def main():

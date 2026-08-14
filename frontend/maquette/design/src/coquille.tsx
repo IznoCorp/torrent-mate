@@ -31,6 +31,9 @@ type Pont = {
   coucher: (couche: string) => void;
   retour: () => void;
   surRetour: (rappel: (etat: unknown) => void) => () => void;
+  // Written by the shell once the recorded boot calls have been replayed onto
+  // this bridge — see where it is set, at the bottom of this file.
+  pret?: boolean;
 };
 
 declare global {
@@ -122,7 +125,17 @@ window.__routeur = routeur;
 // back now, in its original order, before the first render: the address the
 // router mounts on is then the one the engine's boot settled on, not the one
 // the document happened to open with.
-window.__rejouerLePont?.(window.__pont);
+const rejouer = window.__rejouerLePont;
+if (typeof rejouer === "function") {
+  rejouer(window.__pont);
+  // The marker is written HERE, inside the branch that found the replay AND
+  // invoked it, and nowhere else: it observes the replay's EFFECT, not the
+  // bridge's installation. Installation, just above, is unconditional — a
+  // marker written outside this branch would still be written on a document
+  // whose recorder had been severed, so it could never fall under a severed
+  // replay, and a probe reading it would answer about the wrong event.
+  window.__pont.pret = true;
+}
 
 ReactDOM.createRoot(document.getElementById("coquille")!).render(
   <React.StrictMode>
