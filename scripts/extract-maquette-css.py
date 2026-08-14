@@ -38,7 +38,7 @@ import re
 import sys
 
 RACINE = pathlib.Path(__file__).resolve().parent.parent
-PROTOTYPE = RACINE / "frontend" / "maquette" / "refonte.html"
+PROTOTYPE = RACINE / "frontend" / "maquette" / "design" / "refonte.html"
 REGIONS = RACINE / "frontend" / "maquette" / "regions.json"
 SORTIE = RACINE / "frontend" / "src" / "styles" / "ps" / "app-surface.css"
 

@@ -66,9 +66,9 @@ RELEVE = """() => {
 
 async def main():
     global _journal
-    _journal = Journal(f"R56 — un seul panneau")
+    _journal = Journal("R56 — un seul panneau")
 
-    source = (RACINE / "refonte.html").read_text()
+    source = (RACINE / "design" / "refonte.html").read_text()
 
     # 1. No caller hands markup to the panel. Read on the SOURCE, because that
     #    is where an envelope is opened; the DOM only shows what came out.

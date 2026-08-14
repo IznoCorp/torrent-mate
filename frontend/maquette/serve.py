@@ -47,7 +47,7 @@ import sys
 import urllib.parse
 from pathlib import Path
 
-PROTOTYPE = Path(__file__).resolve().parent / "refonte.html"
+PROTOTYPE = Path(__file__).resolve().parent / "design" / "refonte.html"
 
 IDENTIFIANT = os.environ.get("TM_DESIGN_USER", "izno")
 

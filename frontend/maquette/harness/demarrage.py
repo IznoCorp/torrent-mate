@@ -45,7 +45,7 @@ def verifier(nom, condition, detail=""):
 
 def extrait_prototype(marque):
     """Returns the prototype text between a pair of `login:<marque>` markers."""
-    source = (RACINE / "refonte.html").read_text()
+    source = (RACINE / "design" / "refonte.html").read_text()
     debut = source.find(f"login:{marque}:start")
     fin = source.find(f"login:{marque}:end")
     if debut < 0 or fin < 0:
@@ -70,12 +70,12 @@ async def main():
         await pg.evaluate("()=>document.querySelector('#toastx').click()")
 
         global _journal
-        _journal = Journal(f"R53 — écran de démarrage")
+        _journal = Journal("R53 — écran de démarrage")
 
         # 1. Declared first, so it is painted first. Measured on the SOURCE,
         #    because that is what parse order follows; the DOM would answer the
         #    same question only by accident.
-        source = (RACINE / "refonte.html").read_text()
+        source = (RACINE / "design" / "refonte.html").read_text()
         corps = source[source.find('<div class="device"'):]
         rang_splash = corps.find('id="splash"')
         premier_autre = min(
