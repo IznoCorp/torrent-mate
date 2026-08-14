@@ -7,6 +7,31 @@
       content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
     />
     <title>TorrentMate Design</title>
+    <!-- pwa:start — the document half of installability. The server half
+         (manifest body, sw.js, brand assets, the offline page) stays in
+         serve.py: those are routes, not markup. The login gate EXTRACTS this
+         block rather than restating it, so there is exactly one copy. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0b0b0d" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <!-- iOS reads neither the manifest's display nor its short_name:
+         standalone mode and the home-screen label are declared here, or the
+         icon opens a Safari tab instead of an app. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="TorrentMate Design" />
+    <script>
+      if ("serviceWorker" in navigator)
+        addEventListener("load", () =>
+          navigator.serviceWorker.register("/sw.js"),
+        );
+    </script>
+    <!-- pwa:end -->
   </head>
   <body>
     <!-- maquette -->

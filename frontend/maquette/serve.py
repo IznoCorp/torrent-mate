@@ -169,41 +169,39 @@ HORS_LIGNE = (
     "du jour.</p></div></body></html>"
 ).encode()
 
-# Everything that makes a document installable, declared ONCE and carried by
-# every document this server hands out.
-#
-# It used to sit on the prototype alone, and the prototype is behind the
-# session. A phone therefore never met an installable page: the only document
-# it could reach before signing in was the login gate, and a browser reads the
-# manifest of the page in front of it, never one waiting behind a cookie. The
-# install prompt had nothing to offer, so it never appeared.
-TETE_PWA = (
-    '<link rel="manifest" href="/manifest.webmanifest">'
-    '<meta name="theme-color" content="#0b0b0d">'
-    '<link rel="apple-touch-icon" href="/apple-touch-icon.png">'
-    '<link rel="icon" href="/favicon.svg" type="image/svg+xml">'
-    # iOS reads neither the manifest's display nor its short_name: standalone
-    # mode and the home-screen label are declared with these two, or the icon
-    # opens a Safari tab instead of an app.
-    '<meta name="apple-mobile-web-app-capable" content="yes">'
-    '<meta name="mobile-web-app-capable" content="yes">'
-    '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">'
-    # iOS reads this and never the manifest's short_name, so the distinct name
-    # has to be repeated here or the home-screen label falls back to the page
-    # title — which is what put two « TorrentMate » side by side.
-    '<meta name="apple-mobile-web-app-title" content="TorrentMate Design">'
-    '<script>if("serviceWorker" in navigator)'
-    'addEventListener("load",()=>navigator.serviceWorker.register("/sw.js"));</script>'
-)
+ENVELOPPE = Path(__file__).resolve().parent / "design" / "index.html"
 
-HEAD = (
-    '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
-    '<meta name="viewport" '
-    'content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">'
-    "<title>TorrentMate Design</title>"
-    f"{TETE_PWA}"
-    "</head><body>"
-).encode()
+
+def tete_pwa() -> str:
+    """Returns the PWA head block, extracted from the envelope.
+
+    The envelope (`design/index.html`) is the document's single source of
+    truth since the host began serving the build; the login gate sits in
+    front of that document and must be installable too, so it borrows the
+    same block rather than restating it — a restated copy is where drift
+    hides (measured twice on the login screen's styles).
+
+    Raises:
+        ValueError: When the markers are missing — the gate must fail loudly
+            rather than serve a page that silently lost its installability.
+    """
+    source = ENVELOPPE.read_text()
+    debut = source.find("pwa:start")
+    fin = source.find("<!-- pwa:end -->")
+    if debut < 0 or fin < 0 or fin < debut:
+        raise ValueError("marqueurs pwa introuvables dans design/index.html")
+    return source[source.index("-->", debut) + 3 : fin]
+
+def _build_head() -> bytes:
+    """Build the HEAD bytes with the PWA block extracted at runtime."""
+    return (
+        '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
+        '<meta name="viewport" '
+        'content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">'
+        "<title>TorrentMate Design</title>"
+        f"{tete_pwa()}"
+        "</head><body>"
+    ).encode()
 TAIL = b"</body></html>"
 
 MANQUANT = (
@@ -306,7 +304,7 @@ def page_connexion(refusee: bool) -> bytes:
         '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
         "<title>TorrentMate Design — connexion</title>"
-        f"{TETE_PWA}"
+        f"{tete_pwa()}"
         "<style>"
         f"{socle}{styles}{ajustements}</style></head><body>{balisage}"
         f"{BASCULE_DEMARRAGE}</body></html>"
@@ -361,7 +359,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return None
         cached = Handler._cache
         if cached is None or cached[0] != stamp:
-            Handler._cache = (stamp, HEAD + PROTOTYPE.read_bytes() + TAIL)
+            Handler._cache = (stamp, _build_head() + PROTOTYPE.read_bytes() + TAIL)
         return Handler._cache[1]  # type: ignore[index]
 
     def _authentifie(self) -> bool:
