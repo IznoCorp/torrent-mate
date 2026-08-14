@@ -24,6 +24,7 @@ import {
   type InterpretedLine,
   type LineTone,
 } from "@/components/pipeline/interpretRun";
+import { Panel } from "@/components/ds/Panel";
 
 /** Distance from the bottom, in px, still considered "at the tail" (auto-follow). */
 const FOLLOW_THRESHOLD = 24;
@@ -122,13 +123,13 @@ export function InterpretedRunFeed({
   return (
     <section className="flex flex-col gap-2">
       <h2 className="text-sm font-semibold tracking-tight">{label}</h2>
-      <div
+      <Panel
         ref={scrollRef}
         onScroll={handleScroll}
         role="log"
         aria-live="polite"
         aria-label={label}
-        className="h-80 overflow-y-auto rounded-lg border border-border bg-card p-3 md:h-[28rem]"
+        className="h-80 overflow-y-auto p-3 md:h-[28rem]"
       >
         {isEmpty ? (
           <p className="flex h-full items-center justify-center text-xs text-muted-foreground">
@@ -165,7 +166,7 @@ export function InterpretedRunFeed({
             ))}
           </ol>
         )}
-      </div>
+      </Panel>
     </section>
   );
 }

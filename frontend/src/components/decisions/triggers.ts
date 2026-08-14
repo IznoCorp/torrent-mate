@@ -31,10 +31,22 @@ export const TRIGGER_TOOLTIP: Record<string, string> = {
 };
 
 /** Trigger reason → DS Badge tone. */
-export const TRIGGER_TONE: Record<string, "danger" | "warning" | "info"> = {
+export const TRIGGER_TONE: Record<string, "danger" | "warning" | "info" | "neutral"> = {
   below_threshold: "danger",
   mid_band: "warning",
   ambiguous: "info",
+  manual: "neutral",
+};
+
+/**
+ * How a decision was settled → French, for the line that says what was chosen.
+ *
+ * The engine's own words never reach a screen (R57): `pick` and
+ * `search_override` say what the code did, not what the operator did.
+ */
+export const VIA_LABEL: Record<string, string> = {
+  pick: "choisi dans la liste",
+  search_override: "trouvé par une recherche manuelle",
 };
 
 // ---------------------------------------------------------------------------
@@ -62,9 +74,9 @@ export type DecisionStatus =
  */
 export const STATUS_LABEL: Record<DecisionStatus, string> = {
   pending: "En attente",
-  resolved: "Résolue",
-  dismissed: "Ignorée (laissée telle quelle)",
-  superseded: "Remplacée (re-scrapée depuis)",
+  resolved: "Réglée",
+  dismissed: "Laissée telle quelle",
+  superseded: "Remplacée depuis",
 };
 
 /**
@@ -75,19 +87,19 @@ export const STATUS_LABEL: Record<DecisionStatus, string> = {
  */
 export const STATUS_SHORT_LABEL: Record<DecisionStatus, string> = {
   pending: "En attente",
-  resolved: "Résolues",
-  dismissed: "Ignorées",
+  resolved: "Réglées",
+  dismissed: "Laissées telles quelles",
   superseded: "Remplacées",
 };
 
 /** Status → tooltip (``title=``) explaining what happened to the folder. */
 export const STATUS_TOOLTIP: Record<DecisionStatus, string> = {
   pending: "En attente d'une décision de l'opérateur.",
-  resolved: "Un candidat a été choisi et un re-scraping ciblé a été lancé.",
+  resolved: "Un candidat a été choisi, et un re-scrapage ciblé a été lancé.",
   dismissed:
-    "Décision ignorée : le dossier a été laissé tel quel (résultat automatique conservé, aucun re-scraping).",
+    "Le dossier a été laissé tel quel : le résultat automatique est conservé, rien n'a été re-scrapé.",
   superseded:
-    "Décision remplacée : une version plus récente du dossier a été re-scrapée depuis, cette décision n'est plus pertinente.",
+    "Une version plus récente du dossier a été re-scrapée depuis. Cette décision ne veut plus rien dire.",
 };
 
 /** A DS Badge tone usable for a decision status. */

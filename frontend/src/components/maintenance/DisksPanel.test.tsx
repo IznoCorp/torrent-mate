@@ -182,7 +182,7 @@ describe("DisksPanel", () => {
     renderPanel();
 
     expect(
-      await screen.findByText("Aucun disque configuré."),
+      await screen.findByText("Aucun disque configuré"),
     ).toBeInTheDocument();
   });
 });

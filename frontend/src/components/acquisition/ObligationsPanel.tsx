@@ -109,12 +109,18 @@ export function ObligationsPanel(): ReactElement {
   // ── Empty ──────────────────────────────────────────────────────────────
   if (items.length === 0) {
     return (
-      <div className="py-8 text-center">
-        <p className="text-muted-foreground">
+      /* The maquette's own empty VIEW drawing, the one « Suivis » uses: a
+         headline and the line that explains it. An empty section renders
+         nothing; an empty view says so. */
+      <div className="empty">
+        <b>
           {status === "all"
-            ? "Aucune obligation de seed enregistrée."
-            : `Aucune obligation avec le statut « ${STATUS_LABEL[status] ?? "statut inconnu"} ».`}
-        </p>
+            ? "Aucune obligation de seed"
+            : "Aucune obligation dans cet état"}
+        </b>
+        {status === "all"
+          ? "Rien n'est en cours de partage sous obligation."
+          : `Aucune obligation avec le statut « ${STATUS_LABEL[status] ?? "statut inconnu"} ».`}
       </div>
     );
   }

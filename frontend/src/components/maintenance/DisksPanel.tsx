@@ -25,6 +25,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { maintenanceKeys } from "@/hooks/useMaintenanceKeys";
 import { formatGb } from "@/lib/format";
+import { EmptyState } from "@/components/ds/EmptyState";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -182,9 +183,11 @@ export function DisksPanel(): ReactElement {
             );
           })}
         {!isLoading && !isError && disks.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            Aucun disque configuré.
-          </p>
+          <EmptyState
+            compact
+            title="Aucun disque configuré"
+            description="Les disques de destination se déclarent dans la configuration."
+          />
         )}
       </CardContent>
     </Card>

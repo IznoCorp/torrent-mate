@@ -43,6 +43,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLastPipelineRun } from "@/hooks/useLastPipelineRun";
 import { usePipelineStatus } from "@/hooks/usePipelineStatus";
+import { Panel } from "@/components/ds/Panel";
 
 /**
  * Pipeline — the authenticated pipeline supervision route (``/pipeline``).
@@ -121,14 +122,14 @@ export default function Pipeline(): ReactElement {
       <RecentResolutions />
 
       {/* Raw WS log — collapsed by default inside the accordion. */}
-      <Accordion className="rounded-lg border border-border bg-card px-3">
+      <Panel as={Accordion} className="px-3">
         <AccordionItem>
           <AccordionTrigger>Journal brut (avancé)</AccordionTrigger>
           <AccordionContent>
             <RunLogFeed runUid={activeRunUid} />
           </AccordionContent>
         </AccordionItem>
-      </Accordion>
+      </Panel>
 
       {/* Pipeline run-history — repatriated from Maintenance (pipeline-panel
           Phase 02). The trigger legend lives as a popover on the history

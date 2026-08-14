@@ -57,7 +57,7 @@ describe("RecentEventsTable", () => {
   it("affiche un état vide sans événement", () => {
     render(<RecentEventsTable events={[]} />);
     expect(
-      screen.getByText("Aucun événement pour l’instant."),
+      screen.getByText("Aucun événement pour l’instant"),
     ).toBeInTheDocument();
   });
 });

@@ -538,7 +538,7 @@ describe("SystemePage", () => {
     renderSystemePage();
 
     expect(
-      screen.getByText("Aucun fournisseur configuré."),
+      screen.getByText("Aucun fournisseur configuré"),
     ).toBeInTheDocument();
   });
 

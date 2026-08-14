@@ -32,8 +32,8 @@ import { useFollowed } from "@/hooks/useAcquisition";
 import { MediaPoster } from "@/components/ds/MediaPoster";
 import { ErrorState } from "@/components/ds/ErrorState";
 
-import { AcquisitionCard } from "./AcquisitionCard";
-import { Chip } from "./Chip";
+import type { MediaFact } from "@/components/ds/MediaRow";
+import { MediaRow } from "@/components/ds/MediaRow";
 import { SwipeActions } from "./SwipeActions";
 import { useFollowActions } from "./followActions";
 import { useSchedulers } from "@/hooks/useSchedulers";
@@ -346,57 +346,33 @@ export function SuivisPanel(): ReactElement {
     const caption = followCountsCaption(item);
     const fraction = followFraction(item);
 
-    // Meta line: fraction, status chip, counts caption.
-    // In groupé mode (showStatus=false), the status chip is omitted — it lives in
-    // the section header instead (§12: no repetition).
-    const metaPieces: ReactElement[] = [];
+    // The facts line, in reading order: how much is owned, what state it is in,
+    // what annotates that state. In groupé mode (showStatus=false) the status
+    // chip is omitted — it lives in the section header instead (§12: no
+    // repetition).
+    const faits: MediaFact[] = [];
     if (fraction != null) {
-      metaPieces.push(
-        <span
-          key="fraction"
-          className="font-mono text-xs text-muted-foreground tabular-nums"
-        >
-          {fraction}
-        </span>,
-      );
+      faits.push({ kind: "fraction", text: fraction });
     }
     if (showStatus) {
-      metaPieces.push(
-        <Chip key="status" tone={FOLLOW_STATUS_TONE[item.status]} title={hint}>
-          {label}
-        </Chip>,
-      );
+      faits.push({ kind: "chip", tone: FOLLOW_STATUS_TONE[item.status], text: label, hint });
     }
     if (caption != null) {
-      metaPieces.push(
-        <span
-          key="caption"
-          className="text-xs text-muted-foreground"
-        >
-          {caption}
-        </span>,
-      );
+      faits.push({ kind: "note", text: caption });
     }
     if (item.tvdb_unresolved) {
       // The identity gap, named on the card — the sheet explains what it
       // blocks; hiding it would let a « Non vérifié » read as a search issue.
-      metaPieces.push(
-        <Chip
-          key="sans-id"
-          tone="warning"
-          title="Détection d'épisodes indisponible : l'ID TVDB n'a pas pu être résolu."
-        >
-          Sans ID TVDB
-        </Chip>,
-      );
+      faits.push({
+        kind: "chip",
+        tone: "warning",
+        text: "Sans ID TVDB",
+        hint: "Détection d'épisodes indisponible : l'ID TVDB n'a pas pu être résolu.",
+      });
     }
     if (isNew(item)) {
-      // Maquette order: the freshtag closes the meta row, after every chip.
-      metaPieces.push(
-        <span key="nouveau" data-testid="chip-nouveau" className="freshtag">
-          Nouveau
-        </span>,
-      );
+      // Maquette order: the freshtag closes the facts row, after every chip.
+      faits.push({ kind: "fresh" });
     }
 
     const sheetHref = followMediaRef(item);
@@ -413,10 +389,10 @@ export function SuivisPanel(): ReactElement {
       >
         {/* No year subtitle here — the maquette's followRow is title + meta
             row only; the year lives in the sheet (§12 density). */}
-        <AcquisitionCard
+        <MediaRow
           title={item.title}
           posterUrl={item.poster_url ?? null}
-          meta={metaPieces.length > 0 ? <>{metaPieces}</> : null}
+          facts={faits}
           onOpen={() => {
             setSheet(item);
           }}

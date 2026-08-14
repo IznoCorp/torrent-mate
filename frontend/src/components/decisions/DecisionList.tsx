@@ -1,27 +1,21 @@
 /**
- * DecisionList — a scrollable flat list of scrape-decision rows.
+ * DecisionList — the queue of scrape decisions.
  *
- * Each row shows the extracted title, a truncated staging path, a trigger chip
- * (coloured badge), a status badge (relabelled + tooltipped per §4.1), and the
- * candidate count.  Clicking a row calls the ``onSelect`` callback with the
- * item's id.  Pending rows additionally expose an inline "Ignorer" quick action
- * so the operator can dismiss without opening the detail panel.
+ * Every row is a {@link DecisionRow}: the same card the journal draws, because
+ * they are two views of one thing — a folder the scrape could not name. Drawing
+ * them separately is how the same decision came to read « Réglée » on one
+ * screen and « identifiée » on the other.
  *
- * Empty state: a muted message when there are no decisions in the current view.
+ * A pending row also carries an inline « Laisser tel quel », so the operator
+ * can agree with the machine without opening the arbitration. It is a shortcut
+ * to something that screen also offers, never the only way in (R43).
+ *
+ * Empty state: an explicit one, never a blank list.
  */
 
 import { type ReactElement } from "react";
 
 import type { DecisionListItem } from "@/api/decisions";
-import {
-  statusLabel,
-  statusTone,
-  statusTooltip,
-  TRIGGER_LABEL,
-  TRIGGER_TOOLTIP,
-  TRIGGER_TONE,
-} from "@/components/decisions/triggers";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -30,44 +24,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-/**
- * Trigger → Badge tone mapping.
- *
- * The DS Badge palette has seven tones: solid, neutral, outline, success,
- * warning, danger, info.  The three scrape-arbiter triggers are mapped to the
- * closest semantic match:
- *
- * - ``below_threshold`` → ``danger`` (red — score too low, needs attention)
- * - ``mid_band`` → ``warning`` (yellow — score in the grey zone)
- * - ``ambiguous`` → ``info`` (blue — multiple matches, needs review)
- *
- * There is no orange tone in the current DS palette; ``info`` is used for
- * ``ambiguous`` because it signals "needs attention" without the urgency of
- * ``danger`` or the caution of ``warning``.
- */
-const TRIGGER_VARIANT = TRIGGER_TONE;
-
-/**
- * Extract a short, human-readable folder name from an absolute staging path.
- *
- * Takes the last component of the path.  On macOS the staging root may contain
- * spaces; ``split("/")`` handles them correctly.
- *
- * Args:
- *   path: Absolute staging path (NFC-normalized by the API).
- *
- * Returns:
- *   The last path segment, or the full path if it has no separator.
- */
-function folderName(path: string): string {
-  const parts = path.split("/");
-  return parts[parts.length - 1] ?? path;
-}
+import { EmptyState } from "@/components/ds/EmptyState";
+import { decisionFacts } from "@/components/decisions/decisionFacts";
+import { DecisionRow } from "@/components/ds/DecisionRow";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -80,7 +39,7 @@ export interface DecisionListProps {
   /** Called with the decision id when a row is clicked. */
   readonly onSelect: (id: number) => void;
   /**
-   * Called with the decision id when the inline "Ignorer" quick action is used
+   * Called with the decision id when the inline « Laisser tel quel » shortcut
    * on a ``pending`` row. Omit to hide the inline action.
    */
   readonly onQuickDismiss?: (id: number) => void;
@@ -100,7 +59,7 @@ export interface DecisionListProps {
  * - Extracted title (bold) + year.
  * - Status badge (relabelled + tooltipped) and candidate count.
  * - Folder name (truncated, muted) + trigger chip.
- * - An inline "Ignorer" quick action on ``pending`` rows (when ``onQuickDismiss``
+ * - An inline « Laisser tel quel » shortcut on ``pending`` rows (when ``onQuickDismiss``
  *   is provided).
  *
  * When ``items`` is empty, a muted "Aucune décision" message is shown.
@@ -128,89 +87,43 @@ export function DecisionList({
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
         {items.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aucune décision.</p>
+          <EmptyState
+            compact
+            title="Aucune décision"
+            description="Rien n'attend d'arbitrage : aucun média n'est resté ambigu."
+          />
         ) : (
-          items.map((item) => {
-            const triggerTone = TRIGGER_VARIANT[item.trigger] ?? "info";
-            const triggerLabel = TRIGGER_LABEL[item.trigger] ?? item.trigger;
-            const folder = folderName(item.staging_path);
-            const rowStatusLabel = statusLabel(item.status);
-            const rowStatusTone = statusTone(item.status);
-            const rowStatusTooltip = statusTooltip(item.status);
-            const isPending = item.status === "pending";
-            const canQuickDismiss = isPending && onQuickDismiss != null;
-
-            return (
-              // The row is a plain container (not a <button>) so the inline
-              // action button can nest without invalid <button> nesting; the
-              // clickable title area is its own button for keyboard access.
-              <div
-                key={item.id}
-                className="flex flex-col gap-1 rounded-md border border-border bg-card p-3 transition-colors hover:bg-accent"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onSelect(item.id);
-                    }}
-                    className="min-w-0 flex-1 break-words text-left text-sm font-medium"
-                  >
-                    {item.extracted_title}
-                    {item.extracted_year != null && (
-                      <span className="ml-1 font-normal text-muted-foreground">
-                        ({item.extracted_year})
-                      </span>
-                    )}
-                  </button>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    {/* title on a wrapping span (the DS Badge component does
-                        not accept a title prop per the lint contract). */}
-                    <span title={rowStatusTooltip} className="inline-flex">
-                      <Badge tone={rowStatusTone}>{rowStatusLabel}</Badge>
-                    </span>
-                    <Badge tone="neutral">{item.candidates_count}</Badge>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onSelect(item.id);
-                    }}
-                    className="block max-w-[55%] truncate text-left text-xs text-muted-foreground"
-                    title={item.staging_path}
-                  >
-                    {folder}
-                  </button>
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      title={TRIGGER_TOOLTIP[item.trigger] ?? item.trigger}
-                      className="inline-flex"
-                    >
-                      <Badge tone={triggerTone}>{triggerLabel}</Badge>
-                    </span>
-                    {canQuickDismiss && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        // X4: 44px touch height on mobile, compact on desktop.
-                        className="min-h-11 md:min-h-8"
-                        disabled={dismissingId === item.id}
-                        onClick={() => {
-                          onQuickDismiss(item.id);
-                        }}
-                      >
-                        {dismissingId === item.id ? "…" : "Ignorer"}
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })
+          items.map((item) => (
+            /* One card for a decision, wherever it is drawn — the queue and the
+               journal are two views of one thing. The inline « Laisser tel
+               quel » stays outside the card: it is the LIST's shortcut to an
+               action the arbitration screen also offers, never the only way in
+               (R43). */
+            <div key={item.id} className="flex flex-col gap-1">
+              <DecisionRow
+                {...decisionFacts(item)}
+                candidates={item.candidates_count}
+                onOpen={() => {
+                  onSelect(item.id);
+                }}
+              />
+              {item.status === "pending" && onQuickDismiss != null && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  // X4 — the mobile touch minimum. A shortcut nobody can hit
+                  // is not a shortcut.
+                  className="min-h-11 self-end md:min-h-8"
+                  disabled={dismissingId === item.id}
+                  onClick={() => {
+                    onQuickDismiss(item.id);
+                  }}
+                >
+                  {dismissingId === item.id ? "En cours…" : "Laisser tel quel"}
+                </Button>
+              )}
+            </div>
+          ))
         )}
       </CardContent>
     </Card>

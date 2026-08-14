@@ -4,12 +4,14 @@
  *
  * One component so every surface that says a status says it with the same
  * anatomy — a chip without its dot or with another size is a drift, not a
- * variation.
+ * variation. It sat under `acquisition/` although nothing about a status chip
+ * belongs to acquisition; a shared primitive filed under one feature is one
+ * that the next feature copies instead of importing.
  */
 
 import { type ReactElement, type ReactNode } from "react";
 
-import { TONE_CHIP_CLASS } from "./meta";
+import { TONE_CHIP_CLASS } from "@/components/acquisition/meta";
 
 /** Props for {@link Chip}. */
 export interface ChipProps {

@@ -63,7 +63,7 @@ EMPREINTE = os.environ.get(
 SECRET_SESSION = secrets.token_bytes(32)
 NOM_COOKIE = "tm_design"
 
-PUBLIC = PROTOTYPE.parent.parent / "public"
+DOSSIER_ASSETS = PROTOTYPE.parent / "assets"
 
 # Brand assets and the manifest are served WITHOUT a session: they carry no
 # private data, and a `<link rel="manifest">` is fetched without credentials
@@ -419,7 +419,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self._send(200, HORS_LIGNE, type_mime="text/html; charset=utf-8")
             return
         if chemin in ASSETS:
-            fichier = PUBLIC / FICHIER_ASSET[chemin]
+            fichier = DOSSIER_ASSETS / FICHIER_ASSET[chemin]
             if not fichier.is_file():
                 self._send(404, b"")
                 return

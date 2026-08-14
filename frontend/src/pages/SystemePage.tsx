@@ -47,6 +47,7 @@ import { useEventStreamContext } from "@/hooks/useEventStreamContext";
 import { useRegistryStatus } from "@/hooks/useRegistryStatus";
 import { relativeTime } from "@/lib/format";
 import { handleTablistKeyDown } from "@/lib/tablist";
+import { EmptyState } from "@/components/ds/EmptyState";
 
 // ---------------------------------------------------------------------------
 // Tab model
@@ -166,9 +167,11 @@ function ProvidersPanel(): ReactElement {
     return (
       <div className="flex flex-col gap-2">
         <h2 className="text-sm font-semibold tracking-tight">Fournisseurs</h2>
-        <p className="text-xs text-muted-foreground">
-          Aucun fournisseur configuré.
-        </p>
+        <EmptyState
+          compact
+          title="Aucun fournisseur configuré"
+          description="Les fournisseurs de métadonnées se déclarent dans la configuration."
+        />
       </div>
     );
   }

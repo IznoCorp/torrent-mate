@@ -125,7 +125,7 @@ vi.mock("@/hooks/useStagingMedia", () => ({
 // ---------------------------------------------------------------------------
 
 import { AddMediaScreen } from "@/components/acquisition/AddMediaScreen";
-import { AcquisitionCard } from "@/components/acquisition/AcquisitionCard";
+import { MediaRow } from "@/components/ds/MediaRow";
 import { MaintenantPanel } from "@/components/acquisition/MaintenantPanel";
 import { SuivisPanel } from "@/components/acquisition/SuivisPanel";
 import { FollowDetailSheet } from "@/components/acquisition/FollowDetailSheet";
@@ -140,7 +140,7 @@ import { StageMediaList } from "@/components/staging/StageMediaList";
 
 const WIRED_SURFACES = [
   "AddMediaScreen",
-  "AcquisitionCard",
+  "MediaRow",
   "MaintenantPanel",
   "SuivisPanel",
   "FollowDetailSheet",
@@ -337,11 +337,11 @@ describe("§11 constitution — « Tout média est consultable »", () => {
   });
 
   // -----------------------------------------------------------------------
-  // SURFACE 2 — AcquisitionCard (poster → media sheet, or no control at all)
+  // SURFACE 2 — MediaRow (poster → media sheet, or no control at all)
   // -----------------------------------------------------------------------
 
-  describe("AcquisitionCard", () => {
-    coveredSurfaces.add("AcquisitionCard");
+  describe("MediaRow", () => {
+    coveredSurfaces.add("MediaRow");
 
     // This card is the shared primitive behind every acquisition list, so the
     // §11 contract is enforced HERE once rather than in each panel: a poster is
@@ -350,7 +350,7 @@ describe("§11 constitution — « Tout média est consultable »", () => {
     it("makes the poster a button that reaches the media sheet", () => {
       const onPoster = vi.fn();
       render(
-        <AcquisitionCard title="Inception" posterUrl={null} onPoster={onPoster} />,
+        <MediaRow title="Inception" posterUrl={null} onPoster={onPoster} />,
       );
 
       const poster = screen.getByRole("button", { name: "Fiche de Inception" });
@@ -362,7 +362,7 @@ describe("§11 constitution — « Tout média est consultable »", () => {
       // A blocked item is stuck at identification: there is no provider id, so
       // there is nothing to link to. A button that does nothing is the dead
       // control §11 forbids — the poster degrades to plain image.
-      render(<AcquisitionCard title="Inconnu" posterUrl={null} />);
+      render(<MediaRow title="Inconnu" posterUrl={null} />);
 
       expect(
         screen.queryByRole("button", { name: /Fiche de/ }),
@@ -372,7 +372,7 @@ describe("§11 constitution — « Tout média est consultable »", () => {
     it("renders NO body control when there is no detail sheet", () => {
       // Same rule applied to the body: the card is tappable only when the tap
       // has a destination.
-      render(<AcquisitionCard title="Inconnu" posterUrl={null} />);
+      render(<MediaRow title="Inconnu" posterUrl={null} />);
 
       expect(screen.queryByRole("button")).not.toBeInTheDocument();
     });
@@ -385,44 +385,28 @@ describe("§11 constitution — « Tout média est consultable »", () => {
   describe("CandidateCard", () => {
     coveredSurfaces.add("CandidateCard");
 
-    it("renders a « Voir la fiche » link with the correct sheet href", () => {
+    it("n'invite PAS à quitter l'écran pour décider (R57)", () => {
+      // A candidate is a proposition, not one of your media: it has no panel,
+      // and it does not send the operator to a full sheet to decide. What
+      // separates two candidates is what they are ABOUT, and the synopsis is
+      // on the card. Leaving loses the queue being worked through.
       const onClick = vi.fn();
-      render(
+      const { container } = render(
         <MemoryRouter>
           <CandidateCard
-            candidate={movieCandidate()}
+            candidate={movieCandidate({
+              overview: "Un voleur entre dans les rêves.",
+            })}
             isSelected={false}
             onClick={onClick}
           />
         </MemoryRouter>,
       );
 
-      const link = screen.getByText("Voir la fiche");
-      expect(link).toBeInTheDocument();
-      expect(link.tagName).toBe("A");
-      expect(link.getAttribute("href")).toBe("/media/tmdb/123");
-
-      // Clicking the link must NOT trigger the card's onClick (selection).
-      fireEvent.click(link);
-      expect(onClick).not.toHaveBeenCalled();
-    });
-
-    it("renders a sheet link for TVDB candidates too", () => {
-      render(
-        <MemoryRouter>
-          <CandidateCard
-            candidate={movieCandidate({
-              provider: "tvdb",
-              provider_id: 255968,
-            })}
-            isSelected={false}
-            onClick={vi.fn()}
-          />
-        </MemoryRouter>,
-      );
-
-      const link = screen.getByText("Voir la fiche");
-      expect(link.getAttribute("href")).toBe("/media/tvdb/255968");
+      expect(container.querySelector("a")).toBeNull();
+      expect(screen.queryByText("Voir la fiche")).toBeNull();
+      // What actually decides between two homonyms is on the card.
+      expect(screen.getByText(/entre dans les rêves/)).toBeInTheDocument();
     });
   });
 
@@ -650,7 +634,7 @@ describe("§11 constitution — « Tout média est consultable »", () => {
   // SURFACES 3-5 — the acquisition panels and the detail sheet
   // -----------------------------------------------------------------------
 
-  // These three render AcquisitionCard, so the poster contract is already
+  // These three render MediaRow, so the poster contract is already
   // enforced on the primitive above. What they own — and what is asserted here —
   // is the DERIVATION: each must hand the card a real destination built from the
   // item's provider ids, and hand it nothing when the item has none. A panel

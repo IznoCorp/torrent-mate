@@ -404,7 +404,7 @@ describe("ObligationsPanel — edge states", () => {
     renderPanel({ items: [] });
 
     expect(
-      screen.getByText(/aucune obligation de seed enregistrée/i),
+      screen.getByText(/aucune obligation de seed/i),
     ).toBeInTheDocument();
   });
 

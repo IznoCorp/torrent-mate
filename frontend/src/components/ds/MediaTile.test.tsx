@@ -1,14 +1,14 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { MediaCard } from "@/components/ds/MediaCard";
+import { MediaTile } from "@/components/ds/MediaTile";
 
-describe("MediaCard", () => {
+describe("MediaTile", () => {
   afterEach(cleanup);
 
   it("renders title, year and overview", () => {
     render(
-      <MediaCard
+      <MediaTile
         title="Dune"
         year={2021}
         overview="Paul Atreides sur Arrakis."
@@ -21,14 +21,14 @@ describe("MediaCard", () => {
 
   it("fires onOpen when the card region is clicked", () => {
     const onOpen = vi.fn();
-    render(<MediaCard title="Dune" onOpen={onOpen} />);
+    render(<MediaTile title="Dune" onOpen={onOpen} />);
     fireEvent.click(screen.getByRole("button"));
     expect(onOpen).toHaveBeenCalledOnce();
   });
 
   it("renders badges and footer slots", () => {
     render(
-      <MediaCard
+      <MediaTile
         title="Dune"
         badges={<span>tvdb 123</span>}
         footer={<button>Suivre</button>}

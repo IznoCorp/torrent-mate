@@ -21,22 +21,48 @@ afterEach(() => {
 });
 
 describe("RecentResolutions", () => {
-  it("lists recently resolved decisions", () => {
+  it("rappelle ce qui a été réglé, par DOSSIER (R57)", () => {
+    // The journal and the queue are two views of one thing, so they draw the
+    // same card — and its subject is the folder, not the title the scrape
+    // guessed.
     decisionsMock.mockReturnValue({
       data: {
         items: [
-          { id: 2, extracted_title: "Obsession", extracted_year: 2026, trigger: "ambiguous" },
-          { id: 3, extracted_title: "Ferrari", extracted_year: 2025, trigger: "ambiguous" },
+          {
+            id: 2,
+            staging_path: "/staging/001-MOVIES/Obsession (2026)",
+            media_kind: "movie",
+            trigger: "ambiguous",
+            status: "resolved",
+            resolved_at: 1_752_591_300,
+            resolution_json: {
+              provider: "tmdb",
+              provider_id: 1339713,
+              via: "pick",
+              title: "Obsession",
+            },
+          },
+          {
+            id: 3,
+            staging_path: "/staging/001-MOVIES/Ferrari (2025)",
+            media_kind: "movie",
+            trigger: "manual",
+            status: "resolved",
+            resolved_at: 1_752_591_300,
+            resolution_json: null,
+          },
         ],
       },
       isLoading: false,
     });
     render(<RecentResolutions />);
-    expect(
-      screen.getByText("Décisions de scraping résolues récemment"),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Obsession")).toBeInTheDocument();
-    expect(screen.getByText("Ferrari")).toBeInTheDocument();
+    expect(screen.getByText("Réglées récemment")).toBeInTheDocument();
+    expect(screen.getByText("Obsession (2026)")).toBeInTheDocument();
+    expect(screen.getByText("Ferrari (2025)")).toBeInTheDocument();
+    // What was chosen is the line one comes back to read.
+    expect(screen.getByText(/TMDB 1339713 · choisi dans la liste/)).toBeInTheDocument();
+    // And both say what became of them.
+    expect(screen.getAllByText("Réglée")).toHaveLength(2);
   });
 
   it("renders nothing when there is no resolved decision", () => {

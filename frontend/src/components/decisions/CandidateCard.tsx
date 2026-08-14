@@ -8,13 +8,11 @@
  */
 
 import { type ReactElement } from "react";
-import { Link } from "react-router-dom";
 
 import type { DecisionCandidate } from "@/api/decisions";
 import { MediaPoster } from "@/components/ds/MediaPoster";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { mediaSheetHref } from "@/lib/media-href";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -70,6 +68,10 @@ export interface CandidateCardProps {
   readonly isSelected: boolean;
   /** Called when the user clicks the card to select it. */
   readonly onClick: () => void;
+  /** True when this candidate shares the top score with others. Its score is
+   *  then not shown: it says nothing about THIS candidate, and printing it
+   *  suggests a ranking that does not exist (R57). */
+  readonly tied?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -100,6 +102,7 @@ export function CandidateCard({
   candidate,
   isSelected,
   onClick,
+  tied = false,
 }: CandidateCardProps): ReactElement {
   const scorePct = Math.round(Math.min(1, Math.max(0, candidate.score)) * 100);
   const barColor = scoreBarColor(candidate.score);
@@ -147,40 +150,39 @@ export function CandidateCard({
           )}
         </div>
 
-        {/* Score bar */}
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between">
-            <span className="text-[length:var(--text-2xs)] text-muted-foreground">
-              Confiance
-            </span>
-            <span className="text-[length:var(--text-2xs)] tabular-nums text-muted-foreground">
-              {scorePct}&thinsp;%
-            </span>
+        {/* Score bar — ONLY when the score separates this candidate from the
+            others. A score shared with the leaders says nothing about this one,
+            and a bar drawn four times at the same length invites a trust the
+            ranking cannot honour: that tie is precisely why a human is being
+            asked (R57). */}
+        {tied ? (
+          <p className="text-[length:var(--text-2xs)] text-muted-foreground">
+            À égalité avec les autres — le score ne tranche pas.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[length:var(--text-2xs)] text-muted-foreground">
+                Confiance
+              </span>
+              <span className="text-[length:var(--text-2xs)] tabular-nums text-muted-foreground">
+                {scorePct}&thinsp;%
+              </span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className={cn("h-full rounded-full transition-all", barColor)}
+                style={{ width: `${String(scorePct)}%` }}
+              />
+            </div>
           </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-            <div
-              className={cn("h-full rounded-full transition-all", barColor)}
-              style={{ width: `${String(scorePct)}%` }}
-            />
-          </div>
-        </div>
+        )}
 
-        {/* Provider badge + media sheet link (§11 constitution). */}
-        <div className="flex items-center justify-between">
-          <Badge tone="neutral">{providerLabel}</Badge>
-          <Link
-            to={mediaSheetHref({
-              provider: candidate.provider,
-              providerId: String(candidate.provider_id),
-            })}
-            onClick={(e) => {
-              e.stopPropagation();
-            }}
-            className="text-xs text-primary hover:underline"
-          >
-            Voir la fiche
-          </Link>
-        </div>
+        {/* No link off this screen. What separates two candidates is what they
+            are ABOUT, and the synopsis above already carries it; sending the
+            operator to a full sheet to decide loses the queue being worked
+            through (R57). */}
+        <Badge tone="neutral">{providerLabel}</Badge>
       </CardContent>
     </Card>
   );

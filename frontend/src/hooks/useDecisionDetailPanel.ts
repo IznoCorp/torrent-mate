@@ -211,7 +211,7 @@ export function useDecisionDetailPanel(
 
   const dismissMutation = useDismissDecision({
     onDismissed: () => {
-      toast.success("Décision ignorée.");
+      toast.success("Dossier laissé tel quel — le résultat automatique est conservé.");
       // The decisions list/badge invalidation fired in the shared hook so the
       // dismissed row leaves the queue immediately (F01).
       setDismissed(true);

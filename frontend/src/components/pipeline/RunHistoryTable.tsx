@@ -51,6 +51,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Panel } from "@/components/ds/Panel";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -227,7 +228,7 @@ export function RunHistoryTable({
         {legend !== undefined && legend}
       </h2>
 
-      <div className="rounded-lg border border-border bg-card">
+      <Panel>
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -335,7 +336,7 @@ export function RunHistoryTable({
             )}
           </TableBody>
         </Table>
-      </div>
+      </Panel>
 
       {/* Pagination bar */}
       {total > 0 && (

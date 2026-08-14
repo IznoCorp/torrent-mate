@@ -111,8 +111,47 @@ Every line is a surface production really serves.
 
 Nothing else in production is missing: `/scraping` and `/registry` are redirects.
 
-**Next action:** draw the missing surfaces, in the order above. Each one follows the method
-below — real data, named states, a rule that bites, a mutation that proves it.
+---
+
+## The third axis: what the prototype owes as an APPLICATION
+
+The operator's judgement is on the design **and the front-end architecture**. The design is
+measured by 65 rules; the architecture is not measured by anything yet, and these are its real
+numbers, read from the file rather than remembered:
+
+| Mesure | Aujourd'hui | Ce que ça veut dire pour la liaison |
+| --- | --- | --- |
+| lignes de code (hors jaquettes) | 39 454 | un seul fichier, aucun module |
+| jeux de données en dur | **57** | 57 constantes à remplacer par autant de sources réelles |
+| appels réseau | **1** | rien n'entre par le réseau : tout est inline |
+| accès à `state.` | **248** | l'état n'a pas de propriétaire ; toute fonction y touche |
+| `render()` | 1 défini, 43 appels | une seule fonction redessine tout |
+| écouteurs | 43 | délégation par `closest()`, pas de composants |
+| coutures `window.__` | 21 | les points d'accroche déjà nommés |
+| `history.pushState` | 4 | la navigation existe, mais l'URL ne porte pas l'état |
+
+Aucun de ces chiffres n'est un défaut **du prototype** : un fichier unique sans dépendance est
+exactement ce qui l'a rendu vérifiable. Ce sont les **coutures** que la mission de liaison devra
+ouvrir, et les nommer maintenant évite de les découvrir en les cassant.
+
+Trois questions que la maquette doit savoir répondre avant d'être jugée :
+
+1. **Par où entre une donnée ?** Aujourd'hui : 57 constantes. La liaison remplacera chacune par
+   une source. Une constante qui n'est lue qu'à un endroit est une couture ; une constante lue
+   partout est un couplage à défaire d'abord.
+2. **Qui possède l'état ?** Aujourd'hui : personne — 248 accès directs. Ce n'est pas un problème
+   tant que le prototype tient dans un fichier, et c'en est un dès qu'il faut le découper.
+3. **Où vit une route ?** Aujourd'hui `state.page`, et l'URL ne la porte pas. La production sert
+   des URL adressables ; le prototype devra le montrer avant que l'app les rebâtisse.
+
+**Ces questions ne se tranchent pas en dessinant des pages.** Elles se tranchent en regardant le
+fichier, et elles font partie de ce que l'opérateur juge.
+
+---
+
+**Next action:** draw the missing surfaces, in the order of the inventory above, and answer the
+three questions of this section. Each surface follows the method below — real data, named states,
+a rule that bites, a mutation that proves it.
 
 ---
 
@@ -223,7 +262,7 @@ These were argued, measured and recorded. Re-opening one costs a day; the reason
 - **Identify is not follow.** Resolving a stuck folder associates a medium so the pipeline
   finishes; it never creates a follow.
 
-## Four method lessons that cost the most
+## Method lessons that cost the most
 
 - **A screenshot fingerprint is not an oracle.** Two captures of the same unmodified file diverge
   on 8 to 15 of the states. Use bounding rects plus a computed-style subset.
@@ -233,6 +272,14 @@ These were argued, measured and recorded. Re-opening one costs a day; the reason
   behaviour on purpose, confirm the rule falls and names the right defect, restore.
 - **A derivation must not read back its own output.** The list poster was sized against the
   median card and now sets it, so the computation returns its own answer.
+- **A rule can assert the DEFECT.** R53 did, twice, in both directions: it first certified a
+  startup screen that flashed for one frame, then demanded a floor that made the bar play twice.
+  Writing down the behaviour that exists is not the same as writing down the one that is wanted.
+- **« It cannot affect production » is a measurement, not an argument.** The prototype was proved
+  harmless by building the bundle on both sides and comparing — and the first comparison said no:
+  Tailwind v4 scans from the project root, took six words out of `refonte.html` for utilities, and
+  shipped 936 bytes of them to production. The design host's icons, sitting in `frontend/public/`,
+  shipped another 56 kB the same way.
 
 ---
 
