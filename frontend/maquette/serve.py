@@ -433,6 +433,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if not self._authentifie():
                 self._send(401, b"")
                 return
+            # self.path arrives raw: BaseHTTPRequestHandler never percent-decodes
+            # it, so an encoded traversal (%2e%2e%2f) reaches the filesystem as a
+            # literal file name that does not exist. The resolve() + containment
+            # check below is the backstop that must hold if that ever changes.
             fichier = (DOSSIER_ASSETS / chemin[len("/assets/"):]).resolve()
             types = {".webp": "image/webp", ".png": "image/png",
                      ".svg": "image/svg+xml"}
@@ -442,7 +446,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self._send(404, b"")
                 return
             self._send(200, fichier.read_bytes(),
-                       [("Cache-Control", "public, max-age=31536000, immutable")],
+                       [("Cache-Control", "private, max-age=31536000, immutable")],
                        type_mime=type_mime)
             return
         if chemin == "/deconnexion":
