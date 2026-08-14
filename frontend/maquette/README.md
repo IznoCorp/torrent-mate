@@ -70,7 +70,13 @@ See the binding rule above.
 ### 2. The CSS is generated, never retyped.
 
 `scripts/extract-maquette-css.py` lifts this file's app CSS block, scopes it under `.tm`, and
-writes `frontend/src/styles/ps/app-surface.css`.
+writes `frontend/src/styles/ps/app-surface.css`. It exists — it did not, for a while, while three
+binding documents described it, which is the kind of promise that gets cited as done.
+
+**The app has not adopted it.** Nothing imports the generated stylesheet, and that is deliberate:
+adopting it is deriving app code, which §15 forbids until the operator has judged the design. It is
+generated and GUARDED now so that the guard is in place before there is anything to protect —
+measured, not argued: `frontend/dist` is byte-identical with the file present and absent.
 
 - **Editing the generated file by hand is the defect**, not a shortcut.
 - `make check` re-runs the extraction and fails on drift — the same guard that protects
@@ -145,7 +151,11 @@ One file, four jobs:
 - **`exportedSelectors`** — the allowlist `extract-maquette-css.py` exports. Anything not
   listed is not exported.
 - **`harnessSelectors`** — the prototype's own chrome, listed so its exclusion is explicit
-  rather than implied.
+  rather than implied. **Eight class names sit on BOTH lists** — `topbar`, `bottombar`, `brand`,
+  `mk`, `lb`, `port`, `sp`, `row` — because the demo bars and the app's own bars share their
+  names, one set in BLOCK 1 and the other in BLOCK 2. Extraction only ever reads BLOCK 2, so it
+  reads them as exported, and it PRINTS that it did: a contradiction nobody is told about is how
+  the wrong reading survives for a year.
 - **`regions`** — what `parity-probe.py` measures, each naming the states it is visible in,
   so the probe never has to guess how to reach a card state.
 - **`$adversarialReview`** — the rule set (R1…R64) plus `$methodLessons`: what each rule

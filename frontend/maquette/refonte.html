@@ -11586,85 +11586,91 @@
      whether it RAN. They are not the same object and they do not share a
      vocabulary. */
   const SERVICES = [
-    {
-      l: "TorrentMate",
-      v: "en ligne",
-      s: "depuis ce matin 09 h 36 · 4 redémarrages",
-    },
-    {
-      l: "TorrentMate (staging)",
-      v: "en ligne",
-      s: "depuis ce matin 08 h 25 · 3 redémarrages",
-    },
-    {
-      l: "Veille des téléchargements",
-      v: "en ligne",
-      s: "depuis le 10 août · aucun redémarrage",
-    },
-    {
-      l: "Déploiement automatique",
-      v: "en ligne",
-      s: "depuis le 10 août · aucun redémarrage",
-    },
-    /* 90 restarts on a service that has been up three hours is not « online »
-       said with a green dot. A number that large is the finding. */
-    {
-      l: "Hôte de la maquette",
-      v: "en ligne",
-      s: "depuis ce matin 08 h 28 · 90 redémarrages",
-      etat: "warning",
-    },
+    { l: "TorrentMate", ok: true, v: "en ligne",
+      s: "depuis ce matin 09 h 36 · 4 redémarrages" },
+    { l: "TorrentMate (staging)", ok: true, v: "en ligne",
+      s: "depuis ce matin 08 h 25 · 3 redémarrages" },
+    { l: "Veille des téléchargements", ok: true, v: "en ligne",
+      s: "depuis le 10 août · aucun redémarrage" },
+    { l: "Déploiement automatique", ok: true, v: "en ligne",
+      s: "depuis le 10 août · aucun redémarrage" },
+    /* Ninety restarts on a service up for three hours is a fact worth reading,
+       and it is NOT what the pastille answers. The dot says « is it up », and
+       this one is; the count sits in the sub-line where a number belongs.
+       Colouring the dot for something it does not mean is how a green stops
+       being trusted. */
+    { l: "Hôte de la maquette", ok: true, v: "en ligne",
+      s: "depuis ce matin 08 h 28 · 90 redémarrages" },
   ];
 
   /* The schedulers, with their real cron expressions said in French. Their
      count of passes is `restart_time`, which is what PM2 counts when a cron
-     fires a job — so it is the number of times the job has RUN. */
+     fires a job — so it is the number of times the job has RUN.
+
+     `ok` is « did it run when it was due », never « is the process alive »:
+     between two passes the process is gone, and that is its healthy state. */
   const PLANIFICATEURS = [
-    {
-      l: "Contrôle de santé",
-      v: "il y a moins d'une heure",
-      s: "toutes les heures à la 15ᵉ minute · 261 passages",
-    },
-    {
-      l: "Récupération des releases",
-      v: "ce matin à 03 h 20",
-      s: "à 03 h 20 et 15 h 20 · 24 passages",
-    },
-    {
-      l: "Recherche de releases",
-      v: "ce matin à 03 h 10",
-      s: "à 03 h 10 et 15 h 10 · 15 passages",
-    },
-    {
-      l: "Détection des suivis",
-      v: "ce matin à 03 h 00",
-      s: "chaque jour à 03 h 00 · 11 passages",
-    },
-    {
-      l: "Enrichissement de l'index",
-      v: "le 9 août",
-      s: "le dimanche à 04 h 30 · 2 passages",
-    },
-    {
-      l: "Complétion des identifiants",
-      v: "le 9 août",
-      s: "le dimanche à 05 h 00 · 2 passages",
-    },
+    { l: "Contrôle de santé", ok: true, v: "il y a moins d'une heure",
+      s: "toutes les heures à la 15ᵉ minute · 261 passages" },
+    { l: "Récupération des releases", ok: true, v: "ce matin à 03 h 20",
+      s: "à 03 h 20 et 15 h 20 · 24 passages" },
+    { l: "Recherche de releases", ok: true, v: "ce matin à 03 h 10",
+      s: "à 03 h 10 et 15 h 10 · 15 passages" },
+    { l: "Détection des suivis", ok: true, v: "ce matin à 03 h 00",
+      s: "chaque jour à 03 h 00 · 11 passages" },
+    { l: "Enrichissement de l'index", ok: true, v: "le 9 août",
+      s: "le dimanche à 04 h 30 · 2 passages" },
+    { l: "Complétion des identifiants", ok: true, v: "le 9 août",
+      s: "le dimanche à 05 h 00 · 2 passages" },
   ];
+
+  /* WHAT A FAULT LOOKS LIKE — and it is SIMULATED, which the screen says.
+
+     Everything on this machine is green, and a screen that can only be green
+     cannot be judged: the operator has no way of knowing what they would see
+     the day something stops. So a named state replays a fault, in the same
+     spirit as the dense « charge » scenario — declared, never passed off as
+     read from the system.
+
+     A stopped SERVICE and an overdue SCHEDULER are two different sentences.
+     A service is late by nothing: it is up or it is not. A scheduler is late
+     by a DURATION, and the duration is the whole of what one needs — « il y a
+     trois jours » on an hourly job says more than any word could. */
+  const SERVICES_PANNE = SERVICES.map((service, rang) =>
+    rang === 2
+      ? {
+          ...service,
+          ok: false,
+          v: "hors ligne",
+          s: "arrêté depuis 14 h 02 · sortie en erreur",
+        }
+      : service,
+  );
+
+  const PLANIFICATEURS_PANNE = PLANIFICATEURS.map((planificateur, rang) =>
+    rang === 0
+      ? {
+          ...planificateur,
+          ok: false,
+          v: "il y a 3 jours",
+          s: "toutes les heures à la 15ᵉ minute · 261 passages · 71 passages manqués",
+        }
+      : planificateur,
+  );
 
   /* The disks, read from `df`. The percentage is what fills, so it is what is
      printed; a disk at 92 % says so before it says how many gigabytes remain,
      because « 335 Go » sounds like a lot and is four days of this library. */
   const DISQUES = [
-    { l: "Disk1", v: "1,8 To libres", s: "15 To · rempli à 88 %" },
+    { l: "Disk1", ok: true, v: "1,8 To libres", s: "15 To · rempli à 88 %" },
     {
       l: "Disk2",
       v: "335 Go libres",
       s: "4,1 To · rempli à 92 %",
       etat: "warning",
     },
-    { l: "Disk3", v: "906 Go libres", s: "4,1 To · rempli à 78 %" },
-    { l: "Disk4", v: "730 Go libres", s: "3,1 To · rempli à 76 %" },
+    { l: "Disk3", ok: true, v: "906 Go libres", s: "4,1 To · rempli à 78 %" },
+    { l: "Disk4", ok: true, v: "730 Go libres", s: "3,1 To · rempli à 76 %" },
   ];
 
   /* The index, read from `library.db`. « Anomalies » are counted by type
@@ -11693,8 +11699,8 @@
   ];
 
   const DEPENDANCES = [
-    { l: "Redis", v: "connecté", s: "le relais d'événements répond" },
-    { l: "TMDB / TVDB", v: "disponibles", s: "aucun disjoncteur ouvert" },
+    { l: "Redis", ok: true, v: "connecté", s: "le relais d'événements répond" },
+    { l: "TMDB / TVDB", ok: true, v: "disponibles", s: "aucun disjoncteur ouvert" },
     {
       l: "qBittorrent",
       v: "joignable",
@@ -11788,6 +11794,9 @@
        command that DELETES ignores the second — it is on until the dry run
        has named what would go. */
     maintRub: null,
+    /* Shows the SIMULATED fault on Système. Everything on this machine is
+       green, and a screen that can only be green cannot be judged. */
+    panne: false,
     maintBlanc: true,
     addMode: "suivi",
     relTitre: null,
@@ -12881,10 +12890,21 @@
               .join("")
           : "";
         const balise = ligne.cible ? "button" : "span";
+        /* A pastille answers one question and it is always the same one: does
+           this thing work. It is DERIVED from `ok` rather than passed as a
+           colour, so a row cannot show a green dot beside a sentence saying it
+           is down — the two would be written in different places and would
+           eventually disagree. A row with nothing to be up or down about
+           carries no pastille at all: a neutral dot on every line teaches the
+           eye to stop seeing them. */
+        const pastille =
+          ligne.ok === undefined
+            ? ""
+            : `<span class="pip ${ligne.ok ? "success" : "danger"}"></span>`;
         return `<li class="fx${vide ? " fvide" : ""}${ligne.etat === "danger" ? " fbloc" : ""}${
           ligne.cible ? " fclic" : ""
         }"><${balise} class="fw"${cible}>
-      <span class="fn">${escapeHtml(ligne.l)}</span>
+      <span class="fn">${pastille}${escapeHtml(ligne.l)}</span>
       <span class="fr">${ligne.v ? escapeHtml(ligne.v) : "—"}</span>
       <span class="fs">${ligne.k ? `<span class="fk">${escapeHtml(ligne.k)}</span>` : ""}${
         ligne.k && ligne.s ? " · " : ""
@@ -13146,12 +13166,17 @@
     return `<div class="body">
     <div class="note"><b>Système répond à une seule question : la machine va-t-elle bien ?</b> Un média bloqué n'est pas ici — c'est une décision du pipeline, et elle est dans Arrivées. Ce qu'on trouve ici, ce sont les processus, les passages programmés, la place qui reste, et le code qui a levé une erreur.</div>
 
+    ${
+      state.panne
+        ? `<div class="note"><b>Panne SIMULÉE.</b> Cette machine est verte partout, et un écran qui ne peut être que vert ne se juge pas : cet état rejoue une panne pour montrer ce qu'on verrait le jour où quelque chose s'arrête. Rien ici n'est lu du système.</div>`
+        : ""
+    }
     <h2 class="h2">Services</h2>
-    ${listeFaitsHTML(SERVICES)}
+    ${listeFaitsHTML(state.panne ? SERVICES_PANNE : SERVICES)}
 
     <h2 class="h2">Planificateurs</h2>
     <div class="note"><b>Un planificateur entre deux passages n'est pas arrêté.</b> PM2 le dit « stopped », et c'est la vérité sur le processus et un mensonge sur le système : six lignes rouges sur une machine en parfaite santé. Un service se juge sur « tourne-t-il », un planificateur sur « a-t-il tourné ».</div>
-    ${listeFaitsHTML(PLANIFICATEURS)}
+    ${listeFaitsHTML(state.panne ? PLANIFICATEURS_PANNE : PLANIFICATEURS)}
 
     <h2 class="h2">Exécutions du pipeline</h2>
     ${listeFaitsHTML(EXECUTIONS.map((e) => ({ l: e.q, v: e.r.split(" · ").slice(0, -1).join(" · "), s: e.d + " · " + e.r.split(" · ").slice(-1) })))}
@@ -17283,17 +17308,22 @@
     [
       "systeme",
       "Système — la santé de la machine",
-      () => applyState({ page: "sys", phase: "prete" }),
+      () => applyState({ page: "sys", phase: "prete", panne: false }),
+    ],
+    [
+      "systeme-panne",
+      "Système — une panne (simulée)",
+      () => applyState({ page: "sys", phase: "prete", panne: true }),
     ],
     [
       "systeme-chargement",
       "Système — chargement",
-      () => applyState({ page: "sys", phase: "chargement" }),
+      () => applyState({ page: "sys", phase: "chargement", panne: false }),
     ],
     [
       "systeme-erreur",
       "Système — erreur",
-      () => applyState({ page: "sys", phase: "erreur" }),
+      () => applyState({ page: "sys", phase: "erreur", panne: false }),
     ],
     [
       "introuvable",

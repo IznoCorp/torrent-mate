@@ -71,6 +71,8 @@ check: lint test-cov
 	python3 scripts/update_feature_map.py --check
 	@echo "Auditing design coverage..."
 	python3 scripts/audit_design_coverage.py --strict
+	@echo "Checking maquette CSS drift..."
+	python3 scripts/extract-maquette-css.py --check
 	@echo "Checking OpenAPI drift..."
 	@if [ -d frontend/node_modules ]; then $(MAKE) openapi && git diff --exit-code frontend/openapi.json frontend/src/api/schema.d.ts; else echo "openapi-drift: skipped (frontend/node_modules absent)"; fi
 	@echo "Checking version bump..."

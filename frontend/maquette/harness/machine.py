@@ -53,16 +53,25 @@ LIRE = """() => {
       n = n.nextElementSibling;
     }
     return n
-      ? [...n.querySelectorAll('.fx')].map((x) => ({
-          l: x.querySelector('.fn').textContent.trim(),
-          v: x.querySelector('.fr').textContent.trim(),
-          s: x.querySelector('.fs').textContent.trim(),
-        }))
+      ? [...n.querySelectorAll('.fx')].map((x) => {
+          const pastille = x.querySelector('.fn .pip');
+          return {
+            l: x.querySelector('.fn').textContent.trim(),
+            v: x.querySelector('.fr').textContent.trim(),
+            s: x.querySelector('.fs').textContent.trim(),
+            couleur: pastille
+              ? pastille.classList.contains('success')
+                ? 'vert'
+                : 'rouge'
+              : null,
+          };
+        })
       : null;
   };
   return {
     debord: port.scrollWidth - port.clientWidth,
     texte: document.querySelector('#view').textContent,
+    simulee: document.querySelector('#view').textContent.includes('SIMULÉE'),
     titres: [...document.querySelectorAll('#view .h2')].map((x) => x.textContent.trim()),
     services: bloc('Services'),
     planificateurs: bloc('Planificateurs'),
@@ -175,8 +184,56 @@ async def main():
                              f"{planifs} dessinés vs {len(vrais_planifs)} réels : "
                              + ", ".join(sorted(vrais_planifs)))
 
+        # 3bis. Every service and scheduler carries a pastille, and the
+        # pastille AGREES with the sentence beside it. Deriving the colour from
+        # one field is what makes that true by construction; checking it is
+        # what proves the derivation was not bypassed by a hand-written colour.
+        # The colour is compared against the DECLARED state, never against the
+        # wording. A first version of this matched the sentence with a pattern
+        # and failed on « le 9 août », which says nothing wrong — it was
+        # measuring the pattern rather than the interface. Reading `ok` off the
+        # page's own data proves the derivation was not bypassed by a colour
+        # written in by hand, which is the only way the two could disagree.
+        for nom, lignes, source in (
+            ("service", sys_vue["services"], "SERVICES"),
+            ("planificateur", sys_vue["planificateurs"], "PLANIFICATEURS"),
+        ):
+            sans = [x["l"] for x in (lignes or []) if x["couleur"] is None]
+            journal.verifier(f"chaque {nom} porte une pastille", not sans, str(sans) or "toutes")
+            declare = await pg.evaluate(f"()=>{source}.map((x) => x.ok)")
+            rendu = [x["couleur"] == "vert" for x in (lignes or [])]
+            journal.verifier(f"la pastille d'un {nom} suit l'état déclaré, jamais une couleur écrite à la main",
+                             rendu == declare, f"rendu {rendu} vs déclaré {declare}")
+
+        journal.verifier("au repos, rien n'est rouge sur cette machine",
+                         all(x["couleur"] == "vert"
+                             for x in (sys_vue["services"] or []) + (sys_vue["planificateurs"] or [])),
+                         "vert partout")
+        journal.verifier("et l'état de repos ne se présente pas comme une simulation",
+                         not sys_vue["simulee"])
+
+        # 3ter. A screen that can only be green cannot be judged, so a named
+        # state replays a fault — and SAYS it is simulated, or the operator
+        # would read an invented outage as a real one (§13).
+        panne = await surPage(pg, "sys", panne=True)
+        rouges_s = [x for x in (panne["services"] or []) if x["couleur"] == "rouge"]
+        rouges_p = [x for x in (panne["planificateurs"] or []) if x["couleur"] == "rouge"]
+        journal.verifier("un état nommé montre ce que le rouge donne, côté services",
+                         len(rouges_s) == 1, str([x["l"] for x in rouges_s]))
+        journal.verifier("et côté planificateurs",
+                         len(rouges_p) == 1, str([x["l"] for x in rouges_p]))
+        journal.verifier("un service en panne est dit HORS LIGNE, pas en retard",
+                         rouges_s and rouges_s[0]["v"] == "hors ligne",
+                         str([x["v"] for x in rouges_s]))
+        journal.verifier("un planificateur en retard est dit par une DURÉE, pas par un mot",
+                         rouges_p and "il y a" in rouges_p[0]["v"],
+                         str([x["v"] for x in rouges_p]))
+        journal.verifier("et l'écran dit que cette panne est SIMULÉE", panne["simulee"])
+
         journal.verifier("rien ne déborde du cadre sur Système",
                          sys_vue["debord"] <= 0, f"{sys_vue['debord']}px")
+        journal.verifier("rien ne déborde du cadre en panne",
+                         panne["debord"] <= 0, f"{panne['debord']}px")
 
         # ── MAINTENANCE ────────────────────────────────────────────────────
         maint = await surPage(pg, "maint", maintRub=None)
