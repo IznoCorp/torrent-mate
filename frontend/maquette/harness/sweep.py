@@ -36,7 +36,12 @@ async def main():
           const v=document.querySelector('#view');
           return {contenu: v.textContent.replace(/\\s+/g,' ').trim().length,
                   noeuds: v.querySelectorAll('*').length,
-                  cartes: v.querySelectorAll('.card,.tile,.kv').length,
+                  // The shapes a view can be MADE of: a card, a gallery tile,
+                  // a key/value row, a fact row. `.fx` joined the list when
+                  // Système stopped being a wall of `.kv` — it is the same kind
+                  // of object, so what this counts is unchanged: is there
+                  // structure, or only prose.
+                  cartes: v.querySelectorAll('.card,.tile,.kv,.fx').length,
                   doc: document.documentElement.scrollWidth,
                   dev: Math.round(document.querySelector('.device').getBoundingClientRect().width),
                   deborde: [...v.querySelectorAll('*')].filter(e=>e.getBoundingClientRect().right>390.5&&!e.closest('.pillscroll')).length};}""")

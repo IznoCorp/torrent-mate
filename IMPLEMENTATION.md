@@ -92,66 +92,150 @@ editing `serve.py`: `pm2 restart torrentmate-design`.
 
 ## What the v1 still owes, page by page
 
-Read from the shipped router (`frontend/src/router.tsx`) against the prototype's named states.
-Every line is a surface production really serves.
+Read from the shipped router (`frontend/src/router.tsx`) and the shipped nav model
+(`frontend/src/components/layout/nav.ts`) against the prototype's named states.
 
-| Production route | Drawn in the prototype? | What it owes |
+Two of production's routes are already redirects and owe nothing: `/scraping` → `/medias`,
+`/registry` → `/systeme`. A third, `/maintenance`, is **also** a redirect — `MaintenanceRunRedirect`
+sends it to `/systeme?tab=journal`, or to `/pipeline?run=…` when it carries a run. The page it
+names has not existed for some time; its panels live on `/systeme`.
+
+### The v1's structure, and it is settled
+
+The prototype's four tabs and production's four do not agree: production's bar is
+`Acquisition · Médias · Pipeline · Contrôle`, the prototype's is
+`Acquisition · Médiathèque · Arrivées · Système`. The disagreement was arbitrated by the
+operator rather than split down the middle, and the arbitration replaced the question:
+
+> **The cut is by the NATURE OF THE TROUBLE.** A medium in trouble is Arrivées. A machine in
+> trouble is Système. A setting is Configuration. A command run against the library is
+> Maintenance.
+
+That axis is the reason the panels can be placed at all. Production's `/controle` has no axis —
+it stacks blocked media (`ATraiterList`) on top of disk and provider health (`CompactHealth`)
+with nothing saying why they share a page. **So `Contrôle` does not survive as a destination**:
+its seven panels each have a home under the rule, and none of those homes is a new page.
+
+|         |                                                                           |
+| ------- | ------------------------------------------------------------------------- |
+| Bar     | `Acquisition · Médiathèque · Arrivées · Système` — unchanged              |
+| Off-bar | `Maintenance` · `Configuration`, reached from Système and from the drawer |
+| Gone    | `Contrôle` — the binding mission redirects `/controle` to Arrivées        |
+
+Where every shipped panel lands. The first block places itself; the second was arbitrated;
+the third is derived from the rule rather than asked again.
+
+| Shipped panel                                         | Home            | Why                                                                                                                                                                               |
+| ----------------------------------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ATraiterList` — blocked staged media                 | **Arrivées**    | a medium in trouble                                                                                                                                                               |
+| `ScrapeActivityPanel`                                 | **Arrivées**    | a medium being identified                                                                                                                                                         |
+| `RecentResolutions`                                   | **Arrivées**    | a medium just unblocked                                                                                                                                                           |
+| `FlowBoard` — the eight stages                        | **Arrivées**    | the pipeline's health is where its media are                                                                                                                                      |
+| `CompactHealth` — disks, index, Redis, providers      | **Système**     | a machine in trouble                                                                                                                                                              |
+| `ActionCatalog`, index repairs, `DestructiveLogPanel` | **Maintenance** | commands run against the library                                                                                                                                                  |
+| `PipelineControls` + `PipelineActionBanner`           | **Arrivées**    | DOIT-3 — act where one observes. The blocked stage and the button to relaunch it are one glance                                                                                   |
+| `RunHistoryTable` · `RunDetail` · `RunLogFeed`        | **Système**     | « succès d'exécution » and « logs ». Arrivées keeps the PRESENT — what is stuck, what arrived in 24 h — and never becomes an archive                                              |
+| `AcquisitionSummaryCard`                              | **Acquisition** | the tab already shows it in full; it does not owe a second, shorter copy                                                                                                          |
+| `SchedulersPanel`                                     | **Système**     | did it fire, did it succeed. Its HOUR is a setting and lives in Configuration — the schedule and its health are two objects that share a name                                     |
+| `LastRunDigest` — « X détectés, Y récupérés »         | **Arrivées**    | a count of media, not of executions. The run's _history_ is Système's; the last run's _result_ is the story of what arrived                                                       |
+| `StalledPanel` — per-step reasons                     | **split**       | a torrent deferred for ratio is a medium (Arrivées); a step that raised is code (Système). The operator's rule is explicit: no blocked medium in Système, but its code errors yes |
+
+### What is therefore still owed — nothing, as far as the SURFACES go
+
+| Surface | State | Rule |
 | --- | --- | --- |
-| `/login` | yes | — |
-| `/acquisition` | yes | — |
-| `/medias` | yes | — |
-| `/config` | yes | — |
-| `/media/:provider/:id` | yes | — |
-| `/controle` (Dashboard) | **no** | health at a glance, the last run's digest, what is stuck, the acquisition summary, the event feed, the schedulers |
-| `/pipeline` | **no** | the flow board, the controls and their banner, a run's detail, the run history, the interpreted feed |
-| `/maintenance` | **no** | the action catalogue, disks, index health, locks, the destructive log |
-| `/systeme` | **partly** | the prototype says so itself: « réception seule … sa refonte mobile est différée ». That deferral is lifted |
-| `*` (NotFound) | **no** | what a wrong URL says, and where it sends one |
-| — | **no** | the multi-user account surfaces. The user menu draws their PLACE, disabled; the surfaces themselves are not drawn |
+| `/login`, `/acquisition`, `/medias`, `/config`, `/media/:provider/:id` | drawn before this | R49–R63 |
+| **Arrivées** | **drawn** — the pilot's bar, the nine steps of the last real run, its digest, and « arrivé dans les 24 h » | R66, `harness/arrivees.py` |
+| **Système** | **drawn** — the deferral is lifted. PM2 services, schedulers, the pipeline's executions, disks, index, dependencies, code errors | R67, `harness/machine.py` |
+| **Maintenance** | **drawn** — six rubrics over the engine's 26 real `library-*` commands, plus the destructive journal | R67 |
+| **Configuration** | **extended** — a seventh rubric, « Les passages programmés », over the six real cron schedules | R60 extended |
+| `*` (NotFound) | **drawn** — and it closed a crash: an unknown id used to stop the whole frame on a TypeError | R68, `harness/adresse.py` |
+| multi-user account | **drawn** — the one real account, its session read from `web.json5`, and the place of the others marked EMPTY | R68 |
 
-Nothing else in production is missing: `/scraping` and `/registry` are redirects.
+Every figure on these surfaces is read from the live system — `pipeline_run`, `pm2 jlist`, `df`,
+`library.db`, the maintenance registry, `web.json5`, `ecosystem.config.js`. Four of the rules go
+back to those sources AT RUN TIME rather than comparing against a number written beside them: R66
+against `pipeline_run` by run_uid, R67 against `pm2 jlist` and the maintenance registry in both
+directions, R68 against `web.json5`.
 
 ---
 
 ## The third axis: what the prototype owes as an APPLICATION
 
-The operator's judgement is on the design **and the front-end architecture**. The design is
-measured by 65 rules; the architecture is not measured by anything yet, and these are its real
-numbers, read from the file rather than remembered:
+The operator's judgement is on the design **and** the front-end architecture. The design is
+measured by 71 rules; the architecture was measured by nothing. These are its numbers, read from
+the file rather than remembered — the column on the right is what changed while the missing
+surfaces were being drawn.
 
-| Mesure | Aujourd'hui | Ce que ça veut dire pour la liaison |
+| Mesure | Aujourd'hui | Avant |
 | --- | --- | --- |
-| lignes de code (hors jaquettes) | 39 454 | un seul fichier, aucun module |
-| jeux de données en dur | **57** | 57 constantes à remplacer par autant de sources réelles |
-| appels réseau | **1** | rien n'entre par le réseau : tout est inline |
-| accès à `state.` | **248** | l'état n'a pas de propriétaire ; toute fonction y touche |
-| `render()` | 1 défini, 43 appels | une seule fonction redessine tout |
-| écouteurs | 43 | délégation par `closest()`, pas de composants |
-| coutures `window.__` | 21 | les points d'accroche déjà nommés |
-| `history.pushState` | 4 | la navigation existe, mais l'URL ne porte pas l'état |
+| lignes de code (hors jaquettes) | 41 400 | 39 454 |
+| jeux de données en dur | **83** | 57 |
+| appels réseau | **1** | 1 |
+| accès à `state.` | **265** | 248 |
+| `render()` | 1 défini, 47 appels | 1 défini, 43 appels |
+| coutures `window.__` nommées | **11** | 21 comptées avec leurs usages |
+| `history.pushState` / `replaceState` | 5 / 3 | 4 / 0 |
+| **lecture de `location`** | **3** | **0** |
 
 Aucun de ces chiffres n'est un défaut **du prototype** : un fichier unique sans dépendance est
-exactement ce qui l'a rendu vérifiable. Ce sont les **coutures** que la mission de liaison devra
-ouvrir, et les nommer maintenant évite de les découvrir en les cassant.
+exactement ce qui l'a rendu vérifiable. Ce sont les **coutures** que la liaison devra ouvrir.
 
-Trois questions que la maquette doit savoir répondre avant d'être jugée :
+### Les trois questions, et ce qu'elles valent maintenant
 
-1. **Par où entre une donnée ?** Aujourd'hui : 57 constantes. La liaison remplacera chacune par
-   une source. Une constante qui n'est lue qu'à un endroit est une couture ; une constante lue
-   partout est un couplage à défaire d'abord.
-2. **Qui possède l'état ?** Aujourd'hui : personne — 248 accès directs. Ce n'est pas un problème
-   tant que le prototype tient dans un fichier, et c'en est un dès qu'il faut le découper.
-3. **Où vit une route ?** Aujourd'hui `state.page`, et l'URL ne la porte pas. La production sert
-   des URL adressables ; le prototype devra le montrer avant que l'app les rebâtisse.
+**1. Par où entre une donnée ?** 83 constantes, contre 57. Le nombre a monté et la situation s'est
+améliorée, ce qui n'est contradictoire qu'en apparence : chacune des nouvelles est lue d'une source
+vivante nommée dans son commentaire — `pipeline_run`, `pm2 jlist`, `df`, `library.db`, le registre
+de maintenance, `web.json5`, `ecosystem.config.js` — et **quatre règles retournent à ces sources à
+l'exécution** au lieu de comparer à un chiffre écrit à côté. R66 vérifie le run par son `run_uid`,
+R67 compte les processus contre `pm2 jlist` et les commandes contre le registre du moteur dans les
+deux sens, R68 lit `web.json5`, R63 lit `acquire.db`.
 
-**Ces questions ne se tranchent pas en dessinant des pages.** Elles se tranchent en regardant le
-fichier, et elles font partie de ce que l'opérateur juge.
+C'est la réponse à la question, et elle est exécutable : **une constante dont la valeur est
+vérifiée contre sa source est une couture nommée ; une constante que rien ne vérifie est un
+couplage.** R63 l'a démontré tout seul en tombant quand le planificateur a tourné — une règle qui
+échoue avec le TEMPS ne signale pas un défaut, elle désigne une couture. Il reste à faire le tri :
+combien des 83 sont vérifiées, combien ne le sont pas.
+
+**Elle est retombée le même jour**, quelques heures plus tard : le passage de 15 h 20 a poussé Silo
+de 9 à 11. Deux fois en une session, sans qu'une ligne de la maquette ait été touchée. Ce n'est
+plus une illustration de la question, c'en est la réponse : **ces constantes-là ne se maintiennent
+pas à la main, et la liaison n'a pas le choix de les brancher.**
+
+**2. Qui possède l'état ?** Personne — 265 accès directs, contre 248. Rien n'a bougé sur ce front
+et c'est assumé : découper l'état demande de découper le fichier, et un fichier unique est
+exactement ce qui a rendu ces 71 règles écrivables. **C'est la question qui reste entière**, et la
+seule des trois qui ne se tranche pas sans décider d'abord comment le prototype se découpe.
+
+Une chose a quand même été apprise en la traversant : `state.pipe` **fuyait** d'un état nommé au
+suivant, si bien qu'un même id ne rendait pas la même chose selon le chemin parcouru pour y
+arriver. R10 l'a trouvé. C'est le coût exact d'un état sans propriétaire, et la parade tient dans
+une phrase : **tout état nommé nomme TOUS ses cadrans**, comme il nommait déjà sa page et sa phase.
+
+**3. Où vit une route ?** Elle vivait dans `state.page`, et l'URL ne la portait pas.
+**C'est réglé.** La mesure qui le disait était sans appel : `history.pushState` quatre fois,
+`location` lu **zéro** fois — l'interface disait au navigateur où elle était et ne le lui demandait
+jamais. Ce n'était pas une dette à transmettre, c'était une **non-conformité à DOIT-10**, et elle
+se voyait : un rechargement retombait sur la page d'ouverture, et aucun écran ne pouvait être
+envoyé à quelqu'un.
+
+L'état voyage dans la REQUÊTE et non dans le chemin, et c'est une décision : ce fichier s'ouvre
+depuis un serveur statique, depuis l'hôte de maquette et depuis `file://`, et une route par chemin
+demande un serveur qui réécrit tout chemin inconnu vers le document — deux de ces trois-là ne le
+peuvent pas. La liaison fera correspondre `?page=lib` au `/medias` de la production ; ce qui se
+juge maintenant est que l'URL et l'interface ne se contredisent jamais. R69,
+`harness/adresse_url.py`.
 
 ---
 
-**Next action:** draw the missing surfaces, in the order of the inventory above, and answer the
-three questions of this section. Each surface follows the method below — real data, named states,
+**Next action:** draw the missing surfaces in the order of the inventory above — Arrivées first,
+because it takes the largest transfer and the arbitration hangs on it — then answer the three
+questions of this section. Each surface follows the method below — real data, named states,
 a rule that bites, a mutation that proves it.
+
+Note that question 3 is not only architecture: **DOIT-10 requires every detail to have its URL**,
+and the prototype's routes live in `state.page`. That is a non-conformity with the constitution,
+not merely a debt to hand over.
 
 ---
 
@@ -319,8 +403,21 @@ These were argued, measured and recorded. Re-opening one costs a day; the reason
    refusal and one state that crosses them, each derived from the setting's VALUE rather than
    from a list of keys. R60 extended, `harness/reglages.py` — 42 checks, eight named states, one
    per field.
+11. **Five tokens the app will owe.** The design-system lint found nine hardcoded colours in the
+   prototype — a real C19 violation, and one of them (`var(--warning, #d97706)`) was the B-014
+   shape again: a fallback onto a token that IS defined, which is a landmine that has not gone
+   off. They are tokens now: `--mq-shadow-toast`, `--mq-shadow-pop`, `--mq-shadow-carte`,
+   `--mq-shadow-badge`, `--mq-scrim-doux`, `--mq-tile-overlay`. Their VALUES live in the
+   prototype's own palette, which sits in BLOCK 1 and is therefore not exported — so the
+   generated stylesheet names them and defines none of them, exactly as it already does for
+   `--border` and `--card`. **When the app adopts that stylesheet, `frontend/src/styles/ps/
+   tokens/maquette.css` must gain the five it does not yet carry.** Measured, because « it
+   cannot affect production » is a measurement: adding them now costs 170 bytes of unused
+   custom properties in the shipped CSS, and leaving them out keeps `frontend/dist`
+   byte-identical.
+
 10. **Answering a decision was a no-op on the acquisition side.** Found while drawing the screen:
-   « Résoudre → » on « À traiter » opened the screen, took the choice, and left the item exactly
-   where it was, because the answer only ever looked in the Arrivées list. Fixed in the prototype.
-   The app's equivalent — whether resolving from one queue clears it from the other — is a
-   verification step of the binding mission, on the real API, not a claim of this one.
+    « Résoudre → » on « À traiter » opened the screen, took the choice, and left the item exactly
+    where it was, because the answer only ever looked in the Arrivées list. Fixed in the prototype.
+    The app's equivalent — whether resolving from one queue clears it from the other — is a
+    verification step of the binding mission, on the real API, not a claim of this one.

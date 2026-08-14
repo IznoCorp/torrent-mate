@@ -70,7 +70,13 @@ See the binding rule above.
 ### 2. The CSS is generated, never retyped.
 
 `scripts/extract-maquette-css.py` lifts this file's app CSS block, scopes it under `.tm`, and
-writes `frontend/src/styles/ps/app-surface.css`.
+writes `frontend/src/styles/ps/app-surface.css`. It exists — it did not, for a while, while three
+binding documents described it, which is the kind of promise that gets cited as done.
+
+**The app has not adopted it.** Nothing imports the generated stylesheet, and that is deliberate:
+adopting it is deriving app code, which §15 forbids until the operator has judged the design. It is
+generated and GUARDED now so that the guard is in place before there is anything to protect —
+measured, not argued: `frontend/dist` is byte-identical with the file present and absent.
 
 - **Editing the generated file by hand is the defect**, not a shortcut.
 - `make check` re-runs the extraction and fails on drift — the same guard that protects
@@ -145,7 +151,11 @@ One file, four jobs:
 - **`exportedSelectors`** — the allowlist `extract-maquette-css.py` exports. Anything not
   listed is not exported.
 - **`harnessSelectors`** — the prototype's own chrome, listed so its exclusion is explicit
-  rather than implied.
+  rather than implied. **Eight class names sit on BOTH lists** — `topbar`, `bottombar`, `brand`,
+  `mk`, `lb`, `port`, `sp`, `row` — because the demo bars and the app's own bars share their
+  names, one set in BLOCK 1 and the other in BLOCK 2. Extraction only ever reads BLOCK 2, so it
+  reads them as exported, and it PRINTS that it did: a contradiction nobody is told about is how
+  the wrong reading survives for a year.
 - **`regions`** — what `parity-probe.py` measures, each naming the states it is visible in,
   so the probe never has to guess how to reach a card state.
 - **`$adversarialReview`** — the rule set (R1…R64) plus `$methodLessons`: what each rule
@@ -432,6 +442,79 @@ already happened — an entry form shown over a live cookie is contradicted by t
 R54 (`harness/deconnexion.py`) checks both halves, and the invisible one is the one that
 matters: it asks the server, afterwards, whether the session is still accepted.
 
+## The cut is by the nature of the trouble
+
+Four surfaces, and what decides which one a panel belongs to is not the page it came from:
+
+| A medium in trouble | **Arrivées** |
+| --- | --- |
+| A machine in trouble | **Système** |
+| A setting | **Configuration** |
+| A command run against the library | **Maintenance** |
+
+`Contrôle` does not survive this cut. Production stacks blocked media on top of disk and provider
+health with nothing saying why they share a page; each of its seven panels has a home under the
+rule, and none of those homes is a new page. The full mapping, panel by panel, is in
+`IMPLEMENTATION.md`.
+
+**A state wears a BADGE, and it has four tones.** `success` — it works. `alert` — it does not, and
+something must be done now. `warning` — important but not critical, a disk nearly full. `info` — a
+fact that is neither a success nor a fault, which is what a QUANTITY is: « 1 863 titres » is neither
+good nor bad, it is how big the library is. Badging a number green is how a green stops meaning
+« it works ».
+
+`alert` is the operator's word and `danger` is the stylesheet's; the mapping lives in ONE place.
+And **a tone has two jobs that one colour cannot do**: `--danger` is a FILL, painted behind white
+text on a button, and reusing it as a label colour on a 20 % tint of itself put every red badge at
+3.69, under AA, while every green sat at 5.5. The light theme was worse and had been for as long as
+the chips existed — success at 2.91, warning at 2.02, on every chip in the interface. Each tone now
+carries a text variant, and all four clear AA in **both** themes.
+
+**PM2 reports a scheduled job as `stopped` between two runs.** That is the literal truth about the
+process and a lie about the system — repeated on screen it paints six red rows on a machine in
+perfect health. A service is judged on whether it is UP, a scheduler on whether it RAN, and the two
+lists never share a vocabulary.
+
+**A command that DELETES cannot be run for real before it has been run blank.** Not a confirmation
+dialog renamed: a dialog asks « are you sure », which is answered without reading, while a blank run
+produces a list, which has to be looked at. A real deletion cannot be rehearsed here — staging writes
+to the real disks — so what the interface owes is the look BEFORE, not a net after.
+
+`harness/machine.py` states it, counting both PM2 lists and checking the 26 commands against the
+engine's own registry in both directions.
+
+## A layer is not a route, and closing one leaves the page alone
+
+The drawer, the media screen and the bottom panel each push a history entry so a back closes
+them without eating a page. Closing one then pops that entry — and **that pop must not be read
+as a navigation**. The entry underneath describes where one ALREADY is, so applying it undoes
+whatever the close was accompanied by, and re-renders the page one is standing on.
+
+Both halves of that were on screen at once. Tapping a drawer entry changed the page for a frame
+and the drawer's own pop put it back, so every entry in the menu led nowhere. And closing a
+bottom panel opened halfway down a list rebuilt the list and sent it home — nobody had reported
+that one; the mutation proving the rule bites is what found it.
+
+So an unwind **announces itself** and the popstate handler consumes the announcement, and a
+drawer navigation settles history itself: the destination TAKES the drawer's entry through
+`replaceState` rather than unwinding and pushing within one task, where the asynchronous pop
+lands after the push and overwrites it. A back from the destination then reaches where one was
+before opening the drawer, which is the only thing a drawer can honestly promise.
+
+`window.__pages()` exposes the page table, so a control can be checked against what the
+interface can actually render rather than against a list written beside it — one drawer entry
+named an id no page carried and answered a tap with a message.
+
+**A fallback onto a phantom token is a landmine.** `background: var(--sidebar-accent, var(--primary))`
+with `--sidebar-accent` defined nowhere paints the background in `--primary` — which is what the
+label is coloured with. Contrast 1.00, a label in invisible ink. R61 forbids only BARE `var()`,
+so the fallback made it look like a considered choice and the rule looked away. Contrast is
+measured as PAINTED, colours converted through a canvas and never parsed: `getComputedStyle`
+returns the space the author wrote — `oklch()` here — and three numbers pulled out of it with a
+regex built for `rgb()` mean nothing.
+
+`harness/tiroir.py` holds all of it; R65 states it.
+
 ## A trap that cost real time: **screenshots are not an oracle**
 
 Two captures of the **same, unmodified file** disagreed on 8 to 15 of the 47 states. Skeleton
@@ -532,7 +615,12 @@ They are committed because they encode recipes that cost time to get right.
 | `palette.py` | R61: no bare `var(--x)` names a property the document never defines, and the brand colour is actually painted on the wordmark, the sign-in button and the startup bar |
 | `entree.py` | R62: the sign-in screen renders identically on the host and inside the prototype, and the host redeclares nothing the reference owns |
 | `contenu.py` | R63: a follow's card carries what `acquire.db` really holds and phrases it as « En cours » does; a library row carries the synopsis, clamped to the largest number of lines that fits, and shows nothing when the NFO has no plot |
-| `glisse.py` | R64: a row opens a drawer either way, one at a time, without firing the tap — measured on Chromium AND WebKit, where the drawer used to spill past the card |
+| `glisse.py` | R64: a row opens a drawer either way, one at a time, without firing the tap — measured on Chromium AND WebKit, where the drawer used to spill past the card; and a REVERSAL settles the row back rather than leaping, sampled during the drag because a jump is a discontinuity |
+| `adresse_url.py` | R69: the URL carries the state (DOIT-10) — walking writes the address, a reload lands on the same screen, only what differs from the opening state is written, a wrong address is left exactly as typed, and back walks the addresses in reverse |
+| `adresse.py` | R68: an unknown address renders instead of raising, names what was asked for and offers a way out; the account surface draws the one real account, compared against `web.json5`, and marks the place of the others EMPTY |
+| `machine.py` | R67: Système is the machine, Maintenance is what one does to the library — no blocked medium on Système, no scheduler called « stopped » between two runs, both lists counted against `pm2 jlist`, every command checked against the engine's registry in both directions, and a command that DELETES inert until it has been run blank |
+| `arrivees.py` | R66: Arrivées carries the pipeline's health — one control that fits the state, a run asked during a run QUEUED rather than refused, the engine's nine steps in its order, nothing-to-do said with an em dash, and every figure checked against the run `library.db` really recorded |
+| `tiroir.py` | R65: the drawer is a place one passes through, not a route — every entry names a page that exists and arrives there, the destination takes the drawer's own history entry, closing a layer neither rebuilds the page underneath nor loses where it was scrolled, and every entry is legible measured as PAINTED |
 | `installation.py` | R51: the install offer is actually OFFERED — `beforeinstallprompt` captured, its default prevented and replayed on a gesture; the iOS guide raised by an iPhone user agent; nothing offered to an installed app, over the entry screen, or after a refusal |
 | `pwa.py` | R52: the LIVE host is installable from the first document a phone reaches — manifest, icons that load, worker registered and controlling, offline fallback cached. Runs against `tm-design.iznogoudatall.xyz`, not the local server |
 | `demarrage.py` | R53: the startup screen is declared first, covers the frame, offers no control, is gone after the first render, and the gate the server builds shows the same screen — extracted — from the submit onwards. Starts `serve.py` on a scratch port |

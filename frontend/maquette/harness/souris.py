@@ -65,7 +65,44 @@ async def main():
     print(f"suggestion, mouse swipe : {avant} → {apres}  {'OK' if apres < avant else 'FAIL'}")
     if not (apres < avant): echecs.append("suggestion, mouse swipe")
 
+    # 4. A drag NEVER fires the tap, and the claim is that the click was
+    #    actively SWALLOWED — not that no panel appeared. A panel that fails to
+    #    appear can be an accident of where the release landed, and asserting
+    #    the weaker thing is what let this hole live: a drag that moves the row
+    #    zero pixels armed nothing, so the click went through and the bottom
+    #    panel opened over the row.
+    #
+    #    Only a mouse can see it. After a touch drag the browser suppresses the
+    #    click by itself, so every finger measurement was green over the hole.
+    #
+    #    Both lists are walked, because they differ where it matters: a follows
+    #    row has a drawer on each side, a library row has none on the left — and
+    #    a row with no drawer on the side being dragged towards REFUSES to move,
+    #    which is exactly the case that armed nothing.
+    await pg.evaluate("""()=>{window.__clics = [];
+      document.addEventListener('click',
+        (e) => window.__clics.push({avale: e.defaultPrevented}), true);}""")
+    for etat, listes in (("acq-suivis-liste", "une ligne de suivi"),
+                         ("lib-liste", "une ligne de médiathèque")):
+        for sens, dx in (("droite", 150), ("gauche", -150)):
+            await pg.evaluate(f"()=>window.__go({etat!r})")
+            await pg.wait_for_timeout(480)
+            if not await pg.evaluate("()=>document.querySelectorAll('#view .swipe').length"):
+                continue
+            await pg.evaluate("()=>{window.__clics = [];}")
+            await glisser("#view .swipe", dx)
+            clics = await pg.evaluate("()=>window.__clics")
+            passe = bool(clics) and all(c["avale"] for c in clics)
+            pose = await pg.evaluate(
+                "()=>(document.querySelector('#view .swipe .card')||{}).style?.transform || 'repos'")
+            print(f"{listes}, glissé {sens:<7}: clic avalé {passe} · pose {pose}"
+                  f"  {'OK' if passe else 'FAIL'}")
+            if not passe:
+                echecs.append(f"{listes}, glissé {sens} : le clic n'est pas avalé ({clics})")
+
     print("\nJS errors:", errs or "none")
+    if echecs:
+        print("échecs :", echecs)
     await b.close()
 
     # A script that only prints can never fail, and a script that cannot fail

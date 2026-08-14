@@ -31,6 +31,11 @@ from playwright.async_api import async_playwright
 
 RACINE = pathlib.Path(__file__).resolve().parent.parent
 CONFIG = pathlib.Path.home() / ".torrentmate" / "config"
+# Where a setting can live WITHOUT being a JSON5 overlay: the schedules belong
+# to PM2, and its ecosystem file is checked out with the deployment rather than
+# kept beside the engine's own configuration.
+DEHORS = (pathlib.Path.home() / "deploy" / "torrentmate",
+          pathlib.Path.home() / "dev")
 
 _journal = None
 
@@ -82,9 +87,20 @@ async def main():
         verifier("chaque réglage n'appartient qu'à une rubrique",
                  couverture["total"] == couverture["distincts"],
                  f"{couverture['total']} réglages, {couverture['distincts']} distincts")
+        # Nineteen of these are JSON5 overlays named by their concern; one is
+        # not. The schedules belong to PM2 and live in `ecosystem.config.js`,
+        # so a name carrying its own extension is looked for where PM2 keeps
+        # it. What the check holds to is unchanged and is the point: a setting
+        # names a file that EXISTS, never one the drawing invented.
+        introuvables = [
+            f for f in couverture["fichiers"]
+            if not (CONFIG / f"{f}.json5").is_file()
+            and not any((base / f).is_file() for base in DEHORS)
+        ]
         verifier("et ils viennent des vrais fichiers de configuration",
-                 all((CONFIG / f"{f}.json5").is_file() for f in couverture["fichiers"]),
-                 str(couverture["fichiers"]))
+                 not introuvables,
+                 f"{len(couverture['fichiers'])} fichiers"
+                 + (f" — introuvables : {', '.join(introuvables)}" if introuvables else ""))
 
         # ── a setting says where it comes from, and explains itself ────────
         await pg.evaluate("()=>window.__go('reglages-rubrique')")

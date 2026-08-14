@@ -147,6 +147,68 @@ async def main():
         verifier("un glissé vers la droite ouvre le tiroir gauche",
                  p2[0].startswith("translateX(") and "-" not in p2[0], str(p2))
 
+        # ── the reversal ───────────────────────────────────────────────────
+        # An open row is dragged back, and the drag has to resume from where
+        # the row IS. Assuming a side instead read a row open on the LEFT as
+        # if it were open on the right, so its first move leapt the width of
+        # both drawers.
+        #
+        # Sampled DURING the gesture, because a jump is a discontinuity: both
+        # ends of a drag can be right while everything in between is wrong,
+        # and a probe reading only the rest positions certifies it.
+        async def ouEstElle():
+            """The first row's own offset, in pixels, 0 when it is at rest."""
+            return await pg.evaluate(
+                """()=>{const c = document.querySelector('#view .swipe .card');
+                       const t = c && c.style.transform;
+                       return t ? parseFloat(t.slice(t.indexOf('(') + 1)) : 0;}""")
+
+        async def glisserEnObservant(x, y, dx, pas=14):
+            """Drags a finger and reports where the row sat after each step."""
+            await cdp.send("Input.dispatchTouchEvent",
+                           {"type": "touchStart", "touchPoints": [{"x": x, "y": y, "id": 1}]})
+            n = max(1, abs(int(dx)) // pas)
+            releves = []
+            for i in range(1, n + 1):
+                await cdp.send("Input.dispatchTouchEvent",
+                               {"type": "touchMove",
+                                "touchPoints": [{"x": x + dx * i / n, "y": y, "id": 1}]})
+                await asyncio.sleep(0.016)
+                releves.append(await ouEstElle())
+            await cdp.send("Input.dispatchTouchEvent",
+                           {"type": "touchEnd", "touchPoints": []})
+            await pg.wait_for_timeout(430)
+            return releves
+
+        repos = await ouEstElle()
+        releves = await glisserEnObservant(lignes[0]["x"], lignes[0]["y"], -60)
+        # A step of the drag is 14 to 15 pixels. The ceiling is generous enough
+        # that no honest step reaches it and far below the 252px the defect
+        # produced, so it cannot be met by tightening a threshold.
+        ecart = abs(releves[0] - repos) if releves else None
+        verifier("une ligne ouverte suit le doigt sans sauter",
+                 ecart is not None and ecart < 40,
+                 f"repos {repos} → premier relevé {releves and releves[0]} (écart {ecart})")
+
+        p3 = await poses()
+        verifier("le glissé inverse la ramène au repos, sans ouvrir l'autre côté",
+                 p3[0] == "", str(p3))
+
+        # And a LONG reverse drag settles at rest too. This is the operator's
+        # own prescription — « elle devrait se replacer normalement et je
+        # reswipe à gauche si je veux voir les actions à gauche » — and it is
+        # what the clamp exists for: left to keep its sign, the travel of a row
+        # dragged well past rest is read as a large one, so the row springs
+        # back OPEN on the side it started from. A short reverse drag never
+        # reaches that, which is why it has to be a long one here.
+        await glisser(lignes[0]["x"], lignes[0]["y"], 140)
+        verifier("le tiroir gauche est rouvert pour la mesure suivante",
+                 (await poses())[0] == "translateX(84px)", str(await poses()))
+        await glisser(lignes[0]["x"], lignes[0]["y"], -200)
+        p4 = await poses()
+        verifier("un long glissé inverse s'arrête au repos, sans repartir de l'autre côté",
+                 p4[0] == "", str(p4))
+
         # A tap must still reach the panel: swallowing every click after a drag
         # would make the row unusable in the other direction. Tapped for REAL —
         # a programmatic click carries no pointerdown, so it never clears the
