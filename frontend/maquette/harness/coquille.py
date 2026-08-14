@@ -80,8 +80,13 @@ async def ouvrir_page(navigateur, url, erreurs):
     ctx = await navigateur.new_context(**TELEPHONE)
     pg = await ctx.new_page()
     pg.on("pageerror", lambda e: erreurs.append(f"{url}: {e}"))
-    pg.on("console", lambda m: erreurs.append(f"{url}: {m.text}")
-          if m.type == "error" else None)
+    # The error guard listens to RESPONSES, not console prose: a console line
+    # does not carry the URL, and the browser requests /favicon.ico uninvited
+    # on both servers — neither declares one, so that miss is the harness's
+    # environment, never the prototype's. Every URL the prototype itself
+    # requests (the assets above all) stays guarded.
+    pg.on("response", lambda r: erreurs.append(f"{url}: {r.status} {r.url}")
+          if r.status >= 400 and not r.url.endswith("/favicon.ico") else None)
     await pg.goto(url, wait_until="load")
     await pg.evaluate("()=>window.__chargementTermine?.()")
     await pg.evaluate("()=>document.querySelector('#toastx')?.click()")
