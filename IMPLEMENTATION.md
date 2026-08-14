@@ -102,18 +102,14 @@ cannot fail, and a script that cannot fail is a report nobody is obliged to read
 
 **Two traps, each already paid for twice.** A stale copy of the scripts lives in
 `/tmp/tm-refonte`; running from there measures the previous version. And `/tmp/tm-refonte/
-wrapped.html` must be re-synced from `design/refonte.html` before every run, or the same thing happens
-one level down:
+wrapped.html` — the harness's copy of the BUILD, the same document the host serves — must be
+rebuilt and re-copied before every run, or the same thing happens one level down:
 
 ```bash
-/Users/izno/.pyenv/versions/3.11.9/bin/python3 - <<'EOF'
-from pathlib import Path
-src = Path("frontend/maquette/design/refonte.html").read_text()
-head = ('<!doctype html><html><head><meta charset="utf-8">'
-        '<meta name="viewport" content="width=device-width,initial-scale=1,'
-        'maximum-scale=1,user-scalable=no"></head><body>\n')
-Path("/tmp/tm-refonte/wrapped.html").write_text(head + src)
-EOF
+cd frontend/maquette/design
+npm run build
+cp dist/index.html /tmp/tm-refonte/wrapped.html
+rm -rf /tmp/tm-refonte/vite && { [ -d dist/vite ] && cp -R dist/vite /tmp/tm-refonte/vite || true; }
 ln -sfn "$(git rev-parse --show-toplevel)/frontend/maquette/design/assets" /tmp/tm-refonte/assets
 ```
 

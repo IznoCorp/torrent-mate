@@ -655,19 +655,28 @@ Run them with the Python that carries Playwright, against a local static server 
 **127.0.0.1:8899** — **never** 8710 / 8711, which the reverse proxy routes to prod and
 staging.
 
-The wrapper directory `/tmp/tm-refonte/` must carry an `assets` symlink to the repo's
+**The harness measures the BUILD.** `wrapped.html` is a copy of `dist/index.html` — the
+same document the host serves — rebuilt and re-copied before every run, or the suite
+measures the previous version. The copy is what isolates rule mutations from the host:
+a rule may corrupt its copy freely, the real build stays untouched.
+
+```bash
+cd frontend/maquette/design
+npm run build
+cp dist/index.html /tmp/tm-refonte/wrapped.html
+rm -rf /tmp/tm-refonte/vite && { [ -d dist/vite ] && cp -R dist/vite /tmp/tm-refonte/vite || true; }
+```
+
+The wrapper directory `/tmp/tm-refonte/` must also carry an `assets` symlink to the repo's
 `design/assets/`:
 
 ```bash
 ln -sfn "$(git rev-parse --show-toplevel)/frontend/maquette/design/assets" /tmp/tm-refonte/assets
 ```
 
-Without it, every image reference (`src=` and `url()` values) resolves to a 404. The harness
-runs measure against this local server, so the symlink must be in place before any test.
-
-The prototype must be served inside a wrapper supplying `<meta name="viewport">`; without it
-Chrome falls back to the legacy 980px layout viewport and every measurement is wrong. The file
-also injects that meta itself if the host page has none — do not remove that guard.
+Without it, every image reference (`src=` and `url()` values) resolves to a 404. The
+envelope carries the viewport meta; the prototype also injects one itself if the host page
+has none — do not remove that guard.
 
 ## Language of the source
 

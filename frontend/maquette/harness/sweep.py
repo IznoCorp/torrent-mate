@@ -12,14 +12,22 @@ async def main():
     ctx=await b.new_context(viewport={"width":390,"height":844},device_scale_factor=2,is_mobile=True,has_touch=True)
     pg=await ctx.new_page(); errs=[]
     pg.on("pageerror", lambda e: errs.append(str(e)))
-    # Chrome requests /favicon.ico on its own; the prototype has NO external
-    # resource (everything is a data: URI), so that 404 never comes from it.
-    # The filename is in the URL, not in the message — hence reading location.
+    # The HOST-ROUTE surface: the measured document is the BUILD, whose
+    # envelope names routes only serve.py answers — the worker script, the
+    # manifest, the favicons (and Chrome asks for /favicon.ico uninvited).
+    # A static server legitimately lacks them, and R52 already holds them
+    # against the live host; excluding them keeps this guard sharp for every
+    # URL the prototype itself references.
+    # The worker-fetch miss is its own case: Chrome words it « A bad HTTP
+    # response code (404) was received when fetching the script. » and gives
+    # it NO url — the only script the envelope fetches that way is /sw.js.
+    ROUTES_HOTE = ("favicon", "sw.js", "manifest.webmanifest",
+                   "when fetching the script")
     def _console(m):
         if m.type != "error":
             return
         url = (m.location or {}).get("url", "")
-        if "favicon" in url or "favicon" in m.text:
+        if any(r in url or r in m.text for r in ROUTES_HOTE):
             return
         errs.append("console:" + m.text + " ← " + url)
     pg.on("console", _console)
