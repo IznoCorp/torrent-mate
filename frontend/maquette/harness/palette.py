@@ -27,7 +27,7 @@ import re
 from commun import Journal, ouvrir
 from playwright.async_api import async_playwright
 
-PROTOTYPE = pathlib.Path(__file__).resolve().parent.parent / "refonte.html"
+PROTOTYPE = pathlib.Path(__file__).resolve().parent.parent / "design" / "refonte.html"
 
 _journal = None
 
@@ -69,7 +69,7 @@ PEINTURES = [
 
 async def main():
     global _journal
-    _journal = Journal(f"R61 — la palette tient ses promesses")
+    _journal = Journal("R61 — la palette tient ses promesses")
 
     source = PROTOTYPE.read_text()
     manquantes = pendantes(source)

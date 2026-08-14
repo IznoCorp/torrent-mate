@@ -56,6 +56,11 @@
 *.tar
 *.gz
 
+# The design prototype's extracted artwork is versioned deliberately: these
+# are the reference images the maquette renders, not pipeline media. The
+# media-extension block above must not swallow them.
+!frontend/maquette/design/assets/**
+
 # ===========================================
 # Sorting folders and scripts - fully ignored
 # ===========================================

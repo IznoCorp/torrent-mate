@@ -43,7 +43,7 @@ coder** toute surface web ; chaque PR web **cite les § qu'elle sert**.
 
 ### Design Reference — la maquette fait foi (web-UI — CONTRAIGNANT)
 
-**`frontend/maquette/refonte.html` est la référence visuelle de la web-UI** (§15 de la
+**`frontend/maquette/design/refonte.html` est la référence visuelle de la web-UI** (§15 de la
 constitution). Toute évolution du design **part de la maquette, jamais du code** :
 
 1. On modifie **la maquette d'abord**, on la vérifie avec son harnais (`frontend/maquette/harness/`),
@@ -286,7 +286,7 @@ Load these docs on-demand based on your task — they are **not** auto-loaded:
 | Post-merge operator checklist (DB schema, config/CLI migrations, ACC re-exercise)                                     | `docs/reference/runbook-post-merge.md`          |
 | TorrentMate web UI — architecture, auth, WS protocol, Redis relay, PWA, deploy runbook, S2-S7 REST conventions        | `docs/reference/web-ui.md`                      |
 | **Product intent — constitution produit (CONTRAIGNANT) : web-UI raison d'être, §1–§15 + DOIT/NE-DOIT-PAS + §méthode** | `docs/reference/product-intent.md`              |
-| **Maquette — référence VISUELLE de la web-UI (CONTRAIGNANT) : on la modifie AVANT le code** | `frontend/maquette/README.md`                    |
+| **Maquette — référence VISUELLE de la web-UI (CONTRAIGNANT) : on la modifie AVANT le code**                           | `frontend/maquette/README.md`                   |
 
 Also check archived alpha versions under `docs/archive/legacy-alpha/` and archived features under `docs/archive/features/`.
 

@@ -16,7 +16,12 @@ This script classifies EVERY BLOCK 2 class by what it actually does:
 « DEAD » is a failure: dead CSS in the prototype becomes dead CSS in the app
 and, worse, suggests a class exists when it does not.
 """
-import asyncio, json, pathlib, re, sys
+import asyncio
+import json
+import pathlib
+import re
+import sys
+
 from commun import ouvrir
 from playwright.async_api import async_playwright
 
@@ -30,7 +35,7 @@ HARNAIS_CONNUS = {"hpanel", "states", "notes", "stage", "device", "note", "hbtn"
 
 def classes_bloc2() -> set[str]:
     """Classes defined by a CSS rule inside BLOCK 2 — comments excluded."""
-    h = (RACINE / "refonte.html").read_text()
+    h = (RACINE / "design" / "refonte.html").read_text()
     i = h.find("BLOCK 2")
     if i < 0:
         sys.exit("BLOCK 2 not found: the prototype lost its harness/app separation.")
@@ -50,7 +55,7 @@ def classes_bloc2() -> set[str]:
 
 async def main():
     cl = sorted(classes_bloc2())
-    src = (RACINE / "refonte.html").read_text()
+    src = (RACINE / "design" / "refonte.html").read_text()
     src = src[src.find("</style>"):]  # markup + JS, sans le CSS
 
     async with async_playwright() as p:

@@ -23,9 +23,13 @@ async def main():
               parId:!!s.querySelector('.byid')};}""")
     print(" ", r)
     await pg.screenshot(path="y_ajout.png")
-    await pg.click("[data-act='add:3']"); await pg.wait_for_timeout(450)
+    # The card wears no inline action: the act lives in the result's panel,
+    # so the journey opens the panel first — the same path the finger takes.
+    await pg.click("[data-panel='add:3']"); await pg.wait_for_timeout(450)
+    await pg.click("#sheet [data-act='add:3']"); await pg.wait_for_timeout(450)
     print("  after adding an absent title:", await pg.evaluate("()=>document.querySelector('.addfoot')?.textContent.trim()"))
-    await pg.click("[data-act='add:0']"); await pg.wait_for_timeout(450)
+    await pg.click("[data-panel='add:0']"); await pg.wait_for_timeout(450)
+    await pg.click("#sheet [data-act='add:0']"); await pg.wait_for_timeout(450)
     print("  adding an ALREADY owned title:", await pg.evaluate("()=>{const g=document.querySelector('#dlg');return {ouvert:g.classList.contains('open'),titre:g.querySelector('h3')?.textContent};}"))
     await pg.screenshot(path="y_remplacer.png")
     await pg.evaluate("()=>document.querySelector('#dlgcancel').click()"); await pg.wait_for_timeout(300)

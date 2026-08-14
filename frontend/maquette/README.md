@@ -7,9 +7,11 @@
 > design and the front-end architecture solid enough. The inventory of what is still owed is in
 > `IMPLEMENTATION.md`.
 
-
-**`refonte.html` is the design reference for the TorrentMate web UI. Any change to the
+**`design/refonte.html` is the design reference for the TorrentMate web UI. Any change to the
 design starts here, not in `frontend/src`.**
+
+`design/` is the served root — everything a browser reaches lives there (the prototype, images,
+PWA assets). The `harness/`, `serve.py`, and `regions.json` siblings are never served.
 
 It is the operator-approved interactive prototype of the mobile-first interface:
 `/acquisition` (three views), `/mediatheque`, `/arrivees`, `/systeme`, plus the media
@@ -27,7 +29,7 @@ is the parity methodology and is the part that matters most.
 
 This applies to every future evolution of the interface, not only to the initial rebuild:
 
-1. **A design change starts in `refonte.html`.** Adjust it there, check it against the
+1. **A design change starts in `design/refonte.html`.** Adjust it there, check it against the
    harness, then derive the code.
 2. **If a region cannot be built as drawn, amend the prototype and record why.** The code
    never diverges "temporarily" — a temporary divergence is how an interface turns into a
@@ -48,7 +50,7 @@ A previous rebuild of one page cost days it should not have. Its post-mortem nam
 causes:
 
 1. **Translating instead of transplanting.** Prototype fragments were grafted onto existing
-   component skeletons. Every detail *resembled*; the whole diverged.
+   component skeletons. Every detail _resembled_; the whole diverged.
 2. **Eyeball validation.** "Present in the DOM" was treated as "conformant". Several
    "it's ready" claims collapsed on contact with the operator's thumb.
 
@@ -127,11 +129,11 @@ in → `__go(state)` → measure.
 
 Three orthogonal dials the panel exposes:
 
-| Dial | Values | What it changes |
-|---|---|---|
-| Data scenario | `reel` · `charge` | the real system state vs a dense one |
+| Dial          | Values                            | What it changes                      |
+| ------------- | --------------------------------- | ------------------------------------ |
+| Data scenario | `reel` · `charge`                 | the real system state vs a dense one |
 | Surface phase | `prete` · `chargement` · `erreur` | every surface goes through all three |
-| TMDB account | connected · not | Découvrir's full vs degraded mode |
+| TMDB account  | connected · not                   | Découvrir's full vs degraded mode    |
 
 The 54 states cover: the startup screen, the entry screen and its refusal, the five urgency
 sections in both scenarios, Suivis in its three modes plus its two empty cases, Découvrir full /
@@ -170,18 +172,18 @@ allowlist of accepted divergences — **every entry carries an inline justificat
 
 Read from the live system:
 
-| Data | Source |
-|---|---|
-| Library titles, categories, counts (1,861 items) | `library.db` |
-| 12 follows with their true states | `acquire.db` |
-| Incomplete series and their fractions | `library.db` |
-| Owned episode numbers, season by season (247 series, 9,218 episodes) | `library.db` |
-| Episode titles and air dates (9,779 episodes) | TMDB |
-| Staging contents | the staging directory |
-| TMDB suggestions | the engine, actually executed |
+| Data                                                                                | Source                          |
+| ----------------------------------------------------------------------------------- | ------------------------------- |
+| Library titles, categories, counts (1,861 items)                                    | `library.db`                    |
+| 12 follows with their true states                                                   | `acquire.db`                    |
+| Incomplete series and their fractions                                               | `library.db`                    |
+| Owned episode numbers, season by season (247 series, 9,218 episodes)                | `library.db`                    |
+| Episode titles and air dates (9,779 episodes)                                       | TMDB                            |
+| Staging contents                                                                    | the staging directory           |
+| TMDB suggestions                                                                    | the engine, actually executed   |
 | 319 wide visuals, 172 posters (64 of them at gallery definition), 55 cast portraits | TMDB / TVDB, re-encoded as WebP |
-| 288 YouTube trailer ids | TMDB `/videos` |
-| The grab cadence | the live scheduler |
+| 288 YouTube trailer ids                                                             | TMDB `/videos`                  |
+| The grab cadence                                                                    | the live scheduler              |
 
 Not real: the release candidates on the "choose another release" screen — no tracker is
 queried — and the timings and counts of the `charge` scenario, which exist so density can be
@@ -199,7 +201,7 @@ judged. Both are labelled as such in the design notes.
 ## Two rules the prototype itself re-taught, the hard way
 
 - **R7 — `minmax(0, 1fr)`, never `1fr`.** An `auto` grid track's floor is the item's
-  *intrinsic* size, so a horizontally-scrolling pill train sized its track to max-content and
+  _intrinsic_ size, so a horizontally-scrolling pill train sized its track to max-content and
   blew a 390px frame out to 910px.
 - **R8 — an author `display` rule beats `[hidden]`.** A class declaring `display: grid` made
   `el.hidden = true` do nothing. Any class declaring a `display` must declare its own hidden
@@ -217,7 +219,7 @@ disagree.
   panel answers a **long press**.
 - The **panel carries every action** available for that medium — including any
   action also drawn inline on a card.
-- An **inline action** exists only where a section exists *for* that action
+- An **inline action** exists only where a section exists _for_ that action
   (« À récupérer », « Ça coince »). It is a shortcut, never the only way in.
 
 The last two clauses are the ones that matter. An action reachable from a single
@@ -244,12 +246,12 @@ whatever film sits at that rank.
 The contract above is enforced by there being **one builder per shape**, not one per
 screen:
 
-| Shape | Builder | Who uses it |
-|---|---|---|
-| Card | `cardHTML(descripteur, opts)` | every list — urgency sections, follows, library, arrivals |
-| Tile | `tileHTML(o, sousLigne, opts)` | every gallery — the library's three lenses, the follows grid |
-| Release card | `releaseCardHTML(...)` | the resolution and release screens — **not a medium** |
-| Selection row | `libRowHTML` | a mode of the LIST, not a variant of the card |
+| Shape         | Builder                        | Who uses it                                                  |
+| ------------- | ------------------------------ | ------------------------------------------------------------ |
+| Card          | `cardHTML(descripteur, opts)`  | every list — urgency sections, follows, library, arrivals    |
+| Tile          | `tileHTML(o, sousLigne, opts)` | every gallery — the library's three lenses, the follows grid |
+| Release card  | `releaseCardHTML(...)`         | the resolution and release screens — **not a medium**        |
+| Selection row | `libRowHTML`                   | a mode of the LIST, not a variant of the card                |
 
 Three views used to rebuild a card by hand. One of them had already drifted, and it
 took a separate edit to bring it back in line — the kind of edit that is silently
@@ -259,8 +261,8 @@ every list**; the same edit once reached only the lists that happened to use it.
 **The card takes a descriptor of FACTS**, listed in the source next to the function:
 title, kind, sub-line, reason, fraction, chip, caption, fresh, strip. A view that
 wants to show something not in that list is describing a fact the card does not yet
-know about — the fix is to add the fact, never to pass ready-made markup. *An envelope
-guarantees nothing about what it carries.* This is what keeps « one component with
+know about — the fix is to add the fact, never to pass ready-made markup. _An envelope
+guarantees nothing about what it carries._ This is what keeps « one component with
 variable display » from turning into a component with a dozen appearance flags.
 
 **A tile is not a card with a flag.** It is a different layout — all poster, name
@@ -314,11 +316,11 @@ The **column count follows the scrollport's width**, through a container query, 
 the window's:
 
 | Scrollport | Columns |
-|---|---|
-| < 460px | 3 |
-| ≥ 460px | 4 |
-| ≥ 620px | 5 |
-| ≥ 820px | 6 |
+| ---------- | ------- |
+| < 460px    | 3       |
+| ≥ 460px    | 4       |
+| ≥ 620px    | 5       |
+| ≥ 820px    | 6       |
 
 A media query would read the viewport, so a 390px frame sitting on a 1280px desktop would be
 told it has room for six columns it does not have — which is exactly why a harness deviation
@@ -349,7 +351,7 @@ The invitation has two forms, and they are not cosmetic variants (R51):
 - **Android and desktop** fire `beforeinstallprompt`, which a page may capture and replay on a
   gesture — so the banner offers a button.
 - **iOS Safari** fires nothing. There is no event to await and no API to call, so the banner
-  *is* the guide: it walks Partager → « Sur l'écran d'accueil » → Ajouter. A single banner
+  _is_ the guide: it walks Partager → « Sur l'écran d'accueil » → Ajouter. A single banner
   saying « installez-moi » on both would be a dead end on one of them.
 
 It sits **above** the tab bar. Anchored to the bottom edge its close button lands under the
@@ -446,11 +448,11 @@ matters: it asks the server, afterwards, whether the session is still accepted.
 
 Four surfaces, and what decides which one a panel belongs to is not the page it came from:
 
-| A medium in trouble | **Arrivées** |
-| --- | --- |
-| A machine in trouble | **Système** |
-| A setting | **Configuration** |
-| A command run against the library | **Maintenance** |
+| A medium in trouble               | **Arrivées**      |
+| --------------------------------- | ----------------- |
+| A machine in trouble              | **Système**       |
+| A setting                         | **Configuration** |
+| A command run against the library | **Maintenance**   |
 
 `Contrôle` does not survive this cut. Production stacks blocked media on top of disk and provider
 health with nothing saying why they share a page; each of its seven panels has a home under the
@@ -530,7 +532,7 @@ was correct all along.
 "is this rule dead?", there is an exact answer that needs no oracle:
 
 ```js
-document.querySelectorAll('.act.grab').length   // over all 47 states → 0 means it can never apply
+document.querySelectorAll(".act.grab").length; // over all 47 states → 0 means it can never apply
 ```
 
 combined with "the source never writes this class name" (so no interaction can produce it).
@@ -585,53 +587,65 @@ the two apart.
 Scripts that already do, in headless Chromium, what `scripts/parity-probe.py` must inherit.
 They are committed because they encode recipes that cost time to get right.
 
-| Script | What it proves |
-|---|---|
-| `sweep.py` | all views render content, no horizontal overflow, device at 390px, no JS error. **A view that renders nothing fails.** |
-| `scen.py` | the same sweep across both data scenarios, with explicit sub-view reset between runs |
-| `states.py` | every named state renders, without overflow or JS error |
-| `commun.py` | not a rule: the plumbing every script borrows — how a verdict prints, how a run ends, how the document is opened past the startup screen. Twelve copies of the same `verifier()` meant a fix to the reporting had to be made twelve times, and one change to the opening cost twenty-eight hand edits |
-| `deck.py` | the deck answers a swipe either way — left skips and comes back, right dismisses with an undo |
-| `galerie.py` | one tile pattern in every gallery |
-| `souris.py` | every gesture answers a MOUSE too: the interface is used from a desktop browser |
-| `surfaces.py` | every surface the interface draws is reachable and renders |
-| `audit.py` | rules R1–R10 and R20–R23 across every state, and it announces how many rules it EXECUTED |
-| `audit2.py` | rules R11–R17 and R26–R31: uniformity, honesty of the text, one back design, one season rendering, episode presence against the data, a panel that never offers an action the medium does not support |
-| `cartes.py` | rules R41–R50: the card and gallery contract — poster to the sheet, body to the panel, no action reachable from a single surface, the same panel from a card and from a gallery |
-| `export.py` | every BLOCK 2 class is classified; fails on dead CSS or on a class missing from the allowlist |
-| `bugs.py` | one test per defect found by hand |
-| `inter.py` | swipe, infinite scroll, load error + retry, delete dialog |
-| `suivis.py` | Suivis conformity across its three modes |
-| `sel.py` | the two delete paths from the grid: long-press and selection mode |
-| `scroll.py` | no form interaction moves the scroll position |
-| `filtres.py` | filters filter, and their parts sum to the whole |
-| `actions.py` | the simulated behaviours really mutate the state |
-| `dest.py` | every button has a destination |
-| `ident.py` | identify ≠ follow: the context picks the verb |
-| `pop.py` | the episode date popover, in all its states |
-| `chrome.py` | R51: the harness bar covers none of the app's fixed controls, in every named state, at both sides of the 520px breakpoint |
-| `retour.py` | R59: the back gesture walks the path in reverse — tabs and lenses included — closes a layer first, and at the root warns instead of leaving, closing only on a second back within five seconds |
-| `reglages.py` | R60: the settings are navigated by what one wants to change, never by file; every real setting belongs to one rubric and is identified by its label alone — subject then action, in French; nothing is written until the save bar names the files it will write; a secret says only whether it is set |
-| `palette.py` | R61: no bare `var(--x)` names a property the document never defines, and the brand colour is actually painted on the wordmark, the sign-in button and the startup bar |
-| `entree.py` | R62: the sign-in screen renders identically on the host and inside the prototype, and the host redeclares nothing the reference owns |
-| `contenu.py` | R63: a follow's card carries what `acquire.db` really holds and phrases it as « En cours » does; a library row carries the synopsis, clamped to the largest number of lines that fits, and shows nothing when the NFO has no plot |
-| `glisse.py` | R64: a row opens a drawer either way, one at a time, without firing the tap — measured on Chromium AND WebKit, where the drawer used to spill past the card; and a REVERSAL settles the row back rather than leaping, sampled during the drag because a jump is a discontinuity |
-| `adresse_url.py` | R69: the URL carries the state (DOIT-10) — walking writes the address, a reload lands on the same screen, only what differs from the opening state is written, a wrong address is left exactly as typed, and back walks the addresses in reverse |
-| `adresse.py` | R68: an unknown address renders instead of raising, names what was asked for and offers a way out; the account surface draws the one real account, compared against `web.json5`, and marks the place of the others EMPTY |
-| `machine.py` | R67: Système is the machine, Maintenance is what one does to the library — no blocked medium on Système, no scheduler called « stopped » between two runs, both lists counted against `pm2 jlist`, every command checked against the engine's registry in both directions, and a command that DELETES inert until it has been run blank |
-| `arrivees.py` | R66: Arrivées carries the pipeline's health — one control that fits the state, a run asked during a run QUEUED rather than refused, the engine's nine steps in its order, nothing-to-do said with an em dash, and every figure checked against the run `library.db` really recorded |
-| `tiroir.py` | R65: the drawer is a place one passes through, not a route — every entry names a page that exists and arrives there, the destination takes the drawer's own history entry, closing a layer neither rebuilds the page underneath nor loses where it was scrolled, and every entry is legible measured as PAINTED |
-| `installation.py` | R51: the install offer is actually OFFERED — `beforeinstallprompt` captured, its default prevented and replayed on a gesture; the iOS guide raised by an iPhone user agent; nothing offered to an installed app, over the entry screen, or after a refusal |
-| `pwa.py` | R52: the LIVE host is installable from the first document a phone reaches — manifest, icons that load, worker registered and controlling, offline fallback cached. Runs against `tm-design.iznogoudatall.xyz`, not the local server |
-| `demarrage.py` | R53: the startup screen is declared first, covers the frame, offers no control, is gone after the first render, and the gate the server builds shows the same screen — extracted — from the submit onwards. Starts `serve.py` on a scratch port |
-| `deconnexion.py` | R54: signing out lands on the entry screen AND the server stops accepting the session. Starts `serve.py` on a scratch port |
-| `panneau.py` | R56: one panel builder, no caller passing markup, no inline style inside a panel, one heading, no action without a destination, and an undeclared block refused |
-| `decision.py` | R57: the arbitration screen — the folder as subject, no sheet or panel promised, no engine token on screen, a score printed only when it separates, each candidate wearing only its own poster, three ways out, and answering emptying the queue on both lists |
-| `doigt.py` | R55: every gesture under REAL touch input (`Input.dispatchTouchEvent`), which the compositor can cancel — the pull to refresh on seven surfaces, the swipe between views, ordinary scrolling, the swipeable row and the deck |
+| Script            | What it proves                                                                                                                                                                                                                                                                                                                          |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sweep.py`        | all views render content, no horizontal overflow, device at 390px, no JS error. **A view that renders nothing fails.**                                                                                                                                                                                                                  |
+| `scen.py`         | the same sweep across both data scenarios, with explicit sub-view reset between runs                                                                                                                                                                                                                                                    |
+| `states.py`       | every named state renders, without overflow or JS error                                                                                                                                                                                                                                                                                 |
+| `commun.py`       | not a rule: the plumbing every script borrows — how a verdict prints, how a run ends, how the document is opened past the startup screen. Twelve copies of the same `verifier()` meant a fix to the reporting had to be made twelve times, and one change to the opening cost twenty-eight hand edits                                   |
+| `deck.py`         | the deck answers a swipe either way — left skips and comes back, right dismisses with an undo                                                                                                                                                                                                                                           |
+| `galerie.py`      | one tile pattern in every gallery                                                                                                                                                                                                                                                                                                       |
+| `souris.py`       | every gesture answers a MOUSE too: the interface is used from a desktop browser                                                                                                                                                                                                                                                         |
+| `surfaces.py`     | every surface the interface draws is reachable and renders                                                                                                                                                                                                                                                                              |
+| `audit.py`        | rules R1–R10 and R20–R23 across every state, and it announces how many rules it EXECUTED                                                                                                                                                                                                                                                |
+| `audit2.py`       | rules R11–R17 and R26–R31: uniformity, honesty of the text, one back design, one season rendering, episode presence against the data, a panel that never offers an action the medium does not support                                                                                                                                   |
+| `cartes.py`       | rules R41–R50: the card and gallery contract — poster to the sheet, body to the panel, no action reachable from a single surface, the same panel from a card and from a gallery                                                                                                                                                         |
+| `export.py`       | every BLOCK 2 class is classified; fails on dead CSS or on a class missing from the allowlist                                                                                                                                                                                                                                           |
+| `bugs.py`         | one test per defect found by hand                                                                                                                                                                                                                                                                                                       |
+| `inter.py`        | swipe, infinite scroll, load error + retry, delete dialog                                                                                                                                                                                                                                                                               |
+| `suivis.py`       | Suivis conformity across its three modes                                                                                                                                                                                                                                                                                                |
+| `sel.py`          | the two delete paths from the grid: long-press and selection mode                                                                                                                                                                                                                                                                       |
+| `scroll.py`       | no form interaction moves the scroll position                                                                                                                                                                                                                                                                                           |
+| `filtres.py`      | filters filter, and their parts sum to the whole                                                                                                                                                                                                                                                                                        |
+| `actions.py`      | the simulated behaviours really mutate the state                                                                                                                                                                                                                                                                                        |
+| `dest.py`         | every button has a destination                                                                                                                                                                                                                                                                                                          |
+| `ident.py`        | identify ≠ follow: the context picks the verb                                                                                                                                                                                                                                                                                           |
+| `pop.py`          | the episode date popover, in all its states                                                                                                                                                                                                                                                                                             |
+| `chrome.py`       | R51: the harness bar covers none of the app's fixed controls, in every named state, at both sides of the 520px breakpoint                                                                                                                                                                                                               |
+| `retour.py`       | R59: the back gesture walks the path in reverse — tabs and lenses included — closes a layer first, and at the root warns instead of leaving, closing only on a second back within five seconds                                                                                                                                          |
+| `reglages.py`     | R60: the settings are navigated by what one wants to change, never by file; every real setting belongs to one rubric and is identified by its label alone — subject then action, in French; nothing is written until the save bar names the files it will write; a secret says only whether it is set                                   |
+| `palette.py`      | R61: no bare `var(--x)` names a property the document never defines, and the brand colour is actually painted on the wordmark, the sign-in button and the startup bar                                                                                                                                                                   |
+| `entree.py`       | R62: the sign-in screen renders identically on the host and inside the prototype, and the host redeclares nothing the reference owns                                                                                                                                                                                                    |
+| `contenu.py`      | R63: a follow's card carries what `acquire.db` really holds and phrases it as « En cours » does; a library row carries the synopsis, clamped to the largest number of lines that fits, and shows nothing when the NFO has no plot                                                                                                       |
+| `glisse.py`       | R64: a row opens a drawer either way, one at a time, without firing the tap — measured on Chromium AND WebKit, where the drawer used to spill past the card; and a REVERSAL settles the row back rather than leaping, sampled during the drag because a jump is a discontinuity                                                         |
+| `adresse_url.py`  | R69: the URL carries the state (DOIT-10) — walking writes the address, a reload lands on the same screen, only what differs from the opening state is written, a wrong address is left exactly as typed, and back walks the addresses in reverse                                                                                        |
+| `adresse.py`      | R68: an unknown address renders instead of raising, names what was asked for and offers a way out; the account surface draws the one real account, compared against `web.json5`, and marks the place of the others EMPTY                                                                                                                |
+| `machine.py`      | R67: Système is the machine, Maintenance is what one does to the library — no blocked medium on Système, no scheduler called « stopped » between two runs, both lists counted against `pm2 jlist`, every command checked against the engine's registry in both directions, and a command that DELETES inert until it has been run blank |
+| `arrivees.py`     | R66: Arrivées carries the pipeline's health — one control that fits the state, a run asked during a run QUEUED rather than refused, the engine's nine steps in its order, nothing-to-do said with an em dash, and every figure checked against the run `library.db` really recorded                                                     |
+| `tiroir.py`       | R65: the drawer is a place one passes through, not a route — every entry names a page that exists and arrives there, the destination takes the drawer's own history entry, closing a layer neither rebuilds the page underneath nor loses where it was scrolled, and every entry is legible measured as PAINTED                         |
+| `installation.py` | R51: the install offer is actually OFFERED — `beforeinstallprompt` captured, its default prevented and replayed on a gesture; the iOS guide raised by an iPhone user agent; nothing offered to an installed app, over the entry screen, or after a refusal                                                                              |
+| `pwa.py`          | R52: the LIVE host is installable from the first document a phone reaches — manifest, icons that load, worker registered and controlling, offline fallback cached. Runs against `tm-design.iznogoudatall.xyz`, not the local server                                                                                                     |
+| `demarrage.py`    | R53: the startup screen is declared first, covers the frame, offers no control, is gone after the first render, and the gate the server builds shows the same screen — extracted — from the submit onwards. Starts `serve.py` on a scratch port                                                                                         |
+| `deconnexion.py`  | R54: signing out lands on the entry screen AND the server stops accepting the session. Starts `serve.py` on a scratch port                                                                                                                                                                                                              |
+| `panneau.py`      | R56: one panel builder, no caller passing markup, no inline style inside a panel, one heading, no action without a destination, and an undeclared block refused                                                                                                                                                                         |
+| `decision.py`     | R57: the arbitration screen — the folder as subject, no sheet or panel promised, no engine token on screen, a score printed only when it separates, each candidate wearing only its own poster, three ways out, and answering emptying the queue on both lists                                                                          |
+| `doigt.py`        | R55: every gesture under REAL touch input (`Input.dispatchTouchEvent`), which the compositor can cancel — the pull to refresh on seven surfaces, the swipe between views, ordinary scrolling, the swipeable row and the deck                                                                                                            |
+| `images.py`       | R70: the source embeds no image and every `assets/` reference resolves to a file                                                                                                                                                                                                                                                        |
+| `ecrans.py`       | R71: a screen above another one — back redraws the screen it covered (query and scroll included) through both exits, one more back leaves the layer, and a result card carries no inline action in its foot: the panel is the single path to the act                                                                                    |
 
 Run them with the Python that carries Playwright, against a local static server on
 **127.0.0.1:8899** — **never** 8710 / 8711, which the reverse proxy routes to prod and
 staging.
+
+The wrapper directory `/tmp/tm-refonte/` must carry an `assets` symlink to the repo's
+`design/assets/`:
+
+```bash
+ln -sfn "$(git rev-parse --show-toplevel)/frontend/maquette/design/assets" /tmp/tm-refonte/assets
+```
+
+Without it, every image reference (`src=` and `url()` values) resolves to a 404. The harness
+runs measure against this local server, so the symlink must be in place before any test.
 
 The prototype must be served inside a wrapper supplying `<meta name="viewport">`; without it
 Chrome falls back to the legacy 980px layout viewport and every measurement is wrong. The file

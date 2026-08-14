@@ -22,7 +22,7 @@ const RACINE = "/Users/izno/dev/PersonalScraper/frontend";
 const espree = await import(`${RACINE}/node_modules/espree/dist/espree.cjs`);
 const eslintScope = (await import(`${RACINE}/node_modules/eslint-scope/dist/eslint-scope.cjs`)).default;
 
-const CHEMIN = `${RACINE}/maquette/refonte.html`;
+const CHEMIN = `${RACINE}/maquette/design/refonte.html`;
 
 /** The module-scope singletons, where only judgement can name them. */
 const SINGLETONS = {

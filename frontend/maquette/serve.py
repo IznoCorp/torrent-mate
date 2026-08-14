@@ -47,7 +47,7 @@ import sys
 import urllib.parse
 from pathlib import Path
 
-PROTOTYPE = Path(__file__).resolve().parent / "refonte.html"
+PROTOTYPE = Path(__file__).resolve().parent / "design" / "refonte.html"
 
 IDENTIFIANT = os.environ.get("TM_DESIGN_USER", "izno")
 
@@ -396,8 +396,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.send_header("Content-Type", type_mime)
         self.send_header("Content-Length", str(len(body)))
         # The design is read to be judged, and a judgement passed on a stale
-        # copy is worse than no judgement. Revalidate every time.
-        self.send_header("Cache-Control", "no-store")
+        # copy is worse than no judgement. Revalidate every time — except where
+        # a route says otherwise: hash-named assets change URL when they change
+        # content, so they alone may claim immutability.
+        if not any(n.lower() == "cache-control" for n, _ in entetes or []):
+            self.send_header("Cache-Control", "no-store")
         for nom, valeur in entetes or []:
             self.send_header(nom, valeur)
         self.end_headers()
@@ -424,6 +427,27 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self._send(404, b"")
                 return
             self._send(200, fichier.read_bytes(), type_mime=ASSETS[chemin])
+            return
+        if chemin.startswith("/assets/"):
+            # The library's real artwork: session-gated, unlike the brand set.
+            if not self._authentifie():
+                self._send(401, b"")
+                return
+            # self.path arrives raw: BaseHTTPRequestHandler never percent-decodes
+            # it, so an encoded traversal (%2e%2e%2f) reaches the filesystem as a
+            # literal file name that does not exist. The resolve() + containment
+            # check below is the backstop that must hold if that ever changes.
+            fichier = (DOSSIER_ASSETS / chemin[len("/assets/"):]).resolve()
+            types = {".webp": "image/webp", ".png": "image/png",
+                     ".svg": "image/svg+xml"}
+            type_mime = types.get(fichier.suffix)
+            if (type_mime is None or not fichier.is_file()
+                    or not fichier.is_relative_to(DOSSIER_ASSETS.resolve())):
+                self._send(404, b"")
+                return
+            self._send(200, fichier.read_bytes(),
+                       [("Cache-Control", "private, max-age=31536000, immutable")],
+                       type_mime=type_mime)
             return
         if chemin == "/deconnexion":
             self._send(303, b"", [("Location", "/"),

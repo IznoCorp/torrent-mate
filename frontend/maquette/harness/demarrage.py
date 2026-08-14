@@ -13,8 +13,18 @@ the prototype, never retyped, the rule the login gate already obeys — and that
 the screen is gone the moment there is an interface behind it.
 
 Position in source order is a correctness property here, not a detail: a
-browser paints what it has parsed, so a screen declared after the embedded
-artwork would appear only once the wait it exists to cover is over.
+browser paints what it has parsed, so a screen declared after the artwork would
+appear only once the wait it exists to cover is over.
+
+What the cold-load checks below prove is the state of the DOCUMENT — the screen
+is there, visible, from the instant it enters it, and gone once the interface
+exists. Not the state of a painted frame: served locally, this document is about
+a megabyte and a half and arrives in one burst, so the screen is parsed and then
+taken off before the browser gets a single rendering opportunity. Its visible
+window closes near 110 ms and the first paint lands near 290 ms — no frame here
+carries it, and no probe can invent one. A guarantee about what reaches the
+SCREEN needs a load slow enough to paint during, that is a throttled-network
+profile in the driver: a separate rule, and an open decision for the operator.
 """
 import asyncio
 import pathlib
@@ -45,7 +55,7 @@ def verifier(nom, condition, detail=""):
 
 def extrait_prototype(marque):
     """Returns the prototype text between a pair of `login:<marque>` markers."""
-    source = (RACINE / "refonte.html").read_text()
+    source = (RACINE / "design" / "refonte.html").read_text()
     debut = source.find(f"login:{marque}:start")
     fin = source.find(f"login:{marque}:end")
     if debut < 0 or fin < 0:
@@ -70,12 +80,12 @@ async def main():
         await pg.evaluate("()=>document.querySelector('#toastx').click()")
 
         global _journal
-        _journal = Journal(f"R53 — écran de démarrage")
+        _journal = Journal("R53 — écran de démarrage")
 
         # 1. Declared first, so it is painted first. Measured on the SOURCE,
         #    because that is what parse order follows; the DOM would answer the
         #    same question only by accident.
-        source = (RACINE / "refonte.html").read_text()
+        source = (RACINE / "design" / "refonte.html").read_text()
         corps = source[source.find('<div class="device"'):]
         rang_splash = corps.find('id="splash"')
         premier_autre = min(
@@ -235,38 +245,87 @@ async def main():
 
         # ── THE COLD LOAD, the only one an operator ever sees ──────────────
         # The screen covers ONE wait: the gap between asking for the application
-        # and having an interface. That gap is the document itself — several
-        # megabytes — and it spans two pages: the gate paints the screen on
-        # submit, the new document paints it again from its own markup, and the
-        # operator sees one continuous screen across a navigation.
+        # and having an interface. It spans two pages: the gate paints the
+        # screen on submit, the new document paints it again from its own
+        # markup, and the operator sees one continuous screen across a
+        # navigation.
         #
         # Held on a TIMER here, the bar filled once while the document
         # downloaded and then restarted from zero in a document that was already
-        # rendered. It was reported as loading twice, and it was. This checks
-        # the screen is up on the first frame and comes off when the interface
-        # is there — not after a fixed delay, which is what a rule of mine
-        # demanded and what put the second bar on screen.
+        # rendered. It was reported as loading twice, and it was. What is
+        # asserted below is that the screen is up from the moment it enters the
+        # document and comes off when the interface is there — not after a fixed
+        # delay, which is what a rule of mine demanded and what put the second
+        # bar on screen.
+        #
+        # The observation is taken from INSIDE the page, by a script injected
+        # before any script of the document runs, and the clock is the
+        # document's own — it starts when the navigation does. Asking from the
+        # outside cannot answer this question any more: the document weighs
+        # about a megabyte and a half, its artwork living in files beside it,
+        # and it parses fast enough that the whole life of the screen — parsed,
+        # then taken off by the line that ends the document — can be shorter
+        # than any period a driver samples at, and shorter than the gap between
+        # two rendering opportunities as well. A window that falls between two
+        # readings looks exactly like a screen that never appeared, and that is
+        # a verdict on the reading, not on the interface.
+        #
+        # So the record is made of the moments themselves, not of a period: the
+        # instant the screen enters the document, every change of its state
+        # afterwards, and one reading per animation frame on top of that. The
+        # first two are what a fast document needs; the frames are what proves
+        # the screen does not come back later.
+        #
+        # What this rule asserts is therefore the state of the DOCUMENT, and it
+        # is named for that. Served locally, a megabyte and a half arrives in one
+        # burst: the screen is parsed, then taken off by the closing line, before
+        # the browser has had a single rendering opportunity — measured, entered
+        # visible around 60 ms, off around 110 ms, first paint near 290 ms. No
+        # painted frame carries it here, and no reading can invent one. Proving
+        # the screen reaches the SCREEN needs a load slow enough to paint during
+        # — a throttled network profile in the driver — which is a rule of its
+        # own and an open decision for the operator, not something this one can
+        # claim.
         froide = await ctx.new_page()
+        await froide.add_init_script("""(() => {
+          window.__releves = [];
+          const noter = () => {
+            const s = document.querySelector('#splash');
+            window.__releves.push([performance.now(), s ? !s.hidden : null]);
+          };
+          let suivi = null;
+          new MutationObserver(() => {
+            const s = document.querySelector('#splash');
+            if (s && s !== suivi) {
+              suivi = s;
+              noter();
+              new MutationObserver(noter).observe(
+                s, {attributes: true, attributeFilter: ['hidden']});
+            }
+          }).observe(document, {childList: true, subtree: true});
+          const image = () => { noter(); requestAnimationFrame(image); };
+          requestAnimationFrame(image);
+        })()""")
         await froide.goto("http://127.0.0.1:8899/wrapped.html", wait_until="commit")
-        depart = time.monotonic()
-        releves = []
-        while time.monotonic() - depart < 3:
-            releves.append((round((time.monotonic() - depart) * 1000),
-                            await froide.evaluate(
-                                "()=>{const s=document.querySelector('#splash');"
-                                "return s ? !s.hidden : null;}")))
-            await froide.wait_for_timeout(60)
+        await froide.wait_for_timeout(3000)
+        releves = await froide.evaluate("()=>window.__releves")
 
+        # The first reading on which the screen EXISTS is the first moment it
+        # could have been seen: before it, the browser has not parsed it yet and
+        # a reading of « absent » says nothing about it.
+        premiere = next(((t, v) for t, v in releves if v is not None), None)
+        verifier("l'écran de démarrage est là dès qu'il entre dans le document",
+                 premiere is not None and premiere[1] and premiere[0] < 400,
+                 f"présent à {round(premiere[0])}ms, visible : {premiere[1]}"
+                 if premiere else f"absent des {len(releves)} lectures")
         vus = [t for t, v in releves if v]
-        verifier("l'écran de démarrage est là dès la première image",
-                 bool(vus) and vus[0] < 400, f"première vue à {vus[0] if vus else '—'}ms")
-        partis = [t for t, v in releves if v is False and t > (vus[0] if vus else 0)]
+        partis = [t for t, v in releves if v is False and vus and t > vus[0]]
         verifier("et il part dès que l'interface est là",
                  bool(partis) and partis[0] < 1500,
-                 f"parti à {partis[0] if partis else 'jamais'}ms")
-        verifier("il ne revient pas une seconde fois",
-                 not [t for t, v in releves if v and partis and t > partis[0]],
-                 str([t for t, v in releves if v and partis and t > partis[0]][:3]))
+                 f"parti à {round(partis[0])}ms" if partis else "parti à jamais")
+        revenus = [t for t, v in releves if v and partis and t > partis[0]]
+        verifier("il ne revient pas une seconde fois", not revenus,
+                 str([round(t) for t in revenus[:3]]))
         await froide.close()
 
         # ── where the wait is PLAYED, it lasts what the bar announces ───────

@@ -24,8 +24,18 @@ this file described the opposite order — deriving the app surface by surface �
 end**, after everything has been validated together. Non-negotiable.
 
 **Spec:** `docs/superpowers/specs/2026-08-10-refonte-mobile-quatre-pages-design.md`
-**The prototype:** `frontend/maquette/refonte.html` — §15 of `docs/reference/product-intent.md`
+**The prototype:** `frontend/maquette/design/refonte.html` — §15 of `docs/reference/product-intent.md`
 **Bug register:** `BUGS.md` at the repo root — every reported defect, one closed at a time.
+
+---
+
+## Current state
+
+**SP1 — dossier servi**: Branch `refactor/maquette-sp1`; prototype moved to `design/refonte.html`
+(1.9 MB, images extracted as files under `design/assets/`, committed via `.gitignore` negation);
+`serve.py` serves `/assets/` session-gated with `private, max-age=31536000, immutable` cache
+headers; new rule R70 (`images.py`) verifies asset extraction; sub-projects SP2 (Vite shell)
+through SP5 remain planned, SP2 launching next.
 
 ---
 
@@ -71,18 +81,19 @@ cannot fail, and a script that cannot fail is a report nobody is obliged to read
 
 **Two traps, each already paid for twice.** A stale copy of the scripts lives in
 `/tmp/tm-refonte`; running from there measures the previous version. And `/tmp/tm-refonte/
-wrapped.html` must be re-synced from `refonte.html` before every run, or the same thing happens
+wrapped.html` must be re-synced from `design/refonte.html` before every run, or the same thing happens
 one level down:
 
 ```bash
 /Users/izno/.pyenv/versions/3.11.9/bin/python3 - <<'EOF'
 from pathlib import Path
-src = Path("frontend/maquette/refonte.html").read_text()
+src = Path("frontend/maquette/design/refonte.html").read_text()
 head = ('<!doctype html><html><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1,'
         'maximum-scale=1,user-scalable=no"></head><body>\n')
 Path("/tmp/tm-refonte/wrapped.html").write_text(head + src)
 EOF
+ln -sfn "$(git rev-parse --show-toplevel)/frontend/maquette/design/assets" /tmp/tm-refonte/assets
 ```
 
 `pwa.py` measures the LIVE host `tm-design.iznogoudatall.xyz`, not the local server. After
@@ -142,15 +153,15 @@ the third is derived from the rule rather than asked again.
 
 ### What is therefore still owed — nothing, as far as the SURFACES go
 
-| Surface | State | Rule |
-| --- | --- | --- |
-| `/login`, `/acquisition`, `/medias`, `/config`, `/media/:provider/:id` | drawn before this | R49–R63 |
-| **Arrivées** | **drawn** — the pilot's bar, the nine steps of the last real run, its digest, and « arrivé dans les 24 h » | R66, `harness/arrivees.py` |
-| **Système** | **drawn** — the deferral is lifted. PM2 services, schedulers, the pipeline's executions, disks, index, dependencies, code errors | R67, `harness/machine.py` |
-| **Maintenance** | **drawn** — six rubrics over the engine's 26 real `library-*` commands, plus the destructive journal | R67 |
-| **Configuration** | **extended** — a seventh rubric, « Les passages programmés », over the six real cron schedules | R60 extended |
-| `*` (NotFound) | **drawn** — and it closed a crash: an unknown id used to stop the whole frame on a TypeError | R68, `harness/adresse.py` |
-| multi-user account | **drawn** — the one real account, its session read from `web.json5`, and the place of the others marked EMPTY | R68 |
+| Surface                                                                | State                                                                                                                            | Rule                       |
+| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| `/login`, `/acquisition`, `/medias`, `/config`, `/media/:provider/:id` | drawn before this                                                                                                                | R49–R63                    |
+| **Arrivées**                                                           | **drawn** — the pilot's bar, the nine steps of the last real run, its digest, and « arrivé dans les 24 h »                       | R66, `harness/arrivees.py` |
+| **Système**                                                            | **drawn** — the deferral is lifted. PM2 services, schedulers, the pipeline's executions, disks, index, dependencies, code errors | R67, `harness/machine.py`  |
+| **Maintenance**                                                        | **drawn** — six rubrics over the engine's 26 real `library-*` commands, plus the destructive journal                             | R67                        |
+| **Configuration**                                                      | **extended** — a seventh rubric, « Les passages programmés », over the six real cron schedules                                   | R60 extended               |
+| `*` (NotFound)                                                         | **drawn** — and it closed a crash: an unknown id used to stop the whole frame on a TypeError                                     | R68, `harness/adresse.py`  |
+| multi-user account                                                     | **drawn** — the one real account, its session read from `web.json5`, and the place of the others marked EMPTY                    | R68                        |
 
 Every figure on these surfaces is read from the live system — `pipeline_run`, `pm2 jlist`, `df`,
 `library.db`, the maintenance registry, `web.json5`, `ecosystem.config.js`. Four of the rules go
@@ -167,16 +178,16 @@ measured by 71 rules; the architecture was measured by nothing. These are its nu
 the file rather than remembered — the column on the right is what changed while the missing
 surfaces were being drawn.
 
-| Mesure | Aujourd'hui | Avant |
-| --- | --- | --- |
-| lignes de code (hors jaquettes) | 41 400 | 39 454 |
-| jeux de données en dur | **83** | 57 |
-| appels réseau | **1** | 1 |
-| accès à `state.` | **265** | 248 |
-| `render()` | 1 défini, 47 appels | 1 défini, 43 appels |
-| coutures `window.__` nommées | **11** | 21 comptées avec leurs usages |
-| `history.pushState` / `replaceState` | 5 / 3 | 4 / 0 |
-| **lecture de `location`** | **3** | **0** |
+| Mesure                               | Aujourd'hui         | Avant                         |
+| ------------------------------------ | ------------------- | ----------------------------- |
+| lignes de code (hors jaquettes)      | 41 400              | 39 454                        |
+| jeux de données en dur               | **83**              | 57                            |
+| appels réseau                        | **1**               | 1                             |
+| accès à `state.`                     | **265**             | 248                           |
+| `render()`                           | 1 défini, 47 appels | 1 défini, 43 appels           |
+| coutures `window.__` nommées         | **11**              | 21 comptées avec leurs usages |
+| `history.pushState` / `replaceState` | 5 / 3               | 4 / 0                         |
+| **lecture de `location`**            | **3**               | **0**                         |
 
 Aucun de ces chiffres n'est un défaut **du prototype** : un fichier unique sans dépendance est
 exactement ce qui l'a rendu vérifiable. Ce sont les **coutures** que la liaison devra ouvrir.
@@ -403,20 +414,20 @@ These were argued, measured and recorded. Re-opening one costs a day; the reason
    refusal and one state that crosses them, each derived from the setting's VALUE rather than
    from a list of keys. R60 extended, `harness/reglages.py` — 42 checks, eight named states, one
    per field.
-11. **Five tokens the app will owe.** The design-system lint found nine hardcoded colours in the
-   prototype — a real C19 violation, and one of them (`var(--warning, #d97706)`) was the B-014
-   shape again: a fallback onto a token that IS defined, which is a landmine that has not gone
-   off. They are tokens now: `--mq-shadow-toast`, `--mq-shadow-pop`, `--mq-shadow-carte`,
-   `--mq-shadow-badge`, `--mq-scrim-doux`, `--mq-tile-overlay`. Their VALUES live in the
-   prototype's own palette, which sits in BLOCK 1 and is therefore not exported — so the
-   generated stylesheet names them and defines none of them, exactly as it already does for
-   `--border` and `--card`. **When the app adopts that stylesheet, `frontend/src/styles/ps/
+10. **Five tokens the app will owe.** The design-system lint found nine hardcoded colours in the
+    prototype — a real C19 violation, and one of them (`var(--warning, #d97706)`) was the B-014
+    shape again: a fallback onto a token that IS defined, which is a landmine that has not gone
+    off. They are tokens now: `--mq-shadow-toast`, `--mq-shadow-pop`, `--mq-shadow-carte`,
+    `--mq-shadow-badge`, `--mq-scrim-doux`, `--mq-tile-overlay`. Their VALUES live in the
+    prototype's own palette, which sits in BLOCK 1 and is therefore not exported — so the
+    generated stylesheet names them and defines none of them, exactly as it already does for
+    `--border` and `--card`. **When the app adopts that stylesheet, `frontend/src/styles/ps/
    tokens/maquette.css` must gain the five it does not yet carry.** Measured, because « it
-   cannot affect production » is a measurement: adding them now costs 170 bytes of unused
-   custom properties in the shipped CSS, and leaving them out keeps `frontend/dist`
-   byte-identical.
+    cannot affect production » is a measurement: adding them now costs 170 bytes of unused
+    custom properties in the shipped CSS, and leaving them out keeps `frontend/dist`
+    byte-identical.
 
-10. **Answering a decision was a no-op on the acquisition side.** Found while drawing the screen:
+11. **Answering a decision was a no-op on the acquisition side.** Found while drawing the screen:
     « Résoudre → » on « À traiter » opened the screen, took the choice, and left the item exactly
     where it was, because the answer only ever looked in the Arrivées list. Fixed in the prototype.
     The app's equivalent — whether resolving from one queue clears it from the other — is a
