@@ -140,62 +140,86 @@ the third is derived from the rule rather than asked again.
 | `LastRunDigest` — « X détectés, Y récupérés »         | **Arrivées**    | a count of media, not of executions. The run's _history_ is Système's; the last run's _result_ is the story of what arrived                                                       |
 | `StalledPanel` — per-step reasons                     | **split**       | a torrent deferred for ratio is a medium (Arrivées); a step that raised is code (Système). The operator's rule is explicit: no blocked medium in Système, but its code errors yes |
 
-### What is therefore still owed
+### What is therefore still owed — nothing, as far as the SURFACES go
 
-| Surface                                                                | State                                                                                                                    | What it owes                                                                                                                                                                                |
-| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/login`, `/acquisition`, `/medias`, `/config`, `/media/:provider/:id` | drawn                                                                                                                    | —                                                                                                                                                                                           |
-| **Arrivées**                                                           | drawn, but as an inbox only                                                                                              | the pipeline controls and their banner, the flow board, the scrape feed, the recent resolutions, the last run's digest, the media half of the stalled reasons, and « arrivé dans les 24 h » |
-| **Système**                                                            | **partly** — the prototype says so itself: « réception seule … sa refonte mobile est différée ». That deferral is lifted | PM2 services, the pipeline's executions (history, detail, raw log), the schedulers and their success, disks / index / Redis / providers, and code errors                                    |
-| **Maintenance**                                                        | **not drawn**                                                                                                            | the action catalogue, index repairs, the destructive log                                                                                                                                    |
-| **Configuration**                                                      | drawn (R60, five rubrics over 153 real settings)                                                                         | the configuration FILES, and the schedulers' frequency and hour                                                                                                                             |
-| `*` (NotFound)                                                         | **not drawn**                                                                                                            | what a wrong URL says, and where it sends one                                                                                                                                               |
-| multi-user account                                                     | **not drawn**                                                                                                            | the user menu draws their PLACE, disabled; the surfaces themselves are not drawn                                                                                                            |
+| Surface | State | Rule |
+| --- | --- | --- |
+| `/login`, `/acquisition`, `/medias`, `/config`, `/media/:provider/:id` | drawn before this | R49–R63 |
+| **Arrivées** | **drawn** — the pilot's bar, the nine steps of the last real run, its digest, and « arrivé dans les 24 h » | R66, `harness/arrivees.py` |
+| **Système** | **drawn** — the deferral is lifted. PM2 services, schedulers, the pipeline's executions, disks, index, dependencies, code errors | R67, `harness/machine.py` |
+| **Maintenance** | **drawn** — six rubrics over the engine's 26 real `library-*` commands, plus the destructive journal | R67 |
+| **Configuration** | **extended** — a seventh rubric, « Les passages programmés », over the six real cron schedules | R60 extended |
+| `*` (NotFound) | **drawn** — and it closed a crash: an unknown id used to stop the whole frame on a TypeError | R68, `harness/adresse.py` |
+| multi-user account | **drawn** — the one real account, its session read from `web.json5`, and the place of the others marked EMPTY | R68 |
+
+Every figure on these surfaces is read from the live system — `pipeline_run`, `pm2 jlist`, `df`,
+`library.db`, the maintenance registry, `web.json5`, `ecosystem.config.js`. Four of the rules go
+back to those sources AT RUN TIME rather than comparing against a number written beside them: R66
+against `pipeline_run` by run_uid, R67 against `pm2 jlist` and the maintenance registry in both
+directions, R68 against `web.json5`.
 
 ---
 
 ## The third axis: what the prototype owes as an APPLICATION
 
-The operator's judgement is on the design **and the front-end architecture**. The design is
-measured by 65 rules; the architecture is not measured by anything yet, and these are its real
-numbers, read from the file rather than remembered:
+The operator's judgement is on the design **and** the front-end architecture. The design is
+measured by 71 rules; the architecture was measured by nothing. These are its numbers, read from
+the file rather than remembered — the column on the right is what changed while the missing
+surfaces were being drawn.
 
-| Mesure                          | Aujourd'hui         | Ce que ça veut dire pour la liaison                      |
-| ------------------------------- | ------------------- | -------------------------------------------------------- |
-| lignes de code (hors jaquettes) | 39 454              | un seul fichier, aucun module                            |
-| jeux de données en dur          | **57**              | 57 constantes à remplacer par autant de sources réelles  |
-| appels réseau                   | **1**               | rien n'entre par le réseau : tout est inline             |
-| accès à `state.`                | **248**             | l'état n'a pas de propriétaire ; toute fonction y touche |
-| `render()`                      | 1 défini, 43 appels | une seule fonction redessine tout                        |
-| écouteurs                       | 43                  | délégation par `closest()`, pas de composants            |
-| coutures `window.__`            | 21                  | les points d'accroche déjà nommés                        |
-| `history.pushState`             | 4                   | la navigation existe, mais l'URL ne porte pas l'état     |
+| Mesure | Aujourd'hui | Avant |
+| --- | --- | --- |
+| lignes de code (hors jaquettes) | 41 400 | 39 454 |
+| jeux de données en dur | **83** | 57 |
+| appels réseau | **1** | 1 |
+| accès à `state.` | **265** | 248 |
+| `render()` | 1 défini, 47 appels | 1 défini, 43 appels |
+| coutures `window.__` nommées | **11** | 21 comptées avec leurs usages |
+| `history.pushState` / `replaceState` | 5 / 3 | 4 / 0 |
+| **lecture de `location`** | **3** | **0** |
 
 Aucun de ces chiffres n'est un défaut **du prototype** : un fichier unique sans dépendance est
-exactement ce qui l'a rendu vérifiable. Ce sont les **coutures** que la mission de liaison devra
-ouvrir, et les nommer maintenant évite de les découvrir en les cassant.
+exactement ce qui l'a rendu vérifiable. Ce sont les **coutures** que la liaison devra ouvrir.
 
-Trois questions que la maquette doit savoir répondre avant d'être jugée :
+### Les trois questions, et ce qu'elles valent maintenant
 
-1. **Par où entre une donnée ?** Aujourd'hui : 57 constantes. La liaison remplacera chacune par
-   une source. Une constante qui n'est lue qu'à un endroit est une couture ; une constante lue
-   partout est un couplage à défaire d'abord.
-2. **Qui possède l'état ?** Aujourd'hui : personne — 248 accès directs. Ce n'est pas un problème
-   tant que le prototype tient dans un fichier, et c'en est un dès qu'il faut le découper.
-3. **Où vit une route ?** Aujourd'hui `state.page`, et l'URL ne la porte pas. La production sert
-   des URL adressables ; le prototype devra le montrer avant que l'app les rebâtisse.
+**1. Par où entre une donnée ?** 83 constantes, contre 57. Le nombre a monté et la situation s'est
+améliorée, ce qui n'est contradictoire qu'en apparence : chacune des nouvelles est lue d'une source
+vivante nommée dans son commentaire — `pipeline_run`, `pm2 jlist`, `df`, `library.db`, le registre
+de maintenance, `web.json5`, `ecosystem.config.js` — et **quatre règles retournent à ces sources à
+l'exécution** au lieu de comparer à un chiffre écrit à côté. R66 vérifie le run par son `run_uid`,
+R67 compte les processus contre `pm2 jlist` et les commandes contre le registre du moteur dans les
+deux sens, R68 lit `web.json5`, R63 lit `acquire.db`.
 
-**Ces questions ne se tranchent pas en dessinant des pages.** Elles se tranchent en regardant le
-fichier, et elles font partie de ce que l'opérateur juge.
+C'est la réponse à la question, et elle est exécutable : **une constante dont la valeur est
+vérifiée contre sa source est une couture nommée ; une constante que rien ne vérifie est un
+couplage.** R63 l'a démontré tout seul en tombant quand le planificateur a tourné — une règle qui
+échoue avec le TEMPS ne signale pas un défaut, elle désigne une couture. Il reste à faire le tri :
+combien des 83 sont vérifiées, combien ne le sont pas.
 
-**Et l'une d'elles a déjà une preuve exécutable.** R63 (`harness/contenu.py`) compare les nombres
-d'une carte de suivi à ceux que `acquire.db` porte VRAIMENT. Elle est tombée toute seule, sans
-qu'aucune ligne ne soit touchée : le planificateur a tourné, trois compteurs de recherche ont
-avancé — Kyma 6 → 7, L'Odyssée 9 → 10, Silo 8 → 9 — et la maquette portait les anciens. Rafraîchir
-la constante rend la règle verte et ne règle rien : elle retombera. **Une règle qui échoue avec le
-temps ne signale pas un défaut, elle désigne une couture.** Chacune des 57 constantes lues d'une
-source vivante en est une, et la question « par où entre une donnée » a maintenant un test qui la
-pose tout seul.
+**2. Qui possède l'état ?** Personne — 265 accès directs, contre 248. Rien n'a bougé sur ce front
+et c'est assumé : découper l'état demande de découper le fichier, et un fichier unique est
+exactement ce qui a rendu ces 71 règles écrivables. **C'est la question qui reste entière**, et la
+seule des trois qui ne se tranche pas sans décider d'abord comment le prototype se découpe.
+
+Une chose a quand même été apprise en la traversant : `state.pipe` **fuyait** d'un état nommé au
+suivant, si bien qu'un même id ne rendait pas la même chose selon le chemin parcouru pour y
+arriver. R10 l'a trouvé. C'est le coût exact d'un état sans propriétaire, et la parade tient dans
+une phrase : **tout état nommé nomme TOUS ses cadrans**, comme il nommait déjà sa page et sa phase.
+
+**3. Où vit une route ?** Elle vivait dans `state.page`, et l'URL ne la portait pas.
+**C'est réglé.** La mesure qui le disait était sans appel : `history.pushState` quatre fois,
+`location` lu **zéro** fois — l'interface disait au navigateur où elle était et ne le lui demandait
+jamais. Ce n'était pas une dette à transmettre, c'était une **non-conformité à DOIT-10**, et elle
+se voyait : un rechargement retombait sur la page d'ouverture, et aucun écran ne pouvait être
+envoyé à quelqu'un.
+
+L'état voyage dans la REQUÊTE et non dans le chemin, et c'est une décision : ce fichier s'ouvre
+depuis un serveur statique, depuis l'hôte de maquette et depuis `file://`, et une route par chemin
+demande un serveur qui réécrit tout chemin inconnu vers le document — deux de ces trois-là ne le
+peuvent pas. La liaison fera correspondre `?page=lib` au `/medias` de la production ; ce qui se
+juge maintenant est que l'URL et l'interface ne se contredisent jamais. R69,
+`harness/adresse_url.py`.
 
 ---
 

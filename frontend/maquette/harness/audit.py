@@ -233,8 +233,14 @@ async def main():
 
     # R10 — every action opens a layer, navigates, or mutates — never nothing
     inertes = await pg.evaluate("""async ()=>{
+      // The snapshot has to carry every dial the interface tracks, or an
+      // action that moves one the snapshot forgets reads as inert. The
+      // pipeline dial joined when Arrivées gained its pilot's bar: « Lancer le
+      // pipeline » really does change the interface, and this rule said it did
+      // not — a false accusation is as expensive as a missed defect.
       const out=[]; const snap=()=>JSON.stringify({t:world.takeable.length,i:world.inflight.length,s:world.stuck.length,
-        m:world.moving.length,f:world.follows.length,l:world.lib.length,p:state.page,tab:state.acqTab,lens:state.libLens});
+        m:world.moving.length,f:world.follows.length,l:world.lib.length,p:state.page,tab:state.acqTab,lens:state.libLens,
+        pipe:state.pipe});
       for (const id of ['acq-encours-charge','arr-charge','lib-incomplets']) {
         window.__go(id); await new Promise(r=>setTimeout(r,220));
         const btns=[...document.querySelectorAll('#view .cfoot')];

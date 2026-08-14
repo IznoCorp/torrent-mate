@@ -432,6 +432,34 @@ already happened — an entry form shown over a live cookie is contradicted by t
 R54 (`harness/deconnexion.py`) checks both halves, and the invisible one is the one that
 matters: it asks the server, afterwards, whether the session is still accepted.
 
+## The cut is by the nature of the trouble
+
+Four surfaces, and what decides which one a panel belongs to is not the page it came from:
+
+| A medium in trouble | **Arrivées** |
+| --- | --- |
+| A machine in trouble | **Système** |
+| A setting | **Configuration** |
+| A command run against the library | **Maintenance** |
+
+`Contrôle` does not survive this cut. Production stacks blocked media on top of disk and provider
+health with nothing saying why they share a page; each of its seven panels has a home under the
+rule, and none of those homes is a new page. The full mapping, panel by panel, is in
+`IMPLEMENTATION.md`.
+
+**PM2 reports a scheduled job as `stopped` between two runs.** That is the literal truth about the
+process and a lie about the system — repeated on screen it paints six red rows on a machine in
+perfect health. A service is judged on whether it is UP, a scheduler on whether it RAN, and the two
+lists never share a vocabulary.
+
+**A command that DELETES cannot be run for real before it has been run blank.** Not a confirmation
+dialog renamed: a dialog asks « are you sure », which is answered without reading, while a blank run
+produces a list, which has to be looked at. A real deletion cannot be rehearsed here — staging writes
+to the real disks — so what the interface owes is the look BEFORE, not a net after.
+
+`harness/machine.py` states it, counting both PM2 lists and checking the 26 commands against the
+engine's own registry in both directions.
+
 ## A layer is not a route, and closing one leaves the page alone
 
 The drawer, the media screen and the bottom panel each push a history entry so a back closes
@@ -565,6 +593,9 @@ They are committed because they encode recipes that cost time to get right.
 | `entree.py` | R62: the sign-in screen renders identically on the host and inside the prototype, and the host redeclares nothing the reference owns |
 | `contenu.py` | R63: a follow's card carries what `acquire.db` really holds and phrases it as « En cours » does; a library row carries the synopsis, clamped to the largest number of lines that fits, and shows nothing when the NFO has no plot |
 | `glisse.py` | R64: a row opens a drawer either way, one at a time, without firing the tap — measured on Chromium AND WebKit, where the drawer used to spill past the card; and a REVERSAL settles the row back rather than leaping, sampled during the drag because a jump is a discontinuity |
+| `adresse_url.py` | R69: the URL carries the state (DOIT-10) — walking writes the address, a reload lands on the same screen, only what differs from the opening state is written, a wrong address is left exactly as typed, and back walks the addresses in reverse |
+| `adresse.py` | R68: an unknown address renders instead of raising, names what was asked for and offers a way out; the account surface draws the one real account, compared against `web.json5`, and marks the place of the others EMPTY |
+| `machine.py` | R67: Système is the machine, Maintenance is what one does to the library — no blocked medium on Système, no scheduler called « stopped » between two runs, both lists counted against `pm2 jlist`, every command checked against the engine's registry in both directions, and a command that DELETES inert until it has been run blank |
 | `arrivees.py` | R66: Arrivées carries the pipeline's health — one control that fits the state, a run asked during a run QUEUED rather than refused, the engine's nine steps in its order, nothing-to-do said with an em dash, and every figure checked against the run `library.db` really recorded |
 | `tiroir.py` | R65: the drawer is a place one passes through, not a route — every entry names a page that exists and arrives there, the destination takes the drawer's own history entry, closing a layer neither rebuilds the page underneath nor loses where it was scrolled, and every entry is legible measured as PAINTED |
 | `installation.py` | R51: the install offer is actually OFFERED — `beforeinstallprompt` captured, its default prevented and replayed on a gesture; the iOS guide raised by an iPhone user agent; nothing offered to an installed app, over the entry screen, or after a refusal |

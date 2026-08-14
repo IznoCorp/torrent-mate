@@ -1609,7 +1609,7 @@
     background: var(--card);
     overflow: hidden;
   }
-  .flux .fx {
+  .flux .fw {
     display: grid;
     /* minmax(0, …) on both: an untruncated engine name would otherwise size
        its track to max-content and push the row past a 390px frame (R7). */
@@ -1617,6 +1617,20 @@
     align-items: baseline;
     gap: 2px 10px;
     padding: 9px 11px;
+    width: 100%;
+    text-align: left;
+    /* A row that leads somewhere is a real button and inherits nothing from
+       the browser's own: no border, no background, the document's type. */
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+  }
+  .flux .fx.fclic .fw {
+    /* The whole row answers a thumb, so it carries the 44px floor a target
+       needs rather than leaving it to whatever the text happens to measure. */
+    min-height: 44px;
+    cursor: pointer;
   }
   .flux .fx + .fx {
     border-top: 1px solid var(--border);
@@ -11477,6 +11491,228 @@
     },
   };
 
+
+  /* ── MAINTENANCE ──────────────────────────────────────────────────────
+     The 26 `library-*` commands the engine really registers, read from
+     `web/maintenance/registry.py`: their French title, their category, and —
+     the field that decides how each is drawn — their RISK.
+
+     One navigates by what one wants to DO, the same decision the settings
+     already carry: six rubrics, never a flat list of twenty-six lines whose
+     order means nothing. The engine's command name sits under each label in
+     the mono face, because that is what one needs when reading a log.
+
+     Risk is not decoration. Eight of these read and change nothing, twelve
+     write and can be undone, and six DELETE. A list that draws them alike
+     asks the operator to remember which is which, and the one they will
+     forget is the one that matters. */
+  const MAINT_RUBRIQUES = [
+    { id: "query", t: "Regarder", s: "Lire l'état de la médiathèque. Rien n'est modifié." },
+    { id: "scan", t: "Indexer", s: "Parcourir les disques et remettre l'index en accord avec eux." },
+    { id: "repair", t: "Vérifier et réparer", s: "Contrôler les fichiers, et vider la file de réparation." },
+    { id: "clean", t: "Nettoyer les disques", s: "Retirer ce qui n'a rien à y faire. Ces commandes suppriment." },
+    { id: "fix", t: "Corriger", s: "Redresser une donnée fausse : un lien, un compte, un identifiant." },
+    { id: "analyze", t: "Analyser", s: "Comprendre ce que la médiathèque contient, et ce qui lui manque." },
+  ];
+
+  /* Said rather than encoded: `ro` / `write` / `destructive` are the engine's
+     three words, and none of them is French. */
+  const RISQUES = {
+    ro: { t: "ne change rien", p: "success" },
+    write: { t: "écrit", p: "info" },
+    destructive: { t: "supprime", p: "danger" },
+  };
+
+  const MAINT_ACTIONS = [
+    { id: "library-status", l: "État de la bibliothèque", d: "Affiche le résumé du dernier scan d'indexation terminé.", g: "query", r: "ro", long: false, blanc: false },
+    { id: "library-search", l: "Recherche dans la bibliothèque", d: "Recherche des médias indexés avec le langage de requête flex-attr.", g: "query", r: "ro", long: false, blanc: false },
+    { id: "library-show", l: "Détail d'un élément", d: "Affiche toutes les données stockées pour un média (ID DB).", g: "query", r: "ro", long: false, blanc: false },
+    { id: "library-index", l: "Indexer la bibliothèque", d: "Lance un scan complet ou rapide des disques et met à jour l'index.", g: "scan", r: "write", long: true, blanc: true },
+    { id: "library-init-canonical", l: "Initialiser le provider canonique", d: "Peuple canonical_provider et external_ids_json depuis les fichiers NFO.", g: "scan", r: "write", long: true, blanc: true },
+    { id: "library-scan", l: "Scan complet (alias)", d: "Alias visible de library-index --mode full. Parcourt tous les disques.", g: "scan", r: "write", long: true, blanc: true },
+    { id: "library-backfill-ids", l: "Backfill des IDs croisés", d: "Remplit les IDs cross-provider et les ratings manquants via TMDB/TVDB/OMDb.", g: "scan", r: "write", long: true, blanc: true },
+    { id: "library-verify", l: "Vérifier les fichiers", d: "Re-stat chaque fichier indexé et signale les divergences dans la repair_queue.", g: "repair", r: "write", long: true, blanc: false },
+    { id: "library-repair", l: "Réparer (repair queue)", d: "Vide la repair_queue dans la limite du budget temps. FIFO, reprenable.", g: "repair", r: "write", long: true, blanc: true },
+    { id: "library-clean", l: "Nettoyer les disques", d: "Supprime les répertoires .actors/, dossiers vides et fichiers junk des disques.", g: "clean", r: "destructive", long: true, blanc: true },
+    { id: "library-validate", l: "Valider la bibliothèque", d: "Vérifie la conformité des NFO, artworks et nommages des éléments.", g: "clean", r: "destructive", long: true, blanc: true },
+    { id: "library-reconcile", l: "Réconcilier index ↔ disques", d: "Détecte les divergences entre l'index et les fichiers sans rescan complet.", g: "fix", r: "write", long: true, blanc: true },
+    { id: "library-ghost-audit", l: "Audit des fichiers fantômes", d: "Détecte les entrées fantômes NTFS-via-macFUSE sur les disques.", g: "query", r: "ro", long: true, blanc: false },
+    { id: "library-relink", l: "Relier les fichiers orphelins", d: "Relie les media_file sans release_id à leur media_release.", g: "fix", r: "write", long: true, blanc: true },
+    { id: "library-refresh-path", l: "Rafraîchir un dossier renommé", d: "Réconciliation d'index ciblée après un rename/move manuel : invalide le sous-arbre, rescanne le disque propriétaire, relie et répare les compteurs.", g: "fix", r: "write", long: true, blanc: true },
+    { id: "library-analyze", l: "Analyser la bibliothèque", d: "Résumé des codecs, audio et sous-titres depuis les streams enrichis.", g: "analyze", r: "ro", long: true, blanc: false },
+    { id: "library-recommend", l: "Recommandations", d: "Génère des recommandations de re-téléchargement (codec, taille, priorité).", g: "analyze", r: "ro", long: true, blanc: false },
+    { id: "library-rescrape", l: "Re-scraper des éléments", d: "Re-scrape ciblé des éléments via TMDB/TVDB (NFO, artwork, épisodes).", g: "analyze", r: "destructive", long: true, blanc: true },
+    { id: "library-report", l: "Rapport de bibliothèque", d: "Affiche les statistiques et l'état de santé global de la bibliothèque.", g: "analyze", r: "ro", long: true, blanc: false },
+    { id: "library-doctor", l: "Diagnostic de la base", d: "Exécute une suite de vérifications sur la base indexer (intégrité, FK, dérive…).", g: "query", r: "ro", long: false, blanc: false },
+    { id: "library-gc", l: "Nettoyage de l'outbox", d: "Supprime les vieilles lignes index_outbox (status=done) pour éviter la croissance infinie.", g: "fix", r: "write", long: false, blanc: true },
+    { id: "library-fix-canonical-provider", l: "Corriger canonical_provider", d: "Répare les valeurs incorrectes de canonical_provider (shows→tvdb, movies→tmdb).", g: "fix", r: "write", long: false, blanc: true },
+    { id: "library-fix-nfo", l: "Réparer les NFO malformés", d: "Tronque le contenu hors-racine XML dans les fichiers NFO (liens TVDB parasites).", g: "fix", r: "destructive", long: true, blanc: true },
+    { id: "library-fix-orphan-files", l: "Réparer les fichiers orphelins", d: "Relie les media_file sans release_id à leur media_release (2 niveaux : item + épisode).", g: "fix", r: "destructive", long: true, blanc: true },
+    { id: "library-fix-season-counts", l: "Corriger le compte d'épisodes", d: "Recalcule season.episode_count pour les saisons dont le cache a dérivé.", g: "fix", r: "write", long: false, blanc: true },
+    { id: "library-dedup-titles", l: "Dédupliquer les titres", d: "Fusionne les media_item dont le titre ne diffère que par la normalisation NFD/NFC.", g: "fix", r: "destructive", long: true, blanc: true },
+  ];
+
+  /* The destructive journal, read from `destructive_op` in `library.db`.
+     Twenty-seven operations, and every one of them was written by the
+     pipeline itself rather than by a hand: `actor` says `dispatch`. That is
+     worth showing as it is — a journal that only ever recorded the operator
+     would be a journal nobody consults. */
+  const JOURNAL = {
+    total: 27,
+    lignes: [
+      { l: "Star Trek Strange New Worlds (2022)", v: "hier à 15 h 25",
+        s: "fusion de série · métadonnées et visuels régénérés, aucun épisode écrasé · par le pipeline" },
+      { l: "Ted Lasso (2020)", v: "le 12 août",
+        s: "fusion de série · métadonnées et visuels régénérés, aucun épisode écrasé · par le pipeline" },
+      { l: "Futurama (1999)", v: "le 12 août",
+        s: "fusion de série · métadonnées et visuels régénérés, aucun épisode écrasé · par le pipeline" },
+      { l: "President Curtis (2026)", v: "le 10 août",
+        s: "fusion de série · métadonnées et visuels régénérés, aucun épisode écrasé · par le pipeline" },
+      { l: "Furious (2026)", v: "le 10 août",
+        s: "fusion de série · métadonnées et visuels régénérés, aucun épisode écrasé · par le pipeline" },
+    ],
+  };
+
+  /* ── LA MACHINE ───────────────────────────────────────────────────────
+     Read from `pm2 jlist`, from `df`, and from `library.db`. Système answers
+     one question — is the machine in trouble — and never « is a medium in
+     trouble », which is Arrivées' business.
+
+     The trap this data carries, and it is the reason these two lists are
+     separate: PM2 reports a SCHEDULED job as `stopped` between two runs. It is
+     the literal truth about the process and a lie about the system, and an
+     interface that repeats it paints six red rows on a machine in perfect
+     health. A service is judged on whether it is UP; a scheduler is judged on
+     whether it RAN. They are not the same object and they do not share a
+     vocabulary. */
+  const SERVICES = [
+    {
+      l: "TorrentMate",
+      v: "en ligne",
+      s: "depuis ce matin 09 h 36 · 4 redémarrages",
+    },
+    {
+      l: "TorrentMate (staging)",
+      v: "en ligne",
+      s: "depuis ce matin 08 h 25 · 3 redémarrages",
+    },
+    {
+      l: "Veille des téléchargements",
+      v: "en ligne",
+      s: "depuis le 10 août · aucun redémarrage",
+    },
+    {
+      l: "Déploiement automatique",
+      v: "en ligne",
+      s: "depuis le 10 août · aucun redémarrage",
+    },
+    /* 90 restarts on a service that has been up three hours is not « online »
+       said with a green dot. A number that large is the finding. */
+    {
+      l: "Hôte de la maquette",
+      v: "en ligne",
+      s: "depuis ce matin 08 h 28 · 90 redémarrages",
+      etat: "warning",
+    },
+  ];
+
+  /* The schedulers, with their real cron expressions said in French. Their
+     count of passes is `restart_time`, which is what PM2 counts when a cron
+     fires a job — so it is the number of times the job has RUN. */
+  const PLANIFICATEURS = [
+    {
+      l: "Contrôle de santé",
+      v: "il y a moins d'une heure",
+      s: "toutes les heures à la 15ᵉ minute · 261 passages",
+    },
+    {
+      l: "Récupération des releases",
+      v: "ce matin à 03 h 20",
+      s: "à 03 h 20 et 15 h 20 · 24 passages",
+    },
+    {
+      l: "Recherche de releases",
+      v: "ce matin à 03 h 10",
+      s: "à 03 h 10 et 15 h 10 · 15 passages",
+    },
+    {
+      l: "Détection des suivis",
+      v: "ce matin à 03 h 00",
+      s: "chaque jour à 03 h 00 · 11 passages",
+    },
+    {
+      l: "Enrichissement de l'index",
+      v: "le 9 août",
+      s: "le dimanche à 04 h 30 · 2 passages",
+    },
+    {
+      l: "Complétion des identifiants",
+      v: "le 9 août",
+      s: "le dimanche à 05 h 00 · 2 passages",
+    },
+  ];
+
+  /* The disks, read from `df`. The percentage is what fills, so it is what is
+     printed; a disk at 92 % says so before it says how many gigabytes remain,
+     because « 335 Go » sounds like a lot and is four days of this library. */
+  const DISQUES = [
+    { l: "Disk1", v: "1,8 To libres", s: "15 To · rempli à 88 %" },
+    {
+      l: "Disk2",
+      v: "335 Go libres",
+      s: "4,1 To · rempli à 92 %",
+      etat: "warning",
+    },
+    { l: "Disk3", v: "906 Go libres", s: "4,1 To · rempli à 78 %" },
+    { l: "Disk4", v: "730 Go libres", s: "3,1 To · rempli à 76 %" },
+  ];
+
+  /* The index, read from `library.db`. « Anomalies » are counted by type
+       rather than totalled: 633 alone reads as a system falling apart, and
+       607 of them are junk files, which is a housekeeping errand rather than
+       a fault. What one does about them lives in Maintenance. */
+  const INDEX = [
+    {
+      l: "Médiathèque",
+      v: "1 863 titres",
+      s: "97 999 fichiers · 25 939 épisodes",
+    },
+    {
+      l: "Dernier balayage",
+      v: "réussi",
+      s: "réparation, à la fin du dernier passage",
+    },
+    { l: "Réparations en attente", v: "aucune", s: "la file est vide" },
+    { l: "Écritures en attente", v: "aucune", s: "rien ne reste à propager" },
+    {
+      l: "Anomalies relevées",
+      v: "633",
+      s: "607 fichiers parasites · 18 restes de release · 8 autres",
+      etat: "warning",
+    },
+  ];
+
+  const DEPENDANCES = [
+    { l: "Redis", v: "connecté", s: "le relais d'événements répond" },
+    { l: "TMDB / TVDB", v: "disponibles", s: "aucun disjoncteur ouvert" },
+    {
+      l: "qBittorrent",
+      v: "joignable",
+      s: "derrière le proxy, comme il doit l'être",
+    },
+  ];
+
+  /* Code errors, and only those: a medium the pipeline refused is not an
+     error, it is a decision, and it belongs to Arrivées. What is counted here
+     is a run that RAISED. */
+  const ERREURS = {
+    total: 14,
+    sur: 425,
+    derniere: "le 6 août à 08 h 08",
+    quoi: "une maintenance : grab --followed-id 26 est sorti en erreur",
+    ou: "api/torrent/qbittorrent.py, dans build_client",
+  };
+
   /* The pipeline's EXECUTIONS, read from `pipeline_run`: did it run, did it
      succeed, how long did it take. That is a machine's health and it belongs
      to Système. What each run DID to the media belongs to Arrivées, which
@@ -11548,6 +11784,11 @@
        or `file` — a run asked for while one is running, which DOIT-4 requires
        be QUEUED visibly rather than refused. */
     pipe: "repos",
+    /* Maintenance: which rubric is open, and whether the blank run is on. A
+       command that DELETES ignores the second — it is on until the dry run
+       has named what would go. */
+    maintRub: null,
+    maintBlanc: true,
     addMode: "suivi",
     relTitre: null,
     profilTitre: null,
@@ -12617,35 +12858,66 @@
   /* The last run, told as its nine steps. The counts are the ones
      `pipeline_run` recorded; nothing here is derived from what the page shows,
      or the report would agree with itself. */
+  /* ONE builder for the shape « a named fact, its value, and a sub-line ».
+
+     The pipeline's nine steps, the services, the schedulers, the disks, the
+     index: five lists that look alike because they ARE alike, and five
+     builders is how they start to disagree. Each line is a DESCRIPTOR — a
+     label, a value, a sub-line, an optional state and an optional mono key —
+     and a caller wanting something outside it adds a field rather than
+     passing markup. An envelope guarantees nothing about what it carries. */
+  function listeFaitsHTML(lignes) {
+    return `<ol class="flux">${lignes
+      .map((ligne) => {
+        // No VALUE is what greys a line — a sub-line explaining why there is
+        // nothing to report does not make the line a report.
+        const vide = !ligne.v;
+        // A line that leads somewhere IS the control: a list of facts beside a
+        // parallel column of buttons asks which of the two to aim at, and the
+        // answer is never on screen.
+        const cible = ligne.cible
+          ? Object.entries(ligne.cible)
+              .map(([nom, valeur]) => ` data-${nom}="${escapeHtml(String(valeur))}"`)
+              .join("")
+          : "";
+        const balise = ligne.cible ? "button" : "span";
+        return `<li class="fx${vide ? " fvide" : ""}${ligne.etat === "danger" ? " fbloc" : ""}${
+          ligne.cible ? " fclic" : ""
+        }"><${balise} class="fw"${cible}>
+      <span class="fn">${escapeHtml(ligne.l)}</span>
+      <span class="fr">${ligne.v ? escapeHtml(ligne.v) : "—"}</span>
+      <span class="fs">${ligne.k ? `<span class="fk">${escapeHtml(ligne.k)}</span>` : ""}${
+        ligne.k && ligne.s ? " · " : ""
+      }${ligne.s ? escapeHtml(ligne.s) : ""}</span>
+    </${balise}></li>`;
+      })
+      .join("")}</ol>`;
+  }
+
   function dernierPassageHTML() {
     const run = PIPELINE.dernier;
     const parNom = Object.fromEntries(run.faits.map((f) => [f.n, f]));
-    const lignes = PIPELINE.etapes
-      .map((etape) => {
-        const fait = parNom[etape.n] || {};
-        const rien = !fait.r && !fait.s && !fait.bloque;
-        const resultat = fait.bloque
-          ? `${fait.r ? escapeHtml(fait.r) + " · " : ""}${fait.bloque} bloqué`
-          : fait.r
-            ? escapeHtml(fait.r)
-            : "—";
-        return `<li class="fx${rien ? " fvide" : ""}${fait.bloque ? " fbloc" : ""}">
-      <span class="fn">${escapeHtml(etape.l)}</span>
-      <span class="fr">${resultat}</span>
-      <span class="fs"><span class="fk">${etape.n}</span>${fait.s ? " · " + escapeHtml(fait.s) : ""}${
-        fait.bloque
-          ? " · ce qui coince est juste dessous"
+    const lignes = PIPELINE.etapes.map((etape) => {
+      const fait = parNom[etape.n] || {};
+      const rien = !fait.r && !fait.s && !fait.bloque;
+      return {
+        l: etape.l,
+        k: etape.n,
+        v: fait.bloque
+          ? `${fait.r ? fait.r + " · " : ""}${fait.bloque} bloqué`
+          : fait.r || "",
+        s: fait.bloque
+          ? `${fait.s ? fait.s + " · " : ""}ce qui coince est juste dessous`
           : rien
-            ? " · rien à faire"
-            : ""
-      }</span>
-    </li>`;
-      })
-      .join("");
+            ? "rien à faire"
+            : fait.s || "",
+        etat: fait.bloque ? "danger" : "",
+      };
+    });
     return `<section class="sec">
     <div class="sechead"><span class="pip success"></span><span class="t">Dernier passage</span><span class="k">${escapeHtml(run.duree)}</span></div>
     <div class="live"><span class="d" style="animation:none;background:var(--success)"></span><span>Déclenché par <b>${escapeHtml(PIPELINE.declencheurs[run.declencheur])}</b>, ${escapeHtml(run.quand)}.</span></div>
-    <ol class="flux">${lignes}</ol>
+    ${listeFaitsHTML(lignes)}
   </section>`;
   }
 
@@ -12693,38 +12965,227 @@
   </div>`;
   }
 
-  function viewSystem() {
-    return `<div class="body">
-    <div class="note"><b>Réception seule.</b> Système reçoit la santé et les runs venus de Contrôle et Pipeline, mais sa refonte mobile est différée, comme convenu. Pendant un temps, cette page ne parlera pas tout à fait la même langue que les trois autres — c'est le coût assumé.</div>
+  /* ── MAINTENANCE ──────────────────────────────────────────────────────
+     Two levels and a panel, the shape the settings already use: the rubrics,
+     a rubric's commands, then the command itself in the bottom panel.
 
-    <h2 class="h2">Santé</h2>
-    <div class="panel">
-      <div class="kv"><span>Disques</span><span><span class="pip success"></span>3 sur 4 · 8,4 To libres</span></div>
-      <div class="kv"><span>Index médiathèque</span><span><span class="pip success"></span>à jour · 1 861 items</span></div>
-      <div class="kv"><span>Redis</span><span><span class="pip success"></span>connecté</span></div>
-      <div class="kv"><span>TMDB / TVDB</span><span><span class="pip success"></span>disponibles</span></div>
-      <div class="kv"><span>qBittorrent</span><span><span class="pip warning"></span>12 torrents différés</span></div>
-      <div class="kv"><span>Planificateurs</span><span><span class="pip success"></span>4 actifs</span></div>
-    </div>
+     The panel is where the one decision of this page lives. A command that
+     DELETES opens with « à blanc » on, and it cannot be turned off until the
+     panel has NAMED what would be destroyed. That is not a confirmation
+     dialog with another name: a dialog asks « are you sure », which one
+     answers without reading, while this asks the operator to look at a list.
+     A real deletion cannot be rehearsed on this machine — staging writes to
+     the real disks — so what the interface owes is the look before, not a
+     safety net after. */
+  function viewMaintenance() {
+    if (state.phase !== "prete")
+      return `<div class="body">${state.phase === "erreur" ? surfErr("les commandes de maintenance") : skelCards(3)}</div>`;
+    const rubrique = MAINT_RUBRIQUES.find((r) => r.id === state.maintRub);
+    if (rubrique) {
+      const actions = MAINT_ACTIONS.filter((a) => a.g === rubrique.id);
+      return `<div class="body">
+      <button class="crossref" data-maintrub="">← Toutes les commandes</button>
+      <h2 class="h2">${escapeHtml(rubrique.t)}</h2>
+      <div class="note">${escapeHtml(rubrique.s)}</div>
+      ${listeFaitsHTML(
+        actions.map((a) => ({
+          l: a.l,
+          k: a.id,
+          v: RISQUES[a.r].t,
+          s: a.d + (a.long ? " · peut être long" : ""),
+          etat: a.r === "destructive" ? "danger" : "",
+          // The row IS the control. A list of facts with a parallel column of
+          // buttons asks which of the two to aim at, and the answer is never
+          // on screen.
+          cible: { maintact: a.id },
+        })),
+      )}
+    </div>`;
+    }
+    const compte = (id) => MAINT_ACTIONS.filter((a) => a.g === id).length;
+    return `<div class="body">
+    <div class="note"><b>Ce qu'on FAIT à la médiathèque.</b> Système dit si la machine va bien ; ici on agit sur ce qu'elle contient. Les commandes sont rangées par ce qu'on veut faire, jamais par le fichier où elles vivent.</div>
+    ${MAINT_RUBRIQUES.map((r) => {
+      const dedans = MAINT_ACTIONS.filter((a) => a.g === r.id);
+      const dur = dedans.filter((a) => a.r === "destructive").length;
+      return `<button class="rub" data-maintrub="${escapeHtml(r.id)}">
+      <span style="min-width:0;flex:1">
+        <span class="rt">${escapeHtml(r.t)}</span>
+        <span class="rs">${escapeHtml(r.s)}</span>
+      </span>
+      <span class="rn">${compte(r.id)}${dur ? ` · ${dur} qui supprime${dur > 1 ? "nt" : ""}` : ""} →</span>
+    </button>`;
+    }).join("")}
+
+    <h2 class="h2">Journal des suppressions</h2>
+    <div class="note">Les ${JOURNAL.total} opérations destructrices que la médiathèque a subies. Toutes ont été écrites par le pipeline lui-même, aucune par une main : un journal qui ne consignerait que l'opérateur serait un journal que personne n'ouvre.</div>
+    ${listeFaitsHTML(JOURNAL.lignes)}
+  </div>`;
+  }
+
+  /* One command's panel. Derived from what is TRUE about the command — does
+     it delete, can it run blank, is it long — never from a list of screens. */
+  function ouvrirActionMaintenance(id) {
+    const action = MAINT_ACTIONS.find((a) => a.id === id);
+    if (!action) return;
+    const supprime = action.r === "destructive";
+    const blanc = supprime ? true : !!state.maintBlanc;
+    openSheet(
+      panneauHTML({
+        titre: action.l,
+        sousTitre: action.id,
+        meta: action.d,
+        puce: [RISQUES[action.r].p, RISQUES[action.r].t],
+        blocs: [
+          {
+            type: "faits",
+            lignes: [
+              { c: "Ce qu'elle fait", v: RISQUES[action.r].t, pipValeur: RISQUES[action.r].p },
+              { c: "Durée", v: action.long ? "peut être longue" : "immédiate" },
+              {
+                c: "Essai à blanc",
+                v: action.blanc ? (blanc ? "activé" : "désactivé") : "impossible",
+              },
+            ],
+          },
+          supprime
+            ? {
+                type: "note",
+                texte:
+                  "**Cette commande supprime.** L'essai à blanc reste activé tant que rien n'a montré ce qui serait détruit : un « êtes-vous sûr ? » se répond sans lire, une liste se regarde. Lancez-la à blanc, lisez ce qu'elle nomme, puis relancez-la pour de vrai.",
+              }
+            : null,
+          {
+            type: "actions",
+            actions: [
+              {
+                texte: action.blanc ? "Lancer à blanc" : "Lancer",
+                ton: "solid",
+                cible: {
+                  toast: `${action.l} — lancée${action.blanc ? " à blanc" : ""}. Le résultat s'affichera ici.`,
+                },
+              },
+              supprime
+                ? {
+                    texte: "Lancer pour de vrai",
+                    desactive: true,
+                    infobulle: "Lisez d'abord ce que l'essai à blanc nomme.",
+                    mention: "après l'essai",
+                  }
+                : null,
+            ].filter(Boolean),
+          },
+        ].filter(Boolean),
+      }),
+    );
+  }
+
+  /* ── UNE ADRESSE QUI N'EXISTE PAS ─────────────────────────────────────
+     Production serves a `*` route and the prototype had none, which is worse
+     than a missing page: an unknown id made `render()` look up a page table
+     that does not carry it, and the whole interface stopped on a TypeError.
+     A wrong address is the one input an interface never controls — a stale
+     bookmark, a shared link, a renamed route — so it is the one it may not
+     answer with a blank frame.
+
+     What it owes is DOIT-7: never a dead end. It says what was asked for, in
+     the mono face because it is not a sentence, says plainly that nothing
+     lives there, and offers the way out — the main page, and the drawer for
+     everywhere else. It does NOT offer « go back »: one usually arrives here
+     from outside, where there is nothing behind. */
+  function viewIntrouvable() {
+    return `<div class="body">
+    ${emptyHTML(
+      "Cette adresse ne mène nulle part.",
+      `Rien n'est servi à <code>${escapeHtml(state.introuvable || "/inconnu")}</code> — un lien a vieilli, ou l'adresse a été retapée. Rien n'est cassé pour autant.`,
+    )}
+    <button class="cfoot solid" data-go="acq">Aller à Acquisition</button>
+    <button class="crossref" data-drawer="1">Voir toutes les pages <span>Menu →</span></button>
+  </div>`;
+  }
+
+  /* ── PROFIL ET PRÉFÉRENCES ────────────────────────────────────────────
+     The account surface the user menu has been pointing at. It draws what
+     EXISTS today — one account, its session, and how that session ends — and
+     the PLACE the others will take, empty and saying why.
+
+     It does not draw a list of users. There is one account on this server and
+     inventing colleagues to fill a screen is exactly what §13 forbids: an
+     interface that shows data the system does not hold teaches its operator
+     to distrust the rest of it. An empty place that explains itself is
+     honest; a populated one is a lie with a nice layout. */
+  function viewProfil() {
+    return `<div class="body">
+    <div class="note"><b>Un seul compte existe sur ce serveur.</b> Ce qui est dessiné ici est ce qui existe : votre identité, votre session, et la façon dont elle se termine. La place des autres comptes est marquée et vide — la remplir de collègues inventés apprendrait à se méfier du reste de l'interface.</div>
+
+    <h2 class="h2">Vous</h2>
+    ${listeFaitsHTML([
+      { l: "Identifiant", v: COMPTE.nom, k: "web.username", s: "défini dans la configuration, pas ici" },
+      { l: "Adresse", v: COMPTE.mail, s: "sert aux notifications, jamais à la connexion" },
+    ])}
+
+    <h2 class="h2">Votre session</h2>
+    ${listeFaitsHTML([
+      { l: "Durée", v: "30 jours", k: "web.session_ttl_hours", s: "720 heures — au-delà, il faut se reconnecter" },
+      { l: "Transport", v: "chiffré", k: "web.cookie_secure", s: "le cookie n'est envoyé que sur une connexion sûre" },
+      { l: "Où elle vit", v: "sur le serveur", s: "la session EST le cookie ; se déconnecter demande au serveur de le lâcher, et l'écran ne fait que refléter ce qui a déjà eu lieu" },
+    ])}
+    <button class="cfoot" data-deconnexion="1">Se déconnecter</button>
+
+    <h2 class="h2">Les autres comptes</h2>
+    ${emptyHTML(
+      "Il n'y en a pas encore.",
+      "Les comptes multiples et leurs droits sont une mission à part. Leur place est ici, pour que la forme soit arrêtée avant que la fonctionnalité arrive — un menu qui gagne une entrée plus tard enseigne sa forme deux fois.",
+    )}
+  </div>`;
+  }
+
+  function viewSystem() {
+    if (state.phase !== "prete")
+      return `<div class="body">${state.phase === "erreur" ? surfErr("l'état de la machine") : skelCards(3)}</div>`;
+    return `<div class="body">
+    <div class="note"><b>Système répond à une seule question : la machine va-t-elle bien ?</b> Un média bloqué n'est pas ici — c'est une décision du pipeline, et elle est dans Arrivées. Ce qu'on trouve ici, ce sont les processus, les passages programmés, la place qui reste, et le code qui a levé une erreur.</div>
+
+    <h2 class="h2">Services</h2>
+    ${listeFaitsHTML(SERVICES)}
+
+    <h2 class="h2">Planificateurs</h2>
+    <div class="note"><b>Un planificateur entre deux passages n'est pas arrêté.</b> PM2 le dit « stopped », et c'est la vérité sur le processus et un mensonge sur le système : six lignes rouges sur une machine en parfaite santé. Un service se juge sur « tourne-t-il », un planificateur sur « a-t-il tourné ».</div>
+    ${listeFaitsHTML(PLANIFICATEURS)}
 
     <h2 class="h2">Exécutions du pipeline</h2>
-    <div class="panel">
-      ${EXECUTIONS.map(
-        (execution) =>
-          `<div class="kv"><span>${escapeHtml(execution.q)} · ${escapeHtml(execution.d)}</span><span>${escapeHtml(execution.r)}</span></div>`,
-      ).join("")}
-    </div>
-    <button class="crossref" data-go="arr">Le pipeline se pilote depuis Arrivées, où l'on voit ce qu'il fait. <span>Arrivées →</span></button>
+    ${listeFaitsHTML(EXECUTIONS.map((e) => ({ l: e.q, v: e.r.split(" · ").slice(0, -1).join(" · "), s: e.d + " · " + e.r.split(" · ").slice(-1) })))}
+    <button class="crossref" data-go="arr">Le pipeline se pilote depuis Arrivées, où l'on voit ce qu'il fait aux médias. <span>Arrivées →</span></button>
+
+    <h2 class="h2">Disques</h2>
+    ${listeFaitsHTML(DISQUES)}
+
+    <h2 class="h2">Index de la médiathèque</h2>
+    ${listeFaitsHTML(INDEX)}
+    <button class="crossref" data-page="maint">Réparer ce que l'index signale se fait depuis Maintenance. <span>Maintenance →</span></button>
+
+    <h2 class="h2">Dépendances</h2>
+    ${listeFaitsHTML(DEPENDANCES)}
+
+    <h2 class="h2">Erreurs de code</h2>
+    ${listeFaitsHTML([
+      {
+        l: "Exécutions en erreur",
+        v: `${ERREURS.total} sur ${ERREURS.sur}`,
+        s: `la dernière ${ERREURS.derniere} — ${ERREURS.quoi}`,
+        etat: "danger",
+      },
+      { l: "Où", v: "", s: ERREURS.ou },
+    ])}
+
     <h2 class="h2">Réglages</h2>
     <button class="rub" data-page="cfg" style="margin-top:0">
       <span style="min-width:0;flex:1">
         <span class="rt">Réglages</span>
-        <span class="rs">Ce que le pipeline fait, et comment. Rangés par ce qu'on veut changer, pas par fichier.</span>
+        <span class="rs">Ce que le pipeline fait, et comment — l'heure des passages programmés comprise. Rangés par ce qu'on veut changer, pas par fichier.</span>
       </span>
       <span class="rn">→</span>
     </button>
-
-    <div class="note"><b>Le détail d'un run vit ici</b>, adressable par <code>?run=&lt;uid&gt;</code>, et s'ouvre en écran — jamais en panneau sous la liste qu'on était en train de lire.</div>
   </div>`;
   }
 
@@ -14128,6 +14589,79 @@
         },
       ],
     },
+    /* ── Les passages programmés ────────────────────────────────────────
+       The one rubric whose settings do NOT live in a JSON5 overlay. The
+       schedules belong to PM2 and sit in `ecosystem.config.js`, which is why
+       the file name is written out here rather than derived by appending an
+       extension — the save bar promises what it will write, and it may not
+       promise a file that does not exist.
+
+       The value read is the hour, because that is what one comes to change;
+       the cron expression is underneath, in the mono face, because that is
+       what one needs when reading `pm2 jlist`. Their SUCCESS is not here —
+       whether a scheduler ran is a health, and healths are Système's. */
+    {
+      id: "passages",
+      t: "Les passages programmés",
+      s: "À quelle heure le moteur cherche, récupère, et remet son index à jour.",
+      fichiers: ["ecosystem.config.js"],
+      r: [
+        {
+          f: "ecosystem.config.js",
+          c: "personalscraper-health-check",
+          type: "texte",
+          brut: "15 * * * *",
+          n: "cron_restart",
+          v: "toutes les heures, à la 15ᵉ minute",
+          note: "Hourly at :15 — the health check reports to the monitor.",
+        },
+        {
+          f: "ecosystem.config.js",
+          c: "personalscraper-search",
+          type: "texte",
+          brut: "10 3,15 * * *",
+          n: "cron_restart",
+          v: "à 03 h 10 et 15 h 10",
+          note: "Searches trackers for the episodes and films being followed.",
+        },
+        {
+          f: "ecosystem.config.js",
+          c: "personalscraper-grab",
+          type: "texte",
+          brut: "20 3,15 * * *",
+          n: "cron_restart",
+          v: "à 03 h 20 et 15 h 20",
+          note: "Ten minutes after the search, so it grabs what was just found.",
+        },
+        {
+          f: "ecosystem.config.js",
+          c: "personalscraper-follow-detect",
+          type: "texte",
+          brut: "0 3 * * *",
+          n: "cron_restart",
+          v: "chaque jour à 03 h 00",
+          note: "03:00 daily — enqueue newly-aired episodes.",
+        },
+        {
+          f: "ecosystem.config.js",
+          c: "personalscraper-index-enrich",
+          type: "texte",
+          brut: "30 4 * * 0",
+          n: "cron_restart",
+          v: "le dimanche à 04 h 30",
+          note: "Sundays 04:30 local — off-peak.",
+        },
+        {
+          f: "ecosystem.config.js",
+          c: "personalscraper-backfill-ids",
+          type: "texte",
+          brut: "0 5 * * 0",
+          n: "cron_restart",
+          v: "le dimanche à 05 h 00",
+          note: "Sundays 05:00 local (after enrich).",
+        },
+      ],
+    },
   ];
 
   const SECRETS = [
@@ -14205,6 +14739,15 @@
     return modif === undefined ? reglage.v : modif;
   }
 
+  /* The file a setting really lives in. Nineteen of them are JSON5 overlays
+     named by their concern, and one is not: the schedules belong to PM2 and
+     live in `ecosystem.config.js`. Appending « .json5 » to every name would
+     make the save bar promise a file that does not exist — and the save bar's
+     whole job is to name what it will write. */
+  function nomDeFichier(f) {
+    return f.includes(".") ? f : f + ".json5";
+  }
+
   function fichiersModifies() {
     return [
       ...new Set([...REG_ETAT.modifs.keys()].map((id) => id.split(":")[0])),
@@ -14235,6 +14778,15 @@
      there is room for a sentence and where being English is a smaller cost
      than being absent. */
   const LIBELLES_REGLAGES = {
+    /* The six schedulers share the key `cron_restart`, so the leaf would draw
+       « cron restart » six times in one list — the very defect this map exists
+       for. Each is named by what it goes and does. */
+    "personalscraper-health-check": "Contrôle de santé du système",
+    "personalscraper-search": "Recherche des releases suivies",
+    "personalscraper-grab": "Récupération des releases trouvées",
+    "personalscraper-follow-detect": "Détection des épisodes diffusés",
+    "personalscraper-index-enrich": "Enrichissement de l'index",
+    "personalscraper-backfill-ids": "Complétion des identifiants croisés",
     torrent_complete_dir: "Dossier où qBittorrent dépose les torrents terminés",
     staging_dir: "Dossier de transit avant rangement",
     data_dir: "Dossier des données du pipeline",
@@ -14493,7 +15045,7 @@
       return `<div class="champ refus">
         <p class="rulenote">Cette valeur est une <b>structure</b> — une liste d'objets avec leurs
         propres clés. Elle ne s'édite pas ici : un formulaire qu'on ne peut pas valider promettrait
-        une modification qui casse le fichier. Ouvrez <code>${escapeHtml(reglage.f)}.json5</code>.</p>
+        une modification qui casse le fichier. Ouvrez <code>${escapeHtml(nomDeFichier(reglage.f))}</code>.</p>
       </div>`;
 
     if (reglage.type === "booleen")
@@ -14548,7 +15100,7 @@
   function ligneReglageHTML(reglage, avecFichier = false) {
     const modifie = REG_ETAT.modifs.has(reglageId(reglage));
     const origine = avecFichier
-      ? `${reglage.f}.json5 · ${reglage.c}`
+      ? `${nomDeFichier(reglage.f)} · ${reglage.c}`
       : reglage.c;
     return `<button class="reg${modifie ? " modifie" : ""}" data-reglage="${escapeHtml(reglageId(reglage))}">
       <span class="rl">${escapeHtml(libelleReglage(reglage))}
@@ -14564,7 +15116,7 @@
     if (nombre === 0) return "";
     return `<div class="savebar" id="savebar">
       <span class="sn"><b>${nombre} modification${nombre > 1 ? "s" : ""} en attente</b>
-        Écrira ${fichiers.map((f) => escapeHtml(f) + ".json5").join(", ")}.</span>
+        Écrira ${fichiers.map((f) => escapeHtml(nomDeFichier(f))).join(", ")}.</span>
       <button data-enregistrer="1" ${REG_ETAT.lectureSeule ? "disabled" : ""}>Enregistrer</button>
     </div>`;
   }
@@ -14853,6 +15405,31 @@
        that is a different kind of errand — read rarely, changed rarely. It is
        reached from Système and from the drawer, and the back gesture walks out
        of it like any other page. */
+    /* Maintenance is a PAGE and not a fifth tab, for the same reason as
+       Réglages: the bar holds the four places one goes to SEE what is
+       happening, and a maintenance command is something one goes to DO. It is
+       reached from Système and from the drawer. */
+    {
+      id: "profil",
+      l: "Profil et préférences",
+      ic: icons.user,
+      render: viewProfil,
+      horsBarre: true,
+    },
+    {
+      id: "404",
+      l: "Adresse introuvable",
+      ic: icons.wrench,
+      render: viewIntrouvable,
+      horsBarre: true,
+    },
+    {
+      id: "maint",
+      l: "Maintenance",
+      ic: icons.wrench,
+      render: viewMaintenance,
+      horsBarre: true,
+    },
     {
       id: "cfg",
       l: "Réglages",
@@ -14883,7 +15460,15 @@
       .join("");
   }
   function render() {
-    const found = PAGES_OF().find((element) => element.id === state.page);
+    /* An id no page carries is not a crash: it is the `*` route. Looking one
+       up and calling `.render()` on nothing stopped the whole interface on a
+       TypeError, which is the worst possible answer to a stale bookmark. */
+    let found = PAGES_OF().find((element) => element.id === state.page);
+    if (!found) {
+      state.introuvable = "/" + state.page;
+      state.page = "404";
+      found = PAGES_OF().find((element) => element.id === "404");
+    }
     view.innerHTML = found.render();
     monterBarreEnregistrer();
     fab.hidden = !found.fab;
@@ -15270,9 +15855,7 @@
               {
                 texte: "Profil et préférences",
                 icone: icons.user,
-                desactive: true,
-                infobulle: "Disponible avec les comptes multiples",
-                mention: "bientôt",
+                cible: { go: "profil" },
               },
               {
                 texte: "Se déconnecter",
@@ -16078,6 +16661,71 @@
   let pilotage = false;
   let sortieArmee = 0;
 
+  /* ── L'URL PORTE L'ÉTAT (DOIT-10) ─────────────────────────────────────
+     « Chaque détail a son URL » is a rule of the constitution, and the
+     prototype was measurably not obeying it: `history.pushState` appeared four
+     times and `location` was read ZERO times. The interface told the browser
+     where it was and never once asked. That is not a debt to hand over with
+     the binding mission — it is a non-conformity, and one that shows: a reload
+     landed on the opening page, and no screen could be sent to anyone.
+
+     The state travels in the QUERY rather than in the path, and that is a
+     decision rather than a shortcut. This file is opened from a static server,
+     from a design host, and from `file://`; a path-based route needs a server
+     that rewrites every unknown path onto the document, which two of those
+     three cannot do. A query is addressable everywhere, survives a reload, and
+     pastes into a message — which is the whole of what DOIT-10 asks. The
+     binding mission maps `?page=lib` onto production's `/medias`; the shape to
+     be judged now is that the URL and the interface never disagree.
+
+     Only what DIFFERS from the opening state is written, so the common case
+     has a clean URL and a link carries only what it means to carry. */
+  const URL_DEFAUTS = {
+    page: "acq",
+    tab: "maintenant",
+    lens: "cat",
+    mode: "grid",
+    cat: "all",
+    rub: "",
+  };
+
+  function urlDeLEtat() {
+    const courant = {
+      page: state.page,
+      tab: state.acqTab,
+      lens: state.libLens,
+      mode: state.libMode,
+      cat: state.libCat,
+      rub: state.maintRub || "",
+    };
+    const params = new URLSearchParams();
+    for (const [nom, valeur] of Object.entries(courant))
+      if (valeur && valeur !== URL_DEFAUTS[nom]) params.set(nom, String(valeur));
+    const requete = params.toString();
+    return location.pathname + (requete ? "?" + requete : "");
+  }
+
+  /* Reads back what the URL carries. An absent parameter is not « empty »: it
+     is « unchanged », so nothing is written for it and the opening state
+     stands. A page nobody serves is left AS IT IS rather than corrected here —
+     `render()` is what turns an unknown id into the not-found surface, and
+     silently rewriting it here would mean a mistyped address quietly became a
+     different one. */
+  function etatDeLURL() {
+    const params = new URLSearchParams(location.search);
+    const lu = {};
+    const prendre = (param, champ) => {
+      if (params.has(param) && params.get(param)) lu[champ] = params.get(param);
+    };
+    prendre("page", "page");
+    prendre("tab", "acqTab");
+    prendre("lens", "libLens");
+    prendre("mode", "libMode");
+    prendre("cat", "libCat");
+    prendre("rub", "maintRub");
+    return lu;
+  }
+
   function etatDeNavigation() {
     return {
       tm: "nav",
@@ -16097,7 +16745,7 @@
   function noterLeChemin() {
     if (pilotage) return;
     try {
-      history.pushState(etatDeNavigation(), "");
+      history.pushState(etatDeNavigation(), "", urlDeLEtat());
     } catch (error) {}
   }
 
@@ -16397,7 +17045,7 @@
       "acq-identifier",
       "Recherche en mode IDENTIFIER (depuis une résolution)",
       () => {
-        applyState({ page: "arr", phase: "prete" });
+        applyState({ page: "arr", phase: "prete", pipe: "repos" });
         state.resolveTarget = "Backrooms.2026.MULTi.2160p.WEB-DL";
         openAddScreen("Backrooms 2026", "identifier");
       },
@@ -16556,23 +17204,23 @@
     [
       "arr-charge",
       "Arrivées — chargé",
-      () => applyState({ page: "arr", scen: "charge", phase: "prete" }),
+      () => applyState({ page: "arr", scen: "charge", phase: "prete", pipe: "repos" }),
     ],
     [
       "arr-chargement",
       "Arrivées — chargement",
-      () => applyState({ page: "arr", phase: "chargement" }),
+      () => applyState({ page: "arr", phase: "chargement", pipe: "repos" }),
     ],
     [
       "arr-erreur",
       "Arrivées — erreur",
-      () => applyState({ page: "arr", phase: "erreur" }),
+      () => applyState({ page: "arr", phase: "erreur", pipe: "repos" }),
     ],
     [
       "arr-resolution",
       "Arrivées — résolution, aucun candidat",
       () => {
-        applyState({ page: "arr", phase: "prete" });
+        applyState({ page: "arr", phase: "prete", pipe: "repos" });
         openResolve();
       },
     ],
@@ -16580,7 +17228,7 @@
       "arr-decision",
       "Arrivées — résolution, candidats à égalité",
       () => {
-        applyState({ page: "arr", scen: "charge", phase: "prete" });
+        applyState({ page: "arr", scen: "charge", phase: "prete", pipe: "repos" });
         openResolve("Lucky");
       },
     ],
@@ -16634,8 +17282,51 @@
     ],
     [
       "systeme",
-      "Système — réception",
+      "Système — la santé de la machine",
       () => applyState({ page: "sys", phase: "prete" }),
+    ],
+    [
+      "systeme-chargement",
+      "Système — chargement",
+      () => applyState({ page: "sys", phase: "chargement" }),
+    ],
+    [
+      "systeme-erreur",
+      "Système — erreur",
+      () => applyState({ page: "sys", phase: "erreur" }),
+    ],
+    [
+      "introuvable",
+      "Une adresse qui n'existe pas",
+      () => applyState({ page: "une-page-qui-n-existe-pas", phase: "prete" }),
+    ],
+    [
+      "profil",
+      "Profil et préférences",
+      () => applyState({ page: "profil", phase: "prete" }),
+    ],
+    [
+      "maintenance",
+      "Maintenance — les rubriques de commandes",
+      () => applyState({ page: "maint", phase: "prete", maintRub: null }),
+    ],
+    [
+      "maintenance-rubrique",
+      "Maintenance — une rubrique et ses commandes",
+      () => applyState({ page: "maint", phase: "prete", maintRub: "fix" }),
+    ],
+    [
+      "maintenance-suppression",
+      "Maintenance — une commande qui supprime",
+      () => {
+        applyState({ page: "maint", phase: "prete", maintRub: "clean" });
+        ouvrirActionMaintenance("library-clean");
+      },
+    ],
+    [
+      "maintenance-chargement",
+      "Maintenance — chargement",
+      () => applyState({ page: "maint", phase: "chargement" }),
     ],
     [
       "reglages",
@@ -17012,6 +17703,12 @@
      than a list written beside it is what makes that checkable at all. */
   window.__pages = () => PAGES_OF().map((element) => element.id);
 
+  /* The media the pipeline is currently refusing. Exposed because the rule
+     that keeps them OFF Système has to know their names, and a rule that
+     cannot reach them compares against an empty list and passes whatever it
+     is shown — which is what it did before this seam existed. */
+  window.__bloques = () => derived.stuck().map((carte) => carte.t);
+
   /* Clears ALL harness chrome before a capture or a pixel comparison:
      harness buttons float above the shell, which is a measured region and
      must carry nothing that does not exist in the app. */
@@ -17058,7 +17755,13 @@
         ["arr", "Arrivées", icons.inbox],
       ],
     ],
-    ["Système", [["sys", "Système", icons.wrench]]],
+    [
+      "Système",
+      [
+        ["sys", "Système", icons.wrench],
+        ["maint", "Maintenance", icons.refresh],
+      ],
+    ],
     ["Configuration", [["cfg", "Réglages", icons.sort]]],
   ];
 
@@ -17234,7 +17937,7 @@
       REG_ETAT.modifs.clear();
       REG_ETAT.redemarrage = true;
       render();
-      toast(`Enregistré — ${fichiers.map((f) => f + ".json5").join(", ")}.`);
+      toast(`Enregistré — ${fichiers.map(nomDeFichier).join(", ")}.`);
       return;
     }
     if (closest.dataset.redemarrer) {
@@ -17506,6 +18209,17 @@
       ouvrirTiroir();
       return;
     }
+    if (closest.dataset.maintrub !== undefined) {
+      state.maintRub = closest.dataset.maintrub || null;
+      port.scrollTop = 0;
+      render();
+      noterLeChemin();
+      return;
+    }
+    if (closest.dataset.maintact) {
+      ouvrirActionMaintenance(closest.dataset.maintact);
+      return;
+    }
     if (closest.dataset.pipe) {
       /* Asked while a run is already going, a run is QUEUED and says so
          (DOIT-4). « Occupé, réessaie » is the answer this interface does not
@@ -17543,7 +18257,8 @@
       port.scrollTop = 0;
       render();
       try {
-        if (surLeTiroir) history.replaceState(etatDeNavigation(), "");
+        if (surLeTiroir)
+          history.replaceState(etatDeNavigation(), "", urlDeLEtat());
         else noterLeChemin();
       } catch (error) {}
       return;
@@ -40531,7 +41246,22 @@
      close it on a gesture the browser took away. */
   poignee.addEventListener("pointercancel", () => finGlisseFeuille(true));
 
+  /* The opening state comes from the ADDRESS, before the first paint: a
+     reload that lands on the opening page rather than where one was is the
+     defect DOIT-10 names, and it is fixed here rather than corrected after a
+     frame the operator would see. */
+  Object.assign(state, etatDeLURL());
+  /* Kept from BEFORE the first render, because rendering an unknown id moves
+     the state onto the not-found surface — and rewriting the address to match
+     would make a mistyped link quietly become a different one. A browser
+     answering 404 leaves the address alone; so does this. */
+  const adresseDArrivee = location.pathname + location.search;
   render();
+  /* The address is put back on the entry one arrives on, so a back from
+     anywhere reaches the page the link named rather than a bare document. */
+  try {
+    history.replaceState(etatDeNavigation(), "", adresseDArrivee);
+  } catch (error) {}
   /* The interface exists from here on, so the startup screen has nothing left
      to cover — but it does not come off on that line. It comes off when the
      wait it covers RESOLVES, which is the only rule that serves both a
@@ -40543,7 +41273,14 @@
   try {
     history.replaceState({ tm: "garde" }, "");
   } catch (error) {}
-  noterLeChemin();
+  /* Pushed with the address one ARRIVED at rather than with the one the state
+     now implies. Rendering an unknown id moves the state onto the not-found
+     surface, and deriving the address from it here rewrote a mistyped link
+     into « ?page=404 » — the interface correcting the operator's address
+     behind their back. A browser answering 404 leaves the address alone. */
+  try {
+    history.pushState(etatDeNavigation(), "", adresseDArrivee);
+  } catch (error) {}
   /* The welcome hint disappears on first interaction: a bubble that returns
      over an open sheet is a nuisance, not help. */
   let hintShown = false;
