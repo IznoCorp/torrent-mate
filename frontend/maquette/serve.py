@@ -38,6 +38,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import html
 import http.cookies
 import http.server
 import os
@@ -65,6 +66,9 @@ SOURCES_BUILD = (
     RACINE_DESIGN / "vite.config.mjs",
 )
 NPM = "/Users/izno/.nvm/versions/node/v22.13.1/bin/npm"
+# Overridable so the timeout path itself can be proven live, the same way
+# TM_DESIGN_RACINE lets a rule serve a scratch root.
+DELAI_BUILD = float(os.environ.get("TM_DESIGN_DELAI_BUILD") or 120)
 
 IDENTIFIANT = os.environ.get("TM_DESIGN_USER", "izno")
 
@@ -231,6 +235,12 @@ def panne_build(erreur: str) -> bytes:
     Serving the PREVIOUS build instead would be a stale reference wearing
     today's date — the exact failure a design host exists to avoid. The page
     says what broke, with the build's own last words.
+
+    Args:
+        erreur: The error message from the failed build, typically stderr output.
+
+    Returns:
+        A complete HTML 503 error page as bytes, with the error escaped.
     """
     return (
         '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
@@ -242,7 +252,7 @@ def panne_build(erreur: str) -> bytes:
         "d'échouer, et servir l'ancienne version serait mentir sur la date de "
         "ce que vous jugez.</p><pre style=\"white-space:pre-wrap;background:#f6f6f6;"
         'padding:12px;border-radius:8px">'
-        f"{erreur}"
+        f"{html.escape(erreur)}"
         "</pre></body></html>"
     ).encode()
 
@@ -389,23 +399,39 @@ class Handler(http.server.BaseHTTPRequestHandler):
         Raises:
             FileNotFoundError: When `refonte.html` is absent (branch without
                 the prototype) — the caller answers with MANQUANT.
-            RuntimeError: When the build fails — the caller answers with the
-                build's own words, never with a stale document.
+            RuntimeError: When the build fails or a build input is missing —
+                the caller answers with the error message, never with a stale
+                document.
         """
-        sources = max(chemin.stat().st_mtime_ns for chemin in SOURCES_BUILD)
+        if not PROTOTYPE.exists():
+            raise FileNotFoundError(PROTOTYPE)
+        try:
+            sources = max(chemin.stat().st_mtime_ns for chemin in SOURCES_BUILD)
+        except FileNotFoundError as absent:
+            # A missing build INPUT is a build problem, not a missing
+            # prototype: say which file, never the wrong diagnosis.
+            raise RuntimeError(f"entrée du build absente : {absent.filename}")
         with Handler._verrou_build:
             try:
                 bati = DIST.stat().st_mtime_ns
             except FileNotFoundError:
                 bati = -1
             if bati < sources:
-                fait = subprocess.run(
-                    [NPM, "run", "build"], cwd=RACINE_DESIGN,
-                    capture_output=True, text=True, timeout=120)
+                try:
+                    fait = subprocess.run(
+                        [NPM, "run", "build"], cwd=RACINE_DESIGN,
+                        capture_output=True, text=True, timeout=DELAI_BUILD)
+                except subprocess.TimeoutExpired:
+                    raise RuntimeError(
+                        f"build interrompu après {DELAI_BUILD:g} s — "
+                        "le processus npm ne répondait plus")
                 if fait.returncode != 0:
                     queue = (fait.stderr or fait.stdout).strip().splitlines()[-12:]
                     raise RuntimeError("\n".join(queue))
-            stamp = DIST.stat().st_mtime_ns
+            try:
+                stamp = DIST.stat().st_mtime_ns
+            except FileNotFoundError:
+                raise RuntimeError("le build a abouti sans émettre dist/index.html")
             cached = Handler._cache
             if cached is None or cached[0] != stamp:
                 Handler._cache = (stamp, DIST.read_bytes())
