@@ -10,6 +10,9 @@
 **`design/refonte.html` is the design reference for the TorrentMate web UI. Any change to the
 design starts here, not in `frontend/src`.**
 
+`design/` is the served root — everything a browser reaches lives there (the prototype, images,
+PWA assets). The `harness/`, `serve.py`, and `regions.json` siblings are never served.
+
 It is the operator-approved interactive prototype of the mobile-first interface:
 `/acquisition` (three views), `/mediatheque`, `/arrivees`, `/systeme`, plus the media
 sheet and the shared shell. It is **not an illustration**. It is the source the shipped UI
@@ -632,6 +635,16 @@ They are committed because they encode recipes that cost time to get right.
 Run them with the Python that carries Playwright, against a local static server on
 **127.0.0.1:8899** — **never** 8710 / 8711, which the reverse proxy routes to prod and
 staging.
+
+The wrapper directory `/tmp/tm-refonte/` must carry an `assets` symlink to the repo's
+`design/assets/`:
+
+```bash
+ln -sfn "$(git rev-parse --show-toplevel)/frontend/maquette/design/assets" /tmp/tm-refonte/assets
+```
+
+Without it, every image reference (`src=` and `url()` values) resolves to a 404. The harness
+runs measure against this local server, so the symlink must be in place before any test.
 
 The prototype must be served inside a wrapper supplying `<meta name="viewport">`; without it
 Chrome falls back to the legacy 980px layout viewport and every measurement is wrong. The file

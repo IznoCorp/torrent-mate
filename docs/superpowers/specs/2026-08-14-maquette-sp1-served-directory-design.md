@@ -41,8 +41,9 @@ Konsta UI, Motion, TanStack DB/Store are evaluated in SP4/SP5, not before.
 3. **Library images stay behind the session gate.** They are the operator's real posters.
    Only the 6 brand assets (PWA icons, favicon) remain session-free, as today.
 4. **The 925 files (924 distinct table images + the account avatar) are committed** (~9.9 MB once, versus 13.2 MB of base64 rewritten
-   into git on every prototype edit). Nothing on this path is gitignored — no `git add -f`
-   for assets.
+   into git on every prototype edit). The repo's media-extension ignore block required an
+   explicit negation (`!frontend/maquette/design/assets/**`, added in the branch) so the
+   assets are tracked without any `git add -f`.
 5. **The design host serves from this working tree** (pm2 `torrentmate-design`, port 8712).
    The move and the `serve.py` update land in the same commit; restart pm2 after.
 
