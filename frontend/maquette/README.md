@@ -13,6 +13,14 @@ design starts here, not in `frontend/src`.**
 `design/` is the served root — everything a browser reaches lives there (the prototype, images,
 PWA assets). The `harness/`, `serve.py`, and `regions.json` siblings are never served.
 
+`design/` is also a Vite project — the chassis the conversion will move into, sub-project by
+sub-project. `npm run build` emits `dist/` (gitignored): the real envelope from `index.html`
+with the prototype injected **verbatim** — a local plugin inserts the fragment after Vite's
+own HTML processing, so no minifier ever touches it — and `dist/assets` linked to the real
+files. R72 (`coquille.py`) is the contract: the built output must render identically to the
+source, DOM and geometry, or the shell is lying. The live host still serves the source;
+switching it to the built output is a later, explicit step, taken only while R72 holds.
+
 It is the operator-approved interactive prototype of the mobile-first interface:
 `/acquisition` (three views), `/mediatheque`, `/arrivees`, `/systeme`, plus the media
 sheet and the shared shell. It is **not an illustration**. It is the source the shipped UI
