@@ -97,8 +97,7 @@ def construire(journal):
 async def ouvrir_page(navigateur, url, erreurs):
     ctx = await navigateur.new_context(**TELEPHONE)
     pg = await ctx.new_page()
-    pg.on("pageerror", lambda e: erreurs.append(f"{url}: {e}")
-          if not any(route in str(e) for route in ROUTES_HOTE) else None)
+    pg.on("pageerror", lambda e: erreurs.append(f"{url}: {e}"))
     # The error guard listens to RESPONSES, not console prose: a console line
     # does not carry the URL, and the browser requests /favicon.ico uninvited
     # on both servers — neither declares one, so that miss is the harness's
