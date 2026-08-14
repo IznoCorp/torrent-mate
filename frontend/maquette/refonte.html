@@ -11609,20 +11609,29 @@
      vocabulary. */
   const SERVICES = [
     { l: "TorrentMate", ton: "success", v: "en ligne",
-      s: "depuis ce matin 09 h 36 · 4 redémarrages" },
+      s: "depuis ce matin 09 h 36" },
     { l: "TorrentMate (staging)", ton: "success", v: "en ligne",
-      s: "depuis ce matin 08 h 25 · 3 redémarrages" },
+      s: "depuis ce matin 08 h 25" },
     { l: "Veille des téléchargements", ton: "success", v: "en ligne",
-      s: "depuis le 10 août · aucun redémarrage" },
+      s: "depuis le 10 août" },
     { l: "Déploiement automatique", ton: "success", v: "en ligne",
-      s: "depuis le 10 août · aucun redémarrage" },
-    /* Ninety restarts on a service up for three hours is a fact worth reading,
-       and it is NOT what the pastille answers. The dot says « is it up », and
-       this one is; the count sits in the sub-line where a number belongs.
-       Colouring the dot for something it does not mean is how a green stops
-       being trusted. */
+      s: "depuis le 10 août" },
+    /* PM2's restart counter means THREE different things depending on what it
+       is counting, and none of them is « how unhealthy is this ».
+
+       On a daemon it counts manual restarts: this host sits at 92 because the
+       procedure asks for one after every edit to `serve.py`. Its unstable
+       count — PM2's own word for « died before min_uptime » — is zero. On a
+       scheduled job the same field counts RUNS, which is why the hourly health
+       check reads 263. And on a scheduled job the unstable count is not a
+       crash either: a job that finishes and exits has, by definition, died
+       before min_uptime.
+
+       So the raw number is not printed. What a service owes is « is it up and
+       since when »; a count whose meaning changes with the row is a figure the
+       operator has to decode, which is the opposite of what a line is for. */
     { l: "Hôte de la maquette", ton: "success", v: "en ligne",
-      s: "depuis ce matin 08 h 28 · 90 redémarrages" },
+      s: "depuis ce matin 08 h 28 · redémarré à la main après chaque édition" },
   ];
 
   /* The schedulers, with their real cron expressions said in French. Their
