@@ -432,6 +432,38 @@ already happened — an entry form shown over a live cookie is contradicted by t
 R54 (`harness/deconnexion.py`) checks both halves, and the invisible one is the one that
 matters: it asks the server, afterwards, whether the session is still accepted.
 
+## A layer is not a route, and closing one leaves the page alone
+
+The drawer, the media screen and the bottom panel each push a history entry so a back closes
+them without eating a page. Closing one then pops that entry — and **that pop must not be read
+as a navigation**. The entry underneath describes where one ALREADY is, so applying it undoes
+whatever the close was accompanied by, and re-renders the page one is standing on.
+
+Both halves of that were on screen at once. Tapping a drawer entry changed the page for a frame
+and the drawer's own pop put it back, so every entry in the menu led nowhere. And closing a
+bottom panel opened halfway down a list rebuilt the list and sent it home — nobody had reported
+that one; the mutation proving the rule bites is what found it.
+
+So an unwind **announces itself** and the popstate handler consumes the announcement, and a
+drawer navigation settles history itself: the destination TAKES the drawer's entry through
+`replaceState` rather than unwinding and pushing within one task, where the asynchronous pop
+lands after the push and overwrites it. A back from the destination then reaches where one was
+before opening the drawer, which is the only thing a drawer can honestly promise.
+
+`window.__pages()` exposes the page table, so a control can be checked against what the
+interface can actually render rather than against a list written beside it — one drawer entry
+named an id no page carried and answered a tap with a message.
+
+**A fallback onto a phantom token is a landmine.** `background: var(--sidebar-accent, var(--primary))`
+with `--sidebar-accent` defined nowhere paints the background in `--primary` — which is what the
+label is coloured with. Contrast 1.00, a label in invisible ink. R61 forbids only BARE `var()`,
+so the fallback made it look like a considered choice and the rule looked away. Contrast is
+measured as PAINTED, colours converted through a canvas and never parsed: `getComputedStyle`
+returns the space the author wrote — `oklch()` here — and three numbers pulled out of it with a
+regex built for `rgb()` mean nothing.
+
+`harness/tiroir.py` holds all of it; R65 states it.
+
 ## A trap that cost real time: **screenshots are not an oracle**
 
 Two captures of the **same, unmodified file** disagreed on 8 to 15 of the 47 states. Skeleton
@@ -532,7 +564,8 @@ They are committed because they encode recipes that cost time to get right.
 | `palette.py` | R61: no bare `var(--x)` names a property the document never defines, and the brand colour is actually painted on the wordmark, the sign-in button and the startup bar |
 | `entree.py` | R62: the sign-in screen renders identically on the host and inside the prototype, and the host redeclares nothing the reference owns |
 | `contenu.py` | R63: a follow's card carries what `acquire.db` really holds and phrases it as « En cours » does; a library row carries the synopsis, clamped to the largest number of lines that fits, and shows nothing when the NFO has no plot |
-| `glisse.py` | R64: a row opens a drawer either way, one at a time, without firing the tap — measured on Chromium AND WebKit, where the drawer used to spill past the card |
+| `glisse.py` | R64: a row opens a drawer either way, one at a time, without firing the tap — measured on Chromium AND WebKit, where the drawer used to spill past the card; and a REVERSAL settles the row back rather than leaping, sampled during the drag because a jump is a discontinuity |
+| `tiroir.py` | R65: the drawer is a place one passes through, not a route — every entry names a page that exists and arrives there, the destination takes the drawer's own history entry, closing a layer neither rebuilds the page underneath nor loses where it was scrolled, and every entry is legible measured as PAINTED |
 | `installation.py` | R51: the install offer is actually OFFERED — `beforeinstallprompt` captured, its default prevented and replayed on a gesture; the iOS guide raised by an iPhone user agent; nothing offered to an installed app, over the entry screen, or after a refusal |
 | `pwa.py` | R52: the LIVE host is installable from the first document a phone reaches — manifest, icons that load, worker registered and controlling, offline fallback cached. Runs against `tm-design.iznogoudatall.xyz`, not the local server |
 | `demarrage.py` | R53: the startup screen is declared first, covers the frame, offers no control, is gone after the first render, and the gate the server builds shows the same screen — extracted — from the submit onwards. Starts `serve.py` on a scratch port |

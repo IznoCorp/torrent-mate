@@ -31,61 +31,167 @@ when the defect comes back.
 
 ## Open
 
-| ID    | Defect                                        | Reported | Status |
-| ----- | --------------------------------------------- | -------- | ------ |
-| B-013 | The drawer's entries lead nowhere             | 1×       | `open` |
-| B-014 | The drawer's current entry is unreadable      | 1×       | `open` |
-| B-015 | Back reopens the drawer that was just closed  | 1×       | `open` |
-| B-016 | Swiping a row right, then left, makes it jump | 1×       | `open` |
+| ID    | Defect                                            | Reported     | Status       |
+| ----- | ------------------------------------------------- | ------------ | ------------ |
+| B-013 | The drawer's entries lead nowhere                 | 2×           | `to confirm` |
+| B-014 | The drawer's current entry is unreadable          | 1×           | `to confirm` |
+| B-015 | Back reopens the drawer that was just closed      | 1×           | `to confirm` |
+| B-016 | Swiping a row right, then left, makes it jump     | 1×           | `to confirm` |
+| B-017 | Closing a panel sends the list back to its top    | by mutation  | `to confirm` |
 
 B-013 to B-015 arrived as **one** report about the navigation drawer. They are written as three
 because a fix closes only with a rule that bites, and three symptoms with three causes need three
 rules — merging them would let two hide behind the one that got fixed.
 
+B-017 was reported by nobody. The mutation proving R65 bites found it, which is the whole reason
+mutations are run against a rule rather than trusted to be green.
+
 ---
 
 ## B-013 — The drawer's entries lead nowhere
 
-**Reported** 1×. **Status** `open`. Not yet diagnosed.
+**Reported** 2× — the second time this surface has been reported inert. **Status** `to confirm` — R65, `harness/tiroir.py`.
 
 **What the operator sees.** The navigation drawer opens, and its entries are not clickable: a tap
 on a menu entry goes nowhere.
+
+**What actually happens**, measured on the journey rather than read: tapping « Médiathèque » left
+the bar's current tab on « Acquisition » at +60 ms and again at +560 ms. The entry was never
+inert — the page changed and was put back.
+
+**Why.** The close unwound the drawer's own history entry with `history.back()`, which is
+**asynchronous**. Its pop therefore landed AFTER the arrival had rendered, and the popstate
+handler read that pop as a back gesture: it applied the entry underneath, which describes where
+one already was. One frame of Médiathèque, then Acquisition again.
+
+A second cause, on one entry only: « Config » pointed at an id `PAGES_OF` does not carry, and
+answered a tap with a message saying the page was out of scope. Réglages exists and is drawn; the
+entry now names it.
+
+**Why no rule caught it.** R59 covers the back gesture and was green throughout. It drives named
+states; nothing walked the journey of opening the drawer and tapping an entry.
+
+**And it is the SECOND time this surface has been reported inert.** `regions.json` →
+`$reportedDefects` already carries `inert-drawer`: « the hamburger opened nothing and the drawer
+links were not clickable: event delegation looked only at `<button>`, and a navigation link is an
+`<a>` ». That cause was fixed and a comment left beside it. A different cause produced the same
+symptom, and nothing had been left behind that would notice — the fix was recorded, the BEHAVIOUR
+was not. That is precisely the difference between a note and a rule.
+
+**The fix.** The destination TAKES the drawer's history entry (`replaceState`) instead of the
+close unwinding and the arrival pushing in the same task. And our own unwind now announces itself,
+so the popstate handler consumes it rather than interpreting it.
+
+**Mutation.** Point an entry at an id no page carries → « chaque entrée nomme une page qui
+existe » falls, naming `config`.
 
 ---
 
 ## B-014 — The drawer's current entry is unreadable
 
-**Reported** 1×. **Status** `open`. Not yet diagnosed.
+**Reported** 1×. **Status** `to confirm` — R65, `harness/tiroir.py`.
 
-**What the operator sees.** The entry marking where one currently is cannot be read — its
-treatment leaves the label illegible against its own background.
+**What the operator sees.** The entry marking where one currently is cannot be read.
+
+**What actually happens.** Its label and its background are the **same colour** —
+`oklch(0.808 0.158 79)` on `oklch(0.808 0.158 79)`. Contrast **1.00**. A label written in
+invisible ink.
+
+**Why.** `background: var(--sidebar-accent, var(--primary))`, and `--sidebar-accent` is defined
+nowhere — so the background falls back to `--primary`, which is what the label is coloured with.
+
+**Why no rule caught it.** This is the family of B-007, and R61 exists for it — but R61 forbids
+only **bare** `var()`. A fallback makes a phantom token look like a considered choice, and the
+rule looks away. Two other `--sidebar-*` references had the same shape with harmless fallbacks;
+they are gone too, because a landmine that has not gone off is still a landmine.
+
+**The fix.** « You are here » is the brand colour on the label — the mark the bottom bar already
+uses — over a **tint** of that mark rather than the mark itself. Measured: contrast **7.66**,
+above AA and above AAA.
+
+**Mutation.** Restore the fallback → the contrast check falls at 1.0, naming the current entry.
 
 ---
 
 ## B-015 — Back reopens the drawer that was just closed
 
-**Reported** 1×. **Status** `open`. Not yet diagnosed.
+**Reported** 1×. **Status** `to confirm` — R65, `harness/tiroir.py`.
 
-**What the operator sees.** Close the drawer, then use the back gesture: the drawer opens again.
-The operator's words are the diagnosis to test against — « ce n'est pas une route ». A layer that
-was opened and closed should leave nothing behind for back to walk into; R59 makes back close a
-layer FIRST, which is right for an open layer and wrong for one already closed.
+**What the operator sees.** Close the drawer, then use the back gesture: the drawer comes back.
+« Ce n'est pas une route. »
+
+**What could not be reproduced.** The drawer never reopened under measurement — five ways of
+closing it, on Chromium **and** WebKit, `go_back()` after each. That is recorded rather than
+hidden: what follows fixes the bookkeeping the report points at, and only the operator's phone
+can say whether it was the whole of it.
+
+**What was found instead**, on every one of those paths: after using the drawer, ONE back landed
+on the root-exit warning. The drawer had eaten the operator's navigation history — its entry sat
+between the page and everywhere they had been.
+
+**The fix.** The drawer leaves nothing behind: the destination replaces its entry, so a back from
+there reaches where one was before opening it. Closing it without going anywhere restores the
+history exactly as it was.
+
+**Mutation.** Make the destination push instead of replace → « retour ramène au départ » falls on
+all four entries.
 
 ---
 
 ## B-016 — Swiping a row right, then left, makes it jump
 
-**Reported** 1×. **Status** `open`. Not yet diagnosed.
+**Reported** 1×. **Status** `to confirm` — R64 extended, `harness/glisse.py`.
 
 **What the operator sees.** Swipe a card right, then swipe it left: the card jumps. What it should
 do is settle back to rest, so that a second, deliberate left swipe is what reveals the actions on
 that side.
 
-This is the same surface R64 (`harness/glisse.py`) already covers — « a row opens a drawer either
-way, one at a time, without firing the tap ». The rule holds for one swipe in one direction and
-says nothing about a reversal, so it is green while the defect is on screen.
+**Measured.** The row rests at **+84**; the finger's first 15-pixel step puts it at **−168**. A
+leap of **252 pixels** — the width of both drawers — before the finger has travelled a centimetre.
+
+**Why.** A drag beginning on an open row has to resume from where the row IS. The origin was
+deduced from a side instead of read from the row — `-largeurTiroir(sw, -1)`, the right drawer's
+width, whichever side the row was actually open on. A row open on the LEFT therefore started its
+travel from the far side.
+
+**Why no rule caught it.** R64 covers one swipe in one direction, and both of its ends were
+correct. A jump is a **discontinuity**: a probe that reads only the resting positions certifies
+it. The rule now samples during the gesture.
+
+**The fix.** The resting offset is recorded when it is set, and the drag resumes from it. And an
+open row can only be CLOSED by a drag — its travel is clamped between where it rests and zero —
+so a swipe the other way settles it back instead of crossing rest and opening the opposite drawer
+in one gesture. That is the operator's own prescription: « elle devrait se replacer normalement et
+je reswipe à gauche si je veux voir les actions à gauche ».
+
+A third instance of the same class was found while fixing it: the quick-action buttons cleared the
+row's transform by hand without clearing what was RECORDED about it, so the next drag resumed from
+a drawer that was no longer open. They close through the shared close now.
+
+**Mutation.** Restore the deduced origin → « une ligne ouverte suit le doigt sans sauter » falls at
+252. Remove the clamp → « le glissé inverse la ramène au repos » falls.
 
 ---
+
+## B-017 — Closing a panel sends the list back to its top
+
+**Reported** by nobody. **Status** `to confirm` — R65, `harness/tiroir.py`.
+
+**What happens.** Open a bottom panel from a card halfway down a list, close it: the page
+underneath is rebuilt and the list is scrolled home. Measured — a marker planted in the view was
+gone, and the scroll offset went 22 → 0.
+
+**Why.** The same root cause as B-013, seen from the other side. Closing any layer popped its own
+history entry; the handler read that pop as a back gesture and re-applied the state underneath,
+which re-renders the page one is standing on.
+
+**How it was found.** By the mutation proving R65 bites. The first pass of that mutation did NOT
+fell the rule, which said the guard it targeted was load-bearing for nothing — so under « what no
+mutation can fell is removed », it was about to be deleted. Measuring whether it was load-bearing
+for the OTHER layers is what turned a deletion into a defect.
+
+**Mutation.** Remove the unwind guard → four checks fall, naming both the rebuilt page and the
+lost scroll offset, on the panel and on the drawer.
 
 ## B-001 — The list poster is still too small
 

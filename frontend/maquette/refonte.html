@@ -3583,7 +3583,12 @@
     max-width: 86%;
     z-index: 55;
     background: var(--sidebar);
-    border-right: 1px solid var(--sidebar-border, var(--border));
+    /* Named for what the document actually defines. A fallback onto a token
+       nobody declares reads as a considered choice and is a landmine: the day
+       someone reorders it, or drops the fallback, the property silently takes
+       whatever the first name happens to resolve to. That is how the current
+       entry came to be painted in its own colour. */
+    border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
     transform: translateX(-100%);
@@ -3635,10 +3640,17 @@
     padding: 8px 12px;
     border-radius: 8px;
     font-size: 13.5px;
-    color: var(--sidebar-foreground, var(--foreground));
+    color: var(--foreground);
   }
   .drawer a[aria-current="page"] {
-    background: var(--sidebar-accent, var(--primary));
+    /* « You are here » is the brand colour on the label — the same mark the
+       bottom bar uses, so one interface has one way of saying it. The row also
+       carries a surface, because a list is scanned and its current row has to
+       be found without reading five labels; that surface is a TINT of the
+       mark, never the mark itself. Painting the mark as the background left
+       the label exactly the colour of what it sat on: contrast 1.00, a label
+       written in invisible ink. */
+    background: color-mix(in oklab, var(--primary) 14%, transparent);
     color: var(--primary);
     font-weight: 600;
   }
@@ -14942,17 +14954,42 @@
     closeHarness();
   }
 
+  /* A layer that closes itself pops the entry it pushed — and that pop must
+     not be read as a navigation. The entry underneath describes where one
+     ALREADY is, so applying it undoes whatever the close was accompanied by:
+     tapping a drawer entry changed the page, then the drawer's own pop put
+     the previous page back, and every entry in the drawer led nowhere.
+
+     So an unwind announces itself, and the popstate handler consumes the
+     announcement instead of interpreting the event. Two guards matter:
+
+     · The name is checked against the entry actually on top, because only the
+       layer that pushed it may pop it. Three close functions run in a row on
+       the scrim, and without the name the second would pop an entry belonging
+       to the page underneath.
+     · One unwind is in flight at a time. `history.back()` is asynchronous, so
+       `history.state` still reads the entry we just asked to pop, and a second
+       call within the same task would ask for one entry too many. */
+  let deroulementEnCours = 0;
+
+  function deroulerCouche(nom) {
+    if (deroulementEnCours) return;
+    if (!history.state || history.state.layer !== nom) return;
+    deroulementEnCours += 1;
+    try {
+      history.back();
+    } catch (error) {
+      deroulementEnCours -= 1;
+    }
+  }
+
   function closeSheet(pop) {
     // Guarded per LAYER: without it, closing an already-closed sheet consumes
     // a history entry that belonged to someone else.
     if (!select("#sheet").classList.contains("open")) return;
     select("#sheet").classList.remove("open");
     select("#scrim").classList.remove("open");
-    if (!pop) {
-      try {
-        if (history.state && history.state.layer) history.back();
-      } catch (error) {}
-    }
+    if (!pop) deroulerCouche("sheet");
   }
   function openDlg(html) {
     select("#dlg").innerHTML = html;
@@ -15034,11 +15071,7 @@
   function closeScreen(pop) {
     if (!select("#screen").classList.contains("open")) return;
     select("#screen").classList.remove("open");
-    if (!pop) {
-      try {
-        if (history.state && history.state.layer) history.back();
-      } catch (error) {}
-    }
+    if (!pop) deroulerCouche("screen");
   }
 
   /* ── LE RETOUR SUIT LE CHEMIN PARCOURU ────────────────────────────────
@@ -15086,6 +15119,15 @@
   }
 
   window.addEventListener("popstate", (evenement) => {
+    // Our own unwind, announced by the layer that closed itself. It is not a
+    // back gesture and carries no destination: consuming it is the whole
+    // handling. Read before the layer guards, because the layer's class is
+    // already gone by the time its pop lands.
+    if (deroulementEnCours) {
+      deroulementEnCours -= 1;
+      return;
+    }
+
     // A layer first: it is what sits on top, and it is what a back closes.
     if (select("#drawer").classList.contains("open")) return fermerTiroir(true);
     if (select("#screen").classList.contains("open")) return closeScreen(true);
@@ -15955,6 +15997,12 @@
   };
   window.__states = () => STATES.map((STATES2) => STATES2[0]);
 
+  /* The ids the interface can actually render. Any control naming something
+     else is a dead end however carefully it is drawn — a drawer entry pointed
+     at one and answered a tap with a message. Reading the page table rather
+     than a list written beside it is what makes that checkable at all. */
+  window.__pages = () => PAGES_OF().map((element) => element.id);
+
   /* Clears ALL harness chrome before a capture or a pixel comparison:
      harness buttons float above the shell, which is a measured region and
      must carry nothing that does not exist in the app. */
@@ -15986,9 +16034,12 @@
     return enabled !== false;
   };
 
-  /* The navigation model, grouped as in `layout/nav.ts`: Supervision,
-     Système, Configuration. Config is NOT in the bottom bar — the drawer is
-     its only path, which is precisely why the drawer must exist. */
+  /* The navigation model, grouped by what one goes there FOR: Supervision,
+     Système, Configuration. Réglages is NOT in the bottom bar — the drawer is
+     its only path, which is precisely why the drawer must exist, and why
+     every id here must name a page that exists. An entry pointing at an id
+     `PAGES_OF` does not carry renders nothing and is a dead end; the entry
+     under Configuration was one, answering a tap with a message. */
   const NAVIGATION = [
     [
       "Supervision",
@@ -15999,7 +16050,7 @@
       ],
     ],
     ["Système", [["sys", "Système", icons.wrench]]],
-    ["Configuration", [["config", "Config", icons.sort]]],
+    ["Configuration", [["cfg", "Réglages", icons.sort]]],
   ];
 
   function ouvrirTiroir() {
@@ -16045,11 +16096,7 @@
     if (!select("#drawer").classList.contains("open")) return;
     select("#drawer").classList.remove("open");
     select("#scrim").classList.remove("open");
-    if (!pop) {
-      try {
-        if (history.state && history.state.layer) history.back();
-      } catch (error) {}
-    }
+    if (!pop) deroulerCouche("drawer");
   }
 
   function closeHarness() {
@@ -16452,16 +16499,24 @@
     }
     if (closest.dataset.navgo) {
       const id = closest.dataset.navgo;
-      fermerTiroir();
-      if (id === "config") {
-        toast(
-          "Config — hors périmètre de cette refonte, conservée telle quelle (arbitrage B5).",
-        );
-        return;
-      }
+      /* The drawer is NOT a route, so its entry does not survive the
+         destination: the page one lands on TAKES ITS PLACE. A back from
+         there then reaches where one was before opening the drawer, which
+         is the only thing a drawer can honestly promise.
+
+         This is also why history is settled here rather than by letting the
+         close unwind and the arrival push: `history.back()` is asynchronous,
+         so its pop would land after the push and overwrite it. The close is
+         therefore told not to touch history at all. */
+      const surLeTiroir = history.state && history.state.layer === "drawer";
+      fermerTiroir(true);
       state.page = id;
       port.scrollTop = 0;
       render();
+      try {
+        if (surLeTiroir) history.replaceState(etatDeNavigation(), "");
+        else noterLeChemin();
+      } catch (error) {}
       return;
     }
     if (closest.dataset.hclose) {
@@ -16712,7 +16767,13 @@
       const textContent = closest
         .closest(".swipe")
         .querySelector(".ctitle").textContent;
-      closest.closest(".swipe").querySelector(".card").style.transform = "";
+      // Through the shared close, so what is recorded about the open row — and
+      // about where it rests — cannot drift from what is on screen. Clearing
+      // the transform alone left the next drag resuming from a drawer that was
+      // no longer open, which is the jump seen from the other side.
+      const carte = closest.closest(".swipe").querySelector(".card");
+      if (carteOuverte === carte) refermerCarte();
+      else carte.style.transform = "";
       if (closest.classList.contains("remove"))
         return state.page === "lib"
           ? openDeleteDialog(textContent)
@@ -38961,12 +39022,20 @@
      them would answer no gesture at all. */
   let cardDrag = null;
   let carteOuverte = null;
+  /* Where the open row RESTS, in pixels — negative for the right drawer,
+     positive for the left. A drag beginning on an open row resumes from where
+     the row actually is; deducing that origin from a side instead read every
+     open row as if it were open on the RIGHT, so a row open on the left leapt
+     the width of both drawers on the finger's first move. Measured at 252px
+     of jump for a 15px step. */
+  let carteOuverteDx = 0;
   let clicApresGlisse = null;
 
   function refermerCarte() {
     if (!carteOuverte) return;
     carteOuverte.style.transform = "";
     carteOuverte = null;
+    carteOuverteDx = 0;
   }
 
   function largeurTiroir(sw, sens) {
@@ -38989,7 +39058,7 @@
         x: event.clientX,
         y: event.clientY,
         depart: carteOuverte === closest.querySelector(".card")
-          ? -largeurTiroir(closest, -1)
+          ? carteOuverteDx
           : 0,
         axis: null,
         dx: 0,
@@ -39012,10 +39081,20 @@
       const brut = cardDrag.depart + deltaX;
       cardDrag.dernierX = event.clientX;
       cardDrag.dernierY = event.clientY;
-      cardDrag.dx = Math.max(
-        -largeurTiroir(cardDrag.sw, -1),
-        Math.min(largeurTiroir(cardDrag.sw, 1), brut),
-      );
+      /* An open row can only be CLOSED by a drag. Its travel is clamped
+         between where it rests and zero, so a swipe the other way settles it
+         back rather than crossing rest and opening the opposite drawer within
+         the same gesture. Reaching the other side is a second, deliberate
+         swipe — the row has to have come back first. */
+      cardDrag.dx = cardDrag.depart
+        ? Math.min(
+            Math.max(brut, Math.min(cardDrag.depart, 0)),
+            Math.max(cardDrag.depart, 0),
+          )
+        : Math.max(
+            -largeurTiroir(cardDrag.sw, -1),
+            Math.min(largeurTiroir(cardDrag.sw, 1), brut),
+          );
       cardDrag.card.style.transform = `translateX(${cardDrag.dx}px)`;
     },
     { passive: true },
@@ -39030,10 +39109,16 @@
     const gauche = largeurTiroir(drag.sw, 1);
     const droite = largeurTiroir(drag.sw, -1);
     let repos = 0;
-    if (drag.dx < -droite / 2.4) repos = -droite;
+    if (drag.depart) {
+      // Closing an open row takes a third of its own travel, so a thumb
+      // brushing past one does not shut what it came to use.
+      repos =
+        Math.abs(drag.dx) > Math.abs(drag.depart) * (2 / 3) ? drag.depart : 0;
+    } else if (drag.dx < -droite / 2.4) repos = -droite;
     else if (drag.dx > gauche / 2.4) repos = gauche;
     drag.card.style.transform = repos ? `translateX(${repos}px)` : "";
     carteOuverte = repos ? drag.card : null;
+    carteOuverteDx = repos;
     // The release is followed by a click, and a drag must not also tap. The
     // click is identified by its POINT — the same answer the long press
     // already needed — because a bare flag stays armed until SOME click
