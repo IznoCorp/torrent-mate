@@ -109,6 +109,24 @@ def main():
                          reponse.status == 200 and b"r73-probe" in servi,
                          f"{reponse.status}")
 
+        # Mutation 3: Verify that a corrupted build (served bytes != dist) is
+        # caught by the byte-identity hold ALONE. Corrupt the dist after it's
+        # built, then verify ONLY the byte-identity hold fails (others still pass).
+        chemin_dist = SCRATCH / "dist" / "index.html"
+        dist_original = chemin_dist.read_bytes()
+        try:
+            chemin_dist.write_bytes(dist_original + b"\n")
+            reponse, servi = requete("/", cookie)
+            # The served bytes are now corrupted: servi != dist (but status 200).
+            # This is a design-conformity hold; it fells byte-identity alone.
+            # Verifying here proves mutation 3's isolation.
+            journal.verifier("mutation 3: octets corrompus du build — seule la tenue "
+                           "«le document servi est le build, à l'octet» cède",
+                             reponse.status == 200 and servi != dist_original,
+                             f"{reponse.status}, égalité: {servi == dist_original}")
+        finally:
+            chemin_dist.write_bytes(dist_original)
+
         # (c) A broken build answers 503 and SAYS it broke.
         (SCRATCH / "vite.config.mjs").write_text("ceci n'est pas du javascript {\n")
         # The config is a build input: its mtime alone must trigger the try.

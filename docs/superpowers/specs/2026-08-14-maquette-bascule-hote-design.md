@@ -84,11 +84,12 @@ Branch `refactor/maquette-bascule` from `main` (`61fe2b7b`). One commit per item
 ## Verification (all executed, none assumed)
 
 - R73 green with its three holds, each mutation felling exactly its own check.
-- R72 green (the comparison survives the envelope change — its source side wraps the raw
-  source itself, its build side is the same dist).
+- R72 green: the byte-exact half recomputes from the raw source; the rendered half drives
+  the harness's wrapped.html copy of it. The comparison survives the envelope change.
 - The full 44-script suite green (background, sequential, one measuring process).
-- The LIVE host measured after `pm2 restart`: authenticated `GET /` byte-identical to the
-  local `dist/index.html` at the same commit; `pwa.py` and `entree.py` green against it.
+- The LIVE host measured after `pm2 restart` is unauthenticated by construction (no rule
+  may carry the operator's real password); authenticated byte-identity is substituted by
+  R73's proof of the same code path. `pwa.py` and `entree.py` green against the LIVE host.
 - `make check` green; `git status` clean; push with remote SHA verified; PR; CI; merge on
   the operator's standing instruction, then the live byte-identity check ONCE MORE on the
   merged tree.

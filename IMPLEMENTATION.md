@@ -51,9 +51,9 @@ moved into the Vite envelope (`design/index.html`, between `pwa:start`/`pwa:end`
 and `serve.py` EXTRACTS it for the login gate instead of restating it; `serve.py` now
 serves `dist/index.html`, rebuilding under a lock when any build input is newer (0.4 s),
 with a truthful 503 taxonomy (missing prototype → MANQUANT; missing build input, timeout,
-failed build → the build's own last words, escaped). `TM_DESIGN_RACINE` /
-`TM_DESIGN_DELAI_BUILD` envs exist so R73 (`bascule.py`) proves all of it against a
-scratch root without touching the real source. The harness still measures the source
+failed build → the build's own last words, escaped). `TM_DESIGN_RACINE` env and `TM_DESIGN_DELAI_BUILD` exist so R73 (`bascule.py`) proves
+the serving contract (byte-identity, rebuild, failure-shown) against a scratch root
+without touching the real source; the finer 503 taxonomy is exercised by the task evidence. The harness still measures the source
 through `wrapped.html`; R72 remains the source↔build bridge. Next: SP3 (routing — carry:
 `vite dev` binds `::1`; the dev path is measured by no rule; R72's identity contract must
 be renegotiated when source and output start to differ by design); then SP4, SP5.

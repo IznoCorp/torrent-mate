@@ -7,10 +7,10 @@ Served raw as a top-level document it renders in quirks mode, and a phone with
 no viewport meta falls back to the legacy 980px layout viewport and scales the
 frame down to roughly 40 % — measured, not feared.
 
-This server supplies exactly the wrapper the harness builds, so the page a
-browser is shown here is byte-for-byte the page the harness measures. Any
-divergence between the two would make the published design unable to serve as
-the reference it is meant to be.
+This server serves the Vite build (`dist/index.html`), rebuilt when its
+inputs are newer. The harness measures the source through its own copy of the
+design root, and R72 is the bridge that keeps the two interchangeable: both
+read from the same inputs, both emit the same bytes.
 
 It serves one document and nothing else. The directory around the prototype
 holds the extraction contract, the harness and its scratch output; none of that
@@ -538,7 +538,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self._send(303, b"", [("Location", "/")])
             return
         if not self._authentifie():
-            self._send(401, page_connexion(refusee="refus" in self.path))
+            try:
+                page = page_connexion(refusee="refus" in self.path)
+            except (ValueError, FileNotFoundError) as erreur:
+                # The gate's own inputs (the envelope, the prototype's login
+                # markers) can break under editing; answering nothing would
+                # hide it. Say what broke, like every other failure here.
+                self._send(503, panne_build(str(erreur)))
+                return
+            self._send(401, page)
             return
         try:
             body = self._document()
