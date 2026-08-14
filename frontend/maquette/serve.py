@@ -59,15 +59,35 @@ RACINE_DESIGN = Path(
 ).resolve()
 PROTOTYPE = RACINE_DESIGN / "refonte.html"
 DIST = RACINE_DESIGN / "dist" / "index.html"
-# What staleness is measured against: every input the build reads.
+# The build inputs that always exist, at the design root.
 SOURCES_BUILD = (
     PROTOTYPE,
     RACINE_DESIGN / "index.html",
     RACINE_DESIGN / "vite.config.mjs",
-    # The shell the envelope names: an edit here changes the served document
-    # exactly as an edit to the prototype does, so it counts as staleness too.
-    RACINE_DESIGN / "src" / "coquille.tsx",
 )
+
+def mtime_sources() -> int:
+    """Returns the newest mtime among every input the build reads.
+
+    The three roots above, plus every file under `src/` — the shell is a
+    DIRECTORY, and a module added there tomorrow must not be invisible to
+    staleness, or the host would serve yesterday's build saying nothing.
+
+    Returns:
+        The newest modification time, in nanoseconds.
+
+    Raises:
+        FileNotFoundError: When a root build input is missing — the caller
+            turns it into the named build error.
+    """
+    empreintes = [chemin.stat().st_mtime_ns for chemin in SOURCES_BUILD]
+    source = RACINE_DESIGN / "src"
+    if source.is_dir():
+        empreintes.extend(fichier.stat().st_mtime_ns
+                          for fichier in source.rglob("*") if fichier.is_file())
+    return max(empreintes)
+
+
 NPM = "/Users/izno/.nvm/versions/node/v22.13.1/bin/npm"
 # Overridable so the timeout path itself can be proven live, the same way
 # TM_DESIGN_RACINE lets a rule serve a scratch root.
@@ -413,7 +433,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if not PROTOTYPE.exists():
             raise FileNotFoundError(PROTOTYPE)
         try:
-            sources = max(chemin.stat().st_mtime_ns for chemin in SOURCES_BUILD)
+            sources = mtime_sources()
         except FileNotFoundError as absent:
             # A missing build INPUT is a build problem, not a missing
             # prototype: say which file, never the wrong diagnosis.
