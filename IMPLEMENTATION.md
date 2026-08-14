@@ -44,9 +44,19 @@ both held by R71 (`ecrans.py`).
 pass, `dist/assets` symlinked, bundled output reserved under `dist/vite`); R72
 (`coquille.py`) proves the built output renders identically to the source — DOM
 serialization of the three surfaces plus region geometry per driven state, failed-response
-guard on both sides — mutation-verified three ways. The live host still serves the source;
-the switch to the built output is a later, explicit step. Next: SP3 (routing) and the
-host-switch step; then SP4 (componentisation), SP5 (visual language).
+guard on both sides — mutation-verified three ways. Merged as PR #430.
+
+**Bascule — the host serves the build**: Branch `refactor/maquette-bascule`. The PWA head
+moved into the Vite envelope (`design/index.html`, between `pwa:start`/`pwa:end` markers)
+and `serve.py` EXTRACTS it for the login gate instead of restating it; `serve.py` now
+serves `dist/index.html`, rebuilding under a lock when any build input is newer (0.4 s),
+with a truthful 503 taxonomy (missing prototype → MANQUANT; missing build input, timeout,
+failed build → the build's own last words, escaped). `TM_DESIGN_RACINE` /
+`TM_DESIGN_DELAI_BUILD` envs exist so R73 (`bascule.py`) proves all of it against a
+scratch root without touching the real source. The harness still measures the source
+through `wrapped.html`; R72 remains the source↔build bridge. Next: SP3 (routing — carry:
+`vite dev` binds `::1`; the dev path is measured by no rule; R72's identity contract must
+be renegotiated when source and output start to differ by design); then SP4, SP5.
 
 ---
 

@@ -18,8 +18,16 @@ sub-project. `npm run build` emits `dist/` (gitignored): the real envelope from 
 with the prototype injected **verbatim** — a local plugin inserts the fragment after Vite's
 own HTML processing, so no minifier ever touches it — and `dist/assets` linked to the real
 files. R72 (`coquille.py`) is the contract: the built output must render identically to the
-source, DOM and geometry, or the shell is lying. The live host still serves the source;
-switching it to the built output is a later, explicit step, taken only while R72 holds.
+source, DOM and geometry, or the shell is lying.
+
+**The live host serves the BUILD.** `serve.py` compares the newest mtime of the build's
+inputs (`refonte.html`, `index.html`, `vite.config.mjs`) against `dist/index.html` and
+rebuilds under a lock before serving (0.4 s measured), so an edit is still visible at the
+next reload. A failed build answers 503 with its own last words — serving the previous
+output would date what is being judged falsely. R73 (`bascule.py`) holds all of it against
+a scratch design root. The harness, meanwhile, keeps measuring the SOURCE through
+`wrapped.html`: that copy is what isolates rule mutations from what the host serves, and
+R72 is the bridge that keeps source and build interchangeable.
 
 It is the operator-approved interactive prototype of the mobile-first interface:
 `/acquisition` (three views), `/mediatheque`, `/arrivees`, `/systeme`, plus the media
