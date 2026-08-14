@@ -43,11 +43,28 @@ import http.server
 import os
 import secrets
 import socketserver
+import subprocess
 import sys
+import threading
 import urllib.parse
 from pathlib import Path
 
-PROTOTYPE = Path(__file__).resolve().parent / "design" / "refonte.html"
+# The design root is overridable so a harness rule can point the server at a
+# SCRATCH copy and mutate it freely: no measurement may ever write into the
+# operator's real source.
+RACINE_DESIGN = Path(
+    os.environ.get("TM_DESIGN_RACINE")
+    or Path(__file__).resolve().parent / "design"
+).resolve()
+PROTOTYPE = RACINE_DESIGN / "refonte.html"
+DIST = RACINE_DESIGN / "dist" / "index.html"
+# What staleness is measured against: every input the build reads.
+SOURCES_BUILD = (
+    PROTOTYPE,
+    RACINE_DESIGN / "index.html",
+    RACINE_DESIGN / "vite.config.mjs",
+)
+NPM = "/Users/izno/.nvm/versions/node/v22.13.1/bin/npm"
 
 IDENTIFIANT = os.environ.get("TM_DESIGN_USER", "izno")
 
@@ -169,7 +186,7 @@ HORS_LIGNE = (
     "du jour.</p></div></body></html>"
 ).encode()
 
-ENVELOPPE = Path(__file__).resolve().parent / "design" / "index.html"
+ENVELOPPE = RACINE_DESIGN / "index.html"
 
 
 def tete_pwa() -> str:
@@ -194,17 +211,6 @@ def tete_pwa() -> str:
         raise ValueError("marqueurs pwa introuvables dans design/index.html")
     return source[ouvre + 3 : fin]
 
-def _build_head() -> bytes:
-    """Build the HEAD bytes with the PWA block extracted at runtime."""
-    return (
-        '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
-        '<meta name="viewport" '
-        'content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">'
-        "<title>TorrentMate Design</title>"
-        f"{tete_pwa()}"
-        "</head><body>"
-    ).encode()
-TAIL = b"</body></html>"
 
 MANQUANT = (
     '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
@@ -217,6 +223,28 @@ MANQUANT = (
     "est en dépôt. Revenir sur la branche qui le porte le remet en ligne "
     "aussitôt.</p></body></html>"
 ).encode()
+
+
+def panne_build(erreur: str) -> bytes:
+    """Builds the 503 shown when the build fails.
+
+    Serving the PREVIOUS build instead would be a stale reference wearing
+    today's date — the exact failure a design host exists to avoid. The page
+    says what broke, with the build's own last words.
+    """
+    return (
+        '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        "<title>Build en échec</title></head><body "
+        'style="font:16px system-ui;max-width:44em;margin:12vh auto;padding:0 1.5em">'
+        "<h1>Le build de la maquette a échoué</h1><p>Le serveur reconstruit le "
+        "document à chaque source modifiée ; cette reconstruction vient "
+        "d'échouer, et servir l'ancienne version serait mentir sur la date de "
+        "ce que vous jugez.</p><pre style=\"white-space:pre-wrap;background:#f6f6f6;"
+        'padding:12px;border-radius:8px">'
+        f"{erreur}"
+        "</pre></body></html>"
+    ).encode()
 
 
 def extraire(source: str, marque: str) -> str:
@@ -340,29 +368,48 @@ def mot_de_passe_correct(propose: str) -> bool:
 class Handler(http.server.BaseHTTPRequestHandler):
     """Serves the wrapped prototype to a session, the login screen otherwise."""
 
-    # The file is ~15 MB and changes only when the design does, so it is read
-    # once per modification rather than once per request. mtime_ns, not mtime:
-    # a second-resolution stamp misses two edits within the same second, which
-    # is exactly the cadence of an editing session.
+    # The document is the BUILD, reconstructed on demand: comparing the
+    # newest source mtime against dist's answers « is what I would serve
+    # what the sources say? », and 0.4 s of vite build is cheaper than one
+    # stale judgement. mtime_ns, not mtime: a second-resolution stamp
+    # misses two edits within the same second — the cadence of an editing
+    # session. One lock, or two stale requests race the same build.
     _cache: tuple[int, bytes] | None = None
+    _verrou_build = threading.Lock()
 
     protocol_version = "HTTP/1.1"
 
-    def _document(self) -> bytes | None:
-        """Returns the wrapped prototype, or None when the file is absent.
+    def _document(self) -> bytes:
+        """Returns the built document, rebuilding it when sources changed.
 
         Returns:
-            The full HTML document as bytes, or None if `refonte.html` does not
-            exist in the served checkout.
+            The bytes of `dist/index.html`, freshly rebuilt if any build
+            input was newer.
+
+        Raises:
+            FileNotFoundError: When `refonte.html` is absent (branch without
+                the prototype) — the caller answers with MANQUANT.
+            RuntimeError: When the build fails — the caller answers with the
+                build's own words, never with a stale document.
         """
-        try:
-            stamp = PROTOTYPE.stat().st_mtime_ns
-        except FileNotFoundError:
-            return None
-        cached = Handler._cache
-        if cached is None or cached[0] != stamp:
-            Handler._cache = (stamp, _build_head() + PROTOTYPE.read_bytes() + TAIL)
-        return Handler._cache[1]  # type: ignore[index]
+        sources = max(chemin.stat().st_mtime_ns for chemin in SOURCES_BUILD)
+        with Handler._verrou_build:
+            try:
+                bati = DIST.stat().st_mtime_ns
+            except FileNotFoundError:
+                bati = -1
+            if bati < sources:
+                fait = subprocess.run(
+                    [NPM, "run", "build"], cwd=RACINE_DESIGN,
+                    capture_output=True, text=True, timeout=120)
+                if fait.returncode != 0:
+                    queue = (fait.stderr or fait.stdout).strip().splitlines()[-12:]
+                    raise RuntimeError("\n".join(queue))
+            stamp = DIST.stat().st_mtime_ns
+            cached = Handler._cache
+            if cached is None or cached[0] != stamp:
+                Handler._cache = (stamp, DIST.read_bytes())
+            return Handler._cache[1]  # type: ignore[index]
 
     def _authentifie(self) -> bool:
         """Returns True when the request carries a valid session cookie."""
@@ -467,9 +514,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if not self._authentifie():
             self._send(401, page_connexion(refusee="refus" in self.path))
             return
-        body = self._document()
-        if body is None:
+        try:
+            body = self._document()
+        except FileNotFoundError:
             self._send(503, MANQUANT)
+            return
+        except RuntimeError as erreur:
+            self._send(503, panne_build(str(erreur)))
             return
         self._send(200, body)
 
