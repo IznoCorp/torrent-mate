@@ -78,13 +78,23 @@ check unchanged as the discriminator.
 - Orchestrator `_search_chain` end-to-end with a stub tracker returning the
   prod release → `exit_path="available"` (the full-chain regression).
 
-## Open items (operator sign-off required — NOT silently dropped)
+## Follow-ups (operator-requested 2026-08-15, same PR)
 
-- **Querying trackers with the original title** as a second query when the
-  display-title query returns nothing. C411 matches FR queries server-side, so
-  not needed for this bug; other trackers may need it.
-- **Exposing `original_title` in the web API/UI** (FollowedSeriesItem /
-  media-sheet). Not needed for the fix.
-- TV shows: `filter_to_movie` is movie-only; episode identity goes through
-  `SxxEyy` markers, so cross-language show titles affect the QUERY, not the
-  filter — same family as the first open item.
+The three items originally listed as open were implemented on request:
+
+1. **Original-title retry query** — `_search_chain` replays the search→narrow
+   stage once with `build_search_query(item, original_title, year)` when the
+   display-title attempt concludes a fully-healthy « nothing matched »
+   (`no_candidates` / `no_matching_episode` / `no_matching_season` / movie
+   identity-filter empty). Hard failures (outage/auth/circuit/degraded) keep
+   their verdict — a retry must not muddle an honest diagnosis; a fruitless
+   retry states the FIRST attempt's verdict. The `grab --dry-run` preview
+   mirrors it (a preview that diverges from the run is a lie).
+2. **Web API exposure** — `FollowedSeriesItem.original_title` (all three
+   construction sites), OpenAPI + `schema.d.ts` regenerated. The VISUAL
+   surface deliberately stops at the API: § maquette-fait-foi — the display
+   is drawn in the refonte before any app UI derives it.
+3. **Shows** — the retry query covers episodes/seasons, and the detect-pass
+   backfill now heals shows too (`get_tv`, TMDB own-id, `original_name`).
+   The backfill is capped per run (`_ORIGINAL_TITLE_BACKFILL_CAP`) so the
+   first post-migration detect does not stall behind N provider round-trips.

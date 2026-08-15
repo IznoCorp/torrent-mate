@@ -961,12 +961,8 @@ def test_detect_backfill_is_capped_per_run(store: ConcreteAcquireStore, monkeypa
     from personalscraper.acquire import detect as detect_module
 
     monkeypatch.setattr(detect_module, "_ORIGINAL_TITLE_BACKFILL_CAP", 1)
-    fid_a = store.follow.add(
-        FollowedSeries(media_ref=MediaRef(tmdb_id=101), title="Film A", added_at=1, kind="movie")
-    )
-    fid_b = store.follow.add(
-        FollowedSeries(media_ref=MediaRef(tmdb_id=102), title="Film B", added_at=1, kind="movie")
-    )
+    fid_a = store.follow.add(FollowedSeries(media_ref=MediaRef(tmdb_id=101), title="Film A", added_at=1, kind="movie"))
+    fid_b = store.follow.add(FollowedSeries(media_ref=MediaRef(tmdb_id=102), title="Film B", added_at=1, kind="movie"))
     tmdb = _FakeTmdb(original_title="Original")
     service = DetectService(
         store=store,

@@ -332,9 +332,7 @@ class DetectService:
         before that same run's enqueue pass).
         """
         unhealed = [
-            mf
-            for mf in follows
-            if mf.original_title is None and mf.media_ref.tmdb_id is not None and mf.id is not None
+            mf for mf in follows if mf.original_title is None and mf.media_ref.tmdb_id is not None and mf.id is not None
         ]
         if not unhealed:
             return

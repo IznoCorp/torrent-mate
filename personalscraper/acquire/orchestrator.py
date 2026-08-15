@@ -575,7 +575,9 @@ class GrabOrchestrator:
             return _QueryAttempt(hard_stop=_SearchChainResult(exit_path="search_api_error", ranked=[], top=None))
 
         if outcome.all_errored:
-            return _QueryAttempt(hard_stop=_SearchChainResult(exit_path=_all_errored_exit_path(outcome), ranked=[], top=None))
+            return _QueryAttempt(
+                hard_stop=_SearchChainResult(exit_path=_all_errored_exit_path(outcome), ranked=[], top=None)
+            )
         if not outcome.results:
             # A PARTIAL outage is not an absence. ``all_errored`` (handled above)
             # only catches a unanimous failure; with one tracker rate-limited and
@@ -613,7 +615,9 @@ class GrabOrchestrator:
                 # A SEASON row's fruitless search states its own outcome —
                 # 'no_matching_episode' on a season row would surface a lie in
                 # the row's last_search_outcome (review F12).
-                return _QueryAttempt(empty_verdict=_SearchChainResult(exit_path="no_matching_season", ranked=[], top=None))
+                return _QueryAttempt(
+                    empty_verdict=_SearchChainResult(exit_path="no_matching_season", ranked=[], top=None)
+                )
         elif item.kind == "movie" and title is not None:
             # #28 — a movie title query pulls the WRONG « Wicker* » films; keep
             # only releases whose parsed title+year match the wanted movie so

@@ -1306,9 +1306,7 @@ class TestOriginalTitleRetryQuery:
         """FR query returns junk (identity-filtered), EN query has the film → available."""
         junk = _make_result(title="Avant.DAller.Dormir.Steven.Watson.FR.EPUB-NOTAG", info_hash="junk1234")
         right = _make_result(title=self.RELEASE, info_hash="f3e2e414")
-        registry = self._registry(
-            {"Avant d'aller dormir 2014": [junk], "Before I Go to Sleep 2014": [right]}
-        )
+        registry = self._registry({"Avant d'aller dormir 2014": [junk], "Before I Go to Sleep 2014": [right]})
         item = WantedItem(
             media_ref=MediaRef(tmdb_id=204922), kind="movie", status="searching", enqueued_at=0, followed_id=34
         )

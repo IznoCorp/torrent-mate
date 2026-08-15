@@ -44,6 +44,12 @@ when the defect comes back.
 | B-016 | Swiping a row right, then left, makes it jump   | 1×          | `to confirm` |
 | B-017 | Closing a panel sends the list back to its top  | by mutation | `to confirm` |
 | B-018 | On a desktop, dragging a row opens the panel    | 1×          | `to confirm` |
+| B-024 | `data-go` settles ONE history entry, layers pile | by review  | `open`       |
+| B-025 | The screen half of the `data-go` fix has no Back rule | by review | `open`  |
+| B-026 | A silent `catch {}` can let URL and UI disagree | by review   | `open`       |
+| B-027 | `resynchro.py` trusts `t:` first-match + naive braces | by review | `open`  |
+| B-028 | `resynchro.py` says « 0 correction » for unknown titles | by review | `open` |
+| B-029 | Counter rule misses suffix drift (« 1 » in « 11 ») | by review | `open`     |
 
 **B-018 was written down as a regression from B-016, and that was wrong.** It has two ways in, one
 of which is older than this work — the correction is recorded here rather than quietly amended,
@@ -55,6 +61,38 @@ rules — merging them would let two hide behind the one that got fixed.
 
 B-017 was reported by nobody. The mutation proving R65 bites found it, which is the whole reason
 mutations are run against a rule rather than trusted to be green.
+
+**B-024 to B-029 arrived from an adversarial code review of commit `3e66fa66` (#434), not from
+the operator** — same standing as B-017: found by tooling, written down before anyone walks into
+them. None is reproduced on a device yet; each entry below records the walk that would.
+
+- **B-024** — `data-go` (refonte.html ~17787) closes up to three layers but settles exactly ONE
+  history entry (`__pont.remplacer` overwrites only the top). With two layer entries buried
+  (screen over screen — the case the block's own comment claims to handle — or sheet over
+  screen), one Back after the navigation lands on a stale `{layer}` entry and answers a
+  legitimate Back with the « Encore un retour pour quitter » toast; a second Back exits the app.
+  Latent today (no reviewed control is tappable with two entries buried), but the comment
+  overclaims: it is true of the DOM, not of history. Fix shape: one loop, one entry per closed
+  layer.
+- **B-025** — harness `bugs.py` check 10b stops at the landing (`« Voir mes suivis » atterrit`)
+  and never presses Back; only the sheet half (9b) is guarded. The `remplacer`-on-screen half of
+  the fix — exactly what B-024 concerns — can regress without a single check falling.
+- **B-026** — the `data-go` handler's outer `try { … } catch (error) {}` (house pattern from
+  `data-navgo`) silences a `remplacer` failure: the page renders the destination while URL and
+  history still describe the layer — a silent violation of the DOIT-10 claim that « the URL and
+  the interface never disagree », with nothing logged.
+- **B-027** — `resynchro.py` extracts a follow's title with the FIRST `t: "…"` match anywhere in
+  the object and counts braces with no string-awareness. An object whose first `X: "…"` key is
+  not the title, or a title containing `{`/`}`, silently skips or — worse — rewrites the WRONG
+  follow's counter. Holds today only by convention (all 12 objects start with `t:`), asserted
+  nowhere.
+- **B-028** — `resynchro.py` cannot say a title went unmatched: a FOLLOWS title absent from the
+  DB reads exactly like « already in sync », prints `0 correction(s)` and exits 0. Especially
+  live once vo-title (#435) changes which spelling a follow carries — the operator running the
+  documented remedy gets silence instead of « 4 of 12 titles never looked up ».
+- **B-029** — `contenu.py`'s counter rule tests `f"{n} recherche" in faits`: « 1 recherche » is a
+  substring of « 11 recherches », so whenever the real count is a suffix of the embedded one the
+  drift the rule exists to name is never named.
 
 ---
 
