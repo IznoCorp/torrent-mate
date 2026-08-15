@@ -12015,8 +12015,7 @@
   function actionSupprimer(titres) {
     titres.forEach((titre) => world.removedLib.add(titre));
     world.lib = world.lib.filter((lib) => !world.removedLib.has(lib.t));
-    state.selMode = false;
-    state.selected = new Set();
+    magasin.ecrire({ selMode: false, selected: new Set() });
     render();
     toast(
       `${titres.length} média${titres.length > 1 ? "s" : ""} supprimé${titres.length > 1 ? "s" : ""} — simulation, aucun fichier touché.`,
@@ -12030,7 +12029,7 @@
 
   window.__reset = () => {
     seedWorld();
-    Object.assign(state, {
+    magasin.ecrire({
       /* The SCENARIO is state too, and the loudest kind: it decides which
          world every later reading is taken from. A state that switched to the
          dense scenario left it switched for the next one, so a surface
@@ -15207,13 +15206,16 @@
       .join("");
   }
   function render() {
+    // Every action ends in render(): one bump here reaches React for every
+    // simulated mutation, including the ones made in place on `world`
+    // (splice, unshift…) that never pass through `ecrire`.
+    magasin?.toucher();
     /* An id no page carries is not a crash: it is the `*` route. Looking one
        up and calling `.render()` on nothing stopped the whole interface on a
        TypeError, which is the worst possible answer to a stale bookmark. */
     let found = PAGES_OF().find((element) => element.id === state.page);
     if (!found) {
-      state.introuvable = "/" + state.page;
-      state.page = "404";
+      magasin.ecrire({ introuvable: "/" + state.page, page: "404" });
       found = PAGES_OF().find((element) => element.id === "404");
     }
     view.innerHTML = found.render();
@@ -15727,7 +15729,7 @@
     if (state.libErr) {
       foot.innerHTML = `<div class="loaderr"><b>Impossible de charger la suite.</b> La connexion a été perdue pendant la requête. Les ${state.libCount} médias déjà affichés restent valides.<button id="libretry">Réessayer</button></div>`;
       document.querySelector("#libretry").onclick = () => {
-        state.libErr = false;
+        magasin.ecrire({ libErr: false });
         libFoot();
         loadMoreLib();
       };
@@ -15754,21 +15756,19 @@
       state.libCount >= libFiltered().length
     )
       return;
-    state.libLoading = true;
+    magasin.ecrire({ libLoading: true });
     if (libObserver) libObserver.disconnect();
     setTimeout(() => {
-      state.libLoading = false;
+      magasin.ecrire({ libLoading: false });
       // One failure, once, to show the error path for real.
       if (!state.libFailedOnce && state.libCount >= LIB_PAGE * 3) {
-        state.libFailedOnce = true;
-        state.libErr = true;
+        magasin.ecrire({ libFailedOnce: true, libErr: true });
         libFoot();
         return;
       }
-      state.libCount = Math.min(
-        libFiltered().length,
-        state.libCount + LIB_PAGE,
-      );
+      magasin.ecrire({
+        libCount: Math.min(libFiltered().length, state.libCount + LIB_PAGE),
+      });
       fillLib();
       libFoot();
     }, 620);
@@ -15831,13 +15831,15 @@
      back, so it comes round again. « Pas intéressé » removes it, with an undo. */
   function deckOrdre() {
     if (!state.sugOrder)
-      state.sugOrder = SUGGESTIONS.map((SUGGESTIONS2, index) => index);
+      magasin.ecrire({
+        sugOrder: SUGGESTIONS.map((SUGGESTIONS2, index) => index),
+      });
     return state.sugOrder.filter((sugOrder) => !state.sugGone.has(sugOrder));
   }
 
   function passerSug(index) {
     const filter = deckOrdre().filter((element) => element !== index);
-    state.sugOrder = [...filter, index];
+    magasin.ecrire({ sugOrder: [...filter, index] });
   }
 
   function deckHTML() {
@@ -15988,10 +15990,15 @@
     if (state.sugMode === "deck") {
       // In the deck the whole pile changes, not one row: re-render, and the
       // undo restores both the suggestion and its place in the order.
+      // `sugGone` is a Set mutated in place — refreshDeck() redraws the
+      // legacy deck directly, so React needs the explicit bump `ecrire`
+      // would otherwise have given it for free.
       state.sugGone.add(index);
+      magasin.toucher();
       refreshDeck();
       toastUndo(`« ${SUGGESTIONS[index].t} » écarté.`, () => {
         state.sugGone.delete(index);
+        magasin.toucher();
         refreshDeck();
       });
       return;
@@ -15999,11 +16006,13 @@
     const element = document.querySelector(`[data-dismissable="${index}"]`);
     if (!element) return;
     state.sugGone.add(index);
+    magasin.toucher();
     element.style.height = element.getBoundingClientRect().height + "px";
     requestAnimationFrame(() => element.classList.add("gone"));
     setTimeout(() => element.remove(), 320);
     toastUndo(`« ${SUGGESTIONS[index].t} » écarté.`, () => {
       state.sugGone.delete(index);
+      magasin.toucher();
       fillSug();
       sugFoot();
     });
