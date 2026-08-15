@@ -16536,7 +16536,27 @@
     rub: "",
   };
 
+  // The two path SHAPES the router owns (coquille.tsx's `profil`/`ajout`
+  // routes) — everything else is the legacy engine's own ground, whatever
+  // that pathname literally reads: "/" in production, but also whatever a
+  // static host answers the document under (the rule harness's own 8899
+  // server names it "/wrapped.html", and every rule pointed there is still
+  // exercising the legacy engine's root). A prefix check on these two known
+  // shapes is unavoidable here — unlike deciding a POPPED entry's owner
+  // (surRetourEngine, decided by the entry's SHAPE, never by its address),
+  // there is no shape to read on a bare pathname string.
+  function adresseAppartientAuRouteur() {
+    return (
+      location.pathname.startsWith("/profil/") || location.pathname === "/ajout"
+    );
+  }
+
   function urlDeLEtat() {
+    // Composing a legacy query string over a router-owned path would
+    // overwrite what the router put there (its own path segment, its own
+    // search params — `aller()` in coquille.tsx), so this refuses to build
+    // one at all rather than trust a caller to know the law.
+    if (adresseAppartientAuRouteur()) return null;
     const courant = {
       page: state.page,
       tab: state.acqTab,
@@ -16592,8 +16612,13 @@
      measured, and it is the mistake this ordering exists to avoid. */
   function noterLeChemin() {
     if (pilotage) return;
+    // urlDeLEtat() refuses on a router-owned path and returns null — the
+    // same law restated here so a caller cannot bypass it by calling
+    // noterLeChemin() directly.
+    const url = urlDeLEtat();
+    if (url === null) return;
     try {
-      __pont.noter(etatDeNavigation(), urlDeLEtat());
+      __pont.noter(etatDeNavigation(), url);
     } catch (error) {}
   }
 
@@ -16635,6 +16660,18 @@
       pilotage = false;
       return;
     }
+
+    // Ownership, once more, decided by the entry's own SHAPE: only an entry
+    // that carries the guard's own marker (written once, at boot, by
+    // __pont.remplacer({ tm: "garde" })) is the guard. Anything else that
+    // falls through here — notably an entry the ROUTER wrote for /profil/$titre
+    // or /ajout, which carries neither "layer" nor "tm" — is not ours to
+    // react to: the router has already re-rendered by the new URL, so a true
+    // no-op is the correct handling, not "treat every unrecognised shape as
+    // the exit guard". Reading it as the guard used to arm the exit warning
+    // and rewrite the address via noterLeChemin()/urlDeLEtat() over whatever
+    // the router had just written — destroying its search params.
+    if (!(etat && etat.tm === "garde")) return;
 
     // The guard was popped: there is nowhere left to go back to.
     const maintenant = Date.now();
