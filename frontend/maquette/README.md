@@ -13,21 +13,33 @@ design starts here, not in `frontend/src`.**
 `design/` is the served root — everything a browser reaches lives there (the prototype, images,
 PWA assets). The `harness/`, `serve.py`, and `regions.json` siblings are never served.
 
-`design/` is also a Vite project — the chassis the conversion will move into, sub-project by
-sub-project. `npm run build` emits `dist/` (gitignored): the real envelope from `index.html`
-with the prototype injected **verbatim** — a local plugin inserts the fragment after Vite's
-own HTML processing, so no minifier ever touches it — and `dist/assets` linked to the real
-files. R72 (`coquille.py`) is the contract: the built output must render identically to the
-source, DOM and geometry, or the shell is lying.
+`design/` is also a Vite project — the chassis the conversion is moving into, sub-project
+by sub-project. `npm run build` emits `dist/` (gitignored): the real envelope from
+`index.html` with the prototype injected **verbatim** — a local plugin inserts the fragment
+after Vite's own HTML processing, so no minifier ever touches it — plus the shell's module
+bundle under `dist/vite/`, and `dist/assets` linked to the real files. R72 (`coquille.py`)
+holds what remains true of that emission: the fragment appears verbatim exactly once, the
+document names exactly one module entry, and the bundle it names exists.
 
-**The live host serves the BUILD.** `serve.py` compares the newest mtime of the build's
-inputs (`refonte.html`, `index.html`, `vite.config.mjs`) against `dist/index.html` and
-rebuilds under a lock before serving (0.4 s measured), so an edit is still visible at the
-next reload. A failed build answers 503 with its own last words — serving the previous
-output would date what is being judged falsely. R73 (`bascule.py`) holds all of it against
-a scratch design root. The harness, meanwhile, keeps measuring the SOURCE through
-`wrapped.html`: that copy is what isolates rule mutations from what the host serves, and
-R72 is the bridge that keeps source and build interchangeable.
+**React and TanStack Router are the outer shell.** The router is the SINGLE writer of the
+URL and the history: the legacy engine keeps its navigation logic but speaks to
+`window.__pont` (five verbs) instead of the History API, through a queue-and-replay
+pre-bridge in the envelope — the classic script runs before the deferred module, so the
+recorder queues its writes and the shell replays them on mount. R74 (`pont.py`) holds the
+bridge: no direct history writer left in the source, the back journey redraws through it,
+a deep URL lands on its promised state, `__go` drives without touching history depth, and
+both bridge halves are present in what is measured. One faithfully-kept legacy trait:
+forward is not a return — going back from a sheet and then forward closes it rather than
+restoring it, exactly as before the router.
+
+**The live host serves the BUILD, and so does the harness.** `serve.py` compares the
+newest mtime of the build's inputs (the three roots and every file under `src/`) against
+`dist/index.html` and rebuilds under a lock before serving (0.4 s measured), so an edit is
+still visible at the next reload. A failed build answers 503 with its own last words —
+serving the previous output would date what is being judged falsely. R73 (`bascule.py`)
+holds all of it against a scratch design root. The harness measures the same truth:
+`wrapped.html` is a COPY of the built document — the copy is what isolates rule mutations
+from what the host serves.
 
 It is the operator-approved interactive prototype of the mobile-first interface:
 `/acquisition` (three views), `/mediatheque`, `/arrivees`, `/systeme`, plus the media

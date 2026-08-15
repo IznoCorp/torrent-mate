@@ -53,10 +53,22 @@ serves `dist/index.html`, rebuilding under a lock when any build input is newer 
 with a truthful 503 taxonomy (missing prototype → MANQUANT; missing build input, timeout,
 failed build → the build's own last words, escaped). `TM_DESIGN_RACINE` env and `TM_DESIGN_DELAI_BUILD` exist so R73 (`bascule.py`) proves
 the serving contract (byte-identity, rebuild, failure-shown) against a scratch root
-without touching the real source; the finer 503 taxonomy is exercised by the task evidence. The harness still measures the source
-through `wrapped.html`; R72 remains the source↔build bridge. Next: SP3 (routing — carry:
-`vite dev` binds `::1`; the dev path is measured by no rule; R72's identity contract must
-be renegotiated when source and output start to differ by design); then SP4, SP5.
+without touching the real source; the finer 503 taxonomy is exercised by the task evidence.
+Merged as PR #431.
+
+**SP3 — the router, by strangler**: Branch `feat/maquette-sp3`. Phase A first: the harness
+measures the BUILD (`wrapped.html` is a copy of `dist/index.html`; the copy still isolates
+rule mutations). Then React 19 + TanStack Router as the outer shell (`design/src/coquille.tsx`,
+bundle under `dist/vite/`, served session-gated): the router is the SINGLE writer of URL and
+history; the legacy engine's 12 nav-primitive sites speak `window.__pont` (five verbs) via a
+queue-and-replay pre-bridge in the envelope (the classic script runs before the deferred
+module). R59/R69/R71 green with UNCHANGED rule code are the bridge's proof. R72 rescoped
+(fragment verbatim ×1 + one module entry + bundle exists; the source-vs-build rendering
+comparison retired — recorded in regions.json); R74 (`pont.py`) holds the bridge, its
+mutation manual by design (a rule never mutates the shared copy). Known opens: nothing
+typechecks `coquille.tsx` (build exits 0 on a type error — measured); forward-is-not-a-return
+kept as legacy-faithful; a future `history.block()` would defeat the shell's `flush()`.
+Next: SP4 — emptying the catch-all surface by surface; then SP5 (visual language).
 
 ---
 
