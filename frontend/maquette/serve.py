@@ -593,7 +593,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
         # accident, at any depth the router grows into.
         if not self._authentifie():
             try:
-                page = page_connexion(refusee="refus" in self.path)
+                # The rejection state is signalled by the `refus` QUERY
+                # PARAMETER `do_POST` redirects to (`/?refus=1`), not by the
+                # substring "refus" anywhere in the path — a raw substring
+                # match also fired on any unrelated address merely containing
+                # it (e.g. `/profil/refusé`), showing the rejection banner to
+                # someone who never submitted anything.
+                parametres = urllib.parse.parse_qs(
+                    urllib.parse.urlsplit(self.path).query)
+                page = page_connexion(refusee="refus" in parametres)
             except (ValueError, FileNotFoundError) as erreur:
                 # The gate's own inputs (the envelope, the prototype's login
                 # markers) can break under editing; answering nothing would
