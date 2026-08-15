@@ -216,6 +216,13 @@ class DetectService:
             except Exception as exc:  # noqa: BLE001 — reconciliation must never abort detect
                 log.warning("acquire.detect.reconcile_failed", error=str(exc))
 
+        if not dry_run:
+            # #435 — heal movie follows created before migration 024 (or whose
+            # add path could not reach a provider): resolve the original title
+            # the identity filter needs. Fail-soft and one-shot per row — a
+            # persisted value is non-NULL and is never refetched.
+            self._backfill_movie_original_titles(movie_follows)
+
         actions: list[DetectAction] = []
         counts = _MutableCounts()
         for mf in movie_follows:
@@ -287,6 +294,57 @@ class DetectService:
                 log.warning(
                     "acquire.detect.series_status_write_failed",
                     followed_id=catalog.followed_id,
+                    error=str(exc),
+                )
+
+    def _backfill_movie_original_titles(self, movie_follows: "list[FollowedSeries]") -> None:
+        """Resolve + persist the missing original title of movie follows (#435).
+
+        A movie followed under its localized display title is commonly released
+        under its ORIGINAL title; the identity filter matches against both, so
+        an un-healed row (``original_title IS NULL``) makes the filter reject
+        the correct film. TMDB is the movies' primary catalogue and is queried
+        with its OWN id only (strict provider separation) — a follow with no
+        ``tmdb_id`` is left alone.
+
+        Best-effort, ``_persist_series_status`` precedent: a provider outage, a
+        malformed payload, or a write failure logs a WARNING and never aborts
+        detect. A persisted value — even one equal to the display title — is
+        non-NULL, so the row is fetched at most once over its lifetime.
+        """
+        unhealed = [
+            mf
+            for mf in movie_follows
+            if mf.original_title is None and mf.media_ref.tmdb_id is not None and mf.id is not None
+        ]
+        if not unhealed:
+            return
+        try:
+            tmdb = self._registry.get("tmdb")
+        except Exception:  # noqa: BLE001 — no TMDB in the chain: nothing to heal with
+            log.debug("acquire.detect.original_title_no_tmdb")
+            return
+        for mf in unhealed:
+            try:
+                details = tmdb.get_movie(mf.media_ref.tmdb_id)  # type: ignore[attr-defined]
+                original = getattr(details, "original_title", None)
+                if not (isinstance(original, str) and original.strip()):
+                    continue
+                assert mf.id is not None  # noqa: S101 — filtered above; narrows for mypy
+                self._store.follow.merge_metadata(
+                    mf.id, poster_url=None, overview=None, year=None, original_title=original
+                )
+                log.info(
+                    "acquire.detect.original_title_backfilled",
+                    followed_id=mf.id,
+                    title=mf.title,
+                    original_title=original,
+                )
+            except Exception as exc:  # noqa: BLE001 — a nicety is never worth aborting detect
+                log.warning(
+                    "acquire.detect.original_title_backfill_failed",
+                    followed_id=mf.id,
+                    title=mf.title,
                     error=str(exc),
                 )
 
