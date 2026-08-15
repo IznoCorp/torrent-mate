@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from personalscraper.acquire.context import AcquireContext
     from personalscraper.acquire.reconcile import ReconcileSummary
     from personalscraper.api.torrent._base import TorrentItem
+    from personalscraper.api.tracker._base import TrackerResult
     from personalscraper.conf.models.config import Config
     from personalscraper.config import Settings
     from personalscraper.core.event_bus import EventBus
@@ -334,44 +335,56 @@ def _run_dry(
                 title = row.title
                 year = row.year
                 original_title = row.original_title
-        query = build_search_query(item, title, year)
-        try:
-            outcome = registry.search_candidates(query, media_type, year)
-        except CircuitOpenError:
-            # A dead tracker's OPEN circuit must not crash the preview (the real
-            # grab already catches this in the orchestrator).
-            console.print("  [yellow]Tracker circuit open — skipped this item.[/yellow]")
-            continue
-        console.print(
-            f"  Search: {len(outcome.results)} results "
-            f"({outcome.trackers_queried} queried, {outcome.trackers_errored} errored)"
-        )
-        if not outcome.results:
-            console.print("  [yellow]No results.[/yellow]")
-            continue
-
-        # Episode-exactness: mirror the real grab so the preview's Top is the
-        # actual episode, not a fuzzy same-show match.
-        results = outcome.results
-        if item.kind == "episode" and item.season is not None and item.episode is not None:
-            from personalscraper.acquire.orchestrator import filter_to_episode  # noqa: PLC0415
-
-            results = filter_to_episode(results, item.season, item.episode)
-            if not results:
-                console.print("  [yellow]No result matches the exact episode.[/yellow]")
+        # #435 — mirror the real grab's original-title retry: a fruitless
+        # display-title query replays once in the original language, so the
+        # preview reflects the SAME candidates the grab would rank (review F4:
+        # a preview that diverges from the run is a lie).
+        queries = [build_search_query(item, title, year)]
+        if original_title and original_title != title:
+            queries.append(build_search_query(item, original_title, year))
+        results: "list[TrackerResult] | None" = None
+        circuit_open = False
+        for attempt_no, attempt_query in enumerate(queries):
+            try:
+                outcome = registry.search_candidates(attempt_query, media_type, year)
+            except CircuitOpenError:
+                # A dead tracker's OPEN circuit must not crash the preview (the
+                # real grab already catches this in the orchestrator).
+                console.print("  [yellow]Tracker circuit open — skipped this item.[/yellow]")
+                circuit_open = True
+                break
+            label = "Search" if attempt_no == 0 else "Retry (original title)"
+            console.print(
+                f"  {label}: {len(outcome.results)} results "
+                f"({outcome.trackers_queried} queried, {outcome.trackers_errored} errored)"
+            )
+            if not outcome.results:
                 continue
-        elif item.kind == "movie" and title is not None:
-            # #28 (review F4) — mirror the real grab's movie identity filter so
-            # the preview's Top is the SAME film the grab would take, not a
-            # higher-seeded « Wicker* » of a different year.
-            from personalscraper.acquire.orchestrator import filter_to_movie  # noqa: PLC0415
 
-            # Every known title (#435): a release named in the original
-            # language must survive here exactly as it does in the real grab.
-            results = filter_to_movie(results, [title, original_title], year)
-            if not results:
-                console.print("  [yellow]No result matches the wanted movie (title/year).[/yellow]")
-                continue
+            # Episode-exactness: mirror the real grab so the preview's Top is
+            # the actual episode, not a fuzzy same-show match.
+            narrowed = outcome.results
+            if item.kind == "episode" and item.season is not None and item.episode is not None:
+                from personalscraper.acquire.orchestrator import filter_to_episode  # noqa: PLC0415
+
+                narrowed = filter_to_episode(narrowed, item.season, item.episode)
+            elif item.kind == "movie" and title is not None:
+                # #28 (review F4) — mirror the real grab's movie identity filter
+                # so the preview's Top is the SAME film the grab would take, not
+                # a higher-seeded « Wicker* » of a different year. Every known
+                # title (#435): a release named in the original language must
+                # survive here exactly as it does in the real grab.
+                from personalscraper.acquire.orchestrator import filter_to_movie  # noqa: PLC0415
+
+                narrowed = filter_to_movie(narrowed, [title, original_title], year)
+            if narrowed:
+                results = narrowed
+                break
+        if circuit_open:
+            continue
+        if not results:
+            console.print("  [yellow]No result matches the wanted item (title/episode/year).[/yellow]")
+            continue
 
         # Resolve the SAME effective profile the real grab uses (series
         # quality_profile_json overlaid with item criteria) and pass the
