@@ -53,10 +53,24 @@ serves `dist/index.html`, rebuilding under a lock when any build input is newer 
 with a truthful 503 taxonomy (missing prototype → MANQUANT; missing build input, timeout,
 failed build → the build's own last words, escaped). `TM_DESIGN_RACINE` env and `TM_DESIGN_DELAI_BUILD` exist so R73 (`bascule.py`) proves
 the serving contract (byte-identity, rebuild, failure-shown) against a scratch root
-without touching the real source; the finer 503 taxonomy is exercised by the task evidence. The harness still measures the source
-through `wrapped.html`; R72 remains the source↔build bridge. Next: SP3 (routing — carry:
-`vite dev` binds `::1`; the dev path is measured by no rule; R72's identity contract must
-be renegotiated when source and output start to differ by design); then SP4, SP5.
+without touching the real source; the finer 503 taxonomy is exercised by the task evidence.
+Merged as PR #431.
+
+**SP3 — the router, by strangler**: Branch `feat/maquette-sp3`. Phase A first: the harness
+measures the BUILD (`wrapped.html` is a copy of `dist/index.html`; the copy still isolates
+rule mutations). Then React 19 + TanStack Router as the outer shell (`design/src/coquille.tsx`,
+bundle under `dist/vite/`, served session-gated): the router is the SINGLE writer of URL and
+history; the legacy engine's 12 nav-primitive sites speak `window.__pont` (five verbs) via a
+queue-and-replay pre-bridge in the envelope (the classic script runs before the deferred
+module). R59/R69/R71 green with UNCHANGED rule code are the bridge's proof. R72 rescoped
+(fragment verbatim ×1 + one module entry + bundle exists; the source-vs-build rendering
+comparison retired — recorded in regions.json); R74 (`pont.py`) holds the bridge, its
+mutation manual by design (a rule never mutates the shared copy). The shell is typed: `design/`
+carries a strict `tsconfig.json` and its own `npm run typecheck`, wired into `make check-frontend`
+— the build alone had no opinion on types (it exits 0 on a type error, measured). Known opens:
+forward-is-not-a-return kept as legacy-faithful; a future `history.block()` would defeat the
+shell's `flush()`.
+Next: SP4 — emptying the catch-all surface by surface; then SP5 (visual language).
 
 ---
 
@@ -102,18 +116,14 @@ cannot fail, and a script that cannot fail is a report nobody is obliged to read
 
 **Two traps, each already paid for twice.** A stale copy of the scripts lives in
 `/tmp/tm-refonte`; running from there measures the previous version. And `/tmp/tm-refonte/
-wrapped.html` must be re-synced from `design/refonte.html` before every run, or the same thing happens
-one level down:
+wrapped.html` — the harness's copy of the BUILD, the same document the host serves — must be
+rebuilt and re-copied before every run, or the same thing happens one level down:
 
 ```bash
-/Users/izno/.pyenv/versions/3.11.9/bin/python3 - <<'EOF'
-from pathlib import Path
-src = Path("frontend/maquette/design/refonte.html").read_text()
-head = ('<!doctype html><html><head><meta charset="utf-8">'
-        '<meta name="viewport" content="width=device-width,initial-scale=1,'
-        'maximum-scale=1,user-scalable=no"></head><body>\n')
-Path("/tmp/tm-refonte/wrapped.html").write_text(head + src)
-EOF
+cd frontend/maquette/design
+npm run build
+cp dist/index.html /tmp/tm-refonte/wrapped.html
+rm -rf /tmp/tm-refonte/vite && { [ -d dist/vite ] && cp -R dist/vite /tmp/tm-refonte/vite || true; }
 ln -sfn "$(git rev-parse --show-toplevel)/frontend/maquette/design/assets" /tmp/tm-refonte/assets
 ```
 

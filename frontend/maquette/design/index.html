@@ -42,6 +42,57 @@
     <!-- pwa:end -->
   </head>
   <body>
+    <!-- The strangler shell: the router owns the URL and the history; the
+         legacy engine below keeps every surface until SP4 empties it. The
+         mount node is size-zero — in SP3 the shell renders nothing visual. -->
+    <div id="coquille"></div>
+    <script>
+      // THE PRE-BRIDGE — the boot order, settled here rather than in the
+      // engine.
+      //
+      // The real bridge is installed by a MODULE, and a module is deferred:
+      // it evaluates once the document is parsed. The legacy engine below is
+      // a classic inline script that runs DURING parsing, and its boot already
+      // navigates — it writes the arrival state, lays the guard entry under it
+      // and pushes the arrival entry on top, and it registers its back
+      // listener long before that. Every one of those calls would find no
+      // bridge at all.
+      //
+      // Deferring the engine's boot instead was the other way, and it is worse:
+      // those three writes sit between the first render and the removal of the
+      // startup screen, so making them wait moves what the operator SEES. The
+      // calls are therefore recorded here, in order, and replayed unchanged
+      // onto the real bridge the moment it exists. Nothing is interpreted and
+      // nothing answers back: the verbs return nothing the engine reads, so a
+      // recorded call and a live one are indistinguishable to it.
+      (function () {
+        var enregistrees = [];
+        var enregistrer = function (verbe) {
+          return function () {
+            enregistrees.push([verbe, [].slice.call(arguments)]);
+          };
+        };
+        window.__pont = {
+          noter: enregistrer("noter"),
+          remplacer: enregistrer("remplacer"),
+          coucher: enregistrer("coucher"),
+          retour: enregistrer("retour"),
+          surRetour: enregistrer("surRetour"),
+        };
+        // Called by the shell with the real bridge, once, before it renders.
+        // The recorder is dropped on the way out: what follows the replay goes
+        // straight to the router, and a second replay could only duplicate
+        // history entries.
+        window.__rejouerLePont = function (pont) {
+          var attente = enregistrees;
+          enregistrees = [];
+          delete window.__rejouerLePont;
+          for (var i = 0; i < attente.length; i++)
+            pont[attente[i][0]].apply(pont, attente[i][1]);
+        };
+      })();
+    </script>
+    <script type="module" src="/src/coquille.tsx"></script>
     <!-- maquette -->
   </body>
 </html>

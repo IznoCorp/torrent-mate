@@ -13,21 +13,33 @@ design starts here, not in `frontend/src`.**
 `design/` is the served root — everything a browser reaches lives there (the prototype, images,
 PWA assets). The `harness/`, `serve.py`, and `regions.json` siblings are never served.
 
-`design/` is also a Vite project — the chassis the conversion will move into, sub-project by
-sub-project. `npm run build` emits `dist/` (gitignored): the real envelope from `index.html`
-with the prototype injected **verbatim** — a local plugin inserts the fragment after Vite's
-own HTML processing, so no minifier ever touches it — and `dist/assets` linked to the real
-files. R72 (`coquille.py`) is the contract: the built output must render identically to the
-source, DOM and geometry, or the shell is lying.
+`design/` is also a Vite project — the chassis the conversion is moving into, sub-project
+by sub-project. `npm run build` emits `dist/` (gitignored): the real envelope from
+`index.html` with the prototype injected **verbatim** — a local plugin inserts the fragment
+after Vite's own HTML processing, so no minifier ever touches it — plus the shell's module
+bundle under `dist/vite/`, and `dist/assets` linked to the real files. R72 (`coquille.py`)
+holds what remains true of that emission: the fragment appears verbatim exactly once, the
+document names exactly one module entry, and the bundle it names exists.
 
-**The live host serves the BUILD.** `serve.py` compares the newest mtime of the build's
-inputs (`refonte.html`, `index.html`, `vite.config.mjs`) against `dist/index.html` and
-rebuilds under a lock before serving (0.4 s measured), so an edit is still visible at the
-next reload. A failed build answers 503 with its own last words — serving the previous
-output would date what is being judged falsely. R73 (`bascule.py`) holds all of it against
-a scratch design root. The harness, meanwhile, keeps measuring the SOURCE through
-`wrapped.html`: that copy is what isolates rule mutations from what the host serves, and
-R72 is the bridge that keeps source and build interchangeable.
+**React and TanStack Router are the outer shell.** The router is the SINGLE writer of the
+URL and the history: the legacy engine keeps its navigation logic but speaks to
+`window.__pont` (five verbs) instead of the History API, through a queue-and-replay
+pre-bridge in the envelope — the classic script runs before the deferred module, so the
+recorder queues its writes and the shell replays them on mount. R74 (`pont.py`) holds the
+bridge: no direct history writer left in the source, the back journey redraws through it,
+a deep URL lands on its promised state, `__go` drives without touching history depth, and
+both bridge halves are present in what is measured. One faithfully-kept legacy trait:
+forward is not a return — going back from a sheet and then forward closes it rather than
+restoring it, exactly as before the router.
+
+**The live host serves the BUILD, and so does the harness.** `serve.py` compares the
+newest mtime of the build's inputs (the three roots and every file under `src/`) against
+`dist/index.html` and rebuilds under a lock before serving (0.4 s measured), so an edit is
+still visible at the next reload. A failed build answers 503 with its own last words —
+serving the previous output would date what is being judged falsely. R73 (`bascule.py`)
+holds all of it against a scratch design root. The harness measures the same truth:
+`wrapped.html` is a COPY of the built document — the copy is what isolates rule mutations
+from what the host serves.
 
 It is the operator-approved interactive prototype of the mobile-first interface:
 `/acquisition` (three views), `/mediatheque`, `/arrivees`, `/systeme`, plus the media
@@ -648,26 +660,36 @@ They are committed because they encode recipes that cost time to get right.
 | `doigt.py`        | R55: every gesture under REAL touch input (`Input.dispatchTouchEvent`), which the compositor can cancel — the pull to refresh on seven surfaces, the swipe between views, ordinary scrolling, the swipeable row and the deck                                                                                                            |
 | `images.py`       | R70: the source embeds no image and every `assets/` reference resolves to a file                                                                                                                                                                                                                                                        |
 | `ecrans.py`       | R71: a screen above another one — back redraws the screen it covered (query and scroll included) through both exits, one more back leaves the layer, and a result card carries no inline action in its foot: the panel is the single path to the act                                                                                    |
-| `coquille.py`     | R72: the Vite shell's build renders identically to the source — DOM serialization and region geometry compared per driven state on both pages, and no failed response (4xx/5xx) on either side (the uninvited /favicon.ico miss excepted)                                                                                               |
+| `coquille.py`     | R72: the Vite shell emits the prototype verbatim inside a real envelope — the fragment refonte.html appears byte-for-byte exactly once, the module entry is present with the correct format, and the named bundle file exists under dist/vite/                                                                                          |
+| `pont.py`         | R74: the bridge wires the legacy nav cluster to the router — zero raw history calls in source, the journey works through both exits, deep URL entry lands on promised state, __go() preserves history depth, and both bridge halves (pre-bridge recorder in envelope + real bridge in shell) are present                                |
 | `bascule.py`      | R73: the host serves the build to the byte, rebuilds stale sources before serving, and a broken build answers 503 that says so — proven against a scratch design root, never the real source                                                                                                                                            |
 
 Run them with the Python that carries Playwright, against a local static server on
 **127.0.0.1:8899** — **never** 8710 / 8711, which the reverse proxy routes to prod and
 staging.
 
-The wrapper directory `/tmp/tm-refonte/` must carry an `assets` symlink to the repo's
+**The harness measures the BUILD.** `wrapped.html` is a copy of `dist/index.html` — the
+same document the host serves — rebuilt and re-copied before every run, or the suite
+measures the previous version. The copy is what isolates rule mutations from the host:
+a rule may corrupt its copy freely, the real build stays untouched.
+
+```bash
+cd frontend/maquette/design
+npm run build
+cp dist/index.html /tmp/tm-refonte/wrapped.html
+rm -rf /tmp/tm-refonte/vite && { [ -d dist/vite ] && cp -R dist/vite /tmp/tm-refonte/vite || true; }
+```
+
+The wrapper directory `/tmp/tm-refonte/` must also carry an `assets` symlink to the repo's
 `design/assets/`:
 
 ```bash
 ln -sfn "$(git rev-parse --show-toplevel)/frontend/maquette/design/assets" /tmp/tm-refonte/assets
 ```
 
-Without it, every image reference (`src=` and `url()` values) resolves to a 404. The harness
-runs measure against this local server, so the symlink must be in place before any test.
-
-The prototype must be served inside a wrapper supplying `<meta name="viewport">`; without it
-Chrome falls back to the legacy 980px layout viewport and every measurement is wrong. The file
-also injects that meta itself if the host page has none — do not remove that guard.
+Without it, every image reference (`src=` and `url()` values) resolves to a 404. The
+envelope carries the viewport meta; the prototype also injects one itself if the host page
+has none — do not remove that guard.
 
 ## Language of the source
 

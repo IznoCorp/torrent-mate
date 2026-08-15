@@ -12,7 +12,19 @@ import tseslint from "typescript-eslint";
 // sub-phase 4.2.
 export default tseslint.config(
   {
-    ignores: ["dist", "node_modules", "coverage", "src/api/schema.d.ts"],
+    // `maquette/**` is the design maquette, not the app: it is a separate npm
+    // project with its own tsconfig, and its conformance is held by its own
+    // harness plus its own `npm run typecheck` (wired into `make check`).
+    // This config owns `src/`, and its type-checked rules need a tsconfig that
+    // covers the file being linted — the maquette's sources are covered by
+    // theirs, not by this one.
+    ignores: [
+      "dist",
+      "node_modules",
+      "coverage",
+      "src/api/schema.d.ts",
+      "maquette/**",
+    ],
   },
   {
     files: ["**/*.{ts,tsx}"],

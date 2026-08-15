@@ -59,12 +59,35 @@ RACINE_DESIGN = Path(
 ).resolve()
 PROTOTYPE = RACINE_DESIGN / "refonte.html"
 DIST = RACINE_DESIGN / "dist" / "index.html"
-# What staleness is measured against: every input the build reads.
+# The build inputs that always exist, at the design root.
 SOURCES_BUILD = (
     PROTOTYPE,
     RACINE_DESIGN / "index.html",
     RACINE_DESIGN / "vite.config.mjs",
 )
+
+def mtime_sources() -> int:
+    """Returns the newest mtime among every input the build reads.
+
+    The three roots above, plus every file under `src/` — the shell is a
+    DIRECTORY, and a module added there tomorrow must not be invisible to
+    staleness, or the host would serve yesterday's build saying nothing.
+
+    Returns:
+        The newest modification time, in nanoseconds.
+
+    Raises:
+        FileNotFoundError: When a root build input is missing — the caller
+            turns it into the named build error.
+    """
+    empreintes = [chemin.stat().st_mtime_ns for chemin in SOURCES_BUILD]
+    source = RACINE_DESIGN / "src"
+    if source.is_dir():
+        empreintes.extend(fichier.stat().st_mtime_ns
+                          for fichier in source.rglob("*") if fichier.is_file())
+    return max(empreintes)
+
+
 NPM = "/Users/izno/.nvm/versions/node/v22.13.1/bin/npm"
 # Overridable so the timeout path itself can be proven live, the same way
 # TM_DESIGN_RACINE lets a rule serve a scratch root.
@@ -85,6 +108,10 @@ SECRET_SESSION = secrets.token_bytes(32)
 NOM_COOKIE = "tm_design"
 
 DOSSIER_ASSETS = PROTOTYPE.parent / "assets"
+
+# Where the build writes the shell's module entry (`build.assetsDir` = "vite",
+# kept out of `dist/assets` because a symlink owns that name).
+DOSSIER_VITE = RACINE_DESIGN / "dist" / "vite"
 
 # Brand assets and the manifest are served WITHOUT a session: they carry no
 # private data, and a `<link rel="manifest">` is fetched without credentials
@@ -406,7 +433,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if not PROTOTYPE.exists():
             raise FileNotFoundError(PROTOTYPE)
         try:
-            sources = max(chemin.stat().st_mtime_ns for chemin in SOURCES_BUILD)
+            sources = mtime_sources()
         except FileNotFoundError as absent:
             # A missing build INPUT is a build problem, not a missing
             # prototype: say which file, never the wrong diagnosis.
@@ -516,6 +543,27 @@ class Handler(http.server.BaseHTTPRequestHandler):
             type_mime = types.get(fichier.suffix)
             if (type_mime is None or not fichier.is_file()
                     or not fichier.is_relative_to(DOSSIER_ASSETS.resolve())):
+                self._send(404, b"")
+                return
+            self._send(200, fichier.read_bytes(),
+                       [("Cache-Control", "private, max-age=31536000, immutable")],
+                       type_mime=type_mime)
+            return
+        if chemin.startswith("/vite/"):
+            # The shell's bundle: the module entry the emitted document names,
+            # written there by the build. Session-gated like the artwork — the
+            # document itself is, and a shell served to no one is only weight.
+            if not self._authentifie():
+                self._send(401, b"")
+                return
+            # Same backstop as /assets/ above: resolve() then containment, so a
+            # traversal cannot reach outside the build's own output directory.
+            fichier = (DOSSIER_VITE / chemin[len("/vite/"):]).resolve()
+            types = {".js": "text/javascript", ".css": "text/css",
+                     ".map": "application/json"}
+            type_mime = types.get(fichier.suffix)
+            if (type_mime is None or not fichier.is_file()
+                    or not fichier.is_relative_to(DOSSIER_VITE.resolve())):
                 self._send(404, b"")
                 return
             self._send(200, fichier.read_bytes(),
