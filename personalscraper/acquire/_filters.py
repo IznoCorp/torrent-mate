@@ -27,6 +27,8 @@ from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from personalscraper.core.identity import MediaRef
 
 log = get_logger("acquire.filters")
@@ -524,3 +526,93 @@ def filter_to_season(
 
 
 __all__ = ["apply_hard_filters", "filter_to_episode", "filter_to_season"]
+
+
+#: Minimum rapidfuzz token-set score between a release's parsed title and the
+#: wanted movie title to survive the identity filter. Deliberately LOOSE — a
+#: subset like "Wicker" vs "The Wicker Man" scores high either way, so the YEAR
+#: is the real discriminator; this threshold only drops the wholly-unrelated.
+_MOVIE_TITLE_THRESHOLD = 60
+
+
+def filter_to_movie(
+    results: "list[TrackerResult]",
+    titles: "Sequence[str | None]",
+    year: int | None,
+) -> "list[TrackerResult]":
+    """Keep only releases matching the wanted MOVIE's identity (titles + year, #28).
+
+    A title query (``"{title} {year}"``) returns fuzzy matches — a bare title
+    like « Wicker » pulls « The Wicker Man », « Wicker Park », … from title-based
+    trackers, which then rank by seeders so the WRONG film can win (the Wicker
+    incident, §5/§7). Tracker results carry no provider-ID, so identity is
+    verified from the parsed release name:
+
+    - **title**: the release's parsed title must be similar to ANY known title
+      of the wanted movie (loose rapidfuzz guard — drops the wholly-unrelated).
+      Several titles because releases are commonly named in the ORIGINAL
+      language while the follow carries the localized display title
+      (« Avant d'aller dormir » vs `Before.I.Go.To.Sleep.2014...`, #435) —
+      with the display title alone the guard rejected the correct film before
+      the year was even consulted;
+    - **year**: the discriminator — a release whose parsed year is known and more
+      than one year off the wanted year is a DIFFERENT film and is dropped
+      (``Wicker 2026`` vs ``The Wicker Man 2006``). A ±1 tolerance absorbs the
+      release-vs-production-year drift; a release with no parseable year is kept
+      (year can't refute it) and left to the title guard + ranking.
+
+    Fail-soft per release: an unparseable name falls back to (raw title, no year)
+    so a parser hiccup never silently drops a candidate on the year axis.
+
+    Args:
+        results: Raw tracker results for the movie query.
+        titles: Every known title of the wanted movie (display title, original
+            title). ``None``/empty entries and duplicates are ignored; an
+            all-empty sequence disables the title guard (year check only).
+        year: The wanted movie's release year, or ``None`` (year check disabled).
+
+    Returns:
+        The subset whose parsed identity matches the wanted movie (possibly empty).
+
+    Raises:
+        TypeError: If *titles* is a bare ``str`` — a string IS a sequence of
+            single characters, and matching against characters would silently
+            drop every release.
+    """
+    from rapidfuzz import fuzz  # noqa: PLC0415 — local import keeps module load light
+
+    if isinstance(titles, str):
+        raise TypeError("filter_to_movie takes a sequence of titles, not a bare str")
+    known_titles = list(dict.fromkeys(t for t in titles if t))
+
+    kept: list[TrackerResult] = []
+    for r in results:
+        parsed_title, parsed_year = _parse_release_identity(r.title)
+        if (
+            parsed_title
+            and known_titles
+            and all(fuzz.token_set_ratio(parsed_title, t) < _MOVIE_TITLE_THRESHOLD for t in known_titles)
+        ):
+            continue
+        if year is not None and parsed_year is not None and abs(parsed_year - year) > 1:
+            continue
+        kept.append(r)
+    return kept
+
+
+def _parse_release_identity(release_title: str) -> "tuple[str, int | None]":
+    """Parse a release name into ``(title, year)`` via guessit (fail-soft).
+
+    Returns ``(raw_title, None)`` on any guessit failure so a parse error never
+    drops a candidate on the year axis.
+    """
+    try:
+        from guessit import guessit  # noqa: PLC0415 — heavy import, grab-path only
+
+        info = guessit(release_title)
+        parsed_title = str(info.get("title") or release_title)
+        raw_year = info.get("year")
+        parsed_year = int(raw_year) if isinstance(raw_year, int) else None
+        return parsed_title, parsed_year
+    except Exception:  # noqa: BLE001 — fail-soft: a parser hiccup must not drop a candidate
+        return release_title, None
