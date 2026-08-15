@@ -574,17 +574,23 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self._send(303, b"", [("Location", "/"),
                                   ("Set-Cookie", f"{NOM_COOKIE}=; Path=/; Max-Age=0")])
             return
-        if chemin not in ("/", "/index.html"):
-            # Anything else goes back to the one document, instead of dead-ending.
-            #
-            # A 404 here is not a smaller failure than a broken page, it IS the
-            # broken page: `/connexion` accepts only POST, so a reload or a
-            # back-navigation after signing in used to answer « Rien ici » — and
-            # an installed PWA, whose whole scope is `/`, has no address bar to
-            # get out of it with. The scope must therefore be a place one cannot
-            # leave by accident.
+        if chemin == "/connexion":
+            # `/connexion` accepts only POST (do_POST below): a reload or a
+            # back-navigation after signing in must not re-render a form that
+            # can only submit once. Matched BEFORE the fallback, so it keeps
+            # this exact special case rather than falling into it.
             self._send(303, b"", [("Location", "/")])
             return
+        # Every other path — "/", "/index.html", and any address the
+        # client-side router owns (/fiche/…, /profil/…, …) — answers the ONE
+        # document, session-gated exactly like "/".
+        #
+        # A 303 here would drop the address bar's path before the router ever
+        # runs, and a 404 would dead-end a reload or a shared link. Both read
+        # as smaller failures than a broken page; neither is: an installed
+        # PWA, whose whole scope is `/`, has no address bar to escape either
+        # one with. The scope must therefore be a place one cannot leave by
+        # accident, at any depth the router grows into.
         if not self._authentifie():
             try:
                 page = page_connexion(refusee="refus" in self.path)
