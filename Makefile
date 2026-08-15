@@ -1,4 +1,4 @@
-.PHONY: help clean test test-unit test-integration test-cov lint lint-logging check check-frontend format install-dev version update-ytdlp perf-rebaseline openapi
+.PHONY: help clean test test-unit test-integration test-cov test-impacte lint lint-logging check check-frontend format install-dev version update-ytdlp perf-rebaseline openapi
 
 THRESHOLD := $(shell python3 scripts/get_coverage_threshold.py)
 
@@ -9,6 +9,7 @@ help:
 	@echo "  make test-unit       - Run unit tests only (no coverage)"
 	@echo "  make test-integration - Run integration tests only"
 	@echo "  make test-cov        - Run tests with branch coverage at fail_under threshold"
+	@echo "  make test-impacte    - Run only tests impacted by code changes (pytest-testmon)"
 	@echo "  make lint            - Run ruff check + ruff format --check + mypy + logging audit"
 	@echo "  make lint-logging    - Run logging convention audit (fails on errors)"
 	@echo "  make check           - Run lint, tests, module-size, typed-api, pragma, CLI-coverage checks"
@@ -38,6 +39,17 @@ test-unit:
 test-integration:
 	@echo "Running integration tests..."
 	python3 -m pytest tests/integration/ -q -n auto
+
+# Local iteration loop ONLY — selects tests whose recorded dependencies
+# (.testmondata, built on first run) intersect the code changed since then.
+# Runs single-process: testmon and xdist are incompatible. The FULL suite
+# remains the gate everywhere it is one today (make test / make check).
+# --testmon-forceselect: pyproject addopts pass -m (marker exclusions), and
+# testmon silently deactivates selection under -m without this flag — the
+# marker filter still applies to what testmon selects.
+test-impacte:
+	@echo "Running impacted tests only (pytest-testmon; full suite remains the gate)..."
+	python3 -m pytest tests/ --ignore=tests/e2e -q --testmon --testmon-forceselect
 
 test-cov:
 	@echo "Running tests with branch coverage (fail_under=$(THRESHOLD))..."
