@@ -505,6 +505,7 @@ def _build_followed_item(fs: FollowedSeries, wanted_pending: int) -> FollowedSer
         added_at=float(fs.added_at),
         wanted_pending=wanted_pending,
         quality_profile=_parse_json_dict(fs.quality_profile_json),
+        original_title=fs.original_title,
         tvdb_unresolved=_derive_tvdb_unresolved(fs),
     )
 
@@ -537,6 +538,7 @@ def _item_from_followed(fs: FollowedSeries) -> FollowedSeriesItem:
         added_at=float(fs.added_at),
         wanted_pending=0,  # newly created/reactivated → no wanted items yet
         quality_profile=_parse_json_dict(fs.quality_profile_json),
+        original_title=fs.original_title,
         tvdb_unresolved=_derive_tvdb_unresolved(fs),
     )
 

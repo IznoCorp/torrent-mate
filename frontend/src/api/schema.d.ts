@@ -3237,6 +3237,8 @@ export interface components {
             next_search_at?: number | null;
             /** Non Verifie Count */
             non_verifie_count?: number | null;
+            /** Original Title */
+            original_title?: string | null;
             /** Overview */
             overview?: string | null;
             /** Owned Count */

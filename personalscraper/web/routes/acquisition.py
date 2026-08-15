@@ -408,6 +408,7 @@ def get_followed(
                         # value, and no value means « not known to have ended »,
                         # never « still running ».
                         series_status=cast("str | None", _row_col(row, "series_status")),
+                        original_title=cast("str | None", _row_col(row, "original_title")),
                         movie_facts=movie_facts,
                         priming_running=row["id"] in priming_follow_ids,
                     )
