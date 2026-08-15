@@ -16156,11 +16156,13 @@
 
   function loadMoreSug() {
     if (state.sugLoading || state.sugCount >= SUGGESTIONS.length) return;
-    state.sugLoading = true;
+    magasin.ecrire({ sugLoading: true });
     if (sugObserver) sugObserver.disconnect();
     setTimeout(() => {
-      state.sugLoading = false;
-      state.sugCount = Math.min(SUGGESTIONS.length, state.sugCount + SUG_BATCH);
+      magasin.ecrire({
+        sugLoading: false,
+        sugCount: Math.min(SUGGESTIONS.length, state.sugCount + SUG_BATCH),
+      });
       fillSug();
       sugFoot();
     }, 420);
@@ -16172,9 +16174,7 @@
     const element = document.querySelector("#libq");
     if (element)
       element.oninput = () => {
-        state.q = element.value;
-        state.libCount = LIB_PAGE;
-        state.libErr = false;
+        magasin.ecrire({ q: element.value, libCount: LIB_PAGE, libErr: false });
         const pos = element.selectionStart;
         render();
         const element3 = document.querySelector("#libq");
@@ -16195,7 +16195,7 @@
     const element2 = document.querySelector("#follq");
     if (element2)
       element2.oninput = () => {
-        state.filtre = element2.value;
+        magasin.ecrire({ filtre: element2.value });
         const pos = element2.selectionStart;
         render();
         const element3 = document.querySelector("#follq");
@@ -16619,7 +16619,7 @@
 
   /* Design notes */
   select("#notesBtn").onclick = (event) => {
-    state.notes = !state.notes;
+    magasin.ecrire({ notes: !state.notes });
     document.documentElement.classList.toggle("notes", state.notes);
     event.currentTarget.setAttribute("aria-pressed", String(state.notes));
     toast(state.notes ? "Notes de conception affichées." : "Notes masquées.");
@@ -16782,7 +16782,7 @@
       "Découvrir · affiches",
       () => {
         applyState({ page: "acq", acqTab: "decouvrir", phase: "prete" });
-        state.sugMode = "poster";
+        magasin.ecrire({ sugMode: "poster" });
         render();
       },
     ],
@@ -16791,7 +16791,7 @@
       "Découvrir · slide cards",
       () => {
         applyState({ page: "acq", acqTab: "decouvrir", phase: "prete" });
-        state.sugMode = "deck";
+        magasin.ecrire({ sugMode: "deck" });
         render();
       },
     ],
@@ -16829,7 +16829,7 @@
       "Écran d'ajout — au repos",
       () => {
         applyState({ page: "acq", phase: "prete" });
-        state.addQ = "";
+        magasin.ecrire({ addQ: "" });
         openAddScreen("");
       },
     ],
@@ -16862,7 +16862,9 @@
       "Recherche en mode IDENTIFIER (depuis une résolution)",
       () => {
         applyState({ page: "arr", phase: "prete", pipe: "repos" });
-        state.resolveTarget = "Backrooms.2026.MULTi.2160p.WEB-DL";
+        magasin.ecrire({
+          resolveTarget: "Backrooms.2026.MULTi.2160p.WEB-DL",
+        });
         openAddScreen("Backrooms 2026", "identifier");
       },
     ],
@@ -16959,7 +16961,7 @@
           phase: "prete",
           selMode: true,
         });
-        state.selected = new Set([0, 2, 5]);
+        magasin.ecrire({ selected: new Set([0, 2, 5]) });
         render();
       },
     ],
