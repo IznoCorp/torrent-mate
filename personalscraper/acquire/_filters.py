@@ -525,9 +525,6 @@ def filter_to_season(
     return kept
 
 
-__all__ = ["apply_hard_filters", "filter_to_episode", "filter_to_season"]
-
-
 #: Minimum rapidfuzz token-set score between a release's parsed title and the
 #: wanted movie title to survive the identity filter. Deliberately LOOSE — a
 #: subset like "Wicker" vs "The Wicker Man" scores high either way, so the YEAR
@@ -568,7 +565,10 @@ def filter_to_movie(
         results: Raw tracker results for the movie query.
         titles: Every known title of the wanted movie (display title, original
             title). ``None``/empty entries and duplicates are ignored; an
-            all-empty sequence disables the title guard (year check only).
+            all-empty sequence drops every parseable release — FAIL-CLOSED,
+            matching the pre-#435 behavior of a nameless follow (a guard that
+            silently switched off would re-open the Wicker wrong-movie class
+            on exactly the rows that carry the least identity).
         year: The wanted movie's release year, or ``None`` (year check disabled).
 
     Returns:
@@ -588,11 +588,9 @@ def filter_to_movie(
     kept: list[TrackerResult] = []
     for r in results:
         parsed_title, parsed_year = _parse_release_identity(r.title)
-        if (
-            parsed_title
-            and known_titles
-            and all(fuzz.token_set_ratio(parsed_title, t) < _MOVIE_TITLE_THRESHOLD for t in known_titles)
-        ):
+        # NB: with no known title the ``all(...)`` is vacuously True and every
+        # parseable release drops — the documented fail-closed contract.
+        if parsed_title and all(fuzz.token_set_ratio(parsed_title, t) < _MOVIE_TITLE_THRESHOLD for t in known_titles):
             continue
         if year is not None and parsed_year is not None and abs(parsed_year - year) > 1:
             continue
@@ -616,3 +614,6 @@ def _parse_release_identity(release_title: str) -> "tuple[str, int | None]":
         return parsed_title, parsed_year
     except Exception:  # noqa: BLE001 — fail-soft: a parser hiccup must not drop a candidate
         return release_title, None
+
+
+__all__ = ["apply_hard_filters", "filter_to_episode", "filter_to_movie", "filter_to_season"]

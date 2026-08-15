@@ -28,7 +28,7 @@ from personalscraper.core.sqlite import apply_migrations
 
 MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "acquire" / "migrations"
 
-# Expected tables after the full migration chain (001 → 017) is applied.
+# Latest applied migration of the full chain (bump alongside every new script).
 _LATEST_VERSION = 24
 
 _EXPECTED_TABLES = {

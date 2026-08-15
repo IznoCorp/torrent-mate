@@ -490,14 +490,18 @@ def follow_backfill_metadata(
                     # this raw read may predate the store's migration run.
                     original_title=(row["original_title"] or None) if "original_title" in row.keys() else None,
                 )
-                if existing.is_complete:
+                kind = (row["kind"] if has_kind else None) or "show"
+                # A movie whose CARD is complete may still miss its original
+                # title (#435) — the operator's repair tool must reach it, or
+                # « skipped » would read as « checked and fine » while the
+                # cross-language identity filter stays half-armed.
+                if existing.is_complete and (kind != "movie" or existing.original_title is not None):
                     continue
                 media_ref = _media_ref_from_json(row["media_ref_json"])
                 if media_ref is None:
                     skipped += 1
                     log.info("cli.follow.backfill.no_provider_id", followed_id=row["id"], title=row["title"])
                     continue
-                kind = (row["kind"] if has_kind else None) or "show"
                 resolved = enrich_follow_metadata(
                     media_ref,
                     kind,

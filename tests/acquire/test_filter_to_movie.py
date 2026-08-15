@@ -149,3 +149,17 @@ class TestFilterToMovieCrossLanguage:
         release = _result(self.PROD_RELEASE, seeders=7)
         kept = filter_to_movie([release], ["Avant d'aller dormir", ""], 2014)
         assert kept == []
+
+    def test_all_empty_titles_fail_closed(self) -> None:
+        """A nameless follow (every title empty/None) drops every parseable release.
+
+        Review finding on the first cut of #435: filtering out empty entries
+        and then short-circuiting on an empty list DISABLED the title guard for
+        exactly the rows carrying the least identity — a nameless follow with
+        no year would have grabbed the highest-seeded unrelated release (the
+        Wicker class of incident). The guard must stay fail-closed, matching
+        the pre-#435 behavior of a nameless row (score vs "" was 0 → drop all).
+        """
+        release = _result(self.PROD_RELEASE, seeders=7)
+        assert filter_to_movie([release], ["", None], 2014) == []
+        assert filter_to_movie([release], ["", None], None) == [], "no year AND no title must never fail open"

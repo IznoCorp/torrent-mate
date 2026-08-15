@@ -309,8 +309,14 @@ class DetectService:
 
         Best-effort, ``_persist_series_status`` precedent: a provider outage, a
         malformed payload, or a write failure logs a WARNING and never aborts
-        detect. A persisted value — even one equal to the display title — is
-        non-NULL, so the row is fetched at most once over its lifetime.
+        detect. Any SUCCESSFUL provider answer persists a non-NULL value — the
+        display title itself when the record carries no usable original title —
+        so a row is fetched at most once after TMDB has answered for it; only
+        a failed call (outage, 404) leaves it NULL for the next run to retry.
+        Scope note: the heal covers the follows THIS run detects — an
+        ``--series``-filtered or dry-run invocation heals accordingly less, and
+        a paused follow heals on its first detect after reactivation (always
+        before that same run's enqueue pass).
         """
         unhealed = [
             mf
@@ -322,14 +328,20 @@ class DetectService:
         try:
             tmdb = self._registry.get("tmdb")
         except Exception:  # noqa: BLE001 — no TMDB in the chain: nothing to heal with
-            log.debug("acquire.detect.original_title_no_tmdb")
+            # WARNING, not debug: with no TMDB registered the cross-language
+            # identity fix silently never heals a single row — the operator
+            # must be able to see WHY from the default log level.
+            log.warning("acquire.detect.original_title_no_tmdb", unhealed=len(unhealed))
             return
         for mf in unhealed:
             try:
                 details = tmdb.get_movie(mf.media_ref.tmdb_id)  # type: ignore[attr-defined]
                 original = getattr(details, "original_title", None)
                 if not (isinstance(original, str) and original.strip()):
-                    continue
+                    # A successful answer with no usable original title heals
+                    # with the display title (VERBATIM rule): staying NULL
+                    # would refetch this row on every detect run forever.
+                    original = mf.title
                 assert mf.id is not None  # noqa: S101 — filtered above; narrows for mypy
                 self._store.follow.merge_metadata(
                     mf.id, poster_url=None, overview=None, year=None, original_title=original

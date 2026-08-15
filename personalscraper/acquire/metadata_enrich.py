@@ -95,10 +95,22 @@ class FollowMetadata:
     def is_empty(self) -> bool:
         """Whether every field is still missing.
 
+        Covers ALL fields, titles included: the web write path returns early on
+        an empty snapshot, and a snapshot carrying only the titles (a movie
+        with no poster, no overview, no parseable release date) must still
+        reach the store — dropping it would lose the original title at the one
+        point the capture was designed for (#435).
+
         Returns:
-            ``True`` when the three fields are ``None`` (nothing to persist).
+            ``True`` when every field is ``None`` (nothing to persist).
         """
-        return self.poster_url is None and self.overview is None and self.year is None
+        return (
+            self.poster_url is None
+            and self.overview is None
+            and self.year is None
+            and self.title is None
+            and self.original_title is None
+        )
 
     def fill_from(self, other: "FollowMetadata") -> "FollowMetadata":
         """Return a copy where each missing field is taken from *other*.

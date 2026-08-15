@@ -1705,7 +1705,7 @@ def test_follow_list_active_carries_original_title(store: ConcreteAcquireStore) 
     assert any(r.original_title == "Before I Go to Sleep" for r in rows)
 
 
-def test_follow_merge_metadata_original_title_additive(store: ConcreteAcquireStore, tmp_path: Path) -> None:
+def test_follow_merge_metadata_original_title_additive(store: ConcreteAcquireStore) -> None:
     """#435: merge_metadata writes original_title additively (COALESCE — None never clears)."""
     row_id = store.follow.add(
         FollowedSeries(media_ref=MediaRef(tmdb_id=204922), title="Avant d'aller dormir", added_at=1, kind="movie")

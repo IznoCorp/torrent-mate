@@ -875,6 +875,31 @@ def test_detect_backfill_provider_failure_is_fail_soft(store: ConcreteAcquireSto
     assert _original_title_of(store, fid) is None
 
 
+def test_detect_backfill_blank_provider_answer_heals_with_display_title(store: ConcreteAcquireStore) -> None:
+    """#435 review: a SUCCESSFUL answer with no usable original title still heals.
+
+    ``MediaDetails.original_title`` defaults to ``""`` — leaving such a row
+    NULL would refetch it on every detect run forever, breaking the
+    « fetched at most once » contract. The display title is persisted instead
+    (VERBATIM rule: non-NULL ⇒ healed), and the second run makes no call.
+    """
+    fid = _movie_follow(store)
+    tmdb = _FakeTmdb(original_title="")
+    service = DetectService(
+        store=store,
+        ownership=_StubOwnership(set()),
+        registry=_registry_with(tmdb),
+        event_bus=EventBus(),
+        config=_config(),
+    )
+
+    service.run(series=None, dry_run=False, today=date(2024, 1, 1), now=100)
+    assert _original_title_of(store, fid) == "Avant d'aller dormir", "blank answer heals with the display title"
+
+    service.run(series=None, dry_run=False, today=date(2024, 1, 2), now=200)
+    assert tmdb.calls == [204922], "healed row must not be refetched on the next run"
+
+
 def test_detect_backfill_skipped_on_dry_run(store: ConcreteAcquireStore) -> None:
     """#435: dry-run makes no provider call and persists nothing."""
     fid = _movie_follow(store)
