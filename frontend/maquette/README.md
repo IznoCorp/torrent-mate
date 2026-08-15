@@ -23,14 +23,16 @@ document names exactly one module entry, and the bundle it names exists.
 
 **React and TanStack Router are the outer shell.** The router is the SINGLE writer of the
 URL and the history: the legacy engine keeps its navigation logic but speaks to
-`window.__pont` (five verbs) instead of the History API, through a queue-and-replay
-pre-bridge in the envelope — the classic script runs before the deferred module, so the
-recorder queues its writes and the shell replays them on mount. R74 (`pont.py`) holds the
+`window.__pont` (five verbs) instead of the History API. The shell creates the store and
+the real bridge FIRST and only then starts the engine (`window.__demarrerMoteur` — the boot
+inversion described below), so every bridge call the engine makes at boot lands straight on
+the single writer; nothing before it needs queueing or replaying. R74 (`pont.py`) holds the
 bridge: no direct history writer left in the source, the back journey redraws through it,
 a deep URL lands on its promised state, `__go` drives without touching history depth, and
-both bridge halves are present in what is measured. One faithfully-kept legacy trait:
-forward is not a return — going back from a sheet and then forward closes it rather than
-restoring it, exactly as before the router.
+the boot handshake is real — the startup screen comes off on its own, before the harness
+ever touches it. One faithfully-kept legacy trait: forward is not a return — going back
+from a sheet and then forward closes it rather than restoring it, exactly as before the
+router.
 
 **Two screens are routed for real, not merely driven by `__go()`.** `/profil/$titre`
 (the quality-profile screen, `ProfilEcran`) and `/ajout` (the add screen, `AjoutEcran`,
@@ -703,7 +705,7 @@ They are committed because they encode recipes that cost time to get right.
 | `images.py`          | R70: the source embeds no image and every `assets/` reference resolves to a file                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `ecrans.py`          | R71: a screen above another one — back redraws the screen it covered (query and scroll included) through both exits, one more back leaves the layer, and a result card carries no inline action in its foot: the panel is the single path to the act                                                                                                                                                                                                                               |
 | `coquille.py`        | R72: the Vite shell emits the prototype verbatim inside a real envelope — the fragment refonte.html appears byte-for-byte exactly once, the module entry is present with the correct format, and the named bundle file exists under dist/vite/                                                                                                                                                                                                                                     |
-| `pont.py`            | R74: the bridge wires the legacy nav cluster to the router — zero raw history calls in source, the journey works through both exits, deep URL entry lands on promised state, __go() preserves history depth, and both bridge halves (pre-bridge recorder in envelope + real bridge in shell) are present                                                                                                                                                                           |
+| `pont.py`            | R74: the bridge wires the legacy nav cluster to the router — zero raw history calls in source, the journey works through both exits, deep URL entry lands on promised state, __go() preserves history depth, and the boot handshake is real: `window.__demarrerMoteur` exists and the startup screen comes off on its own, before the harness ever touches it                                                                                                                      |
 | `bascule.py`         | R73: the host serves the build to the byte, rebuilds stale sources before serving, and a broken build answers 503 that says so — proven against a scratch design root, never the real source                                                                                                                                                                                                                                                                                       |
 | `serveur.py`         | plumbing, not a rule, like `commun.py`: a second static server (port 8917, never 8710/8711/8712/8899) that answers `wrapped.html` for any extensionless path with no file behind it, so a deep client-side address (`/profil/…`, `/ajout`) can be requested cold instead of only reached from inside an already-loaded document                                                                                                                                                    |
 | `adresses_ecrans.py` | R75: a screen route answers a real address, cold, and only while it is open — `/profil/$titre` opens the promised screen with no journey and no click, every image the document loads at that depth resolves through `<base href="/">`, one back from a walked-to screen lands exactly where the walk started with the address returning to what it was, a wrong deep address renders honestly instead of raising, and `/ajout?q=…` opens with its field and results already drawn |
