@@ -163,8 +163,9 @@ checks 10/10b.
 
 - **E-001 — Médiathèque sort inversion** (2026-08-15): every sort type must be reversible —
   A→Z and Z→A each way. An evolution, so it is maquette-first: drawn and measured in the
-  prototype before any conversion work touches it. To be folded into the Médiathèque wave of
-  SP4 or done as its own maquette edit, operator's call at plan time.
+  prototype before any conversion work touches it. **Arbitrated by the operator
+  (2026-08-15): folded into the Médiathèque wave of SP4**, where that page is drawn into
+  its final component.
 
 ---
 
