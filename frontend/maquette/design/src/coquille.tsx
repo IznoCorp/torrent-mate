@@ -82,9 +82,9 @@ const attrape = createRoute({
   },
   component: () => null, // the legacy DOM lives outside the React root until SP4
 });
-// The pilot screen (SP4a task 9): a real route, rendering a final component
-// INSIDE the React root — the first surface to leave the legacy fragment
-// rather than being reached through it. `$titre` is percent-encoded and
+// The quality-profile screen: a real route, rendering a final component
+// INSIDE the React root — a surface reached directly rather than through the
+// legacy fragment. `$titre` is percent-encoded and
 // NFC-normalised by both ends of the bridge (`aller()` below on write,
 // `ProfilEcran` on read) so a title carrying combining characters survives
 // the round trip through the URL unchanged.
@@ -125,19 +125,19 @@ declare module "@tanstack/react-router" {
 //     unwinding logic counts entries.
 //   - a pop is reported as BACK / FORWARD / GO, never as a « POP » type: the
 //     three together are what the `popstate` event used to signal.
-// Address ownership for pops (SP4a task 9 — the wave's first entry): once a
-// pathname belongs to a React screen route, the router's OWN history
-// subscription already re-renders the matching component — forwarding the
-// same pop to the legacy engine would hand a callback state it no longer
-// owns (or, for a deleted `openX`, a function that no longer exists). A
-// pathname PREFIX match — not `routeur.matchRoute`, whose generic overloads
-// need a route id known at the call site — keeps this typecheck-safe and
-// grows by adding one entry per screen migrated in a later wave.
-const ADRESSES_ECRAN = ["/profil/"];
-function estAdresseEcran(pathname: string): boolean {
-  return ADRESSES_ECRAN.some((prefixe) => pathname.startsWith(prefixe));
-}
-
+//
+// EVERY pop is forwarded to the engine callback, unfiltered. Ownership of an
+// entry is not decided here by matching the address against a list of
+// routes — it is already encoded in the entry's own SHAPE, and the engine
+// callback reads that shape itself: a `layer` entry and a `tm: "nav"` entry
+// keep their exact existing handling, and an entry written by the router
+// carries neither key, so the callback's own checks fall through it
+// harmlessly — the router has already re-rendered by the new URL before this
+// runs, and the callback simply has nothing left to do. Filtering pops by
+// pathname here was tried and withdrawn: a layer opened OVER a screen route
+// (via `coucher`, still a `layer` entry) needs the SAME forwarding a layer
+// opened anywhere else gets, or its own unwind guard never runs and closing
+// it silently stops working.
 window.__pont = {
   noter: (etat: unknown, url: string) => {
     historique.push(url, etat);
@@ -158,10 +158,8 @@ window.__pont = {
         action.type === "BACK" ||
         action.type === "FORWARD" ||
         action.type === "GO"
-      ) {
-        if (estAdresseEcran(location.pathname)) return;
+      )
         rappel(location.state);
-      }
     }),
 };
 window.__routeur = routeur;

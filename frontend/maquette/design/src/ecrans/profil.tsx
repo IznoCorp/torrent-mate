@@ -8,9 +8,12 @@
 // same stylesheet applies unchanged and the rule harness measures the same
 // geometry it measured on the legacy `#screen`.
 import { useParams } from "@tanstack/react-router";
-import { useEtat } from "../donnees";
-
-type Resolution = "720p" | "1080p" | "2160p";
+import {
+  useEtat,
+  useReferentiel,
+  type Release,
+  type Resolution,
+} from "../donnees";
 
 type QualityProfile = {
   min_resolution: Resolution | null;
@@ -19,39 +22,10 @@ type QualityProfile = {
   require_known_resolution: boolean;
 };
 
-type Release = {
-  n: string;
-  res: string;
-  src: string;
-  lang: string;
-  s: number;
-  go: number;
-  sc: number;
-};
-
-// The small slice of `refonte.html`'s module-scope constants and pure
-// helpers this screen reuses verbatim — reference data, never mutated by an
-// action, so reading it off `window` (rather than through the reactive
-// store) does not cost the screen any reactivity it needs. Exposed once, at
-// definition time in refonte.html's own script, well before this module
-// evaluates (the fragment's classic <script> runs before the deferred
-// `type="module"` shell — see coquille.tsx's boot-order comment).
-declare global {
-  interface Window {
-    __referentiel: {
-      RELEASES: Release[];
-      RESOS: Resolution[];
-      AUDIOS: [string, string][];
-      icons: Record<string, string>;
-      baseTitle: (title: string) => string;
-    };
-  }
-}
-
 // The exact shape `svgIcon(paths, strokeWidth)` produced as an HTML string —
 // rebuilt as a real element so it composes with JSX, `paths` is still the
-// SAME raw markup from `window.__referentiel.icons`, injected verbatim
-// (trusted: it is a fixed set of `<path>`/`<circle>` primitives defined in
+// SAME raw markup from `useReferentiel().icons`, injected verbatim (trusted:
+// it is a fixed set of `<path>`/`<circle>` primitives defined in
 // refonte.html, never user input).
 function Icone({
   paths,
@@ -105,7 +79,7 @@ export function ProfilEcran() {
   const titre = brut.normalize("NFC");
   const etat = useEtat();
   const profil = etat.profil as QualityProfile;
-  const { RELEASES, RESOS, AUDIOS, icons, baseTitle } = window.__referentiel;
+  const { RELEASES, RESOS, AUDIOS, icons, baseTitle } = useReferentiel();
   const retenus = compterRetenus(profil, RELEASES);
 
   function ecrireProfil(patch: Partial<QualityProfile>): void {
