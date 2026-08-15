@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@tanstack/react-router": "^1.170.29",
+    "@tanstack/store": "^0.11.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   }
