@@ -11432,7 +11432,7 @@
   ];
 
   /* State */
-  const state = {
+  let state = {
     page: "acq",
     acqTab: "maintenant",
     libLens: "cat",
@@ -11854,6 +11854,9 @@
      `window.__reset()` restores the seed; `__go()` calls it systematically,
      so every measurement starts from the same state. */
   let world = null;
+  // The single owner of the mutable state, adopted at boot by
+  // window.__demarrerMoteur — null until the shell calls it.
+  let magasin = null;
   function seedWorld() {
     const deepCopy = (value) => JSON.parse(JSON.stringify(value));
     world = {
@@ -16547,8 +16550,13 @@
   /* The bridge announces a back the way `popstate` did — for a back, a
      forward and a jump alike — and hands over the state of the entry now
      CURRENT, which is the entry the gesture landed on. That is what
-     `popstate` reported too, so the reading below is unchanged. */
-  __pont.surRetour((etatCourant) => {
+     `popstate` reported too, so the reading below is unchanged.
+
+     The registration itself moved into window.__demarrerMoteur, below: like
+     every other `__pont` verb, it needs the REAL bridge to exist first, and
+     nothing here forces that anymore — there is no pre-bridge queueing calls
+     made before the module evaluates. */
+  function surRetourEngine(etatCourant) {
     // Our own unwind, announced by the layer that closed itself. It is not a
     // back gesture and carries no destination: consuming it is the whole
     // handling. Read before the layer guards, because the layer's class is
@@ -16592,7 +16600,7 @@
     // next back lands on the guard again.
     noterLeChemin();
     toast("Encore un retour pour quitter TorrentMate.");
-  });
+  }
 
   select("#scrim").onclick = () => {
     closeDlg();
@@ -40936,60 +40944,83 @@
      close it on a gesture the browser took away. */
   poignee.addEventListener("pointercancel", () => finGlisseFeuille(true));
 
-  /* The opening state comes from the ADDRESS, before the first paint: a
-     reload that lands on the opening page rather than where one was is the
-     defect DOIT-10 names, and it is fixed here rather than corrected after a
-     frame the operator would see. */
-  Object.assign(state, etatDeLURL());
-  /* Kept from BEFORE the first render, because rendering an unknown id moves
-     the state onto the not-found surface — and rewriting the address to match
-     would make a mistyped link quietly become a different one. A browser
-     answering 404 leaves the address alone; so does this. */
-  const adresseDArrivee = location.pathname + location.search;
-  render();
-  /* The address is put back on the entry one arrives on, so a back from
-     anywhere reaches the page the link named rather than a bare document. */
-  try {
-    __pont.remplacer(etatDeNavigation(), adresseDArrivee);
-  } catch (error) {}
-  /* The interface exists from here on, so the startup screen has nothing left
-     to cover — but it does not come off on that line. It comes off when the
-     wait it covers RESOLVES, which is the only rule that serves both a
-     prototype with nothing to fetch and an app with a real one. */
-  window.__chargementTermine();
-  /* The guard is the FIRST entry, and the opening page sits on top of it. It
-     cannot be anywhere else: nothing can be inserted below the entry a
-     document opens on, so the guard has to BE that entry. */
-  try {
-    __pont.remplacer({ tm: "garde" });
-  } catch (error) {}
-  /* Pushed with the address one ARRIVED at rather than with the one the state
-     now implies. Rendering an unknown id moves the state onto the not-found
-     surface, and deriving the address from it here rewrote a mistyped link
-     into « ?page=404 » — the interface correcting the operator's address
-     behind their back. A browser answering 404 leaves the address alone. */
-  try {
-    __pont.noter(etatDeNavigation(), adresseDArrivee);
-  } catch (error) {}
-  /* The welcome hint disappears on first interaction: a bubble that returns
-     over an open sheet is a nuisance, not help. */
-  let hintShown = false;
-  setTimeout(() => {
-    // Never in measurement mode: the bubble would cover the last action of
-    // the captured screen, and it is harness, not app.
-    if (hintShown || document.documentElement.classList.contains("measuring"))
-      return;
-    hintShown = true;
-    toast("Touchez le ⓘ en haut pour afficher les notes de conception.");
-  }, 900);
-  document.addEventListener(
-    "pointerdown",
-    () => {
+  /* The engine no longer boots itself. The shell — store created, bridge
+     real — starts it, so no write ever needs recording and replaying, and a
+     module that never evaluates leaves the startup screen on screen: a
+     visible, truthful failure instead of an app with mute verbs. */
+  window.__demarrerMoteur = function (deps) {
+    magasin = deps.magasin;
+    magasin.adopterEtat(state);
+    magasin.adopterMonde(world);
+    state = magasin.lire().etat;
+    magasin.store.subscribe(() => {
+      state = magasin.lire().etat;
+    });
+
+    /* The bridge announces a back the way `popstate` did. Registered HERE,
+       not at the engine's top level: it is a `__pont` verb like the writes
+       below, and the real bridge only exists from this call on — nothing
+       upstream queues it anymore. */
+    __pont.surRetour(surRetourEngine);
+
+    /* The opening state comes from the ADDRESS, before the first paint: a
+       reload that lands on the opening page rather than where one was is the
+       defect DOIT-10 names, and it is fixed here rather than corrected after
+       a frame the operator would see. */
+    Object.assign(state, etatDeLURL());
+    /* Kept from BEFORE the first render, because rendering an unknown id
+       moves the state onto the not-found surface — and rewriting the
+       address to match would make a mistyped link quietly become a
+       different one. A browser answering 404 leaves the address alone; so
+       does this. */
+    const adresseDArrivee = location.pathname + location.search;
+    render();
+    /* The address is put back on the entry one arrives on, so a back from
+       anywhere reaches the page the link named rather than a bare
+       document. */
+    try {
+      __pont.remplacer(etatDeNavigation(), adresseDArrivee);
+    } catch (error) {}
+    /* The interface exists from here on, so the startup screen has nothing
+       left to cover — but it does not come off on that line. It comes off
+       when the wait it covers RESOLVES, which is the only rule that serves
+       both a prototype with nothing to fetch and an app with a real one. */
+    window.__chargementTermine();
+    /* The guard is the FIRST entry, and the opening page sits on top of it.
+       It cannot be anywhere else: nothing can be inserted below the entry a
+       document opens on, so the guard has to BE that entry. */
+    try {
+      __pont.remplacer({ tm: "garde" });
+    } catch (error) {}
+    /* Pushed with the address one ARRIVED at rather than with the one the
+       state now implies. Rendering an unknown id moves the state onto the
+       not-found surface, and deriving the address from it here rewrote a
+       mistyped link into « ?page=404 » — the interface correcting the
+       operator's address behind their back. A browser answering 404 leaves
+       the address alone. */
+    try {
+      __pont.noter(etatDeNavigation(), adresseDArrivee);
+    } catch (error) {}
+    /* The welcome hint disappears on first interaction: a bubble that
+       returns over an open sheet is a nuisance, not help. */
+    let hintShown = false;
+    setTimeout(() => {
+      // Never in measurement mode: the bubble would cover the last action of
+      // the captured screen, and it is harness, not app.
+      if (hintShown || document.documentElement.classList.contains("measuring"))
+        return;
       hintShown = true;
-      const toast2 = select("#toast");
-      if (toast2.textContent.includes("notes de conception"))
-        toast2.classList.remove("show");
-    },
-    { capture: true },
-  );
+      toast("Touchez le ⓘ en haut pour afficher les notes de conception.");
+    }, 900);
+    document.addEventListener(
+      "pointerdown",
+      () => {
+        hintShown = true;
+        const toast2 = select("#toast");
+        if (toast2.textContent.includes("notes de conception"))
+          toast2.classList.remove("show");
+      },
+      { capture: true },
+    );
+  };
 </script>

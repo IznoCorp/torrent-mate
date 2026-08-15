@@ -12,6 +12,7 @@ import {
 } from "@tanstack/react-router";
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { creerMagasin, type Magasin } from "./magasin";
 
 // R69's addressable state, validated — absent means "unchanged", as before.
 type Recherche = {
@@ -31,19 +32,19 @@ type Pont = {
   coucher: (couche: string) => void;
   retour: () => void;
   surRetour: (rappel: (etat: unknown) => void) => () => void;
-  // Written by the shell once the recorded boot calls have been replayed onto
-  // this bridge — see where it is set, at the bottom of this file.
-  pret?: boolean;
 };
 
 declare global {
   interface Window {
     __pont: Pont;
     __routeur: typeof routeur;
-    // The envelope's pre-bridge, which records the verb calls the engine
-    // makes before this module evaluates. It removes itself once replayed,
-    // so its absence is the normal state, not an error.
-    __rejouerLePont?: (pont: Pont) => void;
+    // The engine's handshake: defined by refonte.html, called exactly once
+    // below, once the store exists and the bridge is real. Optional because
+    // a module that failed to evaluate is exactly the case this boot order
+    // is built to leave visible — the startup screen, not a crash here.
+    __demarrerMoteur?: (deps: { magasin: Magasin }) => void;
+    // The domain hooks and the probes read the engine's state through this.
+    __magasin: Magasin;
   }
 }
 
@@ -54,8 +55,8 @@ declare global {
 //
 // Creating it stamps the current entry with the library's own bookkeeping
 // keys. Nothing is preserved across that stamp on purpose: the engine no
-// longer writes the entry itself — its arrival writes were recorded by the
-// pre-bridge and are replayed BELOW, onto this instance, so the entry the
+// longer writes the entry itself — its boot writes go straight onto this
+// instance BELOW, once window.__demarrerMoteur is called, so the entry the
 // shell mounts on is written once, by the single writer, in the right order.
 const historique = createBrowserHistory();
 
@@ -121,21 +122,17 @@ window.__pont = {
 };
 window.__routeur = routeur;
 
-// Whatever the engine asked for while only the recorder existed is played
-// back now, in its original order, before the first render: the address the
-// router mounts on is then the one the engine's boot settled on, not the one
-// the document happened to open with.
-const rejouer = window.__rejouerLePont;
-if (typeof rejouer === "function") {
-  rejouer(window.__pont);
-  // The marker is written HERE, inside the branch that found the replay AND
-  // invoked it, and nowhere else: it observes the replay's EFFECT, not the
-  // bridge's installation. Installation, just above, is unconditional — a
-  // marker written outside this branch would still be written on a document
-  // whose recorder had been severed, so it could never fall under a severed
-  // replay, and a probe reading it would answer about the wrong event.
-  window.__pont.pret = true;
-}
+// The store is created here, and the engine starts only once it — and the
+// bridge above — are real. No queue, no replay: the engine's own boot writes
+// (the arrival state, the guard entry, the back listener) now run straight
+// onto the single writer, in the engine's own order, before the first
+// render. A module that never evaluates simply never calls this, and the
+// startup screen — already first in the frame — stays up: a visible,
+// truthful failure instead of an app with mute verbs.
+const magasin = creerMagasin();
+window.__magasin = magasin;
+const demarrer = window.__demarrerMoteur;
+if (typeof demarrer === "function") demarrer({ magasin });
 
 ReactDOM.createRoot(document.getElementById("coquille")!).render(
   <React.StrictMode>
