@@ -71,6 +71,7 @@ from personalscraper.acquire._filters import (
     filter_to_movie,
     filter_to_season,
 )
+from personalscraper.acquire._query import build_search_query
 from personalscraper.acquire._resolve_walk import resolve_first_available
 from personalscraper.acquire.events import GrabFailed, TrackerAuthFailed, WantedAbandoned
 from personalscraper.api._contracts import ApiError, MediaType
@@ -237,45 +238,6 @@ class SearchVerdict:
     filter dropped. ``None`` on every other path (the conversion path
     has no use for them).
     """
-
-
-def build_search_query(item: "WantedItem", title: str | None, year: int | None = None) -> str:
-    """Build a tracker search query from a wanted item + resolved series title.
-
-    This is the Follow D3 title-resolution seam. When the series ``title`` is
-    known (resolved from the followed-series row), an episode query becomes
-    ``"{title} SxxEyy"`` and a movie query becomes ``"{title} {year}"`` when the
-    year is known (« Wicker 2026 » — narrows an ambiguous title so the trackers
-    do not return every « Wicker* » film, #28) or ``"{title}"`` otherwise — the
-    form the title-based trackers (c411, tr4ker) actually match. When ``title``
-    is ``None`` (standalone item with no followed row, or a resolver miss), it
-    falls back to the primary provider ID string — the legacy behavior, which
-    finds nothing on title-based trackers but keeps the query non-empty.
-
-    Args:
-        item: The claimed wanted item (carries ``kind`` + ``season`` +
-            ``episode`` + ``media_ref``).
-        title: The resolved series/movie title, or ``None``.
-        year: The movie's release year, or ``None`` — appended to a movie query
-            to disambiguate the title (#28). Ignored for episodes.
-
-    Returns:
-        A non-empty query string.
-    """
-    if title:
-        if item.kind == "episode" and item.season is not None and item.episode is not None:
-            return f"{title} S{item.season:02d}E{item.episode:02d}"
-        if item.kind == "season" and item.season is not None:
-            return f"{title} S{item.season:02d}"
-        if year is not None:
-            return f"{title} {year}"
-        return title
-    media_ref = item.media_ref
-    if media_ref.tvdb_id is not None:
-        return str(media_ref.tvdb_id)
-    if media_ref.tmdb_id is not None:
-        return str(media_ref.tmdb_id)
-    return str(media_ref.imdb_id)
 
 
 def rank_candidates(
@@ -740,11 +702,9 @@ class GrabOrchestrator:
 
         chosen = first
         if not first.results and original_title and original_title != title:
-            # #435 — releases are commonly NAMED in the original language, and
-            # some trackers only match what the release name carries: the
-            # display-title query then comes back empty (or all-junk) while
-            # the original-title query finds the film. One retry, same
-            # narrowing; a hard failure here must not overwrite the first
+            # #435 — some trackers only match what the release NAME carries
+            # (the original language): one retry with the original-title query,
+            # same narrowing. A hard failure here must not overwrite the first
             # attempt's honest healthy-empty verdict, so it degrades to empty.
             log.info(
                 "acquire.search.retry_original_title",
@@ -1160,6 +1120,7 @@ class GrabOrchestrator:
 
 __all__ = [
     "GrabOrchestrator",
+    "build_search_query",
     "GrabOutcome",
     "SearchDisposition",
     "SearchVerdict",
