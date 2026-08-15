@@ -40,6 +40,25 @@
           navigator.serviceWorker.register("/sw.js").catch(() => {}),
         );
     </script>
+    <script>
+      // The saved appearance is applied before the first paint: the default
+      // (no data-theme attribute) paints dark, « clair » forces light, and
+      // « systeme » follows the OS preference. The drawer's control writes
+      // the same key this reads. It sits INSIDE the pwa markers on purpose:
+      // the login gate borrows this whole block, and an operator who chose
+      // an appearance is owed it on the gate too — not only past it.
+      (function () {
+        try {
+          var mode = localStorage.getItem("tm-apparence") || "systeme";
+          var clair =
+            mode === "clair" ||
+            (mode === "systeme" &&
+              matchMedia("(prefers-color-scheme: light)").matches);
+          if (clair)
+            document.documentElement.setAttribute("data-theme", "light");
+        } catch (erreur) {}
+      })();
+    </script>
     <!-- pwa:end -->
   </head>
   <body>

@@ -28,6 +28,12 @@
     --muted-foreground: oklch(0.682 0.012 286);
     --border: oklch(0.279 0.008 286);
     --primary: oklch(0.808 0.158 79);
+    /* The brand tone has two jobs one colour cannot do (the same lesson the
+       status tones taught): a FILL behind dark text, and a LABEL on a tint of
+       itself. On the dark theme the mark is bright enough to do both, so the
+       text variant equals the mark; the light theme darkens it, or « you are
+       here » is written in near-invisible ink on near-white. */
+    --primary-texte: oklch(0.808 0.158 79);
     --primary-foreground: oklch(0.24 0.05 70);
     --success: oklch(0.72 0.165 152);
     --warning: oklch(0.8 0.15 75);
@@ -63,7 +69,9 @@
     --mq-scrim-doux: rgb(0 0 0/0.35);
     --mq-tile-overlay: rgb(0 0 0/0.62);
   }
-  /* login:palette:end */
+  /* The light tokens live INSIDE the palette the login gate borrows: the
+     gate applies the saved appearance before first paint, and an attribute
+     without its tokens paints the wrong theme with a clear conscience. */
   :root[data-theme="light"] {
     --background: oklch(0.995 0 0);
     --foreground: oklch(0.205 0.004 286);
@@ -73,6 +81,7 @@
     --muted-foreground: oklch(0.52 0.01 286);
     --border: oklch(0.91 0.004 286);
     --primary: oklch(0.76 0.155 70);
+    --primary-texte: oklch(0.5 0.13 70);
     --primary-foreground: oklch(0.99 0.01 90);
     --success: oklch(0.6 0.15 152);
     --warning: oklch(0.74 0.15 72);
@@ -87,6 +96,7 @@
     --sidebar: oklch(0.985 0.002 286);
     --mq-scrim: rgb(0 0 0/0.35);
   }
+  /* login:palette:end */
 
   /* login:socle:start */
   *,
@@ -110,10 +120,10 @@
     -webkit-font-smoothing: antialiased;
     font-variant-numeric: tabular-nums;
   }
-  /* login:socle:end */
   :root[data-theme="light"] body {
     background: oklch(0.93 0.002 286);
   }
+  /* login:socle:end */
   /* The app inherits this from the Tailwind preflight; the prototype must
      declare it, otherwise the brand link renders as underlined blue. */
   a {
@@ -158,9 +168,13 @@
      avatar at every width, and the desktop offset that was supposed to avoid
      that missed the frame it was computed against. */
   .hbtn {
+    /* Harness chrome lives in the top bar's empty middle, to the LEFT of the
+       app's own status dot and avatar — never over them: R51 measures that
+       overlap in every named state. Anchored to the same safe-area offset
+       the bar itself uses, so the buttons ride the bar on a notched phone. */
     position: absolute;
-    left: 6px;
-    bottom: 65px;
+    right: 100px;
+    top: calc(env(safe-area-inset-top) + 12px);
     z-index: 70;
     display: flex;
     gap: 4px;
@@ -2062,7 +2076,7 @@
     transition: color 0.15s;
   }
   .bottombar button[aria-current="page"] {
-    color: var(--primary);
+    color: var(--primary-texte);
   }
   .bottombar svg {
     width: 20px;
@@ -3799,7 +3813,7 @@
        the label exactly the colour of what it sat on: contrast 1.00, a label
        written in invisible ink. */
     background: color-mix(in oklab, var(--primary) 14%, transparent);
-    color: var(--primary);
+    color: var(--primary-texte);
     font-weight: 600;
   }
   .drawer a svg {
@@ -4443,17 +4457,6 @@
           stroke-linecap="round"
         >
           <path d="M3 6h18M3 12h12M3 18h6" />
-        </svg>
-      </button>
-      <button id="themeBtn" aria-label="Thème" title="Clair / sombre">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-        >
-          <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z" />
         </svg>
       </button>
     </div>
@@ -17700,10 +17703,19 @@
         </div>`,
         ).join("")}
       </nav>
+      <div class="grp">
+        <p class="sect">Apparence</p>
+        <div class="segmini" role="group" aria-label="Thème">
+          ${APPARENCES.map(
+            (mode) =>
+              `<button data-apparence="${mode}" aria-pressed="${apparenceCourante() === mode}">${mode === "systeme" ? "Système" : mode === "clair" ? "Clair" : "Sombre"}</button>`,
+          ).join("")}
+        </div>
+      </div>
       <div class="ver">
         <p class="vt">Version déployée</p>
-        <p class="vv">0.89.0</p>
-        <p class="vc">build 720d2536 · à jour</p>
+        <p class="vv">0.97.7</p>
+        <p class="vc">build 0eba8877 · à jour</p>
       </div>`;
     element.classList.add("open");
     select("#scrim").classList.add("open");
@@ -17762,13 +17774,31 @@
   select("#scenBtn").onclick = () => {
     openHarness();
   };
-  select("#themeBtn").onclick = () => {
-    const cur = document.documentElement.getAttribute("data-theme");
-    document.documentElement.setAttribute(
-      "data-theme",
-      cur === "light" ? "dark" : "light",
-    );
-  };
+  /* Appearance belongs to the interface, not the harness: the drawer offers
+     the three honest states. The default (no data-theme attribute) paints
+     dark; « clair » forces light; « systeme » follows the OS preference,
+     LIVE — the media listener acts only while that mode is chosen. The
+     choice persists under the key the envelope reads before the first
+     paint, so a reload opens in the chosen appearance without a flash. */
+  const APPARENCES = ["systeme", "clair", "sombre"];
+  function apparenceCourante() {
+    try {
+      const lu = localStorage.getItem("tm-apparence");
+      if (APPARENCES.includes(lu)) return lu;
+    } catch (error) {}
+    return "systeme";
+  }
+  function appliquerApparence(mode) {
+    const clair =
+      mode === "clair" ||
+      (mode === "systeme" &&
+        matchMedia("(prefers-color-scheme: light)").matches);
+    if (clair) document.documentElement.setAttribute("data-theme", "light");
+    else document.documentElement.removeAttribute("data-theme");
+  }
+  matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => {
+    if (apparenceCourante() === "systeme") appliquerApparence("systeme");
+  });
 
   /* Global delegation */
   document.addEventListener("click", (event) => {
@@ -18180,6 +18210,24 @@
         if (surLeTiroir) __pont.remplacer(etatDeNavigation(), urlDeLEtat());
         else noterLeChemin();
       } catch (error) {}
+      return;
+    }
+    if (closest.dataset.apparence) {
+      const mode = closest.dataset.apparence;
+      try {
+        localStorage.setItem("tm-apparence", mode);
+      } catch (error) {}
+      appliquerApparence(mode);
+      // Reflect in place: the drawer stays open — choosing an appearance is
+      // not a navigation, and watching the theme change is the feedback.
+      closest.parentElement
+        .querySelectorAll("[data-apparence]")
+        .forEach((bouton) =>
+          bouton.setAttribute(
+            "aria-pressed",
+            String(bouton.dataset.apparence === mode),
+          ),
+        );
       return;
     }
     if (closest.dataset.hclose) {
