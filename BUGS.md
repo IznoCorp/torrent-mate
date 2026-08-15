@@ -31,25 +31,25 @@ when the defect comes back.
 
 ## Open
 
-| ID    | Defect                                          | Reported    | Status       |
-| ----- | ----------------------------------------------- | ----------- | ------------ |
-| B-019 | Many media sheets have lost their visual        | 1×          | `open`       |
-| B-020 | Actor portraits on media sheets are broken      | 1×          | `open`       |
-| B-021 | Signing out leaves the bottom panel on top      | 1×          | `to confirm` |
-| B-022 | « Voir mes suivis » in the add search is inert  | 1×          | `to confirm` |
-| B-023 | Médiathèque « Incomplets »: every visual broken | 1×          | `open`       |
-| B-013 | The drawer's entries lead nowhere               | 2×          | `to confirm` |
-| B-014 | The drawer's current entry is unreadable        | 1×          | `to confirm` |
-| B-015 | Back reopens the drawer that was just closed    | 1×          | `to confirm` |
-| B-016 | Swiping a row right, then left, makes it jump   | 1×          | `to confirm` |
-| B-017 | Closing a panel sends the list back to its top  | by mutation | `to confirm` |
-| B-018 | On a desktop, dragging a row opens the panel    | 1×          | `to confirm` |
-| B-024 | `data-go` settles ONE history entry, layers pile | by review  | `open`       |
-| B-025 | The screen half of the `data-go` fix has no Back rule | by review | `open`  |
-| B-026 | A silent `catch {}` can let URL and UI disagree | by review   | `open`       |
-| B-027 | `resynchro.py` trusts `t:` first-match + naive braces | by review | `open`  |
-| B-028 | `resynchro.py` says « 0 correction » for unknown titles | by review | `open` |
-| B-029 | Counter rule misses suffix drift (« 1 » in « 11 ») | by review | `open`     |
+| ID    | Defect                                                  | Reported    | Status       |
+| ----- | ------------------------------------------------------- | ----------- | ------------ |
+| B-019 | Many media sheets have lost their visual                | 1×          | `closed`     |
+| B-020 | Actor portraits on media sheets are broken              | 1×          | `closed`     |
+| B-021 | Signing out leaves the bottom panel on top              | 1×          | `to confirm` |
+| B-022 | « Voir mes suivis » in the add search is inert          | 1×          | `to confirm` |
+| B-023 | Médiathèque « Incomplets »: every visual broken         | 1×          | `closed`     |
+| B-013 | The drawer's entries lead nowhere                       | 2×          | `to confirm` |
+| B-014 | The drawer's current entry is unreadable                | 1×          | `to confirm` |
+| B-015 | Back reopens the drawer that was just closed            | 1×          | `to confirm` |
+| B-016 | Swiping a row right, then left, makes it jump           | 1×          | `to confirm` |
+| B-017 | Closing a panel sends the list back to its top          | by mutation | `to confirm` |
+| B-018 | On a desktop, dragging a row opens the panel            | 1×          | `to confirm` |
+| B-024 | `data-go` settles ONE history entry, layers pile        | by review   | `open`       |
+| B-025 | The screen half of the `data-go` fix has no Back rule   | by review   | `open`       |
+| B-026 | A silent `catch {}` can let URL and UI disagree         | by review   | `open`       |
+| B-027 | `resynchro.py` trusts `t:` first-match + naive braces   | by review   | `open`       |
+| B-028 | `resynchro.py` says « 0 correction » for unknown titles | by review   | `open`       |
+| B-029 | Counter rule misses suffix drift (« 1 » in « 11 »)      | by review   | `open`       |
 
 **B-018 was written down as a regression from B-016, and that was wrong.** It has two ways in, one
 of which is older than this work — the correction is recorded here rather than quietly amended,
@@ -132,10 +132,17 @@ executed, none assumed:
 - The live pm2 process runs this checkout's `serve.py`; Caddy is a bare reverse-proxy; the
   service worker intercepts navigations only, network-first — no cache to serve a stale copy.
 
-What remains unruled: the operator's own device (an installed PWA holding an older document,
-or a moment when the host served a mid-work build — this host serves the working tree LIVE).
-Needs the operator: does it still show NOW, on which surface, and does a hard reload (or the
-browser tab instead of the installed app) change it?
+What remained unruled was the operator's own device — and the operator ruled it.
+
+**CLOSED — operator confirmed on a real device** (the fiches, the cast carousel and the
+« Incomplets » lens all draw their visuals). No artifact was ever broken: every measurable
+path was clean throughout, and no fix was applied. The retained cause is a TRANSIENT
+serving state — this host serves the working tree LIVE, and the report was made while a
+conversion wave was actively editing it. There is deliberately no closing rule beyond R70
+and the tour: a rule cannot hold a state that no longer exists and never lived in the
+sources. What the episode leaves behind is the tour itself (every drawn image, as RENDERED)
+as a reusable probe, and the reminder that the live host shows mid-work states — a report
+made during a wave is dated evidence, to be re-checked against a settled build.
 
 ---
 
