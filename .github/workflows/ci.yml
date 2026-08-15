@@ -32,6 +32,7 @@ jobs:
       deps: ${{ steps.filtre.outputs.deps }}
       frontend_app: ${{ steps.raffine.outputs.frontend_app }}
       maquette: ${{ steps.filtre.outputs.maquette }}
+      docs: ${{ steps.filtre.outputs.docs }}
     steps:
       # No checkout: on pull_request events the filter reads the PR file list
       # from the API.
@@ -59,6 +60,10 @@ jobs:
             maquette:
               - 'frontend/maquette/**'
               - '.github/workflows/ci.yml'
+            # design-gaps parses design-doc ANCHORS (audit_design_coverage.py):
+            # a docs-only PR that renames a heading can flip its verdict.
+            docs:
+              - 'docs/**'
       # Refinements the filter's glob language cannot express (negation only
       # works with the global 'every' quantifier, which would break the plain
       # filters above):
@@ -411,25 +416,25 @@ jobs:
     needs: [changes]
     steps:
       - uses: actions/checkout@v4
-        if: needs.changes.outputs.python == 'true'
+        if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'
       - uses: actions/setup-python@v5
-        if: needs.changes.outputs.python == 'true'
+        if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'
         with:
           python-version: "3.12"
       - uses: actions/cache@v4
-        if: needs.changes.outputs.python == 'true'
+        if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'
         with:
           path: .venv/
           key: venv-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
           restore-keys: venv-${{ runner.os }}-3.12-
       - run: pip install -e ".[dev]"
-        if: needs.changes.outputs.python == 'true'
+        if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'
       - name: Map freshness check
-        if: needs.changes.outputs.python == 'true'
+        if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'
         run: python3 scripts/update_feature_map.py --check
       - name: Design coverage audit
         # Promoted to hard error in Phase 8 (cycle-4 boundary). Orphans are
         # waived via tests/feature_map/<codename>.json `skip_audit` entries
         # (each carries a `reason` and an `expires` ISO date).
-        if: needs.changes.outputs.python == 'true'
+        if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'
         run: python3 scripts/audit_design_coverage.py --strict
