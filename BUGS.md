@@ -31,14 +31,19 @@ when the defect comes back.
 
 ## Open
 
-| ID    | Defect                                         | Reported    | Status       |
-| ----- | ---------------------------------------------- | ----------- | ------------ |
-| B-013 | The drawer's entries lead nowhere              | 2×          | `to confirm` |
-| B-014 | The drawer's current entry is unreadable       | 1×          | `to confirm` |
-| B-015 | Back reopens the drawer that was just closed   | 1×          | `to confirm` |
-| B-016 | Swiping a row right, then left, makes it jump  | 1×          | `to confirm` |
-| B-017 | Closing a panel sends the list back to its top | by mutation | `to confirm` |
-| B-018 | On a desktop, dragging a row opens the panel   | 1×          | `to confirm` |
+| ID    | Defect                                          | Reported    | Status       |
+| ----- | ----------------------------------------------- | ----------- | ------------ |
+| B-019 | Many media sheets have lost their visual        | 1×          | `open`       |
+| B-020 | Actor portraits on media sheets are broken      | 1×          | `open`       |
+| B-021 | Signing out leaves the bottom panel on top      | 1×          | `open`       |
+| B-022 | « Voir mes suivis » in the add search is inert  | 1×          | `open`       |
+| B-023 | Médiathèque « Incomplets »: every visual broken | 1×          | `open`       |
+| B-013 | The drawer's entries lead nowhere               | 2×          | `to confirm` |
+| B-014 | The drawer's current entry is unreadable        | 1×          | `to confirm` |
+| B-015 | Back reopens the drawer that was just closed    | 1×          | `to confirm` |
+| B-016 | Swiping a row right, then left, makes it jump   | 1×          | `to confirm` |
+| B-017 | Closing a panel sends the list back to its top  | by mutation | `to confirm` |
+| B-018 | On a desktop, dragging a row opens the panel    | 1×          | `to confirm` |
 
 **B-018 was written down as a regression from B-016, and that was wrong.** It has two ways in, one
 of which is older than this work — the correction is recorded here rather than quietly amended,
@@ -50,6 +55,67 @@ rules — merging them would let two hide behind the one that got fixed.
 
 B-017 was reported by nobody. The mutation proving R65 bites found it, which is the whole reason
 mutations are run against a rule rather than trusted to be green.
+
+---
+
+## B-019 / B-020 / B-023 — The visuals family
+
+**Reported** 1× each, in one report (2026-08-15), after the SP3 merge. **Status** `open` —
+written the moment they were reported; diagnosis follows in this order, one at a time.
+
+Three symptoms, three entries — the B-013/014/015 precedent: merging them would let two hide
+behind the one that gets fixed. They plausibly share a cause (the SP1 hash-named files under
+`assets/`, the SP2 `dist/assets` symlink, or the host's asset routing since the bascule), and
+that is a hypothesis to MEASURE, not a diagnosis.
+
+- **B-019 — Many media sheets have lost their visual.** The sheet opens without its artwork
+  where it used to carry one.
+- **B-020 — Actor portraits on media sheets are broken.** Cast entries show broken images.
+- **B-023 — Médiathèque « Incomplets »: every visual broken.** The lens renders with all its
+  posters dead.
+
+**The operator's standing instruction with this family**: a FULL tour of the visuals — every
+image the interface can draw, across the named states, checked as RENDERED (the request
+resolves and the browser decodes pixels), not as referenced. R70 holds that every `assets/`
+reference in the SOURCE resolves to a file, and it is green — so if these reports reproduce,
+the defect lives past R70's reach (the build, the serving path, or references R70 does not
+read), and the closing rule must measure what the operator's eye measures: the drawn image.
+
+---
+
+## B-021 — Signing out leaves the bottom panel on top
+
+**Reported** 1× (2026-08-15). **Status** `open` — not yet diagnosed.
+
+**What the operator sees.** Open the profile bottom panel, tap « Se déconnecter »: the session
+ends and the entry screen is behind — but the panel stays on top, never closing.
+
+**Where to look first** (hypothesis, to measure): `deconnecter()` calls `closeSheet()` then
+`afficherConnexion(false)` — the order is right in the source, so either the close is undone,
+or the path the operator walks is not the path that code serves. R54 (`deconnexion.py`) is
+green and drives the sign-out — but perhaps not FROM the panel, which is the journey reported.
+
+---
+
+## B-022 — « Voir mes suivis » in the add search is inert
+
+**Reported** 1× (2026-08-15). **Status** `open` — not yet diagnosed.
+
+**What the operator sees.** On the add-media screen, the « voir mes suivis » link answers a tap
+with nothing.
+
+**Family resemblance**: B-013 (an entry that leads nowhere) and R43's lesson (an action
+reachable from a single surface). The closing rule must walk the journey — open the add
+screen, tap the link, assert the arrival — not drive a named state.
+
+---
+
+## Requested evolutions (not defects — recorded here so they are not lost)
+
+- **E-001 — Médiathèque sort inversion** (2026-08-15): every sort type must be reversible —
+  A→Z and Z→A each way. An evolution, so it is maquette-first: drawn and measured in the
+  prototype before any conversion work touches it. To be folded into the Médiathèque wave of
+  SP4 or done as its own maquette edit, operator's call at plan time.
 
 ---
 
