@@ -1211,6 +1211,55 @@ def test_search_pass_applies_movie_year_filter_and_query(followed_id: int = 7) -
     assert verdict.found == 1
 
 
+def test_search_pass_accepts_original_language_release(followed_id: int = 34) -> None:
+    """#435 regression, end to end: a release named in the ORIGINAL language is available.
+
+    The prod incident verbatim: « Avant d'aller dormir » (tmdb 204922, 2014) is
+    released as `Before.I.Go.To.Sleep.2014.MULTI.VFI...` on C411. The tracker
+    returned it, but the identity filter — armed with the French display title
+    only — dropped it and the wanted row ended ``all_filtered``. With the
+    original-title resolver wired, the SAME chain must state « available ».
+    """
+    item = WantedItem(
+        media_ref=MediaRef(tmdb_id=204922),
+        kind="movie",
+        status="searching",
+        enqueued_at=0,
+        followed_id=followed_id,
+    )
+    release = _make_result(
+        title="Before.I.Go.To.Sleep.2014.MULTI.VFI.1080p.BluRay.EAC3.5.1.x265-notag",
+        info_hash="f3e2e41466cd62c302b500c035f2f38e7857a6bc",
+    )
+    registry = MagicMock()
+    registry.search_candidates.return_value = SearchOutcome(results=[release], trackers_queried=1, trackers_errored=0)
+    registry.transports.return_value = {"c411": MagicMock()}
+
+    def _build(original_title_resolver: "object | None") -> GrabOrchestrator:
+        kwargs: dict[str, object] = {}
+        if original_title_resolver is not None:
+            kwargs["original_title_resolver"] = original_title_resolver
+        return GrabOrchestrator(
+            tracker_registry=registry,
+            torrent_client=None,
+            event_bus=EventBus(),
+            ranking=RankingConfig(min_seeders=0),
+            title_resolver=lambda _i: "Avant d'aller dormir",
+            year_resolver=lambda _i: 2014,
+            bandwidth=BandwidthConfig(),
+            **kwargs,  # type: ignore[arg-type]
+        )
+
+    # Pre-#435 wiring (no resolver): the correct film reads as all_filtered —
+    # the documented hole, pinned so the fix is provably the resolver.
+    unwired = _build(None).search(item, QualityProfile())
+    assert unwired.disposition == "not_found", "without the original title the chain still drops the film"
+
+    verdict = _build(lambda _i: "Before I Go to Sleep").search(item, QualityProfile())
+    assert verdict.disposition == "available", "#435: the original-language release must be available"
+    assert verdict.found == 1
+
+
 # ---------------------------------------------------------------------------
 # Per-media-type size thresholds threading (#376)
 # ---------------------------------------------------------------------------

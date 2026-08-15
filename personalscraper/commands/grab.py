@@ -327,11 +327,13 @@ def _run_dry(
         # review F4: a preview that ranks a different film than the grab is a lie).
         title = None
         year: int | None = None
+        original_title = None
         if item.followed_id is not None:
             row = store.follow.get(item.followed_id)
             if row is not None:
                 title = row.title
                 year = row.year
+                original_title = row.original_title
         query = build_search_query(item, title, year)
         try:
             outcome = registry.search_candidates(query, media_type, year)
@@ -364,7 +366,9 @@ def _run_dry(
             # higher-seeded « Wicker* » of a different year.
             from personalscraper.acquire.orchestrator import filter_to_movie  # noqa: PLC0415
 
-            results = filter_to_movie(results, title, year)
+            # Every known title (#435): a release named in the original
+            # language must survive here exactly as it does in the real grab.
+            results = filter_to_movie(results, [title, original_title], year)
             if not results:
                 console.print("  [yellow]No result matches the wanted movie (title/year).[/yellow]")
                 continue

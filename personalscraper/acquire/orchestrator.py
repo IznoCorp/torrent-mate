@@ -77,7 +77,7 @@ from personalscraper.core._contracts import CircuitOpenError
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
 
     from personalscraper.acquire.desired import QualityProfile
     from personalscraper.acquire.domain import WantedItem
@@ -260,10 +260,10 @@ _MOVIE_TITLE_THRESHOLD = 60
 
 def filter_to_movie(
     results: "list[TrackerResult]",
-    title: str,
+    titles: "Sequence[str | None]",
     year: int | None,
 ) -> "list[TrackerResult]":
-    """Keep only releases matching the wanted MOVIE's identity (title + year, #28).
+    """Keep only releases matching the wanted MOVIE's identity (titles + year, #28).
 
     A title query (``"{title} {year}"``) returns fuzzy matches — a bare title
     like « Wicker » pulls « The Wicker Man », « Wicker Park », … from title-based
@@ -271,8 +271,13 @@ def filter_to_movie(
     incident, §5/§7). Tracker results carry no provider-ID, so identity is
     verified from the parsed release name:
 
-    - **title**: the release's parsed title must be similar to the wanted title
-      (loose rapidfuzz guard — drops the wholly-unrelated);
+    - **title**: the release's parsed title must be similar to ANY known title
+      of the wanted movie (loose rapidfuzz guard — drops the wholly-unrelated).
+      Several titles because releases are commonly named in the ORIGINAL
+      language while the follow carries the localized display title
+      (« Avant d'aller dormir » vs `Before.I.Go.To.Sleep.2014...`, #435) —
+      with the display title alone the guard rejected the correct film before
+      the year was even consulted;
     - **year**: the discriminator — a release whose parsed year is known and more
       than one year off the wanted year is a DIFFERENT film and is dropped
       (``Wicker 2026`` vs ``The Wicker Man 2006``). A ±1 tolerance absorbs the
@@ -284,18 +289,33 @@ def filter_to_movie(
 
     Args:
         results: Raw tracker results for the movie query.
-        title: The wanted movie's title.
+        titles: Every known title of the wanted movie (display title, original
+            title). ``None``/empty entries and duplicates are ignored; an
+            all-empty sequence disables the title guard (year check only).
         year: The wanted movie's release year, or ``None`` (year check disabled).
 
     Returns:
         The subset whose parsed identity matches the wanted movie (possibly empty).
+
+    Raises:
+        TypeError: If *titles* is a bare ``str`` — a string IS a sequence of
+            single characters, and matching against characters would silently
+            drop every release.
     """
     from rapidfuzz import fuzz  # noqa: PLC0415 — local import keeps module load light
+
+    if isinstance(titles, str):
+        raise TypeError("filter_to_movie takes a sequence of titles, not a bare str")
+    known_titles = list(dict.fromkeys(t for t in titles if t))
 
     kept: list[TrackerResult] = []
     for r in results:
         parsed_title, parsed_year = _parse_release_identity(r.title)
-        if parsed_title and fuzz.token_set_ratio(parsed_title, title) < _MOVIE_TITLE_THRESHOLD:
+        if (
+            parsed_title
+            and known_titles
+            and all(fuzz.token_set_ratio(parsed_title, t) < _MOVIE_TITLE_THRESHOLD for t in known_titles)
+        ):
             continue
         if year is not None and parsed_year is not None and abs(parsed_year - year) > 1:
             continue
@@ -488,6 +508,7 @@ class GrabOrchestrator:
         ranking: RankingConfig,
         title_resolver: Callable[[WantedItem], str | None] | None = None,
         year_resolver: "Callable[[WantedItem], int | None] | None" = None,
+        original_title_resolver: "Callable[[WantedItem], str | None] | None" = None,
         episode_count_resolver: "Callable[[WantedItem], int | None] | None" = None,
         bandwidth: "BandwidthConfig",
     ) -> None:
@@ -514,6 +535,12 @@ class GrabOrchestrator:
                 (from the followed-series row) — disambiguates an ambiguous movie
                 title (#28). ``None`` (or a miss) leaves the query yearless and
                 the movie identity filter inert on the year axis.
+            original_title_resolver: Resolves a claimed ``WantedItem`` to the
+                movie's ORIGINAL-language title (from the followed-series row,
+                #435) so the identity filter accepts releases named in the
+                original language (« Avant d'aller dormir » vs
+                `Before.I.Go.To.Sleep...`). ``None`` (or a miss) leaves the
+                filter on the display title alone (pre-#435 behavior).
             episode_count_resolver: Resolves a claimed SEASON ``WantedItem`` to
                 the number of aired episodes in its season (from the aired
                 catalog cache) so ``filter_to_season`` can verify a pack's
@@ -529,6 +556,7 @@ class GrabOrchestrator:
         self._ranking = ranking
         self._title_resolver = title_resolver
         self._year_resolver = year_resolver
+        self._original_title_resolver = original_title_resolver
         self._episode_count_resolver = episode_count_resolver
         self._bandwidth = bandwidth
         self._limits_unsupported_warned = False
@@ -715,8 +743,13 @@ class GrabOrchestrator:
             # only releases whose parsed title+year match the wanted movie so
             # ranking cannot pick a different film (§5/§7 identity). An empty
             # result flows to rank_candidates → all_filtered (honest « rien de
-            # conforme »), never a wrong-movie grab.
-            results = filter_to_movie(results, title, year)
+            # conforme »), never a wrong-movie grab. The filter gets EVERY
+            # known title (#435): releases are commonly named in the original
+            # language while the follow carries the localized display title.
+            original_title = (
+                self._original_title_resolver(item) if self._original_title_resolver is not None else None
+            )
+            results = filter_to_movie(results, [title, original_title], year)
 
         # --- Hard-filter → dedup → rank (DESIGN §15 stage order) ---
         # Delegated to the module-level :func:`rank_candidates` seam so the
