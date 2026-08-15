@@ -42,10 +42,17 @@ class GestionnaireRepli(http.server.SimpleHTTPRequestHandler):
     implementation has already resolved the query string, percent-encoding
     and any `..` segment before this override ever sees the result —
     reimplementing any of that here would be the same bug waiting to be
-    reintroduced. A path is treated as the router's when the file it names
-    does not exist on disk AND its final segment carries no extension: a
+    reintroduced. A path is treated as the router's when the resolved path
+    is not an existing FILE and its final segment carries no extension: a
     merely-missing asset (`/absent.png`) still 404s through the parent
     implementation, and only an address with no file behind it falls back.
+
+    Testing for a FILE rather than mere existence is what makes the bare
+    root fall back too: `self.directory` itself exists as a directory, so an
+    `exists()` check alone would defer "/" to the parent's own directory
+    listing instead of the document every other extensionless address
+    already gets — the one entry point a single-page application is
+    guaranteed to be asked for.
     """
 
     def translate_path(self, path: str) -> str:
@@ -57,11 +64,11 @@ class GestionnaireRepli(http.server.SimpleHTTPRequestHandler):
 
         Returns:
             The resolved path from the parent implementation, or
-            `directory/wrapped.html` when that path does not exist on disk
+            `directory/wrapped.html` when that path is not an existing file
             and its final segment has no extension.
         """
         resolu = super().translate_path(path)
-        if not os.path.exists(resolu) and "." not in os.path.basename(resolu):
+        if not os.path.isfile(resolu) and "." not in os.path.basename(resolu):
             return os.path.join(self.directory, "wrapped.html")
         return resolu
 
