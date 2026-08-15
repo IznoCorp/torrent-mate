@@ -65,9 +65,11 @@ queue-and-replay pre-bridge in the envelope (the classic script runs before the 
 module). R59/R69/R71 green with UNCHANGED rule code are the bridge's proof. R72 rescoped
 (fragment verbatim ×1 + one module entry + bundle exists; the source-vs-build rendering
 comparison retired — recorded in regions.json); R74 (`pont.py`) holds the bridge, its
-mutation manual by design (a rule never mutates the shared copy). Known opens: nothing
-typechecks `coquille.tsx` (build exits 0 on a type error — measured); forward-is-not-a-return
-kept as legacy-faithful; a future `history.block()` would defeat the shell's `flush()`.
+mutation manual by design (a rule never mutates the shared copy). The shell is typed: `design/`
+carries a strict `tsconfig.json` and its own `npm run typecheck`, wired into `make check-frontend`
+— the build alone had no opinion on types (it exits 0 on a type error, measured). Known opens:
+forward-is-not-a-return kept as legacy-faithful; a future `history.block()` would defeat the
+shell's `flush()`.
 Next: SP4 — emptying the catch-all surface by surface; then SP5 (visual language).
 
 ---

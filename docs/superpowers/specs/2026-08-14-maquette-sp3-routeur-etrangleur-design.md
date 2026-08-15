@@ -75,9 +75,16 @@ The delicate piece, named and contained:
   `derouler(couche)`, `retour()`), implemented ON the router's history instance. One
   writer; the legacy code keeps its LOGIC (what to push, when to unwind) and loses only
   its primitive calls.
-- The router's search params drive `applyState` on real navigations (back/forward, direct
-  URL entry), through the same `pilotage` discipline `__go` already uses — a navigation
-  is not a journey replayed.
+- The router VALIDATES the search params of the routes it matches; it does not drive
+  `applyState` from them. On a real navigation (back/forward, direct URL entry) the legacy
+  handler still reads the popped entry's state object, handed to it by `__pont.surRetour` —
+  the engine keeps its logic, which is the whole point of the strangler, and R59/R69/R71
+  hold the behavior unchanged. Driving `applyState` from the router's search belongs to SP4,
+  when surfaces start living on real routes and the router has a reason to be their source.
+  Two consequences to carry into SP4, both inert today: the query string then has TWO
+  parsers (the legacy one and `validateSearch`) with no reconciliation written down; and
+  the router never rewrites the URL as long as nothing calls `navigate()`, so R69's "a wrong
+  address is left exactly as typed" is not at risk until the first `useSearch`/`navigate`.
 - **R59's guard-entry semantics** (exit-armed double-back, the Android close behavior)
   must survive the bridge byte-for-byte in behavior. R59, R69, R71 are the acceptance
   gates of the bridge — no bridge lands while any of the three is red.

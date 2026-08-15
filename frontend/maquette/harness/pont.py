@@ -305,6 +305,11 @@ async def main():
             f"{depart_state['cartes']} cartes",
         )
 
+        # Scrolled away from the top before leaving, so the return has a
+        # position to restore and not merely a list to redraw.
+        await pg.evaluate(
+            "()=>{document.querySelector('#screen .port').scrollTop = 300;}"
+        )
         await pg.evaluate("()=>document.querySelector('.reslist .poster').click()")
         await pg.wait_for_timeout(450)
 
@@ -328,6 +333,15 @@ async def main():
             and retour_state["cartes"] == depart_state["cartes"]
             and retour_state["requete"] == depart_state["requete"],
             f"{retour_state['cartes']} cartes · requête « {retour_state['requete']} »",
+        )
+        # The restored position is asserted, not merely collected: the record
+        # says the journey holds the scroll, and a collected number nobody
+        # judges is the one thing this harness exists to prevent. Same
+        # tolerance as R71, which holds the same journey off the bridge.
+        verifier(
+            "avec sa position de défilement",
+            abs(retour_state["scroll"] - 300) <= 40,
+            f"{retour_state['scroll']}px",
         )
 
         await navigateur.close()

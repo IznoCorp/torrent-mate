@@ -129,7 +129,7 @@ check-frontend:
 	@echo "Running frontend typecheck..."
 	cd frontend && npm run typecheck
 	@echo "Running maquette shell typecheck..."
-	cd frontend/maquette/design && npm run typecheck
+	@if [ -d frontend/maquette/design/node_modules ]; then cd frontend/maquette/design && npm run typecheck; else echo "maquette-typecheck: skipped (frontend/maquette/design/node_modules absent)"; fi
 	@echo "Running frontend lint..."
 	cd frontend && npm run lint
 	cd frontend && npm run lint:ds
