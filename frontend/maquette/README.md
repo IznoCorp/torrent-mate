@@ -217,6 +217,13 @@ Not real: the release candidates on the "choose another release" screen — no t
 queried — and the timings and counts of the `charge` scenario, which exist so density can be
 judged. Both are labelled as such in the design notes.
 
+**The copy ages by design.** The system keeps running: the scheduler searches twice a day
+and increments each follow's attempt counter in `acquire.db`, so the embedded counters
+drift and `contenu.py` (which compares the cards against the LIVE database) goes red with
+no code change. `resynchro.py` closes the gap the only honest way — it reads the live
+counters and rewrites the embedded ones, nothing else. Run it when the suite names a
+drift, review the diff, commit it as data.
+
 **Two scenarios**, switched from the harness (the **≡** button):
 
 - **`reel`** (default) — the exact state of the system. Calm: nothing to grab, nothing in
