@@ -296,3 +296,67 @@ divider-based row list, not an individually-boxed card, so the maquette's boxed-
 look needs further overrides layered on top of the geometry fight. Adopting Konsta
 would mean amending every R47/R50 geometry rule to describe an override contract
 instead of a value contract — the wrong direction for a pixel-reference maquette.
+
+### Motion
+
+**Inventory.** `grep -n "animation\|transition" frontend/maquette/design/refonte.html`
+(filtered for the CSS/JS mechanisms, dropping the unrelated `movies_animation` /
+`tv_shows_animation` category strings) lists every place the maquette moves something.
+Every one of them is CSS — a `transition` on a property, or a `@keyframes` animation —
+with two of them driven by pointer/touch handlers that write inline styles and toggle
+the transition on and off around the gesture:
+
+- **Screen slide** (`.screen` / `.screen.open`, line 2108) — `transform: translateX(100%)`
+  → `none`, `transition: transform 0.26s cubic-bezier(...)`. Pure CSS, triggered by a
+  class toggle.
+- **Sheet rise** (`.sheet` / `.sheet.open` / `.sheet.dragging`, line 2175) — same
+  `translateY`/`cubic-bezier` shape as the screen slide, plus `.dragging` sets
+  `transition: none` (line 2196) while a pointer drag writes `transform` directly,
+  then the class is dropped so the release settles through the CSS transition.
+- **Card drag settle** (`.card` / `.card.dragging`, line 761/771) — same pattern:
+  `transition: none` during the drag, CSS `transition: transform` carries the release.
+- **Pull-to-refresh** (`#ptr`, JS around line 40740–40870) — `touchmove`/`pointermove`
+  write `ptr.style.height` directly every frame with `transition: none` (line 40801);
+  on release `ptr.style.transition = ""` (line 40851) restores the CSS
+  `transition: height 0.22s ease` (line 1973) so the indicator eases to its resting
+  height or its 44px "armed" height.
+- **Deck swipe (suggestions)** (`avancerDeck`, line 15893) — the outgoing card gets an
+  inline `transform: translateX(...) rotate(...)` plus an `out` class; the cards behind
+  it change `data-depth`, and their existing CSS `transition: transform` (line 2763)
+  carries them forward. The function explicitly avoids rebuilding the DOM nodes because
+  "a replaced node cannot animate."
+- **Skeleton shimmer** (`.sk`, line 3465) — `@keyframes sh` looping
+  `background-position`, gated behind `@media (prefers-reduced-motion: no-preference)`.
+- **Live pulse dot** (`.live .d`, line 1542) — `@keyframes pulse` looping `opacity`,
+  same reduced-motion gate.
+- **Hero image entrance** (`.herobg`, line 2408) — `@keyframes heroin`, opacity +
+  `translate3d` one-shot, same reduced-motion gate.
+- **Splash progress bar** (`.splashbar i`, line 4179) — `@keyframes splashremplit`,
+  `width` 0%→100% over 5s, reset by JS toggling `barre.style.animation` between
+  `"none"` and `""` (line 17309/17311).
+- **Spinner** (`.ptr.loading .spin`, line 1986) — `@keyframes spin`, looping
+  `transform: rotate`.
+- **Toggle/switch and radio/checkbox states** (`.switch`, `.opt .mark`, line 3115+) —
+  plain property transitions (`background`, `border-color`, `transform`) on
+  attribute/class change.
+
+Nothing in this list needs spring physics, interruptible mid-gesture transitions beyond
+"stop applying the transform, let the last CSS transition run," or layout animation
+(FLIP-style repositioning across a DOM reflow). The two gesture-driven mechanisms
+(pull-to-refresh, card/sheet drag) already solve interruption the same way: write the
+style directly while the finger is down, disable the CSS transition during that
+window, then hand back to the CSS transition on release. That is exactly the
+mechanism Motion would otherwise be reached for.
+
+**Adoption test.** Motion (the React animation library) earns entry into the React
+shell only when a MIGRATED component needs an animation that CSS transitions plus this
+existing pointer/rAF gesture code cannot express — spring-physics interruptible
+transitions, or true layout animation. The two pilots this wave migrates (Profil,
+Ajout) reuse the existing CSS `.screen` transitions unchanged, measured by the harness
+suite; neither introduces a new animated mechanism.
+
+**Verdict: no adoption in SP4a.** Every mechanism the maquette actually uses today is
+CSS (+ plain DOM/style writes for the gesture-driven settles), and the migrated
+surfaces so far reuse that CSS as-is. Re-evaluate at the first _named_ real need — a
+migrated component whose interaction genuinely requires spring physics or layout
+animation — by amendment to this spec, not ahead of it.
