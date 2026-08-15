@@ -252,7 +252,37 @@ window.__magasin = magasin;
 const demarrer = window.__demarrerMoteur;
 if (typeof demarrer === "function") demarrer({ magasin });
 
-ReactDOM.createRoot(document.getElementById("coquille")!).render(
+// `#coquille` starts, in the markup, as a static sibling of `.stage` —
+// index.html knows nothing about the phone frame the fragment draws. A
+// migrated screen's `.screen{position:absolute;inset:0}` resolves against
+// its nearest POSITIONED ancestor, which for the legacy `#screen` is
+// `.device` (`position:relative`) — so at that sibling position a React
+// screen has no positioned ancestor at all and sizes to the viewport
+// instead of the phone frame, escaping it at any width past the 520px
+// breakpoint where `.device` stops filling the viewport.
+//
+// Moved here, once, before the first render: into `.device`, immediately
+// before the legacy `#screen`. Two things this placement is chosen to keep:
+//   - containment — `.device` becomes the mount node's positioned ancestor
+//     too, so a React `.screen.open` resolves its `inset: 0` the same way
+//     the legacy one already does, at every viewport width.
+//   - paint order — `insertBefore` keeps the mount node exactly where it
+//     already was relative to `#screen` (earlier in document order, simply
+//     re-parented), so a React screen still sits BEHIND the legacy one in
+//     the stacking order the harness (ecrans.py, pont.py) already relies on:
+//     when both carry `.open` at once (a legacy fiche opened over a migrated
+//     results screen), `#screen` — later in the DOM — paints on top, and
+//     `document.querySelector('.screen.open')` still resolves the React
+//     screen first.
+// A missing `#device`/`#screen` (a document without the fragment injected)
+// leaves the node where the markup put it rather than throwing — the same
+// fail-soft posture as the rest of this boot sequence.
+const coquilleEl = document.getElementById("coquille")!;
+const device = document.getElementById("device");
+const ecranLegacy = document.getElementById("screen");
+if (device && ecranLegacy) device.insertBefore(coquilleEl, ecranLegacy);
+
+ReactDOM.createRoot(coquilleEl).render(
   <React.StrictMode>
     <RouterProvider router={routeur} />
   </React.StrictMode>,

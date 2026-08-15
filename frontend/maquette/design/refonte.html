@@ -15552,16 +15552,17 @@
     appui = null;
   }
 
-  /* Bound to `document`, not `cadre` (`#device`, the phone frame): a
-     migrated screen renders inside `#coquille`, a SIBLING of the legacy
-     fragment `#device` sits in, not a descendant of it — a card drawn there
-     (the add screen's search results, first) never bubbles a pointer event
-     through `#device` at all. `document` is the one ancestor both subtrees
-     share. Both handlers already gate on the TARGET (`panneauSousLeDoigt`,
-     the input/textarea/contenteditable check below), so widening the
-     listener's root changes nothing for content that was never meant to
-     answer a press — it only stops missing content that now lives outside
-     `#device`. */
+  /* Bound to `document`, not `cadre` (`#device`, the phone frame). A
+     migrated screen renders inside `#coquille` — relocated by coquille.tsx
+     into `#device` at boot for containment (see that file's own comment),
+     but that placement is decided by CSS geometry, not by event delegation:
+     nothing here depends on it, and `document` stays the deliberately wider
+     root so this keeps answering a card drawn by a migrated screen even if
+     that placement ever changes again. `document` is the one ancestor
+     guaranteed either way. Both handlers already gate on the TARGET
+     (`panneauSousLeDoigt`, the input/textarea/contenteditable check below),
+     so the wider root changes nothing for content that was never meant to
+     answer a press. */
   document.addEventListener(
     "pointerdown",
     (event) => {
