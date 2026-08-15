@@ -18272,7 +18272,10 @@
         // This ASSOCIATES: the stuck folder becomes this medium and the pipeline
         // resumes. No follow is created — that was not the request.
         const cible = state.resolveTarget;
+        // No render() on this branch until the delayed actionResoudre()
+        // fires — the bump is explicit so React sees the pick immediately.
         state.added.add(index);
+        magasin.toucher();
         closeScreen();
         setTimeout(() => {
           actionResoudre(cible, result.t);
@@ -18293,12 +18296,14 @@
         return;
       }
       state.added.add(index);
+      magasin.toucher();
       actionSuivre(result.t, result.k);
       openAddScreen();
       return;
     }
     if (closest.dataset.confirmadd) {
       state.added.add(Number(closest.dataset.confirmadd));
+      magasin.toucher();
       closeDlg();
       openAddScreen();
       toast(
@@ -18334,8 +18339,7 @@
       return;
     }
     if (closest.dataset.completer) {
-      state.page = "acq";
-      state.acqTab = "maintenant";
+      magasin.ecrire({ page: "acq", acqTab: "maintenant" });
       closeSheet();
       render();
       toast(
@@ -39665,7 +39669,9 @@
   }
 
   function openResolve(cible) {
-    state.resolveTarget = cible ?? derived.stuck()[0]?.t ?? null;
+    magasin.ecrire({
+      resolveTarget: cible ?? derived.stuck()[0]?.t ?? null,
+    });
     const decision = decisionEnAttente(state.resolveTarget);
     /* The queue spans BOTH surfaces a decision shows up on: « À traiter » on
        the acquisition side and « Ça coince » in Arrivées. They are two views
@@ -40165,8 +40171,8 @@
      follows the CONTEXT that opened the screen. */
   function openAddScreen(query2, mode) {
     const query = query2 ?? state.addQ;
-    state.addQ = query;
-    if (mode) state.addMode = mode;
+    magasin.ecrire({ addQ: query });
+    if (mode) magasin.ecrire({ addMode: mode });
     const identifier = state.addMode === "identifier";
     const hasQ = query !== "";
     const filtres = SEARCH.results
@@ -40273,7 +40279,7 @@
      one — and enough to pick another knowingly. The score shown is the
      ranking's, not an opinion. */
   function openReleases(titre) {
-    state.relTitre = titre;
+    magasin.ecrire({ relTitre: titre });
     openScreen(
       `<div class="fichebar">
       <button class="fback" onclick="__close('screen')">${svgIcon(icons.left)}Retour</button>
@@ -40313,7 +40319,7 @@
      What decides what the engine accepts. Exclusions are red: they remove,
      they do not add — the colour states the direction of the action. */
   function openProfil(titre) {
-    state.profilTitre = titre;
+    magasin.ecrire({ profilTitre: titre });
     const profile = state.profil;
     const retenus = RELEASES.filter((RELEASES2) => {
       const ordre = { "720p": 0, "1080p": 1, "2160p": 2 };
@@ -40724,10 +40730,14 @@
       // nodes, which is the only way the card underneath can rise rather than
       // appear. The state is updated alongside, never by re-rendering.
       if (drag.dx > 0) {
+        // avancerDeck() animates the DOM directly, never through render():
+        // the bump is explicit so React learns the card left the deck.
         state.sugGone.add(index);
+        magasin.toucher();
         avancerDeck(index, 1);
         toastUndo(`« ${SUGGESTIONS[index].t} » écarté.`, () => {
           state.sugGone.delete(index);
+          magasin.toucher();
           refreshDeck();
         });
       } else {
