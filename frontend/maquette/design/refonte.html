@@ -17269,9 +17269,9 @@
 
   function applyState(patch) {
     hideLayers();
-    Object.assign(state, patch);
+    magasin.ecrire(patch);
     if (patch.page || patch.libLens || patch.q !== undefined)
-      state.libCount = LIB_PAGE;
+      magasin.ecrire({ libCount: LIB_PAGE });
     port.scrollTop = 0;
     render();
   }
@@ -17789,7 +17789,7 @@
       // Navigating CLOSES whatever is open above: without this, one changed
       // page while staying stuck on the media sheet.
       hideLayers();
-      state.page = closest.dataset.page;
+      magasin.ecrire({ page: closest.dataset.page });
       port.scrollTop = 0;
       render();
       noterLeChemin();
@@ -17811,8 +17811,9 @@
       // of redrawing what the top screen covered.
       pileEcrans.length = 0;
       closeScreen(true);
-      state.page = closest.dataset.go;
-      if (closest.dataset.go === "acq") state.acqTab = "maintenant";
+      magasin.ecrire({ page: closest.dataset.go });
+      if (closest.dataset.go === "acq")
+        magasin.ecrire({ acqTab: "maintenant" });
       port.scrollTop = 0;
       render();
       try {
@@ -17822,47 +17823,51 @@
       return;
     }
     if (closest.dataset.acqtab) {
-      state.acqTab = closest.dataset.acqtab;
+      magasin.ecrire({ acqTab: closest.dataset.acqtab });
       port.scrollTop = 0;
       render();
       noterLeChemin();
       return;
     }
     if (closest.dataset.lens) {
-      state.libLens = closest.dataset.lens;
       // Changing lens changes the list: start again from the first page.
-      state.libCount = LIB_PAGE;
-      state.libErr = false;
+      magasin.ecrire({
+        libLens: closest.dataset.lens,
+        libCount: LIB_PAGE,
+        libErr: false,
+      });
       port.scrollTop = 0;
       render();
       noterLeChemin();
       return;
     }
     if (closest.dataset.cat) {
-      state.libCat = closest.dataset.cat;
-      state.libCount = LIB_PAGE;
-      state.libErr = false;
+      magasin.ecrire({
+        libCat: closest.dataset.cat,
+        libCount: LIB_PAGE,
+        libErr: false,
+      });
       port.scrollTop = 0;
       render();
       return;
     }
     if (closest.dataset.lmode) {
-      state.libMode = closest.dataset.lmode;
+      magasin.ecrire({ libMode: closest.dataset.lmode });
       render();
       return;
     }
     if (closest.dataset.pill) {
-      state.pill = closest.dataset.pill;
+      magasin.ecrire({ pill: closest.dataset.pill });
       render();
       return;
     }
     if (closest.dataset.fmode) {
-      state.followMode = closest.dataset.fmode;
+      magasin.ecrire({ followMode: closest.dataset.fmode });
       render();
       return;
     }
     if (closest.dataset.sugmode) {
-      state.sugMode = closest.dataset.sugmode;
+      magasin.ecrire({ sugMode: closest.dataset.sugmode });
       render();
       return;
     }
