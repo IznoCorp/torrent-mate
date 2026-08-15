@@ -68,6 +68,14 @@ class FollowMetadata:
     #: sent no title and the row showed as blank everywhere — operator report
     #: 2026-08-08). Never overwrites a title the client did send.
     title: str | None = None
+    #: The provider's ORIGINAL-language title (#435). Captured opportunistically
+    #: from the same by-id details the card fields come from, so the movie
+    #: identity filter can match a release named in the original language
+    #: (« Avant d'aller dormir » vs `Before.I.Go.To.Sleep.2014...`).
+    #: Deliberately NOT part of :attr:`is_complete`: a client posting a full
+    #: card must keep making zero provider calls — a row that misses only this
+    #: field is healed by the detect-pass backfill instead.
+    original_title: str | None = None
 
     @property
     def is_complete(self) -> bool:
@@ -110,6 +118,7 @@ class FollowMetadata:
             overview=self.overview if self.overview is not None else other.overview,
             year=self.year if self.year is not None else other.year,
             title=self.title if self.title is not None else other.title,
+            original_title=self.original_title if self.original_title is not None else other.original_title,
         )
 
 
@@ -251,11 +260,15 @@ def _extract(details: Any) -> FollowMetadata:
     year = getattr(details, "year", None)
     overview = getattr(details, "overview", None)
     title = getattr(details, "title", None)
+    original_title = getattr(details, "original_title", None)
     return FollowMetadata(
         poster_url=_first_poster_url(details),
         overview=str(overview) if isinstance(overview, str) and overview.strip() else None,
         year=int(year) if isinstance(year, int) else None,
         title=str(title) if isinstance(title, str) and title.strip() else None,
+        original_title=(
+            str(original_title) if isinstance(original_title, str) and original_title.strip() else None
+        ),
     )
 
 

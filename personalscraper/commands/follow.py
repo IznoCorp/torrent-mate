@@ -486,6 +486,9 @@ def follow_backfill_metadata(
                     # The row already carries its name — seed it, or the
                     # backfill would call a provider for a title it holds.
                     title=row["title"] or None,
+                    # Defensive: the column lands with migration 024 (#435);
+                    # this raw read may predate the store's migration run.
+                    original_title=(row["original_title"] or None) if "original_title" in row.keys() else None,
                 )
                 if existing.is_complete:
                     continue
@@ -533,6 +536,8 @@ def follow_backfill_metadata(
                         # Repairs a follow created nameless (the add-by-ID
                         # form, before the title was resolved at create).
                         title=resolved.title,
+                        # Cross-language movie identity (#435) — additive.
+                        original_title=resolved.original_title,
                     )
                     updated += 1
             console.print(f"[bold]{'(dry-run) ' if dry_run else ''}Backfilled {updated}, skipped {skipped}.[/bold]")

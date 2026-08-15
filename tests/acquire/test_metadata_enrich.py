@@ -182,3 +182,45 @@ def test_empty_overview_is_normalised_to_none() -> None:
 
     assert result.overview is None
     assert result.poster_url == "https://p/prov.jpg"
+
+
+def test_movie_enrichment_captures_original_title() -> None:
+    """#435: the enrichment surfaces the provider's original-language title.
+
+    A movie followed under its localized display title needs the original
+    title for the cross-language identity filter; TMDB's by-id details carry
+    it, and the enrichment must not throw it away.
+    """
+    details = _Details(year=2014, overview="prov", poster="https://p/p.jpg", title="Avant d'aller dormir")
+    details.original_title = "Before I Go to Sleep"
+    tmdb = _RecordingClient(details)
+
+    result = enrich_follow_metadata(MediaRef(tmdb_id=_TMDB_ID), "movie", tmdb_client=tmdb, tvdb_client=None)
+
+    assert result.original_title == "Before I Go to Sleep"
+
+
+def test_existing_original_title_wins_over_provider() -> None:
+    """#435: an original title already known is never overwritten by the provider."""
+    details = _Details(year=2014, overview="prov", poster="https://p/p.jpg")
+    details.original_title = "Provider Original"
+    tmdb = _RecordingClient(details)
+
+    result = enrich_follow_metadata(
+        MediaRef(tmdb_id=_TMDB_ID),
+        "movie",
+        tmdb_client=tmdb,
+        tvdb_client=None,
+        existing=FollowMetadata(original_title="Client Original"),
+    )
+
+    assert result.original_title == "Client Original"
+
+
+def test_details_without_original_title_degrade_to_none() -> None:
+    """#435: a provider payload lacking the field yields None, never an error."""
+    tmdb = _RecordingClient(_Details(year=2014, overview="prov", poster="https://p/p.jpg"))
+
+    result = enrich_follow_metadata(MediaRef(tmdb_id=_TMDB_ID), "movie", tmdb_client=tmdb, tvdb_client=None)
+
+    assert result.original_title is None
