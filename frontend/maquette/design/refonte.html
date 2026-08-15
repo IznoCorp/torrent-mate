@@ -16507,6 +16507,16 @@
   const RETOUR_FENETRE = 5000;
   let pilotage = false;
   let sortieArmee = 0;
+  // The legacy engine's own address BASE — "/" in production, but whatever a
+  // static host answers the document under otherwise (the rule harness's
+  // 8899 server names it "/wrapped.html"). Computed once at boot by the
+  // shell (coquille.tsx, using the router's OWN matching — see its own
+  // comment) and handed through window.__demarrerMoteur, because deciding
+  // it here would mean re-deriving what the router owns from a second,
+  // independently-maintained list. Defaulted to "/" so a call made before
+  // the boot handshake (there should be none) fails toward the common case
+  // rather than toward whatever the document happens to be opened from.
+  let adresseBase = "/";
 
   /* ── L'URL PORTE L'ÉTAT (DOIT-10) ─────────────────────────────────────
      « Chaque détail a son URL » is a rule of the constitution, and the
@@ -16536,27 +16546,18 @@
     rub: "",
   };
 
-  // The two path SHAPES the router owns (coquille.tsx's `profil`/`ajout`
-  // routes) — everything else is the legacy engine's own ground, whatever
-  // that pathname literally reads: "/" in production, but also whatever a
-  // static host answers the document under (the rule harness's own 8899
-  // server names it "/wrapped.html", and every rule pointed there is still
-  // exercising the legacy engine's root). A prefix check on these two known
-  // shapes is unavoidable here — unlike deciding a POPPED entry's owner
-  // (surRetourEngine, decided by the entry's SHAPE, never by its address),
-  // there is no shape to read on a bare pathname string.
-  function adresseAppartientAuRouteur() {
-    return (
-      location.pathname.startsWith("/profil/") || location.pathname === "/ajout"
-    );
-  }
-
   function urlDeLEtat() {
-    // Composing a legacy query string over a router-owned path would
-    // overwrite what the router put there (its own path segment, its own
-    // search params — `aller()` in coquille.tsx), so this refuses to build
-    // one at all rather than trust a caller to know the law.
-    if (adresseAppartientAuRouteur()) return null;
+    // Built on adresseBase, never on location.pathname: writing over the
+    // CURRENT pathname would either clobber a router-owned address (the
+    // C1 hole) or, once it does not, still be redundant with what pushing
+    // onto the shared history already achieves on its own — the router
+    // subscribes to that same history instance (Transitioner mounts
+    // `router.history.subscribe(router.load)`) and re-derives its matches
+    // from whatever URL lands there, regardless of who pushed it. A legacy
+    // nav writing `adresseBase + "?page=lib"` while the address reads
+    // `/ajout` is exactly what makes the router notice the address no
+    // longer matches `/ajout` and unmount the screen — no navigate() call
+    // needed on this side of the bridge.
     const courant = {
       page: state.page,
       tab: state.acqTab,
@@ -16570,7 +16571,7 @@
       if (valeur && valeur !== URL_DEFAUTS[nom])
         params.set(nom, String(valeur));
     const requete = params.toString();
-    return location.pathname + (requete ? "?" + requete : "");
+    return adresseBase + (requete ? "?" + requete : "");
   }
 
   /* Reads back what the URL carries. An absent parameter is not « empty »: it
@@ -16612,13 +16613,8 @@
      measured, and it is the mistake this ordering exists to avoid. */
   function noterLeChemin() {
     if (pilotage) return;
-    // urlDeLEtat() refuses on a router-owned path and returns null — the
-    // same law restated here so a caller cannot bypass it by calling
-    // noterLeChemin() directly.
-    const url = urlDeLEtat();
-    if (url === null) return;
     try {
-      __pont.noter(etatDeNavigation(), url);
+      __pont.noter(etatDeNavigation(), urlDeLEtat());
     } catch (error) {}
   }
 
@@ -40844,6 +40840,10 @@
      visible, truthful failure instead of an app with mute verbs. */
   window.__demarrerMoteur = function (deps) {
     magasin = deps.magasin;
+    // Set before any write can happen (`adopterEtat`/`adopterMonde` below
+    // do not write to history, but the earliest legacy write is one line
+    // away): urlDeLEtat() must never compose against the placeholder "/".
+    adresseBase = deps.base;
     magasin.adopterEtat(state);
     magasin.adopterMonde(world);
     state = magasin.lire().etat;

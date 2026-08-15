@@ -230,6 +230,46 @@ async def main():
             journal.verifier("aucune erreur JS pendant la frappe", not erreurs, str(erreurs))
             await ctx.close()
 
+            # ─── Hold 8: quitter un écran par la barre ──────────────────────
+            # A legacy nav control (the bottom bar) can fire while a router
+            # route is open — it writes through the SAME shared history the
+            # router subscribes to, never through aller()/navigate(). The
+            # write alone must be enough: no code on this side of the bridge
+            # calls the router, yet the screen must still actually leave.
+            # Reached the same way an operator does: a REAL tap on the FAB,
+            # then a REAL tap on « Médiathèque ».
+            ctx, pg, erreurs = await ouvrir_a(navigateur, f"{base}/")
+            await pg.click("#fab")
+            await pg.wait_for_timeout(400)
+            sur_ajout_barre = await pg.evaluate(ETAT_ECRAN)
+            journal.verifier(
+                "le FAB ouvre l'écran (départ du voyage)",
+                sur_ajout_barre["ouvert"] and sur_ajout_barre["pathname"] == "/ajout",
+                sur_ajout_barre["pathname"])
+
+            await pg.evaluate("()=>document.querySelector('[data-page=\"lib\"]').click()")
+            await pg.wait_for_timeout(400)
+            quitte = await pg.evaluate(
+                """() => ({
+                    ouvert: !!document.querySelector('.screen.open'),
+                    pathname: location.pathname,
+                    recherche: location.search,
+                    page: state.page,
+                })"""
+            )
+            journal.verifier(
+                "taper « Médiathèque » depuis /ajout fait PARTIR l'écran",
+                not quitte["ouvert"], f"ouvert={quitte['ouvert']}")
+            journal.verifier(
+                "l'adresse revient au langage legacy (base + ?page=lib)",
+                quitte["pathname"] == "/" and quitte["recherche"] == "?page=lib",
+                f"{quitte['pathname']}{quitte['recherche']}")
+            journal.verifier(
+                "et la page rendue est bien la médiathèque",
+                quitte["page"] == "lib", f"page={quitte['page']}")
+            journal.verifier("aucune erreur JS en quittant par la barre", not erreurs, str(erreurs))
+            await ctx.close()
+
         await navigateur.close()
 
     journal.bilan()

@@ -55,7 +55,11 @@ declare global {
     // below, once the store exists and the bridge is real. Optional because
     // a module that failed to evaluate is exactly the case this boot order
     // is built to leave visible — the startup screen, not a crash here.
-    __demarrerMoteur?: (deps: { magasin: Magasin }) => void;
+    // `base` is the legacy engine's own address root (see its computation
+    // below) — "/" in production, whatever else a static host answers the
+    // document under otherwise (the rule harness's 8899 server names it
+    // "/wrapped.html").
+    __demarrerMoteur?: (deps: { magasin: Magasin; base: string }) => void;
     // The domain hooks and the probes read the engine's state through this.
     __magasin: Magasin;
     __ecrans: Ecrans;
@@ -284,8 +288,21 @@ window.__ecrans = {
 // truthful failure instead of an app with mute verbs.
 const magasin = creerMagasin();
 window.__magasin = magasin;
+// The legacy engine's own address BASE, decided by the ROUTER's OWN
+// matching rather than by a second, independently-maintained list of the
+// two screen paths: `getMatchedRoutes` is the cleanest fit here — a pure,
+// synchronous lookup keyed on a bare pathname, unlike `router.state.matches`
+// (needs a load this router has not run yet, since RouterProvider has not
+// mounted) or `router.navigate` (this is a read, not a navigation). A
+// pathname that resolves to a registered route (`/`, `/profil/$titre`,
+// `/ajout` — any of the three) is router territory, and the shared
+// production root for all of them is "/"; a pathname the router does not
+// recognise at all (the harness's own "/wrapped.html") is the legacy
+// engine's ground exactly as it is.
+const [, , routeTrouvee] = routeur.getMatchedRoutes(location.pathname);
+const base = routeTrouvee ? "/" : location.pathname;
 const demarrer = window.__demarrerMoteur;
-if (typeof demarrer === "function") demarrer({ magasin });
+if (typeof demarrer === "function") demarrer({ magasin, base });
 
 // `#coquille` starts, in the markup, as a static sibling of `.stage` —
 // index.html knows nothing about the phone frame the fragment draws. A
