@@ -200,6 +200,16 @@ def _build_search_service(
         aired = store.aired.list_for_followed(item.followed_id)
         return len([r for r in aired if r.season == item.season]) or None
 
+    # Original-title resolver (#435) — same wiring as the factory, so the
+    # search pass verdict and the grab never diverge on which releases count
+    # as « the movie » (a cross-language release must not read as available
+    # to one pass and all_filtered to the other).
+    def _original_title_resolver(item: WantedItem) -> str | None:
+        if item.followed_id is None:
+            return None
+        row = store.follow.get(item.followed_id)
+        return row.original_title if row is not None else None
+
     orchestrator = GrabOrchestrator(
         tracker_registry=acquire.tracker_registry,
         torrent_client=None,  # the search pass adds nothing
@@ -207,6 +217,7 @@ def _build_search_service(
         ranking=config.ranking,
         title_resolver=_title_resolver,
         year_resolver=_year_resolver,
+        original_title_resolver=_original_title_resolver,
         episode_count_resolver=_episode_count_resolver,
         bandwidth=config.acquire.bandwidth,
     )

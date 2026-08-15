@@ -765,3 +765,217 @@ def _series_status_of(store: ConcreteAcquireStore, followed_id: int) -> str | No
         "SELECT series_status FROM followed_series WHERE id = ?", (followed_id,)
     ).fetchone()
     return None if row is None else row[0]
+
+
+# ---------------------------------------------------------------------------
+# Original-title backfill (#435 — cross-language movie identity)
+# ---------------------------------------------------------------------------
+
+
+class _FakeMovieDetails:
+    """Minimal movie-details payload carrying only what the backfill reads."""
+
+    def __init__(self, original_title: str) -> None:
+        self.original_title = original_title
+
+
+class _FakeTmdb:
+    """TMDB stand-in recording get_movie / get_tv calls."""
+
+    def __init__(self, original_title: str = "Before I Go to Sleep", *, boom: Exception | None = None) -> None:
+        self._original_title = original_title
+        self._boom = boom
+        self.calls: list[int] = []
+        self.tv_calls: list[int] = []
+
+    def get_movie(self, movie_id: int) -> _FakeMovieDetails:
+        self.calls.append(movie_id)
+        if self._boom is not None:
+            raise self._boom
+        return _FakeMovieDetails(self._original_title)
+
+    def get_tv(self, tv_id: int) -> _FakeMovieDetails:
+        self.tv_calls.append(tv_id)
+        if self._boom is not None:
+            raise self._boom
+        return _FakeMovieDetails(self._original_title)
+
+
+def _registry_with(tmdb: _FakeTmdb) -> MagicMock:
+    """A registry whose ``get('tmdb')`` returns the fake client."""
+    registry = MagicMock()
+    registry.get.side_effect = lambda name: tmdb if name == "tmdb" else (_ for _ in ()).throw(KeyError(name))
+    return registry
+
+
+def _movie_follow(store: ConcreteAcquireStore, *, original_title: str | None = None) -> int:
+    """Persist an active movie follow (the prod #435 row shape) and return its id."""
+    return store.follow.add(
+        FollowedSeries(
+            media_ref=MediaRef(tmdb_id=204922),
+            title="Avant d'aller dormir",
+            added_at=1,
+            kind="movie",
+            year=2014,
+            original_title=original_title,
+        )
+    )
+
+
+def _original_title_of(store: ConcreteAcquireStore, followed_id: int) -> str | None:
+    """Read the stored original title straight from the row."""
+    fetched = store.follow.get(followed_id)
+    assert fetched is not None
+    return fetched.original_title
+
+
+def test_detect_backfills_missing_movie_original_title(store: ConcreteAcquireStore) -> None:
+    """#435: an un-healed movie follow gets its original title from TMDB at detect."""
+    fid = _movie_follow(store)
+    tmdb = _FakeTmdb()
+    service = DetectService(
+        store=store,
+        ownership=_StubOwnership(set()),
+        registry=_registry_with(tmdb),
+        event_bus=EventBus(),
+        config=_config(),
+    )
+
+    service.run(series=None, dry_run=False, today=date(2024, 1, 1), now=100)
+
+    assert tmdb.calls == [204922], "the backfill must query TMDB with its OWN id"
+    assert _original_title_of(store, fid) == "Before I Go to Sleep"
+
+
+def test_detect_backfill_skips_healed_rows(store: ConcreteAcquireStore) -> None:
+    """#435: a non-NULL original_title means healed — no provider call, ever."""
+    _movie_follow(store, original_title="Before I Go to Sleep")
+    tmdb = _FakeTmdb()
+    service = DetectService(
+        store=store,
+        ownership=_StubOwnership(set()),
+        registry=_registry_with(tmdb),
+        event_bus=EventBus(),
+        config=_config(),
+    )
+
+    service.run(series=None, dry_run=False, today=date(2024, 1, 1), now=100)
+
+    assert tmdb.calls == [], "a healed row must never be refetched"
+
+
+def test_detect_backfill_provider_failure_is_fail_soft(store: ConcreteAcquireStore) -> None:
+    """#435: a TMDB outage logs and leaves the row NULL — detect completes normally."""
+    fid = _movie_follow(store)
+    tmdb = _FakeTmdb(boom=RuntimeError("tmdb down"))
+    service = DetectService(
+        store=store,
+        ownership=_StubOwnership(set()),
+        registry=_registry_with(tmdb),
+        event_bus=EventBus(),
+        config=_config(),
+    )
+
+    result = service.run(series=None, dry_run=False, today=date(2024, 1, 1), now=100)
+
+    assert result.status is DetectStatus.OK
+    assert _original_title_of(store, fid) is None
+
+
+def test_detect_backfill_blank_provider_answer_heals_with_display_title(store: ConcreteAcquireStore) -> None:
+    """#435 review: a SUCCESSFUL answer with no usable original title still heals.
+
+    ``MediaDetails.original_title`` defaults to ``""`` — leaving such a row
+    NULL would refetch it on every detect run forever, breaking the
+    « fetched at most once » contract. The display title is persisted instead
+    (VERBATIM rule: non-NULL ⇒ healed), and the second run makes no call.
+    """
+    fid = _movie_follow(store)
+    tmdb = _FakeTmdb(original_title="")
+    service = DetectService(
+        store=store,
+        ownership=_StubOwnership(set()),
+        registry=_registry_with(tmdb),
+        event_bus=EventBus(),
+        config=_config(),
+    )
+
+    service.run(series=None, dry_run=False, today=date(2024, 1, 1), now=100)
+    assert _original_title_of(store, fid) == "Avant d'aller dormir", "blank answer heals with the display title"
+
+    service.run(series=None, dry_run=False, today=date(2024, 1, 2), now=200)
+    assert tmdb.calls == [204922], "healed row must not be refetched on the next run"
+
+
+def test_detect_backfill_skipped_on_dry_run(store: ConcreteAcquireStore) -> None:
+    """#435: dry-run makes no provider call and persists nothing."""
+    fid = _movie_follow(store)
+    tmdb = _FakeTmdb()
+    service = DetectService(
+        store=store,
+        ownership=_StubOwnership(set()),
+        registry=_registry_with(tmdb),
+        event_bus=EventBus(),
+        config=_config(),
+    )
+
+    service.run(series=None, dry_run=True, today=date(2024, 1, 1), now=100)
+
+    assert tmdb.calls == []
+    assert _original_title_of(store, fid) is None
+
+
+def test_detect_backfill_covers_shows_via_get_tv(store: ConcreteAcquireStore) -> None:
+    """#435 (open item 3): a show follow heals through get_tv with its OWN tmdb id.
+
+    Shows need the original title too — not for the identity filter (episode
+    identity is the SxxEyy marker) but for the original-title retry QUERY.
+    """
+    fid = store.follow.add(
+        FollowedSeries(
+            media_ref=MediaRef(tvdb_id=359570, tmdb_id=71325),
+            title="La Défunte",
+            added_at=1,
+            kind="show",
+        )
+    )
+    tmdb = _FakeTmdb(original_title="Dead to Me")
+    service = DetectService(
+        store=store,
+        ownership=_StubOwnership(set()),
+        registry=_registry_with(tmdb),
+        event_bus=EventBus(),
+        config=_config(),
+    )
+
+    with patch("personalscraper.acquire.detect.poll_catalog", return_value=[]):
+        service.run(series=None, dry_run=False, today=date(2024, 1, 1), now=100)
+
+    assert tmdb.tv_calls == [71325], "a show heals via get_tv with the TMDB id, never the TVDB one"
+    assert tmdb.calls == [], "a show must never go through get_movie"
+    assert _original_title_of(store, fid) == "Dead to Me"
+
+
+def test_detect_backfill_is_capped_per_run(store: ConcreteAcquireStore, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#435 review: the synchronous heal is bounded per run; the next run drains more."""
+    from personalscraper.acquire import detect as detect_module
+
+    monkeypatch.setattr(detect_module, "_ORIGINAL_TITLE_BACKFILL_CAP", 1)
+    fid_a = store.follow.add(FollowedSeries(media_ref=MediaRef(tmdb_id=101), title="Film A", added_at=1, kind="movie"))
+    fid_b = store.follow.add(FollowedSeries(media_ref=MediaRef(tmdb_id=102), title="Film B", added_at=1, kind="movie"))
+    tmdb = _FakeTmdb(original_title="Original")
+    service = DetectService(
+        store=store,
+        ownership=_StubOwnership(set()),
+        registry=_registry_with(tmdb),
+        event_bus=EventBus(),
+        config=_config(),
+    )
+
+    service.run(series=None, dry_run=False, today=date(2024, 1, 1), now=100)
+    assert len(tmdb.calls) == 1, "one run heals at most CAP rows"
+    assert _original_title_of(store, fid_a) == "Original"
+    assert _original_title_of(store, fid_b) is None
+
+    service.run(series=None, dry_run=False, today=date(2024, 1, 2), now=200)
+    assert _original_title_of(store, fid_b) == "Original", "the next run drains the remainder"

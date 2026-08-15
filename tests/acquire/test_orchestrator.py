@@ -1211,6 +1211,197 @@ def test_search_pass_applies_movie_year_filter_and_query(followed_id: int = 7) -
     assert verdict.found == 1
 
 
+def test_search_pass_accepts_original_language_release(followed_id: int = 34) -> None:
+    """#435 regression, end to end: a release named in the ORIGINAL language is available.
+
+    The prod incident verbatim: « Avant d'aller dormir » (tmdb 204922, 2014) is
+    released as `Before.I.Go.To.Sleep.2014.MULTI.VFI...` on C411. The tracker
+    returned it, but the identity filter — armed with the French display title
+    only — dropped it and the wanted row ended ``all_filtered``. With the
+    original-title resolver wired, the SAME chain must state « available ».
+    """
+    item = WantedItem(
+        media_ref=MediaRef(tmdb_id=204922),
+        kind="movie",
+        status="searching",
+        enqueued_at=0,
+        followed_id=followed_id,
+    )
+    release = _make_result(
+        title="Before.I.Go.To.Sleep.2014.MULTI.VFI.1080p.BluRay.EAC3.5.1.x265-notag",
+        info_hash="f3e2e41466cd62c302b500c035f2f38e7857a6bc",
+    )
+    registry = MagicMock()
+    registry.search_candidates.return_value = SearchOutcome(results=[release], trackers_queried=1, trackers_errored=0)
+    registry.transports.return_value = {"c411": MagicMock()}
+
+    def _build(original_title_resolver: "object | None") -> GrabOrchestrator:
+        kwargs: dict[str, object] = {}
+        if original_title_resolver is not None:
+            kwargs["original_title_resolver"] = original_title_resolver
+        return GrabOrchestrator(
+            tracker_registry=registry,
+            torrent_client=None,
+            event_bus=EventBus(),
+            ranking=RankingConfig(min_seeders=0),
+            title_resolver=lambda _i: "Avant d'aller dormir",
+            year_resolver=lambda _i: 2014,
+            bandwidth=BandwidthConfig(),
+            **kwargs,  # type: ignore[arg-type]
+        )
+
+    # Pre-#435 wiring (no resolver): the correct film reads as all_filtered —
+    # the documented hole, pinned so the fix is provably the resolver.
+    unwired = _build(None).search(item, QualityProfile())
+    assert unwired.disposition == "not_found", "without the original title the chain still drops the film"
+
+    verdict = _build(lambda _i: "Before I Go to Sleep").search(item, QualityProfile())
+    assert verdict.disposition == "available", "#435: the original-language release must be available"
+    assert verdict.found == 1
+
+
+class TestOriginalTitleRetryQuery:
+    """#435 (open item 1/3): a fruitless display-title query retries in the original language.
+
+    Some trackers only match what the release NAME carries: the French query
+    returns nothing (or junk) while the original-title query finds the film.
+    The chain replays the SAME search→narrow stage once with
+    ``build_search_query(item, original_title, year)`` — and only when the
+    first attempt concluded a fully-healthy « nothing matched ».
+    """
+
+    RELEASE = "Before.I.Go.To.Sleep.2014.MULTI.VFI.1080p.BluRay.EAC3.5.1.x265-notag"
+
+    def _orchestrator(self, registry: MagicMock, *, kind: str = "movie") -> GrabOrchestrator:
+        title = "Avant d'aller dormir" if kind == "movie" else "La Défunte"
+        return GrabOrchestrator(
+            tracker_registry=registry,
+            torrent_client=None,
+            event_bus=EventBus(),
+            ranking=RankingConfig(min_seeders=0),
+            title_resolver=lambda _i: title,
+            year_resolver=(lambda _i: 2014) if kind == "movie" else (lambda _i: None),
+            original_title_resolver=lambda _i: "Before I Go to Sleep" if kind == "movie" else "Dead to Me",
+            bandwidth=BandwidthConfig(),
+        )
+
+    def _registry(self, by_query: "dict[str, list[TrackerResult]]", *, errored: int = 0) -> MagicMock:
+        registry = MagicMock()
+
+        def _search(query: str, _media_type: object, _year: object) -> SearchOutcome:
+            return SearchOutcome(
+                results=by_query.get(query, []),
+                trackers_queried=1,
+                trackers_errored=errored,
+            )
+
+        registry.search_candidates.side_effect = _search
+        registry.transports.return_value = {"c411": MagicMock()}
+        return registry
+
+    def _queries(self, registry: MagicMock) -> "list[str]":
+        return [c.args[0] for c in registry.search_candidates.call_args_list]
+
+    def test_movie_junk_only_fr_query_retries_and_finds(self) -> None:
+        """FR query returns junk (identity-filtered), EN query has the film → available."""
+        junk = _make_result(title="Avant.DAller.Dormir.Steven.Watson.FR.EPUB-NOTAG", info_hash="junk1234")
+        right = _make_result(title=self.RELEASE, info_hash="f3e2e414")
+        registry = self._registry({"Avant d'aller dormir 2014": [junk], "Before I Go to Sleep 2014": [right]})
+        item = WantedItem(
+            media_ref=MediaRef(tmdb_id=204922), kind="movie", status="searching", enqueued_at=0, followed_id=34
+        )
+
+        verdict = self._orchestrator(registry).search(item, QualityProfile())
+
+        assert self._queries(registry) == ["Avant d'aller dormir 2014", "Before I Go to Sleep 2014"]
+        assert verdict.disposition == "available"
+        assert verdict.found == 1
+
+    def test_episode_empty_fr_query_retries_original_title(self) -> None:
+        """A show's FR episode query is empty; the original-title query names SxxEyy → available."""
+        right = _make_result(title="Dead.to.Me.S01E03.1080p.WEB.x264-GRP", info_hash="ep010303")
+        registry = self._registry({"Dead to Me S01E03": [right]})
+        item = WantedItem(
+            media_ref=MediaRef(tvdb_id=359570),
+            kind="episode",
+            status="searching",
+            enqueued_at=0,
+            season=1,
+            episode=3,
+            followed_id=7,
+        )
+
+        verdict = self._orchestrator(registry, kind="episode").search(item, QualityProfile())
+
+        assert self._queries(registry) == ["La Défunte S01E03", "Dead to Me S01E03"]
+        assert verdict.disposition == "available"
+
+    def test_both_queries_empty_keep_first_verdict(self) -> None:
+        """A fruitless retry states the FIRST attempt's healthy-empty verdict."""
+        registry = self._registry({})
+        item = WantedItem(
+            media_ref=MediaRef(tmdb_id=204922), kind="movie", status="searching", enqueued_at=0, followed_id=34
+        )
+
+        verdict = self._orchestrator(registry).search(item, QualityProfile())
+
+        assert len(self._queries(registry)) == 2, "the healthy-empty first attempt must trigger ONE retry"
+        assert verdict.disposition == "not_found"
+
+    def test_no_original_title_means_single_query(self) -> None:
+        """Without an original title there is nothing to retry with — one query only."""
+        registry = self._registry({})
+        item = WantedItem(
+            media_ref=MediaRef(tmdb_id=204922), kind="movie", status="searching", enqueued_at=0, followed_id=34
+        )
+        orchestrator = GrabOrchestrator(
+            tracker_registry=registry,
+            torrent_client=None,
+            event_bus=EventBus(),
+            ranking=RankingConfig(min_seeders=0),
+            title_resolver=lambda _i: "Avant d'aller dormir",
+            year_resolver=lambda _i: 2014,
+            bandwidth=BandwidthConfig(),
+        )
+
+        orchestrator.search(item, QualityProfile())
+
+        assert len(self._queries(registry)) == 1
+
+    def test_degraded_first_attempt_does_not_retry(self) -> None:
+        """A partial outage keeps its honest « trackers_degraded » verdict — no retry."""
+        registry = self._registry({}, errored=1)
+        item = WantedItem(
+            media_ref=MediaRef(tmdb_id=204922), kind="movie", status="searching", enqueued_at=0, followed_id=34
+        )
+
+        verdict = self._orchestrator(registry).search(item, QualityProfile())
+
+        assert len(self._queries(registry)) == 1, "a degraded search must not be papered over by a retry"
+        assert verdict.disposition == "retryable"
+
+    def test_identical_titles_do_not_retry(self) -> None:
+        """An original title equal to the display title adds no information — one query."""
+        registry = self._registry({})
+        item = WantedItem(
+            media_ref=MediaRef(tmdb_id=204922), kind="movie", status="searching", enqueued_at=0, followed_id=34
+        )
+        orchestrator = GrabOrchestrator(
+            tracker_registry=registry,
+            torrent_client=None,
+            event_bus=EventBus(),
+            ranking=RankingConfig(min_seeders=0),
+            title_resolver=lambda _i: "Inception",
+            year_resolver=lambda _i: 2010,
+            original_title_resolver=lambda _i: "Inception",
+            bandwidth=BandwidthConfig(),
+        )
+
+        orchestrator.search(item, QualityProfile())
+
+        assert len(self._queries(registry)) == 1
+
+
 # ---------------------------------------------------------------------------
 # Per-media-type size thresholds threading (#376)
 # ---------------------------------------------------------------------------

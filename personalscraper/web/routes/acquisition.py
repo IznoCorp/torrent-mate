@@ -135,6 +135,7 @@ def _write_follow_metadata(
             overview=metadata.overview,
             year=metadata.year,
             title=metadata.title,
+            original_title=metadata.original_title,
         )
     except Exception:  # noqa: BLE001 — fail-soft: the follow already succeeded, metadata is a nicety
         logger.warning("acquisition_follow_metadata_write_failed", followed_id=followed_id, exc_info=True)
@@ -402,11 +403,11 @@ def get_followed(
                         en_attente_count=truth.en_attente_count,
                         non_verifie_count=truth.non_verifie_count,
                         announced_count=truth.announced_count,
-                        # Read defensively like every other late-added column:
-                        # a follow row written before migration 023 has no
-                        # value, and no value means « not known to have ended »,
-                        # never « still running ».
+                        # Read defensively like every late-added column: a row
+                        # written before migrations 023/024 has no value, and
+                        # none means « unknown », never an invented state.
                         series_status=cast("str | None", _row_col(row, "series_status")),
+                        original_title=cast("str | None", _row_col(row, "original_title")),
                         movie_facts=movie_facts,
                         priming_running=row["id"] in priming_follow_ids,
                     )

@@ -188,15 +188,19 @@ class _FollowSubStore:
                 """
                 INSERT INTO followed_series
                   (media_ref_json, title, active,
-                   quality_profile_json, cadence_json, added_at, kind, year, replace_owned)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   quality_profile_json, cadence_json, added_at, kind, year, replace_owned,
+                   original_title)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(media_ref_json) DO UPDATE SET
                   active = 1,
                   title = excluded.title,
                   kind = excluded.kind,
                   -- Re-following an owned film to replace it must carry the
                   -- authorisation even when the row already exists.
-                  replace_owned = MAX(followed_series.replace_owned, excluded.replace_owned)
+                  replace_owned = MAX(followed_series.replace_owned, excluded.replace_owned),
+                  -- A re-add that does not know the original title (older
+                  -- client, manual form) must not erase a healed value (#435).
+                  original_title = COALESCE(excluded.original_title, followed_series.original_title)
                 RETURNING id
                 """,
                 (
@@ -209,6 +213,7 @@ class _FollowSubStore:
                     series.kind,
                     series.year,
                     1 if series.replace_owned else 0,
+                    series.original_title,
                 ),
             ).fetchone()
         assert row is not None  # noqa: S101 — RETURNING always yields the affected row
@@ -227,7 +232,8 @@ class _FollowSubStore:
         row = self._conn.execute(
             """
             SELECT id, media_ref_json, title, active,
-                   quality_profile_json, cadence_json, added_at, kind, year, replace_owned
+                   quality_profile_json, cadence_json, added_at, kind, year, replace_owned,
+                   original_title
             FROM followed_series WHERE id = ?
             """,
             (followed_id,),
@@ -257,7 +263,8 @@ class _FollowSubStore:
             row = self._conn.execute(
                 """
                 SELECT id, media_ref_json, title, active,
-                       quality_profile_json, cadence_json, added_at, kind, replace_owned
+                       quality_profile_json, cadence_json, added_at, kind, replace_owned,
+                       original_title
                 FROM followed_series
                 WHERE json_extract(media_ref_json, '$.tvdb_id') = ?
                 ORDER BY id LIMIT 1
@@ -268,7 +275,8 @@ class _FollowSubStore:
             row = self._conn.execute(
                 """
                 SELECT id, media_ref_json, title, active,
-                       quality_profile_json, cadence_json, added_at, kind, replace_owned
+                       quality_profile_json, cadence_json, added_at, kind, replace_owned,
+                       original_title
                 FROM followed_series
                 WHERE json_extract(media_ref_json, '$.tmdb_id') = ?
                 ORDER BY id LIMIT 1
@@ -279,7 +287,8 @@ class _FollowSubStore:
             row = self._conn.execute(
                 """
                 SELECT id, media_ref_json, title, active,
-                       quality_profile_json, cadence_json, added_at, kind, replace_owned
+                       quality_profile_json, cadence_json, added_at, kind, replace_owned,
+                       original_title
                 FROM followed_series
                 WHERE json_extract(media_ref_json, '$.imdb_id') = ?
                 ORDER BY id LIMIT 1
@@ -301,7 +310,8 @@ class _FollowSubStore:
         rows = self._conn.execute(
             """
             SELECT id, media_ref_json, title, active,
-                   quality_profile_json, cadence_json, added_at, kind, replace_owned
+                   quality_profile_json, cadence_json, added_at, kind, replace_owned,
+                   original_title
             FROM followed_series
             WHERE active = 1
             ORDER BY id
@@ -321,7 +331,8 @@ class _FollowSubStore:
         rows = self._conn.execute(
             """
             SELECT id, media_ref_json, title, active,
-                   quality_profile_json, cadence_json, added_at, kind, replace_owned
+                   quality_profile_json, cadence_json, added_at, kind, replace_owned,
+                   original_title
             FROM followed_series
             ORDER BY id
             """
@@ -472,6 +483,7 @@ class _FollowSubStore:
         overview: str | None,
         year: int | None,
         title: str | None = None,
+        original_title: str | None = None,
     ) -> None:
         """Merge the OBJ3 card metadata columns of a followed series (additive).
 
@@ -494,14 +506,19 @@ class _FollowSubStore:
                 sits there nameless — blank in the list and in its own sheet —
                 and the backfill is what repairs it. A row that already has a
                 name keeps it: the operator may have chosen it.
+            original_title: The provider's original-language title (#435), or
+                ``None`` to leave the stored one intact (COALESCE, like the
+                card fields — an add path that does not know it must never
+                erase a healed value).
         """
         with _write_tx(self._conn):
             self._conn.execute(
                 "UPDATE followed_series SET poster_url = COALESCE(?, poster_url), "
                 "overview = COALESCE(?, overview), year = COALESCE(?, year), "
-                "title = CASE WHEN trim(COALESCE(title, '')) = '' THEN COALESCE(?, title) ELSE title END "
+                "title = CASE WHEN trim(COALESCE(title, '')) = '' THEN COALESCE(?, title) ELSE title END, "
+                "original_title = COALESCE(?, original_title) "
                 "WHERE id = ?",
-                (poster_url, overview, year, title, followed_id),
+                (poster_url, overview, year, title, original_title, followed_id),
             )
 
 

@@ -61,11 +61,17 @@ Import direction: ``acquire/`` imports ``api/`` / ``core/`` / ``conf/`` /
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
 from personalscraper.acquire._dedup import SearchOutcome, dedup
-from personalscraper.acquire._filters import apply_hard_filters, filter_to_episode, filter_to_season
+from personalscraper.acquire._filters import (
+    apply_hard_filters,
+    filter_to_episode,
+    filter_to_movie,
+    filter_to_season,
+)
+from personalscraper.acquire._query import build_search_query
 from personalscraper.acquire._resolve_walk import resolve_first_available
 from personalscraper.acquire.events import GrabFailed, TrackerAuthFailed, WantedAbandoned
 from personalscraper.api._contracts import ApiError, MediaType
@@ -171,6 +177,28 @@ class _SearchChainResult:
     raw_before_filter: list[TrackerResult] | None = None
 
 
+@dataclass(frozen=True)
+class _QueryAttempt:
+    """Outcome of ONE tracker query + kind-specific narrowing (#435).
+
+    Produced by :meth:`GrabOrchestrator._query_and_narrow`; the three shapes
+    and their retry semantics are documented on that method.
+
+    Attributes:
+        hard_stop: A verdict a retry must not overwrite (outage/auth/circuit/
+            degraded), or ``None``.
+        empty_verdict: The fully-healthy « nothing matched » verdict to state
+            when no retry rescues the query, or ``None``.
+        results: The narrowed candidates (possibly empty — for a movie whose
+            identity filter dropped everything, both verdict fields are
+            ``None`` and the empty list flows on to ``rank_candidates``).
+    """
+
+    hard_stop: "_SearchChainResult | None" = None
+    empty_verdict: "_SearchChainResult | None" = None
+    results: "list[TrackerResult]" = field(default_factory=list)
+
+
 #: High-level bucket a search verdict falls into. Kept as a named alias so the
 #: exit-path mapping table in :meth:`GrabOrchestrator.search` is typed against
 #: the SAME literals as :attr:`SearchVerdict.disposition` (a typo in either
@@ -210,115 +238,6 @@ class SearchVerdict:
     filter dropped. ``None`` on every other path (the conversion path
     has no use for them).
     """
-
-
-def build_search_query(item: "WantedItem", title: str | None, year: int | None = None) -> str:
-    """Build a tracker search query from a wanted item + resolved series title.
-
-    This is the Follow D3 title-resolution seam. When the series ``title`` is
-    known (resolved from the followed-series row), an episode query becomes
-    ``"{title} SxxEyy"`` and a movie query becomes ``"{title} {year}"`` when the
-    year is known (« Wicker 2026 » — narrows an ambiguous title so the trackers
-    do not return every « Wicker* » film, #28) or ``"{title}"`` otherwise — the
-    form the title-based trackers (c411, tr4ker) actually match. When ``title``
-    is ``None`` (standalone item with no followed row, or a resolver miss), it
-    falls back to the primary provider ID string — the legacy behavior, which
-    finds nothing on title-based trackers but keeps the query non-empty.
-
-    Args:
-        item: The claimed wanted item (carries ``kind`` + ``season`` +
-            ``episode`` + ``media_ref``).
-        title: The resolved series/movie title, or ``None``.
-        year: The movie's release year, or ``None`` — appended to a movie query
-            to disambiguate the title (#28). Ignored for episodes.
-
-    Returns:
-        A non-empty query string.
-    """
-    if title:
-        if item.kind == "episode" and item.season is not None and item.episode is not None:
-            return f"{title} S{item.season:02d}E{item.episode:02d}"
-        if item.kind == "season" and item.season is not None:
-            return f"{title} S{item.season:02d}"
-        if year is not None:
-            return f"{title} {year}"
-        return title
-    media_ref = item.media_ref
-    if media_ref.tvdb_id is not None:
-        return str(media_ref.tvdb_id)
-    if media_ref.tmdb_id is not None:
-        return str(media_ref.tmdb_id)
-    return str(media_ref.imdb_id)
-
-
-#: Minimum rapidfuzz token-set score between a release's parsed title and the
-#: wanted movie title to survive the identity filter. Deliberately LOOSE — a
-#: subset like "Wicker" vs "The Wicker Man" scores high either way, so the YEAR
-#: is the real discriminator; this threshold only drops the wholly-unrelated.
-_MOVIE_TITLE_THRESHOLD = 60
-
-
-def filter_to_movie(
-    results: "list[TrackerResult]",
-    title: str,
-    year: int | None,
-) -> "list[TrackerResult]":
-    """Keep only releases matching the wanted MOVIE's identity (title + year, #28).
-
-    A title query (``"{title} {year}"``) returns fuzzy matches — a bare title
-    like « Wicker » pulls « The Wicker Man », « Wicker Park », … from title-based
-    trackers, which then rank by seeders so the WRONG film can win (the Wicker
-    incident, §5/§7). Tracker results carry no provider-ID, so identity is
-    verified from the parsed release name:
-
-    - **title**: the release's parsed title must be similar to the wanted title
-      (loose rapidfuzz guard — drops the wholly-unrelated);
-    - **year**: the discriminator — a release whose parsed year is known and more
-      than one year off the wanted year is a DIFFERENT film and is dropped
-      (``Wicker 2026`` vs ``The Wicker Man 2006``). A ±1 tolerance absorbs the
-      release-vs-production-year drift; a release with no parseable year is kept
-      (year can't refute it) and left to the title guard + ranking.
-
-    Fail-soft per release: an unparseable name falls back to (raw title, no year)
-    so a parser hiccup never silently drops a candidate on the year axis.
-
-    Args:
-        results: Raw tracker results for the movie query.
-        title: The wanted movie's title.
-        year: The wanted movie's release year, or ``None`` (year check disabled).
-
-    Returns:
-        The subset whose parsed identity matches the wanted movie (possibly empty).
-    """
-    from rapidfuzz import fuzz  # noqa: PLC0415 — local import keeps module load light
-
-    kept: list[TrackerResult] = []
-    for r in results:
-        parsed_title, parsed_year = _parse_release_identity(r.title)
-        if parsed_title and fuzz.token_set_ratio(parsed_title, title) < _MOVIE_TITLE_THRESHOLD:
-            continue
-        if year is not None and parsed_year is not None and abs(parsed_year - year) > 1:
-            continue
-        kept.append(r)
-    return kept
-
-
-def _parse_release_identity(release_title: str) -> "tuple[str, int | None]":
-    """Parse a release name into ``(title, year)`` via guessit (fail-soft).
-
-    Returns ``(raw_title, None)`` on any guessit failure so a parse error never
-    drops a candidate on the year axis.
-    """
-    try:
-        from guessit import guessit  # noqa: PLC0415 — heavy import, grab-path only
-
-        info = guessit(release_title)
-        parsed_title = str(info.get("title") or release_title)
-        raw_year = info.get("year")
-        parsed_year = int(raw_year) if isinstance(raw_year, int) else None
-        return parsed_title, parsed_year
-    except Exception:  # noqa: BLE001 — fail-soft: a parser hiccup must not drop a candidate
-        return release_title, None
 
 
 def rank_candidates(
@@ -488,6 +407,7 @@ class GrabOrchestrator:
         ranking: RankingConfig,
         title_resolver: Callable[[WantedItem], str | None] | None = None,
         year_resolver: "Callable[[WantedItem], int | None] | None" = None,
+        original_title_resolver: "Callable[[WantedItem], str | None] | None" = None,
         episode_count_resolver: "Callable[[WantedItem], int | None] | None" = None,
         bandwidth: "BandwidthConfig",
     ) -> None:
@@ -514,6 +434,12 @@ class GrabOrchestrator:
                 (from the followed-series row) — disambiguates an ambiguous movie
                 title (#28). ``None`` (or a miss) leaves the query yearless and
                 the movie identity filter inert on the year axis.
+            original_title_resolver: Resolves a claimed ``WantedItem`` to the
+                movie's ORIGINAL-language title (from the followed-series row,
+                #435) so the identity filter accepts releases named in the
+                original language (« Avant d'aller dormir » vs
+                `Before.I.Go.To.Sleep...`). ``None`` (or a miss) leaves the
+                filter on the display title alone (pre-#435 behavior).
             episode_count_resolver: Resolves a claimed SEASON ``WantedItem`` to
                 the number of aired episodes in its season (from the aired
                 catalog cache) so ``filter_to_season`` can verify a pack's
@@ -529,6 +455,7 @@ class GrabOrchestrator:
         self._ranking = ranking
         self._title_resolver = title_resolver
         self._year_resolver = year_resolver
+        self._original_title_resolver = original_title_resolver
         self._episode_count_resolver = episode_count_resolver
         self._bandwidth = bandwidth
         self._limits_unsupported_warned = False
@@ -557,6 +484,113 @@ class GrabOrchestrator:
     # ------------------------------------------------------------------
     # Shared search→filter→rank chain
     # ------------------------------------------------------------------
+
+    def _query_and_narrow(
+        self,
+        item: WantedItem,
+        query: str,
+        title: str | None,
+        original_title: str | None,
+        year: int | None,
+    ) -> "_QueryAttempt":
+        """Run ONE tracker query and the kind-specific identity narrowing.
+
+        The seam that lets :meth:`_search_chain` play the same
+        search→narrow stage twice — once with the display-title query, once
+        with the original-title query (#435) — without duplicating the exit
+        taxonomy. Three shapes come back:
+
+        * ``hard_stop`` set — outage/auth/circuit/degraded: a verdict that a
+          retry with another spelling must NOT overwrite;
+        * empty ``results`` with ``empty_verdict`` set — a fully-healthy
+          « nothing matched » conclusion (``no_candidates`` /
+          ``no_matching_episode`` / ``no_matching_season``), the retry
+          trigger, and the verdict to state if the retry finds nothing;
+        * empty ``results`` with NO ``empty_verdict`` — the movie identity
+          filter dropped everything: the caller lets the empty list flow to
+          :func:`rank_candidates` so the historical ``all_filtered`` verdict
+          is preserved bit-for-bit.
+
+        Args:
+            item: The claimed ``WantedItem``.
+            query: The exact ``q=`` to send (already year-narrowed).
+            title: The follow's display title (movie identity filter).
+            original_title: The follow's original-language title (idem).
+            year: The follow's release year.
+
+        Returns:
+            The :class:`_QueryAttempt` for this query.
+        """
+        media_type = MediaType.TV if item.kind in ("episode", "season") else MediaType.MOVIE
+
+        # CircuitOpenError is NOT an ApiError → needs its own clause;
+        # TrackerAuthError IS an ApiError → must precede its base clause. Both
+        # cover a raise OUTSIDE the registry's per-tracker loop; inside it, the
+        # failures come back as taxa on the outcome — see _search_chain.
+        try:
+            outcome: SearchOutcome = self._tracker_registry.search_candidates(query, media_type, year)
+        except CircuitOpenError:
+            return _QueryAttempt(hard_stop=_SearchChainResult(exit_path="circuit_open", ranked=[], top=None))
+        except TrackerAuthError:
+            return _QueryAttempt(hard_stop=_SearchChainResult(exit_path="tracker_auth", ranked=[], top=None))
+        except ApiError:
+            return _QueryAttempt(hard_stop=_SearchChainResult(exit_path="search_api_error", ranked=[], top=None))
+
+        if outcome.all_errored:
+            return _QueryAttempt(
+                hard_stop=_SearchChainResult(exit_path=_all_errored_exit_path(outcome), ranked=[], top=None)
+            )
+        if not outcome.results:
+            # A PARTIAL outage is not an absence. ``all_errored`` (handled above)
+            # only catches a unanimous failure; with one tracker rate-limited and
+            # the other legitimately empty, the empty set used to be persisted as
+            # « I looked, there is nothing » — false, and it burned an attempt.
+            # Only a fully-healthy, fully-empty search may conclude no_candidates.
+            if outcome.trackers_errored > 0:
+                return _QueryAttempt(hard_stop=_SearchChainResult(exit_path="trackers_degraded", ranked=[], top=None))
+            return _QueryAttempt(empty_verdict=_SearchChainResult(exit_path="no_candidates", ranked=[], top=None))
+
+        # --- Kind-specific identity narrowing (BEFORE hard-filter): the title
+        # query returns fuzzy matches (other episodes, season packs, other
+        # « Wicker* » films); keep only releases naming the wanted identity so
+        # ranking cannot pick the wrong one. ---
+        results = outcome.results
+        if item.kind == "episode" and item.season is not None and item.episode is not None:
+            raw_before_filter = list(results)  # R2: snapshot for season conversion
+            results = filter_to_episode(results, item.season, item.episode)
+            if not results:
+                return _QueryAttempt(
+                    empty_verdict=_SearchChainResult(
+                        exit_path="no_matching_episode",
+                        ranked=[],
+                        top=None,
+                        raw_before_filter=raw_before_filter,
+                    )
+                )
+        elif item.kind == "season" and item.season is not None:
+            # F4 — verify a pack's coverage against the aired-episode count;
+            # None (no resolver / empty cache) → the filter rejects any
+            # episode-marker release conservatively.
+            expected_count = self._episode_count_resolver(item) if self._episode_count_resolver is not None else None
+            results = filter_to_season(results, item.season, expected_count=expected_count)
+            if not results:
+                # A SEASON row's fruitless search states its own outcome —
+                # 'no_matching_episode' on a season row would surface a lie in
+                # the row's last_search_outcome (review F12).
+                return _QueryAttempt(
+                    empty_verdict=_SearchChainResult(exit_path="no_matching_season", ranked=[], top=None)
+                )
+        elif item.kind == "movie" and title is not None:
+            # #28 — a movie title query pulls the WRONG « Wicker* » films; keep
+            # only releases whose parsed title+year match the wanted movie so
+            # ranking cannot pick a different film (§5/§7 identity). An empty
+            # result flows to rank_candidates → all_filtered (honest « rien de
+            # conforme »), never a wrong-movie grab. The filter gets EVERY
+            # known title (#435): releases are commonly named in the original
+            # language while the follow carries the localized display title.
+            results = filter_to_movie(results, [title, original_title], year)
+
+        return _QueryAttempt(results=results)
 
     def _search_chain(
         self,
@@ -652,71 +686,41 @@ class GrabOrchestrator:
             :data:`SEARCH_OUTCOMES` values.
         """
         media_ref = item.media_ref
-        media_type = MediaType.TV if item.kind in ("episode", "season") else MediaType.MOVIE
         title = self._title_resolver(item) if self._title_resolver is not None else None
         # #28 — resolve the follow's release year to narrow an ambiguous movie
         # title (« Wicker » → every « Wicker* » film) in BOTH the query and the
         # identity filter below.
         year = self._year_resolver(item) if self._year_resolver is not None else None
-        query = build_search_query(item, title, year)
+        original_title = self._original_title_resolver(item) if self._original_title_resolver is not None else None
 
-        # --- Search (CircuitOpenError is NOT an ApiError → needs its own clause;
-        # TrackerAuthError IS an ApiError → must precede its base clause). Both
-        # cover a raise OUTSIDE the registry's per-tracker loop; inside it, the
-        # failures come back as taxa on the outcome — see the docstring. ---
-        try:
-            outcome: SearchOutcome = self._tracker_registry.search_candidates(query, media_type, year)
-        except CircuitOpenError:
-            return _SearchChainResult(exit_path="circuit_open", ranked=[], top=None)
-        except TrackerAuthError:
-            return _SearchChainResult(exit_path="tracker_auth", ranked=[], top=None)
-        except ApiError:
-            return _SearchChainResult(exit_path="search_api_error", ranked=[], top=None)
+        # --- First attempt: the display-title query. Hard failures (outage,
+        # auth, circuit, degraded) state their verdict immediately — retrying
+        # them with another spelling would muddle an honest diagnosis. ---
+        first = self._query_and_narrow(item, build_search_query(item, title, year), title, original_title, year)
+        if first.hard_stop is not None:
+            return first.hard_stop
 
-        if outcome.all_errored:
-            return _SearchChainResult(exit_path=_all_errored_exit_path(outcome), ranked=[], top=None)
-        if not outcome.results:
-            # A PARTIAL outage is not an absence. ``all_errored`` (handled above)
-            # only catches a unanimous failure; with one tracker rate-limited and
-            # the other legitimately empty, the empty set used to be persisted as
-            # « I looked, there is nothing » — false, and it burned an attempt.
-            # Only a fully-healthy, fully-empty search may conclude no_candidates.
-            if outcome.trackers_errored > 0:
-                return _SearchChainResult(exit_path="trackers_degraded", ranked=[], top=None)
-            return _SearchChainResult(exit_path="no_candidates", ranked=[], top=None)
+        chosen = first
+        if not first.results and original_title and original_title != title:
+            # #435 — some trackers only match what the release NAME carries
+            # (the original language): one retry with the original-title query,
+            # same narrowing. A hard failure here must not overwrite the first
+            # attempt's honest healthy-empty verdict, so it degrades to empty.
+            log.info(
+                "acquire.search.retry_original_title",
+                kind=item.kind,
+                title=title,
+                original_title=original_title,
+            )
+            second = self._query_and_narrow(
+                item, build_search_query(item, original_title, year), title, original_title, year
+            )
+            if second.hard_stop is None and second.results:
+                chosen = second
 
-        # --- Episode-exactness (BEFORE hard-filter): the title query returns
-        # fuzzy matches (other episodes, season packs); keep only releases
-        # naming the wanted SxxEyy so ranking cannot pick the wrong episode. ---
-        results = outcome.results
-        if item.kind == "episode" and item.season is not None and item.episode is not None:
-            raw_before_filter = list(results)  # R2: snapshot for season conversion
-            results = filter_to_episode(results, item.season, item.episode)
-            if not results:
-                return _SearchChainResult(
-                    exit_path="no_matching_episode",
-                    ranked=[],
-                    top=None,
-                    raw_before_filter=raw_before_filter,
-                )
-        elif item.kind == "season" and item.season is not None:
-            # F4 — verify a pack's coverage against the aired-episode count;
-            # None (no resolver / empty cache) → the filter rejects any
-            # episode-marker release conservatively.
-            expected_count = self._episode_count_resolver(item) if self._episode_count_resolver is not None else None
-            results = filter_to_season(results, item.season, expected_count=expected_count)
-            if not results:
-                # A SEASON row's fruitless search states its own outcome —
-                # 'no_matching_episode' on a season row would surface a lie in
-                # the row's last_search_outcome (review F12).
-                return _SearchChainResult(exit_path="no_matching_season", ranked=[], top=None)
-        elif item.kind == "movie" and title is not None:
-            # #28 — a movie title query pulls the WRONG « Wicker* » films; keep
-            # only releases whose parsed title+year match the wanted movie so
-            # ranking cannot pick a different film (§5/§7 identity). An empty
-            # result flows to rank_candidates → all_filtered (honest « rien de
-            # conforme »), never a wrong-movie grab.
-            results = filter_to_movie(results, title, year)
+        if not chosen.results and chosen.empty_verdict is not None:
+            return chosen.empty_verdict
+        results = chosen.results
 
         # --- Hard-filter → dedup → rank (DESIGN §15 stage order) ---
         # Delegated to the module-level :func:`rank_candidates` seam so the
@@ -1116,12 +1120,14 @@ class GrabOrchestrator:
 
 __all__ = [
     "GrabOrchestrator",
+    "build_search_query",
     "GrabOutcome",
     "SearchDisposition",
     "SearchVerdict",
     "SEARCH_OUTCOMES",
     "INCONCLUSIVE_OUTCOMES",
     "filter_to_episode",
+    "filter_to_movie",
     "filter_to_season",
     "rank_candidates",
 ]

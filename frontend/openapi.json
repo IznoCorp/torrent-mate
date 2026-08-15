@@ -1511,6 +1511,17 @@
             ],
             "title": "Non Verifie Count"
           },
+          "original_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Title"
+          },
           "overview": {
             "anyOf": [
               {
