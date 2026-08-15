@@ -12,6 +12,7 @@ import {
 } from "@tanstack/react-router";
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { AjoutEcran } from "./ecrans/ajout";
 import { ProfilEcran } from "./ecrans/profil";
 import { creerMagasin, type Magasin } from "./magasin";
 
@@ -40,6 +41,10 @@ type Pont = {
 // string — normalisation and encoding are this file's job, not the caller's.
 type Ecrans = {
   profil: (titre: string) => void;
+  // `q`/`mode` cross the bridge as plain strings, the way a legacy call site
+  // already holds them (`state.addQ`, a literal like `"identifier"`) — the
+  // validated union lives in `/ajout`'s own `validateSearch`, not here.
+  ajout: (q?: string, mode?: string) => void;
 };
 
 declare global {
@@ -93,8 +98,29 @@ const profil = createRoute({
   path: "/profil/$titre",
   component: ProfilEcran,
 });
+// The second screen route, and the first whose OWN search params are
+// router-owned rather than merely read: `q` (the typed query) and `mode`
+// ("suivi" — follow a new title — or "identifier" — associate a stuck
+// folder, reached from the resolution screen's manual search) live here for
+// as long as the address reads `/ajout`, replacing `state.addQ`/
+// `state.addMode` as the SOURCE of truth on this path (see `ajout.tsx`'s own
+// doc comment for the transitional contract with the one legacy reader that
+// remains). Absent means "suivi" / no query, the same "absent is unchanged"
+// convention `attrape`'s `validateSearch` already uses above.
+type RechercheAjout = { q?: string; mode?: "suivi" | "identifier" };
+const ajout = createRoute({
+  getParentRoute: () => racine,
+  path: "/ajout",
+  validateSearch: (brut: Record<string, unknown>): RechercheAjout => {
+    const lu: RechercheAjout = {};
+    if (typeof brut.q === "string" && brut.q) lu.q = brut.q;
+    if (brut.mode === "identifier") lu.mode = "identifier";
+    return lu;
+  },
+  component: AjoutEcran,
+});
 const routeur = createRouter({
-  routeTree: racine.addChildren([attrape, profil]),
+  routeTree: racine.addChildren([attrape, profil, ajout]),
   history: historique,
   // The document is also read under other paths than `/` — the rule harness
   // serves it as `wrapped.html`. The router's built-in fallback would print
@@ -191,6 +217,27 @@ export function aller(vers: {
 window.__ecrans = {
   profil: (titre: string) =>
     aller({ to: "/profil/$titre", params: { titre: titre.normalize("NFC") } }),
+  // Kept in sync in `magasin.ecrire` BEFORE navigating: `state.addMode` is
+  // still read by the untouched cross-world "add:N" panel act (it decides
+  // ASSOCIATE vs regular add — see refonte.html) and by `addVerb`, and
+  // `state.addQ` still seeds the FAB's next open. Neither is written again
+  // after this call — typing on `/ajout` updates the ROUTER's search params
+  // only, through `aller()` directly, not through this bridge — so a value
+  // read off `state.addQ`/`state.addMode` after the operator has typed
+  // reflects the screen's ENTRY query, not its live one. That staleness is
+  // the accepted cost of the ownership flip: the router is the only thing
+  // that stays current for as long as the address reads `/ajout`.
+  ajout: (q?: string, mode?: string) => {
+    const modeValide = mode === "identifier" ? "identifier" : "suivi";
+    window.__magasin.ecrire({ addQ: q ?? "", addMode: modeValide });
+    aller({
+      to: "/ajout",
+      search: {
+        q: q || undefined,
+        mode: modeValide === "identifier" ? "identifier" : undefined,
+      },
+    });
+  },
 };
 
 // The store is created here, and the engine starts only once it — and the

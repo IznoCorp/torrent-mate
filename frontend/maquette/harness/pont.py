@@ -298,10 +298,14 @@ async def main():
         await pg.evaluate("()=>window.__go('acq-ajout-resultats')")
         await pg.wait_for_timeout(400)
 
+        # The add screen left `#screen` for a real route (`/ajout`, rendered
+        # inside `#coquille`): its results live under `.screen.open` now —
+        # the FICHE this journey opens next stays fully legacy, still
+        # `#screen`, but this hold never reads that selector.
         depart_state = await pg.evaluate(
             """()=>({
-                ecran: document.querySelector('#screen').classList.contains('open'),
-                cle: document.querySelector('#screen').dataset.cle,
+                ecran: !!document.querySelector('.screen.open'),
+                cle: document.querySelector('.screen.open')?.dataset.cle,
                 cartes: document.querySelectorAll('.reslist .card').length,
                 requete: document.querySelector('#addq')?.value
             })"""
@@ -315,7 +319,7 @@ async def main():
         # Scrolled away from the top before leaving, so the return has a
         # position to restore and not merely a list to redraw.
         await pg.evaluate(
-            "()=>{document.querySelector('#screen .port').scrollTop = 300;}"
+            "()=>{document.querySelector('.screen.open .port').scrollTop = 300;}"
         )
         await pg.evaluate("()=>document.querySelector('.reslist .poster').click()")
         await pg.wait_for_timeout(450)
@@ -325,11 +329,11 @@ async def main():
 
         retour_state = await pg.evaluate(
             """()=>({
-                ecran: document.querySelector('#screen').classList.contains('open'),
-                cle: document.querySelector('#screen').dataset.cle,
+                ecran: !!document.querySelector('.screen.open'),
+                cle: document.querySelector('.screen.open')?.dataset.cle,
                 cartes: document.querySelectorAll('.reslist .card').length,
                 requete: document.querySelector('#addq')?.value,
-                scroll: document.querySelector('#screen .port').scrollTop
+                scroll: document.querySelector('.screen.open .port')?.scrollTop
             })"""
         )
 

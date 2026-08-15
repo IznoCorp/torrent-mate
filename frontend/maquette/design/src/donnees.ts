@@ -34,6 +34,40 @@ export type Release = {
   sc: number;
 };
 
+// A search hit, exactly as the mock `SEARCH` constant shapes one. `k` is the
+// French kind label used throughout the legacy templates ("Film" / "Série"),
+// not the English "movie"/"show" token `cardHTML` itself expects for a
+// poster's aspect ratio — the two are deliberately different vocabularies at
+// two different seams, and a migrated screen converts between them exactly
+// where `openAddScreen` used to.
+export type ResultatRecherche = {
+  t: string;
+  y: string;
+  k: "Film" | "Série";
+  ov: string;
+  owned: boolean;
+  followed: boolean;
+};
+
+export type ResultatsRecherche = {
+  total: number;
+  shown: number;
+  results: ResultatRecherche[];
+};
+
+// The card builder's own descriptor — a small, typed slice of what
+// `cardHTML` accepts, limited to the fields a search-result row actually
+// fills. `cardHTML` itself stays untyped JS (defined in refonte.html); this
+// type exists only so a migrated screen calls it with the right shape.
+export type DescripteurCarte = {
+  t: string;
+  k: "movie" | "show";
+  s?: string;
+  overview?: string;
+  chip?: [string, string] | null;
+  panel?: string;
+};
+
 // Read-only reference data + pure rendering helpers the engine's own script
 // publishes once, at definition time — well before any component's module
 // evaluates (see coquille.tsx's boot-order comment). None of it is ever
@@ -41,12 +75,28 @@ export type Release = {
 // not a subscription: there is nothing for a component to miss by reading
 // it straight, and useSyncExternalStore would just add a subscription with
 // no writer ever calling it.
+//
+// `cardHTML` / `addVerb` are reused VERBATIM rather than re-implemented in
+// JSX: a search-result card carries `data-panel="add:N"` / `data-fiche`
+// attributes that the legacy document-level click delegation still reads
+// to open the panel or the media sheet (the strangler seam a migrated
+// screen leans on rather than replaces) — re-deriving that markup by hand
+// would risk drifting the one thing that seam depends on being byte-exact.
+// `render` is the legacy page redraw (`#view`, nav, deck, loaders, search
+// bar) — exposed so a screen leaving a router-owned route back onto legacy
+// ground (see `ajout.tsx`'s "Voir mes suivis") can bring that ground up to
+// date the same way every other legacy navigation control already does,
+// since nothing subscribes the legacy side to the store automatically.
 export type Referentiel = {
   RELEASES: Release[];
   RESOS: Resolution[];
   AUDIOS: [string, string][];
   icons: Record<string, string>;
   baseTitle: (title: string) => string;
+  SEARCH: ResultatsRecherche;
+  cardHTML: (descriptor: DescripteurCarte) => string;
+  addVerb: (result: ResultatRecherche, index: number) => string;
+  render: () => void;
 };
 
 declare global {

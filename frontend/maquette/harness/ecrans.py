@@ -42,9 +42,13 @@ async def main():
 
         await pg.evaluate("()=>window.__go('acq-ajout-resultats')")
         await pg.wait_for_timeout(400)
+        # The add screen left `#screen` for a real route (`/ajout`, rendered
+        # inside `#coquille`): its results list is `.screen.open`, not
+        # literally `#screen` — the FICHE this journey opens further down
+        # still is (`openFiche` stays fully legacy).
         depart = await pg.evaluate("""()=>({
-            ecran: document.querySelector('#screen').classList.contains('open'),
-            cle: document.querySelector('#screen').dataset.cle,
+            ecran: !!document.querySelector('.screen.open'),
+            cle: document.querySelector('.screen.open')?.dataset.cle,
             cartes: document.querySelectorAll('.reslist .card').length,
             pieds: document.querySelectorAll('.reslist .cfoot').length,
             requete: document.querySelector('#addq')?.value})""")
@@ -64,9 +68,13 @@ async def main():
         await pg.wait_for_timeout(300)
 
         # ── The reported journey, exit 1: the browser back ──────────────────
-        await pg.evaluate("()=>{document.querySelector('#screen .port').scrollTop = 300;}")
+        await pg.evaluate("()=>{document.querySelector('.screen.open .port').scrollTop = 300;}")
         await pg.evaluate("()=>document.querySelector('.reslist .poster').click()")
         await pg.wait_for_timeout(450)
+        # The poster's target is a MEDIA SHEET (`openFiche`), which stays
+        # fully legacy: it opens on the SAME `#screen` it always did,
+        # painting OVER the React results screen underneath it (later DOM
+        # order wins the stack — see Task 9's z-index finding).
         fiche = await pg.evaluate("""()=>({
             ecran: document.querySelector('#screen').classList.contains('open'),
             dessus: !!document.querySelector('#screen .herowrap')})""")
@@ -76,11 +84,11 @@ async def main():
         await pg.go_back()
         await pg.wait_for_timeout(500)
         retour = await pg.evaluate("""()=>({
-            ecran: document.querySelector('#screen').classList.contains('open'),
-            cle: document.querySelector('#screen').dataset.cle,
+            ecran: !!document.querySelector('.screen.open'),
+            cle: document.querySelector('.screen.open')?.dataset.cle,
             cartes: document.querySelectorAll('.reslist .card').length,
             requete: document.querySelector('#addq')?.value,
-            scroll: document.querySelector('#screen .port').scrollTop})""")
+            scroll: document.querySelector('.screen.open .port')?.scrollTop})""")
         verifier("le retour redessine la liste de résultats",
                  retour["ecran"] and (retour["cle"] or "").startswith("ajout:")
                  and retour["cartes"] == depart["cartes"]
@@ -92,7 +100,7 @@ async def main():
         await pg.go_back()
         await pg.wait_for_timeout(450)
         sorti = await pg.evaluate("""()=>({
-            ecran: document.querySelector('#screen').classList.contains('open'),
+            ecran: !!document.querySelector('.screen.open'),
             page: state.page})""")
         verifier("et un retour de plus quitte l'écran",
                  not sorti["ecran"] and sorti["page"] == "acq",
@@ -103,11 +111,12 @@ async def main():
         await pg.wait_for_timeout(400)
         await pg.evaluate("()=>document.querySelector('.reslist .poster').click()")
         await pg.wait_for_timeout(450)
+        # Same legacy fiche as exit 1 — its own « Retour » stays `#screen`.
         await pg.evaluate("()=>document.querySelector('#screen .fback').click()")
         await pg.wait_for_timeout(500)
         bouton = await pg.evaluate("""()=>({
-            ecran: document.querySelector('#screen').classList.contains('open'),
-            cle: document.querySelector('#screen').dataset.cle,
+            ecran: !!document.querySelector('.screen.open'),
+            cle: document.querySelector('.screen.open')?.dataset.cle,
             cartes: document.querySelectorAll('.reslist .card').length})""")
         verifier("le bouton « Retour » de la fiche fait de même",
                  bouton["ecran"] and (bouton["cle"] or "").startswith("ajout:")

@@ -1,8 +1,11 @@
 """Second adversarial pass — uniformity, consistency, honesty of the text.
 Aimed at what a screenshot does not show.
 """
-import asyncio, json
+import asyncio
+import json
+
 from playwright.async_api import async_playwright
+
 BAR="─"*62
 
 async def main():
@@ -125,16 +128,29 @@ async def main():
 
     evalue('R14')
     # R14 — every layer closes via the scrim AND via Back
-    for id_,sel in [("feuille-suivi-trous","#sheet"),("lib-suppression","#dlg"),("fiche-serie","#screen"),("acq-ajout-resultats","#screen")]:
-        await pg.evaluate("(i)=>window.__go(i)",id_); await pg.wait_for_timeout(300)
-        ouvert=await pg.evaluate("(s)=>document.querySelector(s).classList.contains('open')",sel)
-        if sel!="#screen":
+    #
+    # `acq-ajout-resultats` left `#screen` for a real route (`/ajout`,
+    # rendered inside `#coquille`): its own open/close check is
+    # `.screen.open`, not `#screen` — the LEGACY fiche `fiche-serie` opens
+    # still is `#screen`, unaffected. Both close the same way from the
+    # operator's point of view (the screen's own « Retour »), so both stay
+    # on the "retour" branch — only the selector differs.
+    CAS_R14 = [
+        ("feuille-suivi-trous", "#sheet", "scrim"),
+        ("lib-suppression", "#dlg", "scrim"),
+        ("fiche-serie", "#screen", "retour"),
+        ("acq-ajout-resultats", ".screen.open", "retour"),
+    ]
+    for id_, sel, fermeture in CAS_R14:
+        await pg.evaluate("(i)=>window.__go(i)", id_); await pg.wait_for_timeout(300)
+        ouvert = await pg.evaluate("(s)=>!!document.querySelector(s)?.classList.contains('open')", sel)
+        if fermeture == "scrim":
             await pg.evaluate("()=>document.querySelector('#scrim').click()"); await pg.wait_for_timeout(300)
-            if await pg.evaluate("(s)=>document.querySelector(s).classList.contains('open')",sel):
+            if await pg.evaluate("(s)=>!!document.querySelector(s)?.classList.contains('open')", sel):
                 note("R14 layer not closable via the scrim", f"{id_}")
         else:
-            await pg.evaluate("()=>document.querySelector('#screen .fback').click()"); await pg.wait_for_timeout(350)
-            if await pg.evaluate("()=>document.querySelector('#screen').classList.contains('open')"):
+            await pg.evaluate("(s)=>document.querySelector(s+' .fback').click()", sel); await pg.wait_for_timeout(350)
+            if await pg.evaluate("(s)=>!!document.querySelector(s)?.classList.contains('open')", sel):
                 note("R14 screen not closable via Back", f"{id_}")
         if not ouvert: note("R14 layer that does not open", id_)
 

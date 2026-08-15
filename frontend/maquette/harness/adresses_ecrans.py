@@ -64,6 +64,18 @@ ETAT_ECRAN = """() => {
   };
 }"""
 
+ETAT_AJOUT = """() => {
+  const ecran = document.querySelector('.screen.open');
+  return {
+    ouvert: !!ecran,
+    cle: ecran?.dataset.cle ?? null,
+    champ: document.querySelector('#addq')?.value ?? null,
+    cartes: document.querySelectorAll('.reslist .card').length,
+    pathname: location.pathname,
+    recherche: location.search,
+  };
+}"""
+
 ETAT_IMAGES = """() => {
   const chargees = [...document.querySelectorAll('img')].filter(i => i.complete);
   return {
@@ -158,6 +170,64 @@ async def main():
                 "l'adresse reste celle qui a été tapée",
                 pg.url == adresse_fausse, pg.url)
             journal.verifier("aucune erreur JS sur une adresse inconnue", not erreurs, str(erreurs))
+            await ctx.close()
+
+            # ─── Hold 6: /ajout deep entry, cold — field filled, results shown ──
+            adresse_ajout = f"{base}/ajout?q=lucky"
+            ctx, pg, erreurs = await ouvrir_a(navigateur, adresse_ajout)
+            ajout_froid = await pg.evaluate(ETAT_AJOUT)
+            journal.verifier(
+                "une adresse profonde /ajout ouvre l'écran, à froid, le champ rempli",
+                ajout_froid["ouvert"] and ajout_froid["champ"] == "lucky"
+                and ajout_froid["cle"] == "ajout:suivi",
+                f"champ={ajout_froid['champ']!r} cle={ajout_froid['cle']}")
+            journal.verifier(
+                "et la requête affiche des résultats",
+                ajout_froid["cartes"] >= 2, f"{ajout_froid['cartes']} cartes")
+            journal.verifier("aucune erreur JS à l'entrée profonde /ajout", not erreurs, str(erreurs))
+            await ctx.close()
+
+            # ─── Hold 7: typing rewrites the address IN PLACE — R76 for a
+            # CONTROLLED input, not a one-shot navigation. Proven by the
+            # STRONGEST observable: one back from a five-keystroke session
+            # must land exactly where the walk started, not mid-query — a
+            # stacked entry per keystroke would instead surface one letter
+            # short of the full word. `history.length` is deliberately not
+            # read here: an observed landing state is the harder proof.
+            ctx, pg, erreurs = await ouvrir_a(navigateur, f"{base}/")
+            depart_ajout = await pg.evaluate(ETAT_ECRAN)
+            journal.verifier("le point de départ n'a aucun écran ouvert (avant /ajout)",
+                             not depart_ajout["ouvert"] and depart_ajout["pathname"] == "/",
+                             depart_ajout["pathname"])
+
+            await pg.evaluate("()=>window.__ecrans.ajout('')")
+            await pg.wait_for_timeout(300)
+            sur_ajout = await pg.evaluate(ETAT_AJOUT)
+            journal.verifier(
+                "marcher jusqu'à /ajout ÉCRIT l'adresse",
+                sur_ajout["ouvert"] and sur_ajout["pathname"] == "/ajout",
+                sur_ajout["pathname"])
+
+            await pg.click("#addq")
+            for lettre in "lucky":
+                await pg.keyboard.type(lettre)
+                await pg.wait_for_timeout(80)
+            await pg.wait_for_timeout(300)
+            apres_frappe = await pg.evaluate(ETAT_AJOUT)
+            journal.verifier(
+                "cinq frappes réécrivent le champ ET l'adresse",
+                apres_frappe["champ"] == "lucky" and "q=lucky" in apres_frappe["recherche"],
+                f"champ={apres_frappe['champ']!r} recherche={apres_frappe['recherche']!r}")
+
+            await pg.go_back()
+            await pg.wait_for_timeout(400)
+            apres_retour = await pg.evaluate(ETAT_ECRAN)
+            journal.verifier(
+                "un seul retour depuis cinq frappes ramène où l'on était AVANT l'écran"
+                " (et pas mi-frappe, ce qu'un historique empilé aurait produit)",
+                not apres_retour["ouvert"] and apres_retour["pathname"] == depart_ajout["pathname"],
+                apres_retour["pathname"])
+            journal.verifier("aucune erreur JS pendant la frappe", not erreurs, str(erreurs))
             await ctx.close()
 
         await navigateur.close()

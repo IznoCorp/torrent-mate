@@ -36,16 +36,16 @@ async def main():
         print(("  OK  " if bon else "  ÉCHEC"), f"{label:34} {av} → {ap}" + (f"  (max atteignable {maxi})" if maxi < av else ""))
 
     print("── quality profile ──")
-    # This screen left `#screen` for a real route, rendered inside
-    # `#coquille` — its scrollport is now wherever `.screen.open .port`
+    # These two screens left `#screen` for a real route, rendered inside
+    # `#coquille` — their scrollport is now wherever `.screen.open .port`
     # resolves (the React section carries the same classes `#screen` did),
     # not literally inside the legacy container.
-    profil_port = ".screen.open .port"
-    await essai("ecran-profil", ".opt.check", 2, "checkbox", port=profil_port)
-    await essai("ecran-profil", ".opt.radio", 3, "bouton radio", port=profil_port)
-    await essai("ecran-profil", ".switch", 0, "interrupteur", port=profil_port)
+    ecran_port = ".screen.open .port"
+    await essai("ecran-profil", ".opt.check", 2, "checkbox", port=ecran_port)
+    await essai("ecran-profil", ".opt.radio", 3, "bouton radio", port=ecran_port)
+    await essai("ecran-profil", ".switch", 0, "interrupteur", port=ecran_port)
     print("── add screen ──")
-    await essai("acq-ajout-resultats", ".segmini button", 1, "segment de type")
+    await essai("acq-ajout-resultats", ".segmini button", 1, "segment de type", port=ecran_port)
 
     print("\n── saisie au clavier (valeur et curseur) ──")
     await pg.evaluate("()=>window.__go('lib-grille')"); await pg.wait_for_timeout(400)
