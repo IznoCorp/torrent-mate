@@ -75,6 +75,15 @@ class FollowedSeries:
     kind: FollowKind = "show"
     id: int | None = None
     year: int | None = None
+    #: The provider's ORIGINAL-language title (TMDB ``original_title``), or
+    #: ``None`` when not resolved yet. Releases are commonly named in the
+    #: original language while the follow carries the localized display title
+    #: (« Avant d'aller dormir » vs `Before.I.Go.To.Sleep.2014...`), so the
+    #: movie identity filter matches against BOTH (#435). Stored verbatim even
+    #: when equal to ``title`` — non-NULL means « healed », which stops the
+    #: detect-pass backfill from refetching. Populated only by SELECTs that
+    #: fetch the column (decoded defensively, like ``year``).
+    original_title: str | None = None
     #: The operator authorised REPLACING a copy already in the library (§5).
     #: Detect honours it once — without it, a film already owned is closed on
     #: sight and the replacement the UI promised never runs. Cleared as soon as

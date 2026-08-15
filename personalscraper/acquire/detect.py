@@ -47,6 +47,12 @@ if TYPE_CHECKING:
 
 log = get_logger("acquire.detect")
 
+#: Max original-title heals per detect run (#435). The TMDB calls are
+#: synchronous inside the pass, so the first run after migration 024 must not
+#: stall behind one round-trip per legacy follow; the cron cadence drains the
+#: backlog in waves of this size.
+_ORIGINAL_TITLE_BACKFILL_CAP = 25
+
 
 class DetectStatus(str, Enum):
     """Top-level outcome of a detect run (drives the CLI's empty-set message)."""
@@ -216,6 +222,14 @@ class DetectService:
             except Exception as exc:  # noqa: BLE001 — reconciliation must never abort detect
                 log.warning("acquire.detect.reconcile_failed", error=str(exc))
 
+        if not dry_run:
+            # #435 — heal follows created before migration 024 (or whose add
+            # path could not reach a provider): resolve the original title the
+            # identity filter (movies) and the original-title retry query
+            # (movies AND shows) need. Fail-soft and one-shot per row — a
+            # persisted value is non-NULL and is never refetched.
+            self._backfill_original_titles(active)
+
         actions: list[DetectAction] = []
         counts = _MutableCounts()
         for mf in movie_follows:
@@ -287,6 +301,81 @@ class DetectService:
                 log.warning(
                     "acquire.detect.series_status_write_failed",
                     followed_id=catalog.followed_id,
+                    error=str(exc),
+                )
+
+    def _backfill_original_titles(self, follows: "list[FollowedSeries]") -> None:
+        """Resolve + persist the missing original title of follows (#435).
+
+        A media followed under its localized display title is commonly released
+        under its ORIGINAL title; the movie identity filter matches against
+        both, and the search chain retries a fruitless display-title query in
+        the original language for movies AND shows. TMDB carries the original
+        title for both kinds and is queried with its OWN id only (strict
+        provider separation: ``get_movie`` for a movie follow, ``get_tv`` —
+        whose parser maps ``original_name`` — for a show) — a follow with no
+        ``tmdb_id`` is left alone.
+
+        Best-effort, ``_persist_series_status`` precedent: a provider outage, a
+        malformed payload, or a write failure logs a WARNING and never aborts
+        detect. Any SUCCESSFUL provider answer persists a non-NULL value — the
+        display title itself when the record carries no usable original title —
+        so a row is fetched at most once after TMDB has answered for it; only
+        a failed call (outage, 404) leaves it NULL for the next run to retry.
+        At most :data:`_ORIGINAL_TITLE_BACKFILL_CAP` rows are healed per run
+        (the calls are synchronous inside detect — an unbounded first run after
+        migration 024 would stall the pass behind N provider round-trips); the
+        cron cadence heals the backlog in waves.
+        Scope note: the heal covers the follows THIS run detects — an
+        ``--series``-filtered or dry-run invocation heals accordingly less, and
+        a paused follow heals on its first detect after reactivation (always
+        before that same run's enqueue pass).
+        """
+        unhealed = [
+            mf for mf in follows if mf.original_title is None and mf.media_ref.tmdb_id is not None and mf.id is not None
+        ]
+        if not unhealed:
+            return
+        try:
+            tmdb = self._registry.get("tmdb")
+        except Exception:  # noqa: BLE001 — no TMDB in the chain: nothing to heal with
+            # WARNING, not debug: with no TMDB registered the cross-language
+            # identity fix silently never heals a single row — the operator
+            # must be able to see WHY from the default log level.
+            log.warning("acquire.detect.original_title_no_tmdb", unhealed=len(unhealed))
+            return
+        if len(unhealed) > _ORIGINAL_TITLE_BACKFILL_CAP:
+            log.info(
+                "acquire.detect.original_title_backfill_capped",
+                unhealed=len(unhealed),
+                cap=_ORIGINAL_TITLE_BACKFILL_CAP,
+            )
+            unhealed = unhealed[:_ORIGINAL_TITLE_BACKFILL_CAP]
+        for mf in unhealed:
+            try:
+                method = tmdb.get_movie if mf.kind == "movie" else tmdb.get_tv  # type: ignore[attr-defined]
+                details = method(mf.media_ref.tmdb_id)
+                original = getattr(details, "original_title", None)
+                if not (isinstance(original, str) and original.strip()):
+                    # A successful answer with no usable original title heals
+                    # with the display title (VERBATIM rule): staying NULL
+                    # would refetch this row on every detect run forever.
+                    original = mf.title
+                assert mf.id is not None  # noqa: S101 — filtered above; narrows for mypy
+                self._store.follow.merge_metadata(
+                    mf.id, poster_url=None, overview=None, year=None, original_title=original
+                )
+                log.info(
+                    "acquire.detect.original_title_backfilled",
+                    followed_id=mf.id,
+                    title=mf.title,
+                    original_title=original,
+                )
+            except Exception as exc:  # noqa: BLE001 — a nicety is never worth aborting detect
+                log.warning(
+                    "acquire.detect.original_title_backfill_failed",
+                    followed_id=mf.id,
+                    title=mf.title,
                     error=str(exc),
                 )
 

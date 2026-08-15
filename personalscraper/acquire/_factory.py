@@ -156,6 +156,17 @@ def build_acquire_context(
             row = store.follow.get(item.followed_id)
             return row.year if row is not None else None
 
+        # Original-title resolver (#435): the followed_series row carries the
+        # movie's original-language title (captured at add / detect backfill),
+        # so the identity filter accepts releases named in the original
+        # language. Store-backed like the title resolver; None for standalone
+        # items, a missing row, or an un-healed follow.
+        def _original_title_resolver(item: WantedItem) -> str | None:
+            if item.followed_id is None:
+                return None
+            row = store.follow.get(item.followed_id)
+            return row.original_title if row is not None else None
+
         # Season-pack coverage resolver (review F4): the number of aired
         # episodes for a season item's season, from the aired catalog cache.
         # None for standalone items or an empty cache — filter_to_season then
@@ -173,6 +184,7 @@ def build_acquire_context(
             ranking=config.ranking,
             title_resolver=_title_resolver,
             year_resolver=_year_resolver,
+            original_title_resolver=_original_title_resolver,
             episode_count_resolver=_episode_count_resolver,
             bandwidth=config.acquire.bandwidth,
         )
