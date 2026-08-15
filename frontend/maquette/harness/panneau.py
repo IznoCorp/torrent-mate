@@ -44,7 +44,9 @@ PANNEAUX = [
     ("veille", "feuille-plus", None),
     ("menu utilisateur", "feuille-utilisateur", None),
     ("suggestion", "acq-decouvrir", '#view [data-panel^="sug:"]'),
-    ("résultat de recherche", "acq-ajout-resultats", '#screen [data-panel^="add:"]'),
+    # The add screen left `#screen` for a real route (`/ajout`, rendered
+    # inside `#coquille`) — its results live under `.screen.open` now.
+    ("résultat de recherche", "acq-ajout-resultats", '.screen.open [data-panel^="add:"]'),
     ("tri de la médiathèque", "lib-grille", "[data-sort]"),
 ]
 

@@ -1,6 +1,9 @@
 """No form interaction may move the scroll position."""
 import asyncio
+
 from playwright.async_api import async_playwright
+
+
 async def main():
   async with async_playwright() as p:
     b=await p.chromium.launch(channel="chrome")
@@ -16,11 +19,11 @@ async def main():
 
     async def essai(etat, sel, idx, label, port="#screen .port"):
         await pg.evaluate("(i)=>window.__go(i)", etat); await pg.wait_for_timeout(420)
-        await pg.evaluate(f"(s)=>{{const p=document.querySelector(s); p.scrollTop=Math.min(400, p.scrollHeight-p.clientHeight);}}", port)
+        await pg.evaluate("(s)=>{const p=document.querySelector(s); p.scrollTop=Math.min(400, p.scrollHeight-p.clientHeight);}", port)
         await pg.wait_for_timeout(180)
         av = await pg.evaluate("(s)=>document.querySelector(s).scrollTop", port)
         if av < 20: print(f"  (page trop courte pour {label})"); return
-        await pg.evaluate(f"([s,i])=>document.querySelectorAll(s)[i].click()", [sel, idx])
+        await pg.evaluate("([s,i])=>document.querySelectorAll(s)[i].click()", [sel, idx])
         await pg.wait_for_timeout(380)
         ap = await pg.evaluate("(s)=>document.querySelector(s)?.scrollTop ?? -1", port)
         # After filtering, the page can become SHORTER than the viewport:
@@ -33,11 +36,16 @@ async def main():
         print(("  OK  " if bon else "  ÉCHEC"), f"{label:34} {av} → {ap}" + (f"  (max atteignable {maxi})" if maxi < av else ""))
 
     print("── quality profile ──")
-    await essai("ecran-profil", ".opt.check", 2, "checkbox")
-    await essai("ecran-profil", ".opt.radio", 3, "bouton radio")
-    await essai("ecran-profil", ".switch", 0, "interrupteur")
+    # These two screens left `#screen` for a real route, rendered inside
+    # `#coquille` — their scrollport is now wherever `.screen.open .port`
+    # resolves (the React section carries the same classes `#screen` did),
+    # not literally inside the legacy container.
+    ecran_port = ".screen.open .port"
+    await essai("ecran-profil", ".opt.check", 2, "checkbox", port=ecran_port)
+    await essai("ecran-profil", ".opt.radio", 3, "bouton radio", port=ecran_port)
+    await essai("ecran-profil", ".switch", 0, "interrupteur", port=ecran_port)
     print("── add screen ──")
-    await essai("acq-ajout-resultats", ".segmini button", 1, "segment de type")
+    await essai("acq-ajout-resultats", ".segmini button", 1, "segment de type", port=ecran_port)
 
     print("\n── saisie au clavier (valeur et curseur) ──")
     await pg.evaluate("()=>window.__go('lib-grille')"); await pg.wait_for_timeout(400)

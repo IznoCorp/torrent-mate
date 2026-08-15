@@ -188,6 +188,10 @@ jobs:
         working-directory: frontend
       - run: npx tsc -b --noEmit
         working-directory: frontend
+      - run: npm ci
+        working-directory: frontend/maquette/design
+      - run: npm run typecheck
+        working-directory: frontend/maquette/design
       - run: npm run lint
         working-directory: frontend
       - run: npm run lint:ds

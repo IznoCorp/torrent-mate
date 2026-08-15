@@ -57,6 +57,16 @@ async def main():
     cl = sorted(classes_bloc2())
     src = (RACINE / "design" / "refonte.html").read_text()
     src = src[src.find("</style>"):]  # markup + JS, sans le CSS
+    # A migrated screen's markup lives in `design/src/**/*.tsx` now, not in
+    # refonte.html: a class reached only through user interaction — never
+    # present in any FROZEN `__go` state, like `.addfoot` (drawn once
+    # `added.size > 0`) — is invisible to the DOM scan below AND to a
+    # refonte.html-only source scan alike. Concatenating the TSX sources
+    # here is what keeps this classifier's "written" detection working
+    # across the strangler seam, one screen at a time, exactly the way it
+    # already worked for the legacy templates it used to be the only source.
+    for tsx in sorted((RACINE / "design" / "src").rglob("*.tsx")):
+        src += "\n" + tsx.read_text()
 
     async with async_playwright() as p:
         b = await p.chromium.launch(channel="chrome")

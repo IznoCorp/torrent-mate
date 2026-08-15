@@ -11432,7 +11432,7 @@
   ];
 
   /* State */
-  const state = {
+  let state = {
     page: "acq",
     acqTab: "maintenant",
     libLens: "cat",
@@ -11453,7 +11453,6 @@
     maintBlanc: true,
     addMode: "suivi",
     relTitre: null,
-    profilTitre: null,
     /* The backend defaults: permissive everywhere EXCEPT exclude_3d. */
     profil: {
       min_resolution: "1080p",
@@ -11854,6 +11853,9 @@
      `window.__reset()` restores the seed; `__go()` calls it systematically,
      so every measurement starts from the same state. */
   let world = null;
+  // The single owner of the mutable state, adopted at boot by
+  // window.__demarrerMoteur — null until the shell calls it.
+  let magasin = null;
   function seedWorld() {
     const deepCopy = (value) => JSON.parse(JSON.stringify(value));
     world = {
@@ -12012,8 +12014,7 @@
   function actionSupprimer(titres) {
     titres.forEach((titre) => world.removedLib.add(titre));
     world.lib = world.lib.filter((lib) => !world.removedLib.has(lib.t));
-    state.selMode = false;
-    state.selected = new Set();
+    magasin.ecrire({ selMode: false, selected: new Set() });
     render();
     toast(
       `${titres.length} média${titres.length > 1 ? "s" : ""} supprimé${titres.length > 1 ? "s" : ""} — simulation, aucun fichier touché.`,
@@ -12027,7 +12028,7 @@
 
   window.__reset = () => {
     seedWorld();
-    Object.assign(state, {
+    magasin.ecrire({
       /* The SCENARIO is state too, and the loudest kind: it decides which
          world every later reading is taken from. A state that switched to the
          dense scenario left it switched for the next one, so a surface
@@ -12060,6 +12061,18 @@
     // the screens a previous journey left underneath the visible one.
     pileEcrans.length = 0;
     renduCourant = null;
+    // The router is navigation state too: `__go` states are DRIVEN, not a
+    // journey — a measurement must not inherit whichever screen ROUTE a
+    // previous one navigated to, for the exact reason it must
+    // not inherit the legacy screen stack just cleared above. `replace`, so
+    // driving through many states never grows history; `flush()` is the same
+    // discipline `aller()` uses for a real navigation, so the address is back
+    // to "/" before the state function that runs right after this (which may
+    // itself navigate, e.g. the profil scenario) has a chance to.
+    if (window.__routeur) {
+      window.__routeur.navigate({ to: "/", replace: true });
+      window.__routeur.history.flush();
+    }
     return true;
   };
 
@@ -15204,13 +15217,16 @@
       .join("");
   }
   function render() {
+    // Every action ends in render(): one bump here reaches React for every
+    // simulated mutation, including the ones made in place on `world`
+    // (splice, unshift…) that never pass through `ecrire`.
+    magasin?.toucher();
     /* An id no page carries is not a crash: it is the `*` route. Looking one
        up and calling `.render()` on nothing stopped the whole interface on a
        TypeError, which is the worst possible answer to a stale bookmark. */
     let found = PAGES_OF().find((element) => element.id === state.page);
     if (!found) {
-      state.introuvable = "/" + state.page;
-      state.page = "404";
+      magasin.ecrire({ introuvable: "/" + state.page, page: "404" });
       found = PAGES_OF().find((element) => element.id === "404");
     }
     view.innerHTML = found.render();
@@ -15306,6 +15322,24 @@
     ["VOSTFR", "Sous-titres français"],
     ["VO", "Version originale"],
   ];
+
+  /* Read-only reference data + pure rendering helpers a migrated route
+     component reuses VERBATIM rather than re-declaring — a re-declaration
+     would drift the day one of these changes here. None of it is engine
+     STATE (never mutated by an action), so exposing it does not bypass the
+     store's reactivity contract; it is exposed once, at definition time,
+     well before the deferred module script (coquille.tsx) runs. */
+  window.__referentiel = {
+    RELEASES,
+    RESOS,
+    AUDIOS,
+    icons,
+    baseTitle,
+    SEARCH,
+    cardHTML,
+    addVerb,
+    render,
+  };
 
   const TRIS = {
     recent: "Ajout récent",
@@ -15517,7 +15551,18 @@
     appui = null;
   }
 
-  cadre.addEventListener(
+  /* Bound to `document`, not `cadre` (`#device`, the phone frame). A
+     migrated screen renders inside `#coquille` — relocated by coquille.tsx
+     into `#device` at boot for containment (see that file's own comment),
+     but that placement is decided by CSS geometry, not by event delegation:
+     nothing here depends on it, and `document` stays the deliberately wider
+     root so this keeps answering a card drawn by a migrated screen even if
+     that placement ever changes again. `document` is the one ancestor
+     guaranteed either way. Both handlers already gate on the TARGET
+     (`panneauSousLeDoigt`, the input/textarea/contenteditable check below),
+     so the wider root changes nothing for content that was never meant to
+     answer a press. */
+  document.addEventListener(
     "pointerdown",
     (event) => {
       // A new gesture clears any mark the previous one left unconsumed.
@@ -15526,7 +15571,7 @@
     },
     { passive: true },
   );
-  cadre.addEventListener("pointermove", (event) => suivreAppui(event), {
+  document.addEventListener("pointermove", (event) => suivreAppui(event), {
     passive: true,
   });
   /* The mark is NEVER cleared on pointerup: for a real finger the click comes
@@ -15549,8 +15594,9 @@
      the panel the same press was opening.
 
      A text field keeps its menu: pasting into one has no other route, and the
-     interface offers nothing there of its own. */
-  cadre.addEventListener("contextmenu", (event) => {
+     interface offers nothing there of its own. Bound to `document` for the
+     same reason as the pointer listeners above. */
+  document.addEventListener("contextmenu", (event) => {
     if (event.target.closest("input, textarea, [contenteditable]")) return;
     event.preventDefault();
   });
@@ -15724,7 +15770,7 @@
     if (state.libErr) {
       foot.innerHTML = `<div class="loaderr"><b>Impossible de charger la suite.</b> La connexion a été perdue pendant la requête. Les ${state.libCount} médias déjà affichés restent valides.<button id="libretry">Réessayer</button></div>`;
       document.querySelector("#libretry").onclick = () => {
-        state.libErr = false;
+        magasin.ecrire({ libErr: false });
         libFoot();
         loadMoreLib();
       };
@@ -15751,21 +15797,19 @@
       state.libCount >= libFiltered().length
     )
       return;
-    state.libLoading = true;
+    magasin.ecrire({ libLoading: true });
     if (libObserver) libObserver.disconnect();
     setTimeout(() => {
-      state.libLoading = false;
+      magasin.ecrire({ libLoading: false });
       // One failure, once, to show the error path for real.
       if (!state.libFailedOnce && state.libCount >= LIB_PAGE * 3) {
-        state.libFailedOnce = true;
-        state.libErr = true;
+        magasin.ecrire({ libFailedOnce: true, libErr: true });
         libFoot();
         return;
       }
-      state.libCount = Math.min(
-        libFiltered().length,
-        state.libCount + LIB_PAGE,
-      );
+      magasin.ecrire({
+        libCount: Math.min(libFiltered().length, state.libCount + LIB_PAGE),
+      });
       fillLib();
       libFoot();
     }, 620);
@@ -15828,13 +15872,15 @@
      back, so it comes round again. « Pas intéressé » removes it, with an undo. */
   function deckOrdre() {
     if (!state.sugOrder)
-      state.sugOrder = SUGGESTIONS.map((SUGGESTIONS2, index) => index);
+      magasin.ecrire({
+        sugOrder: SUGGESTIONS.map((SUGGESTIONS2, index) => index),
+      });
     return state.sugOrder.filter((sugOrder) => !state.sugGone.has(sugOrder));
   }
 
   function passerSug(index) {
     const filter = deckOrdre().filter((element) => element !== index);
-    state.sugOrder = [...filter, index];
+    magasin.ecrire({ sugOrder: [...filter, index] });
   }
 
   function deckHTML() {
@@ -15985,10 +16031,15 @@
     if (state.sugMode === "deck") {
       // In the deck the whole pile changes, not one row: re-render, and the
       // undo restores both the suggestion and its place in the order.
+      // `sugGone` is a Set mutated in place — refreshDeck() redraws the
+      // legacy deck directly, so React needs the explicit bump `ecrire`
+      // would otherwise have given it for free.
       state.sugGone.add(index);
+      magasin.toucher();
       refreshDeck();
       toastUndo(`« ${SUGGESTIONS[index].t} » écarté.`, () => {
         state.sugGone.delete(index);
+        magasin.toucher();
         refreshDeck();
       });
       return;
@@ -15996,11 +16047,13 @@
     const element = document.querySelector(`[data-dismissable="${index}"]`);
     if (!element) return;
     state.sugGone.add(index);
+    magasin.toucher();
     element.style.height = element.getBoundingClientRect().height + "px";
     requestAnimationFrame(() => element.classList.add("gone"));
     setTimeout(() => element.remove(), 320);
     toastUndo(`« ${SUGGESTIONS[index].t} » écarté.`, () => {
       state.sugGone.delete(index);
+      magasin.toucher();
       fillSug();
       sugFoot();
     });
@@ -16144,11 +16197,13 @@
 
   function loadMoreSug() {
     if (state.sugLoading || state.sugCount >= SUGGESTIONS.length) return;
-    state.sugLoading = true;
+    magasin.ecrire({ sugLoading: true });
     if (sugObserver) sugObserver.disconnect();
     setTimeout(() => {
-      state.sugLoading = false;
-      state.sugCount = Math.min(SUGGESTIONS.length, state.sugCount + SUG_BATCH);
+      magasin.ecrire({
+        sugLoading: false,
+        sugCount: Math.min(SUGGESTIONS.length, state.sugCount + SUG_BATCH),
+      });
       fillSug();
       sugFoot();
     }, 420);
@@ -16160,9 +16215,7 @@
     const element = document.querySelector("#libq");
     if (element)
       element.oninput = () => {
-        state.q = element.value;
-        state.libCount = LIB_PAGE;
-        state.libErr = false;
+        magasin.ecrire({ q: element.value, libCount: LIB_PAGE, libErr: false });
         const pos = element.selectionStart;
         render();
         const element3 = document.querySelector("#libq");
@@ -16183,7 +16236,7 @@
     const element2 = document.querySelector("#follq");
     if (element2)
       element2.oninput = () => {
-        state.filtre = element2.value;
+        magasin.ecrire({ filtre: element2.value });
         const pos = element2.selectionStart;
         render();
         const element3 = document.querySelector("#follq");
@@ -16454,6 +16507,16 @@
   const RETOUR_FENETRE = 5000;
   let pilotage = false;
   let sortieArmee = 0;
+  // The legacy engine's own address BASE — "/" in production, but whatever a
+  // static host answers the document under otherwise (the rule harness's
+  // 8899 server names it "/wrapped.html"). Computed once at boot by the
+  // shell (coquille.tsx, using the router's OWN matching — see its own
+  // comment) and handed through window.__demarrerMoteur, because deciding
+  // it here would mean re-deriving what the router owns from a second,
+  // independently-maintained list. Defaulted to "/" so a call made before
+  // the boot handshake (there should be none) fails toward the common case
+  // rather than toward whatever the document happens to be opened from.
+  let adresseBase = "/";
 
   /* ── L'URL PORTE L'ÉTAT (DOIT-10) ─────────────────────────────────────
      « Chaque détail a son URL » is a rule of the constitution, and the
@@ -16484,6 +16547,17 @@
   };
 
   function urlDeLEtat() {
+    // Built on adresseBase, never on location.pathname: writing over the
+    // CURRENT pathname would either clobber a router-owned address (the
+    // C1 hole) or, once it does not, still be redundant with what pushing
+    // onto the shared history already achieves on its own — the router
+    // subscribes to that same history instance (Transitioner mounts
+    // `router.history.subscribe(router.load)`) and re-derives its matches
+    // from whatever URL lands there, regardless of who pushed it. A legacy
+    // nav writing `adresseBase + "?page=lib"` while the address reads
+    // `/ajout` is exactly what makes the router notice the address no
+    // longer matches `/ajout` and unmount the screen — no navigate() call
+    // needed on this side of the bridge.
     const courant = {
       page: state.page,
       tab: state.acqTab,
@@ -16497,7 +16571,7 @@
       if (valeur && valeur !== URL_DEFAUTS[nom])
         params.set(nom, String(valeur));
     const requete = params.toString();
-    return location.pathname + (requete ? "?" + requete : "");
+    return adresseBase + (requete ? "?" + requete : "");
   }
 
   /* Reads back what the URL carries. An absent parameter is not « empty »: it
@@ -16547,8 +16621,13 @@
   /* The bridge announces a back the way `popstate` did — for a back, a
      forward and a jump alike — and hands over the state of the entry now
      CURRENT, which is the entry the gesture landed on. That is what
-     `popstate` reported too, so the reading below is unchanged. */
-  __pont.surRetour((etatCourant) => {
+     `popstate` reported too, so the reading below is unchanged.
+
+     The registration itself moved into window.__demarrerMoteur, below: like
+     every other `__pont` verb, it needs the REAL bridge to exist first, and
+     nothing here forces that anymore — there is no pre-bridge queueing calls
+     made before the module evaluates. */
+  function surRetourEngine(etatCourant) {
     // Our own unwind, announced by the layer that closed itself. It is not a
     // back gesture and carries no destination: consuming it is the whole
     // handling. Read before the layer guards, because the layer's class is
@@ -16578,6 +16657,18 @@
       return;
     }
 
+    // Ownership, once more, decided by the entry's own SHAPE: only an entry
+    // that carries the guard's own marker (written once, at boot, by
+    // __pont.remplacer({ tm: "garde" })) is the guard. Anything else that
+    // falls through here — notably an entry the ROUTER wrote for /profil/$titre
+    // or /ajout, which carries neither "layer" nor "tm" — is not ours to
+    // react to: the router has already re-rendered by the new URL, so a true
+    // no-op is the correct handling, not "treat every unrecognised shape as
+    // the exit guard". Reading it as the guard used to arm the exit warning
+    // and rewrite the address via noterLeChemin()/urlDeLEtat() over whatever
+    // the router had just written — destroying its search params.
+    if (!(etat && etat.tm === "garde")) return;
+
     // The guard was popped: there is nowhere left to go back to.
     const maintenant = Date.now();
     if (sortieArmee && maintenant - sortieArmee < RETOUR_FENETRE) {
@@ -16592,7 +16683,7 @@
     // next back lands on the guard again.
     noterLeChemin();
     toast("Encore un retour pour quitter TorrentMate.");
-  });
+  }
 
   select("#scrim").onclick = () => {
     closeDlg();
@@ -16602,7 +16693,7 @@
 
   /* Design notes */
   select("#notesBtn").onclick = (event) => {
-    state.notes = !state.notes;
+    magasin.ecrire({ notes: !state.notes });
     document.documentElement.classList.toggle("notes", state.notes);
     event.currentTarget.setAttribute("aria-pressed", String(state.notes));
     toast(state.notes ? "Notes de conception affichées." : "Notes masquées.");
@@ -16765,7 +16856,7 @@
       "Découvrir · affiches",
       () => {
         applyState({ page: "acq", acqTab: "decouvrir", phase: "prete" });
-        state.sugMode = "poster";
+        magasin.ecrire({ sugMode: "poster" });
         render();
       },
     ],
@@ -16774,7 +16865,7 @@
       "Découvrir · slide cards",
       () => {
         applyState({ page: "acq", acqTab: "decouvrir", phase: "prete" });
-        state.sugMode = "deck";
+        magasin.ecrire({ sugMode: "deck" });
         render();
       },
     ],
@@ -16812,8 +16903,7 @@
       "Écran d'ajout — au repos",
       () => {
         applyState({ page: "acq", phase: "prete" });
-        state.addQ = "";
-        openAddScreen("");
+        window.__ecrans.ajout("");
       },
     ],
     [
@@ -16821,7 +16911,7 @@
       "Écran d'ajout — résultats réels",
       () => {
         applyState({ page: "acq", phase: "prete" });
-        openAddScreen("star wars");
+        window.__ecrans.ajout("star wars");
       },
     ],
     [
@@ -16845,8 +16935,10 @@
       "Recherche en mode IDENTIFIER (depuis une résolution)",
       () => {
         applyState({ page: "arr", phase: "prete", pipe: "repos" });
-        state.resolveTarget = "Backrooms.2026.MULTi.2160p.WEB-DL";
-        openAddScreen("Backrooms 2026", "identifier");
+        magasin.ecrire({
+          resolveTarget: "Backrooms.2026.MULTi.2160p.WEB-DL",
+        });
+        window.__ecrans.ajout("Backrooms 2026", "identifier");
       },
     ],
     [
@@ -16862,7 +16954,7 @@
       "Écran — profil de qualité",
       () => {
         applyState({ page: "acq", acqTab: "suivis", phase: "prete" });
-        openProfil("Silo");
+        window.__ecrans.profil("Silo");
       },
     ],
     [
@@ -16942,7 +17034,7 @@
           phase: "prete",
           selMode: true,
         });
-        state.selected = new Set([0, 2, 5]);
+        magasin.ecrire({ selected: new Set([0, 2, 5]) });
         render();
       },
     ],
@@ -17250,9 +17342,9 @@
 
   function applyState(patch) {
     hideLayers();
-    Object.assign(state, patch);
+    magasin.ecrire(patch);
     if (patch.page || patch.libLens || patch.q !== undefined)
-      state.libCount = LIB_PAGE;
+      magasin.ecrire({ libCount: LIB_PAGE });
     port.scrollTop = 0;
     render();
   }
@@ -17665,7 +17757,7 @@
   select("#fab").onclick = () => {
     // The « + » ALWAYS means « follow »: the mode must never stay
     // stuck from a previous resolution.
-    openAddScreen(state.addQ, "suivi");
+    window.__ecrans.ajout(state.addQ, "suivi");
   };
   select("#scenBtn").onclick = () => {
     openHarness();
@@ -17770,7 +17862,7 @@
       // Navigating CLOSES whatever is open above: without this, one changed
       // page while staying stuck on the media sheet.
       hideLayers();
-      state.page = closest.dataset.page;
+      magasin.ecrire({ page: closest.dataset.page });
       port.scrollTop = 0;
       render();
       noterLeChemin();
@@ -17792,8 +17884,9 @@
       // of redrawing what the top screen covered.
       pileEcrans.length = 0;
       closeScreen(true);
-      state.page = closest.dataset.go;
-      if (closest.dataset.go === "acq") state.acqTab = "maintenant";
+      magasin.ecrire({ page: closest.dataset.go });
+      if (closest.dataset.go === "acq")
+        magasin.ecrire({ acqTab: "maintenant" });
       port.scrollTop = 0;
       render();
       try {
@@ -17803,47 +17896,51 @@
       return;
     }
     if (closest.dataset.acqtab) {
-      state.acqTab = closest.dataset.acqtab;
+      magasin.ecrire({ acqTab: closest.dataset.acqtab });
       port.scrollTop = 0;
       render();
       noterLeChemin();
       return;
     }
     if (closest.dataset.lens) {
-      state.libLens = closest.dataset.lens;
       // Changing lens changes the list: start again from the first page.
-      state.libCount = LIB_PAGE;
-      state.libErr = false;
+      magasin.ecrire({
+        libLens: closest.dataset.lens,
+        libCount: LIB_PAGE,
+        libErr: false,
+      });
       port.scrollTop = 0;
       render();
       noterLeChemin();
       return;
     }
     if (closest.dataset.cat) {
-      state.libCat = closest.dataset.cat;
-      state.libCount = LIB_PAGE;
-      state.libErr = false;
+      magasin.ecrire({
+        libCat: closest.dataset.cat,
+        libCount: LIB_PAGE,
+        libErr: false,
+      });
       port.scrollTop = 0;
       render();
       return;
     }
     if (closest.dataset.lmode) {
-      state.libMode = closest.dataset.lmode;
+      magasin.ecrire({ libMode: closest.dataset.lmode });
       render();
       return;
     }
     if (closest.dataset.pill) {
-      state.pill = closest.dataset.pill;
+      magasin.ecrire({ pill: closest.dataset.pill });
       render();
       return;
     }
     if (closest.dataset.fmode) {
-      state.followMode = closest.dataset.fmode;
+      magasin.ecrire({ followMode: closest.dataset.fmode });
       render();
       return;
     }
     if (closest.dataset.sugmode) {
-      state.sugMode = closest.dataset.sugmode;
+      magasin.ecrire({ sugMode: closest.dataset.sugmode });
       render();
       return;
     }
@@ -17852,8 +17949,7 @@
       return;
     }
     if (closest.dataset.sugmore) {
-      state.sugGone = new Set();
-      state.sugOrder = null;
+      magasin.ecrire({ sugGone: new Set(), sugOrder: null });
       render();
       toast("Nouveau lot chargé — 30 suggestions de plus.");
       return;
@@ -17891,7 +17987,11 @@
           : "ajouté à vos suivis";
       closeSheet();
       if (idx != null) {
+        // No render() follows on this branch: the sheet close and the
+        // follow-up screens draw directly, so the bump has to be explicit
+        // or React never learns this suggestion left the deck.
         state.sugGone.add(Number(idx));
+        magasin.toucher();
         const element = document.querySelector(`[data-dismissable="${idx}"]`);
         if (element) {
           element.style.height = element.getBoundingClientRect().height + "px";
@@ -17919,7 +18019,7 @@
         .replace(/\s{2,}/g, " ")
         .trim();
       closeScreen();
-      setTimeout(() => openAddScreen(trim, "identifier"), 260);
+      setTimeout(() => window.__ecrans.ajout(trim, "identifier"), 260);
       return;
     }
     if (closest.dataset.resolve) {
@@ -17986,34 +18086,19 @@
       closest.dataset.profil !== undefined &&
       closest.dataset.profil !== null
     ) {
+      // Route, not screen: the quality-profile surface left the legacy
+      // fragment. Closing whatever legacy layer is currently open keeps the
+      // same close-then-open timing the two trigger buttons (the Réglages
+      // rubric and « Ouvrir le profil de qualité → ») were built against;
+      // `__ecrans.profil` does the navigating.
       const profil = closest.dataset.profil;
       if (select("#screen").classList.contains("open")) {
         closeScreen();
-        setTimeout(() => openProfil(profil), 260);
+        setTimeout(() => window.__ecrans.profil(profil), 260);
       } else {
         closeSheet();
-        setTimeout(() => openProfil(profil), 260);
+        setTimeout(() => window.__ecrans.profil(profil), 260);
       }
-      return;
-    }
-    if (closest.dataset.qres !== undefined) {
-      state.profil.min_resolution =
-        closest.dataset.qres === "" ? null : closest.dataset.qres;
-      openProfil(state.profilTitre);
-      return;
-    }
-    if (closest.dataset.qaud) {
-      const required_audio = state.profil.required_audio;
-      const indexOf = required_audio.indexOf(closest.dataset.qaud);
-      if (indexOf >= 0) required_audio.splice(indexOf, 1);
-      else required_audio.push(closest.dataset.qaud);
-      openProfil(state.profilTitre);
-      return;
-    }
-    if (closest.dataset.qflag) {
-      state.profil[closest.dataset.qflag] =
-        !state.profil[closest.dataset.qflag];
-      openProfil(state.profilTitre);
       return;
     }
     if (closest.dataset.prendre) {
@@ -18043,7 +18128,7 @@
       return;
     }
     if (closest.dataset.maintrub !== undefined) {
-      state.maintRub = closest.dataset.maintrub || null;
+      magasin.ecrire({ maintRub: closest.dataset.maintrub || null });
       port.scrollTop = 0;
       render();
       noterLeChemin();
@@ -18057,12 +18142,14 @@
       /* Asked while a run is already going, a run is QUEUED and says so
          (DOIT-4). « Occupé, réessaie » is the answer this interface does not
          give: it puts the burden of remembering on the operator. */
-      state.pipe =
-        closest.dataset.pipe === "arreter"
-          ? "repos"
-          : state.pipe === "repos"
-            ? "encours"
-            : "file";
+      magasin.ecrire({
+        pipe:
+          closest.dataset.pipe === "arreter"
+            ? "repos"
+            : state.pipe === "repos"
+              ? "encours"
+              : "file",
+      });
       render();
       toast(
         state.pipe === "encours"
@@ -18086,7 +18173,7 @@
          therefore told not to touch history at all. */
       const surLeTiroir = history.state && history.state.layer === "drawer";
       fermerTiroir(true);
-      state.page = id;
+      magasin.ecrire({ page: id });
       port.scrollTop = 0;
       render();
       try {
@@ -18104,31 +18191,21 @@
       return;
     }
     if (closest.dataset.hscen) {
-      state.scen = closest.dataset.hscen;
+      magasin.ecrire({ scen: closest.dataset.hscen });
       render();
       openHarness();
       return;
     }
     if (closest.dataset.hphase) {
-      state.phase = closest.dataset.hphase;
+      magasin.ecrire({ phase: closest.dataset.hphase });
       render();
       openHarness();
       return;
     }
     if (closest.dataset.htmdb) {
-      state.tmdb = closest.dataset.htmdb === "1";
+      magasin.ecrire({ tmdb: closest.dataset.htmdb === "1" });
       render();
       openHarness();
-      return;
-    }
-    if (closest.dataset.addkind) {
-      state.addKind = closest.dataset.addkind;
-      openAddScreen();
-      return;
-    }
-    if (closest.dataset.idprov) {
-      state.idProv = closest.dataset.idprov;
-      openAddScreen();
       return;
     }
     if (closest.dataset.sort) {
@@ -18152,20 +18229,19 @@
       return;
     }
     if (closest.dataset.settri) {
-      state.tri = closest.dataset.settri;
-      state.libCount = LIB_PAGE;
+      magasin.ecrire({ tri: closest.dataset.settri, libCount: LIB_PAGE });
       closeSheet();
       render();
       toast(`Trié par ${TRIS[state.tri].toLowerCase()}.`);
       return;
     }
     if (closest.dataset.phase) {
-      state.phase = closest.dataset.phase;
+      magasin.ecrire({ phase: closest.dataset.phase });
       render();
       return;
     }
     if (closest.dataset.tmdb) {
-      state.tmdb = true;
+      magasin.ecrire({ tmdb: true });
       render();
       toast(
         "Compte TMDB connecté — la réserve se remplit, vos notes sont lues.",
@@ -18173,15 +18249,15 @@
       return;
     }
     if (closest.dataset.clearq) {
-      if (closest.dataset.clearq === "lib") {
-        state.q = "";
-        state.libCount = LIB_PAGE;
-      } else state.filtre = "";
+      if (closest.dataset.clearq === "lib")
+        magasin.ecrire({ q: "", libCount: LIB_PAGE });
+      else magasin.ecrire({ filtre: "" });
       render();
       return;
     }
     if (closest.dataset.selmode) {
-      state.selMode = closest.dataset.selmode === "1";
+      magasin.ecrire({ selMode: closest.dataset.selmode === "1" });
+      // Set mutated in place; render() right below carries the bump.
       state.selected.clear();
       render();
       return;
@@ -18197,6 +18273,9 @@
       const index = Number(closest.dataset.tile);
       if (state.selected.has(index)) state.selected.delete(index);
       else state.selected.add(index);
+      // paintSelBar() below draws the bar directly, not through render():
+      // the explicit bump is what tells React the selection changed.
+      magasin.toucher();
       closest.setAttribute("aria-selected", String(state.selected.has(index)));
       paintSelBar();
       return;
@@ -18241,8 +18320,17 @@
         // This ASSOCIATES: the stuck folder becomes this medium and the pipeline
         // resumes. No follow is created — that was not the request.
         const cible = state.resolveTarget;
+        // No render() on this branch until the delayed actionResoudre()
+        // fires — the bump is explicit so React sees the pick immediately.
         state.added.add(index);
+        magasin.toucher();
+        // `/ajout` is a router-owned address now: `closeScreen()` is a
+        // harmless no-op against it (`#screen` was never the host), and
+        // leaving the screen is `__pont.retour()` — the same single pop
+        // `.fback` uses — unwinding the ONE entry `window.__ecrans.ajout`
+        // pushed to get here.
         closeScreen();
+        window.__pont.retour();
         setTimeout(() => {
           actionResoudre(cible, result.t);
           toast(
@@ -18261,25 +18349,21 @@
         document.querySelector("#dlgcancel").onclick = closeDlg;
         return;
       }
+      // The screen stays open, re-rendered in place with the "added" chip
+      // and (once this is the first) the footer: `AjoutEcran` re-renders
+      // itself from this same store bump, so no redraw call belongs here
+      // any more.
       state.added.add(index);
+      magasin.toucher();
       actionSuivre(result.t, result.k);
-      openAddScreen();
       return;
     }
     if (closest.dataset.confirmadd) {
       state.added.add(Number(closest.dataset.confirmadd));
+      magasin.toucher();
       closeDlg();
-      openAddScreen();
       toast(
         "Ajouté — la version en place sera remplacée une fois la nouvelle récupérée.",
-      );
-      return;
-    }
-    if (closest.dataset.search) {
-      openAddScreen(
-        closest.dataset.search === "1"
-          ? (document.querySelector("#addq")?.value ?? "")
-          : closest.dataset.search,
       );
       return;
     }
@@ -18303,8 +18387,7 @@
       return;
     }
     if (closest.dataset.completer) {
-      state.page = "acq";
-      state.acqTab = "maintenant";
+      magasin.ecrire({ page: "acq", acqTab: "maintenant" });
       closeSheet();
       render();
       toast(
@@ -39634,7 +39717,9 @@
   }
 
   function openResolve(cible) {
-    state.resolveTarget = cible ?? derived.stuck()[0]?.t ?? null;
+    magasin.ecrire({
+      resolveTarget: cible ?? derived.stuck()[0]?.t ?? null,
+    });
     const decision = decisionEnAttente(state.resolveTarget);
     /* The queue spans BOTH surfaces a decision shows up on: « À traiter » on
        the acquisition side and « Ça coince » in Arrivées. They are two views
@@ -40112,137 +40197,20 @@
     );
   }
 
-  /* Add screen (« + »)
-     A full SCREEN, not a bottom sheet: the keyboard eats half the phone. A
-     VERTICAL result list, never a horizontal rail — a rail shows three
-     posters and hides the year, the type and the synopsis, which is exactly
-     what separates two homonyms.
-     The « already known » state lives on a CHIP, and so does « done ». */
-  /* One search, TWO verbs
-     The same screen serves two intentions that nothing must confuse:
-
-     · « follow » mode (from the +) — the intent is to WATCH a medium: the
-     button says « Suivre » / « Ajouter », and an already-owned medium goes
-     through the replacement confirmation.
-     · « identify » mode (from a resolution) — the intent is to add NOTHING:
-     it is to TELL the pipeline which medium this folder is, so it resumes
-     its scrape. The button says « Associer », and an already-owned medium
-     is normal — it is the expected case.
-
-     Sending the second into the first is a mistake of intent: it offers to
-     add a follow where the operator wanted to unblock a folder. The verb
-     follows the CONTEXT that opened the screen. */
-  function openAddScreen(query2, mode) {
-    const query = query2 ?? state.addQ;
-    state.addQ = query;
-    if (mode) state.addMode = mode;
-    const identifier = state.addMode === "identifier";
-    const hasQ = query !== "";
-    const filtres = SEARCH.results
-      .map((result, index) => ({ r: result, i: index }))
-      .filter(
-        ({ r: result }) =>
-          state.addKind === "Tout" ||
-          (state.addKind === "Films") === (result.k === "Film"),
-      );
-    const rows = filtres
-      .map(({ r: result, i: index }) => {
-        const fait = state.added.has(index);
-        /* A search result is a medium like any other, so it is drawn by the
-           one card builder: its poster opens the sheet, its body opens the
-           panel, and the panel carries the act. The card wears NO inline
-           button: with one, a result row grew taller than what it lists,
-           and the act was reachable twice for no reason the reader could
-           name. It used to be a hand-rolled row, and the row had drifted —
-           its poster box was sized but the image inside it was not, so every
-           thumbnail showed the top-left corner of a full-size poster.
-
-           The card's states are CHIPS rather than coloured text inside the
-           meta line: « déjà en médiathèque » before the act, the done verb
-           after it — the same fact is a chip everywhere else, and a card
-           that accepts ready-made markup is an envelope. */
-        return cardHTML({
-          t: result.t,
-          k: result.k === "Film" ? "movie" : "show",
-          s: `${result.y} · ${result.k} · TMDB`,
-          overview: result.ov,
-          chip: fait
-            ? ["success", addVerb(result, index)]
-            : result.owned
-              ? [identifier ? "success" : "warning", "Déjà en médiathèque"]
-              : null,
-          panel: `add:${index}`,
-        });
-      })
-      .join("");
-
-    openScreen(
-      `<div class="fichebar">
-      <button class="fback" onclick="__close('screen')">${svgIcon(icons.left)}Retour</button>
-      ${identifier ? `<span style="margin-left:auto;font-size:11px;color:var(--muted-foreground)">identifier un dossier</span>` : ""}
-    </div>
-    <div class="port">
-      ${
-        identifier
-          ? `<div style="padding:12px 14px 0"><div class="surferr" style="border-color:color-mix(in oklab,var(--info) 45%,transparent);background:color-mix(in oklab,var(--info) 8%,transparent)">
-               <b style="color:var(--info)">Identifier « ${escapeHtml(baseTitle(state.resolveTarget ?? ""))} »</b>
-               Vous ne créez PAS un suivi : vous dites au pipeline quel média est ce dossier. Il reprendra son scrape — renommage, métadonnées, affiches — puis le rangera en médiathèque.
-             </div></div>`
-          : ""
-      }
-      <div class="addform">
-        <div class="search">${svgIcon(icons.search)}<input type="search" id="addq" value="${escapeHtml(query)}" placeholder="Titre du film ou de la série" aria-label="Chercher un média à ajouter"></div>
-        <div class="addrow">
-          <div class="segmini">
-            ${["Tout", "Séries", "Films"].map((element) => `<button aria-pressed="${state.addKind === element}" data-addkind="${element}">${element}</button>`).join("")}
-          </div>
-          <button class="btnprimary" data-search="1">Chercher</button>
-        </div>
-      </div>
-      ${
-        hasQ
-          ? `<p class="rescount"><b>${filtres.length}</b> résultat${filtres.length > 1 ? "s" : ""} affiché${filtres.length > 1 ? "s" : ""} sur <b>${SEARCH.total}</b> trouvé${SEARCH.total > 1 ? "s" : ""}${state.addKind !== "Tout" ? ` · filtré sur « ${state.addKind} »` : ""} — les plus pertinents d'abord.</p>
-             <div class="reslist sec">${rows}</div>`
-          : `<div class="sugg">${state.recents.map((recent) => `<button data-search="${escapeHtml(recent)}">${escapeHtml(recent)}</button>`).join("")}</div>
-             <div style="padding:14px">${emptyHTML("Cherchez un titre.", "Vos recherches récentes sont au-dessus. La recherche part à la validation, jamais à chaque frappe — sinon chaque lettre coûte un appel aux providers.")}</div>`
-      }
-      <details class="byid">
-        <summary>${identifier ? "Ou identifier par identifiant provider" : "Ou ajouter par identifiant"}</summary>
-        <div class="byidin">
-          <div class="segmini" style="align-self:flex-start">${["TMDB", "TVDB", "IMDB"].map((element) => `<button aria-pressed="${state.idProv === element}" data-idprov="${element}">${element}</button>`).join("")}</div>
-          <div class="search"><input id="byidv" placeholder="${state.idProv === "IMDB" ? "tt1234567" : "12e34"}" aria-label="Identifiant ${state.idProv}"></div>
-          <p class="whyoff">${
-            state.idProv === "IMDB"
-              ? `Un identifiant IMDB commence par <code>tt</code> suivi de chiffres — « 12e34 » est refusé.`
-              : state.idProv === "TVDB"
-                ? `Un identifiant TVDB ne contient que des chiffres. Si TVDB ne le résout pas, le suivi sera créé mais la détection d'épisodes restera indisponible — et on vous le dira.`
-                : `Identifiant refusé : « 12e34 » n'est pas un nombre — <code>Number()</code> le lirait comme une notation scientifique.`
-          }</p>
-          <button class="btnprimary" disabled style="align-self:flex-start;padding:9px 16px">Ajouter</button>
-        </div>
-      </details>
-      ${
-        state.added.size > 0
-          ? `<div class="addfoot"><span><b>${state.added.size}</b> média${state.added.size > 1 ? "s" : ""} ajouté${state.added.size > 1 ? "s" : ""}</span><button data-go="acq">Voir mes suivis →</button></div>`
-          : ""
-      }
-    </div>`,
-      "ajout:" + state.addMode,
-      () => openAddScreen(),
-    );
-    const inp = document.querySelector("#addq");
-    if (inp)
-      inp.onkeydown = (event) => {
-        if (event.key === "Enter") openAddScreen(inp.value);
-      };
-  }
+  /* Add screen (« + ») — migrated to a real route, `AjoutEcran`
+     (`design/src/ecrans/ajout.tsx`, reached at `/ajout`). The design
+     rationale (full screen not a sheet, vertical result list, the two
+     modes' verbs) lives there now, next to the code it explains. `SEARCH`,
+     `cardHTML` and `addVerb` stay defined here and cross the handshake
+     through `window.__referentiel` — the search execution itself is still
+     the engine's, reached through that seam. */
 
   /* Choose another release
      Show what is NOT happening and why. Here: why the engine picked this
      one — and enough to pick another knowingly. The score shown is the
      ranking's, not an opinion. */
   function openReleases(titre) {
-    state.relTitre = titre;
+    magasin.ecrire({ relTitre: titre });
     openScreen(
       `<div class="fichebar">
       <button class="fback" onclick="__close('screen')">${svgIcon(icons.left)}Retour</button>
@@ -40278,89 +40246,6 @@
     );
   }
 
-  /* Quality profile
-     What decides what the engine accepts. Exclusions are red: they remove,
-     they do not add — the colour states the direction of the action. */
-  function openProfil(titre) {
-    state.profilTitre = titre;
-    const profile = state.profil;
-    const retenus = RELEASES.filter((RELEASES2) => {
-      const ordre = { "720p": 0, "1080p": 1, "2160p": 2 };
-      if (
-        profile.min_resolution &&
-        ordre[RELEASES2.res] < ordre[profile.min_resolution]
-      )
-        return false;
-      if (profile.required_audio.length) {
-        const tier =
-          RELEASES2.lang === "VOSTFR"
-            ? "VOSTFR"
-            : RELEASES2.lang === "VO"
-              ? "VO"
-              : "VF";
-        if (!profile.required_audio.includes(tier)) return false;
-      }
-      return true;
-    }).length;
-
-    openScreen(
-      `<div class="fichebar">
-      <button class="fback" onclick="__close('screen')">${svgIcon(icons.left)}Retour</button>
-      <span style="margin-left:auto;font-size:11px;color:var(--muted-foreground)">${titre ? escapeHtml(baseTitle(titre)) : "profil par défaut"}</span>
-    </div>
-    <div class="port"><div class="body">
-
-      <div class="note"><b>Corrigé après vérification du backend.</b> Ma première version de cet écran réglait des « sources acceptées » et des exclusions CAM/TS qui <em>n'existent pas</em> par suivi. Le <code>QualityProfile</code> réel n'a que les quatre champs ci-dessous. Le reste — les poids qui départagent — est global et vit déjà dans <code>/config ?tab=classement</code>.</div>
-
-      <p class="qhint">Ce profil <b>filtre</b> : il élimine ce qui ne conviendra jamais. Il n'ordonne pas — ce qui survit est départagé par le classement global.</p>
-
-      <div class="qgroup">
-        <h2 class="h2">Résolution minimale</h2>
-        <p class="qhint">Un plancher, pas une liste : tout ce qui est en dessous est écarté. « Aucun plancher » laisse passer les sources sans résolution lisible (REMUX, COMPLETE.BLURAY) que le classement note au mérite.</p>
-        <p class="optkind">Un seul choix</p>
-        <div class="optlist" role="radiogroup" aria-label="Résolution minimale">
-          <button class="opt radio" role="radio" aria-checked="${profile.min_resolution === null}" data-qres=""><span class="mark"></span><span class="lb">Aucun plancher<small>Aucune résolution n'est écartée</small></span></button>
-          ${RESOS.map((RESOS2) => `<button class="opt radio" role="radio" aria-checked="${profile.min_resolution === RESOS2}" data-qres="${RESOS2}"><span class="mark"></span><span class="lb">${RESOS2} ou mieux<small>${RESOS2 === "720p" ? "Écarte tout ce qui est sous 720p" : RESOS2 === "1080p" ? "Écarte le 720p et en dessous" : "N'accepte que la 4K"}</small></span></button>`).join("")}
-        </div>
-      </div>
-
-      <div class="qgroup">
-        <h2 class="h2">Pistes audio exigées</h2>
-        <p class="qhint">Aucune sélection = aucun filtre de langue. Une release doit porter <b>au moins une</b> des pistes cochées.</p>
-        <p class="optkind">Plusieurs choix possibles${profile.required_audio.length === 0 ? " — aucun coché = aucun filtre" : ""}</p>
-        <div class="optlist">
-          ${AUDIOS.map(([key, label]) => `<button class="opt check" role="checkbox" aria-checked="${profile.required_audio.includes(key)}" data-qaud="${key}"><span class="mark"></span><span class="lb">${key}<small>${escapeHtml(label)}</small></span></button>`).join("")}
-        </div>
-      </div>
-
-      <div class="qgroup">
-        <h2 class="h2">Deux verrous</h2>
-        <div class="panel">
-          <div class="kv reglage"><span>Écarter la 3D<br><span class="qhint">Une release SBS / Over-Under est illisible sur un écran 2D. Activé par défaut : c'est un plancher de correction, pas un goût.</span></span>
-            <button class="switch" role="switch" aria-checked="${profile.exclude_3d}" aria-label="Écarter la 3D" data-qflag="exclude_3d"></button></div>
-          <div class="kv reglage"><span>Refuser une résolution illisible<br><span class="qhint">Par défaut on laisse passer : un nom non analysable est le plus souvent un REMUX, pas un mauvais fichier.</span></span>
-            <button class="switch" role="switch" aria-checked="${profile.require_known_resolution}" aria-label="Refuser une résolution illisible" data-qflag="require_known_resolution"></button></div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="kv"><span>Candidats retenus par ce profil</span><span>${retenus} sur ${RELEASES.length}</span></div>
-        <div class="kv"><span>Portée</span><span>${titre ? "ce suivi seulement" : "tous les suivis"}</span></div>
-      </div>
-
-      <button class="cfoot" data-toast="Dans l'app, ce bouton mènera à /config ?tab=classement — l'éditeur de classement existe déjà.">${svgIcon(icons.sort)}Poids du classement (global) →</button>
-
-      <p class="rulenote">Un profil qui n'accepte plus rien se dit : la carte affichera « cherché, rien trouvé » avec la raison, jamais un silence (§8).</p>
-
-      <div class="sheetacts">
-        <button class="sact primary" data-toast="Profil enregistré — la prochaine recherche l'appliquera.">${svgIcon(icons.check)}Enregistrer</button>
-      </div>
-    </div></div>`,
-      "profil:" + (titre ?? ""),
-      () => openProfil(titre),
-    );
-  }
-
   function openPlusSheet() {
     openSheet(
       panneauHTML({
@@ -40392,8 +40277,17 @@
     );
   }
 
-  window.__close = (layer) =>
-    layer === "screen" ? closeScreen() : closeSheet();
+  // A harness-facing shortcut, not a control the app itself uses (a real
+  // « Retour » button calls its own layer's close directly). `"screen"`
+  // used to mean ONLY the legacy `#screen`; a migrated screen is a real
+  // route now, and closing IT is a pop — the same single entry `.fback`'s
+  // own onClick unwinds — not a `closeScreen()` call, which is a harmless
+  // no-op against an address it was never the host of.
+  window.__close = (layer) => {
+    if (layer !== "screen") return closeSheet();
+    if (select("#screen").classList.contains("open")) return closeScreen();
+    if (document.querySelector(".screen.open")) return window.__pont.retour();
+  };
 
   /* Gestures — pointer events, so one path serves finger, mouse and pen.
      Two differences a touch-only implementation never meets:
@@ -40693,10 +40587,14 @@
       // nodes, which is the only way the card underneath can rise rather than
       // appear. The state is updated alongside, never by re-rendering.
       if (drag.dx > 0) {
+        // avancerDeck() animates the DOM directly, never through render():
+        // the bump is explicit so React learns the card left the deck.
         state.sugGone.add(index);
+        magasin.toucher();
         avancerDeck(index, 1);
         toastUndo(`« ${SUGGESTIONS[index].t} » écarté.`, () => {
           state.sugGone.delete(index);
+          magasin.toucher();
           refreshDeck();
         });
       } else {
@@ -40936,60 +40834,87 @@
      close it on a gesture the browser took away. */
   poignee.addEventListener("pointercancel", () => finGlisseFeuille(true));
 
-  /* The opening state comes from the ADDRESS, before the first paint: a
-     reload that lands on the opening page rather than where one was is the
-     defect DOIT-10 names, and it is fixed here rather than corrected after a
-     frame the operator would see. */
-  Object.assign(state, etatDeLURL());
-  /* Kept from BEFORE the first render, because rendering an unknown id moves
-     the state onto the not-found surface — and rewriting the address to match
-     would make a mistyped link quietly become a different one. A browser
-     answering 404 leaves the address alone; so does this. */
-  const adresseDArrivee = location.pathname + location.search;
-  render();
-  /* The address is put back on the entry one arrives on, so a back from
-     anywhere reaches the page the link named rather than a bare document. */
-  try {
-    __pont.remplacer(etatDeNavigation(), adresseDArrivee);
-  } catch (error) {}
-  /* The interface exists from here on, so the startup screen has nothing left
-     to cover — but it does not come off on that line. It comes off when the
-     wait it covers RESOLVES, which is the only rule that serves both a
-     prototype with nothing to fetch and an app with a real one. */
-  window.__chargementTermine();
-  /* The guard is the FIRST entry, and the opening page sits on top of it. It
-     cannot be anywhere else: nothing can be inserted below the entry a
-     document opens on, so the guard has to BE that entry. */
-  try {
-    __pont.remplacer({ tm: "garde" });
-  } catch (error) {}
-  /* Pushed with the address one ARRIVED at rather than with the one the state
-     now implies. Rendering an unknown id moves the state onto the not-found
-     surface, and deriving the address from it here rewrote a mistyped link
-     into « ?page=404 » — the interface correcting the operator's address
-     behind their back. A browser answering 404 leaves the address alone. */
-  try {
-    __pont.noter(etatDeNavigation(), adresseDArrivee);
-  } catch (error) {}
-  /* The welcome hint disappears on first interaction: a bubble that returns
-     over an open sheet is a nuisance, not help. */
-  let hintShown = false;
-  setTimeout(() => {
-    // Never in measurement mode: the bubble would cover the last action of
-    // the captured screen, and it is harness, not app.
-    if (hintShown || document.documentElement.classList.contains("measuring"))
-      return;
-    hintShown = true;
-    toast("Touchez le ⓘ en haut pour afficher les notes de conception.");
-  }, 900);
-  document.addEventListener(
-    "pointerdown",
-    () => {
+  /* The engine no longer boots itself. The shell — store created, bridge
+     real — starts it, so no write ever needs recording and replaying, and a
+     module that never evaluates leaves the startup screen on screen: a
+     visible, truthful failure instead of an app with mute verbs. */
+  window.__demarrerMoteur = function (deps) {
+    magasin = deps.magasin;
+    // Set before any write can happen (`adopterEtat`/`adopterMonde` below
+    // do not write to history, but the earliest legacy write is one line
+    // away): urlDeLEtat() must never compose against the placeholder "/".
+    adresseBase = deps.base;
+    magasin.adopterEtat(state);
+    magasin.adopterMonde(world);
+    state = magasin.lire().etat;
+    magasin.store.subscribe(() => {
+      state = magasin.lire().etat;
+    });
+
+    /* The bridge announces a back the way `popstate` did. Registered HERE,
+       not at the engine's top level: it is a `__pont` verb like the writes
+       below, and the real bridge only exists from this call on — nothing
+       upstream queues it anymore. */
+    __pont.surRetour(surRetourEngine);
+
+    /* The opening state comes from the ADDRESS, before the first paint: a
+       reload that lands on the opening page rather than where one was is the
+       defect DOIT-10 names, and it is fixed here rather than corrected after
+       a frame the operator would see. */
+    Object.assign(state, etatDeLURL());
+    /* Kept from BEFORE the first render, because rendering an unknown id
+       moves the state onto the not-found surface — and rewriting the
+       address to match would make a mistyped link quietly become a
+       different one. A browser answering 404 leaves the address alone; so
+       does this. */
+    const adresseDArrivee = location.pathname + location.search;
+    render();
+    /* The address is put back on the entry one arrives on, so a back from
+       anywhere reaches the page the link named rather than a bare
+       document. */
+    try {
+      __pont.remplacer(etatDeNavigation(), adresseDArrivee);
+    } catch (error) {}
+    /* The interface exists from here on, so the startup screen has nothing
+       left to cover — but it does not come off on that line. It comes off
+       when the wait it covers RESOLVES, which is the only rule that serves
+       both a prototype with nothing to fetch and an app with a real one. */
+    window.__chargementTermine();
+    /* The guard is the FIRST entry, and the opening page sits on top of it.
+       It cannot be anywhere else: nothing can be inserted below the entry a
+       document opens on, so the guard has to BE that entry. */
+    try {
+      __pont.remplacer({ tm: "garde" });
+    } catch (error) {}
+    /* Pushed with the address one ARRIVED at rather than with the one the
+       state now implies. Rendering an unknown id moves the state onto the
+       not-found surface, and deriving the address from it here rewrote a
+       mistyped link into « ?page=404 » — the interface correcting the
+       operator's address behind their back. A browser answering 404 leaves
+       the address alone. */
+    try {
+      __pont.noter(etatDeNavigation(), adresseDArrivee);
+    } catch (error) {}
+    /* The welcome hint disappears on first interaction: a bubble that
+       returns over an open sheet is a nuisance, not help. */
+    let hintShown = false;
+    setTimeout(() => {
+      // Never in measurement mode: the bubble would cover the last action of
+      // the captured screen, and it is harness, not app.
+      if (hintShown || document.documentElement.classList.contains("measuring"))
+        return;
       hintShown = true;
-      const toast2 = select("#toast");
-      if (toast2.textContent.includes("notes de conception"))
-        toast2.classList.remove("show");
-    },
-    { capture: true },
-  );
+      toast("Touchez le ⓘ en haut pour afficher les notes de conception.");
+    }, 900);
+    document.addEventListener(
+      "pointerdown",
+      () => {
+        hintShown = true;
+        const toast2 = select("#toast");
+        if (toast2.textContent.includes("notes de conception"))
+          toast2.classList.remove("show");
+      },
+      { capture: true },
+    );
+  };
 </script>

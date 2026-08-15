@@ -1,6 +1,8 @@
 """Every reported defect has its test, written together with the fix."""
 import asyncio
+
 from playwright.async_api import async_playwright
+
 
 async def main():
   async with async_playwright() as p:
@@ -116,7 +118,10 @@ async def main():
     await pg.evaluate("()=>window.__go('acq-ajout-resultats')"); await pg.wait_for_timeout(450)
     # The card body opens the result's panel; the panel carries the add act
     # (« Suivre » / « Ajouter »), which is what makes the footer exist.
-    await pg.evaluate("()=>document.querySelector('#screen [data-panel^=\"add:\"]').click()")
+    # The add screen left `#screen` for a real route (`/ajout`, rendered
+    # inside `#coquille`): its results list is now `.screen.open`, not
+    # literally `#screen` — the fiche this journey does NOT open still is.
+    await pg.evaluate("()=>document.querySelector('.screen.open [data-panel^=\"add:\"]').click()")
     await pg.wait_for_timeout(450)
     ajoute = await pg.evaluate("""()=>{
       const acte=document.querySelector('#sheet [data-act^="add:"]');
@@ -126,15 +131,19 @@ async def main():
     # the same journey, one honest step longer.
     await pg.evaluate("()=>document.querySelector('#dlg [data-confirmadd]')?.click()")
     await pg.wait_for_timeout(500)
-    foot = await pg.evaluate("()=>!!document.querySelector('#screen [data-go=acq]')")
+    # The footer's « Voir mes suivis » no longer carries `data-go`: it is a
+    # React-owned control now (`AjoutEcran`'s own `verSuivis`), not a site the
+    # shared legacy `data-go` delegation should also fire on — `.addfoot` is
+    # the stable hook the harness has instead.
+    foot = await pg.evaluate("()=>!!document.querySelector('.addfoot button')")
     detail = await pg.evaluate("""()=>({added:state.added.size,
       dlg:document.querySelector('#dlg').classList.contains('open'),
-      ecran:document.querySelector('#screen').classList.contains('open')})""")
+      ecran:!!document.querySelector('.screen.open')})""")
     chk("10. l'ajout réel fait naître le pied d'écran", ajoute and foot, f"ajoute={ajoute} foot={foot} {detail}")
     if foot:
-        await pg.evaluate("()=>document.querySelector('#screen [data-go=acq]').click()")
+        await pg.evaluate("()=>document.querySelector('.addfoot button').click()")
         await pg.wait_for_timeout(600)
-        r = await pg.evaluate("""()=>({ecran:document.querySelector('#screen').classList.contains('open'),
+        r = await pg.evaluate("""()=>({ecran:!!document.querySelector('.screen.open'),
           page:state.page})""")
         chk("10b. « Voir mes suivis » atterrit", not r["ecran"] and r["page"]=="acq", str(r))
 
