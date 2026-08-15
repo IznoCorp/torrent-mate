@@ -12062,6 +12062,18 @@
     // the screens a previous journey left underneath the visible one.
     pileEcrans.length = 0;
     renduCourant = null;
+    // The router is navigation state too (SP4a task 9 onward): `__go` states
+    // are DRIVEN, not a journey — a measurement must not inherit whichever
+    // screen ROUTE a previous one navigated to, for the exact reason it must
+    // not inherit the legacy screen stack just cleared above. `replace`, so
+    // driving through many states never grows history; `flush()` is the same
+    // discipline `aller()` uses for a real navigation, so the address is back
+    // to "/" before the state function that runs right after this (which may
+    // itself navigate, e.g. the profil scenario) has a chance to.
+    if (window.__routeur) {
+      window.__routeur.navigate({ to: "/", replace: true });
+      window.__routeur.history.flush();
+    }
     return true;
   };
 
@@ -15312,6 +15324,15 @@
     ["VO", "Version originale"],
   ];
 
+  /* Read-only reference data + pure rendering helpers a migrated route
+     component reuses VERBATIM (SP4a task 9 onward) rather than
+     re-declaring — a re-declaration would drift the day one of these
+     changes here. None of it is engine STATE (never mutated by an action),
+     so exposing it does not bypass the store's reactivity contract; it is
+     exposed once, at definition time, well before the deferred module
+     script (coquille.tsx) runs. */
+  window.__referentiel = { RELEASES, RESOS, AUDIOS, icons, baseTitle };
+
   const TRIS = {
     recent: "Ajout récent",
     az: "A → Z",
@@ -16881,7 +16902,7 @@
       "Écran — profil de qualité",
       () => {
         applyState({ page: "acq", acqTab: "suivis", phase: "prete" });
-        openProfil("Silo");
+        window.__ecrans.profil("Silo");
       },
     ],
     [
@@ -18013,34 +18034,19 @@
       closest.dataset.profil !== undefined &&
       closest.dataset.profil !== null
     ) {
+      // Route, not screen: the quality-profile surface left the legacy
+      // fragment (SP4a task 9). Closing whatever legacy layer is currently
+      // open keeps the same close-then-open timing the two trigger buttons
+      // (the Réglages rubric and « Ouvrir le profil de qualité → ») were
+      // built against; `__ecrans.profil` does the navigating.
       const profil = closest.dataset.profil;
       if (select("#screen").classList.contains("open")) {
         closeScreen();
-        setTimeout(() => openProfil(profil), 260);
+        setTimeout(() => window.__ecrans.profil(profil), 260);
       } else {
         closeSheet();
-        setTimeout(() => openProfil(profil), 260);
+        setTimeout(() => window.__ecrans.profil(profil), 260);
       }
-      return;
-    }
-    if (closest.dataset.qres !== undefined) {
-      state.profil.min_resolution =
-        closest.dataset.qres === "" ? null : closest.dataset.qres;
-      openProfil(state.profilTitre);
-      return;
-    }
-    if (closest.dataset.qaud) {
-      const required_audio = state.profil.required_audio;
-      const indexOf = required_audio.indexOf(closest.dataset.qaud);
-      if (indexOf >= 0) required_audio.splice(indexOf, 1);
-      else required_audio.push(closest.dataset.qaud);
-      openProfil(state.profilTitre);
-      return;
-    }
-    if (closest.dataset.qflag) {
-      state.profil[closest.dataset.qflag] =
-        !state.profil[closest.dataset.qflag];
-      openProfil(state.profilTitre);
       return;
     }
     if (closest.dataset.prendre) {
@@ -40312,89 +40318,6 @@
     </div></div>`,
       undefined,
       () => openReleases(titre),
-    );
-  }
-
-  /* Quality profile
-     What decides what the engine accepts. Exclusions are red: they remove,
-     they do not add — the colour states the direction of the action. */
-  function openProfil(titre) {
-    magasin.ecrire({ profilTitre: titre });
-    const profile = state.profil;
-    const retenus = RELEASES.filter((RELEASES2) => {
-      const ordre = { "720p": 0, "1080p": 1, "2160p": 2 };
-      if (
-        profile.min_resolution &&
-        ordre[RELEASES2.res] < ordre[profile.min_resolution]
-      )
-        return false;
-      if (profile.required_audio.length) {
-        const tier =
-          RELEASES2.lang === "VOSTFR"
-            ? "VOSTFR"
-            : RELEASES2.lang === "VO"
-              ? "VO"
-              : "VF";
-        if (!profile.required_audio.includes(tier)) return false;
-      }
-      return true;
-    }).length;
-
-    openScreen(
-      `<div class="fichebar">
-      <button class="fback" onclick="__close('screen')">${svgIcon(icons.left)}Retour</button>
-      <span style="margin-left:auto;font-size:11px;color:var(--muted-foreground)">${titre ? escapeHtml(baseTitle(titre)) : "profil par défaut"}</span>
-    </div>
-    <div class="port"><div class="body">
-
-      <div class="note"><b>Corrigé après vérification du backend.</b> Ma première version de cet écran réglait des « sources acceptées » et des exclusions CAM/TS qui <em>n'existent pas</em> par suivi. Le <code>QualityProfile</code> réel n'a que les quatre champs ci-dessous. Le reste — les poids qui départagent — est global et vit déjà dans <code>/config ?tab=classement</code>.</div>
-
-      <p class="qhint">Ce profil <b>filtre</b> : il élimine ce qui ne conviendra jamais. Il n'ordonne pas — ce qui survit est départagé par le classement global.</p>
-
-      <div class="qgroup">
-        <h2 class="h2">Résolution minimale</h2>
-        <p class="qhint">Un plancher, pas une liste : tout ce qui est en dessous est écarté. « Aucun plancher » laisse passer les sources sans résolution lisible (REMUX, COMPLETE.BLURAY) que le classement note au mérite.</p>
-        <p class="optkind">Un seul choix</p>
-        <div class="optlist" role="radiogroup" aria-label="Résolution minimale">
-          <button class="opt radio" role="radio" aria-checked="${profile.min_resolution === null}" data-qres=""><span class="mark"></span><span class="lb">Aucun plancher<small>Aucune résolution n'est écartée</small></span></button>
-          ${RESOS.map((RESOS2) => `<button class="opt radio" role="radio" aria-checked="${profile.min_resolution === RESOS2}" data-qres="${RESOS2}"><span class="mark"></span><span class="lb">${RESOS2} ou mieux<small>${RESOS2 === "720p" ? "Écarte tout ce qui est sous 720p" : RESOS2 === "1080p" ? "Écarte le 720p et en dessous" : "N'accepte que la 4K"}</small></span></button>`).join("")}
-        </div>
-      </div>
-
-      <div class="qgroup">
-        <h2 class="h2">Pistes audio exigées</h2>
-        <p class="qhint">Aucune sélection = aucun filtre de langue. Une release doit porter <b>au moins une</b> des pistes cochées.</p>
-        <p class="optkind">Plusieurs choix possibles${profile.required_audio.length === 0 ? " — aucun coché = aucun filtre" : ""}</p>
-        <div class="optlist">
-          ${AUDIOS.map(([key, label]) => `<button class="opt check" role="checkbox" aria-checked="${profile.required_audio.includes(key)}" data-qaud="${key}"><span class="mark"></span><span class="lb">${key}<small>${escapeHtml(label)}</small></span></button>`).join("")}
-        </div>
-      </div>
-
-      <div class="qgroup">
-        <h2 class="h2">Deux verrous</h2>
-        <div class="panel">
-          <div class="kv reglage"><span>Écarter la 3D<br><span class="qhint">Une release SBS / Over-Under est illisible sur un écran 2D. Activé par défaut : c'est un plancher de correction, pas un goût.</span></span>
-            <button class="switch" role="switch" aria-checked="${profile.exclude_3d}" aria-label="Écarter la 3D" data-qflag="exclude_3d"></button></div>
-          <div class="kv reglage"><span>Refuser une résolution illisible<br><span class="qhint">Par défaut on laisse passer : un nom non analysable est le plus souvent un REMUX, pas un mauvais fichier.</span></span>
-            <button class="switch" role="switch" aria-checked="${profile.require_known_resolution}" aria-label="Refuser une résolution illisible" data-qflag="require_known_resolution"></button></div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="kv"><span>Candidats retenus par ce profil</span><span>${retenus} sur ${RELEASES.length}</span></div>
-        <div class="kv"><span>Portée</span><span>${titre ? "ce suivi seulement" : "tous les suivis"}</span></div>
-      </div>
-
-      <button class="cfoot" data-toast="Dans l'app, ce bouton mènera à /config ?tab=classement — l'éditeur de classement existe déjà.">${svgIcon(icons.sort)}Poids du classement (global) →</button>
-
-      <p class="rulenote">Un profil qui n'accepte plus rien se dit : la carte affichera « cherché, rien trouvé » avec la raison, jamais un silence (§8).</p>
-
-      <div class="sheetacts">
-        <button class="sact primary" data-toast="Profil enregistré — la prochaine recherche l'appliquera.">${svgIcon(icons.check)}Enregistrer</button>
-      </div>
-    </div></div>`,
-      "profil:" + (titre ?? ""),
-      () => openProfil(titre),
     );
   }
 

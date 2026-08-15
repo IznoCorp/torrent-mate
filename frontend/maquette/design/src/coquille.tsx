@@ -12,6 +12,7 @@ import {
 } from "@tanstack/react-router";
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { ProfilEcran } from "./ecrans/profil";
 import { creerMagasin, type Magasin } from "./magasin";
 
 // R69's addressable state, validated — absent means "unchanged", as before.
@@ -34,6 +35,13 @@ type Pont = {
   surRetour: (rappel: (etat: unknown) => void) => () => void;
 };
 
+// One entry per migrated screen: what a legacy call site invokes instead of
+// its old `openX(...)` function. `titre` crosses the bridge as a plain
+// string — normalisation and encoding are this file's job, not the caller's.
+type Ecrans = {
+  profil: (titre: string) => void;
+};
+
 declare global {
   interface Window {
     __pont: Pont;
@@ -45,6 +53,7 @@ declare global {
     __demarrerMoteur?: (deps: { magasin: Magasin }) => void;
     // The domain hooks and the probes read the engine's state through this.
     __magasin: Magasin;
+    __ecrans: Ecrans;
   }
 }
 
@@ -73,8 +82,19 @@ const attrape = createRoute({
   },
   component: () => null, // the legacy DOM lives outside the React root until SP4
 });
+// The pilot screen (SP4a task 9): a real route, rendering a final component
+// INSIDE the React root — the first surface to leave the legacy fragment
+// rather than being reached through it. `$titre` is percent-encoded and
+// NFC-normalised by both ends of the bridge (`aller()` below on write,
+// `ProfilEcran` on read) so a title carrying combining characters survives
+// the round trip through the URL unchanged.
+const profil = createRoute({
+  getParentRoute: () => racine,
+  path: "/profil/$titre",
+  component: ProfilEcran,
+});
 const routeur = createRouter({
-  routeTree: racine.addChildren([attrape]),
+  routeTree: racine.addChildren([attrape, profil]),
   history: historique,
   // The document is also read under other paths than `/` — the rule harness
   // serves it as `wrapped.html`. The router's built-in fallback would print
@@ -83,6 +103,15 @@ const routeur = createRouter({
   defaultNotFoundComponent: () => null,
   defaultErrorComponent: () => null,
 });
+// Registers `routeur` as THE router for every `useParams`/`useNavigate` call
+// in the tree, so a screen component (in its own file, importing neither
+// `routeur` nor `racine` — that would cycle back to this module) still gets
+// fully typed params from a bare path literal like `/profil/$titre`.
+declare module "@tanstack/react-router" {
+  interface Register {
+    router: typeof routeur;
+  }
+}
 
 // The bridge: the same verbs the legacy cluster used, one writer underneath.
 // `couche` entries and the guard entry keep their exact state shapes — the
@@ -96,6 +125,19 @@ const routeur = createRouter({
 //     unwinding logic counts entries.
 //   - a pop is reported as BACK / FORWARD / GO, never as a « POP » type: the
 //     three together are what the `popstate` event used to signal.
+// Address ownership for pops (SP4a task 9 — the wave's first entry): once a
+// pathname belongs to a React screen route, the router's OWN history
+// subscription already re-renders the matching component — forwarding the
+// same pop to the legacy engine would hand a callback state it no longer
+// owns (or, for a deleted `openX`, a function that no longer exists). A
+// pathname PREFIX match — not `routeur.matchRoute`, whose generic overloads
+// need a route id known at the call site — keeps this typecheck-safe and
+// grows by adding one entry per screen migrated in a later wave.
+const ADRESSES_ECRAN = ["/profil/"];
+function estAdresseEcran(pathname: string): boolean {
+  return ADRESSES_ECRAN.some((prefixe) => pathname.startsWith(prefixe));
+}
+
 window.__pont = {
   noter: (etat: unknown, url: string) => {
     historique.push(url, etat);
@@ -116,11 +158,42 @@ window.__pont = {
         action.type === "BACK" ||
         action.type === "FORWARD" ||
         action.type === "GO"
-      )
+      ) {
+        if (estAdresseEcran(location.pathname)) return;
         rappel(location.state);
+      }
     }),
 };
 window.__routeur = routeur;
+
+// The ONLY programmatic navigator in `src/`: R76 forbids a bare
+// `routeur.navigate()` anywhere else, because the library batches its
+// commits into a microtask — two writes issued in the same task would merge
+// into a single history entry, and the legacy unwinding logic COUNTS
+// entries. The immediate `flush()` is what keeps native `pushState`
+// semantics (one call, one entry) across the boundary.
+export function aller(vers: {
+  to: string;
+  params?: Record<string, string>;
+  search?: Record<string, unknown>;
+  remplacer?: boolean;
+}): void {
+  void routeur.navigate({
+    to: vers.to,
+    params: vers.params,
+    search: vers.search,
+    replace: vers.remplacer ?? false,
+  });
+  historique.flush();
+}
+// What a migrated legacy call site invokes instead of its old `openX(...)`.
+// NFC-normalised here, once, on write — `ProfilEcran` normalises again on
+// read so an entry arriving by direct URL (not through this bridge) is
+// covered too.
+window.__ecrans = {
+  profil: (titre: string) =>
+    aller({ to: "/profil/$titre", params: { titre: titre.normalize("NFC") } }),
+};
 
 // The store is created here, and the engine starts only once it — and the
 // bridge above — are real. No queue, no replay: the engine's own boot writes
