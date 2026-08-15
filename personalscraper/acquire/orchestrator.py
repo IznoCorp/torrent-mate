@@ -746,9 +746,7 @@ class GrabOrchestrator:
             # conforme »), never a wrong-movie grab. The filter gets EVERY
             # known title (#435): releases are commonly named in the original
             # language while the follow carries the localized display title.
-            original_title = (
-                self._original_title_resolver(item) if self._original_title_resolver is not None else None
-            )
+            original_title = self._original_title_resolver(item) if self._original_title_resolver is not None else None
             results = filter_to_movie(results, [title, original_title], year)
 
         # --- Hard-filter → dedup → rank (DESIGN §15 stage order) ---

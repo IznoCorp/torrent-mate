@@ -827,7 +827,11 @@ def test_detect_backfills_missing_movie_original_title(store: ConcreteAcquireSto
     fid = _movie_follow(store)
     tmdb = _FakeTmdb()
     service = DetectService(
-        store=store, ownership=_StubOwnership(set()), registry=_registry_with(tmdb), event_bus=EventBus(), config=_config()
+        store=store,
+        ownership=_StubOwnership(set()),
+        registry=_registry_with(tmdb),
+        event_bus=EventBus(),
+        config=_config(),
     )
 
     service.run(series=None, dry_run=False, today=date(2024, 1, 1), now=100)
@@ -841,7 +845,11 @@ def test_detect_backfill_skips_healed_rows(store: ConcreteAcquireStore) -> None:
     _movie_follow(store, original_title="Before I Go to Sleep")
     tmdb = _FakeTmdb()
     service = DetectService(
-        store=store, ownership=_StubOwnership(set()), registry=_registry_with(tmdb), event_bus=EventBus(), config=_config()
+        store=store,
+        ownership=_StubOwnership(set()),
+        registry=_registry_with(tmdb),
+        event_bus=EventBus(),
+        config=_config(),
     )
 
     service.run(series=None, dry_run=False, today=date(2024, 1, 1), now=100)
@@ -854,7 +862,11 @@ def test_detect_backfill_provider_failure_is_fail_soft(store: ConcreteAcquireSto
     fid = _movie_follow(store)
     tmdb = _FakeTmdb(boom=RuntimeError("tmdb down"))
     service = DetectService(
-        store=store, ownership=_StubOwnership(set()), registry=_registry_with(tmdb), event_bus=EventBus(), config=_config()
+        store=store,
+        ownership=_StubOwnership(set()),
+        registry=_registry_with(tmdb),
+        event_bus=EventBus(),
+        config=_config(),
     )
 
     result = service.run(series=None, dry_run=False, today=date(2024, 1, 1), now=100)
@@ -868,7 +880,11 @@ def test_detect_backfill_skipped_on_dry_run(store: ConcreteAcquireStore) -> None
     fid = _movie_follow(store)
     tmdb = _FakeTmdb()
     service = DetectService(
-        store=store, ownership=_StubOwnership(set()), registry=_registry_with(tmdb), event_bus=EventBus(), config=_config()
+        store=store,
+        ownership=_StubOwnership(set()),
+        registry=_registry_with(tmdb),
+        event_bus=EventBus(),
+        config=_config(),
     )
 
     service.run(series=None, dry_run=True, today=date(2024, 1, 1), now=100)

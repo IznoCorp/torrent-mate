@@ -266,9 +266,7 @@ def _extract(details: Any) -> FollowMetadata:
         overview=str(overview) if isinstance(overview, str) and overview.strip() else None,
         year=int(year) if isinstance(year, int) else None,
         title=str(title) if isinstance(title, str) and title.strip() else None,
-        original_title=(
-            str(original_title) if isinstance(original_title, str) and original_title.strip() else None
-        ),
+        original_title=(str(original_title) if isinstance(original_title, str) and original_title.strip() else None),
     )
 
 

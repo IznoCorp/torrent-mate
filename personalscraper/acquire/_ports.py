@@ -93,6 +93,19 @@ class FollowSubStore(Protocol):
         """Record the provider's production status ('Ended', 'Continuing', …)."""
         ...
 
+    def merge_metadata(
+        self,
+        followed_id: int,
+        *,
+        poster_url: str | None,
+        overview: str | None,
+        year: int | None,
+        title: str | None = None,
+        original_title: str | None = None,
+    ) -> None:
+        """Merge the card metadata columns additively (``None`` never clears)."""
+        ...
+
     def set_kind(self, followed_id: int, kind: str) -> None:
         """Update the ``kind`` ('movie'|'show') of a ``followed_series`` row."""
         ...
