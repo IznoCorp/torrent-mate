@@ -85,7 +85,7 @@ const attrape = createRoute({
         lu[nom] = brut[nom] as string;
     return lu;
   },
-  component: () => null, // the legacy DOM lives outside the React root until SP4
+  component: () => null, // the legacy DOM lives outside the React root until its surfaces migrate
 });
 // The quality-profile screen: a real route, rendering a final component
 // INSIDE the React root — a surface reached directly rather than through the

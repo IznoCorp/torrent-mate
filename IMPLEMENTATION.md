@@ -70,7 +70,36 @@ carries a strict `tsconfig.json` and its own `npm run typecheck`, wired into `ma
 — the build alone had no opinion on types (it exits 0 on a type error, measured). Known opens:
 forward-is-not-a-return kept as legacy-faithful; a future `history.block()` would defeat the
 shell's `flush()`.
-Next: SP4 — emptying the catch-all surface by surface; then SP5 (visual language).
+
+**SP4a — the machinery, paid once, on the two smallest screens**: Branch `feat/maquette-sp4a`.
+Two spikes decided against adoption for now: Konsta UI cannot carry R47's card geometry
+without discarding its own layout defaults node by node, and Motion has no named real need —
+every migrated surface's interaction is still plain CSS. The store: `magasin` (TanStack Store)
+becomes the owner of the legacy engine's state, `state` kept as a synchronous read-alias so the
+~70 existing readers are untouched while every WRITE moves onto the store, six batched lots.
+The boot order inverts: the shell creates the store and the real `__pont` FIRST and calls
+`window.__demarrerMoteur` once, so the engine's own boot writes land straight on the single
+writer in the engine's own order — the queue-and-replay pre-bridge SP3 introduced is retired,
+nothing left to queue. Domain hooks become the components' only door onto that state. The host
+now answers ANY address, not only files it recognises: `serve.py` gained the SPA fallback, the
+`<base href="/">` element, `/favicon.svg`, and the permanent `/assets/` portal rule (R73
+amended, four new holds); a second harness-only server (`harness/serveur.py`, port 8917) makes
+that same depth measurable locally without touching 8899 or the reverse-proxied ports. Two
+pilot screens are the first drawn as real routes rather than driven through the legacy state
+machine — `/profil/$titre` (Profil, the quality-profile screen — Ruling R-4 settled that this
+is the per-FOLLOW screen, not a per-actor one, which does not exist in the code) and `/ajout`
+(Ajout, `q`/`mode` router-owned while the address reads `/ajout`) — both through `aller()`, the
+single navigator R76 holds to one call site. New rules: R75 (`adresses_ecrans.py`, cold deep
+entry + `<base>` proof + address-follows-the-walk + honest wrong-address rendering) and R76
+(`navigation.py`, one door, one entry per call, no merge across a synchronous double call).
+Ruling R-5 (review) removed the pop dispatcher's pathname filter: ownership of a history entry
+is carried by its SHAPE, not its address, and the filter would have silently stopped closing a
+layer opened over a screen-route. CI gained the shell's own `npm run typecheck` gate. Known
+opens for SP4b: the fiche (the most connected screen, and the biggest `openSheet` producer) and
+the panel migrate together; the legacy sites that open the panel will speak to it through the
+shell.
+Next: SP4b — the fiche and the panel; then the rest of the catch-all surface by surface; then
+SP5 (visual language).
 
 ---
 
