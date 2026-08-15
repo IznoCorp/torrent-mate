@@ -33,8 +33,12 @@
 // never stack history — R76's own rule, exercised here for the first time by
 // a CONTROLLED input rather than a one-shot navigation.
 import { useSearch } from "@tanstack/react-router";
+// Circular with coquille.tsx (it imports AjoutEcran from this file) and safe
+// today for two reasons: `aller` is a hoisted function declaration there, so
+// its binding is live before either module's body runs, and this module has
+// no top-level side effect that could observe coquille.tsx mid-evaluation.
 import { aller } from "../coquille";
-import { useContenu, useEtat, useReferentiel } from "../donnees";
+import { ecrireEtat, useContenu, useEtat, useReferentiel } from "../donnees";
 
 type Mode = "suivi" | "identifier";
 
@@ -90,16 +94,30 @@ export function AjoutEcran() {
     useReferentiel();
 
   function ecrire(patch: Record<string, unknown>): void {
-    window.__magasin.ecrire(patch);
+    ecrireEtat(patch);
   }
 
-  // Same-screen query changes (the "Chercher" button, a recent-search chip)
-  // go through the public bridge rather than a bare `aller()`: it is what
-  // keeps `state.addQ`/`state.addMode` — the transitional contract below —
-  // in sync for the one remaining legacy reader on this path, exactly as a
-  // fresh arrival from the FAB or a resolution's manual search already does.
+  // Always invoked from INSIDE this screen — chercher() runs only while
+  // AjoutEcran is mounted, which means the address already reads `/ajout`.
+  // Routing it through `window.__ecrans.ajout()` (a PUSH, meant for arriving
+  // here fresh from elsewhere — the FAB, a resolution's manual search)
+  // stacked a second `/ajout` entry per search: the legacy engine never
+  // pushed for a same-key re-render, and a screen already open should not
+  // either — one "Retour" from a chip search used to leave the screen still
+  // open, having only popped back onto an earlier `/ajout` entry. `aller()`
+  // direct, with `remplacer: true`, keeps the sync with the legacy readers
+  // (`state.addQ`/`state.addMode`) `window.__ecrans.ajout()` also performs,
+  // without the push.
   function chercher(valeur: string): void {
-    window.__ecrans.ajout(valeur, mode);
+    ecrire({ addQ: valeur, addMode: mode });
+    aller({
+      to: "/ajout",
+      search: {
+        q: valeur || undefined,
+        mode: identifier ? "identifier" : undefined,
+      },
+      remplacer: true,
+    });
   }
 
   // Leaving a ROUTER-OWNED screen back onto legacy ground is not a `back`

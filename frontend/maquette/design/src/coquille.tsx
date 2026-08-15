@@ -119,15 +119,46 @@ const ajout = createRoute({
   },
   component: AjoutEcran,
 });
+// A thrown component used to fail into a bare `null` — the exact failure
+// shape this whole architecture exists to kill: a blank phone frame with
+// nothing on screen saying why, and nothing in the console pointing at it
+// either, since React only reports past an error boundary. This one is a
+// VISIBLE failure instead, styled with the document's own tokens rather
+// than an inline guess, so it reads as part of the interface it failed
+// inside rather than as an unstyled crash page.
+function EcranEnErreur({ error }: { error: unknown }) {
+  console.error(error);
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "24px",
+        textAlign: "center",
+        background: "var(--background)",
+        color: "var(--danger)",
+      }}
+    >
+      Cet écran a échoué à s'afficher. Détail dans la console.
+    </div>
+  );
+}
+
 const routeur = createRouter({
   routeTree: racine.addChildren([attrape, profil, ajout]),
   history: historique,
   // The document is also read under other paths than `/` — the rule harness
-  // serves it as `wrapped.html`. The router's built-in fallback would print
-  // « Not Found » into the mount node; the shell renders nothing visual in
-  // SP3, so both fallbacks are silenced rather than left to a default.
+  // serves it as `wrapped.html`. The router's built-in not-found fallback
+  // would print « Not Found » into the mount node; the fallback DOCUMENT
+  // already serves any unknown path (see serve.py), so a second one here
+  // would only duplicate it — silenced rather than left to a default. A
+  // thrown error is a different failure and gets a different answer: see
+  // `EcranEnErreur` above.
   defaultNotFoundComponent: () => null,
-  defaultErrorComponent: () => null,
+  defaultErrorComponent: EcranEnErreur,
 });
 // Registers `routeur` as THE router for every `useParams`/`useNavigate` call
 // in the tree, so a screen component (in its own file, importing neither
@@ -229,6 +260,10 @@ window.__ecrans = {
   // that stays current for as long as the address reads `/ajout`.
   ajout: (q?: string, mode?: string) => {
     const modeValide = mode === "identifier" ? "identifier" : "suivi";
+    // This file is SHELL code, not a component — it is the seam itself, so
+    // it writes the store directly rather than through donnees.ts's
+    // `ecrireEtat` write door (components must use that one; see its own
+    // doc comment).
     window.__magasin.ecrire({ addQ: q ?? "", addMode: modeValide });
     aller({
       to: "/ajout",

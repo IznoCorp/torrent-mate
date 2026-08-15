@@ -9,6 +9,7 @@
 // geometry it measured on the legacy `#screen`.
 import { useParams } from "@tanstack/react-router";
 import {
+  ecrireEtat,
   useEtat,
   useReferentiel,
   type Release,
@@ -83,7 +84,7 @@ export function ProfilEcran() {
   const retenus = compterRetenus(profil, RELEASES);
 
   function ecrireProfil(patch: Partial<QualityProfile>): void {
-    window.__magasin.ecrire({ profil: { ...profil, ...patch } });
+    ecrireEtat({ profil: { ...profil, ...patch } });
   }
 
   function choisirResolution(reso: Resolution | null): void {

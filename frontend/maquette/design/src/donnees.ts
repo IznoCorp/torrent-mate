@@ -22,6 +22,18 @@ export function useContenu<T>(selection: (c: Contenu) => T): T {
 export const useEtat = (): EtatUI => useContenu((c) => c.etat);
 export const useMonde = (): unknown => useContenu((c) => c.monde);
 
+// The single write door, matching the read side above: a component patches
+// the store through THIS function, never through `window.__magasin.ecrire`
+// directly — the binding mission replaces this function's implementation
+// (and only this one) when the real store arrives, exactly as it replaces
+// `useReferentiel()`'s below. `window.__magasin.ecrire` stays the actual
+// primitive underneath because the still-legacy call sites (refonte.html)
+// have no hook to go through; a component reaching around this accessor is
+// what would make that replacement touch component code too.
+export function ecrireEtat(patch: Partial<EtatUI>): void {
+  window.__magasin.ecrire(patch);
+}
+
 export type Resolution = "720p" | "1080p" | "2160p";
 
 export type Release = {
