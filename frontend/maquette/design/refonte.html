@@ -4733,7 +4733,7 @@
       t: "L'Odyssée",
       serie: null,
       depuis: "6 août",
-      recherches: 10,
+      recherches: 11,
       k: "movie",
       y: 2026,
       st: "en_attente",
@@ -4742,7 +4742,7 @@
       t: "Spider-Man : Brand New Day",
       serie: null,
       depuis: "5 août",
-      recherches: 13,
+      recherches: 14,
       k: "movie",
       y: 2026,
       st: "en_attente",
@@ -17777,11 +17777,29 @@
       return;
     }
     if (closest.dataset.go) {
+      /* A go control can sit INSIDE a layer — the user sheet's « Profil et
+         préférences », the add screen's « Voir mes suivis ». Landing must
+         LEAVE the layer: every layer closes without touching history, and
+         the destination takes the layer's entry, exactly as a drawer
+         navigation settles itself (see data-navgo): letting the close
+         unwind and the arrival push would race, the asynchronous pop
+         landing after the push and overwriting it. */
+      const surCouche = history.state && history.state.layer;
+      fermerTiroir(true);
+      closeSheet(true);
+      // A navigation leaves the screen LAYER, covered screens included:
+      // with the stack emptied first, the close removes the layer instead
+      // of redrawing what the top screen covered.
+      pileEcrans.length = 0;
+      closeScreen(true);
       state.page = closest.dataset.go;
       if (closest.dataset.go === "acq") state.acqTab = "maintenant";
       port.scrollTop = 0;
       render();
-      noterLeChemin();
+      try {
+        if (surCouche) __pont.remplacer(etatDeNavigation(), urlDeLEtat());
+        else noterLeChemin();
+      } catch (error) {}
       return;
     }
     if (closest.dataset.acqtab) {

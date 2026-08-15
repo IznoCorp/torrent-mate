@@ -81,8 +81,65 @@ async def main():
     chk("8. recherche manuelle pré-remplie", has and bool(q), f"→ « {q} »")
     await pg.screenshot(path="g_manuelle.png")
 
+    # 9 — B-021: a nav control INSIDE a layer lands, and the layer leaves.
+    # « Profil et préférences » in the user sheet navigates via data-go; the
+    # sheet must close, the destination must take the layer's history entry,
+    # and one back must reach the page one stood on before the sheet opened.
+    # A fresh document: the journey starts at a real arrival, whose entry the
+    # boot records — that entry is what the back below must land on. Driving
+    # states over the previous checks' history would bury it.
+    await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
+    await pg.evaluate("()=>window.__chargementTermine?.()")
+    await pg.evaluate("()=>window.__measure(true)")
+    await pg.wait_for_timeout(300)
+    await pg.evaluate("()=>document.querySelector('.avatar[data-sheet=utilisateur]').click()")
+    await pg.wait_for_timeout(400)
+    await pg.evaluate("()=>document.querySelector('#sheet [data-go=profil]').click()")
+    await pg.wait_for_timeout(500)
+    r = await pg.evaluate("""()=>({feuille:document.querySelector('#sheet').classList.contains('open'),
+      page:state.page,
+      dessus:(()=>{const e=document.elementFromPoint(195,700);
+        return e && e.closest('#sheet') ? 'sheet' : 'page'})()})""")
+    chk("9. profil depuis la feuille — la feuille part", not r["feuille"] and r["page"]=="profil" and r["dessus"]=="page", str(r))
+    await pg.go_back(); await pg.wait_for_timeout(600)
+    r = await pg.evaluate("()=>({page:state.page, feuille:document.querySelector('#sheet').classList.contains('open')})")
+    chk("9b. un retour rejoint la page d'avant la feuille", r["page"]=="acq" and not r["feuille"], str(r))
+
+    # 10 — B-022: « Voir mes suivis » in the add screen's footer LANDS: the
+    # screen leaves and Acquisition renders. The footer only exists once a
+    # media was really added, so the journey walks the real add first.
+    # A fresh document: the journey above ends in the very history desync this
+    # defect creates, and its late pops would close the screen mid-journey.
+    await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
+    await pg.evaluate("()=>window.__chargementTermine?.()")
+    await pg.evaluate("()=>window.__measure(true)")
+    await pg.evaluate("()=>window.__go('acq-ajout-resultats')"); await pg.wait_for_timeout(450)
+    # The card body opens the result's panel; the panel carries the add act
+    # (« Suivre » / « Ajouter »), which is what makes the footer exist.
+    await pg.evaluate("()=>document.querySelector('#screen [data-panel^=\"add:\"]').click()")
+    await pg.wait_for_timeout(450)
+    ajoute = await pg.evaluate("""()=>{
+      const acte=document.querySelector('#sheet [data-act^="add:"]');
+      if (acte){ acte.click(); return true; } return false;}""")
+    await pg.wait_for_timeout(400)
+    # An owned result answers with the replace dialog first; confirming it is
+    # the same journey, one honest step longer.
+    await pg.evaluate("()=>document.querySelector('#dlg [data-confirmadd]')?.click()")
+    await pg.wait_for_timeout(500)
+    foot = await pg.evaluate("()=>!!document.querySelector('#screen [data-go=acq]')")
+    detail = await pg.evaluate("""()=>({added:state.added.size,
+      dlg:document.querySelector('#dlg').classList.contains('open'),
+      ecran:document.querySelector('#screen').classList.contains('open')})""")
+    chk("10. l'ajout réel fait naître le pied d'écran", ajoute and foot, f"ajoute={ajoute} foot={foot} {detail}")
+    if foot:
+        await pg.evaluate("()=>document.querySelector('#screen [data-go=acq]').click()")
+        await pg.wait_for_timeout(600)
+        r = await pg.evaluate("""()=>({ecran:document.querySelector('#screen').classList.contains('open'),
+          page:state.page})""")
+        chk("10b. « Voir mes suivis » atterrit", not r["ecran"] and r["page"]=="acq", str(r))
+
     print("\nJS errors:", errs or "none")
-    print("VERDICT:", "all 8 defects are fixed" if not ko and not errs else f"remaining: {ko}")
+    print("VERDICT:", "all reported defects are fixed" if not ko and not errs else f"remaining: {ko}")
     await b.close()
     # A script that only prints can never fail, and a script that cannot fail
     # proves nothing: the verdict has to reach the exit code.
