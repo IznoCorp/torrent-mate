@@ -12062,9 +12062,9 @@
     // the screens a previous journey left underneath the visible one.
     pileEcrans.length = 0;
     renduCourant = null;
-    // The router is navigation state too (SP4a task 9 onward): `__go` states
-    // are DRIVEN, not a journey — a measurement must not inherit whichever
-    // screen ROUTE a previous one navigated to, for the exact reason it must
+    // The router is navigation state too: `__go` states are DRIVEN, not a
+    // journey — a measurement must not inherit whichever screen ROUTE a
+    // previous one navigated to, for the exact reason it must
     // not inherit the legacy screen stack just cleared above. `replace`, so
     // driving through many states never grows history; `flush()` is the same
     // discipline `aller()` uses for a real navigation, so the address is back
@@ -15325,12 +15325,11 @@
   ];
 
   /* Read-only reference data + pure rendering helpers a migrated route
-     component reuses VERBATIM (SP4a task 9 onward) rather than
-     re-declaring — a re-declaration would drift the day one of these
-     changes here. None of it is engine STATE (never mutated by an action),
-     so exposing it does not bypass the store's reactivity contract; it is
-     exposed once, at definition time, well before the deferred module
-     script (coquille.tsx) runs. */
+     component reuses VERBATIM rather than re-declaring — a re-declaration
+     would drift the day one of these changes here. None of it is engine
+     STATE (never mutated by an action), so exposing it does not bypass the
+     store's reactivity contract; it is exposed once, at definition time,
+     well before the deferred module script (coquille.tsx) runs. */
   window.__referentiel = { RELEASES, RESOS, AUDIOS, icons, baseTitle };
 
   const TRIS = {
@@ -18035,10 +18034,10 @@
       closest.dataset.profil !== null
     ) {
       // Route, not screen: the quality-profile surface left the legacy
-      // fragment (SP4a task 9). Closing whatever legacy layer is currently
-      // open keeps the same close-then-open timing the two trigger buttons
-      // (the Réglages rubric and « Ouvrir le profil de qualité → ») were
-      // built against; `__ecrans.profil` does the navigating.
+      // fragment. Closing whatever legacy layer is currently open keeps the
+      // same close-then-open timing the two trigger buttons (the Réglages
+      // rubric and « Ouvrir le profil de qualité → ») were built against;
+      // `__ecrans.profil` does the navigating.
       const profil = closest.dataset.profil;
       if (select("#screen").classList.contains("open")) {
         closeScreen();

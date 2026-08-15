@@ -36,8 +36,8 @@ async def main():
         print(("  OK  " if bon else "  ÉCHEC"), f"{label:34} {av} → {ap}" + (f"  (max atteignable {maxi})" if maxi < av else ""))
 
     print("── quality profile ──")
-    # SP4a task 9: this screen left `#screen` for a real route, rendered
-    # inside `#coquille` — its scrollport is now wherever `.screen.open .port`
+    # This screen left `#screen` for a real route, rendered inside
+    # `#coquille` — its scrollport is now wherever `.screen.open .port`
     # resolves (the React section carries the same classes `#screen` did),
     # not literally inside the legacy container.
     profil_port = ".screen.open .port"
