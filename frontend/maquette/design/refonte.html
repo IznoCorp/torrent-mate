@@ -17876,8 +17876,7 @@
       return;
     }
     if (closest.dataset.sugmore) {
-      state.sugGone = new Set();
-      state.sugOrder = null;
+      magasin.ecrire({ sugGone: new Set(), sugOrder: null });
       render();
       toast("Nouveau lot chargé — 30 suggestions de plus.");
       return;
@@ -17915,7 +17914,11 @@
           : "ajouté à vos suivis";
       closeSheet();
       if (idx != null) {
+        // No render() follows on this branch: the sheet close and the
+        // follow-up screens draw directly, so the bump has to be explicit
+        // or React never learns this suggestion left the deck.
         state.sugGone.add(Number(idx));
+        magasin.toucher();
         const element = document.querySelector(`[data-dismissable="${idx}"]`);
         if (element) {
           element.style.height = element.getBoundingClientRect().height + "px";
@@ -18067,7 +18070,7 @@
       return;
     }
     if (closest.dataset.maintrub !== undefined) {
-      state.maintRub = closest.dataset.maintrub || null;
+      magasin.ecrire({ maintRub: closest.dataset.maintrub || null });
       port.scrollTop = 0;
       render();
       noterLeChemin();
@@ -18081,12 +18084,14 @@
       /* Asked while a run is already going, a run is QUEUED and says so
          (DOIT-4). « Occupé, réessaie » is the answer this interface does not
          give: it puts the burden of remembering on the operator. */
-      state.pipe =
-        closest.dataset.pipe === "arreter"
-          ? "repos"
-          : state.pipe === "repos"
-            ? "encours"
-            : "file";
+      magasin.ecrire({
+        pipe:
+          closest.dataset.pipe === "arreter"
+            ? "repos"
+            : state.pipe === "repos"
+              ? "encours"
+              : "file",
+      });
       render();
       toast(
         state.pipe === "encours"
@@ -18110,7 +18115,7 @@
          therefore told not to touch history at all. */
       const surLeTiroir = history.state && history.state.layer === "drawer";
       fermerTiroir(true);
-      state.page = id;
+      magasin.ecrire({ page: id });
       port.scrollTop = 0;
       render();
       try {
@@ -18128,30 +18133,30 @@
       return;
     }
     if (closest.dataset.hscen) {
-      state.scen = closest.dataset.hscen;
+      magasin.ecrire({ scen: closest.dataset.hscen });
       render();
       openHarness();
       return;
     }
     if (closest.dataset.hphase) {
-      state.phase = closest.dataset.hphase;
+      magasin.ecrire({ phase: closest.dataset.hphase });
       render();
       openHarness();
       return;
     }
     if (closest.dataset.htmdb) {
-      state.tmdb = closest.dataset.htmdb === "1";
+      magasin.ecrire({ tmdb: closest.dataset.htmdb === "1" });
       render();
       openHarness();
       return;
     }
     if (closest.dataset.addkind) {
-      state.addKind = closest.dataset.addkind;
+      magasin.ecrire({ addKind: closest.dataset.addkind });
       openAddScreen();
       return;
     }
     if (closest.dataset.idprov) {
-      state.idProv = closest.dataset.idprov;
+      magasin.ecrire({ idProv: closest.dataset.idprov });
       openAddScreen();
       return;
     }
@@ -18176,20 +18181,19 @@
       return;
     }
     if (closest.dataset.settri) {
-      state.tri = closest.dataset.settri;
-      state.libCount = LIB_PAGE;
+      magasin.ecrire({ tri: closest.dataset.settri, libCount: LIB_PAGE });
       closeSheet();
       render();
       toast(`Trié par ${TRIS[state.tri].toLowerCase()}.`);
       return;
     }
     if (closest.dataset.phase) {
-      state.phase = closest.dataset.phase;
+      magasin.ecrire({ phase: closest.dataset.phase });
       render();
       return;
     }
     if (closest.dataset.tmdb) {
-      state.tmdb = true;
+      magasin.ecrire({ tmdb: true });
       render();
       toast(
         "Compte TMDB connecté — la réserve se remplit, vos notes sont lues.",
@@ -18197,15 +18201,15 @@
       return;
     }
     if (closest.dataset.clearq) {
-      if (closest.dataset.clearq === "lib") {
-        state.q = "";
-        state.libCount = LIB_PAGE;
-      } else state.filtre = "";
+      if (closest.dataset.clearq === "lib")
+        magasin.ecrire({ q: "", libCount: LIB_PAGE });
+      else magasin.ecrire({ filtre: "" });
       render();
       return;
     }
     if (closest.dataset.selmode) {
-      state.selMode = closest.dataset.selmode === "1";
+      magasin.ecrire({ selMode: closest.dataset.selmode === "1" });
+      // Set mutated in place; render() right below carries the bump.
       state.selected.clear();
       render();
       return;
@@ -18221,6 +18225,9 @@
       const index = Number(closest.dataset.tile);
       if (state.selected.has(index)) state.selected.delete(index);
       else state.selected.add(index);
+      // paintSelBar() below draws the bar directly, not through render():
+      // the explicit bump is what tells React the selection changed.
+      magasin.toucher();
       closest.setAttribute("aria-selected", String(state.selected.has(index)));
       paintSelBar();
       return;
