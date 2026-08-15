@@ -236,3 +236,63 @@ judgeable.
 - Title-as-identity in screen paths (real IDs at binding time).
 - "Forward is not a return" stays as the faithful legacy trait (SP3 decision).
 - `history.block()` would defeat `flush()` — still true; nothing in SP4 introduces it.
+
+## Spike verdicts (wave A)
+
+### Konsta UI
+
+**Probe.** A throwaway Vite + React-TS project (`konsta` 5.3.0, Tailwind v4 — Konsta
+ships no precompiled stylesheet, only Tailwind `@source` directives scanned at build
+time) rendered one screen at 390×844: a Konsta `App`/`Page`/`Navbar`/`List` holding
+three `ListItem` cards, next to a hand-written control `div` using the maquette's R47
+card contract verbatim (poster 49×73.5, padding 9, radius 8, title 13.5px, gap 10).
+Geometry was read with Playwright (`channel="chrome"`, 390×844, `device_scale_factor`
+2, mobile + touch) via `getBoundingClientRect` and `getComputedStyle`.
+
+**Numbers.** With every relevant Konsta prop forced to the R47 values
+(`contentClassName="!p-[9px] !gap-[10px] !items-start"`,
+`mediaClassName="!py-0 !me-0 !w-[49px] !h-[73.5px]"`, `innerClassName="!py-0 !pe-0"`,
+`titleFontSizeIos="text-[13.5px]"`), the rendered geometry matched the control:
+
+| Metric          | R47 target | Konsta (forced) | Control (hand-written) |
+| --------------- | ---------- | --------------- | ---------------------- |
+| Poster          | 49 × 73.5  | 49 × 73.5       | 49 × 73.5              |
+| Card padding    | 9px        | 9 / 9 / 9 / 9   | 9 / 9 / 9 / 9          |
+| Gap             | 10px       | 10px            | 10px                   |
+| Radius          | 8px        | 8px             | 8px                    |
+| Title font-size | 13.5px     | 13.5px          | 13.5px                 |
+| Card height     | —          | 91.5px          | 91.5px                 |
+
+The numbers can be hit — but only by fighting the library, not by using it. Konsta's
+`ListItem` spreads what R47 treats as one property (card padding + gap) across three
+separate DOM nodes, each carrying its own baked-in iOS spacing: the content row ships
+`ps-safe-4` (a custom safe-area utility, ~16px), the media slot ships `py-2 me-4`
+(8px + 16px), the inner slot ships `py-3 pe-safe-4` (12px). Hitting 9px/10px required
+overriding all three nodes independently, and the override had to be forced: the
+rendered class list for the content row was
+`text-black dark:text-white ps-safe-4 flex items-center !p-[9px] !gap-[10px] !items-start`
+— Konsta's `cls()` helper runs `tailwind-merge`, but `tailwind-merge` does not
+recognise Konsta's custom `ps-safe-4` utility as conflicting with the standard
+padding group, so both classes reach the DOM and only the `!important` modifier
+decided the winner. Proven directly: the same override without `!important`
+(`contentClassName="p-[9px] gap-[10px] items-start"`) left `paddingLeft` measured
+at `16px` — Konsta's default silently survived, with the override class present in
+the DOM and doing nothing.
+
+**Verdict: reject Konsta UI for the maquette's cards and lists.** (a) It can carry
+the exact geometry, but only by discarding its own layout defaults on every
+relevant node with `!important`-forced arbitrary values — a bundle of five props
+across three nodes, repeated identically at every list callsite, or hidden behind a
+custom wrapper that is, at that point, just the maquette's own CSS re-expressed
+through Konsta's markup for no geometric benefit. (b) R47's own text names this
+exact failure mode: its oracle checks that every surface _agrees_, not that the
+metric is intrinsically right — "checking only that every surface agrees leaves the
+poster free to be any size at all as long as it is wrong everywhere." A
+Konsta-backed list would only pass R47 by cloning the override bundle at every
+callsite; dropping `!important` anywhere reverts silently to Konsta's iOS/Material
+defaults, and nothing but a byte-for-byte geometry check would catch it — the
+inverse of a markup-is-the-contract maquette. `ListItem` also renders a flat,
+divider-based row list, not an individually-boxed card, so the maquette's boxed-card
+look needs further overrides layered on top of the geometry fight. Adopting Konsta
+would mean amending every R47/R50 geometry rule to describe an override contract
+instead of a value contract — the wrong direction for a pixel-reference maquette.
