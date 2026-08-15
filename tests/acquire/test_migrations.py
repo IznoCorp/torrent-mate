@@ -29,7 +29,7 @@ from personalscraper.core.sqlite import apply_migrations
 MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "acquire" / "migrations"
 
 # Expected tables after the full migration chain (001 → 017) is applied.
-_LATEST_VERSION = 23
+_LATEST_VERSION = 24
 
 _EXPECTED_TABLES = {
     "followed_series",
@@ -108,7 +108,7 @@ class TestAcquireMigrations:
         conn = sqlite3.connect(str(db_path))
         apply_migrations(conn, MIGRATIONS_DIR)
         rows = conn.execute("SELECT version FROM schema_version ORDER BY version").fetchall()
-        expected = [(v,) for v in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17, 18, 19, 20, 21, 22, 23)]
+        expected = [(v,) for v in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24)]
         assert rows == expected
 
     def test_unique_index_followed_media_ref_exists(self, tmp_path: Path) -> None:
@@ -894,3 +894,28 @@ class TestMigration013:
 
         violations = conn.execute("PRAGMA foreign_key_check").fetchall()
         assert len(violations) == 0, f"foreign_key_check found violations: {violations}"
+
+
+class TestMigration024FollowedOriginalTitle:
+    """024: followed_series.original_title — cross-language movie identity (#435)."""
+
+    def test_fresh_db_has_original_title_column(self, tmp_path: Path) -> None:
+        """A fresh db carries the nullable original_title column at user_version >= 24."""
+        conn = sqlite3.connect(str(tmp_path / "acquire.db"))
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(followed_series)").fetchall()}
+        assert "original_title" in cols
+        assert conn.execute("PRAGMA user_version").fetchone()[0] >= 24
+
+    def test_existing_rows_default_to_null(self, tmp_path: Path) -> None:
+        """Rows created before 024 read back original_title IS NULL (un-healed)."""
+        conn = sqlite3.connect(str(tmp_path / "acquire.db"))
+        apply_migrations(conn, MIGRATIONS_DIR)
+        conn.execute(
+            "INSERT INTO followed_series (media_ref_json, title, active, added_at, kind)"
+            " VALUES ('{\"tmdb_id\": 204922}', 'Avant d''aller dormir', 1, 100, 'movie')"
+        )
+        conn.commit()
+        row = conn.execute("SELECT original_title FROM followed_series").fetchone()
+        assert row[0] is None

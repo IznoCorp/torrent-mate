@@ -1636,3 +1636,88 @@ def test_fallback_season_idempotent(store: ConcreteAcquireStore) -> None:
 
     assert store.wanted.fallback_season(season_wid) is True
     assert store.wanted.fallback_season(season_wid) is False  # already fallback_episodes
+
+
+# ---------------------------------------------------------------------------
+# original_title (migration 024 — cross-language movie identity, #435)
+# ---------------------------------------------------------------------------
+
+
+def test_follow_add_persists_original_title(store: ConcreteAcquireStore) -> None:
+    """#435: follow.add persists ``original_title`` on the INSERT.
+
+    A movie followed under its French display title (« Avant d'aller dormir »)
+    is released under its original English title (`Before I Go to Sleep`); the
+    movie identity filter needs BOTH, so the column must survive the add.
+    """
+    series = FollowedSeries(
+        media_ref=MediaRef(tmdb_id=204922),
+        title="Avant d'aller dormir",
+        added_at=1_700_000_000,
+        kind="movie",
+        year=2014,
+        original_title="Before I Go to Sleep",
+    )
+    row_id = store.follow.add(series)
+    fetched = store.follow.get(row_id)
+    assert fetched is not None
+    assert fetched.original_title == "Before I Go to Sleep"
+
+
+def test_follow_add_conflict_does_not_erase_original_title(store: ConcreteAcquireStore) -> None:
+    """#435: a re-add WITHOUT the original title must not erase the stored one.
+
+    The ON CONFLICT reactivate path refreshes title/kind from the new payload;
+    an add path that does not know the original title (older client, manual
+    form) sends None, and COALESCE must keep the healed value.
+    """
+    ref = MediaRef(tmdb_id=204922)
+    row_id = store.follow.add(
+        FollowedSeries(
+            media_ref=ref,
+            title="Avant d'aller dormir",
+            added_at=1_700_000_000,
+            kind="movie",
+            original_title="Before I Go to Sleep",
+        )
+    )
+    again = store.follow.add(
+        FollowedSeries(media_ref=ref, title="Avant d'aller dormir", added_at=1_700_000_100, kind="movie")
+    )
+    assert again == row_id
+    fetched = store.follow.get(row_id)
+    assert fetched is not None
+    assert fetched.original_title == "Before I Go to Sleep", "conflict re-add must not erase original_title"
+
+
+def test_follow_list_active_carries_original_title(store: ConcreteAcquireStore) -> None:
+    """#435: list_active decodes original_title (the detect backfill reads it there)."""
+    store.follow.add(
+        FollowedSeries(
+            media_ref=MediaRef(tmdb_id=204922),
+            title="Avant d'aller dormir",
+            added_at=1_700_000_000,
+            kind="movie",
+            original_title="Before I Go to Sleep",
+        )
+    )
+    rows = store.follow.list_active()
+    assert any(r.original_title == "Before I Go to Sleep" for r in rows)
+
+
+def test_follow_merge_metadata_original_title_additive(store: ConcreteAcquireStore, tmp_path: Path) -> None:
+    """#435: merge_metadata writes original_title additively (COALESCE — None never clears)."""
+    row_id = store.follow.add(
+        FollowedSeries(media_ref=MediaRef(tmdb_id=204922), title="Avant d'aller dormir", added_at=1, kind="movie")
+    )
+    store.follow.merge_metadata(
+        row_id, poster_url=None, overview=None, year=None, original_title="Before I Go to Sleep"
+    )
+    fetched = store.follow.get(row_id)
+    assert fetched is not None
+    assert fetched.original_title == "Before I Go to Sleep"
+
+    store.follow.merge_metadata(row_id, poster_url=None, overview=None, year=None, original_title=None)
+    fetched = store.follow.get(row_id)
+    assert fetched is not None
+    assert fetched.original_title == "Before I Go to Sleep", "a None original_title must not erase the stored one"
