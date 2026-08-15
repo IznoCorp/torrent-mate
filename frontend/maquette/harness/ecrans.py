@@ -83,12 +83,21 @@ async def main():
 
         await pg.go_back()
         await pg.wait_for_timeout(500)
+        # R-7: `.screen.open` alone is AMBIGUOUS once a migrated screen and
+        # the legacy `#screen` can both carry `open` at once — `#coquille`
+        # (the React root) mounts BEFORE the legacy fragment in DOM order
+        # (Task 9's z-index finding), so `document.querySelector` always
+        # resolves the React screen first and would never surface a legacy
+        # `#screen` that failed to close. `#screen`'s own class is read
+        # EXPLICITLY here, the same way the `fiche` check above already
+        # does, so a stuck fiche is named rather than masked.
         retour = await pg.evaluate("""()=>({
             ecran: !!document.querySelector('.screen.open'),
             cle: document.querySelector('.screen.open')?.dataset.cle,
             cartes: document.querySelectorAll('.reslist .card').length,
             requete: document.querySelector('#addq')?.value,
-            scroll: document.querySelector('.screen.open .port')?.scrollTop})""")
+            scroll: document.querySelector('.screen.open .port')?.scrollTop,
+            ficheEncoreLa: document.querySelector('#screen').classList.contains('open')})""")
         verifier("le retour redessine la liste de résultats",
                  retour["ecran"] and (retour["cle"] or "").startswith("ajout:")
                  and retour["cartes"] == depart["cartes"]
@@ -96,6 +105,8 @@ async def main():
                  f"{retour['cartes']} cartes · requête « {retour['requete']} »")
         verifier("avec sa position de défilement",
                  abs(retour["scroll"] - 300) <= 40, f"{retour['scroll']}px")
+        verifier("et la fiche legacy n'est plus là",
+                 not retour["ficheEncoreLa"], f"#screen open={retour['ficheEncoreLa']}")
 
         await pg.go_back()
         await pg.wait_for_timeout(450)
@@ -114,14 +125,20 @@ async def main():
         # Same legacy fiche as exit 1 — its own « Retour » stays `#screen`.
         await pg.evaluate("()=>document.querySelector('#screen .fback').click()")
         await pg.wait_for_timeout(500)
+        # R-7: same explicit `#screen` read as exit 1's `retour` — a fiche
+        # that failed to close here is exactly what `.screen.open` alone
+        # would miss (DOM order always resolves the React screen first).
         bouton = await pg.evaluate("""()=>({
             ecran: !!document.querySelector('.screen.open'),
             cle: document.querySelector('.screen.open')?.dataset.cle,
-            cartes: document.querySelectorAll('.reslist .card').length})""")
+            cartes: document.querySelectorAll('.reslist .card').length,
+            ficheEncoreLa: document.querySelector('#screen').classList.contains('open')})""")
         verifier("le bouton « Retour » de la fiche fait de même",
                  bouton["ecran"] and (bouton["cle"] or "").startswith("ajout:")
                  and bouton["cartes"] == depart["cartes"],
                  f"{bouton['cartes']} cartes")
+        verifier("et la fiche legacy n'est plus là non plus",
+                 not bouton["ficheEncoreLa"], f"#screen open={bouton['ficheEncoreLa']}")
 
         await navigateur.close()
     _journal.bilan(erreurs)

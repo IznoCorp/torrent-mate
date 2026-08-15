@@ -301,7 +301,8 @@ async def main():
         # The add screen left `#screen` for a real route (`/ajout`, rendered
         # inside `#coquille`): its results live under `.screen.open` now —
         # the FICHE this journey opens next stays fully legacy, still
-        # `#screen`, but this hold never reads that selector.
+        # `#screen`. Not read here (nothing has opened yet), but read
+        # explicitly below once the fiche is expected to have closed.
         depart_state = await pg.evaluate(
             """()=>({
                 ecran: !!document.querySelector('.screen.open'),
@@ -327,13 +328,20 @@ async def main():
         await pg.go_back()
         await pg.wait_for_timeout(500)
 
+        # R-7: `.screen.open` alone is AMBIGUOUS once a migrated screen and
+        # the legacy `#screen` can both carry `open` at once — `#coquille`
+        # mounts BEFORE the legacy fragment in DOM order, so
+        # `document.querySelector` always resolves the React screen first
+        # and would never surface a legacy `#screen` (the fiche this
+        # journey opened) that failed to close. Read explicitly here.
         retour_state = await pg.evaluate(
             """()=>({
                 ecran: !!document.querySelector('.screen.open'),
                 cle: document.querySelector('.screen.open')?.dataset.cle,
                 cartes: document.querySelectorAll('.reslist .card').length,
                 requete: document.querySelector('#addq')?.value,
-                scroll: document.querySelector('.screen.open .port')?.scrollTop
+                scroll: document.querySelector('.screen.open .port')?.scrollTop,
+                ficheEncoreLa: document.querySelector('#screen').classList.contains('open')
             })"""
         )
 
@@ -344,6 +352,11 @@ async def main():
             and retour_state["cartes"] == depart_state["cartes"]
             and retour_state["requete"] == depart_state["requete"],
             f"{retour_state['cartes']} cartes · requête « {retour_state['requete']} »",
+        )
+        verifier(
+            "et la fiche legacy n'est plus là",
+            not retour_state["ficheEncoreLa"],
+            f"#screen open={retour_state['ficheEncoreLa']}",
         )
         # The restored position is asserted, not merely collected: the record
         # says the journey holds the scroll, and a collected number nobody
