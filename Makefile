@@ -128,6 +128,8 @@ openapi:
 check-frontend:
 	@echo "Running frontend typecheck..."
 	cd frontend && npm run typecheck
+	@echo "Running maquette shell typecheck..."
+	cd frontend/maquette/design && npm run typecheck
 	@echo "Running frontend lint..."
 	cd frontend && npm run lint
 	cd frontend && npm run lint:ds
