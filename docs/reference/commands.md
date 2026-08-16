@@ -238,6 +238,45 @@ ambiguous matches.
 
 ---
 
+## `personalscraper scrape-resolve`
+
+**Purpose**: Resolve one pending scrape decision by provider ID — NOT a pipeline
+step. Fetches movie (TMDB) or TV-show (TMDB/TVDB) metadata directly by the
+given ID, writes NFO + artwork into the staging folder, and marks the matching
+`scrape_decision` row as `resolved`. Spawned by the web decisions runner
+(interactive scraping queue) and safe as a direct human invocation.
+
+**Locking**: acquires the SCOPED per-staging-item scrape lock for its lifetime —
+it does NOT self-acquire the global `pipeline.lock` (two-tier scoped locking).
+Distinct items resolve in parallel; the same item blocks; any global
+`pipeline.lock` holder makes the resolve back off (fail-closed).
+
+**Args**:
+
+- `STAGING_PATH` (positional, required) — path to the item's staging directory.
+- `--provider` (required) — `tmdb` or `tvdb`.
+- `--id` (required) — numeric provider identifier.
+- `--via` — resolution provenance: `pick` (candidate from the queue, default)
+  or `search_override`.
+
+**Exit codes**: `0` success · `1` scrape error (API/NFO failure) · `2`
+misconfiguration (missing DB, unknown provider, no matching pending decision,
+invalid provider for the media kind) · `3` lock busy (same item already
+resolving, or a global pipeline holder is active — the web runner queues and
+retries on 3, never on 1).
+
+**Side effects**: `network` (metadata provider), `mutate FS` (staging NFO +
+artwork), `mutate BDD` (`scrape_decision`).
+
+**Examples**:
+
+    personalscraper scrape-resolve "/Volumes/T7/staging/001-MOVIES/Old Boy" --provider tmdb --id 670
+    personalscraper scrape-resolve "/Volumes/T7/staging/002-TVSHOWS/Silo" --provider tvdb --id 403245 --via search_override
+
+**Related**: `scrape`, the web decisions queue (`docs/reference/web-ui.md`)
+
+---
+
 ## `personalscraper enforce`
 
 **Purpose**: Enforces staging conventions on media items before scrape. Sanitizes
@@ -1782,6 +1821,13 @@ Sub-commands:
 - `follow detect` — for each active series, fetch aired episodes (calendar-first)
   and enqueue the ones not already owned as `wanted`. `--dry-run` previews without
   writing; `--series` restricts to one followed id/title.
+- `follow backfill-metadata` — backfill `poster_url` + `overview` + `year` for
+  follows created before server-side enrichment existed. Shares the single
+  enrichment authority with the create-follow route (`acquire.metadata_enrich`):
+  every missing field is fetched from the provider BY ID, never by title search.
+  Idempotent and additive (`COALESCE` never overwrites); read-only under
+  `--dry-run`; one short write transaction per row, taken after that row's
+  provider calls returned.
 
 **Side effects**: `network` (metadata providers), `mutate` (`acquire.db`) — except
 `follow detect --dry-run` which is side-effect-free.
@@ -1793,6 +1839,7 @@ Sub-commands:
     personalscraper follow remove --id 12            # soft-unfollow (history kept)
     personalscraper follow detect --dry-run          # preview wanted episodes
     personalscraper follow detect                    # enqueue them
+    personalscraper follow backfill-metadata --dry-run  # preview poster/overview/year repairs
 
 **Related**: `search`, `grab`
 

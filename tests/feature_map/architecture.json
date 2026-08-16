@@ -233,9 +233,9 @@
       "expires": "2028-07-17"
     },
     {
-      "anchor": "events-15",
+      "anchor": "events-22",
       "category": "documentation_only",
-      "reason": "solidify P13.1 — enumerates the 15 acquire Event subclasses. Registration + envelope round-trip are covered by tests/event_bus/test_pipeline_events.py and tests/event_bus/test_serialization_envelope.py; emission sites by tests/acquire/test_acquire_events.py. The doc list is a catalog reference.",
+      "reason": "solidify P13.1 — enumerates the 22 acquire Event subclasses. Registration + envelope round-trip are covered by tests/event_bus/test_pipeline_events.py and tests/event_bus/test_serialization_envelope.py; emission sites by tests/acquire/test_acquire_events.py. The doc list is a catalog reference.",
       "expires": "2028-07-17"
     },
     {
