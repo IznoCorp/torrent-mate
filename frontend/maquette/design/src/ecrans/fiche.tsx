@@ -22,6 +22,7 @@
 // panel does. The trailer is a plain `<a>` WITHOUT `data-navgo` — that same
 // delegation must not preventDefault an external link.
 import { useParams } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import {
   useContenu,
   useMonde,
@@ -108,6 +109,7 @@ function SaisonsFiche({
   titre: string;
 }) {
   const { possedesDe, plages, dateFR, EP_LABEL, AUJOURDHUI } = useReferentiel();
+  const { t } = useTranslation();
   const eps = fiche?.eps ?? {};
   const lignes: LigneSaison[] = possede
     ? saisons.map(([number, aired, own]) => ({ n: number, aired, own }))
@@ -178,7 +180,9 @@ function SaisonsFiche({
                   </span>{" "}
                   <span className="et">{liste2.t}</span>{" "}
                   <span className="ed">
-                    {liste2.air ? dateFR(liste2.air) : "date inconnue"}
+                    {liste2.air
+                      ? dateFR(liste2.air)
+                      : t("screens.fiche.dateUnknown")}
                     {episodeState === "en_mediatheque"
                       ? ""
                       : ` · ${EP_LABEL[episodeState].toLowerCase()}`}
@@ -203,7 +207,10 @@ function SaisonsFiche({
                   <span
                     className={`ep ${episodeState}`}
                     key={number}
-                    aria-label={`Épisode ${number} — ${EP_LABEL[episodeState]}`}
+                    aria-label={t("screens.fiche.episodeAria", {
+                      n: number,
+                      etat: EP_LABEL[episodeState],
+                    })}
                   >
                     {String(number).padStart(2, "0")}
                   </span>
@@ -212,8 +219,7 @@ function SaisonsFiche({
             </div>
             {ligne.aired == null ? (
               <p className="nofiche" style={{ marginTop: "6px" }}>
-                Au-delà de l&apos;épisode {borne}, le provider ne dit pas
-                combien la saison en compte.
+                {t("screens.fiche.beyondEpisode", { n: borne })}
               </p>
             ) : (
               ""
@@ -221,12 +227,11 @@ function SaisonsFiche({
           </>
         ) : ligne.aired === 0 || ligne.aired === null ? (
           <p className="nofiche" style={{ marginTop: "8px" }}>
-            Saison annoncée : aucun épisode diffusé pour l&apos;instant.
+            {t("screens.fiche.seasonAnnounced")}
           </p>
         ) : (
           <p className="nofiche" style={{ marginTop: "8px" }}>
-            Épisodes non détaillés pour cette saison — la fiche le dit plutôt
-            que d&apos;afficher une liste vide.
+            {t("screens.fiche.episodesNotDetailed")}
           </p>
         );
         return (
@@ -242,17 +247,18 @@ function SaisonsFiche({
                   season number from it, an assistive technology reading the
                   row — would otherwise see « Saison 33/13 ». `summary` is a
                   flex container, so a whitespace-only node draws nothing. */}
-              Saison {ligne.n}{" "}
+              {t("common.season")} {ligne.n}{" "}
               <span className="sfr">
                 {ligne.aired === 0
-                  ? "à venir"
+                  ? t("screens.fiche.seasonUpcoming")
                   : possede
                     ? `${nbOwn}/${ligne.aired ?? "?"}`
-                    : `${ligne.aired ?? "?"} ép.`}
+                    : `${ligne.aired ?? "?"} ${t("screens.fiche.episodesShort")}`}
               </span>{" "}
               {possede && manque != null && manque > 0 ? (
                 <span className="miss">
-                  {manque} manquant{manque > 1 ? "s" : ""}
+                  {manque}{" "}
+                  {manque > 1 ? t("common.missingPlural") : t("common.missing")}
                 </span>
               ) : (
                 ""
@@ -273,7 +279,11 @@ function SaisonsFiche({
               )}
             </summary>
             {numsManquants.length ? (
-              <p className="manquants">Manquants : {plages(numsManquants)}</p>
+              <p className="manquants">
+                {t("screens.fiche.missingList", {
+                  liste: plages(numsManquants),
+                })}
+              </p>
             ) : (
               ""
             )}
@@ -314,6 +324,7 @@ export function FicheEcran() {
   const monde = useMonde() as { follows?: Suivi[] } | null;
   const suivis = monde?.follows ?? [];
   const referentiel = useReferentiel();
+  const { t } = useTranslation();
   const {
     icons,
     baseTitle,
@@ -378,7 +389,7 @@ export function FicheEcran() {
       <div className="fichebar">
         <button className="fback" onClick={() => window.__pont.retour()}>
           <Icone paths={icons.left} />
-          Retour
+          {t("screens.fiche.back")}
         </button>{" "}
         <span
           style={{
@@ -387,7 +398,7 @@ export function FicheEcran() {
             color: "var(--muted-foreground)",
           }}
         >
-          {url ?? "média non identifié"}
+          {url ?? t("screens.fiche.unidentified")}
         </span>
       </div>
       <div className="port">
@@ -404,8 +415,8 @@ export function FicheEcran() {
               <h2 className="ht">{titre.split(" (")[0]}</h2>
               <p className="hm">
                 {fiche
-                  ? `${fiche.y || "année inconnue"} · ${isFilm ? "Film" : "Série"}${fiche.duree ? ` · ${fiche.duree} min` : ""}`
-                  : "Métadonnées inconnues"}{" "}
+                  ? `${fiche.y || t("screens.fiche.yearUnknown")} · ${isFilm ? t("common.film") : t("common.series")}${fiche.duree ? ` · ${fiche.duree} ${t("screens.fiche.minutesShort")}` : ""}`
+                  : t("screens.fiche.metadataUnknown")}{" "}
                 {fiche?.g ? (
                   <>
                     <br />
@@ -414,13 +425,15 @@ export function FicheEcran() {
                 ) : (
                   <>
                     <br />
-                    Genres inconnus
+                    {t("screens.fiche.genresUnknown")}
                   </>
                 )}{" "}
                 {fiche && !isFilm && fiche.statut ? (
                   <>
                     <br />
-                    Série {fiche.statut.toLowerCase()}
+                    {t("screens.fiche.seriesStatus", {
+                      statut: fiche.statut.toLowerCase(),
+                    })}
                   </>
                 ) : (
                   ""
@@ -436,7 +449,8 @@ export function FicheEcran() {
                       fontWeight: 400,
                     }}
                   >
-                    {" sur TMDB"}
+                    {" "}
+                    {t("screens.fiche.ratingSource")}
                   </span>
                 </span>
               ) : (
@@ -457,7 +471,8 @@ export function FicheEcran() {
                 <Icone paths={icons.play} />
               </span>{" "}
               <span>
-                Bande-annonce<small>{bande.nom}</small>
+                {t("screens.fiche.trailer")}
+                <small>{bande.nom}</small>
               </span>{" "}
               <span className="tsrc">
                 <Icone paths={icons.ext} />
@@ -465,15 +480,12 @@ export function FicheEcran() {
               </span>
             </a>
           ) : (
-            <p className="nofiche">
-              Aucune bande-annonce fournie par le provider. La fiche le dit
-              plutôt que de masquer la section — §8.
-            </p>
+            <p className="nofiche">{t("screens.fiche.noTrailer")}</p>
           )}
 
           <div>
             <h2 className="h2" style={{ marginBottom: "6px" }}>
-              Synopsis
+              {t("screens.fiche.synopsis")}
             </h2>
             <p
               style={{
@@ -483,22 +495,27 @@ export function FicheEcran() {
                 color: "var(--muted-foreground)",
               }}
             >
-              {fiche?.ov
-                ? fiche.ov
-                : "Synopsis inconnu — le provider n'en fournit pas."}
+              {fiche?.ov ? fiche.ov : t("screens.fiche.synopsisUnknown")}
             </p>
           </div>
 
           <div>
             <h2 className="h2" style={{ marginBottom: "8px" }}>
               {isFilm
-                ? "Réalisation et distribution"
-                : "Création et distribution"}
+                ? t("screens.fiche.castHeadingFilm")
+                : t("screens.fiche.castHeadingSeries")}
             </h2>
             <div className="panel" style={{ marginBottom: "10px" }}>
               <div className="kv">
-                <span>{isFilm ? "Réalisateur" : "Créateur"}</span>
-                <span>{(isFilm ? fiche?.real : fiche?.crea) ?? "inconnu"}</span>
+                <span>
+                  {isFilm
+                    ? t("screens.fiche.director")
+                    : t("screens.fiche.creator")}
+                </span>
+                <span>
+                  {(isFilm ? fiche?.real : fiche?.crea) ??
+                    t("screens.fiche.unknown")}
+                </span>
               </div>
             </div>
             {fiche?.cast?.length ? (
@@ -514,38 +531,43 @@ export function FicheEcran() {
                     </span>
                     <figcaption>
                       <b>{cast.n}</b>
-                      <span>{cast.r || "rôle inconnu"}</span>
+                      <span>{cast.r || t("screens.fiche.roleUnknown")}</span>
                     </figcaption>
                   </figure>
                 ))}
               </div>
             ) : (
-              <p className="nofiche">Distribution inconnue.</p>
+              <p className="nofiche">{t("screens.fiche.castUnknown")}</p>
             )}
           </div>
 
           <div>
             <h2 className="h2" style={{ marginBottom: "6px" }}>
-              Médiathèque
+              {t("screens.fiche.library")}
             </h2>
             <div className="panel">
               {!possede ? (
                 <>
                   <div className="kv">
-                    <span>Dans votre médiathèque</span>
+                    <span>{t("screens.fiche.inLibrary")}</span>
                     <span>
-                      <span className="pip neutral"></span>non
+                      <span className="pip neutral"></span>
+                      {t("screens.fiche.no")}
                     </span>
                   </div>
                   <div className="kv">
-                    <span>Suivi</span>
-                    <span>{suivi ? "actif" : "non suivi"}</span>
+                    <span>{t("screens.fiche.follow")}</span>
+                    <span>
+                      {suivi
+                        ? t("screens.fiche.followActive")
+                        : t("screens.fiche.followInactive")}
+                    </span>
                   </div>
                   {cat.length ? (
                     <div className="kv">
-                      <span>{`Catalogue ${isFilm ? "" : "connu"}`}</span>
+                      <span>{`${t("screens.fiche.catalogue")} ${isFilm ? "" : t("screens.fiche.catalogueKnown")}`}</span>
                       <span>
-                        {`${cat.length} saison${cat.length > 1 ? "s" : ""} · ${catEp} épisodes`}
+                        {`${cat.length} ${cat.length > 1 ? t("screens.fiche.seasonLowerPlural") : t("screens.fiche.seasonLower")} · ${catEp} ${t("screens.fiche.episodes")}`}
                       </span>
                     </div>
                   ) : (
@@ -555,13 +577,14 @@ export function FicheEcran() {
               ) : isFilm ? (
                 <>
                   <div className="kv">
-                    <span>Possédé</span>
+                    <span>{t("screens.fiche.owned")}</span>
                     <span>
-                      <span className="pip success"></span>oui
+                      <span className="pip success"></span>
+                      {t("screens.fiche.yes")}
                     </span>
                   </div>
                   <div className="kv">
-                    <span>Fichier</span>
+                    <span>{t("screens.fiche.file")}</span>
                     <span
                       style={{
                         fontFamily: "ui-monospace,Menlo,monospace",
@@ -575,24 +598,26 @@ export function FicheEcran() {
               ) : (
                 <>
                   <div className="kv">
-                    <span>Saisons</span>
-                    <span>{sort.length || "inconnu"}</span>
+                    <span>{t("screens.fiche.seasons")}</span>
+                    <span>{sort.length || t("screens.fiche.unknown")}</span>
                   </div>
                   <div className="kv">
-                    <span>Épisodes diffusés</span>
-                    <span>{aired || "inconnu"}</span>
+                    <span>{t("screens.fiche.airedEpisodes")}</span>
+                    <span>{aired || t("screens.fiche.unknown")}</span>
                   </div>
                   <div className="kv">
-                    <span>Possédés</span>
+                    <span>{t("screens.fiche.ownedPlural")}</span>
                     <span>{own}</span>
                   </div>
                   <div className="kv">
-                    <span>Complétude</span>
+                    <span>{t("screens.fiche.completeness")}</span>
                     <span>
                       <span
                         className={`pip ${pct === 100 ? "success" : pct === null ? "neutral" : "warning"}`}
                       ></span>
-                      {pct === null ? "inconnue" : pct + " %"}
+                      {pct === null
+                        ? t("screens.fiche.unknownFeminine")
+                        : pct + " %"}
                     </span>
                   </div>
                 </>
@@ -609,11 +634,11 @@ export function FicheEcran() {
 
           <div>
             <h2 className="h2" style={{ marginBottom: "6px" }}>
-              Informations
+              {t("screens.fiche.information")}
             </h2>
             <div className="panel">
               <div className="kv">
-                <span>Suivi</span>
+                <span>{t("screens.fiche.follow")}</span>
                 {/* The SECOND follow test, and the strict one: an exact title
                     match, or an exact match on the title without its year
                     suffix. The hero block above answers the same question
@@ -625,8 +650,8 @@ export function FicheEcran() {
                     (follow) =>
                       follow.t === titre || follow.t === titre.split(" (")[0],
                   )
-                    ? "actif"
-                    : "non suivi"}
+                    ? t("screens.fiche.followActive")
+                    : t("screens.fiche.followInactive")}
                 </span>
               </div>
               {Object.entries(prov).map(([key, value]) => (
@@ -643,8 +668,8 @@ export function FicheEcran() {
                 </div>
               ))}
               <div className="kv">
-                <span>Métadonnées rafraîchies</span>
-                <span>10 août, 04 h 12</span>
+                <span>{t("screens.fiche.metadataRefreshed")}</span>
+                <span>{t("screens.fiche.metadataRefreshedValue")}</span>
               </div>
             </div>
           </div>
@@ -654,20 +679,22 @@ export function FicheEcran() {
               <>
                 <button
                   className="sact"
-                  data-toast="Re-scrape lancé — NFO et affiches seront refaits."
+                  data-toast={t("screens.fiche.rescrapeToast")}
                 >
                   <Icone paths={icons.refresh} />
-                  Re-scraper les métadonnées
+                  {t("screens.fiche.rescrape")}
                 </button>{" "}
                 <button className="sact danger" data-del={titre}>
                   <Icone paths={icons.trash} />
-                  Supprimer de la médiathèque
+                  {t("screens.fiche.delete")}
                 </button>
               </>
             ) : suivi ? (
               <button className="ficheadd done" disabled>
                 <Icone paths={icons.check} />
-                {isFilm ? "Ajouté" : "Suivi"}
+                {isFilm
+                  ? t("screens.fiche.added")
+                  : t("screens.fiche.followed")}
               </button>
             ) : (
               // No `data-refiche`: the legacy button asked the sheet to
@@ -680,16 +707,15 @@ export function FicheEcran() {
                 data-fkind={isFilm ? "Film" : "Série"}
               >
                 <Icone paths={icons.plus} />
-                {isFilm ? "Ajouter" : "Suivre"}
+                {isFilm
+                  ? t("screens.fiche.add")
+                  : t("screens.fiche.followVerb")}
               </button>
             )}
           </div>
 
           <div className="note">
-            <b>Un seul gabarit pour tout média.</b> Les différences visibles ici
-            sont celles que la nature impose — réalisateur et durée pour un
-            film, créateur, statut et catalogue pour une série. Toute autre
-            différence serait une dérive.
+            <b>{t("screens.fiche.noteTitle")}</b> {t("screens.fiche.noteBody")}
           </div>
         </div>
       </div>

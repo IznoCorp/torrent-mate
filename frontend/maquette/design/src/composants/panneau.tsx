@@ -11,8 +11,19 @@
 // Markup is TRANSPLANTED, not translated: React escapes text nodes
 // natively, so there is no `escapeHtml` here — every plain string prop
 // below is a JSX child or attribute value, which is already safe.
+//
+// TWO WAYS INTO THE SAME RESOURCE, and the split is deliberate. Prose —
+// anything a reader reads as a sentence — goes through `t()`, so a component
+// re-renders when the language changes. The three settings DICTIONARIES are
+// read from the imported resource object directly: their lookups run in plain
+// functions (`libelleReglage`, `sujetReglage`, `uniteDe`) that are not
+// components and cannot hold a hook, their keys are DATA (setting ids, path
+// segments, unit suffixes) rather than translation keys, and a key absent from
+// the table has a fallback that `t()`'s own missing-key behaviour would fight.
 import { Fragment, type JSX } from "react";
+import { useTranslation } from "react-i18next";
 import { useReferentiel, type Reglage, type Referentiel } from "../donnees";
+import fr from "../i18n/fr.json";
 
 // The exact shape `svgIcon(paths, strokeWidth)` produced as an HTML
 // string — rebuilt as a real element so it composes with JSX. Same helper
@@ -270,6 +281,7 @@ function SaisonDetail({
   saison: Saison;
   referentiel: Referentiel;
 }) {
+  const { t } = useTranslation();
   const [num, airedBrut, owned] = saison;
   const aired = airedBrut ?? 0;
   const complete = owned >= aired;
@@ -309,13 +321,14 @@ function SaisonDetail({
             technology announcing it). `summary` is a flex container, so a
             whitespace-only node draws nothing: the fix is invisible and the
             text is right again. */}
-        Saison {num}{" "}
+        {t("common.season")} {num}{" "}
         <span className="sfr">
           {owned}/{aired}
         </span>{" "}
         {complete ? null : (
           <span className="miss">
-            {manque} manquant{manque > 1 ? "s" : ""}
+            {manque}{" "}
+            {manque > 1 ? t("common.missingPlural") : t("common.missing")}
           </span>
         )}
       </summary>
@@ -371,17 +384,10 @@ function BlocSaisons({ bloc }: { bloc: Extract<Bloc, { type: "saisons" }> }) {
 // `uniteDe` / `nomDeFichier` are pure formatting off a `Reglage`'s own
 // fields — refonte.html keeps them private (not published on
 // `__referentiel`) but they carry no engine state, so they are reproduced
-// verbatim rather than re-derived differently.
-const UNITES: Record<string, string> = {
-  gb: "Go",
-  days: "jours",
-  hours: "heures",
-  seconds: "secondes",
-  minutes: "minutes",
-  m: "minutes",
-  s: "secondes",
-  ratio: "ratio",
-};
+// verbatim rather than re-derived differently. The unit NAMES live in
+// `fr.json` (`settings.units`), keyed by the setting-name suffix the split
+// below produces — a suffix is data, not French.
+const UNITES: Record<string, string> = fr.settings.units;
 
 function uniteDe(reglage: Reglage): string | null {
   const dernier = reglage.n.split("_").pop();
@@ -392,112 +398,12 @@ function nomDeFichier(f: string): string {
   return f.includes(".") ? f : `${f}.json5`;
 }
 
-// THE LABEL IS FRENCH, AND IT IS CURATED — reproduced verbatim from
-// refonte.html's `LIBELLES_REGLAGES` (same category as `EP_ORDER`/
-// `EP_SWATCH` above: pure static frontend data, no engine state, just kept
-// private / not published on `__referentiel`). A key absent from it falls
-// back to itself, humanised.
-const LIBELLES_REGLAGES: Record<string, string> = {
-  // The six schedulers share the key `cron_restart`, so the leaf would draw
-  // « cron restart » six times in one list — the very defect this map
-  // exists for. Each is named by what it goes and does.
-  "personalscraper-health-check": "Contrôle de santé du système",
-  "personalscraper-search": "Recherche des releases suivies",
-  "personalscraper-grab": "Récupération des releases trouvées",
-  "personalscraper-follow-detect": "Détection des épisodes diffusés",
-  "personalscraper-index-enrich": "Enrichissement de l'index",
-  "personalscraper-backfill-ids": "Complétion des identifiants croisés",
-  torrent_complete_dir: "Dossier où qBittorrent dépose les torrents terminés",
-  staging_dir: "Dossier de transit avant rangement",
-  data_dir: "Dossier des données du pipeline",
-  disks: "Disques de destination",
-  active: "Actif",
-  priority: "Priorité",
-  movies: "Films",
-  tv_shows: "Séries",
-  staging_dirs: "Sous-dossiers du transit",
-  category_rules: "Règles de catégorie",
-  custom_categories: "Catégories personnalisées",
-  default_movies_category: "Catégorie par défaut des films",
-  default_tv_category: "Catégorie par défaut des séries",
-  maps_to: "Range dans",
-  applies_to: "S'applique à",
-  requires_genre_id: "Exige le genre",
-  requires_origin_country: "Exige le pays d'origine",
-  aliases: "Autres noms acceptés",
-  episode_default_name: "Nom donné à un épisode sans titre",
-  folder_name: "Motif du nom de dossier",
-  encoding_rules: "Règles d'encodage des noms",
-  allow_synthetic_rename_on_unmatched: "Renommer même sans correspondance",
-  long_title_threshold: "Longueur au-delà de laquelle un titre est long",
-  short_title_length: "Longueur d'un titre raccourci",
-  short_title_threshold: "Longueur en dessous de laquelle un titre est court",
-  min_length_ratio: "Proportion minimale conservée d'un titre",
-  enabled: "Activé",
-  max_per_tracker: "Résultats maximum par tracker",
-  max_total_results: "Résultats maximum au total",
-  timeout_per_tracker: "Délai d'attente par tracker",
-  search_query_format: "Forme de la requête envoyée au tracker",
-  tiers: "Paliers de trackers",
-  preferred_resolution: "Résolution préférée",
-  preferred_codec: "Codec préféré",
-  fallback_codecs: "Codecs acceptés à défaut",
-  rejected_codecs: "Codecs refusés",
-  required_languages: "Langues exigées",
-  fallback_language: "Langue acceptée à défaut",
-  max_size_movie_gb: "Taille maximale d'un film",
-  max_size_episode_gb: "Taille maximale d'un épisode",
-  min_free_space_staging_gb: "Espace libre minimal avant une ingestion",
-  min_free_space_disk_gb: "Espace libre minimal avant un rangement",
-  circuit_breaker_threshold: "Erreurs d'affilée avant de couper",
-  circuit_breaker_cooldown: "Attente avant de réessayer après une coupure",
-  target_ratio: "Ratio de partage visé",
-  min_ratio: "Ratio de partage minimal",
-  min_seed_time: "Durée de partage minimale",
-  hit_and_run_grace: "Tolérance avant de considérer un abandon",
-  cross_seed: "Partage croisé",
-  verify_seed_pure: "Vérifier qu'un partage reste intact",
-  cutoff_days: "Ancienneté au-delà de laquelle on n'insiste plus",
-  budget_seconds: "Temps accordé à une recherche",
-  language: "Langue des métadonnées",
-  languages: "Langues acceptées",
-  artwork_language: "Langue des visuels",
-  prefer_local_title: "Préférer le titre local",
-  fallback_youtube_search: "Chercher sur YouTube à défaut",
-  lock_to_series_provider: "S'en tenir au fournisseur de la série",
-  use_when_available: "Utiliser quand c'est disponible",
-  profile_priority: "Ordre des profils",
-  overlays: "Surcouches de configuration",
-  tmdb: "TMDB",
-  tvdb: "TVDB",
-  omdb: "OMDb",
-  trakt: "Trakt",
-  paranoia_window_seconds: "Fenêtre de vérification supplémentaire",
-  db_path: "Emplacement de la base d'index",
-  max_workers_total: "Travailleurs simultanés",
-  read_rate_mb_per_sec: "Débit de lecture accordé",
-  checkpoint_every_n_files: "Points de reprise, tous les N fichiers",
-  drop_indexes_during_full_scan: "Retirer les index pendant un scan complet",
-  merkle_delta_freeze_threshold: "Seuil de gel du calcul d'écarts",
-  n_strikes_for_softdelete: "Absences avant de marquer un média disparu",
-  deleted_item_retention_days: "Durée de conservation d'un média supprimé",
-  host: "Adresse d'écoute",
-  port: "Port d'écoute",
-  username: "Nom d'utilisateur",
-  redis_url: "Adresse de Redis",
-  stream_key: "Nom du flux d'événements",
-  stream_maxlen: "Événements gardés dans le flux",
-  session_ttl_hours: "Durée d'une session",
-  cookie_secure: "Cookie réservé aux connexions sûres",
-  dev_mode: "Mode développement",
-  config_version: "Version du format de configuration",
-
-  // Keyed by full path where the leaf alone would name two different things.
-  "scraper.language": "Langue visée par le scrapage",
-  "scraper.fallback_language": "Langue de repli du scrapage",
-  "scraper.prefer_local_title": "Préférer le titre local au scrapage",
-  "web.enabled": "Serveur web activé",
-};
+// THE LABEL IS FRENCH, AND IT IS CURATED — the table lives in `fr.json`
+// (`settings.labels`), and its KEYS are setting ids: a leaf name
+// (`staging_dir`), a full path where the leaf alone would name two different
+// things (`scraper.language`), or a scheduler unit name. Those are data,
+// never French. A key absent from it falls back to itself, humanised.
+const LIBELLES_REGLAGES: Record<string, string> = fr.settings.labels;
 
 // A leaf key alone does not identify a setting. `enabled` sits under every
 // tracker, every torrent client, every metadata provider and the web
@@ -514,62 +420,11 @@ const CONTENANTS_REGLAGES = new Set([
   "cadence",
 ]);
 
-const NOMS_SUJETS: Record<string, string> = {
-  c411: "C411",
-  tr4ker: "Tr4ker",
-  lacale: "LaCale",
-  qbittorrent: "qBittorrent",
-  transmission: "Transmission",
-  tmdb: "TMDB",
-  tvdb: "TVDB",
-  omdb: "OMDb",
-  trakt: "Trakt",
-  telegram: "Telegram",
-  healthchecks: "Healthchecks",
-  movies: "Films",
-  movies_animation: "Films d'animation",
-  movies_documentary: "Documentaires",
-  tv_shows: "Séries",
-  tv_shows_animation: "Séries d'animation",
-  tv_shows_documentary: "Séries documentaires",
-  anime: "Animés",
-  tv_programs: "Émissions",
-  standup: "Spectacles",
-  theater: "Théâtre",
-  audiobooks: "Livres audio",
-  movie_scraping: "Scrapage des films",
-  series_scraping: "Scrapage des séries",
-  episode_scraping: "Scrapage des épisodes",
-  episode_scraping_policy: "Politique de scrapage des épisodes",
-  season_pack_policy: "Saisons en un seul fichier",
-  anime_rule: "Règle des animés",
-  recommendations: "Recommandations",
-  notations: "Notations",
-  spotlight: "Spotlight",
-  drift: "Dérive",
-  economy: "Obligations de partage",
-  fuzzy_match: "Rapprochement approximatif",
-  library_check: "Contrôle de la médiathèque",
-  library: "Médiathèque",
-  ingest: "Récupération",
-  scan: "Balayage",
-  sort: "Tri",
-  watch: "Surveillance",
-  seasons: "Saisons",
-  subtitles: "Sous-titres",
-  cross_seed: "Partage croisé",
-  audio: "Audio",
-  video: "Vidéo",
-  log: "Journal",
-  tmdb_movies: "Genres TMDB (films)",
-  tmdb_tv: "Genres TMDB (séries)",
-  Searchable: "Recherche",
-  MovieDetailsProvider: "Détails des films",
-  TvDetailsProvider: "Détails des séries",
-  EpisodeFetcher: "Épisodes",
-  ArtworkProvider: "Illustrations",
-  VideoProvider: "Bandes-annonces",
-};
+// The SUBJECT names live in `fr.json` (`settings.subjects`), keyed by the
+// path segment they name — a tracker, a client, a provider, a category — which
+// is data. A segment absent from the table falls back to itself, underscores
+// spaced out.
+const NOMS_SUJETS: Record<string, string> = fr.settings.subjects;
 
 // `sujetReglage` drops the legacy `window.__sujetsSansNom.add(s)` diagnostic
 // side effect (an unpublished engine global, unrelated to what a subject
@@ -592,7 +447,7 @@ function libelleReglage(reglage: Reglage): string {
     LIBELLES_REGLAGES[reglage.c] ??
     LIBELLES_REGLAGES[reglage.n] ??
     (/^\d+$/.test(reglage.n)
-      ? `Genre ${reglage.n}`
+      ? `${fr.settings.genre} ${reglage.n}`
       : reglage.n.replace(/_/g, " "));
   const sujet = sujetReglage(reglage);
   return sujet ? `${sujet} — ${propre}` : propre;
@@ -607,6 +462,7 @@ function BlocChamp({ bloc }: { bloc: Extract<Bloc, { type: "champ" }> }) {
     ouvrirReglage,
     icons,
   } = useReferentiel();
+  const { t } = useTranslation();
   const { reglage } = bloc;
   const id = reglageId(reglage);
   // The field draws what `valeurEnCours` answers — the pending edit if there
@@ -621,10 +477,10 @@ function BlocChamp({ bloc }: { bloc: Extract<Bloc, { type: "champ" }> }) {
     return (
       <div className="champ refus">
         <p className="rulenote">
-          Cette valeur est une <b>structure</b> — une liste d&apos;objets avec
-          leurs propres clés. Elle ne s&apos;édite pas ici : un formulaire
-          qu&apos;on ne peut pas valider promettrait une modification qui casse
-          le fichier. Ouvrez <code>{nomDeFichier(reglage.f)}</code>.
+          {t("settings.field.structureBefore")}{" "}
+          <b>{t("settings.field.structureWord")}</b>{" "}
+          {t("settings.field.structureAfter")}{" "}
+          <code>{nomDeFichier(reglage.f)}</code>.
         </p>
       </div>
     );
@@ -641,7 +497,9 @@ function BlocChamp({ bloc }: { bloc: Extract<Bloc, { type: "champ" }> }) {
         >
           <span className="pastille" />
         </button>
-        <span className="champlbl">{v ? "Activé" : "Désactivé"}</span>
+        <span className="champlbl">
+          {v ? t("settings.field.enabled") : t("settings.field.disabled")}
+        </span>
       </div>
     );
 
@@ -657,21 +515,20 @@ function BlocChamp({ bloc }: { bloc: Extract<Bloc, { type: "champ" }> }) {
                 className="lsupp"
                 data-champsupp={id}
                 data-index={index}
-                aria-label={`Retirer ${String(x)}`}
+                aria-label={t("settings.field.removeAria", {
+                  valeur: String(x),
+                })}
               >
                 <Icone paths={icons.x} />
               </button>
             </div>
           ))
         ) : (
-          <p className="rulenote">
-            Aucune valeur. La liste est vide, ce qui n&apos;est pas la même
-            chose qu&apos;une valeur absente.
-          </p>
+          <p className="rulenote">{t("settings.field.emptyList")}</p>
         )}
         <button className="lajout" data-champajout={id}>
           <Icone paths={icons.plus} />
-          Ajouter
+          {t("settings.field.add")}
         </button>
       </div>
     );
@@ -701,7 +558,7 @@ function BlocChamp({ bloc }: { bloc: Extract<Bloc, { type: "champ" }> }) {
         type={numerique ? "number" : "text"}
         inputMode={numerique ? "decimal" : undefined}
         defaultValue={vide ? "" : String(v)}
-        placeholder={vide ? "non défini" : ""}
+        placeholder={vide ? t("settings.field.undefinedPlaceholder") : ""}
         aria-label={libelleReglage(reglage)}
         // The ONE place mountSearch's `.champsaisie` `onchange` binding
         // (refonte.html) is replaced by a component-owned handler — and it is
@@ -732,7 +589,7 @@ function BlocChamp({ bloc }: { bloc: Extract<Bloc, { type: "champ" }> }) {
       {unite ? (
         <span className="champunite">{unite}</span>
       ) : reglage.type === "duree" ? (
-        <span className="champunite">format 72h</span>
+        <span className="champunite">{t("settings.field.durationFormat")}</span>
       ) : null}
     </div>
   );
@@ -757,7 +614,11 @@ export type Bloc =
 // (`window.__panneauInconnu`, published by the shell) raises the SAME error
 // the renderer raises rather than a copy of its message that can drift.
 export function refuserBloc(bloc: { type: string }): never {
-  throw new Error("bloc de panneau inconnu : " + bloc.type);
+  // ENGLISH, and deliberately not in `fr.json`: this is a tool message. It
+  // reaches a developer console and the rule harness, never a reader of the
+  // interface, so it is not a translatable string — the same reason
+  // `console.error` calls in the shell are English.
+  throw new Error("unknown panel block: " + bloc.type);
 }
 
 function BlocView({ bloc }: { bloc: Bloc }) {
@@ -774,10 +635,10 @@ function BlocView({ bloc }: { bloc: Bloc }) {
       return <BlocChamp bloc={bloc} />;
     default:
       // Silence here would draw an empty panel and blame the data. A block
-      // type nobody declared is a fact nobody declared — same refusal as
-      // `panneauBlocHTML`'s own throw, same message, so the signal a probe
-      // reads (the Error's text) stays the one `window.__panneauInconnu`
-      // exercises.
+      // type nobody declared is a fact nobody declared, and the refusal goes
+      // through the ONE named thrower above, so the signal a probe reads (the
+      // Error's text) is the one `window.__panneauInconnu` exercises rather
+      // than a copy of it that can drift.
       return refuserBloc(bloc as { type: string });
   }
 }

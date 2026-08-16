@@ -8,6 +8,7 @@
 // same stylesheet applies unchanged and the rule harness measures the same
 // geometry it measured on the legacy `#screen`.
 import { useParams } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import {
   ecrireEtat,
   useEtat,
@@ -81,6 +82,7 @@ export function ProfilEcran() {
   const etat = useEtat();
   const profil = etat.profil as QualityProfile;
   const { RELEASES, RESOS, AUDIOS, icons, baseTitle } = useReferentiel();
+  const { t } = useTranslation();
   const retenus = compterRetenus(profil, RELEASES);
 
   function ecrireProfil(patch: Partial<QualityProfile>): void {
@@ -109,7 +111,7 @@ export function ProfilEcran() {
       <div className="fichebar">
         <button className="fback" onClick={() => window.__pont.retour()}>
           <Icone paths={icons.left} />
-          Retour
+          {t("screens.profil.back")}
         </button>
         <span
           style={{
@@ -118,39 +120,34 @@ export function ProfilEcran() {
             color: "var(--muted-foreground)",
           }}
         >
-          {titre ? baseTitle(titre) : "profil par défaut"}
+          {titre ? baseTitle(titre) : t("screens.profil.defaultProfile")}
         </span>
       </div>
       <div className="port">
         <div className="body">
           <div className="note">
-            <b>Corrigé après vérification du backend.</b> Ma première version de
-            cet écran réglait des « sources acceptées » et des exclusions CAM/TS
-            qui <em>n'existent pas</em> par suivi. Le{" "}
-            <code>QualityProfile</code> réel n'a que les quatre champs
-            ci-dessous. Le reste — les poids qui départagent — est global et vit
-            déjà dans <code>/config ?tab=classement</code>.
+            <b>{t("screens.profil.noteTitle")}</b>{" "}
+            {t("screens.profil.noteBefore")}{" "}
+            <em>{t("screens.profil.noteEmphasis")}</em>{" "}
+            {t("screens.profil.noteAfterEmphasis")} <code>QualityProfile</code>{" "}
+            {t("screens.profil.noteAfterCode")}{" "}
+            <code>/config ?tab=classement</code>.
           </div>
 
           <p className="qhint">
-            Ce profil <b>filtre</b> : il élimine ce qui ne conviendra jamais. Il
-            n'ordonne pas — ce qui survit est départagé par le classement
-            global.
+            {t("screens.profil.leadBefore")}{" "}
+            <b>{t("screens.profil.leadEmphasis")}</b>{" "}
+            {t("screens.profil.leadAfter")}
           </p>
 
           <div className="qgroup">
-            <h2 className="h2">Résolution minimale</h2>
-            <p className="qhint">
-              Un plancher, pas une liste : tout ce qui est en dessous est
-              écarté. « Aucun plancher » laisse passer les sources sans
-              résolution lisible (REMUX, COMPLETE.BLURAY) que le classement note
-              au mérite.
-            </p>
-            <p className="optkind">Un seul choix</p>
+            <h2 className="h2">{t("screens.profil.minResolution")}</h2>
+            <p className="qhint">{t("screens.profil.minResolutionHint")}</p>
+            <p className="optkind">{t("screens.profil.singleChoice")}</p>
             <div
               className="optlist"
               role="radiogroup"
-              aria-label="Résolution minimale"
+              aria-label={t("screens.profil.minResolution")}
             >
               <button
                 className="opt radio"
@@ -161,8 +158,8 @@ export function ProfilEcran() {
               >
                 <span className="mark" />
                 <span className="lb">
-                  Aucun plancher
-                  <small>Aucune résolution n'est écartée</small>
+                  {t("screens.profil.noFloor")}
+                  <small>{t("screens.profil.noFloorHint")}</small>
                 </span>
               </button>
               {RESOS.map((reso) => (
@@ -176,13 +173,13 @@ export function ProfilEcran() {
                 >
                   <span className="mark" />
                   <span className="lb">
-                    {reso} ou mieux
+                    {reso} {t("screens.profil.orBetter")}
                     <small>
                       {reso === "720p"
-                        ? "Écarte tout ce qui est sous 720p"
+                        ? t("screens.profil.hint720")
                         : reso === "1080p"
-                          ? "Écarte le 720p et en dessous"
-                          : "N'accepte que la 4K"}
+                          ? t("screens.profil.hint1080")
+                          : t("screens.profil.hint2160")}
                     </small>
                   </span>
                 </button>
@@ -191,15 +188,16 @@ export function ProfilEcran() {
           </div>
 
           <div className="qgroup">
-            <h2 className="h2">Pistes audio exigées</h2>
+            <h2 className="h2">{t("screens.profil.audioTracks")}</h2>
             <p className="qhint">
-              Aucune sélection = aucun filtre de langue. Une release doit porter{" "}
-              <b>au moins une</b> des pistes cochées.
+              {t("screens.profil.audioHintBefore")}{" "}
+              <b>{t("screens.profil.audioHintEmphasis")}</b>{" "}
+              {t("screens.profil.audioHintAfter")}
             </p>
             <p className="optkind">
-              Plusieurs choix possibles
+              {t("screens.profil.multiChoice")}
               {profil.required_audio.length === 0
-                ? " — aucun coché = aucun filtre"
+                ? ` — ${t("screens.profil.noneChecked")}`
                 : ""}
             </p>
             <div className="optlist">
@@ -223,41 +221,38 @@ export function ProfilEcran() {
           </div>
 
           <div className="qgroup">
-            <h2 className="h2">Deux verrous</h2>
+            <h2 className="h2">{t("screens.profil.twoLocks")}</h2>
             <div className="panel">
               <div className="kv reglage">
                 <span>
-                  Écarter la 3D
+                  {t("screens.profil.exclude3d")}
                   <br />
                   <span className="qhint">
-                    Une release SBS / Over-Under est illisible sur un écran 2D.
-                    Activé par défaut : c'est un plancher de correction, pas un
-                    goût.
+                    {t("screens.profil.exclude3dHint")}
                   </span>
                 </span>
                 <button
                   className="switch"
                   role="switch"
                   aria-checked={profil.exclude_3d}
-                  aria-label="Écarter la 3D"
+                  aria-label={t("screens.profil.exclude3d")}
                   data-qflag="exclude_3d"
                   onClick={() => basculerVerrou("exclude_3d")}
                 />
               </div>
               <div className="kv reglage">
                 <span>
-                  Refuser une résolution illisible
+                  {t("screens.profil.requireKnownResolution")}
                   <br />
                   <span className="qhint">
-                    Par défaut on laisse passer : un nom non analysable est le
-                    plus souvent un REMUX, pas un mauvais fichier.
+                    {t("screens.profil.requireKnownResolutionHint")}
                   </span>
                 </span>
                 <button
                   className="switch"
                   role="switch"
                   aria-checked={profil.require_known_resolution}
-                  aria-label="Refuser une résolution illisible"
+                  aria-label={t("screens.profil.requireKnownResolution")}
                   data-qflag="require_known_resolution"
                   onClick={() => basculerVerrou("require_known_resolution")}
                 />
@@ -267,37 +262,38 @@ export function ProfilEcran() {
 
           <div className="panel">
             <div className="kv">
-              <span>Candidats retenus par ce profil</span>
+              <span>{t("screens.profil.candidatesKept")}</span>
               <span>
-                {retenus} sur {RELEASES.length}
+                {retenus} {t("screens.profil.outOf")} {RELEASES.length}
               </span>
             </div>
             <div className="kv">
-              <span>Portée</span>
-              <span>{titre ? "ce suivi seulement" : "tous les suivis"}</span>
+              <span>{t("screens.profil.scope")}</span>
+              <span>
+                {titre
+                  ? t("screens.profil.scopeThisFollow")
+                  : t("screens.profil.scopeAllFollows")}
+              </span>
             </div>
           </div>
 
           <button
             className="cfoot"
-            data-toast="Dans l'app, ce bouton mènera à /config ?tab=classement — l'éditeur de classement existe déjà."
+            data-toast={t("screens.profil.rankingToast")}
           >
             <Icone paths={icons.sort} />
-            Poids du classement (global) →
+            {t("screens.profil.rankingWeights")}
           </button>
 
-          <p className="rulenote">
-            Un profil qui n'accepte plus rien se dit : la carte affichera «
-            cherché, rien trouvé » avec la raison, jamais un silence (§8).
-          </p>
+          <p className="rulenote">{t("screens.profil.rulenote")}</p>
 
           <div className="sheetacts">
             <button
               className="sact primary"
-              data-toast="Profil enregistré — la prochaine recherche l'appliquera."
+              data-toast={t("screens.profil.saveToast")}
             >
               <Icone paths={icons.check} />
-              Enregistrer
+              {t("screens.profil.save")}
             </button>
           </div>
         </div>

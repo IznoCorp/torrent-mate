@@ -33,6 +33,7 @@
 // never stack history — R76's own rule, exercised here for the first time by
 // a CONTROLLED input rather than a one-shot navigation.
 import { useSearch } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 // Circular with coquille.tsx (it imports AjoutEcran from this file) and safe
 // today for two reasons: `aller` is a hoisted function declaration there, so
 // its binding is live before either module's body runs, and this module has
@@ -92,6 +93,7 @@ export function AjoutEcran() {
 
   const { icons, baseTitle, SEARCH, cardHTML, addVerb, render } =
     useReferentiel();
+  const { t } = useTranslation();
 
   function ecrire(patch: Record<string, unknown>): void {
     ecrireEtat(patch);
@@ -158,7 +160,10 @@ export function AjoutEcran() {
         chip: fait
           ? ["success", addVerb(r, i)]
           : r.owned
-            ? [identifier ? "success" : "warning", "Déjà en médiathèque"]
+            ? [
+                identifier ? "success" : "warning",
+                t("screens.ajout.alreadyInLibrary"),
+              ]
             : null,
         panel: `add:${i}`,
       });
@@ -170,7 +175,7 @@ export function AjoutEcran() {
       <div className="fichebar">
         <button className="fback" onClick={() => window.__pont.retour()}>
           <Icone paths={icons.left} />
-          Retour
+          {t("screens.ajout.back")}
         </button>
         {identifier ? (
           <span
@@ -180,7 +185,7 @@ export function AjoutEcran() {
               color: "var(--muted-foreground)",
             }}
           >
-            identifier un dossier
+            {t("screens.ajout.identifyFolder")}
           </span>
         ) : null}
       </div>
@@ -195,11 +200,11 @@ export function AjoutEcran() {
               }}
             >
               <b style={{ color: "var(--info)" }}>
-                Identifier « {baseTitle(resolveTarget ?? "")} »
+                {t("screens.ajout.identifyTitle", {
+                  titre: baseTitle(resolveTarget ?? ""),
+                })}
               </b>
-              Vous ne créez PAS un suivi : vous dites au pipeline quel média est
-              ce dossier. Il reprendra son scrape — renommage, métadonnées,
-              affiches — puis le rangera en médiathèque.
+              {t("screens.ajout.identifyBody")}
             </div>
           </div>
         ) : null}
@@ -210,8 +215,8 @@ export function AjoutEcran() {
               type="search"
               id="addq"
               value={qEff}
-              placeholder="Titre du film ou de la série"
-              aria-label="Chercher un média à ajouter"
+              placeholder={t("screens.ajout.searchPlaceholder")}
+              aria-label={t("screens.ajout.searchAria")}
               onChange={(event) =>
                 aller({
                   to: "/ajout",
@@ -226,6 +231,13 @@ export function AjoutEcran() {
           </div>
           <div className="addrow">
             <div className="segmini">
+              {/* NOT interface copy: these three are the VALUES of
+                  `state.addKind`, written to the legacy store, compared
+                  against below (`addKind === "Tout"`, `=== "Films"`) and
+                  initialised by the legacy engine itself. The datum is its own
+                  label here, so it stays in the code with the rest of the data
+                  contract — translating the render would only add a mapping
+                  between a value and itself. */}
               {["Tout", "Séries", "Films"].map((element) => (
                 <button
                   key={element}
@@ -237,18 +249,29 @@ export function AjoutEcran() {
               ))}
             </div>
             <button className="btnprimary" onClick={() => chercher(qEff)}>
-              Chercher
+              {t("screens.ajout.search")}
             </button>
           </div>
         </div>
         {hasQ ? (
           <>
             <p className="rescount">
-              <b>{filtres.length}</b> résultat{filtres.length > 1 ? "s" : ""}{" "}
-              affiché{filtres.length > 1 ? "s" : ""} sur <b>{SEARCH.total}</b>{" "}
-              trouvé{SEARCH.total > 1 ? "s" : ""}
-              {addKind !== "Tout" ? ` · filtré sur « ${addKind} »` : ""} — les
-              plus pertinents d'abord.
+              <b>{filtres.length}</b>{" "}
+              {filtres.length > 1
+                ? t("screens.ajout.resultPlural")
+                : t("screens.ajout.result")}{" "}
+              {filtres.length > 1
+                ? t("screens.ajout.shownPlural")
+                : t("screens.ajout.shown")}{" "}
+              {t("screens.ajout.outOf")} <b>{SEARCH.total}</b>{" "}
+              {SEARCH.total > 1
+                ? t("screens.ajout.foundPlural")
+                : t("screens.ajout.found")}
+              {addKind !== "Tout"
+                ? ` ${t("screens.ajout.filteredOn", { kind: addKind })}`
+                : ""}
+              {" — "}
+              {t("screens.ajout.mostRelevant")}
             </p>
             <div
               className="reslist sec"
@@ -266,10 +289,8 @@ export function AjoutEcran() {
             </div>
             <div style={{ padding: "14px" }}>
               <div className="empty">
-                <b>Cherchez un titre.</b>
-                Vos recherches récentes sont au-dessus. La recherche part à la
-                validation, jamais à chaque frappe — sinon chaque lettre coûte
-                un appel aux providers.
+                <b>{t("screens.ajout.emptyTitle")}</b>
+                {t("screens.ajout.emptyBody")}
               </div>
             </div>
           </>
@@ -277,8 +298,8 @@ export function AjoutEcran() {
         <details className="byid">
           <summary>
             {identifier
-              ? "Ou identifier par identifiant provider"
-              : "Ou ajouter par identifiant"}
+              ? t("screens.ajout.byIdIdentify")
+              : t("screens.ajout.byIdAdd")}
           </summary>
           <div className="byidin">
             <div className="segmini" style={{ alignSelf: "flex-start" }}>
@@ -296,22 +317,21 @@ export function AjoutEcran() {
               <input
                 id="byidv"
                 placeholder={idProv === "IMDB" ? "tt1234567" : "12e34"}
-                aria-label={`Identifiant ${idProv}`}
+                aria-label={t("screens.ajout.idAria", { prov: idProv })}
               />
             </div>
             <p className="whyoff">
               {idProv === "IMDB" ? (
                 <>
-                  Un identifiant IMDB commence par <code>tt</code> suivi de
-                  chiffres — « 12e34 » est refusé.
+                  {t("screens.ajout.imdbBefore")} <code>tt</code>{" "}
+                  {t("screens.ajout.imdbAfter")}
                 </>
               ) : idProv === "TVDB" ? (
-                "Un identifiant TVDB ne contient que des chiffres. Si TVDB ne le résout pas, le suivi sera créé mais la détection d'épisodes restera indisponible — et on vous le dira."
+                t("screens.ajout.tvdbHint")
               ) : (
                 <>
-                  Identifiant refusé : « 12e34 » n'est pas un nombre —{" "}
-                  <code>Number()</code> le lirait comme une notation
-                  scientifique.
+                  {t("screens.ajout.numberBefore")} <code>Number()</code>{" "}
+                  {t("screens.ajout.numberAfter")}
                 </>
               )}
             </p>
@@ -320,17 +340,22 @@ export function AjoutEcran() {
               disabled
               style={{ alignSelf: "flex-start", padding: "9px 16px" }}
             >
-              Ajouter
+              {t("screens.ajout.add")}
             </button>
           </div>
         </details>
         {added.size > 0 ? (
           <div className="addfoot">
             <span>
-              <b>{added.size}</b> média{added.size > 1 ? "s" : ""} ajouté
-              {added.size > 1 ? "s" : ""}
+              <b>{added.size}</b>{" "}
+              {added.size > 1
+                ? t("screens.ajout.mediaPlural")
+                : t("screens.ajout.media")}{" "}
+              {added.size > 1
+                ? t("screens.ajout.addedPlural")
+                : t("screens.ajout.added")}
             </span>
-            <button onClick={verSuivis}>Voir mes suivis →</button>
+            <button onClick={verSuivis}>{t("screens.ajout.seeFollows")}</button>
           </div>
         ) : null}
       </div>

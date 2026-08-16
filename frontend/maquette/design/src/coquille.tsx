@@ -18,6 +18,7 @@ import {
 } from "@tanstack/react-router";
 import React from "react";
 import { flushSync } from "react-dom";
+import { useTranslation } from "react-i18next";
 import ReactDOM from "react-dom/client";
 import { Feuille } from "./composants/feuille";
 import { refuserBloc, type Descripteur } from "./composants/panneau";
@@ -224,6 +225,7 @@ const resolution = createRoute({
 // inside rather than as an unstyled crash page.
 function EcranEnErreur({ error }: { error: unknown }) {
   console.error(error);
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -238,7 +240,7 @@ function EcranEnErreur({ error }: { error: unknown }) {
         color: "var(--danger)",
       }}
     >
-      Cet écran a échoué à s'afficher. Détail dans la console.
+      {t("screens.error.message")}
     </div>
   );
 }
@@ -492,7 +494,9 @@ window.__ecrans = {
   // A subject that resolves to nothing at all keeps the legacy's own last
   // resort — the screen said « élément inconnu » and offered its three ways
   // out on that name — expressed here as the address, since the address is the
-  // identity now.
+  // identity now. That makes it the ONE French string in this file that stays
+  // out of `fr.json`: it is a route parameter, and an address that changed
+  // with the interface language would no longer identify anything.
   resolution: (dossier?: string, remplacer?: boolean) => {
     const premier = window.__referentiel.derivedStuck()[0]?.t;
     const cible = dossier ?? (typeof premier === "string" ? premier : null);
@@ -562,7 +566,9 @@ function ouvrirPanneau(descripteur: Descripteur): void {
     // history entry recording it, the exact URL/UI disagreement DOIT-10
     // forbids. Same wiring as `noterLeChemin`'s and `data-navgo`'s own
     // tails.
-    console.error("ouvrirPanneau : écriture de navigation échouée", erreur);
+    // ENGLISH, and not in `fr.json`: a console message is a tool message,
+    // read by a developer, never by a reader of the interface.
+    console.error("ouvrirPanneau: navigation write failed", erreur);
     window.__navEchec = true;
   }
 }

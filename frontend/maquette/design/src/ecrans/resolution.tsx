@@ -41,6 +41,12 @@
 // folder and the attribute as the CHOICE — which is why the shell's
 // `window.__ecrans.resolution()` door writes that target before navigating.
 import { useParams } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
+// The number words below are a LOOKUP TABLE, not prose: the same
+// dictionary-by-direct-import rule `panneau.tsx` follows for the settings
+// dictionaries, and for the same reason — an index into a table is not a
+// sentence, and `t()` would only wrap the lookup in a second one.
+import fr from "../i18n/fr.json";
 import {
   useContenu,
   useReferentiel,
@@ -104,15 +110,14 @@ function CarteRelease({
   };
 }) {
   const { posterBox } = useReferentiel();
+  const { t } = useTranslation();
   return (
     <div className="card" data-nonmedia={opts.genre || "release"}>
       <div className="ctop">
         <span
           className="poster"
           title={
-            opts.sansAffiche
-              ? "Aucune affiche chez le provider pour ce candidat."
-              : undefined
+            opts.sansAffiche ? t("screens.resolution.noPosterTitle") : undefined
           }
           dangerouslySetInnerHTML={{
             __html: posterBox(titre, opts.k, { exact: opts.exact }),
@@ -131,7 +136,9 @@ function CarteRelease({
           {opts.resume ? <span className="cov">{opts.resume}</span> : ""}
           {confiance ? (
             <span className="cmeta">
-              <span className="chip info">confiance {confiance}</span>
+              <span className="chip info">
+                {t("screens.resolution.confidence")} {confiance}
+              </span>
             </span>
           ) : (
             ""
@@ -139,7 +146,7 @@ function CarteRelease({
         </span>
       </div>
       <button className="cfoot solid" data-resolve={titre}>
-        C&apos;est celui-ci
+        {t("screens.resolution.pickThis")}
       </button>
     </div>
   );
@@ -231,14 +238,13 @@ function Candidats({ decision }: { decision: DecisionAttente }) {
   const exAequo = decision.c.filter(
     (candidat) => candidat.s === meilleur,
   ).length;
-  const mots = ["", "Un", "Deux", "Trois", "Quatre", "Cinq"];
+  const mots: string[] = fr.screens.resolution.nombres;
+  const { t } = useTranslation();
   return (
     <>
       {exAequo > 1 ? (
         <p className="rulenote">
-          {mots[exAequo] ?? String(exAequo)} candidats reviennent au même score.
-          Le classement ne tranche pas — c&apos;est pour cela que la question
-          vous est posée.
+          {mots[exAequo] ?? String(exAequo)} {t("screens.resolution.tieNote")}
         </p>
       ) : (
         ""
@@ -247,7 +253,7 @@ function Candidats({ decision }: { decision: DecisionAttente }) {
         <CarteRelease
           key={`${candidat.p}:${candidat.id}`}
           titre={candidat.t}
-          meta={`${candidat.y ? candidat.y + " · " : ""}${decision.k === "movie" ? "Film" : "Série"} · ${candidat.p.toUpperCase()} ${candidat.id}`}
+          meta={`${candidat.y ? candidat.y + " · " : ""}${decision.k === "movie" ? t("common.film") : t("common.series")} · ${candidat.p.toUpperCase()} ${candidat.id}`}
           /* A score that ties with the others says nothing about this
              candidate, so it is not printed on it. */
           confiance={
@@ -294,6 +300,7 @@ export function ResolutionEcran() {
     derivedBlocked,
     derivedStuck,
   } = useReferentiel();
+  const { t } = useTranslation();
   // A folder either HAS a pending decision or it has none, and the screen must
   // not borrow one. Showing another folder's candidates would be the worst
   // possible lie on the one screen whose job is to name what is on disk.
@@ -320,15 +327,17 @@ export function ResolutionEcran() {
       <div className="fichebar">
         <button className="fback" onClick={() => window.__pont.retour()}>
           <Icone paths={icons.left} />
-          Retour
+          {t("screens.resolution.back")}
         </button>
       </div>
       <div className="port">
         <div className="body">
           <div className="note">
-            <b>La résolution est un écran, pas un panneau.</b> Sur{" "}
-            <code>/medias</code> elle apparaissait <em>sous</em> la liste
-            qu&apos;on lisait : au téléphone, on ne la voyait jamais.
+            <b>{t("screens.resolution.noteTitle")}</b>{" "}
+            {t("screens.resolution.noteOn")} <code>/medias</code>{" "}
+            {t("screens.resolution.noteAppeared")}{" "}
+            <em>{t("screens.resolution.noteUnder")}</em>{" "}
+            {t("screens.resolution.noteRest")}
           </div>
           <h2 className="h2">
             <code>{dossier}</code>
@@ -336,7 +345,7 @@ export function ResolutionEcran() {
           <p className="qhint">
             {decision
               ? (MOTIF_POURQUOI[decision.motif] ?? "")
-              : "Aucun média identifié. Voici ce que les providers proposent pour ce nom."}
+              : t("screens.resolution.noMediaIdentified")}
           </p>
           <div className="cmeta" style={{ marginBottom: "12px" }}>
             {decision ? (
@@ -350,7 +359,8 @@ export function ResolutionEcran() {
             )}
             {attente.length > 1 ? (
               <span className="caption">
-                {rang} sur {attente.length} en attente
+                {rang} {t("screens.resolution.outOf")} {attente.length}{" "}
+                {t("screens.resolution.waiting")}
               </span>
             ) : (
               ""
@@ -359,53 +369,43 @@ export function ResolutionEcran() {
           {decision ? (
             <Candidats decision={decision} />
           ) : (
-            <p className="rulenote">
-              Les providers n&apos;ont renvoyé aucun candidat pour ce nom. Il
-              n&apos;y a rien à choisir : la recherche manuelle est la seule
-              voie.
-            </p>
+            <p className="rulenote">{t("screens.resolution.noCandidates")}</p>
           )}
           <div className="empty">
-            <b>Aucun de ceux-là ?</b>La recherche manuelle s&apos;ouvre
-            pré-remplie avec le nom du dossier. Jamais un cul-de-sac (DOIT-7).
+            <b>{t("screens.resolution.emptyTitle")}</b>
+            {t("screens.resolution.emptyBody")}
             <button
               className="cfoot"
               style={{ marginTop: "10px" }}
               data-manual={dossier}
             >
-              Chercher manuellement →
+              {t("screens.resolution.searchManually")}
             </button>
           </div>
           <div className="sheetacts secondary">
             <button className="sact" data-laisser={dossier}>
               <Icone paths={icons.check} />
-              Laisser tel quel
+              {t("screens.resolution.leaveAsIs")}
             </button>
             {attente.length > 1 ? (
               <button className="sact" data-suivante={dossier}>
                 <Icone paths={icons.right} />
-                Passer à la suivante
+                {t("screens.resolution.next")}
               </button>
             ) : (
               ""
             )}
           </div>
           <div className="note">
-            <b>Laisser tel quel n&apos;est pas ignorer.</b> Le résultat
-            automatique était peut-être le bon : cette voie l&apos;entérine et
-            ne re-scrape rien. Elle existait dans le moteur et nulle part dans
-            l&apos;interface, donc on ne pouvait qu&apos;être en désaccord avec
-            la machine, jamais d&apos;accord.
+            <b>{t("screens.resolution.note2Title")}</b>{" "}
+            {t("screens.resolution.note2Body")}
           </div>
           {DECISIONS_REGLEES.length > 0 ? (
             <>
               <h2 className="h2" style={{ marginTop: "18px" }}>
-                Réglées récemment
+                {t("screens.resolution.settledHeading")}
               </h2>
-              <p className="qhint">
-                Ce qui a déjà été tranché, pour ne pas répondre deux fois — et
-                pour retrouver ce qu&apos;on avait choisi.
-              </p>
+              <p className="qhint">{t("screens.resolution.settledHint")}</p>
               {DECISIONS_REGLEES.slice(0, 6).map((reglee) => (
                 <CarteDecision key={reglee.d} decision={reglee} />
               ))}
