@@ -19,6 +19,8 @@ import { refuserBloc, type Descripteur } from "./composants/panneau";
 import { AjoutEcran } from "./ecrans/ajout";
 import { FicheEcran } from "./ecrans/fiche";
 import { ProfilEcran } from "./ecrans/profil";
+import { ReleasesEcran } from "./ecrans/releases";
+import { ResolutionEcran } from "./ecrans/resolution";
 import { creerMagasin, type Magasin } from "./magasin";
 
 // R69's addressable state, validated — absent means "unchanged", as before.
@@ -38,6 +40,10 @@ type Pont = {
   remplacer: (etat: unknown, url?: string) => void;
   coucher: (couche: string) => void;
   retour: () => void;
+  // Settling SEVERAL entries at once — the door a caller uses instead of
+  // saying `retour()` twice in the same task. `n` counts ENTRIES, and the
+  // traversal is announced to the engine before it is issued.
+  reculer: (n: number) => void;
   surRetour: (rappel: (etat: unknown) => void) => () => void;
 };
 
@@ -50,6 +56,19 @@ type Ecrans = {
   // string here too; the percent-encoding and the NFC normalisation are done
   // below, on write, and again by `FicheEcran` on read.
   fiche: (titre: string) => void;
+  // The release-choice screen — same `titre`-crosses-as-a-plain-string
+  // contract as `fiche`/`profil` above. Unlike them, it also writes
+  // `state.relTitre` (the legacy first line of `openReleases`, still read by
+  // the `data-prendre` click-delegation branch) BEFORE navigating.
+  releases: (titre: string) => void;
+  // The arbitration screen — the folder crosses as a plain string, and the
+  // ARGUMENT IS OPTIONAL: the legacy `openResolve()` was called with nothing
+  // from two call sites and picked the first stuck folder itself, so the
+  // default is resolved here rather than at each caller. `remplacer` is for
+  // the one caller that used to close the screen and re-open it on the next
+  // folder — a pop plus a push, net one entry, which a replace reproduces
+  // exactly.
+  resolution: (dossier?: string, remplacer?: boolean) => void;
   // `q`/`mode` cross the bridge as plain strings, the way a legacy call site
   // already holds them (`state.addQ`, a literal like `"identifier"`) — the
   // validated union lives in `/ajout`'s own `validateSearch`, not here.
@@ -77,6 +96,11 @@ declare global {
     // them); the fragment publishes it so the shell's own layer can announce
     // its close the same way every legacy layer does.
     __derouler?: (couche: string) => void;
+    // The same bookkeeping for a traversal of SEVERAL entries at once: the
+    // shell says how many ENTRIES it settles, and the engine — which owns the
+    // latch and the popstate handler reading it — turns that into the number
+    // of pops it must swallow.
+    __annoncerPops?: (nombreDEntrees: number) => void;
     // The probe R56 calls to prove the panel REFUSES a block nobody declared.
     // Published here because the constructor it exercises is a component now.
     __panneauInconnu: () => void;
@@ -167,6 +191,25 @@ const fiche = createRoute({
   path: "/fiche/$titre",
   component: FicheEcran,
 });
+// "Choose another release": the ranking's own reasoning, made inspectable.
+// `$titre` follows `/fiche/$titre`'s discipline exactly — percent-encoded,
+// NFC-normalised on both ends. No search param: same reason as `fiche` —
+// nothing here for the address to carry.
+const releases = createRoute({
+  getParentRoute: () => racine,
+  path: "/releases/$titre",
+  component: ReleasesEcran,
+});
+// The arbitration screen: what is stuck, and which medium it is. `$dossier` is
+// the FOLDER as it is on disk — not a media title, which is precisely what is
+// missing — percent-encoded and NFC-normalised on both ends like every other
+// `$` param here. No search param: the screen carries no state of its own, and
+// an answer changes the queue rather than the address.
+const resolution = createRoute({
+  getParentRoute: () => racine,
+  path: "/resolution/$dossier",
+  component: ResolutionEcran,
+});
 // A thrown component used to fail into a bare `null` — the exact failure
 // shape this whole architecture exists to kill: a blank phone frame with
 // nothing on screen saying why, and nothing in the console pointing at it
@@ -196,7 +239,14 @@ function EcranEnErreur({ error }: { error: unknown }) {
 }
 
 const routeur = createRouter({
-  routeTree: racine.addChildren([attrape, profil, ajout, fiche]),
+  routeTree: racine.addChildren([
+    attrape,
+    profil,
+    ajout,
+    fiche,
+    releases,
+    resolution,
+  ]),
   history: historique,
   // The document is also read under other paths than `/` — the rule harness
   // serves it as `wrapped.html`. The router's built-in not-found fallback
@@ -257,6 +307,26 @@ window.__pont = {
     historique.flush();
   },
   retour: () => historique.back(),
+  /* One logical navigation, ONE history operation — R76's rule read on the way
+     BACK. A caller leaving several entries behind used to say `retour()` twice
+     in the same task: two backs, two pops, and the engine's latch had only
+     ever been told about one of them, so the surplus pop was read as the
+     operator's own Back gesture (M11). Here the traversal is asked for once.
+
+     Order matters twice over. Pending writes are flushed FIRST, for the same
+     reason every write verb above flushes: a push still queued in this task
+     would otherwise land after the traversal, on the entry just returned to.
+     The announcement comes SECOND, before the traversal is issued, exactly as
+     a layer announces its own unwind before popping — a pop that lands before
+     its announcement is a pop nobody expected. `n` counts ENTRIES; how many
+     popstate events a traversal of n entries costs is knowledge that belongs
+     with the handler consuming them, and it is the announcer's to apply. */
+  reculer: (n: number) => {
+    if (n <= 0) return;
+    historique.flush();
+    window.__annoncerPops?.(n);
+    historique.go(-n);
+  },
   surRetour: (rappel: (etat: unknown) => void) =>
     historique.subscribe(({ action, location }) => {
       if (
@@ -384,6 +454,50 @@ window.__ecrans = {
     aller({ to: "/profil/$titre", params: { titre: titre.normalize("NFC") } }),
   fiche: (titre: string) =>
     aller({ to: "/fiche/$titre", params: { titre: titre.normalize("NFC") } }),
+  // The legacy `openReleases`'s own first line, transplanted here rather than
+  // into the component: `state.relTitre` is what the `data-prendre`
+  // click-delegation branch reads once the operator picks a candidate, and it
+  // must be current BEFORE the route renders, exactly as the legacy function
+  // wrote it before drawing the screen. This file is SHELL code — the seam
+  // itself — so it writes the store directly rather than through
+  // `donnees.ts`'s `ecrireEtat` component door.
+  releases: (titre: string) => {
+    window.__magasin.ecrire({ relTitre: titre });
+    aller({
+      to: "/releases/$titre",
+      params: { titre: titre.normalize("NFC") },
+    });
+  },
+  // The legacy `openResolve`'s own first two lines, transplanted here rather
+  // than into the component. Two things happen before the address changes,
+  // and both are the shell's business:
+  //   - the DEFAULT subject is resolved. `openResolve()` was called with no
+  //     argument from the deck's own state and from the « Résoudre → » act,
+  //     and answered with the first stuck folder. That fallback stays one
+  //     expression, read through the référentiel's live arrow, instead of
+  //     being re-derived at each call site.
+  //   - `state.resolveTarget` is written. It is what the `data-resolve` and
+  //     `data-laisser` click-delegation branches read as THE FOLDER (the
+  //     attribute they carry is the choice, not the subject), so it must be
+  //     current before the route renders — exactly as the legacy function
+  //     wrote it before drawing the screen. Same accepted debt as `/ajout` and
+  //     `/releases`: an entry reached by a typed URL never crossed this door,
+  //     so those branches would act on a stale target until the legacy
+  //     dispatcher itself goes.
+  // A subject that resolves to nothing at all keeps the legacy's own last
+  // resort — the screen said « élément inconnu » and offered its three ways
+  // out on that name — expressed here as the address, since the address is the
+  // identity now.
+  resolution: (dossier?: string, remplacer?: boolean) => {
+    const premier = window.__referentiel.derivedStuck()[0]?.t;
+    const cible = dossier ?? (typeof premier === "string" ? premier : null);
+    window.__magasin.ecrire({ resolveTarget: cible });
+    aller({
+      to: "/resolution/$dossier",
+      params: { dossier: (cible ?? "élément inconnu").normalize("NFC") },
+      remplacer,
+    });
+  },
   // Kept in sync in `magasin.ecrire` BEFORE navigating: `state.addMode` is
   // still read by the untouched cross-world "add:N" panel act (it decides
   // ASSOCIATE vs regular add — see refonte.html) and by `addVerb`, and

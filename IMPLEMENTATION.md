@@ -140,6 +140,58 @@ above. `frontend/src/styles/ps/app-surface.css` was found drifted from the maque
 selectors (`--primary` vs `--primary-texte` on the active nav link, `.bottombar`/`.drawer`) —
 confirmed pre-existing at the SP4a merge commit, not caused by this wave — and regenerated via
 `scripts/extract-maquette-css.py`.
+**SP4c — resolution and releases, and M11 dies**: Branch `feat/maquette-sp4c`. Two more screens
+land as real routes: `/resolution/$dossier` (`ResolutionEcran`, transplanted from `openResolve()`)
+and `/releases/$titre` (`ReleasesEcran`, transplanted from `openReleases()`), both through
+`window.__ecrans` alongside `.fiche()`/`.profil()`. A fidelity walk against the deleted legacy
+bodies found zero rendering divergence — 124/124, 78/78 and 80/80 boxes across the arbitration's
+three shapes, all textual differences traced to inter-tag whitespace the templates left between
+block boxes, never inside a run of text. The `data-resolve` collision the brief flagged as a
+pre-read (candidate branch vs. a panel branch reading the same attribute for a different purpose)
+turned out to be order-only: the candidate branch runs first and returns, the panel branch is
+unreachable dead code (proven with a synthetic click), rewired anyway to keep saying the true
+verb. `data-profil`'s three legacy producers were traced one by one; only `openReleases`' own
+"Ouvrir le profil de qualité →" lived inside a `#screen`, so the two-way branch
+(route-open → `__pont.retour()`; else → `__panneau.fermer()`) is complete — a third `#screen`
+branch would have been dead code. **M11 (the Associer flow's double `history.back()`) dies**:
+`Pont` gains `reculer(n)` — flush pending writes, announce, then `historique.go(-n)` — and the
+fragment's latch counts `deroulementEnCours += 1` per **announcement**, not per entry: the
+browser coalesces a multi-entry `history.go(-n)` traversal into ONE popstate, so the brief's own
+`+= n` was measured wrong (mutation m2 proved it swallows the operator's next real Back) before
+`ident.py`'s new history-hold caught it. R57 (`decision.py`) is amended: its `ECRAN` probe now
+reads `.screen.open[data-cle^="resolution:"]` instead of rooting on the legacy `#screen`, which
+the arbitration screen no longer renders into — the same identity-read shift `panneau.py` and
+`galerie.py` made for the fiche in SP4b, one line, mutation-proven (24/24 both ways). The
+per-identity ladder pair (`fiche:`/`ajout:`) that four harnesses (`audit.py`, `audit2.py`,
+`dest.py`, `states.py`) carried collapses to ONE generic, ladder-last rung —
+`.screen.open[data-cle]` — covering `resolution:`/`releases:` and closing the pre-existing
+`profil:` coverage hole in the same edit; wiring it surfaced a latent, pre-existing R10 defect in
+`audit.py`'s own `couche()` helper (it tested `#sheet`/`#screen`/`#dlg` but no route, so a click
+opening `/resolution/…` read as "changed nothing" — confirmed pre-existing via `git stash`, fixed
+alongside). `harness/serveur.py`'s SPA fallback mis-read any route param carrying its own dots
+(`Backrooms.2026.MULTi.2160p.WEB-DL`, a real staging folder name) as a missing file extension and
+404ed; fixed to fold to the document for any path that is not a real file, except under the two
+directories the served root actually holds files in (`/assets/`, `/vite/`). The live host
+(`serve.py`, R73) never carried this defect — verified with a new `bascule.py` hold, not assumed.
+R75 (`adresses_ecrans.py`) gains six holds (k)-(p): both screens open cold at a dotted deep
+address, one Back lands on `/`, an unknown subject renders the arbitration's own honest empty
+case rather than raising — 35 → 49 holds, all green, mutation-proven (a severed route falls 14).
+`releaseCardHTML`/`decisionCardHTML` — the legacy builders the two screens were transplanted
+from — are deleted with zero remaining callers once the components took over; `CarteRelease` and
+`CarteDecision` (`design/src/ecrans/resolution.tsx`) are their replacements. Wave gate: full
+48-script suite green, `make check`/`make check-frontend` green, R59/R69/R71
+(`retour.py`/`adresse_url.py`/`ecrans.py`) byte-identical against the SP4b merge point
+(`9842e44d`) — `ecrans.py` included, since this wave's two screens are not ones it traverses.
+Carried open: the 240 ms dead delay on `data-suivante` (a frozen quarter-second, was a legacy
+screen-close cover — kept identical under the binding-parity constraint; flagged for the operator
+in `BUGS.md`'s evolutions register, not fixed here); a deep `/releases/$titre` entry with no
+`__ecrans` call leaves `relTitre` null for `data-prendre` (mirrors the accepted `/ajout`
+addQ/addMode debt, dies with the legacy dispatcher), and a deep `/resolution/$dossier` entry the
+same way leaves `resolveTarget` stale for `data-resolve`/`data-laisser` (same settlement, same
+door, dies with the legacy dispatcher too); `ident.py`'s only remaining `#screen` read is `ou()`'s
+`ecran` field — deliberately left, recorded under R57 — since its two early informational probes
+(the arbitration screen's `.h2`, the add screen's banner/field/id-block) already moved to
+`.screen.open[data-cle^="resolution:"]` / `[data-cle^="ajout:"]` and no longer print `None`.
 Next: the rest of the catch-all surface by surface; then SP5 (visual language).
 
 ---

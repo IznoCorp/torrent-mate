@@ -8,13 +8,16 @@ document, never from a fresh navigation, so nothing measured through 8899
 can tell a reload, a shared link, or a browser back button from a 404.
 
 This module holds the server that closes that gap, and nothing else. Files
-under its root are served as-is; any other path — one whose final segment
-carries no extension and does not exist on disk — instead answers
-`wrapped.html`, exactly the way a host serving a single-page application is
-expected to. It is not a replacement for 8899: that server keeps its
-narrower job, and every existing rule keeps pointing at it. This one is a
-second, thread-backed server a rule can start on its own scratch port, hand
-a root, and stop again without leaving a process behind.
+under its root are served as-is; any other path that does not resolve to an
+existing file instead answers `wrapped.html`, exactly the way a host serving
+a single-page application is expected to — EXCEPT under `PREFIXES_ASSETS`,
+where a missing file stays a 404: a route-shaped address can carry dots of
+its own (a release folder name, `Backrooms.2026.MULTi.2160p.WEB-DL`, is not
+a file extension), so a dot in the final segment is no longer what decides
+the fold. It is not a replacement for 8899: that server keeps its narrower
+job, and every existing rule keeps pointing at it. This one is a second,
+thread-backed server a rule can start on its own scratch port, hand a root,
+and stop again without leaving a process behind.
 """
 
 from __future__ import annotations
@@ -43,17 +46,31 @@ class GestionnaireRepli(http.server.SimpleHTTPRequestHandler):
     and any `..` segment before this override ever sees the result —
     reimplementing any of that here would be the same bug waiting to be
     reintroduced. A path is treated as the router's when the resolved path
-    is not an existing FILE and its final segment carries no extension: a
-    merely-missing asset (`/absent.png`) still 404s through the parent
-    implementation, and only an address with no file behind it falls back.
+    is not an existing FILE and does not fall under `PREFIXES_ASSETS` — the
+    directories this root actually serves real, addressable files from. A
+    missing file THERE (`/vite/absent.js`) still 404s through the parent
+    implementation; everywhere else, no file behind the address folds to the
+    document.
 
     Testing for a FILE rather than mere existence is what makes the bare
     root fall back too: `self.directory` itself exists as a directory, so an
     `exists()` check alone would defer "/" to the parent's own directory
-    listing instead of the document every other extensionless address
+    listing instead of the document every other router-owned address
     already gets — the one entry point a single-page application is
     guaranteed to be asked for.
+
+    A dot in the final segment is deliberately NOT what decides the fold: a
+    route param can carry one of its own (a release folder name,
+    `Backrooms.2026.MULTi.2160p.WEB-DL`) without being a file extension, and
+    only the served directory's actual layout — not a string's shape — says
+    which paths are real files.
     """
+
+    # The only directories under a served root this handler answers a
+    # missing path from with a 404 rather than the document — real,
+    # addressable static files (`assets/…`, `vite/…`), never a route param
+    # that merely happens to contain a dot.
+    PREFIXES_ASSETS = ("/assets/", "/vite/")
 
     def translate_path(self, path: str) -> str:
         """Returns the filesystem path a request resolves to.
@@ -63,14 +80,19 @@ class GestionnaireRepli(http.server.SimpleHTTPRequestHandler):
                 to this seam — query string and fragment included.
 
         Returns:
-            The resolved path from the parent implementation, or
-            `directory/wrapped.html` when that path is not an existing file
-            and its final segment has no extension.
+            The resolved path from the parent implementation when it names
+            an existing file, or falls under `PREFIXES_ASSETS` (a missing
+            asset reference stays a 404, never the document);
+            `directory/wrapped.html` for every other path with no file
+            behind it.
         """
         resolu = super().translate_path(path)
-        if not os.path.isfile(resolu) and "." not in os.path.basename(resolu):
-            return os.path.join(self.directory, "wrapped.html")
-        return resolu
+        if os.path.isfile(resolu):
+            return resolu
+        chemin = path.split("?", 1)[0]
+        if chemin.startswith(self.PREFIXES_ASSETS):
+            return resolu
+        return os.path.join(self.directory, "wrapped.html")
 
     def log_message(self, format: str, *args: object) -> None:  # noqa: A002 — name imposed by BaseHTTPRequestHandler
         """Silences per-request logging.
@@ -84,11 +106,12 @@ class GestionnaireRepli(http.server.SimpleHTTPRequestHandler):
 def demarrer_serveur(port: int, racine: pathlib.Path) -> Iterator[None]:
     """Serves `racine` on `port` for the lifetime of the `with` block.
 
-    Files under `racine` are served as-is; any path whose final segment has
-    no extension and does not exist on disk instead answers
-    `racine/wrapped.html` — the fallback that lets a deep client-side
-    address (`/profil/…`, `/ajout`) be requested directly rather than only
-    reached by navigating there inside an already-loaded document.
+    Files under `racine` are served as-is; any path with no file behind it
+    instead answers `racine/wrapped.html` — the fallback that lets a deep
+    client-side address (`/profil/…`, `/ajout`, `/resolution/<dossier
+    portant des points>`) be requested directly rather than only reached by
+    navigating there inside an already-loaded document — EXCEPT under
+    `GestionnaireRepli.PREFIXES_ASSETS`, where a missing file still 404s.
 
     Args:
         port: The loopback port to bind. Must not be one of
@@ -161,12 +184,26 @@ if __name__ == "__main__":
             f"statut {statut_bundle}, {bundle.name}")
 
         try:
-            urllib.request.urlopen(f"{base}/absent.png", timeout=5)
+            urllib.request.urlopen(f"{base}/assets/inexistant.png", timeout=5)
             statut_absent = 200
         except urllib.error.HTTPError as erreur:
             statut_absent = erreur.code
         journal.verifier(
-            "un asset absent 404 plutôt que de tomber dans le repli",
+            "un asset absent SOUS UN DOSSIER SERVI 404 plutôt que de tomber dans le repli",
             statut_absent == 404, f"statut {statut_absent}")
+
+        # The regression this fold exists to close: a route-shaped address
+        # whose deepest segment carries dots of its own — a release folder
+        # name, never a file extension outside PREFIXES_ASSETS — must fold
+        # to the document exactly like the bare, extension-less case above.
+        with urllib.request.urlopen(
+            f"{base}/resolution/Backrooms.2026.MULTi.2160p.WEB-DL", timeout=5
+        ) as reponse:
+            statut_dossier, corps_dossier = reponse.status, reponse.read()
+        journal.verifier(
+            "une adresse profonde dont le dernier segment porte des points "
+            "répond quand même le document",
+            statut_dossier == 200 and corps_dossier == attendu,
+            f"statut {statut_dossier}, {len(corps_dossier)} octets")
 
     journal.bilan()

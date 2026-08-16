@@ -11603,94 +11603,13 @@
   </div>`;
   }
 
-  /* A RELEASE is not a medium, and its card is deliberately a different object.
-     A release has no media sheet and no panel — it is one candidate among
-     several for a medium that is already named elsewhere on the screen. Giving
-     it a card that addresses a panel would promise a sheet that cannot exist.
-
-     It is marked `data-nonmedia` so the contract check can tell the two apart
-     by construction rather than by knowing which screens draw which. */
-  function releaseCardHTML(titre, meta, confiance, opts) {
-    opts = opts || {};
-    return `<div class="card" data-nonmedia="${escapeHtml(opts.genre || "release")}">
-    <div class="ctop"><span class="poster"${opts.sansAffiche ? ' title="Aucune affiche chez le provider pour ce candidat."' : ""}>${posterBox(titre, opts.k, { exact: opts.exact })}</span>
-      <span class="cbody">
-        <span class="ctitle">${escapeHtml(titre)}</span>
-        <span class="csub">${escapeHtml(meta)}</span>
-        ${
-          /* The synopsis is what actually SEPARATES four series with nearly
-             the same name, so it belongs on the card that asks to choose
-             between them. It is an `overview`, not a reason: it clamps
-             (R48 — a reason wraps and the card grows, a synopsis does not).
-             Carrying it here is also what makes leaving the screen
-             unnecessary: an arbitration that sends you to a full sheet to
-             decide loses the queue you were working through. */
-          opts.resume
-            ? `<span class="cov">${escapeHtml(opts.resume)}</span>`
-            : ""
-        }
-        ${confiance ? `<span class="cmeta"><span class="chip info">confiance ${escapeHtml(confiance)}</span></span>` : ""}
-      </span>
-    </div>
-    <button class="cfoot solid" data-resolve="${escapeHtml(titre)}">C'est celui-ci</button>
-  </div>`;
-  }
-
-  /* A DECISION is a FOLDER, and that is why it has its own card.
-
-     The scrape could not name what is inside it, so what the operator is asked
-     about is the thing on disk — never a media title, which is precisely what
-     is missing. It carries no media sheet and no panel for the same reason a
-     release candidate carries none: there is no medium here yet. Marked
-     `data-nonmedia` so the contract check tells them apart by construction.
-
-     THE DESCRIPTOR — facts, never markup:
-
-       d      the folder, as it is on disk
-       k      what the pipeline took it for, for the placeholder's icon
-       motif  why it entered the queue (a backend trigger)
-       etat   how it ended, when it did
-       quand  when
-       choix  { t, p, id, via } — the medium it was tied to, once settled
-
-     A settled decision shows the CHOSEN medium's poster, and it is not a
-     button: the card's subject is still the folder. A pending one shows the
-     placeholder, because nothing has been chosen — the picture would be a
-     guess, and a guess drawn as a fact is the failure this interface exists to
-     avoid. */
-  function decisionCardHTML(decision, opts) {
-    opts = opts || {};
-    const regle = decision.etat != null;
-    const etat = regle ? ETAT_DECISION[decision.etat] : null;
-    const affiche =
-      regle && decision.choix
-        ? posterBox(decision.choix.t, decision.k)
-        : `<span class="pfall">${svgIcon(decision.k === "movie" ? icons.film : icons.tv, 1.25)}<b>?</b></span>`;
-    const identite = decision.choix
-      ? `${decision.choix.t} · ${decision.choix.p.toUpperCase()} ${decision.choix.id} · ${VIA_LABEL[decision.choix.via] ?? decision.choix.via}`
-      : null;
-    return `<div class="card" data-nonmedia="decision">
-    <div class="ctop"><span class="poster">${affiche}</span>
-      <span class="cbody">
-        <span class="ctitle" title="${escapeHtml(decision.d)}"><code>${escapeHtml(decision.d)}</code></span>
-        <span class="csub">${escapeHtml(decision.quand)}</span>
-        ${
-          /* What was chosen is the most useful line here — it is the answer
-             one comes back to read — so it wraps rather than truncating. On
-             one line it lost its provider id and how it was found, which is
-             exactly what one comes back for. */
-          identite ? `<span class="creason">${escapeHtml(identite)}</span>` : ""
-        }
-        <span class="cmeta">${chipHTML([MOTIF_TON[decision.motif] ?? "neutral", MOTIF_LABEL[decision.motif] ?? decision.motif])}${
-          etat
-            ? `<span class="chip ${etat[0]}" title="${escapeHtml(ETAT_DECISION_POURQUOI[decision.etat] ?? "")}">${escapeHtml(etat[1])}</span>`
-            : ""
-        }</span>
-      </span>
-    </div>
-    ${opts.foot ? `<button class="cfoot solid" data-decision="${escapeHtml(decision.d)}">${escapeHtml(opts.foot)}</button>` : ""}
-  </div>`;
-  }
+  /* The release candidate's card and the decision's card moved to the shell
+     with the screen that draws them: `CarteRelease` and `CarteDecision` in
+     `src/ecrans/resolution.tsx`, at identical emission — `.card[data-nonmedia]`,
+     no media sheet and no panel, because neither subject is a medium. Their
+     rationale moved there with them; nothing here builds either shape any
+     more, and a second builder kept alive next to the one being drawn is
+     exactly the drift this file names below. */
 
   /* Renders a text that carries emphasis, WITHOUT any caller supplying markup.
      A value is either a plain string, or a list of segments where a bare
@@ -15215,6 +15134,34 @@
     valeurSaisie,
     modifierReglage,
     ouvrirReglage,
+    // The arbitration flow. `DECISIONS_ATTENTE` / `DECISIONS_REGLEES` and the
+    // label maps are all `const` declared above this literal, so a plain
+    // shorthand reference reads the finished value — no TDZ here. `toast` and
+    // `decisionEnAttente` are declared with `function` further down this same
+    // script; a function declaration hoists its whole definition (unlike
+    // `let`/`const`, which only hoist to a temporal dead zone), so a plain
+    // shorthand reference to either is already callable at this point too.
+    DECISIONS_ATTENTE,
+    DECISIONS_REGLEES,
+    MOTIF_LABEL,
+    MOTIF_TON,
+    MOTIF_POURQUOI,
+    ETAT_DECISION,
+    ETAT_DECISION_POURQUOI,
+    VIA_LABEL,
+    decisionEnAttente,
+    // Thin arrows over `derived.blocked` / `derived.stuck` — `derived` itself
+    // is already initialized above this literal, but the wrapper still earns
+    // its keep: it publishes a STABLE function reference while the value each
+    // call returns stays live against the scenario switch inside `derived`.
+    derivedBlocked: () => derived.blocked(),
+    derivedStuck: () => derived.stuck(),
+    actionResoudre,
+    actionLaisser,
+    actionRecuperer,
+    toast,
+    posterBox,
+    chipHTML,
   };
 
   const TRIS = {
@@ -16223,6 +16170,24 @@
      verb rather than a copy of the bookkeeping. */
   window.__derouler = deroulerCouche;
 
+  /* A settlement of SEVERAL entries at once (`__pont.reculer`) announces itself
+     through the same latch — and raises it by ONE, never by the number of
+     entries: the browser coalesces a multi-entry traversal into a SINGLE
+     popstate, fired at the destination. Measured, because the whole point of
+     the announcement is to match the number of events that will actually
+     arrive: `history.go(-2)` reports one pop, where two `history.back()` calls
+     issued in the same task report two. Raising the latch by n would leave the
+     surplus standing and swallow the operator's next real back — the mirror
+     image of the defect this replaces, and just as invisible.
+
+     No named-entry check here, unlike `deroulerCouche`: what is being settled
+     is a WALK of several entries whose top one is not necessarily a layer, so
+     there is no single name to check it against. The caller counts what it
+     stacked and is the only one that can. */
+  window.__annoncerPops = (nombreDEntrees) => {
+    if (nombreDEntrees > 0) deroulementEnCours += 1;
+  };
+
   /* Kept as a VERB the driver can still say: `doigt.py`, `glisse.py` and
      `machine.py` call `closeSheet()` from inside the page, and moving a layer
      to the shell must not take away the vocabulary that drives it. The layer
@@ -16848,7 +16813,7 @@
       "Écran — choisir une autre release",
       () => {
         applyState({ page: "acq", acqTab: "suivis", phase: "prete" });
-        openReleases("Silo");
+        window.__ecrans.releases("Silo");
       },
     ],
     [
@@ -17020,7 +16985,7 @@
       "Arrivées — résolution, aucun candidat",
       () => {
         applyState({ page: "arr", phase: "prete", pipe: "repos" });
-        openResolve();
+        window.__ecrans.resolution();
       },
     ],
     [
@@ -17033,7 +16998,7 @@
           phase: "prete",
           pipe: "repos",
         });
-        openResolve("Lucky");
+        window.__ecrans.resolution("Lucky");
       },
     ],
     [
@@ -17613,8 +17578,8 @@
       </div>
       <div class="ver">
         <p class="vt">Version déployée</p>
-        <p class="vv">0.97.10</p>
-        <p class="vc">build e89201bb · à jour</p>
+        <p class="vv">0.97.11</p>
+        <p class="vc">build 9842e44d · à jour</p>
       </div>`;
     element.classList.add("open");
     select("#scrim").classList.add("open");
@@ -17966,13 +17931,25 @@
         )
         .replace(/\s{2,}/g, " ")
         .trim();
-      closeScreen();
+      // `/resolution` is a router-owned address now: leaving it is
+      // `__pont.retour()` — the same single pop `.fback` uses — unwinding the
+      // ONE entry `window.__ecrans.resolution` pushed to get here. The
+      // dispatcher no-ops that pop: the entry carries neither `layer` nor
+      // `tm`, so the legacy popstate checks fall through it and the router has
+      // already re-rendered by the time they run.
+      window.__pont.retour();
       setTimeout(() => window.__ecrans.ajout(trim, "identifier"), 260);
       return;
     }
+    /* THE FOLDER IS `state.resolveTarget`, NEVER THE ATTRIBUTE: what
+       `data-resolve` carries here is the CHOSEN CANDIDATE, and the folder is
+       what the resolution screen was opened on. This branch answers every
+       carrier of the attribute — the panel's own « Résoudre → » act reads it
+       further down and never gets there, which is the order this rewire keeps
+       exactly as it found it. */
     if (closest.dataset.resolve) {
       const cible = state.resolveTarget;
-      closeScreen();
+      window.__pont.retour();
       setTimeout(() => actionResoudre(cible, closest.dataset.resolve), 240);
       return;
     }
@@ -17980,7 +17957,7 @@
        nothing — which is why it says what it did rather than « fait ». */
     if (closest.dataset.laisser) {
       const cible = state.resolveTarget;
-      closeScreen();
+      window.__pont.retour();
       setTimeout(() => actionLaisser(cible), 240);
       return;
     }
@@ -17996,8 +17973,12 @@
             decision != null && decision.d !== closest.dataset.suivante,
         );
       if (suite) {
-        closeScreen();
-        setTimeout(() => openResolve(suite.d), 240);
+        // Closing the screen and re-opening it on the next folder was a pop
+        // plus a push — net ONE entry. The address is the screen's identity
+        // now, so the same depth is a REPLACE: one entry in, one entry out,
+        // and a single back still leaves the arbitration rather than walking
+        // the folders one has already answered.
+        setTimeout(() => window.__ecrans.resolution(suite.d, true), 240);
       }
       return;
     }
@@ -18027,7 +18008,7 @@
     }
     if (closest.dataset.releases) {
       window.__panneau.fermer();
-      setTimeout(() => openReleases(closest.dataset.releases), 260);
+      setTimeout(() => window.__ecrans.releases(closest.dataset.releases), 260);
       return;
     }
     if (
@@ -18035,13 +18016,19 @@
       closest.dataset.profil !== null
     ) {
       // Route, not screen: the quality-profile surface left the legacy
-      // fragment. Closing whatever legacy layer is currently open keeps the
-      // same close-then-open timing the two trigger buttons (the Réglages
-      // rubric and « Ouvrir le profil de qualité → ») were built against;
-      // `__ecrans.profil` does the navigating.
+      // fragment — and so, since this Task, has the release-choice screen
+      // that used to be the ONLY producer of `data-profil` inside `#screen`
+      // (its own « Ouvrir le profil de qualité → » button). `#screen` is no
+      // longer a possible source of this attribute at all — the two
+      // remaining producers (the Réglages rubric, a sheet action) were
+      // always sheets or pages, never `#screen` — but the RELEASES route
+      // still needs the same close-then-open choreography its own trigger
+      // was built against, and a router screen leaves no trace in
+      // `#screen.classList`: test the router's own identity instead.
+      // `__ecrans.profil` does the navigating either way.
       const profil = closest.dataset.profil;
-      if (select("#screen").classList.contains("open")) {
-        closeScreen();
+      if (document.querySelector('.screen.open[data-cle^="releases:"]')) {
+        window.__pont.retour();
         setTimeout(() => window.__ecrans.profil(profil), 260);
       } else {
         window.__panneau.fermer();
@@ -18051,7 +18038,10 @@
     }
     if (closest.dataset.prendre) {
       const release = RELEASES[Number(closest.dataset.prendre)];
-      closeScreen();
+      // One router pop — the release-choice screen is a route now, and the
+      // dispatcher's own `layer`/`tm: "nav"` checks no-op harmlessly on the
+      // entry it wrote, so the screen simply unmounts.
+      window.__pont.retour();
       setTimeout(() => {
         actionRecuperer(state.relTitre);
         toast(
@@ -18269,7 +18259,7 @@
       return;
     }
     if (closest.dataset.act === "resolve") {
-      openResolve();
+      window.__ecrans.resolution();
       return;
     }
     if (closest.dataset.sheet === "plus") {
@@ -18282,9 +18272,6 @@
       // film and a series here — so the title does not identify the result.
       const index = Number(closest.dataset.act.slice(4));
       const result = SEARCH.results[index];
-      // The act lives in the result's panel, which must not stay open
-      // behind what comes next.
-      window.__panneau.fermer();
       if (state.addMode === "identifier") {
         // This ASSOCIATES: the stuck folder becomes this medium and the pipeline
         // resumes. No follow is created — that was not the request.
@@ -18293,13 +18280,18 @@
         // fires — the bump is explicit so React sees the pick immediately.
         state.added.add(index);
         magasin.toucher();
-        // `/ajout` is a router-owned address now: `closeScreen()` is a
-        // harmless no-op against it (`#screen` was never the host), and
-        // leaving the screen is `__pont.retour()` — the same single pop
-        // `.fback` uses — unwinding the ONE entry `window.__ecrans.ajout`
-        // pushed to get here.
-        closeScreen();
-        window.__pont.retour();
+        /* ONE settlement for the TWO entries this journey stacked — the
+           result's panel, and `/ajout` itself, a router-owned address (which
+           is why no legacy screen is closed here: `#screen` was never its
+           host). The panel is ASKED before it is closed, because the layer's
+           own entry is what decides the count, and it is closed DOM-only
+           (`fermer(true)`) so it does not unwind on its own: its unwind plus a
+           raw `__pont.retour()` were two backs racing in the same task, only
+           one of them announced, and the surplus pop was then read as the
+           operator's own back gesture. */
+        const entrees = (window.__panneau.ouverte() ? 1 : 0) + 1;
+        window.__panneau.fermer(true);
+        window.__pont.reculer(entrees);
         setTimeout(() => {
           actionResoudre(cible, result.t);
           toast(
@@ -18308,6 +18300,11 @@
         }, 260);
         return;
       }
+      // The act lives in the result's panel, which must not stay open
+      // behind what comes next — the dialog below, or the re-rendered list.
+      // The identify branch above settles its own layer, with the entry count
+      // its single settlement needs, so this close is the follow branches'.
+      window.__panneau.fermer();
       if (result.owned) {
         openDlg(`<h3>Remplacer « ${escapeHtml(result.t)} » ?</h3>
           <p>Ce ${result.k === "Film" ? "film est déjà" : "média est déjà"} en médiathèque. L'acquisition <b>remplacera</b> la version en place par celle qui sera récupérée.</p>
@@ -18364,10 +18361,15 @@
       );
       return;
     }
+    /* The panel's own « Résoudre → » act, where the attribute IS the folder.
+       It is never reached: the candidate branch above answers the same
+       attribute first and returns — measured, not assumed, and left exactly as
+       it was found. Rewired all the same, so the day the order is untangled
+       this branch says the same verb as every other call site. */
     if (closest.dataset.resolve) {
       const resolve = closest.dataset.resolve;
       window.__panneau.fermer();
-      setTimeout(() => openResolve(resolve), 260);
+      setTimeout(() => window.__ecrans.resolution(resolve), 260);
       return;
     }
     if (closest.dataset.recuperer) {
@@ -18387,7 +18389,7 @@
         closest.closest(".card")?.querySelector(".ctitle")?.textContent ?? "";
       const lab = closest.textContent.trim();
       if (lab.startsWith("Récupérer")) return actionRecuperer(title);
-      if (lab.startsWith("Résoudre")) return openResolve(title);
+      if (lab.startsWith("Résoudre")) return window.__ecrans.resolution(title);
       toast("Action lancée — le résultat s'affichera ici.");
       return;
     }
@@ -39450,145 +39452,23 @@
      verb a call site says is `window.__ecrans.fiche(title)`; the template,
      the seasons and the actions live there, at identical markup — the
      click delegation below still reads their data attributes. */
-  /* ── L'écran de résolution ────────────────────────────────────────────
-     One screen answers two questions that used to live on two pages: « what
-     is stuck » and « which medium is it ». It is a SCREEN and not a panel —
-     on `/medias` the arbitration appeared UNDER the list being read, and on a
-     phone it was never seen.
-
-     What it is asked about is a FOLDER. The name is set in the mono face and
-     never cleaned up: it is what is on disk, and recognising it is the whole
-     point.
-
-     THE SCORE IS SHOWN ONLY WHEN IT SEPARATES. « Lucky » is the real case
-     that settles this: four of its five candidates came back at exactly 1.00.
-     Printing « 100 % » four times suggests a ranking that does not exist and
-     invites the operator to trust it. When the leaders tie, the screen says so
-     — and that sentence is the reason a human is being asked at all.
-
-     The desktop deck's keyboard shortcuts (← → ⏎) have no phone. What they
-     were for — going through several in a row — is kept as a plain
-     progression: « 1 sur 2 », and « Suivante » once this one is answered.
-
-     Three ways out, and the third is the one that was missing: pick a
-     candidate, search by hand, or LEAVE IT AS IT IS. The last exists in the
-     engine (`dismissed`) and nowhere in the interface, so a folder whose
-     automatic result was right had no way of being agreed with. */
+  /* The resolution screen moved to the shell the same way:
+     `src/ecrans/resolution.tsx` renders it as the route
+     `/resolution/$dossier`, and the design rationale it carries — what the
+     screen is FOR, why a tied score is not printed, the three ways out —
+     moved there with it. The verb a call site says is
+     `window.__ecrans.resolution(dossier, remplacer)`: it resolves the same
+     default this file used to (the first stuck folder) and writes
+     `state.resolveTarget` before navigating, so the `data-resolve` and
+     `data-laisser` branches below still read the folder they always read.
+     `decisionEnAttente` stays here: it is the référentiel's own answer to
+     « does this folder have a pending decision », read by the screen AND by
+     the « Passer à la suivante » branch below. */
   /* A folder either HAS a pending decision or it has none, and the screen must
      not borrow one. Showing another folder's candidates would be the worst
      possible lie on the one screen whose job is to name what is on disk. */
   function decisionEnAttente(cible) {
     return DECISIONS_ATTENTE.find((decision) => decision.d === cible) ?? null;
-  }
-
-  function candidatsHTML(decision) {
-    const meilleur = Math.max(...decision.c.map((candidat) => candidat.s));
-    const exAequo = decision.c.filter(
-      (candidat) => candidat.s === meilleur,
-    ).length;
-    const mots = ["", "Un", "Deux", "Trois", "Quatre", "Cinq"];
-    return `${
-      exAequo > 1
-        ? `<p class="rulenote">${escapeHtml(mots[exAequo] ?? String(exAequo))} candidats reviennent au même score. Le classement ne tranche pas — c'est pour cela que la question vous est posée.</p>`
-        : ""
-    }
-    ${decision.c
-      .map((candidat) =>
-        releaseCardHTML(
-          candidat.t,
-          `${candidat.y ? candidat.y + " · " : ""}${decision.k === "movie" ? "Film" : "Série"} · ${candidat.p.toUpperCase()} ${candidat.id}`,
-          /* A score that ties with the others says nothing about this
-             candidate, so it is not printed on it. */
-          exAequo > 1 && candidat.s === meilleur
-            ? null
-            : `${Math.round(candidat.s * 100)} %`,
-          /* Exact match only, and the placeholder when the provider has no
-             picture: a candidate wearing a neighbour's poster is the one
-             mistake this screen cannot make. The absence is said by the
-             placeholder itself, not by a sentence in a line that truncates. */
-          {
-            genre: "candidat",
-            k: decision.k,
-            exact: true,
-            sansAffiche: candidat.sans,
-            resume: candidat.resume,
-          },
-        ),
-      )
-      .join("")}`;
-  }
-
-  function openResolve(cible) {
-    magasin.ecrire({
-      resolveTarget: cible ?? derived.stuck()[0]?.t ?? null,
-    });
-    const decision = decisionEnAttente(state.resolveTarget);
-    /* The queue spans BOTH surfaces a decision shows up on: « À traiter » on
-       the acquisition side and « Ça coince » in Arrivées. They are two views
-       of one thing — a folder the scrape could not name — and a progression
-       that counted only one of them would be wrong on the other. */
-    const attente = derived
-      .blocked()
-      .concat(derived.stuck())
-      .filter((bloque) => decisionEnAttente(bloque.t) != null);
-    const rang = decision
-      ? attente.findIndex((bloque) => bloque.t === decision.d) + 1
-      : 0;
-    const dossier = decision
-      ? decision.d
-      : (state.resolveTarget ?? "élément inconnu");
-    openScreen(
-      `<div class="fichebar"><button class="fback" onclick="__close('screen')">${svgIcon(icons.left)}Retour</button></div>
-  <div class="port"><div class="body">
-    <div class="note"><b>La résolution est un écran, pas un panneau.</b> Sur <code>/medias</code> elle apparaissait <em>sous</em> la liste qu'on lisait : au téléphone, on ne la voyait jamais.</div>
-    <h2 class="h2"><code>${escapeHtml(dossier)}</code></h2>
-    <p class="qhint">${
-      decision
-        ? escapeHtml(MOTIF_POURQUOI[decision.motif] ?? "")
-        : "Aucun média identifié. Voici ce que les providers proposent pour ce nom."
-    }</p>
-    <div class="cmeta" style="margin-bottom:12px">${
-      decision
-        ? chipHTML([
-            MOTIF_TON[decision.motif] ?? "neutral",
-            MOTIF_LABEL[decision.motif] ?? decision.motif,
-          ])
-        : ""
-    }${
-      attente.length > 1
-        ? `<span class="caption">${rang} sur ${attente.length} en attente</span>`
-        : ""
-    }</div>
-    ${
-      decision
-        ? candidatsHTML(decision)
-        : `<p class="rulenote">Les providers n'ont renvoyé aucun candidat pour ce nom. Il n'y a rien à choisir : la recherche manuelle est la seule voie.</p>`
-    }
-    <div class="empty"><b>Aucun de ceux-là ?</b>La recherche manuelle s'ouvre pré-remplie avec le nom du dossier. Jamais un cul-de-sac (DOIT-7).
-      <button class="cfoot" style="margin-top:10px" data-manual="${escapeHtml(dossier)}">Chercher manuellement →</button>
-    </div>
-    <div class="sheetacts secondary">
-      <button class="sact" data-laisser="${escapeHtml(dossier)}">${svgIcon(icons.check)}Laisser tel quel</button>
-      ${
-        attente.length > 1
-          ? `<button class="sact" data-suivante="${escapeHtml(dossier)}">${svgIcon(icons.right)}Passer à la suivante</button>`
-          : ""
-      }
-    </div>
-    <div class="note"><b>Laisser tel quel n'est pas ignorer.</b> Le résultat automatique était peut-être le bon : cette voie l'entérine et ne re-scrape rien. Elle existait dans le moteur et nulle part dans l'interface, donc on ne pouvait qu'être en désaccord avec la machine, jamais d'accord.</div>
-    ${
-      DECISIONS_REGLEES.length > 0
-        ? `<h2 class="h2" style="margin-top:18px">Réglées récemment</h2>
-           <p class="qhint">Ce qui a déjà été tranché, pour ne pas répondre deux fois — et pour retrouver ce qu'on avait choisi.</p>
-           ${DECISIONS_REGLEES.slice(0, 6)
-             .map((reglee) => decisionCardHTML(reglee))
-             .join("")}`
-        : ""
-    }
-  </div></div>`,
-      undefined,
-      () => openResolve(cible),
-    );
   }
 
   /* Every medium opens the SAME panel, and this function exists only to say
@@ -39939,46 +39819,12 @@
      through `window.__referentiel` — the search execution itself is still
      the engine's, reached through that seam. */
 
-  /* Choose another release
-     Show what is NOT happening and why. Here: why the engine picked this
-     one — and enough to pick another knowingly. The score shown is the
-     ranking's, not an opinion. */
-  function openReleases(titre) {
-    magasin.ecrire({ relTitre: titre });
-    openScreen(
-      `<div class="fichebar">
-      <button class="fback" onclick="__close('screen')">${svgIcon(icons.left)}Retour</button>
-      <span style="margin-left:auto;font-size:11px;color:var(--muted-foreground)">${escapeHtml(baseTitle(titre))}</span>
-    </div>
-    <div class="port"><div class="body">
-      <div class="note"><b>Écran neuf.</b> « Chercher une autre release » ne menait nulle part. Ce qui manquait n'est pas une liste : c'est <em>pourquoi</em> le moteur a classé ainsi — sans ça, choisir est un pari.</div>
-      <p class="rescount" style="padding:0"><b>${RELEASES.length}</b> candidats retenus par le profil de qualité · dernière recherche il y a 12 min</p>
-      ${RELEASES.map(
-        (
-          RELEASES2,
-          index,
-        ) => `<article class="rel${index === 0 ? " best" : ""}">
-        <span class="rn">${escapeHtml(RELEASES2.n)}</span>
-        <span class="rt">
-          <span class="chip ${RELEASES2.res === "2160p" ? "success" : RELEASES2.res === "1080p" ? "info" : "neutral"}">${RELEASES2.res}</span>
-          <span class="chip">${RELEASES2.src}</span>
-          <span class="chip">${RELEASES2.lang}</span>
-          <span class="chip">${RELEASES2.s} sources</span>
-          <span class="chip">${String(RELEASES2.go).replace(".", ",")} Go</span>
-          <span class="sc">score ${RELEASES2.sc}</span>
-        </span>
-        ${index === 0 ? `<p class="qhint">Retenue : meilleure résolution admise par le profil, langue MULTi préférée, et le plus de sources à qualité égale.</p>` : ""}
-        <button class="cfoot${index === 0 ? " solid" : ""}" data-prendre="${index}">${index === 0 ? "Reprendre celle-ci" : "Prendre celle-ci à la place"}</button>
-      </article>`,
-      ).join("")}
-      <div class="empty"><b>Aucune ne convient ?</b>Élargir le profil de qualité fera revenir des candidats écartés — la liste dit ce qu'elle a rejeté et pourquoi.
-        <button class="cfoot" style="margin-top:10px" data-profil="${escapeHtml(titre)}">Ouvrir le profil de qualité →</button>
-      </div>
-    </div></div>`,
-      undefined,
-      () => openReleases(titre),
-    );
-  }
+  /* Choose another release — migrated to a real route, `ReleasesEcran`
+     (`design/src/ecrans/releases.tsx`, reached at `/releases/$titre`). Show
+     what is NOT happening and why. Here: why the engine picked this one —
+     and enough to pick another knowingly. The score shown is the ranking's,
+     not an opinion. `RELEASES` stays defined here and crosses the handshake
+     through `window.__referentiel` — same seam as `SEARCH`/`cardHTML` above. */
 
   function openPlusSheet() {
     window.__panneau.ouvrir({

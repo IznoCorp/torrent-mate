@@ -26,24 +26,25 @@ async def main():
         await pg.wait_for_timeout(320)
         r=await pg.evaluate("""()=>{const v=document.querySelector('#view');
           const sh=document.querySelector('#sheet'), sc=document.querySelector('#screen'), dg=document.querySelector('#dlg');
-          // The media sheet left `#screen` for a real route (`/fiche/$titre`,
-          // rendered inside `#coquille`) and is named by the identity it
-          // carries. Without it, a state opening the fiche would count as
-          // « no layer » and this rule would measure the page UNDERNEATH —
-          // the overflow, the skeletons and the text of a surface the state
-          // does not show. The add-media screen (`/ajout`) left `#screen` the
-          // same way and joins the fiche's rung for the same reason: a state
-          // opening it would otherwise be measured on the page underneath.
-          const fi = document.querySelector('.screen.open[data-cle^="fiche:"]');
-          const aj = document.querySelector('.screen.open[data-cle^="ajout:"]');
-          const couche = sh.classList.contains('open')||sc.classList.contains('open')||dg.classList.contains('open')||!!fi||!!aj;
-          // The fiche and the add-media screen come LAST in the precedence, so
-          // every pre-existing case resolves to exactly what it resolved to
-          // before: a panel or a dialog opened OVER either one is what one is
+          // Every screen migrated off `#screen` onto a real route (the fiche
+          // at `/fiche/$titre`, the add screen at `/ajout`, the arbitration
+          // screen at `/resolution/$dossier`, the release picker at
+          // `/releases/$titre`, the quality profile at `/profil/$titre`) is
+          // read through ONE generic rung — any OPEN screen carries a
+          // `data-cle`, so its presence is enough, never a per-identity
+          // prefix. Without it, a state opening one of those routes would
+          // count as « no layer » and this rule would measure the page
+          // UNDERNEATH — the overflow, the skeletons and the text of a
+          // surface the state does not show.
+          const rt = document.querySelector('.screen.open[data-cle]');
+          const couche = sh.classList.contains('open')||sc.classList.contains('open')||dg.classList.contains('open')||!!rt;
+          // The route rung comes LAST in the precedence, so every
+          // pre-existing case resolves to exactly what it resolved to
+          // before: a panel or a dialog opened OVER a route is what one is
           // looking at, and stays what is measured.
           const cible = couche ? (dg.classList.contains('open')?dg
                                  :sc.classList.contains('open')?sc
-                                 :sh.classList.contains('open')?sh:fi||aj) : v;
+                                 :sh.classList.contains('open')?sh:rt) : v;
           return {sk:cible.querySelectorAll('.sk').length, txt:cible.textContent.replace(/\\s+/g,' ').trim().length,
                   doc:document.documentElement.scrollWidth,
                   // An overflow clipped by an ancestor is not overflow:

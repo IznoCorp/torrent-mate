@@ -35,21 +35,21 @@ async def main():
     # R11 — jargon, technical values and machine English in rendered text
     for e in etats:
         await pg.evaluate("(i)=>window.__go(i)",e); await pg.wait_for_timeout(240)
-        # The media sheet left `#screen` for a real route (`/fiche/$titre`,
-        # rendered inside `#coquille`) — a state that opens it would otherwise
-        # fall through to `#view` and this rule would read a page the state
-        # does not show. The fiche is named by the identity it carries,
-        # `data-cle="fiche:…"`, and comes LAST in the ladder — the same order
-        # `audit.py`, `dest.py` and `states.py` use — so every pre-existing
-        # case resolves exactly as before and a layer opened OVER the fiche is
-        # still what gets read. The add-media screen (`/ajout`) left `#screen`
-        # the same way and joins the fiche's rung, for the same reason.
+        # Every screen migrated off `#screen` onto a real route — the fiche,
+        # the add screen, the arbitration screen, the release picker, the
+        # quality profile — answers to ONE generic rung: any OPEN screen
+        # carries a `data-cle`, so its presence is enough, its identity never
+        # read here. It sits LAST in the ladder — the same order `audit.py`,
+        # `dest.py` and `states.py` use — so every pre-existing case resolves
+        # exactly as before and a layer opened OVER a route is still what gets
+        # read. A state opening a route this rung does not cover would
+        # otherwise fall through to `#view` and this rule would read a page
+        # the state does not show.
         bad=await pg.evaluate("""()=>{
           const r=document.querySelector('#dlg').classList.contains('open')?'#dlg'
                  :document.querySelector('#screen').classList.contains('open')?'#screen'
                  :document.querySelector('#sheet').classList.contains('open')?'#sheet'
-                 :document.querySelector('.screen.open[data-cle^="fiche:"]')?'.screen.open[data-cle^="fiche:"]'
-                 :document.querySelector('.screen.open[data-cle^="ajout:"]')?'.screen.open[data-cle^="ajout:"]'
+                 :document.querySelector('.screen.open[data-cle]')?'.screen.open[data-cle]'
                  :'#view';
           const t=document.querySelector(r).innerText;
           const motifs=[[/\\bundefined\\b/,'undefined'],[/\\bNaN\\b/,'NaN'],[/\\bnull\\b/,'null'],

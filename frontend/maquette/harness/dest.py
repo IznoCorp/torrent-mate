@@ -23,19 +23,18 @@ async def main():
     for e in etats:
         await pg.evaluate("(i)=>window.__go(i)",e); await pg.wait_for_timeout(230)
         r=await pg.evaluate("""()=>{
-          // The media sheet left `#screen` for a real route (`/fiche/$titre`,
-          // rendered inside `#coquille`): it takes its place in this ladder,
-          // named by the identity it carries and LAST, so every other case
-          // resolves exactly as before. Without it, a state opening the fiche
-          // would fall through to `#view` and the rule would clear the fiche's
-          // buttons without ever having looked at them. The add-media screen
-          // (`/ajout`) left `#screen` the same way and joins the fiche's rung,
-          // for the same reason.
+          // Every screen migrated off `#screen` onto a real route takes its
+          // place in this ladder through ONE generic rung — any OPEN screen
+          // carries a `data-cle`, so its presence is enough, never a
+          // per-identity prefix — placed LAST so every other case resolves
+          // exactly as before. Without it, a state opening one of those
+          // routes would fall through to `#view` and the rule would clear
+          // the underlying page's buttons without ever having looked at the
+          // screen's own.
           const racine=document.querySelector('#dlg').classList.contains('open')?document.querySelector('#dlg')
             :document.querySelector('#screen').classList.contains('open')?document.querySelector('#screen')
             :document.querySelector('#sheet').classList.contains('open')?document.querySelector('#sheet')
-            :document.querySelector('.screen.open[data-cle^="fiche:"]')
-            ??document.querySelector('.screen.open[data-cle^="ajout:"]')
+            :document.querySelector('.screen.open[data-cle]')
             ??document.querySelector('#view');
           return [...racine.querySelectorAll('button, a')]
             .filter(x=>x.getBoundingClientRect().height>0 && !x.disabled

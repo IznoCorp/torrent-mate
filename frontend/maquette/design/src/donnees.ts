@@ -111,6 +111,67 @@ export type Reglage = {
   rubrique: Record<string, unknown>;
 };
 
+// One TVDB/TMDB candidate offered for a decision still awaiting arbitration,
+// exactly as `DECISIONS_ATTENTE[].c` shapes one. `sans` marks a candidate
+// with no poster at the provider (the placeholder is what says so on the
+// card, never a truncating sentence); `resume` is the synopsis shown there.
+export type DecisionCandidat = {
+  t: string;
+  y: number;
+  p: string;
+  id: number;
+  s: number;
+  sans?: boolean;
+  resume?: string;
+};
+
+// The choice recorded once a decision resolves — the winning candidate's
+// identity plus how it was reached: picked from the offered list, or found
+// through a manual search override that bypassed that list. `via` keys
+// `VIA_LABEL`.
+export type DecisionChoix = {
+  t: string;
+  p: string;
+  id: number;
+  via: "pick" | "search_override";
+};
+
+// Fields common to a decision whichever side of resolution it is on — the
+// folder's display name (`d`, always spelled `staging_path`-derived, never a
+// medium title), its kind, the title/year the automatic pass landed on, and
+// when the scrape ran. `motif` keys `MOTIF_LABEL` / `MOTIF_TON` /
+// `MOTIF_POURQUOI`.
+type DecisionCommune = {
+  d: string;
+  k: "movie" | "show";
+  t: string;
+  y?: number;
+  motif: string;
+  quand: string;
+};
+
+// A folder still waiting on an operator's call, exactly as `DECISIONS_ATTENTE`
+// shapes one. `c` is empty when the provider returned no candidate at all
+// (see refonte.html's "Backrooms" row) — the other shape besides a populated
+// list, never absent outright.
+export type DecisionAttente = DecisionCommune & { c: DecisionCandidat[] };
+
+// A decision already settled, exactly as `DECISIONS_REGLEES` shapes one.
+// `etat` keys `ETAT_DECISION` / `ETAT_DECISION_POURQUOI`. `choix` is present
+// only for a "resolved" row — a "superseded" or "dismissed" row never
+// recorded one, because no candidate was ever chosen.
+export type DecisionReglee = DecisionCommune & {
+  etat: string;
+  choix?: DecisionChoix;
+};
+
+// A queue card exactly as `BLOCKED` / `STUCK` / `STUCK_REEL` shape one — the
+// source carries more fields (`s`, `chip`, `strip`, `noposter`…) than any one
+// reader needs, so this stays the same loose index shape as `Fiche` rather
+// than a speculative closed type: a caller narrows the fields it actually
+// reads, starting with `t` to match against a decision's `d`.
+export type CarteFile = Record<string, unknown>;
+
 // Read-only reference data + pure rendering helpers the engine's own script
 // publishes once, at definition time — well before any component's module
 // evaluates (see coquille.tsx's boot-order comment). None of it is ever
@@ -175,7 +236,55 @@ export type Referentiel = {
   valeurSaisie: (reglage: Reglage, texte: string) => unknown;
   modifierReglage: (id: string, valeur: unknown) => void;
   ouvrirReglage: (id: string) => void;
+  // The arbitration flow — decisions the scrape could not make on its own,
+  // spelled out for a folder rather than a medium. `DECISIONS_ATTENTE` /
+  // `DECISIONS_REGLEES` are the mock's twelve rows of `scrape_decision` (ten
+  // réglées, two en attente), split by whether an operator has answered yet.
+  DECISIONS_ATTENTE: DecisionAttente[];
+  DECISIONS_REGLEES: DecisionReglee[];
+  MOTIF_LABEL: Record<string, string>;
+  MOTIF_TON: Record<string, string>;
+  MOTIF_POURQUOI: Record<string, string>;
+  // Unlike the other label maps here, each value is a [tone, label] pair —
+  // the same shape a chip carries — not a bare string: `ETAT_DECISION`
+  // supplies both the chip's tone and its text in one lookup.
+  ETAT_DECISION: Record<string, [string, string]>;
+  ETAT_DECISION_POURQUOI: Record<string, string>;
+  VIA_LABEL: Record<string, string>;
+  // `cible` is `state.resolveTarget`, which is `string | null` (see this
+  // module's `EtatUI`-cast comment below); a target absent from
+  // `DECISIONS_ATTENTE` — already resolved, or never a decision at all —
+  // answers `null` rather than throwing.
+  decisionEnAttente: (cible: string | null) => DecisionAttente | null;
+  // Thin arrows over `derived.blocked` / `derived.stuck`, published so the
+  // FUNCTION REFERENCE stays stable across renders while the value each call
+  // returns stays live — a component can pass these to a hook that expects a
+  // stable selector without ever seeing a stale snapshot.
+  derivedBlocked: () => CarteFile[];
+  derivedStuck: () => CarteFile[];
+  // Agreeing with the machine (`actionLaisser`) or with a candidate
+  // (`actionResoudre`, `choix` the chosen title when the operator picked
+  // one) both remove the folder from wherever it is queued and hand it back
+  // to the pipeline; `actionRecuperer` restarts a takeable item instead.
+  // Each toasts and re-renders on success; `actionLaisser` also reports
+  // whether the folder was found at all.
+  actionResoudre: (titre: string, choix?: string) => void;
+  actionLaisser: (titre: string) => boolean;
+  actionRecuperer: (titre: string) => void;
+  toast: (msg: string) => void;
+  posterBox: (
+    title: string,
+    kind?: "movie" | "show",
+    opts?: { exact?: boolean },
+  ) => string;
+  chipHTML: (chip: [string, string] | null | undefined) => string;
 };
+
+// `etat.resolveTarget` (the folder currently open on the resolution screen)
+// and `etat.relTitre` (the item a "Récupérer" gesture targets) are both
+// `string | null` at runtime. `EtatUI` itself stays the loose
+// `{ [cle: string]: unknown }` shape (see magasin.ts) — a reader casts at the
+// point of use, exactly as `ajout.tsx:91` already does for `resolveTarget`.
 
 // The shell's bottom-panel API — what a legacy producer calls instead of the
 // dead `openSheet(html)`. `ouverte()` answers from the STORE, never from the
