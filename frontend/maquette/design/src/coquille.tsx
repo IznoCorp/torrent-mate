@@ -17,6 +17,7 @@ import ReactDOM from "react-dom/client";
 import { Feuille } from "./composants/feuille";
 import { refuserBloc, type Descripteur } from "./composants/panneau";
 import { AjoutEcran } from "./ecrans/ajout";
+import { FicheEcran } from "./ecrans/fiche";
 import { ProfilEcran } from "./ecrans/profil";
 import { creerMagasin, type Magasin } from "./magasin";
 
@@ -45,6 +46,10 @@ type Pont = {
 // string — normalisation and encoding are this file's job, not the caller's.
 type Ecrans = {
   profil: (titre: string) => void;
+  // The media sheet — the centre of the product. `titre` crosses as a plain
+  // string here too; the percent-encoding and the NFC normalisation are done
+  // below, on write, and again by `FicheEcran` on read.
+  fiche: (titre: string) => void;
   // `q`/`mode` cross the bridge as plain strings, the way a legacy call site
   // already holds them (`state.addQ`, a literal like `"identifier"`) — the
   // validated union lives in `/ajout`'s own `validateSearch`, not here.
@@ -146,6 +151,17 @@ const ajout = createRoute({
   },
   component: AjoutEcran,
 });
+// The media sheet: ONE screen for every medium, reached from a poster, a
+// tile, a suggestion or a panel act. `$titre` follows `/profil/$titre`'s
+// discipline exactly — percent-encoded, NFC-normalised on both ends. NO
+// search param: the legacy sheet had no open-season state either; a
+// `<details open>` is computed per render and toggled natively by the finger,
+// so there is nothing here for the address to carry.
+const fiche = createRoute({
+  getParentRoute: () => racine,
+  path: "/fiche/$titre",
+  component: FicheEcran,
+});
 // A thrown component used to fail into a bare `null` — the exact failure
 // shape this whole architecture exists to kill: a blank phone frame with
 // nothing on screen saying why, and nothing in the console pointing at it
@@ -175,7 +191,7 @@ function EcranEnErreur({ error }: { error: unknown }) {
 }
 
 const routeur = createRouter({
-  routeTree: racine.addChildren([attrape, profil, ajout]),
+  routeTree: racine.addChildren([attrape, profil, ajout, fiche]),
   history: historique,
   // The document is also read under other paths than `/` — the rule harness
   // serves it as `wrapped.html`. The router's built-in not-found fallback
@@ -248,6 +264,92 @@ window.__pont = {
 };
 window.__routeur = routeur;
 
+/* ── LE DÉFILEMENT SUIT L'ENTRÉE D'HISTORIQUE ─────────────────────────────
+   A screen opened OVER another one used to be the same LAYER replacing its
+   own content, and the legacy layer restored the covered screen's scroll
+   itself when it unwound (`closeScreen`). Router-owned screens replace each
+   other by UNMOUNTING instead: the covered screen's DOM — and its scroll
+   offset with it — is gone by the time one comes back to it, and the
+   operator lands at the top of the list they had walked down.
+
+   The memory is kept HERE, in the shell, and keyed per HISTORY ENTRY (the
+   library stamps every entry with its own `key`), never per address: the
+   same `/ajout?q=lucky` reached twice is two entries and two positions.
+   Components stay unaware — nothing below is a prop, a hook or a context.
+
+   Reading happens in the history subscription, which runs BEFORE React
+   commits the new route: the outgoing screen is still in the DOM at that
+   instant, which is the only moment its position can still be read.
+   `.screen.open .port` resolves the React screen first (`#coquille` precedes
+   the legacy `#screen` in document order), which is exactly the one that is
+   about to be unmounted; a legacy screen above it keeps its own restoration.
+
+   Restoring mirrors the legacy re-apply: once as soon as the port exists,
+   then once more when the late-loading posters have settled — the restored
+   list is briefly too short and the browser clamps the offset back to 0. */
+const defilements = new Map<string, number>();
+// A navigation that lands while a restoration is still waiting for its frames
+// or its images invalidates it: the position belonged to the entry one has
+// just left.
+let restauration = 0;
+
+function cleEntree(etat: unknown): string | null {
+  const stampe = etat as { key?: string; __TSR_key?: string } | undefined;
+  return stampe?.key ?? stampe?.__TSR_key ?? null;
+}
+
+function portActif(): HTMLElement | null {
+  return document.querySelector<HTMLElement>(".screen.open .port");
+}
+
+function restaurerDefilement(y: number, jeton: number): void {
+  // The router commits its re-render on its own schedule, so the port of the
+  // screen being restored does not exist yet at subscription time. A bounded
+  // retry over a few frames is what waits for it without polling forever.
+  let framesRestantes = 5;
+  const essayer = () => {
+    if (jeton !== restauration) return;
+    const port = portActif();
+    if (!port) {
+      if (--framesRestantes > 0) requestAnimationFrame(essayer);
+      return;
+    }
+    port.scrollTop = y;
+    const images = [...port.querySelectorAll("img")].filter(
+      (image) => !image.complete,
+    );
+    let restantes = images.length;
+    images.forEach((image) =>
+      image.addEventListener(
+        "load",
+        () => {
+          if (--restantes <= 0 && jeton === restauration) port.scrollTop = y;
+        },
+        { once: true },
+      ),
+    );
+  };
+  requestAnimationFrame(essayer);
+}
+
+let cleCourante = cleEntree(historique.location.state);
+historique.subscribe(({ action, location }) => {
+  const port = portActif();
+  if (cleCourante && port) defilements.set(cleCourante, port.scrollTop);
+  cleCourante = cleEntree(location.state);
+  restauration += 1;
+  // Only a RETURN restores: arriving forward on an address one has seen
+  // before is a new visit, and it starts where a new visit starts.
+  if (
+    action.type !== "BACK" &&
+    action.type !== "FORWARD" &&
+    action.type !== "GO"
+  )
+    return;
+  const memorise = cleCourante ? defilements.get(cleCourante) : undefined;
+  if (memorise) restaurerDefilement(memorise, restauration);
+});
+
 // The ONLY programmatic navigator in `src/`: R76 forbids a bare
 // `routeur.navigate()` anywhere else, because the library batches its
 // commits into a microtask — two writes issued in the same task would merge
@@ -275,6 +377,8 @@ export function aller(vers: {
 window.__ecrans = {
   profil: (titre: string) =>
     aller({ to: "/profil/$titre", params: { titre: titre.normalize("NFC") } }),
+  fiche: (titre: string) =>
+    aller({ to: "/fiche/$titre", params: { titre: titre.normalize("NFC") } }),
   // Kept in sync in `magasin.ecrire` BEFORE navigating: `state.addMode` is
   // still read by the untouched cross-world "add:N" panel act (it decides
   // ASSOCIATE vs regular add — see refonte.html) and by `addVerb`, and
@@ -375,7 +479,7 @@ window.__magasin = magasin;
 // (needs a load this router has not run yet, since RouterProvider has not
 // mounted) or `router.navigate` (this is a read, not a navigation). A
 // pathname that resolves to a registered route (`/`, `/profil/$titre`,
-// `/ajout` — any of the three) is router territory, and the shared
+// `/ajout`, `/fiche/$titre` — any of them) is router territory, and the shared
 // production root for all of them is "/"; a pathname the router does not
 // recognise at all (the harness's own "/wrapped.html") is the legacy
 // engine's ground exactly as it is.

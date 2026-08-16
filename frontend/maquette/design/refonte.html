@@ -11783,6 +11783,12 @@
       lib: LIBRARY.slice(),
       removedLib: new Set(),
     };
+    // Reseeding REPLACES the world object, so the store's copy of the
+    // reference has to be replaced too — the engine's actions go on mutating
+    // `world` in place, and a store still holding the previous object would
+    // hand a component a world nobody writes to anymore. Optional because the
+    // first seed runs before the shell hands the store over.
+    magasin?.adopterMonde(world);
   }
   seedWorld();
   /* Simulated behaviours
@@ -17085,7 +17091,7 @@
       "Fiche — suggestion NON possédée (série)",
       () => {
         applyState({ page: "acq", acqTab: "decouvrir", phase: "prete" });
-        openFiche("The Venture Bros");
+        window.__ecrans.fiche("The Venture Bros");
       },
     ],
     [
@@ -17093,7 +17099,7 @@
       "Fiche — suggestion NON possédée (film)",
       () => {
         applyState({ page: "acq", acqTab: "decouvrir", phase: "prete" });
-        openFiche("Superman : L'Homme de demain");
+        window.__ecrans.fiche("Superman : L'Homme de demain");
       },
     ],
     [
@@ -17101,7 +17107,7 @@
       "Fiche — série avec épisodes datés",
       () => {
         applyState({ page: "lib", phase: "prete" });
-        openFiche("Silo (2023)");
+        window.__ecrans.fiche("Silo (2023)");
       },
     ],
     [
@@ -17109,7 +17115,7 @@
       "Fiche — film",
       () => {
         applyState({ page: "lib", phase: "prete" });
-        openFiche("Marjorie Prime");
+        window.__ecrans.fiche("Marjorie Prime");
       },
     ],
     [
@@ -17117,7 +17123,7 @@
       "Fiche — sans bande-annonce",
       () => {
         applyState({ page: "lib", phase: "prete" });
-        openFiche("Broadchurch");
+        window.__ecrans.fiche("Broadchurch");
       },
     ],
     [
@@ -17973,9 +17979,14 @@
         }
       }
       actionSuivre(closest.dataset.follow, suggestion?.k ?? "Série");
-      // Reopen the sheet so the button toggles under the finger: an action
-      // whose screen does not change reads as a failed action.
-      if (closest.dataset.refiche) openFiche(closest.dataset.refiche);
+      // The media sheet used to REOPEN itself here so its button would toggle
+      // under the finger — an action whose screen does not change reads as a
+      // failed action. The sheet is a React screen now and re-renders from
+      // the store instead, but `actionSuivre` mutates `world.follows` IN
+      // PLACE and no `render()` follows on this branch: the bump has to be
+      // explicit, exactly as it is for the dismissed suggestion above, or
+      // the button never learns the follow happened.
+      magasin.toucher();
       return;
     }
 
@@ -18284,9 +18295,9 @@
       const couche = window.__panneau.ouverte();
       if (couche) {
         window.__panneau.fermer();
-        setTimeout(() => openFiche(fiche), 260);
+        setTimeout(() => window.__ecrans.fiche(fiche), 260);
       } else {
-        openFiche(fiche);
+        window.__ecrans.fiche(fiche);
       }
       return;
     }
@@ -39467,178 +39478,11 @@
       .join("")}</div>`;
   }
 
-  function openFiche(title) {
-    const fiche2 = sheetFor(title);
-    const isFilm = fiche2 ? fiche2.k === "movie" : false;
-    /* Seasons are DERIVED from the provider catalogue crossed with the
-       numbers actually owned. A hand-written table gave seasons to 10
-       series only, and none of them to the INCOMPLETE ones — the very media
-       the question is about. */
-    const sort = saisonsDe(title)
-      .slice()
-      .sort((slice, index) => index[0] - slice[0]);
-    const own = sort.reduce(
-      (accumulator, element) => accumulator + element[2],
-      0,
-    );
-    const aired = sort.reduce(
-      (accumulator, element) => accumulator + element[1],
-      0,
-    );
-    const pct = aired ? Math.round((own / aired) * 100) : null;
-    const eps = fiche2?.eps ? Object.entries(fiche2.eps)[0] : null;
-    // A suggestion is NOT in the library: the sheet must say so and
-    // offer to add it, not to delete it. Same template, with the only
-    // variation reality imposes.
-    const possede = fiche2?.possede !== false;
-    const suivi = world.follows.some(
-      (follow) => baseTitle(follow.t) === baseTitle(title),
-    );
-    const cat = (fiche2?.saisons ?? [])
-      .slice()
-      .sort((slice, index) => index.n - slice.n);
-    const catEp = cat.reduce(
-      (accumulator, element) => accumulator + element.ep,
-      0,
-    );
-    const prov = fiche2?.ids ?? {};
-    const url = prov.tvdb
-      ? `/media/tvdb/${prov.tvdb}`
-      : prov.tmdb
-        ? `/media/tmdb/${prov.tmdb}`
-        : null;
-    // The banner prefers the wide visual; the vertical poster is only a
-    // fallback, and initials when there is neither.
-    const affiche =
-      HEROS[title] ??
-      HEROS[baseTitle(title)] ??
-      POSTERS[title] ??
-      POSTERS[baseTitle(title)] ??
-      null;
-    // The link exists or it does not; where one arrives from changes nothing.
-    const bande = trailerIds[title] ?? trailerIds[baseTitle(title)] ?? null;
-
-    openScreen(
-      `<div class="fichebar">
-      <button class="fback" onclick="__close('screen')">${svgIcon(icons.left)}Retour</button>
-      <span style="margin-left:auto;font-size:11px;color:var(--muted-foreground)">${url ?? "média non identifié"}</span>
-    </div>
-    <div class="port"><div class="body">
-
-      <div class="herowrap${affiche ? "" : " noaffiche"}">
-        <div class="herobg" aria-hidden="true"${affiche ? ` style="background-image:url('${affiche}')"` : ""}></div>
-        <div class="hero">
-          <h2 class="ht">${escapeHtml(title.split(" (")[0])}</h2>
-          <p class="hm">
-            ${fiche2 ? `${fiche2.y || "année inconnue"} · ${isFilm ? "Film" : "Série"}${fiche2.duree ? ` · ${fiche2.duree} min` : ""}` : "Métadonnées inconnues"}
-            ${fiche2?.g ? `<br>${escapeHtml(fiche2.g)}` : "<br>Genres inconnus"}
-            ${fiche2 && !isFilm && fiche2.statut ? `<br>Série ${escapeHtml(fiche2.statut.toLowerCase())}` : ""}
-          </p>
-          ${fiche2?.note ? `<span class="hn">${svgIcon(icons.star)}${String(fiche2.note).replace(".", ",")}<span style="color:var(--muted-foreground);font-weight:400"> sur TMDB</span></span>` : ""}
-        </div>
-      </div>
-
-      ${
-        bande
-          ? `<a class="trailer" href="https://www.youtube.com/watch?v=${bande.key}"
-                target="_blank" rel="noopener" data-yt="${bande.key}">
-               <span class="pl">${svgIcon(icons.play)}</span>
-               <span>Bande-annonce<small>${escapeHtml(bande.nom)}</small></span>
-               <span class="tsrc">${svgIcon(icons.ext)}YouTube</span>
-             </a>`
-          : `<p class="nofiche">Aucune bande-annonce fournie par le provider. La fiche le dit plutôt que de masquer la section — §8.</p>`
-      }
-
-      <div>
-        <h2 class="h2" style="margin-bottom:6px">Synopsis</h2>
-        <p style="margin:0;font-size:12.5px;line-height:1.55;color:var(--muted-foreground)">${fiche2?.ov ? escapeHtml(fiche2.ov) : "Synopsis inconnu — le provider n'en fournit pas."}</p>
-      </div>
-
-      <div>
-        <h2 class="h2" style="margin-bottom:8px">${isFilm ? "Réalisation et distribution" : "Création et distribution"}</h2>
-        <div class="panel" style="margin-bottom:10px">
-          <div class="kv"><span>${isFilm ? "Réalisateur" : "Créateur"}</span><span>${escapeHtml((isFilm ? fiche2?.real : fiche2?.crea) ?? "inconnu")}</span></div>
-        </div>
-        ${
-          fiche2?.cast?.length
-            ? `<div class="cast" data-noswipe>${fiche2.cast.map((cast) => `<figure><span class="ca">${ACTEURS[cast.n] ? `<img src="${ACTEURS[cast.n]}" alt="" loading="lazy">` : initials(cast.n)}</span><figcaption><b>${escapeHtml(cast.n)}</b><span>${escapeHtml(cast.r || "rôle inconnu")}</span></figcaption></figure>`).join("")}</div>`
-            : `<p class="nofiche">Distribution inconnue.</p>`
-        }
-      </div>
-
-      <div>
-        <h2 class="h2" style="margin-bottom:6px">Médiathèque</h2>
-        <div class="panel">
-          ${
-            !possede
-              ? `<div class="kv"><span>Dans votre médiathèque</span><span><span class="pip neutral"></span>non</span></div>
-                 <div class="kv"><span>Suivi</span><span>${suivi ? "actif" : "non suivi"}</span></div>
-                 ${cat.length ? `<div class="kv"><span>Catalogue ${isFilm ? "" : "connu"}</span><span>${cat.length} saison${cat.length > 1 ? "s" : ""} · ${catEp} épisodes</span></div>` : ""}`
-              : isFilm
-                ? `<div class="kv"><span>Possédé</span><span><span class="pip success"></span>oui</span></div>
-                   <div class="kv"><span>Fichier</span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px">${escapeHtml(baseTitle(title))}.${fiche2?.y ?? "2026"}.MULTi.1080p.mkv</span></div>`
-                : `<div class="kv"><span>Saisons</span><span>${sort.length || "inconnu"}</span></div>
-                   <div class="kv"><span>Épisodes diffusés</span><span>${aired || "inconnu"}</span></div>
-                   <div class="kv"><span>Possédés</span><span>${own}</span></div>
-                   <div class="kv"><span>Complétude</span><span><span class="pip ${pct === 100 ? "success" : pct === null ? "neutral" : "warning"}"></span>${pct === null ? "inconnue" : pct + " %"}</span></div>`
-          }
-        </div>
-        ${saisonsFicheHTML(fiche2, sort, possede, cat, title)}
-      </div>
-
-      ${
-        false
-          ? `<div>
-              <h2 class="h2" style="margin-bottom:6px">Épisodes — saison ${eps[0]}</h2>
-              <div class="panel">
-                ${eps[1]
-                  .map((element) => {
-                    const futur = element.air && element.air > AUJOURDHUI;
-                    return `<div class="eprow${futur ? " avenir" : ""}">
-                    <span class="en">E${String(element.n).padStart(2, "0")}</span>
-                    <span class="et">${escapeHtml(element.t)}</span>
-                    <span class="ed">${element.air ? dateFR(element.air) : "date inconnue"}${futur ? " · à venir" : ""}</span>
-                  </div>`;
-                  })
-                  .join("")}
-              </div>
-              <p class="rulenote" style="margin-top:8px">Un épisode dont la date est postérieure à aujourd'hui est <b>annoncé</b>, pas manquant : il ne compte jamais au dénominateur de la complétude (§5.4).</p>
-            </div>`
-          : ""
-      }
-
-      <div>
-        <h2 class="h2" style="margin-bottom:6px">Informations</h2>
-        <div class="panel">
-          <div class="kv"><span>Suivi</span><span>${world.follows.some((follow) => follow.t === title || follow.t === title.split(" (")[0]) ? "actif" : "non suivi"}</span></div>
-          ${Object.entries(prov)
-            .map(
-              ([key, value]) =>
-                `<div class="kv"><span>${key.toUpperCase()}</span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px">${escapeHtml(String(value))}</span></div>`,
-            )
-            .join("")}
-          <div class="kv"><span>Métadonnées rafraîchies</span><span>10 août, 04 h 12</span></div>
-        </div>
-      </div>
-
-      <div class="sheetacts secondary">
-        ${
-          possede
-            ? `<button class="sact" data-toast="Re-scrape lancé — NFO et affiches seront refaits.">${svgIcon(icons.refresh)}Re-scraper les métadonnées</button>
-               <button class="sact danger" data-del="${escapeHtml(title)}">${svgIcon(icons.trash)}Supprimer de la médiathèque</button>`
-            : suivi
-              ? `<button class="ficheadd done" disabled>${svgIcon(icons.check)}${isFilm ? "Ajouté" : "Suivi"}</button>`
-              : `<button class="ficheadd" data-follow="${escapeHtml(title)}" data-fkind="${isFilm ? "Film" : "Série"}" data-refiche="${escapeHtml(title)}">${svgIcon(icons.plus)}${isFilm ? "Ajouter" : "Suivre"}</button>`
-        }
-      </div>
-
-      <div class="note"><b>Un seul gabarit pour tout média.</b> Les différences visibles ici sont celles que la nature impose — réalisateur et durée pour un film, créateur, statut et catalogue pour une série. Toute autre différence serait une dérive.</div>
-    </div></div>`,
-      "fiche:" + title,
-      () => openFiche(title),
-    );
-  }
-
+  /* The media sheet moved to the shell with the rest of the screens:
+     `src/ecrans/fiche.tsx` renders it as the route `/fiche/$titre`. The
+     verb a call site says is `window.__ecrans.fiche(title)`; the template,
+     the seasons and the actions live there, at identical markup — the
+     click delegation below still reads their data attributes. */
   /* ── L'écran de résolution ────────────────────────────────────────────
      One screen answers two questions that used to live on two pages: « what
      is stuck » and « which medium is it ». It is a SCREEN and not a panel —
