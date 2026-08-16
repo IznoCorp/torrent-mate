@@ -986,3 +986,106 @@ on YESTERDAY when the suite runs in the first minute of a day — observed live 
 **Full re-measure** (`ce91f328`): `make check` PASS, frontend **131 files**
 green, UNION **15/15**, gestures **15/15**, batch **10/10**, frame **6/6**,
 pills **5/5**.
+
+---
+
+## Entry 25 — 2026-08-09: prod deploy, then three operator reports in one branch
+
+**Deployed to PRODUCTION** — the whole maquette-parity branch, squash-merged as
+`14da7a37` (v0.88.0), and then this batch as `720d2536` (v0.89.0). Prod
+independently verified both times (a request made after the fact, not the
+deployer's own log line): `/api/version` served the deployed sha, `/api/health`
+200, and the entry chunk referenced by a `no-store` `index.html` was the one
+that deploy had just built.
+
+### 1. « Terminé » split from « À jour » — and the operator's own rule rejected
+
+The operator asked for « Terminé » = « tous les épisodes diffusés sont en
+médiathèque **et il n'y a plus d'épisodes annoncés avec une diffusion à
+venir** ». Measured against the production database that same morning, that
+rule is false:
+
+| série                  | futurs en cache | dernier diffusé |
+| ---------------------- | --------------- | --------------- |
+| House of the Dragon    | **0**           | **2026-08-09**  |
+| Dexter: Resurrection   | 0               | 2025-09-07      |
+| Ted Lasso              | 9               | —               |
+
+`House of the Dragon` had zero announced episodes while airing THAT DAY. An
+announcement-only rule would have declared a running series finished — the same
+shape of untruth as the founding « À jour » on zero knowledge that this module
+exists to prevent.
+
+So « Terminé » rests on a POSITIVE fact: the provider's production status
+(`Ended` / `Canceled`), which `poll_known` already fetched to enumerate the
+seasons and discarded. Zero extra provider calls (NE-DOIT-PAS-8). `NULL` reads
+as « not known to have ended », never as « still running » and never as
+« finished ».
+
+Shipped: migration 023, `poll_catalog`, a detect writer that **never blanks a
+known status on a silent poll**, `announced_count` end to end, and the UI
+(label, tone, « Terminées » group, urgency rank, « Rangé aujourd'hui »).
+
+**Deployment note**: the column arrives EMPTY. The web read path opens a raw
+read-only connection and does not migrate; the first write — or the first cron
+that opens the store — applies 023, and only the next `follow detect` writes the
+statuses. No card changes appearance at deploy time. That is correct behaviour,
+not a failure, but it must be said or it reads as a broken feature.
+
+### 2. The swiped card — reported, NOT reproduced, made unreachable
+
+Operator photos (iPhone SE): a row open at TWO panes' width with ONE pane
+rendered — an 84 px empty band, « Retirer » a sliver.
+
+First, which build: `SwipeActions.tsx` did not exist on `main` at 08:50, so the
+photos are staging, not prod. Then, measured on that same build at 375×667: the
+settled geometry is correct on all five rows (card `-168px`, panes 193→277 and
+277→361, **gap 0.00 px**), and stays correct after a release at 25/45/90/130/200
+px, after a `pointercancel`, and after a refetch mid-open.
+
+The mechanism was not found. Rather than claim a fix, the geometry was made
+**unreachable**: the card's placement is now clamped AT RENDER by the panes it
+actually has. Two regression tests reproduce the photographed state (two panes →
+one, one pane → none) and go red without the clamp — mutation-checked.
+
+### 3. The gap between the two pinned bars — reproduced, measured, fixed
+
+Operator: « l'écart entre le changement d'onglet et le champ filtrer par nom
+diminue/augmente quand on scroll », with a hypothesis (the pull-to-refresh
+zone).
+
+Measured at 390 px on the deployed build:
+
+| scrollTop | onglets        | filtres        | écart      |
+| --------- | -------------- | -------------- | ---------- |
+| 0         | 69 → 130.55    | 138.55 → 225.09| **+8.00**  |
+| ≥ 20      | 69 → 130.55    | 130.00 → 216.55| **−0.55**  |
+
+8.55 px of relative travel in the first pixels of scroll. The PTR hypothesis is
+ruled out by the same measurement: `.ptr` is `static`, height **0**, 300 px
+above.
+
+Two structural causes: 8 px of flow between the bars (the panel's `padding-top`),
+closed the moment the second pinned; and a **ceiled** published height (61.55 →
+62), which made the pinned position unable to coincide with the resting one.
+
+Fixed by publishing the view-tabs height EXACTLY (that bar lives inside the
+scrollport — the iOS URL bar cannot resize it mid-gesture, so the anti-churn
+quantisation does not apply) and making the flow offset (`-mt-px`) the exact
+mirror of the sticky one (`- 1px`). One pixel of overlap, at rest and pinned.
+
+**After, on the deployed build: amplitude 0.00 px at 390 px AND at 375 px.**
+
+### Re-measured on `720d2536` (deployed)
+
+`frame_pass` 6/6 · `pills_pass` 5/5 · `gestures_pass` ALL PASS · swipe geometry
+0.00 px on every row · gap amplitude 0.00 px. `make check` green (10 516 backend
+tests), frontend eslint 0 error, CI 10/10.
+
+### What the gates caught that I did not
+
+- A **third** caller of `derive_follow_status` lived in `scripts/` — 31 red
+  tests. The project's residual-grep rule names `personalscraper/` and `tests/`;
+  it does not name `scripts/`.
+- Two raw `px` literals in test source, banned by the design-system rule — the
+  same family as ticket refs read as hex colours.
