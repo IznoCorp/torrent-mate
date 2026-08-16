@@ -35,12 +35,42 @@ Le fichier `.env` est chargé automatiquement via
 résolu relativement au package, pas au CWD). Il contient **uniquement** les secrets.
 Toute la configuration structurelle est dans `config/`.
 
-> **Ne jamais commiter `.env` ni `config/`** — ils sont dans `.gitignore`. Utiliser
-> `.env.example` et `config.example/` comme templates de référence.
+> **Ne jamais commiter `.env` ni `config/` dans le dépôt du PROJET** — ils sont dans
+> `.gitignore` ; `.env.example` et `config.example/` sont les templates de référence.
+> Le répertoire de config canonique (`~/.torrentmate/config`, voir section suivante) est
+> en revanche **son propre dépôt git local** (sans remote, jamais poussé) : son historique
+> est maintenu automatiquement par l'application (`personalscraper/conf/config_git.py`) —
+> pas à la main. Le `.env`, lui, reste non versionné partout : la couche canonique vit à
+> `~/.torrentmate/.env`, **hors** du mini-dépôt.
 
 > **Pré-1.0** : `config_version` vaut `1`. Pas de script de migration ni de
 > rétro-compatibilité — la config, la BDD et les NFO évoluent en même temps que le code
 > sur l'unique instance.
+
+---
+
+## Emplacement canonique — `~/.torrentmate/config`
+
+Depuis la relocalisation du « config home », la config d'exploitation vit **hors de tout
+working tree git**, à `~/.torrentmate/config` (une config in-repo exposait la prod aux
+checkouts de branches de dev — le vecteur du boot-break historique).
+
+- **Résolution du chemin** (`personalscraper/conf/loader.py::resolve_config_path`) :
+  `--config` CLI > `$PERSONALSCRAPER_CONFIG` > `./config/` (puis `<racine paquet>/config`
+  en dernier recours). Toutes les apps PM2 passent
+  `PERSONALSCRAPER_CONFIG=/Users/izno/.torrentmate/config` (`ecosystem.config.js`).
+- **Mini-dépôt git** : le répertoire canonique est un dépôt git local-only (pas de
+  remote). L'application y committe automatiquement — sauvegarde depuis l'éditeur de
+  config web et `torrentmate init-config --sync` — en fail-soft : un échec git ne bloque
+  jamais une sauvegarde. Relire l'historique : `git -C ~/.torrentmate/config log`.
+- **Migration** : one-shot via `scripts/migrate-config-home.sh` (interactif, idempotent —
+  ancre `data_dir` en absolu, copie la couche `.env` vers `~/.torrentmate/.env`, stoppe
+  les writers PM2, rsync, `git init` + commit initial, met à jour les pins
+  `PERSONALSCRAPER_CONFIG`, redémarre, smoke test).
+- **Garde au boot** : si le répertoire de config résolu est à l'intérieur d'un working
+  tree git **ancêtre**, un warning est journalisé
+  (`personalscraper/verify/config_home.py`) ; le `.git` propre au répertoire canonique
+  est explicitement exclu de cette détection.
 
 ---
 
@@ -115,8 +145,10 @@ mais tout appel shell qui consomme ces chemins doit les entourer de guillemets).
 | `staging_dir`          | Path | **requis** (`./staging/`) | Zone de staging intermédiaire avant dispatch        |
 | `data_dir`             | Path | `./.data`                 | État du pipeline (index, locks, analyses)           |
 
-- Les chemins relatifs se résolvent **contre la racine du projet** (`config_dir.parent`),
-  pas contre le CWD ; ils doivent être absolus après `init-config`.
+- Les chemins relatifs se résolvent **contre le parent du dossier de config**
+  (`config_dir.parent` — la racine du dépôt pour un `config/` in-repo, `~/.torrentmate`
+  pour la config canonique), pas contre le CWD ; ils doivent être absolus après
+  `init-config` (le script de migration ancre d'ailleurs `data_dir` en absolu).
 - L'arborescence de staging est créée automatiquement au premier lancement.
 - Chemins dérivés auto-remplis si non définis : `indexer.db_path` → `data_dir/library.db`,
   `acquire.db_path` → `data_dir/acquire.db`, `trailers.state_file` → `data_dir/trailers_state.json`.

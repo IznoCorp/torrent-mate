@@ -126,11 +126,13 @@ torrent-mate/          # Racine du dépôt git
 │   │                     #   verify, dispatch, indexer, trailers, acquire, commands…)
 │   └── web/              # App FastAPI TorrentMate (REST /api/* + WebSocket /ws/events)
 ├── frontend/             # TorrentMateUI — SPA React/Vite/TypeScript (PWA)
+│   └── maquette/         # Prototype de refonte v1 — référence design de la web-UI (la maquette fait foi)
 ├── tests/                # Tests unitaires + intégration + E2E
 ├── docs/                 # Documentation (reference/, features/, archive/)
 ├── scripts/              # Scripts utilitaires (deploy.sh, check_logging.py, …)
 ├── config.example/       # Template de configuration (JSON5, split en overlays)
-├── config/               # Configuration utilisateur — chemins, disques, catégories (gitignored)
+├── config/               # Config locale de dev (gitignored) — l'exploitation utilise la config
+│                         #   canonique ~/.torrentmate/config (via PERSONALSCRAPER_CONFIG)
 ├── .env / .env.example   # Secrets (clés API, credentials, WEB_JWT_SECRET…) (gitignored)
 ├── ecosystem.config.js   # Configuration PM2 (watcher, web, autodeploy, crons)
 └── Makefile              # make test / lint / check / format / install-dev / openapi
@@ -157,10 +159,11 @@ torrentmate library-index           # Scanner les disques (--mode full|quick|inc
 torrentmate library-search "QUERY"  # Rechercher dans l'index
 torrentmate library-report          # Stats + rapport de santé
 
-# Acquisition
+# Acquisition (trois passes : detect → search → grab)
 torrentmate follow add --tvdb 121361 # Suivre une série
 torrentmate follow detect            # Enfiler les épisodes diffusés
-torrentmate grab --dry-run           # Chercher + prévisualiser les grabs
+torrentmate search                   # Constater la disponibilité tracker des items voulus
+torrentmate grab --dry-run           # Prendre les items disponibles (prévisualiser)
 
 # Interface web + supervision
 torrentmate web                      # Daemon TorrentMate (SPA + API + WebSocket)
