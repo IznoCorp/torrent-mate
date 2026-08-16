@@ -676,6 +676,17 @@ function BlocChamp({ bloc }: { bloc: Extract<Bloc, { type: "champ" }> }) {
   return (
     <div className="champ">
       <input
+        // KEYED BY THE SETTING, and this is a correctness fix, not a hint.
+        // `#sheetin` is a persistent node now, where the legacy layer replaced
+        // its innerHTML on every open — a fresh field each time, implicitly.
+        // Here the blocks are the same kinds in the same order from one panel
+        // to the next, so React would REUSE this very `<input>`: once the
+        // operator has typed, the DOM node carries a permanent dirty-value
+        // flag, React only updates the `value` ATTRIBUTE, and the next
+        // setting's panel opens showing the previous setting's text — which
+        // the next blur then files under the NEW setting's id. Keying by the
+        // setting makes a different setting a different node.
+        key={id}
         className={`champsaisie${mono ? " mono" : ""}`}
         data-champ={id}
         type={numerique ? "number" : "text"}

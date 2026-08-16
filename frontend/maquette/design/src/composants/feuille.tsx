@@ -16,7 +16,7 @@
 // not an absence — the CSS transition that carries the sheet in and out needs
 // both states on the same element, and the legacy `#sheetin` likewise kept its
 // content after closing.
-import { useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { useEtat } from "../donnees";
 import { PanneauContenu, type Descripteur } from "./panneau";
 
@@ -42,7 +42,19 @@ export function Feuille({
   const descripteur = (etat.panneauDescripteur ?? null) as Descripteur | null;
 
   const feuille = useRef<HTMLDivElement | null>(null);
+  const dedans = useRef<HTMLDivElement | null>(null);
   const glisse = useRef<Glisse | null>(null);
+
+  // A panel opens at its TOP. The legacy layer got that for free — replacing
+  // `#sheetin`'s innerHTML reset its scroll — and the persistent node does
+  // not: a long panel left scrolled down would hand its offset to the next
+  // one, which then opens in its own middle. Keyed on the DESCRIPTOR's
+  // identity, so it fires once per open (a new descriptor object) and not on
+  // the unrelated store writes that re-render this layer. Before the paint,
+  // not after, so the offset is never briefly visible.
+  useLayoutEffect(() => {
+    if (dedans.current) dedans.current.scrollTop = 0;
+  }, [descripteur]);
 
   // The drag writes the DOM directly, through the ref, exactly as the legacy
   // handler did — and deliberately NOT through the store. `dragging` has to
@@ -109,7 +121,7 @@ export function Feuille({
           // rather than close it on a gesture the browser took away.
           onPointerCancel={() => finGlisse(true)}
         />
-        <div id="sheetin" className="sheetin">
+        <div ref={dedans} id="sheetin" className="sheetin">
           {descripteur ? <PanneauContenu descripteur={descripteur} /> : null}
         </div>
       </div>
