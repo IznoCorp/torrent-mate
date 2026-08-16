@@ -23,9 +23,9 @@ What this holds to:
     arrived, then the repair list.
 """
 import asyncio
-import json
 import os
 import pathlib
+import re
 import sqlite3
 
 from commun import Journal, ouvrir
@@ -64,7 +64,7 @@ def faits_reels():
 
 async def main():
     global _journal
-    _journal = Journal(f"R63 — ce qu'une carte dit")
+    _journal = Journal("R63 — ce qu'une carte dit")
 
     async with async_playwright() as p:
         b = await p.chromium.launch(channel="chrome")
@@ -103,8 +103,10 @@ async def main():
                 r = reels.get(s["titre"])
                 if not r:
                     continue
-                attendu = f"{r['recherches']} recherche"
-                if attendu not in s["faits"]:
+                # Word-boundary match, not substring: « 1 recherche » must not
+                # pass against a card actually printing « 11 recherches ».
+                motif = rf"\b{r['recherches']}\s+recherche"
+                if not re.search(motif, s["faits"]):
                     faux.append(f"{s['titre']} : « {s['faits']} » vs {r['recherches']}")
             verifier("les nombres viennent de acquire.db, pas de la maquette",
                      not faux, str(faux[:3]))

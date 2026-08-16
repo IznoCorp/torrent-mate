@@ -47,9 +47,9 @@ when the defect comes back.
 | B-024 | `data-go` settles ONE history entry, layers pile        | by review   | `open`       |
 | B-025 | The screen half of the `data-go` fix has no Back rule   | by review   | `to confirm` |
 | B-026 | A silent `catch {}` can let URL and UI disagree         | by review   | `to confirm` |
-| B-027 | `resynchro.py` trusts `t:` first-match + naive braces   | by review   | `open`       |
-| B-028 | `resynchro.py` says « 0 correction » for unknown titles | by review   | `open`       |
-| B-029 | Counter rule misses suffix drift (« 1 » in « 11 »)      | by review   | `open`       |
+| B-027 | `resynchro.py` trusts `t:` first-match + naive braces   | by review   | `to confirm` |
+| B-028 | `resynchro.py` says « 0 correction » for unknown titles | by review   | `to confirm` |
+| B-029 | Counter rule misses suffix drift (« 1 » in « 11 »)      | by review   | `to confirm` |
 
 **B-018 was written down as a regression from B-016, and that was wrong.** It has two ways in, one
 of which is older than this work — the correction is recorded here rather than quietly amended,
@@ -147,13 +147,31 @@ them. None is reproduced on a device yet; each entry below records the walk that
   not the title, or a title containing `{`/`}`, silently skips or — worse — rewrites the WRONG
   follow's counter. Holds today only by convention (all 12 objects start with `t:`), asserted
   nowhere.
+  **Fixed.** The title is now read anchored on the object's own opening brace
+  (`re.match(r'\s*\{\s*t:\s*"((?:[^"\\]|\\.)*)"', objet)`): the title must be the FIRST key or the
+  script RAISES, naming the object's head. **Mutation** (proof executed, `task-7-report.md`): a
+  scratch FOLLOWS fragment whose sole object opens on `x:` instead of `t:` → `resynchro.py`
+  raises `ValueError: objet FOLLOWS sans « t » en première clé : …` quoting the object, rather than
+  silently skipping it.
 - **B-028** — `resynchro.py` cannot say a title went unmatched: a FOLLOWS title absent from the
   DB reads exactly like « already in sync », prints `0 correction(s)` and exits 0. Especially
   live once vo-title (#435) changes which spelling a follow carries — the operator running the
   documented remedy gets silence instead of « 4 of 12 titles never looked up ».
+  **Fixed.** Every FOLLOWS title with no matching row in `acquire.db` is now collected during the
+  same pass and, if any exist, `resynchro.py` prints `N titre(s) jamais retrouvé(s): …` naming
+  each and exits 1 — `0 correction(s)` is only ever printed once every title matched. **Mutation**
+  (proof executed): a copy of `refonte.html` with one real FOLLOWS title (« Kyma, l'onde
+  mystérieuse ») misspelled → exit 1, `1 titre(s) jamais retrouvé(s): Kyma, l'onde MISSPELLED`.
 - **B-029** — `contenu.py`'s counter rule tests `f"{n} recherche" in faits`: « 1 recherche » is a
   substring of « 11 recherches », so whenever the real count is a suffix of the embedded one the
   drift the rule exists to name is never named.
+  **Fixed.** The hold now compares numbers with a word boundary
+  (`re.search(rf"\b{n}\s+recherche", faits)`), so a digit that merely ENDS the embedded count no
+  longer satisfies it. **Mutation** (proof executed against the built prototype on 8899): a copy
+  of `refonte.html` with « Kyma, l'onde mystérieuse »'s embedded `recherches` set to 17 while
+  `acquire.db` still holds 7 → the rule falls: `ECHEC les nombres viennent de acquire.db, pas de la
+maquette — ["Kyma, l'onde mystérieuse : « … 17 recherches » vs 7"]`, where the pre-fix substring
+  check (`"7 recherche" in "… 17 recherches"`) would have stayed silently green.
 
 ---
 
