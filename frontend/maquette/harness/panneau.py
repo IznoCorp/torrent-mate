@@ -12,11 +12,20 @@ one being fixed.
 An envelope guarantees nothing about what it carries. This script checks the
 guarantees a builder CAN make:
 
-  · no caller hands markup to `openSheet`;
+  · no caller hands markup to the panel;
   · nothing inside a panel is positioned by an inline style;
   · every panel has exactly one heading;
   · every action in a panel has a destination, or says why it has none;
   · a block type nobody declared is refused rather than drawn empty.
+
+The builder and the verb have MOVED: the constructor is the component
+`design/src/composants/panneau.tsx`, and a producer opens a panel by calling
+the shell's `window.__panneau.ouvrir(descripteur)` rather than the engine's own
+`openSheet(panneauHTML({…}))`. The two source checks below follow them there.
+What they hold is unchanged — one constructor, no second one, and every caller
+handing FACTS rather than markup — and the behavioural checks that follow are
+untouched: they read the panel as drawn, and a panel is a panel wherever it is
+built.
 """
 import asyncio
 import pathlib
@@ -71,21 +80,30 @@ async def main():
     _journal = Journal("R56 — un seul panneau")
 
     source = (RACINE / "design" / "refonte.html").read_text()
+    composant = (RACINE / "design" / "src" / "composants" / "panneau.tsx").read_text()
 
     # 1. No caller hands markup to the panel. Read on the SOURCE, because that
-    #    is where an envelope is opened; the DOM only shows what came out.
-    appels = re.findall(r"(?<!function )openSheet\(\s*(.{0,24})", source, re.S)
-    hors_builder = [a.strip()[:24] for a in appels if not a.lstrip().startswith("panneauHTML(")]
+    #    is where a panel is asked for; the DOM only shows what came out. A
+    #    descriptor is an OBJECT — a call opening on anything else (a string, a
+    #    template literal, a variable holding ready-made markup) is an envelope.
+    appels = re.findall(r"window\.__panneau\.ouvrir\(\s*(.{0,24})", source, re.S)
+    hors_builder = [a.strip()[:24] for a in appels if not a.lstrip().startswith("{")]
     verifier("aucun appelant ne passe de balisage", not hors_builder,
              " · ".join(hors_builder))
     verifier("il y a bien des appelants", len(appels) >= 6, f"{len(appels)} appels")
 
-    # 2. One builder, not two. A fallback builder is the one that rots.
+    # 2. One builder, not two. A fallback builder is the one that rots. The
+    #    engine's own builder must not come back either: two constructors are
+    #    two head shapes, whichever file they live in.
     verifier("un seul constructeur de panneau",
-             source.count("function panneauHTML(") == 1
+             composant.count("export function PanneauContenu(") == 1
+             and "function panneauHTML(" not in source
              and "openDetailSheetLegacy" not in source,
              "openDetailSheetLegacy encore présent"
-             if "openDetailSheetLegacy" in source else "")
+             if "openDetailSheetLegacy" in source else
+             "panneauHTML est revenu dans refonte.html"
+             if "function panneauHTML(" in source else
+             f"{composant.count('export function PanneauContenu(')} PanneauContenu")
 
     async with async_playwright() as p:
         b = await p.chromium.launch(channel="chrome")
