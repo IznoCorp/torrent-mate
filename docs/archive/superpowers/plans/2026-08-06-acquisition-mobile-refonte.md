@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the 7-tab Acquisition page with two question-shaped views (« Maintenant », « Suivis »), a media sheet, a full-screen add flow and three touch gestures — mobile-first, per `docs/superpowers/specs/2026-08-06-acquisition-mobile-refonte-design.md`.
+**Goal:** Replace the 7-tab Acquisition page with two question-shaped views (« Maintenant », « Suivis »), a media sheet, a full-screen add flow and three touch gestures — mobile-first, per `docs/archive/superpowers/specs/2026-08-06-acquisition-mobile-refonte-design.md`.
 
 **Architecture:** One new backend read model (« À traiter » = pending scrape decisions correlated to the acquisition provenance spine) plus a frontend rebuild of `frontend/src/components/acquisition/*`. The page shell owns tab state and the live-event invalidation; each view is a panel; one shared `AcquisitionCard` is the single card grammar across every list. No DB migration — `ProvenanceRow` already carries `decision_id` / `resolution_state`.
 
@@ -30,7 +30,7 @@ before the shell (7) that hosts them; gestures (13, 14) after the surfaces they 
 
 ## Global Constraints
 
-- **Spec is binding:** `docs/superpowers/specs/2026-08-06-acquisition-mobile-refonte-design.md`. Its §2 arbitrations A1–A17 are inputs, not proposals. Its §11 rules R1–R8 apply to every component written here.
+- **Spec is binding:** `docs/archive/superpowers/specs/2026-08-06-acquisition-mobile-refonte-design.md`. Its §2 arbitrations A1–A17 are inputs, not proposals. Its §11 rules R1–R8 apply to every component written here.
 - **Constitution:** `docs/reference/product-intent.md` — every PR body cites the § it serves. In any conflict between this plan and the constitution, the constitution wins.
 - **Version:** already bumped to `0.87.0` in `personalscraper/__init__.py` on this branch. Do **not** bump again per task.
 - **Staging before merge (A16):** every task's deliverable is validated on `tm-staging.iznogoudatall.xyz` at 390 px before the PR merges. Task 16 is the gate.
@@ -2418,7 +2418,7 @@ EOF
 
 ```bash
 git push -u origin feat/acq-mobile
-gh pr create --title "feat(acq-mobile): refonte mobile-first de la page Acquisition" --body-file docs/superpowers/specs/2026-08-06-acquisition-mobile-refonte-design.md
+gh pr create --title "feat(acq-mobile): refonte mobile-first de la page Acquisition" --body-file docs/archive/superpowers/specs/2026-08-06-acquisition-mobile-refonte-design.md
 ```
 
 Add to the PR body the § list this serves (spec header) and the sentence: *« Validée sur staging avant merge — preuves ci-dessous. »*
@@ -2475,4 +2475,4 @@ Squash-merge once staging is validated and CI is green. Note: `gh pr merge --del
 
 ## Execution Handoff
 
-Plan complete and saved to `docs/superpowers/plans/2026-08-06-acquisition-mobile-refonte.md`.
+Plan complete and saved to `docs/archive/superpowers/plans/2026-08-06-acquisition-mobile-refonte.md`.

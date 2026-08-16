@@ -35,7 +35,7 @@ tout le reste joindra.
 - Livre **#30** : identité déterministe au scrape (films **et** séries), en amont de
   l'inférence #29 (fallback). Renforce #28.
 - Écritures best-effort aux étapes ; reconcile-prune (FS=vérité).
-- **DESIGN** : `docs/features/provenance/DESIGN.md`.
+- **DESIGN** : `docs/archive/features/provenance/DESIGN.md`.
 - _Ship : le socle + #30. Aucune UI. Valeur immédiate + fondation._
 
 ### F1 — Vue « parcours » unifiée (lecture) · feature suivante

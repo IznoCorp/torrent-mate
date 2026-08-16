@@ -1,7 +1,7 @@
 # Maquette parity method — Acquisition UI (design)
 
 Date: 2026-08-08. Operator-approved via brainstorm (three decisions recorded in §2).
-Companion to `docs/superpowers/handoffs/2026-08-08-maquette-parity-handoff.md`, which
+Companion to `docs/archive/superpowers/handoffs/2026-08-08-maquette-parity-handoff.md`, which
 remains the contract (Definition of Done §1, source-of-truth hierarchy §2, operator
 arbitrations §3, runbook §4). This document specifies the METHOD used to reach the
 Definition of Done, plus the design of the remaining functional work.
@@ -183,7 +183,7 @@ measurement (divergence attribution).
 
 ## 6. Evidence ledger
 
-`docs/analysis/2026-08-08-maquette-parity-ledger.md` (English), append-only,
+`docs/archive/analysis/2026-08-08-maquette-parity-ledger.md` (English), append-only,
 one entry per loop: lot / loop id, deployed sha + `/api/version` proof, probe
 result (divergence table or « 0 divergences on N selectors »), overlay %
 + heatmap path, flows exercised (GIF paths), gate outputs (test counts).

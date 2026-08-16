@@ -1,6 +1,6 @@
 # Phase 12 — Pipeline-Monitor Findings Fixes
 
-**Run source** : `docs/pipeline-runs/2026-05-25-09h57-pipeline-run.md`
+**Run source** : `docs/archive/pipeline-runs/2026-05-25-09h57-pipeline-run.md`
 **Trigger** : opérateur a stoppé le pipeline au gate DISPATCH (zero-tolerance rule 11) suite à 12 deviations détectées. Décision : tout fixer avant de relancer.
 **Effort** : 2-3 j séquentiel.
 **Branch** : `fix/tech-debt` (continue).

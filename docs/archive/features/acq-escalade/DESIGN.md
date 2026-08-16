@@ -3,7 +3,7 @@
 **Date**: 2026-08-04 · **Codename**: `acq-escalade` · **Type**: fix · **Bump**: bugfix (0.78.0 → 0.78.1)
 
 Diagnostic source, avec toutes les preuves d'observation live :
-`docs/analysis/2026-08-04-acquisition-season-escalation-diagnosis.md`.
+`docs/archive/analysis/2026-08-04-acquisition-season-escalation-diagnosis.md`.
 
 **Nommage** — le document d'analyse nomme les défauts D1/D2/D3 et leurs correctifs F1/F2/F3.
 Ce design nomme **le défaut et son correctif du même nom**, et ajoute D4 découvert ensuite :

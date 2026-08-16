@@ -362,9 +362,9 @@ git commit --allow-empty -m "chore(.claude): phase 1 gate — fondations (4 skil
 
 - [ ] **Step 6 : Mettre à jour INDEX du master plan**
 
-Éditer `docs/superpowers/plans/2026-04-22-implement-skills-refactor.md`, marquer Phase 1 `[x]`.
+Éditer `docs/archive/superpowers/plans/2026-04-22-implement-skills-refactor.md`, marquer Phase 1 `[x]`.
 
 ```bash
-git add docs/superpowers/plans/2026-04-22-implement-skills-refactor.md
+git add docs/archive/superpowers/plans/2026-04-22-implement-skills-refactor.md
 git commit -m "docs(plan): mark phase 1 done"
 ```

@@ -592,7 +592,7 @@ Une fois cette feature mergée :
 
 ## 13. References
 
-- Pipeline run source : `docs/pipeline-runs/2026-05-17-09h24-pipeline-run.md`
+- Pipeline run source : `docs/archive/pipeline-runs/2026-05-17-09h24-pipeline-run.md`
 - Préparation draft : `docs/superpowers/roadmap/provider-ids/specs/DESIGN.md` (à supprimer au create-branch)
 - ROADMAP entry : `ROADMAP.md` §P1 "Multi-Provider IDs Propagation (provider-ids)"
 - Mémoires :

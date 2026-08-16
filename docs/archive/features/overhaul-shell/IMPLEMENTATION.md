@@ -9,7 +9,7 @@
 **PR**: #310 → main (https://github.com/IznoCorp/torrent-mate/pull/310) — OPEN, CI en cours
 **Merge**: squash (manual — operator merges)
 **Design**: `docs/features/overhaul-shell/DESIGN.md` (wave design) ← binding shared spec
-`docs/superpowers/specs/2026-07-16-design-overhaul-design.md` §1.1 + §6
+`docs/archive/superpowers/specs/2026-07-16-design-overhaul-design.md` §1.1 + §6
 **Version bump**: 0.49.16 → 0.50.0 (minor) — ⚠ solidify (worktree) also targets 0.50.0; whichever PR merges
 second re-bumps at merge-conformance time (flagged to operator)
 

@@ -4,7 +4,7 @@
 
 **Goal:** Bring the Acquisition UI to measured pixel-parity with the operator maquette (390 px and ≥ md) plus four backend additions, with every claim backed by a measurement on the deployed staging build.
 
-**Architecture:** Hybrid comparison (scripted DOM probe = hard gate, PIL overlay diff on maquette-mirroring synthetic data, GIF flow pass) driving fix→deploy→measure loops over six lots. CSS is transplanted verbatim from the maquette source under the existing `.mq` scope; the DOM adapts to the maquette, never the reverse. Spec: `docs/superpowers/specs/2026-08-08-maquette-parity-method-design.md`. Contract: `docs/superpowers/handoffs/2026-08-08-maquette-parity-handoff.md`.
+**Architecture:** Hybrid comparison (scripted DOM probe = hard gate, PIL overlay diff on maquette-mirroring synthetic data, GIF flow pass) driving fix→deploy→measure loops over six lots. CSS is transplanted verbatim from the maquette source under the existing `.mq` scope; the DOM adapts to the maquette, never the reverse. Spec: `docs/archive/superpowers/specs/2026-08-08-maquette-parity-method-design.md`. Contract: `docs/archive/superpowers/handoffs/2026-08-08-maquette-parity-handoff.md`.
 
 **Tech Stack:** React + TS (frontend/), maquette CSS in `frontend/src/styles/ps/maquette-acquisition.css`, FastAPI + Pydantic + sqlite migrations (personalscraper/), chrome-devtools MCP, Python PIL, staging at `tm-staging.iznogoudatall.xyz`.
 
@@ -32,7 +32,7 @@
     https://tm-staging.iznogoudatall.xyz/api/version
   ```
   `--no-verify` only when the diff is frontend-only AND GATES ran; run the pre-push suite for Python changes.
-- **MEASURE block**: in MY app tab (emulated `390x844x2,mobile,touch`), first `/api/version` must equal the deployed sha (PWA trap); probe both tabs with the task's region map; run `probe_diff.py`; overlay when the task says so; append the ledger entry (`docs/analysis/2026-08-08-maquette-parity-ledger.md`): loop id, sha, probe table (or « 0 divergences on N selectors »), overlay % + heatmap path, flows (GIF paths), gate outputs. No « conforme » without its measure.
+- **MEASURE block**: in MY app tab (emulated `390x844x2,mobile,touch`), first `/api/version` must equal the deployed sha (PWA trap); probe both tabs with the task's region map; run `probe_diff.py`; overlay when the task says so; append the ledger entry (`docs/archive/analysis/2026-08-08-maquette-parity-ledger.md`): loop id, sha, probe table (or « 0 divergences on N selectors »), overlay % + heatmap path, flows (GIF paths), gate outputs. No « conforme » without its measure.
 - Synthetic states ONLY via `window.fetch` patch in `evaluate_script` (never `initScript`) + PointerEvents pull-to-refresh on `#acq-tabpanel` (down y=200 → move y=320 → up). Shared `library.db`/`.data/` — never test rows.
 - One region per fix loop; a lot ends deployed + measured + logged before the next lot starts.
 
@@ -62,7 +62,7 @@
 **Files:**
 - Create: `SCRATCH/parity/probe.js` (source also lives in this plan)
 - Create: `SCRATCH/parity/probe_diff.py`
-- Create: `docs/analysis/2026-08-08-maquette-parity-ledger.md`
+- Create: `docs/archive/analysis/2026-08-08-maquette-parity-ledger.md`
 
 **Interfaces:** Produces: `runProbe(REGIONS)` page function returning JSON; `python3 probe_diff.py maq.json app.json` printing a markdown divergence table (empty = pass) and exiting 0/1. Every later task's MEASURE step uses these unchanged.
 
@@ -114,7 +114,7 @@
   (Colors compare as computed strings; the token mapping in `maquette-acquisition.css` must make them resolve identically — a mismatch is a finding, not noise.)
 - [ ] **Step 3: Calibrate on regions measured at zero by the prior session** — region map `{"tabs": [".mq .viewtabs", ".mq .seg > button", ".mq .seg .n", ".mq .more"], "chips": [".mq .sact"]}` on the app side and the equivalent (`.viewtabs`, `.seg > button`, `.seg .n`, `.more`, `.sact` — open the « ⋮ » sheet first in both tabs for `.sact`) on the maquette side. Expected: **0 divergences** (tabs 36 px, `.more` 40×40, `.sact` 42 px). If not zero, the TOOL is wrong — fix the tool, do not touch the app.
 - [ ] **Step 4: Create the ledger** with a header (mission, method pointer, entry format) and entry #1: L0 calibration evidence.
-- [ ] **Step 5: Commit** (ledger only): `git add -f docs/analysis/2026-08-08-maquette-parity-ledger.md && git commit -m "docs(acq-mobile): registre de parité — calibration L0 à zéro divergence"`.
+- [ ] **Step 5: Commit** (ledger only): `git add -f docs/archive/analysis/2026-08-08-maquette-parity-ledger.md && git commit -m "docs(acq-mobile): registre de parité — calibration L0 à zéro divergence"`.
 
 ### Task 3: Overlay tool + synthetic fixture payloads mirroring the maquette
 
@@ -370,13 +370,13 @@
 
 **Files:**
 - Modify: `personalscraper/__init__.py:17` (version bump `0.87.0` → `0.88.0` — new API fields = minor)
-- Modify: `docs/analysis/2026-08-08-maquette-parity-ledger.md` (final entries)
+- Modify: `docs/archive/analysis/2026-08-08-maquette-parity-ledger.md` (final entries)
 
 - [ ] **Step 1: Full probe union** — every region map from Tasks 2–18 re-run on the deployed build, maquette vs app, expecting `0 divergences` on the whole union. Any divergence ⇒ fix loop (smallest change, re-deploy, re-measure) before proceeding.
 - [ ] **Step 2: All card states** rendered via `fixtures.js` and probed/overlaid: blocked strip, three in-flight stages, folded download, resting verdicts, dispatched rows, fresh glow, paused tiles, « ? » badges — each screenshot archived.
 - [ ] **Step 3: Full gesture pass on the deployed build**, GIF-recorded: pager swipe (edge dead zone honored), pull-to-refresh, card swipe open + each action, card tap → sheet → actions, add round-trip (search → fiche → back restores results), back gesture everywhere.
 - [ ] **Step 4: Gates** — GATES block + `make check` from the worktree root (zero failures; watch for ERROR = collection crash). Version bump commit: `chore(acq-mobile): version 0.88.0`.
-- [ ] **Step 5: Final ledger entry** (L5 summary: every region « 0 divergences », overlay archive index, GIF index) **→ DEPLOY** the final sha **→ hand the T16 gate to the operator**: phone validation against the 11-point checklist (`docs/superpowers/plans/2026-08-06-acquisition-mobile-refonte.md` lines 2433–2456). **STOP — only the operator closes the mission.** PR flow (`/implement:feature-pr`) starts only after their validation.
+- [ ] **Step 5: Final ledger entry** (L5 summary: every region « 0 divergences », overlay archive index, GIF index) **→ DEPLOY** the final sha **→ hand the T16 gate to the operator**: phone validation against the 11-point checklist (`docs/archive/superpowers/plans/2026-08-06-acquisition-mobile-refonte.md` lines 2433–2456). **STOP — only the operator closes the mission.** PR flow (`/implement:feature-pr`) starts only after their validation.
 
 ---
 

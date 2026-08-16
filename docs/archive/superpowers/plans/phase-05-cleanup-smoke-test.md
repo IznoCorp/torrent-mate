@@ -18,7 +18,7 @@
 grep -rnE '(implement-phase|implement-version|archive-version|model-version|plan:execute-next-phase|plan:end-phase|plan:check-execution)' \
      .claude/ CLAUDE.md docs/ 2>/dev/null | \
   grep -v "^docs/archive/" | \
-  grep -v "^docs/superpowers/specs/2026-04-22-implement-skills-refactor-design.md" | \
+  grep -v "^docs/archive/superpowers/specs/2026-04-22-implement-skills-refactor-design.md" | \
   grep -v "^docs/superpowers/plans/" \
   > /tmp/old_skill_refs.txt
 wc -l /tmp/old_skill_refs.txt
@@ -109,7 +109,7 @@ git commit -m "chore(.claude): retire plan:execute-next-phase and plan:end-phase
 grep -rn --include='*.md' '/implement-version\|/implement-phase\|/archive-version\|/model-version' \
      .claude/ CLAUDE.md docs/ 2>/dev/null | \
   grep -v "^docs/archive/" | \
-  grep -v "^docs/superpowers/specs/2026-04-22-implement-skills-refactor-design.md" | \
+  grep -v "^docs/archive/superpowers/specs/2026-04-22-implement-skills-refactor-design.md" | \
   grep -v "^docs/superpowers/plans/"
 ```
 
@@ -135,7 +135,7 @@ Replaced by feature-oriented implement:* skills:
 - archive-version → implement:archive
 - model-version → implement:brainstorm + implement:plan
 
-See docs/superpowers/specs/2026-04-22-implement-skills-refactor-design.md
+See docs/archive/superpowers/specs/2026-04-22-implement-skills-refactor-design.md
 "
 ```
 
@@ -188,7 +188,7 @@ Nouvelle version intégrant les 10 skills et le flux feature-oriented. Inclure :
 - Règles SemVer (§3 du spec)
 - Convention branches (`feat/{codename}`, `fix/{codename}`)
 - Convention commits (`{type}({codename}): desc`)
-- Pointer vers `docs/superpowers/specs/2026-04-22-implement-skills-refactor-design.md` pour détails complets
+- Pointer vers `docs/archive/superpowers/specs/2026-04-22-implement-skills-refactor-design.md` pour détails complets
 
 - [ ] **Step 4 : Grep post-édition**
 
@@ -258,7 +258,7 @@ Structure suggérée :
 - Merge strategy: squash, chosen at feature start (manual or auto)
 
 Design details: see per-feature `docs/features/{codename}/DESIGN.md` once a feature is active,
-or the refactor spec at `docs/superpowers/specs/2026-04-22-implement-skills-refactor-design.md`.
+or the refactor spec at `docs/archive/superpowers/specs/2026-04-22-implement-skills-refactor-design.md`.
 ```
 
 - [ ] **Step 3 : Grep post-édition**
@@ -288,8 +288,8 @@ Pour chaque fichier identifié en Task 5.1 non encore traité (hors archives + c
 grep -rnE '(implement-phase|implement-version|archive-version|model-version)' \
      .claude/ CLAUDE.md docs/ 2>/dev/null | \
   grep -v "^docs/archive/" | \
-  grep -v "^docs/superpowers/specs/2026-04-22-implement-skills-refactor-design.md" | \
-  grep -v "^docs/superpowers/plans/2026-04-22-implement-skills-refactor.md" | \
+  grep -v "^docs/archive/superpowers/specs/2026-04-22-implement-skills-refactor-design.md" | \
+  grep -v "^docs/archive/superpowers/plans/2026-04-22-implement-skills-refactor.md" | \
   grep -v "^docs/superpowers/plans/phase-0"
 ```
 
@@ -473,7 +473,7 @@ git commit --allow-empty -m "chore(.claude): phase 5 gate — refactor complete 
 Marquer Phase 5 `[x]`.
 
 ```bash
-git add docs/superpowers/plans/2026-04-22-implement-skills-refactor.md
+git add docs/archive/superpowers/plans/2026-04-22-implement-skills-refactor.md
 git commit -m "docs(plan): mark phase 5 done — refactor complete"
 ```
 

@@ -22,7 +22,7 @@ en désélectionne) — la porte est **zéro échec**, pas l'égalité des compt
 
 ### 6.1 — Les huit critères ACCEPTANCE, exécutés
 
-Écrire `docs/features/recherche-juste/ACCEPTANCE.md` en **exécutant** chaque critère du DESIGN
+Écrire `docs/archive/features/recherche-juste/ACCEPTANCE.md` en **exécutant** chaque critère du DESIGN
 §11 et en collant la sortie réelle, datée. Aucun critère n'est « conforme » sans son déroulé.
 
 ACC-01 (diff scrape vide), ACC-02 (golden), ACC-06 (`make check`), ACC-07 (dérive OpenAPI) et

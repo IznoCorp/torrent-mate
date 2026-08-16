@@ -14,7 +14,7 @@ problèmes (fichiers NTFS-illegaux, épisodes non-organisés, doublons, résidus
 envoyait tout vers Disk1 car `MediaIndex.rebuild()` n'était jamais appelé (feature conçue
 en V5 mais jamais intégrée). 24 bugs catalogués, dont 5 critiques.
 
-Ref: `docs/pipeline-runs/2026-04-14-10h32-pipeline-run.md`
+Ref: `docs/archive/pipeline-runs/2026-04-14-10h32-pipeline-run.md`
 
 ## Architecture
 

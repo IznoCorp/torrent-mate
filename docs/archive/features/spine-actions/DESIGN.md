@@ -2,7 +2,7 @@
 
 **Feature**: Targeted maintenance actions driven by the provenance spine.
 **Type**: feat · **Bump**: 0.70.0 → 0.71.0 (minor) · **Branch**: `feat/spine-actions` · **Ticket**: #364
-**Epic**: provenance tracking-spine (F0 → F5), roadmap `docs/features/provenance/EPIC-ROADMAP.md`.
+**Epic**: provenance tracking-spine (F0 → F5), roadmap `docs/archive/features/provenance/EPIC-ROADMAP.md`.
 
 ## 1. Intent (operator-ratified)
 

@@ -2,7 +2,7 @@
 
 **Feature**: Design overhaul V4 — Acquisition : rangées compactes, File d'acquisition, obligations titrées
 **Epic**: #304, **Ticket**: #308
-**Binding spec**: `docs/superpowers/specs/2026-07-16-design-overhaul-design.md` §3.1 + §5.1 + §7.2
+**Binding spec**: `docs/archive/superpowers/specs/2026-07-16-design-overhaul-design.md` §3.1 + §5.1 + §7.2
 **Binding design**: `docs/features/acquisition-queue/DESIGN.md` (extraction; spec wins on conflict)
 **Branch**: `feat/acquisition-queue`
 **Merge mode**: auto

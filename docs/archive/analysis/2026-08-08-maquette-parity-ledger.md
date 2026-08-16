@@ -1,12 +1,12 @@
 # Maquette parity ledger — Acquisition UI
 
-Mission contract: `docs/superpowers/handoffs/2026-08-08-maquette-parity-handoff.md`.
-Method: `docs/superpowers/specs/2026-08-08-maquette-parity-method-design.md`
+Mission contract: `docs/archive/superpowers/handoffs/2026-08-08-maquette-parity-handoff.md`.
+Method: `docs/archive/superpowers/specs/2026-08-08-maquette-parity-method-design.md`
 (operator-approved 2026-08-08; hybrid probe/overlay/flows; headless Playwright
 driver addendum). Tools live in the session scratchpad `parity/` (probe.js,
 probe_diff.py, overlay_diff.py, harness.py, allowlist.json, fixtures.js);
 their source is reproduced or referenced in the plan
-(`docs/superpowers/plans/2026-08-08-maquette-parity-execution.md`).
+(`docs/archive/superpowers/plans/2026-08-08-maquette-parity-execution.md`).
 
 Entry format — one entry per fix loop: deployed sha (+ /api/version proof),
 probe result (divergence table or « 0 divergences on N selectors »), overlay
@@ -372,7 +372,7 @@ bump for the PR.
 
 **REMAINING — the operator's T16 gate** (only they close the mission):
 phone validation against the 11-point checklist
-(`docs/superpowers/plans/2026-08-06-acquisition-mobile-refonte.md`
+(`docs/archive/superpowers/plans/2026-08-06-acquisition-mobile-refonte.md`
 lines 2433–2456), then the PR flow. Open flags awaiting their word:
 1. `.ptr` rendered-height contradiction (Entry 4) — declared model
    shipped; say the word for the compressed feel.

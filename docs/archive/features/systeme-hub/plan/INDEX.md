@@ -2,7 +2,7 @@
 
 **Feature**: Design overhaul V5 — Système + Config + passe visuelle transversale
 **Epic**: #304, **Ticket**: #309
-**Binding spec**: `docs/superpowers/specs/2026-07-16-design-overhaul-design.md` §3.2 + §3.3 + §4 + §1.1
+**Binding spec**: `docs/archive/superpowers/specs/2026-07-16-design-overhaul-design.md` §3.2 + §3.3 + §4 + §1.1
 **Binding design**: `docs/features/systeme-hub/DESIGN.md` (extraction; spec wins on conflict)
 **Branch**: `feat/systeme-hub`
 **Merge mode**: auto

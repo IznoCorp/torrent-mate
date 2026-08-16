@@ -6,7 +6,7 @@
 > **Codename**: `multi-filesystem`
 > **Branch**: `feat/multi-filesystem`
 > **Version bump target**: 0.17.0 → 0.18.0 (minor — purely additive, no breaking config/DB change). 0.17.0 was consumed by a different feature (arch-cleanup-2); this feature shipped as **0.18.0**.
-> **Source analysis**: `docs/analysis/04-filesystem-decoupling-macfuse-ntfs.md`
+> **Source analysis**: `docs/archive/analysis/04-filesystem-decoupling-macfuse-ntfs.md`
 
 > **Re-scope + retrospective note (2026-05-29).** This design was authored
 > before implementation and §3.4 / §4.5 / §5 / §7 originally described the
@@ -719,7 +719,7 @@ python -c "import personalscraper; print('ok')"
 
 ## 9. References
 
-- **Source analysis**: `docs/analysis/04-filesystem-decoupling-macfuse-ntfs.md`
+- **Source analysis**: `docs/archive/analysis/04-filesystem-decoupling-macfuse-ntfs.md`
   (the foundation — full evidence map, every claim re-read from source).
 - **ROADMAP entry**: `ROADMAP.md` §P2 — Multi-Filesystem Support
   (`multi-filesystem`), lines 136-155 (agreed scope + non-goals).

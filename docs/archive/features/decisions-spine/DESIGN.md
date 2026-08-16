@@ -2,7 +2,7 @@
 
 **Feature**: Project the scraping-decision / resolution state onto the provenance spine.
 **Type**: feat · **Bump**: 0.68.0 → 0.69.0 (minor) · **Branch**: `feat/decisions-spine` · **Ticket**: #360
-**Epic**: provenance tracking-spine (F0 → F5), roadmap `docs/features/provenance/EPIC-ROADMAP.md`.
+**Epic**: provenance tracking-spine (F0 → F5), roadmap `docs/archive/features/provenance/EPIC-ROADMAP.md`.
 
 ## 1. Intent (operator-ratified)
 

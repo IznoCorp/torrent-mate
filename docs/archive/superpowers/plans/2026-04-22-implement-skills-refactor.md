@@ -8,7 +8,7 @@
 
 **Tech Stack:** Markdown, YAML frontmatter, Bash, Git, Claude Code skills system.
 
-**Spec de référence:** `docs/superpowers/specs/2026-04-22-implement-skills-refactor-design.md` (SHA `b4deae6`).
+**Spec de référence:** `docs/archive/superpowers/specs/2026-04-22-implement-skills-refactor-design.md` (SHA `b4deae6`).
 
 ---
 

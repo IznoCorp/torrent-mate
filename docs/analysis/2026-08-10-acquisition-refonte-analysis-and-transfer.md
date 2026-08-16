@@ -2,8 +2,8 @@
 
 **Date:** 2026-08-10 · **Author:** analysis pass before the Médias / Pipeline / Contrôle / shell redesign
 **Scope read:** `origin/main` @ `720d2536` (PR #422 `acq-mobile` + PR #423 `suivi-termine`)
-**Sources:** `docs/superpowers/specs/2026-08-06-acquisition-mobile-refonte-design.md`,
-`docs/analysis/2026-08-08-maquette-parity-ledger.md`, `docs/reference/product-intent.md`,
+**Sources:** `docs/archive/superpowers/specs/2026-08-06-acquisition-mobile-refonte-design.md`,
+`docs/archive/analysis/2026-08-08-maquette-parity-ledger.md`, `docs/reference/product-intent.md`,
 `frontend/src/{pages,components,styles,lib}`
 
 ---

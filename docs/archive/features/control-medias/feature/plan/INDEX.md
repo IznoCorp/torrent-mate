@@ -1,7 +1,7 @@
 # Plan — control-medias (Design overhaul V2: Contrôle + Médias)
 
 **Feature:** control-medias · **Ticket:** #306 · **Epic:** #304
-**Binding spec:** `docs/superpowers/specs/2026-07-16-design-overhaul-design.md` §2.1, §2.2, §5.2, §5.3, §1.1
+**Binding spec:** `docs/archive/superpowers/specs/2026-07-16-design-overhaul-design.md` §2.1, §2.2, §5.2, §5.3, §1.1
 **Constitution:** `docs/reference/product-intent.md` §2, §3, §4, §6, §7, §8, DOIT-2, DOIT-3, DOIT-5, DOIT-7, DOIT-9, DOIT-10
 **Merge mode:** auto (operator directive 2026-07-17)
 

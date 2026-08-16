@@ -350,6 +350,6 @@ git commit --allow-empty -m "chore(.claude): phase 3 gate — phase execution (3
 - [ ] **Step 7 : Mettre à jour INDEX du master plan**
 
 ```bash
-git add docs/superpowers/plans/2026-04-22-implement-skills-refactor.md
+git add docs/archive/superpowers/plans/2026-04-22-implement-skills-refactor.md
 git commit -m "docs(plan): mark phase 3 done"
 ```

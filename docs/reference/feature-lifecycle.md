@@ -187,5 +187,5 @@ See also:
 - `docs/features/{codename}/ACCEPTANCE.md` — per-feature criteria list
 - `docs/reference/testing.md` — test taxonomy and runtime budgets
 - `docs/reference/commands.md` — CLI reference (all commands with --help)
-- `docs/superpowers/specs/2026-04-22-implement-skills-refactor-design.md` —
+- `docs/archive/superpowers/specs/2026-04-22-implement-skills-refactor-design.md` —
   implement:\* skill architecture and phase flow

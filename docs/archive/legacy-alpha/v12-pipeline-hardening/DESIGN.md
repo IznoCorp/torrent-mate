@@ -6,7 +6,7 @@
 
 ## Origin
 
-Pipeline run `docs/pipeline-runs/2026-04-13-20h00-pipeline-run.md` exposed
+Pipeline run `docs/archive/pipeline-runs/2026-04-13-20h00-pipeline-run.md` exposed
 22 bugs across all pipeline steps. Two independent analyses (contextual +
 fresh agent) identified 9 root patterns.
 

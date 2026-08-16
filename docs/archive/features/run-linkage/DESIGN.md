@@ -2,7 +2,7 @@
 
 **Feature**: Link each `pipeline_run` to the acquisitions it processed.
 **Type**: feat · **Bump**: 0.69.0 → 0.70.0 (minor) · **Branch**: `feat/run-linkage` · **Ticket**: #362
-**Epic**: provenance tracking-spine (F0 → F5), roadmap `docs/features/provenance/EPIC-ROADMAP.md`.
+**Epic**: provenance tracking-spine (F0 → F5), roadmap `docs/archive/features/provenance/EPIC-ROADMAP.md`.
 
 ## 1. Intent (operator-ratified)
 

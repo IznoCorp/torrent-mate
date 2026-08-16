@@ -1,7 +1,7 @@
 # DESIGN — overhaul-shell (Design overhaul V1: shell)
 
 **Wave 1 of 5** of the design overhaul — epic #304, ticket #305.
-**Binding shared spec:** `docs/superpowers/specs/2026-07-16-design-overhaul-design.md` — this wave implements
+**Binding shared spec:** `docs/archive/superpowers/specs/2026-07-16-design-overhaul-design.md` — this wave implements
 **§1.1 (sidebar sticky · attention badges · width)** under the **§6 sequencing invariant**. On any conflict, the
 shared spec wins; on conflict with `docs/reference/product-intent.md`, the constitution wins.
 **Constitution served:** §8 (badges = « rien en silence » depuis n'importe quel écran), DOIT-3 (agir là où l'on

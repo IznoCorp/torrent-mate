@@ -11,7 +11,7 @@ rebuild the TODO and continue at **R11**.
 
 1. `git checkout main && git remote update origin && git pull --ff-only` — the operator (LounisBou)
    works IN PARALLEL and moves `main`. Always start from a fresh main.
-2. Read `docs/analysis/2026-07-08-webui-s1-s4-audit.md` — the 28 ranked findings (R1–R28), each with
+2. Read `docs/archive/analysis/2026-07-08-webui-s1-s4-audit.md` — the 28 ranked findings (R1–R28), each with
    file:line + evidence + suggested fix. This is the spec for every remaining item.
 3. Rebuild the task list (TaskCreate) from §3 below (tasks don't survive /clear).
 4. Create a fresh batch branch off main: `git checkout -b fix/webui-review-p5` and start **R11**.
@@ -88,7 +88,7 @@ U2** (I built a duplicate, had to drop it). Therefore:
 
 ---
 
-## 4. Deploy topology (from ENV-SEP — `docs/analysis/2026-07-08-env-sep-cutover.md`)
+## 4. Deploy topology (from ENV-SEP — `docs/archive/analysis/2026-07-08-env-sep-cutover.md`)
 
 - **dev** = `~/dev/PersonalScraper` (this checkout, feature branches, NO PM2 daemons).
 - **prod** = `~/deploy/torrentmate` (tracks `main`, autodeploy) — runs `torrentmate-web` (8710) + watch +
@@ -169,8 +169,8 @@ Guarantor after: `git log/diff` in range, identity probe contains "deepseek", re
 
 ## 7. Reference artifacts on disk
 
-- `docs/analysis/2026-07-08-webui-s1-s4-audit.md` — the 28 findings (spec for R11–R28).
-- `docs/analysis/2026-07-08-env-sep-cutover.md` — ENV-SEP topology + cutover record.
+- `docs/archive/analysis/2026-07-08-webui-s1-s4-audit.md` — the 28 findings (spec for R11–R28).
+- `docs/archive/analysis/2026-07-08-env-sep-cutover.md` — ENV-SEP topology + cutover record.
 - `docs/reference/web-ui.md` — binding REST conventions + per-wave sections (updated through ENV-SEP).
 - This file — the resume handoff.
 

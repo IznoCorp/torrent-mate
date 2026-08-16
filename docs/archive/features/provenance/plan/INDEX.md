@@ -1,6 +1,6 @@
 # Plan — provenance (F0: spine + #30)
 
-Design: `docs/features/provenance/DESIGN.md` · Epic: `docs/features/provenance/EPIC-ROADMAP.md`
+Design: `docs/archive/features/provenance/DESIGN.md` · Epic: `docs/archive/features/provenance/EPIC-ROADMAP.md`
 
 Advisory overlay throughout: FS + existing stores stay truth; every provenance write
 is best-effort (never fails a pipeline step); every read is fail-soft (missing/stale

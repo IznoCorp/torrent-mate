@@ -186,7 +186,7 @@ Every `chore(scope): phase N gate` commit MUST pass all of:
 
 ### Implementation Workflow (feature-oriented)
 
-11 `implement:*` skills managing the full feature lifecycle with Opus/Sonnet/Haiku allocation. See details in `docs/superpowers/specs/2026-04-22-implement-skills-refactor-design.md`.
+11 `implement:*` skills managing the full feature lifecycle with Opus/Sonnet/Haiku allocation. See details in `docs/archive/superpowers/specs/2026-04-22-implement-skills-refactor-design.md`.
 
 **Entry point**: `/implement:feature` — archive prev, brainstorm, derive codename + SemVer type, create branch, generate plan.
 

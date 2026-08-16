@@ -437,7 +437,7 @@ Every documentation file referencing a decomposed module must be updated in the 
 | ------------------------- | --------------------------- |
 | Any `outbox.py` reference | Update to `outbox/` package |
 
-### 10.5 `docs/superpowers/plans/2026-05-03-config-coherence-intervention.md`
+### 10.5 `docs/archive/superpowers/plans/2026-05-03-config-coherence-intervention.md`
 
 **Do NOT update** — this is another agent's active plan. Merge conflict prevention: if this plan is modified, coordinate with the other agent.
 

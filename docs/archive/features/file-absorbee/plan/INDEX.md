@@ -1,7 +1,7 @@
 # Plan — file-absorbee
 
 Feature : **La file d'acquisition suit le pointeur d'absorption** (#411)
-Design : `docs/features/file-absorbee/DESIGN.md`
+Design : `docs/archive/features/file-absorbee/DESIGN.md`
 Bump : 0.84.0 → 0.84.1 (`fix/file-absorbee`)
 
 ## Ordre et raison de l'ordre

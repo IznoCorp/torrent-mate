@@ -2,7 +2,7 @@
 
 **Wave 2 of 5** of the design overhaul — epic #304, ticket #306. Merge mode: **auto** (operator directive
 2026-07-17: chain all waves automatically).
-**Binding shared spec:** `docs/superpowers/specs/2026-07-16-design-overhaul-design.md` — this wave implements
+**Binding shared spec:** `docs/archive/superpowers/specs/2026-07-16-design-overhaul-design.md` — this wave implements
 **§2.1 (Contrôle), §2.2 (Médias), §5.2 (continue endpoint), §5.3 (attention counts)** and the §1.1 pieces scoped
 to it (component relocation, `/scraping` → `/medias` redirect, 2 nav-entry renames). On conflict the shared spec
 wins; on conflict with `docs/reference/product-intent.md`, the constitution wins.

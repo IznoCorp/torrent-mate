@@ -1,6 +1,6 @@
 # Plan — `recherche-juste`
 
-Découpage d'exécution de `docs/features/recherche-juste/DESIGN.md`. Six phases, dans un ordre
+Découpage d'exécution de `docs/archive/features/recherche-juste/DESIGN.md`. Six phases, dans un ordre
 qui porte du sens : le signal de popularité doit exister avant le moteur qui le consomme ; le
 moteur doit être prouvé avant d'être branché sur deux surfaces ; l'UI vient après une API qui
 pagine réellement.
