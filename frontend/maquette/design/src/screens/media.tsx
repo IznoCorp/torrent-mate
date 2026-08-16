@@ -3,7 +3,7 @@
 // media sheet for every medium — reborn as a real route (`/fiche/$titre`) and
 // a final component. Markup is TRANSPLANTED, not translated: every tag, class
 // and data-attribute below is the one `refonte.html`'s BLOCK 2 CSS already
-// targets (`.screen`, `.fichebar`, `.herowrap`, `.trailer`, `.cast`,
+// targets (`.screen`, `.screenbar`, `.herowrap`, `.trailer`, `.cast`,
 // `.eprow`, `.sheetacts`…), so the same stylesheet applies unchanged and the
 // rule harness measures the same geometry it measured on the legacy screen.
 //
@@ -211,7 +211,7 @@ function SeasonList({
               })}
             </div>
             {row.aired == null ? (
-              <p className="nofiche" style={{ marginTop: "6px" }}>
+              <p className="noinfo" style={{ marginTop: "6px" }}>
                 {t("screens.fiche.beyondEpisode", { n: bound })}
               </p>
             ) : (
@@ -219,11 +219,11 @@ function SeasonList({
             )}
           </>
         ) : row.aired === 0 || row.aired === null ? (
-          <p className="nofiche" style={{ marginTop: "8px" }}>
+          <p className="noinfo" style={{ marginTop: "8px" }}>
             {t("screens.fiche.seasonAnnounced")}
           </p>
         ) : (
-          <p className="nofiche" style={{ marginTop: "8px" }}>
+          <p className="noinfo" style={{ marginTop: "8px" }}>
             {t("screens.fiche.episodesNotDetailed")}
           </p>
         );
@@ -270,7 +270,7 @@ function SeasonList({
               )}
             </summary>
             {missingNums.length ? (
-              <p className="manquants">
+              <p className="missing">
                 {t("screens.fiche.missingList", {
                   liste: plages(missingNums),
                 })}
@@ -377,7 +377,7 @@ export function MediaScreen() {
 
   return (
     <section className="screen open" data-cle={`fiche:${title}`}>
-      <div className="fichebar">
+      <div className="screenbar">
         <button className="fback" onClick={() => window.__pont.retour()}>
           <Icon paths={icons.left} />
           {t("screens.fiche.back")}
@@ -394,7 +394,7 @@ export function MediaScreen() {
       </div>
       <div className="port">
         <div className="body">
-          <div className={`herowrap${artwork ? "" : " noaffiche"}`}>
+          <div className={`herowrap${artwork ? "" : " noposter"}`}>
             <div
               className="herobg"
               aria-hidden="true"
@@ -471,7 +471,7 @@ export function MediaScreen() {
               </span>
             </a>
           ) : (
-            <p className="nofiche">{t("screens.fiche.noTrailer")}</p>
+            <p className="noinfo">{t("screens.fiche.noTrailer")}</p>
           )}
 
           <div>
@@ -528,7 +528,7 @@ export function MediaScreen() {
                 ))}
               </div>
             ) : (
-              <p className="nofiche">{t("screens.fiche.castUnknown")}</p>
+              <p className="noinfo">{t("screens.fiche.castUnknown")}</p>
             )}
           </div>
 
@@ -681,7 +681,7 @@ export function MediaScreen() {
                 </button>
               </>
             ) : followed ? (
-              <button className="ficheadd done" disabled>
+              <button className="mediaadd done" disabled>
                 <Icon paths={icons.check} />
                 {isFilm
                   ? t("screens.fiche.added")
@@ -691,9 +691,9 @@ export function MediaScreen() {
               // No `data-refiche`: the legacy button asked the sheet to
               // REOPEN itself so the label would flip under the finger. This
               // screen re-renders from the store instead — the follow act
-              // bumps it, and the button becomes `ficheadd done` in place.
+              // bumps it, and the button becomes `mediaadd done` in place.
               <button
-                className="ficheadd"
+                className="mediaadd"
                 data-follow={title}
                 data-fkind={isFilm ? "Film" : "Série"}
               >

@@ -5,7 +5,7 @@
 // component is that same constructor, transplanted: same tags, same
 // classes, same data-attribute vocabulary, so the document-level click
 // delegation the legacy engine still runs (`.sact[data-fiche]`,
-// `.ep[data-ep]`, `.champ*[data-champ]`, …) keeps working unchanged.
+// `.ep[data-ep]`, `.field*[data-champ]`, …) keeps working unchanged.
 //
 // Markup is TRANSPLANTED, not translated: React escapes text nodes
 // natively, so there is no `escapeHtml` here — every plain string prop
@@ -186,7 +186,7 @@ function FactsBlock({
   block: Extract<PanelBlock, { type: "faits" }>;
 }) {
   return (
-    <div className="panel sheetfaits">
+    <div className="panel sheetfacts">
       {(block.lignes ?? []).map((line, index) => (
         <div
           key={index}
@@ -491,7 +491,7 @@ function FieldBlock({
 
   if (setting.type === "structure")
     return (
-      <div className="champ refus">
+      <div className="field noedit">
         <p className="rulenote">
           {t("settings.field.structureBefore")}{" "}
           <b>{t("settings.field.structureWord")}</b>{" "}
@@ -503,17 +503,17 @@ function FieldBlock({
 
   if (setting.type === "booleen")
     return (
-      <div className="champ">
+      <div className="field">
         <button
-          className={`interrupteur${v ? " actif" : ""}`}
+          className={`fieldtoggle${v ? " actif" : ""}`}
           role="switch"
           aria-checked={v ? "true" : "false"}
           data-champ={id}
           data-vers={v ? "non" : "oui"}
         >
-          <span className="pastille" />
+          <span className="fieldknob" />
         </button>
-        <span className="champlbl">
+        <span className="fieldlabel">
           {v ? t("settings.field.enabled") : t("settings.field.disabled")}
         </span>
       </div>
@@ -522,13 +522,13 @@ function FieldBlock({
   if (setting.type === "liste") {
     const items = Array.isArray(v) ? (v as unknown[]) : [];
     return (
-      <div className="champ liste">
+      <div className="field list">
         {items.length ? (
           items.map((x, index) => (
             <div className="litem" key={index}>
               <span>{String(x)}</span>
               <button
-                className="lsupp"
+                className="lremove"
                 data-champsupp={id}
                 data-index={index}
                 aria-label={t("settings.field.removeAria", {
@@ -542,7 +542,7 @@ function FieldBlock({
         ) : (
           <p className="rulenote">{t("settings.field.emptyList")}</p>
         )}
-        <button className="lajout" data-champajout={id}>
+        <button className="ladd" data-champajout={id}>
           <Icon paths={icons.plus} />
           {t("settings.field.add")}
         </button>
@@ -556,7 +556,7 @@ function FieldBlock({
   const unit = unitOf(setting);
 
   return (
-    <div className="champ">
+    <div className="field">
       <input
         // KEYED BY THE SETTING, and this is a correctness fix, not a hint.
         // `#sheetin` is a persistent node now, where the legacy layer replaced
@@ -569,14 +569,14 @@ function FieldBlock({
         // the next blur then files under the NEW setting's id. Keying by the
         // setting makes a different setting a different node.
         key={id}
-        className={`champsaisie${mono ? " mono" : ""}`}
+        className={`fieldinput${mono ? " mono" : ""}`}
         data-champ={id}
         type={numeric ? "number" : "text"}
         inputMode={numeric ? "decimal" : undefined}
         defaultValue={empty ? "" : String(v)}
         placeholder={empty ? t("settings.field.undefinedPlaceholder") : ""}
         aria-label={settingLabel(setting)}
-        // The ONE place mountSearch's `.champsaisie` `onchange` binding
+        // The ONE place mountSearch's `.fieldinput` `onchange` binding
         // (refonte.html) is replaced by a component-owned handler — and it is
         // the SAME event, bound natively rather than through React's synthetic
         // `onChange`. Three reasons, all measured rather than stylistic:
@@ -603,9 +603,9 @@ function FieldBlock({
         }}
       />
       {unit ? (
-        <span className="champunite">{unit}</span>
+        <span className="fieldunit">{unit}</span>
       ) : setting.type === "duree" ? (
-        <span className="champunite">{t("settings.field.durationFormat")}</span>
+        <span className="fieldunit">{t("settings.field.durationFormat")}</span>
       ) : null}
     </div>
   );
@@ -713,7 +713,7 @@ export function PanelContent({
     <>
       {poster ? (
         <div
-          className={`sheethead${descriptor.affiche ? " avecaffiche" : ""}`}
+          className={`sheethead${descriptor.affiche ? " withposter" : ""}`}
         >
           {poster}
           <div className="sheetid">{identity}</div>

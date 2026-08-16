@@ -63,7 +63,7 @@ export default function MediaSheetPage(): ReactElement {
           fiche carries the same « ‹ Retour » bar as the add-media screen
           (.mq scope on the bar alone, for the exact same look). */}
       <div className="mq">
-        <div className="fichebar">
+        <div className="screenbar">
           <button
             type="button"
             aria-label="Retour"

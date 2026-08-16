@@ -137,7 +137,7 @@ async def main():
           const s = document.querySelector('#sheetin');
           return {texte: (s.textContent||'').replace(/\\s+/g,' '),
                   mono: !!s.querySelector('code'),
-                  champ: !!s.querySelector('.champ'),
+                  champ: !!s.querySelector('.field'),
                   actions: [...s.querySelectorAll('.sact')].map(x=>x.textContent.trim())};}""")
         source = (CONFIG / "thresholds.json5").read_text()
         commentaire = re.search(r"//\s*(.+?)\n\s*min_free_space_staging_gb", source)
@@ -158,7 +158,7 @@ async def main():
         attente = await pg.evaluate("""()=>{
           const bar = document.querySelector('#savebar');
           return {barre: !!bar, texte: bar ? bar.textContent.replace(/\\s+/g,' ') : '',
-                  marquees: document.querySelectorAll('.reg.modifie').length,
+                  marquees: document.querySelectorAll('.reg.modified').length,
                   sousLaBarre: bar ? bar.getBoundingClientRect().bottom <=
                     document.querySelector('#device').getBoundingClientRect().bottom + 1 : false};}""")
         verifier("une modification fait apparaître la barre", attente["barre"])
@@ -262,14 +262,14 @@ async def main():
         # Driven by TYPE for the same reason: naming a key here would pass the
         # day that key moves and open something else.
         attendus = {
-            "booleen": ".interrupteur",
-            "nombre": ".champsaisie[type=number]",
-            "texte": ".champsaisie[type=text]",
-            "chemin": ".champsaisie.mono",
-            "liste": ".lajout",
-            "duree": ".champsaisie",
-            "structure": ".champ.refus",
-            "nul": ".champsaisie",
+            "booleen": ".fieldtoggle",
+            "nombre": ".fieldinput[type=number]",
+            "texte": ".fieldinput[type=text]",
+            "chemin": ".fieldinput.mono",
+            "liste": ".ladd",
+            "duree": ".fieldinput",
+            "structure": ".field.noedit",
+            "nul": ".fieldinput",
         }
         vus = await pg.evaluate(
             """()=>[...new Set(REGLAGES.flatMap(r => r.r).map(x => x.type))].sort()""")
@@ -290,8 +290,8 @@ async def main():
         await pg.wait_for_timeout(320)
         refus = await pg.evaluate("""()=>{
           const s = document.querySelector('#sheetin');
-          return {saisie: !!s.querySelector('.champsaisie, .interrupteur, .lajout'),
-                  nomme: !!s.querySelector('.champ.refus code')};}""")
+          return {saisie: !!s.querySelector('.fieldinput, .fieldtoggle, .ladd'),
+                  nomme: !!s.querySelector('.field.noedit code')};}""")
         verifier("une structure n'offre aucun champ", not refus["saisie"], str(refus))
         verifier("et elle nomme le fichier à ouvrir", refus["nomme"])
 
@@ -300,8 +300,8 @@ async def main():
         # undone by typing the original back — which is the check after.
         await pg.evaluate("()=>window.__go('reglages-champ-nombre')")
         await pg.wait_for_timeout(320)
-        await pg.fill("#sheetin .champsaisie", "42")
-        await pg.evaluate("()=>document.querySelector('#sheetin .champsaisie')"
+        await pg.fill("#sheetin .fieldinput", "42")
+        await pg.evaluate("()=>document.querySelector('#sheetin .fieldinput')"
                           ".dispatchEvent(new Event('change'))")
         await pg.wait_for_timeout(320)
         depose = await pg.evaluate(
@@ -311,8 +311,8 @@ async def main():
 
         origine = await pg.evaluate(
             """()=>String(REGLAGES.flatMap(r => r.r).find(x => x.type === 'nombre').brut)""")
-        await pg.fill("#sheetin .champsaisie", origine)
-        await pg.evaluate("()=>document.querySelector('#sheetin .champsaisie')"
+        await pg.fill("#sheetin .fieldinput", origine)
+        await pg.evaluate("()=>document.querySelector('#sheetin .fieldinput')"
                           ".dispatchEvent(new Event('change'))")
         await pg.wait_for_timeout(320)
         verifier("et retaper la valeur du fichier annule la modification",
@@ -321,7 +321,7 @@ async def main():
 
         await pg.evaluate("()=>window.__go('reglages-champ-booleen')")
         await pg.wait_for_timeout(320)
-        await pg.click("#sheetin .interrupteur")
+        await pg.click("#sheetin .fieldtoggle")
         await pg.wait_for_timeout(320)
         bascule = await pg.evaluate(
             "()=>[...REG_ETAT.modifs.values()].map(v => [v, typeof v])")
@@ -335,7 +335,7 @@ async def main():
           render(); ouvrirReglage(reglageId(x));}""")
         await pg.wait_for_timeout(330)
         avant = await pg.evaluate("()=>document.querySelectorAll('#sheetin .litem').length")
-        await pg.click("#sheetin .lsupp")
+        await pg.click("#sheetin .lremove")
         await pg.wait_for_timeout(330)
         apres = await pg.evaluate("()=>document.querySelectorAll('#sheetin .litem').length")
         verifier("une liste perd vraiment un élément", apres == avant - 1,
@@ -356,13 +356,13 @@ async def main():
           REG_ETAT.rubrique = REGLAGES.find(r => r.r.includes(x)).id;
           render(); ouvrirReglage(reglageId(x));
           return {id: reglageId(x), sienne: String(x.brut ?? '')};}"""
-        lire_champ = """() => {const e = document.querySelector('#sheetin .champsaisie');
+        lire_champ = """() => {const e = document.querySelector('#sheetin .fieldinput');
           return e ? {valeur: e.value, champ: e.dataset.champ} : null;}"""
 
         premier = await pg.evaluate(ouvrir_texte, 0)
         await pg.wait_for_timeout(330)
-        await pg.fill("#sheetin .champsaisie", SONDE)
-        await pg.evaluate("()=>document.querySelector('#sheetin .champsaisie')"
+        await pg.fill("#sheetin .fieldinput", SONDE)
+        await pg.evaluate("()=>document.querySelector('#sheetin .fieldinput')"
                           ".dispatchEvent(new Event('change'))")
         await pg.wait_for_timeout(330)
         await pg.evaluate("()=>closeSheet()")
@@ -378,7 +378,7 @@ async def main():
 
         # And what a commit on the second one FILES, which is the half that
         # corrupts the configuration rather than merely misinforming.
-        await pg.evaluate("()=>document.querySelector('#sheetin .champsaisie')"
+        await pg.evaluate("()=>document.querySelector('#sheetin .fieldinput')"
                           ".dispatchEvent(new Event('change'))")
         await pg.wait_for_timeout(330)
         depose = await pg.evaluate(

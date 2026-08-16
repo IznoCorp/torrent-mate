@@ -171,7 +171,7 @@ export function AddScreen() {
 
   return (
     <section className="screen open" data-cle={`ajout:${mode}`}>
-      <div className="fichebar">
+      <div className="screenbar">
         <button className="fback" onClick={() => window.__pont.retour()}>
           <Icon paths={icons.left} />
           {t("screens.ajout.back")}

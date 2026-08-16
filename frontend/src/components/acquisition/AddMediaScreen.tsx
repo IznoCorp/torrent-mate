@@ -402,7 +402,7 @@ export function AddMediaScreen({
             Recherchez un film ou une série, ou ajoutez-le directement par son
             identifiant.
           </SheetDescription>
-          <div className="fichebar">
+          <div className="screenbar">
             <button
               type="button"
               aria-label="Retour"

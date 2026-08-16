@@ -71,7 +71,7 @@ async def main():
       window.__go('feuille-suivi-trous'); await new Promise(r=>setTimeout(r,240));
       mesure('.sact.primary','sheet (primary)');
       window.__go('fiche-suggestion-film'); await new Promise(r=>setTimeout(r,240));
-      mesure('.ficheadd','media sheet (add)');
+      mesure('.mediaadd','media sheet (add)');
       window.__go('acq-ajout-resultats'); await new Promise(r=>setTimeout(r,240));
       mesure('.resbtn','search result');
       window.__go('lib-suppression'); await new Promise(r=>setTimeout(r,240));
@@ -124,7 +124,7 @@ async def main():
     print(f"\nMedia-sheet base, over {len(ordres)} media drawn from the data:")
     # Sections that are OPTIONAL by nature (no trailer, unknown catalogue) do
     # not count as divergence; the skeleton does.
-    OPT = {"trailer", "nofiche", "rulenote"}
+    OPT = {"trailer", "noinfo", "rulenote"}
     def ossature(l):
         return [s.replace("Création", "X").replace("Réalisation", "X") for s in l if s not in OPT]
     formes = {}
@@ -237,7 +237,7 @@ async def main():
           const sb=getComputedStyle(bg), rb=bg.getBoundingClientRect(), rh=hero.getBoundingClientRect();
           // The header OCCUPIES the top: it pushes content, it does not float.
           if (sb.position!=='relative') out.push(`${nom}: header in ${sb.position}`);
-          const aVisuelIci=!wrap.classList.contains('noaffiche');
+          const aVisuelIci=!wrap.classList.contains('noposter');
           // With no visual the field is deliberately short: it holds the place
           // and claims nothing. The threshold applies only to a real image.
           const seuil = aVisuelIci ? 240 : 48;
@@ -250,7 +250,7 @@ async def main():
           // makes the rule true, not good intentions.
           if (!getComputedStyle(bg,'::after').backgroundImage.includes('gradient'))
             out.push(`${nom}: header without a legibility gradient`);
-          const aVisuel=!wrap.classList.contains('noaffiche');
+          const aVisuel=!wrap.classList.contains('noposter');
           if (aVisuel && sb.backgroundImage==='none') out.push(`${nom}: header declared but empty`);
         }
       }
@@ -299,7 +299,7 @@ async def main():
         // rule that has gone quiet is not a rule that passes.
         const ecran=document.querySelector('#screen.open')
                  || document.querySelector('.screen.open[data-cle^="fiche:"]');
-        const bar=ecran?.querySelector('.fichebar');
+        const bar=ecran?.querySelector('.screenbar');
         if (!bar) continue;
         const btn=bar.querySelector('.fback');
         if (!btn) { colles.push(`${s}: bar without a back control`); continue; }

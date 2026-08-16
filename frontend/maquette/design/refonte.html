@@ -745,7 +745,7 @@
     padding: 0 5px;
     text-align: center;
   }
-  .act.chercher {
+  .act.resume {
     background: var(--primary);
     color: var(--primary-foreground);
   }
@@ -828,7 +828,7 @@
      notches is derived from anything, and a number nobody derived is a number
      nobody can defend. */
 
-  .dossier {
+  .folder {
     width: 58px;
     align-self: start;
     justify-self: start;
@@ -846,7 +846,7 @@
     color: var(--muted-foreground);
     padding: 0;
   }
-  .dossier svg {
+  .folder svg {
     width: 22px;
     height: 22px;
     margin: 0 auto;
@@ -1532,7 +1532,7 @@
     color: var(--muted-foreground);
   }
   /* A block of facts inside a panel keeps its distance from what follows. */
-  .sheetfaits {
+  .sheetfacts {
     margin-bottom: 14px;
   }
   .h2 {
@@ -1806,10 +1806,10 @@
   }
   /* A setting the operator has touched but not yet written. It is marked on
      the ROW, where it is read, and not only in a counter at the bottom. */
-  .reg.modifie .rv {
+  .reg.modified .rv {
     color: var(--primary);
   }
-  .reg.modifie::before {
+  .reg.modified::before {
     content: "";
     width: 3px;
     align-self: stretch;
@@ -1823,18 +1823,18 @@
      owes it. It sits above the tab bar, like every other fixed thing. */
   /* A FIELD, inside the panel. The panel is the one place an action lives
      (R56), so editing a setting does not get a screen of its own. */
-  .champ {
+  .field {
     display: flex;
     align-items: center;
     gap: 10px;
     margin-top: 10px;
   }
-  .champ.liste {
+  .field.list {
     flex-direction: column;
     align-items: stretch;
     gap: 6px;
   }
-  .champsaisie {
+  .fieldinput {
     flex: 1;
     min-width: 0;
     padding: 11px 12px;
@@ -1845,25 +1845,25 @@
     font: inherit;
     font-size: 14px;
   }
-  .champsaisie.mono {
+  .fieldinput.mono {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 12px;
   }
-  .champsaisie:focus-visible {
+  .fieldinput:focus-visible {
     outline: 2px solid var(--primary);
     outline-offset: 1px;
   }
-  .champunite {
+  .fieldunit {
     flex: 0 0 auto;
     font-size: 12px;
     color: var(--muted-foreground);
   }
-  .champlbl {
+  .fieldlabel {
     font-size: 13px;
     color: var(--muted-foreground);
   }
   /* The switch is the whole field: nothing to type, nothing to validate. */
-  .interrupteur {
+  .fieldtoggle {
     flex: 0 0 auto;
     width: 48px;
     height: 28px;
@@ -1874,11 +1874,11 @@
     display: flex;
     transition: background 0.18s ease;
   }
-  .interrupteur.actif {
+  .fieldtoggle.actif {
     background: var(--primary);
     justify-content: flex-end;
   }
-  .pastille {
+  .fieldknob {
     width: 22px;
     height: 22px;
     border-radius: 99px;
@@ -1902,7 +1902,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .lsupp {
+  .lremove {
     flex: 0 0 auto;
     border: 0;
     background: transparent;
@@ -1910,11 +1910,11 @@
     padding: 2px;
     display: flex;
   }
-  .lsupp svg {
+  .lremove svg {
     width: 15px;
     height: 15px;
   }
-  .lajout {
+  .ladd {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1927,11 +1927,11 @@
     font-size: 12.5px;
     font-weight: 600;
   }
-  .lajout svg {
+  .ladd svg {
     width: 15px;
     height: 15px;
   }
-  .champ.refus .rulenote {
+  .field.noedit .rulenote {
     margin: 0;
   }
   .savebar {
@@ -2138,7 +2138,7 @@
      created a second design (white) which, on screens without an image,
      OVERLAPPED the title instead of pushing it. A bar in the flow can cover
      nothing — and it reads the same everywhere. */
-  .fichebar {
+  .screenbar {
     flex: 0 0 auto;
     display: flex;
     align-items: center;
@@ -2250,7 +2250,7 @@
      short lines centred against it leaves the title floating in the middle of
      nothing. It also breathes below rather than inside: an 84px picture makes
      the same 4px read as nothing at all. */
-  .sheethead.avecaffiche {
+  .sheethead.withposter {
     align-items: flex-start;
     padding-bottom: 0;
     margin-bottom: 12px;
@@ -2338,7 +2338,7 @@
   /* Transplanted from maquette-acquisition.css — used in markup without
      having been ported, therefore inert: the « no trailer » message
      rendered at 14px without its dashed frame. */
-  .nofiche {
+  .noinfo {
     margin: 0 0 4px;
     font-size: 12px;
     color: var(--muted-foreground);
@@ -2381,7 +2381,7 @@
     position: relative;
     /* -10px cancels .body's top padding so the image touches the bar.
        Without an image the same pull would glue the title to it, hence the
-       breathing room restored in .noaffiche below. */
+       breathing room restored in .noposter below. */
     margin: -10px -14px 0;
     isolation: isolate;
     /* `clip`, not `hidden`: forbid overflow without creating a scroll
@@ -2414,12 +2414,12 @@
 
   /* Medium without a visual: the template does not change, only the content
      is missing. A muted field holds the place. */
-  .herowrap.noaffiche {
+  .herowrap.noposter {
     /* No image: the title must not be glued to the bar. */
     padding-top: 18px;
   }
 
-  .herowrap.noaffiche .herobg {
+  .herowrap.noposter .herobg {
     height: 72px;
     min-height: 0;
     background-image: linear-gradient(
@@ -2540,7 +2540,7 @@
      so one gesture always gets the same answer. Content centred: left-
      aligned like an action row, it read as a list item rather than the
      primary button. */
-  .ficheadd {
+  .mediaadd {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2554,11 +2554,11 @@
     padding: 12px;
     border-radius: 8px;
   }
-  .ficheadd svg {
+  .mediaadd svg {
     width: 16px;
     height: 16px;
   }
-  .ficheadd.done {
+  .mediaadd.done {
     background: transparent;
     color: var(--muted-foreground);
     border-color: var(--border);
@@ -2801,7 +2801,7 @@
   }
   /* The question an incomplete sheet answers is « which ones are missing »,
      not « how many ». Answer it in words, before the list. */
-  .manquants {
+  .missing {
     margin: 8px 0 0;
     font-size: 12px;
     font-weight: 600;
@@ -3039,7 +3039,7 @@
      radius 8, weight 600, 13.5px. */
   .sact,
   .cfoot,
-  .ficheadd,
+  .mediaadd,
   .dlgbtn,
   .btnprimary {
     display: flex;
@@ -3056,7 +3056,7 @@
   }
   .sact svg,
   .cfoot svg,
-  .ficheadd svg {
+  .mediaadd svg {
     width: 16px;
     height: 16px;
     flex: 0 0 auto;
@@ -3066,7 +3066,7 @@
      remember to add. */
   .sact:has(> svg),
   .cfoot:has(> svg),
-  .ficheadd:has(> svg) {
+  .mediaadd:has(> svg) {
     justify-content: flex-start;
     text-align: left;
   }
@@ -11576,7 +11576,7 @@
       : posterBox(descriptor.t, descriptor.k);
     const poster = aFiche
       ? `<button class="poster" aria-label="Fiche de ${escapeHtml(descriptor.t)}" data-fiche="${escapeHtml(descriptor.t)}">${image}</button>`
-      : `<button class="dossier" aria-label="Actions pour le dossier ${escapeHtml(descriptor.t)}" data-panel="${escapeHtml(descriptor.panel || `dossier:${descriptor.t}`)}">${svgIcon(icons.folder, 1.6)}<span class="dlabel">Dossier</span></button>`;
+      : `<button class="folder" aria-label="Actions pour le dossier ${escapeHtml(descriptor.t)}" data-panel="${escapeHtml(descriptor.panel || `dossier:${descriptor.t}`)}">${svgIcon(icons.folder, 1.6)}<span class="dlabel">Dossier</span></button>`;
     /* Two lines, because they answer two questions. The first says WHAT THIS
        MEDIUM IS — how much of it is owned, what state it is in, how it is
        rated. The second annotates that state: what is pending, what has just
@@ -12114,7 +12114,7 @@
             ? `<button class="act pause" data-swipeact="pause">${svgIcon(icons.x)}Ne plus chercher</button><button class="act remove" data-swipeact="remove">${svgIcon(icons.trash)}Retirer</button>`
             : `<button class="act pause" data-swipeact="pause">${svgIcon(icons.x)}Pause</button><button class="act remove" data-swipeact="remove">${svgIcon(icons.trash)}Retirer</button>`,
           follow.st === "en_attente" || follow.st === "a_recuperer"
-            ? `<button class="act chercher" data-swipeact="chercher">${svgIcon(icons.refresh)}Chercher</button>`
+            ? `<button class="act resume" data-swipeact="chercher">${svgIcon(icons.refresh)}Chercher</button>`
             : "",
         );
 
@@ -14625,7 +14625,7 @@
     const origine = avecFichier
       ? `${nomDeFichier(reglage.f)} · ${reglage.c}`
       : reglage.c;
-    return `<button class="reg${modifie ? " modifie" : ""}" data-reglage="${escapeHtml(reglageId(reglage))}">
+    return `<button class="reg${modifie ? " modified" : ""}" data-reglage="${escapeHtml(reglageId(reglage))}">
       <span class="rl">${escapeHtml(libelleReglage(reglage))}
         <span class="rf">${escapeHtml(origine)}</span>
       </span>
@@ -16041,7 +16041,7 @@
           element3.setSelectionRange(pos, pos);
         }
       };
-    /* `.champsaisie` is NOT bound here anymore: a settings field only ever
+    /* `.fieldinput` is NOT bound here anymore: a settings field only ever
        appears inside the panel, and the panel's own `champ` block owns its
        commit-on-blur handler now (`src/composants/panneau.tsx`). Binding it
        from outside would put two writers on one field. */
@@ -39418,12 +39418,12 @@
                 },
               ).join("")}</div>${
                 ligne.aired == null
-                  ? `<p class="nofiche" style="margin-top:6px">Au-delà de l'épisode ${borne}, le provider ne dit pas combien la saison en compte.</p>`
+                  ? `<p class="noinfo" style="margin-top:6px">Au-delà de l'épisode ${borne}, le provider ne dit pas combien la saison en compte.</p>`
                   : ""
               }`
             : ligne.aired === 0 || ligne.aired === null
-              ? `<p class="nofiche" style="margin-top:8px">Saison annoncée : aucun épisode diffusé pour l'instant.</p>`
-              : `<p class="nofiche" style="margin-top:8px">Épisodes non détaillés pour cette saison — la fiche le dit plutôt que d'afficher une liste vide.</p>`;
+              ? `<p class="noinfo" style="margin-top:8px">Saison annoncée : aucun épisode diffusé pour l'instant.</p>`
+              : `<p class="noinfo" style="margin-top:8px">Épisodes non détaillés pour cette saison — la fiche le dit plutôt que d'afficher une liste vide.</p>`;
         return `<details class="season"${complete || !possede ? "" : " open"}>
           <summary>Saison ${ligne.n}
             <span class="sfr">${
@@ -39438,7 +39438,7 @@
           </summary>
           ${
             numsManquants.length
-              ? `<p class="manquants">Manquants : ${plages(numsManquants)}</p>`
+              ? `<p class="missing">Manquants : ${plages(numsManquants)}</p>`
               : ""
           }
           ${corps}

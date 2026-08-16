@@ -46,7 +46,7 @@ export function ReleasesScreen() {
 
   return (
     <section className="screen open" data-cle={`releases:${title}`}>
-      <div className="fichebar">
+      <div className="screenbar">
         <button className="fback" onClick={() => window.__pont.retour()}>
           <Icon paths={icons.left} />
           {t("screens.releases.back")}

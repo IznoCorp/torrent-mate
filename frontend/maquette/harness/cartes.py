@@ -540,7 +540,7 @@ async def main():
                 if (!a.hasAttribute('data-fiche'))
                   out.fautives.push('affiche pressable sans data-fiche: ' + a.className);
               }
-              for (const d of document.querySelectorAll('.dossier')) {
+              for (const d of document.querySelectorAll('.folder')) {
                 if (!d.getBoundingClientRect().width) continue;
                 out.dossiers++;
                 if (!d.hasAttribute('data-panel') || d.hasAttribute('data-fiche') ||

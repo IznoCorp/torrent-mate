@@ -314,7 +314,7 @@ export function ResolutionScreen() {
   // screen as the legacy's own last resort, « élément inconnu ».
   return (
     <section className="screen open" data-cle={`resolution:${folder}`}>
-      <div className="fichebar">
+      <div className="screenbar">
         <button className="fback" onClick={() => window.__pont.retour()}>
           <Icon paths={icons.left} />
           {t("screens.resolution.back")}

@@ -514,7 +514,7 @@ function FollowDetailSheetContent({
              button that simply is not there reads as a bug, not a fact. The
              header's unresolved paragraph already says it for a catalogue-less
              follow — no second sentence there (§12). */
-          <p className="nofiche">
+          <p className="noinfo">
             Pas de fiche : l&apos;identifiant TVDB de ce média n&apos;a pas pu
             être résolu.
           </p>

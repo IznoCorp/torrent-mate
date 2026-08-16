@@ -102,7 +102,7 @@ export function ProfileScreen() {
 
   return (
     <section className="screen open" data-cle={`profil:${title}`}>
-      <div className="fichebar">
+      <div className="screenbar">
         <button className="fback" onClick={() => window.__pont.retour()}>
           <Icon paths={icons.left} />
           {t("screens.profil.back")}

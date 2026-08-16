@@ -51,7 +51,7 @@ image the CSS background resolves to, not on a stand-in; (h) one Back
 lands exactly where holds 3+4 already prove it does for `ProfilEcran`; (i)
 an unknown title renders the SAME honest template, mirroring `openFiche`'s
 own null path rather than inventing a not-found surface for it; (j) a
-title the provider gave no trailer to renders `p.nofiche` in the
+title the provider gave no trailer to renders `p.noinfo` in the
 trailer's own place, never a silently missing section.
 """
 import asyncio
@@ -83,7 +83,7 @@ ADRESSE_INCONNUE = "N'Existe%20Pas"
 # table's own pick for "no trailer" (`fiche-sans-trailer`, refonte.html) —
 # its `trailerIds` entry is absent and its sheet carries `trailer: null`
 # explicitly, and its cast/seasons are otherwise fully populated so the
-# ONLY `p.nofiche` the screen draws is the trailer's.
+# ONLY `p.noinfo` the screen draws is the trailer's.
 TITRE_FICHE = "Silo (2023)"
 TITRE_SANS_TRAILER = "Broadchurch"
 
@@ -105,7 +105,7 @@ ETAT_ECRAN = """() => {
   return {
     ouvert: !!ecran,
     cle: ecran?.dataset.cle ?? null,
-    titre: (document.querySelector('.screen.open .fichebar span') || {}).textContent ?? null,
+    titre: (document.querySelector('.screen.open .screenbar span') || {}).textContent ?? null,
     corps: (ecran?.querySelector('.body') || {}).textContent ?? '',
     pathname: location.pathname,
   };
@@ -159,7 +159,7 @@ ETAT_FICHE = """() => {
     cle: ecran?.dataset.cle ?? null,
     titre: (ecran?.querySelector('h2.ht') || {}).textContent ?? null,
     corps: (ecran?.querySelector('.body') || {}).textContent ?? '',
-    nofiches: [...document.querySelectorAll('.screen.open p.nofiche')].map(
+    nofiches: [...document.querySelectorAll('.screen.open p.noinfo')].map(
       (p) => p.textContent),
     pathname: location.pathname,
   };
@@ -185,7 +185,7 @@ ETAT_RELEASES = """() => {
   return {
     ouvert: !!ecran,
     cle: ecran?.dataset.cle ?? null,
-    barre: (ecran?.querySelector('.fichebar span') || {}).textContent ?? null,
+    barre: (ecran?.querySelector('.screenbar span') || {}).textContent ?? null,
     candidats: ecran ? ecran.querySelectorAll('.rel').length : 0,
     pathname: location.pathname,
   };
@@ -425,16 +425,16 @@ async def main():
             journal.verifier("aucune erreur JS sur un titre de fiche inconnu", not erreurs, str(erreurs))
             await ctx.close()
 
-            # ─── Hold (j): a title with no trailer renders p.nofiche in
+            # ─── Hold (j): a title with no trailer renders p.noinfo in
             # the trailer's own place — Broadchurch's cast and seasons are
-            # otherwise fully populated, so this is the ONLY p.nofiche the
+            # otherwise fully populated, so this is the ONLY p.noinfo the
             # screen draws; a stray match here would be a real regression,
             # not a coincidence from an unrelated missing field. ─────────
             adresse_sans_trailer = f"{base}/fiche/{urllib.parse.quote(TITRE_SANS_TRAILER)}"
             ctx, pg, erreurs = await ouvrir_a(navigateur, adresse_sans_trailer)
             fiche_sans_trailer = await pg.evaluate(ETAT_FICHE)
             journal.verifier(
-                "(j) une fiche sans bande-annonce rend p.nofiche à sa place",
+                "(j) une fiche sans bande-annonce rend p.noinfo à sa place",
                 fiche_sans_trailer["ouvert"]
                 and len(fiche_sans_trailer["nofiches"]) == 1
                 and "bande-annonce" in fiche_sans_trailer["nofiches"][0],
