@@ -1520,14 +1520,14 @@
 
      The child combinator is not decoration: `.kv span:first-child` also matches
      the dot itself, which is the first child of the caption. */
-  .kv.avecpip > span:first-child {
+  .kv.withpip > span:first-child {
     display: flex;
     align-items: center;
     gap: 8px;
   }
   /* A value that has not happened yet is not a value: it reads as an
      announcement, not as a measurement. */
-  .kv.avenir > span:last-child {
+  .kv.upcoming > span:last-child {
     font-weight: 400;
     color: var(--muted-foreground);
   }
@@ -1580,7 +1580,7 @@
      It sits where the pipeline is OBSERVED (DOIT-3): the stalled step and the
      button to run it again are one glance apart, so nothing sends the operator
      to another page to act on what they are reading. */
-  .pilote {
+  .pipeline {
     border: 1px solid var(--border);
     border-radius: 10px;
     background: var(--card);
@@ -1589,17 +1589,17 @@
     flex-direction: column;
     gap: 10px;
   }
-  .pilote .ph {
+  .pipeline .ph {
     display: flex;
     align-items: center;
     gap: 8px;
     min-width: 0;
   }
-  .pilote .pt {
+  .pipeline .pt {
     font-size: 13px;
     font-weight: 600;
   }
-  .pilote .pq {
+  .pipeline .pq {
     /* min-width: 0 with the ellipsis, so a long qualifier shortens instead of
        widening the row past the frame. */
     min-width: 0;
@@ -1611,19 +1611,19 @@
     font-size: 11.5px;
     color: var(--muted-foreground);
   }
-  .pilote .jauge {
+  .pipeline .gauge {
     height: 4px;
     border-radius: 99px;
     background: var(--border);
     overflow: hidden;
   }
-  .pilote .jauge i {
+  .pipeline .gauge i {
     display: block;
     height: 100%;
     background: var(--info);
     border-radius: inherit;
   }
-  .pilote .pacts {
+  .pipeline .pacts {
     display: grid;
     /* minmax(0, 1fr), never 1fr: an auto track's floor is its item's intrinsic
        size, so the longer label would size its column to max-content (R7). */
@@ -1680,7 +1680,7 @@
     text-align: right;
     color: var(--muted-foreground);
   }
-  .flux .fx.fvide .fn {
+  .flux .fx.fempty .fn {
     color: var(--muted-foreground);
     font-weight: 500;
   }
@@ -1733,7 +1733,7 @@
      value as it stands on the right, and the control lives in the panel that
      opens on top of it. A screen of live inputs on a phone is a screen where
      every scroll risks changing something. */
-  .rub {
+  .topic {
     display: flex;
     align-items: center;
     gap: 12px;
@@ -1746,19 +1746,19 @@
     color: var(--foreground);
     margin-bottom: 8px;
   }
-  .rub .rt {
+  .topic .rt {
     display: block;
     font-size: 14px;
     font-weight: 600;
   }
-  .rub .rs {
+  .topic .rs {
     display: block;
     margin-top: 2px;
     font-size: 12px;
     line-height: 1.4;
     color: var(--muted-foreground);
   }
-  .rub .rn {
+  .topic .rn {
     flex: 0 0 auto;
     font-size: 12px;
     font-weight: 600;
@@ -1874,7 +1874,7 @@
     display: flex;
     transition: background 0.18s ease;
   }
-  .fieldtoggle.actif {
+  .fieldtoggle.active {
     background: var(--primary);
     justify-content: flex-end;
   }
@@ -1931,7 +1931,7 @@
     width: 15px;
     height: 15px;
   }
-  .field.noedit .rulenote {
+  .field.readonly .rulenote {
     margin: 0;
   }
   .savebar {
@@ -3165,10 +3165,10 @@
   }
   /* A setting row does not stretch: the label can wrap without dragging the
      control with it. */
-  .kv.reglage {
+  .kv.setting {
     align-items: flex-start;
   }
-  .kv.reglage > span:first-child {
+  .kv.setting > span:first-child {
     padding-right: 4px;
   }
 
@@ -3821,7 +3821,7 @@
     height: 20px;
     flex: 0 0 auto;
   }
-  .drawer a .nb {
+  .drawer a .count {
     margin-left: auto;
     display: inline-flex;
     height: 18px;
@@ -12345,10 +12345,10 @@
          and asking for another one is a legitimate thing to want. DOIT-4 makes
          it a QUEUE rather than a refusal — and a queue nobody can reach is a
          branch no gesture can enter, which is a branch nobody can trust. */
-      return `<section class="pilote">
+      return `<section class="pipeline">
       <div class="ph"><span class="pip info"></span><span class="pt">En cours</span>
       <span class="pq">étape 4 sur ${PIPELINE.etapes.length} · ${escapeHtml(etape.l)}</span></div>
-      <div class="jauge"><i style="width:44%"></i></div>
+      <div class="gauge"><i style="width:44%"></i></div>
       ${
         state.pipe === "file"
           ? `<div class="live"><span class="d"></span><span>Votre passage est <b>en file</b> — il partira dès que celui-ci sera fini.</span></div>
@@ -12360,7 +12360,7 @@
       }
     </section>`;
     }
-    return `<section class="pilote">
+    return `<section class="pipeline">
     <div class="ph"><span class="pip neutral"></span><span class="pt">Au repos</span>
     <span class="pq">dernier passage ${escapeHtml(PIPELINE.dernier.quand)}</span></div>
     <button class="cfoot solid" data-pipe="lancer">Lancer le pipeline</button>
@@ -12428,7 +12428,7 @@
         const badge = ligne.ton
           ? `<span class="chip ${TONS[ligne.ton]}">${valeur}</span>`
           : valeur;
-        return `<li class="fx${vide ? " fvide" : ""}${ligne.etat === "danger" ? " fbloc" : ""}${
+        return `<li class="fx${vide ? " fempty" : ""}${ligne.etat === "danger" ? " fbloc" : ""}${
           ligne.cible ? " fclic" : ""
         }"><${balise} class="fw"${cible}>
       <span class="fn">${escapeHtml(ligne.l)}</span>
@@ -12555,7 +12555,7 @@
     ${MAINT_RUBRIQUES.map((r) => {
       const dedans = MAINT_ACTIONS.filter((a) => a.g === r.id);
       const dur = dedans.filter((a) => a.r === "destructive").length;
-      return `<button class="rub" data-maintrub="${escapeHtml(r.id)}">
+      return `<button class="topic" data-maintrub="${escapeHtml(r.id)}">
       <span style="min-width:0;flex:1">
         <span class="rt">${escapeHtml(r.t)}</span>
         <span class="rs">${escapeHtml(r.s)}</span>
@@ -12763,7 +12763,7 @@
     ])}
 
     <h2 class="h2">Réglages</h2>
-    <button class="rub" data-page="cfg" style="margin-top:0">
+    <button class="topic" data-page="cfg" style="margin-top:0">
       <span style="min-width:0;flex:1">
         <span class="rt">Réglages</span>
         <span class="rs">Ce que le pipeline fait, et comment — l'heure des passages programmés comprise. Rangés par ce qu'on veut changer, pas par fichier.</span>
@@ -14688,7 +14688,7 @@
       ${REGLAGES.map(
         (
           rubrique,
-        ) => `<button class="rub" data-rubrique="${escapeHtml(rubrique.id)}">
+        ) => `<button class="topic" data-rubrique="${escapeHtml(rubrique.id)}">
           <span style="min-width:0;flex:1">
             <span class="rt">${escapeHtml(rubrique.t)}</span>
             <span class="rs">${escapeHtml(rubrique.s)}</span>
@@ -14696,14 +14696,14 @@
           <span class="rn">${rubrique.r.length}</span>
         </button>`,
       ).join("")}
-      <button class="rub" data-rubrique="secrets">
+      <button class="topic" data-rubrique="secrets">
         <span style="min-width:0;flex:1">
           <span class="rt">Secrets et accès</span>
           <span class="rs">Les clés d'API et les mots de passe. On voit qu'ils sont posés, jamais ce qu'ils valent.</span>
         </span>
         <span class="rn">${SECRETS.length}</span>
       </button>
-      <button class="rub" data-profil="global">
+      <button class="topic" data-profil="global">
         <span style="min-width:0;flex:1">
           <span class="rt">Classement des releases</span>
           <span class="rs">Ce qui fait préférer une release à une autre. S'ajuste avec un aperçu en direct, donc c'est un écran à part.</span>
@@ -17560,7 +17560,7 @@
                 lab,
                 iconPath,
               ]) => `<a href="#" data-navgo="${id}" ${state.page === id ? 'aria-current="page"' : ""}>
-            ${svgIcon(iconPath)}<span>${lab}</span>${badges[id] ? `<span class="nb">${badges[id]}</span>` : ""}
+            ${svgIcon(iconPath)}<span>${lab}</span>${badges[id] ? `<span class="count">${badges[id]}</span>` : ""}
           </a>`,
             )
             .join("")}

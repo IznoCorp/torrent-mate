@@ -64,7 +64,7 @@ async def main():
         await pg.evaluate("()=>window.__go('reglages')")
         await pg.wait_for_timeout(320)
         carte = await pg.evaluate("""()=>({
-          rubriques: [...document.querySelectorAll('.rub')].map(r => ({
+          rubriques: [...document.querySelectorAll('.topic')].map(r => ({
             titre: (r.querySelector('.rt')||{}).textContent||'',
             sous: (r.querySelector('.rs')||{}).textContent||'',
             nombre: (r.querySelector('.rn')||{}).textContent||''})),
@@ -268,7 +268,7 @@ async def main():
             "chemin": ".fieldinput.mono",
             "liste": ".ladd",
             "duree": ".fieldinput",
-            "structure": ".field.noedit",
+            "structure": ".field.readonly",
             "nul": ".fieldinput",
         }
         vus = await pg.evaluate(
@@ -291,7 +291,7 @@ async def main():
         refus = await pg.evaluate("""()=>{
           const s = document.querySelector('#sheetin');
           return {saisie: !!s.querySelector('.fieldinput, .fieldtoggle, .ladd'),
-                  nomme: !!s.querySelector('.field.noedit code')};}""")
+                  nomme: !!s.querySelector('.field.readonly code')};}""")
         verifier("une structure n'offre aucun champ", not refus["saisie"], str(refus))
         verifier("et elle nomme le fichier à ouvrir", refus["nomme"])
 

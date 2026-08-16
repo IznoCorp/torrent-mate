@@ -190,7 +190,7 @@ function FactsBlock({
       {(block.lignes ?? []).map((line, index) => (
         <div
           key={index}
-          className={`kv${line.pip ? " avecpip" : ""}${line.terne ? " avenir" : ""}`}
+          className={`kv${line.pip ? " withpip" : ""}${line.terne ? " upcoming" : ""}`}
         >
           <span>
             {line.pip ? <span className={`pip ${line.pip}`} /> : null}
@@ -491,7 +491,7 @@ function FieldBlock({
 
   if (setting.type === "structure")
     return (
-      <div className="field noedit">
+      <div className="field readonly">
         <p className="rulenote">
           {t("settings.field.structureBefore")}{" "}
           <b>{t("settings.field.structureWord")}</b>{" "}
@@ -505,7 +505,7 @@ function FieldBlock({
     return (
       <div className="field">
         <button
-          className={`fieldtoggle${v ? " actif" : ""}`}
+          className={`fieldtoggle${v ? " active" : ""}`}
           role="switch"
           aria-checked={v ? "true" : "false"}
           data-champ={id}

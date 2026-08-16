@@ -217,7 +217,7 @@ export function ProfileScreen() {
           <div className="qgroup">
             <h2 className="h2">{t("screens.profil.twoLocks")}</h2>
             <div className="panel">
-              <div className="kv reglage">
+              <div className="kv setting">
                 <span>
                   {t("screens.profil.exclude3d")}
                   <br />
@@ -234,7 +234,7 @@ export function ProfileScreen() {
                   onClick={() => toggleLock("exclude_3d")}
                 />
               </div>
-              <div className="kv reglage">
+              <div className="kv setting">
                 <span>
                   {t("screens.profil.requireKnownResolution")}
                   <br />

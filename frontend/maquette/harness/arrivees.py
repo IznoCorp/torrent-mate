@@ -46,17 +46,17 @@ LIRE = """() => {
   const port = document.querySelector('#port');
   return {
     debord: port.scrollWidth - port.clientWidth,
-    etat: (document.querySelector('.pilote .pt') || {}).textContent || '',
-    boutons: [...document.querySelectorAll('.pilote [data-pipe]')]
+    etat: (document.querySelector('.pipeline .pt') || {}).textContent || '',
+    boutons: [...document.querySelectorAll('.pipeline [data-pipe]')]
                .map((b) => b.dataset.pipe),
-    file: !!document.querySelector('.pilote .live'),
+    file: !!document.querySelector('.pipeline .live'),
     uid: (window.PIPELINE_UID_POUR_LA_SONDE || null),
     etapes: [...document.querySelectorAll('.flux .fx')].map((x) => ({
       nom: x.querySelector('.fn').textContent.trim(),
       res: x.querySelector('.fr').textContent.trim(),
       sous: x.querySelector('.fs').textContent.trim(),
       cle: (x.querySelector('.fk') || {}).textContent || '',
-      vide: x.classList.contains('fvide'),
+      vide: x.classList.contains('fempty'),
       bloc: x.classList.contains('fbloc'),
     })),
     sections: [...document.querySelectorAll('.sechead .t')].map((x) => x.textContent.trim()),
@@ -123,7 +123,7 @@ async def main():
         # TAPPING, because a queue nobody can reach by a gesture is a branch no
         # gesture can enter — and driving `state.pipe` straight to it would
         # certify exactly that. The first version of this rule did.
-        await pg.tap('.pilote [data-pipe="lancer"]')
+        await pg.tap('.pipeline [data-pipe="lancer"]')
         await pg.wait_for_timeout(350)
         encours = await pg.evaluate(LIRE)
         journal.verifier("appuyer sur « lancer » met le pipeline en cours",
@@ -134,7 +134,7 @@ async def main():
         journal.verifier("en cours, rien ne prétend qu'un passage est déjà en file",
                          not encours["file"])
 
-        await pg.tap('.pilote [data-pipe="lancer"]')
+        await pg.tap('.pipeline [data-pipe="lancer"]')
         await pg.wait_for_timeout(350)
         file = await pg.evaluate(LIRE)
         journal.verifier("un passage demandé PENDANT un autre est mis en file, et le dit",
@@ -143,7 +143,7 @@ async def main():
                          file["etat"] == "En cours" and "arreter" in file["boutons"],
                          f"{file['etat']} · {file['boutons']}")
 
-        await pg.tap('.pilote [data-pipe="arreter"]')
+        await pg.tap('.pipeline [data-pipe="arreter"]')
         await pg.wait_for_timeout(350)
         arrete = await pg.evaluate(LIRE)
         journal.verifier("« arrêter » ramène au repos", arrete["etat"] == "Au repos",

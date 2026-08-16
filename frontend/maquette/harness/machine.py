@@ -160,7 +160,7 @@ LIRE = """() => {
     disques: bloc('Disques'),
     index: bloc('Index de la médiathèque'),
     dependances: bloc('Dépendances'),
-    rubriques: [...document.querySelectorAll('#view .rub .rt')].map((x) => x.textContent.trim()),
+    rubriques: [...document.querySelectorAll('#view .topic .rt')].map((x) => x.textContent.trim()),
     commandes: [...document.querySelectorAll('#view .flux .fx .fk')].map((x) => x.textContent.trim()),
   };
 }"""
