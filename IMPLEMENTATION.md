@@ -106,6 +106,19 @@ door, dies with the legacy dispatcher too); `ident.py`'s only remaining `#screen
 `.screen.open[data-cle^="resolution:"]` / `[data-cle^="ajout:"]` and no longer print `None`.
 Next: the rest of the catch-all surface by surface; then SP5 (visual language).
 
+### The wave order from here (operator ruling, 2026-08-16)
+
+1. **clean-code / i18n — IN PROGRESS.** No French anywhere in code, including class
+   names (code AND CSS) and file names; UI text lives in i18n files, never inline. The
+   legacy `refonte.html` fragment is exempt from IDENTIFIER renaming (it dies at
+   SP4-fin) but NOT from CSS class renaming — a class is a name shared by four worlds.
+   Scope: `design/src`, the harness, `serve.py`, `resync.py`, and all new code anywhere.
+2. **SP4d — four waves**, in this order: sys + maint + config → arrivées → médiathèque
+   (with E-001) → acquisition.
+3. **SP4-fin** — the engine's death: empty fragment, `refonte.html` retired as a source,
+   bridge and aliases removed, `openScreen` swept, the deep-entry `relTitre` /
+   `resolveTarget` debt settled.
+
 ---
 
 ## Where to start
