@@ -590,18 +590,23 @@ function libelleReglage(reglage: Reglage): string {
 }
 
 function BlocChamp({ bloc }: { bloc: Extract<Bloc, { type: "champ" }> }) {
-  const { reglageId, valeurSaisie, modifierReglage, ouvrirReglage, icons } =
-    useReferentiel();
+  const {
+    reglageId,
+    valeurEnCours,
+    valeurSaisie,
+    modifierReglage,
+    ouvrirReglage,
+    icons,
+  } = useReferentiel();
   const { reglage } = bloc;
   const id = reglageId(reglage);
-  // `valeurEnCours` (refonte.html) is `REG_ETAT.modifs.get(id) ?? reglage.brut`
-  // — falls back to `.brut`, never `.v`. `REG_ETAT.modifs` (the pending-edit
-  // overlay) is private, mutable engine state, never published on the
-  // référentiel, so there is no pending-edit view here until a real store
-  // replaces it; `.brut` is the correct fallback already on the object —
-  // `.v` is a pre-formatted DISPLAY string (e.g. a boolean's `.brut: false`
-  // reads `.v: "non"`, which is always truthy and would wedge the switch on).
-  const v = reglage.brut;
+  // The field draws what `valeurEnCours` answers — the pending edit if there
+  // is one, the file's `brut` otherwise. Reading `.brut` alone would draw a
+  // list one has just shortened at its old length, so a removal would look
+  // like it did nothing. Never `.v`: that is a pre-formatted DISPLAY string
+  // (a boolean's `.brut: false` reads `.v: "non"`, always truthy, which would
+  // wedge the switch on).
+  const v = valeurEnCours(reglage);
 
   if (reglage.type === "structure")
     return (
@@ -679,15 +684,29 @@ function BlocChamp({ bloc }: { bloc: Extract<Bloc, { type: "champ" }> }) {
         placeholder={vide ? "non défini" : ""}
         aria-label={libelleReglage(reglage)}
         // The ONE place mountSearch's `.champsaisie` `onchange` binding
-        // (refonte.html) is replaced by a component-owned handler. `onBlur`,
-        // not React's `onChange` (which fires on every keystroke, unlike
-        // the DOM `change` event `onchange` bound to): the legacy behaviour
-        // commits on blur, not per keystroke, and the input stays
-        // uncontrolled (`defaultValue`) so a component-driven re-render
-        // never fights the caret mid-edit.
-        onBlur={(event) => {
-          modifierReglage(id, valeurSaisie(reglage, event.target.value));
-          ouvrirReglage(id);
+        // (refonte.html) is replaced by a component-owned handler — and it is
+        // the SAME event, bound natively rather than through React's synthetic
+        // `onChange`. Three reasons, all measured rather than stylistic:
+        //   · the DOM `change` event commits on blur, once; React's `onChange`
+        //     fires on every keystroke, which would file a pending edit per
+        //     character typed;
+        //   · a `change` event dispatched at the element (what a probe does to
+        //     exercise this field) reaches a native listener, while React's
+        //     synthetic `onChange` is gated by its own value tracker and
+        //     silently does nothing for a value already seen;
+        //   · the input stays uncontrolled (`defaultValue`), so a re-render
+        //     never fights the caret mid-edit.
+        // The listener is re-attached on each render, which is what keeps this
+        // closure reading the CURRENT setting rather than the one this field
+        // was first drawn for.
+        ref={(element) => {
+          if (!element) return;
+          const commettre = () => {
+            modifierReglage(id, valeurSaisie(reglage, element.value));
+            ouvrirReglage(id);
+          };
+          element.addEventListener("change", commettre);
+          return () => element.removeEventListener("change", commettre);
         }}
       />
       {unite ? (
@@ -714,6 +733,13 @@ export type Bloc =
   | { type: "saisons"; suivi: Suivi; saisons: Saison[] }
   | { type: "champ"; reglage: Reglage };
 
+// The refusal itself, named, so the probe that exercises it
+// (`window.__panneauInconnu`, published by the shell) raises the SAME error
+// the renderer raises rather than a copy of its message that can drift.
+export function refuserBloc(bloc: { type: string }): never {
+  throw new Error("bloc de panneau inconnu : " + bloc.type);
+}
+
 function BlocView({ bloc }: { bloc: Bloc }) {
   switch (bloc.type) {
     case "note":
@@ -730,11 +756,9 @@ function BlocView({ bloc }: { bloc: Bloc }) {
       // Silence here would draw an empty panel and blame the data. A block
       // type nobody declared is a fact nobody declared — same refusal as
       // `panneauBlocHTML`'s own throw, same message, so the signal a probe
-      // reads (the Error's text) stays the one refonte.html already sets
-      // `window.__panneauInconnu` to exercise.
-      throw new Error(
-        "bloc de panneau inconnu : " + (bloc as { type: string }).type,
-      );
+      // reads (the Error's text) stays the one `window.__panneauInconnu`
+      // exercises.
+      return refuserBloc(bloc as { type: string });
   }
 }
 
@@ -748,7 +772,12 @@ export type Descripteur = {
   puce?: [string, string] | null;
   affiche?: { t: string; k?: string };
   avatar?: string;
-  blocs?: Bloc[];
+  // A block may be ABSENT and say so in place: a caller writes
+  // `reglage.note ? { type: "note", … } : null` inline rather than assembling
+  // the list conditionally, and `panneauBlocHTML` answered an empty string for
+  // it. The same tolerance, expressed in the type instead of discovered at
+  // render time.
+  blocs?: (Bloc | null | undefined)[];
 };
 
 // ONE bottom panel, and its shape follows the facts it is given — the
@@ -795,9 +824,11 @@ export function PanneauContenu({
       ) : (
         identite
       )}
-      {(descripteur.blocs ?? []).map((bloc, index) => (
-        <BlocView key={index} bloc={bloc} />
-      ))}
+      {(descripteur.blocs ?? [])
+        .filter((bloc): bloc is Bloc => Boolean(bloc))
+        .map((bloc, index) => (
+          <BlocView key={index} bloc={bloc} />
+        ))}
     </>
   );
 }

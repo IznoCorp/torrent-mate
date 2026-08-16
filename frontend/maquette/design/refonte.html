@@ -4481,11 +4481,11 @@
       aria-label="Navigation principale"
     ></aside>
     <div class="screen" id="screen"></div>
-    <div class="scrim" id="scrim"></div>
-    <div class="sheet" id="sheet">
-      <div class="sheetgrab" id="sheetgrab"></div>
-      <div class="sheetin" id="sheetin"></div>
-    </div>
+    <!-- The scrim and the bottom sheet are rendered by the shell
+         (`src/composants/feuille.tsx`), at these same ids and classes, into
+         `#coquille` — which sits inside this frame, earlier in document order.
+         They are absent here on purpose: two elements answering `#sheet` is
+         one of them being measured and the other being shown. -->
     <div class="dlg" id="dlg"></div>
     <div class="toast" id="toast">
       <span id="toastmsg"></span
@@ -11712,117 +11712,22 @@
       .join("");
   }
 
-  /* ONE bottom panel, and its shape follows the facts it is given.
+  /* ONE bottom panel, and its shape follows the facts it is given — and it is
+     built in the shell now: `src/composants/panneau.tsx` is that single
+     constructor, `src/composants/feuille.tsx` the layer it draws into, and
+     `window.__panneau.ouvrir(descripteur)` the verb a producer here calls.
 
-     Every panel in the interface is built here. A panel that accepted
-     ready-made markup would be an envelope, and an envelope guarantees nothing
-     about what it carries: three head shapes had grown that way — one with a
-     poster, one with an avatar, one with neither — two of them assembled from
-     inline styles, which belong to no stylesheet and are therefore exported
-     nowhere. The same drift the card and the tile were cured of.
+     The DESCRIPTOR crosses unchanged (facts, never markup: `titre`, `meta`,
+     `sousTitre`, `affiche`, `avatar`, `puce`, `blocs`, and the typed blocks
+     `note` / `faits` / `actions` / `saisons` / `champ`) — the vocabulary is
+     declared with the component, and a view wanting something outside it is
+     describing a fact the panel does not know about yet. The fix is still to
+     add the fact.
 
-     THE DESCRIPTOR — facts, never markup:
-
-       titre      the heading
-       meta       the line of facts under it (plain, or rich segments)
-       sousTitre  a second identity line under the title (an account's mail)
-       affiche    { t, k } — the medium's poster, at panel size
-       avatar     an image URL — an account's portrait
-       puce       [tone, label]
-       blocs      the body, IN ORDER, as typed blocks
-
-     A BLOC is { type, … }, never HTML. Order matters and is the caller's, so
-     the actions are a block like any other rather than a fixed slot: the
-     follow panel puts its primary action above the season matrix and its
-     secondary group below, while a suggestion panel puts a note first.
-
-       { type: "note",    texte }               a rule note, emphasis allowed
-       { type: "faits",   lignes }              key/value rows
-       { type: "actions", actions, secondaire } a group of actions
-       { type: "saisons", suivi, saisons }      the season matrix and its legend
-
-     A LIGNE of « faits » is { c, v, pip, pipValeur, terne }: caption, value, a
-     status dot on either side — the two say different things, one qualifies
-     the step and the other the figure — and whether the value is still to
-     come.
-
-     An ACTION is { texte, icone, cible, ton, desactive, mention, infobulle },
-     where `cible` is a map of DATA ATTRIBUTES — never a handler and never
-     markup. The click delegation reads those attributes, exactly as it does
-     for a card.
-
-     A view wanting something outside this list is describing a fact the panel
-     does not know about yet. The fix is to add the fact. */
-  function panneauActionHTML(action) {
-    if (!action) return "";
-    const attributs = Object.entries(action.cible || {})
-      .map(([nom, valeur]) => ` data-${nom}="${escapeHtml(String(valeur))}"`)
-      .join("");
-    return `<button class="sact${action.ton ? " " + action.ton : ""}"${attributs}${
-      action.desactive ? " disabled" : ""
-    }${action.infobulle ? ` title="${escapeHtml(action.infobulle)}"` : ""}>${
-      action.icone ? svgIcon(action.icone) : ""
-    }${escapeHtml(action.texte)}${
-      action.mention
-        ? `<span class="soon">${escapeHtml(action.mention)}</span>`
-        : ""
-    }</button>`;
-  }
-
-  function panneauBlocHTML(bloc) {
-    if (!bloc) return "";
-    if (bloc.type === "note")
-      return `<p class="rulenote">${richText(bloc.texte)}</p>`;
-    if (bloc.type === "actions") {
-      const liste = (bloc.actions || []).filter(Boolean);
-      if (!liste.length) return "";
-      return `<div class="sheetacts${bloc.secondaire ? " secondary" : ""}">${liste
-        .map(panneauActionHTML)
-        .join("")}</div>`;
-    }
-    if (bloc.type === "faits")
-      return `<div class="panel sheetfaits">${(bloc.lignes || [])
-        .map(
-          (ligne) =>
-            `<div class="kv${ligne.pip ? " avecpip" : ""}${ligne.terne ? " avenir" : ""}"><span>${
-              ligne.pip ? `<span class="pip ${ligne.pip}"></span>` : ""
-            }${escapeHtml(ligne.c)}</span><span>${
-              ligne.pipValeur
-                ? `<span class="pip ${ligne.pipValeur}"></span>`
-                : ""
-            }${escapeHtml(ligne.v)}</span></div>`,
-        )
-        .join("")}</div>`;
-    if (bloc.type === "saisons") return saisonsHTML(bloc.suivi, bloc.saisons);
-    if (bloc.type === "champ") return champReglageHTML(bloc.reglage);
-    // Silence here would draw an empty panel and blame the data. A block type
-    // nobody renders is a fact nobody declared.
-    throw new Error("bloc de panneau inconnu : " + bloc.type);
-  }
-
-  /* Lets the contract check prove the refusal rather than trust the comment
-     above it: a block type nobody declared must raise, not draw nothing. */
-  window.__panneauInconnu = () =>
-    panneauBlocHTML({ type: "ceci-n-existe-pas" });
-
-  function panneauHTML(descripteur) {
-    const identite = `<h3 class="sheettitle">${escapeHtml(descripteur.titre)}</h3>${
-      descripteur.sousTitre
-        ? `<span class="sheetsub">${escapeHtml(descripteur.sousTitre)}</span>`
-        : ""
-    }${descripteur.meta ? `<p class="sheetmeta">${richText(descripteur.meta)}</p>` : ""}${chipHTML(
-      descripteur.puce,
-    )}`;
-    const portrait = descripteur.affiche
-      ? `<span class="sheetposter">${posterBox(descripteur.affiche.t, descripteur.affiche.k)}</span>`
-      : descripteur.avatar
-        ? `<span class="avatar big" aria-hidden="true"><img src="${descripteur.avatar}" alt=""></span>`
-        : "";
-    const tete = portrait
-      ? `<div class="sheethead${descripteur.affiche ? " avecaffiche" : ""}">${portrait}<div class="sheetid">${identite}</div></div>`
-      : identite;
-    return `${tete}${(descripteur.blocs || []).map(panneauBlocHTML).join("")}`;
-  }
+     An ACTION's `cible` remains a map of DATA ATTRIBUTES, never a handler:
+     the click delegation below reads those attributes, exactly as it does for
+     a card, and that is what keeps a panel opened by the shell answering to
+     the engine's own acts. */
 
   function swipeHTML(inner, actions, actionsGauche) {
     return `<div class="swipe"><div class="actions">${
@@ -12747,62 +12652,56 @@
     if (!action) return;
     const supprime = action.r === "destructive";
     const blanc = supprime ? true : !!state.maintBlanc;
-    openSheet(
-      panneauHTML({
-        titre: action.l,
-        sousTitre: action.id,
-        meta: action.d,
-        puce: [RISQUES[action.r].p, RISQUES[action.r].t],
-        blocs: [
-          {
-            type: "faits",
-            lignes: [
-              {
-                c: "Ce qu'elle fait",
-                v: RISQUES[action.r].t,
-                pipValeur: RISQUES[action.r].p,
+    window.__panneau.ouvrir({
+      titre: action.l,
+      sousTitre: action.id,
+      meta: action.d,
+      puce: [RISQUES[action.r].p, RISQUES[action.r].t],
+      blocs: [
+        {
+          type: "faits",
+          lignes: [
+            {
+              c: "Ce qu'elle fait",
+              v: RISQUES[action.r].t,
+              pipValeur: RISQUES[action.r].p,
+            },
+            { c: "Durée", v: action.long ? "peut être longue" : "immédiate" },
+            {
+              c: "Essai à blanc",
+              v: action.blanc ? (blanc ? "activé" : "désactivé") : "impossible",
+            },
+          ],
+        },
+        supprime
+          ? {
+              type: "note",
+              texte:
+                "**Cette commande supprime.** L'essai à blanc reste activé tant que rien n'a montré ce qui serait détruit : un « êtes-vous sûr ? » se répond sans lire, une liste se regarde. Lancez-la à blanc, lisez ce qu'elle nomme, puis relancez-la pour de vrai.",
+            }
+          : null,
+        {
+          type: "actions",
+          actions: [
+            {
+              texte: action.blanc ? "Lancer à blanc" : "Lancer",
+              ton: "solid",
+              cible: {
+                toast: `${action.l} — lancée${action.blanc ? " à blanc" : ""}. Le résultat s'affichera ici.`,
               },
-              { c: "Durée", v: action.long ? "peut être longue" : "immédiate" },
-              {
-                c: "Essai à blanc",
-                v: action.blanc
-                  ? blanc
-                    ? "activé"
-                    : "désactivé"
-                  : "impossible",
-              },
-            ],
-          },
-          supprime
-            ? {
-                type: "note",
-                texte:
-                  "**Cette commande supprime.** L'essai à blanc reste activé tant que rien n'a montré ce qui serait détruit : un « êtes-vous sûr ? » se répond sans lire, une liste se regarde. Lancez-la à blanc, lisez ce qu'elle nomme, puis relancez-la pour de vrai.",
-              }
-            : null,
-          {
-            type: "actions",
-            actions: [
-              {
-                texte: action.blanc ? "Lancer à blanc" : "Lancer",
-                ton: "solid",
-                cible: {
-                  toast: `${action.l} — lancée${action.blanc ? " à blanc" : ""}. Le résultat s'affichera ici.`,
-                },
-              },
-              supprime
-                ? {
-                    texte: "Lancer pour de vrai",
-                    desactive: true,
-                    infobulle: "Lisez d'abord ce que l'essai à blanc nomme.",
-                    mention: "après l'essai",
-                  }
-                : null,
-            ].filter(Boolean),
-          },
-        ].filter(Boolean),
-      }),
-    );
+            },
+            supprime
+              ? {
+                  texte: "Lancer pour de vrai",
+                  desactive: true,
+                  infobulle: "Lisez d'abord ce que l'essai à blanc nomme.",
+                  mention: "après l'essai",
+                }
+              : null,
+          ].filter(Boolean),
+        },
+      ].filter(Boolean),
+    });
   }
 
   /* ── UNE ADRESSE QUI N'EXISTE PAS ─────────────────────────────────────
@@ -15035,51 +14934,49 @@
   }
 
   function ouvrirSecret(secret) {
-    openSheet(
-      panneauHTML({
-        titre: secret.l,
-        meta: [{ m: secret.k }],
-        puce: secret.def ? ["success", "définie"] : ["warning", "absente"],
-        blocs: [
-          {
-            type: "note",
-            texte:
-              "La valeur n'est jamais renvoyée par le serveur, donc elle ne s'affiche pas ici. On sait qu'elle est posée, on ne sait pas ce qu'elle vaut.",
-          },
-          {
-            type: "actions",
-            actions: [
-              REG_ETAT.lectureSeule
-                ? {
-                    texte: "Lecture seule sur cette instance",
-                    icone: icons.x,
-                    desactive: true,
-                  }
-                : {
-                    texte: "Remplacer la valeur",
-                    icone: icons.wrench,
-                    ton: "primary",
-                    cible: {
-                      toast:
-                        "Un champ masqué s'ouvre ici. Laissé vide, il n'efface rien.",
-                    },
+    window.__panneau.ouvrir({
+      titre: secret.l,
+      meta: [{ m: secret.k }],
+      puce: secret.def ? ["success", "définie"] : ["warning", "absente"],
+      blocs: [
+        {
+          type: "note",
+          texte:
+            "La valeur n'est jamais renvoyée par le serveur, donc elle ne s'affiche pas ici. On sait qu'elle est posée, on ne sait pas ce qu'elle vaut.",
+        },
+        {
+          type: "actions",
+          actions: [
+            REG_ETAT.lectureSeule
+              ? {
+                  texte: "Lecture seule sur cette instance",
+                  icone: icons.x,
+                  desactive: true,
+                }
+              : {
+                  texte: "Remplacer la valeur",
+                  icone: icons.wrench,
+                  ton: "primary",
+                  cible: {
+                    toast:
+                      "Un champ masqué s'ouvre ici. Laissé vide, il n'efface rien.",
                   },
-              secret.def
-                ? {
-                    texte: "Retirer la clé",
-                    icone: icons.trash,
-                    ton: "danger",
-                    cible: {
-                      toast:
-                        "Retirer une clé coupe ce qu'elle autorisait — le service le dira avant.",
-                    },
-                  }
-                : null,
-            ],
-          },
-        ],
-      }),
-    );
+                },
+            secret.def
+              ? {
+                  texte: "Retirer la clé",
+                  icone: icons.trash,
+                  ton: "danger",
+                  cible: {
+                    toast:
+                      "Retirer une clé coupe ce qu'elle autorisait — le service le dira avant.",
+                  },
+                }
+              : null,
+          ],
+        },
+      ],
+    });
   }
 
   /* One setting, in the panel — the same panel as everywhere else, taking the
@@ -15090,52 +14987,50 @@
     if (!reglage) return;
     const courante = valeurCourante(reglage);
     const modifie = REG_ETAT.modifs.has(id);
-    openSheet(
-      panneauHTML({
-        titre: libelleReglage(reglage),
-        meta: [{ m: `${reglage.f}.json5 · ${reglage.c}` }],
-        ...(modifie ? { puce: ["info", "modifié, pas encore écrit"] } : {}),
-        blocs: [
-          reglage.note ? { type: "note", texte: reglage.note } : null,
-          REG_ETAT.lectureSeule ? null : { type: "champ", reglage },
-          {
-            type: "faits",
-            lignes: [
-              { c: "Valeur actuelle", v: String(courante) },
-              ...(modifie
-                ? [{ c: "Valeur écrite", v: String(reglage.v), terne: true }]
-                : []),
-              // The file is on the mono line above; a « Fichier » fact under it
-              // says the same thing twice on a screen that has no room for it.
-            ],
-          },
-          {
-            type: "actions",
-            actions: [
-              REG_ETAT.lectureSeule
-                ? {
-                    texte: "Lecture seule sur cette instance",
-                    icone: icons.x,
-                    desactive: true,
-                  }
-                : null,
-              modifie
-                ? {
-                    texte: "Annuler la modification",
-                    icone: icons.x,
-                    cible: { annulerreg: id },
-                  }
-                : null,
-            ],
-          },
-          {
-            type: "note",
-            texte:
-              "Rien n'est écrit tant que la barre du bas n'est pas utilisée. Elle dit quels fichiers seront touchés.",
-          },
-        ],
-      }),
-    );
+    window.__panneau.ouvrir({
+      titre: libelleReglage(reglage),
+      meta: [{ m: `${reglage.f}.json5 · ${reglage.c}` }],
+      ...(modifie ? { puce: ["info", "modifié, pas encore écrit"] } : {}),
+      blocs: [
+        reglage.note ? { type: "note", texte: reglage.note } : null,
+        REG_ETAT.lectureSeule ? null : { type: "champ", reglage },
+        {
+          type: "faits",
+          lignes: [
+            { c: "Valeur actuelle", v: String(courante) },
+            ...(modifie
+              ? [{ c: "Valeur écrite", v: String(reglage.v), terne: true }]
+              : []),
+            // The file is on the mono line above; a « Fichier » fact under it
+            // says the same thing twice on a screen that has no room for it.
+          ],
+        },
+        {
+          type: "actions",
+          actions: [
+            REG_ETAT.lectureSeule
+              ? {
+                  texte: "Lecture seule sur cette instance",
+                  icone: icons.x,
+                  desactive: true,
+                }
+              : null,
+            modifie
+              ? {
+                  texte: "Annuler la modification",
+                  icone: icons.x,
+                  cible: { annulerreg: id },
+                }
+              : null,
+          ],
+        },
+        {
+          type: "note",
+          texte:
+            "Rien n'est écrit tant que la barre du bas n'est pas utilisée. Elle dit quels fichiers seront touchés.",
+        },
+      ],
+    });
   }
 
   /* Navigation */
@@ -15366,6 +15261,12 @@
     svgIcon,
     tousLesReglages,
     reglageId,
+    // What a field must DRAW: the pending edit if there is one, the file's
+    // value otherwise. The pending-edit overlay itself stays private — a
+    // reader of this returns the value, never the map — but a panel that drew
+    // `.brut` instead would show a list one has just shortened at its old
+    // length, and the removal would look like it did nothing.
+    valeurEnCours,
     valeurSaisie,
     modifierReglage,
     ouvrirReglage,
@@ -15662,32 +15563,30 @@
      says why, rather than being absent: a menu that grows an item later teaches
      its shape twice. */
   function openUserSheet() {
-    openSheet(
-      panneauHTML({
-        titre: COMPTE.nom,
-        sousTitre: COMPTE.mail,
-        avatar: COMPTE.avatar,
-        blocs: [
-          {
-            type: "actions",
-            secondaire: true,
-            actions: [
-              {
-                texte: "Profil et préférences",
-                icone: icons.user,
-                cible: { go: "profil" },
-              },
-              {
-                texte: "Se déconnecter",
-                icone: icons.logout,
-                ton: "danger",
-                cible: { deconnexion: "1" },
-              },
-            ],
-          },
-        ],
-      }),
-    );
+    window.__panneau.ouvrir({
+      titre: COMPTE.nom,
+      sousTitre: COMPTE.mail,
+      avatar: COMPTE.avatar,
+      blocs: [
+        {
+          type: "actions",
+          secondaire: true,
+          actions: [
+            {
+              texte: "Profil et préférences",
+              icone: icons.user,
+              cible: { go: "profil" },
+            },
+            {
+              texte: "Se déconnecter",
+              icone: icons.logout,
+              ton: "danger",
+              cible: { deconnexion: "1" },
+            },
+          ],
+        },
+      ],
+    });
   }
 
   /* Accepts an index into the library or a plain title: the gallery of a lens
@@ -16091,50 +15990,48 @@
 
   function openSugSheet(index) {
     const suggestion = SUGGESTIONS[index];
-    openSheet(
-      panneauHTML({
-        titre: suggestion.t,
-        meta: `${suggestion.y} · ${suggestion.k} · note TMDB ${suggestion.note}`,
-        blocs: [
-          { type: "note", texte: suggestion.why },
-          {
-            type: "actions",
-            actions: [
-              {
-                texte: sugVerb(suggestion),
-                icone: icons.plus,
-                ton: "primary",
-                cible: { follow: suggestion.t, sugidx: index },
-              },
-              {
-                texte: "Voir la fiche",
-                icone: icons.eye,
-                cible: { fiche: suggestion.t },
-              },
-            ],
-          },
-          {
-            type: "actions",
-            secondaire: true,
-            actions: [
-              {
-                texte: "Pas intéressé",
-                icone: icons.x,
-                ton: "danger",
-                cible: { dropsug: index },
-              },
-            ],
-          },
-          suggestion.k === "Film"
-            ? {
-                type: "note",
-                texte:
-                  "Une fois acquis, ce film quittera automatiquement votre liste (§5).",
-              }
-            : null,
-        ],
-      }),
-    );
+    window.__panneau.ouvrir({
+      titre: suggestion.t,
+      meta: `${suggestion.y} · ${suggestion.k} · note TMDB ${suggestion.note}`,
+      blocs: [
+        { type: "note", texte: suggestion.why },
+        {
+          type: "actions",
+          actions: [
+            {
+              texte: sugVerb(suggestion),
+              icone: icons.plus,
+              ton: "primary",
+              cible: { follow: suggestion.t, sugidx: index },
+            },
+            {
+              texte: "Voir la fiche",
+              icone: icons.eye,
+              cible: { fiche: suggestion.t },
+            },
+          ],
+        },
+        {
+          type: "actions",
+          secondaire: true,
+          actions: [
+            {
+              texte: "Pas intéressé",
+              icone: icons.x,
+              ton: "danger",
+              cible: { dropsug: index },
+            },
+          ],
+        },
+        suggestion.k === "Film"
+          ? {
+              type: "note",
+              texte:
+                "Une fois acquis, ce film quittera automatiquement votre liste (§5).",
+            }
+          : null,
+      ],
+    });
   }
 
   /* The label a search result's action carries, computed ONCE. The panel
@@ -16170,41 +16067,39 @@
   function openAddSheet(index) {
     const result = SEARCH.results[index];
     const fait = state.added.has(index);
-    openSheet(
-      panneauHTML({
-        titre: result.t,
-        meta: `${result.y} · ${result.k} · TMDB`,
-        blocs: [
-          result.owned && state.addMode !== "identifier"
-            ? {
-                type: "note",
-                texte: [
-                  "Déjà en médiathèque — l'acquisition ",
-                  { e: "remplacera" },
-                  " la version en place.",
-                ],
-              }
-            : null,
-          {
-            type: "actions",
-            actions: [
-              {
-                texte: addVerb(result, index),
-                icone: icons.plus,
-                ton: "primary",
-                desactive: fait,
-                cible: { act: `add:${index}` },
-              },
-              {
-                texte: "Voir la fiche",
-                icone: icons.eye,
-                cible: { fiche: result.t },
-              },
-            ],
-          },
-        ],
-      }),
-    );
+    window.__panneau.ouvrir({
+      titre: result.t,
+      meta: `${result.y} · ${result.k} · TMDB`,
+      blocs: [
+        result.owned && state.addMode !== "identifier"
+          ? {
+              type: "note",
+              texte: [
+                "Déjà en médiathèque — l'acquisition ",
+                { e: "remplacera" },
+                " la version en place.",
+              ],
+            }
+          : null,
+        {
+          type: "actions",
+          actions: [
+            {
+              texte: addVerb(result, index),
+              icone: icons.plus,
+              ton: "primary",
+              desactive: fait,
+              cible: { act: `add:${index}` },
+            },
+            {
+              texte: "Voir la fiche",
+              icone: icons.eye,
+              cible: { fiche: result.t },
+            },
+          ],
+        },
+      ],
+    });
   }
 
   function sugFoot() {
@@ -16254,15 +16149,10 @@
           element3.setSelectionRange(pos, pos);
         }
       };
-    for (const champ of document.querySelectorAll(".champsaisie")) {
-      champ.onchange = () => {
-        const id = champ.dataset.champ;
-        const reglage = tousLesReglages().find((r) => reglageId(r) === id);
-        if (!reglage) return;
-        modifierReglage(id, valeurSaisie(reglage, champ.value));
-        ouvrirReglage(id);
-      };
-    }
+    /* `.champsaisie` is NOT bound here anymore: a settings field only ever
+       appears inside the panel, and the panel's own `champ` block owns its
+       commit-on-blur handler now (`src/composants/panneau.tsx`). Binding it
+       from outside would put two writers on one field. */
     const element2 = document.querySelector("#follq");
     if (element2)
       element2.oninput = () => {
@@ -16326,14 +16216,13 @@
       };
   }
 
-  function openSheet(html) {
-    select("#sheetin").innerHTML = html;
-    mountSearch();
-    select("#sheet").classList.add("open");
-    select("#scrim").classList.add("open");
-    try {
-      __pont.coucher("sheet");
-    } catch (error) {}
+  /* The panel layer belongs to the shell now (`window.__panneau`, rendered by
+     `src/composants/feuille.tsx`): a producer describes FACTS and the shell
+     builds the panel. This function opens nothing anymore — it is a tripwire,
+     kept so a producer nobody converted fails where it is written instead of
+     quietly doing nothing. Every call site was converted with the layer. */
+  function openSheet() {
+    throw new Error("openSheet est mort — passer par __panneau");
   }
   /* Closing WITHOUT touching history — the harness driver uses it to
      restart from a clean surface. Chaining the « normal » close functions
@@ -16342,7 +16231,13 @@
   function hideLayers() {
     select("#drawer").classList.remove("open");
     select("#screen").classList.remove("open");
-    select("#sheet").classList.remove("open");
+    // The sheet is the shell's layer: closing it without touching history is
+    // what `fermer(true)` means, the same contract this function has always
+    // had for every layer it resets.
+    window.__panneau.fermer(true);
+    // The scrim stays cleared HERE too: it is shared ground, raised by the
+    // drawer and the dialog on their own, and the line above only clears it
+    // for a sheet that was actually open.
     select("#scrim").classList.remove("open");
     select("#dlg").classList.remove("open");
     closeHarness();
@@ -16377,14 +16272,26 @@
     }
   }
 
+  /* A layer living in the shell announces its close the same way: the latch
+     and the named-entry check above are read by the popstate handler right
+     below them, so they stay here, with the reader, and the shell borrows the
+     verb rather than a copy of the bookkeeping. */
+  window.__derouler = deroulerCouche;
+
+  /* Kept as a VERB the driver can still say: `doigt.py`, `glisse.py` and
+     `machine.py` call `closeSheet()` from inside the page, and moving a layer
+     to the shell must not take away the vocabulary that drives it. The layer
+     state, the per-layer guard and the unwind all live in
+     `window.__panneau.fermer` now — this is one line pointing there, not a
+     second implementation. */
   function closeSheet(pop) {
-    // Guarded per LAYER: without it, closing an already-closed sheet consumes
-    // a history entry that belonged to someone else.
-    if (!select("#sheet").classList.contains("open")) return;
-    select("#sheet").classList.remove("open");
-    select("#scrim").classList.remove("open");
-    if (!pop) deroulerCouche("sheet");
+    window.__panneau.fermer(pop);
   }
+  /* The dialog raises the SHARED scrim itself, on an element the shell renders
+     — which is why the shell's own panel verbs commit synchronously: a caller
+     closing the sheet and opening a dialog on the next line (`data-del`) would
+     otherwise have its scrim cleared a frame later, by a close that already
+     returned. */
   function openDlg(html) {
     select("#dlg").innerHTML = html;
     select("#dlg").classList.add("open");
@@ -16670,7 +16577,12 @@
     // A layer first: it is what sits on top, and it is what a back closes.
     if (select("#drawer").classList.contains("open")) return fermerTiroir(true);
     if (select("#screen").classList.contains("open")) return closeScreen(true);
-    if (select("#sheet").classList.contains("open")) return closeSheet(true);
+    // The sheet lives in the shell; it is asked, not inspected. Same rank in
+    // the ladder as before — drawer, then screen, then sheet.
+    if (window.__panneau.ouverte()) {
+      window.__panneau.fermer(true);
+      return;
+    }
 
     const etat = etatCourant;
     if (etat && etat.tm === "nav") {
@@ -16715,9 +16627,13 @@
     toast("Encore un retour pour quitter TorrentMate.");
   }
 
-  select("#scrim").onclick = () => {
+  /* The scrim is the shell's element now, but WHAT a tap on it closes is still
+     decided here: it covers three layers at once and closes whichever is up.
+     Published rather than bound, because the element does not exist when this
+     line runs — the shell calls this from its own `onClick`. */
+  window.__fermerCouches = () => {
     closeDlg();
-    closeSheet();
+    window.__panneau.fermer();
     fermerTiroir();
   };
 
@@ -17407,7 +17323,7 @@
      is no such route, and a design reference that dead-ends on a 404 teaches
      nothing about the design. Nothing else here depends on the answer. */
   async function deconnecter() {
-    closeSheet();
+    window.__panneau.fermer();
     try {
       await fetch("/deconnexion", { redirect: "manual" });
     } catch (error) {}
@@ -17889,7 +17805,7 @@
     }
     if (closest.dataset.annulerreg) {
       REG_ETAT.modifs.delete(closest.dataset.annulerreg);
-      closeSheet();
+      window.__panneau.fermer();
       setTimeout(() => {
         render();
         toast("Modification annulée — rien n'avait été écrit.");
@@ -17935,7 +17851,7 @@
          landing after the push and overwriting it. */
       const surCouche = history.state && history.state.layer;
       fermerTiroir(true);
-      closeSheet(true);
+      window.__panneau.fermer(true);
       // A navigation leaves the screen LAYER, covered screens included:
       // with the stack emptied first, the close removes the layer instead
       // of redrawing what the top screen covered.
@@ -18026,7 +17942,7 @@
     }
     if (closest.dataset.dropsug) {
       const index = Number(closest.dataset.dropsug);
-      closeSheet();
+      window.__panneau.fermer();
       dismissSug(index);
       return;
     }
@@ -18042,7 +17958,7 @@
         suggestion && suggestion.k === "Film"
           ? "ajouté à votre liste"
           : "ajouté à vos suivis";
-      closeSheet();
+      window.__panneau.fermer();
       if (idx != null) {
         // No render() follows on this branch: the sheet close and the
         // follow-up screens draw directly, so the bump has to be explicit
@@ -18112,7 +18028,7 @@
     }
     if (closest.dataset.sheetprim) {
       const [split, split2] = closest.dataset.sheetprim.split("|");
-      closeSheet();
+      window.__panneau.fermer();
       setTimeout(() => {
         if (split2 === "a_recuperer") actionRecuperer(split);
         else
@@ -18124,18 +18040,18 @@
     }
     if (closest.dataset.pause) {
       const pause = closest.dataset.pause;
-      closeSheet();
+      window.__panneau.fermer();
       setTimeout(() => actionPause(pause), 240);
       return;
     }
     if (closest.dataset.retirer) {
       const retirer = closest.dataset.retirer;
-      closeSheet();
+      window.__panneau.fermer();
       setTimeout(() => actionRetirer(retirer), 240);
       return;
     }
     if (closest.dataset.releases) {
-      closeSheet();
+      window.__panneau.fermer();
       setTimeout(() => openReleases(closest.dataset.releases), 260);
       return;
     }
@@ -18153,7 +18069,7 @@
         closeScreen();
         setTimeout(() => window.__ecrans.profil(profil), 260);
       } else {
-        closeSheet();
+        window.__panneau.fermer();
         setTimeout(() => window.__ecrans.profil(profil), 260);
       }
       return;
@@ -18170,7 +18086,7 @@
       return;
     }
     if (closest.dataset.veille) {
-      closeSheet();
+      window.__panneau.fermer();
       toast(
         "Veille lancée — 12 suivis balayés, 0 nouvelle release conforme. Prochain passage à 15 h 20.",
       );
@@ -18284,28 +18200,26 @@
       return;
     }
     if (closest.dataset.sort) {
-      openSheet(
-        panneauHTML({
-          titre: "Trier la médiathèque",
-          meta: "Le tri est une préférence, pas un emplacement : il reste sur cet appareil et n'entre pas dans l'URL (A7).",
-          blocs: [
-            {
-              type: "actions",
-              actions: Object.entries(TRIS).map(([cle, libelle]) => ({
-                texte: libelle,
-                icone: icons.sort,
-                ton: state.tri === cle ? "primary" : null,
-                cible: { settri: cle },
-              })),
-            },
-          ],
-        }),
-      );
+      window.__panneau.ouvrir({
+        titre: "Trier la médiathèque",
+        meta: "Le tri est une préférence, pas un emplacement : il reste sur cet appareil et n'entre pas dans l'URL (A7).",
+        blocs: [
+          {
+            type: "actions",
+            actions: Object.entries(TRIS).map(([cle, libelle]) => ({
+              texte: libelle,
+              icone: icons.sort,
+              ton: state.tri === cle ? "primary" : null,
+              cible: { settri: cle },
+            })),
+          },
+        ],
+      });
       return;
     }
     if (closest.dataset.settri) {
       magasin.ecrire({ tri: closest.dataset.settri, libCount: LIB_PAGE });
-      closeSheet();
+      window.__panneau.fermer();
       render();
       toast(`Trié par ${TRIS[state.tri].toLowerCase()}.`);
       return;
@@ -18356,7 +18270,7 @@
       return;
     }
     if (closest.dataset.del) {
-      closeSheet();
+      window.__panneau.fermer();
       openDeleteDialog(closest.dataset.del);
       return;
     }
@@ -18365,9 +18279,11 @@
       // opening the sheet without closing it left the sheet invisible below.
       // The delay lets the sheet finish leaving before the screen enters.
       const fiche = closest.dataset.fiche;
-      const couche = select("#sheet").classList.contains("open");
+      // Asked of the shell, not read off the DOM: the layer is the shell's,
+      // and its store answers truthfully in the middle of this task.
+      const couche = window.__panneau.ouverte();
       if (couche) {
-        closeSheet();
+        window.__panneau.fermer();
         setTimeout(() => openFiche(fiche), 260);
       } else {
         openFiche(fiche);
@@ -18390,7 +18306,7 @@
       const result = SEARCH.results[index];
       // The act lives in the result's panel, which must not stay open
       // behind what comes next.
-      closeSheet();
+      window.__panneau.fermer();
       if (state.addMode === "identifier") {
         // This ASSOCIATES: the stuck folder becomes this medium and the pipeline
         // resumes. No follow is created — that was not the request.
@@ -18443,7 +18359,7 @@
       return;
     }
     if (closest.dataset.journey) {
-      closeSheet();
+      window.__panneau.fermer();
       setTimeout(() => openJourneySheet(closest.dataset.journey), 260);
       return;
     }
@@ -18463,7 +18379,7 @@
     }
     if (closest.dataset.completer) {
       magasin.ecrire({ page: "acq", acqTab: "maintenant" });
-      closeSheet();
+      window.__panneau.fermer();
       render();
       toast(
         `« ${baseTitle(closest.dataset.completer)} » : recherche des épisodes manquants lancée.`,
@@ -18472,13 +18388,13 @@
     }
     if (closest.dataset.resolve) {
       const resolve = closest.dataset.resolve;
-      closeSheet();
+      window.__panneau.fermer();
       setTimeout(() => openResolve(resolve), 260);
       return;
     }
     if (closest.dataset.recuperer) {
       const recuperer = closest.dataset.recuperer;
-      closeSheet();
+      window.__panneau.fermer();
       setTimeout(() => actionRecuperer(recuperer), 260);
       return;
     }
@@ -40062,164 +39978,162 @@
       : seasons.length
         ? `${own}/${aired}`
         : (stFraction(follow) ?? "—");
-    openSheet(
-      panneauHTML({
-        titre: follow.t,
-        affiche: { t: follow.t, k: follow.k },
-        meta: `${follow.y ? String(follow.y) + " · " : ""}${isFilm ? "Film" : "Série"}${frac ? " · " + frac + " épisodes" : ""}`,
-        puce: [ST_TONE[follow.st], stLabel(follow)],
-        blocs: [
-          {
-            type: "actions",
-            actions: [
-              /* The primary action answers the medium's STATE, not the screen
-                 it came from — which is why it is read from the derivations
-                 above and not passed in. Blocked outranks everything: nothing
-                 else can happen until it is resolved. Then what can be
-                 grabbed, then what is incomplete, then what is merely watched.
-                 A medium that is owned and whole has nothing left to chase, so
-                 the panel leads to its sheet rather than offering a search
-                 that would find nothing. */
-              aResoudre
+    window.__panneau.ouvrir({
+      titre: follow.t,
+      affiche: { t: follow.t, k: follow.k },
+      meta: `${follow.y ? String(follow.y) + " · " : ""}${isFilm ? "Film" : "Série"}${frac ? " · " + frac + " épisodes" : ""}`,
+      puce: [ST_TONE[follow.st], stLabel(follow)],
+      blocs: [
+        {
+          type: "actions",
+          actions: [
+            /* The primary action answers the medium's STATE, not the screen
+               it came from — which is why it is read from the derivations
+               above and not passed in. Blocked outranks everything: nothing
+               else can happen until it is resolved. Then what can be
+               grabbed, then what is incomplete, then what is merely watched.
+               A medium that is owned and whole has nothing left to chase, so
+               the panel leads to its sheet rather than offering a search
+               that would find nothing. */
+            aResoudre
+              ? {
+                  texte: "Résoudre →",
+                  icone: icons.play,
+                  ton: "primary",
+                  cible: { resolve: follow.t },
+                }
+              : aRecuperer
                 ? {
-                    texte: "Résoudre →",
+                    texte: "Récupérer maintenant",
                     icone: icons.play,
                     ton: "primary",
-                    cible: { resolve: follow.t },
+                    cible: { recuperer: follow.t },
                   }
-                : aRecuperer
+                : incomplet
                   ? {
-                      texte: "Récupérer maintenant",
+                      texte: "Compléter → Acquisitions",
                       icone: icons.play,
                       ton: "primary",
-                      cible: { recuperer: follow.t },
+                      cible: { completer: follow.t },
                     }
-                  : incomplet
+                  : suivi
                     ? {
-                        texte: "Compléter → Acquisitions",
+                        texte:
+                          follow.st === "a_recuperer"
+                            ? "Récupérer maintenant"
+                            : "Chercher maintenant",
                         icone: icons.play,
                         ton: "primary",
-                        cible: { completer: follow.t },
+                        cible: { sheetprim: `${follow.t}|${follow.st}` },
                       }
-                    : suivi
+                    : aFiche
                       ? {
-                          texte:
-                            follow.st === "a_recuperer"
-                              ? "Récupérer maintenant"
-                              : "Chercher maintenant",
-                          icone: icons.play,
+                          texte: "Voir la fiche",
+                          icone: icons.eye,
                           ton: "primary",
-                          cible: { sheetprim: `${follow.t}|${follow.st}` },
+                          cible: { fiche: follow.t },
                         }
-                      : aFiche
-                        ? {
-                            texte: "Voir la fiche",
-                            icone: icons.eye,
-                            ton: "primary",
-                            cible: { fiche: follow.t },
-                          }
-                        : {
-                            texte: "Voir le parcours",
-                            icone: icons.refresh,
-                            ton: "primary",
-                            cible: { journey: follow.t },
-                          },
-            ],
-          },
-          seasons.length
-            ? { type: "saisons", suivi: follow, saisons: seasons }
-            : isFilm
-              ? {
-                  type: "note",
-                  texte:
-                    "Un film n'a pas de catalogue d'épisodes : il est acquis, ou il ne l'est pas.",
-                }
-              : {
-                  type: "note",
-                  texte:
-                    "Aucune donnée de saison connue pour cette série — le catalogue n'a pas encore été récupéré. La fraction affiche « — », jamais « 0/0 » qui se lirait comme une série vide.",
-                },
-          {
-            type: "actions",
-            secondaire: true,
-            actions: [
-              /* « Voir la fiche » is reachable from the panel whenever a sheet
-                 exists. It is omitted only when it is ALREADY the primary
-                 action, which happens for a medium that is owned and whole. */
-              aFiche && (aResoudre || aRecuperer || incomplet || suivi)
-                ? {
-                    texte: "Voir la fiche",
-                    icone: icons.eye,
-                    cible: { fiche: follow.t },
-                  }
-                : null,
-              {
-                texte: "Voir le parcours",
-                icone: icons.refresh,
-                cible: { journey: follow.t },
-              },
-              /* Chasing a release only means something for a medium still
-                 being acquired. Offered on a complete one it is a button that
-                 can only disappoint. */
-              suivi || incomplet || aRecuperer
-                ? {
-                    texte: "Chercher une autre release",
-                    icone: icons.search,
-                    cible: { releases: follow.t },
-                  }
-                : null,
-              suivi || incomplet || aRecuperer
-                ? {
-                    texte: "Profil de qualité",
-                    icone: icons.sort,
-                    cible: { profil: follow.t },
-                  }
-                : null,
-              enMediatheque
-                ? {
-                    texte: "Re-scraper les métadonnées",
-                    icone: icons.refresh,
-                    cible: { rescrape: follow.t },
-                  }
-                : null,
-              /* Pausing or dropping a follow requires a follow. An incomplete
-                 series in the library is not one: nothing is watching it, so
-                 there is nothing to stop. */
-              suivi
-                ? {
-                    texte: isFilm ? "Ne plus chercher" : "Mettre en pause",
-                    icone: icons.x,
-                    cible: { pause: follow.t },
-                  }
-                : null,
-              suivi
-                ? {
-                    texte: isFilm ? "Retirer de la liste" : "Retirer le suivi",
-                    icone: icons.trash,
-                    ton: "danger",
-                    cible: { retirer: follow.t },
-                  }
-                : null,
-              enMediatheque
-                ? {
-                    texte: "Supprimer de la médiathèque",
-                    icone: icons.trash,
-                    ton: "danger",
-                    cible: { del: follow.t },
-                  }
-                : null,
-            ],
-          },
-          isFilm
+                      : {
+                          texte: "Voir le parcours",
+                          icone: icons.refresh,
+                          ton: "primary",
+                          cible: { journey: follow.t },
+                        },
+          ],
+        },
+        seasons.length
+          ? { type: "saisons", suivi: follow, saisons: seasons }
+          : isFilm
             ? {
                 type: "note",
                 texte:
-                  "Une fois acquis, ce film quittera automatiquement votre liste (§5).",
+                  "Un film n'a pas de catalogue d'épisodes : il est acquis, ou il ne l'est pas.",
               }
-            : null,
-        ],
-      }),
-    );
+            : {
+                type: "note",
+                texte:
+                  "Aucune donnée de saison connue pour cette série — le catalogue n'a pas encore été récupéré. La fraction affiche « — », jamais « 0/0 » qui se lirait comme une série vide.",
+              },
+        {
+          type: "actions",
+          secondaire: true,
+          actions: [
+            /* « Voir la fiche » is reachable from the panel whenever a sheet
+               exists. It is omitted only when it is ALREADY the primary
+               action, which happens for a medium that is owned and whole. */
+            aFiche && (aResoudre || aRecuperer || incomplet || suivi)
+              ? {
+                  texte: "Voir la fiche",
+                  icone: icons.eye,
+                  cible: { fiche: follow.t },
+                }
+              : null,
+            {
+              texte: "Voir le parcours",
+              icone: icons.refresh,
+              cible: { journey: follow.t },
+            },
+            /* Chasing a release only means something for a medium still
+               being acquired. Offered on a complete one it is a button that
+               can only disappoint. */
+            suivi || incomplet || aRecuperer
+              ? {
+                  texte: "Chercher une autre release",
+                  icone: icons.search,
+                  cible: { releases: follow.t },
+                }
+              : null,
+            suivi || incomplet || aRecuperer
+              ? {
+                  texte: "Profil de qualité",
+                  icone: icons.sort,
+                  cible: { profil: follow.t },
+                }
+              : null,
+            enMediatheque
+              ? {
+                  texte: "Re-scraper les métadonnées",
+                  icone: icons.refresh,
+                  cible: { rescrape: follow.t },
+                }
+              : null,
+            /* Pausing or dropping a follow requires a follow. An incomplete
+               series in the library is not one: nothing is watching it, so
+               there is nothing to stop. */
+            suivi
+              ? {
+                  texte: isFilm ? "Ne plus chercher" : "Mettre en pause",
+                  icone: icons.x,
+                  cible: { pause: follow.t },
+                }
+              : null,
+            suivi
+              ? {
+                  texte: isFilm ? "Retirer de la liste" : "Retirer le suivi",
+                  icone: icons.trash,
+                  ton: "danger",
+                  cible: { retirer: follow.t },
+                }
+              : null,
+            enMediatheque
+              ? {
+                  texte: "Supprimer de la médiathèque",
+                  icone: icons.trash,
+                  ton: "danger",
+                  cible: { del: follow.t },
+                }
+              : null,
+          ],
+        },
+        isFilm
+          ? {
+              type: "note",
+              texte:
+                "Une fois acquis, ce film quittera automatiquement votre liste (§5).",
+            }
+          : null,
+      ],
+    });
   }
 
   /* Journey sheet
@@ -40234,42 +40148,40 @@
       ["Scrapé", "en cours depuis 4 min", "now"],
       ["Rangé en médiathèque", "à venir", "todo"],
     ];
-    openSheet(
-      panneauHTML({
-        titre: title,
-        meta: [
-          "Parcours de l'acquisition · release ",
-          { m: "Furious.S01E01.MULTi.1080p.WEB-DL" },
-        ],
-        blocs: [
-          {
-            type: "faits",
-            lignes: etapes.map(([libelle, detail, ton]) => ({
-              c: libelle,
-              v: detail,
-              pip:
-                ton === "done" ? "success" : ton === "now" ? "info" : "neutral",
-              terne: ton === "todo",
-            })),
-          },
-          {
-            type: "note",
-            texte:
-              "Les dates viennent de la spine de provenance. Une étape non encore atteinte affiche « à venir » — jamais une date reconstruite.",
-          },
-          {
-            type: "actions",
-            actions: [
-              {
-                texte: "Voir la fiche",
-                icone: icons.eye,
-                cible: { fiche: title },
-              },
-            ],
-          },
-        ],
-      }),
-    );
+    window.__panneau.ouvrir({
+      titre: title,
+      meta: [
+        "Parcours de l'acquisition · release ",
+        { m: "Furious.S01E01.MULTi.1080p.WEB-DL" },
+      ],
+      blocs: [
+        {
+          type: "faits",
+          lignes: etapes.map(([libelle, detail, ton]) => ({
+            c: libelle,
+            v: detail,
+            pip:
+              ton === "done" ? "success" : ton === "now" ? "info" : "neutral",
+            terne: ton === "todo",
+          })),
+        },
+        {
+          type: "note",
+          texte:
+            "Les dates viennent de la spine de provenance. Une étape non encore atteinte affiche « à venir » — jamais une date reconstruite.",
+        },
+        {
+          type: "actions",
+          actions: [
+            {
+              texte: "Voir la fiche",
+              icone: icons.eye,
+              cible: { fiche: title },
+            },
+          ],
+        },
+      ],
+    });
   }
 
   /* Add screen (« + ») — migrated to a real route, `AjoutEcran`
@@ -40322,34 +40234,32 @@
   }
 
   function openPlusSheet() {
-    openSheet(
-      panneauHTML({
-        titre: "Veille et obligations",
-        meta: "Second rang — consulté, pas surveillé.",
-        blocs: [
-          {
-            type: "faits",
-            lignes: [
-              { c: "Dernier passage", v: "il y a 22 min" },
-              { c: "Prochain passage", v: "dans 38 min" },
-              { c: "Ratio global", v: "2,41", pipValeur: "success" },
-              { c: "Obligations en cours", v: "3 torrents" },
-            ],
-          },
-          {
-            type: "actions",
-            actions: [
-              {
-                texte: "Lancer la veille maintenant",
-                icone: icons.refresh,
-                ton: "primary",
-                cible: { veille: "1" },
-              },
-            ],
-          },
-        ],
-      }),
-    );
+    window.__panneau.ouvrir({
+      titre: "Veille et obligations",
+      meta: "Second rang — consulté, pas surveillé.",
+      blocs: [
+        {
+          type: "faits",
+          lignes: [
+            { c: "Dernier passage", v: "il y a 22 min" },
+            { c: "Prochain passage", v: "dans 38 min" },
+            { c: "Ratio global", v: "2,41", pipValeur: "success" },
+            { c: "Obligations en cours", v: "3 torrents" },
+          ],
+        },
+        {
+          type: "actions",
+          actions: [
+            {
+              texte: "Lancer la veille maintenant",
+              icone: icons.refresh,
+              ton: "primary",
+              cible: { veille: "1" },
+            },
+          ],
+        },
+      ],
+    });
   }
 
   // A harness-facing shortcut, not a control the app itself uses (a real
@@ -40359,7 +40269,7 @@
   // own onClick unwinds — not a `closeScreen()` call, which is a harmless
   // no-op against an address it was never the host of.
   window.__close = (layer) => {
-    if (layer !== "screen") return closeSheet();
+    if (layer !== "screen") return window.__panneau.fermer();
     if (select("#screen").classList.contains("open")) return closeScreen();
     if (document.querySelector(".screen.open")) return window.__pont.retour();
   };
@@ -40871,43 +40781,10 @@
   window.addEventListener("touchend", endPageDrag);
   window.addEventListener("touchcancel", endPageDrag);
 
-  /* 4) Sheet: drag the handle to close */
-  let sheetDrag = null;
-  // How far the sheet must travel before the lift closes it.
-  const SEUIL_FERMETURE = 70;
-  /* The handle CAPTURES the pointer and claims its axis.
-
-     Without both, a real finger delivered `pointerdown`, two `pointermove`s and
-     then `pointercancel`: the compositor took the vertical drag, the pointer
-     stream died, `pointerup` never came, and the sheet — whose closing hangs off
-     that lift — simply stayed open. Capture also keeps the events coming once
-     the finger leaves a 22px strip, which happens within the first centimetre of
-     a gesture that has to travel 70px. */
-  const poignee = select("#sheetgrab");
-
-  function finGlisseFeuille(annule) {
-    if (!sheetDrag) return;
-    const drag = sheetDrag;
-    sheetDrag = null;
-    select("#sheet").classList.remove("dragging");
-    select("#sheet").style.transform = "";
-    if (!annule && drag.dy > SEUIL_FERMETURE) closeSheet();
-  }
-
-  poignee.addEventListener("pointerdown", (event) => {
-    sheetDrag = { y: event.clientY, dy: 0 };
-    select("#sheet").classList.add("dragging");
-    poignee.setPointerCapture(event.pointerId);
-  });
-  poignee.addEventListener("pointermove", (event) => {
-    if (!sheetDrag) return;
-    sheetDrag.dy = Math.max(0, event.clientY - sheetDrag.y);
-    select("#sheet").style.transform = `translateY(${sheetDrag.dy}px)`;
-  });
-  poignee.addEventListener("pointerup", () => finGlisseFeuille(false));
-  /* A cancel is not a lift: it must put the sheet back where it was rather than
-     close it on a gesture the browser took away. */
-  poignee.addEventListener("pointercancel", () => finGlisseFeuille(true));
+  /* 4) Sheet: dragging the handle to close moved to the shell with the layer
+     itself — `src/composants/feuille.tsx` owns the handle, the pointer capture
+     and the dismissal threshold. Nothing binds here anymore: `#sheetgrab` does
+     not exist when this script runs. */
 
   /* The engine no longer boots itself. The shell — store created, bridge
      real — starts it, so no write ever needs recording and replaying, and a

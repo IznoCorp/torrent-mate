@@ -8,10 +8,14 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
 import React from "react";
+import { flushSync } from "react-dom";
 import ReactDOM from "react-dom/client";
+import { Feuille } from "./composants/feuille";
+import { refuserBloc, type Descripteur } from "./composants/panneau";
 import { AjoutEcran } from "./ecrans/ajout";
 import { ProfilEcran } from "./ecrans/profil";
 import { creerMagasin, type Magasin } from "./magasin";
@@ -63,6 +67,14 @@ declare global {
     // The domain hooks and the probes read the engine's state through this.
     __magasin: Magasin;
     __ecrans: Ecrans;
+    // The layer-unwind bookkeeping stays ENGINE-side (the named-entry check
+    // and the one-in-flight latch live with the popstate handler that consumes
+    // them); the fragment publishes it so the shell's own layer can announce
+    // its close the same way every legacy layer does.
+    __derouler?: (couche: string) => void;
+    // The probe R56 calls to prove the panel REFUSES a block nobody declared.
+    // Published here because the constructor it exercises is a component now.
+    __panneauInconnu: () => void;
   }
 }
 
@@ -78,7 +90,18 @@ declare global {
 // shell mounts on is written once, by the single writer, in the right order.
 const historique = createBrowserHistory();
 
-const racine = createRootRoute();
+// The root renders the matched route AND the bottom-sheet layer, which belongs
+// to no route: it opens over whatever is on screen — a React route, a legacy
+// `#screen`, a plain page — so it is mounted once, with the shell, and its
+// visibility is a class, not a mount.
+const racine = createRootRoute({
+  component: () => (
+    <>
+      <Outlet />
+      <Feuille fermer={fermerPanneau} />
+    </>
+  ),
+});
 const attrape = createRoute({
   getParentRoute: () => racine,
   path: "/",
@@ -278,6 +301,63 @@ window.__ecrans = {
     });
   },
 };
+
+/* The bottom panel, as the shell's verbs — what every legacy producer calls
+   instead of the dead `openSheet(html)`. The descriptor of FACTS crosses
+   untouched; the markup is `PanneauContenu`'s business.
+
+   The store write is flushed SYNCHRONOUSLY, and that is the whole subtlety of
+   moving this layer. React commits a frame later by default, while the legacy
+   layer's callers were written against a DOM that was already updated when
+   `openSheet`/`closeSheet` returned: `data-del` closes the sheet and opens a
+   dialog on the next line, and the dialog raises the SAME shared `#scrim` — a
+   commit landing after that line would clear the scrim out from under the
+   dialog. Flushing keeps the ordering every caller already relies on, and the
+   panel's own content changes in the same task as the class that reveals it,
+   so the sheet never slides in showing the previous panel for a frame. */
+function ouvrirPanneau(descripteur: Descripteur): void {
+  // Same order as the legacy `openSheet`: the layer first, the history entry
+  // second. This file is SHELL code — the seam itself — so it writes the store
+  // directly rather than through donnees.ts's `ecrireEtat` component door.
+  flushSync(() =>
+    magasin.ecrire({ panneauDescripteur: descripteur, panneauOuvert: true }),
+  );
+  try {
+    window.__pont.coucher("sheet");
+  } catch (erreur) {
+    // A bridge that is not there yet is not a reason to refuse a panel — the
+    // same swallow the legacy `openSheet` did around this exact call.
+  }
+}
+
+function fermerPanneau(pop?: boolean): void {
+  // Guarded per LAYER, exactly as `closeSheet` was: closing an already-closed
+  // sheet would consume a history entry that belongs to someone else.
+  if (!panneauEstOuvert()) return;
+  flushSync(() => magasin.ecrire({ panneauOuvert: false }));
+  // `pop` means the entry is already being popped by the gesture that got us
+  // here; otherwise the layer unwinds its own, through the engine's latch.
+  if (!pop) window.__derouler?.("sheet");
+}
+
+// The STORE answers, never the DOM: a legacy caller asks in the middle of its
+// own task ("is a layer up before I open a screen?"), and the store is right
+// at that instant whatever React has painted.
+function panneauEstOuvert(): boolean {
+  return magasin.lire().etat.panneauOuvert === true;
+}
+
+window.__panneau = {
+  ouvrir: ouvrirPanneau,
+  fermer: fermerPanneau,
+  ouverte: panneauEstOuvert,
+};
+
+/* Lets the contract check prove the refusal rather than trust the comment on
+   it: a block type nobody declared must raise, not draw nothing. Called as a
+   plain function, not rendered — the dispatcher refuses before it reads
+   anything else, which is what makes the refusal provable from outside. */
+window.__panneauInconnu = () => refuserBloc({ type: "ceci-n-existe-pas" });
 
 // The store is created here, and the engine starts only once it — and the
 // bridge above — are real. No queue, no replay: the engine's own boot writes

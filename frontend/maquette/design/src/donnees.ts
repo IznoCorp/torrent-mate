@@ -3,6 +3,7 @@
 // Their IMPLEMENTATION is what the backend-binding mission will replace;
 // components must never reach around them to the store or the engine.
 import { useSyncExternalStore } from "react";
+import type { Descripteur } from "./composants/panneau";
 import type { Contenu, EtatUI } from "./magasin";
 
 function sabonner(rappel: () => void): () => void {
@@ -167,14 +168,37 @@ export type Referentiel = {
   // neighbourhood for the file/rubric structure `Reglage.rubrique` carries.
   tousLesReglages: () => Reglage[];
   reglageId: (reglage: Reglage) => string;
+  // The value a field must DRAW: the pending edit when there is one, the
+  // file's `brut` otherwise. The pending-edit overlay itself stays private to
+  // the engine — this returns the value, never the map.
+  valeurEnCours: (reglage: Reglage) => unknown;
   valeurSaisie: (reglage: Reglage, texte: string) => unknown;
   modifierReglage: (id: string, valeur: unknown) => void;
   ouvrirReglage: (id: string) => void;
 };
 
+// The shell's bottom-panel API — what a legacy producer calls instead of the
+// dead `openSheet(html)`. `ouverte()` answers from the STORE, never from the
+// DOM: a legacy caller asks mid-task ("is a layer up before I open a screen?")
+// and the store is already right at that instant, whatever React has committed.
+export type Panneau = {
+  ouvrir: (descripteur: Descripteur) => void;
+  // `pop` mirrors the legacy `closeSheet(pop)`: truthy means the history entry
+  // is ALREADY being popped, so the layer must not unwind one of its own.
+  fermer: (pop?: boolean) => void;
+  ouverte: () => boolean;
+};
+
 declare global {
   interface Window {
     __referentiel: Referentiel;
+    __panneau: Panneau;
+    // The engine's own multi-layer closer, published by refonte.html: the
+    // scrim covers the drawer, the dialog and the sheet alike, and a tap on it
+    // closes whichever is up. Optional for the same reason
+    // `__demarrerMoteur` is — a document served without the fragment must
+    // fail visibly, not here.
+    __fermerCouches?: () => void;
   }
 }
 
