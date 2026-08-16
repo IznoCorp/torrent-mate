@@ -80,7 +80,7 @@ async def main():
     _journal = Journal("R56 — un seul panneau")
 
     source = (RACINE / "design" / "refonte.html").read_text()
-    composant = (RACINE / "design" / "src" / "composants" / "panneau.tsx").read_text()
+    composant = (RACINE / "design" / "src" / "components" / "panel.tsx").read_text()
 
     # 1. No caller hands markup to the panel. Read on the SOURCE, because that
     #    is where a panel is asked for; the DOM only shows what came out. A
@@ -96,14 +96,14 @@ async def main():
     #    engine's own builder must not come back either: two constructors are
     #    two head shapes, whichever file they live in.
     verifier("un seul constructeur de panneau",
-             composant.count("export function PanneauContenu(") == 1
+             composant.count("export function PanelContent(") == 1
              and "function panneauHTML(" not in source
              and "openDetailSheetLegacy" not in source,
              "openDetailSheetLegacy encore présent"
              if "openDetailSheetLegacy" in source else
              "panneauHTML est revenu dans refonte.html"
              if "function panneauHTML(" in source else
-             f"{composant.count('export function PanneauContenu(')} PanneauContenu")
+             f"{composant.count('export function PanelContent(')} PanelContent")
 
     async with async_playwright() as p:
         b = await p.chromium.launch(channel="chrome")

@@ -120,7 +120,7 @@ def compter_navigate_hors_aller(design_src):
         nettoye = sans_commentaires_legers(fichier.read_text(encoding="utf-8"))
         positions = [m.start() for m in re.finditer(r"\bnavigate\(", nettoye)]
         total += len(positions)
-        if fichier.name != "coquille.tsx":
+        if fichier.name != "shell.tsx":
             hors_aller += len(positions)
             continue
         debut, fin = bornes_corps_aller(nettoye)
@@ -145,7 +145,7 @@ def bornes_corps_aller(nettoye):
         `(debut, fin)` character offsets spanning `aller()`'s body
         (inclusive of both braces), or `(-1, -1)` if not found.
     """
-    debut = nettoye.find("export function aller(")
+    debut = nettoye.find("export function go(")
     if debut < 0:
         return -1, -1
     profondeur, i = 0, nettoye.index("(", debut)
