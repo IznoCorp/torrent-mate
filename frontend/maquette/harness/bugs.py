@@ -155,6 +155,23 @@ async def main():
         r = await pg.evaluate("""()=>({ecran:!!document.querySelector('.screen.open'),
           page:state.page})""")
         chk("10b. « Voir mes suivis » atterrit", not r["ecran"] and r["page"]=="acq", str(r))
+        # 10c — B-025: the entry-count half of the fix. `verSuivis` REPLACES
+        # the add screen's own entry (same "the layer's entry becomes the
+        # arrival" semantics `data-go`'s comment describes — ajout.tsx's own
+        # doc comment) instead of pushing beside it. A single real Back must
+        # therefore leave `/ajout` in ONE step: no buried layer entry, no
+        # stale `/ajout` still one hop under the landing. The comparison is
+        # structural, not a literal address string — the harness serves the
+        # document off `/wrapped.html`, a path outside the router's own
+        # table, so the router's OWN first-navigation settle rewrites the
+        # boot entry's address once, on its own schedule, before this
+        # journey's first push; comparing against a pre-captured href would
+        # be measuring that settle, not the fix.
+        await pg.go_back(); await pg.wait_for_timeout(600)
+        apres = await pg.evaluate("""()=>({surAjout:location.pathname.startsWith('/ajout'),
+          couche:!!(history.state && history.state.layer), page:state.page})""")
+        chk("10c. « …et un Back règle l'entrée »",
+            not apres["surAjout"] and not apres["couche"] and apres["page"]=="acq", str(apres))
 
     print("\nJS errors:", errs or "none")
     print("VERDICT:", "all reported defects are fixed" if not ko and not errs else f"remaining: {ko}")

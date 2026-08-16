@@ -45,8 +45,8 @@ when the defect comes back.
 | B-017 | Closing a panel sends the list back to its top          | by mutation | `to confirm` |
 | B-018 | On a desktop, dragging a row opens the panel            | 1×          | `to confirm` |
 | B-024 | `data-go` settles ONE history entry, layers pile        | by review   | `open`       |
-| B-025 | The screen half of the `data-go` fix has no Back rule   | by review   | `open`       |
-| B-026 | A silent `catch {}` can let URL and UI disagree         | by review   | `open`       |
+| B-025 | The screen half of the `data-go` fix has no Back rule   | by review   | `to confirm` |
+| B-026 | A silent `catch {}` can let URL and UI disagree         | by review   | `to confirm` |
 | B-027 | `resynchro.py` trusts `t:` first-match + naive braces   | by review   | `open`       |
 | B-028 | `resynchro.py` says « 0 correction » for unknown titles | by review   | `open`       |
 | B-029 | Counter rule misses suffix drift (« 1 » in « 11 »)      | by review   | `open`       |
@@ -98,13 +98,39 @@ them. None is reproduced on a device yet; each entry below records the walk that
   reopens the SAME key (`memeEcran`, no new layer). The comment still overclaims — it is true of
   the DOM, not of history — but no reachable walk buries two entries under a `[data-go]` tap
   today. Fix shape unchanged: one loop, one entry per closed layer.
+  **Final status (SP4b, task 6): latent, held by the Task-1 measurement.** No close-block fix
+  applied — the entry-count law would be exercised on a control that cannot reach it. The
+  handler's own comment no longer claims to handle a buried second entry (corrected to name the
+  single-entry assumption, `refonte.html` ~17861); the intro comment's second example (the add
+  screen's « Voir mes suivis ») is removed too — it left `data-go` in the interim (see B-025).
+  Settles with the ownership law when `data-go` itself migrates to the shell (SP4d): if a sixth
+  producer, or a new path to the existing five, can ever reach a layer, the entry-count law
+  (`__pont.regler(n)`, sketched but unapplied here) is owed then, not before.
 - **B-025** — harness `bugs.py` check 10b stops at the landing (`« Voir mes suivis » atterrit`)
   and never presses Back; only the sheet half (9b) is guarded. The `remplacer`-on-screen half of
   the fix — exactly what B-024 concerns — can regress without a single check falling.
+  **Fixed (SP4b, task 6).** The footer itself left `data-go` between the review and this walk
+  (Task 5 migrated « Voir mes suivis » to `AjoutEcran`'s own `verSuivis`, a router-owned
+  `remplacer:true` — same "the layer's entry becomes the arrival" semantics `data-go`'s own
+  comment describes), so the regression this entry names now lives there, not in the shared
+  handler; the guard follows it. `bugs.py` 10b gained a Back press, `10c`: after the footer
+  lands, one real Back must leave `/ajout` in a single hop (no buried `layer` entry, `page`
+  still `acq`) — mutation-verified by mutating `verSuivis`'s `remplacer:true` to `false` at
+  source (`10c` fell, naming the still-buried `/ajout`), rebuilt, then restored (`git diff`
+  empty), rebuilt, re-run green.
 - **B-026** — the `data-go` handler's outer `try { … } catch (error) {}` (house pattern from
   `data-navgo`) silences a `remplacer` failure: the page renders the destination while URL and
   history still describe the layer — a silent violation of the DOIT-10 claim that « the URL and
   the interface never disagree », with nothing logged.
+  **Fixed (SP4b, task 6).** Both swallows — the `data-go` handler's own, and `noterLeChemin`'s
+  (`refonte.html` ~16561, the write door every OTHER navigation goes through) — now
+  `console.error` and raise `window.__navEchec = true`, a probe published next to the other
+  probe flags (`__sujetsSansNom`'s precedent) for the harness to read. Mutation-verified: with
+  the intact catch, stubbing `__pont.remplacer` to throw (page context, driving « Profil et
+  préférences » from the user sheet — the one control that can fire `remplacer` from a layer)
+  raised the probe (`true`); a plain tap left it `false` (no false positive). Reverting the
+  catch to silent and repeating the SAME forced throw left the probe `false` — the hold falls
+  without the fix, confirming it bites — then the catch was restored.
 - **B-027** — `resynchro.py` extracts a follow's title with the FIRST `t: "…"` match anywhere in
   the object and counts braces with no string-awareness. An object whose first `X: "…"` key is
   not the title, or a title containing `{`/`}`, silently skips or — worse — rewrites the WRONG

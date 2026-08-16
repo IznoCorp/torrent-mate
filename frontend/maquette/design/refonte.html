@@ -16549,6 +16549,14 @@
     };
   }
 
+  /* B-026: a navigation write that fails must not fail silently — the URL
+     and the interface would then disagree with nothing on record. Published
+     so the harness can read it, the same way `__sujetsSansNom` publishes an
+     absent name rather than hiding it: it catches a write that DID fail,
+     never a wrong one. Reset only at load — a measurement that ran before
+     leaves no residue, because nothing here ever clears it back to false. */
+  window.__navEchec = false;
+
   /* Records where the operator has ARRIVED. The pushed entry carries the state
      one is now in, so it is the CURRENT entry and popping it lands on the
      previous arrival. Pushing the state being left instead puts the history
@@ -16558,7 +16566,10 @@
     if (pilotage) return;
     try {
       __pont.noter(etatDeNavigation(), urlDeLEtat());
-    } catch (error) {}
+    } catch (error) {
+      console.error("noterLeChemin : écriture de navigation échouée", error);
+      window.__navEchec = true;
+    }
   }
 
   /* The bridge announces a back the way `popstate` did — for a back, a
@@ -17848,19 +17859,30 @@
       return;
     }
     if (closest.dataset.go) {
-      /* A go control can sit INSIDE a layer — the user sheet's « Profil et
-         préférences », the add screen's « Voir mes suivis ». Landing must
-         LEAVE the layer: every layer closes without touching history, and
-         the destination takes the layer's entry, exactly as a drawer
-         navigation settles itself (see data-navgo): letting the close
-         unwind and the arrival push would race, the asynchronous pop
-         landing after the push and overwriting it. */
+      /* A go control can sit INSIDE a layer — today only the user sheet's
+         « Profil et préférences »: every OTHER producer renders into
+         page-body `#view` content, which sits under every layer and is
+         therefore covered — untappable — the instant one is open (walked
+         control by control, BUGS.md B-024). Landing must LEAVE the layer:
+         every layer closes without touching history, and the destination
+         takes the layer's entry, exactly as a drawer navigation settles
+         itself (see data-navgo): letting the close unwind and the arrival
+         push would race, the asynchronous pop landing after the push and
+         overwriting it. */
       const surCouche = history.state && history.state.layer;
       fermerTiroir(true);
       window.__panneau.fermer(true);
-      // A navigation leaves the screen LAYER, covered screens included:
-      // with the stack emptied first, the close removes the layer instead
-      // of redrawing what the top screen covered.
+      // This empties the covered-screen STACK too, so the DOM ends up clean
+      // however many screens were stacked — but that is DOM bookkeeping
+      // only, not history: `__pont.remplacer` below settles exactly ONE
+      // entry, on the assumption that at most one layer (drawer, sheet or a
+      // covered-screen stack — never several at once) precedes a `data-go`
+      // tap. B-024 found that assumption unenforced in code, then walked
+      // every producer and found it latent — non atteignable — because the
+      // one producer that can sit over a layer allows at most the sheet
+      // itself. Held there, not fixed here; settling by entry count is
+      // owed if the ownership law lets more producers reach a buried layer
+      // (data-go's own migration, SP4d).
       pileEcrans.length = 0;
       closeScreen(true);
       magasin.ecrire({ page: closest.dataset.go });
@@ -17871,7 +17893,10 @@
       try {
         if (surCouche) __pont.remplacer(etatDeNavigation(), urlDeLEtat());
         else noterLeChemin();
-      } catch (error) {}
+      } catch (error) {
+        console.error("data-go : écriture de navigation échouée", error);
+        window.__navEchec = true;
+      }
       return;
     }
     if (closest.dataset.acqtab) {
