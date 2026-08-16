@@ -4482,7 +4482,7 @@
     ></aside>
     <div class="screen" id="screen"></div>
     <!-- The scrim and the bottom sheet are rendered by the shell
-         (`src/composants/feuille.tsx`), at these same ids and classes, into
+         (`src/components/sheet.tsx`), at these same ids and classes, into
          `#coquille` — which sits inside this frame, earlier in document order.
          They are absent here on purpose: two elements answering `#sheet` is
          one of them being measured and the other being shown. -->
@@ -11604,8 +11604,8 @@
   }
 
   /* The release candidate's card and the decision's card moved to the shell
-     with the screen that draws them: `CarteRelease` and `CarteDecision` in
-     `src/ecrans/resolution.tsx`, at identical emission — `.card[data-nonmedia]`,
+     with the screen that draws them: `ReleaseCard` and `DecisionCard` in
+     `src/screens/resolution.tsx`, at identical emission — `.card[data-nonmedia]`,
      no media sheet and no panel, because neither subject is a medium. Their
      rationale moved there with them; nothing here builds either shape any
      more, and a second builder kept alive next to the one being drawn is
@@ -11632,8 +11632,8 @@
   }
 
   /* ONE bottom panel, and its shape follows the facts it is given — and it is
-     built in the shell now: `src/composants/panneau.tsx` is that single
-     constructor, `src/composants/feuille.tsx` the layer it draws into, and
+     built in the shell now: `src/components/panel.tsx` is that single
+     constructor, `src/components/sheet.tsx` the layer it draws into, and
      `window.__panneau.ouvrir` the verb a producer here calls, on a descriptor.
 
      The DESCRIPTOR crosses unchanged (facts, never markup: `titre`, `meta`,
@@ -15090,7 +15090,7 @@
      would drift the day one of these changes here. None of it is engine
      STATE (never mutated by an action), so exposing it does not bypass the
      store's reactivity contract; it is exposed once, at definition time,
-     well before the deferred module script (coquille.tsx) runs. */
+     well before the deferred module script (shell.tsx) runs. */
   window.__referentiel = {
     RELEASES,
     RESOS,
@@ -15375,7 +15375,7 @@
   }
 
   /* Bound to `document`, not `cadre` (`#device`, the phone frame). A
-     migrated screen renders inside `#coquille` — relocated by coquille.tsx
+     migrated screen renders inside `#coquille` — relocated by shell.tsx
      into `#device` at boot for containment (see that file's own comment),
      but that placement is decided by CSS geometry, not by event delegation:
      nothing here depends on it, and `document` stays the deliberately wider
@@ -16043,7 +16043,7 @@
       };
     /* `.fieldinput` is NOT bound here anymore: a settings field only ever
        appears inside the panel, and the panel's own `champ` block owns its
-       commit-on-blur handler now (`src/composants/panneau.tsx`). Binding it
+       commit-on-blur handler now (`src/components/panel.tsx`). Binding it
        from outside would put two writers on one field. */
     const element2 = document.querySelector("#follq");
     if (element2)
@@ -16109,7 +16109,7 @@
   }
 
   /* The panel layer belongs to the shell now (`window.__panneau`, rendered by
-     `src/composants/feuille.tsx`): a producer describes FACTS and the shell
+     `src/components/sheet.tsx`): a producer describes FACTS and the shell
      builds the panel. This function opens nothing anymore — it is a tripwire,
      kept so a producer nobody converted fails where it is written instead of
      quietly doing nothing. Every call site was converted with the layer. */
@@ -16357,7 +16357,7 @@
   // The legacy engine's own address BASE — "/" in production, but whatever a
   // static host answers the document under otherwise (the rule harness's
   // 8899 server names it "/wrapped.html"). Computed once at boot by the
-  // shell (coquille.tsx, using the router's OWN matching — see its own
+  // shell (shell.tsx, using the router's OWN matching — see its own
   // comment) and handed through window.__demarrerMoteur, because deciding
   // it here would mean re-deriving what the router owns from a second,
   // independently-maintained list. Defaulted to "/" so a call made before
@@ -18316,7 +18316,7 @@
         return;
       }
       // The screen stays open, re-rendered in place with the "added" chip
-      // and (once this is the first) the footer: `AjoutEcran` re-renders
+      // and (once this is the first) the footer: `AddScreen` re-renders
       // itself from this same store bump, so no redraw call belongs here
       // any more.
       state.added.add(index);
@@ -39448,12 +39448,12 @@
   }
 
   /* The media sheet moved to the shell with the rest of the screens:
-     `src/ecrans/fiche.tsx` renders it as the route `/fiche/$titre`. The
+     `src/screens/media.tsx` renders it as the route `/fiche/$titre`. The
      verb a call site says is `window.__ecrans.fiche(title)`; the template,
      the seasons and the actions live there, at identical markup — the
      click delegation below still reads their data attributes. */
   /* The resolution screen moved to the shell the same way:
-     `src/ecrans/resolution.tsx` renders it as the route
+     `src/screens/resolution.tsx` renders it as the route
      `/resolution/$dossier`, and the design rationale it carries — what the
      screen is FOR, why a tied score is not printed, the three ways out —
      moved there with it. The verb a call site says is
@@ -39811,16 +39811,16 @@
     });
   }
 
-  /* Add screen (« + ») — migrated to a real route, `AjoutEcran`
-     (`design/src/ecrans/ajout.tsx`, reached at `/ajout`). The design
+  /* Add screen (« + ») — migrated to a real route, `AddScreen`
+     (`design/src/screens/add.tsx`, reached at `/ajout`). The design
      rationale (full screen not a sheet, vertical result list, the two
      modes' verbs) lives there now, next to the code it explains. `SEARCH`,
      `cardHTML` and `addVerb` stay defined here and cross the handshake
      through `window.__referentiel` — the search execution itself is still
      the engine's, reached through that seam. */
 
-  /* Choose another release — migrated to a real route, `ReleasesEcran`
-     (`design/src/ecrans/releases.tsx`, reached at `/releases/$titre`). Show
+  /* Choose another release — migrated to a real route, `ReleasesScreen`
+     (`design/src/screens/releases.tsx`, reached at `/releases/$titre`). Show
      what is NOT happening and why. Here: why the engine picked this one —
      and enough to pick another knowingly. The score shown is the ranking's,
      not an opinion. `RELEASES` stays defined here and crosses the handshake
@@ -40375,7 +40375,7 @@
   window.addEventListener("touchcancel", endPageDrag);
 
   /* 4) Sheet: dragging the handle to close moved to the shell with the layer
-     itself — `src/composants/feuille.tsx` owns the handle, the pointer capture
+     itself — `src/components/sheet.tsx` owns the handle, the pointer capture
      and the dismissal threshold. Nothing binds here anymore: `#sheetgrab` does
      not exist when this script runs. */
 

@@ -92,7 +92,7 @@ case rather than raising — 35 → 49 holds, all green, mutation-proven (a seve
 from — are deleted with zero remaining callers once the components took over; `ReleaseCard` and
 `DecisionCard` (`design/src/screens/resolution.tsx`) are their replacements. Wave gate: full
 48-script suite green, `make check`/`make check-frontend` green, R59/R69/R71
-(`back.py`/`url_address.py`/`screens.py`) byte-identical against the SP4b merge point
+(`back.py`/`url_state.py`/`screens.py`) byte-identical against the SP4b merge point
 (`9842e44d`) — `screens.py` included, since this wave's two screens are not ones it traverses.
 Carried open: the 240 ms dead delay on `data-suivante` (a frozen quarter-second, was a legacy
 screen-close cover — kept identical under the binding-parity constraint; flagged for the operator
@@ -317,7 +317,7 @@ The state travels in the QUERY, not in the path, and that is a decision: this do
 from a static server, from the prototype host, and from `file://`, and path-based routing
 requires a server that rewrites every unknown path to the document — two of those three cannot.
 The binding will map `?page=lib` onto production's `/medias`; what is judged now is that the URL
-and the interface never contradict each other. R69, `harness/url_address.py`.
+and the interface never contradict each other. R69, `harness/url_state.py`.
 
 ---
 
