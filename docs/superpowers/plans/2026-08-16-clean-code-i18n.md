@@ -38,7 +38,7 @@ it; re-grep before editing).
   before/after) PLUS the full suite green. Extraction copies strings; a retyped string
   is a defect.
 - FROZEN surface (never rename): `Magasin` members `lire/ecrire/adopterEtat/adopterMonde/
-  toucher/store`; `Pont` members `noter/remplacer/coucher/retour/reculer/surRetour`;
+toucher/store`; `Pont` members `noter/remplacer/coucher/retour/reculer/surRetour`;
   `Ecrans` members `profil/fiche/releases/resolution/ajout`; `Panneau` members
   `ouvrir/fermer/ouverte`; ALL `window.__referentiel` member keys (~45); the window
   seam names (`__pont`, `__panneau`, `__ecrans`, `__magasin`, `__referentiel`,
@@ -69,6 +69,7 @@ it; re-grep before editing).
 ### Task 1: i18n infrastructure + pilot extraction (releases screen)
 
 **Files:**
+
 - Modify: `frontend/maquette/design/package.json` (add `i18next`, `react-i18next`)
 - Modify: `frontend/maquette/design/tsconfig.json` (`resolveJsonModule: true`)
 - Create: `frontend/maquette/design/src/i18n/fr.json` (namespaces `common`, `settings`, `screens`)
@@ -77,6 +78,7 @@ it; re-grep before editing).
 - Modify: `frontend/maquette/design/src/ecrans/releases.tsx` (pilot: its 10 UI strings → `t("screens.releases.…")`)
 
 **Interfaces:**
+
 - Produces: `useTranslation()` pattern the other screens copy; `fr.json`'s key
   convention: `screens.<screen>.<slug>` for prose, `settings.labels.*` /
   `settings.subjects.*` / `settings.units.*` reserved for Task 2's dictionaries,
@@ -96,11 +98,13 @@ it; re-grep before editing).
 ### Task 2: Full extraction — the remaining screens + the panneau dictionaries
 
 **Files:**
+
 - Modify: `frontend/maquette/design/src/ecrans/{fiche,profil,ajout,resolution}.tsx`,
   `src/composants/panneau.tsx`, `src/coquille.tsx` (EcranEnErreur's message),
   `src/i18n/fr.json`
 
 **Interfaces:**
+
 - Produces: zero French string literals in components (≈197 UI lines, ~220-250 keys;
   `panneau.tsx`'s three dictionaries — `LIBELLES_REGLAGES` 94, `NOMS_SUJETS` 54,
   `UNITES` 8 — become `settings.labels/subjects/units` namespaces; the lookup helpers
@@ -124,6 +128,7 @@ it; re-grep before editing).
 ### Task 3: `design/src` renames — identifiers, files, directories
 
 **Files:**
+
 - Rename: `magasin.ts`→`store.ts`, `donnees.ts`→`data.ts`, `coquille.tsx`→`shell.tsx`,
   `composants/`→`components/` (`feuille.tsx`→`sheet.tsx`, `panneau.tsx`→`panel.tsx`),
   `ecrans/`→`screens/` (`ajout.tsx`→`add.tsx`, `fiche.tsx`→`media.tsx`,
@@ -136,6 +141,7 @@ it; re-grep before editing).
 - Modify: `frontend/maquette/regions.json` (R72 record)
 
 **Interfaces:**
+
 - Produces: English identifiers throughout `src/` (~140 declarations, 250-350 sites):
   `creerMagasin`→`createStore`, `Magasin`→`Store` (type; members FROZEN),
   `EtatUI`→`UiState`, `Contenu`→`StoreContent`, `aller`→`go`,
@@ -160,6 +166,7 @@ it; re-grep before editing).
 ### Task 4: Harness renames — files + references (mechanical, zero behavior)
 
 **Files:**
+
 - Rename ~36 French-named harness files (map fixed here): `actions`→`behaviors`? NO —
   `actions.py` is EN; the FRENCH ones: `adresse`→`address`, `adresse_url`→`url-address`
   (keep underscore style: `url_address`), `adresses_ecrans`→`screen_addresses`,
@@ -174,14 +181,20 @@ it; re-grep before editing).
   `tiroir`→`drawer`, `serveur`→`server`, `renommer.mjs`→`rename.mjs`; the implementer
   verifies each name against the file's actual subject before renaming (a wrong
   translation is a finding, not a convention).
+- Rename ALSO (operator extension 2026-08-16 — the rule covers FILE NAMES everywhere):
+  `frontend/maquette/resynchro.py`→`resync.py` (and its references: README, IMPLEMENTATION,
+  the rule that names it), `frontend/maquette/harness/renommer.mjs`→`rename.mjs`,
+  `frontend/src/components/acquisition/SuivisPanel.tsx`→`FollowsPanel.tsx` (+ its
+  `.test.tsx`; update every import — this one is in the PROD app: run its vitest file and
+  `npm run lint`/`tsc -b --noEmit` in `frontend/` after)
 - Modify: the 12 `from commun import …` lines → `from common import …`
 - Modify: `frontend/maquette/README.md` (the 49-row rule table + ~15 prose mentions),
   `IMPLEMENTATION.md` (~18 refs), `frontend/maquette/regions.json` ($comment prose refs),
   `frontend/maquette/resynchro.py` (its `harness/contenu.py` ref), `scripts/extract-maquette-css.py` (comment)
 
 - [ ] **Step 1:** `git mv` each (macOS case-insensitivity: no case-only renames here, all
-      are word changes — safe), imports, then ALL references (rg each old name -g '*.md'
-      -g '*.py' -g '*.json' across the repo, fix, paste the zero-hit sweep at the end).
+      are word changes — safe), imports, then ALL references (rg each old name -g '_.md'
+      -g '_.py' -g '*.json' across the repo, fix, paste the zero-hit sweep at the end).
 - [ ] **Step 2:** FULL suite from the NEW file names — this IS the behavior proof (48
       scripts, zero FAILED). R59/R69/R71: renamed files, UNCHANGED assertions — record
       one summary amendment note in regions.json ($comment: the rule↔file map moved with
@@ -194,6 +207,7 @@ it; re-grep before editing).
 **Files:** all 49 harness scripts (in 4 batches of ~12, one commit per batch)
 
 **Interfaces:**
+
 - `common.py` first: `Journal` (keep), `verifier`→`check`, `bilan`→`summary`,
   `ouvrir`→`open_page`, `RACINE`→`ROOT`, `PROTOTYPE`→`PROTOTYPE` (EN), `TELEPHONE`→`PHONE`,
   output formats → English (`"  OK  "/"  FAIL"`, `"{n} rules EXECUTED"`,
@@ -213,6 +227,7 @@ it; re-grep before editing).
 ### Task 6: `serve.py` + `resynchro.py` — English code, served French via fr.json
 
 **Files:**
+
 - Modify: `frontend/maquette/serve.py` (16 defs → English: `tete_pwa`→`pwa_head`,
   `panne_build`→`build_failure`, `page_connexion`→`login_page`, `jeton`→`token`,
   `mot_de_passe_correct`→`password_ok`, etc.; the login page + build-failure page are
@@ -234,6 +249,7 @@ it; re-grep before editing).
 ### Task 7: The gate — `scripts/check-no-french.py` in make check + CI
 
 **Files:**
+
 - Create: `scripts/check-no-french.py` (pattern of `check-typed-api.py`: violations list,
   stderr, exit 1)
 - Modify: `Makefile` (one line in `check:`), `.github/workflows/ci.yml` (a step in the
@@ -241,9 +257,20 @@ it; re-grep before editing).
   the `changes` filter already routes it)
 
 **Interfaces:**
-- Two arms over the SCOPE (design/src minus i18n/, harness, serve.py, resynchro.py):
-  (1) STRING arm: accented chars or French stopwords (` le `, ` la `, ` les `, ` une `,
-  ` des `, ` est `, ` pour `…) inside string literals → violation (i18n files excluded;
+
+- FOUR arms (the operator's 2026-08-16 extension added the last two):
+  (3) FILE-NAME arm: every tracked file's basename under the scope roots (and any new
+  file anywhere in `frontend/`, `scripts/`, `personalscraper/`) is checked against the
+  French lexicon — a French basename is a violation (this is what keeps the rule alive
+  for files created later);
+  (4) CLASS-NAME arm: code class declarations (`class X` in .py/.ts/.tsx) AND CSS class
+  selectors declared in `design/refonte.html` + `frontend/src/styles/ps/*.css` matched
+  against the lexicon — French class names are violations, with the frozen DOM-contract
+  allowlist EMPTIED as those classes get renamed in Task 9 (any class left French must
+  carry an explicit, reasoned allowlist entry).
+- The first two arms over the SCOPE (design/src minus i18n/, harness, serve.py, resync.py):
+  (1) STRING arm: accented chars or French stopwords (`le`, `la`, `les`, `une`,
+  `des`, `est`, `pour`…) inside string literals → violation (i18n files excluded;
   per-line pragma `# french-ok: <reason>` / `// french-ok: <reason>` for the few data
   literals like `"Série"` and harness holds that ASSERT rendered French — each pragma
   carries its reason);
@@ -263,13 +290,70 @@ it; re-grep before editing).
 - [ ] `resynchro` (renamed) run; FULL suite 48/48 zero FAILED pasted; `make check` green
       (INCLUDING the new gate); `make check-frontend` green; residual sweep:
       the old French file names → zero references repo-wide (paste).
-- [ ] Docs: IMPLEMENTATION.md (wave record), `frontend/maquette/README.md` (i18n section:
-      where strings live, the key convention, the gate; CLAUDE.md maquette section notes
-      the standing rule). Bump 0.97.13. ONE commit:
+- [ ] Docs — THE RULE IS WRITTEN WHERE IT IS ENFORCED (operator: « ajoute cette règle
+      partout où c'est nécessaire pour la faire respecter à partir de maintenant »):
+      (a) root `CLAUDE.md` §Language/§Code Conventions — one binding paragraph: code is
+      English ONLY (identifiers, function/type/CLASS names, FILE names, tool messages);
+      UI text never lives in code — French copy lives in i18n resources; the gate
+      `scripts/check-no-french.py` enforces it in `make check` and CI; the frozen
+      exceptions (operator-facing docs, quoted UI copy, data-contract literals) are named
+      there. (b) `frontend/maquette/README.md` — the i18n section (where strings live, the
+      key convention, the byte-identity discipline) + the naming rule for new files/classes.
+      (c) `IMPLEMENTATION.md` — the wave record. Bump 0.97.15 (main moved to 0.97.14).
+      ONE commit:
       `docs(shell-mobile): registre clean-code/i18n — le code en anglais, les textes en fr.json, bump 0.97.13`
 - [ ] Push/PR/merge = controller after the final adversarial review. Post-merge:
       `pm2 restart torrentmate-design` (serve.py changed) + live check (login page
       byte-identical, deep routes fold).
+
+### Task 9: CSS class names to English (measured: 8 classes) — EXECUTED RIGHT AFTER TASK 3
+
+Operator extension (2026-08-16): the English rule covers CLASS names. Measured on
+`main` = `c1946f8d`: of 200 CSS classes declared in the maquette, **8 are French** —
+`champ`, `champlbl`, `champsaisie`, `champunite`, `dossier`, `ficheadd`, `fichebar`,
+`manquants`. Everything else is already English (`card`, `sheet`, `screen`, `chip`, …).
+This is the ONE task that deliberately crosses into the legacy fragment and the PROD app,
+because a CSS class is one name shared by four worlds.
+
+**Files:**
+
+- Modify: `frontend/maquette/design/refonte.html` (the CSS declarations AND every markup
+  emission — the fragment is excluded from the wave's identifier rule, NOT from a shared
+  class rename)
+- Modify: `frontend/maquette/design/src/**` (the components' `className`s)
+- Modify: `frontend/maquette/harness/*.py` (every selector asserting these classes)
+- Modify: `frontend/maquette/regions.json` (`harnessSelectors` / `exportedSelectors` /
+  region entries naming them) + the amendment records
+- Modify: `frontend/src/**` (the PROD app's components using the extracted classes) and
+  regenerate `frontend/src/styles/ps/*.css` with `python3 scripts/extract-maquette-css.py`
+  (NEVER by hand — `make check`'s drift gate is the proof)
+
+**Interfaces:**
+
+- Produces the rename map (implementer proposes, controller rules before applying):
+  `champ`→`field`, `champlbl`→`field-label`, `champsaisie`→`field-input`,
+  `champunite`→`field-unit`, `dossier`→`folder`, `ficheadd`→`media-add`,
+  `fichebar`→`media-bar`, `manquants`→`missing`. Verify each against what the class
+  actually styles before renaming (a wrong translation is a finding, not a convention).
+  Hyphenated names must match the file's existing convention — if the maquette's CSS uses
+  flat lowercase (`sheetacts`, `reslist`), FOLLOW THAT (`fieldlabel`, `fieldinput`,
+  `fieldunit`, `mediaadd`, `mediabar`) — measure the convention first, then choose ONE.
+
+- [ ] **Step 1: measure and rule.** List every occurrence per world (`rg -n` with `-g`
+      filters, class-usage only — beware the WORD appearing in prose/French UI strings in
+      the prod app, which this task does NOT touch). Paste the map + counts; propose the
+      naming convention with its evidence. STOP for the controller's ruling on the map.
+- [ ] **Step 2: rename atomically per class** (all four worlds in one commit per class or
+      one commit for all eight — your call, each commit buildable): CSS declaration,
+      fragment markup, components, harness selectors, regions entries, prod components.
+- [ ] **Step 3: regenerate the extracted CSS** (`python3 scripts/extract-maquette-css.py`),
+      then `python3 scripts/extract-maquette-css.py --check` green.
+- [ ] **Step 4: gates.** FULL suite 48/48 (the rules' selectors changed — this is the
+      proof they still measure the same surfaces); `make check` green (CSS-drift gate);
+      `cd frontend && npm run lint && npx tsc -b --noEmit && npm run test -- --run` green
+      (the prod app changed).
+- [ ] **Step 5: record** each renamed class in `regions.json`'s amendment entries; commit:
+      `refactor(shell-mobile): les huit classes françaises passent à l'anglais — maquette, règles, CSS extrait, app`
 
 ---
 
