@@ -1,5 +1,8 @@
 import asyncio
+
 from playwright.async_api import async_playwright
+
+
 async def main():
   async with async_playwright() as p:
     b=await p.chromium.launch(channel="chrome")
@@ -52,7 +55,13 @@ async def main():
     # A library card leads to the media SHEET now, not to the acquisition
     # panel: the seasons are read on the screen it opens.
     await pg.click("[data-fiche='Les aventures de Tintin']"); await pg.wait_for_timeout(600)
-    r=await pg.evaluate("""()=>{const s=document.querySelector('#screen');
+    # The media sheet left `#screen` for a real route (`/fiche/$titre`, rendered
+    # inside `#coquille`): it is read by the identity it carries,
+    # `data-cle="fiche:…"`, never by a bare `.screen.open` — two screens can
+    # carry `open` at once and the seasons must come from the fiche, not from
+    # whatever sits under it.
+    r=await pg.evaluate("""()=>{const s=document.querySelector('.screen.open[data-cle^="fiche:"]');
+      if (!s) return {absente:true};
       const ss=[...s.querySelectorAll('.season')];
       return {saisons:ss.length, ouvertes:ss.filter(x=>x.open).length,
               manquants:[...s.querySelectorAll('.miss')].map(x=>x.textContent),

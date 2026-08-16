@@ -3,7 +3,9 @@ ALL states, never a patch on the single case that was reported.
 
 The stance is to try to make the prototype FAIL, not to confirm it.
 """
-import asyncio, json
+import asyncio
+import json
+
 from playwright.async_api import async_playwright
 
 BAR = "─" * 62
@@ -42,10 +44,17 @@ async def main():
         r = await pg.evaluate("""(etat)=>{
           const R = {};
           const vis = (el)=>el.offsetParent!==null || el.getClientRects().length>0;
+          // The media sheet left `#screen` for a real route (`/fiche/$titre`,
+          // rendered inside `#coquille`): it joins this ladder, named by the
+          // identity it carries and LAST, so every other case resolves exactly
+          // as it did. Without it, the five states that open the fiche fall
+          // through to `#view`, and R1/R2/R7/R22/R23 would pass on a page the
+          // state never shows — a rule gone quiet, not a rule satisfied.
           const racine = document.querySelector('#dlg').classList.contains('open') ? document.querySelector('#dlg')
                        : document.querySelector('#screen').classList.contains('open') ? document.querySelector('#screen')
                        : document.querySelector('#sheet').classList.contains('open') ? document.querySelector('#sheet')
-                       : document.querySelector('#view');
+                       : document.querySelector('.screen.open[data-cle^="fiche:"]')
+                       ?? document.querySelector('#view');
 
           // R1 — every tappable poster leads to a FILLED-IN sheet
           R.fichesCreuses = [...racine.querySelectorAll('[data-fiche]')].map(el=>el.dataset.fiche)
@@ -160,7 +169,7 @@ async def main():
           // Two grammars make rows incomparable.
           R.sousLignes = [];
           if (etat.startsWith('lib-') && !etat.includes('incomplets')) {
-            const attendu = /^(\d{4}|année inconnue) · (Film|Série)$/;
+            const attendu = /^(\\d{4}|année inconnue) · (Film|Série)$/;
             R.sousLignes = [...racine.querySelectorAll('#libitems .csub, #libitems .fr')]
               .map(e=>e.textContent.trim()).filter(t=>t && !attendu.test(t)).slice(0,5);
           }
