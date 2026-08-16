@@ -107,7 +107,7 @@ def test_every_event_has_factory() -> None:
 
 
 def test_event_registry_has_all_v1_events() -> None:
-    """The catalog is pinned at 47 events.
+    """The catalog is pinned at 48 events.
 
     Phase 5 acceptance landed at 13 ; the ``provider-ids`` feature
     (sub-phase 8.4) added 4 ``Backfill*`` events for the IDs/ratings

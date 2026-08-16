@@ -20,8 +20,12 @@ That reverses the order of work:
 Until step 2 is passed, **nothing here derives app code**. The phase table that used to sit in
 this file described the opposite order — deriving the app surface by surface — and it is gone.
 
-**Branch:** `feat/shell-mobile`. `main`, and therefore production, is touched **once, at the
-end**, after everything has been validated together. Non-negotiable.
+**Branches:** one per wave (`feat/maquette-sp4b`, `feat/maquette-sp4c`, …) — each wave
+squash-merges onto `main` after green CI and a clean final adversarial review (standing
+operator instruction). What waits until the end is not `main` but the **binding**:
+production keeps running the shipped SPA untouched, the merged waves change only the
+prototype track (`frontend/maquette/`, its CI gates and docs), and nothing derives app
+code until the operator's judgement (step 2 above). Non-negotiable.
 
 **Spec:** `docs/superpowers/specs/2026-08-10-refonte-mobile-quatre-pages-design.md`
 **The prototype:** `frontend/maquette/design/refonte.html` — §15 of `docs/reference/product-intent.md`

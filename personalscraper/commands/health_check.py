@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING
 import typer
 
 from personalscraper import cli_helpers
-from personalscraper.cli_app import app, command_with_telemetry
+from personalscraper.cli_app import command_with_telemetry
 from personalscraper.logger import LOGS_DIR, get_logger
 
 if TYPE_CHECKING:
@@ -175,7 +175,6 @@ def _send_alert(config_obj: object, anomalies: list[str]) -> None:
         log.warning("health_check_alert_failed", error=str(exc), exc_info=True)
 
 
-@app.command(name="health-check")
 @command_with_telemetry("health-check")
 def health_check(
     ctx: typer.Context,
