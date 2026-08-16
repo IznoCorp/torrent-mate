@@ -16170,6 +16170,24 @@
      verb rather than a copy of the bookkeeping. */
   window.__derouler = deroulerCouche;
 
+  /* A settlement of SEVERAL entries at once (`__pont.reculer`) announces itself
+     through the same latch — and raises it by ONE, never by the number of
+     entries: the browser coalesces a multi-entry traversal into a SINGLE
+     popstate, fired at the destination. Measured, because the whole point of
+     the announcement is to match the number of events that will actually
+     arrive: `history.go(-2)` reports one pop, where two `history.back()` calls
+     issued in the same task report two. Raising the latch by n would leave the
+     surplus standing and swallow the operator's next real back — the mirror
+     image of the defect this replaces, and just as invisible.
+
+     No named-entry check here, unlike `deroulerCouche`: what is being settled
+     is a WALK of several entries whose top one is not necessarily a layer, so
+     there is no single name to check it against. The caller counts what it
+     stacked and is the only one that can. */
+  window.__annoncerPops = (nombreDEntrees) => {
+    if (nombreDEntrees > 0) deroulementEnCours += 1;
+  };
+
   /* Kept as a VERB the driver can still say: `doigt.py`, `glisse.py` and
      `machine.py` call `closeSheet()` from inside the page, and moving a layer
      to the shell must not take away the vocabulary that drives it. The layer
@@ -18254,9 +18272,6 @@
       // film and a series here — so the title does not identify the result.
       const index = Number(closest.dataset.act.slice(4));
       const result = SEARCH.results[index];
-      // The act lives in the result's panel, which must not stay open
-      // behind what comes next.
-      window.__panneau.fermer();
       if (state.addMode === "identifier") {
         // This ASSOCIATES: the stuck folder becomes this medium and the pipeline
         // resumes. No follow is created — that was not the request.
@@ -18265,13 +18280,18 @@
         // fires — the bump is explicit so React sees the pick immediately.
         state.added.add(index);
         magasin.toucher();
-        // `/ajout` is a router-owned address now: `closeScreen()` is a
-        // harmless no-op against it (`#screen` was never the host), and
-        // leaving the screen is `__pont.retour()` — the same single pop
-        // `.fback` uses — unwinding the ONE entry `window.__ecrans.ajout`
-        // pushed to get here.
-        closeScreen();
-        window.__pont.retour();
+        /* ONE settlement for the TWO entries this journey stacked — the
+           result's panel, and `/ajout` itself, a router-owned address (which
+           is why no legacy screen is closed here: `#screen` was never its
+           host). The panel is ASKED before it is closed, because the layer's
+           own entry is what decides the count, and it is closed DOM-only
+           (`fermer(true)`) so it does not unwind on its own: its unwind plus a
+           raw `__pont.retour()` were two backs racing in the same task, only
+           one of them announced, and the surplus pop was then read as the
+           operator's own back gesture. */
+        const entrees = (window.__panneau.ouverte() ? 1 : 0) + 1;
+        window.__panneau.fermer(true);
+        window.__pont.reculer(entrees);
         setTimeout(() => {
           actionResoudre(cible, result.t);
           toast(
@@ -18280,6 +18300,11 @@
         }, 260);
         return;
       }
+      // The act lives in the result's panel, which must not stay open
+      // behind what comes next — the dialog below, or the re-rendered list.
+      // The identify branch above settles its own layer, with the entry count
+      // its single settlement needs, so this close is the follow branches'.
+      window.__panneau.fermer();
       if (result.owned) {
         openDlg(`<h3>Remplacer « ${escapeHtml(result.t)} » ?</h3>
           <p>Ce ${result.k === "Film" ? "film est déjà" : "média est déjà"} en médiathèque. L'acquisition <b>remplacera</b> la version en place par celle qui sera récupérée.</p>

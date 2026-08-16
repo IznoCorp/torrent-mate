@@ -40,6 +40,10 @@ type Pont = {
   remplacer: (etat: unknown, url?: string) => void;
   coucher: (couche: string) => void;
   retour: () => void;
+  // Settling SEVERAL entries at once — the door a caller uses instead of
+  // saying `retour()` twice in the same task. `n` counts ENTRIES, and the
+  // traversal is announced to the engine before it is issued.
+  reculer: (n: number) => void;
   surRetour: (rappel: (etat: unknown) => void) => () => void;
 };
 
@@ -92,6 +96,11 @@ declare global {
     // them); the fragment publishes it so the shell's own layer can announce
     // its close the same way every legacy layer does.
     __derouler?: (couche: string) => void;
+    // The same bookkeeping for a traversal of SEVERAL entries at once: the
+    // shell says how many ENTRIES it settles, and the engine — which owns the
+    // latch and the popstate handler reading it — turns that into the number
+    // of pops it must swallow.
+    __annoncerPops?: (nombreDEntrees: number) => void;
     // The probe R56 calls to prove the panel REFUSES a block nobody declared.
     // Published here because the constructor it exercises is a component now.
     __panneauInconnu: () => void;
@@ -298,6 +307,26 @@ window.__pont = {
     historique.flush();
   },
   retour: () => historique.back(),
+  /* One logical navigation, ONE history operation — R76's rule read on the way
+     BACK. A caller leaving several entries behind used to say `retour()` twice
+     in the same task: two backs, two pops, and the engine's latch had only
+     ever been told about one of them, so the surplus pop was read as the
+     operator's own Back gesture (M11). Here the traversal is asked for once.
+
+     Order matters twice over. Pending writes are flushed FIRST, for the same
+     reason every write verb above flushes: a push still queued in this task
+     would otherwise land after the traversal, on the entry just returned to.
+     The announcement comes SECOND, before the traversal is issued, exactly as
+     a layer announces its own unwind before popping — a pop that lands before
+     its announcement is a pop nobody expected. `n` counts ENTRIES; how many
+     popstate events a traversal of n entries costs is knowledge that belongs
+     with the handler consuming them, and it is the announcer's to apply. */
+  reculer: (n: number) => {
+    if (n <= 0) return;
+    historique.flush();
+    window.__annoncerPops?.(n);
+    historique.go(-n);
+  },
   surRetour: (rappel: (etat: unknown) => void) =>
     historique.subscribe(({ action, location }) => {
       if (
