@@ -39629,34 +39629,6 @@
     return "a_recuperer";
   }
 
-  function seasonHTML(follow, season) {
-    const [num, aired, owned] = season;
-    const complete = owned >= aired;
-    const manque = aired - owned;
-    /* An ANNOUNCED episode appears in the matrix but NEVER in the
-       denominator: it is not missing, it is not out yet. The provider
-       catalogue knows more than what has aired. */
-    const catalogue = sheetFor(follow.t)?.eps?.[String(num)] ?? null;
-    const total = Math.max(aired, catalogue ? catalogue.length : 0);
-    const cells = Array.from({ length: total }, (ignored, index) => {
-      const number = index + 1;
-      const info =
-        catalogue?.find((catalogue2) => catalogue2.n === number) ?? null;
-      const futur = info?.air && info.air > AUJOURDHUI;
-      const episodeState = futur
-        ? "annonce"
-        : epState(follow, num, number, owned);
-      return `<button class="ep ${episodeState}" data-ep="${escapeHtml(follow.t)}|${num}|${number}|${episodeState}" aria-label="S${String(num).padStart(2, "0")}E${String(number).padStart(2, "0")} — ${EP_LABEL[episodeState]}">${String(number).padStart(2, "0")}</button>`;
-    }).join("");
-    return `<details class="season"${complete ? "" : " open"}>
-      <summary>Saison ${num}
-        <span class="sfr">${owned}/${aired}</span>
-        ${complete ? "" : `<span class="miss">${manque} manquant${manque > 1 ? "s" : ""}</span>`}
-      </summary>
-      <div class="eps">${cells}</div>
-    </details>`;
-  }
-
   /* Tapping a cell: its air date, in French. The sentence follows the state
      — « Sortie prévue » for an announced episode, « Diffusé » otherwise —
      and a missing date is stated, not invented. */
