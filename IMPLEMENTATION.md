@@ -104,7 +104,7 @@ re-measure: B-024 (`data-go` settles one history entry while layers pile) is con
 entry were corrected. `window.__referentiel` widens so the fiche's data (cast, seasons, trailer,
 artwork) is reachable from React the same way the profile's already was. `<PanneauContenu>`
 (`composants/panneau.tsx`) is the single React constructor for every panel — `Descripteur`/`Bloc`/
-`Action`/`Ligne`/`Segment` types, the eight declared block kinds, the same refusal on an unknown
+`Action`/`Ligne`/`Segment` types, the five declared block kinds, the same refusal on an unknown
 block `panneauHTML` always had. `<Feuille>` cuts the layer and its drag gesture over: every one of
 the legacy panel's producers now calls `window.__panneau.ouvrir(descripteur)` /
 `.fermer(pop?)` / `.ouverte()` — the shell's store owns `panneauOuvert`/`panneauDescripteur`,

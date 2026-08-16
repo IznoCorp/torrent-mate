@@ -62,7 +62,7 @@ stays up: a visible, truthful failure instead of an app with mute verbs.
 
 **The panel is one component, opened through `window.__panneau`.** `<PanneauContenu>`
 (`composants/panneau.tsx`) is the single React constructor every panel draws through — a
-`Descripteur` of typed `Bloc`s, refused outright if a block's `type` is not one of the eight
+`Descripteur` of typed `Bloc`s, refused outright if a block's `type` is not one of the five
 declared kinds. A producer never builds markup: it calls `window.__panneau.ouvrir(descripteur)`,
 and `.fermer(pop?)` / `.ouverte()` complete the surface, backed by the shell's own store
 (`panneauOuvert`/`panneauDescripteur`). The legacy `openSheet()` is retired to a tripwire —
