@@ -1254,8 +1254,8 @@ empty/partial, never 500) and inside the single `guarded_api` perimeter.
 `arrival`/Arrivée (intégrés, en attente de tri) · `sorting`/Tri (sort+enforce) ·
 `cleaning`/Nettoyage (clean+cleanup) · `matching`/Identification ·
 `scraping`/Scraping · `trailers`/Trailers · `verify`/Vérification ·
-`dispatch`/Dispatch. **« Staging » n'est pas une étape** : c'est le lieu où tout
-le flux se déroule — aucune station ne porte ce nom.
+`dispatch`/Dispatch. **"Staging" is not a step**: it is the place where the whole
+flow happens — no station carries that name.
 
 **Single-position axiom (P0-A.1)** — a staged media is at **exactly one**
 position: `compute_position()` derives `(position_stage, position_state)`

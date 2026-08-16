@@ -1,31 +1,31 @@
 <!--
-Constitution produit (docs/reference/product-intent.md) — §10 Méthode de livraison.
-Toute PR web cite les § servis. La version est bumpée (§10-3, garde CI version-bump).
+Product constitution (docs/reference/product-intent.md) — §10 delivery method.
+Every web PR cites the §§ it serves. The version is bumped (§10-3, version-bump CI guard).
 -->
 
-## Ce que fait cette PR
+## What this PR does
 
-<!-- Le quoi + le pourquoi, en une phrase ou deux. -->
+<!-- The what + the why, in one or two sentences. -->
 
-## § de la constitution servis
+## Constitution §§ served
 
-<!-- Ex : §6 (disponibilité), §8 (rien en silence), DOIT-4, NE-DOIT-PAS-3. « aucun » si hors web-UI. -->
+<!-- E.g.: §6 (availability), §8 (nothing in silence), DOIT-4, NE-DOIT-PAS-3. "none" if outside the web UI. -->
 
-## Déroulé de preuve daté (§méthode règle 2 — OBLIGATOIRE)
+## Dated proof walkthrough (§méthode rule 2 — MANDATORY)
 
 <!--
-Aucun verdict « conforme » sans un déroulé RÉEL (prod ou dev seedé) avec preuve datée.
-Remplace les crochets. Un flux non éprouvé faute de données = non conforme bloquant (règle 3).
+No "conforme" verdict without a REAL walkthrough (prod or seeded dev) with dated proof.
+Replace the brackets. A flow left unexercised for lack of data = blocking non-conformity (rule 3).
 -->
 
-- **Date** : <!-- YYYY-MM-DD -->
-- **Gate local** : `make check` → <!-- EXIT + résumé (NNNN passed, 0 failed) -->
-- **Preuve du comportement** : <!-- test rouge-sur-ancien / capture Chrome / trace DB / vérité prod. Décrire le déroulé exécuté, pas l'intention. -->
+- **Date**: <!-- YYYY-MM-DD -->
+- **Local gate**: `make check` → <!-- EXIT + summary (NNNN passed, 0 failed) -->
+- **Proof of behaviour**: <!-- red-on-old test / Chrome capture / DB trace / prod truth. Describe the walkthrough that ran, not the intention. -->
 
-## Points ouverts (§méthode règle 4)
+## Open points (§méthode rule 4)
 
-<!-- Tout problème découvert, présenté comme point ouvert — jamais étiqueté « hors-scope »/« follow-up » de sa propre initiative. « aucun » si tel est le cas. -->
+<!-- Every problem discovered, presented as an open point — never labeled "out of scope"/"follow-up" on one's own initiative. "none" if that is the case. -->
 
-## Rapport honnête (§10-5)
+## Honest report (§10-5)
 
-<!-- Inclure ses propres erreurs de parcours s'il y en a eu. -->
+<!-- Include your own missteps along the way, if any. -->

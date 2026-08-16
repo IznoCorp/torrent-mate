@@ -13,8 +13,9 @@ permanent storage on one of the configured disks.
 The staging subdirectory layout (`001-MOVIES/`, `002-TVSHOWS/`, etc.) is configured
 via the `staging_dirs` section of `config/patterns.json5` — not hardcoded or tracked by git.
 
-Package name: `personalscraper`. CLI entry point: `personalscraper <command>`.
-See `docs/reference/architecture.md` for the module map and package layout.
+Package name: `personalscraper`. CLI entry points: `torrentmate` (the public
+command name) and `personalscraper` (back-compat alias) — both run the same
+Typer app. See `docs/reference/architecture.md` for the module map and package layout.
 
 All storage paths, staging layout, and category names are in the `config/` directory.
 Run `personalscraper init-config` to create `config/` from the `config.example/` template.
@@ -34,34 +35,34 @@ hook is bypassed (`--no-verify`).
 
 ## Critical Rules
 
-### Product Intent — Constitution produit (web-UI — CONTRAIGNANT)
+### Product Intent — product constitution (web-UI — BINDING)
 
-**Toute évolution de la web-UI doit être conforme à `docs/reference/product-intent.md`** — la
-raison d'être de l'application, dictée par l'opérateur. **En cas de conflit entre une implémentation
-et cette constitution, c'est l'implémentation qui est fausse.** Lis `product-intent.md` **avant de
-coder** toute surface web ; chaque PR web **cite les § qu'elle sert**.
+**Every web-UI evolution must conform to `docs/reference/product-intent.md`** — the
+application's raison d'être, dictated by the operator. **When an implementation conflicts
+with this constitution, the implementation is wrong.** Read `product-intent.md` **before
+coding** any web surface; every web PR **cites the §§ it serves**.
 
-### Design Reference — la maquette fait foi (web-UI — CONTRAIGNANT)
+### Design Reference — the maquette is authoritative (web-UI — BINDING)
 
-**`frontend/maquette/design/refonte.html` est la référence visuelle de la web-UI** (§15 de la
-constitution). Toute évolution du design **part de la maquette, jamais du code** :
+**`frontend/maquette/design/refonte.html` is the visual reference of the web UI** (§15 of the
+constitution). Every design evolution **starts from the maquette, never from the code**:
 
-1. On modifie **la maquette d'abord**, on la vérifie avec son harnais (`frontend/maquette/harness/`),
-   puis on en dérive le code.
-2. **Une divergence entre l'app et la maquette est un défaut de l'app**, sauf amendement
-   explicite et motivé de la maquette au préalable.
-3. **Rien ne part en production que la maquette ne montre.** Une surface nouvelle s'y dessine
-   avant d'être codée.
-4. Le CSS de l'app est **extrait** de la maquette (`scripts/extract-maquette-css.py`), jamais
-   recopié ; la dérive est bloquée par `make check`.
+1. The **maquette is modified first**, verified with its harness (`frontend/maquette/harness/`),
+   and the code is derived from it.
+2. **A divergence between the app and the maquette is a defect of the app**, unless the
+   maquette was explicitly and deliberately amended beforehand.
+3. **Nothing ships to production that the maquette does not show.** A new surface is drawn
+   there before it is coded.
+4. The app's CSS is **extracted** from the maquette (`scripts/extract-maquette-css.py`), never
+   copied by hand; drift is blocked by `make check`.
 
-Lis `frontend/maquette/README.md` avant toute modification de design : il porte la méthode, les
-états nommés, le jeu de règles vérifiées (`regions.json` → `$adversarialReview`) et les
-pièges déjà payés.
+Read `frontend/maquette/README.md` before any design change: it carries the method, the named
+states, the verified rule set (`regions.json` → `$adversarialReview`) and the traps already
+paid for.
 
-**Langue des sources de la maquette** : commentaires **en anglais**, sans référence à une
-session, une phase ou une décision datée — ils doivent se lire dans plusieurs années hors
-contexte. Le texte d'interface cité dans un commentaire reste en français.
+**Language of the maquette sources**: comments **in English**, with no reference to a session,
+a phase, or a dated decision — they must still read years from now, out of context. Interface
+text quoted inside a comment stays in French.
 
 ### Search Safety (MANDATORY — machine crash prevention)
 
@@ -118,27 +119,27 @@ explicit timeouts for API calls to hosts that may be slow or unreachable.
 
 Follows [Conventional Commits](https://www.conventionalcommits.org/) — globally enforced for all projects using this `.claude/` config.
 
-Format :
+Format:
 
 ```
 <type>[(<scope>)]: <description>
 ```
 
-Types : `feat | fix | chore | refactor | style | docs | test | perf | build | ci`
+Types: `feat | fix | chore | refactor | style | docs | test | perf | build | ci`
 
-Examples :
+Examples:
 
 - `feat(scraper): create TvShow nfo file`
 - `chore: add json5 dependency`
 - `refactor(dispatch): extract folder_for to resolver`
 - `fix(conf): add missing Config import in scraper/run.py`
 
-**Forbidden** :
+**Forbidden**:
 
 - Version prefixes (`vX.Y.Z: Description`) — version traceability lives in `IMPLEMENTATION.md` and subagent reports (sub-phase → SHA mapping), not in commit messages
-- AI attribution : `Co-Authored-By`, `Claude`, `Anthropic` — enforced by `hooks/block_ai_attribution.py`
+- AI attribution: `Co-Authored-By`, `Claude`, `Anthropic` — enforced by `hooks/block_ai_attribution.py`
 
-**Milestone commits** (used by `/implement:phase` skill) include codename as scope :
+**Milestone commits** (used by `/implement:phase` skill) include codename as scope:
 
 ```
 chore(my-feature): phase 3 gate — scraper refactor
@@ -151,7 +152,7 @@ This is the ONLY place codename appears in milestone commits.
 When running `personalscraper run` or any long-running command with user observation:
 
 1. **NEVER run in background** — foreground only, `timeout=600000`. A hook (`block_background_pipeline.py`) enforces this.
-2. **Create TODO tasks BEFORE launching** — categories: bugs, incohérences, améliorations. Update in real-time.
+2. **Create TODO tasks BEFORE launching** — categories: bugs, inconsistencies, improvements. Update in real-time.
 3. **Show output after each step** — read and display incrementally, don't wait for the end.
 4. **Kill on 2 identical consecutive errors** — systemic failure = STOP immediately, don't keep trying.
 5. **State limitations upfront** — if you can't guarantee something, say so BEFORE agreeing.
@@ -166,14 +167,14 @@ Alternative: run steps individually (`personalscraper ingest`, then `personalscr
 - **Inline comments** for non-trivial logic explaining the "why" (not the "what")
 - Docstring/comment language: **English**
 - New tests: choose unit / integration / manual E2E — see `docs/reference/testing.md`.
-- **Module size**: soft warning at 800 non-blank LOC, hard ceiling 1000 LOC. Run `python3 scripts/check-module-size.py` (also wired into `make check`). Advisory in 0.9.0; promoted to hard block in 0.10.0.
+- **Module size**: soft warning at 800 non-blank LOC, hard ceiling 1000 LOC (exit 1). Run `python3 scripts/check-module-size.py` (also wired into `make check`).
 
 ### Phase Gate Checklist (MANDATORY before every phase gate commit)
 
 Every `chore(scope): phase N gate` commit MUST pass all of:
 
 1. **`make lint`** — ruff + mypy (both wired in Makefile). Zero errors.
-2. **`make test`** — all 6000+ tests pass. Check the summary line: `NNNN passed` with 0 failed/errors.
+2. **`make test`** — all 9000+ tests pass. Check the summary line: `NNNN passed` with 0 failed/errors.
 3. **`make check`** — lint + test + module-size + typed-api guardrails.
 4. **Residual import grep** — for every module deleted in this phase, grep both `personalscraper/` AND `tests/` for the old import path. Zero matches.
 5. **`python -c "import personalscraper"`** — smoke test.
@@ -186,11 +187,11 @@ Every `chore(scope): phase N gate` commit MUST pass all of:
 
 ### Implementation Workflow (feature-oriented)
 
-11 `implement:*` skills managing the full feature lifecycle with Opus/Sonnet/Haiku allocation. See details in `docs/archive/superpowers/specs/2026-04-22-implement-skills-refactor-design.md`.
+12 `implement:*` skills managing the full feature lifecycle, with per-skill model allocation (see each skill's description; Sonnet is forbidden as a dispatch target). Original design (archived): `docs/archive/superpowers/specs/2026-04-22-implement-skills-refactor-design.md`.
 
 **Entry point**: `/implement:feature` — archive prev, brainstorm, derive codename + SemVer type, create branch, generate plan.
 
-**Per phase**: `/implement:phase` — loop on sub-phases, dispatching `/implement:sub-phase` + `/implement:check` (verification). Auto-invokes `/implement:feature-pr` at last phase (gate + push + PR + CI poll), then `/implement:pr-review` (review + max-3 fix cycles + squash merge).
+**Per phase**: `/implement:phase` — loop on sub-phases, dispatching `/implement:sub-phase` + `/implement:check` (verification). Auto-invokes `/implement:feature-pr` at last phase (gate + push + PR + CI poll), then `/implement:pr-review` (review + track-scaled fix cycles: full=5, lite=2, express=1 + squash merge).
 
 **Branches**: `feat/{codename}` or `fix/{codename}`
 **Commits**: Conventional Commits with `(codename)` scope
@@ -199,9 +200,8 @@ Every `chore(scope): phase N gate` commit MUST pass all of:
 
 ### Working a KanbanMate Ticket (before implementing a roadmap item)
 
-Roadmap items are tracked as **KanbanMate tickets** — e.g. the web-UI waves: S1 `#158`
-(shell + auth + WebSocket), S2 `#181` (pipeline control), S3 `#182` (maintenance
-dashboard), S4 `#183` (visual config editor), … through S7. **To work on / implement a
+Roadmap items are tracked as **KanbanMate tickets** — historical example: the web-UI waves
+S1 `#158` (shell + auth + WebSocket) through S7, all shipped since. **To work on / implement a
 ticket, never start coding directly.** Claim it through the kanban skills first, so the
 autonomous KanbanMate daemon stays out of the way, then advance the card column-by-column
 as the work progresses:
@@ -247,7 +247,17 @@ Invariants enforced by tests (do not regress; details in `docs/reference/web-ui.
 
 ### Language
 
-The user communicates in French or English. Code comments are in English only. Respond in French when the user writes in French.
+The operator communicates in French or English — respond in French when they write in French.
+Everything durable is **English only**: code comments, docstrings, and all engineering
+documentation (`docs/`, `BUGS.md`, `CHANGELOG.md`, `ROADMAP.md`, `IMPLEMENTATION.md`, this
+file). **Never mix languages within a document.** Exceptions:
+
+- **Operator-facing docs stay French**: `README.md`, `MANUAL.md`, `INSTALLATION.md`,
+  `CONFIGURATION.md`, `docs/reference/product-intent.md` (the constitution, dictated by the
+  operator).
+- French inside an English document is allowed **only** to quote UI copy / app screens and
+  sections named in French (in « guillemets ») or media titles.
+- `docs/archive/` is frozen history — never translated, never restyled.
 
 ## Reference Index (lazy-load when relevant)
 
@@ -255,7 +265,7 @@ Load these docs on-demand based on your task — they are **not** auto-loaded:
 
 | When working on...                                                                                                    | Read                                            |
 | --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| CLI commands, pipeline invocation, scheduling (launchd), make targets                                                 | `docs/reference/commands.md`                    |
+| CLI commands, pipeline invocation, scheduling (PM2 crons), make targets                                               | `docs/reference/commands.md`                    |
 | Disks, NTFS/macFUSE, rsync flags, disk space rules, move rules details                                                | `docs/reference/storage.md`                     |
 | Directory layout, module map, shared utilities, dependencies                                                          | `docs/reference/architecture.md`                |
 | Movie/TV folder naming, episode patterns, filename sanitization                                                       | `docs/reference/naming.md`                      |
@@ -285,8 +295,8 @@ Load these docs on-demand based on your task — they are **not** auto-loaded:
 | Module-size budget tracking, BLOCK-threshold promise status                                                           | `docs/reference/promises.md`                    |
 | Post-merge operator checklist (DB schema, config/CLI migrations, ACC re-exercise)                                     | `docs/reference/runbook-post-merge.md`          |
 | TorrentMate web UI — architecture, auth, WS protocol, Redis relay, PWA, deploy runbook, S2-S7 REST conventions        | `docs/reference/web-ui.md`                      |
-| **Product intent — constitution produit (CONTRAIGNANT) : web-UI raison d'être, §1–§15 + DOIT/NE-DOIT-PAS + §méthode** | `docs/reference/product-intent.md`              |
-| **Maquette — référence VISUELLE de la web-UI (CONTRAIGNANT) : on la modifie AVANT le code**                           | `frontend/maquette/README.md`                   |
+| **Product intent — the product constitution (BINDING): web-UI raison d'être, §1–§15 + DOIT/NE-DOIT-PAS + §méthode**   | `docs/reference/product-intent.md`              |
+| **Maquette — the VISUAL reference of the web UI (BINDING): it is modified BEFORE the code**                           | `frontend/maquette/README.md`                   |
 
 Also check archived alpha versions under `docs/archive/legacy-alpha/` and archived features under `docs/archive/features/`.
 
