@@ -168,12 +168,15 @@ function SaisonsFiche({
                     ? "en_mediatheque"
                     : "a_recuperer";
               return (
+                // Same blanks as the season summary, same reason: the row is
+                // a flex container (they draw nothing) and its `textContent`
+                // is read as one sentence.
                 <div className={`eprow ${episodeState}`} key={liste2.n}>
-                  <span className="epdot"></span>
+                  <span className="epdot"></span>{" "}
                   <span className="en">
                     E{String(liste2.n).padStart(2, "0")}
-                  </span>
-                  <span className="et">{liste2.t}</span>
+                  </span>{" "}
+                  <span className="et">{liste2.t}</span>{" "}
                   <span className="ed">
                     {liste2.air ? dateFR(liste2.air) : "date inconnue"}
                     {episodeState === "en_mediatheque"
@@ -233,21 +236,27 @@ function SaisonsFiche({
             open={!(complete || !possede)}
           >
             <summary>
-              Saison {ligne.n}
+              {/* The blanks between these children are NOT decoration: the
+                  legacy template carried a line break at each of them, and a
+                  reader of `summary.textContent` — the rule that derives the
+                  season number from it, an assistive technology reading the
+                  row — would otherwise see « Saison 33/13 ». `summary` is a
+                  flex container, so a whitespace-only node draws nothing. */}
+              Saison {ligne.n}{" "}
               <span className="sfr">
                 {ligne.aired === 0
                   ? "à venir"
                   : possede
                     ? `${nbOwn}/${ligne.aired ?? "?"}`
                     : `${ligne.aired ?? "?"} ép.`}
-              </span>
+              </span>{" "}
               {possede && manque != null && manque > 0 ? (
                 <span className="miss">
                   {manque} manquant{manque > 1 ? "s" : ""}
                 </span>
               ) : (
                 ""
-              )}
+              )}{" "}
               {!possede && ligne.air ? (
                 <span
                   className="miss"
@@ -370,7 +379,7 @@ export function FicheEcran() {
         <button className="fback" onClick={() => window.__pont.retour()}>
           <Icone paths={icons.left} />
           Retour
-        </button>
+        </button>{" "}
         <span
           style={{
             marginLeft: "auto",
@@ -396,7 +405,7 @@ export function FicheEcran() {
               <p className="hm">
                 {fiche
                   ? `${fiche.y || "année inconnue"} · ${isFilm ? "Film" : "Série"}${fiche.duree ? ` · ${fiche.duree} min` : ""}`
-                  : "Métadonnées inconnues"}
+                  : "Métadonnées inconnues"}{" "}
                 {fiche?.g ? (
                   <>
                     <br />
@@ -407,7 +416,7 @@ export function FicheEcran() {
                     <br />
                     Genres inconnus
                   </>
-                )}
+                )}{" "}
                 {fiche && !isFilm && fiche.statut ? (
                   <>
                     <br />
@@ -446,10 +455,10 @@ export function FicheEcran() {
             >
               <span className="pl">
                 <Icone paths={icons.play} />
-              </span>
+              </span>{" "}
               <span>
                 Bande-annonce<small>{bande.nom}</small>
-              </span>
+              </span>{" "}
               <span className="tsrc">
                 <Icone paths={icons.ext} />
                 YouTube
@@ -649,7 +658,7 @@ export function FicheEcran() {
                 >
                   <Icone paths={icons.refresh} />
                   Re-scraper les métadonnées
-                </button>
+                </button>{" "}
                 <button className="sact danger" data-del={titre}>
                   <Icone paths={icons.trash} />
                   Supprimer de la médiathèque
