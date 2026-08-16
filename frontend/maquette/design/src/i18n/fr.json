@@ -1,0 +1,23 @@
+{
+  "common": {},
+  "settings": {},
+  "screens": {
+    "releases": {
+      "back": "Retour",
+      "noteTitle": "Écran neuf.",
+      "noteBeforePourquoi": "« Chercher une autre release » ne menait nulle part. Ce qui manquait n'est pas une liste : c'est",
+      "notePourquoi": "pourquoi",
+      "noteAfterPourquoi": "le moteur a classé ainsi — sans ça, choisir est un pari.",
+      "rescount": "candidats retenus par le profil de qualité · dernière recherche il y a 12 min",
+      "qhint": "Retenue : meilleure résolution admise par le profil, langue MULTi préférée, et le plus de sources à qualité égale.",
+      "pickCurrent": "Reprendre celle-ci",
+      "pickAlternative": "Prendre celle-ci à la place",
+      "sourcesUnit": "sources",
+      "goUnit": "Go",
+      "scoreLabel": "score",
+      "emptyTitle": "Aucune ne convient ?",
+      "emptyBody": "Élargir le profil de qualité fera revenir des candidats écartés — la liste dit ce qu'elle a rejeté et pourquoi.",
+      "openProfile": "Ouvrir le profil de qualité →"
+    }
+  }
+}

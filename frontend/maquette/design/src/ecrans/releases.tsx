@@ -15,6 +15,7 @@
 // document-level click delegation the legacy engine still runs is the seam
 // this screen leans on, exactly as `fiche.tsx` and `profil.tsx`.
 import { useParams } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import { useReferentiel } from "../donnees";
 
 // Same helper as `fiche.tsx`'s, `profil.tsx`'s and `ajout.tsx`'s, still not
@@ -47,13 +48,14 @@ export function ReleasesEcran() {
   // reached by a typed/bookmarked URL did not necessarily go through it.
   const titre = brut.normalize("NFC");
   const { icons, baseTitle, RELEASES } = useReferentiel();
+  const { t } = useTranslation();
 
   return (
     <section className="screen open" data-cle={`releases:${titre}`}>
       <div className="fichebar">
         <button className="fback" onClick={() => window.__pont.retour()}>
           <Icone paths={icons.left} />
-          Retour
+          {t("screens.releases.back")}
         </button>{" "}
         <span
           style={{
@@ -68,14 +70,13 @@ export function ReleasesEcran() {
       <div className="port">
         <div className="body">
           <div className="note">
-            <b>Écran neuf.</b> « Chercher une autre release » ne menait nulle
-            part. Ce qui manquait n&apos;est pas une liste : c&apos;est{" "}
-            <em>pourquoi</em> le moteur a classé ainsi — sans ça, choisir est un
-            pari.
+            <b>{t("screens.releases.noteTitle")}</b>{" "}
+            {t("screens.releases.noteBeforePourquoi")}{" "}
+            <em>{t("screens.releases.notePourquoi")}</em>{" "}
+            {t("screens.releases.noteAfterPourquoi")}
           </div>
           <p className="rescount" style={{ padding: 0 }}>
-            <b>{RELEASES.length}</b> candidats retenus par le profil de qualité
-            · dernière recherche il y a 12 min
+            <b>{RELEASES.length}</b> {t("screens.releases.rescount")}
           </p>
           {RELEASES.map((release, index) => (
             <article
@@ -97,17 +98,19 @@ export function ReleasesEcran() {
                 </span>{" "}
                 <span className="chip">{release.src}</span>{" "}
                 <span className="chip">{release.lang}</span>{" "}
-                <span className="chip">{release.s} sources</span>{" "}
                 <span className="chip">
-                  {String(release.go).replace(".", ",")} Go
+                  {release.s} {t("screens.releases.sourcesUnit")}
                 </span>{" "}
-                <span className="sc">score {release.sc}</span>
+                <span className="chip">
+                  {String(release.go).replace(".", ",")}{" "}
+                  {t("screens.releases.goUnit")}
+                </span>{" "}
+                <span className="sc">
+                  {t("screens.releases.scoreLabel")} {release.sc}
+                </span>
               </span>{" "}
               {index === 0 ? (
-                <p className="qhint">
-                  Retenue : meilleure résolution admise par le profil, langue
-                  MULTi préférée, et le plus de sources à qualité égale.
-                </p>
+                <p className="qhint">{t("screens.releases.qhint")}</p>
               ) : (
                 ""
               )}
@@ -116,21 +119,20 @@ export function ReleasesEcran() {
                 data-prendre={index}
               >
                 {index === 0
-                  ? "Reprendre celle-ci"
-                  : "Prendre celle-ci à la place"}
+                  ? t("screens.releases.pickCurrent")
+                  : t("screens.releases.pickAlternative")}
               </button>
             </article>
           ))}
           <div className="empty">
-            <b>Aucune ne convient ?</b>Élargir le profil de qualité fera revenir
-            des candidats écartés — la liste dit ce qu&apos;elle a rejeté et
-            pourquoi.
+            <b>{t("screens.releases.emptyTitle")}</b>
+            {t("screens.releases.emptyBody")}
             <button
               className="cfoot"
               style={{ marginTop: "10px" }}
               data-profil={titre}
             >
-              Ouvrir le profil de qualité →
+              {t("screens.releases.openProfile")}
             </button>
           </div>
         </div>

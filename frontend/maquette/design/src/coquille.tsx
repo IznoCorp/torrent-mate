@@ -3,6 +3,11 @@
 // unwind) and loses only its primitives — it speaks to `window.__pont`,
 // implemented here on the router's history. `window.__go` keeps driving
 // states without navigation, exactly as before.
+//
+// The i18n bootstrap is imported FIRST, for its side effect (initialising
+// `i18next`) — every migrated screen calls `useTranslation()`, and the
+// first of them can render before any other import here settles.
+import "./i18n";
 import {
   createBrowserHistory,
   createRootRoute,
