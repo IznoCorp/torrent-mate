@@ -13,7 +13,7 @@ async def main():
     await pg.evaluate("()=>window.__chargementTermine?.()")
     await pg.evaluate("()=>window.__measure(true)")
 
-    async def clic(js, label):
+    async def click_(js, label):
         await pg.evaluate(js); await pg.wait_for_timeout(320)
         txt = await pg.evaluate("()=>document.querySelector('.eppop')?.innerText.replace(/\\n/g,' | ')")
         print(f"  {label:24} {txt}")
@@ -21,14 +21,14 @@ async def main():
 
     print("── Tintin (owned + missing) ──")
     await pg.evaluate("()=>window.__go('feuille-suivi-trous')"); await pg.wait_for_timeout(450)
-    a = await clic("()=>[...document.querySelectorAll('.ep')].find(e=>e.className.includes('en_mediatheque')).click()", "owned episode")
-    b1 = await clic("()=>[...document.querySelectorAll('.ep')].find(e=>e.className.includes('a_recuperer')).click()", "missing episode")
+    a = await click_("()=>[...document.querySelectorAll('.ep')].find(e=>e.className.includes('en_mediatheque')).click()", "owned episode")
+    b1 = await click_("()=>[...document.querySelectorAll('.ep')].find(e=>e.className.includes('a_recuperer')).click()", "missing episode")
     await pg.screenshot(path="m_popover.png")
 
     print("── Silo (including announced episodes) ──")
     await pg.evaluate("()=>{fermerPopEp();window.__go('acq-suivis-liste');}"); await pg.wait_for_timeout(300)
     await pg.evaluate("()=>openFollowSheet('Silo')"); await pg.wait_for_timeout(450)
-    c1 = await clic("()=>{const l=[...document.querySelectorAll('.ep')];l[l.length-1].click();}", "last episode")
+    c1 = await click_("()=>{const l=[...document.querySelectorAll('.ep')];l[l.length-1].click();}", "last episode")
     await pg.screenshot(path="m_popover_silo.png")
 
     print("── closing on outside click ──")
@@ -41,7 +41,7 @@ async def main():
     await b.close()
 asyncio.run(main())
 
-async def annonce():
+async def announced():
   async with async_playwright() as p:
     b=await p.chromium.launch(channel="chrome")
     c=await b.new_context(viewport={"width":390,"height":844},device_scale_factor=2,is_mobile=True,has_touch=True)
@@ -61,29 +61,29 @@ async def annonce():
     # a near-black background, and the thing read as text hovering in mid-air
     # rather than as an object with limits. The brand colour is the only one in
     # the palette that separates from everything the app draws behind it.
-    contour = await pg.evaluate("""()=>{
+    outline = await pg.evaluate("""()=>{
       const el = document.querySelector('.eppop');
       const cs = getComputedStyle(el);
-      const marque = getComputedStyle(document.documentElement)
+      const brand = getComputedStyle(document.documentElement)
         .getPropertyValue('--primary').trim();
-      const sonde = document.createElement('span');
-      sonde.style.color = marque; document.body.appendChild(sonde);
-      const attendu = getComputedStyle(sonde).color;
-      sonde.remove();
-      return {bord: cs.borderTopColor, attendu,
-              fond: cs.backgroundColor,
-              cadre: getComputedStyle(document.querySelector('#device')).backgroundColor,
-              epaisseur: cs.borderTopWidth};}""")
-    distinct = (contour["bord"] == contour["attendu"]
-                and contour["bord"] != contour["fond"]
-                and contour["bord"] != contour["cadre"])
-    print("  contour :", contour)
+      const probe = document.createElement('span');
+      probe.style.color = brand; document.body.appendChild(probe);
+      const expected = getComputedStyle(probe).color;
+      probe.remove();
+      return {border: cs.borderTopColor, expected,
+              background: cs.backgroundColor,
+              frame: getComputedStyle(document.querySelector('#device')).backgroundColor,
+              width: cs.borderTopWidth};}""")
+    distinct = (outline["border"] == outline["expected"]
+                and outline["border"] != outline["background"]
+                and outline["border"] != outline["frame"])
+    print("  outline :", outline)
     print("  VERDICT :", "the date appears, following the episode state" if txt and "Sortie prévue" in txt else "needs review")
     if not distinct:
-        print("  ECHEC le contour ne se distingue pas du fond de l'app")
-    print("  erreurs :", errs or "none")
+        print("  FAIL the outline does not separate from the app's background")
+    print("  errors  :", errs or "none")
     await b.close()
     # A script that only prints can never fail, and a script that cannot fail
     # proves nothing: the verdict has to reach the exit code.
     if errs or not (txt and "Sortie prévue" in txt) or not distinct: raise SystemExit(1)
-asyncio.run(annonce())
+asyncio.run(announced())

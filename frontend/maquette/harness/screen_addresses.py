@@ -34,7 +34,7 @@ What it holds to:
 
 EXTENDED (SP4b) to `MediaScreen` — the media sheet, the one screen every
 poster, tile, suggestion and panel act already led to, now also reachable
-as `/fiche/$titre` on its own. Unlike `ProfileScreen`, this screen DOES draw
+as `/fiche/$title` on its own. Unlike `ProfileScreen`, this screen DOES draw
 an image of its own (the hero/poster banner), so its own artwork is the
 proof at this depth rather than a stand-in read off the legacy fragment
 underneath. And unlike a `QualityProfile` name, a title here resolves
@@ -67,13 +67,13 @@ from common import PHONE, Journal
 from server import demarrer_serveur
 
 PORT = 8917
-RACINE_SERVIE = pathlib.Path("/tmp/tm-refonte")
+SERVED_ROOT = pathlib.Path("/tmp/tm-refonte")
 
-TITRE = "Silo"
+TITLE = "Silo"
 # Typed by hand, on purpose: the apostrophe is left unescaped, exactly the
 # way an operator would type it — the point of hold 5 is that NOTHING
 # corrects this on the way in.
-ADRESSE_INCONNUE = "N'Existe%20Pas"
+UNKNOWN_ADDRESS = "N'Existe%20Pas"
 
 # The fiche titles below are picked straight from the embedded référentiel
 # (`refonte.html`'s `FICHES_RAW`/`HEROS`/`trailerIds`), not invented:
@@ -84,8 +84,8 @@ ADRESSE_INCONNUE = "N'Existe%20Pas"
 # its `trailerIds` entry is absent and its sheet carries `trailer: null`
 # explicitly, and its cast/seasons are otherwise fully populated so the
 # ONLY `p.noinfo` the screen draws is the trailer's.
-TITRE_FICHE = "Silo (2023)"
-TITRE_SANS_TRAILER = "Broadchurch"
+SHEET_TITLE = "Silo (2023)"
+TITLE_WITHOUT_TRAILER = "Broadchurch"
 
 # `Backrooms.2026.MULTi.2160p.WEB-DL` is the embedded référentiel's own
 # folder waiting to be resolved (`refonte.html`'s `arr-charge` state opens
@@ -95,203 +95,203 @@ TITRE_SANS_TRAILER = "Broadchurch"
 # fallback used to mistake for a file extension and 404 on before folding.
 # Opening it through THIS deep-entry hold is what proves the fix reaches the
 # SPA, not merely the raw HTTP response `server.py`'s own self-test covers.
-DOSSIER_RESOLUTION = "Backrooms.2026.MULTi.2160p.WEB-DL"
-# `Silo` is the states table's own pick for `ecran-releases`
+RESOLUTION_FOLDER = "Backrooms.2026.MULTi.2160p.WEB-DL"
+# `Silo` is the states table's own pick for `screen-releases`
 # (`window.__ecrans.releases("Silo")`, refonte.html).
-TITRE_RELEASES = "Silo"
+RELEASES_TITLE = "Silo"
 
-ETAT_ECRAN = """() => {
-  const ecran = document.querySelector('.screen.open');
+SCREEN_STATE = """() => {
+  const screen = document.querySelector('.screen.open');
   return {
-    ouvert: !!ecran,
-    cle: ecran?.dataset.cle ?? null,
-    titre: (document.querySelector('.screen.open .screenbar span') || {}).textContent ?? null,
-    corps: (ecran?.querySelector('.body') || {}).textContent ?? '',
+    open: !!screen,
+    key: screen?.dataset.cle ?? null,
+    title: (document.querySelector('.screen.open .screenbar span') || {}).textContent ?? null,
+    body: (screen?.querySelector('.body') || {}).textContent ?? '',
     pathname: location.pathname,
   };
 }"""
 
-ETAT_AJOUT = """() => {
-  const ecran = document.querySelector('.screen.open');
+ADD_STATE = """() => {
+  const screen = document.querySelector('.screen.open');
   return {
-    ouvert: !!ecran,
-    cle: ecran?.dataset.cle ?? null,
-    champ: document.querySelector('#addq')?.value ?? null,
-    cartes: document.querySelectorAll('.reslist .card').length,
+    open: !!screen,
+    key: screen?.dataset.cle ?? null,
+    field: document.querySelector('#addq')?.value ?? null,
+    cards: document.querySelectorAll('.reslist .card').length,
     pathname: location.pathname,
-    recherche: location.search,
+    search: location.search,
   };
 }"""
 
-ETAT_IMAGES = """() => {
-  const chargees = [...document.querySelectorAll('img')].filter(i => i.complete);
+IMAGES_STATE = """() => {
+  const loaded = [...document.querySelectorAll('img')].filter(i => i.complete);
   return {
-    chargees: chargees.length,
-    cassees: chargees.filter(i => i.naturalWidth === 0).length,
+    loaded: loaded.length,
+    broken: loaded.filter(i => i.naturalWidth === 0).length,
   };
 }"""
 
 # `MediaScreen` draws its own artwork through a CSS `background-image`, not
-# an `<img>` tag (`.herowrap .herobg`) — so `ETAT_IMAGES`'s generic
+# an `<img>` tag (`.herowrap .herobg`) — so `IMAGES_STATE`'s generic
 # `<img>` sweep, which is what proves hold 2 for `ProfileScreen` (a screen
 # that draws no image of its own), does not see it at all. Proof here
 # instead re-fetches the SAME url the computed style resolves through a
 # real `Image()`, and reads `complete`/`naturalWidth` off THAT — the exact
 # pair hold (g) is phrased against.
-ETAT_HEROBG = """() => {
+HEROBG_STATE = """() => {
   const bg = document.querySelector('.screen.open .herowrap .herobg');
   const style = bg ? getComputedStyle(bg).backgroundImage : '';
-  const trouve = /url\\(["']?(.*?)["']?\\)/.exec(style || '');
-  const url = trouve ? trouve[1] : null;
-  if (!url) return Promise.resolve({ url: null, dessine: false });
+  const found = /url\\(["']?(.*?)["']?\\)/.exec(style || '');
+  const url = found ? found[1] : null;
+  if (!url) return Promise.resolve({ url: null, drawn: false });
   return new Promise((resolve) => {
     const image = new Image();
-    image.onload = () => resolve({ url, dessine: image.complete && image.naturalWidth > 0 });
-    image.onerror = () => resolve({ url, dessine: false });
+    image.onload = () => resolve({ url, drawn: image.complete && image.naturalWidth > 0 });
+    image.onerror = () => resolve({ url, drawn: false });
     image.src = url;
   });
 }"""
 
-ETAT_FICHE = """() => {
-  const ecran = document.querySelector('.screen.open');
+SHEET_STATE = """() => {
+  const screen = document.querySelector('.screen.open');
   return {
-    ouvert: !!ecran,
-    cle: ecran?.dataset.cle ?? null,
-    titre: (ecran?.querySelector('h2.ht') || {}).textContent ?? null,
-    corps: (ecran?.querySelector('.body') || {}).textContent ?? '',
-    nofiches: [...document.querySelectorAll('.screen.open p.noinfo')].map(
+    open: !!screen,
+    key: screen?.dataset.cle ?? null,
+    title: (screen?.querySelector('h2.ht') || {}).textContent ?? null,
+    body: (screen?.querySelector('.body') || {}).textContent ?? '',
+    noinfos: [...document.querySelectorAll('.screen.open p.noinfo')].map(
       (p) => p.textContent),
     pathname: location.pathname,
   };
 }"""
 
-ETAT_RESOLUTION = """() => {
-  const ecran = document.querySelector('.screen.open[data-cle^="resolution:"]');
+RESOLUTION_STATE = """() => {
+  const screen = document.querySelector('.screen.open[data-cle^="resolution:"]');
   return {
-    ouvert: !!ecran,
-    cle: ecran?.dataset.cle ?? null,
-    dossier: (ecran?.querySelector('h2.h2 code') || {}).textContent ?? null,
-    corps: (ecran?.querySelector('.body') || {}).textContent ?? '',
+    open: !!screen,
+    key: screen?.dataset.cle ?? null,
+    folder: (screen?.querySelector('h2.h2 code') || {}).textContent ?? null,
+    body: (screen?.querySelector('.body') || {}).textContent ?? '',
     pathname: location.pathname,
   };
 }"""
 
 # `RELEASES` (the ranked candidates) is a FIXED référentiel, not looked up
 # per title — unlike `sheetFor` for a fiche, there is nothing here for an
-# unknown `titre` to fail against, so `candidats` stays what it is
+# unknown `title` to fail against, so `candidates` stays what it is
 # regardless of which title the bar shows.
-ETAT_RELEASES = """() => {
-  const ecran = document.querySelector('.screen.open[data-cle^="releases:"]');
+RELEASES_STATE = """() => {
+  const screen = document.querySelector('.screen.open[data-cle^="releases:"]');
   return {
-    ouvert: !!ecran,
-    cle: ecran?.dataset.cle ?? null,
-    barre: (ecran?.querySelector('.screenbar span') || {}).textContent ?? null,
-    candidats: ecran ? ecran.querySelectorAll('.rel').length : 0,
+    open: !!screen,
+    key: screen?.dataset.cle ?? null,
+    bar: (screen?.querySelector('.screenbar span') || {}).textContent ?? null,
+    candidates: screen ? screen.querySelectorAll('.rel').length : 0,
     pathname: location.pathname,
   };
 }"""
 
 
-async def ouvrir_a(navigateur, adresse):
-    """Opens `adresse` cold, past the startup screen, on a fresh context."""
-    ctx = await navigateur.new_context(**PHONE)
+async def open_at(browser, address):
+    """Opens `address` cold, past the startup screen, on a fresh context."""
+    ctx = await browser.new_context(**PHONE)
     pg = await ctx.new_page()
-    erreurs = []
-    pg.on("pageerror", lambda e: erreurs.append(str(e)))
-    await pg.goto(adresse, wait_until="load")
+    errors = []
+    pg.on("pageerror", lambda e: errors.append(str(e)))
+    await pg.goto(address, wait_until="load")
     await pg.evaluate("()=>window.__chargementTermine?.()")
     await pg.evaluate("()=>document.querySelector('#toastx')?.click()")
     await pg.wait_for_timeout(300)
-    return ctx, pg, erreurs
+    return ctx, pg, errors
 
 
 async def main():
-    journal = Journal("R75 — les adresses d'écrans")
+    journal = Journal("R75 — the screen addresses")
 
     async with async_playwright() as p:
-        navigateur = await p.chromium.launch(channel="chrome")
+        browser = await p.chromium.launch(channel="chrome")
 
-        with demarrer_serveur(PORT, RACINE_SERVIE):
+        with demarrer_serveur(PORT, SERVED_ROOT):
             base = f"http://127.0.0.1:{PORT}"
 
             # ─── Hold 1: deep entry opens the promised screen, cold ────────
-            adresse_titre = f"{base}/profil/{urllib.parse.quote(TITRE)}"
-            ctx, pg, erreurs = await ouvrir_a(navigateur, adresse_titre)
-            etat = await pg.evaluate(ETAT_ECRAN)
+            title_address = f"{base}/profil/{urllib.parse.quote(TITLE)}"
+            ctx, pg, errors = await open_at(browser, title_address)
+            state_ = await pg.evaluate(SCREEN_STATE)
             journal.check(
-                "une adresse profonde ouvre le bon écran, à froid",
-                etat["ouvert"] and etat["cle"] == f"profil:{TITRE}",
-                f"cle={etat['cle']}")
+                "a deep address opens the right screen, cold",
+                state_["open"] and state_["key"] == f"profil:{TITLE}",
+                f"key={state_['key']}")
             journal.check(
-                "l'écran rend son contenu promis (résolution, pistes, verrous)",
-                "Résolution minimale" in etat["corps"]
-                and "Pistes audio exigées" in etat["corps"]
-                and "Deux verrous" in etat["corps"],
-                f"{len(etat['corps'])} caractères de corps")
-            journal.check("aucune erreur JS à l'entrée profonde", not erreurs, str(erreurs))
+                "the screen renders its promised content (resolution, tracks, locks)",
+                "Résolution minimale" in state_["body"]
+                and "Pistes audio exigées" in state_["body"]
+                and "Deux verrous" in state_["body"],
+                f"{len(state_['body'])} characters of body")
+            journal.check("no JS error on deep entry", not errors, str(errors))
 
             # ─── Hold 2: everything the document draws resolves through <base> ─
-            images = await pg.evaluate(ETAT_IMAGES)
+            images = await pg.evaluate(IMAGES_STATE)
             journal.check(
-                "aucune image cassée à cette profondeur (la preuve du <base>)",
-                images["chargees"] > 0 and images["cassees"] == 0,
-                f"{images['cassees']}/{images['chargees']} cassée(s)")
+                "no broken image at this depth (the <base> proof)",
+                images["loaded"] > 0 and images["broken"] == 0,
+                f"{images['broken']}/{images['loaded']} broken")
             await ctx.close()
 
             # ─── Holds 3+4: walking writes the address; back is the only close,
             # so back landing where the walk started IS the address returning ──
-            ctx, pg, erreurs = await ouvrir_a(navigateur, f"{base}/")
-            depart = await pg.evaluate(ETAT_ECRAN)
-            journal.check("le point de départ n'a aucun écran ouvert",
-                             not depart["ouvert"] and depart["pathname"] == "/",
-                             depart["pathname"])
+            ctx, pg, errors = await open_at(browser, f"{base}/")
+            start = await pg.evaluate(SCREEN_STATE)
+            journal.check("the starting point has no screen open",
+                             not start["open"] and start["pathname"] == "/",
+                             start["pathname"])
 
-            await pg.evaluate(f"()=>window.__ecrans.profil({json.dumps(TITRE)})")
+            await pg.evaluate(f"()=>window.__ecrans.profil({json.dumps(TITLE)})")
             await pg.wait_for_timeout(300)
-            sur_profil = await pg.evaluate(ETAT_ECRAN)
+            on_profile = await pg.evaluate(SCREEN_STATE)
             journal.check(
-                "marcher jusqu'au profil ÉCRIT l'adresse",
-                sur_profil["ouvert"] and sur_profil["pathname"] == f"/profil/{TITRE}",
-                sur_profil["pathname"])
+                "walking to the profile WRITES the address",
+                on_profile["open"] and on_profile["pathname"] == f"/profil/{TITLE}",
+                on_profile["pathname"])
 
             await pg.evaluate("()=>document.querySelector('.screen.open .fback').click()")
             await pg.wait_for_timeout(300)
-            revenu = await pg.evaluate(ETAT_ECRAN)
+            returned = await pg.evaluate(SCREEN_STATE)
             journal.check(
-                "fermer l'écran (son seul chemin : Retour) ramène l'adresse à ce qu'elle était",
-                revenu["pathname"] == depart["pathname"], revenu["pathname"])
-            journal.check("et l'écran est bien parti", not revenu["ouvert"],
-                             str(revenu["ouvert"]))
-            journal.check("aucune erreur JS pendant la marche", not erreurs, str(erreurs))
+                "closing the screen (its only path: Retour) returns the address to what it was",
+                returned["pathname"] == start["pathname"], returned["pathname"])
+            journal.check("and the screen is indeed gone", not returned["open"],
+                             str(returned["open"]))
+            journal.check("no JS error during the walk", not errors, str(errors))
             await ctx.close()
 
             # ─── Hold 5: a wrong deep address renders the honest empty case ──
-            adresse_fausse = f"{base}/profil/{ADRESSE_INCONNUE}"
-            ctx, pg, erreurs = await ouvrir_a(navigateur, adresse_fausse)
-            perdu = await pg.evaluate(ETAT_ECRAN)
+            wrong_address = f"{base}/profil/{UNKNOWN_ADDRESS}"
+            ctx, pg, errors = await open_at(browser, wrong_address)
+            lost = await pg.evaluate(SCREEN_STATE)
             journal.check(
-                "une adresse inconnue rend quand même l'écran, honnêtement",
-                perdu["ouvert"] and "N'Existe Pas" in (perdu["titre"] or ""),
-                f"cle={perdu['cle']} titre={perdu['titre']!r}")
+                "an unknown address still renders the screen, honestly",
+                lost["open"] and "N'Existe Pas" in (lost["title"] or ""),
+                f"key={lost['key']} title={lost['title']!r}")
             journal.check(
-                "l'adresse reste celle qui a été tapée",
-                pg.url == adresse_fausse, pg.url)
-            journal.check("aucune erreur JS sur une adresse inconnue", not erreurs, str(erreurs))
+                "the address stays exactly as typed",
+                pg.url == wrong_address, pg.url)
+            journal.check("no JS error on an unknown address", not errors, str(errors))
             await ctx.close()
 
             # ─── Hold 6: /ajout deep entry, cold — field filled, results shown ──
-            adresse_ajout = f"{base}/ajout?q=lucky"
-            ctx, pg, erreurs = await ouvrir_a(navigateur, adresse_ajout)
-            ajout_froid = await pg.evaluate(ETAT_AJOUT)
+            add_address = f"{base}/ajout?q=lucky"
+            ctx, pg, errors = await open_at(browser, add_address)
+            add_cold = await pg.evaluate(ADD_STATE)
             journal.check(
-                "une adresse profonde /ajout ouvre l'écran, à froid, le champ rempli",
-                ajout_froid["ouvert"] and ajout_froid["champ"] == "lucky"
-                and ajout_froid["cle"] == "ajout:suivi",
-                f"champ={ajout_froid['champ']!r} cle={ajout_froid['cle']}")
+                "a deep /ajout address opens the screen, cold, with the field filled",
+                add_cold["open"] and add_cold["field"] == "lucky"
+                and add_cold["key"] == "ajout:suivi",
+                f"field={add_cold['field']!r} key={add_cold['key']}")
             journal.check(
-                "et la requête affiche des résultats",
-                ajout_froid["cartes"] >= 2, f"{ajout_froid['cartes']} cartes")
-            journal.check("aucune erreur JS à l'entrée profonde /ajout", not erreurs, str(erreurs))
+                "and the query shows results",
+                add_cold["cards"] >= 2, f"{add_cold['cards']} cards")
+            journal.check("no JS error on deep /ajout entry", not errors, str(errors))
             await ctx.close()
 
             # ─── Hold 7: typing rewrites the address IN PLACE — R76 for a
@@ -301,43 +301,43 @@ async def main():
             # stacked entry per keystroke would instead surface one letter
             # short of the full word. `history.length` is deliberately not
             # read here: an observed landing state is the harder proof.
-            ctx, pg, erreurs = await ouvrir_a(navigateur, f"{base}/")
-            depart_ajout = await pg.evaluate(ETAT_ECRAN)
-            journal.check("le point de départ n'a aucun écran ouvert (avant /ajout)",
-                             not depart_ajout["ouvert"] and depart_ajout["pathname"] == "/",
-                             depart_ajout["pathname"])
+            ctx, pg, errors = await open_at(browser, f"{base}/")
+            add_start = await pg.evaluate(SCREEN_STATE)
+            journal.check("the starting point has no screen open (before /ajout)",
+                             not add_start["open"] and add_start["pathname"] == "/",
+                             add_start["pathname"])
 
             await pg.evaluate("()=>window.__ecrans.ajout('')")
             await pg.wait_for_timeout(300)
-            sur_ajout = await pg.evaluate(ETAT_AJOUT)
+            on_add = await pg.evaluate(ADD_STATE)
             journal.check(
-                "marcher jusqu'à /ajout ÉCRIT l'adresse",
-                sur_ajout["ouvert"] and sur_ajout["pathname"] == "/ajout",
-                sur_ajout["pathname"])
+                "walking to /ajout WRITES the address",
+                on_add["open"] and on_add["pathname"] == "/ajout",
+                on_add["pathname"])
 
             await pg.click("#addq")
-            for lettre in "lucky":
-                await pg.keyboard.type(lettre)
+            for letter in "lucky":
+                await pg.keyboard.type(letter)
                 await pg.wait_for_timeout(80)
             await pg.wait_for_timeout(300)
-            apres_frappe = await pg.evaluate(ETAT_AJOUT)
+            after_typing = await pg.evaluate(ADD_STATE)
             journal.check(
-                "cinq frappes réécrivent le champ ET l'adresse",
-                apres_frappe["champ"] == "lucky" and "q=lucky" in apres_frappe["recherche"],
-                f"champ={apres_frappe['champ']!r} recherche={apres_frappe['recherche']!r}")
+                "five keystrokes rewrite the field AND the address",
+                after_typing["field"] == "lucky" and "q=lucky" in after_typing["search"],
+                f"field={after_typing['field']!r} search={after_typing['search']!r}")
 
             await pg.go_back()
             await pg.wait_for_timeout(400)
-            apres_retour = await pg.evaluate(ETAT_ECRAN)
+            after_back = await pg.evaluate(SCREEN_STATE)
             journal.check(
-                "un seul retour depuis cinq frappes ramène où l'on était AVANT l'écran"
-                " (et pas mi-frappe, ce qu'un historique empilé aurait produit)",
-                not apres_retour["ouvert"] and apres_retour["pathname"] == depart_ajout["pathname"],
-                apres_retour["pathname"])
-            journal.check("aucune erreur JS pendant la frappe", not erreurs, str(erreurs))
+                "one back from five keystrokes lands where one stood BEFORE the screen"
+                " (and not mid-query, which a stacked history would have produced)",
+                not after_back["open"] and after_back["pathname"] == add_start["pathname"],
+                after_back["pathname"])
+            journal.check("no JS error while typing", not errors, str(errors))
             await ctx.close()
 
-            # ─── Hold 8: quitter un écran par la barre ──────────────────────
+            # ─── Hold 8: leaving a screen through the bar ───────────────────
             # A legacy nav control (the bottom bar) can fire while a router
             # route is open — it writes through the SAME shared history the
             # router subscribes to, never through go()/navigate(). The
@@ -345,84 +345,84 @@ async def main():
             # calls the router, yet the screen must still actually leave.
             # Reached the same way an operator does: a REAL tap on the FAB,
             # then a REAL tap on « Médiathèque ».
-            ctx, pg, erreurs = await ouvrir_a(navigateur, f"{base}/")
+            ctx, pg, errors = await open_at(browser, f"{base}/")
             await pg.click("#fab")
             await pg.wait_for_timeout(400)
-            sur_ajout_barre = await pg.evaluate(ETAT_ECRAN)
+            on_add_via_fab = await pg.evaluate(SCREEN_STATE)
             journal.check(
-                "le FAB ouvre l'écran (départ du voyage)",
-                sur_ajout_barre["ouvert"] and sur_ajout_barre["pathname"] == "/ajout",
-                sur_ajout_barre["pathname"])
+                "the FAB opens the screen (the journey's start)",
+                on_add_via_fab["open"] and on_add_via_fab["pathname"] == "/ajout",
+                on_add_via_fab["pathname"])
 
             await pg.evaluate("()=>document.querySelector('[data-page=\"lib\"]').click()")
             await pg.wait_for_timeout(400)
-            quitte = await pg.evaluate(
+            left = await pg.evaluate(
                 """() => ({
-                    ouvert: !!document.querySelector('.screen.open'),
+                    open: !!document.querySelector('.screen.open'),
                     pathname: location.pathname,
-                    recherche: location.search,
+                    search: location.search,
                     page: state.page,
                 })"""
             )
             journal.check(
-                "taper « Médiathèque » depuis /ajout fait PARTIR l'écran",
-                not quitte["ouvert"], f"ouvert={quitte['ouvert']}")
+                "tapping « Médiathèque » from /ajout makes the screen LEAVE",
+                not left["open"], f"open={left['open']}")
             journal.check(
-                "l'adresse revient au langage legacy (base + ?page=lib)",
-                quitte["pathname"] == "/" and quitte["recherche"] == "?page=lib",
-                f"{quitte['pathname']}{quitte['recherche']}")
+                "the address returns to the legacy language (base + ?page=lib)",
+                left["pathname"] == "/" and left["search"] == "?page=lib",
+                f"{left['pathname']}{left['search']}")
             journal.check(
-                "et la page rendue est bien la médiathèque",
-                quitte["page"] == "lib", f"page={quitte['page']}")
-            journal.check("aucune erreur JS en quittant par la barre", not erreurs, str(erreurs))
+                "and the page rendered really is the library",
+                left["page"] == "lib", f"page={left['page']}")
+            journal.check("no JS error when leaving through the bar", not errors, str(errors))
             await ctx.close()
 
             # ─── Holds (f)-(h): the fiche's deep entry, its OWN artwork,
-            # one Back — same server, same `ouvrir_a`, a second screen. ──
-            adresse_fiche = f"{base}/fiche/{urllib.parse.quote(TITRE_FICHE)}"
-            ctx, pg, erreurs = await ouvrir_a(navigateur, adresse_fiche)
-            fiche_froide = await pg.evaluate(ETAT_FICHE)
+            # one Back — same server, same `open_at`, a second screen. ──
+            sheet_address = f"{base}/fiche/{urllib.parse.quote(SHEET_TITLE)}"
+            ctx, pg, errors = await open_at(browser, sheet_address)
+            sheet_cold = await pg.evaluate(SHEET_STATE)
             journal.check(
-                "(f) une adresse profonde /fiche ouvre la fiche promise, à froid",
-                fiche_froide["ouvert"]
-                and fiche_froide["cle"] == f"fiche:{TITRE_FICHE}"
-                and fiche_froide["titre"] == TITRE_FICHE.split(" (")[0],
-                f"cle={fiche_froide['cle']} titre={fiche_froide['titre']!r}")
-            artwork = await pg.evaluate(ETAT_HEROBG)
+                "(f) a deep /fiche address opens the promised media sheet, cold",
+                sheet_cold["open"]
+                and sheet_cold["key"] == f"fiche:{SHEET_TITLE}"
+                and sheet_cold["title"] == SHEET_TITLE.split(" (")[0],
+                f"key={sheet_cold['key']} title={sheet_cold['title']!r}")
+            artwork = await pg.evaluate(HEROBG_STATE)
             journal.check(
-                "(g) le hero/l'affiche que la fiche dessine ELLE-MÊME se charge réellement",
-                artwork["url"] is not None and artwork["dessine"],
-                f"url={artwork['url']!r} dessine={artwork['dessine']}")
-            journal.check("aucune erreur JS à l'entrée profonde /fiche", not erreurs, str(erreurs))
+                "(g) the hero/poster the sheet draws ITSELF really loads",
+                artwork["url"] is not None and artwork["drawn"],
+                f"url={artwork['url']!r} drawn={artwork['drawn']}")
+            journal.check("no JS error on deep /fiche entry", not errors, str(errors))
 
             await pg.evaluate("()=>document.querySelector('.screen.open .fback').click()")
             await pg.wait_for_timeout(300)
-            revenu_fiche = await pg.evaluate(ETAT_ECRAN)
+            sheet_returned = await pg.evaluate(SCREEN_STATE)
             journal.check(
-                "(h) un Retour depuis la fiche ramène sur la page par défaut, écran parti, adresse /",
-                not revenu_fiche["ouvert"] and revenu_fiche["pathname"] == "/",
-                revenu_fiche["pathname"])
-            journal.check("aucune erreur JS pendant le retour depuis la fiche", not erreurs, str(erreurs))
+                "(h) a Retour from the sheet lands on the default page, screen gone, address /",
+                not sheet_returned["open"] and sheet_returned["pathname"] == "/",
+                sheet_returned["pathname"])
+            journal.check("no JS error during the back from the sheet", not errors, str(errors))
             await ctx.close()
 
             # ─── Hold (i): an unknown title renders the SAME honest
             # template `openFiche` always did — no not-found branch to
             # mirror, only a gabarit whose fields say "inconnu" ──────────
-            adresse_fiche_fausse = f"{base}/fiche/{ADRESSE_INCONNUE}"
-            ctx, pg, erreurs = await ouvrir_a(navigateur, adresse_fiche_fausse)
-            fiche_perdue = await pg.evaluate(ETAT_FICHE)
+            wrong_sheet_address = f"{base}/fiche/{UNKNOWN_ADDRESS}"
+            ctx, pg, errors = await open_at(browser, wrong_sheet_address)
+            sheet_lost = await pg.evaluate(SHEET_STATE)
             journal.check(
-                "(i) un titre inconnu rend quand même la fiche, honnêtement — le "
-                "gabarit d'openFiche(title) n'avait pas de branche « non trouvé »",
-                fiche_perdue["ouvert"]
-                and fiche_perdue["titre"] == "N'Existe Pas"
-                and "Métadonnées inconnues" in fiche_perdue["corps"]
-                and "Genres inconnus" in fiche_perdue["corps"],
-                f"cle={fiche_perdue['cle']} titre={fiche_perdue['titre']!r}")
+                "(i) an unknown title still renders the sheet, honestly — openFiche(title)'s "
+                "own template had no « not found » branch",
+                sheet_lost["open"]
+                and sheet_lost["title"] == "N'Existe Pas"
+                and "Métadonnées inconnues" in sheet_lost["body"]
+                and "Genres inconnus" in sheet_lost["body"],
+                f"key={sheet_lost['key']} title={sheet_lost['title']!r}")
             journal.check(
-                "l'adresse reste celle qui a été tapée",
-                pg.url == adresse_fiche_fausse, pg.url)
-            journal.check("aucune erreur JS sur un titre de fiche inconnu", not erreurs, str(erreurs))
+                "the address stays exactly as typed",
+                pg.url == wrong_sheet_address, pg.url)
+            journal.check("no JS error on an unknown sheet title", not errors, str(errors))
             await ctx.close()
 
             # ─── Hold (j): a title with no trailer renders p.noinfo in
@@ -430,76 +430,76 @@ async def main():
             # otherwise fully populated, so this is the ONLY p.noinfo the
             # screen draws; a stray match here would be a real regression,
             # not a coincidence from an unrelated missing field. ─────────
-            adresse_sans_trailer = f"{base}/fiche/{urllib.parse.quote(TITRE_SANS_TRAILER)}"
-            ctx, pg, erreurs = await ouvrir_a(navigateur, adresse_sans_trailer)
-            fiche_sans_trailer = await pg.evaluate(ETAT_FICHE)
+            no_trailer_address = f"{base}/fiche/{urllib.parse.quote(TITLE_WITHOUT_TRAILER)}"
+            ctx, pg, errors = await open_at(browser, no_trailer_address)
+            sheet_no_trailer = await pg.evaluate(SHEET_STATE)
             journal.check(
-                "(j) une fiche sans bande-annonce rend p.noinfo à sa place",
-                fiche_sans_trailer["ouvert"]
-                and len(fiche_sans_trailer["nofiches"]) == 1
-                and "bande-annonce" in fiche_sans_trailer["nofiches"][0],
-                f"nofiches={fiche_sans_trailer['nofiches']!r}")
-            journal.check("aucune erreur JS sur une fiche sans bande-annonce", not erreurs, str(erreurs))
+                "(j) a sheet with no trailer renders p.noinfo in its place",
+                sheet_no_trailer["open"]
+                and len(sheet_no_trailer["noinfos"]) == 1
+                and "bande-annonce" in sheet_no_trailer["noinfos"][0],
+                f"noinfos={sheet_no_trailer['noinfos']!r}")
+            journal.check("no JS error on a sheet with no trailer", not errors, str(errors))
             await ctx.close()
 
             # ─── Holds (k)-(l): the arbitration screen's deep entry — the
-            # SAME dossier that regresses `server.py`'s fallback (its
+            # SAME folder that regresses `server.py`'s fallback (its
             # deepest segment carries dots, `Backrooms.2026.MULTi.2160p.
             # WEB-DL`), so reaching it here is also what proves the fix
             # holds all the way to the SPA, not merely the raw HTTP
             # response `server.py`'s own self-test already covers. ──────
-            adresse_resolution = f"{base}/resolution/{urllib.parse.quote(DOSSIER_RESOLUTION)}"
-            ctx, pg, erreurs = await ouvrir_a(navigateur, adresse_resolution)
-            resolution_froide = await pg.evaluate(ETAT_RESOLUTION)
+            resolution_address = f"{base}/resolution/{urllib.parse.quote(RESOLUTION_FOLDER)}"
+            ctx, pg, errors = await open_at(browser, resolution_address)
+            resolution_cold = await pg.evaluate(RESOLUTION_STATE)
             journal.check(
-                "(k) une adresse profonde /resolution ouvre l'écran promis, à froid — "
-                "le dossier tapé, en chasse fixe",
-                resolution_froide["ouvert"]
-                and resolution_froide["cle"] == f"resolution:{DOSSIER_RESOLUTION}"
-                and resolution_froide["dossier"] == DOSSIER_RESOLUTION,
-                f"cle={resolution_froide['cle']} dossier={resolution_froide['dossier']!r}")
-            journal.check("aucune erreur JS à l'entrée profonde /resolution", not erreurs, str(erreurs))
+                "(k) a deep /resolution address opens the promised screen, cold — "
+                "the folder as typed, in the mono face",
+                resolution_cold["open"]
+                and resolution_cold["key"] == f"resolution:{RESOLUTION_FOLDER}"
+                and resolution_cold["folder"] == RESOLUTION_FOLDER,
+                f"key={resolution_cold['key']} folder={resolution_cold['folder']!r}")
+            journal.check("no JS error on deep /resolution entry", not errors, str(errors))
 
             await pg.evaluate("()=>document.querySelector('.screen.open .fback').click()")
             await pg.wait_for_timeout(300)
-            revenu_resolution = await pg.evaluate(ETAT_ECRAN)
+            resolution_returned = await pg.evaluate(SCREEN_STATE)
             journal.check(
-                "(l) un Retour depuis la résolution ramène sur la page par défaut, "
-                "écran parti, adresse /",
-                not revenu_resolution["ouvert"] and revenu_resolution["pathname"] == "/",
-                revenu_resolution["pathname"])
-            journal.check("aucune erreur JS pendant le retour depuis la résolution",
-                             not erreurs, str(erreurs))
+                "(l) a Retour from the resolution lands on the default page, "
+                "screen gone, address /",
+                not resolution_returned["open"] and resolution_returned["pathname"] == "/",
+                resolution_returned["pathname"])
+            journal.check("no JS error during the back from the resolution",
+                             not errors, str(errors))
             await ctx.close()
 
             # ─── Holds (m)-(n): the release picker's deep entry — its bar
             # carries the title, not a lookup: RELEASES is a fixed
-            # référentiel, so there is nothing here to fail against a titre,
+            # référentiel, so there is nothing here to fail against a title,
             # unlike the fiche's `sheetFor`. ──────────────────────────────
-            adresse_releases = f"{base}/releases/{urllib.parse.quote(TITRE_RELEASES)}"
-            ctx, pg, erreurs = await ouvrir_a(navigateur, adresse_releases)
-            releases_froid = await pg.evaluate(ETAT_RELEASES)
+            releases_address = f"{base}/releases/{urllib.parse.quote(RELEASES_TITLE)}"
+            ctx, pg, errors = await open_at(browser, releases_address)
+            releases_cold = await pg.evaluate(RELEASES_STATE)
             journal.check(
-                "(m) une adresse profonde /releases ouvre l'écran promis, à froid — "
-                "le titre dans la barre, des candidats dessinés",
-                releases_froid["ouvert"]
-                and releases_froid["cle"] == f"releases:{TITRE_RELEASES}"
-                and releases_froid["barre"] == TITRE_RELEASES
-                and releases_froid["candidats"] > 0,
-                f"cle={releases_froid['cle']} barre={releases_froid['barre']!r} "
-                f"candidats={releases_froid['candidats']}")
-            journal.check("aucune erreur JS à l'entrée profonde /releases", not erreurs, str(erreurs))
+                "(m) a deep /releases address opens the promised screen, cold — "
+                "the title in the bar, candidates drawn",
+                releases_cold["open"]
+                and releases_cold["key"] == f"releases:{RELEASES_TITLE}"
+                and releases_cold["bar"] == RELEASES_TITLE
+                and releases_cold["candidates"] > 0,
+                f"key={releases_cold['key']} bar={releases_cold['bar']!r} "
+                f"candidates={releases_cold['candidates']}")
+            journal.check("no JS error on deep /releases entry", not errors, str(errors))
 
             await pg.evaluate("()=>document.querySelector('.screen.open .fback').click()")
             await pg.wait_for_timeout(300)
-            revenu_releases = await pg.evaluate(ETAT_ECRAN)
+            releases_returned = await pg.evaluate(SCREEN_STATE)
             journal.check(
-                "(n) un Retour depuis les releases ramène sur la page par défaut, "
-                "écran parti, adresse /",
-                not revenu_releases["ouvert"] and revenu_releases["pathname"] == "/",
-                revenu_releases["pathname"])
-            journal.check("aucune erreur JS pendant le retour depuis les releases",
-                             not erreurs, str(erreurs))
+                "(n) a Retour from the releases lands on the default page, "
+                "screen gone, address /",
+                not releases_returned["open"] and releases_returned["pathname"] == "/",
+                releases_returned["pathname"])
+            journal.check("no JS error during the back from the releases",
+                             not errors, str(errors))
             await ctx.close()
 
             # ─── Hold (o): an unknown deep /resolution value renders the
@@ -508,48 +508,48 @@ async def main():
             # takes the branch it already draws for that: no candidates
             # borrowed, the "aucun candidat" rulenote, and the two ways out
             # that do not depend on one still offered. ────────────────────
-            adresse_resolution_fausse = f"{base}/resolution/{ADRESSE_INCONNUE}"
-            ctx, pg, erreurs = await ouvrir_a(navigateur, adresse_resolution_fausse)
-            resolution_perdue = await pg.evaluate(ETAT_RESOLUTION)
-            corps_resolution_perdue = resolution_perdue["corps"].lower()
+            wrong_resolution_address = f"{base}/resolution/{UNKNOWN_ADDRESS}"
+            ctx, pg, errors = await open_at(browser, wrong_resolution_address)
+            resolution_lost = await pg.evaluate(RESOLUTION_STATE)
+            resolution_lost_body = resolution_lost["body"].lower()
             journal.check(
-                "(o) un dossier inconnu rend quand même l'écran, honnêtement — aucun "
-                "candidat emprunté, la recherche manuelle et « laisser tel quel » restent offertes",
-                resolution_perdue["ouvert"]
-                and resolution_perdue["dossier"] == "N'Existe Pas"
-                and "aucun candidat" in corps_resolution_perdue
-                and "manuellement" in corps_resolution_perdue
-                and "Laisser tel quel" in resolution_perdue["corps"],
-                f"cle={resolution_perdue['cle']} dossier={resolution_perdue['dossier']!r}")
+                "(o) an unknown folder still renders the screen, honestly — no candidate "
+                "borrowed, the manual search and « laisser tel quel » still offered",
+                resolution_lost["open"]
+                and resolution_lost["folder"] == "N'Existe Pas"
+                and "aucun candidat" in resolution_lost_body
+                and "manuellement" in resolution_lost_body
+                and "Laisser tel quel" in resolution_lost["body"],
+                f"key={resolution_lost['key']} folder={resolution_lost['folder']!r}")
             journal.check(
-                "l'adresse reste celle qui a été tapée",
-                pg.url == adresse_resolution_fausse, pg.url)
-            journal.check("aucune erreur JS sur un dossier de résolution inconnu",
-                             not erreurs, str(erreurs))
+                "the address stays exactly as typed",
+                pg.url == wrong_resolution_address, pg.url)
+            journal.check("no JS error on an unknown resolution folder",
+                             not errors, str(errors))
             await ctx.close()
 
             # ─── Hold (p): an unknown deep /releases value renders the SAME
             # candidate list — RELEASES carries no per-title lookup to fail,
             # unlike a fiche's `sheetFor`, so the honest case here is simply
-            # the ordinary screen, wearing whatever titre was typed. ───────
-            adresse_releases_fausse = f"{base}/releases/{ADRESSE_INCONNUE}"
-            ctx, pg, erreurs = await ouvrir_a(navigateur, adresse_releases_fausse)
-            releases_perdu = await pg.evaluate(ETAT_RELEASES)
+            # the ordinary screen, wearing whatever title was typed. ───────
+            wrong_releases_address = f"{base}/releases/{UNKNOWN_ADDRESS}"
+            ctx, pg, errors = await open_at(browser, wrong_releases_address)
+            releases_lost = await pg.evaluate(RELEASES_STATE)
             journal.check(
-                "(p) un titre inconnu rend quand même la liste des releases, "
-                "avec ce titre dans la barre",
-                releases_perdu["ouvert"]
-                and releases_perdu["barre"] == "N'Existe Pas"
-                and releases_perdu["candidats"] > 0,
-                f"cle={releases_perdu['cle']} barre={releases_perdu['barre']!r}")
+                "(p) an unknown title still renders the releases list, "
+                "with that title in the bar",
+                releases_lost["open"]
+                and releases_lost["bar"] == "N'Existe Pas"
+                and releases_lost["candidates"] > 0,
+                f"key={releases_lost['key']} bar={releases_lost['bar']!r}")
             journal.check(
-                "l'adresse reste celle qui a été tapée",
-                pg.url == adresse_releases_fausse, pg.url)
-            journal.check("aucune erreur JS sur un titre de releases inconnu",
-                             not erreurs, str(erreurs))
+                "the address stays exactly as typed",
+                pg.url == wrong_releases_address, pg.url)
+            journal.check("no JS error on an unknown releases title",
+                             not errors, str(errors))
             await ctx.close()
 
-        await navigateur.close()
+        await browser.close()
 
     journal.summary()
 

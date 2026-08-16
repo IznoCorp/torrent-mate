@@ -29,7 +29,7 @@ async def main():
     await pg.evaluate("()=>window.__chargementTermine?.()")
     await pg.evaluate("()=>document.querySelector('#toastx').click()")
 
-    print("── Suivis: action swipe ──")
+    print("── Suivis: swipe action ──")
     await pg.click('[data-acqtab="suivis"]'); await pg.wait_for_timeout(300)
     await pg.evaluate(SW, ["#view .swipe", -1, 9])
     print("  transform :", await pg.evaluate("()=>getComputedStyle(document.querySelector('#view .swipe .card')).transform"))
@@ -47,26 +47,26 @@ async def main():
         await pg.click("#libretry"); await pg.wait_for_timeout(900)
     print("  tiles after retry:", await pg.evaluate("()=>document.querySelectorAll('#libitems .tile').length"))
 
-    print("── Médiathèque : suppression ──")
+    print("── Médiathèque: deletion ──")
     await pg.click('[data-lmode="list"]'); await pg.wait_for_timeout(350)
     await pg.evaluate(SW, ["#libitems .swipe", -1, 8])
     await pg.evaluate("()=>document.querySelector('#libitems .swipe .act.remove').click()")
     await pg.wait_for_timeout(400)
     d = await pg.evaluate("""()=>{const g=document.querySelector('#dlg');
-      return {ouvert:g.classList.contains('open'), titre:(g.querySelector('h3')||{}).textContent,
-              dryrun:!!g.querySelector('.dryrun'), lignes:g.querySelectorAll('.manifest li').length,
-              choix:[...g.querySelectorAll('.dlgbtn')].map(x=>x.textContent.trim())};}""")
+      return {open:g.classList.contains('open'), title:(g.querySelector('h3')||{}).textContent,
+              dryrun:!!g.querySelector('.dryrun'), rows:g.querySelectorAll('.manifest li').length,
+              choices:[...g.querySelectorAll('.dlgbtn')].map(x=>x.textContent.trim())};}""")
     print(" ", d)
     await pg.screenshot(path="w_suppression.png")
 
-    print("── Découvrir : lot, panneau, glissé, annuler ──")
+    print("── Découvrir: batch, panel, drag, undo ──")
     await pg.evaluate("()=>document.querySelector('#dlgcancel').click()"); await pg.wait_for_timeout(300)
     await pg.click('[data-page="acq"]'); await pg.click('[data-acqtab="decouvrir"]'); await pg.wait_for_timeout(450)
-    print("  lot initial :", await pg.evaluate("()=>document.querySelectorAll('.sugwrap').length"))
+    print("  initial batch   :", await pg.evaluate("()=>document.querySelectorAll('.sugwrap').length"))
     await pg.evaluate(SW, ["[data-dismissable='0']", 1, 9])
     print("  after right swipe:", await pg.evaluate("()=>document.querySelectorAll('.sugwrap').length"))
     await pg.click("#toastundo"); await pg.wait_for_timeout(350)
-    print("  après Annuler :", await pg.evaluate("()=>document.querySelectorAll('.sugwrap').length"))
+    print("  after Annuler   :", await pg.evaluate("()=>document.querySelectorAll('.sugwrap').length"))
     print("\nJS errors:", errs or "none")
     await b.close()
     # A script that only prints can never fail, and a script that cannot fail

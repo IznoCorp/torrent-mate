@@ -26,19 +26,19 @@ from common import Journal, open_page
 _journal = None
 
 
-def verifier(nom, condition, detail=""):
-    return _journal.check(nom, condition, detail)
+def check(name, condition, detail=""):
+    return _journal.check(name, condition, detail)
 
 
 async def main():
     global _journal
-    _journal = Journal("R71 — le retour redessine l'écran couvert")
+    _journal = Journal("R71 — the back redraws the screen it covered")
 
     async with async_playwright() as p:
-        navigateur = await p.chromium.launch(channel="chrome")
-        ctx, pg = await open_page(navigateur)
-        erreurs = []
-        pg.on("pageerror", lambda e: erreurs.append(str(e)))
+        browser = await p.chromium.launch(channel="chrome")
+        ctx, pg = await open_page(browser)
+        errors = []
+        pg.on("pageerror", lambda e: errors.append(str(e)))
 
         await pg.evaluate("()=>window.__go('acq-ajout-resultats')")
         await pg.wait_for_timeout(400)
@@ -46,24 +46,24 @@ async def main():
         # inside `#coquille`): its results list is `.screen.open`, not
         # literally `#screen` — and so is the FICHE this journey opens further
         # down (`/fiche/$titre`). Each is named by its own `data-cle`.
-        depart = await pg.evaluate("""()=>({
-            ecran: !!document.querySelector('.screen.open'),
-            cle: document.querySelector('.screen.open')?.dataset.cle,
-            cartes: document.querySelectorAll('.reslist .card').length,
-            pieds: document.querySelectorAll('.reslist .cfoot').length,
-            requete: document.querySelector('#addq')?.value})""")
-        verifier("l'écran de résultats est là", depart["ecran"] and depart["cartes"] >= 2,
-                 f"{depart['cartes']} cartes · clé {depart['cle']}")
-        verifier("une carte de résultat ne porte aucune action en pied",
-                 depart["pieds"] == 0, f"{depart['pieds']} pied(s)")
+        start = await pg.evaluate("""()=>({
+            screen: !!document.querySelector('.screen.open'),
+            key: document.querySelector('.screen.open')?.dataset.cle,
+            cards: document.querySelectorAll('.reslist .card').length,
+            feet: document.querySelectorAll('.reslist .cfoot').length,
+            query: document.querySelector('#addq')?.value})""")
+        check("the results screen is there", start["screen"] and start["cards"] >= 2,
+              f"{start['cards']} cards · key {start['key']}")
+        check("a result card carries no action in its foot",
+              start["feet"] == 0, f"{start['feet']} foot(s)")
 
         # The removal above is safe only because the act still has a home:
         # the result's panel must offer it.
         await pg.evaluate("()=>document.querySelector('.reslist .cbody').click()")
         await pg.wait_for_timeout(420)
-        acte = await pg.evaluate(
+        act = await pg.evaluate(
             "()=>document.querySelector('#sheet .sact.primary')?.textContent.trim() ?? null")
-        verifier("le panneau du résultat porte l'acte", bool(acte), f"« {acte} »")
+        check("the result's panel carries the act", bool(act), f"« {act} »")
         await pg.evaluate("()=>window.__close('sheet')")
         await pg.wait_for_timeout(300)
 
@@ -78,12 +78,12 @@ async def main():
         # two screens can carry `open` at once, and a selector that cannot
         # tell them apart is exactly the ambiguity the explicit reads below
         # exist to remove.
-        fiche = await pg.evaluate("""()=>{
+        sheet_screen = await pg.evaluate("""()=>{
             const f = document.querySelector('.screen.open[data-cle^="fiche:"]');
-            return {ecran: !!f, dessus: !!f?.querySelector('.herowrap'),
-                    cle: f?.dataset.cle};}""")
-        verifier("le poster ouvre la fiche sur le même calque",
-                 fiche["ecran"] and fiche["dessus"], f"clé {fiche['cle']}")
+            return {screen: !!f, hero: !!f?.querySelector('.herowrap'),
+                    key: f?.dataset.cle};}""")
+        check("the poster opens the media sheet on the same layer",
+              sheet_screen["screen"] and sheet_screen["hero"], f"key {sheet_screen['key']}")
 
         await pg.go_back()
         await pg.wait_for_timeout(500)
@@ -93,31 +93,31 @@ async def main():
         # own key rather than by a class shared with everything else. A fiche
         # that failed to close is what a bare `.screen.open` would mask, so it
         # is read explicitly, by identity.
-        retour = await pg.evaluate("""()=>({
-            ecran: !!document.querySelector('.screen.open'),
-            cle: document.querySelector('.screen.open')?.dataset.cle,
-            cartes: document.querySelectorAll('.reslist .card').length,
-            requete: document.querySelector('#addq')?.value,
+        back = await pg.evaluate("""()=>({
+            screen: !!document.querySelector('.screen.open'),
+            key: document.querySelector('.screen.open')?.dataset.cle,
+            cards: document.querySelectorAll('.reslist .card').length,
+            query: document.querySelector('#addq')?.value,
             scroll: document.querySelector('.screen.open .port')?.scrollTop,
-            ficheEncoreLa: !!document.querySelector('.screen.open[data-cle^="fiche:"]')})""")
-        verifier("le retour redessine la liste de résultats",
-                 retour["ecran"] and (retour["cle"] or "").startswith("ajout:")
-                 and retour["cartes"] == depart["cartes"]
-                 and retour["requete"] == depart["requete"],
-                 f"{retour['cartes']} cartes · requête « {retour['requete']} »")
-        verifier("avec sa position de défilement",
-                 abs(retour["scroll"] - 300) <= 40, f"{retour['scroll']}px")
-        verifier("et la fiche n'est plus là",
-                 not retour["ficheEncoreLa"], f"fiche ouverte={retour['ficheEncoreLa']}")
+            sheetStillThere: !!document.querySelector('.screen.open[data-cle^="fiche:"]')})""")
+        check("the back redraws the results list",
+              back["screen"] and (back["key"] or "").startswith("ajout:")
+              and back["cards"] == start["cards"]
+              and back["query"] == start["query"],
+              f"{back['cards']} cards · query « {back['query']} »")
+        check("with its scroll position",
+              abs(back["scroll"] - 300) <= 40, f"{back['scroll']}px")
+        check("and the media sheet is gone",
+              not back["sheetStillThere"], f"sheet open={back['sheetStillThere']}")
 
         await pg.go_back()
         await pg.wait_for_timeout(450)
-        sorti = await pg.evaluate("""()=>({
-            ecran: !!document.querySelector('.screen.open'),
+        left = await pg.evaluate("""()=>({
+            screen: !!document.querySelector('.screen.open'),
             page: state.page})""")
-        verifier("et un retour de plus quitte l'écran",
-                 not sorti["ecran"] and sorti["page"] == "acq",
-                 f"page {sorti['page']}")
+        check("and one more back leaves the layer",
+              not left["screen"] and left["page"] == "acq",
+              f"page {left['page']}")
 
         # ── Exit 2: the « Retour » button on the sheet ──────────────────────
         await pg.evaluate("()=>window.__go('acq-ajout-resultats')")
@@ -130,22 +130,22 @@ async def main():
         await pg.evaluate(
             """()=>document.querySelector('.screen.open[data-cle^="fiche:"] .fback').click()""")
         await pg.wait_for_timeout(500)
-        # R-7: same read by identity as exit 1's `retour` — a fiche that failed
+        # R-7: same read by identity as exit 1's `back` — a fiche that failed
         # to close here is exactly what a bare `.screen.open` would miss.
-        bouton = await pg.evaluate("""()=>({
-            ecran: !!document.querySelector('.screen.open'),
-            cle: document.querySelector('.screen.open')?.dataset.cle,
-            cartes: document.querySelectorAll('.reslist .card').length,
-            ficheEncoreLa: !!document.querySelector('.screen.open[data-cle^="fiche:"]')})""")
-        verifier("le bouton « Retour » de la fiche fait de même",
-                 bouton["ecran"] and (bouton["cle"] or "").startswith("ajout:")
-                 and bouton["cartes"] == depart["cartes"],
-                 f"{bouton['cartes']} cartes")
-        verifier("et la fiche n'est plus là non plus",
-                 not bouton["ficheEncoreLa"], f"fiche ouverte={bouton['ficheEncoreLa']}")
+        button = await pg.evaluate("""()=>({
+            screen: !!document.querySelector('.screen.open'),
+            key: document.querySelector('.screen.open')?.dataset.cle,
+            cards: document.querySelectorAll('.reslist .card').length,
+            sheetStillThere: !!document.querySelector('.screen.open[data-cle^="fiche:"]')})""")
+        check("the sheet's « Retour » button does the same",
+              button["screen"] and (button["key"] or "").startswith("ajout:")
+              and button["cards"] == start["cards"],
+              f"{button['cards']} cards")
+        check("and the media sheet is gone here too",
+              not button["sheetStillThere"], f"sheet open={button['sheetStillThere']}")
 
-        await navigateur.close()
-    _journal.summary(erreurs)
+        await browser.close()
+    _journal.summary(errors)
 
 
 asyncio.run(main())

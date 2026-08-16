@@ -6,7 +6,7 @@ the day a page went blank because a constant had disappeared.
 import asyncio
 from playwright.async_api import async_playwright
 
-VUES = [("acq/encours", "acq-encours-{s}"), ("acq/suivis", "acq-suivis-liste"),
+VIEWS = [("acq/encours", "acq-encours-{s}"), ("acq/suivis", "acq-suivis-liste"),
         ("acq/decouvrir", "acq-decouvrir"), ("lib/medias", "lib-grille"),
         ("lib/incomplets", "lib-incomplets"), ("lib/recents", "lib-recents"),
         ("arrivees", "arr-{s}"), ("systeme", "systeme")]
@@ -24,11 +24,11 @@ async def main():
     # wait through the same seam the app uses, rather than sleeping it out.
     await pg.evaluate("()=>window.__chargementTermine?.()")
     total_bad = 0
-    for scen, mot in (("reel", "repos"), ("charge", "charge")):
+    for scen, word in (("reel", "repos"), ("charge", "charge")):
         print(f"\n=== scenario {scen} ===")
         await pg.evaluate("(s)=>{state.scen=s;render();}", scen)
-        for nom, sid in VUES:
-            await pg.evaluate("(i)=>window.__go(i)", sid.format(s=mot))
+        for name, sid in VIEWS:
+            await pg.evaluate("(i)=>window.__go(i)", sid.format(s=word))
             await pg.evaluate("(s)=>{state.scen=s;render();}", scen)
             await pg.wait_for_timeout(320)
             r = await pg.evaluate("""()=>{const v=document.querySelector('#view');
@@ -37,16 +37,16 @@ async def main():
                       // when Système stopped being a wall of `.kv`: it is the
                       // same kind of object, so what this counts is unchanged —
                       // is there structure, or only prose.
-                      cartes:v.querySelectorAll('.card,.tile,.kv,.fx').length,
-                      vide:!!v.querySelector('.empty'),
+                      cards:v.querySelectorAll('.card,.tile,.kv,.fx').length,
+                      empty:!!v.querySelector('.empty'),
                       doc:document.documentElement.scrollWidth,
-                      deb:[...v.querySelectorAll('*')].filter(e=>e.getBoundingClientRect().right>390.5&&!e.closest('.pillscroll')&&!e.closest('.cast')).length};}""")
-            ok = r['txt'] > 100 and r['doc'] <= 390 and r['deb'] == 0 and (r['cartes'] > 0 or r['vide'])
+                      spills:[...v.querySelectorAll('*')].filter(e=>e.getBoundingClientRect().right>390.5&&!e.closest('.pillscroll')&&!e.closest('.cast')).length};}""")
+            ok = r['txt'] > 100 and r['doc'] <= 390 and r['spills'] == 0 and (r['cards'] > 0 or r['empty'])
             if not ok: total_bad += 1
-            print(("  OK  " if ok else "  FAIL"), f"{nom:16}", r)
-            await pg.screenshot(path=f"z_{scen}_{nom.replace('/','_')}.png")
+            print(("  PASS" if ok else "  FAIL"), f"{name:16}", r)
+            await pg.screenshot(path=f"z_{scen}_{name.replace('/','_')}.png")
     print("\nJS errors:", errs or "none")
-    print("VERDICT:", "16/16 renders conform" if total_bad == 0 and not errs else f"{total_bad} failec(s)")
+    print("VERDICT:", "16/16 renders conform" if total_bad == 0 and not errs else f"{total_bad} failure(s)")
     await b.close()
     # A script that only prints can never fail, and a script that cannot fail
     # proves nothing: the verdict has to reach the exit code.

@@ -45,20 +45,20 @@ from common import ROOT, Journal, open_page
 
 DESIGN_SRC = ROOT / "design" / "src"
 
-TITRE = "Silo"
-TITRE_AUTRE = "House of the Dragon"
+TITLE = "Silo"
+OTHER_TITLE = "House of the Dragon"
 
-ETAT_ECRAN = """() => {
-  const ecran = document.querySelector('.screen.open');
+SCREEN_STATE = """() => {
+  const screen = document.querySelector('.screen.open');
   return {
-    ouvert: !!ecran,
-    cle: ecran?.dataset.cle ?? null,
+    open: !!screen,
+    key: screen?.dataset.cle ?? null,
     pathname: location.pathname,
   };
 }"""
 
 
-def sans_commentaires_legers(source):
+def without_line_comments(source):
     """Blanks `//` line comments in hand-written TypeScript source.
 
     `design/src/` is authored directly — no minifier, no dense regular
@@ -75,33 +75,33 @@ def sans_commentaires_legers(source):
     Returns:
         The same text with every `//…` line-comment tail blanked.
     """
-    lignes = []
-    for ligne in source.splitlines():
-        guillemet = None
+    lines = []
+    for line in source.splitlines():
+        quote = None
         i = 0
-        while i < len(ligne):
-            c = ligne[i]
-            if guillemet:
-                if c == "\\" and i + 1 < len(ligne):
+        while i < len(line):
+            c = line[i]
+            if quote:
+                if c == "\\" and i + 1 < len(line):
                     i += 2
                     continue
-                if c == guillemet:
-                    guillemet = None
+                if c == quote:
+                    quote = None
                 i += 1
                 continue
             if c in "\"'`":
-                guillemet = c
+                quote = c
                 i += 1
                 continue
-            if ligne[i : i + 2] == "//":
-                ligne = ligne[:i]
+            if line[i : i + 2] == "//":
+                line = line[:i]
                 break
             i += 1
-        lignes.append(ligne)
-    return "\n".join(lignes)
+        lines.append(line)
+    return "\n".join(lines)
 
 
-def compter_navigate_hors_go(design_src):
+def count_navigate_outside_go(design_src):
     """Counts `navigate(` calls under `design/src/`, and how many sit
     outside `go()`'s own body in `shell.tsx`.
 
@@ -109,26 +109,26 @@ def compter_navigate_hors_go(design_src):
         design_src: The `design/src/` directory.
 
     Returns:
-        `(total, hors_go)` — the total call count after comments are
+        `(total, outside_go)` — the total call count after comments are
         blanked, and how many of those are NOT inside `export function
         go(`'s body.
     """
     total = 0
-    hors_go = 0
-    fichiers = sorted(design_src.rglob("*.ts")) + sorted(design_src.rglob("*.tsx"))
-    for fichier in fichiers:
-        nettoye = sans_commentaires_legers(fichier.read_text(encoding="utf-8"))
-        positions = [m.start() for m in re.finditer(r"\bnavigate\(", nettoye)]
+    outside_go = 0
+    files = sorted(design_src.rglob("*.ts")) + sorted(design_src.rglob("*.tsx"))
+    for file in files:
+        cleaned = without_line_comments(file.read_text(encoding="utf-8"))
+        positions = [m.start() for m in re.finditer(r"\bnavigate\(", cleaned)]
         total += len(positions)
-        if fichier.name != "shell.tsx":
-            hors_go += len(positions)
+        if file.name != "shell.tsx":
+            outside_go += len(positions)
             continue
-        debut, fin = bornes_corps_go(nettoye)
-        hors_go += sum(1 for pos in positions if not (debut >= 0 and debut <= pos <= fin))
-    return total, hors_go
+        start, end = go_body_bounds(cleaned)
+        outside_go += sum(1 for pos in positions if not (start >= 0 and start <= pos <= end))
+    return total, outside_go
 
 
-def bornes_corps_go(nettoye):
+def go_body_bounds(cleaned):
     """Finds `go()`'s own body span, braces balanced.
 
     The parameter list is itself an object type literal (`vers: {…}`) — its
@@ -139,65 +139,65 @@ def bornes_corps_go(nettoye):
     from the function body's own opening brace to find where it ends.
 
     Args:
-        nettoye: Comment-blanked TypeScript source.
+        cleaned: Comment-blanked TypeScript source.
 
     Returns:
-        `(debut, fin)` character offsets spanning `go()`'s body
+        `(start, end)` character offsets spanning `go()`'s body
         (inclusive of both braces), or `(-1, -1)` if not found.
     """
-    debut = nettoye.find("export function go(")
-    if debut < 0:
+    start = cleaned.find("export function go(")
+    if start < 0:
         return -1, -1
-    profondeur, i = 0, nettoye.index("(", debut)
-    while i < len(nettoye):
-        if nettoye[i] == "(":
-            profondeur += 1
-        elif nettoye[i] == ")":
-            profondeur -= 1
-            if profondeur == 0:
+    depth, i = 0, cleaned.index("(", start)
+    while i < len(cleaned):
+        if cleaned[i] == "(":
+            depth += 1
+        elif cleaned[i] == ")":
+            depth -= 1
+            if depth == 0:
                 break
         i += 1
-    corps_debut = nettoye.index("{", i)
-    profondeur, j = 0, corps_debut
-    while j < len(nettoye):
-        if nettoye[j] == "{":
-            profondeur += 1
-        elif nettoye[j] == "}":
-            profondeur -= 1
-            if profondeur == 0:
-                return corps_debut, j
+    body_start = cleaned.index("{", i)
+    depth, j = 0, body_start
+    while j < len(cleaned):
+        if cleaned[j] == "{":
+            depth += 1
+        elif cleaned[j] == "}":
+            depth -= 1
+            if depth == 0:
+                return body_start, j
         j += 1
-    return corps_debut, len(nettoye)
+    return body_start, len(cleaned)
 
 
 async def main():
-    journal = Journal("R76 — la navigation encadrée")
+    journal = Journal("R76 — navigation through one door")
 
     # ─── Hold 1: one door, source-checked ──────────────────────────────
-    total, hors_go = compter_navigate_hors_go(DESIGN_SRC)
+    total, outside_go = count_navigate_outside_go(DESIGN_SRC)
     journal.check(
-        "navigate( n'apparaît que dans le corps de go()",
-        total == 1 and hors_go == 0,
-        f"{total} appel(s) au total, {hors_go} hors de go()")
+        "navigate( appears only inside go()'s body",
+        total == 1 and outside_go == 0,
+        f"{total} call(s) in total, {outside_go} outside go()")
 
     async with async_playwright() as p:
-        navigateur = await p.chromium.launch(channel="chrome")
+        browser = await p.chromium.launch(channel="chrome")
 
         # ─── Hold 2: one entry per call, walked back in reverse ────────
-        ctx, pg = await open_page(navigateur)
-        erreurs = []
-        pg.on("pageerror", lambda e: erreurs.append(str(e)))
+        ctx, pg = await open_page(browser)
+        errors = []
+        pg.on("pageerror", lambda e: errors.append(str(e)))
 
-        depart = await pg.evaluate(ETAT_ECRAN)
-        journal.check("le point de départ n'a aucun écran ouvert",
-                         not depart["ouvert"], depart["pathname"])
+        start_point = await pg.evaluate(SCREEN_STATE)
+        journal.check("the starting point has no screen open",
+                      not start_point["open"], start_point["pathname"])
 
-        await pg.evaluate(f"()=>window.__ecrans.profil({json.dumps(TITRE)})")
+        await pg.evaluate(f"()=>window.__ecrans.profil({json.dumps(TITLE)})")
         await pg.wait_for_timeout(300)
-        sur_profil = await pg.evaluate(ETAT_ECRAN)
-        journal.check("__ecrans.profil() ouvre l'écran par la seule porte",
-                         sur_profil["ouvert"] and sur_profil["cle"] == f"profil:{TITRE}",
-                         sur_profil["pathname"])
+        on_profile = await pg.evaluate(SCREEN_STATE)
+        journal.check("__ecrans.profil() opens the screen through the single door",
+                         on_profile["open"] and on_profile["key"] == f"profil:{TITLE}",
+                         on_profile["pathname"])
 
         # go() itself is not on window — its own two-line body (navigate,
         # then the SAME immediate flush) is run here on window.__routeur,
@@ -206,61 +206,61 @@ async def main():
             "()=>{ window.__routeur.navigate({ to: '/' }); "
             "window.__routeur.history.flush(); }")
         await pg.wait_for_timeout(300)
-        de_retour = await pg.evaluate(ETAT_ECRAN)
-        journal.check("un go() vers « / » ferme l'écran et écrit l'adresse",
-                         not de_retour["ouvert"] and de_retour["pathname"] == "/",
-                         de_retour["pathname"])
+        back_home = await pg.evaluate(SCREEN_STATE)
+        journal.check("a go() to « / » closes the screen and writes the address",
+                         not back_home["open"] and back_home["pathname"] == "/",
+                         back_home["pathname"])
 
         await pg.go_back()
         await pg.wait_for_timeout(300)
-        premier_retour = await pg.evaluate(ETAT_ECRAN)
+        first_back = await pg.evaluate(SCREEN_STATE)
         journal.check(
-            "le premier retour retrouve l'écran du profil (compté par l'état observé)",
-            premier_retour["ouvert"] and premier_retour["cle"] == f"profil:{TITRE}",
-            premier_retour["pathname"])
+            "the first back finds the profile screen again (counted by observed state)",
+            first_back["open"] and first_back["key"] == f"profil:{TITLE}",
+            first_back["pathname"])
 
         await pg.go_back()
         await pg.wait_for_timeout(300)
-        second_retour = await pg.evaluate(ETAT_ECRAN)
-        journal.check("le second retour quitte l'écran",
-                         not second_retour["ouvert"], second_retour["pathname"])
-        journal.check("aucune erreur JS pendant le voyage", not erreurs, str(erreurs))
+        second_back = await pg.evaluate(SCREEN_STATE)
+        journal.check("the second back leaves the screen",
+                      not second_back["open"], second_back["pathname"])
+        journal.check("no JS error during the journey", not errors, str(errors))
         await ctx.close()
 
         # ─── Hold 3: two go() calls in the SAME task, two entries ───
-        ctx, pg = await open_page(navigateur)
-        erreurs = []
-        pg.on("pageerror", lambda e: erreurs.append(str(e)))
+        ctx, pg = await open_page(browser)
+        errors = []
+        pg.on("pageerror", lambda e: errors.append(str(e)))
 
         # No await between the two calls: exactly the same-task condition
         # the microtask-batching risk described above concerns.
         await pg.evaluate(
-            f"()=>{{ window.__ecrans.profil({json.dumps(TITRE)}); "
-            f"window.__ecrans.profil({json.dumps(TITRE_AUTRE)}); }}")
+            f"()=>{{ window.__ecrans.profil({json.dumps(TITLE)}); "
+            f"window.__ecrans.profil({json.dumps(OTHER_TITLE)}); }}")
         await pg.wait_for_timeout(300)
-        double = await pg.evaluate(ETAT_ECRAN)
+        double = await pg.evaluate(SCREEN_STATE)
         journal.check(
-            "deux appels dans la même tâche retiennent le second",
-            double["ouvert"] and double["cle"] == f"profil:{TITRE_AUTRE}",
+            "two calls in the same task keep the second one",
+            double["open"] and double["key"] == f"profil:{OTHER_TITLE}",
             double["pathname"])
 
         await pg.go_back()
         await pg.wait_for_timeout(300)
-        un_retour = await pg.evaluate(ETAT_ECRAN)
+        one_back = await pg.evaluate(SCREEN_STATE)
         journal.check(
-            "un premier retour révèle l'entrée du PREMIER titre — deux entrées, pas une",
-            un_retour["ouvert"] and un_retour["cle"] == f"profil:{TITRE}",
-            un_retour["pathname"])
+            "a first back reveals the FIRST title's entry — two entries, not one",
+            one_back["open"] and one_back["key"] == f"profil:{TITLE}",
+            one_back["pathname"])
 
         await pg.go_back()
         await pg.wait_for_timeout(300)
-        deux_retours = await pg.evaluate(ETAT_ECRAN)
-        journal.check("un second retour quitte l'écran",
-                         not deux_retours["ouvert"], deux_retours["pathname"])
-        journal.check("aucune erreur JS pendant les deux appels", not erreurs, str(erreurs))
+        two_backs = await pg.evaluate(SCREEN_STATE)
+        journal.check("a second back leaves the screen",
+                      not two_backs["open"], two_backs["pathname"])
+        journal.check("no JS error during the two calls", not errors, str(errors))
         await ctx.close()
 
-        await navigateur.close()
+        await browser.close()
 
     journal.summary()
 

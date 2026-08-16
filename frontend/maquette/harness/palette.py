@@ -32,12 +32,12 @@ PROTOTYPE = pathlib.Path(__file__).resolve().parent.parent / "design" / "refonte
 _journal = None
 
 
-def verifier(nom, condition, detail=""):
+def check(name, condition, detail=""):
     """Records one executed check and its verdict, in the shared journal."""
-    return _journal.check(nom, condition, detail)
+    return _journal.check(name, condition, detail)
 
 
-def pendantes(source):
+def dangling(source):
     """Returns every custom property referenced without a fallback and never defined.
 
     Args:
@@ -46,47 +46,47 @@ def pendantes(source):
     Returns:
         A dict property name → number of references lacking a fallback.
     """
-    definies = set(re.findall(r"(--[\w-]+)\s*:", source))
-    manquantes = {}
+    defined = set(re.findall(r"(--[\w-]+)\s*:", source))
+    missing = {}
     for m in re.finditer(r"var\(\s*(--[\w-]+)\s*(,)?", source):
-        nom, repli = m.group(1), m.group(2)
+        name, fallback = m.group(1), m.group(2)
         # A reference carrying a fallback degrades on purpose; only a bare one
         # is a promise the document does not keep.
-        if not repli and nom not in definies:
-            manquantes[nom] = manquantes.get(nom, 0) + 1
-    return manquantes
+        if not fallback and name not in defined:
+            missing[name] = missing.get(name, 0) + 1
+    return missing
 
 
 # Where the brand colour must actually land. Each entry names a state, a
 # selector, and which painted property has to carry it.
-PEINTURES = [
-    ("connexion", ".brandbig .mk", "color", "l'entonnoir de la marque"),
-    ("connexion", ".brandbig em", "color", "le second mot de la marque"),
-    ("connexion", ".loginsubmit", "backgroundColor", "le bouton de connexion"),
-    ("demarrage", ".splashbar i", "backgroundColor", "le remplissage de la barre"),
+PAINTS = [
+    ("connexion", ".brandbig .mk", "color", "the brand's funnel"),
+    ("connexion", ".brandbig em", "color", "the brand's second word"),
+    ("connexion", ".loginsubmit", "backgroundColor", "the sign-in button"),
+    ("demarrage", ".splashbar i", "backgroundColor", "the startup bar's fill"),
 ]
 
 
 async def main():
     global _journal
-    _journal = Journal("R61 — la palette tient ses promesses")
+    _journal = Journal("R61 — the palette keeps its promises")
 
     source = PROTOTYPE.read_text()
-    manquantes = pendantes(source)
-    verifier("aucune couleur référencée sans être définie",
-             not manquantes,
-             ", ".join(f"{k} ×{v}" for k, v in sorted(manquantes.items())))
+    missing = dangling(source)
+    check("no colour referenced without being defined",
+             not missing,
+             ", ".join(f"{k} ×{v}" for k, v in sorted(missing.items())))
 
     async with async_playwright() as p:
         b = await p.chromium.launch(channel="chrome")
         ctx, pg = await open_page(b)
-        erreurs = []
-        pg.on("pageerror", lambda e: erreurs.append(str(e)))
+        errors = []
+        pg.on("pageerror", lambda e: errors.append(str(e)))
         await pg.evaluate("()=>window.__measure(true)")
 
-        marque = await pg.evaluate(
+        brand = await pg.evaluate(
             "()=>getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()")
-        verifier("la couleur de marque est définie", bool(marque), marque)
+        check("the brand colour is defined", bool(brand), brand)
 
         # The comparison is against the RESOLVED brand colour rather than a
         # literal, so changing the palette moves both sides together.
@@ -94,37 +94,37 @@ async def main():
             """(c)=>{const d=document.createElement('div'); d.style.color=c;
                      document.body.appendChild(d);
                      const v=getComputedStyle(d).color; d.remove(); return v;}""",
-            marque)
+            brand)
 
-        for etat, selecteur, propriete, quoi in PEINTURES:
-            await pg.evaluate("(i)=>window.__go(i)", etat)
+        for state_, selector, property_, what in PAINTS:
+            await pg.evaluate("(i)=>window.__go(i)", state_)
             await pg.wait_for_timeout(400)
-            peint = await pg.evaluate(
+            painted = await pg.evaluate(
                 """([s, p])=>{const e=document.querySelector(s);
                               return e ? getComputedStyle(e)[p] : null;}""",
-                [selecteur, propriete])
-            verifier(f"{quoi} porte la couleur de marque",
-                     peint == reference, f"{peint} au lieu de {reference}")
+                [selector, property_])
+            check(f"{what} carries the brand colour",
+                     painted == reference, f"{painted} instead of {reference}")
 
         # And nothing anywhere paints a background that resolved to nothing —
         # the visible symptom of a dangling property, on every named state.
         transparents = []
-        for etat in await pg.evaluate("()=>window.__states()"):
-            await pg.evaluate("(i)=>window.__go(i)", etat)
+        for state_ in await pg.evaluate("()=>window.__states()"):
+            await pg.evaluate("(i)=>window.__go(i)", state_)
             await pg.wait_for_timeout(120)
-            vus = await pg.evaluate("""()=>{
-              const perdus = [];
+            seen = await pg.evaluate("""()=>{
+              const lost = [];
               for (const e of document.querySelectorAll('.loginsubmit, .installgo, .splashbar i')) {
                 const c = getComputedStyle(e);
                 if (c.backgroundColor === 'rgba(0, 0, 0, 0)' && e.offsetParent !== null)
-                  perdus.push(e.className);
+                  lost.push(e.className);
               }
-              return perdus;}""")
-            transparents += [f"{etat}:{v}" for v in vus]
-        verifier("aucun bouton de marque ne rend un fond transparent",
+              return lost;}""")
+            transparents += [f"{state_}:{v}" for v in seen]
+        check("no brand button renders a transparent background",
                  not transparents, str(transparents[:3]))
 
-        verifier("aucune erreur JS", not erreurs, str(erreurs))
+        check("no JS error", not errors, str(errors))
         await b.close()
 
     _journal.summary()

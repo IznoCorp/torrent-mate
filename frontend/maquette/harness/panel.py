@@ -39,120 +39,120 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 _journal = None
 
 
-def verifier(nom, condition, detail=""):
+def check(name, condition, detail=""):
     """Records one executed check and its verdict, in the shared journal."""
-    return _journal.check(nom, condition, detail)
+    return _journal.check(name, condition, detail)
 
 
 # Every panel this interface can open, and how to reach it without knowing
 # which screen draws which.
-PANNEAUX = [
-    ("suivi complet", "feuille-suivi-complet", None),
-    ("suivi troué", "feuille-suivi-trous", None),
-    ("parcours", "feuille-parcours", None),
-    ("veille", "feuille-plus", None),
-    ("menu utilisateur", "feuille-utilisateur", None),
+PANELS = [
+    ("complete follow", "feuille-suivi-complet", None),
+    ("follow with holes", "feuille-suivi-trous", None),
+    ("journey", "feuille-parcours", None),
+    ("watch", "feuille-plus", None),
+    ("user menu", "feuille-utilisateur", None),
     ("suggestion", "acq-decouvrir", '#view [data-panel^="sug:"]'),
     # The add screen left `#screen` for a real route (`/ajout`, rendered
     # inside `#coquille`) — its results live under `.screen.open` now.
-    ("résultat de recherche", "acq-ajout-resultats", '.screen.open [data-panel^="add:"]'),
-    ("tri de la médiathèque", "lib-grille", "[data-sort]"),
+    ("search result", "acq-ajout-resultats", '.screen.open [data-panel^="add:"]'),
+    ("library sort", "lib-grille", "[data-sort]"),
 ]
 
-RELEVE = """() => {
+READ = """() => {
   const p = document.querySelector('#sheetin');
-  const enLigne = [...p.querySelectorAll('[style]')]
+  const inline = [...p.querySelectorAll('[style]')]
     .map(e => e.tagName + '.' + e.className);
   const actions = [...p.querySelectorAll('.sact')].map(b => ({
-    texte: (b.textContent || '').trim().slice(0, 34),
-    donnees: Object.keys(b.dataset).length,
-    desactive: b.disabled}));
-  return {vide: (p.textContent || '').trim().length < 8,
-          titres: p.querySelectorAll('.sheettitle').length,
-          enLigne, actions,
-          inconnus: [...p.querySelectorAll('*')].filter(e =>
+    text: (b.textContent || '').trim().slice(0, 34),
+    data: Object.keys(b.dataset).length,
+    disabled: b.disabled}));
+  return {empty: (p.textContent || '').trim().length < 8,
+          titles: p.querySelectorAll('.sheettitle').length,
+          inline, actions,
+          unknown: [...p.querySelectorAll('*')].filter(e =>
             e.tagName === 'DIV' && e.className === '').length};
 }"""
 
 
 async def main():
     global _journal
-    _journal = Journal("R56 — un seul panneau")
+    _journal = Journal("R56 — one single panel")
 
     source = (ROOT / "design" / "refonte.html").read_text()
-    composant = (ROOT / "design" / "src" / "components" / "panel.tsx").read_text()
+    component = (ROOT / "design" / "src" / "components" / "panel.tsx").read_text()
 
     # 1. No caller hands markup to the panel. Read on the SOURCE, because that
     #    is where a panel is asked for; the DOM only shows what came out. A
     #    descriptor is an OBJECT — a call opening on anything else (a string, a
     #    template literal, a variable holding ready-made markup) is an envelope.
-    appels = re.findall(r"window\.__panneau\.ouvrir\(\s*(.{0,24})", source, re.S)
-    hors_builder = [a.strip()[:24] for a in appels if not a.lstrip().startswith("{")]
-    verifier("aucun appelant ne passe de balisage", not hors_builder,
-             " · ".join(hors_builder))
-    verifier("il y a bien des appelants", len(appels) >= 6, f"{len(appels)} appels")
+    calls = re.findall(r"window\.__panneau\.ouvrir\(\s*(.{0,24})", source, re.S)
+    not_facts = [a.strip()[:24] for a in calls if not a.lstrip().startswith("{")]
+    check("no caller hands markup", not not_facts,
+          " · ".join(not_facts))
+    check("there really are callers", len(calls) >= 6, f"{len(calls)} calls")
 
     # 2. One builder, not two. A fallback builder is the one that rots. The
     #    engine's own builder must not come back either: two constructors are
     #    two head shapes, whichever file they live in.
-    verifier("un seul constructeur de panneau",
-             composant.count("export function PanelContent(") == 1
-             and "function panneauHTML(" not in source
-             and "openDetailSheetLegacy" not in source,
-             "openDetailSheetLegacy encore présent"
-             if "openDetailSheetLegacy" in source else
-             "panneauHTML est revenu dans refonte.html"
-             if "function panneauHTML(" in source else
-             f"{composant.count('export function PanelContent(')} PanelContent")
+    check("one panel constructor and no other",
+          component.count("export function PanelContent(") == 1
+          and "function panneauHTML(" not in source
+          and "openDetailSheetLegacy" not in source,
+          "openDetailSheetLegacy still present"
+          if "openDetailSheetLegacy" in source else
+          "panneauHTML is back in refonte.html"
+          if "function panneauHTML(" in source else
+          f"{component.count('export function PanelContent(')} PanelContent")
 
     async with async_playwright() as p:
         b = await p.chromium.launch(channel="chrome")
         ctx, pg = await open_page(b)
-        erreurs = []
-        pg.on("pageerror", lambda e: erreurs.append(str(e)))
+        errors = []
+        pg.on("pageerror", lambda e: errors.append(str(e)))
         await pg.evaluate("()=>window.__measure(true)")
 
-        vides, styles, titres, sans_destination = [], [], [], []
-        for nom, etat, clic in PANNEAUX:
-            await pg.evaluate("(s)=>window.__go(s)", etat)
+        empty, styles, titles, without_destination = [], [], [], []
+        for name, state_, click in PANELS:
+            await pg.evaluate("(s)=>window.__go(s)", state_)
             await pg.wait_for_timeout(320)
-            if clic:
-                await pg.evaluate("(s)=>document.querySelector(s).click()", clic)
+            if click:
+                await pg.evaluate("(s)=>document.querySelector(s).click()", click)
                 await pg.wait_for_timeout(320)
-            r = await pg.evaluate(RELEVE)
-            if r["vide"]:
-                vides.append(nom)
-            if r["enLigne"]:
-                styles.append(f"{nom} : {', '.join(r['enLigne'][:3])}")
-            if r["titres"] != 1:
-                titres.append(f"{nom} ({r['titres']})")
+            r = await pg.evaluate(READ)
+            if r["empty"]:
+                empty.append(name)
+            if r["inline"]:
+                styles.append(f"{name}: {', '.join(r['inline'][:3])}")
+            if r["titles"] != 1:
+                titles.append(f"{name} ({r['titles']})")
             for action in r["actions"]:
-                if action["donnees"] == 0 and not action["desactive"]:
-                    sans_destination.append(f"{nom} : « {action['texte']} »")
+                if action["data"] == 0 and not action["disabled"]:
+                    without_destination.append(f"{name} : « {action['text']} »")
 
-        verifier(f"les {len(PANNEAUX)} panneaux s'ouvrent et portent du contenu",
-                 not vides, ", ".join(vides))
-        verifier("aucun style en ligne dans un panneau", not styles, " · ".join(styles))
-        verifier("un seul titre par panneau", not titres, ", ".join(titres))
+        check(f"the {len(PANELS)} panels open and carry content",
+              not empty, ", ".join(empty))
+        check("no inline style inside a panel", not styles, " · ".join(styles))
+        check("one heading per panel", not titles, ", ".join(titles))
         # The exact defect the fallback builder shipped: a button that looks
         # like an action and answers nothing. A disabled one is allowed — it
         # says of itself that it does nothing yet.
-        verifier("aucune action sans destination", not sans_destination,
-                 " · ".join(sans_destination))
+        check("no action without a destination", not without_destination,
+              " · ".join(without_destination))
 
         # 3. A block the builder does not know is REFUSED. Silence here would
         #    draw an empty panel and blame the data.
-        refus = await pg.evaluate("""()=>{try{
+        refusal = await pg.evaluate("""()=>{try{
             window.__panneauInconnu();
-            return "aucun refus";
+            return "no refusal";
           }catch(e){return String(e.message||e);}}""")
         # The message reads ENGLISH because it is a DEVELOPER message: it
         # reaches this harness and a console, never the interface, so the
         # no-French-in-code rule applies to it and the assertion follows it.
-        verifier("un bloc non déclaré est refusé",
-                 "unknown panel block" in refus, refus)
+        check("an undeclared block is refused",
+              "unknown panel block" in refusal, refusal)
 
-        verifier("aucune erreur JS", not erreurs, str(erreurs))
+        check("no JS error", not errors, str(errors))
         await b.close()
 
     _journal.summary()

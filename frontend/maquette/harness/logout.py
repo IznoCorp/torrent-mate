@@ -30,12 +30,12 @@ PORT = 8715  # never 8710 / 8711: the reverse proxy routes production and stagin
 _journal = None
 
 
-def verifier(nom, condition, detail=""):
+def check(name, condition, detail=""):
     """Records one executed check and its verdict, in the shared journal."""
-    return _journal.check(nom, condition, detail)
+    return _journal.check(name, condition, detail)
 
 
-def attendre_portail():
+def wait_for_gate():
     """Waits for the design server to answer, and returns its gate page."""
     for _ in range(50):
         try:
@@ -48,26 +48,26 @@ def attendre_portail():
     return ""
 
 
-def demander(chemin, cookie=None):
+def request_path(path, cookie=None):
     """Performs one GET without following redirects.
 
     Args:
-        chemin: The path to request.
+        path: The path to request.
         cookie: A raw Cookie header value, or None.
 
     Returns:
         A (status, headers) pair.
     """
-    class SansRedirection(urllib.request.HTTPRedirectHandler):
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
         def redirect_request(self, *args, **kwargs):
             return None
 
-    requete = urllib.request.Request(f"http://127.0.0.1:{PORT}{chemin}")
+    req = urllib.request.Request(f"http://127.0.0.1:{PORT}{path}")
     if cookie:
-        requete.add_header("Cookie", cookie)
-    ouvreur = urllib.request.build_opener(SansRedirection)
+        req.add_header("Cookie", cookie)
+    opener = urllib.request.build_opener(NoRedirect)
     try:
-        with ouvreur.open(requete, timeout=5) as r:
+        with opener.open(req, timeout=5) as r:
             return r.status, r.headers
     except urllib.error.HTTPError as err:
         return err.code, err.headers
@@ -75,71 +75,71 @@ def demander(chemin, cookie=None):
 
 async def main():
     global _journal
-    _journal = Journal(f"R54 — déconnexion")
+    _journal = Journal("R54 — signing out")
 
     async with async_playwright() as p:
         b = await p.chromium.launch(channel="chrome")
         ctx, pg = await open_page(b)
-        erreurs = []
-        pg.on("pageerror", lambda e: erreurs.append(str(e)))
+        errors = []
+        pg.on("pageerror", lambda e: errors.append(str(e)))
         await pg.evaluate("()=>document.querySelector('#toastx').click()")
 
         # 1. The button exists where a session is ended from, and it is the only
         #    one: an exit reachable from nowhere is an exit nobody finds.
         await pg.evaluate("()=>window.__go('feuille-utilisateur')")
         await pg.wait_for_timeout(250)
-        boutons = await pg.evaluate("""()=>[...document.querySelectorAll('#sheet button')]
+        buttons = await pg.evaluate("""()=>[...document.querySelectorAll('#sheet button')]
           .filter(x=>/déconnecter/i.test(x.textContent))
-          .map(x=>({texte:x.textContent.trim(), donnees:Object.keys(x.dataset),
-                    haut:x.getBoundingClientRect().height}))""")
-        verifier("le menu utilisateur porte « Se déconnecter »", len(boutons) == 1, str(boutons))
-        verifier("et il n'y répond pas par un simple message",
-                 bool(boutons) and "toast" not in boutons[0]["donnees"],
-                 str(boutons[0]["donnees"]) if boutons else "")
+          .map(x=>({text:x.textContent.trim(), data:Object.keys(x.dataset),
+                    height:x.getBoundingClientRect().height}))""")
+        check("the user menu carries « Se déconnecter »", len(buttons) == 1, str(buttons))
+        check("and it does not answer with a mere message",
+                 bool(buttons) and "toast" not in buttons[0]["data"],
+          str(buttons[0]["data"]) if buttons else "")
 
         # 2. Pressing it lands on the entry screen, with the sheet gone. The
         #    prototype is served statically here, so the request to end the
         #    session has nowhere to land — and that must not stop the screen.
         await pg.click("#sheet button.sact.danger")
         await pg.wait_for_timeout(400)
-        apres = await pg.evaluate("""()=>({
-          connexion: getComputedStyle(document.querySelector('#login')).display,
-          feuille: document.querySelector('#sheet').classList.contains('open'),
-          voile: document.querySelector('#scrim').classList.contains('open')})""")
-        verifier("mène à l'écran de connexion", apres["connexion"] != "none", str(apres))
-        verifier("et referme la feuille", not apres["feuille"] and not apres["voile"], str(apres))
-        verifier("sans erreur JS même sans route côté serveur", not erreurs, str(erreurs))
+        after = await pg.evaluate("""()=>({
+          login: getComputedStyle(document.querySelector('#login')).display,
+          sheet: document.querySelector('#sheet').classList.contains('open'),
+          scrim: document.querySelector('#scrim').classList.contains('open')})""")
+        check("it leads to the sign-in screen", after["login"] != "none", str(after))
+        check("and closes the sheet", not after["sheet"] and not after["scrim"], str(after))
+        check("no JS error even with no server-side route", not errors, str(errors))
 
         await b.close()
 
     # 3. The half that is not visible: the server really stops accepting the
     #    session. Measured on the server, because the screen cannot show it.
-    serveur = subprocess.Popen(
+    server = subprocess.Popen(
         [sys.executable, str(ROOT / "serve.py"), str(PORT)],
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     try:
-        verifier("le portail répond", bool(attendre_portail()))
-        statut, entetes = demander("/deconnexion")
-        biscuit = http.cookies.SimpleCookie()
-        biscuit.load(entetes.get("Set-Cookie", ""))
-        morceau = biscuit.get("tm_design")
+        check("the gate answers", bool(wait_for_gate()))
+        status, headers = request_path("/deconnexion")
+        jar = http.cookies.SimpleCookie()
+        jar.load(headers.get("Set-Cookie", ""))
+        crumb = jar.get("tm_design")
         # One check, not two: everything else on this server answers an unknown
         # path with the same redirect, so a status read on its own could never
         # tell a working route from a missing one.
-        verifier("« /deconnexion » périme le cookie et renvoie au portail",
-                 statut == 303 and entetes.get("Location") == "/"
-                 and morceau is not None and morceau.value == ""
-                 and str(morceau["max-age"]) == "0",
-                 f"{statut} → {entetes.get('Location')} · "
-                 f"{entetes.get('Set-Cookie', 'aucun Set-Cookie')}")
+        check("« /deconnexion » expires the cookie and sends back to the gate",
+                 status == 303 and headers.get("Location") == "/"
+                 and crumb is not None and crumb.value == ""
+                 and str(crumb["max-age"]) == "0",
+                 f"{status} → {headers.get('Location')} · "
+                 f"{headers.get('Set-Cookie', 'no Set-Cookie')}")
         # The cookie the gate hands out is unknown here — the password is not in
         # the repository — but ANY value must be refused once expired, and an
         # empty one is exactly what the browser is left holding.
-        statut_apres, _ = demander("/", cookie="tm_design=")
-        verifier("un cookie périmé ne rouvre rien", statut_apres == 401, str(statut_apres))
+        statut_apres, _ = request_path("/", cookie="tm_design=")
+        check("an expired cookie reopens nothing", statut_apres == 401, str(statut_apres))
     finally:
-        serveur.terminate()
-        serveur.wait(timeout=5)
+        server.terminate()
+        server.wait(timeout=5)
 
     _journal.summary()
 
