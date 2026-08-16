@@ -80,6 +80,11 @@ declare global {
     // The probe R56 calls to prove the panel REFUSES a block nobody declared.
     // Published here because the constructor it exercises is a component now.
     __panneauInconnu: () => void;
+    // B-026's probe: raised by every write that fails silently otherwise
+    // (`noterLeChemin`, `data-navgo`, and this file's own `ouvrirPanneau`),
+    // declared here (`refonte.html` declares and resets it for its own two
+    // sites) so this file's own catch can set it without a type error.
+    __navEchec?: boolean;
   }
 }
 
@@ -429,8 +434,17 @@ function ouvrirPanneau(descripteur: Descripteur): void {
   try {
     window.__pont.coucher("sheet");
   } catch (erreur) {
-    // A bridge that is not there yet is not a reason to refuse a panel — the
-    // same swallow the legacy `openSheet` did around this exact call.
+    // B-026's own residual: `window.__pont` is assigned synchronously at this
+    // module's top level, before any producer can call `ouvrir` — so unlike
+    // the legacy `openSheet` swallow this copies, there is no boot-time
+    // window where the bridge is genuinely absent. A throw here means the
+    // write itself failed, and the store above already flushed the panel
+    // open: silence would leave the interface showing the panel with no
+    // history entry recording it, the exact URL/UI disagreement DOIT-10
+    // forbids. Same wiring as `noterLeChemin`'s and `data-navgo`'s own
+    // tails.
+    console.error("ouvrirPanneau : écriture de navigation échouée", erreur);
+    window.__navEchec = true;
   }
 }
 

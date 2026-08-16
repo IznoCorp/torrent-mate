@@ -142,6 +142,15 @@ them. None is reproduced on a device yet; each entry below records the walk that
   leaves the splash/boot state visible rather than a rendered interface disagreeing with
   its URL, which is the lower-risk failure mode DOIT-10 is not written against. Settles
   when the legacy engine itself dies (SP4-end), not before.
+  **A fourth swallow, found by the SP4b final review and fixed, not left residual.**
+  `coquille.tsx`'s `ouvrirPanneau` wrapped `window.__pont.coucher("sheet")` in the same
+  silent `try { … } catch {}`, inherited from the legacy `openSheet`'s own guard around this
+  call. Unlike the boot-time residual above, `window.__pont` is assigned synchronously at
+  this module's top level, before any producer can call `ouvrir` — there is no window where
+  the bridge is genuinely absent, so the swallow's own justification ("a bridge that is not
+  there yet") no longer held. A throw here means the write itself failed, and the store had
+  already flushed the panel open: exactly the URL/UI disagreement DOIT-10 forbids, silently.
+  Wired to `console.error` + `window.__navEchec = true`, the same pattern as the other three.
 - **B-027** — `resynchro.py` extracts a follow's title with the FIRST `t: "…"` match anywhere in
   the object and counts braces with no string-awareness. An object whose first `X: "…"` key is
   not the title, or a title containing `{`/`}`, silently skips or — worse — rewrites the WRONG
