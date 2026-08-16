@@ -19,6 +19,7 @@ import { refuserBloc, type Descripteur } from "./composants/panneau";
 import { AjoutEcran } from "./ecrans/ajout";
 import { FicheEcran } from "./ecrans/fiche";
 import { ProfilEcran } from "./ecrans/profil";
+import { ReleasesEcran } from "./ecrans/releases";
 import { creerMagasin, type Magasin } from "./magasin";
 
 // R69's addressable state, validated — absent means "unchanged", as before.
@@ -50,6 +51,11 @@ type Ecrans = {
   // string here too; the percent-encoding and the NFC normalisation are done
   // below, on write, and again by `FicheEcran` on read.
   fiche: (titre: string) => void;
+  // The release-choice screen — same `titre`-crosses-as-a-plain-string
+  // contract as `fiche`/`profil` above. Unlike them, it also writes
+  // `state.relTitre` (the legacy first line of `openReleases`, still read by
+  // the `data-prendre` click-delegation branch) BEFORE navigating.
+  releases: (titre: string) => void;
   // `q`/`mode` cross the bridge as plain strings, the way a legacy call site
   // already holds them (`state.addQ`, a literal like `"identifier"`) — the
   // validated union lives in `/ajout`'s own `validateSearch`, not here.
@@ -167,6 +173,15 @@ const fiche = createRoute({
   path: "/fiche/$titre",
   component: FicheEcran,
 });
+// "Choose another release": the ranking's own reasoning, made inspectable.
+// `$titre` follows `/fiche/$titre`'s discipline exactly — percent-encoded,
+// NFC-normalised on both ends. No search param: same reason as `fiche` —
+// nothing here for the address to carry.
+const releases = createRoute({
+  getParentRoute: () => racine,
+  path: "/releases/$titre",
+  component: ReleasesEcran,
+});
 // A thrown component used to fail into a bare `null` — the exact failure
 // shape this whole architecture exists to kill: a blank phone frame with
 // nothing on screen saying why, and nothing in the console pointing at it
@@ -196,7 +211,7 @@ function EcranEnErreur({ error }: { error: unknown }) {
 }
 
 const routeur = createRouter({
-  routeTree: racine.addChildren([attrape, profil, ajout, fiche]),
+  routeTree: racine.addChildren([attrape, profil, ajout, fiche, releases]),
   history: historique,
   // The document is also read under other paths than `/` — the rule harness
   // serves it as `wrapped.html`. The router's built-in not-found fallback
@@ -384,6 +399,20 @@ window.__ecrans = {
     aller({ to: "/profil/$titre", params: { titre: titre.normalize("NFC") } }),
   fiche: (titre: string) =>
     aller({ to: "/fiche/$titre", params: { titre: titre.normalize("NFC") } }),
+  // The legacy `openReleases`'s own first line, transplanted here rather than
+  // into the component: `state.relTitre` is what the `data-prendre`
+  // click-delegation branch reads once the operator picks a candidate, and it
+  // must be current BEFORE the route renders, exactly as the legacy function
+  // wrote it before drawing the screen. This file is SHELL code — the seam
+  // itself — so it writes the store directly rather than through
+  // `donnees.ts`'s `ecrireEtat` component door.
+  releases: (titre: string) => {
+    window.__magasin.ecrire({ relTitre: titre });
+    aller({
+      to: "/releases/$titre",
+      params: { titre: titre.normalize("NFC") },
+    });
+  },
   // Kept in sync in `magasin.ecrire` BEFORE navigating: `state.addMode` is
   // still read by the untouched cross-world "add:N" panel act (it decides
   // ASSOCIATE vs regular add — see refonte.html) and by `addVerb`, and

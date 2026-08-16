@@ -16876,7 +16876,7 @@
       "Écran — choisir une autre release",
       () => {
         applyState({ page: "acq", acqTab: "suivis", phase: "prete" });
-        openReleases("Silo");
+        window.__ecrans.releases("Silo");
       },
     ],
     [
@@ -18055,7 +18055,7 @@
     }
     if (closest.dataset.releases) {
       window.__panneau.fermer();
-      setTimeout(() => openReleases(closest.dataset.releases), 260);
+      setTimeout(() => window.__ecrans.releases(closest.dataset.releases), 260);
       return;
     }
     if (
@@ -18063,13 +18063,19 @@
       closest.dataset.profil !== null
     ) {
       // Route, not screen: the quality-profile surface left the legacy
-      // fragment. Closing whatever legacy layer is currently open keeps the
-      // same close-then-open timing the two trigger buttons (the Réglages
-      // rubric and « Ouvrir le profil de qualité → ») were built against;
-      // `__ecrans.profil` does the navigating.
+      // fragment — and so, since this Task, has the release-choice screen
+      // that used to be the ONLY producer of `data-profil` inside `#screen`
+      // (its own « Ouvrir le profil de qualité → » button). `#screen` is no
+      // longer a possible source of this attribute at all — the two
+      // remaining producers (the Réglages rubric, a sheet action) were
+      // always sheets or pages, never `#screen` — but the RELEASES route
+      // still needs the same close-then-open choreography its own trigger
+      // was built against, and a router screen leaves no trace in
+      // `#screen.classList`: test the router's own identity instead.
+      // `__ecrans.profil` does the navigating either way.
       const profil = closest.dataset.profil;
-      if (select("#screen").classList.contains("open")) {
-        closeScreen();
+      if (document.querySelector('.screen.open[data-cle^="releases:"]')) {
+        window.__pont.retour();
         setTimeout(() => window.__ecrans.profil(profil), 260);
       } else {
         window.__panneau.fermer();
@@ -18079,7 +18085,10 @@
     }
     if (closest.dataset.prendre) {
       const release = RELEASES[Number(closest.dataset.prendre)];
-      closeScreen();
+      // One router pop — the release-choice screen is a route now, and the
+      // dispatcher's own `layer`/`tm: "nav"` checks no-op harmlessly on the
+      // entry it wrote, so the screen simply unmounts.
+      window.__pont.retour();
       setTimeout(() => {
         actionRecuperer(state.relTitre);
         toast(
@@ -39967,46 +39976,12 @@
      through `window.__referentiel` — the search execution itself is still
      the engine's, reached through that seam. */
 
-  /* Choose another release
-     Show what is NOT happening and why. Here: why the engine picked this
-     one — and enough to pick another knowingly. The score shown is the
-     ranking's, not an opinion. */
-  function openReleases(titre) {
-    magasin.ecrire({ relTitre: titre });
-    openScreen(
-      `<div class="fichebar">
-      <button class="fback" onclick="__close('screen')">${svgIcon(icons.left)}Retour</button>
-      <span style="margin-left:auto;font-size:11px;color:var(--muted-foreground)">${escapeHtml(baseTitle(titre))}</span>
-    </div>
-    <div class="port"><div class="body">
-      <div class="note"><b>Écran neuf.</b> « Chercher une autre release » ne menait nulle part. Ce qui manquait n'est pas une liste : c'est <em>pourquoi</em> le moteur a classé ainsi — sans ça, choisir est un pari.</div>
-      <p class="rescount" style="padding:0"><b>${RELEASES.length}</b> candidats retenus par le profil de qualité · dernière recherche il y a 12 min</p>
-      ${RELEASES.map(
-        (
-          RELEASES2,
-          index,
-        ) => `<article class="rel${index === 0 ? " best" : ""}">
-        <span class="rn">${escapeHtml(RELEASES2.n)}</span>
-        <span class="rt">
-          <span class="chip ${RELEASES2.res === "2160p" ? "success" : RELEASES2.res === "1080p" ? "info" : "neutral"}">${RELEASES2.res}</span>
-          <span class="chip">${RELEASES2.src}</span>
-          <span class="chip">${RELEASES2.lang}</span>
-          <span class="chip">${RELEASES2.s} sources</span>
-          <span class="chip">${String(RELEASES2.go).replace(".", ",")} Go</span>
-          <span class="sc">score ${RELEASES2.sc}</span>
-        </span>
-        ${index === 0 ? `<p class="qhint">Retenue : meilleure résolution admise par le profil, langue MULTi préférée, et le plus de sources à qualité égale.</p>` : ""}
-        <button class="cfoot${index === 0 ? " solid" : ""}" data-prendre="${index}">${index === 0 ? "Reprendre celle-ci" : "Prendre celle-ci à la place"}</button>
-      </article>`,
-      ).join("")}
-      <div class="empty"><b>Aucune ne convient ?</b>Élargir le profil de qualité fera revenir des candidats écartés — la liste dit ce qu'elle a rejeté et pourquoi.
-        <button class="cfoot" style="margin-top:10px" data-profil="${escapeHtml(titre)}">Ouvrir le profil de qualité →</button>
-      </div>
-    </div></div>`,
-      undefined,
-      () => openReleases(titre),
-    );
-  }
+  /* Choose another release — migrated to a real route, `ReleasesEcran`
+     (`design/src/ecrans/releases.tsx`, reached at `/releases/$titre`). Show
+     what is NOT happening and why. Here: why the engine picked this one —
+     and enough to pick another knowingly. The score shown is the ranking's,
+     not an opinion. `RELEASES` stays defined here and crosses the handshake
+     through `window.__referentiel` — same seam as `SEARCH`/`cardHTML` above. */
 
   function openPlusSheet() {
     window.__panneau.ouvrir({
