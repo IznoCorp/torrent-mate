@@ -3,7 +3,7 @@
 The prototype embeds REAL data — a copy taken from the running system. The
 system keeps running: the scheduler searches twice a day and increments each
 follow's attempt counter in `acquire.db`, so the embedded copy ages by design.
-The rule that guards data honesty (`harness/contenu.py`) compares the cards
+The rule that guards data honesty (`harness/content.py`) compares the cards
 against the live database and goes red on the first drift — rightly.
 
 This tool closes that gap the only honest way: it reads the live counters and

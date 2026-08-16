@@ -1,11 +1,11 @@
 """R75 — a screen route answers a real address, cold, and only while it is open.
 
-`ProfilEcran` (Task 9) is the first screen drawn from a real path rather than
+`ProfileScreen` (Task 9) is the first screen drawn from a real path rather than
 from the legacy fragment's own state machine, so it is also the first screen
 whose address can be typed, bookmarked or shared — and the first for which a
 missing detail (a fallback route on the host, a `<base>` tag in the envelope)
 only shows up once something is actually served from BELOW the document
-root. `serveur.py` (Task 8) is what makes that depth reachable at all: the
+root. `server.py` (Task 8) is what makes that depth reachable at all: the
 plain 8899 host 45 other rules already point at answers a 404 for
 `/profil/…`, because no such file exists — nothing served through it can
 tell a deep reload from a broken link. This rule runs entirely against 8917.
@@ -16,7 +16,7 @@ What it holds to:
    just a fresh browser handed the URL.
 2. Whatever that screen draws resolves through the document's `<base>`,
    the same way it would from `/` — proven not by the screen's own markup
-   (`ProfilEcran` draws no `<img>` of its own, only inline SVG) but by every
+   (`ProfileScreen` draws no `<img>` of its own, only inline SVG) but by every
    image the WHOLE document loads at that depth: the legacy fragment mounts
    underneath it, on its own default page, and draws real posters through
    the same relative `assets/…` paths every other screen uses.
@@ -32,9 +32,9 @@ What it holds to:
    its ordinary form for whatever string is in the address, and the address
    itself is left exactly as typed (R68's spirit, at depth).
 
-EXTENDED (SP4b) to `FicheEcran` — the media sheet, the one screen every
+EXTENDED (SP4b) to `MediaScreen` — the media sheet, the one screen every
 poster, tile, suggestion and panel act already led to, now also reachable
-as `/fiche/$titre` on its own. Unlike `ProfilEcran`, this screen DOES draw
+as `/fiche/$titre` on its own. Unlike `ProfileScreen`, this screen DOES draw
 an image of its own (the hero/poster banner), so its own artwork is the
 proof at this depth rather than a stand-in read off the legacy fragment
 underneath. And unlike a `QualityProfile` name, a title here resolves
@@ -48,7 +48,7 @@ printing "inconnu" in its place. What the harness holds for the fiche:
 (f) a deep address opens it cold, `h2.ht` carrying the promised title;
 (g) the hero/poster the screen draws ITSELF actually loads — proven on the
 image the CSS background resolves to, not on a stand-in; (h) one Back
-lands exactly where holds 3+4 already prove it does for `ProfilEcran`; (i)
+lands exactly where holds 3+4 already prove it does for `ProfileScreen`; (i)
 an unknown title renders the SAME honest template, mirroring `openFiche`'s
 own null path rather than inventing a not-found surface for it; (j) a
 title the provider gave no trailer to renders `p.noinfo` in the
@@ -63,8 +63,8 @@ import urllib.parse
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from commun import TELEPHONE, Journal
-from serveur import demarrer_serveur
+from common import TELEPHONE, Journal
+from server import demarrer_serveur
 
 PORT = 8917
 RACINE_SERVIE = pathlib.Path("/tmp/tm-refonte")
@@ -90,11 +90,11 @@ TITRE_SANS_TRAILER = "Broadchurch"
 # `Backrooms.2026.MULTi.2160p.WEB-DL` is the embedded référentiel's own
 # folder waiting to be resolved (`refonte.html`'s `arr-charge` state opens
 # it as the default « Résoudre → » target — `ident.py` walks that exact
-# path) — and the real regression case for `serveur.py`'s dotted-segment
+# path) — and the real regression case for `server.py`'s dotted-segment
 # fallback fix: its deepest path segment carries dots of its own, which the
 # fallback used to mistake for a file extension and 404 on before folding.
 # Opening it through THIS deep-entry hold is what proves the fix reaches the
-# SPA, not merely the raw HTTP response `serveur.py`'s own self-test covers.
+# SPA, not merely the raw HTTP response `server.py`'s own self-test covers.
 DOSSIER_RESOLUTION = "Backrooms.2026.MULTi.2160p.WEB-DL"
 # `Silo` is the states table's own pick for `ecran-releases`
 # (`window.__ecrans.releases("Silo")`, refonte.html).
@@ -131,9 +131,9 @@ ETAT_IMAGES = """() => {
   };
 }"""
 
-# `FicheEcran` draws its own artwork through a CSS `background-image`, not
+# `MediaScreen` draws its own artwork through a CSS `background-image`, not
 # an `<img>` tag (`.herowrap .herobg`) — so `ETAT_IMAGES`'s generic
-# `<img>` sweep, which is what proves hold 2 for `ProfilEcran` (a screen
+# `<img>` sweep, which is what proves hold 2 for `ProfileScreen` (a screen
 # that draws no image of its own), does not see it at all. Proof here
 # instead re-fetches the SAME url the computed style resolves through a
 # real `Image()`, and reads `complete`/`naturalWidth` off THAT — the exact
@@ -340,7 +340,7 @@ async def main():
             # ─── Hold 8: quitter un écran par la barre ──────────────────────
             # A legacy nav control (the bottom bar) can fire while a router
             # route is open — it writes through the SAME shared history the
-            # router subscribes to, never through aller()/navigate(). The
+            # router subscribes to, never through go()/navigate(). The
             # write alone must be enough: no code on this side of the bridge
             # calls the router, yet the screen must still actually leave.
             # Reached the same way an operator does: a REAL tap on the FAB,
@@ -443,11 +443,11 @@ async def main():
             await ctx.close()
 
             # ─── Holds (k)-(l): the arbitration screen's deep entry — the
-            # SAME dossier that regresses `serveur.py`'s fallback (its
+            # SAME dossier that regresses `server.py`'s fallback (its
             # deepest segment carries dots, `Backrooms.2026.MULTi.2160p.
             # WEB-DL`), so reaching it here is also what proves the fix
             # holds all the way to the SPA, not merely the raw HTTP
-            # response `serveur.py`'s own self-test already covers. ──────
+            # response `server.py`'s own self-test already covers. ──────
             adresse_resolution = f"{base}/resolution/{urllib.parse.quote(DOSSIER_RESOLUTION)}"
             ctx, pg, erreurs = await ouvrir_a(navigateur, adresse_resolution)
             resolution_froide = await pg.evaluate(ETAT_RESOLUTION)
@@ -504,7 +504,7 @@ async def main():
 
             # ─── Hold (o): an unknown deep /resolution value renders the
             # screen's OWN honest empty case — `decisionEnAttente` finds no
-            # pending decision for a name nobody scraped, so `ResolutionEcran`
+            # pending decision for a name nobody scraped, so `ResolutionScreen`
             # takes the branch it already draws for that: no candidates
             # borrowed, the "aucun candidat" rulenote, and the two ways out
             # that do not depend on one still offered. ────────────────────

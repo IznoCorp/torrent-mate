@@ -23,7 +23,7 @@ import os
 import pathlib
 import re
 
-from commun import Journal, ouvrir
+from common import Journal, ouvrir
 from playwright.async_api import async_playwright
 
 WEB = pathlib.Path(os.path.expanduser("~/.torrentmate/config/web.json5"))

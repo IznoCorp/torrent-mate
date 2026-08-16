@@ -48,15 +48,15 @@ type SearchParams = {
 // primitives, and their names are the fragment's own; the state objects
 // crossing them are the legacy ones.
 type Bridge = {
-  noter: (etat: unknown, url: string) => void;
-  remplacer: (etat: unknown, url?: string) => void;
-  coucher: (couche: string) => void;
+  noter: (state: unknown, url: string) => void;
+  remplacer: (state: unknown, url?: string) => void;
+  coucher: (layer: string) => void;
   retour: () => void;
   // Settling SEVERAL entries at once — the door a caller uses instead of
   // saying `retour()` twice in the same task. `n` counts ENTRIES, and the
   // traversal is announced to the engine before it is issued.
   reculer: (n: number) => void;
-  surRetour: (rappel: (etat: unknown) => void) => () => void;
+  surRetour: (callback: (state: unknown) => void) => () => void;
 };
 
 // One entry per migrated screen: what a legacy call site invokes instead of
@@ -76,11 +76,11 @@ type Screens = {
   // The arbitration screen — the folder crosses as a plain string, and the
   // ARGUMENT IS OPTIONAL: the legacy `openResolve()` was called with nothing
   // from two call sites and picked the first stuck folder itself, so the
-  // default is resolved here rather than at each caller. `remplacer` is for
+  // default is resolved here rather than at each caller. `replace` is for
   // the one caller that used to close the screen and re-open it on the next
   // folder — a pop plus a push, net one entry, which a replace reproduces
   // exactly.
-  resolution: (dossier?: string, remplacer?: boolean) => void;
+  resolution: (dossier?: string, replace?: boolean) => void;
   // `q`/`mode` cross the bridge as plain strings, the way a legacy call site
   // already holds them (`state.addQ`, a literal like `"identifier"`) — the
   // validated union lives in `/ajout`'s own `validateSearch`, not here.
@@ -107,7 +107,7 @@ declare global {
     // and the one-in-flight latch live with the popstate handler that consumes
     // them); the fragment publishes it so the shell's own layer can announce
     // its close the same way every legacy layer does.
-    __derouler?: (couche: string) => void;
+    __derouler?: (layer: string) => void;
     // The same bookkeeping for a traversal of SEVERAL entries at once: the
     // shell says how many ENTRIES it settles, and the engine — which owns the
     // latch and the popstate handler reading it — turns that into the number
@@ -282,7 +282,7 @@ declare module "@tanstack/react-router" {
 }
 
 // The bridge: the same verbs the legacy cluster used, one writer underneath.
-// `couche` entries and the guard entry keep their exact state shapes — the
+// `layer` entries and the guard entry keep their exact state shapes — the
 // legacy popstate logic still reads them.
 //
 // Two adaptations to the router's history, both to keep the NATIVE semantics
@@ -307,16 +307,16 @@ declare module "@tanstack/react-router" {
 // opened anywhere else gets, or its own unwind guard never runs and closing
 // it silently stops working.
 window.__pont = {
-  noter: (etat: unknown, url: string) => {
-    history.push(url, etat);
+  noter: (state: unknown, url: string) => {
+    history.push(url, state);
     history.flush();
   },
-  remplacer: (etat: unknown, url?: string) => {
-    history.replace(url ?? history.location.href, etat);
+  remplacer: (state: unknown, url?: string) => {
+    history.replace(url ?? history.location.href, state);
     history.flush();
   },
-  coucher: (couche: string) => {
-    history.push(history.location.href, { layer: couche });
+  coucher: (layer: string) => {
+    history.push(history.location.href, { layer });
     history.flush();
   },
   retour: () => history.back(),
@@ -340,14 +340,14 @@ window.__pont = {
     window.__annoncerPops?.(n);
     history.go(-n);
   },
-  surRetour: (rappel: (etat: unknown) => void) =>
+  surRetour: (callback: (state: unknown) => void) =>
     history.subscribe(({ action, location }) => {
       if (
         action.type === "BACK" ||
         action.type === "FORWARD" ||
         action.type === "GO"
       )
-        rappel(location.state);
+        callback(location.state);
     }),
 };
 window.__routeur = router;
@@ -503,17 +503,17 @@ window.__ecrans = {
   // identity now. That makes it the ONE French string in this file that stays
   // out of `fr.json`: it is a route parameter, and an address that changed
   // with the interface language would no longer identify anything.
-  resolution: (dossier?: string, remplacer?: boolean) => {
+  resolution: (dossier?: string, replace?: boolean) => {
     const first = window.__referentiel.derivedStuck()[0]?.t;
     const target = dossier ?? (typeof first === "string" ? first : null);
     window.__magasin.ecrire({ resolveTarget: target });
     go({
       to: "/resolution/$dossier",
       params: { dossier: (target ?? "élément inconnu").normalize("NFC") },
-      replace: remplacer,
+      replace,
     });
   },
-  // Kept in sync in `magasin.ecrire` BEFORE navigating: `state.addMode` is
+  // Kept in sync in `window.__magasin.ecrire` BEFORE navigating: `state.addMode` is
   // still read by the untouched cross-world "add:N" panel act (it decides
   // ASSOCIATE vs regular add — see refonte.html) and by `addVerb`, and
   // `state.addQ` still seeds the FAB's next open. Neither is written again
@@ -650,7 +650,7 @@ if (typeof start === "function") start({ magasin: store, base });
 //   - paint order — `insertBefore` keeps the mount node exactly where it
 //     already was relative to `#screen` (earlier in document order, simply
 //     re-parented), so a React screen still sits BEHIND the legacy one in
-//     the stacking order the harness (ecrans.py, pont.py) already relies on:
+//     the stacking order the harness (screens.py, bridge.py) already relies on:
 //     when both carry `.open` at once (a legacy fiche opened over a migrated
 //     results screen), `#screen` — later in the DOM — paints on top, and
 //     `document.querySelector('.screen.open')` still resolves the React

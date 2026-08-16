@@ -21,7 +21,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from commun import Journal, ouvrir
+from common import Journal, ouvrir
 
 _journal = None
 

@@ -20,7 +20,7 @@ import sys
 import time
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from commun import RACINE, Journal
+from common import RACINE, Journal
 
 PORT = 8918
 SCRATCH = pathlib.Path("/tmp/tm-refonte/_r73")
@@ -132,8 +132,8 @@ def main():
         # unmatched-path branch (`do_GET`'s final `if not chemin.startswith(
         # ...)` cascade in `serve.py`) never tested for dots in the first
         # place, so nothing here needed changing to hold: proven directly,
-        # with the SAME dossier that regressed `serveur.py`'s harness-only
-        # fallback (Task 5, `serveur.py`).
+        # with the SAME dossier that regressed `server.py`'s harness-only
+        # fallback (Task 5, `server.py`).
         reponse_points, avec_points = requete(
             "/resolution/Backrooms.2026.MULTi.2160p.WEB-DL", cookie)
         journal.verifier(

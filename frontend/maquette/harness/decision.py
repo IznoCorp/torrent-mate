@@ -24,7 +24,7 @@ could quietly stop being true:
 """
 import asyncio
 
-from commun import Journal, ouvrir
+from common import Journal, ouvrir
 from playwright.async_api import async_playwright
 
 

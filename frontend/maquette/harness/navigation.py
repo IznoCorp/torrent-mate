@@ -1,7 +1,7 @@
 """R76 — the shell owns navigation through one door, and every call through
 it is its own history entry.
 
-`aller()` is the ONLY function in `design/src/` allowed to call
+`go()` is the ONLY function in `design/src/` allowed to call
 `routeur.navigate()` (Task 9's comment states the law: the router library
 batches its commits into a microtask, so two writes issued in the same task
 would merge into one entry unless something flushes between them — and the
@@ -13,15 +13,15 @@ matters most: two navigations decided in the same synchronous handler.
 What this holds to:
 
 1. `navigate(` appears in `design/src/` exactly once, comments blanked, and
-   that one call sits inside `aller()`'s own body — a source-level count,
+   that one call sits inside `go()`'s own body — a source-level count,
    the same discipline R74 already holds the legacy engine's raw
    `history.*` calls to.
 2. A round trip through the single door — `__ecrans.profil(t)` (the bridge
    a legacy call site uses) onto the screen, then a navigation back to `/`
-   — writes ONE entry per call and back walks them in reverse. `aller()`
+   — writes ONE entry per call and back walks them in reverse. `go()`
    itself is not exposed to `window` (by design — it is a module export,
    not a debugging hook), so the return leg is driven on `window.__routeur`
-   directly: the SAME router instance `aller()` closes over, given the
+   directly: the SAME router instance `go()` closes over, given the
    SAME two-line body (`navigate()` then `history.flush()`) it runs.
    Walking back is judged by the screen's OWN observed state at each stop,
    never by `history.length` — a count that would still look right even if
@@ -41,7 +41,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from commun import RACINE, Journal, ouvrir
+from common import RACINE, Journal, ouvrir
 
 DESIGN_SRC = RACINE / "design" / "src"
 
@@ -101,35 +101,35 @@ def sans_commentaires_legers(source):
     return "\n".join(lignes)
 
 
-def compter_navigate_hors_aller(design_src):
+def compter_navigate_hors_go(design_src):
     """Counts `navigate(` calls under `design/src/`, and how many sit
-    outside `aller()`'s own body in `coquille.tsx`.
+    outside `go()`'s own body in `shell.tsx`.
 
     Args:
         design_src: The `design/src/` directory.
 
     Returns:
-        `(total, hors_aller)` — the total call count after comments are
+        `(total, hors_go)` — the total call count after comments are
         blanked, and how many of those are NOT inside `export function
-        aller(`'s body.
+        go(`'s body.
     """
     total = 0
-    hors_aller = 0
+    hors_go = 0
     fichiers = sorted(design_src.rglob("*.ts")) + sorted(design_src.rglob("*.tsx"))
     for fichier in fichiers:
         nettoye = sans_commentaires_legers(fichier.read_text(encoding="utf-8"))
         positions = [m.start() for m in re.finditer(r"\bnavigate\(", nettoye)]
         total += len(positions)
         if fichier.name != "shell.tsx":
-            hors_aller += len(positions)
+            hors_go += len(positions)
             continue
-        debut, fin = bornes_corps_aller(nettoye)
-        hors_aller += sum(1 for pos in positions if not (debut >= 0 and debut <= pos <= fin))
-    return total, hors_aller
+        debut, fin = bornes_corps_go(nettoye)
+        hors_go += sum(1 for pos in positions if not (debut >= 0 and debut <= pos <= fin))
+    return total, hors_go
 
 
-def bornes_corps_aller(nettoye):
-    """Finds `aller()`'s own body span, braces balanced.
+def bornes_corps_go(nettoye):
+    """Finds `go()`'s own body span, braces balanced.
 
     The parameter list is itself an object type literal (`vers: {…}`) — its
     braces close and reopen before the function body's own `{` is reached,
@@ -142,7 +142,7 @@ def bornes_corps_aller(nettoye):
         nettoye: Comment-blanked TypeScript source.
 
     Returns:
-        `(debut, fin)` character offsets spanning `aller()`'s body
+        `(debut, fin)` character offsets spanning `go()`'s body
         (inclusive of both braces), or `(-1, -1)` if not found.
     """
     debut = nettoye.find("export function go(")
@@ -174,11 +174,11 @@ async def main():
     journal = Journal("R76 — la navigation encadrée")
 
     # ─── Hold 1: one door, source-checked ──────────────────────────────
-    total, hors_aller = compter_navigate_hors_aller(DESIGN_SRC)
+    total, hors_go = compter_navigate_hors_go(DESIGN_SRC)
     journal.verifier(
-        "navigate( n'apparaît que dans le corps d'aller()",
-        total == 1 and hors_aller == 0,
-        f"{total} appel(s) au total, {hors_aller} hors d'aller()")
+        "navigate( n'apparaît que dans le corps de go()",
+        total == 1 and hors_go == 0,
+        f"{total} appel(s) au total, {hors_go} hors de go()")
 
     async with async_playwright() as p:
         navigateur = await p.chromium.launch(channel="chrome")
@@ -199,15 +199,15 @@ async def main():
                          sur_profil["ouvert"] and sur_profil["cle"] == f"profil:{TITRE}",
                          sur_profil["pathname"])
 
-        # aller() itself is not on window — its own two-line body (navigate,
+        # go() itself is not on window — its own two-line body (navigate,
         # then the SAME immediate flush) is run here on window.__routeur,
-        # the instance aller() closes over.
+        # the instance go() closes over.
         await pg.evaluate(
             "()=>{ window.__routeur.navigate({ to: '/' }); "
             "window.__routeur.history.flush(); }")
         await pg.wait_for_timeout(300)
         de_retour = await pg.evaluate(ETAT_ECRAN)
-        journal.verifier("un aller() vers « / » ferme l'écran et écrit l'adresse",
+        journal.verifier("un go() vers « / » ferme l'écran et écrit l'adresse",
                          not de_retour["ouvert"] and de_retour["pathname"] == "/",
                          de_retour["pathname"])
 
@@ -227,7 +227,7 @@ async def main():
         journal.verifier("aucune erreur JS pendant le voyage", not erreurs, str(erreurs))
         await ctx.close()
 
-        # ─── Hold 3: two aller() calls in the SAME task, two entries ───
+        # ─── Hold 3: two go() calls in the SAME task, two entries ───
         ctx, pg = await ouvrir(navigateur)
         erreurs = []
         pg.on("pageerror", lambda e: erreurs.append(str(e)))

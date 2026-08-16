@@ -141,7 +141,7 @@ async def main():
     await pg.evaluate("()=>document.querySelector('#dlg [data-confirmadd]')?.click()")
     await pg.wait_for_timeout(500)
     # The footer's « Voir mes suivis » no longer carries `data-go`: it is a
-    # React-owned control now (`AjoutEcran`'s own `verSuivis`), not a site the
+    # React-owned control now (`AddScreen`'s own `toFollows`), not a site the
     # shared legacy `data-go` delegation should also fire on — `.addfoot` is
     # the stable hook the harness has instead.
     foot = await pg.evaluate("()=>!!document.querySelector('.addfoot button')")
@@ -155,7 +155,7 @@ async def main():
         r = await pg.evaluate("""()=>({ecran:!!document.querySelector('.screen.open'),
           page:state.page})""")
         chk("10b. « Voir mes suivis » atterrit", not r["ecran"] and r["page"]=="acq", str(r))
-        # 10c — B-025: the entry-count half of the fix. `verSuivis` REPLACES
+        # 10c — B-025: the entry-count half of the fix. `toFollows` REPLACES
         # the add screen's own entry (same "the layer's entry becomes the
         # arrival" semantics `data-go`'s comment describes — ajout.tsx's own
         # doc comment) instead of pushing beside it. A single real Back must

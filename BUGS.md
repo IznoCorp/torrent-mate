@@ -47,8 +47,8 @@ when the defect comes back.
 | B-024 | `data-go` settles ONE history entry, layers pile        | by review   | `open`       |
 | B-025 | The screen half of the `data-go` fix has no Back rule   | by review   | `to confirm` |
 | B-026 | A silent `catch {}` can let URL and UI disagree         | by review   | `to confirm` |
-| B-027 | `resynchro.py` trusts `t:` first-match + naive braces   | by review   | `to confirm` |
-| B-028 | `resynchro.py` says « 0 correction » for unknown titles | by review   | `to confirm` |
+| B-027 | `resync.py` trusts `t:` first-match + naive braces   | by review   | `to confirm` |
+| B-028 | `resync.py` says « 0 correction » for unknown titles | by review   | `to confirm` |
 | B-029 | Counter rule misses suffix drift (« 1 » in « 11 »)      | by review   | `to confirm` |
 
 **B-018 was written down as a regression from B-016, and that was wrong.** It has two ways in, one
@@ -110,12 +110,12 @@ them. None is reproduced on a device yet; each entry below records the walk that
   and never presses Back; only the sheet half (9b) is guarded. The `remplacer`-on-screen half of
   the fix — exactly what B-024 concerns — can regress without a single check falling.
   **Fixed (SP4b, task 6).** The footer itself left `data-go` between the review and this walk
-  (Task 5 migrated « Voir mes suivis » to `AjoutEcran`'s own `verSuivis`, a router-owned
+  (Task 5 migrated « Voir mes suivis » to `AddScreen`'s own `toFollows`, a router-owned
   `remplacer:true` — same "the layer's entry becomes the arrival" semantics `data-go`'s own
   comment describes), so the regression this entry names now lives there, not in the shared
   handler; the guard follows it. `bugs.py` 10b gained a Back press, `10c`: after the footer
   lands, one real Back must leave `/ajout` in a single hop (no buried `layer` entry, `page`
-  still `acq`) — mutation-verified by mutating `verSuivis`'s `remplacer:true` to `false` at
+  still `acq`) — mutation-verified by mutating `toFollows`'s `remplacer:true` to `false` at
   source (`10c` fell, naming the still-buried `/ajout`), rebuilt, then restored (`git diff`
   empty), rebuilt, re-run green.
 - **B-026** — the `data-go` handler's outer `try { … } catch (error) {}` (house pattern from
@@ -143,7 +143,7 @@ them. None is reproduced on a device yet; each entry below records the walk that
   its URL, which is the lower-risk failure mode DOIT-10 is not written against. Settles
   when the legacy engine itself dies (SP4-end), not before.
   **A fourth swallow, found by the SP4b final review and fixed, not left residual.**
-  `coquille.tsx`'s `ouvrirPanneau` wrapped `window.__pont.coucher("sheet")` in the same
+  `shell.tsx`'s `openPanel` wrapped `window.__pont.coucher("sheet")` in the same
   silent `try { … } catch {}`, inherited from the legacy `openSheet`'s own guard around this
   call. Unlike the boot-time residual above, `window.__pont` is assigned synchronously at
   this module's top level, before any producer can call `ouvrir` — there is no window where
@@ -151,7 +151,7 @@ them. None is reproduced on a device yet; each entry below records the walk that
   there yet") no longer held. A throw here means the write itself failed, and the store had
   already flushed the panel open: exactly the URL/UI disagreement DOIT-10 forbids, silently.
   Wired to `console.error` + `window.__navEchec = true`, the same pattern as the other three.
-- **B-027** — `resynchro.py` extracts a follow's title with the FIRST `t: "…"` match anywhere in
+- **B-027** — `resync.py` extracts a follow's title with the FIRST `t: "…"` match anywhere in
   the object and counts braces with no string-awareness. An object whose first `X: "…"` key is
   not the title, or a title containing `{`/`}`, silently skips or — worse — rewrites the WRONG
   follow's counter. Holds today only by convention (all 12 objects start with `t:`), asserted
@@ -159,19 +159,19 @@ them. None is reproduced on a device yet; each entry below records the walk that
   **Fixed.** The title is now read anchored on the object's own opening brace
   (`re.match(r'\s*\{\s*t:\s*"((?:[^"\\]|\\.)*)"', objet)`): the title must be the FIRST key or the
   script RAISES, naming the object's head. **Mutation** (proof executed, `task-7-report.md`): a
-  scratch FOLLOWS fragment whose sole object opens on `x:` instead of `t:` → `resynchro.py`
+  scratch FOLLOWS fragment whose sole object opens on `x:` instead of `t:` → `resync.py`
   raises `ValueError: objet FOLLOWS sans « t » en première clé : …` quoting the object, rather than
   silently skipping it.
-- **B-028** — `resynchro.py` cannot say a title went unmatched: a FOLLOWS title absent from the
+- **B-028** — `resync.py` cannot say a title went unmatched: a FOLLOWS title absent from the
   DB reads exactly like « already in sync », prints `0 correction(s)` and exits 0. Especially
   live once vo-title (#435) changes which spelling a follow carries — the operator running the
   documented remedy gets silence instead of « 4 of 12 titles never looked up ».
   **Fixed.** Every FOLLOWS title with no matching row in `acquire.db` is now collected during the
-  same pass and, if any exist, `resynchro.py` prints `N titre(s) jamais retrouvé(s): …` naming
+  same pass and, if any exist, `resync.py` prints `N titre(s) jamais retrouvé(s): …` naming
   each and exits 1 — `0 correction(s)` is only ever printed once every title matched. **Mutation**
   (proof executed): a copy of `refonte.html` with one real FOLLOWS title (« Kyma, l'onde
   mystérieuse ») misspelled → exit 1, `1 titre(s) jamais retrouvé(s): Kyma, l'onde MISSPELLED`.
-- **B-029** — `contenu.py`'s counter rule tests `f"{n} recherche" in faits`: « 1 recherche » is a
+- **B-029** — `content.py`'s counter rule tests `f"{n} recherche" in faits`: « 1 recherche » is a
   substring of « 11 recherches », so whenever the real count is a suffix of the embedded one the
   drift the rule exists to name is never named.
   **Fixed.** The hold now compares numbers with a word boundary
@@ -263,7 +263,7 @@ checks 10/10b.
 
 ## B-013 — The drawer's entries lead nowhere
 
-**Reported** 2× — the second time this surface has been reported inert. **Status** `to confirm` — R65, `harness/tiroir.py`.
+**Reported** 2× — the second time this surface has been reported inert. **Status** `to confirm` — R65, `harness/drawer.py`.
 
 **What the operator sees.** The navigation drawer opens, and its entries are not clickable: a tap
 on a menu entry goes nowhere.
@@ -302,7 +302,7 @@ existe » falls, naming `config`.
 
 ## B-014 — The drawer's current entry is unreadable
 
-**Reported** 1×. **Status** `to confirm` — R65, `harness/tiroir.py`.
+**Reported** 1×. **Status** `to confirm` — R65, `harness/drawer.py`.
 
 **What the operator sees.** The entry marking where one currently is cannot be read.
 
@@ -328,7 +328,7 @@ above AA and above AAA.
 
 ## B-015 — Back reopens the drawer that was just closed
 
-**Reported** 1×. **Status** `to confirm` — R65, `harness/tiroir.py`.
+**Reported** 1×. **Status** `to confirm` — R65, `harness/drawer.py`.
 
 **What the operator sees.** Close the drawer, then use the back gesture: the drawer comes back.
 « Ce n'est pas une route. »
@@ -353,7 +353,7 @@ all four entries.
 
 ## B-016 — Swiping a row right, then left, makes it jump
 
-**Reported** 1×. **Status** `to confirm` — R64 extended, `harness/glisse.py`.
+**Reported** 1×. **Status** `to confirm` — R64 extended, `harness/drag.py`.
 
 **What the operator sees.** Swipe a card right, then swipe it left: the card jumps. What it should
 do is settle back to rest, so that a second, deliberate left swipe is what reveals the actions on
@@ -387,7 +387,7 @@ a drawer that was no longer open. They close through the shared close now.
 
 ## B-018 — On a desktop, dragging a row opens the bottom panel
 
-**Reported** 1×. **Status** `to confirm` — R64 strengthened, `harness/souris.py`.
+**Reported** 1×. **Status** `to confirm` — R64 strengthened, `harness/mouse.py`.
 
 **What the operator sees.** On a DESKTOP, dragging a row left or right opens the bottom panel
 instead of revealing the row's actions. The drag is read as a tap.
@@ -411,7 +411,7 @@ the whole thing a regression, as this entry first did, was wrong.
 1. **After a touch drag, the browser suppresses the click by itself.** Every finger measurement was
    therefore green over the hole. Only a mouse can see it, and R64 already knew that — its own text
    says a touch probe cannot tell a swallowed click from one that never happened.
-2. **`souris.py` asserted the weaker thing.** It checked that no panel appeared. A panel can fail to
+2. **`mouse.py` asserted the weaker thing.** It checked that no panel appeared. A panel can fail to
    appear because the release landed a few pixels off the card, which is exactly what happened in
    the first four attempts to reproduce this: the click went through, unswallowed, and hit a `div`.
    The rule now asserts the click was **actively swallowed**, which is the property that was
@@ -427,7 +427,7 @@ clic n'est pas avalé » falls. Disarm the guard entirely → all four fall.
 
 ## B-017 — Closing a panel sends the list back to its top
 
-**Reported** by nobody. **Status** `to confirm` — R65, `harness/tiroir.py`.
+**Reported** by nobody. **Status** `to confirm` — R65, `harness/drawer.py`.
 
 **What happens.** Open a bottom panel from a card halfway down a list, close it: the page
 underneath is rebuilt and the list is scrolled home. Measured — a marker planted in the view was

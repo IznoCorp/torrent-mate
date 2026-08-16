@@ -22,7 +22,7 @@ import asyncio
 import pathlib
 import re
 
-from commun import Journal
+from common import Journal
 from playwright.async_api import async_playwright
 
 RACINE = pathlib.Path(__file__).resolve().parent.parent

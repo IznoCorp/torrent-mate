@@ -36,7 +36,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from commun import RACINE, TELEPHONE, Journal
+from common import RACINE, TELEPHONE, Journal
 
 # The engine may hold no history primitive of its own — the bridge is the
 # only way to the single writer.
@@ -264,7 +264,7 @@ async def main():
         pg.on("pageerror", lambda e: erreurs.append(str(e)))
 
         # ─── Hold (f′): the boot handshake exists and fired on its own ─
-        # Navigated WITHOUT going through commun.ouvrir(): that helper calls
+        # Navigated WITHOUT going through common.ouvrir(): that helper calls
         # window.__chargementTermine itself to get past the startup screen,
         # which would force the very effect this hold exists to observe.
         # What is measured here is whether the screen came off BEFORE this
@@ -287,7 +287,7 @@ async def main():
             f"#splash.hidden = {sonde['splashMasque']}",
         )
 
-        # Same plumbing commun.ouvrir() would run, on the same page, now
+        # Same plumbing common.ouvrir() would run, on the same page, now
         # that the hold above has taken its measurement: idempotent (it only
         # re-sets #splash.hidden), so calling it again here is harmless.
         await pg.evaluate("()=>window.__chargementTermine?.()")

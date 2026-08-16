@@ -24,7 +24,7 @@ import asyncio
 import pathlib
 import re
 
-from commun import Journal, ouvrir
+from common import Journal, ouvrir
 from playwright.async_api import async_playwright
 
 PROTOTYPE = pathlib.Path(__file__).resolve().parent.parent / "design" / "refonte.html"

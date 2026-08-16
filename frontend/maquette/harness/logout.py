@@ -21,7 +21,7 @@ import time
 import urllib.error
 import urllib.request
 
-from commun import Journal, ouvrir
+from common import Journal, ouvrir
 from playwright.async_api import async_playwright
 
 RACINE = pathlib.Path(__file__).resolve().parent.parent

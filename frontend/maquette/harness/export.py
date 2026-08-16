@@ -22,7 +22,7 @@ import pathlib
 import re
 import sys
 
-from commun import ouvrir
+from common import ouvrir
 from playwright.async_api import async_playwright
 
 RACINE = pathlib.Path(__file__).resolve().parent.parent

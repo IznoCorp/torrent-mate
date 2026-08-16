@@ -22,7 +22,7 @@ iPhone. Neither can be observed on a desktop headless run any other way.
 """
 import asyncio
 
-from commun import Journal
+from common import Journal
 from playwright.async_api import async_playwright
 
 IPHONE = ("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "

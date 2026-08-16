@@ -45,7 +45,7 @@ adversarial review; none of them derives app code.
 | **Bascule — the host serves the build** | `refactor/maquette-bascule` | #431 | `serve.py` serves `dist/index.html`, rebuilds under a lock when any input is newer, and on failure shows the build's own last words instead of a generic error (R73). |
 | **SP3 — the router, by strangler** | `feat/maquette-sp3` | #432 | React 19 + TanStack Router as the outer shell and the SINGLE writer of URL and history; the legacy engine speaks `window.__pont` (R74), and `design/` gained its own strict typecheck gate. |
 | **SP4a — the machinery** | `feat/maquette-sp4a` | #437 | `magasin` (TanStack Store) became the owner of the engine's state, the host learned to answer ANY address (SPA fallback), and `/profil/$titre` + `/ajout` landed as the first real routes (R75, R76). |
-| **SP4b — the fiche and the panel** | `feat/maquette-sp4b` | #441 | `<PanneauContenu>`/`<Feuille>` became the single React panel and `openSheet()` retired to a tripwire; `/fiche/$titre` landed as a real route, and scroll is now kept per HISTORY ENTRY rather than per address. |
+| **SP4b — the fiche and the panel** | `feat/maquette-sp4b` | #441 | `<PanelContent>`/`<Sheet>` became the single React panel and `openSheet()` retired to a tripwire; `/fiche/$titre` landed as a real route, and scroll is now kept per HISTORY ENTRY rather than per address. |
 
 The full record of each wave, in the words written when it landed, is in
 `docs/superpowers/shell-mobile-wave-log.md`; the per-wave plans are in `docs/superpowers/plans/`.
@@ -53,8 +53,8 @@ The full record of each wave, in the words written when it landed, is in
 ### The latest wave, in full
 
 **SP4c — resolution and releases, and M11 dies**: Branch `feat/maquette-sp4c`. Two more screens
-land as real routes: `/resolution/$dossier` (`ResolutionEcran`, transplanted from `openResolve()`)
-and `/releases/$titre` (`ReleasesEcran`, transplanted from `openReleases()`), both through
+land as real routes: `/resolution/$dossier` (`ResolutionScreen`, transplanted from `openResolve()`)
+and `/releases/$titre` (`ReleasesScreen`, transplanted from `openReleases()`), both through
 `window.__ecrans` alongside `.fiche()`/`.profil()`. A fidelity walk against the deleted legacy
 bodies found zero rendering divergence — 124/124, 78/78 and 80/80 boxes across the arbitration's
 three shapes, all textual differences traced to inter-tag whitespace the templates left between
@@ -72,28 +72,28 @@ browser coalesces a multi-entry `history.go(-n)` traversal into ONE popstate, so
 `+= n` was measured wrong (mutation m2 proved it swallows the operator's next real Back) before
 `ident.py`'s new history-hold caught it. R57 (`decision.py`) is amended: its `ECRAN` probe now
 reads `.screen.open[data-cle^="resolution:"]` instead of rooting on the legacy `#screen`, which
-the arbitration screen no longer renders into — the same identity-read shift `panneau.py` and
-`galerie.py` made for the fiche in SP4b, one line, mutation-proven (24/24 both ways). The
+the arbitration screen no longer renders into — the same identity-read shift `panel.py` and
+`gallery.py` made for the fiche in SP4b, one line, mutation-proven (24/24 both ways). The
 per-identity ladder pair (`fiche:`/`ajout:`) that four harnesses (`audit.py`, `audit2.py`,
 `dest.py`, `states.py`) carried collapses to ONE generic, ladder-last rung —
 `.screen.open[data-cle]` — covering `resolution:`/`releases:` and closing the pre-existing
 `profil:` coverage hole in the same edit; wiring it surfaced a latent, pre-existing R10 defect in
 `audit.py`'s own `couche()` helper (it tested `#sheet`/`#screen`/`#dlg` but no route, so a click
 opening `/resolution/…` read as "changed nothing" — confirmed pre-existing via `git stash`, fixed
-alongside). `harness/serveur.py`'s SPA fallback mis-read any route param carrying its own dots
+alongside). `harness/server.py`'s SPA fallback mis-read any route param carrying its own dots
 (`Backrooms.2026.MULTi.2160p.WEB-DL`, a real staging folder name) as a missing file extension and
 404ed; fixed to fold to the document for any path that is not a real file, except under the two
 directories the served root actually holds files in (`/assets/`, `/vite/`). The live host
-(`serve.py`, R73) never carried this defect — verified with a new `bascule.py` hold, not assumed.
-R75 (`adresses_ecrans.py`) gains six holds (k)-(p): both screens open cold at a dotted deep
+(`serve.py`, R73) never carried this defect — verified with a new `switchover.py` hold, not assumed.
+R75 (`screen_addresses.py`) gains six holds (k)-(p): both screens open cold at a dotted deep
 address, one Back lands on `/`, an unknown subject renders the arbitration's own honest empty
 case rather than raising — 35 → 49 holds, all green, mutation-proven (a severed route falls 14).
 `releaseCardHTML`/`decisionCardHTML` — the legacy builders the two screens were transplanted
-from — are deleted with zero remaining callers once the components took over; `CarteRelease` and
-`CarteDecision` (`design/src/ecrans/resolution.tsx`) are their replacements. Wave gate: full
+from — are deleted with zero remaining callers once the components took over; `ReleaseCard` and
+`DecisionCard` (`design/src/screens/resolution.tsx`) are their replacements. Wave gate: full
 48-script suite green, `make check`/`make check-frontend` green, R59/R69/R71
-(`retour.py`/`adresse_url.py`/`ecrans.py`) byte-identical against the SP4b merge point
-(`9842e44d`) — `ecrans.py` included, since this wave's two screens are not ones it traverses.
+(`back.py`/`url_address.py`/`screens.py`) byte-identical against the SP4b merge point
+(`9842e44d`) — `screens.py` included, since this wave's two screens are not ones it traverses.
 Carried open: the 240 ms dead delay on `data-suivante` (a frozen quarter-second, was a legacy
 screen-close cover — kept identical under the binding-parity constraint; flagged for the operator
 in `BUGS.md`'s evolutions register, not fixed here); a deep `/releases/$titre` entry with no
@@ -157,7 +157,7 @@ it Chrome falls back to the legacy 980px layout viewport and every measurement i
 ```bash
 cd frontend/maquette/harness
 for s in *.py; do
-  [ "$s" = commun.py ] && continue   # the shared plumbing, not a rule
+  [ "$s" = common.py ] && continue   # the shared plumbing, not a rule
   /Users/izno/.pyenv/versions/3.11.9/bin/python3 "$s" > /dev/null || echo "FAILED: $s"
 done
 ```
@@ -238,11 +238,11 @@ the third is derived from the rule rather than asked again.
 | Surface                                                                | State                                                                                                                            | Rule                       |
 | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
 | `/login`, `/acquisition`, `/medias`, `/config`, `/media/:provider/:id` | drawn before this                                                                                                                | R49–R63                    |
-| **Arrivées**                                                           | **drawn** — the pilot's bar, the nine steps of the last real run, its digest, and « arrivé dans les 24 h »                       | R66, `harness/arrivees.py` |
+| **Arrivées**                                                           | **drawn** — the pilot's bar, the nine steps of the last real run, its digest, and « arrivé dans les 24 h »                       | R66, `harness/arrivals.py` |
 | **Système**                                                            | **drawn** — the deferral is lifted. PM2 services, schedulers, the pipeline's executions, disks, index, dependencies, code errors | R67, `harness/machine.py`  |
 | **Maintenance**                                                        | **drawn** — six rubrics over the engine's 26 real `library-*` commands, plus the destructive journal                             | R67                        |
 | **Configuration**                                                      | **extended** — a seventh rubric, « Les passages programmés », over the six real cron schedules                                   | R60 extended               |
-| `*` (NotFound)                                                         | **drawn** — and it closed a crash: an unknown id used to stop the whole frame on a TypeError                                     | R68, `harness/adresse.py`  |
+| `*` (NotFound)                                                         | **drawn** — and it closed a crash: an unknown id used to stop the whole frame on a TypeError                                     | R68, `harness/address.py`  |
 | multi-user account                                                     | **drawn** — the one real account, its session read from `web.json5`, and the place of the others marked EMPTY                    | R68                        |
 
 Every figure on these surfaces is read from the live system — `pipeline_run`, `pm2 jlist`, `df`,
@@ -317,7 +317,7 @@ The state travels in the QUERY, not in the path, and that is a decision: this do
 from a static server, from the prototype host, and from `file://`, and path-based routing
 requires a server that rewrites every unknown path to the document — two of those three cannot.
 The binding will map `?page=lib` onto production's `/medias`; what is judged now is that the URL
-and the interface never contradict each other. R69, `harness/adresse_url.py`.
+and the interface never contradict each other. R69, `harness/url_address.py`.
 
 ---
 
@@ -416,7 +416,7 @@ These were argued, measured and recorded. Re-opening one costs a day; the reason
    all, and those must show nothing rather than a filler.
 9. ~~**Editing a setting is drawn only as far as the panel.**~~ **Closed.** Five fields, one
    refusal and one state that crosses them, each derived from the setting's VALUE rather than
-   from a list of keys. R60 extended, `harness/reglages.py` — 42 checks, eight named states, one
+   from a list of keys. R60 extended, `harness/settings.py` — 42 checks, eight named states, one
    per field.
 10. **Five tokens the app will owe.** The design-system lint found nine hardcoded colours in the
     prototype — a real C19 violation, and one of them (`var(--warning, #d97706)`) was the B-014

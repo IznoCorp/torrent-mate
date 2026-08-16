@@ -19,7 +19,7 @@ guarantees a builder CAN make:
   · a block type nobody declared is refused rather than drawn empty.
 
 The builder and the verb have MOVED: the constructor is the component
-`design/src/composants/panneau.tsx`, and a producer opens a panel by calling
+`design/src/components/panel.tsx`, and a producer opens a panel by calling
 the shell's `window.__panneau.ouvrir(descripteur)` rather than the engine's own
 `openSheet(panneauHTML({…}))`. The two source checks below follow them there.
 What they hold is unchanged — one constructor, no second one, and every caller
@@ -31,7 +31,7 @@ import asyncio
 import pathlib
 import re
 
-from commun import Journal, ouvrir
+from common import Journal, ouvrir
 from playwright.async_api import async_playwright
 
 RACINE = pathlib.Path(__file__).resolve().parent.parent

@@ -31,7 +31,7 @@ import os
 import pathlib
 import sqlite3
 
-from commun import Journal, ouvrir
+from common import Journal, ouvrir
 from playwright.async_api import async_playwright
 
 LIBRARY = pathlib.Path(os.path.expanduser("~/dev/PersonalScraper/.data/library.db"))

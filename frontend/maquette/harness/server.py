@@ -152,12 +152,12 @@ if __name__ == "__main__":
     import urllib.request
 
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-    from commun import Journal
+    from common import Journal
 
     PORT_PREUVE = 8917
     RACINE_PREUVE = pathlib.Path("/tmp/tm-refonte")
 
-    journal = Journal("serveur.py — le repli répond aux adresses profondes")
+    journal = Journal("server.py — le repli répond aux adresses profondes")
 
     attendu = (RACINE_PREUVE / "wrapped.html").read_bytes()
     bundles = sorted((RACINE_PREUVE / "vite").glob("*.js"))

@@ -4852,7 +4852,7 @@
   /* 150 REAL suggestions: the output of the engine actually run against
      library.db (16 seeds → 32 TMDB calls → 640 raw titles → 503 survivors
      after excluding the 1,832 owned TMDB ids). */
-  /* Taken VERBATIM from components/acquisition/meta.ts and SuivisPanel.tsx:
+  /* Taken VERBATIM from components/acquisition/meta.ts and FollowsPanel.tsx:
      same labels, same tones, same urgency order, same groups. */
   const ST_LABEL = {
     disabled: "En pause",
@@ -16188,7 +16188,7 @@
     if (nombreDEntrees > 0) deroulementEnCours += 1;
   };
 
-  /* Kept as a VERB the driver can still say: `doigt.py`, `glisse.py` and
+  /* Kept as a VERB the driver can still say: `touch.py`, `drag.py` and
      `machine.py` call `closeSheet()` from inside the page, and moving a layer
      to the shell must not take away the vocabulary that drives it. The layer
      state, the per-layer guard and the unwind all live in

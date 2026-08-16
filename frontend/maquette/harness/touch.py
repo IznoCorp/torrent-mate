@@ -20,7 +20,7 @@ nothing else here proves it still holds.
 """
 import asyncio
 
-from commun import Journal
+from common import Journal
 from playwright.async_api import async_playwright
 
 # The prototype's own long-press delay; a probe shorter than it proves nothing.

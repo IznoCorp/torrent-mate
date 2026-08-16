@@ -36,7 +36,7 @@ import pathlib
 import subprocess
 import sys
 
-from commun import Journal, ouvrir
+from common import Journal, ouvrir
 from playwright.async_api import async_playwright
 
 RACINE = pathlib.Path(os.path.expanduser("~/dev/PersonalScraper"))

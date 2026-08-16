@@ -30,7 +30,7 @@ What the drawer owes, and what this script holds it to:
 """
 import asyncio
 
-from commun import Journal, ouvrir
+from common import Journal, ouvrir
 from playwright.async_api import async_playwright
 
 # WCAG AA for body text. The current entry sat at 1.00 — the floor exists so a

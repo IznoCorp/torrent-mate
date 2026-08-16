@@ -31,7 +31,7 @@ What this holds to:
 """
 import asyncio
 
-from commun import TELEPHONE
+from common import TELEPHONE
 from playwright.async_api import async_playwright
 
 PROTOTYPE = "http://127.0.0.1:8899/wrapped.html"
@@ -65,7 +65,7 @@ def requete(url):
 
 
 async def main():
-    from commun import Journal
+    from common import Journal
 
     journal = Journal("R69 — l'URL porte l'état, et un rechargement y ramène")
 

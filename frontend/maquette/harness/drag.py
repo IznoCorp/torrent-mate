@@ -26,7 +26,7 @@ exactly what was wrong on it.
 """
 import asyncio
 
-from commun import Journal, ouvrir
+from common import Journal, ouvrir
 from playwright.async_api import async_playwright
 
 
