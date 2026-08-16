@@ -15342,6 +15342,33 @@
     cardHTML,
     addVerb,
     render,
+    HEROS,
+    POSTERS,
+    // ACTEURS and AUJOURDHUI are declared with `const` further down this
+    // same script, past this literal's evaluation point — a plain shorthand
+    // reference would hit the temporal dead zone the instant this object is
+    // built. A getter defers the read to first access, by which time the
+    // whole script has finished running.
+    get ACTEURS() {
+      return ACTEURS;
+    },
+    trailerIds,
+    EP_LABEL,
+    sheetFor,
+    saisonsDe,
+    possedesDe,
+    plages,
+    initials,
+    dateFR,
+    get AUJOURDHUI() {
+      return AUJOURDHUI;
+    },
+    svgIcon,
+    tousLesReglages,
+    reglageId,
+    valeurSaisie,
+    modifierReglage,
+    ouvrirReglage,
   };
 
   const TRIS = {

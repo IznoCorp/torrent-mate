@@ -80,6 +80,36 @@ export type DescripteurCarte = {
   panel?: string;
 };
 
+// A media sheet, exactly as `FICHES_RAW` shapes one in refonte.html — a
+// movie and a show share most fields but not all (a show carries `saisons`
+// and `eps`, a movie carries `duree`), and the source stays untyped JS. A
+// loose index type is the honest shape here rather than a speculative
+// closed one: a component narrows the fields it actually reads.
+export type Fiche = Record<string, unknown>;
+
+// One YouTube trailer reference, as `trailerIds` shapes one per title.
+export type Trailer = {
+  key: string;
+  nom: string;
+  langue: string;
+};
+
+// One editable setting, as `tousLesReglages()` flattens one — the legacy
+// settings-panel row (see refonte.html's `REGLAGES`) merged with the
+// enclosing rubric it belongs to. `brut` / `v` stay untyped: a setting's
+// raw and current value can be a string, a number, or a nested structure
+// (e.g. the `disks` array), and the source never declares which.
+export type Reglage = {
+  f: string;
+  c: string;
+  type: string;
+  brut: unknown;
+  n: string;
+  v: unknown;
+  note?: string;
+  rubrique: Record<string, unknown>;
+};
+
 // Read-only reference data + pure rendering helpers the engine's own script
 // publishes once, at definition time — well before any component's module
 // evaluates (see coquille.tsx's boot-order comment). None of it is ever
@@ -109,6 +139,37 @@ export type Referentiel = {
   cardHTML: (descriptor: DescripteurCarte) => string;
   addVerb: (result: ResultatRecherche, index: number) => string;
   render: () => void;
+  // Media-sheet data: hero banners, posters, cast portraits, trailers and
+  // episode-status labels, plus the lookup/formatting helpers a sheet or a
+  // season list reads them through — see refonte.html's `sheetFor` /
+  // `saisonsDe` / `possedesDe` neighbourhood for the exact resolution rules
+  // (title normalisation, year-suffix stripping) a re-implementation would
+  // otherwise silently diverge from.
+  HEROS: Record<string, string>;
+  POSTERS: Record<string, string>;
+  ACTEURS: Record<string, string>;
+  trailerIds: Record<string, Trailer>;
+  EP_LABEL: Record<string, string>;
+  sheetFor: (titre: string) => Fiche | null;
+  saisonsDe: (titre: string) => [number, number | null, number][];
+  possedesDe: (titre: string, saison: number) => Set<number> | null;
+  plages: (nums: number[]) => string;
+  initials: (nom: string) => string;
+  // `dateFR` returns null on a falsy `iso`, exactly like `sheetFor` on an
+  // unresolved title — a sheet's air dates are frequently unset (an
+  // announced-but-unaired episode) and the caller decides what to show.
+  dateFR: (iso: string) => string | null;
+  AUJOURDHUI: string;
+  svgIcon: (paths: string, strokeWidth?: number) => string;
+  // Réglages (settings) panel actions — read the full setting list, derive
+  // a setting's storage id, coerce a raw field input back to its stored
+  // type, and apply/open a pending edit. See refonte.html's `REGLAGES`
+  // neighbourhood for the file/rubric structure `Reglage.rubrique` carries.
+  tousLesReglages: () => Reglage[];
+  reglageId: (reglage: Reglage) => string;
+  valeurSaisie: (reglage: Reglage, texte: string) => unknown;
+  modifierReglage: (id: string, valeur: unknown) => void;
+  ouvrirReglage: (id: string) => void;
 };
 
 declare global {
