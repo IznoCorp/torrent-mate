@@ -4,34 +4,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Purpose
 
-This is a **media triage pipeline**. Downloaded media files land in the staging
-area (defined by `paths.staging_dir` in `config/paths.json5`, outside the repository
-by default), get renamed, cleaned of junk files/folders, scraped for metadata
-(via TMDB/TVDB APIs, with MediaElch as manual fallback), then moved to
-permanent storage on one of the configured disks.
+This is a **media triage pipeline**. Downloaded media files land in the staging area, get
+renamed, cleaned of junk, scraped for metadata (TMDB/TVDB, MediaElch as manual fallback),
+then moved to permanent storage on one of the configured disks.
 
-The staging subdirectory layout (`001-MOVIES/`, `002-TVSHOWS/`, etc.) is configured
-via the `staging_dirs` section of `config/patterns.json5` — not hardcoded or tracked by git.
+Package name: `personalscraper`. CLI entry points: `torrentmate` (public command name) and
+`personalscraper` (back-compat alias) — same Typer app.
 
-Package name: `personalscraper`. CLI entry points: `torrentmate` (the public
-command name) and `personalscraper` (back-compat alias) — both run the same
-Typer app. See `docs/reference/architecture.md` for the module map and package layout.
-
-All storage paths, staging layout, and category names are in the `config/` directory.
-Run `personalscraper init-config` to create `config/` from the `config.example/` template.
+All storage paths, staging layout (`001-MOVIES/`, `002-TVSHOWS/`, …) and category names are
+config-driven, never hardcoded; `personalscraper init-config` seeds `config/` from
+`config.example/`. Layout: `docs/reference/config-overlay-layout.md`. Module map:
+`docs/reference/architecture.md`.
 
 ## Setup (per clone)
 
 ```bash
 pip install -e ".[dev]"
-./hooks/install.sh   # one-time per clone — sets core.hooksPath to hooks/
+./hooks/install.sh   # one-time per clone — sets core.hooksPath to hooks/ (never ~/.gitconfig)
 ```
 
-`hooks/install.sh` is idempotent and only configures `core.hooksPath` for this
-clone (writes to `.git/config`, never to `~/.gitconfig`). The pre-commit hook
-regenerates `tests/feature_map/<codename>.json` whenever a `test_design_*.py`
-file is staged. CI catches drift via `update_feature_map.py --check` if the
-hook is bypassed (`--no-verify`).
+The pre-commit hook regenerates `tests/feature_map/<codename>.json`; CI catches drift if it
+is bypassed. Details: `docs/reference/testing.md` §Feature Map.
 
 ## Critical Rules
 
@@ -56,13 +49,8 @@ constitution). Every design evolution **starts from the maquette, never from the
 4. The app's CSS is **extracted** from the maquette (`scripts/extract-maquette-css.py`), never
    copied by hand; drift is blocked by `make check`.
 
-Read `frontend/maquette/README.md` before any design change: it carries the method, the named
-states, the verified rule set (`regions.json` → `$adversarialReview`) and the traps already
-paid for.
-
-**Language of the maquette sources**: comments **in English**, with no reference to a session,
-a phase, or a dated decision — they must still read years from now, out of context. Interface
-text quoted inside a comment stays in French.
+Read `frontend/maquette/README.md` before any design change — method, named states, verified
+rule set, and the traps already paid for.
 
 ### Search Safety (MANDATORY — machine crash prevention)
 
@@ -117,35 +105,19 @@ explicit timeouts for API calls to hosts that may be slow or unreachable.
 
 ### Commit Convention
 
-Follows [Conventional Commits](https://www.conventionalcommits.org/) — globally enforced for all projects using this `.claude/` config.
-
-Format:
-
-```
-<type>[(<scope>)]: <description>
-```
+Follows [Conventional Commits](https://www.conventionalcommits.org/) — globally enforced for
+all projects using this `.claude/` config. Format: `<type>[(<scope>)]: <description>`.
 
 Types: `feat | fix | chore | refactor | style | docs | test | perf | build | ci`
-
-Examples:
-
-- `feat(scraper): create TvShow nfo file`
-- `chore: add json5 dependency`
-- `refactor(dispatch): extract folder_for to resolver`
-- `fix(conf): add missing Config import in scraper/run.py`
+Examples: `feat(scraper): create TvShow nfo file` · `refactor(dispatch): extract folder_for to resolver`
 
 **Forbidden**:
 
-- Version prefixes (`vX.Y.Z: Description`) — version traceability lives in `IMPLEMENTATION.md` and subagent reports (sub-phase → SHA mapping), not in commit messages
+- Version prefixes (`vX.Y.Z: Description`) — version traceability lives in `IMPLEMENTATION.md`
+  and subagent reports (sub-phase → SHA mapping), not in commit messages
 - AI attribution: `Co-Authored-By`, `Claude`, `Anthropic` — enforced by `hooks/block_ai_attribution.py`
 
-**Milestone commits** (used by `/implement:phase` skill) include codename as scope:
-
-```
-chore(my-feature): phase 3 gate — scraper refactor
-```
-
-This is the ONLY place codename appears in milestone commits.
+Milestone-commit format and the codename-as-scope rule: `docs/reference/feature-lifecycle.md` §7.
 
 ### Pipeline Monitoring Rules
 
@@ -179,39 +151,20 @@ Every `chore(scope): phase N gate` commit MUST pass all of:
 4. **Residual import grep** — for every module deleted in this phase, grep both `personalscraper/` AND `tests/` for the old import path. Zero matches.
 5. **`python -c "import personalscraper"`** — smoke test.
 
-**If `make test` shows any ERROR (not just FAILED)**: the test COLLECTION crashed — all tests after that point are skipped. Fix imports before proceeding.
-
-**After any module deletion**: grep `tests/` for the old path. `rg "old.module.path" tests/` must return zero matches.
-
-**After any constructor signature change**: grep `tests/` for the old call pattern and update all test fixtures/mocks.
+An ERROR (not just FAILED) in `make test` means test COLLECTION crashed — everything after it
+was skipped. Post-deletion and post-signature-change grep rules:
+`docs/reference/feature-lifecycle.md` §7.
 
 ### Implementation Workflow (feature-oriented)
 
-12 `implement:*` skills managing the full feature lifecycle, with per-skill model allocation (see each skill's description; Sonnet is forbidden as a dispatch target). Original design (archived): `docs/archive/superpowers/specs/2026-04-22-implement-skills-refactor-design.md`.
+12 `implement:*` skills cover the feature lifecycle; **Sonnet is forbidden as a dispatch
+target**. Entry point `/implement:feature` (brainstorm → codename + SemVer → branch → plan),
+then `/implement:phase` until the PR. Branches `feat/{codename}` / `fix/{codename}`, commits
+scoped with the codename, squash merge. Full flow, model allocation, milestone commits and the
+KanbanMate claim procedure: `docs/reference/feature-lifecycle.md` §7.
 
-**Entry point**: `/implement:feature` — archive prev, brainstorm, derive codename + SemVer type, create branch, generate plan.
-
-**Per phase**: `/implement:phase` — loop on sub-phases, dispatching `/implement:sub-phase` + `/implement:check` (verification). Auto-invokes `/implement:feature-pr` at last phase (gate + push + PR + CI poll), then `/implement:pr-review` (review + track-scaled fix cycles: full=5, lite=2, express=1 + squash merge).
-
-**Branches**: `feat/{codename}` or `fix/{codename}`
-**Commits**: Conventional Commits with `(codename)` scope
-**SemVer bump** (at create-branch): bugfix → Z+1, minor → Y+1, major → X+1
-**Merge**: squash, mode chosen at feature start (manual / auto)
-
-### Working a KanbanMate Ticket (before implementing a roadmap item)
-
-Roadmap items are tracked as **KanbanMate tickets** — historical example: the web-UI waves
-S1 `#158` (shell + auth + WebSocket) through S7, all shipped since. **To work on / implement a
-ticket, never start coding directly.** Claim it through the kanban skills first, so the
-autonomous KanbanMate daemon stays out of the way, then advance the card column-by-column
-as the work progresses:
-
-1. **Claim + sync** — invoke `/kanban-work <ticket>` (skill `kanban:kanban-work`). This
-   reclaims the ticket from the autonomous daemon and syncs this local session with the board.
-2. **Advance the card** — move it through the KanbanMate columns as work progresses
-   (board/CLI ops via `/kanban`; health sweep via `/kanban-monitor`).
-3. **Then** run the normal implementation flow (`/implement:feature` → phases → PR),
-   keeping the card's column in step with the actual progress.
+**Never start coding a roadmap ticket directly** — claim it via `/kanban-work <ticket>` first,
+so the autonomous KanbanMate daemon stays out of the way, and advance the card as you go.
 
 ### Move Rules (dispatch)
 
@@ -228,13 +181,12 @@ as the work progresses:
 
 ### Web-UI Environments (ENV-SEP) & Binding Invariants
 
-Three checkouts on this host (full topology + deploy runbook: `docs/reference/web-ui.md`):
+Three checkouts share `library.db`, `.data/` and the storage disks: **dev** = `~/dev/PersonalScraper`
+(feature branches, no PM2 daemons) · **prod** = `~/deploy/torrentmate` (tracks `main`, `torrentmate-web`
+on 8710) · **staging** = `~/staging/torrentmate` (tracks `staging`, 8711, read-only role → 403 on
+writes). Canonical config lives at `~/.torrentmate/config`, outside every working tree. Full topology
+and deploy runbook: `docs/reference/web-ui.md`.
 
-- **dev** = `~/dev/PersonalScraper` (this checkout) — feature branches, NO PM2 daemons.
-- **prod** = `~/deploy/torrentmate` (tracks `main`, autodeploy) — `torrentmate-web` on **8710** + watch + crons.
-- **staging** = `~/staging/torrentmate` (tracks the `staging` branch, autodeploy) — `torrentmate-web-staging` on **8711**, read-only role (`PERSONALSCRAPER_WEB_ROLE=staging` → 403 on writes).
-- Shared between all three: `library.db`, `.data/`, storage disks.
-- Canonical config at `~/.torrentmate/config` (outside all working trees — see `docs/archive/features/config-home/DESIGN.md` §3.1).
 - **NEVER start a local server on 8710/8711** (Caddy routes `tm.`/`tm-staging.` there) — test the frontend via `tm-staging.iznogoudatall.xyz`.
 
 Invariants enforced by tests (do not regress; details in `docs/reference/web-ui.md` + `maintenance.md`):
@@ -248,55 +200,53 @@ Invariants enforced by tests (do not regress; details in `docs/reference/web-ui.
 ### Language
 
 The operator communicates in French or English — respond in French when they write in French.
-Everything durable is **English only**: code comments, docstrings, and all engineering
-documentation (`docs/`, `BUGS.md`, `CHANGELOG.md`, `ROADMAP.md`, `IMPLEMENTATION.md`, this
-file). **Never mix languages within a document.** Exceptions:
+Everything durable is **English only**: code comments, docstrings, maquette/harness sources, and
+all engineering documentation (`docs/`, `BUGS.md`, `CHANGELOG.md`, `ROADMAP.md`,
+`IMPLEMENTATION.md`, this file). **Never mix languages within a document.** Exceptions:
 
 - **Operator-facing docs stay French**: `README.md`, `MANUAL.md`, `INSTALLATION.md`,
   `CONFIGURATION.md`, `docs/reference/product-intent.md` (the constitution, dictated by the
   operator).
 - French inside an English document is allowed **only** to quote UI copy / app screens and
-  sections named in French (in « guillemets ») or media titles.
+  sections named in French (in « guillemets »), media titles, or the operator verbatim.
 - `docs/archive/` is frozen history — never translated, never restyled.
+- Maquette/harness comments carry no reference to a session, a phase or a dated decision —
+  they must still read years from now, out of context.
 
 ## Reference Index (lazy-load when relevant)
 
 Load these docs on-demand based on your task — they are **not** auto-loaded:
 
-| When working on...                                                                                                    | Read                                            |
-| --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| CLI commands, pipeline invocation, scheduling (PM2 crons), make targets                                               | `docs/reference/commands.md`                    |
-| Disks, NTFS/macFUSE, rsync flags, disk space rules, move rules details                                                | `docs/reference/storage.md`                     |
-| Directory layout, module map, shared utilities, dependencies                                                          | `docs/reference/architecture.md`                |
-| Movie/TV folder naming, episode patterns, filename sanitization                                                       | `docs/reference/naming.md`                      |
-| Unit tests, E2E, roundtrip, golden files, test markers, timeouts                                                      | `docs/reference/testing.md`                     |
-| TMDB/TVDB APIs, NFO invariants, artwork, ffprobe language codes                                                       | `docs/reference/scraping.md`                    |
-| rapidfuzz, tenacity, structlog, rich, guessit gotchas                                                                 | `docs/reference/libraries.md`                   |
-| Circuit breaker, fast-skip, dispatch/verify internals, idempotence                                                    | `docs/reference/pipeline-internals.md`          |
-| EventBus internals, event catalog, subscriber recipes, AppContext boundary rule, ContextVar pattern                   | `docs/reference/event-bus.md`                   |
-| Logging conventions, event-name style, structlog vs CLI vs typer channels                                             | `docs/reference/logging.md`                     |
-| Trailer discovery, download, state, CLI, Plex-conformant placement (movies flat, TV shows in `Trailers/` subfolder)   | `docs/reference/trailers.md`                    |
-| Media indexer DB, scanner modes, query parser, outbox, cron setup, failure recovery                                   | `docs/reference/indexer.md`                     |
-| JSON column shapes (artwork_json, payload_json, stats_json) — Pydantic model references and examples                  | `docs/reference/indexer-json-shapes.md`         |
-| Cross-provider IDs flow, ratings JSON, backfill mode, capability protocols (provider-ids feature)                     | `docs/reference/external-ids-flow.md`           |
-| API contracts, HttpTransport, TransportPolicy, family Protocols (`MetadataClient`, `TorrentClient`, …)                | `docs/reference/architecture.md` (api/)         |
-| TMDB / TVDB / OMDB / Trakt providers (auth, endpoints, response shape, particularities)                               | `docs/reference/<provider>-api.md`              |
-| qBittorrent / Transmission torrent clients (auth, endpoints, content_path, particularities)                           | `docs/reference/<provider>-api.md`              |
-| C411 / Tr4ker trackers (search, ranking, samples, freeleech, passkey) + the generic Torznab engine                    | `docs/reference/<tracker>-api.md`               |
-| Telegram notifier / healthchecks (lifecycle, auth-in-URL, fail-soft contract)                                         | `docs/reference/<provider>-api.md`              |
-| Plex refresh after dispatch (X-Plex-Token header, partial scan, longest-prefix section, fail-soft)                    | `docs/reference/plex-api.md`                    |
-| Provider naming conventions — `ProviderName` Enum (transport) vs `RegistryProviderName` NewType (registry)            | `docs/archive/features/registry/DESIGN.md` §5.3 |
-| Insights layer — analytics, reporting, recommendations over the indexer DB                                            | `docs/reference/insights.md`                    |
-| Maintenance ops — disk cleaning, targeted re-scrape repairs, web-UI action catalog + runner (S3 maint-dash)           | `docs/reference/maintenance.md`                 |
-| ffprobe stream extraction, codec/language → Kodi NFO mapping                                                          | `docs/reference/ffprobe-api.md`                 |
-| Config split layout, JSON5 overlay composition, per-file key ownership                                                | `docs/reference/config-overlay-layout.md`       |
-| Config home relocation — canonical location, migration runbook                                                        | `docs/archive/features/config-home/DESIGN.md`           |
-| Feature lifecycle — ACCEPTANCE format, phase-gate vs deployment, deferred-criterion protocol                          | `docs/reference/feature-lifecycle.md`           |
-| Module-size budget tracking, BLOCK-threshold promise status                                                           | `docs/reference/promises.md`                    |
-| Post-merge operator checklist (DB schema, config/CLI migrations, ACC re-exercise)                                     | `docs/reference/runbook-post-merge.md`          |
-| TorrentMate web UI — architecture, auth, WS protocol, Redis relay, PWA, deploy runbook, S2-S7 REST conventions        | `docs/reference/web-ui.md`                      |
-| **Product intent — the product constitution (BINDING): web-UI raison d'être, §1–§15 + DOIT/NE-DOIT-PAS + §méthode**   | `docs/reference/product-intent.md`              |
-| **Maquette — the VISUAL reference of the web UI (BINDING): it is modified BEFORE the code**                           | `frontend/maquette/README.md`                   |
+| When working on... | Read |
+| --- | --- |
+| CLI commands, pipeline invocation, scheduling (PM2 crons), make targets | `docs/reference/commands.md` |
+| Disks, NTFS/macFUSE, rsync flags, disk space rules, move rules details | `docs/reference/storage.md` |
+| Directory layout, module map, shared utilities, dependencies, api/ contracts (HttpTransport, Protocols) | `docs/reference/architecture.md` |
+| Movie/TV folder naming, episode patterns, filename sanitization | `docs/reference/naming.md` |
+| Unit tests, E2E, roundtrip, golden files, test markers, timeouts, feature map | `docs/reference/testing.md` |
+| TMDB/TVDB APIs, NFO invariants, artwork, ffprobe language codes | `docs/reference/scraping.md` |
+| rapidfuzz, tenacity, structlog, rich, guessit gotchas | `docs/reference/libraries.md` |
+| Circuit breaker, fast-skip, dispatch/verify internals, idempotence | `docs/reference/pipeline-internals.md` |
+| EventBus internals, event catalog, subscriber recipes, AppContext boundary rule, ContextVar pattern | `docs/reference/event-bus.md` |
+| Logging conventions, event-name style, structlog vs CLI vs typer channels | `docs/reference/logging.md` |
+| Trailer discovery, download, state, CLI, Plex-conformant placement | `docs/reference/trailers.md` |
+| Media indexer DB, scanner modes, query parser, outbox, cron setup, failure recovery | `docs/reference/indexer.md` |
+| JSON column shapes (artwork_json, payload_json, stats_json) — Pydantic models and examples | `docs/reference/indexer-json-shapes.md` |
+| Cross-provider IDs flow, ratings JSON, backfill mode, capability protocols | `docs/reference/external-ids-flow.md` |
+| Any provider or client — TMDB/TVDB/OMDB/Trakt, qBittorrent/Transmission, C411/Tr4ker + Torznab, Telegram/healthchecks | `docs/reference/<provider>-api.md` |
+| Plex refresh after dispatch (X-Plex-Token, partial scan, longest-prefix section, fail-soft) | `docs/reference/plex-api.md` |
+| Provider naming — `ProviderName` Enum (transport) vs `RegistryProviderName` NewType (registry) | `docs/archive/features/registry/DESIGN.md` §5.3 |
+| Insights layer — analytics, reporting, recommendations over the indexer DB | `docs/reference/insights.md` |
+| Maintenance ops — disk cleaning, targeted re-scrape repairs, web-UI action catalog + runner | `docs/reference/maintenance.md` |
+| ffprobe stream extraction, codec/language → Kodi NFO mapping | `docs/reference/ffprobe-api.md` |
+| Config split layout, JSON5 overlay composition, per-file key ownership | `docs/reference/config-overlay-layout.md` |
+| Config home relocation — canonical location, migration runbook | `docs/archive/features/config-home/DESIGN.md` |
+| Feature lifecycle — ACCEPTANCE format, phase gates, implement:\* flow, KanbanMate claim | `docs/reference/feature-lifecycle.md` |
+| Module-size budget tracking, BLOCK-threshold promise status | `docs/reference/promises.md` |
+| Post-merge operator checklist (DB schema, config/CLI migrations, ACC re-exercise) | `docs/reference/runbook-post-merge.md` |
+| TorrentMate web UI — architecture, auth, WS protocol, Redis relay, PWA, deploy runbook, REST conventions | `docs/reference/web-ui.md` |
+| **Product intent — the product constitution (BINDING): §1–§15 + DOIT/NE-DOIT-PAS + §méthode** | `docs/reference/product-intent.md` |
+| **Maquette — the VISUAL reference of the web UI (BINDING): it is modified BEFORE the code** | `frontend/maquette/README.md` |
 
 Also check archived alpha versions under `docs/archive/legacy-alpha/` and archived features under `docs/archive/features/`.
 
