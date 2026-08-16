@@ -238,8 +238,8 @@ export type Referentiel = {
   ouvrirReglage: (id: string) => void;
   // The arbitration flow — decisions the scrape could not make on its own,
   // spelled out for a folder rather than a medium. `DECISIONS_ATTENTE` /
-  // `DECISIONS_REGLEES` are the mock's ten rows of `scrape_decision`, split
-  // by whether an operator has answered yet.
+  // `DECISIONS_REGLEES` are the mock's twelve rows of `scrape_decision` (ten
+  // réglées, two en attente), split by whether an operator has answered yet.
   DECISIONS_ATTENTE: DecisionAttente[];
   DECISIONS_REGLEES: DecisionReglee[];
   MOTIF_LABEL: Record<string, string>;

@@ -105,9 +105,10 @@ flushes pending writes, announces the traversal to the engine (`window.__annonce
 multi-entry `history.go(-n)` coalesces into ONE popstate at the browser level, so the engine's
 own latch is raised once per announcement, never by `n` (raising it by `n` was tried and falls a
 mutation: it swallows the operator's next real Back in silence). This closed M11 — the Associer
-flow (`data-act="ident"` from an `/ajout` result) used to fire two raw `history.back()` calls in
-the same task, which the engine's own coalescing latch could absorb only one of; the second read
-as an unannounced operator gesture and happened to land correctly only by the accident of which
+flow (`data-act="add:N"` from an `/ajout` result, with `state.addMode === "identifier"`) used to
+fire two raw `history.back()` calls in the same task, which the engine's own coalescing latch
+could absorb only one of; the second read as an unannounced operator gesture and happened to
+land correctly only by the accident of which
 entry sat underneath. `ident.py` holds the settlement: one entry back, no layer left open, the
 next Back still worth exactly one step.
 

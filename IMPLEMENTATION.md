@@ -186,9 +186,12 @@ Carried open: the 240 ms dead delay on `data-suivante` (a frozen quarter-second,
 screen-close cover — kept identical under the binding-parity constraint; flagged for the operator
 in `BUGS.md`'s evolutions register, not fixed here); a deep `/releases/$titre` entry with no
 `__ecrans` call leaves `relTitre` null for `data-prendre` (mirrors the accepted `/ajout`
-addQ/addMode debt, dies with the legacy dispatcher); `ident.py`'s early arbitration/add-screen
-reads are still through `#screen` and print `None` — they gate nothing and did not block the
-measured journey.
+addQ/addMode debt, dies with the legacy dispatcher), and a deep `/resolution/$dossier` entry the
+same way leaves `resolveTarget` stale for `data-resolve`/`data-laisser` (same settlement, same
+door, dies with the legacy dispatcher too); `ident.py`'s only remaining `#screen` read is `ou()`'s
+`ecran` field — deliberately left, recorded under R57 — since its two early informational probes
+(the arbitration screen's `.h2`, the add screen's banner/field/id-block) already moved to
+`.screen.open[data-cle^="resolution:"]` / `[data-cle^="ajout:"]` and no longer print `None`.
 Next: the rest of the catch-all surface by surface; then SP5 (visual language).
 
 ---
