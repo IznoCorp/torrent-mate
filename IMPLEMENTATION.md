@@ -98,8 +98,49 @@ layer opened over a screen-route. CI gained the shell's own `npm run typecheck` 
 opens for SP4b: the fiche (the most connected screen, and the biggest `openSheet` producer) and
 the panel migrate together; the legacy sites that open the panel will speak to it through the
 shell.
-Next: SP4b — the fiche and the panel; then the rest of the catch-all surface by surface; then
-SP5 (visual language).
+**SP4b — the fiche and the panel, migrated together**: Branch `feat/maquette-sp4b`. Opens with a
+re-measure: B-024 (`data-go` settles one history entry while layers pile) is confirmed still
+`latent, non atteignable` after SP4a — no code changed that walk, only the witnesses in its BUGS.md
+entry were corrected. `window.__referentiel` widens so the fiche's data (cast, seasons, trailer,
+artwork) is reachable from React the same way the profile's already was. `<PanneauContenu>`
+(`composants/panneau.tsx`) is the single React constructor for every panel — `Descripteur`/`Bloc`/
+`Action`/`Ligne`/`Segment` types, the five declared block kinds, the same refusal on an unknown
+block `panneauHTML` always had. `<Feuille>` cuts the layer and its drag gesture over: every one of
+the legacy panel's producers now calls `window.__panneau.ouvrir(descripteur)` /
+`.fermer(pop?)` / `.ouverte()` — the shell's store owns `panneauOuvert`/`panneauDescripteur`,
+`openSheet()` is retired to a tripwire (`throw` — a producer nobody converted fails loudly instead
+of silently drawing nothing), `closeSheet(pop)` stays as a one-line verb the harness driver still
+calls. `FicheEcran` lands as a real route, `/fiche/$titre`, transplanted from `openFiche()`
+(deleted from the fragment the same commit): unknown titles render honestly (no not-found branch
+existed to mirror), a fiche without a trailer shows its own `p.nofiche` rather than hiding the
+section. Scroll position is now kept in the shell, keyed per HISTORY ENTRY rather than per address
+(`coquille.tsx`, "LE DÉFILEMENT SUIT L'ENTRÉE D'HISTORIQUE") — the legacy layer used to restore a
+covered screen's scroll itself on unwind; a router-owned screen unmounts instead, so the shell
+remembers the offset and reapplies it once the port and its images have settled. `window.__ecrans`
+gains `.fiche(titre)` alongside `.profil(titre)`, both NFC-normalised on write. Two rule amendments
+carry the cutover: R56 (`panneau.py`) re-points its two source checks from the fragment's dead
+`panneauHTML`/single-caller shape onto the component and its call sites; R71 (`ecrans.py`) trades
+`#screen` for `.screen.open` wherever the target moved to a router-owned screen. R60
+(`reglages.py`) gets two added holds, no rule changed. R75 (`adresses_ecrans.py`) extends with five
+holds (f)-(j) for the fiche: cold deep entry, the hero/poster the fiche paints itself actually
+loads, Back closes to `/`, an unknown title still renders honestly, a no-trailer real fiche shows
+exactly one `p.nofiche`. B-025/026 (the screen half of the `data-go` fix had no Back rule; a silent
+`catch {}` could let the URL and the UI disagree) are paid alongside B-024's re-measure — the
+`data-go` handler and `noterLeChemin` now log and raise instead of swallowing. B-027/028/029
+(`resynchro.py`'s first-`t:`-match and naive-brace title extraction, its silence on an unknown
+title, `contenu.py`'s substring counter check matching "1" inside "11") are fixed: string-aware
+extraction, a loud failure on the unmatched case, a numeric comparison. All five close as `to
+confirm` in `BUGS.md`, B-024 stays `open` (latent, not reachable by a real walk — a design
+decision, not a gap). A dead-code sweep in the same wave retires `saisonsHTML`, `champReglageHTML`
+and `seasonHTML` from the fragment once their last legacy consumer moved to the component.
+Wave gate: full 48-script harness suite green, `make check`/`make check-frontend` green, R59/R69/
+R71 (`retour.py`/`adresse_url.py`/`ecrans.py`) diffed against the SP4a merge point — `retour.py`/
+`adresse_url.py` byte-identical, `ecrans.py`'s only change is the Task-5 `.screen.open` amendment
+above. `frontend/src/styles/ps/app-surface.css` was found drifted from the maquette by two
+selectors (`--primary` vs `--primary-texte` on the active nav link, `.bottombar`/`.drawer`) —
+confirmed pre-existing at the SP4a merge commit, not caused by this wave — and regenerated via
+`scripts/extract-maquette-css.py`.
+Next: the rest of the catch-all surface by surface; then SP5 (visual language).
 
 ---
 

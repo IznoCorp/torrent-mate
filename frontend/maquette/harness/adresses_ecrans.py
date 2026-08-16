@@ -31,6 +31,28 @@ What it holds to:
    record, so the screen has nothing to fail a lookup against — it renders
    its ordinary form for whatever string is in the address, and the address
    itself is left exactly as typed (R68's spirit, at depth).
+
+EXTENDED (SP4b) to `FicheEcran` — the media sheet, the one screen every
+poster, tile, suggestion and panel act already led to, now also reachable
+as `/fiche/$titre` on its own. Unlike `ProfilEcran`, this screen DOES draw
+an image of its own (the hero/poster banner), so its own artwork is the
+proof at this depth rather than a stand-in read off the legacy fragment
+underneath. And unlike a `QualityProfile` name, a title here resolves
+against a real per-title record (`sheetFor`) — so the unknown-title hold
+is not "the screen has nothing to fail a lookup against" but "the legacy
+template it was transplanted from never had a not-found branch either":
+`openFiche(title)` (`refonte.html`, deleted when this screen became a real
+route — recovered from the commit that deleted it) built the SAME markup
+whether `sheetFor(title)` found a record or not, every field simply
+printing "inconnu" in its place. What the harness holds for the fiche:
+(f) a deep address opens it cold, `h2.ht` carrying the promised title;
+(g) the hero/poster the screen draws ITSELF actually loads — proven on the
+image the CSS background resolves to, not on a stand-in; (h) one Back
+lands exactly where holds 3+4 already prove it does for `ProfilEcran`; (i)
+an unknown title renders the SAME honest template, mirroring `openFiche`'s
+own null path rather than inventing a not-found surface for it; (j) a
+title the provider gave no trailer to renders `p.nofiche` in the
+trailer's own place, never a silently missing section.
 """
 import asyncio
 import json
@@ -52,6 +74,18 @@ TITRE = "Silo"
 # way an operator would type it — the point of hold 5 is that NOTHING
 # corrects this on the way in.
 ADRESSE_INCONNUE = "N'Existe%20Pas"
+
+# The fiche titles below are picked straight from the embedded référentiel
+# (`refonte.html`'s `FICHES_RAW`/`HEROS`/`trailerIds`), not invented:
+# `Silo (2023)` carries both a hero image and a trailer (`sheetFor` resolves
+# it directly, no `baseTitle` fallback needed), which is what makes holds
+# (f)-(h) meaningful rather than vacuous. `Broadchurch` is the states
+# table's own pick for "no trailer" (`fiche-sans-trailer`, refonte.html) —
+# its `trailerIds` entry is absent and its sheet carries `trailer: null`
+# explicitly, and its cast/seasons are otherwise fully populated so the
+# ONLY `p.nofiche` the screen draws is the trailer's.
+TITRE_FICHE = "Silo (2023)"
+TITRE_SANS_TRAILER = "Broadchurch"
 
 ETAT_ECRAN = """() => {
   const ecran = document.querySelector('.screen.open');
@@ -81,6 +115,40 @@ ETAT_IMAGES = """() => {
   return {
     chargees: chargees.length,
     cassees: chargees.filter(i => i.naturalWidth === 0).length,
+  };
+}"""
+
+# `FicheEcran` draws its own artwork through a CSS `background-image`, not
+# an `<img>` tag (`.herowrap .herobg`) — so `ETAT_IMAGES`'s generic
+# `<img>` sweep, which is what proves hold 2 for `ProfilEcran` (a screen
+# that draws no image of its own), does not see it at all. Proof here
+# instead re-fetches the SAME url the computed style resolves through a
+# real `Image()`, and reads `complete`/`naturalWidth` off THAT — the exact
+# pair hold (g) is phrased against.
+ETAT_HEROBG = """() => {
+  const bg = document.querySelector('.screen.open .herowrap .herobg');
+  const style = bg ? getComputedStyle(bg).backgroundImage : '';
+  const trouve = /url\\(["']?(.*?)["']?\\)/.exec(style || '');
+  const url = trouve ? trouve[1] : null;
+  if (!url) return Promise.resolve({ url: null, dessine: false });
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => resolve({ url, dessine: image.complete && image.naturalWidth > 0 });
+    image.onerror = () => resolve({ url, dessine: false });
+    image.src = url;
+  });
+}"""
+
+ETAT_FICHE = """() => {
+  const ecran = document.querySelector('.screen.open');
+  return {
+    ouvert: !!ecran,
+    cle: ecran?.dataset.cle ?? null,
+    titre: (ecran?.querySelector('h2.ht') || {}).textContent ?? null,
+    corps: (ecran?.querySelector('.body') || {}).textContent ?? '',
+    nofiches: [...document.querySelectorAll('.screen.open p.nofiche')].map(
+      (p) => p.textContent),
+    pathname: location.pathname,
   };
 }"""
 
@@ -268,6 +336,71 @@ async def main():
                 "et la page rendue est bien la médiathèque",
                 quitte["page"] == "lib", f"page={quitte['page']}")
             journal.verifier("aucune erreur JS en quittant par la barre", not erreurs, str(erreurs))
+            await ctx.close()
+
+            # ─── Holds (f)-(h): the fiche's deep entry, its OWN artwork,
+            # one Back — same server, same `ouvrir_a`, a second screen. ──
+            adresse_fiche = f"{base}/fiche/{urllib.parse.quote(TITRE_FICHE)}"
+            ctx, pg, erreurs = await ouvrir_a(navigateur, adresse_fiche)
+            fiche_froide = await pg.evaluate(ETAT_FICHE)
+            journal.verifier(
+                "(f) une adresse profonde /fiche ouvre la fiche promise, à froid",
+                fiche_froide["ouvert"]
+                and fiche_froide["cle"] == f"fiche:{TITRE_FICHE}"
+                and fiche_froide["titre"] == TITRE_FICHE.split(" (")[0],
+                f"cle={fiche_froide['cle']} titre={fiche_froide['titre']!r}")
+            artwork = await pg.evaluate(ETAT_HEROBG)
+            journal.verifier(
+                "(g) le hero/l'affiche que la fiche dessine ELLE-MÊME se charge réellement",
+                artwork["url"] is not None and artwork["dessine"],
+                f"url={artwork['url']!r} dessine={artwork['dessine']}")
+            journal.verifier("aucune erreur JS à l'entrée profonde /fiche", not erreurs, str(erreurs))
+
+            await pg.evaluate("()=>document.querySelector('.screen.open .fback').click()")
+            await pg.wait_for_timeout(300)
+            revenu_fiche = await pg.evaluate(ETAT_ECRAN)
+            journal.verifier(
+                "(h) un Retour depuis la fiche ramène sur la page par défaut, écran parti, adresse /",
+                not revenu_fiche["ouvert"] and revenu_fiche["pathname"] == "/",
+                revenu_fiche["pathname"])
+            journal.verifier("aucune erreur JS pendant le retour depuis la fiche", not erreurs, str(erreurs))
+            await ctx.close()
+
+            # ─── Hold (i): an unknown title renders the SAME honest
+            # template `openFiche` always did — no not-found branch to
+            # mirror, only a gabarit whose fields say "inconnu" ──────────
+            adresse_fiche_fausse = f"{base}/fiche/{ADRESSE_INCONNUE}"
+            ctx, pg, erreurs = await ouvrir_a(navigateur, adresse_fiche_fausse)
+            fiche_perdue = await pg.evaluate(ETAT_FICHE)
+            journal.verifier(
+                "(i) un titre inconnu rend quand même la fiche, honnêtement — le "
+                "gabarit d'openFiche(title) n'avait pas de branche « non trouvé »",
+                fiche_perdue["ouvert"]
+                and fiche_perdue["titre"] == "N'Existe Pas"
+                and "Métadonnées inconnues" in fiche_perdue["corps"]
+                and "Genres inconnus" in fiche_perdue["corps"],
+                f"cle={fiche_perdue['cle']} titre={fiche_perdue['titre']!r}")
+            journal.verifier(
+                "l'adresse reste celle qui a été tapée",
+                pg.url == adresse_fiche_fausse, pg.url)
+            journal.verifier("aucune erreur JS sur un titre de fiche inconnu", not erreurs, str(erreurs))
+            await ctx.close()
+
+            # ─── Hold (j): a title with no trailer renders p.nofiche in
+            # the trailer's own place — Broadchurch's cast and seasons are
+            # otherwise fully populated, so this is the ONLY p.nofiche the
+            # screen draws; a stray match here would be a real regression,
+            # not a coincidence from an unrelated missing field. ─────────
+            adresse_sans_trailer = f"{base}/fiche/{urllib.parse.quote(TITRE_SANS_TRAILER)}"
+            ctx, pg, erreurs = await ouvrir_a(navigateur, adresse_sans_trailer)
+            fiche_sans_trailer = await pg.evaluate(ETAT_FICHE)
+            journal.verifier(
+                "(j) une fiche sans bande-annonce rend p.nofiche à sa place",
+                fiche_sans_trailer["ouvert"]
+                and len(fiche_sans_trailer["nofiches"]) == 1
+                and "bande-annonce" in fiche_sans_trailer["nofiches"][0],
+                f"nofiches={fiche_sans_trailer['nofiches']!r}")
+            journal.verifier("aucune erreur JS sur une fiche sans bande-annonce", not erreurs, str(erreurs))
             await ctx.close()
 
         await navigateur.close()

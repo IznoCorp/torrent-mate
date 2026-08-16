@@ -3,6 +3,7 @@
 // Their IMPLEMENTATION is what the backend-binding mission will replace;
 // components must never reach around them to the store or the engine.
 import { useSyncExternalStore } from "react";
+import type { Descripteur } from "./composants/panneau";
 import type { Contenu, EtatUI } from "./magasin";
 
 function sabonner(rappel: () => void): () => void {
@@ -80,6 +81,36 @@ export type DescripteurCarte = {
   panel?: string;
 };
 
+// A media sheet, exactly as `FICHES_RAW` shapes one in refonte.html — a
+// movie and a show share most fields but not all (a show carries `saisons`
+// and `eps`, a movie carries `duree`), and the source stays untyped JS. A
+// loose index type is the honest shape here rather than a speculative
+// closed one: a component narrows the fields it actually reads.
+export type Fiche = Record<string, unknown>;
+
+// One YouTube trailer reference, as `trailerIds` shapes one per title.
+export type Trailer = {
+  key: string;
+  nom: string;
+  langue: string;
+};
+
+// One editable setting, as `tousLesReglages()` flattens one — the legacy
+// settings-panel row (see refonte.html's `REGLAGES`) merged with the
+// enclosing rubric it belongs to. `brut` / `v` stay untyped: a setting's
+// raw and current value can be a string, a number, or a nested structure
+// (e.g. the `disks` array), and the source never declares which.
+export type Reglage = {
+  f: string;
+  c: string;
+  type: string;
+  brut: unknown;
+  n: string;
+  v: unknown;
+  note?: string;
+  rubrique: Record<string, unknown>;
+};
+
 // Read-only reference data + pure rendering helpers the engine's own script
 // publishes once, at definition time — well before any component's module
 // evaluates (see coquille.tsx's boot-order comment). None of it is ever
@@ -109,11 +140,65 @@ export type Referentiel = {
   cardHTML: (descriptor: DescripteurCarte) => string;
   addVerb: (result: ResultatRecherche, index: number) => string;
   render: () => void;
+  // Media-sheet data: hero banners, posters, cast portraits, trailers and
+  // episode-status labels, plus the lookup/formatting helpers a sheet or a
+  // season list reads them through — see refonte.html's `sheetFor` /
+  // `saisonsDe` / `possedesDe` neighbourhood for the exact resolution rules
+  // (title normalisation, year-suffix stripping) a re-implementation would
+  // otherwise silently diverge from.
+  HEROS: Record<string, string>;
+  POSTERS: Record<string, string>;
+  ACTEURS: Record<string, string>;
+  trailerIds: Record<string, Trailer>;
+  EP_LABEL: Record<string, string>;
+  sheetFor: (titre: string) => Fiche | null;
+  saisonsDe: (titre: string) => [number, number | null, number][];
+  possedesDe: (titre: string, saison: number) => Set<number> | null;
+  plages: (nums: number[]) => string;
+  initials: (nom: string) => string;
+  // `dateFR` returns null on a falsy `iso`, exactly like `sheetFor` on an
+  // unresolved title — a sheet's air dates are frequently unset (an
+  // announced-but-unaired episode) and the caller decides what to show.
+  dateFR: (iso: string) => string | null;
+  AUJOURDHUI: string;
+  svgIcon: (paths: string, strokeWidth?: number) => string;
+  // Réglages (settings) panel actions — read the full setting list, derive
+  // a setting's storage id, coerce a raw field input back to its stored
+  // type, and apply/open a pending edit. See refonte.html's `REGLAGES`
+  // neighbourhood for the file/rubric structure `Reglage.rubrique` carries.
+  tousLesReglages: () => Reglage[];
+  reglageId: (reglage: Reglage) => string;
+  // The value a field must DRAW: the pending edit when there is one, the
+  // file's `brut` otherwise. The pending-edit overlay itself stays private to
+  // the engine — this returns the value, never the map.
+  valeurEnCours: (reglage: Reglage) => unknown;
+  valeurSaisie: (reglage: Reglage, texte: string) => unknown;
+  modifierReglage: (id: string, valeur: unknown) => void;
+  ouvrirReglage: (id: string) => void;
+};
+
+// The shell's bottom-panel API — what a legacy producer calls instead of the
+// dead `openSheet(html)`. `ouverte()` answers from the STORE, never from the
+// DOM: a legacy caller asks mid-task ("is a layer up before I open a screen?")
+// and the store is already right at that instant, whatever React has committed.
+export type Panneau = {
+  ouvrir: (descripteur: Descripteur) => void;
+  // `pop` mirrors the legacy `closeSheet(pop)`: truthy means the history entry
+  // is ALREADY being popped, so the layer must not unwind one of its own.
+  fermer: (pop?: boolean) => void;
+  ouverte: () => boolean;
 };
 
 declare global {
   interface Window {
     __referentiel: Referentiel;
+    __panneau: Panneau;
+    // The engine's own multi-layer closer, published by refonte.html: the
+    // scrim covers the drawer, the dialog and the sheet alike, and a tap on it
+    // closes whichever is up. Optional for the same reason
+    // `__demarrerMoteur` is — a document served without the fragment must
+    // fail visibly, not here.
+    __fermerCouches?: () => void;
   }
 }
 

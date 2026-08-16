@@ -1,6 +1,9 @@
 """R2, hardened: a button must have a DESTINATION, not merely a known class."""
 import asyncio
+
 from playwright.async_api import async_playwright
+
+
 async def main():
   async with async_playwright() as p:
     b=await p.chromium.launch(channel="chrome")
@@ -20,10 +23,20 @@ async def main():
     for e in etats:
         await pg.evaluate("(i)=>window.__go(i)",e); await pg.wait_for_timeout(230)
         r=await pg.evaluate("""()=>{
+          // The media sheet left `#screen` for a real route (`/fiche/$titre`,
+          // rendered inside `#coquille`): it takes its place in this ladder,
+          // named by the identity it carries and LAST, so every other case
+          // resolves exactly as before. Without it, a state opening the fiche
+          // would fall through to `#view` and the rule would clear the fiche's
+          // buttons without ever having looked at them. The add-media screen
+          // (`/ajout`) left `#screen` the same way and joins the fiche's rung,
+          // for the same reason.
           const racine=document.querySelector('#dlg').classList.contains('open')?document.querySelector('#dlg')
             :document.querySelector('#screen').classList.contains('open')?document.querySelector('#screen')
             :document.querySelector('#sheet').classList.contains('open')?document.querySelector('#sheet')
-            :document.querySelector('#view');
+            :document.querySelector('.screen.open[data-cle^="fiche:"]')
+            ??document.querySelector('.screen.open[data-cle^="ajout:"]')
+            ??document.querySelector('#view');
           return [...racine.querySelectorAll('button, a')]
             .filter(x=>x.getBoundingClientRect().height>0 && !x.disabled
                        && !x.closest('.hbtn') && !x.closest('.hpanel')

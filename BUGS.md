@@ -45,11 +45,11 @@ when the defect comes back.
 | B-017 | Closing a panel sends the list back to its top          | by mutation | `to confirm` |
 | B-018 | On a desktop, dragging a row opens the panel            | 1×          | `to confirm` |
 | B-024 | `data-go` settles ONE history entry, layers pile        | by review   | `open`       |
-| B-025 | The screen half of the `data-go` fix has no Back rule   | by review   | `open`       |
-| B-026 | A silent `catch {}` can let URL and UI disagree         | by review   | `open`       |
-| B-027 | `resynchro.py` trusts `t:` first-match + naive braces   | by review   | `open`       |
-| B-028 | `resynchro.py` says « 0 correction » for unknown titles | by review   | `open`       |
-| B-029 | Counter rule misses suffix drift (« 1 » in « 11 »)      | by review   | `open`       |
+| B-025 | The screen half of the `data-go` fix has no Back rule   | by review   | `to confirm` |
+| B-026 | A silent `catch {}` can let URL and UI disagree         | by review   | `to confirm` |
+| B-027 | `resynchro.py` trusts `t:` first-match + naive braces   | by review   | `to confirm` |
+| B-028 | `resynchro.py` says « 0 correction » for unknown titles | by review   | `to confirm` |
+| B-029 | Counter rule misses suffix drift (« 1 » in « 11 »)      | by review   | `to confirm` |
 
 **B-018 was written down as a regression from B-016, and that was wrong.** It has two ways in, one
 of which is older than this work — the correction is recorded here rather than quietly amended,
@@ -66,33 +66,121 @@ mutations are run against a rule rather than trusted to be green.
 the operator** — same standing as B-017: found by tooling, written down before anyone walks into
 them. None is reproduced on a device yet; each entry below records the walk that would.
 
-- **B-024** — `data-go` (refonte.html ~17787) closes up to three layers but settles exactly ONE
+- **B-024** — `data-go` (refonte.html ~17901) closes up to three layers but settles exactly ONE
   history entry (`__pont.remplacer` overwrites only the top). With two layer entries buried
   (screen over screen — the case the block's own comment claims to handle — or sheet over
   screen), one Back after the navigation lands on a stale `{layer}` entry and answers a
   legitimate Back with the « Encore un retour pour quitter » toast; a second Back exits the app.
-  Latent today (no reviewed control is tappable with two entries buried), but the comment
-  overclaims: it is true of the DOM, not of history. Fix shape: one loop, one entry per closed
-  layer.
+  **Latent, non atteignable** — re-measured post-SP4a, walked control by control: the DOM carries
+  exactly five `[data-go]` producers, no more. Four (12174, 12677, 12827, 12918) render only into
+  page-body `#view` content (`viewAcquisition`, `viewArrivals`, `viewIntrouvable`, `viewSystem`);
+  `#view` sits under every layer (`.screen` z-45, `.sheet` z-47 over `.topbar` z-40), so each is
+  covered — and therefore untappable — the instant any layer is open, meaning zero layers, let
+  alone two, ever precede their tap. The fifth is the user sheet's « Profil et préférences »
+  (`cible:{go:"profil"}`, the only dynamic producer in the whole file — confirmed by grep) — its
+  only trigger is the header avatar (`data-sheet="utilisateur"`), itself in `.topbar` and so
+  covered the same way whenever a screen is already open (measured: `elementFromPoint` at the
+  avatar's coordinates resolves to `.fichebar` inside `#screen`, not the avatar, and a click there
+  opens nothing). One layer (the sheet itself) is therefore the most that can ever precede this
+  control's tap; a fresh-boot walk confirms `history.length` is unchanged before and after tapping
+  it, matching the single-entry case the fix already covers. No live call path stacks a second
+  screen either: `openScreen`'s `dejaOuvert` branch (pushed layer on top of an already-open screen)
+  exists in code, and `data-fiche` (18336-18349) is its one UNGUARDED trigger — when no sheet is
+  open (`couche` false) it calls `openFiche(fiche)` directly, with no `closeScreen()` first, so a
+  `[data-fiche]` element tapped from inside an already-open screen WOULD stack a second one. But
+  no `[data-fiche]` element is ever rendered inside a screen today: its three producers —
+  `cardHTML`'s poster (11578), `tileHTML`'s tile (15395), the Découvrir deck's poster (15855) —
+  are called only from page-list/grid/deck builders (11555-15987), never from `openFiche`,
+  `openResolve`, or `openReleases` (39527-40337, the only functions that build screen content);
+  `openResolve`'s own cards (`releaseCardHTML`, 11613-11637) are marked `data-nonmedia` and carry
+  `data-resolve`, not `data-fiche`, by design ("no medium here yet"). The sheet-to-screen half of
+  `data-fiche` is guarded (`couche` true closes the sheet first, 18342-18344), and `data-refiche`
+  reopens the SAME key (`memeEcran`, no new layer). The comment still overclaims — it is true of
+  the DOM, not of history — but no reachable walk buries two entries under a `[data-go]` tap
+  today. Fix shape unchanged: one loop, one entry per closed layer.
+  **Final status (SP4b, task 6): latent, held by the Task-1 measurement.** No close-block fix
+  applied — the entry-count law would be exercised on a control that cannot reach it. The
+  handler's own comment no longer claims to handle a buried second entry (corrected to name the
+  single-entry assumption, `refonte.html` ~17861); the intro comment's second example (the add
+  screen's « Voir mes suivis ») is removed too — it left `data-go` in the interim (see B-025).
+  Settles with the ownership law when `data-go` itself migrates to the shell (SP4d): if a sixth
+  producer, or a new path to the existing five, can ever reach a layer, the entry-count law
+  (`__pont.regler(n)`, sketched but unapplied here) is owed then, not before.
 - **B-025** — harness `bugs.py` check 10b stops at the landing (`« Voir mes suivis » atterrit`)
   and never presses Back; only the sheet half (9b) is guarded. The `remplacer`-on-screen half of
   the fix — exactly what B-024 concerns — can regress without a single check falling.
+  **Fixed (SP4b, task 6).** The footer itself left `data-go` between the review and this walk
+  (Task 5 migrated « Voir mes suivis » to `AjoutEcran`'s own `verSuivis`, a router-owned
+  `remplacer:true` — same "the layer's entry becomes the arrival" semantics `data-go`'s own
+  comment describes), so the regression this entry names now lives there, not in the shared
+  handler; the guard follows it. `bugs.py` 10b gained a Back press, `10c`: after the footer
+  lands, one real Back must leave `/ajout` in a single hop (no buried `layer` entry, `page`
+  still `acq`) — mutation-verified by mutating `verSuivis`'s `remplacer:true` to `false` at
+  source (`10c` fell, naming the still-buried `/ajout`), rebuilt, then restored (`git diff`
+  empty), rebuilt, re-run green.
 - **B-026** — the `data-go` handler's outer `try { … } catch (error) {}` (house pattern from
   `data-navgo`) silences a `remplacer` failure: the page renders the destination while URL and
   history still describe the layer — a silent violation of the DOIT-10 claim that « the URL and
   the interface never disagree », with nothing logged.
+  **Fixed (SP4b, task 6).** Three swallows now `console.error` and raise
+  `window.__navEchec = true`, a probe published next to the other probe flags
+  (`__sujetsSansNom`'s precedent) for the harness to read: the `data-go` handler's own tail,
+  `noterLeChemin`'s (`refonte.html` ~16561, the write door every OTHER navigation goes
+  through), and `data-navgo`'s own tail (`refonte.html` ~18188-18194) — the pattern's
+  ORIGIN, byte-identical in shape and risk, and left silent in the first pass (a review
+  finding on the same commit). Mutation-verified for both call sites: with the intact
+  catch, stubbing `__pont.remplacer` to throw (page context) and driving « Profil et
+  préférences » from the user sheet (`data-go`, the one control that can fire `remplacer`
+  from a layer) or the drawer's own first entry (`data-navgo`, opened through its handle)
+  raised the probe (`true`) in both cases; a plain tap left it `false` either way (no false
+  positive). Reverting either catch to silent and repeating the SAME forced throw on that
+  path left the probe `false` — the hold falls without the fix, confirming it bites — then
+  each catch was restored in turn.
+  **Known residual, not fixed, deliberate.** The three silent catches in
+  `window.__demarrerMoteur` (`refonte.html` ~40699-40721: the opening `remplacer`, the
+  guard `remplacer`, the boot `noter`) stay silent. Boot-time, pre-render — a failure there
+  leaves the splash/boot state visible rather than a rendered interface disagreeing with
+  its URL, which is the lower-risk failure mode DOIT-10 is not written against. Settles
+  when the legacy engine itself dies (SP4-end), not before.
+  **A fourth swallow, found by the SP4b final review and fixed, not left residual.**
+  `coquille.tsx`'s `ouvrirPanneau` wrapped `window.__pont.coucher("sheet")` in the same
+  silent `try { … } catch {}`, inherited from the legacy `openSheet`'s own guard around this
+  call. Unlike the boot-time residual above, `window.__pont` is assigned synchronously at
+  this module's top level, before any producer can call `ouvrir` — there is no window where
+  the bridge is genuinely absent, so the swallow's own justification ("a bridge that is not
+  there yet") no longer held. A throw here means the write itself failed, and the store had
+  already flushed the panel open: exactly the URL/UI disagreement DOIT-10 forbids, silently.
+  Wired to `console.error` + `window.__navEchec = true`, the same pattern as the other three.
 - **B-027** — `resynchro.py` extracts a follow's title with the FIRST `t: "…"` match anywhere in
   the object and counts braces with no string-awareness. An object whose first `X: "…"` key is
   not the title, or a title containing `{`/`}`, silently skips or — worse — rewrites the WRONG
   follow's counter. Holds today only by convention (all 12 objects start with `t:`), asserted
   nowhere.
+  **Fixed.** The title is now read anchored on the object's own opening brace
+  (`re.match(r'\s*\{\s*t:\s*"((?:[^"\\]|\\.)*)"', objet)`): the title must be the FIRST key or the
+  script RAISES, naming the object's head. **Mutation** (proof executed, `task-7-report.md`): a
+  scratch FOLLOWS fragment whose sole object opens on `x:` instead of `t:` → `resynchro.py`
+  raises `ValueError: objet FOLLOWS sans « t » en première clé : …` quoting the object, rather than
+  silently skipping it.
 - **B-028** — `resynchro.py` cannot say a title went unmatched: a FOLLOWS title absent from the
   DB reads exactly like « already in sync », prints `0 correction(s)` and exits 0. Especially
   live once vo-title (#435) changes which spelling a follow carries — the operator running the
   documented remedy gets silence instead of « 4 of 12 titles never looked up ».
+  **Fixed.** Every FOLLOWS title with no matching row in `acquire.db` is now collected during the
+  same pass and, if any exist, `resynchro.py` prints `N titre(s) jamais retrouvé(s): …` naming
+  each and exits 1 — `0 correction(s)` is only ever printed once every title matched. **Mutation**
+  (proof executed): a copy of `refonte.html` with one real FOLLOWS title (« Kyma, l'onde
+  mystérieuse ») misspelled → exit 1, `1 titre(s) jamais retrouvé(s): Kyma, l'onde MISSPELLED`.
 - **B-029** — `contenu.py`'s counter rule tests `f"{n} recherche" in faits`: « 1 recherche » is a
   substring of « 11 recherches », so whenever the real count is a suffix of the embedded one the
   drift the rule exists to name is never named.
+  **Fixed.** The hold now compares numbers with a word boundary
+  (`re.search(rf"\b{n}\s+recherche", faits)`), so a digit that merely ENDS the embedded count no
+  longer satisfies it. **Mutation** (proof executed against the built prototype on 8899): a copy
+  of `refonte.html` with « Kyma, l'onde mystérieuse »'s embedded `recherches` set to 17 while
+  `acquire.db` still holds 7 → the rule falls: `ECHEC les nombres viennent de acquire.db, pas de la
+maquette — ["Kyma, l'onde mystérieuse : « … 17 recherches » vs 7"]`, where the pre-fix substring
+  check (`"7 recherche" in "… 17 recherches"`) would have stayed silently green.
 
 ---
 

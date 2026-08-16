@@ -1,5 +1,8 @@
-import asyncio, json
+import asyncio
+
 from playwright.async_api import async_playwright
+
+
 async def main():
   async with async_playwright() as p:
     b=await p.chromium.launch(channel="chrome")
@@ -23,8 +26,24 @@ async def main():
         await pg.wait_for_timeout(320)
         r=await pg.evaluate("""()=>{const v=document.querySelector('#view');
           const sh=document.querySelector('#sheet'), sc=document.querySelector('#screen'), dg=document.querySelector('#dlg');
-          const couche = sh.classList.contains('open')||sc.classList.contains('open')||dg.classList.contains('open');
-          const cible = couche ? (dg.classList.contains('open')?dg:sc.classList.contains('open')?sc:sh) : v;
+          // The media sheet left `#screen` for a real route (`/fiche/$titre`,
+          // rendered inside `#coquille`) and is named by the identity it
+          // carries. Without it, a state opening the fiche would count as
+          // « no layer » and this rule would measure the page UNDERNEATH —
+          // the overflow, the skeletons and the text of a surface the state
+          // does not show. The add-media screen (`/ajout`) left `#screen` the
+          // same way and joins the fiche's rung for the same reason: a state
+          // opening it would otherwise be measured on the page underneath.
+          const fi = document.querySelector('.screen.open[data-cle^="fiche:"]');
+          const aj = document.querySelector('.screen.open[data-cle^="ajout:"]');
+          const couche = sh.classList.contains('open')||sc.classList.contains('open')||dg.classList.contains('open')||!!fi||!!aj;
+          // The fiche and the add-media screen come LAST in the precedence, so
+          // every pre-existing case resolves to exactly what it resolved to
+          // before: a panel or a dialog opened OVER either one is what one is
+          // looking at, and stays what is measured.
+          const cible = couche ? (dg.classList.contains('open')?dg
+                                 :sc.classList.contains('open')?sc
+                                 :sh.classList.contains('open')?sh:fi||aj) : v;
           return {sk:cible.querySelectorAll('.sk').length, txt:cible.textContent.replace(/\\s+/g,' ').trim().length,
                   doc:document.documentElement.scrollWidth,
                   // An overflow clipped by an ancestor is not overflow:

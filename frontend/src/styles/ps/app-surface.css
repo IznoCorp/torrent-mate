@@ -1778,7 +1778,7 @@
 }
 
 .tm .bottombar button[aria-current="page"] {
-    color: var(--primary);
+    color: var(--primary-texte);
 }
 
 .tm .bottombar svg {
@@ -3490,7 +3490,7 @@
 
 .tm .drawer a[aria-current="page"] {
     background: color-mix(in oklab, var(--primary) 14%, transparent);
-    color: var(--primary);
+    color: var(--primary-texte);
     font-weight: 600;
 }
 

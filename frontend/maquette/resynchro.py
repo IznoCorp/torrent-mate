@@ -69,25 +69,51 @@ def principal() -> int:
     bloc = texte[i:j]
 
     corrections = []
+    introuvables = []
     morceaux, prec = [], 0
     for a, b in objets_du_bloc(bloc):
         objet = bloc[a:b]
-        mt = re.search(r't: "((?:[^"\\]|\\.)*)"', objet)
+        # Anchored on the object's opening brace: the title must be the FIRST
+        # key, not merely the first `t: "…"` found anywhere in the object —
+        # a stray `t:`-shaped key elsewhere would otherwise win silently.
+        mt = re.match(r'\s*\{\s*t:\s*"((?:[^"\\]|\\.)*)"', objet)
+        if not mt:
+            raise ValueError(
+                f"objet FOLLOWS sans « t » en première clé : {objet[:80]!r}")
+        titre = mt.group(1).replace('\\"', '"')
         mr = re.search(r"recherches: (\d+)", objet)
-        if mt and mr:
-            titre = mt.group(1).replace('\\"', '"')
-            embarque = int(mr.group(1))
-            if titre in reels and reels[titre] != embarque:
+        # A title with no `recherches:` key is just as malformed as one with
+        # no `t:` key (B-027's own case) — skipping it silently would leave
+        # its counter stale forever without a single line saying so.
+        if not mr:
+            raise ValueError(
+                f"objet FOLLOWS « {titre} » sans « recherches » : {objet[:80]!r}")
+        embarque = int(mr.group(1))
+        if titre in reels:
+            if reels[titre] != embarque:
                 corrections.append((titre, embarque, reels[titre]))
                 objet = objet.replace(
                     f"recherches: {embarque},",
                     f"recherches: {reels[titre]},", 1)
+        else:
+            introuvables.append(titre)
         morceaux.extend((bloc[prec:a], objet))
         prec = b
     morceaux.append(bloc[prec:])
 
     for titre, avant, apres in corrections:
         print(f"  {titre} : {avant} -> {apres}")
+
+    # An unmatched title reads exactly like « already in sync » unless it is
+    # named here — silence is the bug (B-028), not a valid outcome. And the
+    # corrections just printed above were computed, never written: the script
+    # returns before reaching `PROTOTYPE.write_text` below, so the output
+    # must say so explicitly rather than let those lines read as applied.
+    if introuvables:
+        print(f"aucune écriture — {len(introuvables)} titre(s) jamais "
+              f"retrouvé(s): " + ", ".join(introuvables))
+        return 1
+
     if corrections:
         texte = texte[:i] + "".join(morceaux) + texte[j:]
 
