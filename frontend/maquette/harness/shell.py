@@ -20,15 +20,15 @@ import subprocess
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import RACINE, Journal
+from common import ROOT, Journal
 
-DESIGN = RACINE / "design"
+DESIGN = ROOT / "design"
 
 
 def construire(journal):
     """Runs the build, installing first only when node_modules is absent."""
     if os.environ.get("R72_SANS_BUILD") == "1":
-        journal.verifier("le build de la coquille aboutit", True,
+        journal.check("le build de la coquille aboutit", True,
                          "sauté (R72_SANS_BUILD=1 — mutation en cours)")
         return True
     if not (DESIGN / "node_modules").exists():
@@ -37,7 +37,7 @@ def construire(journal):
                        capture_output=True, text=True)
     fait = subprocess.run(["npm", "run", "build"], cwd=DESIGN,
                           capture_output=True, text=True)
-    journal.verifier("le build de la coquille aboutit", fait.returncode == 0,
+    journal.check("le build de la coquille aboutit", fait.returncode == 0,
                      (fait.stderr or fait.stdout).strip().splitlines()[-1]
                      if fait.returncode else "vite build")
     return fait.returncode == 0
@@ -49,7 +49,7 @@ def verifier_holds(journal):
     fragment = (DESIGN / "refonte.html").read_text(encoding="utf-8")
 
     # Hold 1: Fragment emitted verbatim, exactly once
-    journal.verifier(
+    journal.check(
         "le fragment est émis verbatim, une seule fois",
         emis.count(fragment) == 1,
         f"fragment émis {emis.count(fragment)} fois")
@@ -69,7 +69,7 @@ def verifier_holds(journal):
             matching_tags += 1
             bundle_name = src_match.group(1)
 
-    journal.verifier(
+    journal.check(
         "l'entrée du module est émise exactement une fois",
         matching_tags == 1,
         f"{matching_tags} match(s) trouvé(s)")
@@ -79,12 +79,12 @@ def verifier_holds(journal):
     # without a line saying so, and a rule is read by its count.
     if bundle_name:
         bundle_path = DESIGN / "dist" / "vite" / bundle_name
-        journal.verifier(
+        journal.check(
             "le fichier du bundle existe",
             bundle_path.exists(),
             f"dist/vite/{bundle_name}")
     else:
-        journal.verifier(
+        journal.check(
             "le fichier du bundle existe",
             False,
             "aucun bundle nommé — l'entrée du module n'a pas été trouvée")
@@ -93,10 +93,10 @@ def verifier_holds(journal):
 def main():
     journal = Journal("R72 — la coquille émet le fragment verbatim")
     if not construire(journal):
-        journal.bilan()
+        journal.summary()
     # Run holds only after successful build (unless R72_SANS_BUILD)
     verifier_holds(journal)
-    journal.bilan()
+    journal.summary()
 
 
 main()

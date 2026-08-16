@@ -48,7 +48,7 @@ _journal = None
 
 def verifier(nom, condition, detail=""):
     """Records one executed check and its verdict, in the shared journal."""
-    return _journal.verifier(nom, condition, detail)
+    return _journal.check(nom, condition, detail)
 
 
 async def glisser(cdp, x0, y0, pas, dx, dy):
@@ -433,6 +433,6 @@ async def main():
         verifier("aucune erreur JS", not erreurs, str(erreurs))
         await b.close()
 
-    _journal.bilan()
+    _journal.summary()
 
 asyncio.run(main())

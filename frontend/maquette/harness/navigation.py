@@ -41,9 +41,9 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import RACINE, Journal, ouvrir
+from common import ROOT, Journal, open_page
 
-DESIGN_SRC = RACINE / "design" / "src"
+DESIGN_SRC = ROOT / "design" / "src"
 
 TITRE = "Silo"
 TITRE_AUTRE = "House of the Dragon"
@@ -175,7 +175,7 @@ async def main():
 
     # ─── Hold 1: one door, source-checked ──────────────────────────────
     total, hors_go = compter_navigate_hors_go(DESIGN_SRC)
-    journal.verifier(
+    journal.check(
         "navigate( n'apparaît que dans le corps de go()",
         total == 1 and hors_go == 0,
         f"{total} appel(s) au total, {hors_go} hors de go()")
@@ -184,18 +184,18 @@ async def main():
         navigateur = await p.chromium.launch(channel="chrome")
 
         # ─── Hold 2: one entry per call, walked back in reverse ────────
-        ctx, pg = await ouvrir(navigateur)
+        ctx, pg = await open_page(navigateur)
         erreurs = []
         pg.on("pageerror", lambda e: erreurs.append(str(e)))
 
         depart = await pg.evaluate(ETAT_ECRAN)
-        journal.verifier("le point de départ n'a aucun écran ouvert",
+        journal.check("le point de départ n'a aucun écran ouvert",
                          not depart["ouvert"], depart["pathname"])
 
         await pg.evaluate(f"()=>window.__ecrans.profil({json.dumps(TITRE)})")
         await pg.wait_for_timeout(300)
         sur_profil = await pg.evaluate(ETAT_ECRAN)
-        journal.verifier("__ecrans.profil() ouvre l'écran par la seule porte",
+        journal.check("__ecrans.profil() ouvre l'écran par la seule porte",
                          sur_profil["ouvert"] and sur_profil["cle"] == f"profil:{TITRE}",
                          sur_profil["pathname"])
 
@@ -207,14 +207,14 @@ async def main():
             "window.__routeur.history.flush(); }")
         await pg.wait_for_timeout(300)
         de_retour = await pg.evaluate(ETAT_ECRAN)
-        journal.verifier("un go() vers « / » ferme l'écran et écrit l'adresse",
+        journal.check("un go() vers « / » ferme l'écran et écrit l'adresse",
                          not de_retour["ouvert"] and de_retour["pathname"] == "/",
                          de_retour["pathname"])
 
         await pg.go_back()
         await pg.wait_for_timeout(300)
         premier_retour = await pg.evaluate(ETAT_ECRAN)
-        journal.verifier(
+        journal.check(
             "le premier retour retrouve l'écran du profil (compté par l'état observé)",
             premier_retour["ouvert"] and premier_retour["cle"] == f"profil:{TITRE}",
             premier_retour["pathname"])
@@ -222,13 +222,13 @@ async def main():
         await pg.go_back()
         await pg.wait_for_timeout(300)
         second_retour = await pg.evaluate(ETAT_ECRAN)
-        journal.verifier("le second retour quitte l'écran",
+        journal.check("le second retour quitte l'écran",
                          not second_retour["ouvert"], second_retour["pathname"])
-        journal.verifier("aucune erreur JS pendant le voyage", not erreurs, str(erreurs))
+        journal.check("aucune erreur JS pendant le voyage", not erreurs, str(erreurs))
         await ctx.close()
 
         # ─── Hold 3: two go() calls in the SAME task, two entries ───
-        ctx, pg = await ouvrir(navigateur)
+        ctx, pg = await open_page(navigateur)
         erreurs = []
         pg.on("pageerror", lambda e: erreurs.append(str(e)))
 
@@ -239,7 +239,7 @@ async def main():
             f"window.__ecrans.profil({json.dumps(TITRE_AUTRE)}); }}")
         await pg.wait_for_timeout(300)
         double = await pg.evaluate(ETAT_ECRAN)
-        journal.verifier(
+        journal.check(
             "deux appels dans la même tâche retiennent le second",
             double["ouvert"] and double["cle"] == f"profil:{TITRE_AUTRE}",
             double["pathname"])
@@ -247,7 +247,7 @@ async def main():
         await pg.go_back()
         await pg.wait_for_timeout(300)
         un_retour = await pg.evaluate(ETAT_ECRAN)
-        journal.verifier(
+        journal.check(
             "un premier retour révèle l'entrée du PREMIER titre — deux entrées, pas une",
             un_retour["ouvert"] and un_retour["cle"] == f"profil:{TITRE}",
             un_retour["pathname"])
@@ -255,14 +255,14 @@ async def main():
         await pg.go_back()
         await pg.wait_for_timeout(300)
         deux_retours = await pg.evaluate(ETAT_ECRAN)
-        journal.verifier("un second retour quitte l'écran",
+        journal.check("un second retour quitte l'écran",
                          not deux_retours["ouvert"], deux_retours["pathname"])
-        journal.verifier("aucune erreur JS pendant les deux appels", not erreurs, str(erreurs))
+        journal.check("aucune erreur JS pendant les deux appels", not erreurs, str(erreurs))
         await ctx.close()
 
         await navigateur.close()
 
-    journal.bilan()
+    journal.summary()
 
 
 asyncio.run(main())

@@ -63,7 +63,7 @@ import urllib.parse
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import TELEPHONE, Journal
+from common import PHONE, Journal
 from server import demarrer_serveur
 
 PORT = 8917
@@ -194,7 +194,7 @@ ETAT_RELEASES = """() => {
 
 async def ouvrir_a(navigateur, adresse):
     """Opens `adresse` cold, past the startup screen, on a fresh context."""
-    ctx = await navigateur.new_context(**TELEPHONE)
+    ctx = await navigateur.new_context(**PHONE)
     pg = await ctx.new_page()
     erreurs = []
     pg.on("pageerror", lambda e: erreurs.append(str(e)))
@@ -218,21 +218,21 @@ async def main():
             adresse_titre = f"{base}/profil/{urllib.parse.quote(TITRE)}"
             ctx, pg, erreurs = await ouvrir_a(navigateur, adresse_titre)
             etat = await pg.evaluate(ETAT_ECRAN)
-            journal.verifier(
+            journal.check(
                 "une adresse profonde ouvre le bon écran, à froid",
                 etat["ouvert"] and etat["cle"] == f"profil:{TITRE}",
                 f"cle={etat['cle']}")
-            journal.verifier(
+            journal.check(
                 "l'écran rend son contenu promis (résolution, pistes, verrous)",
                 "Résolution minimale" in etat["corps"]
                 and "Pistes audio exigées" in etat["corps"]
                 and "Deux verrous" in etat["corps"],
                 f"{len(etat['corps'])} caractères de corps")
-            journal.verifier("aucune erreur JS à l'entrée profonde", not erreurs, str(erreurs))
+            journal.check("aucune erreur JS à l'entrée profonde", not erreurs, str(erreurs))
 
             # ─── Hold 2: everything the document draws resolves through <base> ─
             images = await pg.evaluate(ETAT_IMAGES)
-            journal.verifier(
+            journal.check(
                 "aucune image cassée à cette profondeur (la preuve du <base>)",
                 images["chargees"] > 0 and images["cassees"] == 0,
                 f"{images['cassees']}/{images['chargees']} cassée(s)")
@@ -242,14 +242,14 @@ async def main():
             # so back landing where the walk started IS the address returning ──
             ctx, pg, erreurs = await ouvrir_a(navigateur, f"{base}/")
             depart = await pg.evaluate(ETAT_ECRAN)
-            journal.verifier("le point de départ n'a aucun écran ouvert",
+            journal.check("le point de départ n'a aucun écran ouvert",
                              not depart["ouvert"] and depart["pathname"] == "/",
                              depart["pathname"])
 
             await pg.evaluate(f"()=>window.__ecrans.profil({json.dumps(TITRE)})")
             await pg.wait_for_timeout(300)
             sur_profil = await pg.evaluate(ETAT_ECRAN)
-            journal.verifier(
+            journal.check(
                 "marcher jusqu'au profil ÉCRIT l'adresse",
                 sur_profil["ouvert"] and sur_profil["pathname"] == f"/profil/{TITRE}",
                 sur_profil["pathname"])
@@ -257,41 +257,41 @@ async def main():
             await pg.evaluate("()=>document.querySelector('.screen.open .fback').click()")
             await pg.wait_for_timeout(300)
             revenu = await pg.evaluate(ETAT_ECRAN)
-            journal.verifier(
+            journal.check(
                 "fermer l'écran (son seul chemin : Retour) ramène l'adresse à ce qu'elle était",
                 revenu["pathname"] == depart["pathname"], revenu["pathname"])
-            journal.verifier("et l'écran est bien parti", not revenu["ouvert"],
+            journal.check("et l'écran est bien parti", not revenu["ouvert"],
                              str(revenu["ouvert"]))
-            journal.verifier("aucune erreur JS pendant la marche", not erreurs, str(erreurs))
+            journal.check("aucune erreur JS pendant la marche", not erreurs, str(erreurs))
             await ctx.close()
 
             # ─── Hold 5: a wrong deep address renders the honest empty case ──
             adresse_fausse = f"{base}/profil/{ADRESSE_INCONNUE}"
             ctx, pg, erreurs = await ouvrir_a(navigateur, adresse_fausse)
             perdu = await pg.evaluate(ETAT_ECRAN)
-            journal.verifier(
+            journal.check(
                 "une adresse inconnue rend quand même l'écran, honnêtement",
                 perdu["ouvert"] and "N'Existe Pas" in (perdu["titre"] or ""),
                 f"cle={perdu['cle']} titre={perdu['titre']!r}")
-            journal.verifier(
+            journal.check(
                 "l'adresse reste celle qui a été tapée",
                 pg.url == adresse_fausse, pg.url)
-            journal.verifier("aucune erreur JS sur une adresse inconnue", not erreurs, str(erreurs))
+            journal.check("aucune erreur JS sur une adresse inconnue", not erreurs, str(erreurs))
             await ctx.close()
 
             # ─── Hold 6: /ajout deep entry, cold — field filled, results shown ──
             adresse_ajout = f"{base}/ajout?q=lucky"
             ctx, pg, erreurs = await ouvrir_a(navigateur, adresse_ajout)
             ajout_froid = await pg.evaluate(ETAT_AJOUT)
-            journal.verifier(
+            journal.check(
                 "une adresse profonde /ajout ouvre l'écran, à froid, le champ rempli",
                 ajout_froid["ouvert"] and ajout_froid["champ"] == "lucky"
                 and ajout_froid["cle"] == "ajout:suivi",
                 f"champ={ajout_froid['champ']!r} cle={ajout_froid['cle']}")
-            journal.verifier(
+            journal.check(
                 "et la requête affiche des résultats",
                 ajout_froid["cartes"] >= 2, f"{ajout_froid['cartes']} cartes")
-            journal.verifier("aucune erreur JS à l'entrée profonde /ajout", not erreurs, str(erreurs))
+            journal.check("aucune erreur JS à l'entrée profonde /ajout", not erreurs, str(erreurs))
             await ctx.close()
 
             # ─── Hold 7: typing rewrites the address IN PLACE — R76 for a
@@ -303,14 +303,14 @@ async def main():
             # read here: an observed landing state is the harder proof.
             ctx, pg, erreurs = await ouvrir_a(navigateur, f"{base}/")
             depart_ajout = await pg.evaluate(ETAT_ECRAN)
-            journal.verifier("le point de départ n'a aucun écran ouvert (avant /ajout)",
+            journal.check("le point de départ n'a aucun écran ouvert (avant /ajout)",
                              not depart_ajout["ouvert"] and depart_ajout["pathname"] == "/",
                              depart_ajout["pathname"])
 
             await pg.evaluate("()=>window.__ecrans.ajout('')")
             await pg.wait_for_timeout(300)
             sur_ajout = await pg.evaluate(ETAT_AJOUT)
-            journal.verifier(
+            journal.check(
                 "marcher jusqu'à /ajout ÉCRIT l'adresse",
                 sur_ajout["ouvert"] and sur_ajout["pathname"] == "/ajout",
                 sur_ajout["pathname"])
@@ -321,7 +321,7 @@ async def main():
                 await pg.wait_for_timeout(80)
             await pg.wait_for_timeout(300)
             apres_frappe = await pg.evaluate(ETAT_AJOUT)
-            journal.verifier(
+            journal.check(
                 "cinq frappes réécrivent le champ ET l'adresse",
                 apres_frappe["champ"] == "lucky" and "q=lucky" in apres_frappe["recherche"],
                 f"champ={apres_frappe['champ']!r} recherche={apres_frappe['recherche']!r}")
@@ -329,12 +329,12 @@ async def main():
             await pg.go_back()
             await pg.wait_for_timeout(400)
             apres_retour = await pg.evaluate(ETAT_ECRAN)
-            journal.verifier(
+            journal.check(
                 "un seul retour depuis cinq frappes ramène où l'on était AVANT l'écran"
                 " (et pas mi-frappe, ce qu'un historique empilé aurait produit)",
                 not apres_retour["ouvert"] and apres_retour["pathname"] == depart_ajout["pathname"],
                 apres_retour["pathname"])
-            journal.verifier("aucune erreur JS pendant la frappe", not erreurs, str(erreurs))
+            journal.check("aucune erreur JS pendant la frappe", not erreurs, str(erreurs))
             await ctx.close()
 
             # ─── Hold 8: quitter un écran par la barre ──────────────────────
@@ -349,7 +349,7 @@ async def main():
             await pg.click("#fab")
             await pg.wait_for_timeout(400)
             sur_ajout_barre = await pg.evaluate(ETAT_ECRAN)
-            journal.verifier(
+            journal.check(
                 "le FAB ouvre l'écran (départ du voyage)",
                 sur_ajout_barre["ouvert"] and sur_ajout_barre["pathname"] == "/ajout",
                 sur_ajout_barre["pathname"])
@@ -364,17 +364,17 @@ async def main():
                     page: state.page,
                 })"""
             )
-            journal.verifier(
+            journal.check(
                 "taper « Médiathèque » depuis /ajout fait PARTIR l'écran",
                 not quitte["ouvert"], f"ouvert={quitte['ouvert']}")
-            journal.verifier(
+            journal.check(
                 "l'adresse revient au langage legacy (base + ?page=lib)",
                 quitte["pathname"] == "/" and quitte["recherche"] == "?page=lib",
                 f"{quitte['pathname']}{quitte['recherche']}")
-            journal.verifier(
+            journal.check(
                 "et la page rendue est bien la médiathèque",
                 quitte["page"] == "lib", f"page={quitte['page']}")
-            journal.verifier("aucune erreur JS en quittant par la barre", not erreurs, str(erreurs))
+            journal.check("aucune erreur JS en quittant par la barre", not erreurs, str(erreurs))
             await ctx.close()
 
             # ─── Holds (f)-(h): the fiche's deep entry, its OWN artwork,
@@ -382,27 +382,27 @@ async def main():
             adresse_fiche = f"{base}/fiche/{urllib.parse.quote(TITRE_FICHE)}"
             ctx, pg, erreurs = await ouvrir_a(navigateur, adresse_fiche)
             fiche_froide = await pg.evaluate(ETAT_FICHE)
-            journal.verifier(
+            journal.check(
                 "(f) une adresse profonde /fiche ouvre la fiche promise, à froid",
                 fiche_froide["ouvert"]
                 and fiche_froide["cle"] == f"fiche:{TITRE_FICHE}"
                 and fiche_froide["titre"] == TITRE_FICHE.split(" (")[0],
                 f"cle={fiche_froide['cle']} titre={fiche_froide['titre']!r}")
             artwork = await pg.evaluate(ETAT_HEROBG)
-            journal.verifier(
+            journal.check(
                 "(g) le hero/l'affiche que la fiche dessine ELLE-MÊME se charge réellement",
                 artwork["url"] is not None and artwork["dessine"],
                 f"url={artwork['url']!r} dessine={artwork['dessine']}")
-            journal.verifier("aucune erreur JS à l'entrée profonde /fiche", not erreurs, str(erreurs))
+            journal.check("aucune erreur JS à l'entrée profonde /fiche", not erreurs, str(erreurs))
 
             await pg.evaluate("()=>document.querySelector('.screen.open .fback').click()")
             await pg.wait_for_timeout(300)
             revenu_fiche = await pg.evaluate(ETAT_ECRAN)
-            journal.verifier(
+            journal.check(
                 "(h) un Retour depuis la fiche ramène sur la page par défaut, écran parti, adresse /",
                 not revenu_fiche["ouvert"] and revenu_fiche["pathname"] == "/",
                 revenu_fiche["pathname"])
-            journal.verifier("aucune erreur JS pendant le retour depuis la fiche", not erreurs, str(erreurs))
+            journal.check("aucune erreur JS pendant le retour depuis la fiche", not erreurs, str(erreurs))
             await ctx.close()
 
             # ─── Hold (i): an unknown title renders the SAME honest
@@ -411,7 +411,7 @@ async def main():
             adresse_fiche_fausse = f"{base}/fiche/{ADRESSE_INCONNUE}"
             ctx, pg, erreurs = await ouvrir_a(navigateur, adresse_fiche_fausse)
             fiche_perdue = await pg.evaluate(ETAT_FICHE)
-            journal.verifier(
+            journal.check(
                 "(i) un titre inconnu rend quand même la fiche, honnêtement — le "
                 "gabarit d'openFiche(title) n'avait pas de branche « non trouvé »",
                 fiche_perdue["ouvert"]
@@ -419,10 +419,10 @@ async def main():
                 and "Métadonnées inconnues" in fiche_perdue["corps"]
                 and "Genres inconnus" in fiche_perdue["corps"],
                 f"cle={fiche_perdue['cle']} titre={fiche_perdue['titre']!r}")
-            journal.verifier(
+            journal.check(
                 "l'adresse reste celle qui a été tapée",
                 pg.url == adresse_fiche_fausse, pg.url)
-            journal.verifier("aucune erreur JS sur un titre de fiche inconnu", not erreurs, str(erreurs))
+            journal.check("aucune erreur JS sur un titre de fiche inconnu", not erreurs, str(erreurs))
             await ctx.close()
 
             # ─── Hold (j): a title with no trailer renders p.noinfo in
@@ -433,13 +433,13 @@ async def main():
             adresse_sans_trailer = f"{base}/fiche/{urllib.parse.quote(TITRE_SANS_TRAILER)}"
             ctx, pg, erreurs = await ouvrir_a(navigateur, adresse_sans_trailer)
             fiche_sans_trailer = await pg.evaluate(ETAT_FICHE)
-            journal.verifier(
+            journal.check(
                 "(j) une fiche sans bande-annonce rend p.noinfo à sa place",
                 fiche_sans_trailer["ouvert"]
                 and len(fiche_sans_trailer["nofiches"]) == 1
                 and "bande-annonce" in fiche_sans_trailer["nofiches"][0],
                 f"nofiches={fiche_sans_trailer['nofiches']!r}")
-            journal.verifier("aucune erreur JS sur une fiche sans bande-annonce", not erreurs, str(erreurs))
+            journal.check("aucune erreur JS sur une fiche sans bande-annonce", not erreurs, str(erreurs))
             await ctx.close()
 
             # ─── Holds (k)-(l): the arbitration screen's deep entry — the
@@ -451,24 +451,24 @@ async def main():
             adresse_resolution = f"{base}/resolution/{urllib.parse.quote(DOSSIER_RESOLUTION)}"
             ctx, pg, erreurs = await ouvrir_a(navigateur, adresse_resolution)
             resolution_froide = await pg.evaluate(ETAT_RESOLUTION)
-            journal.verifier(
+            journal.check(
                 "(k) une adresse profonde /resolution ouvre l'écran promis, à froid — "
                 "le dossier tapé, en chasse fixe",
                 resolution_froide["ouvert"]
                 and resolution_froide["cle"] == f"resolution:{DOSSIER_RESOLUTION}"
                 and resolution_froide["dossier"] == DOSSIER_RESOLUTION,
                 f"cle={resolution_froide['cle']} dossier={resolution_froide['dossier']!r}")
-            journal.verifier("aucune erreur JS à l'entrée profonde /resolution", not erreurs, str(erreurs))
+            journal.check("aucune erreur JS à l'entrée profonde /resolution", not erreurs, str(erreurs))
 
             await pg.evaluate("()=>document.querySelector('.screen.open .fback').click()")
             await pg.wait_for_timeout(300)
             revenu_resolution = await pg.evaluate(ETAT_ECRAN)
-            journal.verifier(
+            journal.check(
                 "(l) un Retour depuis la résolution ramène sur la page par défaut, "
                 "écran parti, adresse /",
                 not revenu_resolution["ouvert"] and revenu_resolution["pathname"] == "/",
                 revenu_resolution["pathname"])
-            journal.verifier("aucune erreur JS pendant le retour depuis la résolution",
+            journal.check("aucune erreur JS pendant le retour depuis la résolution",
                              not erreurs, str(erreurs))
             await ctx.close()
 
@@ -479,7 +479,7 @@ async def main():
             adresse_releases = f"{base}/releases/{urllib.parse.quote(TITRE_RELEASES)}"
             ctx, pg, erreurs = await ouvrir_a(navigateur, adresse_releases)
             releases_froid = await pg.evaluate(ETAT_RELEASES)
-            journal.verifier(
+            journal.check(
                 "(m) une adresse profonde /releases ouvre l'écran promis, à froid — "
                 "le titre dans la barre, des candidats dessinés",
                 releases_froid["ouvert"]
@@ -488,17 +488,17 @@ async def main():
                 and releases_froid["candidats"] > 0,
                 f"cle={releases_froid['cle']} barre={releases_froid['barre']!r} "
                 f"candidats={releases_froid['candidats']}")
-            journal.verifier("aucune erreur JS à l'entrée profonde /releases", not erreurs, str(erreurs))
+            journal.check("aucune erreur JS à l'entrée profonde /releases", not erreurs, str(erreurs))
 
             await pg.evaluate("()=>document.querySelector('.screen.open .fback').click()")
             await pg.wait_for_timeout(300)
             revenu_releases = await pg.evaluate(ETAT_ECRAN)
-            journal.verifier(
+            journal.check(
                 "(n) un Retour depuis les releases ramène sur la page par défaut, "
                 "écran parti, adresse /",
                 not revenu_releases["ouvert"] and revenu_releases["pathname"] == "/",
                 revenu_releases["pathname"])
-            journal.verifier("aucune erreur JS pendant le retour depuis les releases",
+            journal.check("aucune erreur JS pendant le retour depuis les releases",
                              not erreurs, str(erreurs))
             await ctx.close()
 
@@ -512,7 +512,7 @@ async def main():
             ctx, pg, erreurs = await ouvrir_a(navigateur, adresse_resolution_fausse)
             resolution_perdue = await pg.evaluate(ETAT_RESOLUTION)
             corps_resolution_perdue = resolution_perdue["corps"].lower()
-            journal.verifier(
+            journal.check(
                 "(o) un dossier inconnu rend quand même l'écran, honnêtement — aucun "
                 "candidat emprunté, la recherche manuelle et « laisser tel quel » restent offertes",
                 resolution_perdue["ouvert"]
@@ -521,10 +521,10 @@ async def main():
                 and "manuellement" in corps_resolution_perdue
                 and "Laisser tel quel" in resolution_perdue["corps"],
                 f"cle={resolution_perdue['cle']} dossier={resolution_perdue['dossier']!r}")
-            journal.verifier(
+            journal.check(
                 "l'adresse reste celle qui a été tapée",
                 pg.url == adresse_resolution_fausse, pg.url)
-            journal.verifier("aucune erreur JS sur un dossier de résolution inconnu",
+            journal.check("aucune erreur JS sur un dossier de résolution inconnu",
                              not erreurs, str(erreurs))
             await ctx.close()
 
@@ -535,23 +535,23 @@ async def main():
             adresse_releases_fausse = f"{base}/releases/{ADRESSE_INCONNUE}"
             ctx, pg, erreurs = await ouvrir_a(navigateur, adresse_releases_fausse)
             releases_perdu = await pg.evaluate(ETAT_RELEASES)
-            journal.verifier(
+            journal.check(
                 "(p) un titre inconnu rend quand même la liste des releases, "
                 "avec ce titre dans la barre",
                 releases_perdu["ouvert"]
                 and releases_perdu["barre"] == "N'Existe Pas"
                 and releases_perdu["candidats"] > 0,
                 f"cle={releases_perdu['cle']} barre={releases_perdu['barre']!r}")
-            journal.verifier(
+            journal.check(
                 "l'adresse reste celle qui a été tapée",
                 pg.url == adresse_releases_fausse, pg.url)
-            journal.verifier("aucune erreur JS sur un titre de releases inconnu",
+            journal.check("aucune erreur JS sur un titre de releases inconnu",
                              not erreurs, str(erreurs))
             await ctx.close()
 
         await navigateur.close()
 
-    journal.bilan()
+    journal.summary()
 
 
 asyncio.run(main())

@@ -31,7 +31,7 @@ What this holds to:
 """
 import asyncio
 
-from common import TELEPHONE
+from common import PHONE
 from playwright.async_api import async_playwright
 
 PROTOTYPE = "http://127.0.0.1:8899/wrapped.html"
@@ -46,9 +46,9 @@ OU = """() => ({
 })"""
 
 
-async def ouvrir(b, url=PROTOTYPE):
+async def open_page(b, url=PROTOTYPE):
     """Opens the prototype AT AN ADDRESS, past the startup screen."""
-    ctx = await b.new_context(**TELEPHONE)
+    ctx = await b.new_context(**PHONE)
     pg = await ctx.new_page()
     erreurs = []
     pg.on("pageerror", lambda e: erreurs.append(str(e)))
@@ -73,78 +73,78 @@ async def main():
         b = await p.chromium.launch(channel="chrome")
 
         # ── 1. the opening state writes nothing ────────────────────────────
-        ctx, pg, erreurs = await ouvrir(b)
-        journal.verifier("la page d'ouverture a une adresse propre",
+        ctx, pg, erreurs = await open_page(b)
+        journal.check("la page d'ouverture a une adresse propre",
                          requete(pg.url) == "", pg.url)
 
         # ── 2. walking writes the address ──────────────────────────────────
         await pg.tap('#nav button[data-page="lib"]')
         await pg.wait_for_timeout(360)
         apres_onglet = pg.url
-        journal.verifier("changer d'onglet écrit l'adresse",
+        journal.check("changer d'onglet écrit l'adresse",
                          "page=lib" in requete(apres_onglet), apres_onglet)
 
         await pg.tap('[data-lens="inc"]')
         await pg.wait_for_timeout(360)
         adresse = pg.url
-        journal.verifier("changer de lentille l'écrit aussi",
+        journal.check("changer de lentille l'écrit aussi",
                          "lens=inc" in requete(adresse), adresse)
-        journal.verifier("et l'adresse ne porte QUE ce qui diffère de l'ouverture",
+        journal.check("et l'adresse ne porte QUE ce qui diffère de l'ouverture",
                          set(requete(adresse).split("&")) == {"page=lib", "lens=inc"},
                          requete(adresse))
         marche = await pg.evaluate(OU)
         await ctx.close()
 
         # ── 3. the cold journey ends where the finger's did ────────────────
-        ctx, pg, erreurs = await ouvrir(b, adresse)
+        ctx, pg, erreurs = await open_page(b, adresse)
         froid = await pg.evaluate(OU)
-        journal.verifier("recharger cette adresse ramène au même écran",
+        journal.check("recharger cette adresse ramène au même écran",
                          (froid["page"], froid["lentille"]) == (marche["page"], marche["lentille"]),
                          f"{froid['page']}/{froid['lentille']} vs {marche['page']}/{marche['lentille']}")
-        journal.verifier("et l'adresse n'a pas bougé en chemin",
+        journal.check("et l'adresse n'a pas bougé en chemin",
                          requete(pg.url) == requete(adresse),
                          f"{requete(pg.url)} vs {requete(adresse)}")
-        journal.verifier("aucune erreur JS au chargement à froid", not erreurs, str(erreurs))
+        journal.check("aucune erreur JS au chargement à froid", not erreurs, str(erreurs))
         await ctx.close()
 
         # ── 4. a wrong address is left alone ───────────────────────────────
         faux = PROTOTYPE + "?page=nimportequoi"
-        ctx, pg, erreurs = await ouvrir(b, faux)
+        ctx, pg, erreurs = await open_page(b, faux)
         perdu = await pg.evaluate(OU)
-        journal.verifier("une adresse inconnue rend la surface prévue pour ça",
+        journal.check("une adresse inconnue rend la surface prévue pour ça",
                          perdu["page"] == "404", perdu["page"])
-        journal.verifier("et l'interface NOMME ce qui a été demandé",
+        journal.check("et l'interface NOMME ce qui a été demandé",
                          perdu["introuvable"] == "/nimportequoi", perdu["introuvable"])
-        journal.verifier("et l'adresse reste celle qui a été tapée",
+        journal.check("et l'adresse reste celle qui a été tapée",
                          requete(pg.url) == "page=nimportequoi", pg.url)
-        journal.verifier("aucune erreur JS sur une adresse inconnue", not erreurs, str(erreurs))
+        journal.check("aucune erreur JS sur une adresse inconnue", not erreurs, str(erreurs))
         await ctx.close()
 
         # ── 5. back walks the addresses in reverse ─────────────────────────
-        ctx, pg, erreurs = await ouvrir(b)
+        ctx, pg, erreurs = await open_page(b)
         await pg.tap('#nav button[data-page="lib"]')
         await pg.wait_for_timeout(340)
         await pg.tap('#nav button[data-page="arr"]')
         await pg.wait_for_timeout(340)
-        journal.verifier("après deux pas, l'adresse est celle du second",
+        journal.check("après deux pas, l'adresse est celle du second",
                          "page=arr" in requete(pg.url), pg.url)
         await pg.go_back()
         await pg.wait_for_timeout(420)
-        journal.verifier("un retour ramène à l'adresse du premier",
+        journal.check("un retour ramène à l'adresse du premier",
                          "page=lib" in requete(pg.url), pg.url)
-        journal.verifier("et l'écran est celui de cette adresse",
+        journal.check("et l'écran est celui de cette adresse",
                          (await pg.evaluate(OU))["page"] == "lib",
                          (await pg.evaluate(OU))["page"])
         await pg.go_back()
         await pg.wait_for_timeout(420)
-        journal.verifier("un second retour ramène à l'adresse d'ouverture",
+        journal.check("un second retour ramène à l'adresse d'ouverture",
                          requete(pg.url) == "", pg.url)
-        journal.verifier("aucune erreur JS pendant les retours", not erreurs, str(erreurs))
+        journal.check("aucune erreur JS pendant les retours", not erreurs, str(erreurs))
         await ctx.close()
 
         await b.close()
 
-    journal.bilan()
+    journal.summary()
 
 
 asyncio.run(main())

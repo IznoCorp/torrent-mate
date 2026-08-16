@@ -26,7 +26,7 @@ exactly what was wrong on it.
 """
 import asyncio
 
-from common import Journal, ouvrir
+from common import Journal, open_page
 from playwright.async_api import async_playwright
 
 
@@ -35,7 +35,7 @@ _journal = None
 
 def verifier(nom, condition, detail=""):
     """Records one executed check and its verdict, in the shared journal."""
-    return _journal.verifier(nom, condition, detail)
+    return _journal.check(nom, condition, detail)
 
 
 GEOMETRIE = """() => {
@@ -62,7 +62,7 @@ GEOMETRIE = """() => {
 async def surLaListe(p, lance):
     """Opens the prototype past the startup screen, on the follows list."""
     b = await lance()
-    ctx, pg = await ouvrir(b)
+    ctx, pg = await open_page(b)
     await pg.wait_for_timeout(450)
     await pg.evaluate("()=>window.__go('acq-suivis-liste')")
     await pg.wait_for_timeout(550)
@@ -282,6 +282,6 @@ async def main():
         verifier("aucune erreur JS", not erreurs, str(erreurs))
         await b.close()
 
-    _journal.bilan()
+    _journal.summary()
 
 asyncio.run(main())

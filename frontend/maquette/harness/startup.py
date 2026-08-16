@@ -38,7 +38,7 @@ import urllib.request
 from common import Journal
 from playwright.async_api import async_playwright
 
-RACINE = pathlib.Path(__file__).resolve().parent.parent
+ROOT = pathlib.Path(__file__).resolve().parent.parent
 PORT = 8713  # never 8710 / 8711: the reverse proxy routes production and staging there
 
 _journal = None
@@ -50,12 +50,12 @@ class SortieAnticipee(Exception):
 
 def verifier(nom, condition, detail=""):
     """Records one executed check and its verdict, in the shared journal."""
-    return _journal.verifier(nom, condition, detail)
+    return _journal.check(nom, condition, detail)
 
 
 def extrait_prototype(marque):
     """Returns the prototype text between a pair of `login:<marque>` markers."""
-    source = (RACINE / "design" / "refonte.html").read_text()
+    source = (ROOT / "design" / "refonte.html").read_text()
     debut = source.find(f"login:{marque}:start")
     fin = source.find(f"login:{marque}:end")
     if debut < 0 or fin < 0:
@@ -85,7 +85,7 @@ async def main():
         # 1. Declared first, so it is painted first. Measured on the SOURCE,
         #    because that is what parse order follows; the DOM would answer the
         #    same question only by accident.
-        source = (RACINE / "design" / "refonte.html").read_text()
+        source = (ROOT / "design" / "refonte.html").read_text()
         corps = source[source.find('<div class="device"'):]
         rang_splash = corps.find('id="splash"')
         premier_autre = min(
@@ -183,7 +183,7 @@ async def main():
         # 5. The gate the server builds shows the SAME screen, and reveals it on
         #    submit — the wait the browser spends fetching the document.
         serveur = subprocess.Popen(
-            [sys.executable, str(RACINE / "serve.py"), str(PORT)],
+            [sys.executable, str(ROOT / "serve.py"), str(PORT)],
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         try:
             portail = ""
@@ -375,6 +375,6 @@ async def main():
 
         await b.close()
 
-    _journal.bilan(erreurs)
+    _journal.summary(erreurs)
 
 asyncio.run(main())

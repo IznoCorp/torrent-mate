@@ -26,10 +26,10 @@ import asyncio
 import pathlib
 import re
 
-from common import Journal, ouvrir
+from common import Journal, open_page
 from playwright.async_api import async_playwright
 
-RACINE = pathlib.Path(__file__).resolve().parent.parent
+ROOT = pathlib.Path(__file__).resolve().parent.parent
 CONFIG = pathlib.Path.home() / ".torrentmate" / "config"
 # Where a setting can live WITHOUT being a JSON5 overlay: the schedules belong
 # to PM2, and its ecosystem file is checked out with the deployment rather than
@@ -46,7 +46,7 @@ _journal = None
 
 def verifier(nom, condition, detail=""):
     """Records one executed check and its verdict, in the shared journal."""
-    return _journal.verifier(nom, condition, detail)
+    return _journal.check(nom, condition, detail)
 
 
 async def main():
@@ -55,7 +55,7 @@ async def main():
 
     async with async_playwright() as p:
         b = await p.chromium.launch(channel="chrome")
-        ctx, pg = await ouvrir(b)
+        ctx, pg = await open_page(b)
         erreurs = []
         pg.on("pageerror", lambda e: erreurs.append(str(e)))
         await pg.evaluate("()=>window.__measure(true)")
@@ -390,6 +390,6 @@ async def main():
         verifier("aucune erreur JS", not erreurs, str(erreurs))
         await b.close()
 
-    _journal.bilan()
+    _journal.summary()
 
 asyncio.run(main())

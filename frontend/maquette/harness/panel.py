@@ -31,17 +31,17 @@ import asyncio
 import pathlib
 import re
 
-from common import Journal, ouvrir
+from common import Journal, open_page
 from playwright.async_api import async_playwright
 
-RACINE = pathlib.Path(__file__).resolve().parent.parent
+ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 _journal = None
 
 
 def verifier(nom, condition, detail=""):
     """Records one executed check and its verdict, in the shared journal."""
-    return _journal.verifier(nom, condition, detail)
+    return _journal.check(nom, condition, detail)
 
 
 # Every panel this interface can open, and how to reach it without knowing
@@ -79,8 +79,8 @@ async def main():
     global _journal
     _journal = Journal("R56 — un seul panneau")
 
-    source = (RACINE / "design" / "refonte.html").read_text()
-    composant = (RACINE / "design" / "src" / "components" / "panel.tsx").read_text()
+    source = (ROOT / "design" / "refonte.html").read_text()
+    composant = (ROOT / "design" / "src" / "components" / "panel.tsx").read_text()
 
     # 1. No caller hands markup to the panel. Read on the SOURCE, because that
     #    is where a panel is asked for; the DOM only shows what came out. A
@@ -107,7 +107,7 @@ async def main():
 
     async with async_playwright() as p:
         b = await p.chromium.launch(channel="chrome")
-        ctx, pg = await ouvrir(b)
+        ctx, pg = await open_page(b)
         erreurs = []
         pg.on("pageerror", lambda e: erreurs.append(str(e)))
         await pg.evaluate("()=>window.__measure(true)")
@@ -155,6 +155,6 @@ async def main():
         verifier("aucune erreur JS", not erreurs, str(erreurs))
         await b.close()
 
-    _journal.bilan()
+    _journal.summary()
 
 asyncio.run(main())

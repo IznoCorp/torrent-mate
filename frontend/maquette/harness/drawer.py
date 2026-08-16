@@ -30,7 +30,7 @@ What the drawer owes, and what this script holds it to:
 """
 import asyncio
 
-from common import Journal, ouvrir
+from common import Journal, open_page
 from playwright.async_api import async_playwright
 
 # WCAG AA for body text. The current entry sat at 1.00 — the floor exists so a
@@ -140,22 +140,22 @@ async def main():
         b = await p.chromium.launch(channel="chrome")
 
         # ── 1. Every entry names a page that exists, and reaching it arrives ──
-        ctx, pg = await ouvrir(b)
+        ctx, pg = await open_page(b)
         await ouvrirTiroir(pg)
         entrees = await pg.eval_on_selector_all(
             "#drawer a[data-navgo]", "els => els.map((e) => e.dataset.navgo)")
         pages = await pg.evaluate(PAGES)
-        journal.verifier("le tiroir porte des entrées", len(entrees) > 0,
+        journal.check("le tiroir porte des entrées", len(entrees) > 0,
                          f"{len(entrees)} entrées : {', '.join(entrees)}")
         if pages is not None:
             inconnues = [e for e in entrees if e not in pages]
-            journal.verifier("chaque entrée nomme une page qui existe", not inconnues,
+            journal.check("chaque entrée nomme une page qui existe", not inconnues,
                              f"pages : {', '.join(pages)}"
                              + (f" — inconnues : {', '.join(inconnues)}" if inconnues else ""))
         await ctx.close()
 
         for cible in entrees:
-            ctx, pg = await ouvrir(b)
+            ctx, pg = await open_page(b)
             depart = (await etat(pg))["page"]
             await ouvrirTiroir(pg)
             await pg.tap(f'#drawer a[data-navgo="{cible}"]')
@@ -164,7 +164,7 @@ async def main():
             # early would have certified it.
             await pg.wait_for_timeout(600)
             apres = await etat(pg)
-            journal.verifier(
+            journal.check(
                 f"« {cible} » arrive et y reste",
                 apres["page"] == cible and not apres["tiroir"],
                 f"page={apres['page']} tiroir={apres['tiroir']} (départ {depart})")
@@ -174,23 +174,23 @@ async def main():
                 await pg.go_back()
                 await pg.wait_for_timeout(500)
                 retour = await etat(pg)
-                journal.verifier(
+                journal.check(
                     f"depuis « {cible} », retour ramène au départ",
                     retour["page"] == depart and not retour["tiroir"],
                     f"page={retour['page']} tiroir={retour['tiroir']}")
             await ctx.close()
 
         # ── 3. Closing without going anywhere leaves history where it was ──
-        ctx, pg = await ouvrir(b)
+        ctx, pg = await open_page(b)
         avant = await etat(pg)
         await ouvrirTiroir(pg)
         ouvert = await etat(pg)
-        journal.verifier("ouvrir le tiroir empile une couche, pas une page",
+        journal.check("ouvrir le tiroir empile une couche, pas une page",
                          ouvert["tiroir"] and ouvert["couche"] == "drawer",
                          f"couche={ouvert['couche']}")
         await fermerParLeScrim(pg)
         ferme = await etat(pg)
-        journal.verifier("refermer sans aller nulle part rend l'historique intact",
+        journal.check("refermer sans aller nulle part rend l'historique intact",
                          not ferme["tiroir"] and ferme["nav"] == avant["nav"]
                          and ferme["couche"] is None,
                          f"nav={ferme['nav']} couche={ferme['couche']}")
@@ -200,7 +200,7 @@ async def main():
         await pg.go_back()
         await pg.wait_for_timeout(500)
         apres_retour = await etat(pg)
-        journal.verifier("après l'avoir refermé, retour ne rouvre pas le tiroir",
+        journal.check("après l'avoir refermé, retour ne rouvre pas le tiroir",
                          not apres_retour["tiroir"],
                          f"tiroir={apres_retour['tiroir']} page={apres_retour['page']}")
         await ctx.close()
@@ -218,7 +218,7 @@ async def main():
             ("le panneau", lambda pg: pg.tap("#view .card [data-panel]"), (195, 60)),
             ("le tiroir", ouvrirTiroir, (370, 700)),
         ):
-            ctx, pg = await ouvrir(b)
+            ctx, pg = await open_page(b)
             await ouvrirCouche(pg)
             await pg.wait_for_timeout(450)
             await pg.evaluate("""() => {
@@ -235,20 +235,20 @@ async def main():
               marqueur: !!document.querySelector('#marqueur-r65'),
               scroll: Math.round(document.querySelector('#port').scrollTop),
             })""")
-            journal.verifier(
+            journal.check(
                 f"refermer {nom} ne reconstruit pas la page dessous",
                 apres["marqueur"], f"marqueur présent={apres['marqueur']}")
-            journal.verifier(
+            journal.check(
                 f"refermer {nom} ne perd pas où la page était défilée",
                 apres["scroll"] == avant_scroll,
                 f"{avant_scroll} → {apres['scroll']}")
             await ctx.close()
 
         # ── 5. Every entry is legible, the current one included ──
-        ctx, pg = await ouvrir(b)
+        ctx, pg = await open_page(b)
         await ouvrirTiroir(pg)
         for ligne in await pg.evaluate(CONTRASTE):
-            journal.verifier(
+            journal.check(
                 f"« {ligne['id']} »"
                 + (" (l'entrée courante)" if ligne["courant"] else "")
                 + " se lit sur son fond",
@@ -258,7 +258,7 @@ async def main():
 
         await b.close()
 
-    journal.bilan()
+    journal.summary()
 
 
 asyncio.run(main())

@@ -36,7 +36,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import RACINE, TELEPHONE, Journal
+from common import PHONE, ROOT, Journal
 
 # The engine may hold no history primitive of its own — the bridge is the
 # only way to the single writer.
@@ -50,18 +50,18 @@ PRIMITIVES = (
 
 # A slash opens a regular expression rather than a division when the last
 # significant character before it cannot end an expression.
-AVANT_REGEX = set("(,=:[!&|?{};+-*%^~<>")
-MOTS_AVANT_REGEX = ("return", "typeof", "case", "in", "of", "new", "delete",
+BEFORE_REGEX = set("(,=:[!&|?{};+-*%^~<>")
+WORDS_BEFORE_REGEX = ("return", "typeof", "case", "in", "of", "new", "delete",
                     "do", "else", "void", "instanceof", "yield", "await")
 
 _journal = None
 
 
-def verifier(nom, condition, detail=""):
-    return _journal.verifier(nom, condition, detail)
+def check(name, condition, detail=""):
+    return _journal.check(name, condition, detail)
 
 
-def sans_commentaires(source):
+def without_comments(source):
     """Blanks out the JavaScript comments of a document, and only those.
 
     A stripper that knows about `//` and `/* */` alone is fail-open on this
@@ -84,152 +84,152 @@ def sans_commentaires(source):
         The same text with every comment character replaced by a space,
         newlines preserved so lines still line up with the original.
     """
-    sortie = []
+    out = []
     i, n = 0, len(source)
-    # `precedent` is the last significant character of the CODE regions; it is
+    # `previous` is the last significant character of the CODE regions; it is
     # what tells a regular expression from a division.
-    precedent = ""
+    previous = ""
     # Brace depth inside the current code region, and the stack of depths
     # suspended by the enclosing `${` substitutions.
-    profondeur, gabarits = 0, []
+    depth, templates = 0, []
 
-    def mot_avant(position):
+    def word_before(position):
         """True when a keyword ends right before `position` (regex context)."""
-        prefixe = source[:position].rstrip()
-        return any(prefixe.endswith(mot)
-                   and (len(prefixe) == len(mot)
-                        or not (prefixe[-len(mot) - 1].isalnum()
-                                or prefixe[-len(mot) - 1] in "_$"))
-                   for mot in MOTS_AVANT_REGEX)
+        prefix = source[:position].rstrip()
+        return any(prefix.endswith(word)
+                   and (len(prefix) == len(word)
+                        or not (prefix[-len(word) - 1].isalnum()
+                                or prefix[-len(word) - 1] in "_$"))
+                   for word in WORDS_BEFORE_REGEX)
 
     while i < n:
         c = source[i]
-        paire = source[i:i + 2]
+        pair = source[i:i + 2]
 
-        if paire == "//":
+        if pair == "//":
             while i < n and source[i] != "\n":
-                sortie.append(" ")
+                out.append(" ")
                 i += 1
             continue
 
-        if paire == "/*":
+        if pair == "/*":
             while i < n and source[i:i + 2] != "*/":
-                sortie.append("\n" if source[i] == "\n" else " ")
+                out.append("\n" if source[i] == "\n" else " ")
                 i += 1
             if i < n:
-                sortie.append("  ")
+                out.append("  ")
                 i += 2
             continue
 
         if c in "\"'":
             # A single- or double-quoted string: escapes only, no nesting.
-            sortie.append(c)
+            out.append(c)
             i += 1
             while i < n and source[i] != c:
                 if source[i] == "\\" and i + 1 < n:
-                    sortie.append(source[i:i + 2])
+                    out.append(source[i:i + 2])
                     i += 2
                     continue
                 if source[i] == "\n":  # unterminated: do not eat the file
                     break
-                sortie.append(source[i])
+                out.append(source[i])
                 i += 1
             if i < n and source[i] == c:
-                sortie.append(c)
+                out.append(c)
                 i += 1
-            precedent = c
+            previous = c
             continue
 
         if c == "`":
             # A template literal: runs to its closing backtick, except that
             # every `${…}` inside it is code, and is lexed as such.
-            sortie.append(c)
+            out.append(c)
             i += 1
             while i < n:
                 if source[i] == "\\" and i + 1 < n:
-                    sortie.append(source[i:i + 2])
+                    out.append(source[i:i + 2])
                     i += 2
                     continue
                 if source[i] == "`":
-                    sortie.append("`")
+                    out.append("`")
                     i += 1
-                    precedent = "`"
+                    previous = "`"
                     break
                 if source[i:i + 2] == "${":
-                    sortie.append("${")
+                    out.append("${")
                     i += 2
-                    gabarits.append(profondeur)
-                    profondeur = 0
-                    precedent = "{"
+                    templates.append(depth)
+                    depth = 0
+                    previous = "{"
                     break
-                sortie.append(source[i])
+                out.append(source[i])
                 i += 1
             continue
 
-        if c == "}" and profondeur == 0 and gabarits:
+        if c == "}" and depth == 0 and templates:
             # Closes a `${…}`: back inside the template literal that opened it.
-            sortie.append("}")
+            out.append("}")
             i += 1
-            profondeur = gabarits.pop()
+            depth = templates.pop()
             while i < n:
                 if source[i] == "\\" and i + 1 < n:
-                    sortie.append(source[i:i + 2])
+                    out.append(source[i:i + 2])
                     i += 2
                     continue
                 if source[i] == "`":
-                    sortie.append("`")
+                    out.append("`")
                     i += 1
-                    precedent = "`"
+                    previous = "`"
                     break
                 if source[i:i + 2] == "${":
-                    sortie.append("${")
+                    out.append("${")
                     i += 2
-                    gabarits.append(profondeur)
-                    profondeur = 0
-                    precedent = "{"
+                    templates.append(depth)
+                    depth = 0
+                    previous = "{"
                     break
-                sortie.append(source[i])
+                out.append(source[i])
                 i += 1
             continue
 
-        if c == "/" and (precedent == "" or precedent in AVANT_REGEX
-                         or mot_avant(i)):
+        if c == "/" and (previous == "" or previous in BEFORE_REGEX
+                         or word_before(i)):
             # A regular expression literal: its `/` delimiters, its character
             # classes (where a `/` is literal) and its escapes.
-            sortie.append(c)
+            out.append(c)
             i += 1
-            classe = False
+            in_class = False
             while i < n and source[i] != "\n":
                 if source[i] == "\\" and i + 1 < n:
-                    sortie.append(source[i:i + 2])
+                    out.append(source[i:i + 2])
                     i += 2
                     continue
                 if source[i] == "[":
-                    classe = True
+                    in_class = True
                 elif source[i] == "]":
-                    classe = False
-                elif source[i] == "/" and not classe:
-                    sortie.append("/")
+                    in_class = False
+                elif source[i] == "/" and not in_class:
+                    out.append("/")
                     i += 1
                     break
-                sortie.append(source[i])
+                out.append(source[i])
                 i += 1
-            precedent = "/"
+            previous = "/"
             continue
 
         if c == "{":
-            profondeur += 1
+            depth += 1
         elif c == "}":
-            profondeur = max(0, profondeur - 1)
-        sortie.append(c)
+            depth = max(0, depth - 1)
+        out.append(c)
         if not c.isspace():
-            precedent = c
+            previous = c
         i += 1
 
-    return "".join(sortie)
+    return "".join(out)
 
 
-def compter_history_primitives(source):
+def count_history_primitives(source):
     """Counts the direct history primitives left in a document's code.
 
     Args:
@@ -239,55 +239,55 @@ def compter_history_primitives(source):
         How many `history.pushState|replaceState|back|go|forward(` calls the
         code holds, comments excluded and string/regex contents left alone.
     """
-    nettoye = sans_commentaires(source)
-    return sum(len(re.findall(motif, nettoye)) for motif in PRIMITIVES)
+    cleaned = without_comments(source)
+    return sum(len(re.findall(pattern, cleaned)) for pattern in PRIMITIVES)
 
 
 async def main():
     global _journal
-    _journal = Journal("R74 — le pont lie le cluster nav au routeur")
+    _journal = Journal("R74 — the bridge wires the nav cluster to the router")
 
     # ─── Hold (a): the engine holds no primitive of its own ───────────
-    refonte = (RACINE / "design" / "refonte.html").read_text(encoding="utf-8")
-    appels = compter_history_primitives(refonte)
-    verifier(
-        "zéro appel direct history.* dans refonte.html",
-        appels == 0,
-        f"{appels} appel(s) trouvé(s)",
+    refonte = (ROOT / "design" / "refonte.html").read_text(encoding="utf-8")
+    calls = count_history_primitives(refonte)
+    check(
+        "zero direct history.* call in refonte.html",
+        calls == 0,
+        f"{calls} call(s) found",
     )
 
     async with async_playwright() as p:
-        navigateur = await p.chromium.launch(channel="chrome")
-        ctx = await navigateur.new_context(**TELEPHONE)
+        browser = await p.chromium.launch(channel="chrome")
+        ctx = await browser.new_context(**PHONE)
         pg = await ctx.new_page()
-        erreurs = []
-        pg.on("pageerror", lambda e: erreurs.append(str(e)))
+        errors = []
+        pg.on("pageerror", lambda e: errors.append(str(e)))
 
         # ─── Hold (f′): the boot handshake exists and fired on its own ─
-        # Navigated WITHOUT going through common.ouvrir(): that helper calls
+        # Navigated WITHOUT going through common.open_page(): that helper calls
         # window.__chargementTermine itself to get past the startup screen,
         # which would force the very effect this hold exists to observe.
         # What is measured here is whether the screen came off BEFORE this
         # harness ever touched that seam — proof the real handshake ran.
         await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
-        sonde = await pg.evaluate(
+        probe = await pg.evaluate(
             """()=>({
-                demarreur: typeof window.__demarrerMoteur,
-                splashMasque: document.querySelector('#splash')?.hidden === true
+                starter: typeof window.__demarrerMoteur,
+                splashHidden: document.querySelector('#splash')?.hidden === true
             })"""
         )
-        verifier(
-            "window.__demarrerMoteur existe",
-            sonde["demarreur"] == "function",
-            f"typeof window.__demarrerMoteur = {sonde['demarreur']}",
+        check(
+            "window.__demarrerMoteur exists",
+            probe["starter"] == "function",
+            f"typeof window.__demarrerMoteur = {probe['starter']}",
         )
-        verifier(
-            "l'écran de démarrage s'efface tout seul, avant tout appel du harnais",
-            sonde["splashMasque"],
-            f"#splash.hidden = {sonde['splashMasque']}",
+        check(
+            "the startup screen clears on its own, before any harness call",
+            probe["splashHidden"],
+            f"#splash.hidden = {probe['splashHidden']}",
         )
 
-        # Same plumbing common.ouvrir() would run, on the same page, now
+        # Same plumbing common.open_page() would run, on the same page, now
         # that the hold above has taken its measurement: idempotent (it only
         # re-sets #splash.hidden), so calling it again here is harmless.
         await pg.evaluate("()=>window.__chargementTermine?.()")
@@ -303,18 +303,18 @@ async def main():
         # the FICHE this journey opens next stays fully legacy, still
         # `#screen`. Not read here (nothing has opened yet), but read
         # explicitly below once the fiche is expected to have closed.
-        depart_state = await pg.evaluate(
+        start_state = await pg.evaluate(
             """()=>({
-                ecran: !!document.querySelector('.screen.open'),
-                cle: document.querySelector('.screen.open')?.dataset.cle,
-                cartes: document.querySelectorAll('.reslist .card').length,
-                requete: document.querySelector('#addq')?.value
+                screen: !!document.querySelector('.screen.open'),
+                key: document.querySelector('.screen.open')?.dataset.cle,
+                cards: document.querySelectorAll('.reslist .card').length,
+                query: document.querySelector('#addq')?.value
             })"""
         )
-        verifier(
-            "l'écran de résultats est là",
-            depart_state["ecran"] and depart_state["cartes"] >= 2,
-            f"{depart_state['cartes']} cartes",
+        check(
+            "the results screen is there",
+            start_state["screen"] and start_state["cards"] >= 2,
+            f"{start_state['cards']} cards",
         )
 
         # Scrolled away from the top before leaving, so the return has a
@@ -334,48 +334,48 @@ async def main():
         # `document.querySelector` always resolves the React screen first
         # and would never surface a legacy `#screen` (the fiche this
         # journey opened) that failed to close. Read explicitly here.
-        retour_state = await pg.evaluate(
+        back_state = await pg.evaluate(
             """()=>({
-                ecran: !!document.querySelector('.screen.open'),
-                cle: document.querySelector('.screen.open')?.dataset.cle,
-                cartes: document.querySelectorAll('.reslist .card').length,
-                requete: document.querySelector('#addq')?.value,
+                screen: !!document.querySelector('.screen.open'),
+                key: document.querySelector('.screen.open')?.dataset.cle,
+                cards: document.querySelectorAll('.reslist .card').length,
+                query: document.querySelector('#addq')?.value,
                 scroll: document.querySelector('.screen.open .port')?.scrollTop,
-                ficheEncoreLa: document.querySelector('#screen').classList.contains('open')
+                legacySheetStillThere: document.querySelector('#screen').classList.contains('open')
             })"""
         )
 
-        verifier(
-            "le retour redessine la liste de résultats",
-            retour_state["ecran"]
-            and (retour_state["cle"] or "").startswith("ajout:")
-            and retour_state["cartes"] == depart_state["cartes"]
-            and retour_state["requete"] == depart_state["requete"],
-            f"{retour_state['cartes']} cartes · requête « {retour_state['requete']} »",
+        check(
+            "the back redraws the results list",
+            back_state["screen"]
+            and (back_state["key"] or "").startswith("ajout:")
+            and back_state["cards"] == start_state["cards"]
+            and back_state["query"] == start_state["query"],
+            f"{back_state['cards']} cards · query « {back_state['query']} »",
         )
-        verifier(
-            "et la fiche legacy n'est plus là",
-            not retour_state["ficheEncoreLa"],
-            f"#screen open={retour_state['ficheEncoreLa']}",
+        check(
+            "and the legacy fiche is gone",
+            not back_state["legacySheetStillThere"],
+            f"#screen open={back_state['legacySheetStillThere']}",
         )
         # The restored position is asserted, not merely collected: the record
         # says the journey holds the scroll, and a collected number nobody
         # judges is the one thing this harness exists to prevent. Same
         # tolerance as R71, which holds the same journey off the bridge.
-        verifier(
-            "avec sa position de défilement",
-            abs(retour_state["scroll"] - 300) <= 40,
-            f"{retour_state['scroll']}px",
+        check(
+            "with its scroll position",
+            abs(back_state["scroll"] - 300) <= 40,
+            f"{back_state['scroll']}px",
         )
 
-        await navigateur.close()
+        await browser.close()
 
     # ─── Hold (c): deep-URL entry ─────────────────────────────────────
     async with async_playwright() as p:
-        navigateur = await p.chromium.launch(channel="chrome")
-        ctx = await navigateur.new_context(**TELEPHONE)
+        browser = await p.chromium.launch(channel="chrome")
+        ctx = await browser.new_context(**PHONE)
         pg = await ctx.new_page()
-        pg.on("pageerror", lambda e: erreurs.append(str(e)))
+        pg.on("pageerror", lambda e: errors.append(str(e)))
         await pg.goto(
             "http://127.0.0.1:8899/wrapped.html?page=lib&mode=list", wait_until="load"
         )
@@ -389,27 +389,27 @@ async def main():
                 libMode: state.libMode ?? null
             })"""
         )
-        verifier(
-            "l'entrée directe ?page=lib&mode=list établit l'état promis",
+        check(
+            "direct entry on ?page=lib&mode=list sets the promised state",
             state["page"] == "lib" and state["libMode"] == "list",
             f"page={state['page']} libMode={state['libMode']}",
         )
 
         # ─── Hold (d): __go() does not change history depth ────────────
-        depth_avant = await pg.evaluate("()=>history.length")
+        depth_before = await pg.evaluate("()=>history.length")
         await pg.evaluate("()=>window.__go('acq-decouvrir')")
         await pg.wait_for_timeout(400)
-        depth_apres = await pg.evaluate("()=>history.length")
+        depth_after = await pg.evaluate("()=>history.length")
 
-        verifier(
-            "window.__go() ne change pas la profondeur de l'historique",
-            depth_apres == depth_avant,
-            f"avant={depth_avant} après={depth_apres}",
+        check(
+            "window.__go() does not change the history depth",
+            depth_after == depth_before,
+            f"before={depth_before} after={depth_after}",
         )
 
-        await navigateur.close()
+        await browser.close()
 
-    _journal.bilan(erreurs)
+    _journal.summary(errors)
 
 
 asyncio.run(main())

@@ -21,13 +21,13 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import Journal, ouvrir
+from common import Journal, open_page
 
 _journal = None
 
 
 def verifier(nom, condition, detail=""):
-    return _journal.verifier(nom, condition, detail)
+    return _journal.check(nom, condition, detail)
 
 
 async def main():
@@ -36,7 +36,7 @@ async def main():
 
     async with async_playwright() as p:
         navigateur = await p.chromium.launch(channel="chrome")
-        ctx, pg = await ouvrir(navigateur)
+        ctx, pg = await open_page(navigateur)
         erreurs = []
         pg.on("pageerror", lambda e: erreurs.append(str(e)))
 
@@ -145,7 +145,7 @@ async def main():
                  not bouton["ficheEncoreLa"], f"fiche ouverte={bouton['ficheEncoreLa']}")
 
         await navigateur.close()
-    _journal.bilan(erreurs)
+    _journal.summary(erreurs)
 
 
 asyncio.run(main())

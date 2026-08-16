@@ -33,7 +33,7 @@ _journal = None
 
 def verifier(nom, condition, detail=""):
     """Records one executed check and its verdict, in the shared journal."""
-    return _journal.verifier(nom, condition, detail)
+    return _journal.check(nom, condition, detail)
 
 
 # What Chrome dispatches, with the two members a page is allowed to use.
@@ -156,6 +156,6 @@ async def main():
         await ctx.close()
         await b.close()
 
-    _journal.bilan()
+    _journal.summary()
 
 asyncio.run(main())

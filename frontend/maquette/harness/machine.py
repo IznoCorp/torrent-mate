@@ -36,10 +36,10 @@ import pathlib
 import subprocess
 import sys
 
-from common import Journal, ouvrir
+from common import Journal, open_page
 from playwright.async_api import async_playwright
 
-RACINE = pathlib.Path(os.path.expanduser("~/dev/PersonalScraper"))
+ROOT = pathlib.Path(os.path.expanduser("~/dev/PersonalScraper"))
 
 # THE VOCABULARY BELONGS TO THE RULE, not to the data.
 #
@@ -193,7 +193,7 @@ def processus_reels():
 def commandes_reelles():
     """The `library-*` commands the engine really registers, or None."""
     try:
-        sys.path.insert(0, str(RACINE))
+        sys.path.insert(0, str(ROOT))
         from personalscraper.web.maintenance.registry import REGISTRY
     except Exception:  # noqa: BLE001 — the engine not importable is a skip
         return None
@@ -213,7 +213,7 @@ async def main():
 
     async with async_playwright() as p:
         b = await p.chromium.launch(channel="chrome")
-        ctx, pg = await ouvrir(b)
+        ctx, pg = await open_page(b)
         erreurs = []
         pg.on("pageerror", lambda e: erreurs.append(str(e)))
 
@@ -224,11 +224,11 @@ async def main():
         # Arrivées; finding either name on Système means a medium is being
         # reported twice and answered nowhere.
         bloques = await pg.evaluate("()=>window.__bloques ? window.__bloques() : null")
-        journal.verifier("la liste des médias bloqués est atteignable",
+        journal.check("la liste des médias bloqués est atteignable",
                          bool(bloques),
                          f"{len(bloques or [])} : {', '.join(bloques or [])}")
         fuites = [t for t in (bloques or []) if t.split(" (")[0] in sys_vue["texte"]]
-        journal.verifier("aucun média bloqué n'est dessiné sur Système",
+        journal.check("aucun média bloqué n'est dessiné sur Système",
                          bool(bloques) and not fuites,
                          str(fuites) if fuites else "aucun")
 
@@ -237,28 +237,28 @@ async def main():
         trouves = [m for m in mots_interdits
                    if m in " ".join(f"{x['l']} {x['v']} {x['s']}"
                                     for x in (sys_vue["planificateurs"] or [])).lower()]
-        journal.verifier("aucun planificateur n'est dit « arrêté » entre deux passages",
+        journal.check("aucun planificateur n'est dit « arrêté » entre deux passages",
                          not trouves, str(trouves) if trouves else "aucun")
         # The badge carries the STATE; when it last ran is a detail and lives
         # in the sub-line. A badge reading « ce matin à 03 h 20 » would be a
         # date wearing a colour, which says nothing about whether that date is
         # late.
-        journal.verifier("un planificateur se juge sur « à l'heure » ou « en retard »",
+        journal.check("un planificateur se juge sur « à l'heure » ou « en retard »",
                          all(x["v"] in ("à l'heure", "en retard")
                              for x in (sys_vue["planificateurs"] or [])),
                          str([x["v"] for x in (sys_vue["planificateurs"] or [])]))
-        journal.verifier("et DIT quand il a tourné, sous le badge",
+        journal.check("et DIT quand il a tourné, sous le badge",
                          all("dernier passage" in x["s"]
                              for x in (sys_vue["planificateurs"] or [])),
                          str([x["s"][:40] for x in (sys_vue["planificateurs"] or [])]))
-        journal.verifier("un service se juge sur le fait qu'il TOURNE",
+        journal.check("un service se juge sur le fait qu'il TOURNE",
                          all("ligne" in x["v"] for x in (sys_vue["services"] or [])),
                          str([x["v"] for x in (sys_vue["services"] or [])]))
 
         # 3. Everything shown really runs.
         pm2 = processus_reels()
         if pm2 is None:
-            journal.verifier("les processus dessinés existent vraiment", False,
+            journal.check("les processus dessinés existent vraiment", False,
                              "pm2 illisible — la comparaison n'a pas pu être faite")
         else:
             services = len(sys_vue["services"] or [])
@@ -269,11 +269,11 @@ async def main():
             vrais_planifs = [n for n, e in pm2.items()
                              if n.startswith(("torrentmate", "personalscraper"))
                              and e.get("cron_restart")]
-            journal.verifier("autant de services dessinés que PM2 en fait tourner",
+            journal.check("autant de services dessinés que PM2 en fait tourner",
                              services == len(vrais_services),
                              f"{services} dessinés vs {len(vrais_services)} réels : "
                              + ", ".join(sorted(vrais_services)))
-            journal.verifier("autant de planificateurs dessinés que PM2 en programme",
+            journal.check("autant de planificateurs dessinés que PM2 en programme",
                              planifs == len(vrais_planifs),
                              f"{planifs} dessinés vs {len(vrais_planifs)} réels : "
                              + ", ".join(sorted(vrais_planifs)))
@@ -300,10 +300,10 @@ async def main():
             ("dépendance", sys_vue["dependances"], "DEPENDANCES"),
         ):
             sans = [x["l"] for x in (lignes or []) if x["ton"] is None]
-            journal.verifier(f"chaque {nom} porte un badge", not sans, str(sans) or "tous")
+            journal.check(f"chaque {nom} porte un badge", not sans, str(sans) or "tous")
             declare = await pg.evaluate(f"()=>{source}.map((x) => x.ton)")
             rendu = [x["ton"] for x in (lignes or [])]
-            journal.verifier(f"le badge d'un {nom} suit l'état déclaré, jamais une couleur écrite à la main",
+            journal.check(f"le badge d'un {nom} suit l'état déclaré, jamais une couleur écrite à la main",
                              rendu == declare, f"rendu {rendu} vs déclaré {declare}")
             # And the tone matches what the WORD means. This is the half that
             # a comparison against the data cannot do.
@@ -313,7 +313,7 @@ async def main():
                 for attendu, mots in VOCABULAIRE.items()
                 if x["v"] in mots and x["ton"] != attendu
             ]
-            journal.verifier(f"le ton d'un {nom} dit ce que son MOT veut dire",
+            journal.check(f"le ton d'un {nom} dit ce que son MOT veut dire",
                              not mal_dites, "; ".join(mal_dites) or "tous concordent")
 
         # A QUANTITY is not a state, and badging one is how a badge stops
@@ -334,7 +334,7 @@ async def main():
           }))
           .filter((r) => r.badge && /^[\\d\\s  ]+$/.test(r.v.replace(/titres|éléments/g, '')))""")
         mal_tonnees = [q for q in quantites if q["ton"] != "info"]
-        journal.verifier("une quantité ne porte que le ton « info », jamais un succès ni une alerte",
+        journal.check("une quantité ne porte que le ton « info », jamais un succès ni une alerte",
                          not mal_tonnees, str(mal_tonnees) or f"{len(quantites)} quantité(s), toutes en info")
 
         # And a badge that cannot be read is a badge that is not there. This is
@@ -355,7 +355,7 @@ async def main():
                 contrastes = await pg.evaluate(CONTRASTE)
                 illisibles = [f"{c['mot']} ({c['contraste']})"
                               for c in contrastes if c["contraste"] < PLANCHER_CONTRASTE]
-                journal.verifier(
+                journal.check(
                     f"chaque badge se lit sur son fond — thème {theme}"
                     + (", en panne" if etat else ""),
                     not illisibles,
@@ -369,11 +369,11 @@ async def main():
         # found in the interface and which this probe had just repeated.
         sys_vue = await surPage(pg, "sys", panne=False)
 
-        journal.verifier("au repos, rien n'alerte sur cette machine",
+        journal.check("au repos, rien n'alerte sur cette machine",
                          all(x["ton"] == "success"
                              for x in (sys_vue["services"] or []) + (sys_vue["planificateurs"] or [])),
                          "success partout")
-        journal.verifier("et l'état de repos ne se présente pas comme une simulation",
+        journal.check("et l'état de repos ne se présente pas comme une simulation",
                          not sys_vue["simulee"])
 
         # 3ter. A screen that can only be green cannot be judged, so a named
@@ -382,11 +382,11 @@ async def main():
         panne = await surPage(pg, "sys", panne=True)
         rouges_s = [x for x in (panne["services"] or []) if x["ton"] == "alert"]
         rouges_p = [x for x in (panne["planificateurs"] or []) if x["ton"] == "alert"]
-        journal.verifier("un état nommé montre ce qu'une alerte donne, côté services",
+        journal.check("un état nommé montre ce qu'une alerte donne, côté services",
                          len(rouges_s) == 1, str([x["l"] for x in rouges_s]))
-        journal.verifier("et côté planificateurs",
+        journal.check("et côté planificateurs",
                          len(rouges_p) == 1, str([x["l"] for x in rouges_p]))
-        journal.verifier("un service en panne est dit HORS LIGNE, pas en retard",
+        journal.check("un service en panne est dit HORS LIGNE, pas en retard",
                          rouges_s and rouges_s[0]["v"] == "hors ligne",
                          str([x["v"] for x in rouges_s]))
         # The property has not changed, its PLACE has: the badge carries the
@@ -394,24 +394,24 @@ async def main():
         # hourly job is still the whole of what one needs — a badge reading a
         # date would be a date wearing a colour, saying nothing about whether
         # that date is late.
-        journal.verifier("un planificateur en retard le dit par un mot dans son badge",
+        journal.check("un planificateur en retard le dit par un mot dans son badge",
                          rouges_p and rouges_p[0]["v"] == "en retard",
                          str([x["v"] for x in rouges_p]))
-        journal.verifier("et DIT de combien, sous le badge",
+        journal.check("et DIT de combien, sous le badge",
                          rouges_p and "il y a" in rouges_p[0]["s"],
                          str([x["s"][:60] for x in rouges_p]))
-        journal.verifier("et l'écran dit que cette panne est SIMULÉE", panne["simulee"])
+        journal.check("et l'écran dit que cette panne est SIMULÉE", panne["simulee"])
 
-        journal.verifier("rien ne déborde du cadre sur Système",
+        journal.check("rien ne déborde du cadre sur Système",
                          sys_vue["debord"] <= 0, f"{sys_vue['debord']}px")
-        journal.verifier("rien ne déborde du cadre en panne",
+        journal.check("rien ne déborde du cadre en panne",
                          panne["debord"] <= 0, f"{panne['debord']}px")
 
         # ── MAINTENANCE ────────────────────────────────────────────────────
         maint = await surPage(pg, "maint", maintRub=None)
-        journal.verifier("Maintenance se navigue par ce qu'on veut FAIRE",
+        journal.check("Maintenance se navigue par ce qu'on veut FAIRE",
                          len(maint["rubriques"]) >= 5, str(maint["rubriques"]))
-        journal.verifier("le journal des suppressions est sur Maintenance",
+        journal.check("le journal des suppressions est sur Maintenance",
                          "Journal des suppressions" in maint["titres"],
                          str(maint["titres"]))
 
@@ -420,26 +420,26 @@ async def main():
         for rubrique in ("query", "scan", "repair", "clean", "fix", "analyze"):
             page = await surPage(pg, "maint", maintRub=rubrique)
             vues.update(page["commandes"])
-            journal.verifier(f"la rubrique « {rubrique} » dessine des commandes",
+            journal.check(f"la rubrique « {rubrique} » dessine des commandes",
                              len(page["commandes"]) > 0, str(page["commandes"]))
-            journal.verifier(f"rien ne déborde du cadre dans « {rubrique} »",
+            journal.check(f"rien ne déborde du cadre dans « {rubrique} »",
                              page["debord"] <= 0, f"{page['debord']}px")
 
         if registre is None:
-            journal.verifier("les commandes dessinées existent dans le moteur", False,
+            journal.check("les commandes dessinées existent dans le moteur", False,
                              "moteur non importable — la comparaison n'a pas pu être faite")
         else:
             inventees = sorted(vues - set(registre))
             oubliees = sorted(set(registre) - vues)
-            journal.verifier("aucune commande dessinée n'est inventée",
+            journal.check("aucune commande dessinée n'est inventée",
                              not inventees, str(inventees) if inventees else "aucune")
-            journal.verifier("aucune commande du moteur n'est oubliée",
+            journal.check("aucune commande du moteur n'est oubliée",
                              not oubliees, str(oubliees) if oubliees else "aucune")
 
         # 5. The one decision: a command that deletes is blank-first.
         destructrices = ([a for a in registre.values() if a.risk == "destructive"]
                          if registre else [])
-        journal.verifier("le moteur a bien des commandes qui suppriment",
+        journal.check("le moteur a bien des commandes qui suppriment",
                          len(destructrices) > 0, f"{len(destructrices)}")
         for action in destructrices:
             await surPage(pg, "maint", maintRub=action.category)
@@ -447,26 +447,26 @@ async def main():
             await pg.wait_for_timeout(320)
             panneau = await pg.evaluate(PANNEAU)
             reelle = [a for a in panneau["actions"] if "vrai" in a["texte"]]
-            journal.verifier(
+            journal.check(
                 f"« {action.title} » propose de la lancer à blanc D'ABORD",
                 any("blanc" in a["texte"] for a in panneau["actions"]),
                 str([a["texte"] for a in panneau["actions"]]))
-            journal.verifier(
+            journal.check(
                 f"« {action.title} » ne peut pas être lancée pour de vrai tout de suite",
                 reelle and all(a["inerte"] for a in reelle),
                 str([(a["texte"], a["inerte"]) for a in reelle]))
-            journal.verifier(
+            journal.check(
                 f"« {action.title} » DIT pourquoi elle est retenue",
                 reelle and all(a["pourquoi"] for a in reelle),
                 str([a["pourquoi"] for a in reelle]))
             await pg.evaluate("()=>closeSheet()")
             await pg.wait_for_timeout(180)
 
-        journal.verifier("aucune erreur JS", not erreurs, str(erreurs))
+        journal.check("aucune erreur JS", not erreurs, str(erreurs))
         await ctx.close()
         await b.close()
 
-    journal.bilan()
+    journal.summary()
 
 
 asyncio.run(main())

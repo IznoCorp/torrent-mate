@@ -22,10 +22,10 @@ import pathlib
 import re
 import sys
 
-from common import ouvrir
+from common import open_page
 from playwright.async_api import async_playwright
 
-RACINE = pathlib.Path(__file__).resolve().parent.parent
+ROOT = pathlib.Path(__file__).resolve().parent.parent
 BAR = "─" * 62
 
 # The harness is physically identifiable in the DOM.
@@ -35,7 +35,7 @@ HARNAIS_CONNUS = {"hpanel", "states", "notes", "stage", "device", "note", "hbtn"
 
 def classes_bloc2() -> set[str]:
     """Classes defined by a CSS rule inside BLOCK 2 — comments excluded."""
-    h = (RACINE / "design" / "refonte.html").read_text()
+    h = (ROOT / "design" / "refonte.html").read_text()
     i = h.find("BLOCK 2")
     if i < 0:
         sys.exit("BLOCK 2 not found: the prototype lost its harness/app separation.")
@@ -55,7 +55,7 @@ def classes_bloc2() -> set[str]:
 
 async def main():
     cl = sorted(classes_bloc2())
-    src = (RACINE / "design" / "refonte.html").read_text()
+    src = (ROOT / "design" / "refonte.html").read_text()
     src = src[src.find("</style>"):]  # markup + JS, sans le CSS
     # A migrated screen's markup lives in `design/src/**/*.tsx` now, not in
     # refonte.html: a class reached only through user interaction — never
@@ -65,12 +65,12 @@ async def main():
     # here is what keeps this classifier's "written" detection working
     # across the strangler seam, one screen at a time, exactly the way it
     # already worked for the legacy templates it used to be the only source.
-    for tsx in sorted((RACINE / "design" / "src").rglob("*.tsx")):
+    for tsx in sorted((ROOT / "design" / "src").rglob("*.tsx")):
         src += "\n" + tsx.read_text()
 
     async with async_playwright() as p:
         b = await p.chromium.launch(channel="chrome")
-        ctx, pg = await ouvrir(b)
+        ctx, pg = await open_page(b)
         await pg.evaluate("()=>window.__measure(true)")
         etats = await pg.evaluate("()=>window.__states()")
         app, har = set(), set()
@@ -103,7 +103,7 @@ async def main():
 
     # The allowlist must cover everything bound for the app: rendered AND
     # transient.
-    regions = json.loads((RACINE / "regions.json").read_text())
+    regions = json.loads((ROOT / "regions.json").read_text())
     attendu = {"." + c for c in (app | posees)}
     manquantes = sorted(attendu - set(regions["exportedSelectors"]))
 

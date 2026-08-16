@@ -1,6 +1,6 @@
 """What every rule script needs, in one place.
 
-Twelve scripts carried a byte-identical `verifier()`, fourteen their own `BAR`,
+Twelve scripts carried a byte-identical `check()`, fourteen their own `BAR`,
 and thirty-two the same four lines to open the prototype. That is not a style
 question: when the startup screen started covering the frame for as long as the
 load it stands for, twenty-eight scripts had to be edited by hand to close that
@@ -13,7 +13,7 @@ and how the document is opened.
 """
 import pathlib
 
-RACINE = pathlib.Path(__file__).resolve().parent.parent
+ROOT = pathlib.Path(__file__).resolve().parent.parent
 PROTOTYPE = "http://127.0.0.1:8899/wrapped.html"
 BAR = "─" * 62
 
@@ -24,8 +24,8 @@ BAR = "─" * 62
 # an accident of its defaults. The rules measure the reference appearance —
 # dark — deterministically; a rule that wants to measure the light theme
 # passes color_scheme="light" itself.
-TELEPHONE = {"viewport": {"width": 390, "height": 844}, "device_scale_factor": 2,
-             "is_mobile": True, "has_touch": True, "color_scheme": "dark"}
+PHONE = {"viewport": {"width": 390, "height": 844}, "device_scale_factor": 2,
+         "is_mobile": True, "has_touch": True, "color_scheme": "dark"}
 
 
 class Journal:
@@ -33,49 +33,49 @@ class Journal:
 
     A rule that only prints cannot fail, and a script that cannot fail is a
     report nobody is obliged to read — so the count and the failures live
-    together, and `bilan()` is what ends the process.
+    together, and `summary()` is what ends the process.
     """
 
-    def __init__(self, titre):
-        self.titre = titre
-        self.faits = 0
-        self.echecs = []
-        print(f"{BAR}\n{titre}\n{BAR}")
+    def __init__(self, title):
+        self.title = title
+        self.executed = 0
+        self.failures = []
+        print(f"{BAR}\n{title}\n{BAR}")
 
-    def verifier(self, nom, condition, detail=""):
+    def check(self, name, condition, detail=""):
         """Records one executed check and its verdict.
 
         Args:
-            nom: What is being held to, phrased as the interface's promise.
+            name: What is being held to, phrased as the interface's promise.
             condition: The measurement's verdict.
             detail: What was measured, printed either way — a green line that
                 shows its number is what makes a rule readable a year later.
         """
-        self.faits += 1
-        print(("  OK   " if condition else "  ECHEC") + f" {nom}"
+        self.executed += 1
+        print(("  PASS" if condition else "  FAIL") + f" {name}"
               + (f" — {detail}" if detail else ""))
         if not condition:
-            self.echecs.append(nom)
+            self.failures.append(name)
         return bool(condition)
 
-    def bilan(self, erreurs=()):
+    def summary(self, errors=()):
         """Prints the run's summary and exits non-zero on any failure.
 
         Args:
-            erreurs: JS errors collected from the page, which are failures even
+            errors: JS errors collected from the page, which are failures even
                 when every rule passed.
         """
         print()
-        print(f"{BAR}\n{self.faits} règles EXÉCUTÉES — "
-              + ("aucune violation" if not self.echecs
-                 else f"{len(self.echecs)} violation(s) : {', '.join(self.echecs)}"))
-        if erreurs:
-            print("erreurs JS :", list(erreurs))
-        if self.echecs or erreurs:
+        print(f"{BAR}\n{self.executed} rules EXECUTED — "
+              + ("no violation" if not self.failures
+                 else f"{len(self.failures)} violation(s): {', '.join(self.failures)}"))
+        if errors:
+            print("JS errors:", list(errors))
+        if self.failures or errors:
             raise SystemExit(1)
 
 
-async def ouvrir(navigateur, **kwargs):
+async def open_page(browser, **kwargs):
     """Opens the prototype in a fresh context, past the startup screen.
 
     The startup screen covers the frame for as long as the load it stands for
@@ -84,14 +84,14 @@ async def ouvrir(navigateur, **kwargs):
     be a race.
 
     Args:
-        navigateur: A launched Playwright browser.
+        browser: A launched Playwright browser.
         **kwargs: Context overrides — a user agent, an init script, anything a
             script needs that the phone defaults do not carry.
 
     Returns:
         The (context, page) pair, on a page that has dismissed the design note.
     """
-    ctx = await navigateur.new_context(**{**TELEPHONE, **kwargs})
+    ctx = await browser.new_context(**{**PHONE, **kwargs})
     pg = await ctx.new_page()
     await pg.goto(PROTOTYPE, wait_until="load")
     await pg.evaluate("()=>window.__chargementTermine?.()")

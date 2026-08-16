@@ -161,9 +161,9 @@ if __name__ == "__main__":
 
     attendu = (RACINE_PREUVE / "wrapped.html").read_bytes()
     bundles = sorted((RACINE_PREUVE / "vite").glob("*.js"))
-    if not journal.verifier("un bundle existe sous vite/ pour la preuve",
+    if not journal.check("un bundle existe sous vite/ pour la preuve",
                             bool(bundles), f"{len(bundles)} trouvé(s)"):
-        journal.bilan()
+        journal.summary()
     bundle = bundles[0]
 
     with demarrer_serveur(PORT_PREUVE, RACINE_PREUVE):
@@ -171,14 +171,14 @@ if __name__ == "__main__":
 
         with urllib.request.urlopen(f"{base}/profil/X%20Y", timeout=5) as reponse:
             statut_profil, corps_profil = reponse.status, reponse.read()
-        journal.verifier(
+        journal.check(
             "une adresse profonde répond 200 + le document",
             statut_profil == 200 and corps_profil == attendu,
             f"statut {statut_profil}, {len(corps_profil)} octets")
 
         with urllib.request.urlopen(f"{base}/vite/{bundle.name}", timeout=5) as reponse:
             statut_bundle, corps_bundle = reponse.status, reponse.read()
-        journal.verifier(
+        journal.check(
             "le bundle réel est servi tel quel",
             statut_bundle == 200 and corps_bundle == bundle.read_bytes(),
             f"statut {statut_bundle}, {bundle.name}")
@@ -188,7 +188,7 @@ if __name__ == "__main__":
             statut_absent = 200
         except urllib.error.HTTPError as erreur:
             statut_absent = erreur.code
-        journal.verifier(
+        journal.check(
             "un asset absent SOUS UN DOSSIER SERVI 404 plutôt que de tomber dans le repli",
             statut_absent == 404, f"statut {statut_absent}")
 
@@ -200,10 +200,10 @@ if __name__ == "__main__":
             f"{base}/resolution/Backrooms.2026.MULTi.2160p.WEB-DL", timeout=5
         ) as reponse:
             statut_dossier, corps_dossier = reponse.status, reponse.read()
-        journal.verifier(
+        journal.check(
             "une adresse profonde dont le dernier segment porte des points "
             "répond quand même le document",
             statut_dossier == 200 and corps_dossier == attendu,
             f"statut {statut_dossier}, {len(corps_dossier)} octets")
 
-    journal.bilan()
+    journal.summary()

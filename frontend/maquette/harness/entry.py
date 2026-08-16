@@ -25,7 +25,7 @@ import re
 from common import Journal
 from playwright.async_api import async_playwright
 
-RACINE = pathlib.Path(__file__).resolve().parent.parent
+ROOT = pathlib.Path(__file__).resolve().parent.parent
 HOTE = "https://tm-design.iznogoudatall.xyz/"
 
 # Position is compared as a LOCAL geometry — each part against the screen's own
@@ -57,7 +57,7 @@ _journal = None
 
 def verifier(nom, condition, detail=""):
     """Records one executed check and its verdict, in the shared journal."""
-    return _journal.verifier(nom, condition, detail)
+    return _journal.check(nom, condition, detail)
 
 
 async def main():
@@ -67,7 +67,7 @@ async def main():
     # The host must not carry a palette of its own: a retyped value renders
     # correctly here while the reference is broken, which is how the brand
     # colour stayed lost for as long as it did.
-    hote = (RACINE / "serve.py").read_text()
+    hote = (ROOT / "serve.py").read_text()
     # Everything the host contributes on its own — as opposed to what it
     # extracts — is checked, not one named block: moving the copy into a
     # differently-named string would otherwise walk straight past the rule.
@@ -128,6 +128,6 @@ async def main():
 
     verifier("aucune erreur JS", not erreurs, str(erreurs))
 
-    _journal.bilan()
+    _journal.summary()
 
 asyncio.run(main())

@@ -24,7 +24,7 @@ import asyncio
 import pathlib
 import re
 
-from common import Journal, ouvrir
+from common import Journal, open_page
 from playwright.async_api import async_playwright
 
 PROTOTYPE = pathlib.Path(__file__).resolve().parent.parent / "design" / "refonte.html"
@@ -34,7 +34,7 @@ _journal = None
 
 def verifier(nom, condition, detail=""):
     """Records one executed check and its verdict, in the shared journal."""
-    return _journal.verifier(nom, condition, detail)
+    return _journal.check(nom, condition, detail)
 
 
 def pendantes(source):
@@ -79,7 +79,7 @@ async def main():
 
     async with async_playwright() as p:
         b = await p.chromium.launch(channel="chrome")
-        ctx, pg = await ouvrir(b)
+        ctx, pg = await open_page(b)
         erreurs = []
         pg.on("pageerror", lambda e: erreurs.append(str(e)))
         await pg.evaluate("()=>window.__measure(true)")
@@ -127,6 +127,6 @@ async def main():
         verifier("aucune erreur JS", not erreurs, str(erreurs))
         await b.close()
 
-    _journal.bilan()
+    _journal.summary()
 
 asyncio.run(main())
