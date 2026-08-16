@@ -44,19 +44,24 @@ async def main():
         r = await pg.evaluate("""(etat)=>{
           const R = {};
           const vis = (el)=>el.offsetParent!==null || el.getClientRects().length>0;
-          // The media sheet left `#screen` for a real route (`/fiche/$titre`,
-          // rendered inside `#coquille`): it joins this ladder, named by the
-          // identity it carries and LAST, so every other case resolves exactly
-          // as it did. Without it, the five states that open the fiche fall
-          // through to `#view`, and R1/R2/R7/R22/R23 would pass on a page the
-          // state never shows — a rule gone quiet, not a rule satisfied. The
-          // add-media screen (`/ajout`) left `#screen` the same way and joins
-          // the fiche's rung, for the same reason.
+          // Every screen migrated off `#screen` onto a real route (the media
+          // sheet at `/fiche/$titre`, the add screen at `/ajout`, the
+          // arbitration screen at `/resolution/$dossier`, the release picker
+          // at `/releases/$titre`, the quality profile at `/profil/$titre`)
+          // answers to ONE generic rung: any OPEN screen carries a `data-cle`,
+          // so the identity itself is never read here, only its presence —
+          // naming each prefix would have re-opened the same hole for the
+          // next screen that migrates. It sits LAST, after the legacy
+          // dialog/screen/sheet trio, so every pre-existing case resolves
+          // exactly as it did, and a layer opened OVER a route (a panel, a
+          // dialog) is still what gets read. Without this rung, a state
+          // opening any of those routes falls through to `#view` and the
+          // rules pass on a page the state never shows — a rule gone quiet,
+          // not a rule satisfied.
           const racine = document.querySelector('#dlg').classList.contains('open') ? document.querySelector('#dlg')
                        : document.querySelector('#screen').classList.contains('open') ? document.querySelector('#screen')
                        : document.querySelector('#sheet').classList.contains('open') ? document.querySelector('#sheet')
-                       : document.querySelector('.screen.open[data-cle^="fiche:"]')
-                       ?? document.querySelector('.screen.open[data-cle^="ajout:"]')
+                       : document.querySelector('.screen.open[data-cle]')
                        ?? document.querySelector('#view');
 
           // R1 — every tappable poster leads to a FILLED-IN sheet
@@ -182,19 +187,19 @@ async def main():
           // only, and the defect came back through sheets.
           R.reserveEcran = null;
           const bar = document.querySelector('.bottombar').getBoundingClientRect().height;
-          // The media sheet left `#screen` for a real route (`/fiche/$titre`,
-          // rendered inside `#coquille`) and joins this sweep by the identity
-          // it carries. It is a LAYER like the others — the tab bar passes
-          // above it too — and dropping it would have left the five states
-          // that open it inspecting nothing at all: its `.port` padding and
-          // the reachability of its last action are exactly what this rule
-          // used to hold on it when it was `#screen`. The add-media screen
-          // (`/ajout`) left `#screen` the same way and joins the couches list
-          // for the same reason — otherwise the states that open it were
-          // never once measured by this rule.
+          // Every screen migrated off `#screen` onto a real route is a LAYER
+          // like the others — the tab bar passes above it too — and joins
+          // this sweep through the SAME generic entry the root ladder above
+          // uses: any open `.screen.open[data-cle]`, never a per-identity
+          // prefix. One generic entry covers the fiche, the add screen, the
+          // arbitration screen, the release picker, the quality profile and
+          // whatever migrates next — naming each one here would have re-open
+          // this exact gap on every future migration. Dropping it entirely
+          // would leave every state that opens a route inspecting nothing at
+          // all: its `.port` padding and the reachability of its last action
+          // are exactly what this rule holds on it.
           const couches = [['#screen','.port'],['#sheet','.sheetin'],
-                           ['.screen.open[data-cle^="fiche:"]','.port'],
-                           ['.screen.open[data-cle^="ajout:"]','.port']];
+                           ['.screen.open[data-cle]','.port']];
           for (const [sel, inner] of couches) {
             const el = document.querySelector(sel);
             // The fiche's selector matches only while it is open, so an absent
@@ -274,7 +279,12 @@ async def main():
           window.__go(id); await new Promise(r=>setTimeout(r,200));
           const b=[...document.querySelectorAll('#view .cfoot')][i]; if(!b) continue;
           const lab=b.textContent.trim(); const avant=snap();
-          const couche=()=>['#sheet','#screen','#dlg'].some(s=>document.querySelector(s).classList.contains('open'));
+          // Pre-existing gap found while wiring the generic route rung above:
+          // this check never learned about a screen migrated off `#screen`
+          // onto a real route (`/resolution/$dossier` among them) — the SAME
+          // generic entry as the root ladder's covers it here too.
+          const couche=()=>['#sheet','#screen','#dlg'].some(s=>document.querySelector(s).classList.contains('open'))
+            || !!document.querySelector('.screen.open[data-cle]');
           b.click(); await new Promise(r=>setTimeout(r,320));
           if (snap()===avant && !couche()) out.push(`${id} : « ${lab} » ne change rien`);
           ['#scrim'].forEach(s=>document.querySelector(s).click());

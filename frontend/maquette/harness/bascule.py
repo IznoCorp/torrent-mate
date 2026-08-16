@@ -126,6 +126,23 @@ def main():
             f"{reponse_avec.status}, {len(avec_session)} octets contre "
             f"{len(servi)} à «/»")
 
+        # (dotted fallback) The generic fallback above is matched on a path
+        # with NO dot in it. A route-shaped path can carry one of its own — a
+        # release folder name, never a file extension — and this host's own
+        # unmatched-path branch (`do_GET`'s final `if not chemin.startswith(
+        # ...)` cascade in `serve.py`) never tested for dots in the first
+        # place, so nothing here needed changing to hold: proven directly,
+        # with the SAME dossier that regressed `serveur.py`'s harness-only
+        # fallback (Task 5, `serveur.py`).
+        reponse_points, avec_points = requete(
+            "/resolution/Backrooms.2026.MULTi.2160p.WEB-DL", cookie)
+        journal.verifier(
+            "une adresse profonde dont le dernier segment porte des points "
+            "répond, avec session, le MÊME document que «/»",
+            reponse_points.status == 200 and avec_points == servi,
+            f"{reponse_points.status}, {len(avec_points)} octets contre "
+            f"{len(servi)} à «/»")
+
         # (favicon) A brand asset, served without a session like the manifest
         # and the PWA icons — a `<link rel="icon">` is fetched uncredentialed.
         reponse_favicon, corps_favicon = requete("/favicon.svg")
