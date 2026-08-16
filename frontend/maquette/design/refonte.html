@@ -1662,7 +1662,7 @@
     color: inherit;
     font: inherit;
   }
-  .flux .fx.fclic .fw {
+  .flux .fx.fclick .fw {
     /* The whole row answers a thumb, so it carries the 44px floor a target
        needs rather than leaving it to whatever the text happens to measure. */
     min-height: 44px;
@@ -12429,7 +12429,7 @@
           ? `<span class="chip ${TONS[ligne.ton]}">${valeur}</span>`
           : valeur;
         return `<li class="fx${vide ? " fempty" : ""}${ligne.etat === "danger" ? " fblocked" : ""}${
-          ligne.cible ? " fclic" : ""
+          ligne.cible ? " fclick" : ""
         }"><${balise} class="fw"${cible}>
       <span class="fn">${escapeHtml(ligne.l)}</span>
       <span class="fr">${badge}</span>
