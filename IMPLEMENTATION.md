@@ -112,7 +112,8 @@ Next: the rest of the catch-all surface by surface; then SP5 (visual language).
 
 **`BUGS.md` at the repo root is the bug register.** Every defect the operator reports is written
 there when it is reported, one is closed at a time, and a fix closes only with a mutation-tested
-rule that covers the path the operator actually walks. Read it before starting anything.
+rule that covers the path the operator actually walks. Read it before starting anything. Closed
+entries keep their full history in `BUGS-CLOSED.md`, indexed from `BUGS.md`.
 
 Read, in this order:
 
