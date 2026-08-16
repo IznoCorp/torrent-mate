@@ -35,115 +35,23 @@ code until the operator's judgement (step 2 above). Non-negotiable.
 
 ## Current state
 
-**SP1 — dossier servi**: Branch `refactor/maquette-sp1`; prototype moved to `design/refonte.html`
-(1.9 MB, images extracted as files under `design/assets/`, committed via `.gitignore` negation);
-`serve.py` serves `/assets/` session-gated with `private, max-age=31536000, immutable` cache
-headers; new rule R70 (`images.py`) verifies asset extraction; merged as PR #429. Post-merge
-operator corrections in the same PR: result cards carry no inline action (the panel is the
-single path to the act) and the screen layer stacks — back redraws the screen it covered —
-both held by R71 (`ecrans.py`).
+Seven waves have landed. Each squash-merged onto `main` after green CI and a clean final
+adversarial review; none of them derives app code.
 
-**SP2 — coquille Vite**: Branch `refactor/maquette-sp2`; `design/` is also a Vite project
-(`index.html` envelope + local plugin injecting `refonte.html` verbatim after Vite's HTML
-pass, `dist/assets` symlinked, bundled output reserved under `dist/vite`); R72
-(`coquille.py`) proves the built output renders identically to the source — DOM
-serialization of the three surfaces plus region geometry per driven state, failed-response
-guard on both sides — mutation-verified three ways. Merged as PR #430.
+| Wave | Branch | PR | What it settled |
+| ---- | ------ | -- | --------------- |
+| **SP1 — dossier servi** | `refactor/maquette-sp1` | #429 | The prototype became a served folder — `design/refonte.html`, images extracted as real files, `/assets/` session-gated and immutably cached (R70) — plus the operator's post-merge corrections: no inline action on a result card, and a screen layer that stacks (R71). |
+| **SP2 — coquille Vite** | `refactor/maquette-sp2` | #430 | `design/` became a Vite project as well, and R72 proved the built output renders identically to the source — mutation-verified three ways. |
+| **Bascule — the host serves the build** | `refactor/maquette-bascule` | #431 | `serve.py` serves `dist/index.html`, rebuilds under a lock when any input is newer, and on failure shows the build's own last words instead of a generic error (R73). |
+| **SP3 — the router, by strangler** | `feat/maquette-sp3` | #432 | React 19 + TanStack Router as the outer shell and the SINGLE writer of URL and history; the legacy engine speaks `window.__pont` (R74), and `design/` gained its own strict typecheck gate. |
+| **SP4a — the machinery** | `feat/maquette-sp4a` | #437 | `magasin` (TanStack Store) became the owner of the engine's state, the host learned to answer ANY address (SPA fallback), and `/profil/$titre` + `/ajout` landed as the first real routes (R75, R76). |
+| **SP4b — the fiche and the panel** | `feat/maquette-sp4b` | #441 | `<PanneauContenu>`/`<Feuille>` became the single React panel and `openSheet()` retired to a tripwire; `/fiche/$titre` landed as a real route, and scroll is now kept per HISTORY ENTRY rather than per address. |
 
-**Bascule — the host serves the build**: Branch `refactor/maquette-bascule`. The PWA head
-moved into the Vite envelope (`design/index.html`, between `pwa:start`/`pwa:end` markers)
-and `serve.py` EXTRACTS it for the login gate instead of restating it; `serve.py` now
-serves `dist/index.html`, rebuilding under a lock when any build input is newer (0.4 s),
-with a truthful 503 taxonomy (missing prototype → MANQUANT; missing build input, timeout,
-failed build → the build's own last words, escaped). `TM_DESIGN_RACINE` env and `TM_DESIGN_DELAI_BUILD` exist so R73 (`bascule.py`) proves
-the serving contract (byte-identity, rebuild, failure-shown) against a scratch root
-without touching the real source; the finer 503 taxonomy is exercised by the task evidence.
-Merged as PR #431.
+The full record of each wave, in the words written when it landed, is in
+`docs/superpowers/shell-mobile-wave-log.md`; the per-wave plans are in `docs/superpowers/plans/`.
 
-**SP3 — the router, by strangler**: Branch `feat/maquette-sp3`. Phase A first: the harness
-measures the BUILD (`wrapped.html` is a copy of `dist/index.html`; the copy still isolates
-rule mutations). Then React 19 + TanStack Router as the outer shell (`design/src/coquille.tsx`,
-bundle under `dist/vite/`, served session-gated): the router is the SINGLE writer of URL and
-history; the legacy engine's 12 nav-primitive sites speak `window.__pont` (five verbs) via a
-queue-and-replay pre-bridge in the envelope (the classic script runs before the deferred
-module). R59/R69/R71 green with UNCHANGED rule code are the bridge's proof. R72 rescoped
-(fragment verbatim ×1 + one module entry + bundle exists; the source-vs-build rendering
-comparison retired — recorded in regions.json); R74 (`pont.py`) holds the bridge, its
-mutation manual by design (a rule never mutates the shared copy). The shell is typed: `design/`
-carries a strict `tsconfig.json` and its own `npm run typecheck`, wired into `make check-frontend`
-— the build alone had no opinion on types (it exits 0 on a type error, measured). Known opens:
-forward-is-not-a-return kept as legacy-faithful; a future `history.block()` would defeat the
-shell's `flush()`.
+### The latest wave, in full
 
-**SP4a — the machinery, paid once, on the two smallest screens**: Branch `feat/maquette-sp4a`.
-Two spikes decided against adoption for now: Konsta UI cannot carry R47's card geometry
-without discarding its own layout defaults node by node, and Motion has no named real need —
-every migrated surface's interaction is still plain CSS. The store: `magasin` (TanStack Store)
-becomes the owner of the legacy engine's state, `state` kept as a synchronous read-alias so the
-~70 existing readers are untouched while every WRITE moves onto the store, six batched lots.
-The boot order inverts: the shell creates the store and the real `__pont` FIRST and calls
-`window.__demarrerMoteur` once, so the engine's own boot writes land straight on the single
-writer in the engine's own order — the queue-and-replay pre-bridge SP3 introduced is retired,
-nothing left to queue. Domain hooks become the components' only door onto that state. The host
-now answers ANY address, not only files it recognises: `serve.py` gained the SPA fallback, the
-`<base href="/">` element, `/favicon.svg`, and the permanent `/assets/` portal rule (R73
-amended, four new holds); a second harness-only server (`harness/serveur.py`, port 8917) makes
-that same depth measurable locally without touching 8899 or the reverse-proxied ports. Two
-pilot screens are the first drawn as real routes rather than driven through the legacy state
-machine — `/profil/$titre` (Profil, the quality-profile screen — Ruling R-4 settled that this
-is the per-FOLLOW screen, not a per-actor one, which does not exist in the code) and `/ajout`
-(Ajout, `q`/`mode` router-owned while the address reads `/ajout`) — both through `aller()`, the
-single navigator R76 holds to one call site. New rules: R75 (`adresses_ecrans.py`, cold deep
-entry + `<base>` proof + address-follows-the-walk + honest wrong-address rendering) and R76
-(`navigation.py`, one door, one entry per call, no merge across a synchronous double call).
-Ruling R-5 (review) removed the pop dispatcher's pathname filter: ownership of a history entry
-is carried by its SHAPE, not its address, and the filter would have silently stopped closing a
-layer opened over a screen-route. CI gained the shell's own `npm run typecheck` gate. Known
-opens for SP4b: the fiche (the most connected screen, and the biggest `openSheet` producer) and
-the panel migrate together; the legacy sites that open the panel will speak to it through the
-shell.
-**SP4b — the fiche and the panel, migrated together**: Branch `feat/maquette-sp4b`. Opens with a
-re-measure: B-024 (`data-go` settles one history entry while layers pile) is confirmed still
-`latent, non atteignable` after SP4a — no code changed that walk, only the witnesses in its BUGS.md
-entry were corrected. `window.__referentiel` widens so the fiche's data (cast, seasons, trailer,
-artwork) is reachable from React the same way the profile's already was. `<PanneauContenu>`
-(`composants/panneau.tsx`) is the single React constructor for every panel — `Descripteur`/`Bloc`/
-`Action`/`Ligne`/`Segment` types, the five declared block kinds, the same refusal on an unknown
-block `panneauHTML` always had. `<Feuille>` cuts the layer and its drag gesture over: every one of
-the legacy panel's producers now calls `window.__panneau.ouvrir(descripteur)` /
-`.fermer(pop?)` / `.ouverte()` — the shell's store owns `panneauOuvert`/`panneauDescripteur`,
-`openSheet()` is retired to a tripwire (`throw` — a producer nobody converted fails loudly instead
-of silently drawing nothing), `closeSheet(pop)` stays as a one-line verb the harness driver still
-calls. `FicheEcran` lands as a real route, `/fiche/$titre`, transplanted from `openFiche()`
-(deleted from the fragment the same commit): unknown titles render honestly (no not-found branch
-existed to mirror), a fiche without a trailer shows its own `p.nofiche` rather than hiding the
-section. Scroll position is now kept in the shell, keyed per HISTORY ENTRY rather than per address
-(`coquille.tsx`, "LE DÉFILEMENT SUIT L'ENTRÉE D'HISTORIQUE") — the legacy layer used to restore a
-covered screen's scroll itself on unwind; a router-owned screen unmounts instead, so the shell
-remembers the offset and reapplies it once the port and its images have settled. `window.__ecrans`
-gains `.fiche(titre)` alongside `.profil(titre)`, both NFC-normalised on write. Two rule amendments
-carry the cutover: R56 (`panneau.py`) re-points its two source checks from the fragment's dead
-`panneauHTML`/single-caller shape onto the component and its call sites; R71 (`ecrans.py`) trades
-`#screen` for `.screen.open` wherever the target moved to a router-owned screen. R60
-(`reglages.py`) gets two added holds, no rule changed. R75 (`adresses_ecrans.py`) extends with five
-holds (f)-(j) for the fiche: cold deep entry, the hero/poster the fiche paints itself actually
-loads, Back closes to `/`, an unknown title still renders honestly, a no-trailer real fiche shows
-exactly one `p.nofiche`. B-025/026 (the screen half of the `data-go` fix had no Back rule; a silent
-`catch {}` could let the URL and the UI disagree) are paid alongside B-024's re-measure — the
-`data-go` handler and `noterLeChemin` now log and raise instead of swallowing. B-027/028/029
-(`resynchro.py`'s first-`t:`-match and naive-brace title extraction, its silence on an unknown
-title, `contenu.py`'s substring counter check matching "1" inside "11") are fixed: string-aware
-extraction, a loud failure on the unmatched case, a numeric comparison. All five close as `to
-confirm` in `BUGS.md`, B-024 stays `open` (latent, not reachable by a real walk — a design
-decision, not a gap). A dead-code sweep in the same wave retires `saisonsHTML`, `champReglageHTML`
-and `seasonHTML` from the fragment once their last legacy consumer moved to the component.
-Wave gate: full 48-script harness suite green, `make check`/`make check-frontend` green, R59/R69/
-R71 (`retour.py`/`adresse_url.py`/`ecrans.py`) diffed against the SP4a merge point — `retour.py`/
-`adresse_url.py` byte-identical, `ecrans.py`'s only change is the Task-5 `.screen.open` amendment
-above. `frontend/src/styles/ps/app-surface.css` was found drifted from the maquette by two
-selectors (`--primary` vs `--primary-texte` on the active nav link, `.bottombar`/`.drawer`) —
-confirmed pre-existing at the SP4a merge commit, not caused by this wave — and regenerated via
-`scripts/extract-maquette-css.py`.
 **SP4c — resolution and releases, and M11 dies**: Branch `feat/maquette-sp4c`. Two more screens
 land as real routes: `/resolution/$dossier` (`ResolutionEcran`, transplanted from `openResolve()`)
 and `/releases/$titre` (`ReleasesEcran`, transplanted from `openReleases()`), both through
@@ -198,13 +106,27 @@ door, dies with the legacy dispatcher too); `ident.py`'s only remaining `#screen
 `.screen.open[data-cle^="resolution:"]` / `[data-cle^="ajout:"]` and no longer print `None`.
 Next: the rest of the catch-all surface by surface; then SP5 (visual language).
 
+### The wave order from here (operator ruling, 2026-08-16)
+
+1. **clean-code / i18n — IN PROGRESS.** No French anywhere in code, including class
+   names (code AND CSS) and file names; UI text lives in i18n files, never inline. The
+   legacy `refonte.html` fragment is exempt from IDENTIFIER renaming (it dies at
+   SP4-fin) but NOT from CSS class renaming — a class is a name shared by four worlds.
+   Scope: `design/src`, the harness, `serve.py`, `resync.py`, and all new code anywhere.
+2. **SP4d — four waves**, in this order: sys + maint + config → arrivées → médiathèque
+   (with E-001) → acquisition.
+3. **SP4-fin** — the engine's death: empty fragment, `refonte.html` retired as a source,
+   bridge and aliases removed, `openScreen` swept, the deep-entry `relTitre` /
+   `resolveTarget` debt settled.
+
 ---
 
 ## Where to start
 
 **`BUGS.md` at the repo root is the bug register.** Every defect the operator reports is written
 there when it is reported, one is closed at a time, and a fix closes only with a mutation-tested
-rule that covers the path the operator actually walks. Read it before starting anything.
+rule that covers the path the operator actually walks. Read it before starting anything. Closed
+entries keep their full history in `BUGS-CLOSED.md`, indexed from `BUGS.md`.
 
 Read, in this order:
 
@@ -408,85 +330,6 @@ Note that question 3 was not only architecture: **DOIT-10 requires every detail 
 URL**, and the prototype's routes used to live in `state.page` alone. That non-conformity is
 closed — the URL carries the state in its query, held by R69; what the binding still owes is the
 mapping onto production's paths.
-
----
-
-## What is already done, ahead of the phase plan
-
-The prototype and its harness carry the design; some app-side work was pulled forward because
-the audit that motivated it was done. Neither replaces a phase.
-
-**In the prototype.**
-
-- The **startup screen** (`demarrage`) covers the wait between signing in and an interface being
-  there, and the **gate** shows the same screen — extracted, never retyped — from the submit
-  onwards. R53, `harness/demarrage.py`.
-- **Signing out** ends the session on the server and lands on the entry screen, instead of
-  answering with a message over an interface that had not moved. R54,
-  `harness/deconnexion.py`.
-- **Every gesture answers a real finger.** The pull to refresh and the swipe between views had
-  both been lost to the compositor and worked only under synthetic events. R55,
-  `harness/doigt.py`.
-- **One bottom panel**, taking a descriptor of facts and ordered blocks of declared kinds. The
-  fallback builder that answered for « whatever the first does not recognise » is gone. R56,
-  `harness/panneau.py`.
-- The prototype **installs as its own application** — « TorrentMate Design », with an explicit
-  manifest `id`, and its own icons: a yellow ring where the app has none and staging has a cyan
-  one, generated by `frontend/scripts/make-design-icons.py`. R52 extended.
-- **The install offer is actually offered.** The banner existed and nothing ever showed it:
-  `beforeinstallprompt` was never captured, so on Android the browser kept the offer and on iOS
-  Safari — which fires no event at all — the banner was the guide nobody saw. R51,
-  `harness/installation.py`.
-- **The back gesture follows the path actually walked**, tabs and lenses included, closes a layer
-  first, and at the root warns instead of leaving — closing only on a second back within five
-  seconds. R59, `harness/retour.py`.
-- **The list poster reaches the card's edges**, 84px wide with the card's height as its floor,
-  so a card at that floor gives an exact 2:3 and its artwork is untouched. Full height AND the
-  ratio cannot both hold on a taller card — measured, a grid sizes the column before the row's
-  height is known — so cropping is bounded rather than forbidden. The episode popover carries the
-  brand outline, so its limits can be found on a dark surface. R47 rewritten, R58.
-- **The brand colour is painted where the design puts it.** `--accent` was referenced eleven
-  times and defined nowhere: the wordmark, the sign-in button, the install button and the startup
-  bar were all unlit, and the host hid it by retyping the palette. R61, `harness/palette.py`.
-- **One sign-in screen**, wherever one meets it: the host extracts everything the screen
-  inherits — palette, box model, typography — instead of restating it. R62, `harness/entree.py`.
-- **A card says what the engine knows.** A follow carries its identity, what is happening and
-  when, and what tells a healthy follow from a stalled one, all read from `acquire.db`; a library
-  row carries the synopsis, clamped to the largest number of lines that fits. R63,
-  `harness/contenu.py`.
-- **A row's drawer opens either way, one row at a time**, without firing the tap — and it renders
-  identically on WebKit, where it used to spill past the rounded card. R64, `harness/glisse.py`.
-- **The startup screen covers one wait and plays once**, across the two pages that wait spans.
-  R53 corrected. Its history is in `BUGS.md`: the rule was wrong in both directions.
-- **The settings are navigated by what one wants to change**, never by file: five rubrics plus
-  secrets and ranking, over the 153 settings the engine really keeps. Each row is identified by
-  its label alone — its subject, then what it does, in French — because the leaf key drew
-  « Activé » seven times in one list; the key is in the mono face under it, the file on the group
-  header. Nothing is written until the save bar — which exists only
-  when there is something to save — NAMES the files it will write; a secret says whether it is
-  set and never what it is worth. R60, `harness/reglages.py`.
-- **The arbitration screen is drawn** — a decision is a FOLDER, not a medium; the score is shown
-  only when it separates; a candidate wears only its own poster; three ways out, the third of
-  which (« Laisser tel quel ») existed in the engine and nowhere in the interface. R57,
-  `harness/decision.py`.
-
-**In the app** (`frontend/src`), from the 2026-08-12 component-duplication
-audit (the audit document itself was never committed; its outcomes are):
-
-- `ds/Panel` extracted; eleven files stopped writing the surface string by hand, and a test
-  fails naming any file that starts again.
-- `AcquisitionCard` → `ds/MediaRow`, with `facts: MediaFact[]` in place of `meta: ReactNode`,
-  `journey` in place of `strip` and `action` in place of `footer`.
-- `ds/MediaCard` → `ds/MediaTile`, and `Chip` moved out of `acquisition/`.
-- `EmptyState` adopted on nine surfaces.
-- `ds/DecisionRow` — the interface's THIRD card shape, derived from the drawing: a
-  decision is a folder, so it promises neither sheet nor panel. `RecentResolutions` and
-  `DecisionList` take it; `decisionFacts()` derives the facts once for both.
-- The arbitration surfaces follow the drawing: the folder is the subject everywhere, the
-  score is printed only when it separates (`tie.ts`), a candidate no longer sends the
-  operator off-screen to decide, and « Ignorer » became « Laisser tel quel ».
-- `src/components/decisions/__tests__/contract.test.tsx` carries R57 app-side, mirroring
-  `harness/decision.py`, so the drawing and the code cannot drift apart in silence.
 
 ---
 

@@ -15,8 +15,8 @@ All 4 disks are **NTFS** formatted, mounted via **macFUSE** (ntfstool driver) ov
 
 ## Move Rules (dispatch)
 
-- **Movies** (films, animations, documentaires, spectacles, theatre): if a folder with the same name already exists on a disk, **replace it** with the new version from staging area.
-- **TV Shows** (series, animations, documentaires): if a folder already exists, **merge** new episode files into it, replacing any that already exist.
+- **Movies** (category IDs: `movies`, `movies_animation`, `movies_documentary`, `standup`, `theater`): if a folder with the same name already exists on a disk, **replace it** with the new version from staging area.
+- **TV Shows** (category IDs: `tv_shows`, `tv_shows_animation`, `tv_shows_documentary`, `anime`, `tv_programs`): if a folder already exists, **merge** new episode files into it, replacing any that already exist.
 - **New media** (no existing folder on any disk): move to the **disk with the most free space**.
 
 **Matching an existing folder** — "already exists" is resolved against the

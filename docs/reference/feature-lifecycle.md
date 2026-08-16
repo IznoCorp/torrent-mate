@@ -178,7 +178,67 @@ snapshots — never authoritative for the present state.
 
 ---
 
-## 7. Quick Reference
+## 7. Implementation Workflow — the `implement:*` skills
+
+12 `implement:*` skills manage the full feature lifecycle, with per-skill model
+allocation (see each skill's description; **Sonnet is forbidden as a dispatch
+target**). Original design (archived):
+`docs/archive/superpowers/specs/2026-04-22-implement-skills-refactor-design.md`.
+
+**Entry point**: `/implement:feature` — archive prev, brainstorm, derive codename
++ SemVer type, create branch, generate plan.
+
+**Per phase**: `/implement:phase` — loop on sub-phases, dispatching
+`/implement:sub-phase` + `/implement:check` (verification). Auto-invokes
+`/implement:feature-pr` at the last phase (gate + push + PR + CI poll), then
+`/implement:pr-review` (review + track-scaled fix cycles: full=5, lite=2,
+express=1 + squash merge).
+
+| Aspect         | Rule                                                      |
+| -------------- | --------------------------------------------------------- |
+| Branches       | `feat/{codename}` or `fix/{codename}`                     |
+| Commits        | Conventional Commits with `(codename)` scope              |
+| SemVer bump    | at create-branch: bugfix → Z+1, minor → Y+1, major → X+1  |
+| Merge          | squash, mode chosen at feature start (manual / auto)      |
+
+**Milestone commits** (used by `/implement:phase`) include the codename as scope:
+
+```
+chore(my-feature): phase 3 gate — scraper refactor
+```
+
+This is the ONLY place a codename appears in milestone commits.
+
+### Phase-gate verification detail
+
+Beyond the checklist in `CLAUDE.md`:
+
+- **If `make test` shows any ERROR (not just FAILED)**: the test COLLECTION
+  crashed — every test after that point is skipped. Fix imports before
+  proceeding.
+- **After any module deletion**: grep `tests/` for the old path.
+  `rg "old.module.path" tests/` must return zero matches.
+- **After any constructor signature change**: grep `tests/` for the old call
+  pattern and update all test fixtures/mocks.
+
+### Working a KanbanMate ticket
+
+Roadmap items are tracked as **KanbanMate tickets** (historical example: the
+web-UI waves S1 `#158` through S7, all shipped since). Never start coding
+directly — claim the ticket first so the autonomous KanbanMate daemon stays out
+of the way, then advance the card as the work progresses:
+
+1. **Claim + sync** — invoke `/kanban-work <ticket>` (skill
+   `kanban:kanban-work`). This reclaims the ticket from the autonomous daemon
+   and syncs the local session with the board.
+2. **Advance the card** — move it through the KanbanMate columns as work
+   progresses (board/CLI ops via `/kanban`; health sweep via `/kanban-monitor`).
+3. **Then** run the normal implementation flow (`/implement:feature` → phases →
+   PR), keeping the card's column in step with actual progress.
+
+---
+
+## 8. Quick Reference
 
 ```
 Phase gate commit        make check + smoke import + milestone commit
