@@ -1,7 +1,7 @@
 # DESIGN — pipeline-panel (Design overhaul V3: Pipeline)
 
 **Wave 3 of 5** — epic #304, ticket #307. Merge mode: **auto** (operator directive 2026-07-17).
-**Binding shared spec:** `docs/superpowers/specs/2026-07-16-design-overhaul-design.md` §2.3 + the §1.1
+**Binding shared spec:** `docs/archive/superpowers/specs/2026-07-16-design-overhaul-design.md` §2.3 + the §1.1
 redirect rule scoped to this wave (`/maintenance?run=` conditional). Spec wins on conflict; constitution
 (`docs/reference/product-intent.md`) wins over all.
 **Constitution served:** §1/§2 (l'instrument du pipeline, états FR), §8/DOIT-2 (le signal d'anomalie

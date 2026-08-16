@@ -43,7 +43,7 @@ staging/
 ├── personalscraper/     # Python package
 │   ├── acquire/         # Acquisition lobe — own acquire.db SQLite store (RP3) + delete authority + event catalog (RP4). See the acquire/ chapter.
 │   │   ├── domain.py           # Frozen VOs: FollowedSeries, WantedItem, SeedObligation, RatioState
-│   │   ├── events.py           # Event catalog (RP4): 15 frozen Event subclasses for Follow/Grab/Seed/Ratio/Tracker/Watcher/CrossSeed
+│   │   ├── events.py           # Event catalog (RP4): 22 frozen Event subclasses for Follow/Grab/Season/Seed/Ratio/Tracker/Watcher/CrossSeed/Download
 │   │   ├── store.py            # ConcreteAcquireStore — 6 sub-stores, lazy-open, lock-free reads;
 │   │   │                         # (wanted/watch/aired sub-stores live in own _*_store.py modules)
 │   │   │                         # _FollowSubStore: find_by_ref/list_active/list_all/set_active (Follow D1 CRUD)
@@ -177,8 +177,8 @@ staging/
 │   │   ├── release_linker.py    # release-to-item linker
 │   │   ├── _macos_io.py         # macOS-specific I/O helpers (diskutil, volume UUID)
 │   │   ├── _throttle.py         # token-bucket I/O rate limiter
-│   │   ├── migrations/          # 15 numbered .sql files (001_init … 015_destructive_op) + applier
-│   │   │   ├── 001_init.sql … 015_destructive_op.sql  # shipped in the wheel via pyproject package-data
+│   │   ├── migrations/          # 16 numbered .sql files (001_init … 016_pipeline_run_open_command) + applier
+│   │   │   ├── 001_init.sql … 016_pipeline_run_open_command.sql  # shipped in the wheel via pyproject package-data
 │   │   └── repos/               # one Repository class per entity group
 │   │       ├── disk_repo.py     # disk + path tables
 │   │       ├── item_repo.py     # media_item + item_attribute (flex attrs)
@@ -208,7 +208,7 @@ staging/
 │   ├── cli.py           # Typer CLI entry point
 │   ├── cli_app.py       # Typer app instance
 │   ├── cli_state.py     # CLI state management
-│   ├── cli_helpers/     # CLI helper package — boundary.py (per_step_boundary + _build_app_context), output.py
+│   ├── cli_helpers/     # CLI helper package — __init__.py (_build_app_context + per_step_boundary), boundary.py (boundary decorator + CommandContext), output.py
 │   ├── io_utils.py      # I/O helper functions
 │   ├── config.py        # pydantic-settings
 │   ├── lock.py          # PID-based pipeline lock (configurable data_dir)
@@ -217,7 +217,6 @@ staging/
 │   ├── text_utils.py    # media_processor, fuzzy_match_score (shared across modules)
 │   ├── naming_patterns.py # NamingPatterns dataclass (shared across modules)
 │   ├── nfo_utils.py     # NFO parsing helpers (is_nfo_complete, etc.)
-│   ├── notifier.py      # Telegram notifications
 ├── tests/               # pytest tests (unit + E2E)
 │   ├── commands/        # CLI command tests
 │   ├── e2e/             # Real torrent E2E (pytest -m e2e_torrent); indexer E2E scenarios
@@ -366,7 +365,7 @@ No `acquire.db` writer may acquire `pipeline.lock` or `indexer_lock` while holdi
 `acquire.db.lock`. `acquire.db` is a separate file from `library.db`, structurally
 isolating the indexer scan's writer from the acquire writer.
 
-See `docs/features/acquire-store/lock-order.md` for the full invariant, rules,
+See `docs/archive/features/acquire-store/lock-order.md` for the full invariant, rules,
 and implementation references.
 
 ## Module relationships
@@ -422,8 +421,9 @@ Cross-cutting:
   `settings` + `event_bus` + `provider_registry` + `torrent_client`).
   Frozen dataclass; see [AppContext Field Table](#appcontext-field-table).
 - **conf/** — Pydantic config loader (`paths.json5`, `patterns.json5`,
-  `indexer.json5`, `preferences.json5`). Read-only at runtime.
-- **transports/** — `HttpTransport` + `TransportPolicy` (rate limit, retry,
+  `indexer.json5`, `providers.json5`, … — the full list is the `overlays`
+  array in `config.json5`). Read-only at runtime.
+- **api/transport/** — `HttpTransport` + `TransportPolicy` (rate limit, retry,
   circuit breaker). Used by `api/` providers.
 
 **Dependency direction.** Dependencies flow top-down: `commands/` calls into
@@ -537,11 +537,11 @@ The five provider-registry events (`ProviderFallbackTriggered`,
 `RegistryFanOutCompleted`, `RegistryBootValidated`) are full `Event`
 subclasses as of arch-cleanup-2 (v0.17.0). They are auto-registered in
 `_EVENT_CLASS_REGISTRY`, envelope-round-trippable, and delivered to
-base-`Event` subscribers. The event catalog count is **41** — the number of
+base-`Event` subscribers. The event catalog count is **48** — the number of
 concrete `Event` subclasses auto-registered in `_EVENT_CLASS_REGISTRY`
 (`grep -c "class \w\+(Event)"` across `personalscraper/`, cross-checked against the
 runtime registry). This spans the pipeline lifecycle, circuit-breaker, provider,
-scanner/dispatch and the 15 acquisition-lobe events (see the [`acquire/`
+scanner/dispatch and the 22 acquisition-lobe events (see the [`acquire/`
 chapter](#acquire-subsystem)).
 
 ### See also
@@ -739,7 +739,7 @@ half of the pipeline (follow series → detect wanted → grab torrents → trac
 obligations & ratio). It is structurally isolated from the triage engine: its own
 `acquire.db` file, its own event set, and a hard import boundary. Grab-flow internals
 are in [`grab-core.md`](grab-core.md); the lock invariant is in
-`docs/features/acquire-store/lock-order.md`. This chapter states the lobe's role,
+`docs/archive/features/acquire-store/lock-order.md`. This chapter states the lobe's role,
 boundaries, store and events.
 
 ### Role & boundaries
@@ -770,14 +770,17 @@ the indexer precedent: cross-process single-writer via **WAL + `BEGIN IMMEDIATE`
 returns an inert lazy handle — commands that never touch acquire state open nothing
 and take no lock (see [Lock order](#lock-order)).
 
-### Events (15)
+### Events (22)
 
-`acquire/events.py` defines 15 frozen `Event` subclasses across the lobe's concerns —
+`acquire/events.py` defines 22 frozen `Event` subclasses across the lobe's concerns —
 Follow (`SeriesFollowed`, `SeriesUnfollowed`), Grab (`FilmAcquired`, `WantedEnqueued`,
-`WantedAbandoned`, `GrabSucceeded`, `GrabFailed`), Seed (`SeedObligationRecorded`,
+`WantedAbandoned`, `GrabSucceeded`, `GrabFailed`, `GrabReswitched`), Season
+(`SeasonAbsorbedEpisodes`, `SeasonEscalatedAfterEpisodeFailures`,
+`SeasonFellBackToEpisodes`), Seed (`SeedObligationRecorded`,
 `SeedObligationBreached`, `SeedObligationSatisfied`), Ratio (`RatioMeasured`),
-Tracker (`TrackerAuthFailed`), Watcher (`WatcherRunTriggered`) and cross-seed
-(`CrossSeedInjected`, `CrossSeedRejected`). All are auto-registered in
+Tracker (`TrackerAuthFailed`), Watcher (`WatcherRunTriggered`), cross-seed
+(`CrossSeedInjected`, `CrossSeedRejected`) and Download (`DownloadStarted`,
+`DownloadProgressed`, `DownloadCompleted`). All are auto-registered in
 `_EVENT_CLASS_REGISTRY` and envelope-round-trippable (they count toward the
 [event catalog](#registry-events-on-the-event-contract) total).
 

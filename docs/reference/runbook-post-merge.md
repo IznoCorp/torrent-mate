@@ -130,7 +130,7 @@ personalscraper run --help | grep -E "enforce|trailers"
 # Expected: both keywords present (DEV #7)
 
 # init-canonical bootstrap command
-personalscraper library init-canonical --help   # exit 0 (DEV #54)
+personalscraper library-init-canonical --help   # exit 0 (DEV #54)
 ```
 
 ---
@@ -239,11 +239,11 @@ sqlite3 .data/library.db \
 # If > 0: already bootstrapped, skip to step 9.
 
 # Dry-run first
-personalscraper library init-canonical --dry-run
+personalscraper library-init-canonical --dry-run
 # Shows which items would be populated
 
 # Real run
-personalscraper library init-canonical
+personalscraper library-init-canonical
 # Populates canonical_provider from NFOs
 
 # Verify
@@ -322,29 +322,25 @@ hand. There is no repo-wide acceptance-check script — re-exercise is per-featu
 
 ---
 
-### Step 11 — Install launchd cron for weekly backfill-ids (SH-3)
+### Step 11 — Verify the weekly backfill-ids PM2 cron (SH-3)
 
 Required to keep `external_ids_json` current as new items are indexed.
 
-The plist invokes `personalscraper library-backfill-ids` every Sunday at 03:00.
-Before installing, edit the copied plist to replace the `REPLACE_ME` placeholder
-in the working-directory and log paths with the real home directory (see
-`launchd-plists/README.md`).
+> **Superseded**: this step originally installed a launchd plist from a
+> `launchd-plists/` directory. That directory no longer exists — the launchd
+> agents were decommissioned in the launchd → PM2 cutover (see the watch-seed
+> 0.39.0 section below). The weekly backfill now ships as the PM2 app
+> `personalscraper-backfill-ids` in `ecosystem.config.js`
+> (`cron_restart: "0 5 * * 0"` — Sundays 05:00 local, `autorestart: false`).
 
 ```bash
-ls launchd-plists/ | grep "backfill-ids"
-# Expected: com.personalscraper.backfill-ids.plist
+# Verify the PM2 app is registered
+pm2 list | grep "personalscraper-backfill-ids"
+# Expected: one line ("stopped" between cron runs is normal — the app is
+# one-shot; cron_restart relaunches it weekly)
 
-cp launchd-plists/com.personalscraper.backfill-ids.plist \
-   ~/Library/LaunchAgents/
-# Edit ~/Library/LaunchAgents/com.personalscraper.backfill-ids.plist:
-# replace REPLACE_ME in WorkingDirectory and log paths with your home dir.
-launchctl bootstrap gui/$(id -u) \
-   ~/Library/LaunchAgents/com.personalscraper.backfill-ids.plist
-
-# Verify loaded
-launchctl list | grep "backfill-ids"
-# Expected: one line, exit status 0
+# If missing, start the ecosystem and persist it
+pm2 start ecosystem.config.js && pm2 save
 ```
 
 ---
@@ -548,7 +544,7 @@ git clone <repo> ~/staging/torrentmate  && python -m venv ~/staging/torrentmate-
 ### Step 3 — Caddy reverse-proxy blocks
 
 ```bash
-# Append the two blocks from docs/features/tm-shell/caddy-blocks.txt to the Caddyfile,
+# Append the two blocks from docs/archive/features/tm-shell/caddy-blocks.txt to the Caddyfile,
 # then validate + reload (tm.iznogoudatall.xyz → 8710, tm-staging → 8711).
 caddy validate --config /opt/homebrew/etc/Caddyfile
 caddy reload  --config /opt/homebrew/etc/Caddyfile
@@ -581,7 +577,7 @@ git checkout -b staging && git push -u origin staging   # torrentmate-autodeploy
 ### Step 7 — `/chrome` MCP validation checklist
 
 Run against the served prod (or local `127.0.0.1:8710`) build. See the recorded
-S1 run in `docs/features/tm-shell/ACCEPTANCE.md` (§`/chrome` MCP validation).
+S1 run in `docs/archive/features/tm-shell/ACCEPTANCE.md` (§`/chrome` MCP validation).
 Confirm: login (valid + invalid → « Identifiants invalides »), dashboard health
 cards green, live feed receives a real XADD event with correct severity dot
 (warning = **static** amber, error = red), install banner + dismiss persistence,

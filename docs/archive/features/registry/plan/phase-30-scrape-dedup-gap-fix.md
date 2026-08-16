@@ -13,7 +13,7 @@ than open a separate one.
 - CI green on the head of `feat/registry`.
 - Pipeline-monitor 2026-05-28 17h50 run STOPPED at GATE 6 on DEVIATION #1.
 - Staging fully reset (no orphans) — see
-  `docs/pipeline-runs/2026-05-28-17h50-pipeline-run.md` §Traitement for the
+  `docs/archive/pipeline-runs/2026-05-28-17h50-pipeline-run.md` §Traitement for the
   reset receipt (8 hashes removed from tracker, 4 staging dirs deleted).
 
 ## Goal

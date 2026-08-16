@@ -99,9 +99,12 @@ gate, which only runs `make check`.
 ### Who runs it
 
 The `/implement:feature-pr` skill triggers re-exercise as part of the local
-quality gate. If run manually, the operator runs `bash
-docs/features/{codename}/scripts/acceptance-check.sh` (created in the final
-phase) or iterates criteria by hand.
+quality gate. If run manually, the operator iterates the `ACC-NN` commands from
+`docs/features/{codename}/ACCEPTANCE.md` by hand, comparing each output to its
+`Expected:` annotation. There is no repo-wide acceptance-check script (see
+`docs/reference/runbook-post-merge.md` §Step 10) — if a feature ships its own
+executable acceptance script under `docs/features/{codename}/`, run that
+instead.
 
 ### Deferred criteria (🟡)
 
@@ -118,17 +121,20 @@ Undocumented deferrals are treated as ❌ at merge time.
 
 ---
 
-## 4. ACCEPTANCE_FAIL Alerting (0.17+ roadmap)
+## 4. ACCEPTANCE_FAIL Alerting (open item — never shipped)
 
-The following CI check is planned but not yet shipped (target: 0.17.0):
+A dedicated CI check for acceptance criteria was planned (originally targeted
+at 0.17.0) but was never built, and no target version is currently set. It
+remains an open item; the intended shape is recorded here so it is not lost:
 
-- A dedicated CI job runs `acceptance-check.sh` on every PR that touches
+- A dedicated CI job would run every `ACC-NN` command on each PR that touches
   `personalscraper/`, `tests/`, or `docs/reference/`.
-- Any criterion that exits non-zero fails the job and blocks merge.
-- Criteria that require live state (real DB, real API keys) are tagged
-  `@live` and skipped in CI; they remain in the operator's manual checklist.
+- Any criterion that exits non-zero would fail the job and block merge.
+- Criteria that require live state (real DB, real API keys) would be tagged
+  `@live` and skipped in CI; they would remain in the operator's manual
+  checklist.
 
-Until 0.17.0, re-exercise is manual (see §3).
+Today, re-exercise is manual (see §3).
 
 ---
 
@@ -149,8 +155,9 @@ done by version X.Y.Z". Examples seen in tech-debt audit:
 2. Promises without a CI-enforceable check are considered **aspirational**, not
    binding. Document them in the DESIGN as `(aspirational — 0.17+ roadmap)`
    rather than as a hard commitment.
-3. `docs/reference/promises.md` (to be created in 0.17.0) will track all
-   active versioned promises with their target version and current status.
+3. `docs/reference/promises.md` tracks active versioned promises with their
+   target version and current status (today it tracks the module-size
+   promise; new versioned promises must be added there).
 
 ---
 
@@ -187,5 +194,5 @@ See also:
 - `docs/features/{codename}/ACCEPTANCE.md` — per-feature criteria list
 - `docs/reference/testing.md` — test taxonomy and runtime budgets
 - `docs/reference/commands.md` — CLI reference (all commands with --help)
-- `docs/superpowers/specs/2026-04-22-implement-skills-refactor-design.md` —
+- `docs/archive/superpowers/specs/2026-04-22-implement-skills-refactor-design.md` —
   implement:\* skill architecture and phase flow

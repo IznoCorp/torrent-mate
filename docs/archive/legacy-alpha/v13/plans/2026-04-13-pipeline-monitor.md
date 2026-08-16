@@ -1155,7 +1155,7 @@ Display to the user:
 
 ### 1.6 Create BUG LIST markdown
 
-Create file: `docs/pipeline-runs/YYYY-MM-DD-HHhMM-pipeline-run.md`
+Create file: `docs/archive/pipeline-runs/YYYY-MM-DD-HHhMM-pipeline-run.md`
 
 ```markdown
 # Pipeline Run — YYYY-MM-DD HHhMM
@@ -1472,7 +1472,7 @@ echo '{"tool_name":"Bash","tool_input":{"command":"personalscraper run","run_in_
 
 Expected: `{"continue": true}`
 
-- [ ] **Step 5: Verify docs/pipeline-runs/ directory can be created**
+- [ ] **Step 5: Verify docs/archive/pipeline-runs/ directory can be created**
 
 ```bash
 mkdir -p "docs/pipeline-runs" && echo "OK" || echo "FAILED"
@@ -1481,6 +1481,6 @@ mkdir -p "docs/pipeline-runs" && echo "OK" || echo "FAILED"
 - [ ] **Step 6: Final commit**
 
 ```bash
-git add -f docs/pipeline-runs/.gitkeep 2>/dev/null; touch docs/pipeline-runs/.gitkeep && git add -f docs/pipeline-runs/.gitkeep
+git add -f docs/archive/pipeline-runs/.gitkeep 2>/dev/null; touch docs/archive/pipeline-runs/.gitkeep && git add -f docs/archive/pipeline-runs/.gitkeep
 git commit -m "v10.6.12: Add pipeline-runs directory for BUG LIST persistence"
 ```

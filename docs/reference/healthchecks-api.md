@@ -1,7 +1,7 @@
 # Healthchecks API — Reference
 
-> Healthchecks.io ping protocol — reference for the future
-> `api/notify/healthchecks.py` provider.
+> Healthchecks.io ping protocol — reference for the
+> `api/notify/healthchecks.py` provider (`HealthcheckClient`).
 > Source: <https://healthchecks.io/docs/http_api/>
 > Last updated: 2026-05-07
 
@@ -18,7 +18,7 @@
 - [Self-hosted Variants](#self-hosted-variants)
 - [Particularities](#particularities)
 - [Test Samples](#test-samples)
-- [Open decisions for Phase 24](#open-decisions-for-phase-24)
+- [Settled decisions (Phase 24, historical)](#settled-decisions-phase-24-historical)
 
 ---
 
@@ -35,8 +35,8 @@ HEALTHCHECK_URL=https://hc-ping.com/<uuid>     # full base, no trailing slash
 ```
 
 The pipeline reads this via `Settings.healthcheck_url`. An empty string
-disables pings silently — `notifier.ping_healthcheck()` short-circuits before
-any HTTP call.
+disables pings silently — `HealthcheckClient.is_configured()` returns `False`
+and the client is never constructed, so no HTTP call is made.
 
 Implementation: `auth = NoAuth()`. The UUID lives in `base_url` exactly the
 way Telegram embeds the bot token.
@@ -68,12 +68,12 @@ nothing — GET is the canonical form.
 | `<base>/<exit-code>` | Job finished with this exit code   | Not used by this project today  |
 | `<base>/log`         | Append a log line to the dashboard | Out of scope                    |
 
-Mapping in `personalscraper.notifier.ping_healthcheck()`:
+Mapping in `personalscraper/api/notify/healthchecks.py` (`HealthcheckClient`):
 
 ```python
-ping_healthcheck(url, "/start")    # before run
-ping_healthcheck(url, "")          # success
-ping_healthcheck(url, "/fail")     # failure
+client.ping_start()      # GET <base>/start — before run
+client.ping_success()    # GET <base>       — success
+client.ping_fail()       # GET <base>/fail  — failure
 ```
 
 ---
@@ -138,9 +138,10 @@ var to the exact prefix accepted by their installation. Suffixes (`/start`,
 
 ## Particularities
 
-1. **Plain-text response** (`text/plain`). The unified `HttpTransport` already
+1. **Plain-text response** (`text/plain`). The unified `HttpTransport`
    supports this via `TransportPolicy.response_format = "text"` (Phase 1
-   §3.7). Phase 24 uses that path — no bypass, no direct `requests.get`.
+   §3.7). The shipped client uses that path — no bypass, no direct
+   `requests.get`.
 
 2. **UUID is the credential**. `auth = NoAuth()`, URL holds the secret. The
    `_SECRET_FIELDS` set in `personalscraper/config.py` already lists
@@ -160,9 +161,9 @@ var to the exact prefix accepted by their installation. Suffixes (`/start`,
 6. **Self-hosted differs from SaaS**. Treat `HEALTHCHECK_URL` as opaque; do
    not concatenate `hc-ping.com` anywhere.
 
-7. **`/log` and `/<exit-code>` endpoints are not used today**. Out of scope
-   for Phase 24; can be added without breaking the Protocol if a future
-   feature wants them.
+7. **`/log` and `/<exit-code>` endpoints are not used today**. Left out of
+   the shipped client; they can be added without breaking the Protocol if a
+   future feature wants them.
 
 ---
 
@@ -178,9 +179,10 @@ does not expose its real ping URL in samples (it's a secret).
 
 ---
 
-## Open decisions for Phase 24
+## Settled decisions (Phase 24, historical)
 
-Defaults stand unless overridden during Phase 23 user checkpoint:
+These defaults were confirmed at the Phase 23 checkpoint and shipped as
+described in `personalscraper/api/notify/healthchecks.py`:
 
 1. **Plain-text handling**: Option A — `TransportPolicy.response_format = "text"`.
    Reuses the Phase 1 transport contract; preserves common logging, retry,
@@ -194,9 +196,11 @@ Defaults stand unless overridden during Phase 23 user checkpoint:
 3. **Fail-soft**: `ApiError` and any other exception caught, warning logged,
    no return value (Protocol returns `None`).
 
-4. **Rate limit**: `RateLimitPolicy(0.0)` — disabled. 2 pings per run.
+4. **Rate limit**: none set on the policy — 2 pings per run need no throttling.
 
-5. **Retry policy**: default — 5xx + 429 retried, 4xx not retried.
+5. **Retry policy**: `RetryPolicy(max_attempts=2)`, with
+   `CircuitPolicy(failure_threshold=10, cooldown_seconds=60.0)` and a 5 s
+   timeout (`HealthcheckClient.policy()`).
 
-6. **Final removal of `notifier.py`** in Phase 24 — the helper module shrinks
-   to zero usages and is deleted.
+6. **`notifier.py` was removed** in Phase 24 — the helper module shrank to
+   zero usages and was deleted.

@@ -64,7 +64,7 @@ User → /pipeline-monitor (skill)
 
 ### Double persistance
 
-1. **Fichier markdown** : `docs/pipeline-runs/YYYY-MM-DD-HHhMM-pipeline-run.md` — persiste après la conversation, suivi d'avancement, permet de reprendre
+1. **Fichier markdown** : `docs/archive/pipeline-runs/YYYY-MM-DD-HHhMM-pipeline-run.md` — persiste après la conversation, suivi d'avancement, permet de reprendre
 2. **Tasks** : miroir numéroté (#1, #2...) — suivi temps réel dans le terminal
 
 ### Structure markdown

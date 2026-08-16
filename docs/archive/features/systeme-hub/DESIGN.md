@@ -1,7 +1,7 @@
 # Design overhaul V5 — Système + Config + passe visuelle transversale
 
 **Ticket**: #309 (epic #304, dernière vague) · **Binding source**:
-`docs/superpowers/specs/2026-07-16-design-overhaul-design.md` §3.2 + §3.3 + §4 + §1.1 — the spec
+`docs/archive/superpowers/specs/2026-07-16-design-overhaul-design.md` §3.2 + §3.3 + §4 + §1.1 — the spec
 wins on conflict. **Product intent**: §7 (journal home), §8, DOIT-9/DOIT-2 (no hover-only reason
 carriers), DOIT-10 (URL-addressable), findings F1, G2, E3, H1–H6.
 

@@ -1,6 +1,6 @@
 # Phase 14 — Pipeline-Monitor Reopen (re-run 2026-05-25 23h49 findings)
 
-**Run source** : `docs/pipeline-runs/2026-05-25-23h49-pipeline-run.md` (re-run après merge de Phase 12).
+**Run source** : `docs/archive/pipeline-runs/2026-05-25-23h49-pipeline-run.md` (re-run après merge de Phase 12).
 **Trigger** : opérateur a stoppé le pipeline au gate DISPATCH (zero-tolerance rule 11) sur 2 runs consécutifs. Le re-run prouve que :
 
 - **DEV #4 critique persiste** malgré Phase 12.1 (provider-ids canonical_provider). 167 items inversés (vs 351 au run initial). La fix initiale a traité une partie des cas mais pas la régression à la source.
@@ -564,7 +564,7 @@ Tous les sub-phases DONE + `make check` vert + post-Phase 14 re-run `/pipeline-m
 - Invariants AG/AJ/AO/AR/AT tous PASS
 - library-reconcile : `release_orphans_count=0`, `files_without_release=0`
 - Matrix v2.2 assertion validée en GATE -1
-- Re-run report committé dans `docs/pipeline-runs/`
+- Re-run report committé dans `docs/archive/pipeline-runs/`
 - CI green sur la PR avec nom de check `test` statique (pas de template literal)
 
 **Phase gate commit** : `chore(tech-debt): phase 14 gate — pipeline-monitor reopen (11 sub-phases, re-run 23h49)`

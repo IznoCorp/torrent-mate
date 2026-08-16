@@ -157,13 +157,13 @@ long-lived breakers / orchestrators that pre-existed the run.
 
 ## Event catalog (v1)
 
-The v1 catalog defines exactly 39 production event classes, almost all
+The v1 catalog defines exactly 48 production event classes, almost all
 imported eagerly by `personalscraper.events` (plus the registry events
 re-exported via `personalscraper.api.metadata.registry`) so they
 self-register before any envelope round-trip. The count is pinned by
-`tests/event_bus/test_pipeline_events.py` (`len(_EVENT_CLASS_REGISTRY) == 39`).
+`tests/event_bus/test_pipeline_events.py` (`len(_EVENT_CLASS_REGISTRY) == 48`).
 
-> **Exception — `VerifyItemDone`.** Unlike the other 38 classes,
+> **Exception — `VerifyItemDone`.** Unlike the other 47 classes,
 > `VerifyItemDone` is **not** in the eager-import list of
 > `personalscraper.events.__init__`. It self-registers only when the verify
 > step is loaded — `personalscraper.verify.run` does
@@ -214,13 +214,25 @@ self-register before any envelope round-trip. The count is pinned by
 | `SeedObligationBreached`     | `personalscraper.acquire.events`                | `info_hash: str`, `source_tracker: str`, `dispatched_path: str \| None`                                                         | acquire/ — muted until waves 4-5 (O2)                                                                                                                              |
 | `SeedObligationSatisfied`    | `personalscraper.acquire.events`                | `info_hash: str`, `source_tracker: str`                                                                                         | acquire/ — muted until waves 4-5 (O2)                                                                                                                              |
 | `RatioMeasured`              | `personalscraper.acquire.events`                | `tracker: str`, `observed_ratio: float`, `target_ratio: float`                                                                  | acquire/ — muted until waves 4-5 (Ratio C1)                                                                                                                        |
+| `SeasonAbsorbedEpisodes`     | `personalscraper.acquire.events`                | `season_wanted_id: int`, `media_ref: MediaRef`, `season: int`, `absorbed_ids: tuple[int, ...]`                                  | acquire/ — detection or the conversion path when a season wanted absorbs its season's live episode wanteds (episode rows → `absorbed`, R5)                         |
+| `SeasonEscalatedAfterEpisodeFailures` | `personalscraper.acquire.events`       | `season_wanted_id: int`, `media_ref: MediaRef`, `season: int`, `trigger_outcome: str`, `starved_episode_ids: tuple[int, ...]`  | acquire/ — starvation path only (D1): a season pack was enqueued after per-episode searches provably failed (≥2 `not_found`) on a fully-aired season               |
+| `SeasonFellBackToEpisodes`   | `personalscraper.acquire.events`                | `season_wanted_id: int`, `media_ref: MediaRef`, `season: int`, `reenqueued_count: int`                                          | acquire/ — a season wanted hit its cutoff (R6): the row transitions to `fallback_episodes` and the missing episodes are re-enqueued individually                    |
+| `TrackerAuthFailed`          | `personalscraper.acquire.events`                | `tracker: str`, `http_status: int` (401/403), `media_ref: MediaRef`                                                             | acquire/ — orchestrator `except TrackerAuthError` branch when a `.torrent` download is rejected for a broken credential; the item is abandoned                      |
+| `WatcherRunTriggered`        | `personalscraper.acquire.events`                | `reason: str` (`completion`/`safety_net`/`manual`)                                                                              | `personalscraper run --trigger-reason <reason>` — emitted before `PipelineStarted` when the Watcher daemon triggers a run                                           |
+| `CrossSeedInjected`          | `personalscraper.acquire.events`                | `info_hash: str`, `source_tracker: str`, `source_hash: str`, `save_path: str`                                                   | acquire/ — `CrossSeedService` after a cross-seed torrent is injected + verified and its obligation record is persisted (emit-after-persist)                         |
+| `CrossSeedRejected`          | `personalscraper.acquire.events`                | `info_hash: str`, `tracker: str`, `reason: str` (closed set, e.g. `fetch_failed`/`parse_failed`/`v2_hybrid`), `source_hash: str` | acquire/ — `CrossSeedService` at each rejection point: fetch failure, magnet, parse error, structural mismatch, or recheck failure                                  |
+| `DownloadStarted`            | `personalscraper.acquire.events`                | `info_hash: str`, `title: str`, `provider: str`, `kind: str` (`movie`/`episode`/`season`)                                       | acquire/ — reconcile sweep (O4) on first sighting of a hash-carrying OPEN wanted with progress < 1.0; exactly-once via the `download_marks` table                   |
+| `DownloadProgressed`         | `personalscraper.acquire.events`                | `info_hash: str`, `title: str`, `progress: float`, `threshold_pct: int` (`25`/`50`/`75`)                                        | acquire/ — reconcile sweep (O4) when progress crosses a milestone; only the HIGHEST threshold crossed per pass fires (D8 anti-spam), never re-emitted on regression |
+| `DownloadCompleted`          | `personalscraper.acquire.events`                | `info_hash: str`, `title: str`, `provider: str`, `kind: str` (`movie`/`episode`/`season`)                                       | acquire/ — reconcile sweep (O4) on first observation with progress ≥ 1.0; an already-complete first sighting emits ONLY this event (no synthetic backfill)          |
 
 The set is pinned by `test_every_event_has_factory` in `tests/fixtures/test_factories_registry.py`; adding a new event requires extending both the registry and the factories in the same commit. RP4 (`acquire-events`) added 10 acquisition events (catalog: 23 → 33).
 
 ## Boundary-only AppContext rule
 
-`AppContext` is a frozen dataclass holding the three process-scoped
-singletons (`config`, `settings`, `event_bus`). Only **CLI / PM2
+`AppContext` is a frozen dataclass holding the six process-scoped
+services (`config`, `settings`, `event_bus`, `provider_registry`,
+`torrent_client`, `acquire` — the last two optional, `None` when no
+torrent client is configured / in legacy test fixtures). Only **CLI / PM2
 boundaries** are allowed to construct one. Domain modules receive what
 they need through their own constructor / function parameters; passing
 `AppContext` deeper is a design violation.

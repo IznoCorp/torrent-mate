@@ -241,7 +241,7 @@ Acceptance: **ACC-17**.
 ### Phase 18 — Scene RAR extraction + sample stripping (out-of-scope addition) — 2026-06-03
 
 Folded into this PR at the operator's request after a `pipeline-monitor` run
-(`docs/pipeline-runs/2026-06-03-17h36`) caught **DEV #1**. **Out of original RP1
+(`docs/archive/pipeline-runs/2026-06-03-17h36`) caught **DEV #1**. **Out of original RP1
 scope** (touches `process/` + `scraper/` + `verify/`) — documented sign-off
 deviation, same basis as phases 15–17. See DESIGN.md §12.
 

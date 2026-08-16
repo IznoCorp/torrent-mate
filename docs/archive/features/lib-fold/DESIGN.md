@@ -5,7 +5,7 @@
 > **Roadmap item**: P1 — Library / Indexer Consolidation (`ROADMAP.md`).
 > **Version bump target**: **0.18.0 → 0.19.0** (minor — new internal scan stage + package moves; no public CLI removed).
 > **Branch**: `feat/lib-fold` · **Merge**: squash · Pre-1.0, single mono-user instance, not in production — **no migration scripts** (DB/NFO/config evolve in place; re-index by re-running `library-index`).
-> **Source analysis**: `docs/analysis/01-library-indexer-consolidation.md` (read in full). This DESIGN supersedes its phasing with implementation-grade detail, **re-grounded against HEAD `c85410fe` / v0.18.0** and validated by a 3-lens adversarial sweep (corrections folded in — see §3 notes).
+> **Source analysis**: `docs/archive/analysis/01-library-indexer-consolidation.md` (read in full). This DESIGN supersedes its phasing with implementation-grade detail, **re-grounded against HEAD `c85410fe` / v0.18.0** and validated by a 3-lens adversarial sweep (corrections folded in — see §3 notes).
 
 ---
 
@@ -479,7 +479,7 @@ python -c "import personalscraper; print('import-ok')"
 
 ## 9. References
 
-- **Source analysis:** `docs/analysis/01-library-indexer-consolidation.md`.
+- **Source analysis:** `docs/archive/analysis/01-library-indexer-consolidation.md`.
 - **ROADMAP entry:** P1 — Library / Indexer Consolidation (refreshed; the shipped arch-cleanup-2 +
   multi-filesystem entries removed via the `roadmap-refresh-fold` commit folded onto this branch).
 - **Structural template:** `docs/archive/features/registry/DESIGN.md` (section style + ACCEPTANCE format).

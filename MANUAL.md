@@ -95,7 +95,13 @@ torrentmate library-repair                   # draine la file de réparation (--
 torrentmate library-reconcile                # détecte les divergences index ↔ FS (lecture seule par défaut)
 torrentmate library-ghost-audit              # audite les dirents fantômes NTFS/macFUSE (--disk)
 torrentmate library-relink --apply           # relie les media_file sans release_id
+torrentmate library-refresh-path "<chemin>"  # réconciliation ciblée après un rename/move MANUEL d'un dossier (--dry-run)
 ```
+
+`library-refresh-path` réutilise la maintenance post-dispatch sur UN chemin : invalidation
+du sous-arbre (dir_mtime + merkle, variantes NFC/NFD), scan incrémental du disque
+propriétaire, puis relink + fix-season-counts + drain de la file de réparation — utile car
+le scan incrémental court-circuite les sous-arbres « inchangés » (mtime NTFS/macFUSE aveugle).
 
 `library-reconcile` : `--scope merkle|dispatch_path|enrich|release|season|item|path_missing` (répétable),
 `--read-only`, `--dry-run`, `--enqueue-repairs` (écriture opt-in).
@@ -130,24 +136,41 @@ torrentmate library-backfill-ids             # backfill des IDs croisés + notes
 `library-backfill-ids` : `--show TEXT`, `--ids-only`, `--ratings-only`, `--dry-run` (prérequis : `library-init-canonical` + clés API dans `.env`).
 Pointeurs `.env` : `OMDB_API_KEY` est requis pour le backfill des notes (`library-backfill-ids --ratings-only`) ; `TRAKT_CLIENT_ID` active `library-recommend`.
 
-### 1.3 Acquisition (follow / grab / seed / cross-seed / watch)
+### 1.3 Acquisition (follow / search / grab / seed / cross-seed / watch)
 
 État persisté dans `acquire.db` ; jobs planifiés via PM2. Cadences (heure locale, `ecosystem.config.js`) :
 `personalscraper-index-enrich` dim. 04:30 · `personalscraper-backfill-ids` dim. 05:00 ·
-`personalscraper-follow-detect` 03:00 (quotidien) · `personalscraper-grab` 03:20 + 15:20 ·
+`personalscraper-follow-detect` 03:00 (quotidien) · `personalscraper-search` 03:10 + 15:10 ·
+`personalscraper-grab` 03:20 + 15:20 ·
 `personalscraper-health-check` horaire (:15) — en plus des daemons `personalscraper-watch`,
 `torrentmate-web` (8710), `torrentmate-web-staging` (`web --port 8711`) et `torrentmate-autodeploy` (poll 60s).
 
-**Suivi de séries — follow → detect → grab :**
+**Suivi de séries — trois passes : follow → detect → search → grab :**
+
+`detect` met en file ce qui est diffusé, `search` constate si c'est prenable, `grab` prend
+ce qu'une recherche a déjà conclu prenable.
 
 ```bash
 torrentmate follow add --tvdb 12345          # suivre une série (idempotent ; --tvdb préféré, sinon --tmdb / --imdb ; --title optionnel)
 torrentmate follow list                       # lister les séries suivies (--all inclut les inactives)
 torrentmate follow remove --tvdb 12345        # soft-unfollow (active=False, historique conservé ; ou --id)
+torrentmate follow backfill-metadata          # répare les follows incomplets (titre, poster, synopsis, année, titre original) par ID provider — jamais par recherche titre ; idempotent, --dry-run
 torrentmate follow detect                     # enqueue les épisodes diffusés-mais-absents comme "wanted" (--dry-run, --series ID|title)
-torrentmate grab                              # cherche sur les trackers "{titre} SxxEyy", filtre l'épisode exact, classe, ajoute le meilleur à qBittorrent
+torrentmate search                            # passe de disponibilité : interroge les trackers pour les items "wanted" en attente (--dry-run, -n/--limit N, --followed-id ID)
+torrentmate grab                              # parcourt les items « available » : "{titre} SxxEyy", filtre l'épisode exact, classe, ajoute le meilleur à qBittorrent
 torrentmate grab --dry-run                     # prévisualiser sans ajouter (-n/--limit N)
 ```
+
+**`search` — la passe du milieu.** Elle **constate la disponibilité et ne télécharge
+rien** : aucun client torrent n'est construit (qBittorrent n'est jamais réveillé), et les
+appels trackers sont throttlés par la cadence Hot/Warm/Cold de `config/acquire.json5`.
+Chaque item interrogé finit `available` (prenable — la file du `grab`), `waiting` (rien de
+prenable pour l'instant), `unverified` (recherche non concluante : panne ≠ absence),
+`abandoned` (cutoff atteint) ou `skipped` (cadence non échue). Avant un run réel, une
+réconciliation clôt les items déjà présents en médiathèque. `--dry-run` montre ce qui
+SERAIT cherché après le filtre de cadence — aucun appel tracker, aucune écriture. À la
+main, elle sert à re-sonder la disponibilité (ex. après un `follow add`) sans déclencher
+de grab ; en temps normal, le cron s'en charge (03:10 et 15:10).
 
 **Tagging seed-pure** (pour que le watcher fasse du cross-seed au lieu d'ingérer) :
 
@@ -165,6 +188,23 @@ torrentmate cross-seed --hash <INFO_HASH>    # un seul torrent (spawné par le w
 ```
 
 `--sweep` et `--hash` sont mutuellement exclusifs (exit 2 sur mauvaise combinaison) ; no-op si `cross_seed.enabled=false`.
+
+**Maintenance ciblée (spine de provenance `staging_provenance`) :**
+
+```bash
+torrentmate acquisition-rescrape --stuck      # re-scrape TOUS les items en vol bloqués (--older-than N secondes)
+torrentmate acquisition-rescrape --hash <INFO_HASH>   # re-scrape le grab précis derrière ce hash (ou --path <dossier staging>)
+torrentmate acquisition-requeue --hash <INFO_HASH>    # renvoie la ligne "wanted" de ce grab en "pending"
+```
+
+- `acquisition-rescrape` re-scrape un item de staging tracé par la spine (scrape **forcé**
+  par l'ID du seed de grab — TMDB films, TVDB séries avec fallback TMDB), en tenant le lock
+  de scrape par item (items distincts en parallèle ; exclusif avec un run complet). Fail-soft
+  par item : un échec est compté, jamais bloquant pour le lot ; un item manuel/direct (sans
+  ligne de spine) est un no-op. `--dry-run` liste les cibles.
+- `acquisition-requeue` trace `info_hash` → sa ligne `wanted` et la renvoie en `pending` ;
+  le hash est mémorisé comme « tried », donc le prochain search+grab prend une **autre**
+  release (l'usage : « cette release est mauvaise, prends-en une autre »). `--dry-run`.
 
 **Watcher (daemon PM2) :**
 
@@ -211,7 +251,7 @@ Exit 0 si sain / 1 si anomalie. Lecture seule + fail-soft, sans flag.
 ```bash
 torrentmate info                             # version, chemins de config, statut des disques (respecte --format)
 torrentmate info providers                    # snapshot circuit-breaker par provider (exit 1 sur RegistryConfigError)
-torrentmate init-config                       # bootstrap config/ depuis config.example/ (--example, --output, --yes, --force, --dry-run)
+torrentmate init-config                       # bootstrap config/ depuis config.example/ (--example, --output, --yes, --force, --dry-run ; --sync = report additif vers la config canonique)
 torrentmate config migrate-category --from <id> --to <id>   # réécrit media_item.category_id lors d'un renommage
 ```
 
@@ -449,6 +489,11 @@ Le frontend est **TorrentMateUI**. La vague S1 (`tm-shell`, ticket #158) livre l
 headless sert la SPA React derrière Caddy, avec une API REST, un flux d'événements temps réel via WebSocket,
 et une PWA installable.
 
+> **Refonte v1 (maquette)** : la référence visuelle de la web-UI est le prototype
+> `frontend/maquette/design/refonte.html` — la maquette fait foi, toute évolution du design
+> y part **avant** le code. Voir `frontend/maquette/README.md` (méthode, harnais, règles) et
+> `IMPLEMENTATION.md` à la racine du dépôt (état de la mission de refonte).
+
 ### 4.1 Accès
 
 | Rôle    | URL                                    | Port |
@@ -543,8 +588,8 @@ torrentmate web
 ### 4.7 Déploiement prod / staging
 
 Deux clones de déploiement (modèle KanbanMate « push to deploy »), chacun avec son propre venv et sa
-propre copie de `.env`, tous deux pointant `PERSONALSCRAPER_CONFIG=/Users/izno/dev/PersonalScraper/config`
-(config réelle — S1 est en lecture seule, donc staging sur données réelles est sûr).
+propre copie de `.env`, tous deux pointant `PERSONALSCRAPER_CONFIG=/Users/izno/.torrentmate/config`
+(la config canonique réelle — le staging est en lecture seule, donc staging sur données réelles est sûr).
 
 | Rôle    | Clone                   | Suit      | App PM2                   | Venv                         |
 | ------- | ----------------------- | --------- | ------------------------- | ---------------------------- |
@@ -589,6 +634,24 @@ Si l'API ne trouve pas un résultat, MediaElch (application de bureau GUI) peut 
 4. Sauvegarder → génère le fichier `.nfo`.
 
 **Un media est prêt à déplacer quand il a au minimum :** un fichier vidéo + un fichier `.nfo`.
+
+### 5.3 Résolution ciblée par ID — `torrentmate scrape-resolve`
+
+Résout une décision de scrape **en attente** (ligne `scrape_decision`, alimentée par
+l'arbitre de scrape / la web-UI) en fetchant les métadonnées directement par ID provider :
+
+```bash
+torrentmate scrape-resolve "<dossier staging>" --provider tmdb --id 550
+torrentmate scrape-resolve "<dossier staging>" --provider tvdb --id 275274
+```
+
+Délègue au même scraper que le pipeline (scrape **forcé** — l'opérateur a déjà tranché
+l'identité) : résultat canonique complet — rename du dossier/vidéo (films) ou des épisodes
++ NFO par épisode (séries), NFO + artwork — puis marque la décision `resolved`. Films :
+`--provider tmdb` obligatoire. `--via pick|search_override` trace la provenance de la
+résolution. Prend le lock de scrape **par item** (résolutions parallèles sur des items
+distincts ; recule devant un `pipeline.lock` global). Codes de sortie : 0 succès ·
+1 échec de scrape · 2 mauvaise config / décision introuvable ou non-pending · 3 lock occupé.
 
 ---
 
@@ -643,6 +706,7 @@ tourne toujours en dry-run (les disques de stockage ne sont jamais modifiés).
 │   ├── pipeline.py      Orchestrateur séquentiel des étapes
 │   └── pipeline_steps.py Registre des étapes du pipeline
 ├── frontend/            TorrentMateUI (Vite + React + TS)
+│   └── maquette/        Prototype de refonte v1 — référence design de la web-UI (la maquette fait foi)
 ├── tests/               Tests unitaires + E2E
 └── assets/torrents/     Fichiers .torrent pour tests E2E
 ```

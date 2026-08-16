@@ -18,7 +18,7 @@
 - [`getMe` Endpoint](#getme-endpoint)
 - [Particularities](#particularities)
 - [Test Samples](#test-samples)
-- [Open decisions for Phase 22](#open-decisions-for-phase-22)
+- [Settled decisions (Phase 22, historical)](#settled-decisions-phase-22-historical)
 
 ---
 
@@ -169,7 +169,7 @@ Three formatters are accepted by Telegram:
 
 | `parse_mode` | Style                                 | Notes                                                   |
 | ------------ | ------------------------------------- | ------------------------------------------------------- |
-| `HTML`       | `<b>`, `<i>`, `<code>`, `<a href>`, … | **Current behavior of `notifier.py`** — preserve in 22. |
+| `HTML`       | `<b>`, `<i>`, `<code>`, `<a href>`, … | **`TelegramNotifier.send()` default** (carried over from the legacy `notifier.py`). |
 | `Markdown`   | Legacy mode; `*bold*`, `_italic_`     | Deprecated by Telegram (still accepted).                |
 | `MarkdownV2` | New Telegram-flavored Markdown        | Strict escaping rules; not used by this project.        |
 
@@ -255,8 +255,8 @@ for completeness.
    inspects `body.ok` for 200-with-`ok:false` (rare but possible per docs).
 
 4. **Fail-soft**: `TelegramNotifier.send()` catches `ApiError`, logs
-   `telegram_send_failed` with the description, returns `False`. Mirrors the
-   existing fail-soft behavior of `notifier.py:60-75`.
+   `telegram_send_failed` with the description, returns `False`. This carried
+   over the fail-soft behavior of the legacy `notifier.py` (since deleted).
 
 5. **HTML escaping is the consumer's job**. `PipelineReport.to_html()` already
    escapes text — the Telegram client itself should NOT re-escape.
@@ -293,9 +293,10 @@ Path: `docs/reference/_samples/telegram/`.
 
 ---
 
-## Open decisions for Phase 22
+## Settled decisions (Phase 22, historical)
 
-Defaults stand unless overridden during Phase 21 user checkpoint:
+These defaults were confirmed at the Phase 21 checkpoint and shipped as
+described in `personalscraper/api/notify/telegram.py`:
 
 1. **Token-in-URL**: `base_url` built per-instance from `TELEGRAM_BOT_TOKEN`,
    `auth = NoAuth()`. URL is redacted in transport logs.
@@ -309,5 +310,7 @@ Defaults stand unless overridden during Phase 21 user checkpoint:
    permanent failures.
 6. **Rate limit**: `max_requests_per_second = 1.0` (matches Telegram's per-chat
    ceiling — we only send to one chat).
-7. **Healthchecks half stays in `notifier.py`** until Phase 24; Phase 22
-   removes only the Telegram half.
+7. **Healthchecks half stayed in `notifier.py`** until Phase 24; Phase 22
+   removed only the Telegram half. Both halves have since shipped
+   (`api/notify/telegram.py`, `api/notify/healthchecks.py`) and `notifier.py`
+   is deleted.

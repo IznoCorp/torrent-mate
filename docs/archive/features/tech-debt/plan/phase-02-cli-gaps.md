@@ -122,7 +122,7 @@ l'invoke.
 **Validation** : `SELECT COUNT(*) FROM media_item WHERE canonical_provider IS NULL` tends
 vers 0.
 
-**Pas de commit code** — c'est une action ops, à noter dans `docs/pipeline-runs/` ou un runbook.
+**Pas de commit code** — c'est une action ops, à noter dans `docs/archive/pipeline-runs/` ou un runbook.
 
 ## Phase 2 Gate
 

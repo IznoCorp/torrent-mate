@@ -16,7 +16,7 @@
 - **DEVIATION LIST structurée** : Catégorie × Sévérité × Step × Description × Status.
 - **Multi-agent verification** : 3 agents techniques (orphan-hunter, state-validator, output-analyzer) + 1 business agent par step.
 - **STOP PROTOCOL explicite** : 8 triggers nommés (`Forbidden403Error`, `No space left`, `rsync invalid argument`, etc.).
-- **Run markdown** : chaque exécution produit un journal `docs/pipeline-runs/{date}-pipeline-run.md`.
+- **Run markdown** : chaque exécution produit un journal `docs/archive/pipeline-runs/{date}-pipeline-run.md`.
 
 ### Ce qu'elle ne fait pas (ou mal)
 
@@ -287,13 +287,13 @@ Brainstorm exhaustif. Pas de filtre — toutes les idées entrent.
 
 **BM. Compare avec le précédent run**
 
-- Si run précédent dans `docs/pipeline-runs/` existe, la skill calcule un diff
+- Si run précédent dans `docs/archive/pipeline-runs/` existe, la skill calcule un diff
 - "X nouveaux items dispatchés, Y nouveaux DEVIATIONS, Z items résolus"
 
 **BN. Notification finale**
 
 - Subscriber Telegram dédié à la skill (pas le pipeline lui-même)
-- Envoie un récap court : "Run terminée. 0 critique, 2 majeurs, 5 mineurs. Voir docs/pipeline-runs/{date}.md"
+- Envoie un récap court : "Run terminée. 0 critique, 2 majeurs, 5 mineurs. Voir docs/archive/pipeline-runs/{date}.md"
 
 **BO. Pre-commit hook qui vérifie le matrix**
 

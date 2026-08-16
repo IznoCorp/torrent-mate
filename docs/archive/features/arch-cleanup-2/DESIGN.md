@@ -4,7 +4,7 @@
 > **Date**: 2026-05-28
 > **Codename**: `arch-cleanup-2`
 > **Roadmap item**: P1 — Architecture Cleanup Round 2 (`ROADMAP.md:11`)
-> **Source analysis**: `docs/analysis/05-architecture-improvement-roadmap.md`
+> **Source analysis**: `docs/archive/analysis/05-architecture-improvement-roadmap.md`
 > **Version bump target**: 0.16.0 → 0.17.0 (minor, Y+1)
 > **Branch**: `feat/arch-cleanup-2`
 
@@ -653,7 +653,7 @@ python -c "import personalscraper; print('ok')"
 
 ## 9. References
 
-- **Source analysis**: `docs/analysis/05-architecture-improvement-roadmap.md`
+- **Source analysis**: `docs/archive/analysis/05-architecture-improvement-roadmap.md`
   (the foundation — §2.2 layering, §2.3 sorter edge, §2.4 registry events, §2.8
   module size; problem table P-1…P-4; Features A–H sequencing). This DESIGN
   scopes `arch-cleanup-2` to report 05's Features B (media-types), C
@@ -665,9 +665,9 @@ python -c "import personalscraper; print('ok')"
   `:167` (Web UI Registry Consumer), `:236` (P3 DI Container overlap).
 - **Sibling feature designs** (separate features, depend on this one):
   `docs/features/lib-fold/DESIGN.md` (to be written —
-  `docs/analysis/01-library-indexer-consolidation.md`),
+  `docs/archive/analysis/01-library-indexer-consolidation.md`),
   `docs/features/multi-filesystem/DESIGN.md` (to be written —
-  `docs/analysis/04-filesystem-decoupling-macfuse-ntfs.md`).
+  `docs/archive/analysis/04-filesystem-decoupling-macfuse-ntfs.md`).
 - **Structural template**: `docs/features/registry/DESIGN.md` (the shipped
   Provider Registry design; the 5 events being unified here were introduced by
   that feature, §7.4).

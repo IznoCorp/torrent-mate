@@ -57,8 +57,15 @@ Clients: browser / installed PWA (Android, iOS, desktop)
 ```
 personalscraper/web/
   __init__.py
-  app.py            # create_app(config, settings) → FastAPI (lifespan, routers, SPA mount)
-  deps.py           # Session model, require_session guard, _validate_session_token helper
+  app.py                  # create_app(config, settings) → FastAPI (lifespan, guarded_api, SPA mount)
+  deps.py                 # require_session, require_not_staging, require_x_requested_with, is_staging
+  _runner_engine.py       # spawn-and-stream substrate (RingBuffer, RunnerSpec, run_spawn_stream)
+  config_service.py       # pure config-introspection helpers for the config-editor routes (S4)
+  pipeline_trigger.py     # single authority for launching a pipeline run as a detached subprocess
+  pipeline_queue.py       # visible queue for pipeline runs while pipeline.lock is held
+  run_queue.py            # visible-queue wait loop shared by the detached web runners
+  registry_projection.py  # server-side provider-registry health projection (S6 reg-health)
+  torrent_session.py      # process-wide cached torrent-client session for web endpoints
   auth/
     routes.py       # POST /api/auth/login, POST /api/auth/logout, GET /api/auth/me
     tokens.py       # JWT HS256 encode/decode (PyJWT)
@@ -68,10 +75,43 @@ personalscraper/web/
     relay.py        # Redis Stream tail (redis.asyncio), ConnectionRegistry, replay, _ReplayGuard
     routes.py       # GET /ws/events (handshake guard, hello, replay from ?last_id=)
   routes/
-    health.py       # GET /api/health (public — no auth guard)
-    version.py      # GET /api/version (guarded — requires valid session)
-  static.py         # SPA mount + index.html fallback; BUILD_COMMIT
-  static/           # gitignored — Vite build output (emptyOutDir)
+    health.py                # GET /api/health (public — no auth guard)
+    version.py               # GET /api/version (guarded — requires valid session)
+    pipeline.py              # pipeline control (pipe-control S2)
+    maintenance.py           # maintenance dashboard panels (maint-dash S3)
+    config.py                # config editor read/write endpoints (config-editor S4)
+    registry.py              # registry health (reg-health S6)
+    staging.py               # staging read-model (Flow Board, webui-overhaul OBJ2A)
+    media.py                 # GET /api/media/{provider}/{provider_id} (media-sheet)
+    decisions.py             # decision queue (scrape-arbiter)
+    acquisition.py           # acquisition REST routes (acq-watch)
+    acquisition_overview.py  # acquisition machine-state overview (provenance F5)
+    acquisition_ranking.py   # ranking-preview route (ranking editor)
+    acquisition_seasons.py   # manual whole-season grab (season-grab R4/R5)
+    acquisition_triggers.py  # manual detect + per-series grab (OBJ3)
+  staging/
+    stages.py           # stage taxonomy + single-position axiom (SoT for the Flow Board)
+    read_model.py       # scan the staging tree into the staging read-model
+    dispatch_preview.py # opt-in dispatch-target preview for a staged media
+    nfo.py              # minimal read-only NFO metadata extraction
+  acquisition/          # acquisition read-models + grab runner (service, states, truth,
+                        #   completeness, downloads, to_handle, obligation_titles,
+                        #   search_cache, runner, _helpers)
+  decisions/
+    runner.py           # decision runner — thin config over the shared runner engine
+    reserve.py          # decision run reservation (per-decision concurrency guard)
+    search.py           # shared provider-candidate search for scrape decisions
+  maintenance/
+    registry.py         # maintenance action registry (typed library-* action entries)
+    runner.py           # maintenance action runner — thin config over the shared runner engine
+    service.py          # action-run service behind POST /api/maintenance/actions/{id}/run
+    models.py           # Pydantic response models for the maintenance panels
+  schedulers/
+    registry.py         # static scheduler registry (cron/schedule projection)
+  models/               # Pydantic response models per lobe (→ OpenAPI → schema.d.ts):
+                        #   acquisition, config, decisions, media, pipeline, registry, staging
+  static.py             # SPA mount + index.html fallback; BUILD_COMMIT
+  static/               # gitignored — Vite build output (emptyOutDir)
 personalscraper/commands/web.py           # typer: `web` (daemon) + `web set-password`
 personalscraper/subscribers/redis_stream.py  # RedisEventPublisher (producer side)
 ```
@@ -406,6 +446,7 @@ In `ecosystem.config.js`. **Every daemon/cron runs from the prod clone**
 | `personalscraper-index-enrich`  | `library-index …`      | prod clone/venv; `cron_restart` Sun 04:30                   |
 | `personalscraper-backfill-ids`  | `library-backfill-ids` | prod clone/venv; `cron_restart` Sun 05:00                   |
 | `personalscraper-follow-detect` | `follow detect`        | prod clone/venv; `cron_restart` daily 03:00                 |
+| `personalscraper-search`        | `search`               | prod clone/venv; `cron_restart` daily 03:10 + 15:10         |
 | `personalscraper-grab`          | `grab`                 | prod clone/venv; `cron_restart` daily 03:20 + 15:20         |
 | `personalscraper-health-check`  | `health-check`         | prod clone/venv; `cron_restart` hourly :15                  |
 
@@ -537,7 +578,7 @@ S3 exposes the ~20 `library-*` Typer CLI commands as a catalog of web-UI
 maintenance actions, backed by a registry-driven form generator and a detached
 subprocess runner. All read endpoints are `GET` with the standard session guard;
 the single write endpoint (`POST …/run`) additionally requires
-`X-Requested-With: TorrentMate`. Route contract: `docs/features/maint-dash/DESIGN.md` §4.
+`X-Requested-With: TorrentMate`. Route contract: `docs/archive/features/maint-dash/DESIGN.md` §4.
 
 ### REST endpoints (`/api/maintenance`)
 
@@ -655,8 +696,8 @@ S2) with `output_tail` as the durable fallback from the history detail endpoint.
 S4 exposes the 19-file split config overlay layout (18 overlays + master) as a
 visual web editor with schema-driven forms, optimistic concurrency control,
 atomic writes, and a PM2 restart trigger. Route contract:
-`docs/features/config-editor/DESIGN.md` §4.2; plan directory:
-`docs/features/config-editor/plan/`.
+`docs/archive/features/config-editor/DESIGN.md` §4.2; plan directory:
+`docs/archive/features/config-editor/plan/`.
 
 S4 is **read-only on staging** — `PERSONALSCRAPER_WEB_ROLE=staging` makes every
 write endpoint return `403`, keeping the staging clone safe against the real
@@ -906,7 +947,7 @@ S5 replaces the batch scraper's silent auto-accept with an async decision
 queue + operator review surface. When the scraper cannot confidently pick a
 metadata match, it enqueues the item instead of guessing — the operator drains
 the queue via the web `/decisions` page or the `personalscraper scrape-resolve`
-CLI. Ticket #184; design at `docs/features/scrape-arbiter/DESIGN.md`.
+CLI. Ticket #184; design at `docs/archive/features/scrape-arbiter/DESIGN.md`.
 
 ### REST endpoints (`/api/decisions`)
 
@@ -1254,8 +1295,8 @@ empty/partial, never 500) and inside the single `guarded_api` perimeter.
 `arrival`/Arrivée (intégrés, en attente de tri) · `sorting`/Tri (sort+enforce) ·
 `cleaning`/Nettoyage (clean+cleanup) · `matching`/Identification ·
 `scraping`/Scraping · `trailers`/Trailers · `verify`/Vérification ·
-`dispatch`/Dispatch. **« Staging » n'est pas une étape** : c'est le lieu où tout
-le flux se déroule — aucune station ne porte ce nom.
+`dispatch`/Dispatch. **"Staging" is not a step**: it is the place where the whole
+flow happens — no station carries that name.
 
 **Single-position axiom (P0-A.1)** — a staged media is at **exactly one**
 position: `compute_position()` derives `(position_stage, position_state)`

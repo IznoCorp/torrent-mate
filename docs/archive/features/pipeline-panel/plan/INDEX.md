@@ -2,7 +2,7 @@
 
 **Feature**: pipeline-panel (Design overhaul V3: Pipeline)
 **Epic**: #304, **Ticket**: #307
-**Binding spec**: `docs/superpowers/specs/2026-07-16-design-overhaul-design.md` §2.3 + §1.1
+**Binding spec**: `docs/archive/superpowers/specs/2026-07-16-design-overhaul-design.md` §2.3 + §1.1
 **Branch**: `feat/pipeline-panel`
 **Merge mode**: auto
 **Codename**: pipeline-panel

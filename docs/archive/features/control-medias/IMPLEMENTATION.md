@@ -9,7 +9,7 @@
 **PR**: #311 → main (https://github.com/IznoCorp/torrent-mate/pull/311) — OPEN, CI en cours
 **Merge**: squash (**auto** — operator directive 2026-07-17: chain all waves automatically)
 **Design**: `docs/features/control-medias/DESIGN.md` ← binding shared spec
-`docs/superpowers/specs/2026-07-16-design-overhaul-design.md` §2.1 + §2.2 + §5.2 + §1.1(scoped)
+`docs/archive/superpowers/specs/2026-07-16-design-overhaul-design.md` §2.1 + §2.2 + §5.2 + §1.1(scoped)
 **Version bump**: 0.50.0 → 0.51.0 (minor) — ⚠ solidify (worktree) targeted 0.50.0 which V1 took;
 solidify re-bumps at its merge
 
