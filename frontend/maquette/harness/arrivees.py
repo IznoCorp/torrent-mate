@@ -57,7 +57,7 @@ LIRE = """() => {
       sous: x.querySelector('.fs').textContent.trim(),
       cle: (x.querySelector('.fk') || {}).textContent || '',
       vide: x.classList.contains('fempty'),
-      bloc: x.classList.contains('fbloc'),
+      bloc: x.classList.contains('fblocked'),
     })),
     sections: [...document.querySelectorAll('.sechead .t')].map((x) => x.textContent.trim()),
   };

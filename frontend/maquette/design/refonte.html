@@ -1684,7 +1684,7 @@
     color: var(--muted-foreground);
     font-weight: 500;
   }
-  .flux .fx.fbloc .fr {
+  .flux .fx.fblocked .fr {
     color: var(--danger);
     font-weight: 600;
   }
@@ -1766,7 +1766,7 @@
     font-variant-numeric: tabular-nums;
   }
 
-  .reg {
+  .settingrow {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -1778,23 +1778,23 @@
     padding: 11px 2px;
     color: var(--foreground);
   }
-  .reg:last-child {
+  .settingrow:last-child {
     border-bottom: 0;
   }
-  .reg .rl {
+  .settingrow .rl {
     display: block;
     min-width: 0;
     flex: 1;
     font-size: 13px;
   }
-  .reg .rf {
+  .settingrow .rf {
     display: block;
     margin-top: 2px;
     font-size: 11px;
     color: var(--muted-foreground);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
-  .reg .rv {
+  .settingrow .rv {
     flex: 0 0 auto;
     max-width: 45%;
     overflow: hidden;
@@ -1806,10 +1806,10 @@
   }
   /* A setting the operator has touched but not yet written. It is marked on
      the ROW, where it is read, and not only in a counter at the bottom. */
-  .reg.modified .rv {
+  .settingrow.modified .rv {
     color: var(--primary);
   }
-  .reg.modified::before {
+  .settingrow.modified::before {
     content: "";
     width: 3px;
     align-self: stretch;
@@ -12428,7 +12428,7 @@
         const badge = ligne.ton
           ? `<span class="chip ${TONS[ligne.ton]}">${valeur}</span>`
           : valeur;
-        return `<li class="fx${vide ? " fempty" : ""}${ligne.etat === "danger" ? " fbloc" : ""}${
+        return `<li class="fx${vide ? " fempty" : ""}${ligne.etat === "danger" ? " fblocked" : ""}${
           ligne.cible ? " fclic" : ""
         }"><${balise} class="fw"${cible}>
       <span class="fn">${escapeHtml(ligne.l)}</span>
@@ -14625,7 +14625,7 @@
     const origine = avecFichier
       ? `${nomDeFichier(reglage.f)} · ${reglage.c}`
       : reglage.c;
-    return `<button class="reg${modifie ? " modified" : ""}" data-reglage="${escapeHtml(reglageId(reglage))}">
+    return `<button class="settingrow${modifie ? " modified" : ""}" data-reglage="${escapeHtml(reglageId(reglage))}">
       <span class="rl">${escapeHtml(libelleReglage(reglage))}
         <span class="rf">${escapeHtml(origine)}</span>
       </span>
@@ -14754,7 +14754,7 @@
         ${SECRETS.map(
           (
             secret,
-          ) => `<button class="reg" data-secret="${escapeHtml(secret.k)}">
+          ) => `<button class="settingrow" data-secret="${escapeHtml(secret.k)}">
             <span class="rl">${escapeHtml(secret.l)}
               <span class="rf">${escapeHtml(secret.k)}</span>
             </span>

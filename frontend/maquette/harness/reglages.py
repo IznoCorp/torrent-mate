@@ -112,7 +112,7 @@ async def main():
         # The origin is read as it is SEEN: the row carries the path, its group
         # header carries the file. Reading only the row would pass a screen where
         # nothing on it names a file.
-        lignes = await pg.evaluate("""()=>[...document.querySelectorAll('.reg')].map(r => ({
+        lignes = await pg.evaluate("""()=>[...document.querySelectorAll('.settingrow')].map(r => ({
           libelle: (r.querySelector('.rl')||{}).firstChild?.textContent?.trim()||'',
           chemin: (r.querySelector('.rf')||{}).textContent||'',
           entete: (r.closest('.panel')?.previousElementSibling||{}).textContent||'',
@@ -158,7 +158,7 @@ async def main():
         attente = await pg.evaluate("""()=>{
           const bar = document.querySelector('#savebar');
           return {barre: !!bar, texte: bar ? bar.textContent.replace(/\\s+/g,' ') : '',
-                  marquees: document.querySelectorAll('.reg.modified').length,
+                  marquees: document.querySelectorAll('.settingrow.modified').length,
                   sousLaBarre: bar ? bar.getBoundingClientRect().bottom <=
                     document.querySelector('#device').getBoundingClientRect().bottom + 1 : false};}""")
         verifier("une modification fait apparaître la barre", attente["barre"])
@@ -172,7 +172,7 @@ async def main():
         await pg.evaluate("()=>window.__go('reglages-secrets')")
         await pg.wait_for_timeout(320)
         secrets = await pg.evaluate("""()=>({
-          lignes: [...document.querySelectorAll('.reg')].map(r =>
+          lignes: [...document.querySelectorAll('.settingrow')].map(r =>
             (r.querySelector('.rv')||{}).textContent.trim()),
           champs: document.querySelectorAll('#view input').length})""")
         verifier("un secret dit s'il est posé, jamais ce qu'il vaut",
@@ -203,7 +203,7 @@ async def main():
         await pg.evaluate("()=>window.__go('reglages-recherche')")
         await pg.wait_for_timeout(320)
         cherche = await pg.evaluate("""()=>({
-          resultats: document.querySelectorAll('.reg').length,
+          resultats: document.querySelectorAll('.settingrow').length,
           vide: !!document.querySelector('.empty'),
           texte: (document.querySelector('#view')||{}).textContent||''})""")
         # A FRENCH word must find something: the labels used to be the files'
@@ -213,7 +213,7 @@ async def main():
                  cherche["resultats"] > 0, f"{cherche['resultats']} résultat(s) pour « espace »")
 
         # A result stands alone under no header, so THERE the row names its file.
-        sans = await pg.evaluate("""()=>[...document.querySelectorAll('.reg .rf')]
+        sans = await pg.evaluate("""()=>[...document.querySelectorAll('.settingrow .rf')]
           .map(e => e.textContent).filter(t => !t.includes('.json5'))""")
         verifier("un résultat de recherche nomme son fichier lui-même",
                  not sans, str(sans[:2]))

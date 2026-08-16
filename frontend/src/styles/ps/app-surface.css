@@ -1386,7 +1386,7 @@
     font-weight: 500;
 }
 
-.tm .flux .fx.fbloc .fr {
+.tm .flux .fx.fblocked .fr {
     color: var(--danger);
     font-weight: 600;
 }
@@ -1451,7 +1451,7 @@
     font-variant-numeric: tabular-nums;
 }
 
-.tm .reg {
+.tm .settingrow {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -1464,18 +1464,18 @@
     color: var(--foreground);
 }
 
-.tm .reg:last-child {
+.tm .settingrow:last-child {
     border-bottom: 0;
 }
 
-.tm .reg .rl {
+.tm .settingrow .rl {
     display: block;
     min-width: 0;
     flex: 1;
     font-size: 13px;
 }
 
-.tm .reg .rf {
+.tm .settingrow .rf {
     display: block;
     margin-top: 2px;
     font-size: 11px;
@@ -1483,7 +1483,7 @@
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-.tm .reg .rv {
+.tm .settingrow .rv {
     flex: 0 0 auto;
     max-width: 45%;
     overflow: hidden;
@@ -1494,11 +1494,11 @@
     font-variant-numeric: tabular-nums;
 }
 
-.tm .reg.modified .rv {
+.tm .settingrow.modified .rv {
     color: var(--primary);
 }
 
-.tm .reg.modified::before {
+.tm .settingrow.modified::before {
     content: "";
     width: 3px;
     align-self: stretch;
