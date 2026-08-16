@@ -1,4 +1,4 @@
-// design/src/ecrans/releases.tsx
+// design/src/screens/releases.tsx
 // Legacy `openReleases(title)` (`refonte.html`) — "choose another release" —
 // reborn as a real route (`/releases/$titre`) and a final component. Markup
 // is TRANSPLANTED, not translated: every tag, class and data-attribute below
@@ -7,27 +7,21 @@
 // had — the legacy `openScreen(html, undefined, () => openReleases(titre))`
 // passed no `cle` at all — added here because a router-owned screen needs one
 // to answer `.screen.open[data-cle^="releases:"]` the way every other
-// migrated screen already does (see `coquille.tsx`'s dispatcher rewrite).
+// migrated screen already does (see `shell.tsx`'s dispatcher rewrite).
 //
 // The `.rel` rows are release CANDIDATES, not media cards — no poster, no
 // `data-fiche`/`data-panel`. `data-prendre` (pick this release) and
 // `data-profil` (open the quality profile) carry NO onClick: the
 // document-level click delegation the legacy engine still runs is the seam
-// this screen leans on, exactly as `fiche.tsx` and `profil.tsx`.
+// this screen leans on, exactly as `media.tsx` and `profile.tsx`.
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { useReferentiel } from "../donnees";
+import { useReference } from "../data";
 
-// Same helper as `fiche.tsx`'s, `profil.tsx`'s and `ajout.tsx`'s, still not
+// Same helper as `media.tsx`'s, `profile.tsx`'s and `add.tsx`'s, still not
 // shared: the extraction those files' comments call for is a follow-up of
 // its own, not a silent scope add here.
-function Icone({
-  paths,
-  strokeWidth,
-}: {
-  paths: string;
-  strokeWidth?: number;
-}) {
+function Icon({ paths, strokeWidth }: { paths: string; strokeWidth?: number }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -42,19 +36,19 @@ function Icone({
   );
 }
 
-export function ReleasesEcran() {
-  const { titre: brut } = useParams({ from: "/releases/$titre" });
+export function ReleasesScreen() {
+  const { titre: raw } = useParams({ from: "/releases/$titre" });
   // Defensive: `__ecrans.releases` already normalises on write, but an entry
   // reached by a typed/bookmarked URL did not necessarily go through it.
-  const titre = brut.normalize("NFC");
-  const { icons, baseTitle, RELEASES } = useReferentiel();
+  const title = raw.normalize("NFC");
+  const { icons, baseTitle, RELEASES } = useReference();
   const { t } = useTranslation();
 
   return (
-    <section className="screen open" data-cle={`releases:${titre}`}>
+    <section className="screen open" data-cle={`releases:${title}`}>
       <div className="fichebar">
         <button className="fback" onClick={() => window.__pont.retour()}>
-          <Icone paths={icons.left} />
+          <Icon paths={icons.left} />
           {t("screens.releases.back")}
         </button>{" "}
         <span
@@ -64,7 +58,7 @@ export function ReleasesEcran() {
             color: "var(--muted-foreground)",
           }}
         >
-          {baseTitle(titre)}
+          {baseTitle(title)}
         </span>
       </div>
       <div className="port">
@@ -130,7 +124,7 @@ export function ReleasesEcran() {
             <button
               className="cfoot"
               style={{ marginTop: "10px" }}
-              data-profil={titre}
+              data-profil={title}
             >
               {t("screens.releases.openProfile")}
             </button>

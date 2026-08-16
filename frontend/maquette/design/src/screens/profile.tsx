@@ -1,4 +1,4 @@
-// design/src/ecrans/profil.tsx
+// design/src/screens/profile.tsx
 // The pilot screen: legacy `openProfil(titre)` (the per-title quality-profile
 // screen — resolution floor, required audio, two locks; NOT the account page
 // at `?page=profil`, which stays legacy) reborn as a real route and a final
@@ -10,13 +10,15 @@
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import {
-  ecrireEtat,
-  useEtat,
-  useReferentiel,
+  writeUiState,
+  useUiState,
+  useReference,
   type Release,
   type Resolution,
-} from "../donnees";
+} from "../data";
 
+// The field names are the legacy state's own — `state.profil` is written and
+// read by the engine under these exact keys.
 type QualityProfile = {
   min_resolution: Resolution | null;
   required_audio: string[];
@@ -26,16 +28,10 @@ type QualityProfile = {
 
 // The exact shape `svgIcon(paths, strokeWidth)` produced as an HTML string —
 // rebuilt as a real element so it composes with JSX, `paths` is still the
-// SAME raw markup from `useReferentiel().icons`, injected verbatim (trusted:
+// SAME raw markup from `useReference().icons`, injected verbatim (trusted:
 // it is a fixed set of `<path>`/`<circle>` primitives defined in
 // refonte.html, never user input).
-function Icone({
-  paths,
-  strokeWidth,
-}: {
-  paths: string;
-  strokeWidth?: number;
-}) {
+function Icon({ paths, strokeWidth }: { paths: string; strokeWidth?: number }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -53,64 +49,62 @@ function Icone({
 // `retenus`: transplanted verbatim from `openProfil` — the SAME filter over
 // the SAME mock release list, so the count on screen matches what the
 // legacy screen showed for the same profile.
-function compterRetenus(profil: QualityProfile, releases: Release[]): number {
-  const ordre: Record<string, number> = { "720p": 0, "1080p": 1, "2160p": 2 };
+function countKept(profile: QualityProfile, releases: Release[]): number {
+  const order: Record<string, number> = { "720p": 0, "1080p": 1, "2160p": 2 };
   return releases.filter((release) => {
     if (
-      profil.min_resolution &&
-      ordre[release.res] < ordre[profil.min_resolution]
+      profile.min_resolution &&
+      order[release.res] < order[profile.min_resolution]
     )
       return false;
-    if (profil.required_audio.length) {
+    if (profile.required_audio.length) {
       const tier =
         release.lang === "VOSTFR"
           ? "VOSTFR"
           : release.lang === "VO"
             ? "VO"
             : "VF";
-      if (!profil.required_audio.includes(tier)) return false;
+      if (!profile.required_audio.includes(tier)) return false;
     }
     return true;
   }).length;
 }
 
-export function ProfilEcran() {
-  const { titre: brut } = useParams({ from: "/profil/$titre" });
+export function ProfileScreen() {
+  const { titre: raw } = useParams({ from: "/profil/$titre" });
   // Defensive: `__ecrans.profil` already normalises on write, but an entry
   // reached by a typed/bookmarked URL did not necessarily go through it.
-  const titre = brut.normalize("NFC");
-  const etat = useEtat();
-  const profil = etat.profil as QualityProfile;
-  const { RELEASES, RESOS, AUDIOS, icons, baseTitle } = useReferentiel();
+  const title = raw.normalize("NFC");
+  const state = useUiState();
+  const profile = state.profil as QualityProfile;
+  const { RELEASES, RESOS, AUDIOS, icons, baseTitle } = useReference();
   const { t } = useTranslation();
-  const retenus = compterRetenus(profil, RELEASES);
+  const kept = countKept(profile, RELEASES);
 
-  function ecrireProfil(patch: Partial<QualityProfile>): void {
-    ecrireEtat({ profil: { ...profil, ...patch } });
+  function writeProfile(patch: Partial<QualityProfile>): void {
+    writeUiState({ profil: { ...profile, ...patch } });
   }
 
-  function choisirResolution(reso: Resolution | null): void {
-    ecrireProfil({ min_resolution: reso });
+  function pickResolution(reso: Resolution | null): void {
+    writeProfile({ min_resolution: reso });
   }
 
-  function basculerAudio(cle: string): void {
-    const requises = profil.required_audio.includes(cle)
-      ? profil.required_audio.filter((valeur) => valeur !== cle)
-      : [...profil.required_audio, cle];
-    ecrireProfil({ required_audio: requises });
+  function toggleAudio(key: string): void {
+    const required = profile.required_audio.includes(key)
+      ? profile.required_audio.filter((value) => value !== key)
+      : [...profile.required_audio, key];
+    writeProfile({ required_audio: required });
   }
 
-  function basculerVerrou(
-    cle: "exclude_3d" | "require_known_resolution",
-  ): void {
-    ecrireProfil({ [cle]: !profil[cle] });
+  function toggleLock(key: "exclude_3d" | "require_known_resolution"): void {
+    writeProfile({ [key]: !profile[key] });
   }
 
   return (
-    <section className="screen open" data-cle={`profil:${titre}`}>
+    <section className="screen open" data-cle={`profil:${title}`}>
       <div className="fichebar">
         <button className="fback" onClick={() => window.__pont.retour()}>
-          <Icone paths={icons.left} />
+          <Icon paths={icons.left} />
           {t("screens.profil.back")}
         </button>
         <span
@@ -120,7 +114,7 @@ export function ProfilEcran() {
             color: "var(--muted-foreground)",
           }}
         >
-          {titre ? baseTitle(titre) : t("screens.profil.defaultProfile")}
+          {title ? baseTitle(title) : t("screens.profil.defaultProfile")}
         </span>
       </div>
       <div className="port">
@@ -152,9 +146,9 @@ export function ProfilEcran() {
               <button
                 className="opt radio"
                 role="radio"
-                aria-checked={profil.min_resolution === null}
+                aria-checked={profile.min_resolution === null}
                 data-qres=""
-                onClick={() => choisirResolution(null)}
+                onClick={() => pickResolution(null)}
               >
                 <span className="mark" />
                 <span className="lb">
@@ -167,9 +161,9 @@ export function ProfilEcran() {
                   key={reso}
                   className="opt radio"
                   role="radio"
-                  aria-checked={profil.min_resolution === reso}
+                  aria-checked={profile.min_resolution === reso}
                   data-qres={reso}
-                  onClick={() => choisirResolution(reso)}
+                  onClick={() => pickResolution(reso)}
                 >
                   <span className="mark" />
                   <span className="lb">
@@ -196,23 +190,23 @@ export function ProfilEcran() {
             </p>
             <p className="optkind">
               {t("screens.profil.multiChoice")}
-              {profil.required_audio.length === 0
+              {profile.required_audio.length === 0
                 ? ` — ${t("screens.profil.noneChecked")}`
                 : ""}
             </p>
             <div className="optlist">
-              {AUDIOS.map(([cle, label]) => (
+              {AUDIOS.map(([key, label]) => (
                 <button
-                  key={cle}
+                  key={key}
                   className="opt check"
                   role="checkbox"
-                  aria-checked={profil.required_audio.includes(cle)}
-                  data-qaud={cle}
-                  onClick={() => basculerAudio(cle)}
+                  aria-checked={profile.required_audio.includes(key)}
+                  data-qaud={key}
+                  onClick={() => toggleAudio(key)}
                 >
                   <span className="mark" />
                   <span className="lb">
-                    {cle}
+                    {key}
                     <small>{label}</small>
                   </span>
                 </button>
@@ -234,10 +228,10 @@ export function ProfilEcran() {
                 <button
                   className="switch"
                   role="switch"
-                  aria-checked={profil.exclude_3d}
+                  aria-checked={profile.exclude_3d}
                   aria-label={t("screens.profil.exclude3d")}
                   data-qflag="exclude_3d"
-                  onClick={() => basculerVerrou("exclude_3d")}
+                  onClick={() => toggleLock("exclude_3d")}
                 />
               </div>
               <div className="kv reglage">
@@ -251,10 +245,10 @@ export function ProfilEcran() {
                 <button
                   className="switch"
                   role="switch"
-                  aria-checked={profil.require_known_resolution}
+                  aria-checked={profile.require_known_resolution}
                   aria-label={t("screens.profil.requireKnownResolution")}
                   data-qflag="require_known_resolution"
-                  onClick={() => basculerVerrou("require_known_resolution")}
+                  onClick={() => toggleLock("require_known_resolution")}
                 />
               </div>
             </div>
@@ -264,13 +258,13 @@ export function ProfilEcran() {
             <div className="kv">
               <span>{t("screens.profil.candidatesKept")}</span>
               <span>
-                {retenus} {t("screens.profil.outOf")} {RELEASES.length}
+                {kept} {t("screens.profil.outOf")} {RELEASES.length}
               </span>
             </div>
             <div className="kv">
               <span>{t("screens.profil.scope")}</span>
               <span>
-                {titre
+                {title
                   ? t("screens.profil.scopeThisFollow")
                   : t("screens.profil.scopeAllFollows")}
               </span>
@@ -281,7 +275,7 @@ export function ProfilEcran() {
             className="cfoot"
             data-toast={t("screens.profil.rankingToast")}
           >
-            <Icone paths={icons.sort} />
+            <Icon paths={icons.sort} />
             {t("screens.profil.rankingWeights")}
           </button>
 
@@ -292,7 +286,7 @@ export function ProfilEcran() {
               className="sact primary"
               data-toast={t("screens.profil.saveToast")}
             >
-              <Icone paths={icons.check} />
+              <Icon paths={icons.check} />
               {t("screens.profil.save")}
             </button>
           </div>

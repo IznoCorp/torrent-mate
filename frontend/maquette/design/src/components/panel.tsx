@@ -1,43 +1,39 @@
-// design/src/composants/panneau.tsx
+// design/src/components/panel.tsx
 // The unique bottom-panel constructor, reborn as a component. Every panel
 // in the legacy engine is built by ONE function (`panneauHTML`, refonte.html)
 // from a plain descriptor of facts — never ready-made markup — and this
 // component is that same constructor, transplanted: same tags, same
 // classes, same data-attribute vocabulary, so the document-level click
 // delegation the legacy engine still runs (`.sact[data-fiche]`,
-// `.ep[data-ep]`, `.champ*[data-champ]`, …) keeps working unchanged. Not
-// mounted anywhere yet — a later task wires `openSheet`/`__panneau` to it.
+// `.ep[data-ep]`, `.champ*[data-champ]`, …) keeps working unchanged.
 //
 // Markup is TRANSPLANTED, not translated: React escapes text nodes
 // natively, so there is no `escapeHtml` here — every plain string prop
 // below is a JSX child or attribute value, which is already safe.
 //
+// The DESCRIPTOR's own field names are the seam: the legacy producers build
+// those objects, so every key below (`titre`, `blocs`, a block's `type`, an
+// action's `cible`…) stays whatever the fragment writes.
+//
 // TWO WAYS INTO THE SAME RESOURCE, and the split is deliberate. Prose —
 // anything a reader reads as a sentence — goes through `t()`, so a component
 // re-renders when the language changes. The three settings DICTIONARIES are
 // read from the imported resource object directly: their lookups run in plain
-// functions (`libelleReglage`, `sujetReglage`, `uniteDe`) that are not
+// functions (`settingLabel`, `settingSubject`, `unitOf`) that are not
 // components and cannot hold a hook, their keys are DATA (setting ids, path
 // segments, unit suffixes) rather than translation keys, and a key absent from
 // the table has a fallback that `t()`'s own missing-key behaviour would fight.
 import { Fragment, type JSX } from "react";
 import { useTranslation } from "react-i18next";
-import { useReferentiel, type Reglage, type Referentiel } from "../donnees";
+import { useReference, type Setting, type Reference } from "../data";
 import fr from "../i18n/fr.json";
 
 // The exact shape `svgIcon(paths, strokeWidth)` produced as an HTML
 // string — rebuilt as a real element so it composes with JSX. Same helper
-// as `profil.tsx`'s and `ajout.tsx`'s, not shared between the three: this
+// as `profile.tsx`'s and `add.tsx`'s, not shared between the three: this
 // is now the third copy the extraction comment on those two warned about,
-// but this task creates exactly one file — the extraction is a follow-up,
-// not a silent scope add here.
-function Icone({
-  paths,
-  strokeWidth,
-}: {
-  paths: string;
-  strokeWidth?: number;
-}) {
+// but that extraction is a follow-up of its own.
+function Icon({ paths, strokeWidth }: { paths: string; strokeWidth?: number }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -56,14 +52,14 @@ function Icone({
 // emphasised aside (`{ e }`) — exactly the three shapes `richText` switches
 // on in refonte.html.
 export type Segment = string | { m: string } | { e: string };
-export type Texte = string | Segment[];
+export type RichTextValue = string | Segment[];
 
-function RichText({ valeur }: { valeur: Texte | null | undefined }) {
-  if (valeur == null) return null;
-  if (typeof valeur === "string") return <>{valeur}</>;
+function RichText({ value }: { value: RichTextValue | null | undefined }) {
+  if (value == null) return null;
+  if (typeof value === "string") return <>{value}</>;
   return (
     <>
-      {valeur.map((segment, index) =>
+      {value.map((segment, index) =>
         typeof segment === "string" ? (
           <Fragment key={index}>{segment}</Fragment>
         ) : "m" in segment ? (
@@ -76,9 +72,9 @@ function RichText({ valeur }: { valeur: Texte | null | undefined }) {
   );
 }
 
-function Puce({ puce }: { puce: [string, string] | null | undefined }) {
-  if (!puce) return null;
-  return <span className={`chip ${puce[0]}`}>{puce[1]}</span>;
+function Chip({ chip }: { chip: [string, string] | null | undefined }) {
+  if (!chip) return null;
+  return <span className={`chip ${chip[0]}`}>{chip[1]}</span>;
 }
 
 // `posterBox`'s image-or-initials fallback, at panel size. `POSTERS` /
@@ -86,20 +82,20 @@ function Puce({ puce }: { puce: [string, string] | null | undefined }) {
 // `posterBox` itself reads from (refonte.html), and this call carries no
 // `opts` — the panel head never asks for the `exact` (no base-title
 // fallback) variant.
-function Portrait({ affiche }: { affiche: { t: string; k?: string } }) {
-  const { POSTERS, baseTitle, icons, initials } = useReferentiel();
-  const src = POSTERS[affiche.t] ?? POSTERS[baseTitle(affiche.t)];
+function Poster({ poster }: { poster: { t: string; k?: string } }) {
+  const { POSTERS, baseTitle, icons, initials } = useReference();
+  const src = POSTERS[poster.t] ?? POSTERS[baseTitle(poster.t)];
   if (src) return <img src={src} alt="" loading="lazy" />;
   const iconPath =
-    affiche.k === "movie"
+    poster.k === "movie"
       ? icons.film
-      : affiche.k === "show"
+      : poster.k === "show"
         ? icons.tv
         : icons.clap;
   return (
     <span className="pfall">
-      <Icone paths={iconPath} strokeWidth={1.25} />
-      <b>{initials(affiche.t)}</b>
+      <Icon paths={iconPath} strokeWidth={1.25} />
+      <b>{initials(poster.t)}</b>
     </span>
   );
 }
@@ -118,15 +114,15 @@ export type Action = {
   infobulle?: string;
 };
 
-function ActionBouton({ action }: { action: Action | null | undefined }) {
+function ActionButton({ action }: { action: Action | null | undefined }) {
   if (!action) return null;
   // The only dynamically-keyed attribute set in this file: `cible`'s keys
   // are the action's own vocabulary (`fiche`, `go`, `toast`, …), decided by
   // each call site, not by this component.
-  const attributs = Object.fromEntries(
-    Object.entries(action.cible ?? {}).map(([nom, valeur]) => [
-      `data-${nom}`,
-      String(valeur),
+  const attributes = Object.fromEntries(
+    Object.entries(action.cible ?? {}).map(([name, value]) => [
+      `data-${name}`,
+      String(value),
     ]),
   ) as Record<`data-${string}`, string>;
   return (
@@ -134,33 +130,41 @@ function ActionBouton({ action }: { action: Action | null | undefined }) {
       className={`sact${action.ton ? ` ${action.ton}` : ""}`}
       disabled={action.desactive || undefined}
       title={action.infobulle || undefined}
-      {...attributs}
+      {...attributes}
     >
-      {action.icone ? <Icone paths={action.icone} /> : null}
+      {action.icone ? <Icon paths={action.icone} /> : null}
       {action.texte}
       {action.mention ? <span className="soon">{action.mention}</span> : null}
     </button>
   );
 }
 
-function BlocActions({ bloc }: { bloc: Extract<Bloc, { type: "actions" }> }) {
-  const liste = (bloc.actions ?? []).filter((action): action is Action =>
+function ActionsBlock({
+  block,
+}: {
+  block: Extract<PanelBlock, { type: "actions" }>;
+}) {
+  const list = (block.actions ?? []).filter((action): action is Action =>
     Boolean(action),
   );
-  if (!liste.length) return null;
+  if (!list.length) return null;
   return (
-    <div className={`sheetacts${bloc.secondaire ? " secondary" : ""}`}>
-      {liste.map((action, index) => (
-        <ActionBouton key={index} action={action} />
+    <div className={`sheetacts${block.secondaire ? " secondary" : ""}`}>
+      {list.map((action, index) => (
+        <ActionButton key={index} action={action} />
       ))}
     </div>
   );
 }
 
-function BlocNote({ bloc }: { bloc: Extract<Bloc, { type: "note" }> }) {
+function NoteBlock({
+  block,
+}: {
+  block: Extract<PanelBlock, { type: "note" }>;
+}) {
   return (
     <p className="rulenote">
-      <RichText valeur={bloc.texte} />
+      <RichText value={block.texte} />
     </p>
   );
 }
@@ -168,7 +172,7 @@ function BlocNote({ bloc }: { bloc: Extract<Bloc, { type: "note" }> }) {
 // A LIGNE of « faits » is `{ c, v, pip, pipValeur, terne }`: caption, value,
 // a status dot on either side — one qualifies the step and the other the
 // figure — and whether the value is still to come.
-export type Ligne = {
+export type FactLine = {
   c: string;
   v: string;
   pip?: string;
@@ -176,23 +180,27 @@ export type Ligne = {
   terne?: boolean;
 };
 
-function BlocFaits({ bloc }: { bloc: Extract<Bloc, { type: "faits" }> }) {
+function FactsBlock({
+  block,
+}: {
+  block: Extract<PanelBlock, { type: "faits" }>;
+}) {
   return (
     <div className="panel sheetfaits">
-      {(bloc.lignes ?? []).map((ligne, index) => (
+      {(block.lignes ?? []).map((line, index) => (
         <div
           key={index}
-          className={`kv${ligne.pip ? " avecpip" : ""}${ligne.terne ? " avenir" : ""}`}
+          className={`kv${line.pip ? " avecpip" : ""}${line.terne ? " avenir" : ""}`}
         >
           <span>
-            {ligne.pip ? <span className={`pip ${ligne.pip}`} /> : null}
-            {ligne.c}
+            {line.pip ? <span className={`pip ${line.pip}`} /> : null}
+            {line.c}
           </span>
           <span>
-            {ligne.pipValeur ? (
-              <span className={`pip ${ligne.pipValeur}`} />
+            {line.pipValeur ? (
+              <span className={`pip ${line.pipValeur}`} />
             ) : null}
-            {ligne.v}
+            {line.v}
           </span>
         </div>
       ))}
@@ -200,7 +208,7 @@ function BlocFaits({ bloc }: { bloc: Extract<Bloc, { type: "faits" }> }) {
   );
 }
 
-/* --- saisons ------------------------------------------------------- */
+/* --- seasons ------------------------------------------------------- */
 
 // Lifecycle order and swatch classes for the season legend — refonte.html
 // keeps `EP_ORDER`/`EP_SWATCH` private (only `EP_LABEL` is published on the
@@ -228,84 +236,84 @@ const EP_SWATCH: Record<string, string> = {
 // The slice of a "follow" record the season blocks read: `t` for lookups
 // against the référentiel (`sheetFor`/`possedesDe`), `st` as the fallback
 // state when a season has no per-episode ownership data. Not an exported
-// donnees.ts type — the panel receives whatever the caller's `suivi` object
+// data.ts type — the panel receives whatever the caller's `suivi` object
 // is, and only ever reads these two fields.
-export type Suivi = { t: string; st?: string };
+export type Follow = { t: string; st?: string };
 
-export type Saison = ReturnType<Referentiel["saisonsDe"]>[number];
+export type Season = ReturnType<Reference["saisonsDe"]>[number];
 
-type EpisodeCatalogue = { n: number; air?: string | null }[];
+type EpisodeCatalog = { n: number; air?: string | null }[];
 
 // Presence is read from the LIST of owned numbers when the référentiel
 // knows it, never from a `num <= owned` threshold that assumes the hole is
 // at the end of the season — the same correction `epState` applies on the
 // media sheet.
 function epState(
-  referentiel: Referentiel,
-  suivi: Suivi,
-  saisonNum: number,
-  numero: number,
+  reference: Reference,
+  follow: Follow,
+  seasonNum: number,
+  number: number,
   owned: number,
 ): string {
-  const detenus = referentiel.possedesDe(suivi.t, saisonNum);
-  if (detenus)
-    return detenus.has(numero)
+  const held = reference.possedesDe(follow.t, seasonNum);
+  if (held)
+    return held.has(number)
       ? "en_mediatheque"
-      : suivi.st === "en_attente"
+      : follow.st === "en_attente"
         ? "en_attente"
-        : suivi.st === "en_acquisition"
+        : follow.st === "en_acquisition"
           ? "en_acquisition"
           : "a_recuperer";
-  if (numero <= owned) return "en_mediatheque";
-  if (suivi.st === "en_attente") return "en_attente";
-  if (suivi.st === "en_acquisition") return "en_acquisition";
+  if (number <= owned) return "en_mediatheque";
+  if (follow.st === "en_attente") return "en_attente";
+  if (follow.st === "en_acquisition") return "en_acquisition";
   return "a_recuperer";
 }
 
-function catalogueDe(
-  referentiel: Referentiel,
-  suivi: Suivi,
-  numero: number,
-): EpisodeCatalogue | null {
-  const fiche = referentiel.sheetFor(suivi.t) as { eps?: unknown } | null;
-  const eps = fiche?.eps as Record<string, EpisodeCatalogue> | undefined;
-  return eps?.[String(numero)] ?? null;
+function catalogFor(
+  reference: Reference,
+  follow: Follow,
+  number: number,
+): EpisodeCatalog | null {
+  const sheet = reference.sheetFor(follow.t) as { eps?: unknown } | null;
+  const eps = sheet?.eps as Record<string, EpisodeCatalog> | undefined;
+  return eps?.[String(number)] ?? null;
 }
 
-function SaisonDetail({
-  suivi,
-  saison,
-  referentiel,
+function SeasonDetails({
+  follow,
+  season,
+  reference,
 }: {
-  suivi: Suivi;
-  saison: Saison;
-  referentiel: Referentiel;
+  follow: Follow;
+  season: Season;
+  reference: Reference;
 }) {
   const { t } = useTranslation();
-  const [num, airedBrut, owned] = saison;
-  const aired = airedBrut ?? 0;
+  const [num, rawAired, owned] = season;
+  const aired = rawAired ?? 0;
   const complete = owned >= aired;
-  const manque = aired - owned;
+  const missing = aired - owned;
   // An ANNOUNCED episode appears in the matrix but NEVER in the
   // denominator: it is not missing, it is not out yet. The provider
   // catalogue knows more than what has aired.
-  const catalogue = catalogueDe(referentiel, suivi, num);
-  const total = Math.max(aired, catalogue ? catalogue.length : 0);
-  const cellules = Array.from({ length: total }, (_, index) => {
-    const numero = index + 1;
-    const info = catalogue?.find((entree) => entree.n === numero) ?? null;
-    const futur = Boolean(info?.air && info.air > referentiel.AUJOURDHUI);
-    const etat = futur
+  const catalog = catalogFor(reference, follow, num);
+  const total = Math.max(aired, catalog ? catalog.length : 0);
+  const cells = Array.from({ length: total }, (_, index) => {
+    const number = index + 1;
+    const info = catalog?.find((entry) => entry.n === number) ?? null;
+    const upcoming = Boolean(info?.air && info.air > reference.AUJOURDHUI);
+    const state = upcoming
       ? "annonce"
-      : epState(referentiel, suivi, num, numero, owned);
+      : epState(reference, follow, num, number, owned);
     return (
       <button
-        key={numero}
-        className={`ep ${etat}`}
-        data-ep={`${suivi.t}|${num}|${numero}|${etat}`}
-        aria-label={`S${String(num).padStart(2, "0")}E${String(numero).padStart(2, "0")} — ${referentiel.EP_LABEL[etat]}`}
+        key={number}
+        className={`ep ${state}`}
+        data-ep={`${follow.t}|${num}|${number}|${state}`}
+        aria-label={`S${String(num).padStart(2, "0")}E${String(number).padStart(2, "0")} — ${reference.EP_LABEL[state]}`}
       >
-        {String(numero).padStart(2, "0")}
+        {String(number).padStart(2, "0")}
       </button>
     );
   });
@@ -327,12 +335,12 @@ function SaisonDetail({
         </span>{" "}
         {complete ? null : (
           <span className="miss">
-            {manque}{" "}
-            {manque > 1 ? t("common.missingPlural") : t("common.missing")}
+            {missing}{" "}
+            {missing > 1 ? t("common.missingPlural") : t("common.missing")}
           </span>
         )}
       </summary>
-      <div className="eps">{cellules}</div>
+      <div className="eps">{cells}</div>
     </details>
   );
 }
@@ -340,61 +348,65 @@ function SaisonDetail({
 // The season matrix and the legend that reads it — ONE block, so a panel
 // asking for seasons cannot get the matrix without the key to it. The
 // legend lists only the states actually PRESENT, above the matrix.
-function BlocSaisons({ bloc }: { bloc: Extract<Bloc, { type: "saisons" }> }) {
-  const referentiel = useReferentiel();
-  const { suivi, saisons } = bloc;
-  const aDesAnnonces = saisons.some((saison) =>
-    (catalogueDe(referentiel, suivi, saison[0]) ?? []).some(
-      (episode) => episode.air && episode.air > referentiel.AUJOURDHUI,
+function SeasonsBlock({
+  block,
+}: {
+  block: Extract<PanelBlock, { type: "saisons" }>;
+}) {
+  const reference = useReference();
+  const { suivi: follow, saisons: seasons } = block;
+  const hasUpcoming = seasons.some((season) =>
+    (catalogFor(reference, follow, season[0]) ?? []).some(
+      (episode) => episode.air && episode.air > reference.AUJOURDHUI,
     ),
   );
-  const etatsPresents = new Set<string>([
-    ...(aDesAnnonces ? ["annonce"] : []),
-    ...saisons.flatMap((saison) => [
-      ...(saison[2] > 0 ? ["en_mediatheque"] : []),
-      ...((saison[1] ?? 0) > saison[2]
-        ? [epState(referentiel, suivi, saison[0], saison[1] ?? 0, saison[2])]
+  const statesPresent = new Set<string>([
+    ...(hasUpcoming ? ["annonce"] : []),
+    ...seasons.flatMap((season) => [
+      ...(season[2] > 0 ? ["en_mediatheque"] : []),
+      ...((season[1] ?? 0) > season[2]
+        ? [epState(reference, follow, season[0], season[1] ?? 0, season[2])]
         : []),
     ]),
   ]);
   return (
     <>
       <div className="legend">
-        {EP_ORDER.filter((etat) => etatsPresents.has(etat)).map((etat) => (
-          <span key={etat}>
-            <i className={EP_SWATCH[etat]} />
-            {referentiel.EP_LABEL[etat]}
+        {EP_ORDER.filter((state) => statesPresent.has(state)).map((state) => (
+          <span key={state}>
+            <i className={EP_SWATCH[state]} />
+            {reference.EP_LABEL[state]}
           </span>
         ))}
       </div>
-      {saisons.map((saison) => (
-        <SaisonDetail
-          key={saison[0]}
-          suivi={suivi}
-          saison={saison}
-          referentiel={referentiel}
+      {seasons.map((season) => (
+        <SeasonDetails
+          key={season[0]}
+          follow={follow}
+          season={season}
+          reference={reference}
         />
       ))}
     </>
   );
 }
 
-/* --- champ ----------------------------------------------------------- */
+/* --- field ----------------------------------------------------------- */
 
-// `uniteDe` / `nomDeFichier` are pure formatting off a `Reglage`'s own
+// `unitOf` / `fileName` are pure formatting off a `Setting`'s own
 // fields — refonte.html keeps them private (not published on
 // `__referentiel`) but they carry no engine state, so they are reproduced
 // verbatim rather than re-derived differently. The unit NAMES live in
 // `fr.json` (`settings.units`), keyed by the setting-name suffix the split
 // below produces — a suffix is data, not French.
-const UNITES: Record<string, string> = fr.settings.units;
+const UNITS: Record<string, string> = fr.settings.units;
 
-function uniteDe(reglage: Reglage): string | null {
-  const dernier = reglage.n.split("_").pop();
-  return dernier ? (UNITES[dernier] ?? null) : null;
+function unitOf(setting: Setting): string | null {
+  const last = setting.n.split("_").pop();
+  return last ? (UNITS[last] ?? null) : null;
 }
 
-function nomDeFichier(f: string): string {
+function fileName(f: string): string {
   return f.includes(".") ? f : `${f}.json5`;
 }
 
@@ -403,14 +415,14 @@ function nomDeFichier(f: string): string {
 // (`staging_dir`), a full path where the leaf alone would name two different
 // things (`scraper.language`), or a scheduler unit name. Those are data,
 // never French. A key absent from it falls back to itself, humanised.
-const LIBELLES_REGLAGES: Record<string, string> = fr.settings.labels;
+const SETTING_LABELS: Record<string, string> = fr.settings.labels;
 
 // A leaf key alone does not identify a setting. `enabled` sits under every
 // tracker, every torrent client, every metadata provider and the web
 // server — the row is labelled by its SUBJECT (the instance it belongs to),
 // then by what it does. Segments naming a COLLECTION rather than an
 // instance carry nothing and are dropped.
-const CONTENANTS_REGLAGES = new Set([
+const SETTING_CONTAINERS = new Set([
   "providers",
   "clients",
   "categories",
@@ -424,36 +436,40 @@ const CONTENANTS_REGLAGES = new Set([
 // path segment they name — a tracker, a client, a provider, a category — which
 // is data. A segment absent from the table falls back to itself, underscores
 // spaced out.
-const NOMS_SUJETS: Record<string, string> = fr.settings.subjects;
+const SUBJECT_NAMES: Record<string, string> = fr.settings.subjects;
 
-// `sujetReglage` drops the legacy `window.__sujetsSansNom.add(s)` diagnostic
+// `settingSubject` drops the legacy `window.__sujetsSansNom.add(s)` diagnostic
 // side effect (an unpublished engine global, unrelated to what a subject
 // renders as) — everything that decides the TEXT is reproduced.
-function sujetReglage(reglage: Reglage): string {
-  const segments = reglage.c
+function settingSubject(setting: Setting): string {
+  const segments = setting.c
     .split(".")
     .slice(0, -1)
-    .filter((s) => s !== reglage.f && !CONTENANTS_REGLAGES.has(s));
+    .filter((s) => s !== setting.f && !SETTING_CONTAINERS.has(s));
   return segments
-    .map((s) => NOMS_SUJETS[s] ?? s.replace(/_/g, " "))
+    .map((s) => SUBJECT_NAMES[s] ?? s.replace(/_/g, " "))
     .join(" · ");
 }
 
-function libelleReglage(reglage: Reglage): string {
+function settingLabel(setting: Setting): string {
   // A full path wins over a leaf: `language` means the metadata language in
   // one file and the scrape language in another, and two rows reading
   // « Langue des métadonnées » would name the same thing twice.
-  const propre =
-    LIBELLES_REGLAGES[reglage.c] ??
-    LIBELLES_REGLAGES[reglage.n] ??
-    (/^\d+$/.test(reglage.n)
-      ? `${fr.settings.genre} ${reglage.n}`
-      : reglage.n.replace(/_/g, " "));
-  const sujet = sujetReglage(reglage);
-  return sujet ? `${sujet} — ${propre}` : propre;
+  const clean =
+    SETTING_LABELS[setting.c] ??
+    SETTING_LABELS[setting.n] ??
+    (/^\d+$/.test(setting.n)
+      ? `${fr.settings.genre} ${setting.n}`
+      : setting.n.replace(/_/g, " "));
+  const subject = settingSubject(setting);
+  return subject ? `${subject} — ${clean}` : clean;
 }
 
-function BlocChamp({ bloc }: { bloc: Extract<Bloc, { type: "champ" }> }) {
+function FieldBlock({
+  block,
+}: {
+  block: Extract<PanelBlock, { type: "champ" }>;
+}) {
   const {
     reglageId,
     valeurEnCours,
@@ -461,31 +477,31 @@ function BlocChamp({ bloc }: { bloc: Extract<Bloc, { type: "champ" }> }) {
     modifierReglage,
     ouvrirReglage,
     icons,
-  } = useReferentiel();
+  } = useReference();
   const { t } = useTranslation();
-  const { reglage } = bloc;
-  const id = reglageId(reglage);
+  const { reglage: setting } = block;
+  const id = reglageId(setting);
   // The field draws what `valeurEnCours` answers — the pending edit if there
   // is one, the file's `brut` otherwise. Reading `.brut` alone would draw a
   // list one has just shortened at its old length, so a removal would look
   // like it did nothing. Never `.v`: that is a pre-formatted DISPLAY string
   // (a boolean's `.brut: false` reads `.v: "non"`, always truthy, which would
   // wedge the switch on).
-  const v = valeurEnCours(reglage);
+  const v = valeurEnCours(setting);
 
-  if (reglage.type === "structure")
+  if (setting.type === "structure")
     return (
       <div className="champ refus">
         <p className="rulenote">
           {t("settings.field.structureBefore")}{" "}
           <b>{t("settings.field.structureWord")}</b>{" "}
           {t("settings.field.structureAfter")}{" "}
-          <code>{nomDeFichier(reglage.f)}</code>.
+          <code>{fileName(setting.f)}</code>.
         </p>
       </div>
     );
 
-  if (reglage.type === "booleen")
+  if (setting.type === "booleen")
     return (
       <div className="champ">
         <button
@@ -503,7 +519,7 @@ function BlocChamp({ bloc }: { bloc: Extract<Bloc, { type: "champ" }> }) {
       </div>
     );
 
-  if (reglage.type === "liste") {
+  if (setting.type === "liste") {
     const items = Array.isArray(v) ? (v as unknown[]) : [];
     return (
       <div className="champ liste">
@@ -519,7 +535,7 @@ function BlocChamp({ bloc }: { bloc: Extract<Bloc, { type: "champ" }> }) {
                   valeur: String(x),
                 })}
               >
-                <Icone paths={icons.x} />
+                <Icon paths={icons.x} />
               </button>
             </div>
           ))
@@ -527,17 +543,17 @@ function BlocChamp({ bloc }: { bloc: Extract<Bloc, { type: "champ" }> }) {
           <p className="rulenote">{t("settings.field.emptyList")}</p>
         )}
         <button className="lajout" data-champajout={id}>
-          <Icone paths={icons.plus} />
+          <Icon paths={icons.plus} />
           {t("settings.field.add")}
         </button>
       </div>
     );
   }
 
-  const vide = v === null || v === undefined || v === "";
-  const mono = reglage.type === "chemin";
-  const numerique = reglage.type === "nombre";
-  const unite = uniteDe(reglage);
+  const empty = v === null || v === undefined || v === "";
+  const mono = setting.type === "chemin";
+  const numeric = setting.type === "nombre";
+  const unit = unitOf(setting);
 
   return (
     <div className="champ">
@@ -555,11 +571,11 @@ function BlocChamp({ bloc }: { bloc: Extract<Bloc, { type: "champ" }> }) {
         key={id}
         className={`champsaisie${mono ? " mono" : ""}`}
         data-champ={id}
-        type={numerique ? "number" : "text"}
-        inputMode={numerique ? "decimal" : undefined}
-        defaultValue={vide ? "" : String(v)}
-        placeholder={vide ? t("settings.field.undefinedPlaceholder") : ""}
-        aria-label={libelleReglage(reglage)}
+        type={numeric ? "number" : "text"}
+        inputMode={numeric ? "decimal" : undefined}
+        defaultValue={empty ? "" : String(v)}
+        placeholder={empty ? t("settings.field.undefinedPlaceholder") : ""}
+        aria-label={settingLabel(setting)}
         // The ONE place mountSearch's `.champsaisie` `onchange` binding
         // (refonte.html) is replaced by a component-owned handler — and it is
         // the SAME event, bound natively rather than through React's synthetic
@@ -578,17 +594,17 @@ function BlocChamp({ bloc }: { bloc: Extract<Bloc, { type: "champ" }> }) {
         // was first drawn for.
         ref={(element) => {
           if (!element) return;
-          const commettre = () => {
-            modifierReglage(id, valeurSaisie(reglage, element.value));
+          const commit = () => {
+            modifierReglage(id, valeurSaisie(setting, element.value));
             ouvrirReglage(id);
           };
-          element.addEventListener("change", commettre);
-          return () => element.removeEventListener("change", commettre);
+          element.addEventListener("change", commit);
+          return () => element.removeEventListener("change", commit);
         }}
       />
-      {unite ? (
-        <span className="champunite">{unite}</span>
-      ) : reglage.type === "duree" ? (
+      {unit ? (
+        <span className="champunite">{unit}</span>
+      ) : setting.type === "duree" ? (
         <span className="champunite">{t("settings.field.durationFormat")}</span>
       ) : null}
     </div>
@@ -598,58 +614,59 @@ function BlocChamp({ bloc }: { bloc: Extract<Bloc, { type: "champ" }> }) {
 /* --- the descriptor + dispatcher ------------------------------------- */
 
 // A BLOC is `{ type, … }`, never HTML. Order matters and is the caller's:
-// the five kinds `panneauBlocHTML` switches on in refonte.html.
-export type Bloc =
-  | { type: "note"; texte: Texte }
-  | { type: "faits"; lignes: Ligne[] }
+// the five kinds `panneauBlocHTML` switches on in refonte.html. The `type`
+// values and every field name are the producers' own vocabulary.
+export type PanelBlock =
+  | { type: "note"; texte: RichTextValue }
+  | { type: "faits"; lignes: FactLine[] }
   | {
       type: "actions";
       actions: (Action | null | undefined)[];
       secondaire?: boolean;
     }
-  | { type: "saisons"; suivi: Suivi; saisons: Saison[] }
-  | { type: "champ"; reglage: Reglage };
+  | { type: "saisons"; suivi: Follow; saisons: Season[] }
+  | { type: "champ"; reglage: Setting };
 
 // The refusal itself, named, so the probe that exercises it
 // (`window.__panneauInconnu`, published by the shell) raises the SAME error
 // the renderer raises rather than a copy of its message that can drift.
-export function refuserBloc(bloc: { type: string }): never {
+export function refuseBlock(block: { type: string }): never {
   // ENGLISH, and deliberately not in `fr.json`: this is a tool message. It
   // reaches a developer console and the rule harness, never a reader of the
   // interface, so it is not a translatable string — the same reason
   // `console.error` calls in the shell are English.
-  throw new Error("unknown panel block: " + bloc.type);
+  throw new Error("unknown panel block: " + block.type);
 }
 
-function BlocView({ bloc }: { bloc: Bloc }) {
-  switch (bloc.type) {
+function BlockView({ block }: { block: PanelBlock }) {
+  switch (block.type) {
     case "note":
-      return <BlocNote bloc={bloc} />;
+      return <NoteBlock block={block} />;
     case "faits":
-      return <BlocFaits bloc={bloc} />;
+      return <FactsBlock block={block} />;
     case "actions":
-      return <BlocActions bloc={bloc} />;
+      return <ActionsBlock block={block} />;
     case "saisons":
-      return <BlocSaisons bloc={bloc} />;
+      return <SeasonsBlock block={block} />;
     case "champ":
-      return <BlocChamp bloc={bloc} />;
+      return <FieldBlock block={block} />;
     default:
       // Silence here would draw an empty panel and blame the data. A block
       // type nobody declared is a fact nobody declared, and the refusal goes
       // through the ONE named thrower above, so the signal a probe reads (the
       // Error's text) is the one `window.__panneauInconnu` exercises rather
       // than a copy of it that can drift.
-      return refuserBloc(bloc as { type: string });
+      return refuseBlock(block as { type: string });
   }
 }
 
 // THE DESCRIPTOR — facts, never markup. `titre` is read unconditionally by
 // `panneauHTML` (no guard around it), so it is required here, not optional
 // as a first read of the legacy source might suggest.
-export type Descripteur = {
+export type PanelDescriptor = {
   titre: string;
   sousTitre?: string;
-  meta?: Texte;
+  meta?: RichTextValue;
   puce?: [string, string] | null;
   affiche?: { t: string; k?: string };
   avatar?: string;
@@ -658,57 +675,56 @@ export type Descripteur = {
   // the list conditionally, and `panneauBlocHTML` answered an empty string for
   // it. The same tolerance, expressed in the type instead of discovered at
   // render time.
-  blocs?: (Bloc | null | undefined)[];
+  blocs?: (PanelBlock | null | undefined)[];
 };
 
 // ONE bottom panel, and its shape follows the facts it is given — the
-// component form of `panneauHTML` (refonte.html). Not mounted anywhere in
-// this task: a later task wires `openSheet`/the React sheet layer to it.
-export function PanneauContenu({
-  descripteur,
+// component form of `panneauHTML` (refonte.html).
+export function PanelContent({
+  descriptor,
 }: {
-  descripteur: Descripteur;
+  descriptor: PanelDescriptor;
 }): JSX.Element {
-  const identite = (
+  const identity = (
     <>
-      <h3 className="sheettitle">{descripteur.titre}</h3>
-      {descripteur.sousTitre ? (
-        <span className="sheetsub">{descripteur.sousTitre}</span>
+      <h3 className="sheettitle">{descriptor.titre}</h3>
+      {descriptor.sousTitre ? (
+        <span className="sheetsub">{descriptor.sousTitre}</span>
       ) : null}
-      {descripteur.meta ? (
+      {descriptor.meta ? (
         <p className="sheetmeta">
-          <RichText valeur={descripteur.meta} />
+          <RichText value={descriptor.meta} />
         </p>
       ) : null}
-      <Puce puce={descripteur.puce} />
+      <Chip chip={descriptor.puce} />
     </>
   );
-  const portrait = descripteur.affiche ? (
+  const poster = descriptor.affiche ? (
     <span className="sheetposter">
-      <Portrait affiche={descripteur.affiche} />
+      <Poster poster={descriptor.affiche} />
     </span>
-  ) : descripteur.avatar ? (
+  ) : descriptor.avatar ? (
     <span className="avatar big" aria-hidden="true">
-      <img src={descripteur.avatar} alt="" />
+      <img src={descriptor.avatar} alt="" />
     </span>
   ) : null;
 
   return (
     <>
-      {portrait ? (
+      {poster ? (
         <div
-          className={`sheethead${descripteur.affiche ? " avecaffiche" : ""}`}
+          className={`sheethead${descriptor.affiche ? " avecaffiche" : ""}`}
         >
-          {portrait}
-          <div className="sheetid">{identite}</div>
+          {poster}
+          <div className="sheetid">{identity}</div>
         </div>
       ) : (
-        identite
+        identity
       )}
-      {(descripteur.blocs ?? [])
-        .filter((bloc): bloc is Bloc => Boolean(bloc))
-        .map((bloc, index) => (
-          <BlocView key={index} bloc={bloc} />
+      {(descriptor.blocs ?? [])
+        .filter((block): block is PanelBlock => Boolean(block))
+        .map((block, index) => (
+          <BlockView key={index} block={block} />
         ))}
     </>
   );

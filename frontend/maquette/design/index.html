@@ -65,12 +65,12 @@
     <!-- The strangler shell: the router owns the URL and the history; the
          legacy engine below keeps every surface not yet migrated. The mount
          node starts here, a plain sibling of the fragment's phone frame, but
-         coquille.tsx relocates it into `.device` before the first render —
+         shell.tsx relocates it into `.device` before the first render —
          see that file's own comment — so a migrated screen (`/profil/$titre`,
          `/ajout`) is contained by the phone frame the same way the legacy
          `#screen` is, and paints behind it when both are open at once. -->
     <div id="coquille"></div>
-    <script type="module" src="/src/coquille.tsx"></script>
+    <script type="module" src="/src/shell.tsx"></script>
     <!-- maquette -->
   </body>
 </html>

@@ -2,7 +2,7 @@
 // resource files at runtime, so `fr.json` is a STATIC import — bundled, not
 // requested — which is also why `resolveJsonModule` had to be turned on
 // (tsconfig.json). Imported once, for its side effect, before the shell
-// mounts (`coquille.tsx`'s first import): every component that calls
+// mounts (`shell.tsx`'s first import): every component that calls
 // `useTranslation()` after that point finds `i18next` already initialised.
 import i18next from "i18next";
 import { initReactI18next } from "react-i18next";

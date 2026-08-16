@@ -1,4 +1,4 @@
-// design/src/ecrans/ajout.tsx
+// design/src/screens/add.tsx
 // The second pilot: legacy `openAddScreen(query, mode)` (`refonte.html`) reborn
 // as a real route (`/ajout`) and a final component. Markup is TRANSPLANTED,
 // not translated — every tag and class below is one `refonte.html`'s BLOCK 2
@@ -28,32 +28,31 @@
 // The FIRST router-owned search params: `q` and `mode` no longer live in the
 // legacy `state.addQ` / `state.addMode` while this screen is open — the
 // router is the single source of truth for as long as the address reads
-// `/ajout`. Typing rewrites the address IN PLACE (`aller(..., remplacer:
-// true)`, same discipline `aller()`'s own doc comment states) so keystrokes
-// never stack history — R76's own rule, exercised here for the first time by
-// a CONTROLLED input rather than a one-shot navigation.
+// `/ajout`. Typing rewrites the address IN PLACE (`go(..., replace: true)`,
+// same discipline `go()`'s own doc comment states) so keystrokes never stack
+// history — R76's own rule, exercised here for the first time by a CONTROLLED
+// input rather than a one-shot navigation.
 import { useSearch } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-// Circular with coquille.tsx (it imports AjoutEcran from this file) and safe
-// today for two reasons: `aller` is a hoisted function declaration there, so
+// Circular with shell.tsx (it imports AddScreen from this file) and safe
+// today for two reasons: `go` is a hoisted function declaration there, so
 // its binding is live before either module's body runs, and this module has
-// no top-level side effect that could observe coquille.tsx mid-evaluation.
-import { aller } from "../coquille";
-import { ecrireEtat, useContenu, useEtat, useReferentiel } from "../donnees";
+// no top-level side effect that could observe shell.tsx mid-evaluation.
+import { go } from "../shell";
+import {
+  writeUiState,
+  useStoreContent,
+  useUiState,
+  useReference,
+} from "../data";
 
 type Mode = "suivi" | "identifier";
 
 // The exact shape `svgIcon(paths, strokeWidth)` produced as an HTML string —
 // rebuilt as a real element so it composes with JSX. Same helper as
-// `profil.tsx`'s, not shared between the two: a third migrated screen
+// `profile.tsx`'s, not shared between the two: a third migrated screen
 // needing it is the signal to extract it, not a guess made here.
-function Icone({
-  paths,
-  strokeWidth,
-}: {
-  paths: string;
-  strokeWidth?: number;
-}) {
+function Icon({ paths, strokeWidth }: { paths: string; strokeWidth?: number }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -68,57 +67,57 @@ function Icone({
   );
 }
 
-export function AjoutEcran() {
-  const { q, mode: modeBrut } = useSearch({ from: "/ajout" });
-  const mode: Mode = modeBrut === "identifier" ? "identifier" : "suivi";
-  const identifier = mode === "identifier";
-  const qEff = q ?? "";
-  const hasQ = qEff !== "";
+export function AddScreen() {
+  const { q, mode: rawMode } = useSearch({ from: "/ajout" });
+  const mode: Mode = rawMode === "identifier" ? "identifier" : "suivi";
+  const identify = mode === "identifier";
+  const query = q ?? "";
+  const hasQuery = query !== "";
 
   // `state.added` is a Set MUTATED IN PLACE by the still-legacy cross-world
   // "add:N" panel act and the replace-confirm dialog (refonte.html) — both
   // bump the store's `version` without producing a new `etat` reference,
-  // which `useEtat()` alone would not notice (`useSyncExternalStore`
+  // which `useUiState()` alone would not notice (`useSyncExternalStore`
   // compares the selected value by reference). Subscribing to `version`
   // directly forces this component to re-render on that bump too; the read
   // below then sees the mutated Set fresh, in the SAME render the version
   // change triggered.
-  useContenu((c) => c.version);
-  const etat = useEtat();
-  const addKind = (etat.addKind as string) ?? "Tout";
-  const idProv = (etat.idProv as string) ?? "TMDB";
-  const recents = (etat.recents as string[]) ?? [];
-  const added = etat.added as Set<number>;
-  const resolveTarget = etat.resolveTarget as string | null;
+  useStoreContent((c) => c.version);
+  const state = useUiState();
+  const addKind = (state.addKind as string) ?? "Tout";
+  const idProv = (state.idProv as string) ?? "TMDB";
+  const recents = (state.recents as string[]) ?? [];
+  const added = state.added as Set<number>;
+  const resolveTarget = state.resolveTarget as string | null;
 
   const { icons, baseTitle, SEARCH, cardHTML, addVerb, render } =
-    useReferentiel();
+    useReference();
   const { t } = useTranslation();
 
-  function ecrire(patch: Record<string, unknown>): void {
-    ecrireEtat(patch);
+  function write(patch: Record<string, unknown>): void {
+    writeUiState(patch);
   }
 
-  // Always invoked from INSIDE this screen — chercher() runs only while
-  // AjoutEcran is mounted, which means the address already reads `/ajout`.
+  // Always invoked from INSIDE this screen — search() runs only while
+  // AddScreen is mounted, which means the address already reads `/ajout`.
   // Routing it through `window.__ecrans.ajout()` (a PUSH, meant for arriving
   // here fresh from elsewhere — the FAB, a resolution's manual search)
   // stacked a second `/ajout` entry per search: the legacy engine never
   // pushed for a same-key re-render, and a screen already open should not
   // either — one "Retour" from a chip search used to leave the screen still
-  // open, having only popped back onto an earlier `/ajout` entry. `aller()`
-  // direct, with `remplacer: true`, keeps the sync with the legacy readers
+  // open, having only popped back onto an earlier `/ajout` entry. `go()`
+  // direct, with `replace: true`, keeps the sync with the legacy readers
   // (`state.addQ`/`state.addMode`) `window.__ecrans.ajout()` also performs,
   // without the push.
-  function chercher(valeur: string): void {
-    ecrire({ addQ: valeur, addMode: mode });
-    aller({
+  function search(value: string): void {
+    write({ addQ: value, addMode: mode });
+    go({
       to: "/ajout",
       search: {
-        q: valeur || undefined,
-        mode: identifier ? "identifier" : undefined,
+        q: value || undefined,
+        mode: identify ? "identifier" : undefined,
       },
-      remplacer: true,
+      replace: true,
     });
   }
 
@@ -132,36 +131,36 @@ export function AjoutEcran() {
   // `data-go`'s own comment describes, expressed as a router-owned replace
   // instead of a `__pont.remplacer` — and the legacy state is written +
   // rendered explicitly, since nothing subscribes the legacy `#view` to the
-  // store automatically (see `render`'s own doc comment in donnees.ts).
-  function verSuivis(): void {
-    ecrire({ page: "acq", acqTab: "maintenant" });
+  // store automatically (see `render`'s own doc comment in data.ts).
+  function toFollows(): void {
+    write({ page: "acq", acqTab: "maintenant" });
     render();
-    aller({
+    go({
       to: "/",
       search: { page: "acq", tab: "maintenant" },
-      remplacer: true,
+      replace: true,
     });
   }
 
-  const filtres = SEARCH.results
+  const filtered = SEARCH.results
     .map((r, i) => ({ r, i }))
     .filter(
       ({ r }) =>
         addKind === "Tout" || (addKind === "Films") === (r.k === "Film"),
     );
-  const rows = filtres
+  const rows = filtered
     .map(({ r, i }) => {
-      const fait = added.has(i);
+      const done = added.has(i);
       return cardHTML({
         t: r.t,
         k: r.k === "Film" ? "movie" : "show",
         s: `${r.y} · ${r.k} · TMDB`,
         overview: r.ov,
-        chip: fait
+        chip: done
           ? ["success", addVerb(r, i)]
           : r.owned
             ? [
-                identifier ? "success" : "warning",
+                identify ? "success" : "warning",
                 t("screens.ajout.alreadyInLibrary"),
               ]
             : null,
@@ -174,10 +173,10 @@ export function AjoutEcran() {
     <section className="screen open" data-cle={`ajout:${mode}`}>
       <div className="fichebar">
         <button className="fback" onClick={() => window.__pont.retour()}>
-          <Icone paths={icons.left} />
+          <Icon paths={icons.left} />
           {t("screens.ajout.back")}
         </button>
-        {identifier ? (
+        {identify ? (
           <span
             style={{
               marginLeft: "auto",
@@ -190,7 +189,7 @@ export function AjoutEcran() {
         ) : null}
       </div>
       <div className="port">
-        {identifier ? (
+        {identify ? (
           <div style={{ padding: "12px 14px 0" }}>
             <div
               className="surferr"
@@ -210,21 +209,21 @@ export function AjoutEcran() {
         ) : null}
         <div className="addform">
           <div className="search">
-            <Icone paths={icons.search} />
+            <Icon paths={icons.search} />
             <input
               type="search"
               id="addq"
-              value={qEff}
+              value={query}
               placeholder={t("screens.ajout.searchPlaceholder")}
               aria-label={t("screens.ajout.searchAria")}
               onChange={(event) =>
-                aller({
+                go({
                   to: "/ajout",
                   search: {
                     q: event.target.value || undefined,
-                    mode: identifier ? "identifier" : undefined,
+                    mode: identify ? "identifier" : undefined,
                   },
-                  remplacer: true,
+                  replace: true,
                 })
               }
             />
@@ -242,25 +241,25 @@ export function AjoutEcran() {
                 <button
                   key={element}
                   aria-pressed={addKind === element}
-                  onClick={() => ecrire({ addKind: element })}
+                  onClick={() => write({ addKind: element })}
                 >
                   {element}
                 </button>
               ))}
             </div>
-            <button className="btnprimary" onClick={() => chercher(qEff)}>
+            <button className="btnprimary" onClick={() => search(query)}>
               {t("screens.ajout.search")}
             </button>
           </div>
         </div>
-        {hasQ ? (
+        {hasQuery ? (
           <>
             <p className="rescount">
-              <b>{filtres.length}</b>{" "}
-              {filtres.length > 1
+              <b>{filtered.length}</b>{" "}
+              {filtered.length > 1
                 ? t("screens.ajout.resultPlural")
                 : t("screens.ajout.result")}{" "}
-              {filtres.length > 1
+              {filtered.length > 1
                 ? t("screens.ajout.shownPlural")
                 : t("screens.ajout.shown")}{" "}
               {t("screens.ajout.outOf")} <b>{SEARCH.total}</b>{" "}
@@ -282,7 +281,7 @@ export function AjoutEcran() {
           <>
             <div className="sugg">
               {recents.map((recent) => (
-                <button key={recent} onClick={() => chercher(recent)}>
+                <button key={recent} onClick={() => search(recent)}>
                   {recent}
                 </button>
               ))}
@@ -297,7 +296,7 @@ export function AjoutEcran() {
         )}
         <details className="byid">
           <summary>
-            {identifier
+            {identify
               ? t("screens.ajout.byIdIdentify")
               : t("screens.ajout.byIdAdd")}
           </summary>
@@ -307,7 +306,7 @@ export function AjoutEcran() {
                 <button
                   key={element}
                   aria-pressed={idProv === element}
-                  onClick={() => ecrire({ idProv: element })}
+                  onClick={() => write({ idProv: element })}
                 >
                   {element}
                 </button>
@@ -355,7 +354,7 @@ export function AjoutEcran() {
                 ? t("screens.ajout.addedPlural")
                 : t("screens.ajout.added")}
             </span>
-            <button onClick={verSuivis}>{t("screens.ajout.seeFollows")}</button>
+            <button onClick={toFollows}>{t("screens.ajout.seeFollows")}</button>
           </div>
         ) : null}
       </div>
