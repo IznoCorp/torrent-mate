@@ -85,11 +85,19 @@ them. None is reproduced on a device yet; each entry below records the walk that
   control's tap; a fresh-boot walk confirms `history.length` is unchanged before and after tapping
   it, matching the single-entry case the fix already covers. No live call path stacks a second
   screen either: `openScreen`'s `dejaOuvert` branch (pushed layer on top of an already-open screen)
-  exists in code, but every real trigger (`data-releases`, `data-profil`, `data-prendre`) closes
-  the current screen before opening the next, and `data-refiche` reopens the SAME key
-  (`memeEcran`, no new layer). The comment still overclaims — it is true of the DOM, not of
-  history — but no reachable walk buries two entries under a `[data-go]` tap today. Fix shape
-  unchanged: one loop, one entry per closed layer.
+  exists in code, and `data-fiche` (18336-18349) is its one UNGUARDED trigger — when no sheet is
+  open (`couche` false) it calls `openFiche(fiche)` directly, with no `closeScreen()` first, so a
+  `[data-fiche]` element tapped from inside an already-open screen WOULD stack a second one. But
+  no `[data-fiche]` element is ever rendered inside a screen today: its three producers —
+  `cardHTML`'s poster (11578), `tileHTML`'s tile (15395), the Découvrir deck's poster (15855) —
+  are called only from page-list/grid/deck builders (11555-15987), never from `openFiche`,
+  `openResolve`, or `openReleases` (39527-40337, the only functions that build screen content);
+  `openResolve`'s own cards (`releaseCardHTML`, 11613-11637) are marked `data-nonmedia` and carry
+  `data-resolve`, not `data-fiche`, by design ("no medium here yet"). The sheet-to-screen half of
+  `data-fiche` is guarded (`couche` true closes the sheet first, 18342-18344), and `data-refiche`
+  reopens the SAME key (`memeEcran`, no new layer). The comment still overclaims — it is true of
+  the DOM, not of history — but no reachable walk buries two entries under a `[data-go]` tap
+  today. Fix shape unchanged: one loop, one entry per closed layer.
 - **B-025** — harness `bugs.py` check 10b stops at the landing (`« Voir mes suivis » atterrit`)
   and never presses Back; only the sheet half (9b) is guarded. The `remplacer`-on-screen half of
   the fix — exactly what B-024 concerns — can regress without a single check falling.
