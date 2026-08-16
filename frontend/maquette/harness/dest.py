@@ -28,11 +28,14 @@ async def main():
           // named by the identity it carries and LAST, so every other case
           // resolves exactly as before. Without it, a state opening the fiche
           // would fall through to `#view` and the rule would clear the fiche's
-          // buttons without ever having looked at them.
+          // buttons without ever having looked at them. The add-media screen
+          // (`/ajout`) left `#screen` the same way and joins the fiche's rung,
+          // for the same reason.
           const racine=document.querySelector('#dlg').classList.contains('open')?document.querySelector('#dlg')
             :document.querySelector('#screen').classList.contains('open')?document.querySelector('#screen')
             :document.querySelector('#sheet').classList.contains('open')?document.querySelector('#sheet')
             :document.querySelector('.screen.open[data-cle^="fiche:"]')
+            ??document.querySelector('.screen.open[data-cle^="ajout:"]')
             ??document.querySelector('#view');
           return [...racine.querySelectorAll('button, a')]
             .filter(x=>x.getBoundingClientRect().height>0 && !x.disabled

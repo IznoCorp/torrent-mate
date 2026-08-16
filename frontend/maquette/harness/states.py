@@ -31,16 +31,19 @@ async def main():
           // carries. Without it, a state opening the fiche would count as
           // « no layer » and this rule would measure the page UNDERNEATH —
           // the overflow, the skeletons and the text of a surface the state
-          // does not show.
+          // does not show. The add-media screen (`/ajout`) left `#screen` the
+          // same way and joins the fiche's rung for the same reason: a state
+          // opening it would otherwise be measured on the page underneath.
           const fi = document.querySelector('.screen.open[data-cle^="fiche:"]');
-          const couche = sh.classList.contains('open')||sc.classList.contains('open')||dg.classList.contains('open')||!!fi;
-          // The fiche comes LAST in the precedence, so every pre-existing case
-          // resolves to exactly what it resolved to before: a panel or a dialog
-          // opened OVER the fiche is what one is looking at, and stays what is
-          // measured.
+          const aj = document.querySelector('.screen.open[data-cle^="ajout:"]');
+          const couche = sh.classList.contains('open')||sc.classList.contains('open')||dg.classList.contains('open')||!!fi||!!aj;
+          // The fiche and the add-media screen come LAST in the precedence, so
+          // every pre-existing case resolves to exactly what it resolved to
+          // before: a panel or a dialog opened OVER either one is what one is
+          // looking at, and stays what is measured.
           const cible = couche ? (dg.classList.contains('open')?dg
                                  :sc.classList.contains('open')?sc
-                                 :sh.classList.contains('open')?sh:fi) : v;
+                                 :sh.classList.contains('open')?sh:fi||aj) : v;
           return {sk:cible.querySelectorAll('.sk').length, txt:cible.textContent.replace(/\\s+/g,' ').trim().length,
                   doc:document.documentElement.scrollWidth,
                   // An overflow clipped by an ancestor is not overflow:

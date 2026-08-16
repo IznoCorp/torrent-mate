@@ -42,12 +42,14 @@ async def main():
         # `data-cle="fiche:…"`, and comes LAST in the ladder — the same order
         # `audit.py`, `dest.py` and `states.py` use — so every pre-existing
         # case resolves exactly as before and a layer opened OVER the fiche is
-        # still what gets read.
+        # still what gets read. The add-media screen (`/ajout`) left `#screen`
+        # the same way and joins the fiche's rung, for the same reason.
         bad=await pg.evaluate("""()=>{
           const r=document.querySelector('#dlg').classList.contains('open')?'#dlg'
                  :document.querySelector('#screen').classList.contains('open')?'#screen'
                  :document.querySelector('#sheet').classList.contains('open')?'#sheet'
                  :document.querySelector('.screen.open[data-cle^="fiche:"]')?'.screen.open[data-cle^="fiche:"]'
+                 :document.querySelector('.screen.open[data-cle^="ajout:"]')?'.screen.open[data-cle^="ajout:"]'
                  :'#view';
           const t=document.querySelector(r).innerText;
           const motifs=[[/\\bundefined\\b/,'undefined'],[/\\bNaN\\b/,'NaN'],[/\\bnull\\b/,'null'],

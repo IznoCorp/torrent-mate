@@ -49,11 +49,14 @@ async def main():
           // identity it carries and LAST, so every other case resolves exactly
           // as it did. Without it, the five states that open the fiche fall
           // through to `#view`, and R1/R2/R7/R22/R23 would pass on a page the
-          // state never shows — a rule gone quiet, not a rule satisfied.
+          // state never shows — a rule gone quiet, not a rule satisfied. The
+          // add-media screen (`/ajout`) left `#screen` the same way and joins
+          // the fiche's rung, for the same reason.
           const racine = document.querySelector('#dlg').classList.contains('open') ? document.querySelector('#dlg')
                        : document.querySelector('#screen').classList.contains('open') ? document.querySelector('#screen')
                        : document.querySelector('#sheet').classList.contains('open') ? document.querySelector('#sheet')
                        : document.querySelector('.screen.open[data-cle^="fiche:"]')
+                       ?? document.querySelector('.screen.open[data-cle^="ajout:"]')
                        ?? document.querySelector('#view');
 
           // R1 — every tappable poster leads to a FILLED-IN sheet
@@ -185,9 +188,13 @@ async def main():
           // above it too — and dropping it would have left the five states
           // that open it inspecting nothing at all: its `.port` padding and
           // the reachability of its last action are exactly what this rule
-          // used to hold on it when it was `#screen`.
+          // used to hold on it when it was `#screen`. The add-media screen
+          // (`/ajout`) left `#screen` the same way and joins the couches list
+          // for the same reason — otherwise the states that open it were
+          // never once measured by this rule.
           const couches = [['#screen','.port'],['#sheet','.sheetin'],
-                           ['.screen.open[data-cle^="fiche:"]','.port']];
+                           ['.screen.open[data-cle^="fiche:"]','.port'],
+                           ['.screen.open[data-cle^="ajout:"]','.port']];
           for (const [sel, inner] of couches) {
             const el = document.querySelector(sel);
             // The fiche's selector matches only while it is open, so an absent
