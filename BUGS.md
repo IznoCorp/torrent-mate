@@ -66,14 +66,30 @@ mutations are run against a rule rather than trusted to be green.
 the operator** — same standing as B-017: found by tooling, written down before anyone walks into
 them. None is reproduced on a device yet; each entry below records the walk that would.
 
-- **B-024** — `data-go` (refonte.html ~17787) closes up to three layers but settles exactly ONE
+- **B-024** — `data-go` (refonte.html ~17901) closes up to three layers but settles exactly ONE
   history entry (`__pont.remplacer` overwrites only the top). With two layer entries buried
   (screen over screen — the case the block's own comment claims to handle — or sheet over
   screen), one Back after the navigation lands on a stale `{layer}` entry and answers a
   legitimate Back with the « Encore un retour pour quitter » toast; a second Back exits the app.
-  Latent today (no reviewed control is tappable with two entries buried), but the comment
-  overclaims: it is true of the DOM, not of history. Fix shape: one loop, one entry per closed
-  layer.
+  **Latent, non atteignable** — re-measured post-SP4a, walked control by control: the DOM carries
+  exactly five `[data-go]` producers, no more. Four (12174, 12677, 12827, 12918) render only into
+  page-body `#view` content (`viewAcquisition`, `viewArrivals`, `viewIntrouvable`, `viewSystem`);
+  `#view` sits under every layer (`.screen` z-45, `.sheet` z-47 over `.topbar` z-40), so each is
+  covered — and therefore untappable — the instant any layer is open, meaning zero layers, let
+  alone two, ever precede their tap. The fifth is the user sheet's « Profil et préférences »
+  (`cible:{go:"profil"}`, the only dynamic producer in the whole file — confirmed by grep) — its
+  only trigger is the header avatar (`data-sheet="utilisateur"`), itself in `.topbar` and so
+  covered the same way whenever a screen is already open (measured: `elementFromPoint` at the
+  avatar's coordinates resolves to `.fichebar` inside `#screen`, not the avatar, and a click there
+  opens nothing). One layer (the sheet itself) is therefore the most that can ever precede this
+  control's tap; a fresh-boot walk confirms `history.length` is unchanged before and after tapping
+  it, matching the single-entry case the fix already covers. No live call path stacks a second
+  screen either: `openScreen`'s `dejaOuvert` branch (pushed layer on top of an already-open screen)
+  exists in code, but every real trigger (`data-releases`, `data-profil`, `data-prendre`) closes
+  the current screen before opening the next, and `data-refiche` reopens the SAME key
+  (`memeEcran`, no new layer). The comment still overclaims — it is true of the DOM, not of
+  history — but no reachable walk buries two entries under a `[data-go]` tap today. Fix shape
+  unchanged: one loop, one entry per closed layer.
 - **B-025** — harness `bugs.py` check 10b stops at the landing (`« Voir mes suivis » atterrit`)
   and never presses Back; only the sheet half (9b) is guarded. The `remplacer`-on-screen half of
   the fix — exactly what B-024 concerns — can regress without a single check falling.
