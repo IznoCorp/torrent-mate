@@ -537,7 +537,7 @@ S3 exposes the ~20 `library-*` Typer CLI commands as a catalog of web-UI
 maintenance actions, backed by a registry-driven form generator and a detached
 subprocess runner. All read endpoints are `GET` with the standard session guard;
 the single write endpoint (`POST …/run`) additionally requires
-`X-Requested-With: TorrentMate`. Route contract: `docs/features/maint-dash/DESIGN.md` §4.
+`X-Requested-With: TorrentMate`. Route contract: `docs/archive/features/maint-dash/DESIGN.md` §4.
 
 ### REST endpoints (`/api/maintenance`)
 
@@ -655,8 +655,8 @@ S2) with `output_tail` as the durable fallback from the history detail endpoint.
 S4 exposes the 19-file split config overlay layout (18 overlays + master) as a
 visual web editor with schema-driven forms, optimistic concurrency control,
 atomic writes, and a PM2 restart trigger. Route contract:
-`docs/features/config-editor/DESIGN.md` §4.2; plan directory:
-`docs/features/config-editor/plan/`.
+`docs/archive/features/config-editor/DESIGN.md` §4.2; plan directory:
+`docs/archive/features/config-editor/plan/`.
 
 S4 is **read-only on staging** — `PERSONALSCRAPER_WEB_ROLE=staging` makes every
 write endpoint return `403`, keeping the staging clone safe against the real
@@ -906,7 +906,7 @@ S5 replaces the batch scraper's silent auto-accept with an async decision
 queue + operator review surface. When the scraper cannot confidently pick a
 metadata match, it enqueues the item instead of guessing — the operator drains
 the queue via the web `/decisions` page or the `personalscraper scrape-resolve`
-CLI. Ticket #184; design at `docs/features/scrape-arbiter/DESIGN.md`.
+CLI. Ticket #184; design at `docs/archive/features/scrape-arbiter/DESIGN.md`.
 
 ### REST endpoints (`/api/decisions`)
 

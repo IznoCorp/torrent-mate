@@ -150,4 +150,4 @@ search+filter+rank via the registry without a torrent client.
 
 ## ACCEPTANCE criteria
 
-See `docs/features/grab-core/ACCEPTANCE.md` for executable shell commands.
+See `docs/archive/features/grab-core/ACCEPTANCE.md` for executable shell commands.

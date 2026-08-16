@@ -559,7 +559,7 @@ make test-cov 2>&1 | rg -o 'TOTAL.*[0-9]+%' | rg -o '[0-9]+%$'
 - **Primary source analysis**: `docs/analysis/03-god-modules-debt-audit.md` (god-module
   inventory, seams, stderr caveat, namespace caveats).
 - **ROADMAP entry**: `ROADMAP.md` §P3 — Tech-Debt Round 2 (`tech-debt-2`).
-- **Structural template**: `docs/features/registry/DESIGN.md` (section style, capability
+- **Structural template**: `docs/archive/features/registry/DESIGN.md` (section style, capability
   Protocols, module-layout convention).
 - **Sibling deferrals**: `ROADMAP.md` §P1 `lib-fold` (owns the `library/scanner.py` split and
   `library/` package removal), §P1 `arch-cleanup-2` (registry events on the base `Event`

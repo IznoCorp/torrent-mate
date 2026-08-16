@@ -94,7 +94,7 @@ Index d'exécution dépendance-correct. `RPx` = refacto-prép (voir section déd
 - **RP3a** `[DONE — feat/acquire-store]` — modèle de domaine **« item désiré »** partagé (Follow/Ratio/Renouvellement/E2), contrat d'entrée de l'orchestrateur. Vit dans `acquire/`.
 - **RP4** `[DONE — feat/acquire-events]` — catalogue d'events d'acquisition + subscriber Telegram (muet) ; **enregistrer le module producteur dans le hub eager-import**.
 - **RP5a** `[DONE — feat/tracker-wiring]` — câbler le registre de trackers dans le composition root + **factory config-driven + validation au boot** à parité avec metadata.
-- **LaCale Deprecation** `[DONE — refactor/rm-lacale (#156), 0.77.0]` — périmètre changé par l'opérateur : dépréciation → **suppression complète** (la-cale.space est mort). Preuves zéro-rémanence exécutables (lacale + torr9) : `docs/features/rm-lacale/ACCEPTANCE.md`.
+- **LaCale Deprecation** `[DONE — refactor/rm-lacale (#156), 0.77.0]` — périmètre changé par l'opérateur : dépréciation → **suppression complète** (la-cale.space est mort). Preuves zéro-rémanence exécutables (lacale + torr9) : `docs/archive/features/rm-lacale/ACCEPTANCE.md`.
 - **RP5c** `[DONE — feat/acquire-lobe]` — package **`acquire/`** de premier niveau (home orchestrateur/Follow/Ratio/Seed-Safety/Watcher) + **une seule poignée** au composition root.
 - **RP-layer** `[P2, parallèle]` — étendre le garde-fou de layering pour la direction d'import de `acquire/`.
 - **Web UI S1** `[P2]` — shell + auth + WebSocket + container headless.
@@ -111,7 +111,7 @@ Index d'exécution dépendance-correct. `RPx` = refacto-prép (voir section déd
 - **RP9** `[DONE — feat/airing]` — capacité de poll des dates de diffusion sur un _ensemble_ (après Q1).
 - **RP10** `[DONE — feat/watch-seed (#212)]` — moteur partagé **match-structurel + inject** (RP10a parser/comparateur `.torrent` · RP10b capacité `inject` + protocole `TorrentInjector`). Pose le terrain du **Cross-Seed (X1/X2, vague 5)** ; réutilisable par E2.
 - **Additional Trackers — torr9** `[DONE — feat/torr9 (#209)]` — premier tracker, après RP7 (auth).
-  - **Status** `[DONE — feat/torr9 mergé #209, 0.37.0]` : design+plan sur la branche (docs/features/torr9/), API capturée live (recherche JSON+JWT, radar freeleech RSS) — doc docs/reference/torr9-api.md, fixtures docs/reference/_samples/torr9/.
+  - **Status** `[DONE — feat/torr9 mergé #209, 0.37.0]` : design+plan sur la branche (docs/archive/features/torr9/), API capturée live (recherche JSON+JWT, radar freeleech RSS) — doc docs/reference/torr9-api.md, fixtures docs/reference/_samples/torr9/.
 
 - **Freeleech R1** `[P3, conditionnel]` — découverte de fenêtres (seulement si API d'énumération ; sinon récolte par recherche).
 
@@ -468,7 +468,7 @@ et le prédicat de possession (RP6).
 
 #### LaCale Deprecation
 
-`[DONE — refactor/rm-lacale (#156), 0.77.0]` — **Périmètre changé par l'opérateur : dépréciation → SUPPRESSION COMPLÈTE** (la-cale.space est mort ; la config live portait `enabled: false` avec un incident CircuitOpenError). Client, entrée factory, membre `ProviderName.LACALE`, entrées d'activation, samples de ranking, SecretsTab, bloc `config.example`, `docs/reference/lacale-api.md` + fixtures : tous supprimés. Les lignes historiques en base (`source_tracker="lacale"`) restent lisibles telles quelles — régression : `tests/acquire/test_removed_tracker_history.py` (paramétrée torr9 + lacale). Preuves zéro-rémanence exécutables (D8 torr9 + D10 lacale) : `docs/features/rm-lacale/ACCEPTANCE.md`. L'ancien plan de dépréciation (flag `deprecated`, tests skip, code conservé) est caduc — voir le journal de reclassement 2026-06-02 ci-dessous pour l'historique.
+`[DONE — refactor/rm-lacale (#156), 0.77.0]` — **Périmètre changé par l'opérateur : dépréciation → SUPPRESSION COMPLÈTE** (la-cale.space est mort ; la config live portait `enabled: false` avec un incident CircuitOpenError). Client, entrée factory, membre `ProviderName.LACALE`, entrées d'activation, samples de ranking, SecretsTab, bloc `config.example`, `docs/reference/lacale-api.md` + fixtures : tous supprimés. Les lignes historiques en base (`source_tracker="lacale"`) restent lisibles telles quelles — régression : `tests/acquire/test_removed_tracker_history.py` (paramétrée torr9 + lacale). Preuves zéro-rémanence exécutables (D8 torr9 + D10 lacale) : `docs/archive/features/rm-lacale/ACCEPTANCE.md`. L'ancien plan de dépréciation (flag `deprecated`, tests skip, code conservé) est caduc — voir le journal de reclassement 2026-06-02 ci-dessous pour l'historique.
 
 ---
 

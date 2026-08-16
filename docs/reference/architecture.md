@@ -366,7 +366,7 @@ No `acquire.db` writer may acquire `pipeline.lock` or `indexer_lock` while holdi
 `acquire.db.lock`. `acquire.db` is a separate file from `library.db`, structurally
 isolating the indexer scan's writer from the acquire writer.
 
-See `docs/features/acquire-store/lock-order.md` for the full invariant, rules,
+See `docs/archive/features/acquire-store/lock-order.md` for the full invariant, rules,
 and implementation references.
 
 ## Module relationships
@@ -739,7 +739,7 @@ half of the pipeline (follow series → detect wanted → grab torrents → trac
 obligations & ratio). It is structurally isolated from the triage engine: its own
 `acquire.db` file, its own event set, and a hard import boundary. Grab-flow internals
 are in [`grab-core.md`](grab-core.md); the lock invariant is in
-`docs/features/acquire-store/lock-order.md`. This chapter states the lobe's role,
+`docs/archive/features/acquire-store/lock-order.md`. This chapter states the lobe's role,
 boundaries, store and events.
 
 ### Role & boundaries

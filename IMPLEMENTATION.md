@@ -462,8 +462,8 @@ the audit that motivated it was done. Neither replaces a phase.
   which (« Laisser tel quel ») existed in the engine and nowhere in the interface. R57,
   `harness/decision.py`.
 
-**In the app** (`frontend/src`), from
-`docs/analysis/2026-08-12-app-component-duplication-audit.md`:
+**In the app** (`frontend/src`), from the 2026-08-12 component-duplication
+audit (the audit document itself was never committed; its outcomes are):
 
 - `ds/Panel` extracted; eleven files stopped writing the surface string by hand, and a test
   fails naming any file that starts again.

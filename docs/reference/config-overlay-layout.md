@@ -2,7 +2,7 @@
 
 > **Canonical location** (≥0.73.0): The live config directory is
 > `~/.torrentmate/config` — outside every git working tree. The repo
-> carries `config.example/` only. See `docs/features/config-home/DESIGN.md`.
+> carries `config.example/` only. See `docs/archive/features/config-home/DESIGN.md`.
 
 ## Directory structure
 

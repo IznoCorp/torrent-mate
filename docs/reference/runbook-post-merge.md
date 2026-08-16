@@ -548,7 +548,7 @@ git clone <repo> ~/staging/torrentmate  && python -m venv ~/staging/torrentmate-
 ### Step 3 — Caddy reverse-proxy blocks
 
 ```bash
-# Append the two blocks from docs/features/tm-shell/caddy-blocks.txt to the Caddyfile,
+# Append the two blocks from docs/archive/features/tm-shell/caddy-blocks.txt to the Caddyfile,
 # then validate + reload (tm.iznogoudatall.xyz → 8710, tm-staging → 8711).
 caddy validate --config /opt/homebrew/etc/Caddyfile
 caddy reload  --config /opt/homebrew/etc/Caddyfile
@@ -581,7 +581,7 @@ git checkout -b staging && git push -u origin staging   # torrentmate-autodeploy
 ### Step 7 — `/chrome` MCP validation checklist
 
 Run against the served prod (or local `127.0.0.1:8710`) build. See the recorded
-S1 run in `docs/features/tm-shell/ACCEPTANCE.md` (§`/chrome` MCP validation).
+S1 run in `docs/archive/features/tm-shell/ACCEPTANCE.md` (§`/chrome` MCP validation).
 Confirm: login (valid + invalid → « Identifiants invalides »), dashboard health
 cards green, live feed receives a real XADD event with correct severity dot
 (warning = **static** amber, error = red), install banner + dismiss persistence,
