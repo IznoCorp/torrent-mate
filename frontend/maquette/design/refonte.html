@@ -15215,6 +15215,34 @@
     valeurSaisie,
     modifierReglage,
     ouvrirReglage,
+    // The arbitration flow. `DECISIONS_ATTENTE` / `DECISIONS_REGLEES` and the
+    // label maps are all `const` declared above this literal, so a plain
+    // shorthand reference reads the finished value — no TDZ here. `toast` and
+    // `decisionEnAttente` are declared with `function` further down this same
+    // script; a function declaration hoists its whole definition (unlike
+    // `let`/`const`, which only hoist to a temporal dead zone), so a plain
+    // shorthand reference to either is already callable at this point too.
+    DECISIONS_ATTENTE,
+    DECISIONS_REGLEES,
+    MOTIF_LABEL,
+    MOTIF_TON,
+    MOTIF_POURQUOI,
+    ETAT_DECISION,
+    ETAT_DECISION_POURQUOI,
+    VIA_LABEL,
+    decisionEnAttente,
+    // Thin arrows over `derived.blocked` / `derived.stuck` — `derived` itself
+    // is already initialized above this literal, but the wrapper still earns
+    // its keep: it publishes a STABLE function reference while the value each
+    // call returns stays live against the scenario switch inside `derived`.
+    derivedBlocked: () => derived.blocked(),
+    derivedStuck: () => derived.stuck(),
+    actionResoudre,
+    actionLaisser,
+    actionRecuperer,
+    toast,
+    posterBox,
+    chipHTML,
   };
 
   const TRIS = {
