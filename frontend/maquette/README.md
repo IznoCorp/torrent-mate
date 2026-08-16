@@ -60,6 +60,35 @@ runs, so nothing needs recording or replaying. A module that fails to evaluate s
 never calls `__demarrerMoteur`, and the startup screen — already first in the frame —
 stays up: a visible, truthful failure instead of an app with mute verbs.
 
+**The panel is one component, opened through `window.__panneau`.** `<PanneauContenu>`
+(`composants/panneau.tsx`) is the single React constructor every panel draws through — a
+`Descripteur` of typed `Bloc`s, refused outright if a block's `type` is not one of the eight
+declared kinds. A producer never builds markup: it calls `window.__panneau.ouvrir(descripteur)`,
+and `.fermer(pop?)` / `.ouverte()` complete the surface, backed by the shell's own store
+(`panneauOuvert`/`panneauDescripteur`). The legacy `openSheet()` is retired to a tripwire —
+it throws, so a producer nobody converted fails where it is written instead of quietly doing
+nothing; `closeSheet(pop)` stays as a one-line verb pointing at `window.__panneau.fermer`,
+kept because the harness driver still says it. R56 (`panneau.py`) holds the shape: no caller
+hands the panel markup, exactly one constructor, every declared block draws, an undeclared
+one is refused.
+
+**The fiche is a real route, `/fiche/$titre`.** `FicheEcran` renders it inside the React root
+like `/profil/$titre` and `/ajout` before it, reached through `window.__ecrans.fiche(titre)`
+(NFC-normalised on write, same door as `.profil()`). An unknown title still renders, honestly
+— the legacy `openFiche()` it was transplanted from never had a not-found branch either — and
+a real fiche without a trailer shows its own "no trailer" line rather than hiding the section.
+R75 (`adresses_ecrans.py`) holds the address at this depth: cold entry, the hero image the
+screen paints itself actually loads, one Back returns to where the walk started, a wrong
+address still renders instead of raising.
+
+**Scroll position follows the HISTORY ENTRY, not the address.** A screen opened over another
+used to be the same legacy layer restoring its own scroll on unwind; a router-owned screen
+unmounts instead, taking its DOM — and its offset — with it. The shell keeps a small map keyed
+by each history entry's own `key` (`coquille.tsx`, "LE DÉFILEMENT SUIT L'ENTRÉE D'HISTORIQUE"),
+reads the outgoing screen's position in the history subscription — the only instant it is
+still in the DOM — and reapplies it once the incoming screen's port exists and its images have
+settled. Components never see it: no prop, no hook, no context.
+
 **The live host serves the BUILD, and so does the harness.** `serve.py` compares the
 newest mtime of the build's inputs (the three roots and every file under `src/`) against
 `dist/index.html` and rebuilds under a lock before serving (0.4 s measured), so an edit is
