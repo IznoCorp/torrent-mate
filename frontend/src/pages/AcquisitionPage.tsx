@@ -49,7 +49,7 @@ import {
   type TabId,
 } from "@/components/acquisition/meta";
 import { PlusSheet } from "@/components/acquisition/PlusSheet";
-import { SuivisPanel } from "@/components/acquisition/SuivisPanel";
+import { FollowsPanel } from "@/components/acquisition/FollowsPanel";
 import {
   VIEWTABS_HEIGHT_VAR,
   aboveBottomBar,
@@ -403,7 +403,7 @@ export default function AcquisitionPage(): ReactElement {
 
   // Warm the Suivis list while the operator is still on Maintenant: the
   // panel only mounts on tab switch, and a cold query there made the list
-  // feel slow. Same key+staleTime as SuivisPanel's useFollowed.
+  // feel slow. Same key+staleTime as FollowsPanel's useFollowed.
   useEffect(() => {
     void queryClient.prefetchQuery({
       queryKey: acqKeys.followed({ active: "all" }),
@@ -612,7 +612,7 @@ export default function AcquisitionPage(): ReactElement {
           </p>
         </div>
         {activeTab === "maintenant" && <MaintenantPanel />}
-        {activeTab === "suivis" && <SuivisPanel />}
+        {activeTab === "suivis" && <FollowsPanel />}
       </div>
 
       {/* ── « Plus » : Veille et Obligations ─────────────────────────── */}

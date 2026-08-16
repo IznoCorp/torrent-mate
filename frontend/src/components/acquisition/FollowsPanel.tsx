@@ -1,5 +1,5 @@
 /**
- * SuivisPanel — the « Suivis » catalogue view with filter pills, three display
+ * FollowsPanel — the « Suivis » catalogue view with filter pills, three display
  * modes, and a mode switcher.
  *
  * Replaces the old ``FollowedPanel`` (two tab levels, two search fields).  What
@@ -267,7 +267,7 @@ function gridBadge(item: FollowedSeriesItem): string | null {
  * Returns:
  *   The panel element.
  */
-export function SuivisPanel(): ReactElement {
+export function FollowsPanel(): ReactElement {
   const navigate = useNavigate();
   // active:"all", deliberately: the server derives status "disabled" ONLY for
   // active=0 rows, and the default fetch excludes exactly those. With the

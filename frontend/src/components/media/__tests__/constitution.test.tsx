@@ -127,7 +127,7 @@ vi.mock("@/hooks/useStagingMedia", () => ({
 import { AddMediaScreen } from "@/components/acquisition/AddMediaScreen";
 import { MediaRow } from "@/components/ds/MediaRow";
 import { MaintenantPanel } from "@/components/acquisition/MaintenantPanel";
-import { SuivisPanel } from "@/components/acquisition/SuivisPanel";
+import { FollowsPanel } from "@/components/acquisition/FollowsPanel";
 import { FollowDetailSheet } from "@/components/acquisition/FollowDetailSheet";
 import { CandidateCard } from "@/components/decisions/CandidateCard";
 import { StagingLibrary } from "@/components/staging/StagingLibrary";
@@ -142,7 +142,7 @@ const WIRED_SURFACES = [
   "AddMediaScreen",
   "MediaRow",
   "MaintenantPanel",
-  "SuivisPanel",
+  "FollowsPanel",
   "FollowDetailSheet",
   "CandidateCard",
   "StagingLibrary",
@@ -712,8 +712,8 @@ describe("§11 constitution — « Tout média est consultable »", () => {
     });
   });
 
-  describe("SuivisPanel", () => {
-    coveredSurfaces.add("SuivisPanel");
+  describe("FollowsPanel", () => {
+    coveredSurfaces.add("FollowsPanel");
 
     it("gives an identified follow a poster that reaches its sheet", () => {
       followedMock.mockReturnValue({
@@ -721,7 +721,7 @@ describe("§11 constitution — « Tout média est consultable »", () => {
         isLoading: false,
         isError: false,
       });
-      renderInRouter(<SuivisPanel />);
+      renderInRouter(<FollowsPanel />);
 
       expect(
         screen.getByRole("button", { name: "Fiche de Silo" }),
@@ -734,7 +734,7 @@ describe("§11 constitution — « Tout média est consultable »", () => {
         isLoading: false,
         isError: false,
       });
-      renderInRouter(<SuivisPanel />);
+      renderInRouter(<FollowsPanel />);
 
       expect(
         screen.queryByRole("button", { name: "Fiche de Inconnu" }),

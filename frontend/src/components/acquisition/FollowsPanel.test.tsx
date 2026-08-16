@@ -1,5 +1,5 @@
 /**
- * SuivisPanel — tests for the « Suivis » view with filter pills, three display
+ * FollowsPanel — tests for the « Suivis » view with filter pills, three display
  * modes, and the mode switcher.
  *
  * The panel replaces the old FollowedPanel (two tab levels, two search fields).
@@ -23,7 +23,7 @@ import type { FollowedSeriesItem } from "@/api/acquisition";
 
 import * as hooks from "@/hooks/useAcquisition";
 
-import { SuivisPanel } from "./SuivisPanel";
+import { FollowsPanel } from "./FollowsPanel";
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -317,7 +317,7 @@ function renderPanel(
   render(
     <QueryClientProvider client={qc}>
       <MemoryRouter>
-        <SuivisPanel />
+        <FollowsPanel />
       </MemoryRouter>
     </QueryClientProvider>,
     { container: scrollRoot },
@@ -333,7 +333,7 @@ function first<T>(arr: readonly T[]): T {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-describe("SuivisPanel", () => {
+describe("FollowsPanel", () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
