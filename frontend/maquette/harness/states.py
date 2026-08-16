@@ -37,21 +37,21 @@ async def main():
           // UNDERNEATH — the overflow, the skeletons and the text of a
           // surface the state does not show.
           const rt = document.querySelector('.screen.open[data-cle]');
-          const couche = sh.classList.contains('open')||sc.classList.contains('open')||dg.classList.contains('open')||!!rt;
+          const layer = sh.classList.contains('open')||sc.classList.contains('open')||dg.classList.contains('open')||!!rt;
           // The route rung comes LAST in the precedence, so every
           // pre-existing case resolves to exactly what it resolved to
           // before: a panel or a dialog opened OVER a route is what one is
           // looking at, and stays what is measured.
-          const cible = couche ? (dg.classList.contains('open')?dg
+          const target = layer ? (dg.classList.contains('open')?dg
                                  :sc.classList.contains('open')?sc
                                  :sh.classList.contains('open')?sh:rt) : v;
-          return {sk:cible.querySelectorAll('.sk').length, txt:cible.textContent.replace(/\\s+/g,' ').trim().length,
+          return {sk:target.querySelectorAll('.sk').length, txt:target.textContent.replace(/\\s+/g,' ').trim().length,
                   doc:document.documentElement.scrollWidth,
                   // An overflow clipped by an ancestor is not overflow:
                   // getBoundingClientRect measures BEFORE clipping. Verify the
                   // clipping instead of whitelisting the class — and the
                   // clipper must itself fit.
-                  deb:[...cible.querySelectorAll('*')].filter(e=>{
+                  spills:[...target.querySelectorAll('*')].filter(e=>{
                     if (e.getBoundingClientRect().right<=390.5) return false;
                     if (e.closest('.pillscroll')||e.closest('.eps')||e.closest('.cast')) return false;
                     for (let p=e.parentElement; p; p=p.parentElement) {
@@ -60,10 +60,10 @@ async def main():
                     }
                     return true;
                   }).length,
-                  couche};}""")
-        ok = (r['txt']>60 or r['sk']>0) and r['doc']<=390 and r['deb']==0
+                  layer};}""")
+        ok = (r['txt']>60 or r['sk']>0) and r['doc']<=390 and r['spills']==0
         if not ok: bad.append((i,r))
-        print(("  OK  " if ok else "  FAIL"), f"{i:28}", r)
+        print(("  PASS" if ok else "  FAIL"), f"{i:28}", r)
         await pg.screenshot(path=f"st_{i}.png")
     print("\nJS errors:", errs or "none")
     print("VERDICT:", f"{len(ids)-len(bad)}/{len(ids)} states conform" + ("" if not bad else f" — failures: {[x[0] for x in bad]}"))

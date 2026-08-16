@@ -44,28 +44,28 @@ PORT = 8713  # never 8710 / 8711: the reverse proxy routes production and stagin
 _journal = None
 
 
-class SortieAnticipee(Exception):
+class EarlyExit(Exception):
     """Ends the gate checks when the screen they measure is not there at all."""
 
 
-def verifier(nom, condition, detail=""):
+def check(name, condition, detail=""):
     """Records one executed check and its verdict, in the shared journal."""
-    return _journal.check(nom, condition, detail)
+    return _journal.check(name, condition, detail)
 
 
-def extrait_prototype(marque):
-    """Returns the prototype text between a pair of `login:<marque>` markers."""
+def prototype_excerpt(marker):
+    """Returns the prototype text between a pair of `login:<marker>` markers."""
     source = (ROOT / "design" / "refonte.html").read_text()
-    debut = source.find(f"login:{marque}:start")
-    fin = source.find(f"login:{marque}:end")
-    if debut < 0 or fin < 0:
-        sys.exit(f"marqueurs login:{marque} absents du prototype")
-    return source[source.index("\n", debut) + 1 : source.rindex("\n", debut, fin) + 1]
+    start = source.find(f"login:{marker}:start")
+    end = source.find(f"login:{marker}:end")
+    if start < 0 or end < 0:
+        sys.exit(f"login:{marker} markers absent from the prototype")
+    return source[source.index("\n", start) + 1 : source.rindex("\n", start, end) + 1]
 
 
-def normaliser(texte):
+def normalize(text):
     """Collapses whitespace so two renderings of the same markup compare equal."""
-    return re.sub(r"\s+", " ", texte).strip()
+    return re.sub(r"\s+", " ", text).strip()
 
 
 async def main():
@@ -74,97 +74,97 @@ async def main():
         ctx = await b.new_context(viewport={"width": 390, "height": 844},
                                   device_scale_factor=2, is_mobile=True, has_touch=True)
         pg = await ctx.new_page()
-        erreurs = []
-        pg.on("pageerror", lambda e: erreurs.append(str(e)))
+        errors = []
+        pg.on("pageerror", lambda e: errors.append(str(e)))
         await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
         await pg.evaluate("()=>document.querySelector('#toastx').click()")
 
         global _journal
-        _journal = Journal("R53 — écran de démarrage")
+        _journal = Journal("R53 — the startup screen")
 
         # 1. Declared first, so it is painted first. Measured on the SOURCE,
         #    because that is what parse order follows; the DOM would answer the
         #    same question only by accident.
         source = (ROOT / "design" / "refonte.html").read_text()
-        corps = source[source.find('<div class="device"'):]
-        rang_splash = corps.find('id="splash"')
-        premier_autre = min(
-            x for x in (corps.find("<header"), corps.find('id="port"'), corps.find('id="login"'))
+        body = source[source.find('<div class="device"'):]
+        splash_rank = body.find('id="splash"')
+        first_other = min(
+            x for x in (body.find("<header"), body.find('id="port"'), body.find('id="login"'))
             if x > 0
         )
-        verifier("déclaré avant tout le reste du cadre", 0 < rang_splash < premier_autre,
-                 f"splash à {rang_splash}, premier autre élément à {premier_autre}")
+        check("declared before everything else in the frame", 0 < splash_rank < first_other,
+                 f"splash at {splash_rank}, first other element at {first_other}")
 
         # 2. It covers the frame, and it says what is happening.
         await pg.evaluate("()=>window.__go('demarrage')")
         await pg.wait_for_timeout(250)
-        mesure = await pg.evaluate("""()=>{
+        measure = await pg.evaluate("""()=>{
           const s=document.querySelector('#splash'), d=document.querySelector('#device');
           const rs=s.getBoundingClientRect(), rd=d.getBoundingClientRect();
           const cs=getComputedStyle(s);
-          const dessous=document.elementFromPoint(rd.x+rd.width/2, rd.y+rd.height/2);
-          return {couvre: Math.abs(rs.width-rd.width)<1 && Math.abs(rs.height-rd.height)<1,
+          const underneath=document.elementFromPoint(rd.x+rd.width/2, rd.y+rd.height/2);
+          return {covers: Math.abs(rs.width-rd.width)<1 && Math.abs(rs.height-rd.height)<1,
                   visible: cs.display!=='none' && cs.opacity!=='0',
-                  marque: !!s.querySelector('.brandbig'),
-                  progression: !!s.querySelector('[role=progressbar]'),
-                  anime: getComputedStyle(s.querySelector('.splashbar i')).animationName,
-                  texte: (s.textContent||'').replace(/\\s+/g,' ').trim(),
-                  aucunControle: s.querySelectorAll('button,a,input').length,
-                  devant: !!(dessous && dessous.closest('#splash'))};}""")
-        verifier("couvre tout le cadre", mesure["couvre"] and mesure["visible"], str(mesure["couvre"]))
-        verifier("rien de l'interface ne passe devant", mesure["devant"])
-        verifier("porte la marque", mesure["marque"])
-        verifier("porte une progression animée",
-                 mesure["progression"] and mesure["anime"] not in ("none", ""), mesure["anime"])
+                  brand: !!s.querySelector('.brandbig'),
+                  progress: !!s.querySelector('[role=progressbar]'),
+                  animation: getComputedStyle(s.querySelector('.splashbar i')).animationName,
+                  text: (s.textContent||'').replace(/\\s+/g,' ').trim(),
+                  noControl: s.querySelectorAll('button,a,input').length,
+                  inFront: !!(underneath && underneath.closest('#splash'))};}""")
+        check("covers the whole frame", measure["covers"] and measure["visible"], str(measure["covers"]))
+        check("nothing of the interface comes in front", measure["inFront"])
+        check("carries the brand", measure["brand"])
+        check("carries an animated progress",
+                 measure["progress"] and measure["animation"] not in ("none", ""), measure["animation"])
 
         # The bar FILLS over the five seconds a cold load is budgeted, rather
         # than shuttling back and forth: a shuttle answers « how much longer »
         # with nothing, and reads the same at one second and at ten.
-        remplissage = await pg.evaluate("""()=>{
+        fill = await pg.evaluate("""()=>{
           const i = document.querySelector('#splash .splashbar i');
           const cs = getComputedStyle(i);
-          return {duree: cs.animationDuration, sens: cs.animationDirection,
-                  fin: cs.animationFillMode, iterations: cs.animationIterationCount};}""")
-        verifier("la barre se remplit sur 5 s, une seule fois",
-                 remplissage["duree"] == "5s" and remplissage["iterations"] == "1",
-                 str(remplissage))
+          return {duration: cs.animationDuration, direction: cs.animationDirection,
+                  fill: cs.animationFillMode, iterations: cs.animationIterationCount};}""")
+        check("the bar fills over 5 s, exactly once",
+                 fill["duration"] == "5s" and fill["iterations"] == "1",
+              str(fill))
 
         # Measured while it runs: from nothing to full, monotonically. The
         # harness freezes animations for its own measurements, so this one asks
         # for them back.
-        largeurs = await pg.evaluate("""async()=>{
+        widths = await pg.evaluate("""async()=>{
           document.documentElement.classList.remove('measuring');
           const i = document.querySelector('#splash .splashbar i');
           i.style.animation = 'none'; void i.offsetWidth; i.style.animation = '';
-          const piste = i.parentElement.getBoundingClientRect().width;
-          const prises = [];
+          const track = i.parentElement.getBoundingClientRect().width;
+          const samples = [];
           for (let n = 0; n < 6; n++) {
-            prises.push(Math.round(i.getBoundingClientRect().width / piste * 100));
+            samples.push(Math.round(i.getBoundingClientRect().width / track * 100));
             await new Promise(r => setTimeout(r, 500));
           }
-          return prises;}""")
-        verifier("elle part de zéro", largeurs[0] <= 5, str(largeurs))
-        verifier("et ne fait que croître",
-                 all(b >= a for a, b in zip(largeurs, largeurs[1:])), str(largeurs))
-        verifier("à mi-parcours elle est à mi-course",
-                 40 <= largeurs[5] <= 60, f"{largeurs[5]} % à 2,5 s")
+          return samples;}""")
+        check("it starts from zero", widths[0] <= 5, str(widths))
+        check("and only ever grows",
+                 all(b >= a for a, b in zip(widths, widths[1:])), str(widths))
+        check("halfway through it is halfway along",
+                 40 <= widths[5] <= 60, f"{widths[5]} % at 2.5 s")
         await pg.evaluate("()=>document.documentElement.classList.add('measuring')")
-        verifier("dit ce qui se passe", len(mesure["texte"]) > 20, mesure["texte"][:60])
-        verifier("n'offre aucun contrôle", mesure["aucunControle"] == 0,
-                 f"{mesure['aucunControle']} contrôle(s)")
+        check("says what is happening", len(measure["text"]) > 20, measure["text"][:60])
+        check("offers no control", measure["noControl"] == 0,
+                 f"{measure['noControl']} control(s)")
 
         # 3. Gone everywhere else. A cover left behind is the one failure this
         #    screen can cause on its own.
-        etats = await pg.evaluate("()=>window.__states()")
-        restants = []
-        for etat in etats:
-            if etat == "demarrage":
+        states = await pg.evaluate("()=>window.__states()")
+        remaining = []
+        for state_ in states:
+            if state_ == "demarrage":
                 continue
-            await pg.evaluate("(i)=>window.__go(i)", etat)
+            await pg.evaluate("(i)=>window.__go(i)", state_)
             await pg.wait_for_timeout(60)
             if await pg.evaluate("()=>getComputedStyle(document.querySelector('#splash')).display!=='none'"):
-                restants.append(etat)
-        verifier(f"absent des {len(etats) - 1} autres états", not restants, ", ".join(restants))
+                remaining.append(state_)
+        check(f"absent from the {len(states) - 1} other states", not remaining, ", ".join(remaining))
 
         # 4. Once the document has loaded there is nothing left to cover, so the
         #    screen is gone. This check has been wrong in BOTH directions: it
@@ -175,35 +175,35 @@ async def main():
         page2 = await ctx.new_page()
         await page2.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
         await page2.wait_for_timeout(400)
-        verifier("parti une fois le document chargé — il ne couvre plus rien",
+        check("gone once the document has loaded — it covers nothing any more",
                  await page2.evaluate(
                      "()=>getComputedStyle(document.querySelector('#splash')).display==='none'"))
         await page2.close()
 
         # 5. The gate the server builds shows the SAME screen, and reveals it on
         #    submit — the wait the browser spends fetching the document.
-        serveur = subprocess.Popen(
+        server = subprocess.Popen(
             [sys.executable, str(ROOT / "serve.py"), str(PORT)],
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         try:
-            portail = ""
+            gate = ""
             for _ in range(50):
                 try:
                     with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/", timeout=2) as r:
-                        portail = r.read().decode()
+                        gate = r.read().decode()
                     break
                 except urllib.error.HTTPError as err:  # 401 carries the gate
-                    portail = err.read().decode()
+                    gate = err.read().decode()
                     break
                 except OSError:
                     time.sleep(0.1)
-            verifier("le portail répond", bool(portail))
-            verifier("le portail porte l'écran de démarrage", 'id="splash"' in portail)
-            verifier("il y arrive caché", 'id="splash" hidden' in portail)
-            attendu = normaliser(extrait_prototype("splash").replace(
+            check("the gate answers", bool(gate))
+            check("the gate carries the startup screen", 'id="splash"' in gate)
+            check("it arrives there hidden", 'id="splash" hidden' in gate)
+            expected = normalize(prototype_excerpt("splash").replace(
                 ' id="splash"', ' id="splash" hidden', 1))
-            verifier("extrait du prototype, non recopié", attendu and attendu in normaliser(portail))
-            verifier("le portail porte le style de l'écran", ".splashbar" in portail)
+            check("extracted from the prototype, never retyped", expected and expected in normalize(gate))
+            check("the gate carries the screen's style", ".splashbar" in gate)
 
             page3 = await ctx.new_page()
             await page3.goto(f"http://127.0.0.1:{PORT}/", wait_until="load")
@@ -211,20 +211,20 @@ async def main():
             # anyway raises instead of naming the defect. A crash is a failure
             # nobody can read.
             if not await page3.evaluate("()=>!!document.querySelector('#splash')"):
-                verifier("caché tant qu'on n'a pas soumis", False, "aucun écran dans le portail")
-                verifier("apparaît à la soumission", False, "aucun écran dans le portail")
-                verifier("et remplace le formulaire", False, "aucun écran dans le portail")
+                check("hidden until the form is submitted", False, "no screen in the gate")
+                check("appears on submit", False, "no screen in the gate")
+                check("and replaces the form", False, "no screen in the gate")
                 await page3.close()
-                raise SortieAnticipee
-            avant = await page3.evaluate(
+                raise EarlyExit
+            before = await page3.evaluate(
                 "()=>getComputedStyle(document.querySelector('#splash')).display")
-            verifier("caché tant qu'on n'a pas soumis", avant == "none", avant)
+            check("hidden until the form is submitted", before == "none", before)
             # Submitting navigates away, so the state to measure is the one at
             # the instant of the submit, not afterwards. A second listener
             # registered after the gate's own runs after it, and sessionStorage
             # carries what it saw across the navigation.
             await page3.evaluate("""()=>document.querySelector('#loginform')
-              .addEventListener('submit', () => sessionStorage.setItem('__demarrage',
+              .addEventListener('submit', () => sessionStorage.setItem('__startup',
                 JSON.stringify({
                   splash: getComputedStyle(document.querySelector('#splash')).display,
                   login: getComputedStyle(document.querySelector('#login')).display})))""")
@@ -232,16 +232,16 @@ async def main():
             await page3.fill('input[name="motdepasse"]', "quelque-chose")
             await page3.click(".loginsubmit")
             await page3.wait_for_timeout(500)
-            apres = await page3.evaluate(
-                "()=>JSON.parse(sessionStorage.getItem('__demarrage') || 'null')") or {}
-            verifier("apparaît à la soumission", apres.get("splash", "none") != "none", str(apres))
-            verifier("et remplace le formulaire", apres.get("login") == "none", str(apres))
+            after = await page3.evaluate(
+                "()=>JSON.parse(sessionStorage.getItem('__startup') || 'null')") or {}
+            check("appears on submit", after.get("splash", "none") != "none", str(after))
+            check("and replaces the form", after.get("login") == "none", str(after))
             await page3.close()
-        except SortieAnticipee:
+        except EarlyExit:
             pass
         finally:
-            serveur.terminate()
-            serveur.wait(timeout=5)
+            server.terminate()
+            server.wait(timeout=5)
 
         # ── THE COLD LOAD, the only one an operator ever sees ──────────────
         # The screen covers ONE wait: the gap between asking for the application
@@ -286,95 +286,95 @@ async def main():
         # — a throttled network profile in the driver — which is a rule of its
         # own and an open decision for the operator, not something this one can
         # claim.
-        froide = await ctx.new_page()
-        await froide.add_init_script("""(() => {
-          window.__releves = [];
-          const noter = () => {
+        cold = await ctx.new_page()
+        await cold.add_init_script("""(() => {
+          window.__samples = [];
+          const record = () => {
             const s = document.querySelector('#splash');
-            window.__releves.push([performance.now(), s ? !s.hidden : null]);
+            window.__samples.push([performance.now(), s ? !s.hidden : null]);
           };
-          let suivi = null;
+          let tracked = null;
           new MutationObserver(() => {
             const s = document.querySelector('#splash');
-            if (s && s !== suivi) {
-              suivi = s;
-              noter();
-              new MutationObserver(noter).observe(
+            if (s && s !== tracked) {
+              tracked = s;
+              record();
+              new MutationObserver(record).observe(
                 s, {attributes: true, attributeFilter: ['hidden']});
             }
           }).observe(document, {childList: true, subtree: true});
-          const image = () => { noter(); requestAnimationFrame(image); };
-          requestAnimationFrame(image);
+          const frame = () => { record(); requestAnimationFrame(frame); };
+          requestAnimationFrame(frame);
         })()""")
-        await froide.goto("http://127.0.0.1:8899/wrapped.html", wait_until="commit")
-        await froide.wait_for_timeout(3000)
-        releves = await froide.evaluate("()=>window.__releves")
+        await cold.goto("http://127.0.0.1:8899/wrapped.html", wait_until="commit")
+        await cold.wait_for_timeout(3000)
+        samples = await cold.evaluate("()=>window.__samples")
 
         # The first reading on which the screen EXISTS is the first moment it
         # could have been seen: before it, the browser has not parsed it yet and
         # a reading of « absent » says nothing about it.
-        premiere = next(((t, v) for t, v in releves if v is not None), None)
-        verifier("l'écran de démarrage est là dès qu'il entre dans le document",
-                 premiere is not None and premiere[1] and premiere[0] < 400,
-                 f"présent à {round(premiere[0])}ms, visible : {premiere[1]}"
-                 if premiere else f"absent des {len(releves)} lectures")
-        vus = [t for t, v in releves if v]
-        partis = [t for t, v in releves if v is False and vus and t > vus[0]]
-        verifier("et il part dès que l'interface est là",
-                 bool(partis) and partis[0] < 1500,
-                 f"parti à {round(partis[0])}ms" if partis else "parti à jamais")
-        revenus = [t for t, v in releves if v and partis and t > partis[0]]
-        verifier("il ne revient pas une seconde fois", not revenus,
-                 str([round(t) for t in revenus[:3]]))
-        await froide.close()
+        first = next(((t, v) for t, v in samples if v is not None), None)
+        check("the startup screen is there as soon as it enters the document",
+                 first is not None and first[1] and first[0] < 400,
+                 f"present at {round(first[0])}ms, visible: {first[1]}"
+                 if first else f"absent from the {len(samples)} readings")
+        seen = [t for t, v in samples if v]
+        gone = [t for t, v in samples if v is False and seen and t > seen[0]]
+        check("and it leaves as soon as the interface is there",
+                 bool(gone) and gone[0] < 1500,
+                 f"gone at {round(gone[0])}ms" if gone else "gone for ever")
+        back = [t for t, v in samples if v and gone and t > gone[0]]
+        check("it does not come back a second time", not back,
+                 str([round(t) for t in back[:3]]))
+        await cold.close()
 
         # ── where the wait is PLAYED, it lasts what the bar announces ───────
         # Signing in inside the prototype fetches nothing, so the wait that
         # follows has to be played out to be judged at all. Same screen, same
         # seam, a duration instead of an observation.
-        joue = await ctx.new_page()
-        await joue.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
-        await joue.evaluate("()=>window.__chargementTermine?.()")
-        await joue.evaluate("()=>window.__go('connexion')")
-        await joue.wait_for_timeout(350)
-        await joue.evaluate("""()=>{
+        played = await ctx.new_page()
+        await played.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
+        await played.evaluate("()=>window.__chargementTermine?.()")
+        await played.evaluate("()=>window.__go('connexion')")
+        await played.wait_for_timeout(350)
+        await played.evaluate("""()=>{
           document.querySelector('[name=identifiant]').value = 'izno';
           document.querySelector('[name=motdepasse]').value = 'x';
           document.querySelector('#loginform').requestSubmit();}""")
         t1 = time.monotonic()
-        suite = []
+        series = []
         while time.monotonic() - t1 < 7:
-            suite.append((round((time.monotonic() - t1) * 1000),
-                          await joue.evaluate(
+            series.append((round((time.monotonic() - t1) * 1000),
+                          await played.evaluate(
                               "()=>{const s=document.querySelector('#splash');"
                               "return s ? !s.hidden : null;}")))
-            await joue.wait_for_timeout(120)
-        montes = [t for t, v in suite if v]
-        tombes = [t for t, v in suite if v is False and montes and t > montes[0]]
-        verifier("une connexion dans le prototype couvre l'attente",
-                 bool(montes) and montes[0] < 500, f"à {montes[0] if montes else '—'}ms")
-        verifier("et elle dure ce que la barre annonce",
-                 bool(tombes) and 4500 < tombes[0] < 6500,
-                 f"parti à {tombes[0] if tombes else 'jamais'}ms")
+            await played.wait_for_timeout(120)
+        up = [t for t, v in series if v]
+        down = [t for t, v in series if v is False and up and t > up[0]]
+        check("a sign-in inside the prototype covers the wait",
+                 bool(up) and up[0] < 500, f"at {up[0] if up else '—'}ms")
+        check("and it lasts what the bar announces",
+                 bool(down) and 4500 < down[0] < 6500,
+                 f"gone at {down[0] if down else 'never'}ms")
 
         # The seam ends it early, which is the same promise resolving sooner.
-        await joue.evaluate("()=>window.__go('connexion')")
-        await joue.wait_for_timeout(300)
-        await joue.evaluate("""()=>{
+        await played.evaluate("()=>window.__go('connexion')")
+        await played.wait_for_timeout(300)
+        await played.evaluate("""()=>{
           document.querySelector('[name=identifiant]').value = 'izno';
           document.querySelector('[name=motdepasse]').value = 'x';
           document.querySelector('#loginform').requestSubmit();}""")
-        await joue.wait_for_timeout(700)
-        avant = await joue.evaluate("()=>!document.querySelector('#splash').hidden")
-        await joue.evaluate("()=>window.__chargementTermine()")
-        await joue.wait_for_timeout(300)
-        apres = await joue.evaluate("()=>!document.querySelector('#splash').hidden")
-        verifier("un chargement qui finit tôt fait partir l'écran tôt",
-                 avant and not apres, f"à 700ms: {avant}, après résolution: {apres}")
-        await joue.close()
+        await played.wait_for_timeout(700)
+        before = await played.evaluate("()=>!document.querySelector('#splash').hidden")
+        await played.evaluate("()=>window.__chargementTermine()")
+        await played.wait_for_timeout(300)
+        after = await played.evaluate("()=>!document.querySelector('#splash').hidden")
+        check("a load that finishes early takes the screen off early",
+                 before and not after, f"at 700ms: {before}, after resolution: {after}")
+        await played.close()
 
         await b.close()
 
-    _journal.summary(erreurs)
+    _journal.summary(errors)
 
 asyncio.run(main())

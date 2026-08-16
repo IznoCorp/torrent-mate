@@ -24,18 +24,18 @@ from common import ROOT, Journal
 
 PORT = 8918
 SCRATCH = pathlib.Path("/tmp/tm-refonte/_r73")
-MOT_DE_PASSE = "epreuve"
+PASSWORD = "epreuve"
 
 
-def empreinte() -> str:
-    sel = os.urandom(16)
-    calcule = hashlib.scrypt(MOT_DE_PASSE.encode(), salt=sel,
+def fingerprint() -> str:
+    salt = os.urandom(16)
+    computed = hashlib.scrypt(PASSWORD.encode(), salt=salt,
                              n=16384, r=8, p=1, dklen=32)
-    return (base64.b64encode(sel).decode() + ":"
-            + base64.b64encode(calcule).decode())
+    return (base64.b64encode(salt).decode() + ":"
+            + base64.b64encode(computed).decode())
 
 
-def preparer_scratch() -> None:
+def prepare_scratch() -> None:
     """Builds the scratch design root: copies for what mutates, links for
     what must stay shared and read-only (node_modules, the artwork).
     """
@@ -43,8 +43,8 @@ def preparer_scratch() -> None:
         shutil.rmtree(SCRATCH)
     SCRATCH.mkdir(parents=True)
     design = ROOT / "design"
-    for nom in ("refonte.html", "index.html", "vite.config.mjs", "package.json"):
-        shutil.copy(design / nom, SCRATCH / nom)
+    for name in ("refonte.html", "index.html", "vite.config.mjs", "package.json"):
+        shutil.copy(design / name, SCRATCH / name)
     # The envelope names a module entry: without its source the scratch build
     # cannot resolve it, and the rule would report a broken host where there is
     # only an incomplete copy. It is copied, not linked — a mutation probe may
@@ -54,175 +54,175 @@ def preparer_scratch() -> None:
     (SCRATCH / "assets").symlink_to(design / "assets")
 
 
-def requete(chemin, cookie=None, methode="GET", corps=None):
+def request_(path_, cookie=None, method="GET", body=None):
     conn = http.client.HTTPConnection("127.0.0.1", PORT, timeout=150)
-    entetes = {}
+    headers = {}
     if cookie:
-        entetes["Cookie"] = cookie
-    if corps is not None:
-        entetes["Content-Type"] = "application/x-www-form-urlencoded"
-    conn.request(methode, chemin, body=corps, headers=entetes)
-    reponse = conn.getresponse()
-    donnees = reponse.read()
+        headers["Cookie"] = cookie
+    if body is not None:
+        headers["Content-Type"] = "application/x-www-form-urlencoded"
+    conn.request(method, path_, body=body, headers=headers)
+    response = conn.getresponse()
+    data = response.read()
     conn.close()
-    return reponse, donnees
+    return response, data
 
 
 def main():
-    journal = Journal("R73 — l'hôte sert le build")
-    serveur = None
+    journal = Journal("R73 — the host serves the build")
+    server = None
     try:
-        preparer_scratch()
-        serveur = subprocess.Popen(
+        prepare_scratch()
+        server = subprocess.Popen(
             [sys.executable, str(ROOT / "serve.py"), str(PORT)],
             env={**os.environ, "TM_DESIGN_RACINE": str(SCRATCH),
-                 "TM_DESIGN_PASSWORD_HASH": empreinte()},
+                 "TM_DESIGN_PASSWORD_HASH": fingerprint()},
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         # Boot wait: poll until the port answers (up to 50 × 0.1 s).
-        for tentative in range(50):
+        for attempt in range(50):
             try:
-                requete("/")
+                request_("/")
                 break
             except (OSError, http.client.HTTPException):
-                if tentative == 49:
+                if attempt == 49:
                     raise
                 time.sleep(0.1)
 
-        reponse, _ = requete(
-            "/connexion", methode="POST",
-            corps=f"identifiant=izno&motdepasse={MOT_DE_PASSE}")
-        cookie = (reponse.getheader("Set-Cookie") or "").split(";")[0]
-        journal.check("la session s'ouvre", reponse.status == 303 and cookie,
-                         f"{reponse.status}")
+        response, _ = request_(
+            "/connexion", method="POST",
+            body=f"identifiant=izno&motdepasse={PASSWORD}")
+        cookie = (response.getheader("Set-Cookie") or "").split(";")[0]
+        journal.check("the session opens", response.status == 303 and cookie,
+                         f"{response.status}")
 
         # (a) The served document IS the build, to the byte.
-        reponse, servi = requete("/", cookie)
-        chemin_bati = SCRATCH / "dist" / "index.html"
-        bati = chemin_bati.read_bytes() if chemin_bati.exists() else None
-        journal.check("le document servi est le build, à l'octet",
-                         reponse.status == 200 and bati is not None and servi == bati,
-                         f"{len(servi)} octets servis, "
-                         + (f"{len(bati)} au build" if bati is not None
-                            else "dist jamais émis"))
+        response, served = request_("/", cookie)
+        built_path = SCRATCH / "dist" / "index.html"
+        built = built_path.read_bytes() if built_path.exists() else None
+        journal.check("the served document is the build, to the byte",
+                      response.status == 200 and built is not None and served == built,
+                      f"{len(served)} bytes served, "
+                      + (f"{len(built)} in the build" if built is not None
+                         else "dist never emitted"))
 
         # (fallback) A path routing owns client-side (/fiche/…, /profil/…) is
         # not a route this static host knows about — it must still answer the
         # ONE document, exactly like "/", session-gated the same way. A 303
         # here would drop the address bar's path and defeat the router before
         # it runs; a 404 would dead-end a reload or a shared link.
-        reponse_sans, sans_session = requete("/fiche/Quoi%20Que")
-        reponse_racine, page_login = requete("/")
+        response_without, without_session = request_("/fiche/Quoi%20Que")
+        response_root, login_page = request_("/")
         journal.check(
-            "une adresse inconnue sans session répond l'écran de connexion, comme «/»",
-            reponse_sans.status == 401 and reponse_racine.status == 401
-            and sans_session == page_login,
-            f"{reponse_sans.status} vs {reponse_racine.status}")
+            "an unknown address with no session answers the sign-in screen, like «/»",
+            response_without.status == 401 and response_root.status == 401
+            and without_session == login_page,
+            f"{response_without.status} vs {response_root.status}")
 
-        reponse_avec, avec_session = requete("/fiche/Quoi%20Que", cookie)
+        response_with, with_session = request_("/fiche/Quoi%20Que", cookie)
         journal.check(
-            "une adresse inconnue avec session répond le MÊME document que «/»",
-            reponse_avec.status == 200 and avec_session == servi,
-            f"{reponse_avec.status}, {len(avec_session)} octets contre "
-            f"{len(servi)} à «/»")
+            "an unknown address with a session answers the SAME document as «/»",
+            response_with.status == 200 and with_session == served,
+            f"{response_with.status}, {len(with_session)} bytes against "
+            f"{len(served)} at «/»")
 
         # (dotted fallback) The generic fallback above is matched on a path
         # with NO dot in it. A route-shaped path can carry one of its own — a
         # release folder name, never a file extension — and this host's own
-        # unmatched-path branch (`do_GET`'s final `if not chemin.startswith(
+        # unmatched-path branch (`do_GET`'s final `if not path_.startswith(
         # ...)` cascade in `serve.py`) never tested for dots in the first
         # place, so nothing here needed changing to hold: proven directly,
         # with the SAME dossier that regressed `server.py`'s harness-only
         # fallback (Task 5, `server.py`).
-        reponse_points, avec_points = requete(
+        response_dots, with_dots = request_(
             "/resolution/Backrooms.2026.MULTi.2160p.WEB-DL", cookie)
         journal.check(
-            "une adresse profonde dont le dernier segment porte des points "
-            "répond, avec session, le MÊME document que «/»",
-            reponse_points.status == 200 and avec_points == servi,
-            f"{reponse_points.status}, {len(avec_points)} octets contre "
-            f"{len(servi)} à «/»")
+            "a deep address whose last segment carries dots "
+            "answers, with a session, the SAME document as «/»",
+            response_dots.status == 200 and with_dots == served,
+            f"{response_dots.status}, {len(with_dots)} bytes against "
+            f"{len(served)} at «/»")
 
         # (favicon) A brand asset, served without a session like the manifest
         # and the PWA icons — a `<link rel="icon">` is fetched uncredentialed.
-        reponse_favicon, corps_favicon = requete("/favicon.svg")
+        response_favicon, favicon_body = request_("/favicon.svg")
         journal.check(
-            "/favicon.svg répond 200 image/svg+xml",
-            reponse_favicon.status == 200
-            and (reponse_favicon.getheader("Content-Type") or "").startswith("image/svg+xml"),
-            f"{reponse_favicon.status}, {reponse_favicon.getheader('Content-Type')}")
+            "/favicon.svg answers 200 image/svg+xml",
+            response_favicon.status == 200
+            and (response_favicon.getheader("Content-Type") or "").startswith("image/svg+xml"),
+            f"{response_favicon.status}, {response_favicon.getheader('Content-Type')}")
 
         # (portal) The library's real artwork stays gated even now that an
         # unknown path falls through to the document instead of a redirect —
         # the fallback must not swallow the /assets/ portal rule ahead of it.
-        reponse_portail, corps_portail = requete("/assets/x.webp")
+        response_portal, portal_body = request_("/assets/x.webp")
         journal.check(
-            "/assets/x.webp sans session répond 401 — jamais la page de connexion, "
-            "jamais le fichier",
-            reponse_portail.status == 401 and corps_portail == b"",
-            f"{reponse_portail.status}, {len(corps_portail)} octets")
+            "/assets/x.webp with no session answers 401 — never the sign-in page, "
+            "never the file",
+            response_portal.status == 401 and portal_body == b"",
+            f"{response_portal.status}, {len(portal_body)} bytes")
 
         # (b) An edited source is served rebuilt — never yesterday's build.
-        with open(SCRATCH / "refonte.html", "a") as fichier:
-            fichier.write("\n<!-- r73-probe -->\n")
-        reponse, servi = requete("/", cookie)
-        journal.check("une source modifiée est reconstruite à la volée",
-                         reponse.status == 200 and b"r73-probe" in servi,
-                         f"{reponse.status}")
+        with open(SCRATCH / "refonte.html", "a") as file_:
+            file_.write("\n<!-- r73-probe -->\n")
+        response, served = request_("/", cookie)
+        journal.check("an edited source is rebuilt on the fly",
+                         response.status == 200 and b"r73-probe" in served,
+                         f"{response.status}")
 
         # Mutation 3: Verify that a corrupted build (served bytes != dist) is
         # caught by the byte-identity hold ALONE. Corrupt the dist after it's
         # built, then verify ONLY the byte-identity hold fails (others still pass).
-        chemin_dist = SCRATCH / "dist" / "index.html"
-        dist_original = chemin_dist.read_bytes()
+        dist_path = SCRATCH / "dist" / "index.html"
+        dist_original = dist_path.read_bytes()
         try:
-            chemin_dist.write_bytes(dist_original + b"\n")
-            reponse, servi = requete("/", cookie)
-            # The served bytes are now corrupted: servi != dist (but status 200).
+            dist_path.write_bytes(dist_original + b"\n")
+            response, served = request_("/", cookie)
+            # The served bytes are now corrupted: served != dist (but status 200).
             # This is a design-conformity hold; it fells byte-identity alone.
             # Verifying here proves mutation 3's isolation.
-            journal.check("mutation 3: octets corrompus du build — seule la tenue "
-                           "«le document servi est le build, à l'octet» cède",
-                             reponse.status == 200 and servi != dist_original,
-                             f"{reponse.status}, égalité: {servi == dist_original}")
+            journal.check("mutation 3: corrupted build bytes — only the hold "
+                          "«the served document is the build, to the byte» gives way",
+                          response.status == 200 and served != dist_original,
+                          f"{response.status}, equal: {served == dist_original}")
         finally:
-            chemin_dist.write_bytes(dist_original)
+            dist_path.write_bytes(dist_original)
 
         # (c) A broken build answers 503 and SAYS it broke.
         (SCRATCH / "vite.config.mjs").write_text("ceci n'est pas du javascript {\n")
         # The config is a build input: its mtime alone must trigger the try.
-        reponse, corps = requete("/", cookie)
-        corps_str = corps.decode("utf-8", "replace")
+        response, body = request_("/", cookie)
+        body_str = body.decode("utf-8", "replace")
         # Extract text between <pre and </pre> and check for non-empty error.
-        debut_pre = corps_str.find("<pre")
-        fin_pre = corps_str.find("</pre>")
-        erreur_extrait = ""
-        if debut_pre >= 0 and fin_pre > debut_pre:
-            fin_debut = corps_str.find(">", debut_pre)
-            if fin_debut >= 0 and fin_debut < fin_pre:
-                erreur_extrait = corps_str[fin_debut + 1:fin_pre].strip()
-        erreur_non_vide = len("".join(erreur_extrait.split())) >= 10
-        journal.check("un build cassé répond 503 en le disant",
-                         reponse.status == 503
-                         and "build de la maquette a" in corps_str
-                         and erreur_non_vide,
-                         f"{reponse.status}, erreur: {erreur_extrait[:60]}")
+        pre_start = body_str.find("<pre")
+        pre_end = body_str.find("</pre>")
+        error_excerpt = ""
+        if pre_start >= 0 and pre_end > pre_start:
+            tag_end = body_str.find(">", pre_start)
+            if tag_end >= 0 and tag_end < pre_end:
+                error_excerpt = body_str[tag_end + 1:pre_end].strip()
+        error_not_empty = len("".join(error_excerpt.split())) >= 10
+        journal.check("a broken build answers 503 and says so",
+                         response.status == 503
+                         and "build de la maquette a" in body_str
+                         and error_not_empty,
+                         f"{response.status}, error: {error_excerpt[:60]}")
 
         # And the way back: restoring the config heals the host on its own.
         shutil.copy(ROOT / "design" / "vite.config.mjs",
                     SCRATCH / "vite.config.mjs")
-        reponse, servi = requete("/", cookie)
-        journal.check("le rétablissement de la source guérit l'hôte",
-                         reponse.status == 200 and b"r73-probe" in servi,
-                         f"{reponse.status}")
+        response, served = request_("/", cookie)
+        journal.check("restoring the source heals the host",
+                         response.status == 200 and b"r73-probe" in served,
+                         f"{response.status}")
     finally:
-        if serveur:
-            serveur.terminate()
+        if server:
+            server.terminate()
             try:
-                serveur.wait(timeout=5)
+                server.wait(timeout=5)
             except subprocess.TimeoutExpired:
-                serveur.kill()
-                serveur.wait()
+                server.kill()
+                server.wait()
         shutil.rmtree(SCRATCH, ignore_errors=True)
     journal.summary()
 

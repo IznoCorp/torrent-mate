@@ -52,7 +52,7 @@ ROOT = pathlib.Path(os.path.expanduser("~/dev/PersonalScraper"))
 VOCABULARY = {
     "success": {"en ligne", "à l'heure", "réussi", "connecté", "joignable",
                 "disponibles", "de la place", "aucune"},
-    "alert": {"hors ligne", "en retard", "échoué", "des errors"},
+    "alert": {"hors ligne", "en retard", "échoué", "des erreurs"},
     "warning": {"bientôt plein", "à nettoyer"},
 }
 

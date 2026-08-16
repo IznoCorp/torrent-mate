@@ -25,40 +25,40 @@ from common import ROOT, Journal
 DESIGN = ROOT / "design"
 
 
-def construire(journal):
+def build(journal):
     """Runs the build, installing first only when node_modules is absent."""
     if os.environ.get("R72_SANS_BUILD") == "1":
-        journal.check("le build de la coquille aboutit", True,
-                         "sauté (R72_SANS_BUILD=1 — mutation en cours)")
+        journal.check("the shell build succeeds", True,
+                      "skipped (R72_SANS_BUILD=1 — a mutation is in flight)")
         return True
     if not (DESIGN / "node_modules").exists():
-        print("  npm ci (première fois — long)")
+        print("  npm ci (first time — slow)")
         subprocess.run(["npm", "ci"], cwd=DESIGN, check=True,
                        capture_output=True, text=True)
-    fait = subprocess.run(["npm", "run", "build"], cwd=DESIGN,
+    done = subprocess.run(["npm", "run", "build"], cwd=DESIGN,
                           capture_output=True, text=True)
-    journal.check("le build de la coquille aboutit", fait.returncode == 0,
-                     (fait.stderr or fait.stdout).strip().splitlines()[-1]
-                     if fait.returncode else "vite build")
-    return fait.returncode == 0
+    journal.check("the shell build succeeds", done.returncode == 0,
+                  (done.stderr or done.stdout).strip().splitlines()[-1]
+                  if done.returncode else "vite build")
+    return done.returncode == 0
 
 
-def verifier_holds(journal):
+def run_holds(journal):
     """Run the three holds on the built output. Called after build succeeds."""
-    emis = (DESIGN / "dist" / "index.html").read_text(encoding="utf-8")
+    emitted = (DESIGN / "dist" / "index.html").read_text(encoding="utf-8")
     fragment = (DESIGN / "refonte.html").read_text(encoding="utf-8")
 
     # Hold 1: Fragment emitted verbatim, exactly once
     journal.check(
-        "le fragment est émis verbatim, une seule fois",
-        emis.count(fragment) == 1,
-        f"fragment émis {emis.count(fragment)} fois")
+        "the fragment is emitted verbatim, exactly once",
+        emitted.count(fragment) == 1,
+        f"fragment emitted {emitted.count(fragment)} time(s)")
 
     # Hold 2: the module entry is present. Read attribute by attribute rather
     # than as one pattern: the emitted tag's attribute order is the bundler's
     # business, and a rule that fixed it would fail on a bundler upgrade while
     # the envelope was still correct.
-    script_tags = re.finditer(r"<script\b[^>]*>", emis)
+    script_tags = re.finditer(r"<script\b[^>]*>", emitted)
     matching_tags = 0
     bundle_name = None
     for tag_match in script_tags:
@@ -70,9 +70,9 @@ def verifier_holds(journal):
             bundle_name = src_match.group(1)
 
     journal.check(
-        "l'entrée du module est émise exactement une fois",
+        "the module entry is emitted exactly once",
         matching_tags == 1,
-        f"{matching_tags} match(s) trouvé(s)")
+        f"{matching_tags} match(es) found")
 
     # Hold 3: the named bundle exists on disk. It reports either way — a hold
     # that vanished when the hold above it failed would drop the run's count
@@ -80,22 +80,22 @@ def verifier_holds(journal):
     if bundle_name:
         bundle_path = DESIGN / "dist" / "vite" / bundle_name
         journal.check(
-            "le fichier du bundle existe",
+            "the bundle file exists",
             bundle_path.exists(),
             f"dist/vite/{bundle_name}")
     else:
         journal.check(
-            "le fichier du bundle existe",
+            "the bundle file exists",
             False,
-            "aucun bundle nommé — l'entrée du module n'a pas été trouvée")
+            "no bundle named — the module entry was not found")
 
 
 def main():
-    journal = Journal("R72 — la coquille émet le fragment verbatim")
-    if not construire(journal):
+    journal = Journal("R72 — the shell emits the fragment verbatim")
+    if not build(journal):
         journal.summary()
     # Run holds only after successful build (unless R72_SANS_BUILD)
-    verifier_holds(journal)
+    run_holds(journal)
     journal.summary()
 
 

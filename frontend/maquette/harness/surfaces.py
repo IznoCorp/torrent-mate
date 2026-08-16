@@ -30,11 +30,11 @@ async def main():
       // (R71: the panel is the single path to the act). Kept pointing at them,
       // both lines printed zero forever, which reads like « no results » next
       // to a count that says six.
-      return {ouvert:s.classList.contains('open'),
-              compte:(s.querySelector('.rescount')||{}).textContent?.trim(),
-              resultats:s.querySelectorAll('.reslist .card').length,
-              pieds:[...s.querySelectorAll('.reslist .cfoot')].map(x=>x.textContent.trim()),
-              parId:!!s.querySelector('.byid')};}""")
+      return {open:s.classList.contains('open'),
+              count:(s.querySelector('.rescount')||{}).textContent?.trim(),
+              results:s.querySelectorAll('.reslist .card').length,
+              feet:[...s.querySelectorAll('.reslist .cfoot')].map(x=>x.textContent.trim()),
+              byId:!!s.querySelector('.byid')};}""")
     print(" ", r)
     await pg.screenshot(path="y_ajout.png")
     # The card wears no inline action: the act lives in the result's panel,
@@ -44,20 +44,20 @@ async def main():
     print("  after adding an absent title:", await pg.evaluate("()=>document.querySelector('.addfoot')?.textContent.trim()"))
     await pg.click("[data-panel='add:0']"); await pg.wait_for_timeout(450)
     await pg.click("#sheet [data-act='add:0']"); await pg.wait_for_timeout(450)
-    print("  adding an ALREADY owned title:", await pg.evaluate("()=>{const g=document.querySelector('#dlg');return {ouvert:g.classList.contains('open'),titre:g.querySelector('h3')?.textContent};}"))
+    print("  adding an ALREADY owned title:", await pg.evaluate("()=>{const g=document.querySelector('#dlg');return {open:g.classList.contains('open'),title:g.querySelector('h3')?.textContent};}"))
     await pg.screenshot(path="y_remplacer.png")
     await pg.evaluate("()=>document.querySelector('#dlgcancel').click()"); await pg.wait_for_timeout(300)
     await pg.evaluate("()=>__close('screen')"); await pg.wait_for_timeout(400)
 
-    print("── matrice de saisons ──")
+    print("── season matrix ──")
     await pg.click('[data-acqtab="suivis"]'); await pg.wait_for_timeout(350)
     # A card body addresses its panel; it no longer opens a sheet of its own.
     await pg.click('[data-panel="media:American Dad!"]'); await pg.wait_for_timeout(500)
     r=await pg.evaluate("""()=>{const s=document.querySelector('#sheet');
       const ss=[...s.querySelectorAll('.season')];
-      return {saisons:ss.length, ordre:ss.slice(0,3).map(x=>x.querySelector('summary').textContent.replace(/\\s+/g,' ').trim()),
-              toutesRepliees:ss.every(x=>!x.open), legende:s.querySelectorAll('.legend span').length,
-              cellules:s.querySelectorAll('.ep').length};}""")
+      return {seasons:ss.length, order:ss.slice(0,3).map(x=>x.querySelector('summary').textContent.replace(/\\s+/g,' ').trim()),
+              allCollapsed:ss.every(x=>!x.open), legend:s.querySelectorAll('.legend span').length,
+              cells:s.querySelectorAll('.ep').length};}""")
     print(" ", r)
     await pg.screenshot(path="y_matrice_complete.png")
     await pg.evaluate("()=>document.querySelector('#scrim').click()"); await pg.wait_for_timeout(350)
@@ -72,13 +72,13 @@ async def main():
     # carry `open` at once and the seasons must come from the fiche, not from
     # whatever sits under it.
     r=await pg.evaluate("""()=>{const s=document.querySelector('.screen.open[data-cle^="fiche:"]');
-      if (!s) return {absente:true};
+      if (!s) return {missingScreen:true};
       const ss=[...s.querySelectorAll('.season')];
-      return {saisons:ss.length, ouvertes:ss.filter(x=>x.open).length,
-              manquants:[...s.querySelectorAll('.miss')].map(x=>x.textContent),
+      return {seasons:ss.length, open:ss.filter(x=>x.open).length,
+              missing:[...s.querySelectorAll('.miss')].map(x=>x.textContent),
               fraction:s.querySelector('.sheetmeta')?.textContent.trim(),
-              etats:[...new Set([...s.querySelectorAll('.ep')].map(x=>x.className.replace('ep ','')))],
-              legende:[...s.querySelectorAll('.legend span')].map(x=>x.textContent.trim())};}""")
+              states:[...new Set([...s.querySelectorAll('.ep')].map(x=>x.className.replace('ep ','')))],
+              legend:[...s.querySelectorAll('.legend span')].map(x=>x.textContent.trim())};}""")
     print(" ", r)
     await pg.screenshot(path="y_matrice_trous.png")
     print("\nJS errors:", errs or "none")

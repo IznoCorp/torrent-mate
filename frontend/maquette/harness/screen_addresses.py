@@ -64,7 +64,7 @@ from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from common import PHONE, Journal
-from server import demarrer_serveur
+from server import start_server
 
 PORT = 8917
 SERVED_ROOT = pathlib.Path("/tmp/tm-refonte")
@@ -211,7 +211,7 @@ async def main():
     async with async_playwright() as p:
         browser = await p.chromium.launch(channel="chrome")
 
-        with demarrer_serveur(PORT, SERVED_ROOT):
+        with start_server(PORT, SERVED_ROOT):
             base = f"http://127.0.0.1:{PORT}"
 
             # ─── Hold 1: deep entry opens the promised screen, cold ────────

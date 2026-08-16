@@ -24,47 +24,47 @@ from common import Journal
 from playwright.async_api import async_playwright
 
 # The prototype's own long-press delay; a probe shorter than it proves nothing.
-APPUI_MS = 480
+PRESS_MS = 480
 
 # The phone's OWN long press — select, copy, save — cannot be outrun by a
 # listener, and no synthetic input raises it. It is therefore asserted on the
 # DECLARATION, exactly like the `touch-action` axis claim.
-GARDE_APPUI = """(selecteurs) => {
-  const manquants = [];
-  for (const sel of selecteurs) {
+PRESS_GUARD = """(selectors) => {
+  const missing = [];
+  for (const sel of selectors) {
     const el = document.querySelector(sel);
-    if (!el) { manquants.push(sel + ' (absent de cet état)'); continue; }
+    if (!el) { missing.push(sel + ' (absent from this state)'); continue; }
     const cs = getComputedStyle(el);
     if ((cs.webkitUserSelect || cs.userSelect) !== 'none')
-      manquants.push(sel + ' sélectionnable');
+      missing.push(sel + ' selectable');
     if (cs.webkitTouchCallout && cs.webkitTouchCallout !== 'none')
-      manquants.push(sel + ' callout=' + cs.webkitTouchCallout);
+      missing.push(sel + ' callout=' + cs.webkitTouchCallout);
   }
-  return manquants;
+  return missing;
 }"""
 
 _journal = None
 
 
-def verifier(nom, condition, detail=""):
+def check(name, condition, detail=""):
     """Records one executed check and its verdict, in the shared journal."""
-    return _journal.check(nom, condition, detail)
+    return _journal.check(name, condition, detail)
 
 
-async def glisser(cdp, x0, y0, pas, dx, dy):
+async def drag(cdp, x0, y0, steps, dx, dy):
     """Drags one real finger across the page.
 
     Args:
         cdp: An open CDP session.
         x0: Starting x, in CSS pixels.
         y0: Starting y, in CSS pixels.
-        pas: Number of intermediate moves.
+        steps: Number of intermediate moves.
         dx: Horizontal travel per move.
         dy: Vertical travel per move.
     """
     await cdp.send("Input.dispatchTouchEvent",
                    {"type": "touchStart", "touchPoints": [{"x": x0, "y": y0, "id": 1}]})
-    for i in range(1, pas + 1):
+    for i in range(1, steps + 1):
         await cdp.send("Input.dispatchTouchEvent",
                        {"type": "touchMove",
                         "touchPoints": [{"x": x0 + i * dx, "y": y0 + i * dy, "id": 1}]})
@@ -78,8 +78,8 @@ async def main():
         ctx = await b.new_context(viewport={"width": 390, "height": 844},
                                   device_scale_factor=2, is_mobile=True, has_touch=True)
         pg = await ctx.new_page()
-        erreurs = []
-        pg.on("pageerror", lambda e: erreurs.append(str(e)))
+        errors = []
+        pg.on("pageerror", lambda e: errors.append(str(e)))
         cdp = await ctx.new_cdp_session(pg)
         await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
         # The startup screen covers the frame for as long as the load it stands
@@ -89,160 +89,160 @@ async def main():
         await pg.evaluate("()=>document.querySelector('#toastx').click()")
 
         global _journal
-        _journal = Journal("R55 — les gestes sous un vrai doigt")
+        _journal = Journal("R55 — the gestures under a real finger")
 
-        async def rect(selecteur):
+        async def rect(selector):
             return await pg.evaluate(
                 "(s)=>{const e=document.querySelector(s);"
-                "return e ? e.getBoundingClientRect().toJSON() : null;}", selecteur)
+                "return e ? e.getBoundingClientRect().toJSON() : null;}", selector)
 
         # 1. Pull to refresh — on every scrolling surface, not the convenient
         #    one. The indicator has to ARM and then show its spinner; a pull
         #    that travels a few pixels and stops has no loader to show.
         surfaces = ["acq-encours-repos", "acq-suivis-liste", "acq-decouvrir",
                     "lib-grille", "lib-liste", "arr-repos", "systeme"]
-        sans_charge = []
-        for etat in surfaces:
-            await pg.evaluate("(s)=>window.__go(s)", etat)
+        without_loading = []
+        for state_ in surfaces:
+            await pg.evaluate("(s)=>window.__go(s)", state_)
             await pg.wait_for_timeout(250)
             await pg.evaluate("""()=>{window.__h=0;window.__t=setInterval(()=>{
                 const p=document.querySelector('#ptr');
                 window.__h=Math.max(window.__h,p.getBoundingClientRect().height);},16);}""")
             r = await rect("#port")
-            await glisser(cdp, r["x"] + r["width"] / 2, r["y"] + 60, 10, 0, 18)
+            await drag(cdp, r["x"] + r["width"] / 2, r["y"] + 60, 10, 0, 18)
             await pg.wait_for_timeout(250)
             out = await pg.evaluate("""()=>{clearInterval(window.__t);
                 return {h:window.__h, cls:document.querySelector('#ptr').className};}""")
             # 44px is the arming threshold the gesture itself uses.
             if out["h"] < 44 or "loading" not in out["cls"]:
-                sans_charge.append(f"{etat} (h={out['h']:.0f}, {out['cls']})")
+                without_loading.append(f"{state_} (h={out['h']:.0f}, {out['cls']})")
             await pg.evaluate("()=>window.__reposPTR()")
-        verifier(f"le tirer-pour-recharger arme et tourne sur les {len(surfaces)} surfaces",
-                 not sans_charge, " · ".join(sans_charge))
+        check(f"the pull-to-refresh arms and spins on the {len(surfaces)} surfaces",
+                 not without_loading, " · ".join(without_loading))
 
         # 2. And the scrollport has NO horizontal gesture of its own. It used
         #    to change tab or lens, and it fired by accident constantly: every
         #    horizontal component of a vertical scroll, every aborted row
         #    swipe. Its absence is now the contract — a gesture that triggers
         #    what nobody asked for costs more than the taps it saves.
-        for etat, attendu in (("acq-encours-repos", "En cours"), ("lib-grille", "Médias")):
-            await pg.evaluate("(s)=>window.__go(s)", etat)
+        for state_, expected in (("acq-encours-repos", "En cours"), ("lib-grille", "Médias")):
+            await pg.evaluate("(s)=>window.__go(s)", state_)
             await pg.wait_for_timeout(250)
             r = await rect("#port")
             for direction in (-20, 20):
-                await glisser(cdp, r["x"] + r["width"] / 2, r["y"] + 200, 10, direction, 0)
+                await drag(cdp, r["x"] + r["width"] / 2, r["y"] + 200, 10, direction, 0)
                 await pg.wait_for_timeout(300)
-            reste = await pg.evaluate(
+            left = await pg.evaluate(
                 "()=>(document.querySelector('.seg [aria-selected=\"true\"]')||{}).textContent")
-            verifier(f"aucun glissé ne change de vue ({etat})",
-                     (reste or "").startswith(attendu), str(reste))
+            check(f"no drag changes the view ({state_})",
+                     (left or "").startswith(expected), str(left))
 
         # 3. A vertical drag further down the surface must still SCROLL. The
         #    cure for one gesture must not swallow the browser's own.
         await pg.evaluate("()=>window.__go('lib-grille')")
         await pg.wait_for_timeout(250)
         r = await rect("#port")
-        await glisser(cdp, r["x"] + r["width"] / 2, r["y"] + r["height"] - 120, 10, 0, -22)
+        await drag(cdp, r["x"] + r["width"] / 2, r["y"] + r["height"] - 120, 10, 0, -22)
         await pg.wait_for_timeout(350)
-        defile = await pg.evaluate("()=>document.querySelector('#port').scrollTop")
-        verifier("la surface défile toujours normalement", defile > 40, f"scrollTop={defile}")
+        scrolled = await pg.evaluate("()=>document.querySelector('#port').scrollTop")
+        check("the surface still scrolls normally", scrolled > 40, f"scrollTop={scrolled}")
 
         # 4. The gestures that claim their axis keep the pointer path, and the
         #    claim is what makes them survive. Measured, not assumed.
         await pg.evaluate("()=>window.__go('acq-suivis-liste')")
         await pg.wait_for_timeout(300)
         r = await rect("#view .swipe")
-        await glisser(cdp, r["x"] + r["width"] / 2, r["y"] + r["height"] / 2, 12, -20, 0)
+        await drag(cdp, r["x"] + r["width"] / 2, r["y"] + r["height"] / 2, 12, -20, 0)
         await pg.wait_for_timeout(300)
-        transforme = await pg.evaluate(
+        transformed = await pg.evaluate(
             "()=>getComputedStyle(document.querySelector('#view .swipe .card')).transform")
-        verifier("une rangée s'écarte encore", transforme not in ("none", "matrix(1, 0, 0, 1, 0, 0)"),
-                 transforme)
+        check("a row still opens", transformed not in ("none", "matrix(1, 0, 0, 1, 0, 0)"),
+                 transformed)
 
         await pg.evaluate("()=>window.__go('acq-decouvrir-deck')")
         await pg.wait_for_timeout(350)
-        avant = await pg.evaluate("()=>document.querySelectorAll('.sugwrap, .dcard').length")
+        before = await pg.evaluate("()=>document.querySelectorAll('.sugwrap, .dcard').length")
         r = await rect(".deck .dcard[data-depth='0']")
-        await glisser(cdp, r["x"] + r["width"] / 2, r["y"] + r["height"] / 2, 12, 22, 0)
+        await drag(cdp, r["x"] + r["width"] / 2, r["y"] + r["height"] / 2, 12, 22, 0)
         await pg.wait_for_timeout(450)
-        bouge = await pg.evaluate("""()=>{const c=document.querySelector(".deck .dcard[data-depth='0']");
+        moved = await pg.evaluate("""()=>{const c=document.querySelector(".deck .dcard[data-depth='0']");
             return c ? c.textContent.replace(/\\s+/g,' ').trim().slice(0,40) : null;}""")
-        verifier("le deck avance encore d'une carte", bool(bouge) and avant > 0, str(bouge))
+        check("the deck still moves on by one card", bool(moved) and before > 0, str(moved))
 
         # 5. THE LONG PRESS, on every surface where a tap is already spoken
         #    for. Three things a thumb taught that a mouse never does: it is
         #    never still, its pointer stream is cancelled by the compositor,
         #    and the phone offers its own select/copy menu instead.
-        async def presser(x, y, ms=700):
+        async def press(x, y, ms=700):
             await cdp.send("Input.dispatchTouchEvent",
                            {"type": "touchStart", "touchPoints": [{"x": x, "y": y, "id": 1}]})
             # A real thumb drifts several pixels over half a second. Below one,
             # Chrome delivers no `touchmove` at all — and a drift the browser
             # suppresses cannot test the tolerance that exists for it.
             for i in range(int(ms / 60)):
-                ecart = 5 if i % 2 else -5
+                drift = 5 if i % 2 else -5
                 await cdp.send("Input.dispatchTouchEvent",
                                {"type": "touchMove",
-                                "touchPoints": [{"x": x + ecart, "y": y + ecart, "id": 1}]})
+                                "touchPoints": [{"x": x + drift, "y": y + drift, "id": 1}]})
                 await asyncio.sleep(0.06)
             await cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
 
-        surfaces_appui = [
-            ("galerie des suivis", "acq-suivis-grille", ".tile"),
-            ("galerie de la médiathèque", "lib-grille", ".tile"),
-            ("affiche d'une carte", "acq-suivis-liste", "#view .card .poster"),
-            ("corps d'une carte", "acq-suivis-liste", "#view .card .cbody"),
-            ("carte du deck", "acq-decouvrir-deck", ".deck .dcard[data-depth='0']"),
+        press_surfaces = [
+            ("follows gallery", "acq-suivis-grille", ".tile"),
+            ("library gallery", "lib-grille", ".tile"),
+            ("a card's poster", "acq-suivis-liste", "#view .card .poster"),
+            ("a card's body", "acq-suivis-liste", "#view .card .cbody"),
+            ("deck card", "acq-decouvrir-deck", ".deck .dcard[data-depth='0']"),
         ]
-        sans_panneau, avec_selection, agis = [], [], []
-        for nom, etat, sel in surfaces_appui:
-            await pg.evaluate("(s)=>window.__go(s)", etat)
+        without_panel, with_selection, fired = [], [], []
+        for name, state_, sel in press_surfaces:
+            await pg.evaluate("(s)=>window.__go(s)", state_)
             await pg.wait_for_timeout(420)
-            await pg.evaluate("()=>{window.__actes=[];"
-                              "document.addEventListener('click', e=>window.__actes.push("
+            await pg.evaluate("()=>{window.__acts=[];"
+                              "document.addEventListener('click', e=>window.__acts.push("
                               "(e.target.tagName||'')+'.'+(e.target.className||'')), false);}")
             r = await rect(sel)
             if r is None:
-                sans_panneau.append(f"{nom} (cible absente)")
+                without_panel.append(f"{name} (target absente)")
                 continue
-            await presser(r["x"] + r["width"] / 2, r["y"] + r["height"] / 2)
+            await press(r["x"] + r["width"] / 2, r["y"] + r["height"] / 2)
             await pg.wait_for_timeout(400)
             out = await pg.evaluate("""()=>({
-              panneau: document.querySelector('#sheet').classList.contains('open'),
+              panel: document.querySelector('#sheet').classList.contains('open'),
               selection: String(window.getSelection() || '').length,
-              actes: window.__actes})""")
-            if not out["panneau"]:
-                sans_panneau.append(nom)
+              acts: window.__acts})""")
+            if not out["panel"]:
+                without_panel.append(name)
             if out["selection"] > 0:
-                avec_selection.append(nom)
+                with_selection.append(name)
             # The panel opens UNDER the finger: the lift must not activate its
             # primary action. That is what a long press on a follow was doing.
-            if any(".sact" in acte for acte in out["actes"]):
-                agis.append(f"{nom} → {out['actes']}")
+            if any(".sact" in act for act in out["acts"]):
+                fired.append(f"{name} → {out['acts']}")
             await pg.evaluate("()=>window.__close && window.__close('sheet')")
             await pg.wait_for_timeout(150)
-        verifier(f"l'appui long ouvre le panneau sur les {len(surfaces_appui)} surfaces",
-                 not sans_panneau, " · ".join(sans_panneau))
-        verifier("et ne sélectionne jamais rien", not avec_selection, " · ".join(avec_selection))
-        verifier("le relâchement n'actionne pas le panneau qui vient d'apparaître",
-                 not agis, " · ".join(agis))
+        check(f"the long press opens the panel on the {len(press_surfaces)} surfaces",
+                 not without_panel, " · ".join(without_panel))
+        check("and never selects anything", not with_selection, " · ".join(with_selection))
+        check("the lift does not fire the panel that has just appeared",
+                 not fired, " · ".join(fired))
 
         # The phone's OWN long press — select, copy, save — cannot be outrun by
         # a listener, and no synthetic input raises it, so it is asserted on the
         # declaration itself. Exactly like the `touch-action` axis claim.
         # Each surface is checked in a state that DRAWS it: the deck state has
         # no list poster, and a rule that skips what is absent proves nothing.
-        for etat, selecteurs in (("acq-suivis-liste", [".poster"]),
+        for state_, selectors in (("acq-suivis-liste", [".poster"]),
                                  ("lib-grille", [".tile"]),
                                  ("acq-decouvrir-deck", [".dcard"]),
                                  ("feuille-suivi-complet", [".sheetposter"])):
-            await pg.evaluate("(s)=>window.__go(s)", etat)
+            await pg.evaluate("(s)=>window.__go(s)", state_)
             await pg.wait_for_timeout(320)
-            refus = await pg.evaluate(GARDE_APPUI, selecteurs)
-            if refus:
+            refusal = await pg.evaluate(PRESS_GUARD, selectors)
+            if refusal:
                 break
-        verifier("les surfaces pressables refusent le menu du téléphone",
-                 not refus, " · ".join(refus))
+        check("the pressable surfaces refuse the phone's own menu",
+                 not refusal, " · ".join(refusal))
 
 
         # ── the browser's own menu is refused where we answer ─────────────
@@ -251,24 +251,24 @@ async def main():
         # observable fact is that the event is prevented — a native menu itself
         # is not observable from here, so asserting its absence would be a rule
         # that can never fail.
-        refus = await pg.evaluate("""()=>{
-          const cible = document.querySelector('#view .poster') ||
-                        document.querySelector('#view .card');
+        refusal = await pg.evaluate("""()=>{
+          const target = document.querySelector('#view .poster') ||
+                         document.querySelector('#view .card');
           const e = new MouseEvent('contextmenu', {bubbles:true, cancelable:true});
-          cible.dispatchEvent(e);
-          return {sur: cible.className, refuse: e.defaultPrevented};}""")
-        verifier("le menu du navigateur est refusé sur une affiche",
-                 refus["refuse"], refus["sur"])
+          target.dispatchEvent(e);
+          return {on: target.className, refused: e.defaultPrevented};}""")
+        check("the browser's menu is refused on a poster",
+                 refusal["refused"], refusal["on"])
 
         # But never inside a text field: pasting has no other route there, and
         # the interface offers nothing of its own.
-        champ = await pg.evaluate("""()=>{
+        field = await pg.evaluate("""()=>{
           const c = document.querySelector('#device input[type="search"], #device input');
           if (!c) return null;
           const e = new MouseEvent('contextmenu', {bubbles:true, cancelable:true});
           c.dispatchEvent(e);
           return e.defaultPrevented;}""")
-        verifier("mais gardé dans un champ de saisie", champ is False, str(champ))
+        check("but kept inside a text field", field is False, str(field))
 
         # ── and the press answers ABOVE the scrollport too ─────────────────
         # The listeners lived on the scrollport, which holds the pages and
@@ -292,19 +292,19 @@ async def main():
         # (`/ajout`, rendered inside `#coquille`), not `#screen`: the card
         # this hold reaches is drawn there, above the scrollport just the
         # same.
-        couche = await pg.evaluate("""()=>{
+        layer = await pg.evaluate("""()=>{
           const port = document.querySelector('#port');
           const c = [...document.querySelectorAll('.card')]
             .find(e => e.getBoundingClientRect().width > 0 && !port.contains(e));
           if (!c) return null;
           const e = new MouseEvent('contextmenu', {bubbles:true, cancelable:true});
           c.dispatchEvent(e);
-          return {dansEcran: !!document.querySelector('.screen.open')?.contains(c),
-                  refuse: e.defaultPrevented};}""")
-        verifier("une carte est dessinée au-dessus du défilement",
-                 couche is not None and couche["dansEcran"], str(couche))
-        verifier("et le menu du navigateur y est refusé aussi",
-                 bool(couche and couche["refuse"]), str(couche))
+          return {inScreen: !!document.querySelector('.screen.open')?.contains(c),
+                  refused: e.defaultPrevented};}""")
+        check("a card is drawn above the scrollport",
+                 layer is not None and layer["inScreen"], str(layer))
+        check("and the browser's menu is refused there too",
+                 bool(layer and layer["refused"]), str(layer))
 
         # And a press there must ARM. Four states draw a poster above the
         # scrollport — a poster is not a card body, so nothing refuses it a
@@ -314,9 +314,9 @@ async def main():
         # tell a press from a tap.
         await pg.evaluate("()=>closeSheet()")
         await pg.wait_for_timeout(340)
-        verifier("le panneau part fermé", not await pg.evaluate(
+        check("the panel starts closed", not await pg.evaluate(
             "()=>document.querySelector('#sheet').classList.contains('open')"))
-        cible = await pg.evaluate("""()=>{
+        target = await pg.evaluate("""()=>{
           const port = document.querySelector('#port');
           const a = [...document.querySelectorAll('.poster')]
             .find(e => e.getBoundingClientRect().width > 0 && !port.contains(e));
@@ -324,18 +324,18 @@ async def main():
           const r = a.getBoundingClientRect();
           const x = r.x + r.width / 2, y = r.y + r.height / 2;
           return port.contains(document.elementFromPoint(x, y)) ? null : {x, y};}""")
-        verifier("une affiche est dessinée au-dessus du défilement", cible is not None)
-        if cible:
+        check("a poster is drawn above the scrollport", target is not None)
+        if target:
             await cdp.send("Input.dispatchTouchEvent",
                            {"type": "touchStart",
-                            "touchPoints": [{"x": cible["x"], "y": cible["y"], "id": 1}]})
-            await pg.wait_for_timeout(APPUI_MS + 240)
-            pendant = await pg.evaluate(
+                            "touchPoints": [{"x": target["x"], "y": target["y"], "id": 1}]})
+            await pg.wait_for_timeout(PRESS_MS + 240)
+            during = await pg.evaluate(
                 "()=>document.querySelector('#sheet').classList.contains('open')")
             await cdp.send("Input.dispatchTouchEvent",
                            {"type": "touchEnd", "touchPoints": []})
             await pg.wait_for_timeout(320)
-            verifier("et un appui long y ouvre le panneau, doigt encore posé", pendant)
+            check("and a long press there opens the panel, finger still down", during)
             await pg.evaluate("()=>closeSheet()")
             await pg.wait_for_timeout(300)
 
@@ -347,18 +347,18 @@ async def main():
         # swipe, on a third gesture no rule had looked at.
         await pg.evaluate("()=>{closeSheet(); openFollowSheet('Silo');}")
         await pg.wait_for_timeout(450)
-        verifier("une feuille est ouverte", await pg.evaluate(
+        check("a sheet is open", await pg.evaluate(
             "()=>document.querySelector('#sheet').classList.contains('open')"))
 
-        async def glisserPoignee(depuis, jusqua, pas=12):
+        async def drag_handle(from_, to, steps=12):
             """Drags one finger down the handle, in steps a thumb really makes."""
             r = await pg.evaluate(
                 "()=>{const b=document.querySelector('#sheetgrab').getBoundingClientRect();"
                 "return {x:b.x+b.width/2, y:b.y+b.height/2};}")
             await cdp.send("Input.dispatchTouchEvent",
                            {"type": "touchStart",
-                            "touchPoints": [{"x": r["x"], "y": r["y"] + depuis, "id": 1}]})
-            for dy in range(pas, jusqua + 1, pas):
+                            "touchPoints": [{"x": r["x"], "y": r["y"] + from_, "id": 1}]})
+            for dy in range(steps, to + 1, steps):
                 await cdp.send("Input.dispatchTouchEvent",
                                {"type": "touchMove",
                                 "touchPoints": [{"x": r["x"], "y": r["y"] + dy, "id": 1}]})
@@ -367,20 +367,20 @@ async def main():
                            {"type": "touchEnd", "touchPoints": []})
             await pg.wait_for_timeout(420)
 
-        await glisserPoignee(0, 150)
-        verifier("un glissé de 150px ferme la feuille", not await pg.evaluate(
+        await drag_handle(0, 150)
+        check("a 150px drag closes the sheet", not await pg.evaluate(
             "()=>document.querySelector('#sheet').classList.contains('open')"))
 
         # A short drag is not a dismissal: it must spring back, and it must not
         # leave the sheet displaced.
         await pg.evaluate("()=>openFollowSheet('Silo')")
         await pg.wait_for_timeout(450)
-        await glisserPoignee(0, 24)
-        etat = await pg.evaluate("""()=>({
-          ouverte: document.querySelector('#sheet').classList.contains('open'),
-          deplacee: document.querySelector('#sheet').style.transform || ''})""")
-        verifier("un glissé trop court la laisse ouverte", etat["ouverte"], str(etat))
-        verifier("et remise en place", not etat["deplacee"], etat["deplacee"])
+        await drag_handle(0, 24)
+        sheet_state = await pg.evaluate("""()=>({
+          open: document.querySelector('#sheet').classList.contains('open'),
+          moved: document.querySelector('#sheet').style.transform || ''})""")
+        check("a drag too short leaves it open", sheet_state["open"], str(sheet_state))
+        check("and put back in place", not sheet_state["moved"], sheet_state["moved"])
         # A MOUSE drag must close it too — the interface is used from a desktop
         # browser. Touch gets implicit pointer capture for free; a mouse does
         # not, so without an explicit capture the events stop the moment the
@@ -398,7 +398,7 @@ async def main():
             await asyncio.sleep(0.016)
         await pg.mouse.up()
         await pg.wait_for_timeout(420)
-        verifier("à la souris aussi, un glissé de 150px ferme", not await pg.evaluate(
+        check("with a mouse too, a 150px drag closes it", not await pg.evaluate(
             "()=>document.querySelector('#sheet').classList.contains('open')"))
 
         # A cancel is not a lift. The compositor can still take the gesture — a
@@ -422,15 +422,15 @@ async def main():
             await asyncio.sleep(0.016)
         await cdp.send("Input.dispatchTouchEvent", {"type": "touchCancel", "touchPoints": []})
         await pg.wait_for_timeout(420)
-        annule = await pg.evaluate("""()=>{
+        cancelled = await pg.evaluate("""()=>{
           const s = document.querySelector('#sheet');
-          return {ouverte: s.classList.contains('open'), deplacee: s.style.transform || ''};}""")
-        verifier("une annulation ne ferme pas la feuille", annule["ouverte"], str(annule))
-        verifier("et la remet en place", not annule["deplacee"], annule["deplacee"])
+          return {open: s.classList.contains('open'), moved: s.style.transform || ''};}""")
+        check("a cancel does not close the sheet", cancelled["open"], str(cancelled))
+        check("and puts it back in place", not cancelled["moved"], cancelled["moved"])
         await pg.evaluate("()=>closeSheet()")
         await pg.wait_for_timeout(320)
 
-        verifier("aucune erreur JS", not erreurs, str(erreurs))
+        check("no JS error", not errors, str(errors))
         await b.close()
 
     _journal.summary()

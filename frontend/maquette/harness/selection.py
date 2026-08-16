@@ -6,7 +6,7 @@ async def main():
     ctx=await b.new_context(viewport={"width":390,"height":844},device_scale_factor=2,is_mobile=True,has_touch=True)
     pg=await ctx.new_page(); errs=[]
     pg.on("pageerror", lambda e: errs.append(str(e)))
-    echecs = []
+    failures = []
     await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
     # The startup screen covers the frame for as long as the load it stands
     # for lasts. Nothing is being fetched here, so the harness closes that
@@ -16,15 +16,15 @@ async def main():
 
     print("tab labels:", await pg.evaluate("()=>[...document.querySelectorAll('.seg button')].map(b=>b.textContent.trim())"))
     await pg.click('[data-page="lib"]'); await pg.wait_for_timeout(400)
-    print("lentilles          :", await pg.evaluate("()=>[...document.querySelectorAll('.seg button')].map(b=>b.textContent.trim())"))
+    print("lenses            :", await pg.evaluate("()=>[...document.querySelectorAll('.seg button')].map(b=>b.textContent.trim())"))
 
-    print("\n── grille au repos ──")
-    print("  pastilles visibles :", await pg.evaluate("()=>document.querySelectorAll('.tile .sel').length"), "(attendu 0)")
-    print("  selection bar:", await pg.evaluate("()=>!!document.querySelector('.selbar')"), "(attendu False)")
-    print("  tap ouvre la fiche :", await pg.evaluate("()=>!!document.querySelector('[data-tile]').dataset.fiche"))
+    print("\n── grid at rest ──")
+    print("  chips visible      :", await pg.evaluate("()=>document.querySelectorAll('.tile .sel').length"), "(expected 0)")
+    print("  selection bar:", await pg.evaluate("()=>!!document.querySelector('.selbar')"), "(expected False)")
+    print("  tap opens the sheet:", await pg.evaluate("()=>!!document.querySelector('[data-tile]').dataset.fiche"))
     await pg.screenshot(path="x_grille_repos.png")
 
-    print("\n── appui long ──")
+    print("\n── long press ──")
     # A pointer event of type « touch »: the handlers serve finger, mouse and pen
     # through one path, and a raw TouchEvent no longer reaches them.
     await pg.evaluate("""()=>{const el=document.querySelector('[data-tile]'),r=el.getBoundingClientRect();
@@ -36,31 +36,31 @@ async def main():
       // reaches.
       window.setTimeout(()=>window.dispatchEvent(new PointerEvent('pointerup',p)), 600);}""")
     await pg.wait_for_timeout(900)
-    appui = await pg.evaluate("""()=>{const s=document.querySelector('#sheet');
-        return {ouverte:s.classList.contains('open'), actions:[...s.querySelectorAll('.sact')].map(x=>x.textContent.trim())};}""")
-    print("  feuille ouverte :", appui)
-    if not appui["ouverte"]:
-        echecs.append("long press opens nothing")
+    press = await pg.evaluate("""()=>{const s=document.querySelector('#sheet');
+        return {open:s.classList.contains('open'), actions:[...s.querySelectorAll('.sact')].map(x=>x.textContent.trim())};}""")
+    print("  sheet open      :", press)
+    if not press["open"]:
+        failures.append("long press opens nothing")
     await pg.screenshot(path="x_appuilong.png")
     await pg.evaluate("()=>document.querySelector('#scrim').click()"); await pg.wait_for_timeout(350)
 
     print("\n── selection mode ──")
     await pg.click('[data-selmode="1"]'); await pg.wait_for_timeout(350)
-    print("  pastilles :", await pg.evaluate("()=>document.querySelectorAll('.tile .sel').length"))
-    print("  barre     :", (await pg.evaluate("()=>document.querySelector('.selbar').textContent")).strip()[:52])
+    print("  chips     :", await pg.evaluate("()=>document.querySelectorAll('.tile .sel').length"))
+    print("  bar       :", (await pg.evaluate("()=>document.querySelector('.selbar').textContent")).strip()[:52])
     for i in (0,2,5):
         await pg.click(f"[data-tile='{i}']"); await pg.wait_for_timeout(120)
     print("  after 3 taps:", (await pg.evaluate("()=>document.querySelector('.selbar .n').textContent")).strip())
     await pg.screenshot(path="x_selection.png")
     await pg.click("[data-delsel]"); await pg.wait_for_timeout(400)
-    print("  dialogue :", await pg.evaluate("""()=>{const g=document.querySelector('#dlg');
-        return {titre:g.querySelector('h3').textContent, lignes:g.querySelectorAll('.manifest li').length,
-                choix:[...g.querySelectorAll('.dlgbtn')].map(x=>x.textContent.trim())};}"""))
+    print("  dialog   :", await pg.evaluate("""()=>{const g=document.querySelector('#dlg');
+        return {title:g.querySelector('h3').textContent, rows:g.querySelectorAll('.manifest li').length,
+                choices:[...g.querySelectorAll('.dlgbtn')].map(x=>x.textContent.trim())};}"""))
     await pg.screenshot(path="x_supprmulti.png")
     print("\nJS errors:", errs or "none")
     print("VERDICT:", "both delete paths are reachable"
-          if not echecs and not errs else f"FAILED - {echecs or errs}")
+          if not failures and not errs else f"FAILED - {failures or errs}")
     await b.close()
-    if echecs or errs:
+    if failures or errs:
         raise SystemExit(1)
 asyncio.run(main())

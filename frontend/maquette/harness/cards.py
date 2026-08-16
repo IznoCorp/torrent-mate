@@ -464,8 +464,8 @@ async def main():
             print("  R47     and the text beside it keeps its margin")
 
         executed += 1
-        for texte in truncated:
-            failures.append(f"R48 a reason is truncated: « {texte}… »")
+        for text in truncated:
+            failures.append(f"R48 a reason is truncated: « {text}… »")
 
         # ---- R44 -------------------------------------------------------
         state_, expected = COMPARISON
