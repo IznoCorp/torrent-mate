@@ -20,6 +20,7 @@ import { AjoutEcran } from "./ecrans/ajout";
 import { FicheEcran } from "./ecrans/fiche";
 import { ProfilEcran } from "./ecrans/profil";
 import { ReleasesEcran } from "./ecrans/releases";
+import { ResolutionEcran } from "./ecrans/resolution";
 import { creerMagasin, type Magasin } from "./magasin";
 
 // R69's addressable state, validated — absent means "unchanged", as before.
@@ -56,6 +57,14 @@ type Ecrans = {
   // `state.relTitre` (the legacy first line of `openReleases`, still read by
   // the `data-prendre` click-delegation branch) BEFORE navigating.
   releases: (titre: string) => void;
+  // The arbitration screen — the folder crosses as a plain string, and the
+  // ARGUMENT IS OPTIONAL: the legacy `openResolve()` was called with nothing
+  // from two call sites and picked the first stuck folder itself, so the
+  // default is resolved here rather than at each caller. `remplacer` is for
+  // the one caller that used to close the screen and re-open it on the next
+  // folder — a pop plus a push, net one entry, which a replace reproduces
+  // exactly.
+  resolution: (dossier?: string, remplacer?: boolean) => void;
   // `q`/`mode` cross the bridge as plain strings, the way a legacy call site
   // already holds them (`state.addQ`, a literal like `"identifier"`) — the
   // validated union lives in `/ajout`'s own `validateSearch`, not here.
@@ -182,6 +191,16 @@ const releases = createRoute({
   path: "/releases/$titre",
   component: ReleasesEcran,
 });
+// The arbitration screen: what is stuck, and which medium it is. `$dossier` is
+// the FOLDER as it is on disk — not a media title, which is precisely what is
+// missing — percent-encoded and NFC-normalised on both ends like every other
+// `$` param here. No search param: the screen carries no state of its own, and
+// an answer changes the queue rather than the address.
+const resolution = createRoute({
+  getParentRoute: () => racine,
+  path: "/resolution/$dossier",
+  component: ResolutionEcran,
+});
 // A thrown component used to fail into a bare `null` — the exact failure
 // shape this whole architecture exists to kill: a blank phone frame with
 // nothing on screen saying why, and nothing in the console pointing at it
@@ -211,7 +230,14 @@ function EcranEnErreur({ error }: { error: unknown }) {
 }
 
 const routeur = createRouter({
-  routeTree: racine.addChildren([attrape, profil, ajout, fiche, releases]),
+  routeTree: racine.addChildren([
+    attrape,
+    profil,
+    ajout,
+    fiche,
+    releases,
+    resolution,
+  ]),
   history: historique,
   // The document is also read under other paths than `/` — the rule harness
   // serves it as `wrapped.html`. The router's built-in not-found fallback
@@ -411,6 +437,36 @@ window.__ecrans = {
     aller({
       to: "/releases/$titre",
       params: { titre: titre.normalize("NFC") },
+    });
+  },
+  // The legacy `openResolve`'s own first two lines, transplanted here rather
+  // than into the component. Two things happen before the address changes,
+  // and both are the shell's business:
+  //   - the DEFAULT subject is resolved. `openResolve()` was called with no
+  //     argument from the deck's own state and from the « Résoudre → » act,
+  //     and answered with the first stuck folder. That fallback stays one
+  //     expression, read through the référentiel's live arrow, instead of
+  //     being re-derived at each call site.
+  //   - `state.resolveTarget` is written. It is what the `data-resolve` and
+  //     `data-laisser` click-delegation branches read as THE FOLDER (the
+  //     attribute they carry is the choice, not the subject), so it must be
+  //     current before the route renders — exactly as the legacy function
+  //     wrote it before drawing the screen. Same accepted debt as `/ajout` and
+  //     `/releases`: an entry reached by a typed URL never crossed this door,
+  //     so those branches would act on a stale target until the legacy
+  //     dispatcher itself goes.
+  // A subject that resolves to nothing at all keeps the legacy's own last
+  // resort — the screen said « élément inconnu » and offered its three ways
+  // out on that name — expressed here as the address, since the address is the
+  // identity now.
+  resolution: (dossier?: string, remplacer?: boolean) => {
+    const premier = window.__referentiel.derivedStuck()[0]?.t;
+    const cible = dossier ?? (typeof premier === "string" ? premier : null);
+    window.__magasin.ecrire({ resolveTarget: cible });
+    aller({
+      to: "/resolution/$dossier",
+      params: { dossier: (cible ?? "élément inconnu").normalize("NFC") },
+      remplacer,
     });
   },
   // Kept in sync in `magasin.ecrire` BEFORE navigating: `state.addMode` is
