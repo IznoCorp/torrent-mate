@@ -177,7 +177,7 @@ except Exception as e:  # noqa: BLE001 — catches TVDBError, requests.Connectio
     log.warning("show_tvdb_fallback_tmdb", title=title, exc_info=True, error=str(e))
 ```
 
-Reference templates: `personalscraper/notifier.py:73`, `personalscraper/scraper/confidence.py::match_tvshow`.
+Reference templates: `personalscraper/api/notify/telegram.py::TelegramNotifier.send`, `personalscraper/scraper/_match_tv.py::match_tvshow_detailed`.
 
 **Scope**: this is mandatory for **new code** added during review. A sweep of the 20+ pre-existing
 broad-except sites is out of scope per DESIGN §2 (only new/touched code is in scope).
@@ -257,7 +257,7 @@ they appear across all domain events:
 | --------------- | ----------- | ------------------------------------------------------------------ |
 | `item`          | `str`       | Human-readable item name (folder name or title)                    |
 | `item_id`       | `int`       | Database primary key of the item                                   |
-| `disk_id`       | `str`       | Disk identifier as defined in `config/storage.json5`               |
+| `disk_id`       | `str`       | Disk identifier as defined in `config/disks.json5`                 |
 | `status`        | `str`       | Outcome of the action — `"valid"`, `"blocked"`, `"ok"`, `"failed"` |
 | `errors`        | `list[str]` | Validation errors or failure reasons (empty list = success)        |
 | `checks_passed` | `int`       | Number of checks that passed (verify context)                      |

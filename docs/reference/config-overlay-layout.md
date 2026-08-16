@@ -19,6 +19,7 @@ config/                       ← gitignored, machine-specific (created by init-
   scraper.json5               ← scraper, ingest, sort, fuzzy_match
   trailers.json5              ← trailers.*
   indexer.json5               ← indexer.*
+  acquire.json5               ← acquire.*
   thresholds.json5            ← thresholds.*
   metadata.json5              ← metadata.*
   providers.json5             ← providers.*
@@ -46,6 +47,7 @@ config.example/               ← tracked, canonical template for new installs
   scraper.json5
   trailers.json5
   indexer.json5
+  acquire.json5
   thresholds.json5
   metadata.json5
   providers.json5

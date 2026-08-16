@@ -268,9 +268,10 @@ capability.
 
 ### FsProbe consolidation
 
-A single cached `probe_mount(path)` call (`personalscraper/indexer/_fs_probe.py`)
-replaces the three independent `mount` parsers that previously lived in
-`db.py`, `scanner/_spotlight.py`, and `scanner/__init__.py`.
+A single cached `probe_mount(path)` call (`personalscraper/core/sqlite/_fs_probe.py`;
+`personalscraper/indexer/_fs_probe.py` remains as a re-export shim, so the old
+import path still works) replaces the three independent `mount` parsers that
+previously lived in `db.py`, `scanner/_spotlight.py`, and `scanner/__init__.py`.
 
 **Timeout:** 10 seconds (consolidated from the former 5s in `db.py` and 10s in
 the scanner modules). The result is cached for the process lifetime — `mount`
