@@ -14701,67 +14701,6 @@
     return REG_ETAT.modifs.has(id) ? REG_ETAT.modifs.get(id) : reglage.brut;
   }
 
-  function champReglageHTML(reglage) {
-    const id = escapeHtml(reglageId(reglage));
-    const v = valeurEnCours(reglage);
-    const unite = uniteDe(reglage);
-
-    if (reglage.type === "structure")
-      return `<div class="champ refus">
-        <p class="rulenote">Cette valeur est une <b>structure</b> — une liste d'objets avec leurs
-        propres clés. Elle ne s'édite pas ici : un formulaire qu'on ne peut pas valider promettrait
-        une modification qui casse le fichier. Ouvrez <code>${escapeHtml(nomDeFichier(reglage.f))}</code>.</p>
-      </div>`;
-
-    if (reglage.type === "booleen")
-      return `<div class="champ">
-        <button class="interrupteur${v ? " actif" : ""}" role="switch"
-          aria-checked="${v ? "true" : "false"}" data-champ="${id}" data-vers="${v ? "non" : "oui"}">
-          <span class="pastille"></span>
-        </button>
-        <span class="champlbl">${v ? "Activé" : "Désactivé"}</span>
-      </div>`;
-
-    if (reglage.type === "liste") {
-      const items = Array.isArray(v) ? v : [];
-      return `<div class="champ liste">
-        ${
-          items.length
-            ? items
-                .map(
-                  (x, i) =>
-                    `<div class="litem"><span>${escapeHtml(x)}</span><button class="lsupp"
-                      data-champsupp="${id}" data-index="${i}" aria-label="Retirer ${escapeHtml(x)}">
-                      ${svgIcon(icons.x)}</button></div>`,
-                )
-                .join("")
-            : `<p class="rulenote">Aucune valeur. La liste est vide, ce qui n'est pas la même chose
-               qu'une valeur absente.</p>`
-        }
-        <button class="lajout" data-champajout="${id}">${svgIcon(icons.plus)}Ajouter</button>
-      </div>`;
-    }
-
-    const vide = v === null || v === undefined || v === "";
-    const mono = reglage.type === "chemin";
-    const numerique = reglage.type === "nombre";
-    return `<div class="champ">
-      <input class="champsaisie${mono ? " mono" : ""}" data-champ="${id}"
-        type="${numerique ? "number" : "text"}"
-        ${numerique ? 'inputmode="decimal"' : ""}
-        value="${vide ? "" : escapeHtml(String(v))}"
-        placeholder="${vide ? "non défini" : ""}"
-        aria-label="${escapeHtml(libelleReglage(reglage))}">
-      ${
-        unite
-          ? `<span class="champunite">${escapeHtml(unite)}</span>`
-          : reglage.type === "duree"
-            ? `<span class="champunite">format 72h</span>`
-            : ""
-      }
-    </div>`;
-  }
-
   function ligneReglageHTML(reglage, avecFichier = false) {
     const modifie = REG_ETAT.modifs.has(reglageId(reglage));
     const origine = avecFichier
@@ -39716,42 +39655,6 @@
       </summary>
       <div class="eps">${cells}</div>
     </details>`;
-  }
-
-  /* The season matrix and the legend that reads it — ONE block, so a panel
-     asking for seasons cannot get the matrix without the key to it.
-
-     The legend lists only the states actually PRESENT, and it sits above the
-     matrix: under 403 episodes it would be invisible exactly when it is
-     needed. */
-  function saisonsHTML(follow, saisons) {
-    const catalogue = (number) =>
-      sheetFor(follow.t)?.eps?.[String(number)] ?? null;
-    const aDesAnnonces = saisons.some((saison) =>
-      (catalogue(saison[0]) ?? []).some(
-        (episode) => episode.air && episode.air > AUJOURDHUI,
-      ),
-    );
-    const etats = [
-      ...new Set([
-        ...(aDesAnnonces ? ["annonce"] : []),
-        ...saisons.flatMap((saison) => [
-          ...(saison[2] > 0 ? ["en_mediatheque"] : []),
-          ...(saison[1] > saison[2]
-            ? [epState(follow, saison[0], saison[1], saison[2])]
-            : []),
-        ]),
-      ]),
-    ];
-    return `<div class="legend">${EP_ORDER.filter((etat) =>
-      etats.includes(etat),
-    )
-      .map(
-        (etat) =>
-          `<span><i class="${EP_SWATCH[etat]}"></i>${EP_LABEL[etat]}</span>`,
-      )
-      .join("")}</div>
-      ${saisons.map((saison) => seasonHTML(follow, saison)).join("")}`;
   }
 
   /* Tapping a cell: its air date, in French. The sentence follows the state
