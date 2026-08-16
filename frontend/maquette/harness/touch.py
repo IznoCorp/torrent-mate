@@ -203,7 +203,7 @@ async def main():
                               "(e.target.tagName||'')+'.'+(e.target.className||'')), false);}")
             r = await rect(sel)
             if r is None:
-                without_panel.append(f"{name} (target absente)")
+                without_panel.append(f"{name} (target absent)")
                 continue
             await press(r["x"] + r["width"] / 2, r["y"] + r["height"] / 2)
             await pg.wait_for_timeout(400)

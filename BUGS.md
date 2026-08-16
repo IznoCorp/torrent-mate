@@ -106,7 +106,7 @@ them. None is reproduced on a device yet; each entry below records the walk that
   Settles with the ownership law when `data-go` itself migrates to the shell (SP4d): if a sixth
   producer, or a new path to the existing five, can ever reach a layer, the entry-count law
   (`__pont.regler(n)`, sketched but unapplied here) is owed then, not before.
-- **B-025** — harness `bugs.py` check 10b stops at the landing (`« Voir mes suivis » atterrit`)
+- **B-025** — harness `bugs.py` check 10b stops at the landing (`10b. « Voir mes suivis » lands`)
   and never presses Back; only the sheet half (9b) is guarded. The `remplacer`-on-screen half of
   the fix — exactly what B-024 concerns — can regress without a single check falling.
   **Fixed (SP4b, task 6).** The footer itself left `data-go` between the review and this walk
@@ -346,7 +346,7 @@ between the page and everywhere they had been.
 there reaches where one was before opening it. Closing it without going anywhere restores the
 history exactly as it was.
 
-**Mutation.** Make the destination push instead of replace → « retour ramène au départ » falls on
+**Mutation.** Make the destination push instead of replace → `from « <entry> », back returns to the start` falls on
 all four entries.
 
 ---
@@ -381,7 +381,7 @@ A third instance of the same class was found while fixing it: the quick-action b
 row's transform by hand without clearing what was RECORDED about it, so the next drag resumed from
 a drawer that was no longer open. They close through the shared close now.
 
-**Mutation.** Restore the deduced origin → « une ligne ouverte suit le doigt sans sauter » falls at 252. Remove the clamp → « le glissé inverse la ramène au repos » falls.
+**Mutation.** Restore the deduced origin → « an open row follows the finger without leaping » falls at 252. Remove the clamp → « the reverse drag settles it back at rest, without opening the other side » falls.
 
 ---
 
