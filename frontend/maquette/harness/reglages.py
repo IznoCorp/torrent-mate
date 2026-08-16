@@ -36,6 +36,10 @@ CONFIG = pathlib.Path.home() / ".torrentmate" / "config"
 # kept beside the engine's own configuration.
 DEHORS = (pathlib.Path.home() / "deploy" / "torrentmate",
           pathlib.Path.home() / "dev")
+# Typed into one setting's field, and looked for everywhere else afterwards.
+# Nothing a real setting could hold, so finding it under another id names the
+# defect rather than a coincidence.
+SONDE = "sonde-inter-panneaux"
 
 _journal = None
 
@@ -47,7 +51,7 @@ def verifier(nom, condition, detail=""):
 
 async def main():
     global _journal
-    _journal = Journal(f"R60 — les réglages")
+    _journal = Journal("R60 — les réglages")
 
     async with async_playwright() as p:
         b = await p.chromium.launch(channel="chrome")
@@ -336,6 +340,52 @@ async def main():
         apres = await pg.evaluate("()=>document.querySelectorAll('#sheetin .litem').length")
         verifier("une liste perd vraiment un élément", apres == avant - 1,
                  f"{avant} → {apres}")
+
+        # A field belongs to the setting it edits, and to no other. The panel
+        # is ONE layer, reused from one setting to the next — the checks above
+        # only ever open a single one, so a field handed on to the setting
+        # after it would pass every one of them. Two settings of the same type
+        # are opened in a row, with something typed into the first, because
+        # that is the whole defect: a text field carries a value the operator
+        # typed, and carrying it into the NEXT panel both shows a value that is
+        # not the setting's and files it under the setting's id on the next
+        # commit — a setting silently overwritten with another's value.
+        ouvrir_texte = """(n) => {
+          const textes = REGLAGES.flatMap(r => r.r).filter(x => x.type === 'texte');
+          const x = textes[n];
+          REG_ETAT.rubrique = REGLAGES.find(r => r.r.includes(x)).id;
+          render(); ouvrirReglage(reglageId(x));
+          return {id: reglageId(x), sienne: String(x.brut ?? '')};}"""
+        lire_champ = """() => {const e = document.querySelector('#sheetin .champsaisie');
+          return e ? {valeur: e.value, champ: e.dataset.champ} : null;}"""
+
+        premier = await pg.evaluate(ouvrir_texte, 0)
+        await pg.wait_for_timeout(330)
+        await pg.fill("#sheetin .champsaisie", SONDE)
+        await pg.evaluate("()=>document.querySelector('#sheetin .champsaisie')"
+                          ".dispatchEvent(new Event('change'))")
+        await pg.wait_for_timeout(330)
+        await pg.evaluate("()=>closeSheet()")
+        await pg.wait_for_timeout(330)
+
+        second = await pg.evaluate(ouvrir_texte, 1)
+        await pg.wait_for_timeout(330)
+        lu = await pg.evaluate(lire_champ)
+        verifier("le réglage suivant ouvre sur SA valeur",
+                 bool(lu) and lu["valeur"] == second["sienne"]
+                 and lu["champ"] == second["id"],
+                 f"attendu {second['sienne']!r} sous {second['id']}, lu {lu}")
+
+        # And what a commit on the second one FILES, which is the half that
+        # corrupts the configuration rather than merely misinforming.
+        await pg.evaluate("()=>document.querySelector('#sheetin .champsaisie')"
+                          ".dispatchEvent(new Event('change'))")
+        await pg.wait_for_timeout(330)
+        depose = await pg.evaluate(
+            "()=>[...REG_ETAT.modifs.entries()].map(([k, v]) => [k, String(v)])")
+        fuite = [k for k, v in depose if v == SONDE and k != premier["id"]]
+        verifier("et rien de ce qui a été tapé dans l'autre n'est déposé sous lui",
+                 not fuite, f"{SONDE!r} déposé sous {fuite}" if fuite else str(depose))
 
         verifier("aucune erreur JS", not erreurs, str(erreurs))
         await b.close()
