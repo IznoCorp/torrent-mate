@@ -383,16 +383,225 @@ function nomDeFichier(f: string): string {
   return f.includes(".") ? f : `${f}.json5`;
 }
 
+// THE LABEL IS FRENCH, AND IT IS CURATED — reproduced verbatim from
+// refonte.html's `LIBELLES_REGLAGES` (same category as `EP_ORDER`/
+// `EP_SWATCH` above: pure static frontend data, no engine state, just kept
+// private / not published on `__referentiel`). A key absent from it falls
+// back to itself, humanised.
+const LIBELLES_REGLAGES: Record<string, string> = {
+  // The six schedulers share the key `cron_restart`, so the leaf would draw
+  // « cron restart » six times in one list — the very defect this map
+  // exists for. Each is named by what it goes and does.
+  "personalscraper-health-check": "Contrôle de santé du système",
+  "personalscraper-search": "Recherche des releases suivies",
+  "personalscraper-grab": "Récupération des releases trouvées",
+  "personalscraper-follow-detect": "Détection des épisodes diffusés",
+  "personalscraper-index-enrich": "Enrichissement de l'index",
+  "personalscraper-backfill-ids": "Complétion des identifiants croisés",
+  torrent_complete_dir: "Dossier où qBittorrent dépose les torrents terminés",
+  staging_dir: "Dossier de transit avant rangement",
+  data_dir: "Dossier des données du pipeline",
+  disks: "Disques de destination",
+  active: "Actif",
+  priority: "Priorité",
+  movies: "Films",
+  tv_shows: "Séries",
+  staging_dirs: "Sous-dossiers du transit",
+  category_rules: "Règles de catégorie",
+  custom_categories: "Catégories personnalisées",
+  default_movies_category: "Catégorie par défaut des films",
+  default_tv_category: "Catégorie par défaut des séries",
+  maps_to: "Range dans",
+  applies_to: "S'applique à",
+  requires_genre_id: "Exige le genre",
+  requires_origin_country: "Exige le pays d'origine",
+  aliases: "Autres noms acceptés",
+  episode_default_name: "Nom donné à un épisode sans titre",
+  folder_name: "Motif du nom de dossier",
+  encoding_rules: "Règles d'encodage des noms",
+  allow_synthetic_rename_on_unmatched: "Renommer même sans correspondance",
+  long_title_threshold: "Longueur au-delà de laquelle un titre est long",
+  short_title_length: "Longueur d'un titre raccourci",
+  short_title_threshold: "Longueur en dessous de laquelle un titre est court",
+  min_length_ratio: "Proportion minimale conservée d'un titre",
+  enabled: "Activé",
+  max_per_tracker: "Résultats maximum par tracker",
+  max_total_results: "Résultats maximum au total",
+  timeout_per_tracker: "Délai d'attente par tracker",
+  search_query_format: "Forme de la requête envoyée au tracker",
+  tiers: "Paliers de trackers",
+  preferred_resolution: "Résolution préférée",
+  preferred_codec: "Codec préféré",
+  fallback_codecs: "Codecs acceptés à défaut",
+  rejected_codecs: "Codecs refusés",
+  required_languages: "Langues exigées",
+  fallback_language: "Langue acceptée à défaut",
+  max_size_movie_gb: "Taille maximale d'un film",
+  max_size_episode_gb: "Taille maximale d'un épisode",
+  min_free_space_staging_gb: "Espace libre minimal avant une ingestion",
+  min_free_space_disk_gb: "Espace libre minimal avant un rangement",
+  circuit_breaker_threshold: "Erreurs d'affilée avant de couper",
+  circuit_breaker_cooldown: "Attente avant de réessayer après une coupure",
+  target_ratio: "Ratio de partage visé",
+  min_ratio: "Ratio de partage minimal",
+  min_seed_time: "Durée de partage minimale",
+  hit_and_run_grace: "Tolérance avant de considérer un abandon",
+  cross_seed: "Partage croisé",
+  verify_seed_pure: "Vérifier qu'un partage reste intact",
+  cutoff_days: "Ancienneté au-delà de laquelle on n'insiste plus",
+  budget_seconds: "Temps accordé à une recherche",
+  language: "Langue des métadonnées",
+  languages: "Langues acceptées",
+  artwork_language: "Langue des visuels",
+  prefer_local_title: "Préférer le titre local",
+  fallback_youtube_search: "Chercher sur YouTube à défaut",
+  lock_to_series_provider: "S'en tenir au fournisseur de la série",
+  use_when_available: "Utiliser quand c'est disponible",
+  profile_priority: "Ordre des profils",
+  overlays: "Surcouches de configuration",
+  tmdb: "TMDB",
+  tvdb: "TVDB",
+  omdb: "OMDb",
+  trakt: "Trakt",
+  paranoia_window_seconds: "Fenêtre de vérification supplémentaire",
+  db_path: "Emplacement de la base d'index",
+  max_workers_total: "Travailleurs simultanés",
+  read_rate_mb_per_sec: "Débit de lecture accordé",
+  checkpoint_every_n_files: "Points de reprise, tous les N fichiers",
+  drop_indexes_during_full_scan: "Retirer les index pendant un scan complet",
+  merkle_delta_freeze_threshold: "Seuil de gel du calcul d'écarts",
+  n_strikes_for_softdelete: "Absences avant de marquer un média disparu",
+  deleted_item_retention_days: "Durée de conservation d'un média supprimé",
+  host: "Adresse d'écoute",
+  port: "Port d'écoute",
+  username: "Nom d'utilisateur",
+  redis_url: "Adresse de Redis",
+  stream_key: "Nom du flux d'événements",
+  stream_maxlen: "Événements gardés dans le flux",
+  session_ttl_hours: "Durée d'une session",
+  cookie_secure: "Cookie réservé aux connexions sûres",
+  dev_mode: "Mode développement",
+  config_version: "Version du format de configuration",
+
+  // Keyed by full path where the leaf alone would name two different things.
+  "scraper.language": "Langue visée par le scrapage",
+  "scraper.fallback_language": "Langue de repli du scrapage",
+  "scraper.prefer_local_title": "Préférer le titre local au scrapage",
+  "web.enabled": "Serveur web activé",
+};
+
+// A leaf key alone does not identify a setting. `enabled` sits under every
+// tracker, every torrent client, every metadata provider and the web
+// server — the row is labelled by its SUBJECT (the instance it belongs to),
+// then by what it does. Segments naming a COLLECTION rather than an
+// instance carry nothing and are dropped.
+const CONTENANTS_REGLAGES = new Set([
+  "providers",
+  "clients",
+  "categories",
+  "priorities",
+  "defaults",
+  "genre_mapping",
+  "cadence",
+]);
+
+const NOMS_SUJETS: Record<string, string> = {
+  c411: "C411",
+  tr4ker: "Tr4ker",
+  lacale: "LaCale",
+  qbittorrent: "qBittorrent",
+  transmission: "Transmission",
+  tmdb: "TMDB",
+  tvdb: "TVDB",
+  omdb: "OMDb",
+  trakt: "Trakt",
+  telegram: "Telegram",
+  healthchecks: "Healthchecks",
+  movies: "Films",
+  movies_animation: "Films d'animation",
+  movies_documentary: "Documentaires",
+  tv_shows: "Séries",
+  tv_shows_animation: "Séries d'animation",
+  tv_shows_documentary: "Séries documentaires",
+  anime: "Animés",
+  tv_programs: "Émissions",
+  standup: "Spectacles",
+  theater: "Théâtre",
+  audiobooks: "Livres audio",
+  movie_scraping: "Scrapage des films",
+  series_scraping: "Scrapage des séries",
+  episode_scraping: "Scrapage des épisodes",
+  episode_scraping_policy: "Politique de scrapage des épisodes",
+  season_pack_policy: "Saisons en un seul fichier",
+  anime_rule: "Règle des animés",
+  recommendations: "Recommandations",
+  notations: "Notations",
+  spotlight: "Spotlight",
+  drift: "Dérive",
+  economy: "Obligations de partage",
+  fuzzy_match: "Rapprochement approximatif",
+  library_check: "Contrôle de la médiathèque",
+  library: "Médiathèque",
+  ingest: "Récupération",
+  scan: "Balayage",
+  sort: "Tri",
+  watch: "Surveillance",
+  seasons: "Saisons",
+  subtitles: "Sous-titres",
+  cross_seed: "Partage croisé",
+  audio: "Audio",
+  video: "Vidéo",
+  log: "Journal",
+  tmdb_movies: "Genres TMDB (films)",
+  tmdb_tv: "Genres TMDB (séries)",
+  Searchable: "Recherche",
+  MovieDetailsProvider: "Détails des films",
+  TvDetailsProvider: "Détails des séries",
+  EpisodeFetcher: "Épisodes",
+  ArtworkProvider: "Illustrations",
+  VideoProvider: "Bandes-annonces",
+};
+
+// `sujetReglage` drops the legacy `window.__sujetsSansNom.add(s)` diagnostic
+// side effect (an unpublished engine global, unrelated to what a subject
+// renders as) — everything that decides the TEXT is reproduced.
+function sujetReglage(reglage: Reglage): string {
+  const segments = reglage.c
+    .split(".")
+    .slice(0, -1)
+    .filter((s) => s !== reglage.f && !CONTENANTS_REGLAGES.has(s));
+  return segments
+    .map((s) => NOMS_SUJETS[s] ?? s.replace(/_/g, " "))
+    .join(" · ");
+}
+
+function libelleReglage(reglage: Reglage): string {
+  // A full path wins over a leaf: `language` means the metadata language in
+  // one file and the scrape language in another, and two rows reading
+  // « Langue des métadonnées » would name the same thing twice.
+  const propre =
+    LIBELLES_REGLAGES[reglage.c] ??
+    LIBELLES_REGLAGES[reglage.n] ??
+    (/^\d+$/.test(reglage.n)
+      ? `Genre ${reglage.n}`
+      : reglage.n.replace(/_/g, " "));
+  const sujet = sujetReglage(reglage);
+  return sujet ? `${sujet} — ${propre}` : propre;
+}
+
 function BlocChamp({ bloc }: { bloc: Extract<Bloc, { type: "champ" }> }) {
   const { reglageId, valeurSaisie, modifierReglage, ouvrirReglage, icons } =
     useReferentiel();
   const { reglage } = bloc;
   const id = reglageId(reglage);
-  // `valeurEnCours` (the `REG_ETAT.modifs` pending-edit overlay) is private,
-  // mutable engine state — never published on the référentiel. `reglage.v`
-  // is donnees.ts's own documented "current value" for a setting and is
-  // used here in its place.
-  const v = reglage.v;
+  // `valeurEnCours` (refonte.html) is `REG_ETAT.modifs.get(id) ?? reglage.brut`
+  // — falls back to `.brut`, never `.v`. `REG_ETAT.modifs` (the pending-edit
+  // overlay) is private, mutable engine state, never published on the
+  // référentiel, so there is no pending-edit view here until a real store
+  // replaces it; `.brut` is the correct fallback already on the object —
+  // `.v` is a pre-formatted DISPLAY string (e.g. a boolean's `.brut: false`
+  // reads `.v: "non"`, which is always truthy and would wedge the switch on).
+  const v = reglage.brut;
 
   if (reglage.type === "structure")
     return (
@@ -468,11 +677,7 @@ function BlocChamp({ bloc }: { bloc: Extract<Bloc, { type: "champ" }> }) {
         inputMode={numerique ? "decimal" : undefined}
         defaultValue={vide ? "" : String(v)}
         placeholder={vide ? "non défini" : ""}
-        // `libelleReglage` (the curated French label) is private too — it
-        // needs `LIBELLES_REGLAGES`, never published — so the accessible
-        // name falls back to the same humanised key it would fall back to
-        // when no curated entry exists (`reglage.n.replace(/_/g, " ")`).
-        aria-label={reglage.n.replace(/_/g, " ")}
+        aria-label={libelleReglage(reglage)}
         // The ONE place mountSearch's `.champsaisie` `onchange` binding
         // (refonte.html) is replaced by a component-owned handler. `onBlur`,
         // not React's `onChange` (which fires on every keystroke, unlike
