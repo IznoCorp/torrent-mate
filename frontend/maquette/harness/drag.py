@@ -33,16 +33,16 @@ from playwright.async_api import async_playwright
 _journal = None
 
 
-def verifier(nom, condition, detail=""):
+def check(name, condition, detail=""):
     """Records one executed check and its verdict, in the shared journal."""
-    return _journal.check(nom, condition, detail)
+    return _journal.check(name, condition, detail)
 
 
-GEOMETRIE = """() => {
+GEOMETRY = """() => {
   const sw = document.querySelector('#view .swipe');
   if (!sw) return null;
   const rs = sw.getBoundingClientRect();
-  const cote = (s) => {
+  const side = (s) => {
     const e = sw.querySelector(s);
     if (!e) return null;
     const r = e.getBoundingClientRect();
@@ -50,18 +50,18 @@ GEOMETRIE = """() => {
             actions: e.querySelectorAll('.act').length};
   };
   return {
-    droite: cote('.side.right'), gauche: cote('.side.left'),
+    right: side('.side.right'), left: side('.side.left'),
     // What spills past the row is what a rounded card cannot hide.
-    debords: [...sw.querySelectorAll('.act')].map(x => {
+    spills: [...sw.querySelectorAll('.act')].map(x => {
       const r = x.getBoundingClientRect();
       return Math.round(Math.max(rs.left - r.left, r.right - rs.right) * 10) / 10;}),
   };
 }"""
 
 
-async def surLaListe(p, lance):
+async def on_the_list(p, launch):
     """Opens the prototype past the startup screen, on the follows list."""
-    b = await lance()
+    b = await launch()
     ctx, pg = await open_page(b)
     await pg.wait_for_timeout(450)
     await pg.evaluate("()=>window.__go('acq-suivis-liste')")
@@ -71,44 +71,44 @@ async def surLaListe(p, lance):
 
 async def main():
     global _journal
-    _journal = Journal(f"R64 — le glissé d'une ligne")
+    _journal = Journal("R64 — a row's drag")
 
     async with async_playwright() as p:
         # ── the geometry, on both engines ──────────────────────────────────
-        mesures = {}
-        for nom, lance in (("Chromium", lambda: p.chromium.launch(channel="chrome")),
+        measures = {}
+        for name, launch in (("Chromium", lambda: p.chromium.launch(channel="chrome")),
                            ("WebKit", lambda: p.webkit.launch())):
-            b, _, pg = await surLaListe(p, lance)
-            mesures[nom] = await pg.evaluate(GEOMETRIE)
+            b, _, pg = await on_the_list(p, launch)
+            measures[name] = await pg.evaluate(GEOMETRY)
             await b.close()
 
-        for nom, m in mesures.items():
-            verifier(f"{nom} : la ligne a un tiroir de chaque côté",
-                     m and m["droite"] and m["gauche"], str(m))
-            if m and m["droite"]:
-                verifier(f"{nom} : le tiroir droit mesure ses boutons",
-                         abs(m["droite"]["l"] - m["droite"]["actions"] * 84) < 1,
-                         f"{m['droite']['l']} pour {m['droite']['actions']} action(s)")
-                verifier(f"{nom} : aucune action ne déborde de la ligne",
-                         max(m["debords"]) <= 0.5, str(m["debords"]))
+        for name, m in measures.items():
+            check(f"{name}: the row has a drawer on each side",
+                     m and m["right"] and m["left"], str(m))
+            if m and m["right"]:
+                check(f"{name}: the right drawer measures its buttons",
+                         abs(m["right"]["l"] - m["right"]["actions"] * 84) < 1,
+                         f"{m['right']['l']} for {m['right']['actions']} action(s)")
+                check(f"{name}: no action spills past the row",
+                         max(m["spills"]) <= 0.5, str(m["spills"]))
 
-        chrome, webkit = mesures.get("Chromium"), mesures.get("WebKit")
-        verifier("les deux moteurs dessinent le même tiroir",
+        chrome, webkit = measures.get("Chromium"), measures.get("WebKit")
+        check("both engines draw the same drawer",
                  chrome and webkit
-                 and abs(chrome["droite"]["l"] - webkit["droite"]["l"]) < 1,
-                 f"{chrome and chrome['droite']} vs {webkit and webkit['droite']}")
+                 and abs(chrome["right"]["l"] - webkit["right"]["l"]) < 1,
+                 f"{chrome and chrome['right']} vs {webkit and webkit['right']}")
 
         # ── the behaviour, under a real finger ─────────────────────────────
-        b, ctx, pg = await surLaListe(p, lambda: p.chromium.launch(channel="chrome"))
+        b, ctx, pg = await on_the_list(p, lambda: p.chromium.launch(channel="chrome"))
         cdp = await ctx.new_cdp_session(pg)
-        erreurs = []
-        pg.on("pageerror", lambda e: erreurs.append(str(e)))
+        errors = []
+        pg.on("pageerror", lambda e: errors.append(str(e)))
 
-        async def glisser(x, y, dx, pas=14):
+        async def drag(x, y, dx, step=14):
             """Drags one finger horizontally, in steps a thumb really makes."""
             await cdp.send("Input.dispatchTouchEvent",
                            {"type": "touchStart", "touchPoints": [{"x": x, "y": y, "id": 1}]})
-            n = max(1, abs(int(dx)) // pas)
+            n = max(1, abs(int(dx)) // step)
             for i in range(1, n + 1):
                 await cdp.send("Input.dispatchTouchEvent",
                                {"type": "touchMove",
@@ -118,33 +118,33 @@ async def main():
                            {"type": "touchEnd", "touchPoints": []})
             await pg.wait_for_timeout(430)
 
-        lignes = await pg.evaluate(
+        rows = await pg.evaluate(
             """()=>[...document.querySelectorAll('#view .swipe')].slice(0, 2).map(s => {
                  const r = s.getBoundingClientRect();
                  return {x: r.x + r.width * 0.6, y: r.y + r.height / 2};})""")
-        verifier("deux lignes au moins sont dessinées", len(lignes) >= 2, str(len(lignes)))
+        check("at least two rows are drawn", len(rows) >= 2, str(len(rows)))
 
-        async def poses():
+        async def positions():
             return await pg.evaluate(
                 """()=>[...document.querySelectorAll('#view .swipe .card')].slice(0, 2)
                      .map(c => c.style.transform || '')""")
 
-        await glisser(lignes[0]["x"], lignes[0]["y"], -140)
-        p0 = await poses()
-        verifier("un glissé vers la gauche ouvre le tiroir droit",
+        await drag(rows[0]["x"], rows[0]["y"], -140)
+        p0 = await positions()
+        check("a drag to the left opens the right drawer",
                  p0[0].startswith("translateX(-"), str(p0))
-        verifier("et il n'ouvre PAS le panneau du bas",
+        check("and it does NOT open the bottom panel",
                  not await pg.evaluate(
                      "()=>document.querySelector('#sheet').classList.contains('open')"))
 
-        await glisser(lignes[1]["x"], lignes[1]["y"], -140)
-        p1 = await poses()
-        verifier("glisser une autre ligne remet la première en place",
+        await drag(rows[1]["x"], rows[1]["y"], -140)
+        p1 = await positions()
+        check("dragging another row puts the first one back",
                  p1[0] == "" and p1[1].startswith("translateX(-"), str(p1))
 
-        await glisser(lignes[0]["x"], lignes[0]["y"], 140)
-        p2 = await poses()
-        verifier("un glissé vers la droite ouvre le tiroir gauche",
+        await drag(rows[0]["x"], rows[0]["y"], 140)
+        p2 = await positions()
+        check("a drag to the right opens the left drawer",
                  p2[0].startswith("translateX(") and "-" not in p2[0], str(p2))
 
         # ── the reversal ───────────────────────────────────────────────────
@@ -156,42 +156,42 @@ async def main():
         # Sampled DURING the gesture, because a jump is a discontinuity: both
         # ends of a drag can be right while everything in between is wrong,
         # and a probe reading only the rest positions certifies it.
-        async def ouEstElle():
+        async def where_is_it():
             """The first row's own offset, in pixels, 0 when it is at rest."""
             return await pg.evaluate(
                 """()=>{const c = document.querySelector('#view .swipe .card');
                        const t = c && c.style.transform;
                        return t ? parseFloat(t.slice(t.indexOf('(') + 1)) : 0;}""")
 
-        async def glisserEnObservant(x, y, dx, pas=14):
+        async def drag_watching(x, y, dx, step=14):
             """Drags a finger and reports where the row sat after each step."""
             await cdp.send("Input.dispatchTouchEvent",
                            {"type": "touchStart", "touchPoints": [{"x": x, "y": y, "id": 1}]})
-            n = max(1, abs(int(dx)) // pas)
-            releves = []
+            n = max(1, abs(int(dx)) // step)
+            samples = []
             for i in range(1, n + 1):
                 await cdp.send("Input.dispatchTouchEvent",
                                {"type": "touchMove",
                                 "touchPoints": [{"x": x + dx * i / n, "y": y, "id": 1}]})
                 await asyncio.sleep(0.016)
-                releves.append(await ouEstElle())
+                samples.append(await where_is_it())
             await cdp.send("Input.dispatchTouchEvent",
                            {"type": "touchEnd", "touchPoints": []})
             await pg.wait_for_timeout(430)
-            return releves
+            return samples
 
-        repos = await ouEstElle()
-        releves = await glisserEnObservant(lignes[0]["x"], lignes[0]["y"], -60)
+        rest = await where_is_it()
+        samples = await drag_watching(rows[0]["x"], rows[0]["y"], -60)
         # A step of the drag is 14 to 15 pixels. The ceiling is generous enough
         # that no honest step reaches it and far below the 252px the defect
         # produced, so it cannot be met by tightening a threshold.
-        ecart = abs(releves[0] - repos) if releves else None
-        verifier("une ligne ouverte suit le doigt sans sauter",
-                 ecart is not None and ecart < 40,
-                 f"repos {repos} → premier relevé {releves and releves[0]} (écart {ecart})")
+        gap = abs(samples[0] - rest) if samples else None
+        check("an open row follows the finger without leaping",
+                 gap is not None and gap < 40,
+                 f"rest {rest} → first sample {samples and samples[0]} (gap {gap})")
 
-        p3 = await poses()
-        verifier("le glissé inverse la ramène au repos, sans ouvrir l'autre côté",
+        p3 = await positions()
+        check("the reverse drag settles it back at rest, without opening the other side",
                  p3[0] == "", str(p3))
 
         # And a LONG reverse drag settles at rest too. This is the operator's
@@ -201,12 +201,12 @@ async def main():
         # dragged well past rest is read as a large one, so the row springs
         # back OPEN on the side it started from. A short reverse drag never
         # reaches that, which is why it has to be a long one here.
-        await glisser(lignes[0]["x"], lignes[0]["y"], 140)
-        verifier("le tiroir gauche est rouvert pour la mesure suivante",
-                 (await poses())[0] == "translateX(84px)", str(await poses()))
-        await glisser(lignes[0]["x"], lignes[0]["y"], -200)
-        p4 = await poses()
-        verifier("un long glissé inverse s'arrête au repos, sans repartir de l'autre côté",
+        await drag(rows[0]["x"], rows[0]["y"], 140)
+        check("the left drawer is reopened for the next measurement",
+                 (await positions())[0] == "translateX(84px)", str(await positions()))
+        await drag(rows[0]["x"], rows[0]["y"], -200)
+        p4 = await positions()
+        check("a long reverse drag stops at rest, without setting off the other way",
                  p4[0] == "", str(p4))
 
         # A tap must still reach the panel: swallowing every click after a drag
@@ -217,18 +217,18 @@ async def main():
         await pg.evaluate("()=>{document.querySelectorAll('#view .swipe .card')"
                           ".forEach(c => c.style.transform = '');}")
         await pg.wait_for_timeout(250)
-        corps = await pg.evaluate(
+        body = await pg.evaluate(
             """()=>{const b = document.querySelector('#view .swipe .cbody');
                    const r = b.getBoundingClientRect();
                    return {x: r.x + r.width / 2, y: r.y + 12};}""")
         await cdp.send("Input.dispatchTouchEvent",
                        {"type": "touchStart",
-                        "touchPoints": [{"x": corps["x"], "y": corps["y"], "id": 1}]})
+                        "touchPoints": [{"x": body["x"], "y": body["y"], "id": 1}]})
         await pg.wait_for_timeout(70)
         await cdp.send("Input.dispatchTouchEvent",
                        {"type": "touchEnd", "touchPoints": []})
         await pg.wait_for_timeout(450)
-        verifier("un simple tap ouvre toujours le panneau",
+        check("a plain tap still opens the panel",
                  await pg.evaluate(
                      "()=>document.querySelector('#sheet').classList.contains('open')"))
         await pg.evaluate("()=>closeSheet()")
@@ -240,20 +240,20 @@ async def main():
         # that lands on whatever replaced it.
         await pg.evaluate("()=>window.__go('acq-suivis-liste')")
         await pg.wait_for_timeout(550)
-        lignes = await pg.evaluate(
+        rows = await pg.evaluate(
             """()=>[...document.querySelectorAll('#view .swipe')].slice(0, 1).map(s => {
                  const r = s.getBoundingClientRect();
                  return {x: r.x + r.width * 0.6, y: r.y + r.height / 2};})""")
-        verifier("la liste est de nouveau à l'écran", len(lignes) == 1, str(len(lignes)))
-        await glisser(lignes[0]["x"], lignes[0]["y"], -140)
-        atteignable = await pg.evaluate("""()=>{
+        check("the list is on screen again", len(rows) == 1, str(len(rows)))
+        await drag(rows[0]["x"], rows[0]["y"], -140)
+        reachable = await pg.evaluate("""()=>{
           const a = document.querySelector('#view .swipe .side.right .act');
           if (!a) return null;
           const r = a.getBoundingClientRect();
-          const dessus = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
-          return !!(dessus && dessus.closest('.act'));}""")
-        verifier("le bouton révélé est réellement sous le doigt",
-                 atteignable is True, str(atteignable))
+          const onTop = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+          return !!(onTop && onTop.closest('.act'));}""")
+        check("the revealed button really is under the finger",
+                 reachable is True, str(reachable))
 
         # The scoping is proven with a MOUSE. After a touch drag the browser
         # suppresses the click itself, so a touch probe cannot tell a swallowed
@@ -262,24 +262,24 @@ async def main():
         # which is exactly the case the swallowing exists for.
         await pg.evaluate("()=>window.__go('acq-suivis-liste')")
         await pg.wait_for_timeout(520)
-        corps = await pg.evaluate(
+        body = await pg.evaluate(
             """()=>{const b = document.querySelector('#view .swipe .cbody');
                    const r = b.getBoundingClientRect();
                    return {x: r.x + r.width / 2, y: r.y + 14};}""")
-        await pg.mouse.move(corps["x"], corps["y"])
+        await pg.mouse.move(body["x"], body["y"])
         await pg.mouse.down()
         for i in range(1, 11):
-            await pg.mouse.move(corps["x"] - 14 * i, corps["y"])
+            await pg.mouse.move(body["x"] - 14 * i, body["y"])
             await asyncio.sleep(0.016)
         await pg.mouse.up()
         await pg.wait_for_timeout(450)
-        verifier("à la souris non plus, un glissé n'ouvre pas le panneau",
+        check("with a mouse either, a drag does not open the panel",
                  not await pg.evaluate(
                      "()=>document.querySelector('#sheet').classList.contains('open')"))
-        verifier("et il a bien ouvert le tiroir",
-                 (await poses())[0].startswith("translateX(-"), str(await poses()))
+        check("and it did open the drawer",
+                 (await positions())[0].startswith("translateX(-"), str(await positions()))
 
-        verifier("aucune erreur JS", not erreurs, str(erreurs))
+        check("no JS error", not errors, str(errors))
         await b.close()
 
     _journal.summary()

@@ -31,35 +31,35 @@ IPHONE = ("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
 _journal = None
 
 
-def verifier(nom, condition, detail=""):
+def check(name, condition, detail=""):
     """Records one executed check and its verdict, in the shared journal."""
-    return _journal.check(nom, condition, detail)
+    return _journal.check(name, condition, detail)
 
 
 # What Chrome dispatches, with the two members a page is allowed to use.
-POSER = """() => {
+FIRE = """() => {
   const e = new Event('beforeinstallprompt');
   e.prompt = () => { window.__prompt = (window.__prompt || 0) + 1; };
   e.userChoice = Promise.resolve({ outcome: 'accepted', platform: 'web' });
-  const vraiPrevent = e.preventDefault.bind(e);
-  e.preventDefault = () => { window.__prevenu = true; vraiPrevent(); };
-  window.__prompt = 0; window.__prevenu = false;
+  const realPrevent = e.preventDefault.bind(e);
+  e.preventDefault = () => { window.__prevented = true; realPrevent(); };
+  window.__prompt = 0; window.__prevented = false;
   window.dispatchEvent(e);
 }"""
 
-BANDEAU = """() => {
+BANNER = """() => {
   const b = document.querySelector('#installbar');
   return {
     visible: !b.hidden && getComputedStyle(b).display !== 'none',
-    bouton: !document.querySelector('#installgo').hidden,
-    marche: !document.querySelector('#installsteps').hidden,
-    sous: !document.querySelector('#installsub').hidden,
-    texte: (b.textContent || '').replace(/\\s+/g, ' ').trim(),
+    button: !document.querySelector('#installgo').hidden,
+    steps: !document.querySelector('#installsteps').hidden,
+    sub: !document.querySelector('#installsub').hidden,
+    text: (b.textContent || '').replace(/\\s+/g, ' ').trim(),
   };
 }"""
 
 
-async def ouvrir(p, **kwargs):
+async def open_proto(p, **kwargs):
     """Opens the prototype in a fresh context, past the startup screen."""
     ctx = await p.new_context(viewport={"width": 390, "height": 844},
                               device_scale_factor=2, is_mobile=True, has_touch=True,
@@ -76,56 +76,56 @@ async def ouvrir(p, **kwargs):
 
 async def main():
     global _journal
-    _journal = Journal(f"R51 — l'invitation à installer")
+    _journal = Journal("R51 — the invitation to install")
 
     async with async_playwright() as p:
         b = await p.chromium.launch(channel="chrome")
 
         # ── Android / desktop: the event is captured, kept, and replayed ────
-        ctx, pg = await ouvrir(b)
-        erreurs = []
-        pg.on("pageerror", lambda e: erreurs.append(str(e)))
-        avant = await pg.evaluate(BANDEAU)
-        verifier("rien n'est proposé sans que le navigateur l'annonce",
-                 not avant["visible"], str(avant["visible"]))
+        ctx, pg = await open_proto(b)
+        errors = []
+        pg.on("pageerror", lambda e: errors.append(str(e)))
+        before = await pg.evaluate(BANNER)
+        check("nothing is offered unless the browser announces it",
+                 not before["visible"], str(before["visible"]))
 
-        await pg.evaluate(POSER)
+        await pg.evaluate(FIRE)
         await pg.wait_for_timeout(200)
-        apres = await pg.evaluate(BANDEAU)
-        verifier("l'annonce du navigateur fait apparaître le bandeau", apres["visible"])
-        verifier("son défaut est empêché, sinon le navigateur garde la main",
-                 await pg.evaluate("()=>window.__prevenu"))
-        verifier("il offre un BOUTON, pas une marche à suivre",
-                 apres["bouton"] and not apres["marche"], str(apres))
+        after = await pg.evaluate(BANNER)
+        check("the browser's announcement raises the banner", after["visible"])
+        check("its default is prevented, or the browser keeps the hand",
+                 await pg.evaluate("()=>window.__prevented"))
+        check("it offers a BUTTON, not a set of steps",
+                 after["button"] and not after["steps"], str(after))
 
         await pg.click("#installgo")
         await pg.wait_for_timeout(250)
-        verifier("le bouton rejoue l'événement capturé",
+        check("the button replays the captured event",
                  await pg.evaluate("()=>window.__prompt") == 1,
                  str(await pg.evaluate("()=>window.__prompt")))
-        verifier("et le bandeau se retire", not (await pg.evaluate(BANDEAU))["visible"])
+        check("and the banner withdraws", not (await pg.evaluate(BANNER))["visible"])
 
         # Refused once, not asked again in the same session.
-        await pg.evaluate(POSER)
+        await pg.evaluate(FIRE)
         await pg.wait_for_timeout(150)
         await pg.click("#installclose")
-        await pg.evaluate(POSER)
+        await pg.evaluate(FIRE)
         await pg.wait_for_timeout(200)
-        verifier("un refus n'est pas redemandé dans la même session",
-                 not (await pg.evaluate(BANDEAU))["visible"])
-        verifier("aucune erreur JS", not erreurs, str(erreurs))
+        check("a refusal is not asked again in the same session",
+                 not (await pg.evaluate(BANNER))["visible"])
+        check("no JS error", not errors, str(errors))
         await ctx.close()
 
         # ── iOS Safari: no event exists, so the banner IS the guide ─────────
-        ctx, pg = await ouvrir(b, user_agent=IPHONE)
+        ctx, pg = await open_proto(b, user_agent=IPHONE)
         await pg.wait_for_timeout(1600)
-        ios = await pg.evaluate(BANDEAU)
-        verifier("sur iOS le bandeau apparaît de lui-même", ios["visible"], str(ios))
-        verifier("il donne la MARCHE À SUIVRE, sans bouton d'installation",
-                 ios["marche"] and not ios["bouton"], str(ios))
-        verifier("et il nomme les trois gestes réels",
-                 all(mot in ios["texte"] for mot in ("Partager", "écran d'accueil", "Ajouter")),
-                 ios["texte"][:110])
+        ios = await pg.evaluate(BANNER)
+        check("on iOS the banner appears on its own", ios["visible"], str(ios))
+        check("it gives the STEPS TO FOLLOW, with no install button",
+                 ios["steps"] and not ios["button"], str(ios))
+        check("and it names the three real gestures",
+                 all(word in ios["text"] for word in ("Partager", "écran d'accueil", "Ajouter")),
+                 ios["text"][:110])
         await ctx.close()
 
         # ── Already installed: nothing is proposed at all ───────────────────
@@ -139,20 +139,20 @@ async def main():
         await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
         await pg.evaluate("()=>document.querySelector('#toastx').click()")
         await pg.wait_for_timeout(1600)
-        installee = await pg.evaluate(BANDEAU)
-        verifier("rien n'est proposé à qui l'a déjà installée",
-                 not installee["visible"], str(installee["visible"]))
+        installed = await pg.evaluate(BANNER)
+        check("nothing is offered to someone who already installed it",
+                 not installed["visible"], str(installed["visible"]))
         await ctx.close()
 
         # ── Over the entry screen: never ────────────────────────────────────
-        ctx, pg = await ouvrir(b)
+        ctx, pg = await open_proto(b)
         await pg.evaluate("()=>window.__go('connexion')")
         await pg.wait_for_timeout(200)
-        await pg.evaluate(POSER)
+        await pg.evaluate(FIRE)
         await pg.wait_for_timeout(200)
-        portail = await pg.evaluate(BANDEAU)
-        verifier("rien n'est proposé par-dessus l'écran d'entrée",
-                 not portail["visible"], str(portail["visible"]))
+        gate = await pg.evaluate(BANNER)
+        check("nothing is offered over the entry screen",
+                 not gate["visible"], str(gate["visible"]))
         await ctx.close()
         await b.close()
 

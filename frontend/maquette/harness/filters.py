@@ -16,29 +16,29 @@ async def main():
     await pg.evaluate("()=>window.__go('lib-grille')"); await pg.wait_for_timeout(400)
 
     cats = await pg.evaluate("()=>CATS.map(c=>({id:c.id,l:c.l,c:c.c}))")
-    somme = sum(c["c"] for c in cats if c["id"] != "all")
-    tout = next(c["c"] for c in cats if c["id"] == "all")
-    print(f"category parts: {somme} · announced total: {tout}",
-          "OK" if somme == tout else "ÉCHEC — les parts ne somment pas au tout")
-    if somme != tout: ko.append("category sum")
+    parts = sum(c["c"] for c in cats if c["id"] != "all")
+    whole = next(c["c"] for c in cats if c["id"] == "all")
+    print(f"category parts: {parts} · announced total: {whole}",
+          "PASS" if parts == whole else "FAIL — the parts do not sum to the whole")
+    if parts != whole: ko.append("category sum")
 
     for cat in cats:
         await pg.evaluate("(id)=>document.querySelector(`[data-cat=${JSON.stringify(id)}]`).click()", cat["id"])
         await pg.wait_for_timeout(300)
-        r = await pg.evaluate("""()=>({affiches:document.querySelectorAll('#libitems .tile, #libitems .card').length,
-          compte:document.querySelector('#libcount')?.textContent.replace(/\\s+/g,' ').trim(),
-          vide:!!document.querySelector('#libitems .empty'),
+        r = await pg.evaluate("""()=>({shown:document.querySelectorAll('#libitems .tile, #libitems .card').length,
+          count:document.querySelector('#libcount')?.textContent.replace(/\\s+/g,' ').trim(),
+          empty:!!document.querySelector('#libitems .empty'),
           coherent:[...document.querySelectorAll('#libitems .tile')].every(t=>{
             const o=libFiltered().find(x=>x.t===t.querySelector('.nm').textContent); return !!o;})})""")
-        bon = r["affiches"] > 0 or r["vide"]
-        if not bon: ko.append(cat["l"])
-        print(("  OK  " if bon else "  ÉCHEC"), f"{cat['l']:16} {r['affiches']:3} rendus · {r['compte']}")
+        ok = r["shown"] > 0 or r["empty"]
+        if not ok: ko.append(cat["l"])
+        print(("  PASS" if ok else "  FAIL"), f"{cat['l']:16} {r['shown']:3} rendered · {r['count']}")
 
     # the filter combines with the search
     await pg.evaluate("()=>document.querySelector('[data-cat=\"tv\"]').click()"); await pg.wait_for_timeout(280)
     await pg.evaluate("()=>{const i=document.querySelector('#libq');i.value='dex';i.dispatchEvent(new Event('input',{bubbles:true}));}")
     await pg.wait_for_timeout(350)
-    print("\ncombiné (Séries + « dex ») :", await pg.evaluate("()=>({n:libFiltered().length, titres:libFiltered().map(x=>x.t), compte:document.querySelector('#libcount').textContent.replace(/\\s+/g,' ').trim()})"))
+    print("\ncombined (Séries + « dex »):", await pg.evaluate("()=>({n:libFiltered().length, titles:libFiltered().map(x=>x.t), count:document.querySelector('#libcount').textContent.replace(/\\s+/g,' ').trim()})"))
     await pg.screenshot(path="v_filtres.png")
     print("\nJS errors:", errs or "none")
     print("VERDICT:", "filters filter, and the parts sum to the whole" if not ko and not errs else f"remaining: {ko}")

@@ -15,19 +15,19 @@ from common import ROOT, Journal
 
 
 def main():
-    journal = Journal("R70 — aucune image embarquée")
+    journal = Journal("R70 — no embedded image")
     source = (ROOT / "design" / "refonte.html").read_text()
 
-    incrustees = re.findall(r"data:image/", source)
-    journal.check("aucun data:image dans la source", not incrustees,
-                     f"{len(incrustees)} incrustée(s)")
+    embedded = re.findall(r"data:image/", source)
+    journal.check("no data:image in the source", not embedded,
+                  f"{len(embedded)} embedded")
 
     references = sorted(set(re.findall(r'"assets/([\w./-]+\.webp)"', source)))
-    absentes = [r for r in references
-                if not (ROOT / "design" / "assets" / r).is_file()]
-    journal.check("chaque référence assets/ existe sur disque", not absentes,
-                     f"{len(references)} références"
-                     + (f" · absentes : {absentes[:3]}" if absentes else ""))
+    missing = [r for r in references
+               if not (ROOT / "design" / "assets" / r).is_file()]
+    journal.check("every assets/ reference exists on disk", not missing,
+                  f"{len(references)} references"
+                  + (f" · missing: {missing[:3]}" if missing else ""))
     journal.summary()
 
 

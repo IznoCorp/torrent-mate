@@ -26,107 +26,107 @@ from common import Journal
 from playwright.async_api import async_playwright
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-HOTE = "https://tm-design.iznogoudatall.xyz/"
+HOST = "https://tm-design.iznogoudatall.xyz/"
 
 # Position is compared as a LOCAL geometry — each part against the screen's own
 # box — because the host page and the phone frame are not required to sit at
 # the same place in the viewport, only to draw the same screen.
-RELEVE = """() => {
-  const cadre = document.querySelector('.loginscreen').getBoundingClientRect();
-  const cibles = ['.brandbig .mk', '.brandbig .wm', '.brandbig em', '.logincard',
-                  '.loginfield input', '.loginsubmit'];
+READ = """() => {
+  const frame = document.querySelector('.loginscreen').getBoundingClientRect();
+  const targets = ['.brandbig .mk', '.brandbig .wm', '.brandbig em', '.logincard',
+                   '.loginfield input', '.loginsubmit'];
   const out = {};
-  for (const s of cibles) {
+  for (const s of targets) {
     const e = document.querySelector('.loginscreen ' + s);
     if (!e) { out[s] = 'ABSENT'; continue; }
     const r = e.getBoundingClientRect(), c = getComputedStyle(e);
     out[s] = {
-      l: r.width, h: r.height, dx: r.x - cadre.x, dy: r.y - cadre.y,
-      couleur: c.color, fond: c.backgroundColor,
-      police: c.fontFamily.split(',')[0], taille: c.fontSize,
-      graisse: c.fontWeight, rayon: c.borderRadius,
+      w: r.width, h: r.height, dx: r.x - frame.x, dy: r.y - frame.y,
+      color: c.color, background: c.backgroundColor,
+      font: c.fontFamily.split(',')[0], size: c.fontSize,
+      weight: c.fontWeight, radius: c.borderRadius,
     };
   }
-  out['__mots'] = document.querySelector('.loginscreen')
-                    .textContent.replace(/\\s+/g, ' ').trim();
+  out['__words'] = document.querySelector('.loginscreen')
+                     .textContent.replace(/\\s+/g, ' ').trim();
   return out;
 }"""
 
 _journal = None
 
 
-def verifier(nom, condition, detail=""):
+def check(name, condition, detail=""):
     """Records one executed check and its verdict, in the shared journal."""
-    return _journal.check(nom, condition, detail)
+    return _journal.check(name, condition, detail)
 
 
 async def main():
     global _journal
-    _journal = Journal(f"R62 — un seul écran d'entrée")
+    _journal = Journal("R62 — one sign-in screen")
 
     # The host must not carry a palette of its own: a retyped value renders
     # correctly here while the reference is broken, which is how the brand
     # colour stayed lost for as long as it did.
-    hote = (ROOT / "serve.py").read_text()
+    host_src = (ROOT / "serve.py").read_text()
     # Everything the host contributes on its own — as opposed to what it
     # extracts — is checked, not one named block: moving the copy into a
     # differently-named string would otherwise walk straight past the rule.
-    propre = "\n".join(m.group(1) for m in
-                       re.finditer(r'= \"\"\"(.*?)\"\"\"', hote, re.S))
-    interdits = re.findall(r"(--[\w-]+)\s*:", propre)
-    interdits += re.findall(r"\b(font-family|line-height|font-size|"
-                            r"-webkit-font-smoothing|font-variant-numeric)\s*:", propre)
-    verifier("l'hôte ne redéclare rien que la référence possède",
-             not interdits, str(sorted(set(interdits))))
+    own = "\n".join(m.group(1) for m in
+                    re.finditer(r'= \"\"\"(.*?)\"\"\"', host_src, re.S))
+    forbidden = re.findall(r"(--[\w-]+)\s*:", own)
+    forbidden += re.findall(r"\b(font-family|line-height|font-size|"
+                            r"-webkit-font-smoothing|font-variant-numeric)\s*:", own)
+    check("the host redeclares nothing the reference owns",
+          not forbidden, str(sorted(set(forbidden))))
 
     async with async_playwright() as p:
         b = await p.chromium.launch(channel="chrome")
         ctx = await b.new_context(viewport={"width": 390, "height": 844},
                                   device_scale_factor=2, is_mobile=True, has_touch=True)
-        erreurs = []
+        errors = []
 
         pg = await ctx.new_page()
-        pg.on("pageerror", lambda e: erreurs.append(f"hôte: {e}"))
-        await pg.goto(HOTE, wait_until="load")
+        pg.on("pageerror", lambda e: errors.append(f"host: {e}"))
+        await pg.goto(HOST, wait_until="load")
         await pg.wait_for_timeout(500)
-        arrivee = await pg.evaluate(RELEVE)
+        arrival = await pg.evaluate(READ)
 
         pg2 = await ctx.new_page()
-        pg2.on("pageerror", lambda e: erreurs.append(f"prototype: {e}"))
+        pg2.on("pageerror", lambda e: errors.append(f"prototype: {e}"))
         await pg2.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
         await pg2.evaluate("()=>document.querySelector('#toastx').click()")
         await pg2.wait_for_timeout(250)
         await pg2.evaluate("()=>deconnecter()")
         await pg2.wait_for_timeout(700)
-        sortie = await pg2.evaluate(RELEVE)
+        signout = await pg2.evaluate(READ)
         await b.close()
 
-    verifier("les deux rendus portent les mêmes parties",
-             sorted(arrivee) == sorted(sortie)
-             and not [k for k in arrivee if arrivee[k] == "ABSENT"],
-             str([k for k in arrivee if arrivee[k] == "ABSENT"]))
+    check("both renderings carry the same parts",
+          sorted(arrival) == sorted(signout)
+          and not [k for k in arrival if arrival[k] == "ABSENT"],
+          str([k for k in arrival if arrival[k] == "ABSENT"]))
 
-    verifier("et ils disent les mêmes mots",
-             arrivee["__mots"] == sortie["__mots"],
-             f"{arrivee['__mots'][:44]!r} vs {sortie['__mots'][:44]!r}")
+    check("and they say the same words",
+          arrival["__words"] == signout["__words"],
+          f"{arrival['__words'][:44]!r} vs {signout['__words'][:44]!r}")
 
     # Colour, type and radius are compared EXACTLY: a difference there is always a
     # decision that drifted. Geometry allows one pixel, and only one: both boxes
     # measure 390x844 to the pixel, so what is left is a flex centring landing on
     # a half pixel and rounding two ways. Real drift is never one pixel.
-    GEOMETRIE = {"l", "h", "dx", "dy"}
-    for cle in [k for k in arrivee if not k.startswith("__")]:
-        a, s = arrivee[cle], sortie.get(cle)
+    GEOMETRY = {"w", "h", "dx", "dy"}
+    for key in [k for k in arrival if not k.startswith("__")]:
+        a, s = arrival[key], signout.get(key)
         if not (isinstance(a, dict) and isinstance(s, dict)):
-            ecarts = {"tout": (a, s)}
+            gaps = {"whole": (a, s)}
         else:
-            ecarts = {k: (a[k], s[k]) for k in a
-                      if (abs(a[k] - s[k]) > 1 if k in GEOMETRIE else a[k] != s[k])}
-        verifier(f"« {cle} » rend pareil des deux côtés", not ecarts,
-                 "; ".join(f"{k}: hôte={va} prototype={vs}"
-                           for k, (va, vs) in list(ecarts.items())[:3]))
+            gaps = {k: (a[k], s[k]) for k in a
+                    if (abs(a[k] - s[k]) > 1 if k in GEOMETRY else a[k] != s[k])}
+        check(f"« {key} » renders the same on both sides", not gaps,
+              "; ".join(f"{k}: host={va} prototype={vs}"
+                        for k, (va, vs) in list(gaps.items())[:3]))
 
-    verifier("aucune erreur JS", not erreurs, str(erreurs))
+    check("no JS error", not errors, str(errors))
 
     _journal.summary()
 
