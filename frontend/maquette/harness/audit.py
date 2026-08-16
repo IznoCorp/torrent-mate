@@ -179,10 +179,20 @@ async def main():
           // only, and the defect came back through sheets.
           R.reserveEcran = null;
           const bar = document.querySelector('.bottombar').getBoundingClientRect().height;
-          const couches = [['#screen','.port'],['#sheet','.sheetin']];
+          // The media sheet left `#screen` for a real route (`/fiche/$titre`,
+          // rendered inside `#coquille`) and joins this sweep by the identity
+          // it carries. It is a LAYER like the others — the tab bar passes
+          // above it too — and dropping it would have left the five states
+          // that open it inspecting nothing at all: its `.port` padding and
+          // the reachability of its last action are exactly what this rule
+          // used to hold on it when it was `#screen`.
+          const couches = [['#screen','.port'],['#sheet','.sheetin'],
+                           ['.screen.open[data-cle^="fiche:"]','.port']];
           for (const [sel, inner] of couches) {
             const el = document.querySelector(sel);
-            if (!el.classList.contains('open')) continue;
+            // The fiche's selector matches only while it is open, so an absent
+            // node is a closed layer — not an error, and not a reason to throw.
+            if (!el || !el.classList.contains('open')) continue;
             const port = el.querySelector(inner);
             if (!port) continue;
             const pb = parseFloat(getComputedStyle(port).paddingBottom);

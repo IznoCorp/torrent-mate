@@ -39,13 +39,16 @@ async def main():
         # rendered inside `#coquille`) — a state that opens it would otherwise
         # fall through to `#view` and this rule would read a page the state
         # does not show. The fiche is named by the identity it carries,
-        # `data-cle="fiche:…"`, and comes after the legacy layer: when both are
-        # up, the legacy one is on top and is what is being read.
+        # `data-cle="fiche:…"`, and comes LAST in the ladder — the same order
+        # `audit.py`, `dest.py` and `states.py` use — so every pre-existing
+        # case resolves exactly as before and a layer opened OVER the fiche is
+        # still what gets read.
         bad=await pg.evaluate("""()=>{
           const r=document.querySelector('#dlg').classList.contains('open')?'#dlg'
                  :document.querySelector('#screen').classList.contains('open')?'#screen'
+                 :document.querySelector('#sheet').classList.contains('open')?'#sheet'
                  :document.querySelector('.screen.open[data-cle^="fiche:"]')?'.screen.open[data-cle^="fiche:"]'
-                 :document.querySelector('#sheet').classList.contains('open')?'#sheet':'#view';
+                 :'#view';
           const t=document.querySelector(r).innerText;
           const motifs=[[/\\bundefined\\b/,'undefined'],[/\\bNaN\\b/,'NaN'],[/\\bnull\\b/,'null'],
             [/\\[object /,'[object'],[/\\b0\\/0\\b/,'0/0'],[/\\*\\s\\*\\s\\*/,'expression cron'],
@@ -366,18 +369,33 @@ async def main():
     # R30 — ONE season rendering. Two existed: a titled list (29 series) and a
     # numbered matrix (177), and twelve sheets contained both at once. A sheet
     # must not have two faces depending on the data it happens to have.
-    rendus=await pg.evaluate("""async ()=>{const c={lignes:[], matrice:[], mixte:[]};
+    rendus=await pg.evaluate("""async ()=>{
+      const c={lignes:[], matrice:[], mixte:[], jamaisOuverte:[], sansSaison:[]};
       const series=Object.keys(FICHES_RAW).filter(t=>sheetFor(t)?.k!=='movie');
+      // The sheet is a ROUTE now: it commits a frame later than an `innerHTML`
+      // assignment did. A FIXED wait makes this rule's coverage depend on how
+      // loaded the host is — one too short and every sheet reads « no season »,
+      // every series is skipped, and the rule reports nothing behind a green
+      // exit code. Waiting for THE SCREEN ONE ASKED FOR — its own key — removes
+      // the guess, and a timeout is reported instead of silently skipped.
+      const attendre=async(t)=>{
+        const cle='fiche:'+t.normalize('NFC');
+        for (let i=0;i<40;i++) {
+          const el=document.querySelector('.screen.open[data-cle^="fiche:"]');
+          if (el && el.dataset.cle===cle) return el;
+          await new Promise(r=>setTimeout(r,25));
+        }
+        return null;
+      };
       for (const t of series) {
         window.__reset(); applyState({page:'lib',phase:'prete'});
         window.__ecrans.fiche(t);
-        // The sheet is a ROUTE now: it commits a frame later than an
-        // `innerHTML` assignment did, and a wait too short would leave the
-        // seasons unfound — counted as « no seasons » and skipped, which would
-        // quietly empty this rule.
-        await new Promise(r=>setTimeout(r,240));
-        const dets=[...document.querySelectorAll('.screen.open[data-cle^="fiche:"] details.season')];
-        if (!dets.length) continue;
+        const s=await attendre(t);
+        if (!s) { c.jamaisOuverte.push(t); continue; }
+        const dets=[...s.querySelectorAll('details.season')];
+        // A series whose provider declares no season draws none: a stated
+        // absence, counted APART from a sheet that never opened.
+        if (!dets.length) { c.sansSaison.push(t); continue; }
         const formes=new Set(dets.map(d=>
           d.querySelector('.eprow') ? 'lignes' : d.querySelector('.eps .ep') ? 'matrice' : 'vide'));
         formes.delete('vide');
@@ -386,8 +404,19 @@ async def main():
         else if (formes.has('matrice')) c.matrice.push(t);
       }
       return c;}""")
+    inspectees = len(rendus["lignes"]) + len(rendus["matrice"]) + len(rendus["mixte"])
     print(f"\nSeason rendering — list: {len(rendus['lignes'])} · "
-          f"matrice : {len(rendus['matrice'])} · MIXED: {len(rendus['mixte'])}")
+          f"matrice : {len(rendus['matrice'])} · MIXED: {len(rendus['mixte'])} "
+          f"· sans saison : {len(rendus['sansSaison'])} "
+          f"· inspectées : {inspectees}/{inspectees + len(rendus['sansSaison']) + len(rendus['jamaisOuverte'])}")
+    # A sheet that never opened is a MEASUREMENT failure, never a series to
+    # skip: silence would let a slow host empty this rule and still exit green.
+    for t in rendus["jamaisOuverte"][:6]:
+        note("R30 sheet never opened — nothing was measured on it", t)
+    if not inspectees:
+        note("R30 no season inspected — the rule proves nothing",
+             f"{len(rendus['sansSaison'])} sans saison, "
+             f"{len(rendus['jamaisOuverte'])} jamais ouvertes")
     for t in rendus["mixte"][:6]:
         note("R30 two season renderings within ONE sheet", t)
     if rendus["lignes"] and rendus["matrice"]:
