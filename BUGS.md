@@ -300,6 +300,15 @@ checks 10/10b.
   (2026-08-15): folded into the Médiathèque wave of SP4**, where that page is drawn into
   its final component.
 
+- **Ouvert opérateur — the 240 ms dead delay on `data-suivante`** (2026-08-16, SP4c): the
+  "Passer à la suivante" action in the arbitration screen still carries a `setTimeout(240)`
+  before its resolution call. It was once a cover for the legacy screen closing under it;
+  the screen migrated to a router-owned route in SP4c and no longer plays a close animation
+  there, so the delay is now a frozen quarter-second with nothing left for it to cover. Kept
+  byte-identical rather than removed — the binding constraint on this wave was
+  behaviour-preserving migration, not a UX pass — so this is flagged, not fixed. The operator
+  may want it dropped.
+
 ---
 
 ## B-013 — The drawer's entries lead nowhere

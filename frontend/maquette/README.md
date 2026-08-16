@@ -23,7 +23,7 @@ document names exactly one module entry, and the bundle it names exists.
 
 **React and TanStack Router are the outer shell.** The router is the SINGLE writer of the
 URL and the history: the legacy engine keeps its navigation logic but speaks to
-`window.__pont` (five verbs) instead of the History API. The shell creates the store and
+`window.__pont` (six verbs) instead of the History API. The shell creates the store and
 the real bridge FIRST and only then starts the engine (`window.__demarrerMoteur` — the boot
 inversion described below), so every bridge call the engine makes at boot lands straight on
 the single writer; nothing before it needs queueing or replaying. R74 (`pont.py`) holds the
@@ -80,6 +80,36 @@ a real fiche without a trailer shows its own "no trailer" line rather than hidin
 R75 (`adresses_ecrans.py`) holds the address at this depth: cold entry, the hero image the
 screen paints itself actually loads, one Back returns to where the walk started, a wrong
 address still renders instead of raising.
+
+**Two more real routes: `/resolution/$dossier` and `/releases/$titre`.** `ResolutionEcran`
+and `ReleasesEcran` are transplanted from `openResolve()` and `openReleases()` — the arbitration
+screen and the release-choice screen — reached through `window.__ecrans.resolution(dossier?,
+remplacer?)` and `.releases(titre)`. `resolution`'s argument is optional: the legacy function
+picked the first stuck folder itself when called with none, and the shell reproduces that default
+rather than pushing the choice onto each caller; its `remplacer` flag turns a legacy
+close-then-reopen (a pop plus a push, net one history entry) into a single `aller(..., remplacer:
+true)`, worth exactly as much. `releases` writes `state.relTitre` — the legacy function's own
+first line — BEFORE navigating, since the `data-prendre` delegation branch still reads it after
+the route has rendered. `releaseCardHTML`/`decisionCardHTML`, the legacy builders both screens
+drew their cards with, are gone once their last caller moved: `CarteRelease` and `CarteDecision`
+(`design/src/ecrans/resolution.tsx`) are what replaced them. R75 extends with six holds for the
+two screens: cold deep entry (including a dossier name carrying its own dots, the shape a real
+staging folder actually has — `serveur.py`'s and `serve.py`'s SPA fallbacks both fold it to the
+document rather than 404ing), one Back landing on `/`, and an unknown subject rendering the
+screen's own honest empty case instead of raising.
+
+**`window.__pont` gained a sixth verb: `reculer(n)`**, the door for settling SEVERAL history
+entries in one announced operation instead of calling `retour()` twice in the same task. It
+flushes pending writes, announces the traversal to the engine (`window.__annoncerPops`, next to
+`window.__derouler`), THEN issues a single `historique.go(-n)` — measured, not assumed: a
+multi-entry `history.go(-n)` coalesces into ONE popstate at the browser level, so the engine's
+own latch is raised once per announcement, never by `n` (raising it by `n` was tried and falls a
+mutation: it swallows the operator's next real Back in silence). This closed M11 — the Associer
+flow (`data-act="ident"` from an `/ajout` result) used to fire two raw `history.back()` calls in
+the same task, which the engine's own coalescing latch could absorb only one of; the second read
+as an unannounced operator gesture and happened to land correctly only by the accident of which
+entry sat underneath. `ident.py` holds the settlement: one entry back, no layer left open, the
+next Back still worth exactly one step.
 
 **Scroll position follows the HISTORY ENTRY, not the address.** A screen opened over another
 used to be the same legacy layer restoring its own scroll on unwind; a router-owned screen
@@ -351,7 +381,7 @@ screen:
 | ------------- | ------------------------------ | ------------------------------------------------------------ |
 | Card          | `cardHTML(descripteur, opts)`  | every list — urgency sections, follows, library, arrivals    |
 | Tile          | `tileHTML(o, sousLigne, opts)` | every gallery — the library's three lenses, the follows grid |
-| Release card  | `releaseCardHTML(...)`         | the resolution and release screens — **not a medium**        |
+| Release card  | `CarteRelease`/`CarteDecision` | the resolution and release screens — **not a medium**        |
 | Selection row | `libRowHTML`                   | a mode of the LIST, not a variant of the card                |
 
 Three views used to rebuild a card by hand. One of them had already drifted, and it
