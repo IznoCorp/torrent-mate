@@ -25,9 +25,21 @@ string lives in code: French interface copy lives in i18n resources.** The rule 
 | T4   | 29 harness files renamed + `resync.py`, `rename.mjs`, prod `FollowsPanel.tsx`; ~90 references; the stale-prose carry                                                           | suite 48/48 with **485 holds — the same total as before the renames**                          |
 | T5   | The harness's own identifiers, labels, `Journal` titles and printed formats → English, in 4 batches                                                                            | suite 48/48, 485 holds, per-batch counts identical to a pre-edit baseline                      |
 
-**T5's review was still running when this session ended — read its verdict first
-(`.superpowers/sdd/2026-08-16-clean-code-i18n/` is gone with the session; re-dispatch the
-review if no verdict was recorded below).**
+**T5's review verdict (recorded):** the translation is the wave's best-verified refactor —
+the reviewer proved AST-anonymised equality on 39 of the 49 scripts (every one of the 10
+differences explained; `audit.py`'s dropped duplicate `elif` proven to be the ONLY
+structural change in the whole diff) and identical per-file hold call-sites, which is a
+stronger proof than the 485 count. It found one real defect class: renamed labels orphan
+the evidence quotes that cite them — R56/R71 had been re-pointed, R57/R73/R76 and four
+`BUGS.md` mutation recipes had not. Fixed in a follow-up round (see the branch log); the
+lesson is recorded below.
+
+**Open item inherited from that review:** three plan docs under `docs/superpowers/plans/`
+(`2026-08-14-maquette-sp2-coquille-vite.md`, `…-bascule-hote.md`, `…-sp1-dossier-servi.md`)
+state expected output as « ECHEC … » / « N règles EXÉCUTÉES » — the recipes still work
+(exit codes unchanged) but their expected-output half is stale. And
+`frontend/maquette/harness/rename.mjs` (a 50th file, not one of the 49 rule scripts) is
+still entirely French — decide in T7/T8 whether the gate covers it.
 
 ### Remaining tasks (in order)
 
@@ -91,7 +103,13 @@ then **SP4-end** (the legacy engine dies). Those waves are born under the new ru
    changes what a script measures shows up there; run the suite per batch and compare.
 5. **Undoing a mutation on a branch-modified file must be the INVERSE EDIT** — a
    `git checkout --` would destroy the branch's own edits to that file.
-6. **A rule can go quiet without failing**: R8 lost the fiche when it left `#screen`;
+6. **Renaming a label orphans every quote that cites it.** `regions.json`'s bite evidence
+   and `BUGS.md`'s mutation recipes quote hold labels verbatim; when a label is
+   translated, those quotes point at nothing and the recipe silently stops working. After
+   ANY label rename, re-resolve every quoted phrase in `regions.json` and `BUGS.md`
+   against the current source — the mechanical way is to extract each quoted phrase and
+   grep it back.
+7. **A rule can go quiet without failing**: R8 lost the fiche when it left `#screen`;
    four scripts silently measured the page underneath (three different media reporting the
    same 1541 characters). Whenever a surface moves, add its identity rung the SAME wave.
 
