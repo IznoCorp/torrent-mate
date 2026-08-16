@@ -18188,7 +18188,10 @@
       try {
         if (surLeTiroir) __pont.remplacer(etatDeNavigation(), urlDeLEtat());
         else noterLeChemin();
-      } catch (error) {}
+      } catch (error) {
+        console.error("data-navgo : écriture de navigation échouée", error);
+        window.__navEchec = true;
+      }
       return;
     }
     if (closest.dataset.apparence) {

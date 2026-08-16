@@ -122,15 +122,26 @@ them. None is reproduced on a device yet; each entry below records the walk that
   `data-navgo`) silences a `remplacer` failure: the page renders the destination while URL and
   history still describe the layer — a silent violation of the DOIT-10 claim that « the URL and
   the interface never disagree », with nothing logged.
-  **Fixed (SP4b, task 6).** Both swallows — the `data-go` handler's own, and `noterLeChemin`'s
-  (`refonte.html` ~16561, the write door every OTHER navigation goes through) — now
-  `console.error` and raise `window.__navEchec = true`, a probe published next to the other
-  probe flags (`__sujetsSansNom`'s precedent) for the harness to read. Mutation-verified: with
-  the intact catch, stubbing `__pont.remplacer` to throw (page context, driving « Profil et
-  préférences » from the user sheet — the one control that can fire `remplacer` from a layer)
-  raised the probe (`true`); a plain tap left it `false` (no false positive). Reverting the
-  catch to silent and repeating the SAME forced throw left the probe `false` — the hold falls
-  without the fix, confirming it bites — then the catch was restored.
+  **Fixed (SP4b, task 6).** Three swallows now `console.error` and raise
+  `window.__navEchec = true`, a probe published next to the other probe flags
+  (`__sujetsSansNom`'s precedent) for the harness to read: the `data-go` handler's own tail,
+  `noterLeChemin`'s (`refonte.html` ~16561, the write door every OTHER navigation goes
+  through), and `data-navgo`'s own tail (`refonte.html` ~18188-18194) — the pattern's
+  ORIGIN, byte-identical in shape and risk, and left silent in the first pass (a review
+  finding on the same commit). Mutation-verified for both call sites: with the intact
+  catch, stubbing `__pont.remplacer` to throw (page context) and driving « Profil et
+  préférences » from the user sheet (`data-go`, the one control that can fire `remplacer`
+  from a layer) or the drawer's own first entry (`data-navgo`, opened through its handle)
+  raised the probe (`true`) in both cases; a plain tap left it `false` either way (no false
+  positive). Reverting either catch to silent and repeating the SAME forced throw on that
+  path left the probe `false` — the hold falls without the fix, confirming it bites — then
+  each catch was restored in turn.
+  **Known residual, not fixed, deliberate.** The three silent catches in
+  `window.__demarrerMoteur` (`refonte.html` ~40699-40721: the opening `remplacer`, the
+  guard `remplacer`, the boot `noter`) stay silent. Boot-time, pre-render — a failure there
+  leaves the splash/boot state visible rather than a rendered interface disagreeing with
+  its URL, which is the lower-risk failure mode DOIT-10 is not written against. Settles
+  when the legacy engine itself dies (SP4-end), not before.
 - **B-027** — `resynchro.py` extracts a follow's title with the FIRST `t: "…"` match anywhere in
   the object and counts braces with no string-awareness. An object whose first `X: "…"` key is
   not the title, or a title containing `{`/`}`, silently skips or — worse — rewrites the WRONG
