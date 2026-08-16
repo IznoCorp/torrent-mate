@@ -18,11 +18,22 @@ async def main():
 
     print("── add screen ──")
     await pg.click("#fab"); await pg.wait_for_timeout(500)
-    r=await pg.evaluate("""()=>{const s=document.querySelector('#screen');
+    # The add screen left `#screen` for a real route (`/ajout`, rendered inside
+    # `#coquille`), and is read by the identity it carries — `data-cle="ajout:…"`
+    # (the mode it was opened in) — never by a bare `.screen.open`, which two
+    # stacked screens would both answer to. Read at the old layer id, this block
+    # measured an empty node and printed zeros for a screen full of results.
+    r=await pg.evaluate("""()=>{const s=document.querySelector('.screen.open[data-cle^="ajout:"]');
+      if (!s) return {absent:true};
+      // `.res` and `.resbtn` are dead class names — a result row is a
+      // `.reslist .card` today, and its foot action was removed on purpose
+      // (R71: the panel is the single path to the act). Kept pointing at them,
+      // both lines printed zero forever, which reads like « no results » next
+      // to a count that says six.
       return {ouvert:s.classList.contains('open'),
               compte:(s.querySelector('.rescount')||{}).textContent?.trim(),
-              resultats:s.querySelectorAll('.res').length,
-              boutons:[...s.querySelectorAll('.resbtn')].map(x=>x.textContent.trim()),
+              resultats:s.querySelectorAll('.reslist .card').length,
+              pieds:[...s.querySelectorAll('.reslist .cfoot')].map(x=>x.textContent.trim()),
               parId:!!s.querySelector('.byid')};}""")
     print(" ", r)
     await pg.screenshot(path="y_ajout.png")

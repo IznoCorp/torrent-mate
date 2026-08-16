@@ -300,10 +300,19 @@ function SaisonDetail({
   return (
     <details className="season" open={!complete}>
       <summary>
-        Saison {num}
+        {/* The blanks between these children are NOT decoration: the legacy
+            `saisonsHTML` carried a line break at each of them, and JSX drops
+            the whitespace it finds between an expression and an element. Left
+            out, `summary.textContent` reads « Saison 2211/11 » — the season
+            number welded to its own counter, for anything that reads the row
+            as one string (a rule deriving the number from it, an assistive
+            technology announcing it). `summary` is a flex container, so a
+            whitespace-only node draws nothing: the fix is invisible and the
+            text is right again. */}
+        Saison {num}{" "}
         <span className="sfr">
           {owned}/{aired}
-        </span>
+        </span>{" "}
         {complete ? null : (
           <span className="miss">
             {manque} manquant{manque > 1 ? "s" : ""}
