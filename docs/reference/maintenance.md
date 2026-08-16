@@ -290,14 +290,14 @@ the rescraper.
 
 ## Web-UI maintenance actions (S3)
 
-The TorrentMate web UI exposes all ~20 `library-*` CLI commands as a catalog of
+The TorrentMate web UI exposes all 26 `library-*` CLI commands as a catalog of
 maintenance actions (`docs/reference/web-ui.md` § Maintenance dashboard (S3)).
 This section describes how they are wired — the registry, the runner, and the
 safety guarantees — from the backend perspective.
 
 ### Registry — CLI → web-form mapping
 
-`personalscraper/web/maintenance/registry.py` holds a `REGISTRY` dict of 25
+`personalscraper/web/maintenance/registry.py` holds a `REGISTRY` list of 26
 `MaintenanceAction` entries, one per registered `library-*` Typer command. Each
 entry carries an `id` (matching the CLI name), a French `title` and
 `description`, a `category` (`query` / `scan` / `repair` / `clean` / `analyze` /
@@ -308,9 +308,9 @@ list of `ActionOption` typed fields (text, number, select, bool).
 The result is a **registry-driven form generator**: the frontend reads
 `GET /api/maintenance/actions` (which returns the full catalog + per-category
 counts) and renders one form per action purely from its `options` list, with no
-per-action frontend code needed. A test asserts that the set of registry keys
-equals the set of registered `library-*` commands, guaranteeing the catalog
-stays in sync with the CLI surface.
+per-action frontend code needed. A test asserts that the set of `id` attributes
+across the registry entries equals the set of registered `library-*` commands,
+guaranteeing the catalog stays in sync with the CLI surface.
 
 ### Runner — detached subprocess model
 
