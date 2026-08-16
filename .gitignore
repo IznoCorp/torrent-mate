@@ -169,6 +169,11 @@ tests/fixtures/parity/v0.7-fs/
 tests/e2e/perf/.fixture/
 docs/features/provider-ids/plan/DEVIATIONS.md
 
+# Maquette rule-harness scratch output: harness/audit.py dumps its violation
+# map here (a relative open(), so it lands in the directory the script is run
+# from — frontend/maquette by convention). It is a run artefact, never a source.
+frontend/maquette/violations.json
+
 # TorrentMate web UI — built SPA output (gitignored; Vite build fills this dir at deploy time)
 personalscraper/web/static/*
 !personalscraper/web/static/.gitkeep

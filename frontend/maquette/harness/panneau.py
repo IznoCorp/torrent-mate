@@ -146,8 +146,11 @@ async def main():
             window.__panneauInconnu();
             return "aucun refus";
           }catch(e){return String(e.message||e);}}""")
+        # The message reads ENGLISH because it is a DEVELOPER message: it
+        # reaches this harness and a console, never the interface, so the
+        # no-French-in-code rule applies to it and the assertion follows it.
         verifier("un bloc non déclaré est refusé",
-                 "bloc de panneau inconnu" in refus, refus)
+                 "unknown panel block" in refus, refus)
 
         verifier("aucune erreur JS", not erreurs, str(erreurs))
         await b.close()
