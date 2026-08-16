@@ -7,7 +7,7 @@
 **Version bump**: 0.79.2 → 0.80.0 (minor — migration + nouvelle règle de garde + backfill)
 **Branch**: `fix/spine-truth`
 **Design**: `docs/features/spine-truth/DESIGN.md`
-**Diagnostic source**: `docs/analysis/2026-08-05-provenance-spine-hole-handoff.md`
+**Diagnostic source**: `docs/archive/analysis/2026-08-05-provenance-spine-hole-handoff.md`
 
 ## Contexte d'exécution
 

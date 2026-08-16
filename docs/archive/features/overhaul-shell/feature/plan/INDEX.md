@@ -1,7 +1,7 @@
 # overhaul-shell — Implementation Plan
 
 > **Feature:** Design overhaul V1: shell (sticky sidebar, attention badges, width)
-> **Spec:** `docs/features/overhaul-shell/DESIGN.md` + shared spec `docs/superpowers/specs/2026-07-16-design-overhaul-design.md` §1.1 + §6
+> **Spec:** `docs/features/overhaul-shell/DESIGN.md` + shared spec `docs/archive/superpowers/specs/2026-07-16-design-overhaul-design.md` §1.1 + §6
 > **Epic:** #304 · **Ticket:** #305
 > **Branch:** `feat/overhaul-shell`
 

@@ -5,7 +5,7 @@
 **Constitution servie**: §13 (l'interface reflète l'état réel des données), §12 (mobile first),
 §8 (rien en silence), DOIT-1, NE-DOIT-PAS-5.
 
-Source du diagnostic : `docs/analysis/2026-08-05-provenance-spine-hole-handoff.md`. Le diagnostic
+Source du diagnostic : `docs/archive/analysis/2026-08-05-provenance-spine-hole-handoff.md`. Le diagnostic
 n'est pas refait ici ; ce document ajoute **le mécanisme exact de la cause B**, établi depuis les
 logs prod, parce que la conception du correctif en dépend.
 

@@ -197,7 +197,7 @@ Phase 6.1).
 - Post-merge ACCEPTANCE re-exercise obligatoire
 - ACCEPTANCE_FAIL alerting CI (futur — 0.17+)
 
-* update `.claude/CLAUDE.md` ou `docs/superpowers/specs/2026-04-22-implement-skills-refactor-design.md`
+* update `.claude/CLAUDE.md` ou `docs/archive/superpowers/specs/2026-04-22-implement-skills-refactor-design.md`
   avec la règle.
 
 **Commit** : `docs(tech-debt): feature-lifecycle conventions + ACCEPTANCE format rule (SH-16)`

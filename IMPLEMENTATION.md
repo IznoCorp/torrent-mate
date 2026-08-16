@@ -20,8 +20,12 @@ That reverses the order of work:
 Until step 2 is passed, **nothing here derives app code**. The phase table that used to sit in
 this file described the opposite order — deriving the app surface by surface — and it is gone.
 
-**Branch:** `feat/shell-mobile`. `main`, and therefore production, is touched **once, at the
-end**, after everything has been validated together. Non-negotiable.
+**Branches:** one per wave (`feat/maquette-sp4b`, `feat/maquette-sp4c`, …) — each wave
+squash-merges onto `main` after green CI and a clean final adversarial review (standing
+operator instruction). What waits until the end is not `main` but the **binding**:
+production keeps running the shipped SPA untouched, the merged waves change only the
+prototype track (`frontend/maquette/`, its CI gates and docs), and nothing derives app
+code until the operator's judgement (step 2 above). Non-negotiable.
 
 **Spec:** `docs/superpowers/specs/2026-08-10-refonte-mobile-quatre-pages-design.md`
 **The prototype:** `frontend/maquette/design/refonte.html` — §15 of `docs/reference/product-intent.md`
@@ -217,8 +221,11 @@ Then draw the missing surfaces, in the order of the inventory below.
 production and staging):
 
 ```bash
-cd frontend/maquette && python3 -m http.server 8899
+cd frontend/maquette && python3 serve.py 8899
 ```
+
+`serve.py` serves the BUILD (`design/dist/`), rebuilding under lock when sources
+change — a plain `http.server` would serve the sources and measure nothing real.
 
 The prototype needs a wrapper supplying a viewport meta; the harness scripts build one. Without
 it Chrome falls back to the legacy 980px layout viewport and every measurement is wrong.
@@ -331,64 +338,64 @@ measured by 71 rules; the architecture was measured by nothing. These are its nu
 the file rather than remembered — the column on the right is what changed while the missing
 surfaces were being drawn.
 
-| Mesure                               | Aujourd'hui         | Avant                         |
+| Measure                              | Today               | Before                        |
 | ------------------------------------ | ------------------- | ----------------------------- |
-| lignes de code (hors jaquettes)      | 41 400              | 39 454                        |
-| jeux de données en dur               | **83**              | 57                            |
-| appels réseau                        | **1**               | 1                             |
-| accès à `state.`                     | **265**             | 248                           |
-| `render()`                           | 1 défini, 47 appels | 1 défini, 43 appels           |
-| coutures `window.__` nommées         | **11**              | 21 comptées avec leurs usages |
+| lines of code (poster data excluded) | 41,400              | 39,454                        |
+| hardcoded data sets                  | **83**              | 57                            |
+| network calls                        | **1**               | 1                             |
+| direct `state.` accesses             | **265**             | 248                           |
+| `render()`                           | 1 defined, 47 calls | 1 defined, 43 calls           |
+| named `window.__` seams              | **11**              | 21 counted with their usages  |
 | `history.pushState` / `replaceState` | 5 / 3               | 4 / 0                         |
-| **lecture de `location`**            | **3**               | **0**                         |
+| **reads of `location`**              | **3**               | **0**                         |
 
-Aucun de ces chiffres n'est un défaut **du prototype** : un fichier unique sans dépendance est
-exactement ce qui l'a rendu vérifiable. Ce sont les **coutures** que la liaison devra ouvrir.
+None of these numbers is a defect **of the prototype**: a single dependency-free file is
+exactly what made it verifiable. They are the **seams** the binding will have to open.
 
-### Les trois questions, et ce qu'elles valent maintenant
+### The three questions, and what they are worth now
 
-**1. Par où entre une donnée ?** 83 constantes, contre 57. Le nombre a monté et la situation s'est
-améliorée, ce qui n'est contradictoire qu'en apparence : chacune des nouvelles est lue d'une source
-vivante nommée dans son commentaire — `pipeline_run`, `pm2 jlist`, `df`, `library.db`, le registre
-de maintenance, `web.json5`, `ecosystem.config.js` — et **quatre règles retournent à ces sources à
-l'exécution** au lieu de comparer à un chiffre écrit à côté. R66 vérifie le run par son `run_uid`,
-R67 compte les processus contre `pm2 jlist` et les commandes contre le registre du moteur dans les
-deux sens, R68 lit `web.json5`, R63 lit `acquire.db`.
+**1. Where does a piece of data come in?** 83 constants, up from 57. The number rose and the
+situation improved, which is only apparently contradictory: every new constant is read from a
+living source named in its comment — `pipeline_run`, `pm2 jlist`, `df`, `library.db`, the
+maintenance registry, `web.json5`, `ecosystem.config.js` — and **four rules go back to those
+sources at run time** instead of comparing against a number written beside them. R66 checks the
+run by its `run_uid`, R67 counts processes against `pm2 jlist` and commands against the engine's
+registry in both directions, R68 reads `web.json5`, R63 reads `acquire.db`.
 
-C'est la réponse à la question, et elle est exécutable : **une constante dont la valeur est
-vérifiée contre sa source est une couture nommée ; une constante que rien ne vérifie est un
-couplage.** R63 l'a démontré tout seul en tombant quand le planificateur a tourné — une règle qui
-échoue avec le TEMPS ne signale pas un défaut, elle désigne une couture. Il reste à faire le tri :
-combien des 83 sont vérifiées, combien ne le sont pas.
+That is the answer to the question, and it is executable: **a constant whose value is verified
+against its source is a named seam; a constant nothing verifies is a coupling.** R63 demonstrated
+it on its own by failing when the scheduler ran — a rule that fails with TIME does not signal a
+defect, it points at a seam. The triage remains to be done: how many of the 83 are verified, and
+how many are not.
 
-**Elle est retombée le même jour**, quelques heures plus tard : le passage de 15 h 20 a poussé Silo
-de 9 à 11. Deux fois en une session, sans qu'une ligne de la maquette ait été touchée. Ce n'est
-plus une illustration de la question, c'en est la réponse : **ces constantes-là ne se maintiennent
-pas à la main, et la liaison n'a pas le choix de les brancher.**
+**It fell again the same day**, a few hours later: the 15:20 run pushed Silo from 9 to 11. Twice
+in one session, without a single line of the prototype being touched. That is no longer an
+illustration of the question, it is its answer: **those constants cannot be maintained by hand,
+and the binding has no choice but to wire them.**
 
-**2. Qui possède l'état ?** Personne — 265 accès directs, contre 248. Rien n'a bougé sur ce front
-et c'est assumé : découper l'état demande de découper le fichier, et un fichier unique est
-exactement ce qui a rendu ces 71 règles écrivables. **C'est la question qui reste entière**, et la
-seule des trois qui ne se tranche pas sans décider d'abord comment le prototype se découpe.
+**2. Who owns the state?** Nobody — 265 direct accesses, up from 248. Nothing moved on this
+front and that is deliberate: splitting the state requires splitting the file, and a single file
+is exactly what made those 71 rules writable. **This is the question that remains whole**, and
+the only one of the three that cannot be settled without first deciding how the prototype gets
+split.
 
-Une chose a quand même été apprise en la traversant : `state.pipe` **fuyait** d'un état nommé au
-suivant, si bien qu'un même id ne rendait pas la même chose selon le chemin parcouru pour y
-arriver. R10 l'a trouvé. C'est le coût exact d'un état sans propriétaire, et la parade tient dans
-une phrase : **tout état nommé nomme TOUS ses cadrans**, comme il nommait déjà sa page et sa phase.
+One thing was still learned crossing it: `state.pipe` **leaked** from one named state to the
+next, so the same id did not render the same thing depending on the path taken to reach it. R10
+found it. That is the exact cost of ownerless state, and the counter-measure fits in one
+sentence: **every named state names ALL of its dials**, as it already named its page and its
+phase.
 
-**3. Où vit une route ?** Elle vivait dans `state.page`, et l'URL ne la portait pas.
-**C'est réglé.** La mesure qui le disait était sans appel : `history.pushState` quatre fois,
-`location` lu **zéro** fois — l'interface disait au navigateur où elle était et ne le lui demandait
-jamais. Ce n'était pas une dette à transmettre, c'était une **non-conformité à DOIT-10**, et elle
-se voyait : un rechargement retombait sur la page d'ouverture, et aucun écran ne pouvait être
-envoyé à quelqu'un.
+**3. Where does a route live?** It used to live in `state.page`, and the URL did not carry it.
+**That is settled.** The measurement that said so was final: `history.pushState` four times,
+`location` read **zero** times — the interface told the browser where it was and never asked it.
+That was not a debt to hand over, it was a **non-conformity with DOIT-10**, and it showed: a
+reload fell back onto the opening page, and no screen could be sent to anyone.
 
-L'état voyage dans la REQUÊTE et non dans le chemin, et c'est une décision : ce fichier s'ouvre
-depuis un serveur statique, depuis l'hôte de maquette et depuis `file://`, et une route par chemin
-demande un serveur qui réécrit tout chemin inconnu vers le document — deux de ces trois-là ne le
-peuvent pas. La liaison fera correspondre `?page=lib` au `/medias` de la production ; ce qui se
-juge maintenant est que l'URL et l'interface ne se contredisent jamais. R69,
-`harness/adresse_url.py`.
+The state travels in the QUERY, not in the path, and that is a decision: this document opens
+from a static server, from the prototype host, and from `file://`, and path-based routing
+requires a server that rewrites every unknown path to the document — two of those three cannot.
+The binding will map `?page=lib` onto production's `/medias`; what is judged now is that the URL
+and the interface never contradict each other. R69, `harness/adresse_url.py`.
 
 ---
 
@@ -397,9 +404,10 @@ because it takes the largest transfer and the arbitration hangs on it — then a
 questions of this section. Each surface follows the method below — real data, named states,
 a rule that bites, a mutation that proves it.
 
-Note that question 3 is not only architecture: **DOIT-10 requires every detail to have its URL**,
-and the prototype's routes live in `state.page`. That is a non-conformity with the constitution,
-not merely a debt to hand over.
+Note that question 3 was not only architecture: **DOIT-10 requires every detail to have its
+URL**, and the prototype's routes used to live in `state.page` alone. That non-conformity is
+closed — the URL carries the state in its query, held by R69; what the binding still owes is the
+mapping onto production's paths.
 
 ---
 
@@ -462,8 +470,8 @@ the audit that motivated it was done. Neither replaces a phase.
   which (« Laisser tel quel ») existed in the engine and nowhere in the interface. R57,
   `harness/decision.py`.
 
-**In the app** (`frontend/src`), from
-`docs/analysis/2026-08-12-app-component-duplication-audit.md`:
+**In the app** (`frontend/src`), from the 2026-08-12 component-duplication
+audit (the audit document itself was never committed; its outcomes are):
 
 - `ds/Panel` extracted; eleven files stopped writing the surface string by hand, and a test
   fails naming any file that starts again.

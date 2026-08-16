@@ -1,174 +1,179 @@
 # Changelog
 
-All notable changes to personalscraper are documented in this file.
+All notable changes to TorrentMate (engine package `personalscraper`) are
+documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-> **⚠️ FROZEN at 0.19.0 — read this first.**
+> **⚠️ Partial coverage — read this first.**
 >
-> This file stopped being maintained after `0.19.0` (2026-06-01) while the code
-> moved on to `0.49.x`. Rather than back-fill 30 minor versions from memory —
-> **a false changelog is worse than an absent one** (constitution §méthode) —
-> the authoritative history for `0.20.0` → the current version lives in:
+> This file was maintained through `0.19.0` (2026-06-01), then sporadically for
+> `0.55.0`–`0.65.2` (July 2026). Versions `0.20`–`0.54`, and `0.66` and later,
+> are **not** logged here, and will not be back-filled from memory —
+> **a false changelog is worse than an absent one** (constitution §méthode).
+> The authoritative history for those versions lives in:
 >
 > - the **git log** (`git log --oneline`), and
-> - the **squash-merged pull requests** on GitHub, each carrying its
->   « déroulé de preuve daté » (constitution §10).
+> - the **squash-merged pull requests** on GitHub, each carrying its dated
+>   proof run (constitution §10).
 >
 > Every PR bumps the version (§10-3, enforced by the CI `version-bump` job),
 > so `git tag` / `personalscraper.__version__` + the PR that bumped it is the
-> per-version record. This file **resumes at `1.0.0`** (the first production
-> release), when the SemVer contract and a maintained changelog both begin.
+> per-version record. Systematic changelog keeping **resumes at `1.0.0`** (the
+> first production release), when the SemVer contract and a maintained
+> changelog both begin.
 >
-> The entries below (`0.16.0`–`0.19.0`) are kept for their historical record.
+> The entries below are kept for their historical record.
 
 ## [0.65.2] — 2026-07-31
 
 ### Fixed
 
-- **Scan Plex après dispatch enfin déclenché sur les crons (#346, bug récurrent).**
-  Les crons pipeline/dispatch tournent le checkout deploy dont le `.env` n'avait pas
-  `PLEX_TOKEN` → le subscriber de refresh Plex n'était jamais câblé
-  (`plex_refresh_disabled reason=no_token`) → média acquis + dispatché + indexé mais
-  invisible dans Plex (Supergirl, Rooster…). `Settings` charge désormais un overlay de
-  `.env` : le `.env` canonique (à côté du `config/` partagé via `PERSONALSCRAPER_CONFIG`)
-  comble les clés manquantes du `.env` local, sans écraser les secrets locaux. Rétro-compat
-  totale.
+- **Plex scan after dispatch finally triggered on the crons (#346, recurring bug).**
+  The pipeline/dispatch crons run from the deploy checkout, whose `.env` was missing
+  `PLEX_TOKEN` → the Plex refresh subscriber was never wired
+  (`plex_refresh_disabled reason=no_token`) → media acquired + dispatched + indexed but
+  invisible in Plex (Supergirl, Rooster…). `Settings` now loads a `.env` overlay: the
+  canonical `.env` (next to the `config/` shared via `PERSONALSCRAPER_CONFIG`) fills in
+  the keys missing from the local `.env`, without overwriting local secrets. Fully
+  backward compatible.
 
 ### Changed
 
-- **Constitution produit v3** (`docs/reference/product-intent.md`) : §4 « la chaîne va
-  jusqu'à la visibilité Plex » (acquisition→pipeline→dispatch→scan Plex) + §5 « identité
-  conservée au scraping » (récup via acquisition garde l'ID du suivi).
+- **Product constitution v3** (`docs/reference/product-intent.md`): §4 "the chain runs
+  through to Plex visibility" (acquisition→pipeline→dispatch→Plex scan) + §5 "identity
+  preserved at scraping" (media recovered via acquisition keeps the follow's ID).
 
 ## [0.65.1] — 2026-07-31
 
 ### Fixed
 
-- **Acquisitions — polish des statuts (#344).**
-  - #23 : dans « Suivis retirés », le bouton « Réactiver » ne revient plus à la
-    ligne sur un titre long (mobile) — la rangée ne wrappe plus, le titre tronque,
-    le bouton reste sur place.
-  - #24 : « En attente » et « Non vérifié » ne partagent plus la même couleur —
-    `non_verifie` (tone `muted`) passe d'un gris tireté à un bleu-info tireté faible,
-    distinct du gris plein d'« En attente », dans la carte de suivi ET la matrice
-    d'épisodes.
+- **Acquisitions — status polish (#344).**
+  - #23: in « Suivis retirés », the « Réactiver » button no longer wraps to the
+    next line on a long title (mobile) — the row no longer wraps, the title
+    truncates, the button stays in place.
+  - #24: « En attente » and « Non vérifié » no longer share the same color —
+    `non_verifie` (tone `muted`) moves from a dashed grey to a faint dashed
+    info-blue, distinct from the solid grey of « En attente », in both the follow
+    card AND the episode matrix.
 
 ## [0.65.0] — 2026-07-29
 
 ### Added
 
-- **Auto-bascule d'une release bloquée + seeders renforcés dans le score (#342).**
-  Un torrent grabé qui ne démarre pas (swarm injoignable, payload cassé, bloqué
-  au-delà d'un délai) est automatiquement remplacé par une AUTRE release :
-  - seeders renforcés dans le score (poids 1 → 2, seuils affinés) pour favoriser
-    les releases bien seedées (config, sans changement de code) ;
-  - observabilité du swarm (`TorrentItem.swarm_seeds` depuis `num_complete` qBit)
-    - `classify_stall` (HEALTHY / STALLED_RECOVERABLE / STALLED_DEAD) ;
-  - mémoire des hashes déjà tentés (`wanted.tried_hashes_json`, migration 009) +
-    exclusion au ranking (`rank(..., exclude_hashes=…)`) — jamais deux fois la
-    même release morte ;
-  - acteur `reswitch_stalled` (dans le CLI `grab`) : supprime le torrent mort,
-    requeue l'item, émet `GrabReswitched` ; toast + rafraîchissement live côté UI.
-  - Garde-fou honnête : toutes sources tentées → `en_attente` (jamais un faux
+- **Auto-switch of a stalled release + seeders strengthened in the score (#342).**
+  A grabbed torrent that does not start (unreachable swarm, broken payload, stuck
+  beyond a delay) is automatically replaced by ANOTHER release:
+  - seeders strengthened in the score (weight 1 → 2, refined thresholds) to favor
+    well-seeded releases (config only, no code change);
+  - swarm observability (`TorrentItem.swarm_seeds` from qBit `num_complete`)
+    - `classify_stall` (HEALTHY / STALLED_RECOVERABLE / STALLED_DEAD);
+  - memory of the hashes already tried (`wanted.tried_hashes_json`, migration 009) +
+    exclusion at ranking time (`rank(..., exclude_hashes=…)`) — never the same
+    dead release twice;
+  - `reswitch_stalled` actor (in the `grab` CLI): deletes the dead torrent,
+    requeues the item, emits `GrabReswitched`; toast + live refresh on the UI side.
+  - Honest guardrail: all sources tried → `en_attente` (never a fake
     « en cours »).
 
 ## [0.64.0] — 2026-07-29
 
 ### Changed
 
-- **UI Acquisitions plus lisible et pleine largeur (4 demandes opérateur).**
-  - #12 — le contenu de chaque onglet n'est plus enfermé dans une `Card` :
-    il prend toute la largeur (surtout à 390 px), sans double marge box+section.
-  - #21 — la recherche par titre et l'ajout par ID fusionnent en une seule
-    surface (`MediaSearchAdd`) ; l'accordéon « Ajouter par ID » de `FollowedPanel`
-    est retiré, et l'empty-state « Recherchez un média / Tapez un titre… » ne
-    s'affiche plus au repos (plus d'espace gaspillé).
-  - #19 — après un « Suivre » réussi, la recherche est réinitialisée.
-  - #20 — la liste des suivis se scinde en sous-onglets « Séries » / « Films »
-    (filtre client sur `item.kind`, actifs + section retirés).
+- **More readable, full-width Acquisitions UI (4 operator requests).**
+  - #12 — each tab's content is no longer boxed inside a `Card`: it takes the
+    full width (especially at 390 px), with no double box+section margin.
+  - #21 — the title search and the add-by-ID form merge into a single surface
+    (`MediaSearchAdd`); the « Ajouter par ID » accordion of `FollowedPanel` is
+    removed, and the « Recherchez un média / Tapez un titre… » empty-state no
+    longer shows at rest (no more wasted space).
+  - #19 — after a successful « Suivre », the search is reset.
+  - #20 — the follows list splits into « Séries » / « Films » sub-tabs
+    (client-side filter on `item.kind`, active + removed section).
 
 ## [0.63.0] — 2026-07-29
 
 ### Fixed
 
-- **Une série suivie n'est plus splittée sous deux identités TVDB au scrape.**
-  Le scraper re-matchait librement chaque dossier de staging ; pour une série
-  suivie dont TVDB a des doublons (ex. « Rooster » 457770 vs « ニワトリ・ファイター »
-  452575), il pouvait résoudre la mauvaise fiche, dispatcher un 2ᵉ dossier et
-  **casser le reconcile d'acquisition** (les épisodes restaient « en cours
-  d'acquisition » à vie). Désormais, quand un dossier de show provient de la file
-  `wanted` d'un suivi (épisodes grabbed appariés par saison/épisode + garde de
-  similarité de titre), le scrape **force l'ID TVDB du suivi**
-  (`scrape_tvshow_forced`) au lieu de re-matcher. Précision-first : forçage
-  seulement si un seul suivi recouvre le dossier ET le titre concorde, sinon
-  match libre (rétro-compatible). Fail-soft de bout en bout (jamais de blocage du
-  scrape). TVDB reste le primaire de détection.
+- **A followed series is no longer split under two TVDB identities at scrape time.**
+  The scraper freely re-matched every staging folder; for a followed series with
+  TVDB duplicates (e.g. « Rooster » 457770 vs « ニワトリ・ファイター »
+  452575), it could resolve the wrong record, dispatch a 2nd folder and
+  **break the acquisition reconcile** (episodes stayed « en cours
+  d'acquisition » forever). Now, when a show folder originates from a follow's
+  `wanted` queue (grabbed episodes matched by season/episode + a title-similarity
+  guard), the scrape **forces the follow's TVDB ID**
+  (`scrape_tvshow_forced`) instead of re-matching. Precision-first: forcing
+  happens only when a single follow covers the folder AND the title agrees,
+  otherwise free match (backward compatible). Fail-soft end to end (never blocks
+  the scrape). TVDB remains the detection primary.
 
 ## [0.62.0] — 2026-07-29
 
 ### Added
 
-- **Suivre un média par ID IMDB ou TMDB, plus seulement TVDB.** Le formulaire
-  « Ajouter par ID » (onglet Suivis) propose désormais un sélecteur de provider
-  TVDB / TMDB / IMDB : un entier pour TVDB/TMDB, un identifiant `tt…` pour IMDB
-  (validé côté client). Comme la détection d'épisodes (`poll_known`) a besoin d'un
-  ID TVDB, le serveur **résout le TVDB** d'une série suivie par TMDB/IMDB au
-  moment du suivi — `TMDBClient.get_tvdb_id` lit l'ID TVDB brut de
-  `/tv/{id}/external_ids`, et `find_by_imdb` fait le pont IMDB → TMDB → TVDB. TVDB
-  reste le primaire de détection ; TMDB/IMDB ne servent qu'à le résoudre
-  (séparation multi-provider). Si le TVDB d'une série ne peut être résolu, le
-  suivi est **créé mais signalé** (`tvdb_unresolved`, toast d'avertissement) —
-  jamais un suivi silencieusement inerte (§méthode). Les films (cycle titre §5)
-  n'ont pas besoin de TVDB et sont suivis tels quels.
+- **Follow a media item by IMDB or TMDB ID, no longer TVDB only.** The
+  « Ajouter par ID » form (« Suivis » tab) now offers a TVDB / TMDB / IMDB
+  provider selector: an integer for TVDB/TMDB, a `tt…` identifier for IMDB
+  (validated client-side). Since episode detection (`poll_known`) needs a
+  TVDB ID, the server **resolves the TVDB** of a series followed via TMDB/IMDB
+  at follow time — `TMDBClient.get_tvdb_id` reads the raw TVDB ID from
+  `/tv/{id}/external_ids`, and `find_by_imdb` bridges IMDB → TMDB → TVDB. TVDB
+  remains the detection primary; TMDB/IMDB serve only to resolve it
+  (multi-provider separation). If a series' TVDB cannot be resolved, the
+  follow is **created but flagged** (`tvdb_unresolved`, warning toast) —
+  never a silently inert follow (§méthode). Movies (title cycle §5) do not
+  need TVDB and are followed as-is.
 
 ## [0.61.0] — 2026-07-28
 
 ### Added
 
-- **Les jeux (images disque) sont détectés et masqués de la médiathèque.** Une
-  release de jeu — une image disque (`.iso`/`.bin`/`.mds`/…) portant un signal jeu
-  (groupe de repack connu type Mephisto/FitGirl/DODI, un token de version `vX.Y.Z`,
-  ou une plateforme console) — était classée `OTHER` par le sorter (`.iso` n'est ni
-  vidéo ni app) et remontait comme item à trier dans l'UI Medias, alors que ce n'est
-  pas un média. `is_game_release` (`personalscraper/sorter/game.py`) la détecte, et
-  le read-model de staging (`scan_staging_media`) ne la surface plus, en journalisant
-  `staging_game_hidden` (jamais de disparition silencieuse). **Précision-first** :
-  une image disque de FILM/série (qui porte toujours un token video-release comme
-  `1080p`/`BluRay`) n'est jamais prise pour un jeu, un enfant vidéo ou un marqueur TV
-  opposent un veto, et un token PlayStation (`PS5` contient `S5`) n'est plus lu comme
-  une saison TV — donc aucun vrai média ne disparaît du tri. L'item existant
-  `Marvels.Spider-Man.2` est masqué sans déplacement ni migration.
+- **Games (disc images) are detected and hidden from the library.** A game
+  release — a disc image (`.iso`/`.bin`/`.mds`/…) carrying a game signal
+  (a known repack group like Mephisto/FitGirl/DODI, a `vX.Y.Z` version token,
+  or a console platform) — was classified `OTHER` by the sorter (`.iso` is neither
+  video nor app) and surfaced as an item to sort in the Medias UI, even though it
+  is not a media item. `is_game_release` (`personalscraper/sorter/game.py`) detects it,
+  and the staging read-model (`scan_staging_media`) no longer surfaces it, logging
+  `staging_game_hidden` (never a silent disappearance). **Precision-first**:
+  a MOVIE/series disc image (which always carries a video-release token like
+  `1080p`/`BluRay`) is never mistaken for a game, a video child or a TV marker
+  vetoes the detection, and a PlayStation token (`PS5` contains `S5`) is no longer
+  read as a TV season — so no real media disappears from sorting. The existing
+  `Marvels.Spider-Man.2` item is hidden with no move and no migration.
 
 ## [0.60.0] — 2026-07-28
 
 ### Added
 
-- **Épisodes « Annoncé » — les sorties futures connues sont visibles.** Le cache
-  d'airing garde désormais **tous** les épisodes à date connue (futurs compris),
-  pas seulement les diffusés. Un nouvel état d'épisode `annonce` est dérivé quand
-  `air_date > today` : la puce apparaît dans la matrice « Détail par épisode » de
-  `/acquisition` avant même la diffusion. Invariant préservé : un futur va au
-  cache mais **jamais** à la file `wanted` (on ne cherche pas un épisode pas encore
-  sorti), et `annonce` ne dégrade pas le `FollowStatus` de la carte — une série
-  dont tous les diffusés sont possédés reste « À jour » même avec des annoncés à
-  venir. Un seul appel provider par série (pas de double-poll).
-- **Légende couleurs des puces d'épisodes.** Sous la matrice, une légende dérivée
-  **directement** de `meta.ts` (source unique) associe une couleur distincte à
-  chacun des 6 états — En médiathèque (vert), À récupérer (ambre), En cours
-  d'acquisition (bleu), En attente (gris plein), Non vérifié (gris pointillé),
-  Annoncé (violet). Un test vérifie que la légende liste exactement les clés de
-  `EPISODE_STATE_LABEL` (drift = échec). Jeton `--upcoming` ajouté (violet),
-  variante de badge `muted` (pointillé) — lisibles en thème clair **et** sombre.
-- **Date de diffusion au clic sur une puce.** Un popover portalisé (non clippé par
-  la garde mobile-shell) affiche « Diffusé le {date} » pour un épisode passé,
-  « Sortie prévue le {date} » pour un annoncé, en français long (« 3 août 2026 »),
-  jamais le jeton ISO brut. Accessible clavier.
-- **Version + commit dans le menu latéral mobile.** Le `VersionCard` (déjà
-  source-unique, jusqu'ici `hidden md:flex` dans la sidebar) est ajouté au
-  `SheetContent` du menu mobile — le numéro de version et le SHA de build sont
-  désormais visibles sur mobile, plus seulement sur desktop.
+- **« Annoncé » episodes — known future releases are visible.** The airing
+  cache now keeps **all** episodes with a known date (future ones included),
+  not just the aired ones. A new `annonce` episode state is derived when
+  `air_date > today`: the chip appears in the « Détail par épisode » matrix of
+  `/acquisition` before the episode even airs. Invariant preserved: a future
+  episode goes to the cache but **never** to the `wanted` queue (we do not search
+  for an episode not yet released), and `annonce` does not degrade the card's
+  `FollowStatus` — a series whose aired episodes are all owned stays « À jour »
+  even with announced episodes ahead. A single provider call per series
+  (no double-poll).
+- **Color legend for the episode chips.** Below the matrix, a legend derived
+  **directly** from `meta.ts` (single source) maps a distinct color to each
+  of the 6 states — « En médiathèque » (green), « À récupérer » (amber),
+  « En cours d'acquisition » (blue), « En attente » (solid grey),
+  « Non vérifié » (dotted grey), « Annoncé » (purple). A test verifies that
+  the legend lists exactly the keys of `EPISODE_STATE_LABEL` (drift = failure).
+  `--upcoming` token added (purple), `muted` badge variant (dotted) — readable
+  in light **and** dark themes.
+- **Air date on chip click.** A portaled popover (not clipped by the
+  mobile-shell guard) shows « Diffusé le {date} » for a past episode,
+  « Sortie prévue le {date} » for an announced one, in long French format
+  (« 3 août 2026 »), never the raw ISO token. Keyboard accessible.
+- **Version + commit in the mobile side menu.** The `VersionCard` (already
+  single-source, until now `hidden md:flex` in the sidebar) is added to the
+  mobile menu's `SheetContent` — the version number and build SHA are now
+  visible on mobile, no longer desktop-only.
 
 ## [0.59.1] — 2026-07-28
 

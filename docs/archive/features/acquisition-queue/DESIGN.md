@@ -1,6 +1,6 @@
 # Design overhaul V4 — Acquisition : rangées compactes, File d'acquisition, obligations titrées
 
-**Ticket**: #308 (epic #304) · **Binding source**: `docs/superpowers/specs/2026-07-16-design-overhaul-design.md`
+**Ticket**: #308 (epic #304) · **Binding source**: `docs/archive/superpowers/specs/2026-07-16-design-overhaul-design.md`
 §3.1 + §5.1 + §7.2 (merge confirmed) — this DESIGN is an extraction, the spec wins on conflict.
 **Product intent**: §5 (completeness épisode-par-épisode), §9 (one flow wanted→grabbed→ingest), DOIT-2
 (FR reasons, truthful states), DOIT-10 (URL-addressable), NE-DOIT-PAS-1/5 (never a calm lie on

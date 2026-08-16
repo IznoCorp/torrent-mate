@@ -289,7 +289,7 @@ Estimation : **17-25 jours séquentiel, 14-20 jours parallélisable** (revue pos
 
 - `IMPLEMENTATION.md` — phase tracker
 - `audit/01..11` — toute la démarche d'audit
-- `docs/pipeline-runs/2026-05-21-17h16-pipeline-run.md` — run réel item 5
+- `docs/archive/pipeline-runs/2026-05-21-17h16-pipeline-run.md` — run réel item 5
 - `docs/reference/` — architecture, indexer, commands, etc.
 
 ## 9. Risques & Mitigations

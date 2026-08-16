@@ -57,7 +57,7 @@ Mock **everything** → unit. Mock **nothing** → manual E2E.
 ### Default suite — unit + integration (CI, everyday use)
 
 ```bash
-make test                               # unit + integration, fail-fast
+make test                               # unit + integration, parallel (-n auto)
 python -m pytest -v                     # same, verbose
 python -m pytest tests/ -x -q          # stop on first failure
 ```

@@ -2,7 +2,7 @@
 
 **Feature**: Unified « état de la machine » overview — acquisitions + pipeline + décisions + en-attente, one view.
 **Type**: feat · **Bump**: 0.71.0 → 0.72.0 (minor) · **Branch**: `feat/machine-state` · **Ticket**: #366
-**Epic**: provenance tracking-spine (F0 → F5), roadmap `docs/features/provenance/EPIC-ROADMAP.md` (the capstone).
+**Epic**: provenance tracking-spine (F0 → F5), roadmap `docs/archive/features/provenance/EPIC-ROADMAP.md` (the capstone).
 
 ## 1. Intent (operator-ratified)
 

@@ -11,7 +11,7 @@ the F0–F4 spine. Backend aggregate endpoint + « Vue d'ensemble » tab on the 
 **Ticket**: #366 — claimed
 **PR merge**: auto (operator-authorized epic contract)
 **Design**: docs/features/machine-state/DESIGN.md
-**Epic roadmap**: docs/features/provenance/EPIC-ROADMAP.md (F0 → F5)
+**Epic roadmap**: docs/archive/features/provenance/EPIC-ROADMAP.md (F0 → F5)
 
 ## Non-negotiable invariants
 

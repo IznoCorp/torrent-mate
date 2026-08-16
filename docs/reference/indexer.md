@@ -15,8 +15,9 @@ WAL-safe filesystem — i.e. not NTFS-via-macFUSE and not an `unknown`-typed
 volume — which includes an APFS volume mounted under `/Volumes/`. The
 `db_path` validator rejects only WAL-unsafe filesystem types, not a bare
 `/Volumes/` prefix).
-Full DDL is in `personalscraper/indexer/migrations/001_init.sql`; the table list
-below gives a one-line description of each table's role.
+Full DDL is in `personalscraper/indexer/migrations/` (`001_init.sql` plus the
+later numbered migrations); the table list below gives a one-line description
+of each table's role.
 
 | Table            | Role                                                                                  |
 | ---------------- | ------------------------------------------------------------------------------------- |
@@ -37,6 +38,9 @@ below gives a one-line description of each table's role.
 | `scan_event`     | High-frequency per-file/per-item events within a scan run.                            |
 | `deleted_item`   | Soft-delete tombstone for items, files, or releases that were removed.                |
 | `schema_version` | Singleton; mirrors `PRAGMA user_version`.                                             |
+| `pipeline_run`   | Run history: pipeline runs AND maintenance actions (`kind` discriminates); trigger, outcome, per-step `steps_json`; REAL epoch timestamps (migrations 011/012/016). |
+| `scrape_decision`| Interactive-scraping decision queue: one row per staging item awaiting an identity decision, with candidate snapshot + resolution JSON (migration 013).             |
+| `destructive_op` | Append-only journal of destructive FS ops (`overwrite` / `delete`) on library content — ts, path, actor, run_uid; INSERT-only, bounded-retention GC (migration 015). |
 
 JSON columns (`artwork_json`, `payload_json`, `stats_json`) are validated by
 Pydantic models in `personalscraper/indexer/schema.py`; see

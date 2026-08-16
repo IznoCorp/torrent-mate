@@ -44,10 +44,6 @@ touching the scrape, backfill, dispatch, or verify paths.
   shape the scraper / backfill produce — `themoviedb` → `tmdb`,
   `rottentomatoes` → `rotten_tomatoes`. So a `themoviedb` rating in an NFO
   lands as `tmdb` in the column.
-- Note: the `RatingEntry.source` Literal in
-  `personalscraper/indexer/external_ids.py` still lists `themoviedb`
-  (legacy) rather than `tmdb`. Aligning that Literal with the stored value
-  is a separate code follow-up — this doc describes the value on disk.
 - `score` is stored as a string so NFO-formatted values
   (`"8.5/10"`, `"87%"`, `"74/100"`) survive a round-trip.
 
@@ -175,8 +171,9 @@ status = OK (>= 50% by default, configurable via `--canonical-threshold-pct`).
 - **TVDB** : 100 req/s soft cap; transport throttle keeps us at 30/s sustained.
 - **OMDB** : 1000 req/day on the free tier; the backfill skips OMDB once the
   daily quota is exhausted (logged, not fatal).
-- **Trakt** : optional, only if `config/trakt.json5` is present. Used for
-  ratings cross-check.
+- **Trakt** : optional, only if enabled in `config/metadata.json5`
+  (`metadata.providers.trakt.enabled: true`) with `TRAKT_CLIENT_ID` set in
+  `.env`. Used for ratings cross-check.
 
 The HttpTransport (`personalscraper/api/transport/_http.py`) applies
 exponential backoff (factor 2, max 60s) on 429 + 5xx and retries up to 5 times

@@ -238,6 +238,45 @@ ambiguous matches.
 
 ---
 
+## `personalscraper scrape-resolve`
+
+**Purpose**: Resolve one pending scrape decision by provider ID — NOT a pipeline
+step. Fetches movie (TMDB) or TV-show (TMDB/TVDB) metadata directly by the
+given ID, writes NFO + artwork into the staging folder, and marks the matching
+`scrape_decision` row as `resolved`. Spawned by the web decisions runner
+(interactive scraping queue) and safe as a direct human invocation.
+
+**Locking**: acquires the SCOPED per-staging-item scrape lock for its lifetime —
+it does NOT self-acquire the global `pipeline.lock` (two-tier scoped locking).
+Distinct items resolve in parallel; the same item blocks; any global
+`pipeline.lock` holder makes the resolve back off (fail-closed).
+
+**Args**:
+
+- `STAGING_PATH` (positional, required) — path to the item's staging directory.
+- `--provider` (required) — `tmdb` or `tvdb`.
+- `--id` (required) — numeric provider identifier.
+- `--via` — resolution provenance: `pick` (candidate from the queue, default)
+  or `search_override`.
+
+**Exit codes**: `0` success · `1` scrape error (API/NFO failure) · `2`
+misconfiguration (missing DB, unknown provider, no matching pending decision,
+invalid provider for the media kind) · `3` lock busy (same item already
+resolving, or a global pipeline holder is active — the web runner queues and
+retries on 3, never on 1).
+
+**Side effects**: `network` (metadata provider), `mutate FS` (staging NFO +
+artwork), `mutate BDD` (`scrape_decision`).
+
+**Examples**:
+
+    personalscraper scrape-resolve "/Volumes/T7/staging/001-MOVIES/Old Boy" --provider tmdb --id 670
+    personalscraper scrape-resolve "/Volumes/T7/staging/002-TVSHOWS/Silo" --provider tvdb --id 403245 --via search_override
+
+**Related**: `scrape`, the web decisions queue (`docs/reference/web-ui.md`)
+
+---
+
 ## `personalscraper enforce`
 
 **Purpose**: Enforces staging conventions on media items before scrape. Sanitizes
@@ -823,6 +862,41 @@ use `--apply` to commit changes to the database.
     personalscraper library-relink --apply
 
 **Related**: `library-scan`, `library-reconcile`
+
+---
+
+## `personalscraper library-refresh-path`
+
+**Purpose**: Targeted index reconciliation after a MANUAL rename/move of one
+folder. The incremental scan short-circuits unchanged subtrees, so a folder the
+operator renamed by hand can stay invisible to the index exactly like a
+dispatched merge (NTFS/macFUSE mtime blindness). This command reuses the
+post-dispatch maintenance machinery on ONE path: invalidate the subtree
+(dir_mtime/last_walked_at reset + disk Merkle cleared, NFC + NFD variants),
+incremental scan of the owning disk (rename detection via OSHash drift), then
+the global relink + season-count repair + repair-queue drain.
+
+The owning disk is resolved as the configured disk whose root is an ancestor of
+the path. Exits 2 when the path is not absolute, does not exist, or no
+configured disk owns it.
+
+**Side effects**: `read-only` (with `--dry-run`), `mutate BDD` (subtree
+invalidation + incremental scan + relink + season-count repair + repair drain)
+
+**Pipeline position**: n/a (maintenance — run on-demand after a manual rename/move)
+
+**Args**:
+
+- `PATH` _(required)_ : Absolute path of the renamed/moved media folder
+- `--dry-run` : Show the resolved disk + maintenance plan without touching anything
+
+**Examples**:
+
+    personalscraper library-refresh-path "/Volumes/Disk1/medias/series/Show (2020)" --dry-run
+    personalscraper library-refresh-path "/Volumes/Disk1/medias/series/Show (2020)"
+
+**Related**: `library-index`, `library-relink`, `library-fix-season-counts`,
+`library-repair`
 
 ---
 
@@ -1747,6 +1821,13 @@ Sub-commands:
 - `follow detect` — for each active series, fetch aired episodes (calendar-first)
   and enqueue the ones not already owned as `wanted`. `--dry-run` previews without
   writing; `--series` restricts to one followed id/title.
+- `follow backfill-metadata` — backfill `poster_url` + `overview` + `year` for
+  follows created before server-side enrichment existed. Shares the single
+  enrichment authority with the create-follow route (`acquire.metadata_enrich`):
+  every missing field is fetched from the provider BY ID, never by title search.
+  Idempotent and additive (`COALESCE` never overwrites); read-only under
+  `--dry-run`; one short write transaction per row, taken after that row's
+  provider calls returned.
 
 **Side effects**: `network` (metadata providers), `mutate` (`acquire.db`) — except
 `follow detect --dry-run` which is side-effect-free.
@@ -1758,6 +1839,7 @@ Sub-commands:
     personalscraper follow remove --id 12            # soft-unfollow (history kept)
     personalscraper follow detect --dry-run          # preview wanted episodes
     personalscraper follow detect                    # enqueue them
+    personalscraper follow backfill-metadata --dry-run  # preview poster/overview/year repairs
 
 **Related**: `search`, `grab`
 
@@ -1814,12 +1896,15 @@ qBittorrent adds).
 
 - `--dry-run` — search + filter + rank + print the top candidate; **no** add.
 - `-n, --limit N` — process at most N wanted items.
+- `--followed-id ID` — restrict the run to one followed series' pending items
+  (OBJ3 manual trigger).
 
 **Examples**:
 
     personalscraper grab --dry-run                   # preview candidates, no download
     personalscraper grab                             # search + add to qBittorrent
     personalscraper grab -n 5                         # cap to 5 wanted items
+    personalscraper grab --followed-id 3             # only one series
 
 **Related**: `follow detect`, `search`, `watch`
 
@@ -1827,6 +1912,71 @@ qBittorrent adds).
 > `personalscraper-follow-detect` at 03:00 (enqueue aired),
 > `personalscraper-search` at 03:10 and 15:10 (state availability),
 > `personalscraper-grab` at 03:20 and 15:20 (take what is available).
+
+---
+
+## `personalscraper acquisition-rescrape`
+
+**Purpose**: Re-scrape a precise grab / resume a stuck-at-scrape item, seeded
+from the provenance spine (`staging_provenance` in `acquire.db`). Reuses the
+FORCED scrape (`scrape_{movie,tvshow}_forced`) seeded from the row's `media_ref`
+(the grab seed — movies force TMDB; episodes/TV force TVDB, falling back to
+TMDB), keeping `current_path` live across the canonical rename. Holds only the
+per-staging-item scrape lock, so distinct items re-scrape in parallel while
+staying mutually exclusive with a full pipeline run. Fail-soft PER ITEM: a
+per-item failure is counted and skipped, never aborting the batch; a
+manual/direct item (no spine row or no grab seed) is a no-op.
+
+**Side effects**: `mutate FS` (writes NFO + artwork, canonical rename in
+staging), `network` (metadata providers), mutates `acquire.db` (spine
+`current_path` + scrape-run stamps)
+
+**Pipeline position**: n/a (targeted maintenance — runs independently)
+
+**Args**:
+
+- `--hash TEXT` : Re-scrape the item with this grab info-hash
+- `--path TEXT` : Re-scrape the item at this staging folder
+- `--stuck` : Re-scrape ALL stuck in-flight items
+- `--older-than INTEGER` : Stuck horizon in seconds (with `--stuck`) [default: 7200]
+- `--dry-run` : Preview the targets without scraping
+
+**Examples**:
+
+    personalscraper acquisition-rescrape --hash a1b2c3d4e5f6...
+    personalscraper acquisition-rescrape --path "/path/to/staging/002-TVSHOWS/Show (2020)"
+    personalscraper acquisition-rescrape --stuck --dry-run
+    personalscraper acquisition-rescrape --stuck --older-than 3600
+
+**Related**: `acquisition-requeue`, `scrape`, `grab`
+
+---
+
+## `personalscraper acquisition-requeue`
+
+**Purpose**: Requeue by journey state: trace an `info_hash` to its open grabbed
+`wanted` row(s) and send them back to `pending` so the next grab re-acquires.
+The requeue also remembers the hash as tried, so the next search + grab picks a
+DIFFERENT release rather than re-grabbing the same stuck one (the deliberate
+"this release is bad, get another" path). Lock-free — never takes
+`pipeline.lock`. Prints a warning and exits cleanly when no provenance row or
+no open grabbed wanted row matches the hash.
+
+**Side effects**: mutates `acquire.db` (`wanted` rows back to `pending`)
+
+**Pipeline position**: n/a (targeted maintenance — runs independently)
+
+**Args**:
+
+- `--hash TEXT` _(required)_ : Requeue the wanted row behind this grab info-hash
+- `--dry-run` : Preview without requeuing
+
+**Examples**:
+
+    personalscraper acquisition-requeue --hash a1b2c3d4e5f6... --dry-run
+    personalscraper acquisition-requeue --hash a1b2c3d4e5f6...
+
+**Related**: `acquisition-rescrape`, `grab`, `search`
 
 ---
 
@@ -1852,6 +2002,44 @@ is read-only.
     personalscraper seed unmark a1b2c3d4e5f6...    # untag
 
 **Related**: `watch`, `cross-seed`
+
+---
+
+## `personalscraper cross-seed`
+
+**Purpose**: Native cross-seeding engine — find matching torrents on other
+trackers and inject them into the client. `--sweep` iterates all completed
+torrents and cross-seeds each eligible one (excludes `seed-pure`-tagged and
+recently-searched torrents, honours the daily quota + inter-search delay).
+`--hash` cross-seeds a single torrent by its V1 info-hash — idempotent
+(recently-searched guard), and the form the Watcher daemon spawns per
+completion (W5). The two flags are mutually exclusive and one is required.
+Touches only the torrent client + `acquire.db` — it does NOT acquire
+`pipeline.lock`. When `cross_seed.enabled` is `false` in config the service
+returns immediately (exit 0, disabled state echoed).
+
+**Side effects**: `network` (trackers + torrent client), mutates `acquire.db`
+(cross-seed state) + client (injected torrents)
+
+**Pipeline position**: n/a (runs independently — spawned by the watcher or run manually)
+
+**Args**:
+
+- `--sweep` : Run throttled back-catalog cross-seed sweep (X2)
+- `--hash TEXT` : Cross-seed a single torrent by info-hash (X1 per-completion path)
+
+**Exit codes**: 0 on success or partial success; 1 when the torrent client is
+unreachable, when ALL attempted sweep items errored, or when no compatible
+client is configured (requires `TorrentInjector` — qBittorrent; Transmission
+lacks this capability); 2 on invalid argument combination (both or neither of
+`--sweep` / `--hash`).
+
+**Examples**:
+
+    personalscraper cross-seed --sweep
+    personalscraper cross-seed --hash a1b2c3d4e5f6...
+
+**Related**: `watch`, `seed`, `grab`
 
 ---
 

@@ -102,6 +102,23 @@ d'audit de couverture semestriel.
 torrentmate init-config
 ```
 
+`init-config` copie `config.example/` vers `./config/` dans le clone (`--output` pour
+viser un autre chemin, `--yes` non-interactif, `--force` pour écraser avec backup
+`.bak`, `--dry-run` pour prévisualiser).
+
+**Emplacement canonique (hôte d'exploitation).** Sur la machine où le pipeline tourne en
+continu, la config vit **hors de tout working tree git**, à `~/.torrentmate/config`, et
+chaque process la référence via la variable d'environnement `PERSONALSCRAPER_CONFIG`
+(c'est ce que fait `ecosystem.config.js` pour tous les daemons et crons). Ordre de
+résolution du chemin : `--config` CLI > `$PERSONALSCRAPER_CONFIG` > `./config/`. Ce
+répertoire canonique est un dépôt git **local** (sans remote) dont l'historique est
+committé automatiquement par l'application. La migration depuis une config in-repo se
+fait avec le script one-shot `scripts/migrate-config-home.sh` (interactif, idempotent).
+Après une mise à jour du code, `torrentmate init-config --sync` reporte additivement les
+nouvelles clés de `config.example/` vers la config canonique (non destructif — ne modifie
+ni ne supprime jamais une valeur existante). Détails :
+[CONFIGURATION.md](CONFIGURATION.md).
+
 > Les disques de stockage se déclarent dans `config/disks.json5` (requis avant que
 > `dispatch` puisse déplacer les médias) — voir [CONFIGURATION.md](CONFIGURATION.md).
 
@@ -170,7 +187,8 @@ torrentmate run --dry-run
 
 Tous les daemons et jobs planifiés sont gérés par **PM2** via
 `ecosystem.config.js` à la racine du dépôt. Les apps Python utilisent
-`interpreter: none` : PM2 lance directement le shim pyenv `3.12.4`. Les champs
+`interpreter: none` : PM2 lance directement le binaire `personalscraper` du venv
+de prod (`~/deploy/torrentmate-venv/bin/personalscraper`). Les champs
 cron sont en **heure locale** (format 5 champs `min heure jour mois jour-semaine`).
 
 ### Mise en route
@@ -180,31 +198,45 @@ cron sont en **heure locale** (format 5 champs `min heure jour mois jour-semaine
 pm2 start ecosystem.config.js && pm2 save
 ```
 
-> **Nommage** : le package Python, les apps PM2 `personalscraper-*` et le dossier
-> local `~/dev/PersonalScraper` (cwd des daemons, `PERSONALSCRAPER_CONFIG`) gardent
-> encore l'identifiant `personalscraper` — c'est le nom réel du déploiement en cours.
-> Le rename complet vers `torrentmate` est suivi par l'issue #223.
+> **Nommage** : le package Python et les apps PM2 `personalscraper-*` gardent encore
+> l'identifiant `personalscraper` — c'est le nom réel du déploiement en cours. Les
+> daemons et crons tournent depuis le clone de prod (`~/deploy/torrentmate`, binaire
+> `~/deploy/torrentmate-venv/bin/personalscraper`), la config canonique étant passée via
+> `PERSONALSCRAPER_CONFIG=/Users/izno/.torrentmate/config`. Le rename complet vers
+> `torrentmate` est suivi par l'issue #223.
 
 ### Daemons (`autorestart`, sans cron)
 
 | App PM2                   | Commande                       | Cadence        | cwd                     | Notes                                                                                    |
 | ------------------------- | ------------------------------ | -------------- | ----------------------- | ---------------------------------------------------------------------------------------- |
-| `personalscraper-watch`   | `watch`                        | daemon continu | `~/dev/PersonalScraper` | Poll du client torrent, debounce, puis `run` ; `restart_delay: 5000`, `max_restarts: 10` |
+| `personalscraper-watch`   | `watch`                        | daemon continu | `~/deploy/torrentmate`  | Poll du client torrent, debounce, puis `run` ; `restart_delay: 5000`, `max_restarts: 10` |
 | `torrentmate-web`         | `web`                          | daemon continu | `~/deploy/torrentmate`  | **Prod**, port 8710, `tm.iznogoudatall.xyz` ; venv de prod                               |
 | `torrentmate-web-staging` | `web --port 8711`              | daemon continu | `~/staging/torrentmate` | **Staging**, port 8711, `tm-staging.iznogoudatall.xyz` ; venv de staging                 |
-| `torrentmate-autodeploy`  | `./scripts/autodeploy-poll.sh` | boucle 60 s    | `~/dev/PersonalScraper` | `interpreter: /bin/bash` ; redéploie prod/staging sur avancée de branche                 |
+| `torrentmate-autodeploy`  | `./scripts/autodeploy-poll.sh` | boucle 60 s    | `~/deploy/torrentmate`  | `interpreter: /bin/bash` ; redéploie prod/staging sur avancée de branche                 |
 
 ### Jobs planifiés (`cron_restart`)
 
-Tous en shim pyenv `3.12.4`, cwd `~/dev/PersonalScraper` :
+Tous exécutés depuis le binaire du venv de prod
+(`~/deploy/torrentmate-venv/bin/personalscraper`), cwd `~/deploy/torrentmate`, avec
+`PERSONALSCRAPER_CONFIG=/Users/izno/.torrentmate/config` :
 
-| App PM2                         | Commande                                                      | `cron_restart`  | Signification                                                     |
-| ------------------------------- | ------------------------------------------------------------- | --------------- | ----------------------------------------------------------------- |
-| `personalscraper-index-enrich`  | `library-index --mode enrich --budget 1800 --wait-for-lock 0` | `30 4 * * 0`    | Dimanche 04:30 (heures creuses)                                   |
-| `personalscraper-backfill-ids`  | `library-backfill-ids`                                        | `0 5 * * 0`     | Dimanche 05:00 (après enrich)                                     |
-| `personalscraper-follow-detect` | `follow detect`                                               | `0 3 * * *`     | Quotidien 03:00 — enqueue des épisodes fraîchement diffusés       |
-| `personalscraper-grab`          | `grab`                                                        | `20 3,15 * * *` | Quotidien 03:20 et 15:20 (post-detect + retry de midi)            |
-| `personalscraper-health-check`  | `health-check`                                                | `15 * * * *`    | Chaque heure à :15 — liveness + anomalies de log, alerte Telegram |
+| App PM2                         | Commande                                                      | `cron_restart`  | Signification                                                                 |
+| ------------------------------- | ------------------------------------------------------------- | --------------- | ----------------------------------------------------------------------------- |
+| `personalscraper-index-enrich`  | `library-index --mode enrich --budget 1800 --wait-for-lock 0` | `30 4 * * 0`    | Dimanche 04:30 (heures creuses)                                               |
+| `personalscraper-backfill-ids`  | `library-backfill-ids`                                        | `0 5 * * 0`     | Dimanche 05:00 (après enrich)                                                 |
+| `personalscraper-follow-detect` | `follow detect`                                               | `0 3 * * *`     | Quotidien 03:00 — enqueue des épisodes fraîchement diffusés                   |
+| `personalscraper-search`        | `search`                                                      | `10 3,15 * * *` | Quotidien 03:10 et 15:10 — constate la disponibilité tracker (detect → grab)  |
+| `personalscraper-grab`          | `grab`                                                        | `20 3,15 * * *` | Quotidien 03:20 et 15:20 (post-search + retry de l'après-midi)                |
+| `personalscraper-health-check`  | `health-check`                                                | `15 * * * *`    | Chaque heure à :15 — liveness + anomalies de log, alerte Telegram             |
+
+### Hôte design (maquette)
+
+La maquette de refonte v1 a son propre hôte : l'app PM2 `torrentmate-design`, déclarée à
+part dans `frontend/maquette/ecosystem.design.config.cjs` (elle ne fait **pas** partie de
+`ecosystem.config.js`). Elle lance `frontend/maquette/serve.py`, qui sert le prototype
+directement depuis le working tree, derrière son propre écran de login, sur le port
+**8712** — jamais 8710/8711, réservés à la prod et au staging. Voir
+`frontend/maquette/README.md`.
 
 ### Kill-switch du watcher
 
@@ -263,7 +295,7 @@ frontend est **TorrentMateUI**.
 Deux clones de déploiement reproduisent le modèle de KanbanMate : chacun a son
 **propre venv** (isolation de l'install éditable de dev) et sa **propre copie
 complète du `.env`**, mais tous deux pointent vers l'unique config canonique via
-`PERSONALSCRAPER_CONFIG=/Users/izno/dev/PersonalScraper/config`.
+`PERSONALSCRAPER_CONFIG=/Users/izno/.torrentmate/config`.
 
 | Rôle    | URL                                    | Chemin du clone         | Suit      | App PM2                   | Port | Venv (override)                                  |
 | ------- | -------------------------------------- | ----------------------- | --------- | ------------------------- | ---- | ------------------------------------------------ |
@@ -375,10 +407,12 @@ Les clones de déploiement se mettent à jour tout seuls via
 
 ```bash
 pm2 stop personalscraper-watch personalscraper-index-enrich personalscraper-backfill-ids \
-        personalscraper-follow-detect personalscraper-grab personalscraper-health-check \
+        personalscraper-follow-detect personalscraper-search personalscraper-grab \
+        personalscraper-health-check \
         torrentmate-web torrentmate-web-staging torrentmate-autodeploy
 pm2 delete personalscraper-watch personalscraper-index-enrich personalscraper-backfill-ids \
-           personalscraper-follow-detect personalscraper-grab personalscraper-health-check \
+           personalscraper-follow-detect personalscraper-search personalscraper-grab \
+           personalscraper-health-check \
            torrentmate-web torrentmate-web-staging torrentmate-autodeploy
 pm2 save
 pip uninstall personalscraper

@@ -187,7 +187,7 @@ failure shapes, emit fallback events for the registry's per-call observability,
 and fall through to `ProviderExhausted` when every provider failed.
 
 ```python
-from personalscraper.api.errors import ApiError, CircuitOpenError
+from personalscraper.api._contracts import ApiError, CircuitOpenError
 from personalscraper.api.metadata._contracts import Searchable
 from personalscraper.api.metadata.registry import (
     AttemptOutcome,
