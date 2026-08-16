@@ -41,7 +41,15 @@ def verifier(nom, condition, detail=""):
 
 
 ECRAN = """() => {
-  const s = document.querySelector('#screen');
+  // The arbitration screen left `#screen` for a real route
+  // (`/resolution/$dossier`, rendered inside `#coquille`), so it answers to
+  // its own identity now, the way the fiche and the add screen already do.
+  // The identity rather than a bare `.screen.open`: two screens can carry
+  // `open` at once, and this rule must measure THIS one. An absent screen
+  // reads as an empty one, so every check below falls on its own number —
+  // readable — instead of on a TypeError, which is not.
+  const s = document.querySelector('.screen.open[data-cle^="resolution:"]')
+    ?? document.createElement('div');
   const cartes = [...s.querySelectorAll('.card')];
   const decisions = cartes.filter(c => c.dataset.nonmedia === 'decision');
   const candidats = cartes.filter(c => c.dataset.nonmedia === 'candidat');

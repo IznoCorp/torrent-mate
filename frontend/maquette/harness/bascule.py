@@ -106,6 +106,62 @@ def main():
                          + (f"{len(bati)} au build" if bati is not None
                             else "dist jamais émis"))
 
+        # (fallback) A path routing owns client-side (/fiche/…, /profil/…) is
+        # not a route this static host knows about — it must still answer the
+        # ONE document, exactly like "/", session-gated the same way. A 303
+        # here would drop the address bar's path and defeat the router before
+        # it runs; a 404 would dead-end a reload or a shared link.
+        reponse_sans, sans_session = requete("/fiche/Quoi%20Que")
+        reponse_racine, page_login = requete("/")
+        journal.verifier(
+            "une adresse inconnue sans session répond l'écran de connexion, comme «/»",
+            reponse_sans.status == 401 and reponse_racine.status == 401
+            and sans_session == page_login,
+            f"{reponse_sans.status} vs {reponse_racine.status}")
+
+        reponse_avec, avec_session = requete("/fiche/Quoi%20Que", cookie)
+        journal.verifier(
+            "une adresse inconnue avec session répond le MÊME document que «/»",
+            reponse_avec.status == 200 and avec_session == servi,
+            f"{reponse_avec.status}, {len(avec_session)} octets contre "
+            f"{len(servi)} à «/»")
+
+        # (dotted fallback) The generic fallback above is matched on a path
+        # with NO dot in it. A route-shaped path can carry one of its own — a
+        # release folder name, never a file extension — and this host's own
+        # unmatched-path branch (`do_GET`'s final `if not chemin.startswith(
+        # ...)` cascade in `serve.py`) never tested for dots in the first
+        # place, so nothing here needed changing to hold: proven directly,
+        # with the SAME dossier that regressed `serveur.py`'s harness-only
+        # fallback (Task 5, `serveur.py`).
+        reponse_points, avec_points = requete(
+            "/resolution/Backrooms.2026.MULTi.2160p.WEB-DL", cookie)
+        journal.verifier(
+            "une adresse profonde dont le dernier segment porte des points "
+            "répond, avec session, le MÊME document que «/»",
+            reponse_points.status == 200 and avec_points == servi,
+            f"{reponse_points.status}, {len(avec_points)} octets contre "
+            f"{len(servi)} à «/»")
+
+        # (favicon) A brand asset, served without a session like the manifest
+        # and the PWA icons — a `<link rel="icon">` is fetched uncredentialed.
+        reponse_favicon, corps_favicon = requete("/favicon.svg")
+        journal.verifier(
+            "/favicon.svg répond 200 image/svg+xml",
+            reponse_favicon.status == 200
+            and (reponse_favicon.getheader("Content-Type") or "").startswith("image/svg+xml"),
+            f"{reponse_favicon.status}, {reponse_favicon.getheader('Content-Type')}")
+
+        # (portal) The library's real artwork stays gated even now that an
+        # unknown path falls through to the document instead of a redirect —
+        # the fallback must not swallow the /assets/ portal rule ahead of it.
+        reponse_portail, corps_portail = requete("/assets/x.webp")
+        journal.verifier(
+            "/assets/x.webp sans session répond 401 — jamais la page de connexion, "
+            "jamais le fichier",
+            reponse_portail.status == 401 and corps_portail == b"",
+            f"{reponse_portail.status}, {len(corps_portail)} octets")
+
         # (b) An edited source is served rebuilt — never yesterday's build.
         with open(SCRATCH / "refonte.html", "a") as fichier:
             fichier.write("\n<!-- r73-probe -->\n")

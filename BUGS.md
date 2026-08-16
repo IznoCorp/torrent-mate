@@ -31,14 +31,25 @@ when the defect comes back.
 
 ## Open
 
-| ID    | Defect                                         | Reported    | Status       |
-| ----- | ---------------------------------------------- | ----------- | ------------ |
-| B-013 | The drawer's entries lead nowhere              | 2×          | `to confirm` |
-| B-014 | The drawer's current entry is unreadable       | 1×          | `to confirm` |
-| B-015 | Back reopens the drawer that was just closed   | 1×          | `to confirm` |
-| B-016 | Swiping a row right, then left, makes it jump  | 1×          | `to confirm` |
-| B-017 | Closing a panel sends the list back to its top | by mutation | `to confirm` |
-| B-018 | On a desktop, dragging a row opens the panel   | 1×          | `to confirm` |
+| ID    | Defect                                                  | Reported    | Status       |
+| ----- | ------------------------------------------------------- | ----------- | ------------ |
+| B-019 | Many media sheets have lost their visual                | 1×          | `closed`     |
+| B-020 | Actor portraits on media sheets are broken              | 1×          | `closed`     |
+| B-021 | Signing out leaves the bottom panel on top              | 1×          | `to confirm` |
+| B-022 | « Voir mes suivis » in the add search is inert          | 1×          | `to confirm` |
+| B-023 | Médiathèque « Incomplets »: every visual broken         | 1×          | `closed`     |
+| B-013 | The drawer's entries lead nowhere                       | 2×          | `to confirm` |
+| B-014 | The drawer's current entry is unreadable                | 1×          | `to confirm` |
+| B-015 | Back reopens the drawer that was just closed            | 1×          | `to confirm` |
+| B-016 | Swiping a row right, then left, makes it jump           | 1×          | `to confirm` |
+| B-017 | Closing a panel sends the list back to its top          | by mutation | `to confirm` |
+| B-018 | On a desktop, dragging a row opens the panel            | 1×          | `to confirm` |
+| B-024 | `data-go` settles ONE history entry, layers pile        | by review   | `open`       |
+| B-025 | The screen half of the `data-go` fix has no Back rule   | by review   | `to confirm` |
+| B-026 | A silent `catch {}` can let URL and UI disagree         | by review   | `to confirm` |
+| B-027 | `resynchro.py` trusts `t:` first-match + naive braces   | by review   | `to confirm` |
+| B-028 | `resynchro.py` says « 0 correction » for unknown titles | by review   | `to confirm` |
+| B-029 | Counter rule misses suffix drift (« 1 » in « 11 »)      | by review   | `to confirm` |
 
 **B-018 was written down as a regression from B-016, and that was wrong.** It has two ways in, one
 of which is older than this work — the correction is recorded here rather than quietly amended,
@@ -50,6 +61,253 @@ rules — merging them would let two hide behind the one that got fixed.
 
 B-017 was reported by nobody. The mutation proving R65 bites found it, which is the whole reason
 mutations are run against a rule rather than trusted to be green.
+
+**B-024 to B-029 arrived from an adversarial code review of commit `3e66fa66` (#434), not from
+the operator** — same standing as B-017: found by tooling, written down before anyone walks into
+them. None is reproduced on a device yet; each entry below records the walk that would.
+
+- **B-024** — `data-go` (refonte.html ~17901) closes up to three layers but settles exactly ONE
+  history entry (`__pont.remplacer` overwrites only the top). With two layer entries buried
+  (screen over screen — the case the block's own comment claims to handle — or sheet over
+  screen), one Back after the navigation lands on a stale `{layer}` entry and answers a
+  legitimate Back with the « Encore un retour pour quitter » toast; a second Back exits the app.
+  **Latent, non atteignable** — re-measured post-SP4a, walked control by control: the DOM carries
+  exactly five `[data-go]` producers, no more. Four (12174, 12677, 12827, 12918) render only into
+  page-body `#view` content (`viewAcquisition`, `viewArrivals`, `viewIntrouvable`, `viewSystem`);
+  `#view` sits under every layer (`.screen` z-45, `.sheet` z-47 over `.topbar` z-40), so each is
+  covered — and therefore untappable — the instant any layer is open, meaning zero layers, let
+  alone two, ever precede their tap. The fifth is the user sheet's « Profil et préférences »
+  (`cible:{go:"profil"}`, the only dynamic producer in the whole file — confirmed by grep) — its
+  only trigger is the header avatar (`data-sheet="utilisateur"`), itself in `.topbar` and so
+  covered the same way whenever a screen is already open (measured: `elementFromPoint` at the
+  avatar's coordinates resolves to `.fichebar` inside `#screen`, not the avatar, and a click there
+  opens nothing). One layer (the sheet itself) is therefore the most that can ever precede this
+  control's tap; a fresh-boot walk confirms `history.length` is unchanged before and after tapping
+  it, matching the single-entry case the fix already covers. No live call path stacks a second
+  screen either: `openScreen`'s `dejaOuvert` branch (pushed layer on top of an already-open screen)
+  exists in code, and `data-fiche` (18336-18349) is its one UNGUARDED trigger — when no sheet is
+  open (`couche` false) it calls `openFiche(fiche)` directly, with no `closeScreen()` first, so a
+  `[data-fiche]` element tapped from inside an already-open screen WOULD stack a second one. But
+  no `[data-fiche]` element is ever rendered inside a screen today: its three producers —
+  `cardHTML`'s poster (11578), `tileHTML`'s tile (15395), the Découvrir deck's poster (15855) —
+  are called only from page-list/grid/deck builders (11555-15987), never from `openFiche`,
+  `openResolve`, or `openReleases` (39527-40337, the only functions that build screen content);
+  `openResolve`'s own cards (`releaseCardHTML`, 11613-11637) are marked `data-nonmedia` and carry
+  `data-resolve`, not `data-fiche`, by design ("no medium here yet"). The sheet-to-screen half of
+  `data-fiche` is guarded (`couche` true closes the sheet first, 18342-18344), and `data-refiche`
+  reopens the SAME key (`memeEcran`, no new layer). The comment still overclaims — it is true of
+  the DOM, not of history — but no reachable walk buries two entries under a `[data-go]` tap
+  today. Fix shape unchanged: one loop, one entry per closed layer.
+  **Final status (SP4b, task 6): latent, held by the Task-1 measurement.** No close-block fix
+  applied — the entry-count law would be exercised on a control that cannot reach it. The
+  handler's own comment no longer claims to handle a buried second entry (corrected to name the
+  single-entry assumption, `refonte.html` ~17861); the intro comment's second example (the add
+  screen's « Voir mes suivis ») is removed too — it left `data-go` in the interim (see B-025).
+  Settles with the ownership law when `data-go` itself migrates to the shell (SP4d): if a sixth
+  producer, or a new path to the existing five, can ever reach a layer, the entry-count law
+  (`__pont.regler(n)`, sketched but unapplied here) is owed then, not before.
+- **B-025** — harness `bugs.py` check 10b stops at the landing (`« Voir mes suivis » atterrit`)
+  and never presses Back; only the sheet half (9b) is guarded. The `remplacer`-on-screen half of
+  the fix — exactly what B-024 concerns — can regress without a single check falling.
+  **Fixed (SP4b, task 6).** The footer itself left `data-go` between the review and this walk
+  (Task 5 migrated « Voir mes suivis » to `AjoutEcran`'s own `verSuivis`, a router-owned
+  `remplacer:true` — same "the layer's entry becomes the arrival" semantics `data-go`'s own
+  comment describes), so the regression this entry names now lives there, not in the shared
+  handler; the guard follows it. `bugs.py` 10b gained a Back press, `10c`: after the footer
+  lands, one real Back must leave `/ajout` in a single hop (no buried `layer` entry, `page`
+  still `acq`) — mutation-verified by mutating `verSuivis`'s `remplacer:true` to `false` at
+  source (`10c` fell, naming the still-buried `/ajout`), rebuilt, then restored (`git diff`
+  empty), rebuilt, re-run green.
+- **B-026** — the `data-go` handler's outer `try { … } catch (error) {}` (house pattern from
+  `data-navgo`) silences a `remplacer` failure: the page renders the destination while URL and
+  history still describe the layer — a silent violation of the DOIT-10 claim that « the URL and
+  the interface never disagree », with nothing logged.
+  **Fixed (SP4b, task 6).** Three swallows now `console.error` and raise
+  `window.__navEchec = true`, a probe published next to the other probe flags
+  (`__sujetsSansNom`'s precedent) for the harness to read: the `data-go` handler's own tail,
+  `noterLeChemin`'s (`refonte.html` ~16561, the write door every OTHER navigation goes
+  through), and `data-navgo`'s own tail (`refonte.html` ~18188-18194) — the pattern's
+  ORIGIN, byte-identical in shape and risk, and left silent in the first pass (a review
+  finding on the same commit). Mutation-verified for both call sites: with the intact
+  catch, stubbing `__pont.remplacer` to throw (page context) and driving « Profil et
+  préférences » from the user sheet (`data-go`, the one control that can fire `remplacer`
+  from a layer) or the drawer's own first entry (`data-navgo`, opened through its handle)
+  raised the probe (`true`) in both cases; a plain tap left it `false` either way (no false
+  positive). Reverting either catch to silent and repeating the SAME forced throw on that
+  path left the probe `false` — the hold falls without the fix, confirming it bites — then
+  each catch was restored in turn.
+  **Known residual, not fixed, deliberate.** The three silent catches in
+  `window.__demarrerMoteur` (`refonte.html` ~40699-40721: the opening `remplacer`, the
+  guard `remplacer`, the boot `noter`) stay silent. Boot-time, pre-render — a failure there
+  leaves the splash/boot state visible rather than a rendered interface disagreeing with
+  its URL, which is the lower-risk failure mode DOIT-10 is not written against. Settles
+  when the legacy engine itself dies (SP4-end), not before.
+  **A fourth swallow, found by the SP4b final review and fixed, not left residual.**
+  `coquille.tsx`'s `ouvrirPanneau` wrapped `window.__pont.coucher("sheet")` in the same
+  silent `try { … } catch {}`, inherited from the legacy `openSheet`'s own guard around this
+  call. Unlike the boot-time residual above, `window.__pont` is assigned synchronously at
+  this module's top level, before any producer can call `ouvrir` — there is no window where
+  the bridge is genuinely absent, so the swallow's own justification ("a bridge that is not
+  there yet") no longer held. A throw here means the write itself failed, and the store had
+  already flushed the panel open: exactly the URL/UI disagreement DOIT-10 forbids, silently.
+  Wired to `console.error` + `window.__navEchec = true`, the same pattern as the other three.
+- **B-027** — `resynchro.py` extracts a follow's title with the FIRST `t: "…"` match anywhere in
+  the object and counts braces with no string-awareness. An object whose first `X: "…"` key is
+  not the title, or a title containing `{`/`}`, silently skips or — worse — rewrites the WRONG
+  follow's counter. Holds today only by convention (all 12 objects start with `t:`), asserted
+  nowhere.
+  **Fixed.** The title is now read anchored on the object's own opening brace
+  (`re.match(r'\s*\{\s*t:\s*"((?:[^"\\]|\\.)*)"', objet)`): the title must be the FIRST key or the
+  script RAISES, naming the object's head. **Mutation** (proof executed, `task-7-report.md`): a
+  scratch FOLLOWS fragment whose sole object opens on `x:` instead of `t:` → `resynchro.py`
+  raises `ValueError: objet FOLLOWS sans « t » en première clé : …` quoting the object, rather than
+  silently skipping it.
+- **B-028** — `resynchro.py` cannot say a title went unmatched: a FOLLOWS title absent from the
+  DB reads exactly like « already in sync », prints `0 correction(s)` and exits 0. Especially
+  live once vo-title (#435) changes which spelling a follow carries — the operator running the
+  documented remedy gets silence instead of « 4 of 12 titles never looked up ».
+  **Fixed.** Every FOLLOWS title with no matching row in `acquire.db` is now collected during the
+  same pass and, if any exist, `resynchro.py` prints `N titre(s) jamais retrouvé(s): …` naming
+  each and exits 1 — `0 correction(s)` is only ever printed once every title matched. **Mutation**
+  (proof executed): a copy of `refonte.html` with one real FOLLOWS title (« Kyma, l'onde
+  mystérieuse ») misspelled → exit 1, `1 titre(s) jamais retrouvé(s): Kyma, l'onde MISSPELLED`.
+- **B-029** — `contenu.py`'s counter rule tests `f"{n} recherche" in faits`: « 1 recherche » is a
+  substring of « 11 recherches », so whenever the real count is a suffix of the embedded one the
+  drift the rule exists to name is never named.
+  **Fixed.** The hold now compares numbers with a word boundary
+  (`re.search(rf"\b{n}\s+recherche", faits)`), so a digit that merely ENDS the embedded count no
+  longer satisfies it. **Mutation** (proof executed against the built prototype on 8899): a copy
+  of `refonte.html` with « Kyma, l'onde mystérieuse »'s embedded `recherches` set to 17 while
+  `acquire.db` still holds 7 → the rule falls: `ECHEC les nombres viennent de acquire.db, pas de la
+maquette — ["Kyma, l'onde mystérieuse : « … 17 recherches » vs 7"]`, where the pre-fix substring
+  check (`"7 recherche" in "… 17 recherches"`) would have stayed silently green.
+
+---
+
+## B-019 / B-020 / B-023 — The visuals family
+
+**Reported** 1× each, in one report (2026-08-15), after the SP3 merge. **Status** `open` —
+written the moment they were reported; diagnosis follows in this order, one at a time.
+
+Three symptoms, three entries — the B-013/014/015 precedent: merging them would let two hide
+behind the one that gets fixed. They plausibly share a cause (the SP1 hash-named files under
+`assets/`, the SP2 `dist/assets` symlink, or the host's asset routing since the bascule), and
+that is a hypothesis to MEASURE, not a diagnosis.
+
+- **B-019 — Many media sheets have lost their visual.** The sheet opens without its artwork
+  where it used to carry one.
+- **B-020 — Actor portraits on media sheets are broken.** Cast entries show broken images.
+- **B-023 — Médiathèque « Incomplets »: every visual broken.** The lens renders with all its
+  posters dead.
+
+**The operator's standing instruction with this family**: a FULL tour of the visuals — every
+image the interface can draw, across the named states, checked as RENDERED (the request
+resolves and the browser decodes pixels), not as referenced. R70 holds that every `assets/`
+reference in the SOURCE resolves to a file, and it is green — so if these reports reproduce,
+the defect lives past R70's reach (the build, the serving path, or references R70 does not
+read), and the closing rule must measure what the operator's eye measures: the drawn image.
+
+**Investigated 2026-08-15 — does not reproduce on any path reachable from here.** All
+executed, none assumed:
+
+- 924/924 unique `assets/` references resolve to files on disk; zero runtime-built references.
+- The full tour, 81 states, images forced eager, oracle « complete && naturalWidth === 0 »
+  plus every HTTP response ≥ 400: **zero broken images** on the static harness path AND
+  through a scratch `serve.py` with a real session (only the known `/favicon.svg` 404).
+- The artwork maps (`POSTERS` 400, `HEROS` 319, `ACTEURS` 170, `trailerIds` 288) are
+  key-identical to the pre-SP1 version (`c49e7ada`); the resolution rate over the embedded
+  library is byte-for-byte the same before/after: 326/345 titles.
+- The live pm2 process runs this checkout's `serve.py`; Caddy is a bare reverse-proxy; the
+  service worker intercepts navigations only, network-first — no cache to serve a stale copy.
+
+What remained unruled was the operator's own device — and the operator ruled it.
+
+**CLOSED — operator confirmed on a real device** (the fiches, the cast carousel and the
+« Incomplets » lens all draw their visuals). No artifact was ever broken: every measurable
+path was clean throughout, and no fix was applied. The retained cause is a TRANSIENT
+serving state — this host serves the working tree LIVE, and the report was made while a
+conversion wave was actively editing it. There is deliberately no closing rule beyond R70
+and the tour: a rule cannot hold a state that no longer exists and never lived in the
+sources. What the episode leaves behind is the tour itself (every drawn image, as RENDERED)
+as a reusable probe, and the reminder that the live host shows mid-work states — a report
+made during a wave is dated evidence, to be re-checked against a settled build.
+
+---
+
+## B-021 — Signing out leaves the bottom panel on top
+
+**Reported** 1× (2026-08-15). **Status** `to confirm` — `harness/bugs.py` checks 9/9b.
+
+**What the operator sees.** From the user panel, reach the profile, sign out: the panel never
+seems to leave the foreground.
+
+**What actually happens**, measured on the journey: tapping « Profil et préférences » in the
+user sheet changed the page to `?page=profil` UNDER the sheet and left the sheet on top
+(`elementFromPoint` said `sheet`). Everything tapped from there happens under a stuck panel.
+The sign-out itself, measured alone, closes the sheet and lands on the entry screen — the
+stuck panel comes from the step BEFORE it.
+
+**Why.** The `data-go` handler predates the layer rules: it navigated (`state.page`, `render`,
+`noterLeChemin`) without closing the layer it may sit in, and pushed its nav entry ON TOP of
+the layer's buried history entry. The drawer already had the settled pattern for exactly this
+(`data-navgo`): close every layer WITHOUT touching history, and the destination TAKES the
+layer's entry through `remplacer` — an unwind-then-push would race, the asynchronous pop
+landing after the push.
+
+**The fix.** The `data-go` handler now follows the drawer's pattern: `fermerTiroir(true)`,
+`closeSheet(true)`, screen stack emptied then `closeScreen(true)`, render, then `remplacer`
+when a layer entry was on top, `noterLeChemin` otherwise.
+
+**Why no rule caught it.** `bugs.py` check 3 proves the BOTTOM BAR closes layers on
+navigation (`data-page` calls `hideLayers()`), and every driven state reaches pages directly —
+nothing walked a `data-go` control INSIDE a layer.
+
+**Mutation.** Removing `closeSheet(true)` from the block → checks 9 and 9b fall naming the
+stuck sheet. Pushing instead of replacing → check 9b alone falls (back no longer reaches the
+page one stood on before the sheet). Both executed, both restored.
+
+**Observation recorded, not fixed here**: `data-page` (bottom bar) hides layers but does not
+settle their buried history entries either — masked because the DOM closes. Unreported, left
+open deliberately; SP4's ownership law re-founds this bookkeeping.
+
+---
+
+## B-022 — « Voir mes suivis » in the add search is inert
+
+**Reported** 1× (2026-08-15). **Status** `to confirm` — `harness/bugs.py` checks 10/10b.
+
+**What the operator sees.** On the add-media screen, after adding a media, the « Voir mes
+suivis → » footer link answers a tap with nothing.
+
+**What actually happens.** Same defect as B-021, other layer: the footer's `data-go="acq"`
+changed the page to Acquisition UNDER the still-open add screen. The page did move — behind
+a screen that never left, which reads as « nothing happened ».
+
+**The fix.** The shared `data-go` fix above. The journey test walks the real path: results →
+card body → panel → « Ajouter » (confirming the replace dialog when the result is owned) →
+footer appears → tap → the screen leaves and Acquisition renders.
+
+**Mutation.** Covered by the B-021 mutations — the same handler, measured on this journey by
+checks 10/10b.
+
+---
+
+## Requested evolutions (not defects — recorded here so they are not lost)
+
+- **E-001 — Médiathèque sort inversion** (2026-08-15): every sort type must be reversible —
+  A→Z and Z→A each way. An evolution, so it is maquette-first: drawn and measured in the
+  prototype before any conversion work touches it. **Arbitrated by the operator
+  (2026-08-15): folded into the Médiathèque wave of SP4**, where that page is drawn into
+  its final component.
+
+- **Ouvert opérateur — the 240 ms dead delay on `data-suivante`** (2026-08-16, SP4c): the
+  "Passer à la suivante" action in the arbitration screen still carries a `setTimeout(240)`
+  before its resolution call. It was once a cover for the legacy screen closing under it;
+  the screen migrated to a router-owned route in SP4c and no longer plays a close animation
+  there, so the delay is now a frozen quarter-second with nothing left for it to cover. Kept
+  byte-identical rather than removed — the binding constraint on this wave was
+  behaviour-preserving migration, not a UX pass — so this is flagged, not fixed. The operator
+  may want it dropped.
 
 ---
 

@@ -1,5 +1,8 @@
 import asyncio
+
 from playwright.async_api import async_playwright
+
+
 async def main():
   async with async_playwright() as p:
     b=await p.chromium.launch(channel="chrome")
@@ -15,11 +18,22 @@ async def main():
 
     print("── add screen ──")
     await pg.click("#fab"); await pg.wait_for_timeout(500)
-    r=await pg.evaluate("""()=>{const s=document.querySelector('#screen');
+    # The add screen left `#screen` for a real route (`/ajout`, rendered inside
+    # `#coquille`), and is read by the identity it carries — `data-cle="ajout:…"`
+    # (the mode it was opened in) — never by a bare `.screen.open`, which two
+    # stacked screens would both answer to. Read at the old layer id, this block
+    # measured an empty node and printed zeros for a screen full of results.
+    r=await pg.evaluate("""()=>{const s=document.querySelector('.screen.open[data-cle^="ajout:"]');
+      if (!s) return {absent:true};
+      // `.res` and `.resbtn` are dead class names — a result row is a
+      // `.reslist .card` today, and its foot action was removed on purpose
+      // (R71: the panel is the single path to the act). Kept pointing at them,
+      // both lines printed zero forever, which reads like « no results » next
+      // to a count that says six.
       return {ouvert:s.classList.contains('open'),
               compte:(s.querySelector('.rescount')||{}).textContent?.trim(),
-              resultats:s.querySelectorAll('.res').length,
-              boutons:[...s.querySelectorAll('.resbtn')].map(x=>x.textContent.trim()),
+              resultats:s.querySelectorAll('.reslist .card').length,
+              pieds:[...s.querySelectorAll('.reslist .cfoot')].map(x=>x.textContent.trim()),
               parId:!!s.querySelector('.byid')};}""")
     print(" ", r)
     await pg.screenshot(path="y_ajout.png")
@@ -52,7 +66,13 @@ async def main():
     # A library card leads to the media SHEET now, not to the acquisition
     # panel: the seasons are read on the screen it opens.
     await pg.click("[data-fiche='Les aventures de Tintin']"); await pg.wait_for_timeout(600)
-    r=await pg.evaluate("""()=>{const s=document.querySelector('#screen');
+    # The media sheet left `#screen` for a real route (`/fiche/$titre`, rendered
+    # inside `#coquille`): it is read by the identity it carries,
+    # `data-cle="fiche:…"`, never by a bare `.screen.open` — two screens can
+    # carry `open` at once and the seasons must come from the fiche, not from
+    # whatever sits under it.
+    r=await pg.evaluate("""()=>{const s=document.querySelector('.screen.open[data-cle^="fiche:"]');
+      if (!s) return {absente:true};
       const ss=[...s.querySelectorAll('.season')];
       return {saisons:ss.length, ouvertes:ss.filter(x=>x.open).length,
               manquants:[...s.querySelectorAll('.miss')].map(x=>x.textContent),

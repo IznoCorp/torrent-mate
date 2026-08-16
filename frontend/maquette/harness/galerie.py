@@ -5,6 +5,7 @@ A gallery that answers a tap differently from its neighbours teaches two
 vocabularies for the same picture.
 """
 import asyncio
+
 from playwright.async_api import async_playwright
 
 GALERIES = [
@@ -43,10 +44,14 @@ async def main():
         if n == 0:
             echecs.append(f"{nom}: no tile declares a panel"); print(f"  {nom:26} NO PANEL DECLARED"); continue
 
-        # 1. A tap opens the media sheet.
+        # 1. A tap opens the media sheet. The sheet left `#screen` for a real
+        # route (`/fiche/$titre`, rendered inside `#coquille`), so it is read by
+        # the identity it carries — `data-cle="fiche:…"` — and not by a bare
+        # `.screen.open`, which cannot tell two stacked screens apart.
         await pg.locator(sel).first.click()
         await pg.wait_for_timeout(500)
-        ecran = await pg.evaluate("()=>document.querySelector('#screen').classList.contains('open')")
+        ecran = await pg.evaluate(
+            """()=>!!document.querySelector('.screen.open[data-cle^="fiche:"]')""")
         await pg.evaluate("()=>window.__go(arguments0)" if False else "(i)=>window.__go(i)", etat)
         await pg.wait_for_timeout(350)
         if sel == ".tile[data-panel]" and not ecran:

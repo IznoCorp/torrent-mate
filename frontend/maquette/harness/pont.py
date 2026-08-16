@@ -7,15 +7,26 @@ verifies that: (a) the engine's source makes no raw history calls that
 bypass the bridge; (b) the journey through the bridge (results → sheet →
 back) redraws and restores state correctly; (c) deep URL entry lands on
 the promised state; (d) a state-only navigation (__go) does not change
-history depth; (e) both halves of the boot handover are real — the
-measured copy carries the recorder, and the replay it exists for actually
-ran.
+history depth; (f′) the boot handshake is real — `window.__demarrerMoteur`
+exists AND the startup screen comes off on its own, before this harness
+ever calls `window.__chargementTermine`.
+
+The boot order used to run the other way: the engine booted itself, ahead
+of the bridge, through a pre-bridge that queued the engine's writes and
+replayed them once the real bridge existed (hold (e), now retired along
+with that pre-bridge). The shell now creates the store and the bridge
+FIRST and only then calls `window.__demarrerMoteur({ magasin })`, so
+nothing is queued and nothing is replayed — a module that never evaluates
+simply never makes that call, and the startup screen stays up: a visible,
+truthful failure rather than an app with mute verbs.
 
 Nothing here mutates anything. The measured copy is shared by every rule
 of the harness, so a rule that severed it would, on any interruption,
 fail the next rule for a reason having nothing to do with what that rule
-holds. The mutation that proves these holds bite is applied by hand to
-the copy, outside any rule, and its outcome is recorded in regions.json.
+holds. Hold (e′) — that severing the copy's module entry leaves the
+startup screen up, because the fail-silent path is dead — is proven by a
+mutation applied by hand to the copy, outside any rule, and its outcome
+is recorded in regions.json.
 """
 import asyncio
 import pathlib
@@ -25,14 +36,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from commun import RACINE, TELEPHONE, Journal, ouvrir
-
-# The measured copy — the same bytes the browser is served on 8899.
-COPIE = pathlib.Path("/tmp/tm-refonte/wrapped.html")
-
-# The recorder's entry point, as it is written in the envelope and emitted
-# verbatim into the copy. Distinctive: nothing else declares that function.
-MARQUE_ENREGISTREUR = "window.__rejouerLePont = function"
+from commun import RACINE, TELEPHONE, Journal
 
 # The engine may hold no history primitive of its own — the bridge is the
 # only way to the single writer.
@@ -252,49 +256,57 @@ async def main():
         f"{appels} appel(s) trouvé(s)",
     )
 
-    # ─── Hold (e), first half: the measured copy carries the recorder ──
-    # Read from the COPY the browser is served, not from the envelope's
-    # source: what the source says is not evidence about what is measured.
-    copie = COPIE.read_text(encoding="utf-8")
-    verifier(
-        "la copie mesurée porte l'enregistreur du pré-pont",
-        MARQUE_ENREGISTREUR in copie,
-        f"« {MARQUE_ENREGISTREUR} » "
-        + ("présent" if MARQUE_ENREGISTREUR in copie else "absent")
-        + " dans /tmp/tm-refonte/wrapped.html",
-    )
-
     async with async_playwright() as p:
         navigateur = await p.chromium.launch(channel="chrome")
-        ctx, pg = await ouvrir(navigateur)
+        ctx = await navigateur.new_context(**TELEPHONE)
+        pg = await ctx.new_page()
         erreurs = []
         pg.on("pageerror", lambda e: erreurs.append(str(e)))
 
-        # ─── Hold (e), second half: the replay actually ran ────────────
-        # The shell writes this marker INSIDE the branch that found the
-        # recorder's replay and invoked it, so the marker answers about the
-        # replay's effect and not about the bridge's installation — which is
-        # unconditional, and would therefore report the same either way.
+        # ─── Hold (f′): the boot handshake exists and fired on its own ─
+        # Navigated WITHOUT going through commun.ouvrir(): that helper calls
+        # window.__chargementTermine itself to get past the startup screen,
+        # which would force the very effect this hold exists to observe.
+        # What is measured here is whether the screen came off BEFORE this
+        # harness ever touched that seam — proof the real handshake ran.
+        await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
         sonde = await pg.evaluate(
             """()=>({
-                verdict: window.__pont?.pret === true,
-                valeur: window.__pont?.pret ?? null
+                demarreur: typeof window.__demarrerMoteur,
+                splashMasque: document.querySelector('#splash')?.hidden === true
             })"""
         )
         verifier(
-            "le rejeu a bien eu lieu (marque posée dans le chemin de rejeu)",
-            sonde["verdict"],
-            f"window.__pont.pret = {sonde['valeur']}",
+            "window.__demarrerMoteur existe",
+            sonde["demarreur"] == "function",
+            f"typeof window.__demarrerMoteur = {sonde['demarreur']}",
         )
+        verifier(
+            "l'écran de démarrage s'efface tout seul, avant tout appel du harnais",
+            sonde["splashMasque"],
+            f"#splash.hidden = {sonde['splashMasque']}",
+        )
+
+        # Same plumbing commun.ouvrir() would run, on the same page, now
+        # that the hold above has taken its measurement: idempotent (it only
+        # re-sets #splash.hidden), so calling it again here is harmless.
+        await pg.evaluate("()=>window.__chargementTermine?.()")
+        await pg.evaluate("()=>document.querySelector('#toastx')?.click()")
+        await pg.wait_for_timeout(250)
 
         # ─── Hold (b): R71 journey through the bridge ──────────────────
         await pg.evaluate("()=>window.__go('acq-ajout-resultats')")
         await pg.wait_for_timeout(400)
 
+        # The add screen left `#screen` for a real route (`/ajout`, rendered
+        # inside `#coquille`): its results live under `.screen.open` now —
+        # the FICHE this journey opens next stays fully legacy, still
+        # `#screen`. Not read here (nothing has opened yet), but read
+        # explicitly below once the fiche is expected to have closed.
         depart_state = await pg.evaluate(
             """()=>({
-                ecran: document.querySelector('#screen').classList.contains('open'),
-                cle: document.querySelector('#screen').dataset.cle,
+                ecran: !!document.querySelector('.screen.open'),
+                cle: document.querySelector('.screen.open')?.dataset.cle,
                 cartes: document.querySelectorAll('.reslist .card').length,
                 requete: document.querySelector('#addq')?.value
             })"""
@@ -308,7 +320,7 @@ async def main():
         # Scrolled away from the top before leaving, so the return has a
         # position to restore and not merely a list to redraw.
         await pg.evaluate(
-            "()=>{document.querySelector('#screen .port').scrollTop = 300;}"
+            "()=>{document.querySelector('.screen.open .port').scrollTop = 300;}"
         )
         await pg.evaluate("()=>document.querySelector('.reslist .poster').click()")
         await pg.wait_for_timeout(450)
@@ -316,13 +328,20 @@ async def main():
         await pg.go_back()
         await pg.wait_for_timeout(500)
 
+        # R-7: `.screen.open` alone is AMBIGUOUS once a migrated screen and
+        # the legacy `#screen` can both carry `open` at once — `#coquille`
+        # mounts BEFORE the legacy fragment in DOM order, so
+        # `document.querySelector` always resolves the React screen first
+        # and would never surface a legacy `#screen` (the fiche this
+        # journey opened) that failed to close. Read explicitly here.
         retour_state = await pg.evaluate(
             """()=>({
-                ecran: document.querySelector('#screen').classList.contains('open'),
-                cle: document.querySelector('#screen').dataset.cle,
+                ecran: !!document.querySelector('.screen.open'),
+                cle: document.querySelector('.screen.open')?.dataset.cle,
                 cartes: document.querySelectorAll('.reslist .card').length,
                 requete: document.querySelector('#addq')?.value,
-                scroll: document.querySelector('#screen .port').scrollTop
+                scroll: document.querySelector('.screen.open .port')?.scrollTop,
+                ficheEncoreLa: document.querySelector('#screen').classList.contains('open')
             })"""
         )
 
@@ -333,6 +352,11 @@ async def main():
             and retour_state["cartes"] == depart_state["cartes"]
             and retour_state["requete"] == depart_state["requete"],
             f"{retour_state['cartes']} cartes · requête « {retour_state['requete']} »",
+        )
+        verifier(
+            "et la fiche legacy n'est plus là",
+            not retour_state["ficheEncoreLa"],
+            f"#screen open={retour_state['ficheEncoreLa']}",
         )
         # The restored position is asserted, not merely collected: the record
         # says the journey holds the scroll, and a collected number nobody

@@ -18,34 +18,115 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ── Stage 0: What changed? ────────────────────────────
+  # Path filtering happens at the JOB level, never at the trigger: every job
+  # always starts and reports a real conclusion (steps are skipped when the PR
+  # is out of the job's scope, so the job goes green in seconds). A trigger
+  # `paths-ignore` would produce NO run at all and leave required checks stuck
+  # in "expected" — see the comment on the trigger above.
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    outputs:
+      python: ${{ steps.raffine.outputs.python }}
+      deps: ${{ steps.filtre.outputs.deps }}
+      frontend_app: ${{ steps.raffine.outputs.frontend_app }}
+      maquette: ${{ steps.filtre.outputs.maquette }}
+      docs: ${{ steps.filtre.outputs.docs }}
+    steps:
+      # No checkout: on pull_request events the filter reads the PR file list
+      # from the API.
+      - uses: dorny/paths-filter@v3
+        id: filtre
+        with:
+          list-files: json
+          filters: |
+            python:
+              - 'personalscraper/**'
+              - 'tests/**'
+              - 'scripts/**'
+              - 'config.example/**'
+              - 'pyproject.toml'
+              - 'Makefile'
+              - '.github/workflows/ci.yml'
+            deps:
+              - 'pyproject.toml'
+              - '.github/workflows/ci.yml'
+            frontend_app:
+              - 'frontend/**'
+              - 'personalscraper/**'
+              - 'pyproject.toml'
+              - '.github/workflows/ci.yml'
+            maquette:
+              - 'frontend/maquette/**'
+              - '.github/workflows/ci.yml'
+            # design-gaps parses design-doc ANCHORS (audit_design_coverage.py):
+            # a docs-only PR that renames a heading can flip its verdict.
+            docs:
+              - 'docs/**'
+      # Refinements the filter's glob language cannot express (negation only
+      # works with the global 'every' quantifier, which would break the plain
+      # filters above):
+      # - `personalscraper/__init__.py` alone is NOT a python change: every PR
+      #   bumps the version there (operator rule), and counting the bump as
+      #   python code would re-run the full suite on doc/maquette-only PRs —
+      #   the exact cost this filter exists to remove. A substantive edit to
+      #   that file virtually always accompanies other python changes; the
+      #   local phase gates run the full suite regardless.
+      # - `frontend/maquette/**` is NOT a frontend-app change: the maquette
+      #   has its own steps, gated by the `maquette` output.
+      - id: raffine
+        env:
+          PYTHON_FILES: ${{ steps.filtre.outputs.python_files }}
+          FRONTEND_FILES: ${{ steps.filtre.outputs.frontend_app_files }}
+        run: |
+          set -euo pipefail
+          python=$(jq -r 'map(select(. != "personalscraper/__init__.py")) | length > 0' <<< "${PYTHON_FILES}")
+          frontend_app=$(jq -r 'map(select(. != "personalscraper/__init__.py" and (startswith("frontend/maquette/") | not))) | length > 0' <<< "${FRONTEND_FILES}")
+          echo "python=${python}" >> "$GITHUB_OUTPUT"
+          echo "frontend_app=${frontend_app}" >> "$GITHUB_OUTPUT"
+          echo "python=${python} frontend_app=${frontend_app}"
+
   # ── Stage 1: Fast checks (parallel) ───────────────────
   lint:
     name: lint
     runs-on: ubuntu-latest
+    needs: [changes]
     steps:
       - uses: actions/checkout@v4
+        if: needs.changes.outputs.python == 'true'
       - uses: actions/setup-python@v5
+        if: needs.changes.outputs.python == 'true'
         with:
           python-version: "3.12"
       - uses: actions/cache@v4
+        if: needs.changes.outputs.python == 'true'
         with:
           path: ~/.cache/pip
           key: pip-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
           restore-keys: pip-${{ runner.os }}-3.12-
       - run: pip install ruff
+        if: needs.changes.outputs.python == 'true'
       - run: ruff check personalscraper/ tests/
+        if: needs.changes.outputs.python == 'true'
       - run: ruff format --check personalscraper/ tests/
+        if: needs.changes.outputs.python == 'true'
       - run: python scripts/check_logging.py personalscraper/
+        if: needs.changes.outputs.python == 'true'
 
   typecheck:
     name: typecheck
     runs-on: ubuntu-latest
+    needs: [changes]
     steps:
       - uses: actions/checkout@v4
+        if: needs.changes.outputs.python == 'true'
       - uses: actions/setup-python@v5
+        if: needs.changes.outputs.python == 'true'
         with:
           python-version: "3.12"
       - uses: actions/cache@v4
+        if: needs.changes.outputs.python == 'true'
         with:
           path: |
             .venv/
@@ -53,7 +134,9 @@ jobs:
           key: venv-mypy-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
           restore-keys: venv-mypy-${{ runner.os }}-3.12-
       - run: pip install -e ".[dev]"
+        if: needs.changes.outputs.python == 'true'
       - run: mypy personalscraper/
+        if: needs.changes.outputs.python == 'true'
 
   secrets:
     name: secrets
@@ -86,34 +169,43 @@ jobs:
   licenses:
     name: licenses
     runs-on: ubuntu-latest
+    needs: [changes]
     steps:
       - uses: actions/checkout@v4
+        if: needs.changes.outputs.deps == 'true'
       - uses: actions/setup-python@v5
+        if: needs.changes.outputs.deps == 'true'
         with:
           python-version: "3.12"
       - uses: actions/cache@v4
+        if: needs.changes.outputs.deps == 'true'
         with:
           path: .venv/
           key: venv-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
           restore-keys: venv-${{ runner.os }}-3.12-
       - run: pip install -e . pip-licenses
-      - run: pip-licenses --fail-on="GPL;GPL-2.0;GPL-3.0;GPL-2.0-only;GPL-3.0-only;GPL-2.0-or-later;GPL-3.0-or-later;GNU General Public License (GPL);GNU General Public License v2 (GPLv2);GNU General Public License v3 (GPLv3);GNU General Public License v2 or later (GPLv2+);GNU General Public License v3 or later (GPLv3+);AGPL;AGPL-3.0;AGPL-3.0-only;AGPL-3.0-or-later;GNU Affero General Public License v3;GNU Affero General Public License v3 or later (AGPLv3+);SSPL;SSPL-1.0;Server Side Public License"
+        if: needs.changes.outputs.deps == 'true'
+      - if: needs.changes.outputs.deps == 'true'
+        run: pip-licenses --fail-on="GPL;GPL-2.0;GPL-3.0;GPL-2.0-only;GPL-3.0-only;GPL-2.0-or-later;GPL-3.0-or-later;GNU General Public License (GPL);GNU General Public License v2 (GPLv2);GNU General Public License v3 (GPLv3);GNU General Public License v2 or later (GPLv2+);GNU General Public License v3 or later (GPLv3+);AGPL;AGPL-3.0;AGPL-3.0-only;AGPL-3.0-or-later;GNU Affero General Public License v3;GNU Affero General Public License v3 or later (AGPLv3+);SSPL;SSPL-1.0;Server Side Public License"
 
   # ── Stage 2: Tests & security (depend on Stage 1) ─────
   test:
     name: test
     runs-on: ubuntu-latest
-    needs: [lint, typecheck]
+    needs: [changes, lint, typecheck]
     # config-home (#326): the live config left the repo; fixtures that resolve a config
     # dir (CWD fallback) get the tracked config.example via the resolver's env-first seam.
     env:
       PERSONALSCRAPER_CONFIG: ${{ github.workspace }}/config.example
     steps:
       - uses: actions/checkout@v4
+        if: needs.changes.outputs.python == 'true'
       - uses: actions/setup-python@v5
+        if: needs.changes.outputs.python == 'true'
         with:
           python-version: "3.12"
       - uses: actions/cache@v4
+        if: needs.changes.outputs.python == 'true'
         with:
           path: .venv/
           key: venv-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
@@ -122,7 +214,9 @@ jobs:
       # (rarfile shells out to it). `unar` is in ubuntu main; without it the
       # real-extraction test skips instead of asserting the happy path (COV-4).
       - run: sudo apt-get update && sudo apt-get install -y unar
+        if: needs.changes.outputs.python == 'true'
       - run: pip install -e ".[dev]"
+        if: needs.changes.outputs.python == 'true'
       # Run the full test suite (tests/) — the previous split into
       # tests/unit/ + tests/integration/ only covered 883 of 5521 tests
       # (~16%), yielding 44% combined coverage (well below fail_under=90).
@@ -137,11 +231,14 @@ jobs:
       - env:
           TMDB_API_KEY: dummy
           TVDB_API_KEY: dummy
+        if: needs.changes.outputs.python == 'true'
         run: python -m pytest tests/ -q --no-header -n auto --cov=personalscraper --cov-branch --cov-fail-under=0
       # Rename to non-dotfile so upload-artifact@v4 picks it up
       # (v4 silently skips dotfiles by default).
       - run: mv .coverage coverage.dat
+        if: needs.changes.outputs.python == 'true'
       - uses: actions/upload-artifact@v4
+        if: needs.changes.outputs.python == 'true'
         with:
           name: coverage
           path: coverage.dat
@@ -149,13 +246,16 @@ jobs:
   security:
     name: security
     runs-on: ubuntu-latest
-    needs: [lint, typecheck]
+    needs: [changes, lint, typecheck]
     steps:
       - uses: actions/checkout@v4
+        if: needs.changes.outputs.deps == 'true'
       - uses: actions/setup-python@v5
+        if: needs.changes.outputs.deps == 'true'
         with:
           python-version: "3.12"
       - uses: actions/cache@v4
+        if: needs.changes.outputs.deps == 'true'
         with:
           path: .venv/
           key: venv-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
@@ -164,68 +264,99 @@ jobs:
       # CVE-2026-6357 (fixed in 26.1). Auditing with the upgraded pip removes
       # the finding entirely instead of suppressing it.
       - run: python -m pip install --upgrade "pip>=26.1"
+        if: needs.changes.outputs.deps == 'true'
       - run: pip install -e . pip-audit
+        if: needs.changes.outputs.deps == 'true'
       # CVE-2026-3219 affects pip; no fix released yet. Ignore until upstream patch.
       # TODO(security): remove --ignore-vuln CVE-2026-3219 once pip ships a fix.
       #                 Check https://nvd.nist.gov/vuln/detail/CVE-2026-3219 for status.
       - run: pip-audit --ignore-vuln CVE-2026-3219
+        if: needs.changes.outputs.deps == 'true'
 
   frontend:
     name: frontend
     runs-on: ubuntu-latest
-    needs: [lint, typecheck]
+    needs: [changes, lint, typecheck]
     steps:
       - uses: actions/checkout@v4
+        if: needs.changes.outputs.frontend_app == 'true' || needs.changes.outputs.maquette == 'true'
       - uses: actions/setup-node@v4
+        if: needs.changes.outputs.frontend_app == 'true' || needs.changes.outputs.maquette == 'true'
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          # Both lockfiles: a design/-only bump used to leave the cache key
+          # stale (slow install, never wrong).
+          cache-dependency-path: |
+            frontend/package-lock.json
+            frontend/maquette/design/package-lock.json
       # lint:tokens greps with ripgrep; without it the guard used to silently
       # no-op (`rg: command not found` swallowed by `|| true`, 2026-07-15).
       - run: sudo apt-get update && sudo apt-get install -y ripgrep
+        if: needs.changes.outputs.frontend_app == 'true'
       - run: npm ci
+        if: needs.changes.outputs.frontend_app == 'true'
         working-directory: frontend
       - run: npx tsc -b --noEmit
+        if: needs.changes.outputs.frontend_app == 'true'
         working-directory: frontend
+      - run: npm ci
+        if: needs.changes.outputs.maquette == 'true'
+        working-directory: frontend/maquette/design
+      - run: npm run typecheck
+        if: needs.changes.outputs.maquette == 'true'
+        working-directory: frontend/maquette/design
       - run: npm run lint
+        if: needs.changes.outputs.frontend_app == 'true'
         working-directory: frontend
       - run: npm run lint:ds
+        if: needs.changes.outputs.frontend_app == 'true'
         working-directory: frontend
       - run: npm run test -- --run
+        if: needs.changes.outputs.frontend_app == 'true'
         working-directory: frontend
       - run: npm run build
+        if: needs.changes.outputs.frontend_app == 'true'
         working-directory: frontend
       - uses: actions/setup-python@v5
+        if: needs.changes.outputs.frontend_app == 'true'
         with:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
+        if: needs.changes.outputs.frontend_app == 'true'
       # config-home (#326): the live config left the repo (config/ untracked, canonical at
       # ~/.torrentmate/config). CI boots the app for OpenAPI generation against the tracked
       # config.example/ via the resolver's env-first seam — never a real config.
       - run: make openapi
+        if: needs.changes.outputs.frontend_app == 'true'
         env:
           PERSONALSCRAPER_CONFIG: ${{ github.workspace }}/config.example
       - run: git diff --exit-code frontend/openapi.json frontend/src/api/schema.d.ts
+        if: needs.changes.outputs.frontend_app == 'true'
 
   # ── Stage 3: Coverage gate + upload ───────────────────
   coverage-merge:
     name: coverage-merge
     runs-on: ubuntu-latest
-    needs: [test]
+    needs: [changes, test]
     if: always() && !cancelled()
     steps:
       - uses: actions/checkout@v4
+        if: needs.changes.outputs.python == 'true'
         with:
           fetch-depth: 0
       - uses: actions/setup-python@v5
+        if: needs.changes.outputs.python == 'true'
         with:
           python-version: "3.12"
       - uses: actions/download-artifact@v4
+        if: needs.changes.outputs.python == 'true'
         with:
           name: coverage
       - run: pip install coverage "tomli; python_version < '3.11'"
+        if: needs.changes.outputs.python == 'true'
       - name: Check coverage against pyproject threshold
+        if: needs.changes.outputs.python == 'true'
         run: |
           set -euo pipefail
           # Single test job already covers tests/, so no combine needed —
@@ -235,12 +366,13 @@ jobs:
           coverage report --fail-under="${THRESHOLD}"
           coverage xml -o coverage.xml
       - uses: codecov/codecov-action@v4
+        if: needs.changes.outputs.python == 'true'
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
           fail_ci_if_error: ${{ github.event.pull_request.head.repo.fork == false }}
       - name: Verify fail_under is monotonic against base ref
-        if: github.event_name == 'pull_request'
+        if: needs.changes.outputs.python == 'true' && github.event_name == 'pull_request'
         env:
           BASE_REF: ${{ github.base_ref }}
           PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
@@ -281,21 +413,28 @@ jobs:
   design-gaps:
     name: design-gaps
     runs-on: ubuntu-latest
+    needs: [changes]
     steps:
       - uses: actions/checkout@v4
+        if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'
       - uses: actions/setup-python@v5
+        if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'
         with:
           python-version: "3.12"
       - uses: actions/cache@v4
+        if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'
         with:
           path: .venv/
           key: venv-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
           restore-keys: venv-${{ runner.os }}-3.12-
       - run: pip install -e ".[dev]"
+        if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'
       - name: Map freshness check
+        if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'
         run: python3 scripts/update_feature_map.py --check
       - name: Design coverage audit
         # Promoted to hard error in Phase 8 (cycle-4 boundary). Orphans are
         # waived via tests/feature_map/<codename>.json `skip_audit` entries
         # (each carries a `reason` and an `expires` ISO date).
+        if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'
         run: python3 scripts/audit_design_coverage.py --strict

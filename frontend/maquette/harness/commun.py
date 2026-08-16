@@ -19,8 +19,13 @@ BAR = "─" * 62
 
 # The phone the design targets. Every measurement is taken here, because a
 # geometry read at another width answers a question nobody asked.
+# The appearance is PINNED: the document's « systeme » mode follows the
+# browser's colour-scheme preference, and a headless browser's preference is
+# an accident of its defaults. The rules measure the reference appearance —
+# dark — deterministically; a rule that wants to measure the light theme
+# passes color_scheme="light" itself.
 TELEPHONE = {"viewport": {"width": 390, "height": 844}, "device_scale_factor": 2,
-             "is_mobile": True, "has_touch": True}
+             "is_mobile": True, "has_touch": True, "color_scheme": "dark"}
 
 
 class Journal:

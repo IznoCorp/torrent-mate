@@ -1,8 +1,11 @@
 """Second adversarial pass — uniformity, consistency, honesty of the text.
 Aimed at what a screenshot does not show.
 """
-import asyncio, json
+import asyncio
+import json
+
 from playwright.async_api import async_playwright
+
 BAR="─"*62
 
 async def main():
@@ -32,10 +35,22 @@ async def main():
     # R11 — jargon, technical values and machine English in rendered text
     for e in etats:
         await pg.evaluate("(i)=>window.__go(i)",e); await pg.wait_for_timeout(240)
+        # Every screen migrated off `#screen` onto a real route — the fiche,
+        # the add screen, the arbitration screen, the release picker, the
+        # quality profile — answers to ONE generic rung: any OPEN screen
+        # carries a `data-cle`, so its presence is enough, its identity never
+        # read here. It sits LAST in the ladder — the same order `audit.py`,
+        # `dest.py` and `states.py` use — so every pre-existing case resolves
+        # exactly as before and a layer opened OVER a route is still what gets
+        # read. A state opening a route this rung does not cover would
+        # otherwise fall through to `#view` and this rule would read a page
+        # the state does not show.
         bad=await pg.evaluate("""()=>{
           const r=document.querySelector('#dlg').classList.contains('open')?'#dlg'
                  :document.querySelector('#screen').classList.contains('open')?'#screen'
-                 :document.querySelector('#sheet').classList.contains('open')?'#sheet':'#view';
+                 :document.querySelector('#sheet').classList.contains('open')?'#sheet'
+                 :document.querySelector('.screen.open[data-cle]')?'.screen.open[data-cle]'
+                 :'#view';
           const t=document.querySelector(r).innerText;
           const motifs=[[/\\bundefined\\b/,'undefined'],[/\\bNaN\\b/,'NaN'],[/\\bnull\\b/,'null'],
             [/\\[object /,'[object'],[/\\b0\\/0\\b/,'0/0'],[/\\*\\s\\*\\s\\*/,'expression cron'],
@@ -95,9 +110,10 @@ async def main():
       choix.push(...prend(incomplet, 4));
       choix.push(...prend(t=>!(HEROS[t]??HEROS[baseTitle(t)]), 2));
       for (const t of [...new Set(choix)]) {
-        window.__reset(); applyState({page:'lib', phase:'prete'}); openFiche(t);
-        await new Promise(r=>setTimeout(r,200));
-        const b=document.querySelector('#screen .body');
+        window.__reset(); applyState({page:'lib', phase:'prete'});
+        window.__ecrans.fiche(t);
+        await new Promise(r=>setTimeout(r,240));
+        const b=document.querySelector('.screen.open[data-cle^="fiche:"] .body');
         if (!b) { out[t]=['FICHE VIDE']; continue; }
         out[t]=[...b.children]
           .filter(x=>x.getBoundingClientRect().height>0 && !x.classList.contains('note'))
@@ -125,16 +141,30 @@ async def main():
 
     evalue('R14')
     # R14 — every layer closes via the scrim AND via Back
-    for id_,sel in [("feuille-suivi-trous","#sheet"),("lib-suppression","#dlg"),("fiche-serie","#screen"),("acq-ajout-resultats","#screen")]:
-        await pg.evaluate("(i)=>window.__go(i)",id_); await pg.wait_for_timeout(300)
-        ouvert=await pg.evaluate("(s)=>document.querySelector(s).classList.contains('open')",sel)
-        if sel!="#screen":
+    #
+    # `acq-ajout-resultats` and `fiche-serie` both left `#screen` for real
+    # routes rendered inside `#coquille`: their open/close check is the screen
+    # itself, not the legacy layer id. The fiche is named by the identity it
+    # carries (`data-cle="fiche:…"`) rather than by a bare `.screen.open`,
+    # which two stacked screens would both answer to. Every case closes the
+    # same way from the operator's point of view (the screen's own « Retour »,
+    # the scrim for a layer), so only the selector differs.
+    CAS_R14 = [
+        ("feuille-suivi-trous", "#sheet", "scrim"),
+        ("lib-suppression", "#dlg", "scrim"),
+        ("fiche-serie", '.screen.open[data-cle^="fiche:"]', "retour"),
+        ("acq-ajout-resultats", ".screen.open", "retour"),
+    ]
+    for id_, sel, fermeture in CAS_R14:
+        await pg.evaluate("(i)=>window.__go(i)", id_); await pg.wait_for_timeout(300)
+        ouvert = await pg.evaluate("(s)=>!!document.querySelector(s)?.classList.contains('open')", sel)
+        if fermeture == "scrim":
             await pg.evaluate("()=>document.querySelector('#scrim').click()"); await pg.wait_for_timeout(300)
-            if await pg.evaluate("(s)=>document.querySelector(s).classList.contains('open')",sel):
+            if await pg.evaluate("(s)=>!!document.querySelector(s)?.classList.contains('open')", sel):
                 note("R14 layer not closable via the scrim", f"{id_}")
         else:
-            await pg.evaluate("()=>document.querySelector('#screen .fback').click()"); await pg.wait_for_timeout(350)
-            if await pg.evaluate("()=>document.querySelector('#screen').classList.contains('open')"):
+            await pg.evaluate("(s)=>document.querySelector(s+' .fback').click()", sel); await pg.wait_for_timeout(350)
+            if await pg.evaluate("(s)=>!!document.querySelector(s)?.classList.contains('open')", sel):
                 note("R14 screen not closable via Back", f"{id_}")
         if not ouvert: note("R14 layer that does not open", id_)
 
@@ -192,7 +222,11 @@ async def main():
         theme ? racineDoc.setAttribute('data-theme',theme) : racineDoc.removeAttribute('data-theme');
         for (const s of window.__states()) {
           window.__go(s); await new Promise(r=>setTimeout(r,300));
-          const racine=document.querySelector('#screen.open, #sheet.open');
+          // The media sheet left `#screen` for a real route; it is added here
+          // by the identity it carries, or this rule about ALL media sheets
+          // would stop seeing the very screen it is named after.
+          const racine=document.querySelector('#screen.open, #sheet.open')
+                    || document.querySelector('.screen.open[data-cle^="fiche:"]');
           const hero=racine && racine.querySelector('.hero');
           if (!hero) continue;
           const nom=`${s}/${theme||'sombre'}`;
@@ -232,7 +266,10 @@ async def main():
     bandes=await pg.evaluate("""async ()=>{const out=[];
       for (const s of window.__states()) {
         window.__go(s); await new Promise(r=>setTimeout(r,300));
-        const racine=document.querySelector('#screen.open, #sheet.open');
+        // Same reason as R26 above: the sheet is a route now, and it is where
+        // the trailer lives — read it by its key or this rule goes quiet.
+        const racine=document.querySelector('#screen.open, #sheet.open')
+                  || document.querySelector('.screen.open[data-cle^="fiche:"]');
         if (!racine || !racine.querySelector('.hero')) continue;
         const el=racine.querySelector('.trailer');
         if (!el) continue;                       // declared absence: stated elsewhere
@@ -256,7 +293,13 @@ async def main():
     retours=await pg.evaluate("""async ()=>{const sig={}, colles=[];
       for (const s of window.__states()) {
         window.__go(s); await new Promise(r=>setTimeout(r,300));
-        const bar=document.querySelector('#screen.open .fichebar');
+        // The screen carrying the bar is the legacy layer when it is up, and
+        // otherwise the migrated fiche, named by its own key: leaving the
+        // fiche out would silently drop five states from this sweep, and a
+        // rule that has gone quiet is not a rule that passes.
+        const ecran=document.querySelector('#screen.open')
+                 || document.querySelector('.screen.open[data-cle^="fiche:"]');
+        const bar=ecran?.querySelector('.fichebar');
         if (!bar) continue;
         const btn=bar.querySelector('.fback');
         if (!btn) { colles.push(`${s}: bar without a back control`); continue; }
@@ -268,7 +311,7 @@ async def main():
         (sig[k] ||= []).push(s);
         // Measure the first PIXEL OF TEXT, not the first box: a container can
         // touch the bar through its padding without anything being glued.
-        const port=document.querySelector('#screen .port');
+        const port=ecran.querySelector('.port');
         const texte=port && [...port.querySelectorAll('h1,h2,h3,p,span,button,a,label')]
           .find(e=>{const r=e.getBoundingClientRect();
                     return r.height>0 && (e.textContent||'').trim().length>1 && !e.closest('.note');});
@@ -300,9 +343,10 @@ async def main():
       if (!atrous.length) return ['no series with an internal hole — the rule would be vacuous'];
       let inspectes=0;
       for (const titre of atrous) {
-        window.__reset(); applyState({page:'lib', phase:'prete'}); openFiche(titre);
-        await new Promise(r=>setTimeout(r,160));
-        for (const det of document.querySelectorAll('#screen details.season')) {
+        window.__reset(); applyState({page:'lib', phase:'prete'});
+        window.__ecrans.fiche(titre);
+        await new Promise(r=>setTimeout(r,240));
+        for (const det of document.querySelectorAll('.screen.open[data-cle^="fiche:"] details.season')) {
           const num=Number((det.querySelector('summary')?.textContent||'').match(/Saison\\s+(\\d+)/)?.[1]);
           const detenus=possedesDe(titre, num);
           if (!detenus) continue;
@@ -327,13 +371,33 @@ async def main():
     # R30 — ONE season rendering. Two existed: a titled list (29 series) and a
     # numbered matrix (177), and twelve sheets contained both at once. A sheet
     # must not have two faces depending on the data it happens to have.
-    rendus=await pg.evaluate("""async ()=>{const c={lignes:[], matrice:[], mixte:[]};
+    rendus=await pg.evaluate("""async ()=>{
+      const c={lignes:[], matrice:[], mixte:[], jamaisOuverte:[], sansSaison:[]};
       const series=Object.keys(FICHES_RAW).filter(t=>sheetFor(t)?.k!=='movie');
+      // The sheet is a ROUTE now: it commits a frame later than an `innerHTML`
+      // assignment did. A FIXED wait makes this rule's coverage depend on how
+      // loaded the host is — one too short and every sheet reads « no season »,
+      // every series is skipped, and the rule reports nothing behind a green
+      // exit code. Waiting for THE SCREEN ONE ASKED FOR — its own key — removes
+      // the guess, and a timeout is reported instead of silently skipped.
+      const attendre=async(t)=>{
+        const cle='fiche:'+t.normalize('NFC');
+        for (let i=0;i<40;i++) {
+          const el=document.querySelector('.screen.open[data-cle^="fiche:"]');
+          if (el && el.dataset.cle===cle) return el;
+          await new Promise(r=>setTimeout(r,25));
+        }
+        return null;
+      };
       for (const t of series) {
-        window.__reset(); applyState({page:'lib',phase:'prete'}); openFiche(t);
-        await new Promise(r=>setTimeout(r,35));
-        const dets=[...document.querySelectorAll('#screen details.season')];
-        if (!dets.length) continue;
+        window.__reset(); applyState({page:'lib',phase:'prete'});
+        window.__ecrans.fiche(t);
+        const s=await attendre(t);
+        if (!s) { c.jamaisOuverte.push(t); continue; }
+        const dets=[...s.querySelectorAll('details.season')];
+        // A series whose provider declares no season draws none: a stated
+        // absence, counted APART from a sheet that never opened.
+        if (!dets.length) { c.sansSaison.push(t); continue; }
         const formes=new Set(dets.map(d=>
           d.querySelector('.eprow') ? 'lignes' : d.querySelector('.eps .ep') ? 'matrice' : 'vide'));
         formes.delete('vide');
@@ -342,8 +406,19 @@ async def main():
         else if (formes.has('matrice')) c.matrice.push(t);
       }
       return c;}""")
+    inspectees = len(rendus["lignes"]) + len(rendus["matrice"]) + len(rendus["mixte"])
     print(f"\nSeason rendering — list: {len(rendus['lignes'])} · "
-          f"matrice : {len(rendus['matrice'])} · MIXED: {len(rendus['mixte'])}")
+          f"matrice : {len(rendus['matrice'])} · MIXED: {len(rendus['mixte'])} "
+          f"· sans saison : {len(rendus['sansSaison'])} "
+          f"· inspectées : {inspectees}/{inspectees + len(rendus['sansSaison']) + len(rendus['jamaisOuverte'])}")
+    # A sheet that never opened is a MEASUREMENT failure, never a series to
+    # skip: silence would let a slow host empty this rule and still exit green.
+    for t in rendus["jamaisOuverte"][:6]:
+        note("R30 sheet never opened — nothing was measured on it", t)
+    if not inspectees:
+        note("R30 no season inspected — the rule proves nothing",
+             f"{len(rendus['sansSaison'])} sans saison, "
+             f"{len(rendus['jamaisOuverte'])} jamais ouvertes")
     for t in rendus["mixte"][:6]:
         note("R30 two season renderings within ONE sheet", t)
     if rendus["lignes"] and rendus["matrice"]:

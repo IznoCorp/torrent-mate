@@ -28,6 +28,12 @@
     --muted-foreground: oklch(0.682 0.012 286);
     --border: oklch(0.279 0.008 286);
     --primary: oklch(0.808 0.158 79);
+    /* The brand tone has two jobs one colour cannot do (the same lesson the
+       status tones taught): a FILL behind dark text, and a LABEL on a tint of
+       itself. On the dark theme the mark is bright enough to do both, so the
+       text variant equals the mark; the light theme darkens it, or « you are
+       here » is written in near-invisible ink on near-white. */
+    --primary-texte: oklch(0.808 0.158 79);
     --primary-foreground: oklch(0.24 0.05 70);
     --success: oklch(0.72 0.165 152);
     --warning: oklch(0.8 0.15 75);
@@ -63,7 +69,9 @@
     --mq-scrim-doux: rgb(0 0 0/0.35);
     --mq-tile-overlay: rgb(0 0 0/0.62);
   }
-  /* login:palette:end */
+  /* The light tokens live INSIDE the palette the login gate borrows: the
+     gate applies the saved appearance before first paint, and an attribute
+     without its tokens paints the wrong theme with a clear conscience. */
   :root[data-theme="light"] {
     --background: oklch(0.995 0 0);
     --foreground: oklch(0.205 0.004 286);
@@ -73,6 +81,7 @@
     --muted-foreground: oklch(0.52 0.01 286);
     --border: oklch(0.91 0.004 286);
     --primary: oklch(0.76 0.155 70);
+    --primary-texte: oklch(0.5 0.13 70);
     --primary-foreground: oklch(0.99 0.01 90);
     --success: oklch(0.6 0.15 152);
     --warning: oklch(0.74 0.15 72);
@@ -87,6 +96,7 @@
     --sidebar: oklch(0.985 0.002 286);
     --mq-scrim: rgb(0 0 0/0.35);
   }
+  /* login:palette:end */
 
   /* login:socle:start */
   *,
@@ -110,10 +120,10 @@
     -webkit-font-smoothing: antialiased;
     font-variant-numeric: tabular-nums;
   }
-  /* login:socle:end */
   :root[data-theme="light"] body {
     background: oklch(0.93 0.002 286);
   }
+  /* login:socle:end */
   /* The app inherits this from the Tailwind preflight; the prototype must
      declare it, otherwise the brand link renders as underlined blue. */
   a {
@@ -158,9 +168,13 @@
      avatar at every width, and the desktop offset that was supposed to avoid
      that missed the frame it was computed against. */
   .hbtn {
+    /* Harness chrome lives in the top bar's empty middle, to the LEFT of the
+       app's own status dot and avatar — never over them: R51 measures that
+       overlap in every named state. Anchored to the same safe-area offset
+       the bar itself uses, so the buttons ride the bar on a notched phone. */
     position: absolute;
-    left: 6px;
-    bottom: 65px;
+    right: 100px;
+    top: calc(env(safe-area-inset-top) + 12px);
     z-index: 70;
     display: flex;
     gap: 4px;
@@ -2062,7 +2076,7 @@
     transition: color 0.15s;
   }
   .bottombar button[aria-current="page"] {
-    color: var(--primary);
+    color: var(--primary-texte);
   }
   .bottombar svg {
     width: 20px;
@@ -3799,7 +3813,7 @@
        the label exactly the colour of what it sat on: contrast 1.00, a label
        written in invisible ink. */
     background: color-mix(in oklab, var(--primary) 14%, transparent);
-    color: var(--primary);
+    color: var(--primary-texte);
     font-weight: 600;
   }
   .drawer a svg {
@@ -4445,17 +4459,6 @@
           <path d="M3 6h18M3 12h12M3 18h6" />
         </svg>
       </button>
-      <button id="themeBtn" aria-label="Thème" title="Clair / sombre">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-        >
-          <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z" />
-        </svg>
-      </button>
     </div>
 
     <button class="fab" id="fab" aria-label="Ajouter un média" hidden>
@@ -4478,11 +4481,11 @@
       aria-label="Navigation principale"
     ></aside>
     <div class="screen" id="screen"></div>
-    <div class="scrim" id="scrim"></div>
-    <div class="sheet" id="sheet">
-      <div class="sheetgrab" id="sheetgrab"></div>
-      <div class="sheetin" id="sheetin"></div>
-    </div>
+    <!-- The scrim and the bottom sheet are rendered by the shell
+         (`src/composants/feuille.tsx`), at these same ids and classes, into
+         `#coquille` — which sits inside this frame, earlier in document order.
+         They are absent here on purpose: two elements answering `#sheet` is
+         one of them being measured and the other being shown. -->
     <div class="dlg" id="dlg"></div>
     <div class="toast" id="toast">
       <span id="toastmsg"></span
@@ -4733,7 +4736,7 @@
       t: "L'Odyssée",
       serie: null,
       depuis: "6 août",
-      recherches: 10,
+      recherches: 12,
       k: "movie",
       y: 2026,
       st: "en_attente",
@@ -4742,7 +4745,7 @@
       t: "Spider-Man : Brand New Day",
       serie: null,
       depuis: "5 août",
-      recherches: 13,
+      recherches: 15,
       k: "movie",
       y: 2026,
       st: "en_attente",
@@ -4804,7 +4807,7 @@
       t: "President Curtis",
       serie: "Continuing",
       depuis: "29 juillet",
-      recherches: 13,
+      recherches: 14,
       k: "show",
       y: 2026,
       st: "a_jour",
@@ -11432,7 +11435,7 @@
   ];
 
   /* State */
-  const state = {
+  let state = {
     page: "acq",
     acqTab: "maintenant",
     libLens: "cat",
@@ -11453,7 +11456,6 @@
     maintBlanc: true,
     addMode: "suivi",
     relTitre: null,
-    profilTitre: null,
     /* The backend defaults: permissive everywhere EXCEPT exclude_3d. */
     profil: {
       min_resolution: "1080p",
@@ -11601,94 +11603,13 @@
   </div>`;
   }
 
-  /* A RELEASE is not a medium, and its card is deliberately a different object.
-     A release has no media sheet and no panel — it is one candidate among
-     several for a medium that is already named elsewhere on the screen. Giving
-     it a card that addresses a panel would promise a sheet that cannot exist.
-
-     It is marked `data-nonmedia` so the contract check can tell the two apart
-     by construction rather than by knowing which screens draw which. */
-  function releaseCardHTML(titre, meta, confiance, opts) {
-    opts = opts || {};
-    return `<div class="card" data-nonmedia="${escapeHtml(opts.genre || "release")}">
-    <div class="ctop"><span class="poster"${opts.sansAffiche ? ' title="Aucune affiche chez le provider pour ce candidat."' : ""}>${posterBox(titre, opts.k, { exact: opts.exact })}</span>
-      <span class="cbody">
-        <span class="ctitle">${escapeHtml(titre)}</span>
-        <span class="csub">${escapeHtml(meta)}</span>
-        ${
-          /* The synopsis is what actually SEPARATES four series with nearly
-             the same name, so it belongs on the card that asks to choose
-             between them. It is an `overview`, not a reason: it clamps
-             (R48 — a reason wraps and the card grows, a synopsis does not).
-             Carrying it here is also what makes leaving the screen
-             unnecessary: an arbitration that sends you to a full sheet to
-             decide loses the queue you were working through. */
-          opts.resume
-            ? `<span class="cov">${escapeHtml(opts.resume)}</span>`
-            : ""
-        }
-        ${confiance ? `<span class="cmeta"><span class="chip info">confiance ${escapeHtml(confiance)}</span></span>` : ""}
-      </span>
-    </div>
-    <button class="cfoot solid" data-resolve="${escapeHtml(titre)}">C'est celui-ci</button>
-  </div>`;
-  }
-
-  /* A DECISION is a FOLDER, and that is why it has its own card.
-
-     The scrape could not name what is inside it, so what the operator is asked
-     about is the thing on disk — never a media title, which is precisely what
-     is missing. It carries no media sheet and no panel for the same reason a
-     release candidate carries none: there is no medium here yet. Marked
-     `data-nonmedia` so the contract check tells them apart by construction.
-
-     THE DESCRIPTOR — facts, never markup:
-
-       d      the folder, as it is on disk
-       k      what the pipeline took it for, for the placeholder's icon
-       motif  why it entered the queue (a backend trigger)
-       etat   how it ended, when it did
-       quand  when
-       choix  { t, p, id, via } — the medium it was tied to, once settled
-
-     A settled decision shows the CHOSEN medium's poster, and it is not a
-     button: the card's subject is still the folder. A pending one shows the
-     placeholder, because nothing has been chosen — the picture would be a
-     guess, and a guess drawn as a fact is the failure this interface exists to
-     avoid. */
-  function decisionCardHTML(decision, opts) {
-    opts = opts || {};
-    const regle = decision.etat != null;
-    const etat = regle ? ETAT_DECISION[decision.etat] : null;
-    const affiche =
-      regle && decision.choix
-        ? posterBox(decision.choix.t, decision.k)
-        : `<span class="pfall">${svgIcon(decision.k === "movie" ? icons.film : icons.tv, 1.25)}<b>?</b></span>`;
-    const identite = decision.choix
-      ? `${decision.choix.t} · ${decision.choix.p.toUpperCase()} ${decision.choix.id} · ${VIA_LABEL[decision.choix.via] ?? decision.choix.via}`
-      : null;
-    return `<div class="card" data-nonmedia="decision">
-    <div class="ctop"><span class="poster">${affiche}</span>
-      <span class="cbody">
-        <span class="ctitle" title="${escapeHtml(decision.d)}"><code>${escapeHtml(decision.d)}</code></span>
-        <span class="csub">${escapeHtml(decision.quand)}</span>
-        ${
-          /* What was chosen is the most useful line here — it is the answer
-             one comes back to read — so it wraps rather than truncating. On
-             one line it lost its provider id and how it was found, which is
-             exactly what one comes back for. */
-          identite ? `<span class="creason">${escapeHtml(identite)}</span>` : ""
-        }
-        <span class="cmeta">${chipHTML([MOTIF_TON[decision.motif] ?? "neutral", MOTIF_LABEL[decision.motif] ?? decision.motif])}${
-          etat
-            ? `<span class="chip ${etat[0]}" title="${escapeHtml(ETAT_DECISION_POURQUOI[decision.etat] ?? "")}">${escapeHtml(etat[1])}</span>`
-            : ""
-        }</span>
-      </span>
-    </div>
-    ${opts.foot ? `<button class="cfoot solid" data-decision="${escapeHtml(decision.d)}">${escapeHtml(opts.foot)}</button>` : ""}
-  </div>`;
-  }
+  /* The release candidate's card and the decision's card moved to the shell
+     with the screen that draws them: `CarteRelease` and `CarteDecision` in
+     `src/ecrans/resolution.tsx`, at identical emission — `.card[data-nonmedia]`,
+     no media sheet and no panel, because neither subject is a medium. Their
+     rationale moved there with them; nothing here builds either shape any
+     more, and a second builder kept alive next to the one being drawn is
+     exactly the drift this file names below. */
 
   /* Renders a text that carries emphasis, WITHOUT any caller supplying markup.
      A value is either a plain string, or a list of segments where a bare
@@ -11710,117 +11631,22 @@
       .join("");
   }
 
-  /* ONE bottom panel, and its shape follows the facts it is given.
+  /* ONE bottom panel, and its shape follows the facts it is given — and it is
+     built in the shell now: `src/composants/panneau.tsx` is that single
+     constructor, `src/composants/feuille.tsx` the layer it draws into, and
+     `window.__panneau.ouvrir` the verb a producer here calls, on a descriptor.
 
-     Every panel in the interface is built here. A panel that accepted
-     ready-made markup would be an envelope, and an envelope guarantees nothing
-     about what it carries: three head shapes had grown that way — one with a
-     poster, one with an avatar, one with neither — two of them assembled from
-     inline styles, which belong to no stylesheet and are therefore exported
-     nowhere. The same drift the card and the tile were cured of.
+     The DESCRIPTOR crosses unchanged (facts, never markup: `titre`, `meta`,
+     `sousTitre`, `affiche`, `avatar`, `puce`, `blocs`, and the typed blocks
+     `note` / `faits` / `actions` / `saisons` / `champ`) — the vocabulary is
+     declared with the component, and a view wanting something outside it is
+     describing a fact the panel does not know about yet. The fix is still to
+     add the fact.
 
-     THE DESCRIPTOR — facts, never markup:
-
-       titre      the heading
-       meta       the line of facts under it (plain, or rich segments)
-       sousTitre  a second identity line under the title (an account's mail)
-       affiche    { t, k } — the medium's poster, at panel size
-       avatar     an image URL — an account's portrait
-       puce       [tone, label]
-       blocs      the body, IN ORDER, as typed blocks
-
-     A BLOC is { type, … }, never HTML. Order matters and is the caller's, so
-     the actions are a block like any other rather than a fixed slot: the
-     follow panel puts its primary action above the season matrix and its
-     secondary group below, while a suggestion panel puts a note first.
-
-       { type: "note",    texte }               a rule note, emphasis allowed
-       { type: "faits",   lignes }              key/value rows
-       { type: "actions", actions, secondaire } a group of actions
-       { type: "saisons", suivi, saisons }      the season matrix and its legend
-
-     A LIGNE of « faits » is { c, v, pip, pipValeur, terne }: caption, value, a
-     status dot on either side — the two say different things, one qualifies
-     the step and the other the figure — and whether the value is still to
-     come.
-
-     An ACTION is { texte, icone, cible, ton, desactive, mention, infobulle },
-     where `cible` is a map of DATA ATTRIBUTES — never a handler and never
-     markup. The click delegation reads those attributes, exactly as it does
-     for a card.
-
-     A view wanting something outside this list is describing a fact the panel
-     does not know about yet. The fix is to add the fact. */
-  function panneauActionHTML(action) {
-    if (!action) return "";
-    const attributs = Object.entries(action.cible || {})
-      .map(([nom, valeur]) => ` data-${nom}="${escapeHtml(String(valeur))}"`)
-      .join("");
-    return `<button class="sact${action.ton ? " " + action.ton : ""}"${attributs}${
-      action.desactive ? " disabled" : ""
-    }${action.infobulle ? ` title="${escapeHtml(action.infobulle)}"` : ""}>${
-      action.icone ? svgIcon(action.icone) : ""
-    }${escapeHtml(action.texte)}${
-      action.mention
-        ? `<span class="soon">${escapeHtml(action.mention)}</span>`
-        : ""
-    }</button>`;
-  }
-
-  function panneauBlocHTML(bloc) {
-    if (!bloc) return "";
-    if (bloc.type === "note")
-      return `<p class="rulenote">${richText(bloc.texte)}</p>`;
-    if (bloc.type === "actions") {
-      const liste = (bloc.actions || []).filter(Boolean);
-      if (!liste.length) return "";
-      return `<div class="sheetacts${bloc.secondaire ? " secondary" : ""}">${liste
-        .map(panneauActionHTML)
-        .join("")}</div>`;
-    }
-    if (bloc.type === "faits")
-      return `<div class="panel sheetfaits">${(bloc.lignes || [])
-        .map(
-          (ligne) =>
-            `<div class="kv${ligne.pip ? " avecpip" : ""}${ligne.terne ? " avenir" : ""}"><span>${
-              ligne.pip ? `<span class="pip ${ligne.pip}"></span>` : ""
-            }${escapeHtml(ligne.c)}</span><span>${
-              ligne.pipValeur
-                ? `<span class="pip ${ligne.pipValeur}"></span>`
-                : ""
-            }${escapeHtml(ligne.v)}</span></div>`,
-        )
-        .join("")}</div>`;
-    if (bloc.type === "saisons") return saisonsHTML(bloc.suivi, bloc.saisons);
-    if (bloc.type === "champ") return champReglageHTML(bloc.reglage);
-    // Silence here would draw an empty panel and blame the data. A block type
-    // nobody renders is a fact nobody declared.
-    throw new Error("bloc de panneau inconnu : " + bloc.type);
-  }
-
-  /* Lets the contract check prove the refusal rather than trust the comment
-     above it: a block type nobody declared must raise, not draw nothing. */
-  window.__panneauInconnu = () =>
-    panneauBlocHTML({ type: "ceci-n-existe-pas" });
-
-  function panneauHTML(descripteur) {
-    const identite = `<h3 class="sheettitle">${escapeHtml(descripteur.titre)}</h3>${
-      descripteur.sousTitre
-        ? `<span class="sheetsub">${escapeHtml(descripteur.sousTitre)}</span>`
-        : ""
-    }${descripteur.meta ? `<p class="sheetmeta">${richText(descripteur.meta)}</p>` : ""}${chipHTML(
-      descripteur.puce,
-    )}`;
-    const portrait = descripteur.affiche
-      ? `<span class="sheetposter">${posterBox(descripteur.affiche.t, descripteur.affiche.k)}</span>`
-      : descripteur.avatar
-        ? `<span class="avatar big" aria-hidden="true"><img src="${descripteur.avatar}" alt=""></span>`
-        : "";
-    const tete = portrait
-      ? `<div class="sheethead${descripteur.affiche ? " avecaffiche" : ""}">${portrait}<div class="sheetid">${identite}</div></div>`
-      : identite;
-    return `${tete}${(descripteur.blocs || []).map(panneauBlocHTML).join("")}`;
-  }
+     An ACTION's `cible` remains a map of DATA ATTRIBUTES, never a handler:
+     the click delegation below reads those attributes, exactly as it does for
+     a card, and that is what keeps a panel opened by the shell answering to
+     the engine's own acts. */
 
   function swipeHTML(inner, actions, actionsGauche) {
     return `<div class="swipe"><div class="actions">${
@@ -11854,6 +11680,9 @@
      `window.__reset()` restores the seed; `__go()` calls it systematically,
      so every measurement starts from the same state. */
   let world = null;
+  // The single owner of the mutable state, adopted at boot by
+  // window.__demarrerMoteur — null until the shell calls it.
+  let magasin = null;
   function seedWorld() {
     const deepCopy = (value) => JSON.parse(JSON.stringify(value));
     world = {
@@ -11873,6 +11702,12 @@
       lib: LIBRARY.slice(),
       removedLib: new Set(),
     };
+    // Reseeding REPLACES the world object, so the store's copy of the
+    // reference has to be replaced too — the engine's actions go on mutating
+    // `world` in place, and a store still holding the previous object would
+    // hand a component a world nobody writes to anymore. Optional because the
+    // first seed runs before the shell hands the store over.
+    magasin?.adopterMonde(world);
   }
   seedWorld();
   /* Simulated behaviours
@@ -12012,8 +11847,7 @@
   function actionSupprimer(titres) {
     titres.forEach((titre) => world.removedLib.add(titre));
     world.lib = world.lib.filter((lib) => !world.removedLib.has(lib.t));
-    state.selMode = false;
-    state.selected = new Set();
+    magasin.ecrire({ selMode: false, selected: new Set() });
     render();
     toast(
       `${titres.length} média${titres.length > 1 ? "s" : ""} supprimé${titres.length > 1 ? "s" : ""} — simulation, aucun fichier touché.`,
@@ -12027,7 +11861,7 @@
 
   window.__reset = () => {
     seedWorld();
-    Object.assign(state, {
+    magasin.ecrire({
       /* The SCENARIO is state too, and the loudest kind: it decides which
          world every later reading is taken from. A state that switched to the
          dense scenario left it switched for the next one, so a surface
@@ -12060,6 +11894,18 @@
     // the screens a previous journey left underneath the visible one.
     pileEcrans.length = 0;
     renduCourant = null;
+    // The router is navigation state too: `__go` states are DRIVEN, not a
+    // journey — a measurement must not inherit whichever screen ROUTE a
+    // previous one navigated to, for the exact reason it must
+    // not inherit the legacy screen stack just cleared above. `replace`, so
+    // driving through many states never grows history; `flush()` is the same
+    // discipline `aller()` uses for a real navigation, so the address is back
+    // to "/" before the state function that runs right after this (which may
+    // itself navigate, e.g. the profil scenario) has a chance to.
+    if (window.__routeur) {
+      window.__routeur.navigate({ to: "/", replace: true });
+      window.__routeur.history.flush();
+    }
     return true;
   };
 
@@ -12731,62 +12577,56 @@
     if (!action) return;
     const supprime = action.r === "destructive";
     const blanc = supprime ? true : !!state.maintBlanc;
-    openSheet(
-      panneauHTML({
-        titre: action.l,
-        sousTitre: action.id,
-        meta: action.d,
-        puce: [RISQUES[action.r].p, RISQUES[action.r].t],
-        blocs: [
-          {
-            type: "faits",
-            lignes: [
-              {
-                c: "Ce qu'elle fait",
-                v: RISQUES[action.r].t,
-                pipValeur: RISQUES[action.r].p,
+    window.__panneau.ouvrir({
+      titre: action.l,
+      sousTitre: action.id,
+      meta: action.d,
+      puce: [RISQUES[action.r].p, RISQUES[action.r].t],
+      blocs: [
+        {
+          type: "faits",
+          lignes: [
+            {
+              c: "Ce qu'elle fait",
+              v: RISQUES[action.r].t,
+              pipValeur: RISQUES[action.r].p,
+            },
+            { c: "Durée", v: action.long ? "peut être longue" : "immédiate" },
+            {
+              c: "Essai à blanc",
+              v: action.blanc ? (blanc ? "activé" : "désactivé") : "impossible",
+            },
+          ],
+        },
+        supprime
+          ? {
+              type: "note",
+              texte:
+                "**Cette commande supprime.** L'essai à blanc reste activé tant que rien n'a montré ce qui serait détruit : un « êtes-vous sûr ? » se répond sans lire, une liste se regarde. Lancez-la à blanc, lisez ce qu'elle nomme, puis relancez-la pour de vrai.",
+            }
+          : null,
+        {
+          type: "actions",
+          actions: [
+            {
+              texte: action.blanc ? "Lancer à blanc" : "Lancer",
+              ton: "solid",
+              cible: {
+                toast: `${action.l} — lancée${action.blanc ? " à blanc" : ""}. Le résultat s'affichera ici.`,
               },
-              { c: "Durée", v: action.long ? "peut être longue" : "immédiate" },
-              {
-                c: "Essai à blanc",
-                v: action.blanc
-                  ? blanc
-                    ? "activé"
-                    : "désactivé"
-                  : "impossible",
-              },
-            ],
-          },
-          supprime
-            ? {
-                type: "note",
-                texte:
-                  "**Cette commande supprime.** L'essai à blanc reste activé tant que rien n'a montré ce qui serait détruit : un « êtes-vous sûr ? » se répond sans lire, une liste se regarde. Lancez-la à blanc, lisez ce qu'elle nomme, puis relancez-la pour de vrai.",
-              }
-            : null,
-          {
-            type: "actions",
-            actions: [
-              {
-                texte: action.blanc ? "Lancer à blanc" : "Lancer",
-                ton: "solid",
-                cible: {
-                  toast: `${action.l} — lancée${action.blanc ? " à blanc" : ""}. Le résultat s'affichera ici.`,
-                },
-              },
-              supprime
-                ? {
-                    texte: "Lancer pour de vrai",
-                    desactive: true,
-                    infobulle: "Lisez d'abord ce que l'essai à blanc nomme.",
-                    mention: "après l'essai",
-                  }
-                : null,
-            ].filter(Boolean),
-          },
-        ].filter(Boolean),
-      }),
-    );
+            },
+            supprime
+              ? {
+                  texte: "Lancer pour de vrai",
+                  desactive: true,
+                  infobulle: "Lisez d'abord ce que l'essai à blanc nomme.",
+                  mention: "après l'essai",
+                }
+              : null,
+          ].filter(Boolean),
+        },
+      ].filter(Boolean),
+    });
   }
 
   /* ── UNE ADRESSE QUI N'EXISTE PAS ─────────────────────────────────────
@@ -14780,67 +14620,6 @@
     return REG_ETAT.modifs.has(id) ? REG_ETAT.modifs.get(id) : reglage.brut;
   }
 
-  function champReglageHTML(reglage) {
-    const id = escapeHtml(reglageId(reglage));
-    const v = valeurEnCours(reglage);
-    const unite = uniteDe(reglage);
-
-    if (reglage.type === "structure")
-      return `<div class="champ refus">
-        <p class="rulenote">Cette valeur est une <b>structure</b> — une liste d'objets avec leurs
-        propres clés. Elle ne s'édite pas ici : un formulaire qu'on ne peut pas valider promettrait
-        une modification qui casse le fichier. Ouvrez <code>${escapeHtml(nomDeFichier(reglage.f))}</code>.</p>
-      </div>`;
-
-    if (reglage.type === "booleen")
-      return `<div class="champ">
-        <button class="interrupteur${v ? " actif" : ""}" role="switch"
-          aria-checked="${v ? "true" : "false"}" data-champ="${id}" data-vers="${v ? "non" : "oui"}">
-          <span class="pastille"></span>
-        </button>
-        <span class="champlbl">${v ? "Activé" : "Désactivé"}</span>
-      </div>`;
-
-    if (reglage.type === "liste") {
-      const items = Array.isArray(v) ? v : [];
-      return `<div class="champ liste">
-        ${
-          items.length
-            ? items
-                .map(
-                  (x, i) =>
-                    `<div class="litem"><span>${escapeHtml(x)}</span><button class="lsupp"
-                      data-champsupp="${id}" data-index="${i}" aria-label="Retirer ${escapeHtml(x)}">
-                      ${svgIcon(icons.x)}</button></div>`,
-                )
-                .join("")
-            : `<p class="rulenote">Aucune valeur. La liste est vide, ce qui n'est pas la même chose
-               qu'une valeur absente.</p>`
-        }
-        <button class="lajout" data-champajout="${id}">${svgIcon(icons.plus)}Ajouter</button>
-      </div>`;
-    }
-
-    const vide = v === null || v === undefined || v === "";
-    const mono = reglage.type === "chemin";
-    const numerique = reglage.type === "nombre";
-    return `<div class="champ">
-      <input class="champsaisie${mono ? " mono" : ""}" data-champ="${id}"
-        type="${numerique ? "number" : "text"}"
-        ${numerique ? 'inputmode="decimal"' : ""}
-        value="${vide ? "" : escapeHtml(String(v))}"
-        placeholder="${vide ? "non défini" : ""}"
-        aria-label="${escapeHtml(libelleReglage(reglage))}">
-      ${
-        unite
-          ? `<span class="champunite">${escapeHtml(unite)}</span>`
-          : reglage.type === "duree"
-            ? `<span class="champunite">format 72h</span>`
-            : ""
-      }
-    </div>`;
-  }
-
   function ligneReglageHTML(reglage, avecFichier = false) {
     const modifie = REG_ETAT.modifs.has(reglageId(reglage));
     const origine = avecFichier
@@ -15019,51 +14798,49 @@
   }
 
   function ouvrirSecret(secret) {
-    openSheet(
-      panneauHTML({
-        titre: secret.l,
-        meta: [{ m: secret.k }],
-        puce: secret.def ? ["success", "définie"] : ["warning", "absente"],
-        blocs: [
-          {
-            type: "note",
-            texte:
-              "La valeur n'est jamais renvoyée par le serveur, donc elle ne s'affiche pas ici. On sait qu'elle est posée, on ne sait pas ce qu'elle vaut.",
-          },
-          {
-            type: "actions",
-            actions: [
-              REG_ETAT.lectureSeule
-                ? {
-                    texte: "Lecture seule sur cette instance",
-                    icone: icons.x,
-                    desactive: true,
-                  }
-                : {
-                    texte: "Remplacer la valeur",
-                    icone: icons.wrench,
-                    ton: "primary",
-                    cible: {
-                      toast:
-                        "Un champ masqué s'ouvre ici. Laissé vide, il n'efface rien.",
-                    },
+    window.__panneau.ouvrir({
+      titre: secret.l,
+      meta: [{ m: secret.k }],
+      puce: secret.def ? ["success", "définie"] : ["warning", "absente"],
+      blocs: [
+        {
+          type: "note",
+          texte:
+            "La valeur n'est jamais renvoyée par le serveur, donc elle ne s'affiche pas ici. On sait qu'elle est posée, on ne sait pas ce qu'elle vaut.",
+        },
+        {
+          type: "actions",
+          actions: [
+            REG_ETAT.lectureSeule
+              ? {
+                  texte: "Lecture seule sur cette instance",
+                  icone: icons.x,
+                  desactive: true,
+                }
+              : {
+                  texte: "Remplacer la valeur",
+                  icone: icons.wrench,
+                  ton: "primary",
+                  cible: {
+                    toast:
+                      "Un champ masqué s'ouvre ici. Laissé vide, il n'efface rien.",
                   },
-              secret.def
-                ? {
-                    texte: "Retirer la clé",
-                    icone: icons.trash,
-                    ton: "danger",
-                    cible: {
-                      toast:
-                        "Retirer une clé coupe ce qu'elle autorisait — le service le dira avant.",
-                    },
-                  }
-                : null,
-            ],
-          },
-        ],
-      }),
-    );
+                },
+            secret.def
+              ? {
+                  texte: "Retirer la clé",
+                  icone: icons.trash,
+                  ton: "danger",
+                  cible: {
+                    toast:
+                      "Retirer une clé coupe ce qu'elle autorisait — le service le dira avant.",
+                  },
+                }
+              : null,
+          ],
+        },
+      ],
+    });
   }
 
   /* One setting, in the panel — the same panel as everywhere else, taking the
@@ -15074,52 +14851,50 @@
     if (!reglage) return;
     const courante = valeurCourante(reglage);
     const modifie = REG_ETAT.modifs.has(id);
-    openSheet(
-      panneauHTML({
-        titre: libelleReglage(reglage),
-        meta: [{ m: `${reglage.f}.json5 · ${reglage.c}` }],
-        ...(modifie ? { puce: ["info", "modifié, pas encore écrit"] } : {}),
-        blocs: [
-          reglage.note ? { type: "note", texte: reglage.note } : null,
-          REG_ETAT.lectureSeule ? null : { type: "champ", reglage },
-          {
-            type: "faits",
-            lignes: [
-              { c: "Valeur actuelle", v: String(courante) },
-              ...(modifie
-                ? [{ c: "Valeur écrite", v: String(reglage.v), terne: true }]
-                : []),
-              // The file is on the mono line above; a « Fichier » fact under it
-              // says the same thing twice on a screen that has no room for it.
-            ],
-          },
-          {
-            type: "actions",
-            actions: [
-              REG_ETAT.lectureSeule
-                ? {
-                    texte: "Lecture seule sur cette instance",
-                    icone: icons.x,
-                    desactive: true,
-                  }
-                : null,
-              modifie
-                ? {
-                    texte: "Annuler la modification",
-                    icone: icons.x,
-                    cible: { annulerreg: id },
-                  }
-                : null,
-            ],
-          },
-          {
-            type: "note",
-            texte:
-              "Rien n'est écrit tant que la barre du bas n'est pas utilisée. Elle dit quels fichiers seront touchés.",
-          },
-        ],
-      }),
-    );
+    window.__panneau.ouvrir({
+      titre: libelleReglage(reglage),
+      meta: [{ m: `${reglage.f}.json5 · ${reglage.c}` }],
+      ...(modifie ? { puce: ["info", "modifié, pas encore écrit"] } : {}),
+      blocs: [
+        reglage.note ? { type: "note", texte: reglage.note } : null,
+        REG_ETAT.lectureSeule ? null : { type: "champ", reglage },
+        {
+          type: "faits",
+          lignes: [
+            { c: "Valeur actuelle", v: String(courante) },
+            ...(modifie
+              ? [{ c: "Valeur écrite", v: String(reglage.v), terne: true }]
+              : []),
+            // The file is on the mono line above; a « Fichier » fact under it
+            // says the same thing twice on a screen that has no room for it.
+          ],
+        },
+        {
+          type: "actions",
+          actions: [
+            REG_ETAT.lectureSeule
+              ? {
+                  texte: "Lecture seule sur cette instance",
+                  icone: icons.x,
+                  desactive: true,
+                }
+              : null,
+            modifie
+              ? {
+                  texte: "Annuler la modification",
+                  icone: icons.x,
+                  cible: { annulerreg: id },
+                }
+              : null,
+          ],
+        },
+        {
+          type: "note",
+          texte:
+            "Rien n'est écrit tant que la barre du bas n'est pas utilisée. Elle dit quels fichiers seront touchés.",
+        },
+      ],
+    });
   }
 
   /* Navigation */
@@ -15204,13 +14979,16 @@
       .join("");
   }
   function render() {
+    // Every action ends in render(): one bump here reaches React for every
+    // simulated mutation, including the ones made in place on `world`
+    // (splice, unshift…) that never pass through `ecrire`.
+    magasin?.toucher();
     /* An id no page carries is not a crash: it is the `*` route. Looking one
        up and calling `.render()` on nothing stopped the whole interface on a
        TypeError, which is the worst possible answer to a stale bookmark. */
     let found = PAGES_OF().find((element) => element.id === state.page);
     if (!found) {
-      state.introuvable = "/" + state.page;
-      state.page = "404";
+      magasin.ecrire({ introuvable: "/" + state.page, page: "404" });
       found = PAGES_OF().find((element) => element.id === "404");
     }
     view.innerHTML = found.render();
@@ -15306,6 +15084,85 @@
     ["VOSTFR", "Sous-titres français"],
     ["VO", "Version originale"],
   ];
+
+  /* Read-only reference data + pure rendering helpers a migrated route
+     component reuses VERBATIM rather than re-declaring — a re-declaration
+     would drift the day one of these changes here. None of it is engine
+     STATE (never mutated by an action), so exposing it does not bypass the
+     store's reactivity contract; it is exposed once, at definition time,
+     well before the deferred module script (coquille.tsx) runs. */
+  window.__referentiel = {
+    RELEASES,
+    RESOS,
+    AUDIOS,
+    icons,
+    baseTitle,
+    SEARCH,
+    cardHTML,
+    addVerb,
+    render,
+    HEROS,
+    POSTERS,
+    // ACTEURS and AUJOURDHUI are declared with `const` further down this
+    // same script, past this literal's evaluation point — a plain shorthand
+    // reference would hit the temporal dead zone the instant this object is
+    // built. A getter defers the read to first access, by which time the
+    // whole script has finished running.
+    get ACTEURS() {
+      return ACTEURS;
+    },
+    trailerIds,
+    EP_LABEL,
+    sheetFor,
+    saisonsDe,
+    possedesDe,
+    plages,
+    initials,
+    dateFR,
+    get AUJOURDHUI() {
+      return AUJOURDHUI;
+    },
+    svgIcon,
+    tousLesReglages,
+    reglageId,
+    // What a field must DRAW: the pending edit if there is one, the file's
+    // value otherwise. The pending-edit overlay itself stays private — a
+    // reader of this returns the value, never the map — but a panel that drew
+    // `.brut` instead would show a list one has just shortened at its old
+    // length, and the removal would look like it did nothing.
+    valeurEnCours,
+    valeurSaisie,
+    modifierReglage,
+    ouvrirReglage,
+    // The arbitration flow. `DECISIONS_ATTENTE` / `DECISIONS_REGLEES` and the
+    // label maps are all `const` declared above this literal, so a plain
+    // shorthand reference reads the finished value — no TDZ here. `toast` and
+    // `decisionEnAttente` are declared with `function` further down this same
+    // script; a function declaration hoists its whole definition (unlike
+    // `let`/`const`, which only hoist to a temporal dead zone), so a plain
+    // shorthand reference to either is already callable at this point too.
+    DECISIONS_ATTENTE,
+    DECISIONS_REGLEES,
+    MOTIF_LABEL,
+    MOTIF_TON,
+    MOTIF_POURQUOI,
+    ETAT_DECISION,
+    ETAT_DECISION_POURQUOI,
+    VIA_LABEL,
+    decisionEnAttente,
+    // Thin arrows over `derived.blocked` / `derived.stuck` — `derived` itself
+    // is already initialized above this literal, but the wrapper still earns
+    // its keep: it publishes a STABLE function reference while the value each
+    // call returns stays live against the scenario switch inside `derived`.
+    derivedBlocked: () => derived.blocked(),
+    derivedStuck: () => derived.stuck(),
+    actionResoudre,
+    actionLaisser,
+    actionRecuperer,
+    toast,
+    posterBox,
+    chipHTML,
+  };
 
   const TRIS = {
     recent: "Ajout récent",
@@ -15517,7 +15374,18 @@
     appui = null;
   }
 
-  cadre.addEventListener(
+  /* Bound to `document`, not `cadre` (`#device`, the phone frame). A
+     migrated screen renders inside `#coquille` — relocated by coquille.tsx
+     into `#device` at boot for containment (see that file's own comment),
+     but that placement is decided by CSS geometry, not by event delegation:
+     nothing here depends on it, and `document` stays the deliberately wider
+     root so this keeps answering a card drawn by a migrated screen even if
+     that placement ever changes again. `document` is the one ancestor
+     guaranteed either way. Both handlers already gate on the TARGET
+     (`panneauSousLeDoigt`, the input/textarea/contenteditable check below),
+     so the wider root changes nothing for content that was never meant to
+     answer a press. */
+  document.addEventListener(
     "pointerdown",
     (event) => {
       // A new gesture clears any mark the previous one left unconsumed.
@@ -15526,7 +15394,7 @@
     },
     { passive: true },
   );
-  cadre.addEventListener("pointermove", (event) => suivreAppui(event), {
+  document.addEventListener("pointermove", (event) => suivreAppui(event), {
     passive: true,
   });
   /* The mark is NEVER cleared on pointerup: for a real finger the click comes
@@ -15549,8 +15417,9 @@
      the panel the same press was opening.
 
      A text field keeps its menu: pasting into one has no other route, and the
-     interface offers nothing there of its own. */
-  cadre.addEventListener("contextmenu", (event) => {
+     interface offers nothing there of its own. Bound to `document` for the
+     same reason as the pointer listeners above. */
+  document.addEventListener("contextmenu", (event) => {
     if (event.target.closest("input, textarea, [contenteditable]")) return;
     event.preventDefault();
   });
@@ -15586,32 +15455,30 @@
      says why, rather than being absent: a menu that grows an item later teaches
      its shape twice. */
   function openUserSheet() {
-    openSheet(
-      panneauHTML({
-        titre: COMPTE.nom,
-        sousTitre: COMPTE.mail,
-        avatar: COMPTE.avatar,
-        blocs: [
-          {
-            type: "actions",
-            secondaire: true,
-            actions: [
-              {
-                texte: "Profil et préférences",
-                icone: icons.user,
-                cible: { go: "profil" },
-              },
-              {
-                texte: "Se déconnecter",
-                icone: icons.logout,
-                ton: "danger",
-                cible: { deconnexion: "1" },
-              },
-            ],
-          },
-        ],
-      }),
-    );
+    window.__panneau.ouvrir({
+      titre: COMPTE.nom,
+      sousTitre: COMPTE.mail,
+      avatar: COMPTE.avatar,
+      blocs: [
+        {
+          type: "actions",
+          secondaire: true,
+          actions: [
+            {
+              texte: "Profil et préférences",
+              icone: icons.user,
+              cible: { go: "profil" },
+            },
+            {
+              texte: "Se déconnecter",
+              icone: icons.logout,
+              ton: "danger",
+              cible: { deconnexion: "1" },
+            },
+          ],
+        },
+      ],
+    });
   }
 
   /* Accepts an index into the library or a plain title: the gallery of a lens
@@ -15724,7 +15591,7 @@
     if (state.libErr) {
       foot.innerHTML = `<div class="loaderr"><b>Impossible de charger la suite.</b> La connexion a été perdue pendant la requête. Les ${state.libCount} médias déjà affichés restent valides.<button id="libretry">Réessayer</button></div>`;
       document.querySelector("#libretry").onclick = () => {
-        state.libErr = false;
+        magasin.ecrire({ libErr: false });
         libFoot();
         loadMoreLib();
       };
@@ -15751,21 +15618,19 @@
       state.libCount >= libFiltered().length
     )
       return;
-    state.libLoading = true;
+    magasin.ecrire({ libLoading: true });
     if (libObserver) libObserver.disconnect();
     setTimeout(() => {
-      state.libLoading = false;
+      magasin.ecrire({ libLoading: false });
       // One failure, once, to show the error path for real.
       if (!state.libFailedOnce && state.libCount >= LIB_PAGE * 3) {
-        state.libFailedOnce = true;
-        state.libErr = true;
+        magasin.ecrire({ libFailedOnce: true, libErr: true });
         libFoot();
         return;
       }
-      state.libCount = Math.min(
-        libFiltered().length,
-        state.libCount + LIB_PAGE,
-      );
+      magasin.ecrire({
+        libCount: Math.min(libFiltered().length, state.libCount + LIB_PAGE),
+      });
       fillLib();
       libFoot();
     }, 620);
@@ -15828,13 +15693,15 @@
      back, so it comes round again. « Pas intéressé » removes it, with an undo. */
   function deckOrdre() {
     if (!state.sugOrder)
-      state.sugOrder = SUGGESTIONS.map((SUGGESTIONS2, index) => index);
+      magasin.ecrire({
+        sugOrder: SUGGESTIONS.map((SUGGESTIONS2, index) => index),
+      });
     return state.sugOrder.filter((sugOrder) => !state.sugGone.has(sugOrder));
   }
 
   function passerSug(index) {
     const filter = deckOrdre().filter((element) => element !== index);
-    state.sugOrder = [...filter, index];
+    magasin.ecrire({ sugOrder: [...filter, index] });
   }
 
   function deckHTML() {
@@ -15985,10 +15852,15 @@
     if (state.sugMode === "deck") {
       // In the deck the whole pile changes, not one row: re-render, and the
       // undo restores both the suggestion and its place in the order.
+      // `sugGone` is a Set mutated in place — refreshDeck() redraws the
+      // legacy deck directly, so React needs the explicit bump `ecrire`
+      // would otherwise have given it for free.
       state.sugGone.add(index);
+      magasin.toucher();
       refreshDeck();
       toastUndo(`« ${SUGGESTIONS[index].t} » écarté.`, () => {
         state.sugGone.delete(index);
+        magasin.toucher();
         refreshDeck();
       });
       return;
@@ -15996,11 +15868,13 @@
     const element = document.querySelector(`[data-dismissable="${index}"]`);
     if (!element) return;
     state.sugGone.add(index);
+    magasin.toucher();
     element.style.height = element.getBoundingClientRect().height + "px";
     requestAnimationFrame(() => element.classList.add("gone"));
     setTimeout(() => element.remove(), 320);
     toastUndo(`« ${SUGGESTIONS[index].t} » écarté.`, () => {
       state.sugGone.delete(index);
+      magasin.toucher();
       fillSug();
       sugFoot();
     });
@@ -16008,50 +15882,48 @@
 
   function openSugSheet(index) {
     const suggestion = SUGGESTIONS[index];
-    openSheet(
-      panneauHTML({
-        titre: suggestion.t,
-        meta: `${suggestion.y} · ${suggestion.k} · note TMDB ${suggestion.note}`,
-        blocs: [
-          { type: "note", texte: suggestion.why },
-          {
-            type: "actions",
-            actions: [
-              {
-                texte: sugVerb(suggestion),
-                icone: icons.plus,
-                ton: "primary",
-                cible: { follow: suggestion.t, sugidx: index },
-              },
-              {
-                texte: "Voir la fiche",
-                icone: icons.eye,
-                cible: { fiche: suggestion.t },
-              },
-            ],
-          },
-          {
-            type: "actions",
-            secondaire: true,
-            actions: [
-              {
-                texte: "Pas intéressé",
-                icone: icons.x,
-                ton: "danger",
-                cible: { dropsug: index },
-              },
-            ],
-          },
-          suggestion.k === "Film"
-            ? {
-                type: "note",
-                texte:
-                  "Une fois acquis, ce film quittera automatiquement votre liste (§5).",
-              }
-            : null,
-        ],
-      }),
-    );
+    window.__panneau.ouvrir({
+      titre: suggestion.t,
+      meta: `${suggestion.y} · ${suggestion.k} · note TMDB ${suggestion.note}`,
+      blocs: [
+        { type: "note", texte: suggestion.why },
+        {
+          type: "actions",
+          actions: [
+            {
+              texte: sugVerb(suggestion),
+              icone: icons.plus,
+              ton: "primary",
+              cible: { follow: suggestion.t, sugidx: index },
+            },
+            {
+              texte: "Voir la fiche",
+              icone: icons.eye,
+              cible: { fiche: suggestion.t },
+            },
+          ],
+        },
+        {
+          type: "actions",
+          secondaire: true,
+          actions: [
+            {
+              texte: "Pas intéressé",
+              icone: icons.x,
+              ton: "danger",
+              cible: { dropsug: index },
+            },
+          ],
+        },
+        suggestion.k === "Film"
+          ? {
+              type: "note",
+              texte:
+                "Une fois acquis, ce film quittera automatiquement votre liste (§5).",
+            }
+          : null,
+      ],
+    });
   }
 
   /* The label a search result's action carries, computed ONCE. The panel
@@ -16087,41 +15959,39 @@
   function openAddSheet(index) {
     const result = SEARCH.results[index];
     const fait = state.added.has(index);
-    openSheet(
-      panneauHTML({
-        titre: result.t,
-        meta: `${result.y} · ${result.k} · TMDB`,
-        blocs: [
-          result.owned && state.addMode !== "identifier"
-            ? {
-                type: "note",
-                texte: [
-                  "Déjà en médiathèque — l'acquisition ",
-                  { e: "remplacera" },
-                  " la version en place.",
-                ],
-              }
-            : null,
-          {
-            type: "actions",
-            actions: [
-              {
-                texte: addVerb(result, index),
-                icone: icons.plus,
-                ton: "primary",
-                desactive: fait,
-                cible: { act: `add:${index}` },
-              },
-              {
-                texte: "Voir la fiche",
-                icone: icons.eye,
-                cible: { fiche: result.t },
-              },
-            ],
-          },
-        ],
-      }),
-    );
+    window.__panneau.ouvrir({
+      titre: result.t,
+      meta: `${result.y} · ${result.k} · TMDB`,
+      blocs: [
+        result.owned && state.addMode !== "identifier"
+          ? {
+              type: "note",
+              texte: [
+                "Déjà en médiathèque — l'acquisition ",
+                { e: "remplacera" },
+                " la version en place.",
+              ],
+            }
+          : null,
+        {
+          type: "actions",
+          actions: [
+            {
+              texte: addVerb(result, index),
+              icone: icons.plus,
+              ton: "primary",
+              desactive: fait,
+              cible: { act: `add:${index}` },
+            },
+            {
+              texte: "Voir la fiche",
+              icone: icons.eye,
+              cible: { fiche: result.t },
+            },
+          ],
+        },
+      ],
+    });
   }
 
   function sugFoot() {
@@ -16144,11 +16014,13 @@
 
   function loadMoreSug() {
     if (state.sugLoading || state.sugCount >= SUGGESTIONS.length) return;
-    state.sugLoading = true;
+    magasin.ecrire({ sugLoading: true });
     if (sugObserver) sugObserver.disconnect();
     setTimeout(() => {
-      state.sugLoading = false;
-      state.sugCount = Math.min(SUGGESTIONS.length, state.sugCount + SUG_BATCH);
+      magasin.ecrire({
+        sugLoading: false,
+        sugCount: Math.min(SUGGESTIONS.length, state.sugCount + SUG_BATCH),
+      });
       fillSug();
       sugFoot();
     }, 420);
@@ -16160,9 +16032,7 @@
     const element = document.querySelector("#libq");
     if (element)
       element.oninput = () => {
-        state.q = element.value;
-        state.libCount = LIB_PAGE;
-        state.libErr = false;
+        magasin.ecrire({ q: element.value, libCount: LIB_PAGE, libErr: false });
         const pos = element.selectionStart;
         render();
         const element3 = document.querySelector("#libq");
@@ -16171,19 +16041,14 @@
           element3.setSelectionRange(pos, pos);
         }
       };
-    for (const champ of document.querySelectorAll(".champsaisie")) {
-      champ.onchange = () => {
-        const id = champ.dataset.champ;
-        const reglage = tousLesReglages().find((r) => reglageId(r) === id);
-        if (!reglage) return;
-        modifierReglage(id, valeurSaisie(reglage, champ.value));
-        ouvrirReglage(id);
-      };
-    }
+    /* `.champsaisie` is NOT bound here anymore: a settings field only ever
+       appears inside the panel, and the panel's own `champ` block owns its
+       commit-on-blur handler now (`src/composants/panneau.tsx`). Binding it
+       from outside would put two writers on one field. */
     const element2 = document.querySelector("#follq");
     if (element2)
       element2.oninput = () => {
-        state.filtre = element2.value;
+        magasin.ecrire({ filtre: element2.value });
         const pos = element2.selectionStart;
         render();
         const element3 = document.querySelector("#follq");
@@ -16243,14 +16108,13 @@
       };
   }
 
-  function openSheet(html) {
-    select("#sheetin").innerHTML = html;
-    mountSearch();
-    select("#sheet").classList.add("open");
-    select("#scrim").classList.add("open");
-    try {
-      __pont.coucher("sheet");
-    } catch (error) {}
+  /* The panel layer belongs to the shell now (`window.__panneau`, rendered by
+     `src/composants/feuille.tsx`): a producer describes FACTS and the shell
+     builds the panel. This function opens nothing anymore — it is a tripwire,
+     kept so a producer nobody converted fails where it is written instead of
+     quietly doing nothing. Every call site was converted with the layer. */
+  function openSheet() {
+    throw new Error("openSheet est mort — passer par __panneau");
   }
   /* Closing WITHOUT touching history — the harness driver uses it to
      restart from a clean surface. Chaining the « normal » close functions
@@ -16259,7 +16123,13 @@
   function hideLayers() {
     select("#drawer").classList.remove("open");
     select("#screen").classList.remove("open");
-    select("#sheet").classList.remove("open");
+    // The sheet is the shell's layer: closing it without touching history is
+    // what `fermer(true)` means, the same contract this function has always
+    // had for every layer it resets.
+    window.__panneau.fermer(true);
+    // The scrim stays cleared HERE too: it is shared ground, raised by the
+    // drawer and the dialog on their own, and the line above only clears it
+    // for a sheet that was actually open.
     select("#scrim").classList.remove("open");
     select("#dlg").classList.remove("open");
     closeHarness();
@@ -16294,14 +16164,44 @@
     }
   }
 
+  /* A layer living in the shell announces its close the same way: the latch
+     and the named-entry check above are read by the popstate handler right
+     below them, so they stay here, with the reader, and the shell borrows the
+     verb rather than a copy of the bookkeeping. */
+  window.__derouler = deroulerCouche;
+
+  /* A settlement of SEVERAL entries at once (`__pont.reculer`) announces itself
+     through the same latch — and raises it by ONE, never by the number of
+     entries: the browser coalesces a multi-entry traversal into a SINGLE
+     popstate, fired at the destination. Measured, because the whole point of
+     the announcement is to match the number of events that will actually
+     arrive: `history.go(-2)` reports one pop, where two `history.back()` calls
+     issued in the same task report two. Raising the latch by n would leave the
+     surplus standing and swallow the operator's next real back — the mirror
+     image of the defect this replaces, and just as invisible.
+
+     No named-entry check here, unlike `deroulerCouche`: what is being settled
+     is a WALK of several entries whose top one is not necessarily a layer, so
+     there is no single name to check it against. The caller counts what it
+     stacked and is the only one that can. */
+  window.__annoncerPops = (nombreDEntrees) => {
+    if (nombreDEntrees > 0) deroulementEnCours += 1;
+  };
+
+  /* Kept as a VERB the driver can still say: `doigt.py`, `glisse.py` and
+     `machine.py` call `closeSheet()` from inside the page, and moving a layer
+     to the shell must not take away the vocabulary that drives it. The layer
+     state, the per-layer guard and the unwind all live in
+     `window.__panneau.fermer` now — this is one line pointing there, not a
+     second implementation. */
   function closeSheet(pop) {
-    // Guarded per LAYER: without it, closing an already-closed sheet consumes
-    // a history entry that belonged to someone else.
-    if (!select("#sheet").classList.contains("open")) return;
-    select("#sheet").classList.remove("open");
-    select("#scrim").classList.remove("open");
-    if (!pop) deroulerCouche("sheet");
+    window.__panneau.fermer(pop);
   }
+  /* The dialog raises the SHARED scrim itself, on an element the shell renders
+     — which is why the shell's own panel verbs commit synchronously: a caller
+     closing the sheet and opening a dialog on the next line (`data-del`) would
+     otherwise have its scrim cleared a frame later, by a close that already
+     returned. */
   function openDlg(html) {
     select("#dlg").innerHTML = html;
     select("#dlg").classList.add("open");
@@ -16454,6 +16354,16 @@
   const RETOUR_FENETRE = 5000;
   let pilotage = false;
   let sortieArmee = 0;
+  // The legacy engine's own address BASE — "/" in production, but whatever a
+  // static host answers the document under otherwise (the rule harness's
+  // 8899 server names it "/wrapped.html"). Computed once at boot by the
+  // shell (coquille.tsx, using the router's OWN matching — see its own
+  // comment) and handed through window.__demarrerMoteur, because deciding
+  // it here would mean re-deriving what the router owns from a second,
+  // independently-maintained list. Defaulted to "/" so a call made before
+  // the boot handshake (there should be none) fails toward the common case
+  // rather than toward whatever the document happens to be opened from.
+  let adresseBase = "/";
 
   /* ── L'URL PORTE L'ÉTAT (DOIT-10) ─────────────────────────────────────
      « Chaque détail a son URL » is a rule of the constitution, and the
@@ -16484,6 +16394,17 @@
   };
 
   function urlDeLEtat() {
+    // Built on adresseBase, never on location.pathname: writing over the
+    // CURRENT pathname would either clobber a router-owned address (the
+    // C1 hole) or, once it does not, still be redundant with what pushing
+    // onto the shared history already achieves on its own — the router
+    // subscribes to that same history instance (Transitioner mounts
+    // `router.history.subscribe(router.load)`) and re-derives its matches
+    // from whatever URL lands there, regardless of who pushed it. A legacy
+    // nav writing `adresseBase + "?page=lib"` while the address reads
+    // `/ajout` is exactly what makes the router notice the address no
+    // longer matches `/ajout` and unmount the screen — no navigate() call
+    // needed on this side of the bridge.
     const courant = {
       page: state.page,
       tab: state.acqTab,
@@ -16497,7 +16418,7 @@
       if (valeur && valeur !== URL_DEFAUTS[nom])
         params.set(nom, String(valeur));
     const requete = params.toString();
-    return location.pathname + (requete ? "?" + requete : "");
+    return adresseBase + (requete ? "?" + requete : "");
   }
 
   /* Reads back what the URL carries. An absent parameter is not « empty »: it
@@ -16532,6 +16453,14 @@
     };
   }
 
+  /* B-026: a navigation write that fails must not fail silently — the URL
+     and the interface would then disagree with nothing on record. Published
+     so the harness can read it, the same way `__sujetsSansNom` publishes an
+     absent name rather than hiding it: it catches a write that DID fail,
+     never a wrong one. Reset only at load — a measurement that ran before
+     leaves no residue, because nothing here ever clears it back to false. */
+  window.__navEchec = false;
+
   /* Records where the operator has ARRIVED. The pushed entry carries the state
      one is now in, so it is the CURRENT entry and popping it lands on the
      previous arrival. Pushing the state being left instead puts the history
@@ -16541,14 +16470,22 @@
     if (pilotage) return;
     try {
       __pont.noter(etatDeNavigation(), urlDeLEtat());
-    } catch (error) {}
+    } catch (error) {
+      console.error("noterLeChemin : écriture de navigation échouée", error);
+      window.__navEchec = true;
+    }
   }
 
   /* The bridge announces a back the way `popstate` did — for a back, a
      forward and a jump alike — and hands over the state of the entry now
      CURRENT, which is the entry the gesture landed on. That is what
-     `popstate` reported too, so the reading below is unchanged. */
-  __pont.surRetour((etatCourant) => {
+     `popstate` reported too, so the reading below is unchanged.
+
+     The registration itself moved into window.__demarrerMoteur, below: like
+     every other `__pont` verb, it needs the REAL bridge to exist first, and
+     nothing here forces that anymore — there is no pre-bridge queueing calls
+     made before the module evaluates. */
+  function surRetourEngine(etatCourant) {
     // Our own unwind, announced by the layer that closed itself. It is not a
     // back gesture and carries no destination: consuming it is the whole
     // handling. Read before the layer guards, because the layer's class is
@@ -16561,7 +16498,12 @@
     // A layer first: it is what sits on top, and it is what a back closes.
     if (select("#drawer").classList.contains("open")) return fermerTiroir(true);
     if (select("#screen").classList.contains("open")) return closeScreen(true);
-    if (select("#sheet").classList.contains("open")) return closeSheet(true);
+    // The sheet lives in the shell; it is asked, not inspected. Same rank in
+    // the ladder as before — drawer, then screen, then sheet.
+    if (window.__panneau.ouverte()) {
+      window.__panneau.fermer(true);
+      return;
+    }
 
     const etat = etatCourant;
     if (etat && etat.tm === "nav") {
@@ -16578,6 +16520,18 @@
       return;
     }
 
+    // Ownership, once more, decided by the entry's own SHAPE: only an entry
+    // that carries the guard's own marker (written once, at boot, by
+    // __pont.remplacer({ tm: "garde" })) is the guard. Anything else that
+    // falls through here — notably an entry the ROUTER wrote for /profil/$titre
+    // or /ajout, which carries neither "layer" nor "tm" — is not ours to
+    // react to: the router has already re-rendered by the new URL, so a true
+    // no-op is the correct handling, not "treat every unrecognised shape as
+    // the exit guard". Reading it as the guard used to arm the exit warning
+    // and rewrite the address via noterLeChemin()/urlDeLEtat() over whatever
+    // the router had just written — destroying its search params.
+    if (!(etat && etat.tm === "garde")) return;
+
     // The guard was popped: there is nowhere left to go back to.
     const maintenant = Date.now();
     if (sortieArmee && maintenant - sortieArmee < RETOUR_FENETRE) {
@@ -16592,17 +16546,21 @@
     // next back lands on the guard again.
     noterLeChemin();
     toast("Encore un retour pour quitter TorrentMate.");
-  });
+  }
 
-  select("#scrim").onclick = () => {
+  /* The scrim is the shell's element now, but WHAT a tap on it closes is still
+     decided here: it covers three layers at once and closes whichever is up.
+     Published rather than bound, because the element does not exist when this
+     line runs — the shell calls this from its own `onClick`. */
+  window.__fermerCouches = () => {
     closeDlg();
-    closeSheet();
+    window.__panneau.fermer();
     fermerTiroir();
   };
 
   /* Design notes */
   select("#notesBtn").onclick = (event) => {
-    state.notes = !state.notes;
+    magasin.ecrire({ notes: !state.notes });
     document.documentElement.classList.toggle("notes", state.notes);
     event.currentTarget.setAttribute("aria-pressed", String(state.notes));
     toast(state.notes ? "Notes de conception affichées." : "Notes masquées.");
@@ -16765,7 +16723,7 @@
       "Découvrir · affiches",
       () => {
         applyState({ page: "acq", acqTab: "decouvrir", phase: "prete" });
-        state.sugMode = "poster";
+        magasin.ecrire({ sugMode: "poster" });
         render();
       },
     ],
@@ -16774,7 +16732,7 @@
       "Découvrir · slide cards",
       () => {
         applyState({ page: "acq", acqTab: "decouvrir", phase: "prete" });
-        state.sugMode = "deck";
+        magasin.ecrire({ sugMode: "deck" });
         render();
       },
     ],
@@ -16812,8 +16770,7 @@
       "Écran d'ajout — au repos",
       () => {
         applyState({ page: "acq", phase: "prete" });
-        state.addQ = "";
-        openAddScreen("");
+        window.__ecrans.ajout("");
       },
     ],
     [
@@ -16821,7 +16778,7 @@
       "Écran d'ajout — résultats réels",
       () => {
         applyState({ page: "acq", phase: "prete" });
-        openAddScreen("star wars");
+        window.__ecrans.ajout("star wars");
       },
     ],
     [
@@ -16845,8 +16802,10 @@
       "Recherche en mode IDENTIFIER (depuis une résolution)",
       () => {
         applyState({ page: "arr", phase: "prete", pipe: "repos" });
-        state.resolveTarget = "Backrooms.2026.MULTi.2160p.WEB-DL";
-        openAddScreen("Backrooms 2026", "identifier");
+        magasin.ecrire({
+          resolveTarget: "Backrooms.2026.MULTi.2160p.WEB-DL",
+        });
+        window.__ecrans.ajout("Backrooms 2026", "identifier");
       },
     ],
     [
@@ -16854,7 +16813,7 @@
       "Écran — choisir une autre release",
       () => {
         applyState({ page: "acq", acqTab: "suivis", phase: "prete" });
-        openReleases("Silo");
+        window.__ecrans.releases("Silo");
       },
     ],
     [
@@ -16862,7 +16821,7 @@
       "Écran — profil de qualité",
       () => {
         applyState({ page: "acq", acqTab: "suivis", phase: "prete" });
-        openProfil("Silo");
+        window.__ecrans.profil("Silo");
       },
     ],
     [
@@ -16942,7 +16901,7 @@
           phase: "prete",
           selMode: true,
         });
-        state.selected = new Set([0, 2, 5]);
+        magasin.ecrire({ selected: new Set([0, 2, 5]) });
         render();
       },
     ],
@@ -17026,7 +16985,7 @@
       "Arrivées — résolution, aucun candidat",
       () => {
         applyState({ page: "arr", phase: "prete", pipe: "repos" });
-        openResolve();
+        window.__ecrans.resolution();
       },
     ],
     [
@@ -17039,7 +16998,7 @@
           phase: "prete",
           pipe: "repos",
         });
-        openResolve("Lucky");
+        window.__ecrans.resolution("Lucky");
       },
     ],
     [
@@ -17047,7 +17006,7 @@
       "Fiche — suggestion NON possédée (série)",
       () => {
         applyState({ page: "acq", acqTab: "decouvrir", phase: "prete" });
-        openFiche("The Venture Bros");
+        window.__ecrans.fiche("The Venture Bros");
       },
     ],
     [
@@ -17055,7 +17014,7 @@
       "Fiche — suggestion NON possédée (film)",
       () => {
         applyState({ page: "acq", acqTab: "decouvrir", phase: "prete" });
-        openFiche("Superman : L'Homme de demain");
+        window.__ecrans.fiche("Superman : L'Homme de demain");
       },
     ],
     [
@@ -17063,7 +17022,7 @@
       "Fiche — série avec épisodes datés",
       () => {
         applyState({ page: "lib", phase: "prete" });
-        openFiche("Silo (2023)");
+        window.__ecrans.fiche("Silo (2023)");
       },
     ],
     [
@@ -17071,7 +17030,7 @@
       "Fiche — film",
       () => {
         applyState({ page: "lib", phase: "prete" });
-        openFiche("Marjorie Prime");
+        window.__ecrans.fiche("Marjorie Prime");
       },
     ],
     [
@@ -17079,7 +17038,7 @@
       "Fiche — sans bande-annonce",
       () => {
         applyState({ page: "lib", phase: "prete" });
-        openFiche("Broadchurch");
+        window.__ecrans.fiche("Broadchurch");
       },
     ],
     [
@@ -17250,9 +17209,9 @@
 
   function applyState(patch) {
     hideLayers();
-    Object.assign(state, patch);
+    magasin.ecrire(patch);
     if (patch.page || patch.libLens || patch.q !== undefined)
-      state.libCount = LIB_PAGE;
+      magasin.ecrire({ libCount: LIB_PAGE });
     port.scrollTop = 0;
     render();
   }
@@ -17285,7 +17244,7 @@
      is no such route, and a design reference that dead-ends on a 404 teaches
      nothing about the design. Nothing else here depends on the answer. */
   async function deconnecter() {
-    closeSheet();
+    window.__panneau.fermer();
     try {
       await fetch("/deconnexion", { redirect: "manual" });
     } catch (error) {}
@@ -17608,10 +17567,19 @@
         </div>`,
         ).join("")}
       </nav>
+      <div class="grp">
+        <p class="sect">Apparence</p>
+        <div class="segmini" role="group" aria-label="Thème">
+          ${APPARENCES.map(
+            (mode) =>
+              `<button data-apparence="${mode}" aria-pressed="${apparenceCourante() === mode}">${mode === "systeme" ? "Système" : mode === "clair" ? "Clair" : "Sombre"}</button>`,
+          ).join("")}
+        </div>
+      </div>
       <div class="ver">
         <p class="vt">Version déployée</p>
-        <p class="vv">0.89.0</p>
-        <p class="vc">build 720d2536 · à jour</p>
+        <p class="vv">0.97.11</p>
+        <p class="vc">build 9842e44d · à jour</p>
       </div>`;
     element.classList.add("open");
     select("#scrim").classList.add("open");
@@ -17665,18 +17633,36 @@
   select("#fab").onclick = () => {
     // The « + » ALWAYS means « follow »: the mode must never stay
     // stuck from a previous resolution.
-    openAddScreen(state.addQ, "suivi");
+    window.__ecrans.ajout(state.addQ, "suivi");
   };
   select("#scenBtn").onclick = () => {
     openHarness();
   };
-  select("#themeBtn").onclick = () => {
-    const cur = document.documentElement.getAttribute("data-theme");
-    document.documentElement.setAttribute(
-      "data-theme",
-      cur === "light" ? "dark" : "light",
-    );
-  };
+  /* Appearance belongs to the interface, not the harness: the drawer offers
+     the three honest states. The default (no data-theme attribute) paints
+     dark; « clair » forces light; « systeme » follows the OS preference,
+     LIVE — the media listener acts only while that mode is chosen. The
+     choice persists under the key the envelope reads before the first
+     paint, so a reload opens in the chosen appearance without a flash. */
+  const APPARENCES = ["systeme", "clair", "sombre"];
+  function apparenceCourante() {
+    try {
+      const lu = localStorage.getItem("tm-apparence");
+      if (APPARENCES.includes(lu)) return lu;
+    } catch (error) {}
+    return "systeme";
+  }
+  function appliquerApparence(mode) {
+    const clair =
+      mode === "clair" ||
+      (mode === "systeme" &&
+        matchMedia("(prefers-color-scheme: light)").matches);
+    if (clair) document.documentElement.setAttribute("data-theme", "light");
+    else document.documentElement.removeAttribute("data-theme");
+  }
+  matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => {
+    if (apparenceCourante() === "systeme") appliquerApparence("systeme");
+  });
 
   /* Global delegation */
   document.addEventListener("click", (event) => {
@@ -17740,7 +17726,7 @@
     }
     if (closest.dataset.annulerreg) {
       REG_ETAT.modifs.delete(closest.dataset.annulerreg);
-      closeSheet();
+      window.__panneau.fermer();
       setTimeout(() => {
         render();
         toast("Modification annulée — rien n'avait été écrit.");
@@ -17770,62 +17756,99 @@
       // Navigating CLOSES whatever is open above: without this, one changed
       // page while staying stuck on the media sheet.
       hideLayers();
-      state.page = closest.dataset.page;
+      magasin.ecrire({ page: closest.dataset.page });
       port.scrollTop = 0;
       render();
       noterLeChemin();
       return;
     }
     if (closest.dataset.go) {
-      state.page = closest.dataset.go;
-      if (closest.dataset.go === "acq") state.acqTab = "maintenant";
+      /* A go control can sit INSIDE a layer — today only the user sheet's
+         « Profil et préférences »: every OTHER producer renders into
+         page-body `#view` content, which sits under every layer and is
+         therefore covered — untappable — the instant one is open (walked
+         control by control, BUGS.md B-024). Landing must LEAVE the layer:
+         every layer closes without touching history, and the destination
+         takes the layer's entry, exactly as a drawer navigation settles
+         itself (see data-navgo): letting the close unwind and the arrival
+         push would race, the asynchronous pop landing after the push and
+         overwriting it. */
+      const surCouche = history.state && history.state.layer;
+      fermerTiroir(true);
+      window.__panneau.fermer(true);
+      // This empties the covered-screen STACK too, so the DOM ends up clean
+      // however many screens were stacked — but that is DOM bookkeeping
+      // only, not history: `__pont.remplacer` below settles exactly ONE
+      // entry, on the assumption that at most one layer (drawer, sheet or a
+      // covered-screen stack — never several at once) precedes a `data-go`
+      // tap. B-024 found that assumption unenforced in code, then walked
+      // every producer and found it latent — non atteignable — because the
+      // one producer that can sit over a layer allows at most the sheet
+      // itself. Held there, not fixed here; settling by entry count is
+      // owed if the ownership law lets more producers reach a buried layer
+      // (data-go's own migration, SP4d).
+      pileEcrans.length = 0;
+      closeScreen(true);
+      magasin.ecrire({ page: closest.dataset.go });
+      if (closest.dataset.go === "acq")
+        magasin.ecrire({ acqTab: "maintenant" });
       port.scrollTop = 0;
       render();
-      noterLeChemin();
+      try {
+        if (surCouche) __pont.remplacer(etatDeNavigation(), urlDeLEtat());
+        else noterLeChemin();
+      } catch (error) {
+        console.error("data-go : écriture de navigation échouée", error);
+        window.__navEchec = true;
+      }
       return;
     }
     if (closest.dataset.acqtab) {
-      state.acqTab = closest.dataset.acqtab;
+      magasin.ecrire({ acqTab: closest.dataset.acqtab });
       port.scrollTop = 0;
       render();
       noterLeChemin();
       return;
     }
     if (closest.dataset.lens) {
-      state.libLens = closest.dataset.lens;
       // Changing lens changes the list: start again from the first page.
-      state.libCount = LIB_PAGE;
-      state.libErr = false;
+      magasin.ecrire({
+        libLens: closest.dataset.lens,
+        libCount: LIB_PAGE,
+        libErr: false,
+      });
       port.scrollTop = 0;
       render();
       noterLeChemin();
       return;
     }
     if (closest.dataset.cat) {
-      state.libCat = closest.dataset.cat;
-      state.libCount = LIB_PAGE;
-      state.libErr = false;
+      magasin.ecrire({
+        libCat: closest.dataset.cat,
+        libCount: LIB_PAGE,
+        libErr: false,
+      });
       port.scrollTop = 0;
       render();
       return;
     }
     if (closest.dataset.lmode) {
-      state.libMode = closest.dataset.lmode;
+      magasin.ecrire({ libMode: closest.dataset.lmode });
       render();
       return;
     }
     if (closest.dataset.pill) {
-      state.pill = closest.dataset.pill;
+      magasin.ecrire({ pill: closest.dataset.pill });
       render();
       return;
     }
     if (closest.dataset.fmode) {
-      state.followMode = closest.dataset.fmode;
+      magasin.ecrire({ followMode: closest.dataset.fmode });
       render();
       return;
     }
     if (closest.dataset.sugmode) {
-      state.sugMode = closest.dataset.sugmode;
+      magasin.ecrire({ sugMode: closest.dataset.sugmode });
       render();
       return;
     }
@@ -17834,8 +17857,7 @@
       return;
     }
     if (closest.dataset.sugmore) {
-      state.sugGone = new Set();
-      state.sugOrder = null;
+      magasin.ecrire({ sugGone: new Set(), sugOrder: null });
       render();
       toast("Nouveau lot chargé — 30 suggestions de plus.");
       return;
@@ -17855,7 +17877,7 @@
     }
     if (closest.dataset.dropsug) {
       const index = Number(closest.dataset.dropsug);
-      closeSheet();
+      window.__panneau.fermer();
       dismissSug(index);
       return;
     }
@@ -17871,9 +17893,13 @@
         suggestion && suggestion.k === "Film"
           ? "ajouté à votre liste"
           : "ajouté à vos suivis";
-      closeSheet();
+      window.__panneau.fermer();
       if (idx != null) {
+        // No render() follows on this branch: the sheet close and the
+        // follow-up screens draw directly, so the bump has to be explicit
+        // or React never learns this suggestion left the deck.
         state.sugGone.add(Number(idx));
+        magasin.toucher();
         const element = document.querySelector(`[data-dismissable="${idx}"]`);
         if (element) {
           element.style.height = element.getBoundingClientRect().height + "px";
@@ -17882,9 +17908,14 @@
         }
       }
       actionSuivre(closest.dataset.follow, suggestion?.k ?? "Série");
-      // Reopen the sheet so the button toggles under the finger: an action
-      // whose screen does not change reads as a failed action.
-      if (closest.dataset.refiche) openFiche(closest.dataset.refiche);
+      // The media sheet used to REOPEN itself here so its button would toggle
+      // under the finger — an action whose screen does not change reads as a
+      // failed action. The sheet is a React screen now and re-renders from
+      // the store instead, but `actionSuivre` mutates `world.follows` IN
+      // PLACE and no `render()` follows on this branch: the bump has to be
+      // explicit, exactly as it is for the dismissed suggestion above, or
+      // the button never learns the follow happened.
+      magasin.toucher();
       return;
     }
 
@@ -17900,13 +17931,25 @@
         )
         .replace(/\s{2,}/g, " ")
         .trim();
-      closeScreen();
-      setTimeout(() => openAddScreen(trim, "identifier"), 260);
+      // `/resolution` is a router-owned address now: leaving it is
+      // `__pont.retour()` — the same single pop `.fback` uses — unwinding the
+      // ONE entry `window.__ecrans.resolution` pushed to get here. The
+      // dispatcher no-ops that pop: the entry carries neither `layer` nor
+      // `tm`, so the legacy popstate checks fall through it and the router has
+      // already re-rendered by the time they run.
+      window.__pont.retour();
+      setTimeout(() => window.__ecrans.ajout(trim, "identifier"), 260);
       return;
     }
+    /* THE FOLDER IS `state.resolveTarget`, NEVER THE ATTRIBUTE: what
+       `data-resolve` carries here is the CHOSEN CANDIDATE, and the folder is
+       what the resolution screen was opened on. This branch answers every
+       carrier of the attribute — the panel's own « Résoudre → » act reads it
+       further down and never gets there, which is the order this rewire keeps
+       exactly as it found it. */
     if (closest.dataset.resolve) {
       const cible = state.resolveTarget;
-      closeScreen();
+      window.__pont.retour();
       setTimeout(() => actionResoudre(cible, closest.dataset.resolve), 240);
       return;
     }
@@ -17914,7 +17957,7 @@
        nothing — which is why it says what it did rather than « fait ». */
     if (closest.dataset.laisser) {
       const cible = state.resolveTarget;
-      closeScreen();
+      window.__pont.retour();
       setTimeout(() => actionLaisser(cible), 240);
       return;
     }
@@ -17930,14 +17973,18 @@
             decision != null && decision.d !== closest.dataset.suivante,
         );
       if (suite) {
-        closeScreen();
-        setTimeout(() => openResolve(suite.d), 240);
+        // Closing the screen and re-opening it on the next folder was a pop
+        // plus a push — net ONE entry. The address is the screen's identity
+        // now, so the same depth is a REPLACE: one entry in, one entry out,
+        // and a single back still leaves the arbitration rather than walking
+        // the folders one has already answered.
+        setTimeout(() => window.__ecrans.resolution(suite.d, true), 240);
       }
       return;
     }
     if (closest.dataset.sheetprim) {
       const [split, split2] = closest.dataset.sheetprim.split("|");
-      closeSheet();
+      window.__panneau.fermer();
       setTimeout(() => {
         if (split2 === "a_recuperer") actionRecuperer(split);
         else
@@ -17949,58 +17996,52 @@
     }
     if (closest.dataset.pause) {
       const pause = closest.dataset.pause;
-      closeSheet();
+      window.__panneau.fermer();
       setTimeout(() => actionPause(pause), 240);
       return;
     }
     if (closest.dataset.retirer) {
       const retirer = closest.dataset.retirer;
-      closeSheet();
+      window.__panneau.fermer();
       setTimeout(() => actionRetirer(retirer), 240);
       return;
     }
     if (closest.dataset.releases) {
-      closeSheet();
-      setTimeout(() => openReleases(closest.dataset.releases), 260);
+      window.__panneau.fermer();
+      setTimeout(() => window.__ecrans.releases(closest.dataset.releases), 260);
       return;
     }
     if (
       closest.dataset.profil !== undefined &&
       closest.dataset.profil !== null
     ) {
+      // Route, not screen: the quality-profile surface left the legacy
+      // fragment — and so, since this Task, has the release-choice screen
+      // that used to be the ONLY producer of `data-profil` inside `#screen`
+      // (its own « Ouvrir le profil de qualité → » button). `#screen` is no
+      // longer a possible source of this attribute at all — the two
+      // remaining producers (the Réglages rubric, a sheet action) were
+      // always sheets or pages, never `#screen` — but the RELEASES route
+      // still needs the same close-then-open choreography its own trigger
+      // was built against, and a router screen leaves no trace in
+      // `#screen.classList`: test the router's own identity instead.
+      // `__ecrans.profil` does the navigating either way.
       const profil = closest.dataset.profil;
-      if (select("#screen").classList.contains("open")) {
-        closeScreen();
-        setTimeout(() => openProfil(profil), 260);
+      if (document.querySelector('.screen.open[data-cle^="releases:"]')) {
+        window.__pont.retour();
+        setTimeout(() => window.__ecrans.profil(profil), 260);
       } else {
-        closeSheet();
-        setTimeout(() => openProfil(profil), 260);
+        window.__panneau.fermer();
+        setTimeout(() => window.__ecrans.profil(profil), 260);
       }
-      return;
-    }
-    if (closest.dataset.qres !== undefined) {
-      state.profil.min_resolution =
-        closest.dataset.qres === "" ? null : closest.dataset.qres;
-      openProfil(state.profilTitre);
-      return;
-    }
-    if (closest.dataset.qaud) {
-      const required_audio = state.profil.required_audio;
-      const indexOf = required_audio.indexOf(closest.dataset.qaud);
-      if (indexOf >= 0) required_audio.splice(indexOf, 1);
-      else required_audio.push(closest.dataset.qaud);
-      openProfil(state.profilTitre);
-      return;
-    }
-    if (closest.dataset.qflag) {
-      state.profil[closest.dataset.qflag] =
-        !state.profil[closest.dataset.qflag];
-      openProfil(state.profilTitre);
       return;
     }
     if (closest.dataset.prendre) {
       const release = RELEASES[Number(closest.dataset.prendre)];
-      closeScreen();
+      // One router pop — the release-choice screen is a route now, and the
+      // dispatcher's own `layer`/`tm: "nav"` checks no-op harmlessly on the
+      // entry it wrote, so the screen simply unmounts.
+      window.__pont.retour();
       setTimeout(() => {
         actionRecuperer(state.relTitre);
         toast(
@@ -18010,7 +18051,7 @@
       return;
     }
     if (closest.dataset.veille) {
-      closeSheet();
+      window.__panneau.fermer();
       toast(
         "Veille lancée — 12 suivis balayés, 0 nouvelle release conforme. Prochain passage à 15 h 20.",
       );
@@ -18025,7 +18066,7 @@
       return;
     }
     if (closest.dataset.maintrub !== undefined) {
-      state.maintRub = closest.dataset.maintrub || null;
+      magasin.ecrire({ maintRub: closest.dataset.maintrub || null });
       port.scrollTop = 0;
       render();
       noterLeChemin();
@@ -18039,12 +18080,14 @@
       /* Asked while a run is already going, a run is QUEUED and says so
          (DOIT-4). « Occupé, réessaie » is the answer this interface does not
          give: it puts the burden of remembering on the operator. */
-      state.pipe =
-        closest.dataset.pipe === "arreter"
-          ? "repos"
-          : state.pipe === "repos"
-            ? "encours"
-            : "file";
+      magasin.ecrire({
+        pipe:
+          closest.dataset.pipe === "arreter"
+            ? "repos"
+            : state.pipe === "repos"
+              ? "encours"
+              : "file",
+      });
       render();
       toast(
         state.pipe === "encours"
@@ -18068,13 +18111,34 @@
          therefore told not to touch history at all. */
       const surLeTiroir = history.state && history.state.layer === "drawer";
       fermerTiroir(true);
-      state.page = id;
+      magasin.ecrire({ page: id });
       port.scrollTop = 0;
       render();
       try {
         if (surLeTiroir) __pont.remplacer(etatDeNavigation(), urlDeLEtat());
         else noterLeChemin();
+      } catch (error) {
+        console.error("data-navgo : écriture de navigation échouée", error);
+        window.__navEchec = true;
+      }
+      return;
+    }
+    if (closest.dataset.apparence) {
+      const mode = closest.dataset.apparence;
+      try {
+        localStorage.setItem("tm-apparence", mode);
       } catch (error) {}
+      appliquerApparence(mode);
+      // Reflect in place: the drawer stays open — choosing an appearance is
+      // not a navigation, and watching the theme change is the feedback.
+      closest.parentElement
+        .querySelectorAll("[data-apparence]")
+        .forEach((bouton) =>
+          bouton.setAttribute(
+            "aria-pressed",
+            String(bouton.dataset.apparence === mode),
+          ),
+        );
       return;
     }
     if (closest.dataset.hclose) {
@@ -18086,68 +18150,55 @@
       return;
     }
     if (closest.dataset.hscen) {
-      state.scen = closest.dataset.hscen;
+      magasin.ecrire({ scen: closest.dataset.hscen });
       render();
       openHarness();
       return;
     }
     if (closest.dataset.hphase) {
-      state.phase = closest.dataset.hphase;
+      magasin.ecrire({ phase: closest.dataset.hphase });
       render();
       openHarness();
       return;
     }
     if (closest.dataset.htmdb) {
-      state.tmdb = closest.dataset.htmdb === "1";
+      magasin.ecrire({ tmdb: closest.dataset.htmdb === "1" });
       render();
       openHarness();
       return;
     }
-    if (closest.dataset.addkind) {
-      state.addKind = closest.dataset.addkind;
-      openAddScreen();
-      return;
-    }
-    if (closest.dataset.idprov) {
-      state.idProv = closest.dataset.idprov;
-      openAddScreen();
-      return;
-    }
     if (closest.dataset.sort) {
-      openSheet(
-        panneauHTML({
-          titre: "Trier la médiathèque",
-          meta: "Le tri est une préférence, pas un emplacement : il reste sur cet appareil et n'entre pas dans l'URL (A7).",
-          blocs: [
-            {
-              type: "actions",
-              actions: Object.entries(TRIS).map(([cle, libelle]) => ({
-                texte: libelle,
-                icone: icons.sort,
-                ton: state.tri === cle ? "primary" : null,
-                cible: { settri: cle },
-              })),
-            },
-          ],
-        }),
-      );
+      window.__panneau.ouvrir({
+        titre: "Trier la médiathèque",
+        meta: "Le tri est une préférence, pas un emplacement : il reste sur cet appareil et n'entre pas dans l'URL (A7).",
+        blocs: [
+          {
+            type: "actions",
+            actions: Object.entries(TRIS).map(([cle, libelle]) => ({
+              texte: libelle,
+              icone: icons.sort,
+              ton: state.tri === cle ? "primary" : null,
+              cible: { settri: cle },
+            })),
+          },
+        ],
+      });
       return;
     }
     if (closest.dataset.settri) {
-      state.tri = closest.dataset.settri;
-      state.libCount = LIB_PAGE;
-      closeSheet();
+      magasin.ecrire({ tri: closest.dataset.settri, libCount: LIB_PAGE });
+      window.__panneau.fermer();
       render();
       toast(`Trié par ${TRIS[state.tri].toLowerCase()}.`);
       return;
     }
     if (closest.dataset.phase) {
-      state.phase = closest.dataset.phase;
+      magasin.ecrire({ phase: closest.dataset.phase });
       render();
       return;
     }
     if (closest.dataset.tmdb) {
-      state.tmdb = true;
+      magasin.ecrire({ tmdb: true });
       render();
       toast(
         "Compte TMDB connecté — la réserve se remplit, vos notes sont lues.",
@@ -18155,15 +18206,15 @@
       return;
     }
     if (closest.dataset.clearq) {
-      if (closest.dataset.clearq === "lib") {
-        state.q = "";
-        state.libCount = LIB_PAGE;
-      } else state.filtre = "";
+      if (closest.dataset.clearq === "lib")
+        magasin.ecrire({ q: "", libCount: LIB_PAGE });
+      else magasin.ecrire({ filtre: "" });
       render();
       return;
     }
     if (closest.dataset.selmode) {
-      state.selMode = closest.dataset.selmode === "1";
+      magasin.ecrire({ selMode: closest.dataset.selmode === "1" });
+      // Set mutated in place; render() right below carries the bump.
       state.selected.clear();
       render();
       return;
@@ -18179,12 +18230,15 @@
       const index = Number(closest.dataset.tile);
       if (state.selected.has(index)) state.selected.delete(index);
       else state.selected.add(index);
+      // paintSelBar() below draws the bar directly, not through render():
+      // the explicit bump is what tells React the selection changed.
+      magasin.toucher();
       closest.setAttribute("aria-selected", String(state.selected.has(index)));
       paintSelBar();
       return;
     }
     if (closest.dataset.del) {
-      closeSheet();
+      window.__panneau.fermer();
       openDeleteDialog(closest.dataset.del);
       return;
     }
@@ -18193,17 +18247,19 @@
       // opening the sheet without closing it left the sheet invisible below.
       // The delay lets the sheet finish leaving before the screen enters.
       const fiche = closest.dataset.fiche;
-      const couche = select("#sheet").classList.contains("open");
+      // Asked of the shell, not read off the DOM: the layer is the shell's,
+      // and its store answers truthfully in the middle of this task.
+      const couche = window.__panneau.ouverte();
       if (couche) {
-        closeSheet();
-        setTimeout(() => openFiche(fiche), 260);
+        window.__panneau.fermer();
+        setTimeout(() => window.__ecrans.fiche(fiche), 260);
       } else {
-        openFiche(fiche);
+        window.__ecrans.fiche(fiche);
       }
       return;
     }
     if (closest.dataset.act === "resolve") {
-      openResolve();
+      window.__ecrans.resolution();
       return;
     }
     if (closest.dataset.sheet === "plus") {
@@ -18216,15 +18272,26 @@
       // film and a series here — so the title does not identify the result.
       const index = Number(closest.dataset.act.slice(4));
       const result = SEARCH.results[index];
-      // The act lives in the result's panel, which must not stay open
-      // behind what comes next.
-      closeSheet();
       if (state.addMode === "identifier") {
         // This ASSOCIATES: the stuck folder becomes this medium and the pipeline
         // resumes. No follow is created — that was not the request.
         const cible = state.resolveTarget;
+        // No render() on this branch until the delayed actionResoudre()
+        // fires — the bump is explicit so React sees the pick immediately.
         state.added.add(index);
-        closeScreen();
+        magasin.toucher();
+        /* ONE settlement for the TWO entries this journey stacked — the
+           result's panel, and `/ajout` itself, a router-owned address (which
+           is why no legacy screen is closed here: `#screen` was never its
+           host). The panel is ASKED before it is closed, because the layer's
+           own entry is what decides the count, and it is closed DOM-only
+           (`fermer(true)`) so it does not unwind on its own: its unwind plus a
+           raw `__pont.retour()` were two backs racing in the same task, only
+           one of them announced, and the surplus pop was then read as the
+           operator's own back gesture. */
+        const entrees = (window.__panneau.ouverte() ? 1 : 0) + 1;
+        window.__panneau.fermer(true);
+        window.__pont.reculer(entrees);
         setTimeout(() => {
           actionResoudre(cible, result.t);
           toast(
@@ -18233,6 +18300,11 @@
         }, 260);
         return;
       }
+      // The act lives in the result's panel, which must not stay open
+      // behind what comes next — the dialog below, or the re-rendered list.
+      // The identify branch above settles its own layer, with the entry count
+      // its single settlement needs, so this close is the follow branches'.
+      window.__panneau.fermer();
       if (result.owned) {
         openDlg(`<h3>Remplacer « ${escapeHtml(result.t)} » ?</h3>
           <p>Ce ${result.k === "Film" ? "film est déjà" : "média est déjà"} en médiathèque. L'acquisition <b>remplacera</b> la version en place par celle qui sera récupérée.</p>
@@ -18243,30 +18315,26 @@
         document.querySelector("#dlgcancel").onclick = closeDlg;
         return;
       }
+      // The screen stays open, re-rendered in place with the "added" chip
+      // and (once this is the first) the footer: `AjoutEcran` re-renders
+      // itself from this same store bump, so no redraw call belongs here
+      // any more.
       state.added.add(index);
+      magasin.toucher();
       actionSuivre(result.t, result.k);
-      openAddScreen();
       return;
     }
     if (closest.dataset.confirmadd) {
       state.added.add(Number(closest.dataset.confirmadd));
+      magasin.toucher();
       closeDlg();
-      openAddScreen();
       toast(
         "Ajouté — la version en place sera remplacée une fois la nouvelle récupérée.",
       );
       return;
     }
-    if (closest.dataset.search) {
-      openAddScreen(
-        closest.dataset.search === "1"
-          ? (document.querySelector("#addq")?.value ?? "")
-          : closest.dataset.search,
-      );
-      return;
-    }
     if (closest.dataset.journey) {
-      closeSheet();
+      window.__panneau.fermer();
       setTimeout(() => openJourneySheet(closest.dataset.journey), 260);
       return;
     }
@@ -18285,24 +18353,28 @@
       return;
     }
     if (closest.dataset.completer) {
-      state.page = "acq";
-      state.acqTab = "maintenant";
-      closeSheet();
+      magasin.ecrire({ page: "acq", acqTab: "maintenant" });
+      window.__panneau.fermer();
       render();
       toast(
         `« ${baseTitle(closest.dataset.completer)} » : recherche des épisodes manquants lancée.`,
       );
       return;
     }
+    /* The panel's own « Résoudre → » act, where the attribute IS the folder.
+       It is never reached: the candidate branch above answers the same
+       attribute first and returns — measured, not assumed, and left exactly as
+       it was found. Rewired all the same, so the day the order is untangled
+       this branch says the same verb as every other call site. */
     if (closest.dataset.resolve) {
       const resolve = closest.dataset.resolve;
-      closeSheet();
-      setTimeout(() => openResolve(resolve), 260);
+      window.__panneau.fermer();
+      setTimeout(() => window.__ecrans.resolution(resolve), 260);
       return;
     }
     if (closest.dataset.recuperer) {
       const recuperer = closest.dataset.recuperer;
-      closeSheet();
+      window.__panneau.fermer();
       setTimeout(() => actionRecuperer(recuperer), 260);
       return;
     }
@@ -18317,7 +18389,7 @@
         closest.closest(".card")?.querySelector(".ctitle")?.textContent ?? "";
       const lab = closest.textContent.trim();
       if (lab.startsWith("Récupérer")) return actionRecuperer(title);
-      if (lab.startsWith("Résoudre")) return openResolve(title);
+      if (lab.startsWith("Résoudre")) return window.__ecrans.resolution(title);
       toast("Action lancée — le résultat s'affichera ici.");
       return;
     }
@@ -39375,315 +39447,28 @@
       .join("")}</div>`;
   }
 
-  function openFiche(title) {
-    const fiche2 = sheetFor(title);
-    const isFilm = fiche2 ? fiche2.k === "movie" : false;
-    /* Seasons are DERIVED from the provider catalogue crossed with the
-       numbers actually owned. A hand-written table gave seasons to 10
-       series only, and none of them to the INCOMPLETE ones — the very media
-       the question is about. */
-    const sort = saisonsDe(title)
-      .slice()
-      .sort((slice, index) => index[0] - slice[0]);
-    const own = sort.reduce(
-      (accumulator, element) => accumulator + element[2],
-      0,
-    );
-    const aired = sort.reduce(
-      (accumulator, element) => accumulator + element[1],
-      0,
-    );
-    const pct = aired ? Math.round((own / aired) * 100) : null;
-    const eps = fiche2?.eps ? Object.entries(fiche2.eps)[0] : null;
-    // A suggestion is NOT in the library: the sheet must say so and
-    // offer to add it, not to delete it. Same template, with the only
-    // variation reality imposes.
-    const possede = fiche2?.possede !== false;
-    const suivi = world.follows.some(
-      (follow) => baseTitle(follow.t) === baseTitle(title),
-    );
-    const cat = (fiche2?.saisons ?? [])
-      .slice()
-      .sort((slice, index) => index.n - slice.n);
-    const catEp = cat.reduce(
-      (accumulator, element) => accumulator + element.ep,
-      0,
-    );
-    const prov = fiche2?.ids ?? {};
-    const url = prov.tvdb
-      ? `/media/tvdb/${prov.tvdb}`
-      : prov.tmdb
-        ? `/media/tmdb/${prov.tmdb}`
-        : null;
-    // The banner prefers the wide visual; the vertical poster is only a
-    // fallback, and initials when there is neither.
-    const affiche =
-      HEROS[title] ??
-      HEROS[baseTitle(title)] ??
-      POSTERS[title] ??
-      POSTERS[baseTitle(title)] ??
-      null;
-    // The link exists or it does not; where one arrives from changes nothing.
-    const bande = trailerIds[title] ?? trailerIds[baseTitle(title)] ?? null;
-
-    openScreen(
-      `<div class="fichebar">
-      <button class="fback" onclick="__close('screen')">${svgIcon(icons.left)}Retour</button>
-      <span style="margin-left:auto;font-size:11px;color:var(--muted-foreground)">${url ?? "média non identifié"}</span>
-    </div>
-    <div class="port"><div class="body">
-
-      <div class="herowrap${affiche ? "" : " noaffiche"}">
-        <div class="herobg" aria-hidden="true"${affiche ? ` style="background-image:url('${affiche}')"` : ""}></div>
-        <div class="hero">
-          <h2 class="ht">${escapeHtml(title.split(" (")[0])}</h2>
-          <p class="hm">
-            ${fiche2 ? `${fiche2.y || "année inconnue"} · ${isFilm ? "Film" : "Série"}${fiche2.duree ? ` · ${fiche2.duree} min` : ""}` : "Métadonnées inconnues"}
-            ${fiche2?.g ? `<br>${escapeHtml(fiche2.g)}` : "<br>Genres inconnus"}
-            ${fiche2 && !isFilm && fiche2.statut ? `<br>Série ${escapeHtml(fiche2.statut.toLowerCase())}` : ""}
-          </p>
-          ${fiche2?.note ? `<span class="hn">${svgIcon(icons.star)}${String(fiche2.note).replace(".", ",")}<span style="color:var(--muted-foreground);font-weight:400"> sur TMDB</span></span>` : ""}
-        </div>
-      </div>
-
-      ${
-        bande
-          ? `<a class="trailer" href="https://www.youtube.com/watch?v=${bande.key}"
-                target="_blank" rel="noopener" data-yt="${bande.key}">
-               <span class="pl">${svgIcon(icons.play)}</span>
-               <span>Bande-annonce<small>${escapeHtml(bande.nom)}</small></span>
-               <span class="tsrc">${svgIcon(icons.ext)}YouTube</span>
-             </a>`
-          : `<p class="nofiche">Aucune bande-annonce fournie par le provider. La fiche le dit plutôt que de masquer la section — §8.</p>`
-      }
-
-      <div>
-        <h2 class="h2" style="margin-bottom:6px">Synopsis</h2>
-        <p style="margin:0;font-size:12.5px;line-height:1.55;color:var(--muted-foreground)">${fiche2?.ov ? escapeHtml(fiche2.ov) : "Synopsis inconnu — le provider n'en fournit pas."}</p>
-      </div>
-
-      <div>
-        <h2 class="h2" style="margin-bottom:8px">${isFilm ? "Réalisation et distribution" : "Création et distribution"}</h2>
-        <div class="panel" style="margin-bottom:10px">
-          <div class="kv"><span>${isFilm ? "Réalisateur" : "Créateur"}</span><span>${escapeHtml((isFilm ? fiche2?.real : fiche2?.crea) ?? "inconnu")}</span></div>
-        </div>
-        ${
-          fiche2?.cast?.length
-            ? `<div class="cast" data-noswipe>${fiche2.cast.map((cast) => `<figure><span class="ca">${ACTEURS[cast.n] ? `<img src="${ACTEURS[cast.n]}" alt="" loading="lazy">` : initials(cast.n)}</span><figcaption><b>${escapeHtml(cast.n)}</b><span>${escapeHtml(cast.r || "rôle inconnu")}</span></figcaption></figure>`).join("")}</div>`
-            : `<p class="nofiche">Distribution inconnue.</p>`
-        }
-      </div>
-
-      <div>
-        <h2 class="h2" style="margin-bottom:6px">Médiathèque</h2>
-        <div class="panel">
-          ${
-            !possede
-              ? `<div class="kv"><span>Dans votre médiathèque</span><span><span class="pip neutral"></span>non</span></div>
-                 <div class="kv"><span>Suivi</span><span>${suivi ? "actif" : "non suivi"}</span></div>
-                 ${cat.length ? `<div class="kv"><span>Catalogue ${isFilm ? "" : "connu"}</span><span>${cat.length} saison${cat.length > 1 ? "s" : ""} · ${catEp} épisodes</span></div>` : ""}`
-              : isFilm
-                ? `<div class="kv"><span>Possédé</span><span><span class="pip success"></span>oui</span></div>
-                   <div class="kv"><span>Fichier</span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px">${escapeHtml(baseTitle(title))}.${fiche2?.y ?? "2026"}.MULTi.1080p.mkv</span></div>`
-                : `<div class="kv"><span>Saisons</span><span>${sort.length || "inconnu"}</span></div>
-                   <div class="kv"><span>Épisodes diffusés</span><span>${aired || "inconnu"}</span></div>
-                   <div class="kv"><span>Possédés</span><span>${own}</span></div>
-                   <div class="kv"><span>Complétude</span><span><span class="pip ${pct === 100 ? "success" : pct === null ? "neutral" : "warning"}"></span>${pct === null ? "inconnue" : pct + " %"}</span></div>`
-          }
-        </div>
-        ${saisonsFicheHTML(fiche2, sort, possede, cat, title)}
-      </div>
-
-      ${
-        false
-          ? `<div>
-              <h2 class="h2" style="margin-bottom:6px">Épisodes — saison ${eps[0]}</h2>
-              <div class="panel">
-                ${eps[1]
-                  .map((element) => {
-                    const futur = element.air && element.air > AUJOURDHUI;
-                    return `<div class="eprow${futur ? " avenir" : ""}">
-                    <span class="en">E${String(element.n).padStart(2, "0")}</span>
-                    <span class="et">${escapeHtml(element.t)}</span>
-                    <span class="ed">${element.air ? dateFR(element.air) : "date inconnue"}${futur ? " · à venir" : ""}</span>
-                  </div>`;
-                  })
-                  .join("")}
-              </div>
-              <p class="rulenote" style="margin-top:8px">Un épisode dont la date est postérieure à aujourd'hui est <b>annoncé</b>, pas manquant : il ne compte jamais au dénominateur de la complétude (§5.4).</p>
-            </div>`
-          : ""
-      }
-
-      <div>
-        <h2 class="h2" style="margin-bottom:6px">Informations</h2>
-        <div class="panel">
-          <div class="kv"><span>Suivi</span><span>${world.follows.some((follow) => follow.t === title || follow.t === title.split(" (")[0]) ? "actif" : "non suivi"}</span></div>
-          ${Object.entries(prov)
-            .map(
-              ([key, value]) =>
-                `<div class="kv"><span>${key.toUpperCase()}</span><span style="font-family:ui-monospace,Menlo,monospace;font-size:11px">${escapeHtml(String(value))}</span></div>`,
-            )
-            .join("")}
-          <div class="kv"><span>Métadonnées rafraîchies</span><span>10 août, 04 h 12</span></div>
-        </div>
-      </div>
-
-      <div class="sheetacts secondary">
-        ${
-          possede
-            ? `<button class="sact" data-toast="Re-scrape lancé — NFO et affiches seront refaits.">${svgIcon(icons.refresh)}Re-scraper les métadonnées</button>
-               <button class="sact danger" data-del="${escapeHtml(title)}">${svgIcon(icons.trash)}Supprimer de la médiathèque</button>`
-            : suivi
-              ? `<button class="ficheadd done" disabled>${svgIcon(icons.check)}${isFilm ? "Ajouté" : "Suivi"}</button>`
-              : `<button class="ficheadd" data-follow="${escapeHtml(title)}" data-fkind="${isFilm ? "Film" : "Série"}" data-refiche="${escapeHtml(title)}">${svgIcon(icons.plus)}${isFilm ? "Ajouter" : "Suivre"}</button>`
-        }
-      </div>
-
-      <div class="note"><b>Un seul gabarit pour tout média.</b> Les différences visibles ici sont celles que la nature impose — réalisateur et durée pour un film, créateur, statut et catalogue pour une série. Toute autre différence serait une dérive.</div>
-    </div></div>`,
-      "fiche:" + title,
-      () => openFiche(title),
-    );
-  }
-
-  /* ── L'écran de résolution ────────────────────────────────────────────
-     One screen answers two questions that used to live on two pages: « what
-     is stuck » and « which medium is it ». It is a SCREEN and not a panel —
-     on `/medias` the arbitration appeared UNDER the list being read, and on a
-     phone it was never seen.
-
-     What it is asked about is a FOLDER. The name is set in the mono face and
-     never cleaned up: it is what is on disk, and recognising it is the whole
-     point.
-
-     THE SCORE IS SHOWN ONLY WHEN IT SEPARATES. « Lucky » is the real case
-     that settles this: four of its five candidates came back at exactly 1.00.
-     Printing « 100 % » four times suggests a ranking that does not exist and
-     invites the operator to trust it. When the leaders tie, the screen says so
-     — and that sentence is the reason a human is being asked at all.
-
-     The desktop deck's keyboard shortcuts (← → ⏎) have no phone. What they
-     were for — going through several in a row — is kept as a plain
-     progression: « 1 sur 2 », and « Suivante » once this one is answered.
-
-     Three ways out, and the third is the one that was missing: pick a
-     candidate, search by hand, or LEAVE IT AS IT IS. The last exists in the
-     engine (`dismissed`) and nowhere in the interface, so a folder whose
-     automatic result was right had no way of being agreed with. */
+  /* The media sheet moved to the shell with the rest of the screens:
+     `src/ecrans/fiche.tsx` renders it as the route `/fiche/$titre`. The
+     verb a call site says is `window.__ecrans.fiche(title)`; the template,
+     the seasons and the actions live there, at identical markup — the
+     click delegation below still reads their data attributes. */
+  /* The resolution screen moved to the shell the same way:
+     `src/ecrans/resolution.tsx` renders it as the route
+     `/resolution/$dossier`, and the design rationale it carries — what the
+     screen is FOR, why a tied score is not printed, the three ways out —
+     moved there with it. The verb a call site says is
+     `window.__ecrans.resolution(dossier, remplacer)`: it resolves the same
+     default this file used to (the first stuck folder) and writes
+     `state.resolveTarget` before navigating, so the `data-resolve` and
+     `data-laisser` branches below still read the folder they always read.
+     `decisionEnAttente` stays here: it is the référentiel's own answer to
+     « does this folder have a pending decision », read by the screen AND by
+     the « Passer à la suivante » branch below. */
   /* A folder either HAS a pending decision or it has none, and the screen must
      not borrow one. Showing another folder's candidates would be the worst
      possible lie on the one screen whose job is to name what is on disk. */
   function decisionEnAttente(cible) {
     return DECISIONS_ATTENTE.find((decision) => decision.d === cible) ?? null;
-  }
-
-  function candidatsHTML(decision) {
-    const meilleur = Math.max(...decision.c.map((candidat) => candidat.s));
-    const exAequo = decision.c.filter(
-      (candidat) => candidat.s === meilleur,
-    ).length;
-    const mots = ["", "Un", "Deux", "Trois", "Quatre", "Cinq"];
-    return `${
-      exAequo > 1
-        ? `<p class="rulenote">${escapeHtml(mots[exAequo] ?? String(exAequo))} candidats reviennent au même score. Le classement ne tranche pas — c'est pour cela que la question vous est posée.</p>`
-        : ""
-    }
-    ${decision.c
-      .map((candidat) =>
-        releaseCardHTML(
-          candidat.t,
-          `${candidat.y ? candidat.y + " · " : ""}${decision.k === "movie" ? "Film" : "Série"} · ${candidat.p.toUpperCase()} ${candidat.id}`,
-          /* A score that ties with the others says nothing about this
-             candidate, so it is not printed on it. */
-          exAequo > 1 && candidat.s === meilleur
-            ? null
-            : `${Math.round(candidat.s * 100)} %`,
-          /* Exact match only, and the placeholder when the provider has no
-             picture: a candidate wearing a neighbour's poster is the one
-             mistake this screen cannot make. The absence is said by the
-             placeholder itself, not by a sentence in a line that truncates. */
-          {
-            genre: "candidat",
-            k: decision.k,
-            exact: true,
-            sansAffiche: candidat.sans,
-            resume: candidat.resume,
-          },
-        ),
-      )
-      .join("")}`;
-  }
-
-  function openResolve(cible) {
-    state.resolveTarget = cible ?? derived.stuck()[0]?.t ?? null;
-    const decision = decisionEnAttente(state.resolveTarget);
-    /* The queue spans BOTH surfaces a decision shows up on: « À traiter » on
-       the acquisition side and « Ça coince » in Arrivées. They are two views
-       of one thing — a folder the scrape could not name — and a progression
-       that counted only one of them would be wrong on the other. */
-    const attente = derived
-      .blocked()
-      .concat(derived.stuck())
-      .filter((bloque) => decisionEnAttente(bloque.t) != null);
-    const rang = decision
-      ? attente.findIndex((bloque) => bloque.t === decision.d) + 1
-      : 0;
-    const dossier = decision
-      ? decision.d
-      : (state.resolveTarget ?? "élément inconnu");
-    openScreen(
-      `<div class="fichebar"><button class="fback" onclick="__close('screen')">${svgIcon(icons.left)}Retour</button></div>
-  <div class="port"><div class="body">
-    <div class="note"><b>La résolution est un écran, pas un panneau.</b> Sur <code>/medias</code> elle apparaissait <em>sous</em> la liste qu'on lisait : au téléphone, on ne la voyait jamais.</div>
-    <h2 class="h2"><code>${escapeHtml(dossier)}</code></h2>
-    <p class="qhint">${
-      decision
-        ? escapeHtml(MOTIF_POURQUOI[decision.motif] ?? "")
-        : "Aucun média identifié. Voici ce que les providers proposent pour ce nom."
-    }</p>
-    <div class="cmeta" style="margin-bottom:12px">${
-      decision
-        ? chipHTML([
-            MOTIF_TON[decision.motif] ?? "neutral",
-            MOTIF_LABEL[decision.motif] ?? decision.motif,
-          ])
-        : ""
-    }${
-      attente.length > 1
-        ? `<span class="caption">${rang} sur ${attente.length} en attente</span>`
-        : ""
-    }</div>
-    ${
-      decision
-        ? candidatsHTML(decision)
-        : `<p class="rulenote">Les providers n'ont renvoyé aucun candidat pour ce nom. Il n'y a rien à choisir : la recherche manuelle est la seule voie.</p>`
-    }
-    <div class="empty"><b>Aucun de ceux-là ?</b>La recherche manuelle s'ouvre pré-remplie avec le nom du dossier. Jamais un cul-de-sac (DOIT-7).
-      <button class="cfoot" style="margin-top:10px" data-manual="${escapeHtml(dossier)}">Chercher manuellement →</button>
-    </div>
-    <div class="sheetacts secondary">
-      <button class="sact" data-laisser="${escapeHtml(dossier)}">${svgIcon(icons.check)}Laisser tel quel</button>
-      ${
-        attente.length > 1
-          ? `<button class="sact" data-suivante="${escapeHtml(dossier)}">${svgIcon(icons.right)}Passer à la suivante</button>`
-          : ""
-      }
-    </div>
-    <div class="note"><b>Laisser tel quel n'est pas ignorer.</b> Le résultat automatique était peut-être le bon : cette voie l'entérine et ne re-scrape rien. Elle existait dans le moteur et nulle part dans l'interface, donc on ne pouvait qu'être en désaccord avec la machine, jamais d'accord.</div>
-    ${
-      DECISIONS_REGLEES.length > 0
-        ? `<h2 class="h2" style="margin-top:18px">Réglées récemment</h2>
-           <p class="qhint">Ce qui a déjà été tranché, pour ne pas répondre deux fois — et pour retrouver ce qu'on avait choisi.</p>
-           ${DECISIONS_REGLEES.slice(0, 6)
-             .map((reglee) => decisionCardHTML(reglee))
-             .join("")}`
-        : ""
-    }
-  </div></div>`,
-      undefined,
-      () => openResolve(cible),
-    );
   }
 
   /* Every medium opens the SAME panel, and this function exists only to say
@@ -39722,70 +39507,6 @@
     if (follow && follow.st === "en_attente") return "en_attente";
     if (follow && follow.st === "en_acquisition") return "en_acquisition";
     return "a_recuperer";
-  }
-
-  function seasonHTML(follow, season) {
-    const [num, aired, owned] = season;
-    const complete = owned >= aired;
-    const manque = aired - owned;
-    /* An ANNOUNCED episode appears in the matrix but NEVER in the
-       denominator: it is not missing, it is not out yet. The provider
-       catalogue knows more than what has aired. */
-    const catalogue = sheetFor(follow.t)?.eps?.[String(num)] ?? null;
-    const total = Math.max(aired, catalogue ? catalogue.length : 0);
-    const cells = Array.from({ length: total }, (ignored, index) => {
-      const number = index + 1;
-      const info =
-        catalogue?.find((catalogue2) => catalogue2.n === number) ?? null;
-      const futur = info?.air && info.air > AUJOURDHUI;
-      const episodeState = futur
-        ? "annonce"
-        : epState(follow, num, number, owned);
-      return `<button class="ep ${episodeState}" data-ep="${escapeHtml(follow.t)}|${num}|${number}|${episodeState}" aria-label="S${String(num).padStart(2, "0")}E${String(number).padStart(2, "0")} — ${EP_LABEL[episodeState]}">${String(number).padStart(2, "0")}</button>`;
-    }).join("");
-    return `<details class="season"${complete ? "" : " open"}>
-      <summary>Saison ${num}
-        <span class="sfr">${owned}/${aired}</span>
-        ${complete ? "" : `<span class="miss">${manque} manquant${manque > 1 ? "s" : ""}</span>`}
-      </summary>
-      <div class="eps">${cells}</div>
-    </details>`;
-  }
-
-  /* The season matrix and the legend that reads it — ONE block, so a panel
-     asking for seasons cannot get the matrix without the key to it.
-
-     The legend lists only the states actually PRESENT, and it sits above the
-     matrix: under 403 episodes it would be invisible exactly when it is
-     needed. */
-  function saisonsHTML(follow, saisons) {
-    const catalogue = (number) =>
-      sheetFor(follow.t)?.eps?.[String(number)] ?? null;
-    const aDesAnnonces = saisons.some((saison) =>
-      (catalogue(saison[0]) ?? []).some(
-        (episode) => episode.air && episode.air > AUJOURDHUI,
-      ),
-    );
-    const etats = [
-      ...new Set([
-        ...(aDesAnnonces ? ["annonce"] : []),
-        ...saisons.flatMap((saison) => [
-          ...(saison[2] > 0 ? ["en_mediatheque"] : []),
-          ...(saison[1] > saison[2]
-            ? [epState(follow, saison[0], saison[1], saison[2])]
-            : []),
-        ]),
-      ]),
-    ];
-    return `<div class="legend">${EP_ORDER.filter((etat) =>
-      etats.includes(etat),
-    )
-      .map(
-        (etat) =>
-          `<span><i class="${EP_SWATCH[etat]}"></i>${EP_LABEL[etat]}</span>`,
-      )
-      .join("")}</div>
-      ${saisons.map((saison) => seasonHTML(follow, saison)).join("")}`;
   }
 
   /* Tapping a cell: its air date, in French. The sentence follows the state
@@ -39884,164 +39605,162 @@
       : seasons.length
         ? `${own}/${aired}`
         : (stFraction(follow) ?? "—");
-    openSheet(
-      panneauHTML({
-        titre: follow.t,
-        affiche: { t: follow.t, k: follow.k },
-        meta: `${follow.y ? String(follow.y) + " · " : ""}${isFilm ? "Film" : "Série"}${frac ? " · " + frac + " épisodes" : ""}`,
-        puce: [ST_TONE[follow.st], stLabel(follow)],
-        blocs: [
-          {
-            type: "actions",
-            actions: [
-              /* The primary action answers the medium's STATE, not the screen
-                 it came from — which is why it is read from the derivations
-                 above and not passed in. Blocked outranks everything: nothing
-                 else can happen until it is resolved. Then what can be
-                 grabbed, then what is incomplete, then what is merely watched.
-                 A medium that is owned and whole has nothing left to chase, so
-                 the panel leads to its sheet rather than offering a search
-                 that would find nothing. */
-              aResoudre
+    window.__panneau.ouvrir({
+      titre: follow.t,
+      affiche: { t: follow.t, k: follow.k },
+      meta: `${follow.y ? String(follow.y) + " · " : ""}${isFilm ? "Film" : "Série"}${frac ? " · " + frac + " épisodes" : ""}`,
+      puce: [ST_TONE[follow.st], stLabel(follow)],
+      blocs: [
+        {
+          type: "actions",
+          actions: [
+            /* The primary action answers the medium's STATE, not the screen
+               it came from — which is why it is read from the derivations
+               above and not passed in. Blocked outranks everything: nothing
+               else can happen until it is resolved. Then what can be
+               grabbed, then what is incomplete, then what is merely watched.
+               A medium that is owned and whole has nothing left to chase, so
+               the panel leads to its sheet rather than offering a search
+               that would find nothing. */
+            aResoudre
+              ? {
+                  texte: "Résoudre →",
+                  icone: icons.play,
+                  ton: "primary",
+                  cible: { resolve: follow.t },
+                }
+              : aRecuperer
                 ? {
-                    texte: "Résoudre →",
+                    texte: "Récupérer maintenant",
                     icone: icons.play,
                     ton: "primary",
-                    cible: { resolve: follow.t },
+                    cible: { recuperer: follow.t },
                   }
-                : aRecuperer
+                : incomplet
                   ? {
-                      texte: "Récupérer maintenant",
+                      texte: "Compléter → Acquisitions",
                       icone: icons.play,
                       ton: "primary",
-                      cible: { recuperer: follow.t },
+                      cible: { completer: follow.t },
                     }
-                  : incomplet
+                  : suivi
                     ? {
-                        texte: "Compléter → Acquisitions",
+                        texte:
+                          follow.st === "a_recuperer"
+                            ? "Récupérer maintenant"
+                            : "Chercher maintenant",
                         icone: icons.play,
                         ton: "primary",
-                        cible: { completer: follow.t },
+                        cible: { sheetprim: `${follow.t}|${follow.st}` },
                       }
-                    : suivi
+                    : aFiche
                       ? {
-                          texte:
-                            follow.st === "a_recuperer"
-                              ? "Récupérer maintenant"
-                              : "Chercher maintenant",
-                          icone: icons.play,
+                          texte: "Voir la fiche",
+                          icone: icons.eye,
                           ton: "primary",
-                          cible: { sheetprim: `${follow.t}|${follow.st}` },
+                          cible: { fiche: follow.t },
                         }
-                      : aFiche
-                        ? {
-                            texte: "Voir la fiche",
-                            icone: icons.eye,
-                            ton: "primary",
-                            cible: { fiche: follow.t },
-                          }
-                        : {
-                            texte: "Voir le parcours",
-                            icone: icons.refresh,
-                            ton: "primary",
-                            cible: { journey: follow.t },
-                          },
-            ],
-          },
-          seasons.length
-            ? { type: "saisons", suivi: follow, saisons: seasons }
-            : isFilm
-              ? {
-                  type: "note",
-                  texte:
-                    "Un film n'a pas de catalogue d'épisodes : il est acquis, ou il ne l'est pas.",
-                }
-              : {
-                  type: "note",
-                  texte:
-                    "Aucune donnée de saison connue pour cette série — le catalogue n'a pas encore été récupéré. La fraction affiche « — », jamais « 0/0 » qui se lirait comme une série vide.",
-                },
-          {
-            type: "actions",
-            secondaire: true,
-            actions: [
-              /* « Voir la fiche » is reachable from the panel whenever a sheet
-                 exists. It is omitted only when it is ALREADY the primary
-                 action, which happens for a medium that is owned and whole. */
-              aFiche && (aResoudre || aRecuperer || incomplet || suivi)
-                ? {
-                    texte: "Voir la fiche",
-                    icone: icons.eye,
-                    cible: { fiche: follow.t },
-                  }
-                : null,
-              {
-                texte: "Voir le parcours",
-                icone: icons.refresh,
-                cible: { journey: follow.t },
-              },
-              /* Chasing a release only means something for a medium still
-                 being acquired. Offered on a complete one it is a button that
-                 can only disappoint. */
-              suivi || incomplet || aRecuperer
-                ? {
-                    texte: "Chercher une autre release",
-                    icone: icons.search,
-                    cible: { releases: follow.t },
-                  }
-                : null,
-              suivi || incomplet || aRecuperer
-                ? {
-                    texte: "Profil de qualité",
-                    icone: icons.sort,
-                    cible: { profil: follow.t },
-                  }
-                : null,
-              enMediatheque
-                ? {
-                    texte: "Re-scraper les métadonnées",
-                    icone: icons.refresh,
-                    cible: { rescrape: follow.t },
-                  }
-                : null,
-              /* Pausing or dropping a follow requires a follow. An incomplete
-                 series in the library is not one: nothing is watching it, so
-                 there is nothing to stop. */
-              suivi
-                ? {
-                    texte: isFilm ? "Ne plus chercher" : "Mettre en pause",
-                    icone: icons.x,
-                    cible: { pause: follow.t },
-                  }
-                : null,
-              suivi
-                ? {
-                    texte: isFilm ? "Retirer de la liste" : "Retirer le suivi",
-                    icone: icons.trash,
-                    ton: "danger",
-                    cible: { retirer: follow.t },
-                  }
-                : null,
-              enMediatheque
-                ? {
-                    texte: "Supprimer de la médiathèque",
-                    icone: icons.trash,
-                    ton: "danger",
-                    cible: { del: follow.t },
-                  }
-                : null,
-            ],
-          },
-          isFilm
+                      : {
+                          texte: "Voir le parcours",
+                          icone: icons.refresh,
+                          ton: "primary",
+                          cible: { journey: follow.t },
+                        },
+          ],
+        },
+        seasons.length
+          ? { type: "saisons", suivi: follow, saisons: seasons }
+          : isFilm
             ? {
                 type: "note",
                 texte:
-                  "Une fois acquis, ce film quittera automatiquement votre liste (§5).",
+                  "Un film n'a pas de catalogue d'épisodes : il est acquis, ou il ne l'est pas.",
               }
-            : null,
-        ],
-      }),
-    );
+            : {
+                type: "note",
+                texte:
+                  "Aucune donnée de saison connue pour cette série — le catalogue n'a pas encore été récupéré. La fraction affiche « — », jamais « 0/0 » qui se lirait comme une série vide.",
+              },
+        {
+          type: "actions",
+          secondaire: true,
+          actions: [
+            /* « Voir la fiche » is reachable from the panel whenever a sheet
+               exists. It is omitted only when it is ALREADY the primary
+               action, which happens for a medium that is owned and whole. */
+            aFiche && (aResoudre || aRecuperer || incomplet || suivi)
+              ? {
+                  texte: "Voir la fiche",
+                  icone: icons.eye,
+                  cible: { fiche: follow.t },
+                }
+              : null,
+            {
+              texte: "Voir le parcours",
+              icone: icons.refresh,
+              cible: { journey: follow.t },
+            },
+            /* Chasing a release only means something for a medium still
+               being acquired. Offered on a complete one it is a button that
+               can only disappoint. */
+            suivi || incomplet || aRecuperer
+              ? {
+                  texte: "Chercher une autre release",
+                  icone: icons.search,
+                  cible: { releases: follow.t },
+                }
+              : null,
+            suivi || incomplet || aRecuperer
+              ? {
+                  texte: "Profil de qualité",
+                  icone: icons.sort,
+                  cible: { profil: follow.t },
+                }
+              : null,
+            enMediatheque
+              ? {
+                  texte: "Re-scraper les métadonnées",
+                  icone: icons.refresh,
+                  cible: { rescrape: follow.t },
+                }
+              : null,
+            /* Pausing or dropping a follow requires a follow. An incomplete
+               series in the library is not one: nothing is watching it, so
+               there is nothing to stop. */
+            suivi
+              ? {
+                  texte: isFilm ? "Ne plus chercher" : "Mettre en pause",
+                  icone: icons.x,
+                  cible: { pause: follow.t },
+                }
+              : null,
+            suivi
+              ? {
+                  texte: isFilm ? "Retirer de la liste" : "Retirer le suivi",
+                  icone: icons.trash,
+                  ton: "danger",
+                  cible: { retirer: follow.t },
+                }
+              : null,
+            enMediatheque
+              ? {
+                  texte: "Supprimer de la médiathèque",
+                  icone: icons.trash,
+                  ton: "danger",
+                  cible: { del: follow.t },
+                }
+              : null,
+          ],
+        },
+        isFilm
+          ? {
+              type: "note",
+              texte:
+                "Une fois acquis, ce film quittera automatiquement votre liste (§5).",
+            }
+          : null,
+      ],
+    });
   }
 
   /* Journey sheet
@@ -40056,326 +39775,97 @@
       ["Scrapé", "en cours depuis 4 min", "now"],
       ["Rangé en médiathèque", "à venir", "todo"],
     ];
-    openSheet(
-      panneauHTML({
-        titre: title,
-        meta: [
-          "Parcours de l'acquisition · release ",
-          { m: "Furious.S01E01.MULTi.1080p.WEB-DL" },
-        ],
-        blocs: [
-          {
-            type: "faits",
-            lignes: etapes.map(([libelle, detail, ton]) => ({
-              c: libelle,
-              v: detail,
-              pip:
-                ton === "done" ? "success" : ton === "now" ? "info" : "neutral",
-              terne: ton === "todo",
-            })),
-          },
-          {
-            type: "note",
-            texte:
-              "Les dates viennent de la spine de provenance. Une étape non encore atteinte affiche « à venir » — jamais une date reconstruite.",
-          },
-          {
-            type: "actions",
-            actions: [
-              {
-                texte: "Voir la fiche",
-                icone: icons.eye,
-                cible: { fiche: title },
-              },
-            ],
-          },
-        ],
-      }),
-    );
+    window.__panneau.ouvrir({
+      titre: title,
+      meta: [
+        "Parcours de l'acquisition · release ",
+        { m: "Furious.S01E01.MULTi.1080p.WEB-DL" },
+      ],
+      blocs: [
+        {
+          type: "faits",
+          lignes: etapes.map(([libelle, detail, ton]) => ({
+            c: libelle,
+            v: detail,
+            pip:
+              ton === "done" ? "success" : ton === "now" ? "info" : "neutral",
+            terne: ton === "todo",
+          })),
+        },
+        {
+          type: "note",
+          texte:
+            "Les dates viennent de la spine de provenance. Une étape non encore atteinte affiche « à venir » — jamais une date reconstruite.",
+        },
+        {
+          type: "actions",
+          actions: [
+            {
+              texte: "Voir la fiche",
+              icone: icons.eye,
+              cible: { fiche: title },
+            },
+          ],
+        },
+      ],
+    });
   }
 
-  /* Add screen (« + »)
-     A full SCREEN, not a bottom sheet: the keyboard eats half the phone. A
-     VERTICAL result list, never a horizontal rail — a rail shows three
-     posters and hides the year, the type and the synopsis, which is exactly
-     what separates two homonyms.
-     The « already known » state lives on a CHIP, and so does « done ». */
-  /* One search, TWO verbs
-     The same screen serves two intentions that nothing must confuse:
+  /* Add screen (« + ») — migrated to a real route, `AjoutEcran`
+     (`design/src/ecrans/ajout.tsx`, reached at `/ajout`). The design
+     rationale (full screen not a sheet, vertical result list, the two
+     modes' verbs) lives there now, next to the code it explains. `SEARCH`,
+     `cardHTML` and `addVerb` stay defined here and cross the handshake
+     through `window.__referentiel` — the search execution itself is still
+     the engine's, reached through that seam. */
 
-     · « follow » mode (from the +) — the intent is to WATCH a medium: the
-     button says « Suivre » / « Ajouter », and an already-owned medium goes
-     through the replacement confirmation.
-     · « identify » mode (from a resolution) — the intent is to add NOTHING:
-     it is to TELL the pipeline which medium this folder is, so it resumes
-     its scrape. The button says « Associer », and an already-owned medium
-     is normal — it is the expected case.
-
-     Sending the second into the first is a mistake of intent: it offers to
-     add a follow where the operator wanted to unblock a folder. The verb
-     follows the CONTEXT that opened the screen. */
-  function openAddScreen(query2, mode) {
-    const query = query2 ?? state.addQ;
-    state.addQ = query;
-    if (mode) state.addMode = mode;
-    const identifier = state.addMode === "identifier";
-    const hasQ = query !== "";
-    const filtres = SEARCH.results
-      .map((result, index) => ({ r: result, i: index }))
-      .filter(
-        ({ r: result }) =>
-          state.addKind === "Tout" ||
-          (state.addKind === "Films") === (result.k === "Film"),
-      );
-    const rows = filtres
-      .map(({ r: result, i: index }) => {
-        const fait = state.added.has(index);
-        /* A search result is a medium like any other, so it is drawn by the
-           one card builder: its poster opens the sheet, its body opens the
-           panel, and the panel carries the act. The card wears NO inline
-           button: with one, a result row grew taller than what it lists,
-           and the act was reachable twice for no reason the reader could
-           name. It used to be a hand-rolled row, and the row had drifted —
-           its poster box was sized but the image inside it was not, so every
-           thumbnail showed the top-left corner of a full-size poster.
-
-           The card's states are CHIPS rather than coloured text inside the
-           meta line: « déjà en médiathèque » before the act, the done verb
-           after it — the same fact is a chip everywhere else, and a card
-           that accepts ready-made markup is an envelope. */
-        return cardHTML({
-          t: result.t,
-          k: result.k === "Film" ? "movie" : "show",
-          s: `${result.y} · ${result.k} · TMDB`,
-          overview: result.ov,
-          chip: fait
-            ? ["success", addVerb(result, index)]
-            : result.owned
-              ? [identifier ? "success" : "warning", "Déjà en médiathèque"]
-              : null,
-          panel: `add:${index}`,
-        });
-      })
-      .join("");
-
-    openScreen(
-      `<div class="fichebar">
-      <button class="fback" onclick="__close('screen')">${svgIcon(icons.left)}Retour</button>
-      ${identifier ? `<span style="margin-left:auto;font-size:11px;color:var(--muted-foreground)">identifier un dossier</span>` : ""}
-    </div>
-    <div class="port">
-      ${
-        identifier
-          ? `<div style="padding:12px 14px 0"><div class="surferr" style="border-color:color-mix(in oklab,var(--info) 45%,transparent);background:color-mix(in oklab,var(--info) 8%,transparent)">
-               <b style="color:var(--info)">Identifier « ${escapeHtml(baseTitle(state.resolveTarget ?? ""))} »</b>
-               Vous ne créez PAS un suivi : vous dites au pipeline quel média est ce dossier. Il reprendra son scrape — renommage, métadonnées, affiches — puis le rangera en médiathèque.
-             </div></div>`
-          : ""
-      }
-      <div class="addform">
-        <div class="search">${svgIcon(icons.search)}<input type="search" id="addq" value="${escapeHtml(query)}" placeholder="Titre du film ou de la série" aria-label="Chercher un média à ajouter"></div>
-        <div class="addrow">
-          <div class="segmini">
-            ${["Tout", "Séries", "Films"].map((element) => `<button aria-pressed="${state.addKind === element}" data-addkind="${element}">${element}</button>`).join("")}
-          </div>
-          <button class="btnprimary" data-search="1">Chercher</button>
-        </div>
-      </div>
-      ${
-        hasQ
-          ? `<p class="rescount"><b>${filtres.length}</b> résultat${filtres.length > 1 ? "s" : ""} affiché${filtres.length > 1 ? "s" : ""} sur <b>${SEARCH.total}</b> trouvé${SEARCH.total > 1 ? "s" : ""}${state.addKind !== "Tout" ? ` · filtré sur « ${state.addKind} »` : ""} — les plus pertinents d'abord.</p>
-             <div class="reslist sec">${rows}</div>`
-          : `<div class="sugg">${state.recents.map((recent) => `<button data-search="${escapeHtml(recent)}">${escapeHtml(recent)}</button>`).join("")}</div>
-             <div style="padding:14px">${emptyHTML("Cherchez un titre.", "Vos recherches récentes sont au-dessus. La recherche part à la validation, jamais à chaque frappe — sinon chaque lettre coûte un appel aux providers.")}</div>`
-      }
-      <details class="byid">
-        <summary>${identifier ? "Ou identifier par identifiant provider" : "Ou ajouter par identifiant"}</summary>
-        <div class="byidin">
-          <div class="segmini" style="align-self:flex-start">${["TMDB", "TVDB", "IMDB"].map((element) => `<button aria-pressed="${state.idProv === element}" data-idprov="${element}">${element}</button>`).join("")}</div>
-          <div class="search"><input id="byidv" placeholder="${state.idProv === "IMDB" ? "tt1234567" : "12e34"}" aria-label="Identifiant ${state.idProv}"></div>
-          <p class="whyoff">${
-            state.idProv === "IMDB"
-              ? `Un identifiant IMDB commence par <code>tt</code> suivi de chiffres — « 12e34 » est refusé.`
-              : state.idProv === "TVDB"
-                ? `Un identifiant TVDB ne contient que des chiffres. Si TVDB ne le résout pas, le suivi sera créé mais la détection d'épisodes restera indisponible — et on vous le dira.`
-                : `Identifiant refusé : « 12e34 » n'est pas un nombre — <code>Number()</code> le lirait comme une notation scientifique.`
-          }</p>
-          <button class="btnprimary" disabled style="align-self:flex-start;padding:9px 16px">Ajouter</button>
-        </div>
-      </details>
-      ${
-        state.added.size > 0
-          ? `<div class="addfoot"><span><b>${state.added.size}</b> média${state.added.size > 1 ? "s" : ""} ajouté${state.added.size > 1 ? "s" : ""}</span><button data-go="acq">Voir mes suivis →</button></div>`
-          : ""
-      }
-    </div>`,
-      "ajout:" + state.addMode,
-      () => openAddScreen(),
-    );
-    const inp = document.querySelector("#addq");
-    if (inp)
-      inp.onkeydown = (event) => {
-        if (event.key === "Enter") openAddScreen(inp.value);
-      };
-  }
-
-  /* Choose another release
-     Show what is NOT happening and why. Here: why the engine picked this
-     one — and enough to pick another knowingly. The score shown is the
-     ranking's, not an opinion. */
-  function openReleases(titre) {
-    state.relTitre = titre;
-    openScreen(
-      `<div class="fichebar">
-      <button class="fback" onclick="__close('screen')">${svgIcon(icons.left)}Retour</button>
-      <span style="margin-left:auto;font-size:11px;color:var(--muted-foreground)">${escapeHtml(baseTitle(titre))}</span>
-    </div>
-    <div class="port"><div class="body">
-      <div class="note"><b>Écran neuf.</b> « Chercher une autre release » ne menait nulle part. Ce qui manquait n'est pas une liste : c'est <em>pourquoi</em> le moteur a classé ainsi — sans ça, choisir est un pari.</div>
-      <p class="rescount" style="padding:0"><b>${RELEASES.length}</b> candidats retenus par le profil de qualité · dernière recherche il y a 12 min</p>
-      ${RELEASES.map(
-        (
-          RELEASES2,
-          index,
-        ) => `<article class="rel${index === 0 ? " best" : ""}">
-        <span class="rn">${escapeHtml(RELEASES2.n)}</span>
-        <span class="rt">
-          <span class="chip ${RELEASES2.res === "2160p" ? "success" : RELEASES2.res === "1080p" ? "info" : "neutral"}">${RELEASES2.res}</span>
-          <span class="chip">${RELEASES2.src}</span>
-          <span class="chip">${RELEASES2.lang}</span>
-          <span class="chip">${RELEASES2.s} sources</span>
-          <span class="chip">${String(RELEASES2.go).replace(".", ",")} Go</span>
-          <span class="sc">score ${RELEASES2.sc}</span>
-        </span>
-        ${index === 0 ? `<p class="qhint">Retenue : meilleure résolution admise par le profil, langue MULTi préférée, et le plus de sources à qualité égale.</p>` : ""}
-        <button class="cfoot${index === 0 ? " solid" : ""}" data-prendre="${index}">${index === 0 ? "Reprendre celle-ci" : "Prendre celle-ci à la place"}</button>
-      </article>`,
-      ).join("")}
-      <div class="empty"><b>Aucune ne convient ?</b>Élargir le profil de qualité fera revenir des candidats écartés — la liste dit ce qu'elle a rejeté et pourquoi.
-        <button class="cfoot" style="margin-top:10px" data-profil="${escapeHtml(titre)}">Ouvrir le profil de qualité →</button>
-      </div>
-    </div></div>`,
-      undefined,
-      () => openReleases(titre),
-    );
-  }
-
-  /* Quality profile
-     What decides what the engine accepts. Exclusions are red: they remove,
-     they do not add — the colour states the direction of the action. */
-  function openProfil(titre) {
-    state.profilTitre = titre;
-    const profile = state.profil;
-    const retenus = RELEASES.filter((RELEASES2) => {
-      const ordre = { "720p": 0, "1080p": 1, "2160p": 2 };
-      if (
-        profile.min_resolution &&
-        ordre[RELEASES2.res] < ordre[profile.min_resolution]
-      )
-        return false;
-      if (profile.required_audio.length) {
-        const tier =
-          RELEASES2.lang === "VOSTFR"
-            ? "VOSTFR"
-            : RELEASES2.lang === "VO"
-              ? "VO"
-              : "VF";
-        if (!profile.required_audio.includes(tier)) return false;
-      }
-      return true;
-    }).length;
-
-    openScreen(
-      `<div class="fichebar">
-      <button class="fback" onclick="__close('screen')">${svgIcon(icons.left)}Retour</button>
-      <span style="margin-left:auto;font-size:11px;color:var(--muted-foreground)">${titre ? escapeHtml(baseTitle(titre)) : "profil par défaut"}</span>
-    </div>
-    <div class="port"><div class="body">
-
-      <div class="note"><b>Corrigé après vérification du backend.</b> Ma première version de cet écran réglait des « sources acceptées » et des exclusions CAM/TS qui <em>n'existent pas</em> par suivi. Le <code>QualityProfile</code> réel n'a que les quatre champs ci-dessous. Le reste — les poids qui départagent — est global et vit déjà dans <code>/config ?tab=classement</code>.</div>
-
-      <p class="qhint">Ce profil <b>filtre</b> : il élimine ce qui ne conviendra jamais. Il n'ordonne pas — ce qui survit est départagé par le classement global.</p>
-
-      <div class="qgroup">
-        <h2 class="h2">Résolution minimale</h2>
-        <p class="qhint">Un plancher, pas une liste : tout ce qui est en dessous est écarté. « Aucun plancher » laisse passer les sources sans résolution lisible (REMUX, COMPLETE.BLURAY) que le classement note au mérite.</p>
-        <p class="optkind">Un seul choix</p>
-        <div class="optlist" role="radiogroup" aria-label="Résolution minimale">
-          <button class="opt radio" role="radio" aria-checked="${profile.min_resolution === null}" data-qres=""><span class="mark"></span><span class="lb">Aucun plancher<small>Aucune résolution n'est écartée</small></span></button>
-          ${RESOS.map((RESOS2) => `<button class="opt radio" role="radio" aria-checked="${profile.min_resolution === RESOS2}" data-qres="${RESOS2}"><span class="mark"></span><span class="lb">${RESOS2} ou mieux<small>${RESOS2 === "720p" ? "Écarte tout ce qui est sous 720p" : RESOS2 === "1080p" ? "Écarte le 720p et en dessous" : "N'accepte que la 4K"}</small></span></button>`).join("")}
-        </div>
-      </div>
-
-      <div class="qgroup">
-        <h2 class="h2">Pistes audio exigées</h2>
-        <p class="qhint">Aucune sélection = aucun filtre de langue. Une release doit porter <b>au moins une</b> des pistes cochées.</p>
-        <p class="optkind">Plusieurs choix possibles${profile.required_audio.length === 0 ? " — aucun coché = aucun filtre" : ""}</p>
-        <div class="optlist">
-          ${AUDIOS.map(([key, label]) => `<button class="opt check" role="checkbox" aria-checked="${profile.required_audio.includes(key)}" data-qaud="${key}"><span class="mark"></span><span class="lb">${key}<small>${escapeHtml(label)}</small></span></button>`).join("")}
-        </div>
-      </div>
-
-      <div class="qgroup">
-        <h2 class="h2">Deux verrous</h2>
-        <div class="panel">
-          <div class="kv reglage"><span>Écarter la 3D<br><span class="qhint">Une release SBS / Over-Under est illisible sur un écran 2D. Activé par défaut : c'est un plancher de correction, pas un goût.</span></span>
-            <button class="switch" role="switch" aria-checked="${profile.exclude_3d}" aria-label="Écarter la 3D" data-qflag="exclude_3d"></button></div>
-          <div class="kv reglage"><span>Refuser une résolution illisible<br><span class="qhint">Par défaut on laisse passer : un nom non analysable est le plus souvent un REMUX, pas un mauvais fichier.</span></span>
-            <button class="switch" role="switch" aria-checked="${profile.require_known_resolution}" aria-label="Refuser une résolution illisible" data-qflag="require_known_resolution"></button></div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="kv"><span>Candidats retenus par ce profil</span><span>${retenus} sur ${RELEASES.length}</span></div>
-        <div class="kv"><span>Portée</span><span>${titre ? "ce suivi seulement" : "tous les suivis"}</span></div>
-      </div>
-
-      <button class="cfoot" data-toast="Dans l'app, ce bouton mènera à /config ?tab=classement — l'éditeur de classement existe déjà.">${svgIcon(icons.sort)}Poids du classement (global) →</button>
-
-      <p class="rulenote">Un profil qui n'accepte plus rien se dit : la carte affichera « cherché, rien trouvé » avec la raison, jamais un silence (§8).</p>
-
-      <div class="sheetacts">
-        <button class="sact primary" data-toast="Profil enregistré — la prochaine recherche l'appliquera.">${svgIcon(icons.check)}Enregistrer</button>
-      </div>
-    </div></div>`,
-      "profil:" + (titre ?? ""),
-      () => openProfil(titre),
-    );
-  }
+  /* Choose another release — migrated to a real route, `ReleasesEcran`
+     (`design/src/ecrans/releases.tsx`, reached at `/releases/$titre`). Show
+     what is NOT happening and why. Here: why the engine picked this one —
+     and enough to pick another knowingly. The score shown is the ranking's,
+     not an opinion. `RELEASES` stays defined here and crosses the handshake
+     through `window.__referentiel` — same seam as `SEARCH`/`cardHTML` above. */
 
   function openPlusSheet() {
-    openSheet(
-      panneauHTML({
-        titre: "Veille et obligations",
-        meta: "Second rang — consulté, pas surveillé.",
-        blocs: [
-          {
-            type: "faits",
-            lignes: [
-              { c: "Dernier passage", v: "il y a 22 min" },
-              { c: "Prochain passage", v: "dans 38 min" },
-              { c: "Ratio global", v: "2,41", pipValeur: "success" },
-              { c: "Obligations en cours", v: "3 torrents" },
-            ],
-          },
-          {
-            type: "actions",
-            actions: [
-              {
-                texte: "Lancer la veille maintenant",
-                icone: icons.refresh,
-                ton: "primary",
-                cible: { veille: "1" },
-              },
-            ],
-          },
-        ],
-      }),
-    );
+    window.__panneau.ouvrir({
+      titre: "Veille et obligations",
+      meta: "Second rang — consulté, pas surveillé.",
+      blocs: [
+        {
+          type: "faits",
+          lignes: [
+            { c: "Dernier passage", v: "il y a 22 min" },
+            { c: "Prochain passage", v: "dans 38 min" },
+            { c: "Ratio global", v: "2,41", pipValeur: "success" },
+            { c: "Obligations en cours", v: "3 torrents" },
+          ],
+        },
+        {
+          type: "actions",
+          actions: [
+            {
+              texte: "Lancer la veille maintenant",
+              icone: icons.refresh,
+              ton: "primary",
+              cible: { veille: "1" },
+            },
+          ],
+        },
+      ],
+    });
   }
 
-  window.__close = (layer) =>
-    layer === "screen" ? closeScreen() : closeSheet();
+  // A harness-facing shortcut, not a control the app itself uses (a real
+  // « Retour » button calls its own layer's close directly). `"screen"`
+  // used to mean ONLY the legacy `#screen`; a migrated screen is a real
+  // route now, and closing IT is a pop — the same single entry `.fback`'s
+  // own onClick unwinds — not a `closeScreen()` call, which is a harmless
+  // no-op against an address it was never the host of.
+  window.__close = (layer) => {
+    if (layer !== "screen") return window.__panneau.fermer();
+    if (select("#screen").classList.contains("open")) return closeScreen();
+    if (document.querySelector(".screen.open")) return window.__pont.retour();
+  };
 
   /* Gestures — pointer events, so one path serves finger, mouse and pen.
      Two differences a touch-only implementation never meets:
@@ -40675,10 +40165,14 @@
       // nodes, which is the only way the card underneath can rise rather than
       // appear. The state is updated alongside, never by re-rendering.
       if (drag.dx > 0) {
+        // avancerDeck() animates the DOM directly, never through render():
+        // the bump is explicit so React learns the card left the deck.
         state.sugGone.add(index);
+        magasin.toucher();
         avancerDeck(index, 1);
         toastUndo(`« ${SUGGESTIONS[index].t} » écarté.`, () => {
           state.sugGone.delete(index);
+          magasin.toucher();
           refreshDeck();
         });
       } else {
@@ -40880,98 +40374,92 @@
   window.addEventListener("touchend", endPageDrag);
   window.addEventListener("touchcancel", endPageDrag);
 
-  /* 4) Sheet: drag the handle to close */
-  let sheetDrag = null;
-  // How far the sheet must travel before the lift closes it.
-  const SEUIL_FERMETURE = 70;
-  /* The handle CAPTURES the pointer and claims its axis.
+  /* 4) Sheet: dragging the handle to close moved to the shell with the layer
+     itself — `src/composants/feuille.tsx` owns the handle, the pointer capture
+     and the dismissal threshold. Nothing binds here anymore: `#sheetgrab` does
+     not exist when this script runs. */
 
-     Without both, a real finger delivered `pointerdown`, two `pointermove`s and
-     then `pointercancel`: the compositor took the vertical drag, the pointer
-     stream died, `pointerup` never came, and the sheet — whose closing hangs off
-     that lift — simply stayed open. Capture also keeps the events coming once
-     the finger leaves a 22px strip, which happens within the first centimetre of
-     a gesture that has to travel 70px. */
-  const poignee = select("#sheetgrab");
+  /* The engine no longer boots itself. The shell — store created, bridge
+     real — starts it, so no write ever needs recording and replaying, and a
+     module that never evaluates leaves the startup screen on screen: a
+     visible, truthful failure instead of an app with mute verbs. */
+  window.__demarrerMoteur = function (deps) {
+    magasin = deps.magasin;
+    // Set before any write can happen (`adopterEtat`/`adopterMonde` below
+    // do not write to history, but the earliest legacy write is one line
+    // away): urlDeLEtat() must never compose against the placeholder "/".
+    adresseBase = deps.base;
+    magasin.adopterEtat(state);
+    magasin.adopterMonde(world);
+    state = magasin.lire().etat;
+    magasin.store.subscribe(() => {
+      state = magasin.lire().etat;
+    });
 
-  function finGlisseFeuille(annule) {
-    if (!sheetDrag) return;
-    const drag = sheetDrag;
-    sheetDrag = null;
-    select("#sheet").classList.remove("dragging");
-    select("#sheet").style.transform = "";
-    if (!annule && drag.dy > SEUIL_FERMETURE) closeSheet();
-  }
+    /* The bridge announces a back the way `popstate` did. Registered HERE,
+       not at the engine's top level: it is a `__pont` verb like the writes
+       below, and the real bridge only exists from this call on — nothing
+       upstream queues it anymore. */
+    __pont.surRetour(surRetourEngine);
 
-  poignee.addEventListener("pointerdown", (event) => {
-    sheetDrag = { y: event.clientY, dy: 0 };
-    select("#sheet").classList.add("dragging");
-    poignee.setPointerCapture(event.pointerId);
-  });
-  poignee.addEventListener("pointermove", (event) => {
-    if (!sheetDrag) return;
-    sheetDrag.dy = Math.max(0, event.clientY - sheetDrag.y);
-    select("#sheet").style.transform = `translateY(${sheetDrag.dy}px)`;
-  });
-  poignee.addEventListener("pointerup", () => finGlisseFeuille(false));
-  /* A cancel is not a lift: it must put the sheet back where it was rather than
-     close it on a gesture the browser took away. */
-  poignee.addEventListener("pointercancel", () => finGlisseFeuille(true));
-
-  /* The opening state comes from the ADDRESS, before the first paint: a
-     reload that lands on the opening page rather than where one was is the
-     defect DOIT-10 names, and it is fixed here rather than corrected after a
-     frame the operator would see. */
-  Object.assign(state, etatDeLURL());
-  /* Kept from BEFORE the first render, because rendering an unknown id moves
-     the state onto the not-found surface — and rewriting the address to match
-     would make a mistyped link quietly become a different one. A browser
-     answering 404 leaves the address alone; so does this. */
-  const adresseDArrivee = location.pathname + location.search;
-  render();
-  /* The address is put back on the entry one arrives on, so a back from
-     anywhere reaches the page the link named rather than a bare document. */
-  try {
-    __pont.remplacer(etatDeNavigation(), adresseDArrivee);
-  } catch (error) {}
-  /* The interface exists from here on, so the startup screen has nothing left
-     to cover — but it does not come off on that line. It comes off when the
-     wait it covers RESOLVES, which is the only rule that serves both a
-     prototype with nothing to fetch and an app with a real one. */
-  window.__chargementTermine();
-  /* The guard is the FIRST entry, and the opening page sits on top of it. It
-     cannot be anywhere else: nothing can be inserted below the entry a
-     document opens on, so the guard has to BE that entry. */
-  try {
-    __pont.remplacer({ tm: "garde" });
-  } catch (error) {}
-  /* Pushed with the address one ARRIVED at rather than with the one the state
-     now implies. Rendering an unknown id moves the state onto the not-found
-     surface, and deriving the address from it here rewrote a mistyped link
-     into « ?page=404 » — the interface correcting the operator's address
-     behind their back. A browser answering 404 leaves the address alone. */
-  try {
-    __pont.noter(etatDeNavigation(), adresseDArrivee);
-  } catch (error) {}
-  /* The welcome hint disappears on first interaction: a bubble that returns
-     over an open sheet is a nuisance, not help. */
-  let hintShown = false;
-  setTimeout(() => {
-    // Never in measurement mode: the bubble would cover the last action of
-    // the captured screen, and it is harness, not app.
-    if (hintShown || document.documentElement.classList.contains("measuring"))
-      return;
-    hintShown = true;
-    toast("Touchez le ⓘ en haut pour afficher les notes de conception.");
-  }, 900);
-  document.addEventListener(
-    "pointerdown",
-    () => {
+    /* The opening state comes from the ADDRESS, before the first paint: a
+       reload that lands on the opening page rather than where one was is the
+       defect DOIT-10 names, and it is fixed here rather than corrected after
+       a frame the operator would see. */
+    Object.assign(state, etatDeLURL());
+    /* Kept from BEFORE the first render, because rendering an unknown id
+       moves the state onto the not-found surface — and rewriting the
+       address to match would make a mistyped link quietly become a
+       different one. A browser answering 404 leaves the address alone; so
+       does this. */
+    const adresseDArrivee = location.pathname + location.search;
+    render();
+    /* The address is put back on the entry one arrives on, so a back from
+       anywhere reaches the page the link named rather than a bare
+       document. */
+    try {
+      __pont.remplacer(etatDeNavigation(), adresseDArrivee);
+    } catch (error) {}
+    /* The interface exists from here on, so the startup screen has nothing
+       left to cover — but it does not come off on that line. It comes off
+       when the wait it covers RESOLVES, which is the only rule that serves
+       both a prototype with nothing to fetch and an app with a real one. */
+    window.__chargementTermine();
+    /* The guard is the FIRST entry, and the opening page sits on top of it.
+       It cannot be anywhere else: nothing can be inserted below the entry a
+       document opens on, so the guard has to BE that entry. */
+    try {
+      __pont.remplacer({ tm: "garde" });
+    } catch (error) {}
+    /* Pushed with the address one ARRIVED at rather than with the one the
+       state now implies. Rendering an unknown id moves the state onto the
+       not-found surface, and deriving the address from it here rewrote a
+       mistyped link into « ?page=404 » — the interface correcting the
+       operator's address behind their back. A browser answering 404 leaves
+       the address alone. */
+    try {
+      __pont.noter(etatDeNavigation(), adresseDArrivee);
+    } catch (error) {}
+    /* The welcome hint disappears on first interaction: a bubble that
+       returns over an open sheet is a nuisance, not help. */
+    let hintShown = false;
+    setTimeout(() => {
+      // Never in measurement mode: the bubble would cover the last action of
+      // the captured screen, and it is harness, not app.
+      if (hintShown || document.documentElement.classList.contains("measuring"))
+        return;
       hintShown = true;
-      const toast2 = select("#toast");
-      if (toast2.textContent.includes("notes de conception"))
-        toast2.classList.remove("show");
-    },
-    { capture: true },
-  );
+      toast("Touchez le ⓘ en haut pour afficher les notes de conception.");
+    }, 900);
+    document.addEventListener(
+      "pointerdown",
+      () => {
+        hintShown = true;
+        const toast2 = select("#toast");
+        if (toast2.textContent.includes("notes de conception"))
+          toast2.classList.remove("show");
+      },
+      { capture: true },
+    );
+  };
 </script>

@@ -66,6 +66,7 @@ def _row_to_followed(row: sqlite3.Row) -> FollowedSeries:
     year = row["year"] if "year" in row.keys() else None
     keys = row.keys()
     replace_owned = bool(row["replace_owned"]) if "replace_owned" in keys else False
+    original_title = row["original_title"] if "original_title" in keys else None
     return FollowedSeries(
         id=row["id"],
         media_ref=_media_ref_from_json(row["media_ref_json"]),
@@ -77,6 +78,7 @@ def _row_to_followed(row: sqlite3.Row) -> FollowedSeries:
         kind=row["kind"],
         year=year,
         replace_owned=replace_owned,
+        original_title=original_title,
     )
 
 

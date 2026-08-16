@@ -87,6 +87,11 @@ class FollowedSeriesItem(BaseModel):
     overview: str | None = None
     year: int | None = None
     season_count: int | None = None
+    #: The provider's ORIGINAL-language title (#435), or ``None`` when not
+    #: resolved yet (healed lazily by the detect pass). Read-only display
+    #: metadata — the identity filter and the retry query read the STORE, not
+    #: this response.
+    original_title: str | None = None
     # Cadence readout (webui-overhaul OBJ3): the next epoch at which an automatic
     # search becomes due for this series (min over its pending wanted items), and
     # the governing temperature tier ("hot"/"warm"/"cold"/"cutoff"). Both are

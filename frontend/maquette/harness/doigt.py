@@ -19,7 +19,6 @@ are measured the same way, because that claim is what makes them survive and
 nothing else here proves it still holds.
 """
 import asyncio
-import sys
 
 from commun import Journal
 from playwright.async_api import async_playwright
@@ -90,7 +89,7 @@ async def main():
         await pg.evaluate("()=>document.querySelector('#toastx').click()")
 
         global _journal
-        _journal = Journal(f"R55 — les gestes sous un vrai doigt")
+        _journal = Journal("R55 — les gestes sous un vrai doigt")
 
         async def rect(selecteur):
             return await pg.evaluate(
@@ -289,6 +288,10 @@ async def main():
         # be asserting a behaviour the design does not want.
         await pg.evaluate("()=>window.__go('acq-identifier')")
         await pg.wait_for_timeout(450)
+        # `acq-identifier` opens the add screen — a real route now
+        # (`/ajout`, rendered inside `#coquille`), not `#screen`: the card
+        # this hold reaches is drawn there, above the scrollport just the
+        # same.
         couche = await pg.evaluate("""()=>{
           const port = document.querySelector('#port');
           const c = [...document.querySelectorAll('.card')]
@@ -296,7 +299,7 @@ async def main():
           if (!c) return null;
           const e = new MouseEvent('contextmenu', {bubbles:true, cancelable:true});
           c.dispatchEvent(e);
-          return {dansEcran: document.querySelector('#screen').contains(c),
+          return {dansEcran: !!document.querySelector('.screen.open')?.contains(c),
                   refuse: e.defaultPrevented};}""")
         verifier("une carte est dessinée au-dessus du défilement",
                  couche is not None and couche["dansEcran"], str(couche))
