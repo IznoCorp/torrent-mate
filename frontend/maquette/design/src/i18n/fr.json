@@ -1,4 +1,28 @@
 {
+  "server": {
+    "login": {
+      "title": "TorrentMate Design — connexion"
+    },
+    "offline": {
+      "title": "TorrentMate Design — hors ligne",
+      "heading": "Hors ligne",
+      "body": "La maquette est servie par le serveur de design. Elle n'est pas mise en cache, pour que ce que vous jugez soit toujours la version du jour."
+    },
+    "missing": {
+      "title": "Prototype indisponible",
+      "heading": "Prototype indisponible",
+      "body": "Le fichier <code>refonte.html</code> est absent du checkout servi. C'est ce qui arrive quand la copie de travail est sur une branche qui ne le porte pas.",
+      "reassurance": "Rien n'est perdu : le prototype est en dépôt. Revenir sur la branche qui le porte le remet en ligne aussitôt."
+    },
+    "buildFailure": {
+      "title": "Build en échec",
+      "heading": "Le build de la maquette a échoué",
+      "body": "Le serveur reconstruit le document à chaque source modifiée ; cette reconstruction vient d'échouer, et servir l'ancienne version serait mentir sur la date de ce que vous jugez."
+    },
+    "manifest": {
+      "description": "Prototype de référence de l'interface TorrentMate."
+    }
+  },
   "common": {
     "season": "Saison",
     "missing": "manquant",
@@ -204,7 +228,7 @@
     "error": {
       "message": "Cet écran a échoué à s'afficher. Détail dans la console."
     },
-    "fiche": {
+    "media": {
       "back": "Retour",
       "unidentified": "média non identifié",
       "dateUnknown": "date inconnue",
@@ -264,7 +288,7 @@
       "noteTitle": "Un seul gabarit pour tout média.",
       "noteBody": "Les différences visibles ici sont celles que la nature impose — réalisateur et durée pour un film, créateur, statut et catalogue pour une série. Toute autre différence serait une dérive."
     },
-    "profil": {
+    "profile": {
       "back": "Retour",
       "defaultProfile": "profil par défaut",
       "noteTitle": "Corrigé après vérification du backend.",
@@ -306,7 +330,7 @@
       "saveToast": "Profil enregistré — la prochaine recherche l'appliquera.",
       "save": "Enregistrer"
     },
-    "ajout": {
+    "add": {
       "back": "Retour",
       "identifyFolder": "identifier un dossier",
       "identifyTitle": "Identifier « {{titre}} »",
@@ -346,7 +370,7 @@
       "noPosterTitle": "Aucune affiche chez le provider pour ce candidat.",
       "confidence": "confiance",
       "pickThis": "C'est celui-ci",
-      "nombres": [
+      "numbers": [
         "",
         "Un",
         "Deux",

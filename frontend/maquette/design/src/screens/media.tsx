@@ -175,7 +175,7 @@ function SeasonList({
                   <span className="ed">
                     {episode.air
                       ? dateFR(episode.air)
-                      : t("screens.fiche.dateUnknown")}
+                      : t("screens.media.dateUnknown")}
                     {episodeState === "en_mediatheque"
                       ? ""
                       : ` · ${EP_LABEL[episodeState].toLowerCase()}`}
@@ -200,7 +200,7 @@ function SeasonList({
                   <span
                     className={`ep ${episodeState}`}
                     key={number}
-                    aria-label={t("screens.fiche.episodeAria", {
+                    aria-label={t("screens.media.episodeAria", {
                       n: number,
                       etat: EP_LABEL[episodeState],
                     })}
@@ -212,7 +212,7 @@ function SeasonList({
             </div>
             {row.aired == null ? (
               <p className="noinfo" style={{ marginTop: "6px" }}>
-                {t("screens.fiche.beyondEpisode", { n: bound })}
+                {t("screens.media.beyondEpisode", { n: bound })}
               </p>
             ) : (
               ""
@@ -220,11 +220,11 @@ function SeasonList({
           </>
         ) : row.aired === 0 || row.aired === null ? (
           <p className="noinfo" style={{ marginTop: "8px" }}>
-            {t("screens.fiche.seasonAnnounced")}
+            {t("screens.media.seasonAnnounced")}
           </p>
         ) : (
           <p className="noinfo" style={{ marginTop: "8px" }}>
-            {t("screens.fiche.episodesNotDetailed")}
+            {t("screens.media.episodesNotDetailed")}
           </p>
         );
         return (
@@ -239,10 +239,10 @@ function SeasonList({
               {t("common.season")} {row.n}{" "}
               <span className="sfr">
                 {row.aired === 0
-                  ? t("screens.fiche.seasonUpcoming")
+                  ? t("screens.media.seasonUpcoming")
                   : owns
                     ? `${nbOwn}/${row.aired ?? "?"}`
-                    : `${row.aired ?? "?"} ${t("screens.fiche.episodesShort")}`}
+                    : `${row.aired ?? "?"} ${t("screens.media.episodesShort")}`}
               </span>{" "}
               {owns && missing != null && missing > 0 ? (
                 <span className="miss">
@@ -271,7 +271,7 @@ function SeasonList({
             </summary>
             {missingNums.length ? (
               <p className="missing">
-                {t("screens.fiche.missingList", {
+                {t("screens.media.missingList", {
                   liste: plages(missingNums),
                 })}
               </p>
@@ -380,7 +380,7 @@ export function MediaScreen() {
       <div className="screenbar">
         <button className="fback" onClick={() => window.__pont.retour()}>
           <Icon paths={icons.left} />
-          {t("screens.fiche.back")}
+          {t("screens.media.back")}
         </button>{" "}
         <span
           style={{
@@ -389,7 +389,7 @@ export function MediaScreen() {
             color: "var(--muted-foreground)",
           }}
         >
-          {url ?? t("screens.fiche.unidentified")}
+          {url ?? t("screens.media.unidentified")}
         </span>
       </div>
       <div className="port">
@@ -406,8 +406,8 @@ export function MediaScreen() {
               <h2 className="ht">{title.split(" (")[0]}</h2>
               <p className="hm">
                 {sheet
-                  ? `${sheet.y || t("screens.fiche.yearUnknown")} · ${isFilm ? t("common.film") : t("common.series")}${sheet.duree ? ` · ${sheet.duree} ${t("screens.fiche.minutesShort")}` : ""}`
-                  : t("screens.fiche.metadataUnknown")}{" "}
+                  ? `${sheet.y || t("screens.media.yearUnknown")} · ${isFilm ? t("common.film") : t("common.series")}${sheet.duree ? ` · ${sheet.duree} ${t("screens.media.minutesShort")}` : ""}`
+                  : t("screens.media.metadataUnknown")}{" "}
                 {sheet?.g ? (
                   <>
                     <br />
@@ -416,13 +416,13 @@ export function MediaScreen() {
                 ) : (
                   <>
                     <br />
-                    {t("screens.fiche.genresUnknown")}
+                    {t("screens.media.genresUnknown")}
                   </>
                 )}{" "}
                 {sheet && !isFilm && sheet.statut ? (
                   <>
                     <br />
-                    {t("screens.fiche.seriesStatus", {
+                    {t("screens.media.seriesStatus", {
                       statut: sheet.statut.toLowerCase(),
                     })}
                   </>
@@ -441,7 +441,7 @@ export function MediaScreen() {
                     }}
                   >
                     {" "}
-                    {t("screens.fiche.ratingSource")}
+                    {t("screens.media.ratingSource")}
                   </span>
                 </span>
               ) : (
@@ -462,7 +462,7 @@ export function MediaScreen() {
                 <Icon paths={icons.play} />
               </span>{" "}
               <span>
-                {t("screens.fiche.trailer")}
+                {t("screens.media.trailer")}
                 <small>{trailer.nom}</small>
               </span>{" "}
               <span className="tsrc">
@@ -471,12 +471,12 @@ export function MediaScreen() {
               </span>
             </a>
           ) : (
-            <p className="noinfo">{t("screens.fiche.noTrailer")}</p>
+            <p className="noinfo">{t("screens.media.noTrailer")}</p>
           )}
 
           <div>
             <h2 className="h2" style={{ marginBottom: "6px" }}>
-              {t("screens.fiche.synopsis")}
+              {t("screens.media.synopsis")}
             </h2>
             <p
               style={{
@@ -486,26 +486,26 @@ export function MediaScreen() {
                 color: "var(--muted-foreground)",
               }}
             >
-              {sheet?.ov ? sheet.ov : t("screens.fiche.synopsisUnknown")}
+              {sheet?.ov ? sheet.ov : t("screens.media.synopsisUnknown")}
             </p>
           </div>
 
           <div>
             <h2 className="h2" style={{ marginBottom: "8px" }}>
               {isFilm
-                ? t("screens.fiche.castHeadingFilm")
-                : t("screens.fiche.castHeadingSeries")}
+                ? t("screens.media.castHeadingFilm")
+                : t("screens.media.castHeadingSeries")}
             </h2>
             <div className="panel" style={{ marginBottom: "10px" }}>
               <div className="kv">
                 <span>
                   {isFilm
-                    ? t("screens.fiche.director")
-                    : t("screens.fiche.creator")}
+                    ? t("screens.media.director")
+                    : t("screens.media.creator")}
                 </span>
                 <span>
                   {(isFilm ? sheet?.real : sheet?.crea) ??
-                    t("screens.fiche.unknown")}
+                    t("screens.media.unknown")}
                 </span>
               </div>
             </div>
@@ -522,43 +522,43 @@ export function MediaScreen() {
                     </span>
                     <figcaption>
                       <b>{cast.n}</b>
-                      <span>{cast.r || t("screens.fiche.roleUnknown")}</span>
+                      <span>{cast.r || t("screens.media.roleUnknown")}</span>
                     </figcaption>
                   </figure>
                 ))}
               </div>
             ) : (
-              <p className="noinfo">{t("screens.fiche.castUnknown")}</p>
+              <p className="noinfo">{t("screens.media.castUnknown")}</p>
             )}
           </div>
 
           <div>
             <h2 className="h2" style={{ marginBottom: "6px" }}>
-              {t("screens.fiche.library")}
+              {t("screens.media.library")}
             </h2>
             <div className="panel">
               {!owns ? (
                 <>
                   <div className="kv">
-                    <span>{t("screens.fiche.inLibrary")}</span>
+                    <span>{t("screens.media.inLibrary")}</span>
                     <span>
                       <span className="pip neutral"></span>
-                      {t("screens.fiche.no")}
+                      {t("screens.media.no")}
                     </span>
                   </div>
                   <div className="kv">
-                    <span>{t("screens.fiche.follow")}</span>
+                    <span>{t("screens.media.follow")}</span>
                     <span>
                       {followed
-                        ? t("screens.fiche.followActive")
-                        : t("screens.fiche.followInactive")}
+                        ? t("screens.media.followActive")
+                        : t("screens.media.followInactive")}
                     </span>
                   </div>
                   {catalog.length ? (
                     <div className="kv">
-                      <span>{`${t("screens.fiche.catalogue")} ${isFilm ? "" : t("screens.fiche.catalogueKnown")}`}</span>
+                      <span>{`${t("screens.media.catalogue")} ${isFilm ? "" : t("screens.media.catalogueKnown")}`}</span>
                       <span>
-                        {`${catalog.length} ${catalog.length > 1 ? t("screens.fiche.seasonLowerPlural") : t("screens.fiche.seasonLower")} · ${catalogEp} ${t("screens.fiche.episodes")}`}
+                        {`${catalog.length} ${catalog.length > 1 ? t("screens.media.seasonLowerPlural") : t("screens.media.seasonLower")} · ${catalogEp} ${t("screens.media.episodes")}`}
                       </span>
                     </div>
                   ) : (
@@ -568,14 +568,14 @@ export function MediaScreen() {
               ) : isFilm ? (
                 <>
                   <div className="kv">
-                    <span>{t("screens.fiche.owned")}</span>
+                    <span>{t("screens.media.owned")}</span>
                     <span>
                       <span className="pip success"></span>
-                      {t("screens.fiche.yes")}
+                      {t("screens.media.yes")}
                     </span>
                   </div>
                   <div className="kv">
-                    <span>{t("screens.fiche.file")}</span>
+                    <span>{t("screens.media.file")}</span>
                     <span
                       style={{
                         fontFamily: "ui-monospace,Menlo,monospace",
@@ -589,25 +589,25 @@ export function MediaScreen() {
               ) : (
                 <>
                   <div className="kv">
-                    <span>{t("screens.fiche.seasons")}</span>
-                    <span>{sorted.length || t("screens.fiche.unknown")}</span>
+                    <span>{t("screens.media.seasons")}</span>
+                    <span>{sorted.length || t("screens.media.unknown")}</span>
                   </div>
                   <div className="kv">
-                    <span>{t("screens.fiche.airedEpisodes")}</span>
-                    <span>{aired || t("screens.fiche.unknown")}</span>
+                    <span>{t("screens.media.airedEpisodes")}</span>
+                    <span>{aired || t("screens.media.unknown")}</span>
                   </div>
                   <div className="kv">
-                    <span>{t("screens.fiche.ownedPlural")}</span>
+                    <span>{t("screens.media.ownedPlural")}</span>
                     <span>{own}</span>
                   </div>
                   <div className="kv">
-                    <span>{t("screens.fiche.completeness")}</span>
+                    <span>{t("screens.media.completeness")}</span>
                     <span>
                       <span
                         className={`pip ${pct === 100 ? "success" : pct === null ? "neutral" : "warning"}`}
                       ></span>
                       {pct === null
-                        ? t("screens.fiche.unknownFeminine")
+                        ? t("screens.media.unknownFeminine")
                         : pct + " %"}
                     </span>
                   </div>
@@ -625,11 +625,11 @@ export function MediaScreen() {
 
           <div>
             <h2 className="h2" style={{ marginBottom: "6px" }}>
-              {t("screens.fiche.information")}
+              {t("screens.media.information")}
             </h2>
             <div className="panel">
               <div className="kv">
-                <span>{t("screens.fiche.follow")}</span>
+                <span>{t("screens.media.follow")}</span>
                 {/* The SECOND follow test, and the strict one: an exact title
                     match, or an exact match on the title without its year
                     suffix. The hero block above answers the same question
@@ -641,8 +641,8 @@ export function MediaScreen() {
                     (follow) =>
                       follow.t === title || follow.t === title.split(" (")[0],
                   )
-                    ? t("screens.fiche.followActive")
-                    : t("screens.fiche.followInactive")}
+                    ? t("screens.media.followActive")
+                    : t("screens.media.followInactive")}
                 </span>
               </div>
               {Object.entries(prov).map(([key, value]) => (
@@ -659,8 +659,8 @@ export function MediaScreen() {
                 </div>
               ))}
               <div className="kv">
-                <span>{t("screens.fiche.metadataRefreshed")}</span>
-                <span>{t("screens.fiche.metadataRefreshedValue")}</span>
+                <span>{t("screens.media.metadataRefreshed")}</span>
+                <span>{t("screens.media.metadataRefreshedValue")}</span>
               </div>
             </div>
           </div>
@@ -670,22 +670,22 @@ export function MediaScreen() {
               <>
                 <button
                   className="sact"
-                  data-toast={t("screens.fiche.rescrapeToast")}
+                  data-toast={t("screens.media.rescrapeToast")}
                 >
                   <Icon paths={icons.refresh} />
-                  {t("screens.fiche.rescrape")}
+                  {t("screens.media.rescrape")}
                 </button>{" "}
                 <button className="sact danger" data-del={title}>
                   <Icon paths={icons.trash} />
-                  {t("screens.fiche.delete")}
+                  {t("screens.media.delete")}
                 </button>
               </>
             ) : followed ? (
               <button className="mediaadd done" disabled>
                 <Icon paths={icons.check} />
                 {isFilm
-                  ? t("screens.fiche.added")
-                  : t("screens.fiche.followed")}
+                  ? t("screens.media.added")
+                  : t("screens.media.followed")}
               </button>
             ) : (
               // No `data-refiche`: the legacy button asked the sheet to
@@ -699,14 +699,14 @@ export function MediaScreen() {
               >
                 <Icon paths={icons.plus} />
                 {isFilm
-                  ? t("screens.fiche.add")
-                  : t("screens.fiche.followVerb")}
+                  ? t("screens.media.add")
+                  : t("screens.media.followVerb")}
               </button>
             )}
           </div>
 
           <div className="note">
-            <b>{t("screens.fiche.noteTitle")}</b> {t("screens.fiche.noteBody")}
+            <b>{t("screens.media.noteTitle")}</b> {t("screens.media.noteBody")}
           </div>
         </div>
       </div>

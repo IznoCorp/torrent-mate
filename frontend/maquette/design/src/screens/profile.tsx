@@ -105,7 +105,7 @@ export function ProfileScreen() {
       <div className="screenbar">
         <button className="fback" onClick={() => window.__pont.retour()}>
           <Icon paths={icons.left} />
-          {t("screens.profil.back")}
+          {t("screens.profile.back")}
         </button>
         <span
           style={{
@@ -114,34 +114,34 @@ export function ProfileScreen() {
             color: "var(--muted-foreground)",
           }}
         >
-          {title ? baseTitle(title) : t("screens.profil.defaultProfile")}
+          {title ? baseTitle(title) : t("screens.profile.defaultProfile")}
         </span>
       </div>
       <div className="port">
         <div className="body">
           <div className="note">
-            <b>{t("screens.profil.noteTitle")}</b>{" "}
-            {t("screens.profil.noteBefore")}{" "}
-            <em>{t("screens.profil.noteEmphasis")}</em>{" "}
-            {t("screens.profil.noteAfterEmphasis")} <code>QualityProfile</code>{" "}
-            {t("screens.profil.noteAfterCode")}{" "}
+            <b>{t("screens.profile.noteTitle")}</b>{" "}
+            {t("screens.profile.noteBefore")}{" "}
+            <em>{t("screens.profile.noteEmphasis")}</em>{" "}
+            {t("screens.profile.noteAfterEmphasis")} <code>QualityProfile</code>{" "}
+            {t("screens.profile.noteAfterCode")}{" "}
             <code>/config ?tab=classement</code>.
           </div>
 
           <p className="qhint">
-            {t("screens.profil.leadBefore")}{" "}
-            <b>{t("screens.profil.leadEmphasis")}</b>{" "}
-            {t("screens.profil.leadAfter")}
+            {t("screens.profile.leadBefore")}{" "}
+            <b>{t("screens.profile.leadEmphasis")}</b>{" "}
+            {t("screens.profile.leadAfter")}
           </p>
 
           <div className="qgroup">
-            <h2 className="h2">{t("screens.profil.minResolution")}</h2>
-            <p className="qhint">{t("screens.profil.minResolutionHint")}</p>
-            <p className="optkind">{t("screens.profil.singleChoice")}</p>
+            <h2 className="h2">{t("screens.profile.minResolution")}</h2>
+            <p className="qhint">{t("screens.profile.minResolutionHint")}</p>
+            <p className="optkind">{t("screens.profile.singleChoice")}</p>
             <div
               className="optlist"
               role="radiogroup"
-              aria-label={t("screens.profil.minResolution")}
+              aria-label={t("screens.profile.minResolution")}
             >
               <button
                 className="opt radio"
@@ -152,8 +152,8 @@ export function ProfileScreen() {
               >
                 <span className="mark" />
                 <span className="lb">
-                  {t("screens.profil.noFloor")}
-                  <small>{t("screens.profil.noFloorHint")}</small>
+                  {t("screens.profile.noFloor")}
+                  <small>{t("screens.profile.noFloorHint")}</small>
                 </span>
               </button>
               {RESOS.map((reso) => (
@@ -167,13 +167,13 @@ export function ProfileScreen() {
                 >
                   <span className="mark" />
                   <span className="lb">
-                    {reso} {t("screens.profil.orBetter")}
+                    {reso} {t("screens.profile.orBetter")}
                     <small>
                       {reso === "720p"
-                        ? t("screens.profil.hint720")
+                        ? t("screens.profile.hint720")
                         : reso === "1080p"
-                          ? t("screens.profil.hint1080")
-                          : t("screens.profil.hint2160")}
+                          ? t("screens.profile.hint1080")
+                          : t("screens.profile.hint2160")}
                     </small>
                   </span>
                 </button>
@@ -182,16 +182,16 @@ export function ProfileScreen() {
           </div>
 
           <div className="qgroup">
-            <h2 className="h2">{t("screens.profil.audioTracks")}</h2>
+            <h2 className="h2">{t("screens.profile.audioTracks")}</h2>
             <p className="qhint">
-              {t("screens.profil.audioHintBefore")}{" "}
-              <b>{t("screens.profil.audioHintEmphasis")}</b>{" "}
-              {t("screens.profil.audioHintAfter")}
+              {t("screens.profile.audioHintBefore")}{" "}
+              <b>{t("screens.profile.audioHintEmphasis")}</b>{" "}
+              {t("screens.profile.audioHintAfter")}
             </p>
             <p className="optkind">
-              {t("screens.profil.multiChoice")}
+              {t("screens.profile.multiChoice")}
               {profile.required_audio.length === 0
-                ? ` — ${t("screens.profil.noneChecked")}`
+                ? ` — ${t("screens.profile.noneChecked")}`
                 : ""}
             </p>
             <div className="optlist">
@@ -215,38 +215,38 @@ export function ProfileScreen() {
           </div>
 
           <div className="qgroup">
-            <h2 className="h2">{t("screens.profil.twoLocks")}</h2>
+            <h2 className="h2">{t("screens.profile.twoLocks")}</h2>
             <div className="panel">
               <div className="kv setting">
                 <span>
-                  {t("screens.profil.exclude3d")}
+                  {t("screens.profile.exclude3d")}
                   <br />
                   <span className="qhint">
-                    {t("screens.profil.exclude3dHint")}
+                    {t("screens.profile.exclude3dHint")}
                   </span>
                 </span>
                 <button
                   className="switch"
                   role="switch"
                   aria-checked={profile.exclude_3d}
-                  aria-label={t("screens.profil.exclude3d")}
+                  aria-label={t("screens.profile.exclude3d")}
                   data-qflag="exclude_3d"
                   onClick={() => toggleLock("exclude_3d")}
                 />
               </div>
               <div className="kv setting">
                 <span>
-                  {t("screens.profil.requireKnownResolution")}
+                  {t("screens.profile.requireKnownResolution")}
                   <br />
                   <span className="qhint">
-                    {t("screens.profil.requireKnownResolutionHint")}
+                    {t("screens.profile.requireKnownResolutionHint")}
                   </span>
                 </span>
                 <button
                   className="switch"
                   role="switch"
                   aria-checked={profile.require_known_resolution}
-                  aria-label={t("screens.profil.requireKnownResolution")}
+                  aria-label={t("screens.profile.requireKnownResolution")}
                   data-qflag="require_known_resolution"
                   onClick={() => toggleLock("require_known_resolution")}
                 />
@@ -256,38 +256,38 @@ export function ProfileScreen() {
 
           <div className="panel">
             <div className="kv">
-              <span>{t("screens.profil.candidatesKept")}</span>
+              <span>{t("screens.profile.candidatesKept")}</span>
               <span>
-                {kept} {t("screens.profil.outOf")} {RELEASES.length}
+                {kept} {t("screens.profile.outOf")} {RELEASES.length}
               </span>
             </div>
             <div className="kv">
-              <span>{t("screens.profil.scope")}</span>
+              <span>{t("screens.profile.scope")}</span>
               <span>
                 {title
-                  ? t("screens.profil.scopeThisFollow")
-                  : t("screens.profil.scopeAllFollows")}
+                  ? t("screens.profile.scopeThisFollow")
+                  : t("screens.profile.scopeAllFollows")}
               </span>
             </div>
           </div>
 
           <button
             className="cfoot"
-            data-toast={t("screens.profil.rankingToast")}
+            data-toast={t("screens.profile.rankingToast")}
           >
             <Icon paths={icons.sort} />
-            {t("screens.profil.rankingWeights")}
+            {t("screens.profile.rankingWeights")}
           </button>
 
-          <p className="rulenote">{t("screens.profil.rulenote")}</p>
+          <p className="rulenote">{t("screens.profile.rulenote")}</p>
 
           <div className="sheetacts">
             <button
               className="sact primary"
-              data-toast={t("screens.profil.saveToast")}
+              data-toast={t("screens.profile.saveToast")}
             >
               <Icon paths={icons.check} />
-              {t("screens.profil.save")}
+              {t("screens.profile.save")}
             </button>
           </div>
         </div>

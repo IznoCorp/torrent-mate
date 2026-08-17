@@ -161,7 +161,7 @@ export function AddScreen() {
           : r.owned
             ? [
                 identify ? "success" : "warning",
-                t("screens.ajout.alreadyInLibrary"),
+                t("screens.add.alreadyInLibrary"),
               ]
             : null,
         panel: `add:${i}`,
@@ -174,7 +174,7 @@ export function AddScreen() {
       <div className="screenbar">
         <button className="fback" onClick={() => window.__pont.retour()}>
           <Icon paths={icons.left} />
-          {t("screens.ajout.back")}
+          {t("screens.add.back")}
         </button>
         {identify ? (
           <span
@@ -184,7 +184,7 @@ export function AddScreen() {
               color: "var(--muted-foreground)",
             }}
           >
-            {t("screens.ajout.identifyFolder")}
+            {t("screens.add.identifyFolder")}
           </span>
         ) : null}
       </div>
@@ -199,11 +199,11 @@ export function AddScreen() {
               }}
             >
               <b style={{ color: "var(--info)" }}>
-                {t("screens.ajout.identifyTitle", {
+                {t("screens.add.identifyTitle", {
                   titre: baseTitle(resolveTarget ?? ""),
                 })}
               </b>
-              {t("screens.ajout.identifyBody")}
+              {t("screens.add.identifyBody")}
             </div>
           </div>
         ) : null}
@@ -214,8 +214,8 @@ export function AddScreen() {
               type="search"
               id="addq"
               value={query}
-              placeholder={t("screens.ajout.searchPlaceholder")}
-              aria-label={t("screens.ajout.searchAria")}
+              placeholder={t("screens.add.searchPlaceholder")}
+              aria-label={t("screens.add.searchAria")}
               onChange={(event) =>
                 go({
                   to: "/ajout",
@@ -248,7 +248,7 @@ export function AddScreen() {
               ))}
             </div>
             <button className="btnprimary" onClick={() => search(query)}>
-              {t("screens.ajout.search")}
+              {t("screens.add.search")}
             </button>
           </div>
         </div>
@@ -257,20 +257,20 @@ export function AddScreen() {
             <p className="rescount">
               <b>{filtered.length}</b>{" "}
               {filtered.length > 1
-                ? t("screens.ajout.resultPlural")
-                : t("screens.ajout.result")}{" "}
+                ? t("screens.add.resultPlural")
+                : t("screens.add.result")}{" "}
               {filtered.length > 1
-                ? t("screens.ajout.shownPlural")
-                : t("screens.ajout.shown")}{" "}
-              {t("screens.ajout.outOf")} <b>{SEARCH.total}</b>{" "}
+                ? t("screens.add.shownPlural")
+                : t("screens.add.shown")}{" "}
+              {t("screens.add.outOf")} <b>{SEARCH.total}</b>{" "}
               {SEARCH.total > 1
-                ? t("screens.ajout.foundPlural")
-                : t("screens.ajout.found")}
+                ? t("screens.add.foundPlural")
+                : t("screens.add.found")}
               {addKind !== "Tout"
-                ? ` ${t("screens.ajout.filteredOn", { kind: addKind })}`
+                ? ` ${t("screens.add.filteredOn", { kind: addKind })}`
                 : ""}
               {" — "}
-              {t("screens.ajout.mostRelevant")}
+              {t("screens.add.mostRelevant")}
             </p>
             <div
               className="reslist sec"
@@ -288,8 +288,8 @@ export function AddScreen() {
             </div>
             <div style={{ padding: "14px" }}>
               <div className="empty">
-                <b>{t("screens.ajout.emptyTitle")}</b>
-                {t("screens.ajout.emptyBody")}
+                <b>{t("screens.add.emptyTitle")}</b>
+                {t("screens.add.emptyBody")}
               </div>
             </div>
           </>
@@ -297,8 +297,8 @@ export function AddScreen() {
         <details className="byid">
           <summary>
             {identify
-              ? t("screens.ajout.byIdIdentify")
-              : t("screens.ajout.byIdAdd")}
+              ? t("screens.add.byIdIdentify")
+              : t("screens.add.byIdAdd")}
           </summary>
           <div className="byidin">
             <div className="segmini" style={{ alignSelf: "flex-start" }}>
@@ -316,21 +316,21 @@ export function AddScreen() {
               <input
                 id="byidv"
                 placeholder={idProv === "IMDB" ? "tt1234567" : "12e34"}
-                aria-label={t("screens.ajout.idAria", { prov: idProv })}
+                aria-label={t("screens.add.idAria", { prov: idProv })}
               />
             </div>
             <p className="whyoff">
               {idProv === "IMDB" ? (
                 <>
-                  {t("screens.ajout.imdbBefore")} <code>tt</code>{" "}
-                  {t("screens.ajout.imdbAfter")}
+                  {t("screens.add.imdbBefore")} <code>tt</code>{" "}
+                  {t("screens.add.imdbAfter")}
                 </>
               ) : idProv === "TVDB" ? (
-                t("screens.ajout.tvdbHint")
+                t("screens.add.tvdbHint")
               ) : (
                 <>
-                  {t("screens.ajout.numberBefore")} <code>Number()</code>{" "}
-                  {t("screens.ajout.numberAfter")}
+                  {t("screens.add.numberBefore")} <code>Number()</code>{" "}
+                  {t("screens.add.numberAfter")}
                 </>
               )}
             </p>
@@ -339,7 +339,7 @@ export function AddScreen() {
               disabled
               style={{ alignSelf: "flex-start", padding: "9px 16px" }}
             >
-              {t("screens.ajout.add")}
+              {t("screens.add.add")}
             </button>
           </div>
         </details>
@@ -348,13 +348,13 @@ export function AddScreen() {
             <span>
               <b>{added.size}</b>{" "}
               {added.size > 1
-                ? t("screens.ajout.mediaPlural")
-                : t("screens.ajout.media")}{" "}
+                ? t("screens.add.mediaPlural")
+                : t("screens.add.media")}{" "}
               {added.size > 1
-                ? t("screens.ajout.addedPlural")
-                : t("screens.ajout.added")}
+                ? t("screens.add.addedPlural")
+                : t("screens.add.added")}
             </span>
-            <button onClick={toFollows}>{t("screens.ajout.seeFollows")}</button>
+            <button onClick={toFollows}>{t("screens.add.seeFollows")}</button>
           </div>
         ) : null}
       </div>

@@ -230,7 +230,7 @@ function DecisionCard({ decision }: { decision: SettledDecision }) {
 function Candidates({ decision }: { decision: PendingDecision }) {
   const best = Math.max(...decision.c.map((candidate) => candidate.s));
   const tied = decision.c.filter((candidate) => candidate.s === best).length;
-  const words: string[] = fr.screens.resolution.nombres;
+  const words: string[] = fr.screens.resolution.numbers;
   const { t } = useTranslation();
   return (
     <>
