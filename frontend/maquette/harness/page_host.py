@@ -343,6 +343,105 @@ async def main():
         await page.evaluate("()=>window.__pont.retour()")
         await page.wait_for_timeout(420)
 
+        # (c-sexies) THE MÉDIATHÈQUE'S OWN DELEGATION. This page carries more
+        # of it than any other — the lens, the category, the view mode, the
+        # selection, the deletion and the search's cross — and R63 drives it
+        # through the store, never through a tap.
+        await page.evaluate("()=>window.__reset()")
+        await page.evaluate("()=>window.__magasin.ecrire({page: 'lib', phase: 'prete',"
+                            " libLens: 'cat', libMode: 'list', libCat: 'all', q: ''})")
+        await page.evaluate("()=>window.__referentiel.render()")
+        await page.wait_for_timeout(400)
+
+        refused = await tap("#view .seg [data-lens='rec']")
+        lens = await page.evaluate("""()=>({
+          lens: window.__magasin.lire().etat.libLens,
+          drawn: (document.querySelector('#view .countline')||{}).textContent || '',
+        })""")
+        journal.check(
+            "a real tap on a lens opens THAT lens",
+            not refused and lens["lens"] == "rec" and "index" in lens["drawn"],
+            str(lens)[:120] if not refused else f"data-lens {refused}")
+
+        await page.evaluate("()=>window.__magasin.ecrire({libLens: 'cat'})")
+        await page.evaluate("()=>window.__referentiel.render()")
+        await page.wait_for_timeout(400)
+        wanted = await page.evaluate(
+            "()=>{const b = [...document.querySelectorAll('#view .pill[data-cat]')]"
+            ".find((x) => x.dataset.cat !== 'all'); return b ? b.dataset.cat : null;}")
+        refused = (await tap(f"#view .pill[data-cat='{wanted}']") if wanted else "absent")
+        chosen = await page.evaluate(
+            "()=>({cat: window.__magasin.lire().etat.libCat,"
+            " pressed: (document.querySelector('#view .pill[aria-pressed=true]')||{})"
+            ".dataset?.cat || null})")
+        journal.check(
+            "a real tap on a category pill filters by THAT category",
+            not refused and chosen["cat"] == wanted and chosen["pressed"] == wanted,
+            f"{wanted} → {chosen}" if not refused else f"data-cat {refused}")
+
+        refused = await tap("#view [data-lmode='grid']")
+        mode = await page.evaluate("""()=>({
+          mode: window.__magasin.lire().etat.libMode,
+          drawn: (document.querySelector('#libitems')||{}).className || null,
+        })""")
+        journal.check(
+            "a real tap on the view switch really switches the view",
+            not refused and mode["mode"] == "grid" and mode["drawn"] == "grid",
+            str(mode) if not refused else f"data-lmode {refused}")
+        await page.evaluate("()=>window.__magasin.ecrire({libMode: 'list', libCat: 'all'})")
+        await page.evaluate("()=>window.__referentiel.render()")
+        await page.wait_for_timeout(400)
+
+        # The selection bar is the FRAGMENT's node in `#device`: tapping the
+        # entry proves the seam still works across the two worlds.
+        refused = await tap("#view [data-selmode='1']")
+        selecting = await page.evaluate("""()=>({
+          mode: !!window.__magasin.lire().etat.selMode,
+          bar: !!document.querySelector('#device .selbar'),
+          rows: document.querySelectorAll('#libitems .selrow[data-tile]').length,
+        })""")
+        journal.check(
+            "a real tap on « sélectionner » opens selection, bar included",
+            not refused and selecting["mode"] and selecting["bar"]
+            and selecting["rows"] > 0,
+            str(selecting) if not refused else f"data-selmode {refused}")
+        await page.evaluate("()=>window.__magasin.ecrire({selMode: false})")
+        await page.evaluate("()=>window.__referentiel.render()")
+        await page.wait_for_timeout(400)
+
+        # `data-del` is READ rather than tapped: the control lives behind a
+        # swipe, and R64 is what drives that gesture. What this holds is that
+        # the attribute still names the row it belongs to — the half a moved
+        # emitter can break.
+        named = await page.evaluate("""()=>{
+          const rows = [...document.querySelectorAll('#libitems .card')];
+          const first = rows[0];
+          const action = first ? first.parentElement.querySelector('[data-del]') : null;
+          const title = first ? (first.querySelector('.ctitle')||{}).textContent : null;
+          return {title: title ? title.trim() : null,
+                  del: action ? action.dataset.del : null};}""")
+        journal.check(
+            "a row's delete action names THAT row",
+            bool(named["title"]) and named["del"] == named["title"],
+            str(named))
+
+        await page.evaluate(
+            # french-ok: a French search WORD, typed into the app's own search.
+            "()=>{window.__magasin.ecrire({q: 'stargate'});}")
+        await page.evaluate("()=>window.__referentiel.render()")
+        await page.wait_for_timeout(400)
+        refused = await tap("#view [data-clearq]")
+        cleared = await page.evaluate("""()=>({
+          q: window.__magasin.lire().etat.q,
+          field: (document.querySelector('#libq')||{}).value,
+          cross: !!document.querySelector('#view [data-clearq]'),
+        })""")
+        journal.check(
+            "a real tap on the search's cross clears the field AND the search",
+            not refused and cleared["q"] == "" and cleared["field"] == ""
+            and not cleared["cross"],
+            str(cleared) if not refused else f"data-clearq {refused}")
+
         # (c-quater) LEAVING A MIGRATED PAGE MUST NOT KILL THE SHELL. This is
         # the half of the ownership law no hold covered, and it cost a real
         # defect: the settings page's save bar is a React portal into `#device`,
