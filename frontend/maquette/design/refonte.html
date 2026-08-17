@@ -14264,237 +14264,6 @@
     );
   }
 
-  /* THE LABEL IS FRENCH, AND IT IS CURATED.
-
-     The engine's key is snake_case English, and so is the comment above it in
-     the file. Using that comment as the label — the obvious shortcut — gives a
-     settings screen written in English, on which a French search finds
-     nothing: « espace » matched no row, because the row said « Minimum free
-     space on the staging drive before ingest ».
-
-     So the label comes from a written map, the same way the shipped editor
-     already names its sections and its secrets, and a key absent from it falls
-     back to itself, humanised. Never invented prose about what a key might do:
-     a wrong explanation is worse than a raw key, because a raw key at least
-     admits it needs looking up.
-
-     The comment is not lost — it is the EXPLANATION shown in the panel, where
-     there is room for a sentence and where being English is a smaller cost
-     than being absent. */
-  const LIBELLES_REGLAGES = {
-    /* The six schedulers share the key `cron_restart`, so the leaf would draw
-       « cron restart » six times in one list — the very defect this map exists
-       for. Each is named by what it goes and does. */
-    "personalscraper-health-check": "Contrôle de santé du système",
-    "personalscraper-search": "Recherche des releases suivies",
-    "personalscraper-grab": "Récupération des releases trouvées",
-    "personalscraper-follow-detect": "Détection des épisodes diffusés",
-    "personalscraper-index-enrich": "Enrichissement de l'index",
-    "personalscraper-backfill-ids": "Complétion des identifiants croisés",
-    torrent_complete_dir: "Dossier où qBittorrent dépose les torrents terminés",
-    staging_dir: "Dossier de transit avant rangement",
-    data_dir: "Dossier des données du pipeline",
-    disks: "Disques de destination",
-    active: "Actif",
-    priority: "Priorité",
-    movies: "Films",
-    tv_shows: "Séries",
-    staging_dirs: "Sous-dossiers du transit",
-    category_rules: "Règles de catégorie",
-    custom_categories: "Catégories personnalisées",
-    default_movies_category: "Catégorie par défaut des films",
-    default_tv_category: "Catégorie par défaut des séries",
-    maps_to: "Range dans",
-    applies_to: "S'applique à",
-    requires_genre_id: "Exige le genre",
-    requires_origin_country: "Exige le pays d'origine",
-    aliases: "Autres noms acceptés",
-    episode_default_name: "Nom donné à un épisode sans titre",
-    folder_name: "Motif du nom de dossier",
-    encoding_rules: "Règles d'encodage des noms",
-    allow_synthetic_rename_on_unmatched: "Renommer même sans correspondance",
-    long_title_threshold: "Longueur au-delà de laquelle un titre est long",
-    short_title_length: "Longueur d'un titre raccourci",
-    short_title_threshold: "Longueur en dessous de laquelle un titre est court",
-    min_length_ratio: "Proportion minimale conservée d'un titre",
-    enabled: "Activé",
-    max_per_tracker: "Résultats maximum par tracker",
-    max_total_results: "Résultats maximum au total",
-    timeout_per_tracker: "Délai d'attente par tracker",
-    search_query_format: "Forme de la requête envoyée au tracker",
-    tiers: "Paliers de trackers",
-    preferred_resolution: "Résolution préférée",
-    preferred_codec: "Codec préféré",
-    fallback_codecs: "Codecs acceptés à défaut",
-    rejected_codecs: "Codecs refusés",
-    required_languages: "Langues exigées",
-    fallback_language: "Langue acceptée à défaut",
-    max_size_movie_gb: "Taille maximale d'un film",
-    max_size_episode_gb: "Taille maximale d'un épisode",
-    min_free_space_staging_gb: "Espace libre minimal avant une ingestion",
-    min_free_space_disk_gb: "Espace libre minimal avant un rangement",
-    circuit_breaker_threshold: "Erreurs d'affilée avant de couper",
-    circuit_breaker_cooldown: "Attente avant de réessayer après une coupure",
-    target_ratio: "Ratio de partage visé",
-    min_ratio: "Ratio de partage minimal",
-    min_seed_time: "Durée de partage minimale",
-    hit_and_run_grace: "Tolérance avant de considérer un abandon",
-    cross_seed: "Partage croisé",
-    verify_seed_pure: "Vérifier qu'un partage reste intact",
-    cutoff_days: "Ancienneté au-delà de laquelle on n'insiste plus",
-    budget_seconds: "Temps accordé à une recherche",
-    language: "Langue des métadonnées",
-    languages: "Langues acceptées",
-    artwork_language: "Langue des visuels",
-    prefer_local_title: "Préférer le titre local",
-    fallback_youtube_search: "Chercher sur YouTube à défaut",
-    lock_to_series_provider: "S'en tenir au fournisseur de la série",
-    use_when_available: "Utiliser quand c'est disponible",
-    profile_priority: "Ordre des profils",
-    overlays: "Surcouches de configuration",
-    tmdb: "TMDB",
-    tvdb: "TVDB",
-    omdb: "OMDb",
-    trakt: "Trakt",
-    paranoia_window_seconds: "Fenêtre de vérification supplémentaire",
-    db_path: "Emplacement de la base d'index",
-    max_workers_total: "Travailleurs simultanés",
-    read_rate_mb_per_sec: "Débit de lecture accordé",
-    checkpoint_every_n_files: "Points de reprise, tous les N fichiers",
-    drop_indexes_during_full_scan: "Retirer les index pendant un scan complet",
-    merkle_delta_freeze_threshold: "Seuil de gel du calcul d'écarts",
-    n_strikes_for_softdelete: "Absences avant de marquer un média disparu",
-    deleted_item_retention_days: "Durée de conservation d'un média supprimé",
-    host: "Adresse d'écoute",
-    port: "Port d'écoute",
-    username: "Nom d'utilisateur",
-    redis_url: "Adresse de Redis",
-    stream_key: "Nom du flux d'événements",
-    stream_maxlen: "Événements gardés dans le flux",
-    session_ttl_hours: "Durée d'une session",
-    cookie_secure: "Cookie réservé aux connexions sûres",
-    dev_mode: "Mode développement",
-    config_version: "Version du format de configuration",
-
-    // Keyed by full path where the leaf alone would name two different things.
-    "scraper.language": "Langue visée par le scrapage",
-    "scraper.fallback_language": "Langue de repli du scrapage",
-    "scraper.prefer_local_title": "Préférer le titre local au scrapage",
-    "web.enabled": "Serveur web activé",
-  };
-
-  /* A leaf key alone does not identify a setting. `enabled` sits under every
-     tracker, every torrent client, every metadata provider and the web server:
-     labelling the rows by the leaf drew « Activé » seven times in one list, and
-     the only thing telling them apart was a machine path nobody scans. A row is
-     labelled by its SUBJECT — the instance it belongs to — then by what it does.
-
-     The subject is derived from the path, so a provider added tomorrow is named
-     without touching the rendering. Segments that name a COLLECTION rather than
-     an instance carry nothing and are dropped. */
-  const CONTENANTS_REGLAGES = new Set([
-    "providers",
-    "clients",
-    "categories",
-    "priorities",
-    "defaults",
-    "genre_mapping",
-    "cadence",
-  ]);
-
-  const NOMS_SUJETS = {
-    c411: "C411",
-    tr4ker: "Tr4ker",
-    lacale: "LaCale",
-    qbittorrent: "qBittorrent",
-    transmission: "Transmission",
-    tmdb: "TMDB",
-    tvdb: "TVDB",
-    omdb: "OMDb",
-    trakt: "Trakt",
-    telegram: "Telegram",
-    healthchecks: "Healthchecks",
-    movies: "Films",
-    movies_animation: "Films d'animation",
-    movies_documentary: "Documentaires",
-    tv_shows: "Séries",
-    tv_shows_animation: "Séries d'animation",
-    tv_shows_documentary: "Séries documentaires",
-    anime: "Animés",
-    tv_programs: "Émissions",
-    standup: "Spectacles",
-    theater: "Théâtre",
-    audiobooks: "Livres audio",
-    movie_scraping: "Scrapage des films",
-    series_scraping: "Scrapage des séries",
-    episode_scraping: "Scrapage des épisodes",
-    episode_scraping_policy: "Politique de scrapage des épisodes",
-    season_pack_policy: "Saisons en un seul fichier",
-    anime_rule: "Règle des animés",
-    recommendations: "Recommandations",
-    notations: "Notations",
-    spotlight: "Spotlight",
-    drift: "Dérive",
-    economy: "Obligations de partage",
-    fuzzy_match: "Rapprochement approximatif",
-    library_check: "Contrôle de la médiathèque",
-    library: "Médiathèque",
-    ingest: "Récupération",
-    scan: "Balayage",
-    sort: "Tri",
-    watch: "Surveillance",
-    seasons: "Saisons",
-    subtitles: "Sous-titres",
-    cross_seed: "Partage croisé",
-    audio: "Audio",
-    video: "Vidéo",
-    log: "Journal",
-    tmdb_movies: "Genres TMDB (films)",
-    tmdb_tv: "Genres TMDB (séries)",
-    Searchable: "Recherche",
-    MovieDetailsProvider: "Détails des films",
-    TvDetailsProvider: "Détails des séries",
-    EpisodeFetcher: "Épisodes",
-    ArtworkProvider: "Illustrations",
-    VideoProvider: "Bandes-annonces",
-  };
-
-  // A segment falling through to the humanised key is a subject nobody named: a
-  // tracker added tomorrow would show up as a raw machine word. The set is
-  // published so a rule can read it — it catches an ABSENT name, never a wrong
-  // one, and a wrong one is only caught by reading the file it comes from.
-  window.__sujetsSansNom = new Set();
-
-  function sujetReglage(reglage) {
-    const segments = reglage.c
-      .split(".")
-      .slice(0, -1)
-      .filter((s) => s !== reglage.f && !CONTENANTS_REGLAGES.has(s));
-    return segments
-      .map((s) => {
-        if (!NOMS_SUJETS[s]) window.__sujetsSansNom.add(s);
-        return NOMS_SUJETS[s] ?? s.replace(/_/g, " ");
-      })
-      .join(" · ");
-  }
-
-  function libelleReglage(reglage) {
-    // A full path wins over a leaf: `language` means the metadata language in
-    // one file and the scrape language in another, and two rows reading
-    // « Langue des métadonnées » would name the same thing twice.
-    const propre =
-      LIBELLES_REGLAGES[reglage.c] ??
-      LIBELLES_REGLAGES[reglage.n] ??
-      (/^\d+$/.test(reglage.n)
-        ? `Genre ${reglage.n}`
-        : reglage.n.replace(/_/g, " "));
-    const sujet = sujetReglage(reglage);
-    return sujet ? `${sujet} — ${propre}` : propre;
-  }
-
-  // `avecFichier` is false when a group header already names the file: repeating
-  // it there prints « tracker » twice on one line and wraps the origin onto two,
-  // which costs a phone more than it tells anyone.
   /* THE FIELD A VALUE ASKS FOR.
 
      The 153 settings the engine really keeps hold ten JSON shapes, and those
@@ -14519,22 +14288,6 @@
 
      A value that is not set (2) keeps the field its type asks for and says it
      is empty — never a zero, never an empty string standing in for « absent ». */
-  const UNITES = {
-    gb: "Go",
-    days: "jours",
-    hours: "heures",
-    seconds: "secondes",
-    minutes: "minutes",
-    m: "minutes",
-    s: "secondes",
-    ratio: "ratio",
-  };
-
-  function uniteDe(reglage) {
-    const dernier = reglage.n.split("_").pop();
-    return UNITES[dernier] ?? null;
-  }
-
   function valeurEnCours(reglage) {
     const id = reglageId(reglage);
     return REG_ETAT.modifs.has(id) ? REG_ETAT.modifs.get(id) : reglage.brut;
@@ -14632,7 +14385,7 @@
     const courante = valeurCourante(reglage);
     const modifie = REG_ETAT.modifs.has(id);
     window.__panneau.ouvrir({
-      titre: libelleReglage(reglage),
+      titre: window.__settingLabels.label(reglage),
       meta: [{ m: `${reglage.f}.json5 · ${reglage.c}` }],
       ...(modifie ? { puce: ["info", "modifié, pas encore écrit"] } : {}),
       blocs: [
@@ -14943,19 +14696,17 @@
     /* SP4d vague 1 — ce que la page Réglages dessine. REG_ETAT est l'objet
        MUTABLE que la délégation écrit : il reste la source, et le composant le
        relit à chaque bump de version du magasin (`render()` appelle
-       `magasin?.toucher()` en premier). Les fonctions de libellé restent celles
-       du fragment tant que le fragment porte les tables : c'est ce qui garde
-       vivant le détecteur `__sujetsSansNom` que R60 lit. */
+       `magasin?.toucher()` en premier). Le NOM d'un réglage, lui, n'est plus
+       ici : `settings-labels.ts` le porte pour la page comme pour le panneau,
+       et le fragment le lit par `window.__settingLabels`. */
     REGLAGES,
     REG_ETAT,
     SECRETS,
     emptyInner,
     chipHTML,
-    libelleReglage,
     valeurCourante,
     nomDeFichier,
     fichiersModifies,
-    uniteDe,
     RISQUES,
     JOURNAL,
     // ACTEURS and AUJOURDHUI are declared with `const` further down this
@@ -16310,8 +16061,8 @@
 
   /* B-026: a navigation write that fails must not fail silently — the URL
      and the interface would then disagree with nothing on record. Published
-     so the harness can read it, the same way `__sujetsSansNom` publishes an
-     absent name rather than hiding it: it catches a write that DID fail,
+     so the harness can read it, the same way the shell publishes the segments
+     no table names rather than hiding them: it catches a write that DID fail,
      never a wrong one. Reset only at load — a measurement that ran before
      leaves no residue, because nothing here ever clears it back to false. */
   window.__navEchec = false;

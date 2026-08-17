@@ -19,11 +19,11 @@
 // legacy save path owns, and R60 reads `REG_ETAT.modifs` directly in five holds.
 // Making it React-owned would leave those holds with nothing to read.
 //
-// The labels come from the FRAGMENT's own `libelleReglage`, not from the copy in
-// `panel.tsx`: it is the function that fills `window.__sujetsSansNom`, the
-// detector R60 reads to catch a path segment nobody named. Unifying the two
-// implementations is a later task's work, and it owes that detector a home on
-// the React side first.
+// The labels come from `settings-labels.ts` — the ONE implementation, shared
+// with the panel that edits a setting, so a curated label cannot read one way
+// on a row and another way above it. The detector that records a path segment
+// nobody named moved there with the naming: it is part of naming a subject,
+// not a diagnostic beside it.
 import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
@@ -31,6 +31,7 @@ import { createPortal } from "react-dom";
 import { Icon } from "../components/icon";
 import type { Setting, SettingsTopic } from "../data";
 import { useReference, useStoreContent } from "../data";
+import { settingLabel } from "../settings-labels";
 
 // The pending-edit marker and the row's own identity live on the same element:
 // the row IS the control the delegation reads.
@@ -41,7 +42,7 @@ function SettingRow({
   setting: Setting;
   withFile?: boolean;
 }): ReactElement {
-  const { REG_ETAT, reglageId, libelleReglage, valeurCourante, nomDeFichier } =
+  const { REG_ETAT, reglageId, valeurCourante, nomDeFichier } =
     useReference();
   const identity = reglageId(setting);
   const edited = REG_ETAT.modifs.has(identity);
@@ -56,7 +57,7 @@ function SettingRow({
       data-reglage={identity}
     >
       <span className="rl">
-        {libelleReglage(setting)}{" "}
+        {settingLabel(setting)}{" "}
         <span className="rf">{origin}</span>
       </span>
       <span className="rv">{String(valeurCourante(setting))}</span>
@@ -158,7 +159,6 @@ export function SettingsPage(): ReactElement | null {
     SECRETS,
     emptyInner,
     chipHTML,
-    libelleReglage,
     tousLesReglages,
     fichiersModifies,
     nomDeFichier,
@@ -230,7 +230,7 @@ export function SettingsPage(): ReactElement | null {
     const all = tousLesReglages();
     const found = all.filter(
       (setting) =>
-        libelleReglage(setting).toLowerCase().includes(query) ||
+        settingLabel(setting).toLowerCase().includes(query) ||
         setting.c.toLowerCase().includes(query),
     );
     return (

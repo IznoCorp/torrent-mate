@@ -15,18 +15,14 @@
 // those objects, so every key below (`titre`, `blocs`, a block's `type`, an
 // action's `cible`…) stays whatever the fragment writes.
 //
-// TWO WAYS INTO THE SAME RESOURCE, and the split is deliberate. Prose —
-// anything a reader reads as a sentence — goes through `t()`, so a component
-// re-renders when the language changes. The three settings DICTIONARIES are
-// read from the imported resource object directly: their lookups run in plain
-// functions (`settingLabel`, `settingSubject`, `unitOf`) that are not
-// components and cannot hold a hook, their keys are DATA (setting ids, path
-// segments, unit suffixes) rather than translation keys, and a key absent from
-// the table has a fallback that `t()`'s own missing-key behaviour would fight.
+// Prose — anything a reader reads as a sentence — goes through `t()`, so this
+// component re-renders when the language changes. HOW A SETTING IS NAMED is
+// not prose and is not here: `settings-labels.ts` owns it, for this panel and
+// for the page that lists the settings alike.
 import { Fragment, type JSX } from "react";
 import { useTranslation } from "react-i18next";
 import { useReference, type Setting, type Reference } from "../data";
-import fr from "../i18n/fr.json";
+import { settingLabel, unitOf } from "../settings-labels";
 
 // The exact shape `svgIcon(paths, strokeWidth)` produced as an HTML
 // string — rebuilt as a real element so it composes with JSX. Same helper
@@ -393,76 +389,15 @@ function SeasonsBlock({
 
 /* --- field ----------------------------------------------------------- */
 
-// `unitOf` / `fileName` are pure formatting off a `Setting`'s own
-// fields — refonte.html keeps them private (not published on
-// `__referentiel`) but they carry no engine state, so they are reproduced
-// verbatim rather than re-derived differently. The unit NAMES live in
-// `fr.json` (`settings.units`), keyed by the setting-name suffix the split
-// below produces — a suffix is data, not French.
-const UNITS: Record<string, string> = fr.settings.units;
-
-function unitOf(setting: Setting): string | null {
-  const last = setting.n.split("_").pop();
-  return last ? (UNITS[last] ?? null) : null;
-}
-
+// `fileName` is pure formatting off a `Setting`'s own fields —
+// refonte.html keeps it private (not published on `__referentiel`) but it
+// carries no engine state, so it is reproduced verbatim rather than
+// re-derived differently. HOW A SETTING IS NAMED is not reproduced at all:
+// `settings-labels.ts` is the one implementation, read by the page that lists
+// the settings and by this panel alike, so a curated label cannot say one
+// thing on a row and another above it.
 function fileName(f: string): string {
   return f.includes(".") ? f : `${f}.json5`;
-}
-
-// THE LABEL IS FRENCH, AND IT IS CURATED — the table lives in `fr.json`
-// (`settings.labels`), and its KEYS are setting ids: a leaf name
-// (`staging_dir`), a full path where the leaf alone would name two different
-// things (`scraper.language`), or a scheduler unit name. Those are data,
-// never French. A key absent from it falls back to itself, humanised.
-const SETTING_LABELS: Record<string, string> = fr.settings.labels;
-
-// A leaf key alone does not identify a setting. `enabled` sits under every
-// tracker, every torrent client, every metadata provider and the web
-// server — the row is labelled by its SUBJECT (the instance it belongs to),
-// then by what it does. Segments naming a COLLECTION rather than an
-// instance carry nothing and are dropped.
-const SETTING_CONTAINERS = new Set([
-  "providers",
-  "clients",
-  "categories",
-  "priorities",
-  "defaults",
-  "genre_mapping",
-  "cadence",
-]);
-
-// The SUBJECT names live in `fr.json` (`settings.subjects`), keyed by the
-// path segment they name — a tracker, a client, a provider, a category — which
-// is data. A segment absent from the table falls back to itself, underscores
-// spaced out.
-const SUBJECT_NAMES: Record<string, string> = fr.settings.subjects;
-
-// `settingSubject` drops the legacy `window.__sujetsSansNom.add(s)` diagnostic
-// side effect (an unpublished engine global, unrelated to what a subject
-// renders as) — everything that decides the TEXT is reproduced.
-function settingSubject(setting: Setting): string {
-  const segments = setting.c
-    .split(".")
-    .slice(0, -1)
-    .filter((s) => s !== setting.f && !SETTING_CONTAINERS.has(s));
-  return segments
-    .map((s) => SUBJECT_NAMES[s] ?? s.replace(/_/g, " "))
-    .join(" · ");
-}
-
-function settingLabel(setting: Setting): string {
-  // A full path wins over a leaf: `language` means the metadata language in
-  // one file and the scrape language in another, and two rows reading
-  // « Langue des métadonnées » would name the same thing twice.
-  const clean =
-    SETTING_LABELS[setting.c] ??
-    SETTING_LABELS[setting.n] ??
-    (/^\d+$/.test(setting.n)
-      ? `${fr.settings.genre} ${setting.n}`
-      : setting.n.replace(/_/g, " "));
-  const subject = settingSubject(setting);
-  return subject ? `${subject} — ${clean}` : clean;
 }
 
 function FieldBlock({

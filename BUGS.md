@@ -124,7 +124,7 @@ them. None is reproduced on a device yet; each entry below records the walk that
   the interface never disagree », with nothing logged.
   **Fixed (SP4b, task 6).** Three swallows now `console.error` and raise
   `window.__navEchec = true`, a probe published next to the other probe flags
-  (`__sujetsSansNom`'s precedent) for the harness to read: the `data-go` handler's own tail,
+  (the precedent set by the segments no table names, since SP4d wave 1 published by the shell as `window.__settingLabels.unnamedSubjects`) for the harness to read: the `data-go` handler's own tail,
   `noterLeChemin`'s (`refonte.html` ~16561, the write door every OTHER navigation goes
   through), and `data-navgo`'s own tail (`refonte.html` ~18188-18194) — the pattern's
   ORIGIN, byte-identical in shape and risk, and left silent in the first pass (a review

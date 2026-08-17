@@ -325,11 +325,9 @@ export type Reference = {
   SECRETS: Secret[];
   emptyInner: (title: string, body: string) => string;
   chipHTML: (chip: [string, string] | null) => string;
-  libelleReglage: (setting: Setting) => string;
   valeurCourante: (setting: Setting) => unknown;
   nomDeFichier: (file: string) => string;
   fichiersModifies: () => string[];
-  uniteDe: (setting: Setting) => string | null;
   RISQUES: Record<string, Risk>;
   JOURNAL: DeletionJournal;
   ACTEURS: Record<string, string>;
