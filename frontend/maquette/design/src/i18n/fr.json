@@ -442,7 +442,7 @@
       "journal": "Journal des suppressions",
       "journalNote": "Les {{total}} opérations destructrices que la médiathèque a subies. Toutes ont été écrites par le pipeline lui-même, aucune par une main : un journal qui ne consignerait que l'opérateur serait un journal que personne n'ouvre."
     },
-    "settingsPage": {
+    "settings": {
       "searchPlaceholder": "Chercher un réglage",
       "noMatchTitle": "Aucun réglage ne correspond",
       "noMatchBody": "Cherchez par ce que le réglage FAIT — « espace », « seuil », « langue » — ou par le nom de sa clé.",

@@ -12395,7 +12395,7 @@
      and a caller wanting something outside it adds a field rather than
      passing markup. An envelope guarantees nothing about what it carries. */
   function listeFaitsHTML(lignes) {
-    return `<ol class="flux">${lignesFaitsHTML(lignes)}</ol>`;
+    return `<ol class="flux">${factRowsHTML(lignes)}</ol>`;
   }
 
   /* The rows alone, without the `<ol>` around them. A migrated PAGE renders
@@ -12403,7 +12403,7 @@
      markup of a node it is also drawing — and fills it with these, so the rows
      stay one emitter shared by every fact list rather than two that drift.
      `listeFaitsHTML` above keeps emitting exactly what it always did. */
-  function lignesFaitsHTML(lignes) {
+  function factRowsHTML(lignes) {
     return `${lignes
       .map((ligne) => {
         // No VALUE is what greys a line — a sub-line explaining why there is
@@ -14487,9 +14487,9 @@
       id: "maint",
       l: "Maintenance",
       ic: icons.wrench,
-      /* Pas de `render` : la coquille dessine cette page (`pages/maintenance.tsx`).
-         Retirer `shellOwned` sans rendre un dessinateur PLANTE, au lieu de
-         dessiner en silence une page que plus personne n'entretient. */
+      /* No `render`: the shell draws this page (`pages/maintenance.tsx`).
+         Clearing `shellOwned` without restoring a renderer therefore CRASHES
+         rather than quietly drawing a page nobody maintains any more. */
       horsBarre: true,
       shellOwned: true,
     },
@@ -14497,7 +14497,7 @@
       id: "cfg",
       l: "Réglages",
       ic: icons.wrench,
-      /* Pas de `render` : la coquille dessine cette page (`pages/settings.tsx`),
+      /* No `render`: the shell draws this page (`pages/settings.tsx`),
          barre d'enregistrement comprise, par un second portail dans #device. */
       horsBarre: true,
       shellOwned: true,
@@ -14544,34 +14544,11 @@
        the entry keeps its `render` until nothing calls it, so the two can be
        compared byte for byte while the conversion is being proven. */
     if (!found.shellOwned) view.innerHTML = found.render();
-    monterBarreEnregistrer();
     fab.hidden = !found.fab;
     mountDeck();
     renderNav();
     mountLoaders();
     mountSearch();
-  }
-
-  /* The save bar lives beside the view rather than inside it, so scrolling the
-     settings never scrolls it away — and it exists only when there is
-     something to save. */
-  function monterBarreEnregistrer() {
-    /* The save bar belongs to the settings PAGE, and that page moved to the
-       shell — which draws the bar through a second portal into `#device`, the
-       same host this function used. Removing an existing `#savebar` here would
-       remove a node React holds, so this stops touching it entirely for as long
-       as the page is shell-owned. The condition is read from the page table
-       rather than from the id, so the day another page grows a bar the answer
-       is still in one place. */
-    const page = PAGES_OF().find((element) => element.id === state.page);
-    if (page && page.shellOwned) return;
-    /* No page draws a bar from here any more: the settings page, its only
-       producer, moved to the shell along with the bar. What stays is the
-       CLEANUP — a bar left by a page that has since been migrated would
-       otherwise outlive it — and the place a future page's bar would be
-       declared. */
-    const ancienne = select("#savebar");
-    if (ancienne) ancienne.remove();
   }
 
   /* Loading
@@ -14667,14 +14644,14 @@
     render,
     HEROS,
     POSTERS,
-    /* SP4d wave 1 — what the Système page draws. `listeFaitsHTML` is the
+    /* What the Système page draws. `listeFaitsHTML` is the
        emitter every fact list on this page and on Maintenance goes through;
        a component calls it VERBATIM rather than re-deriving its markup,
        because the delegated click handlers depend on that markup being
        byte-exact (the same reason `cardHTML` is reused above). `skelCards`
        and `surfErr` are the page's two non-ready surfaces. */
     listeFaitsHTML,
-    lignesFaitsHTML,
+    factRowsHTML,
     skelCards,
     skelCardsInner,
     surfErr,
@@ -14688,12 +14665,12 @@
     INDEX,
     DEPENDANCES,
     ERREURS,
-    /* SP4d vague 1 — ce que la page Maintenance dessine. `ouvrirActionMaintenance`
+    /* What the Maintenance page draws. `ouvrirActionMaintenance`
        reste au fragment : c'est la délégation `data-maintact` qui l'appelle, pas
        un composant. */
     MAINT_RUBRIQUES,
     MAINT_ACTIONS,
-    /* SP4d vague 1 — ce que la page Réglages dessine. REG_ETAT est l'objet
+    /* What the Réglages page draws. REG_ETAT est l'objet
        MUTABLE que la délégation écrit : il reste la source, et le composant le
        relit à chaque bump de version du magasin (`render()` appelle
        `magasin?.toucher()` en premier). Le NOM d'un réglage, lui, n'est plus
@@ -14703,7 +14680,6 @@
     REG_ETAT,
     SECRETS,
     emptyInner,
-    chipHTML,
     valeurCourante,
     nomDeFichier,
     fichiersModifies,
@@ -16061,9 +16037,9 @@
 
   /* B-026: a navigation write that fails must not fail silently — the URL
      and the interface would then disagree with nothing on record. Published
-     so the harness can read it, the same way the shell publishes the segments
-     no table names rather than hiding them: it catches a write that DID fail,
-     never a wrong one. Reset only at load — a measurement that ran before
+     so the harness can read it, the same way the shell publishes the set of
+     path segments no table names rather than hiding them: it catches a write
+     that DID fail, never a wrong one. Reset only at load — a measurement that ran before
      leaves no residue, because nothing here ever clears it back to false. */
   window.__navEchec = false;
 

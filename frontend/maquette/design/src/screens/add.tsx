@@ -49,7 +49,6 @@ import {
 
 type Mode = "suivi" | "identifier";
 
-
 export function AddScreen() {
   const { q, mode: rawMode } = useSearch({ from: "/ajout" });
   const mode: Mode = rawMode === "identifier" ? "identifier" : "suivi";

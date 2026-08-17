@@ -75,7 +75,7 @@ function SearchField(): ReactElement {
         id="qreg"
         key={REG_ETAT.q}
         type="search"
-        placeholder={t("screens.settingsPage.searchPlaceholder")}
+        placeholder={t("screens.settings.searchPlaceholder")}
         defaultValue={REG_ETAT.q}
         autoComplete="off"
       />
@@ -106,15 +106,15 @@ function SaveBar(): ReactElement | null {
         <b>
           {t(
             pending > 1
-              ? "screens.settingsPage.pendingMany"
-              : "screens.settingsPage.pendingOne",
+              ? "screens.settings.pendingMany"
+              : "screens.settings.pendingOne",
             { count: pending },
           )}
-        </b>
-        {t("screens.settingsPage.willWrite", { files })}
+        </b>{" "}
+        {t("screens.settings.willWrite", { files })}
       </span>
       <button data-enregistrer="1" disabled={REG_ETAT.lectureSeule}>
-        {t("screens.settingsPage.save")}
+        {t("screens.settings.save")}
       </button>
     </div>,
     device,
@@ -161,14 +161,13 @@ export function SettingsPage(): ReactElement | null {
     chipHTML,
     tousLesReglages,
     fichiersModifies,
-    nomDeFichier,
   } = useReference();
 
   if (REG_ETAT.rubrique === "secrets") {
     return (
       <>
-        <h2 className="h2">{t("screens.settingsPage.secretsTitle")}</h2>
-        <p className="qhint">{t("screens.settingsPage.secretsHint")}</p>
+        <h2 className="h2">{t("screens.settings.secretsTitle")}</h2>
+        <p className="qhint">{t("screens.settings.secretsHint")}</p>
         <div className="panel">
           {SECRETS.map((secret) => (
             <button
@@ -185,8 +184,8 @@ export function SettingsPage(): ReactElement | null {
                 dangerouslySetInnerHTML={{
                   __html: chipHTML(
                     secret.def
-                      ? ["success", t("screens.settingsPage.secretSet")]
-                      : ["warning", t("screens.settingsPage.secretUnset")],
+                      ? ["success", t("screens.settings.secretSet")]
+                      : ["warning", t("screens.settings.secretUnset")],
                   ),
                 }}
               />
@@ -194,8 +193,8 @@ export function SettingsPage(): ReactElement | null {
           ))}
         </div>
         <div className="note">
-          <b>{t("screens.settingsPage.secretsNoteLead")}</b>
-          {t("screens.settingsPage.secretsNoteRest")}
+          <b>{t("screens.settings.secretsNoteLead")}</b>
+          {t("screens.settings.secretsNoteRest")}
         </div>
         <SaveBar />
       </>
@@ -210,7 +209,7 @@ export function SettingsPage(): ReactElement | null {
           <div
             className="empty"
             dangerouslySetInnerHTML={{
-              __html: emptyInner(t("screens.settingsPage.unknownTopic"), ""),
+              __html: emptyInner(t("screens.settings.unknownTopic"), ""),
             }}
           />
           <SaveBar />
@@ -241,8 +240,8 @@ export function SettingsPage(): ReactElement | null {
             className="empty"
             dangerouslySetInnerHTML={{
               __html: emptyInner(
-                t("screens.settingsPage.noMatchTitle"),
-                t("screens.settingsPage.noMatchBody"),
+                t("screens.settings.noMatchTitle"),
+                t("screens.settings.noMatchBody"),
               ),
             }}
           />
@@ -251,8 +250,8 @@ export function SettingsPage(): ReactElement | null {
             <p className="qhint">
               {t(
                 found.length > 1
-                  ? "screens.settingsPage.countMany"
-                  : "screens.settingsPage.countOne",
+                  ? "screens.settings.countMany"
+                  : "screens.settings.countOne",
                 { found: found.length, total: all.length },
               )}
             </p>
@@ -277,18 +276,18 @@ export function SettingsPage(): ReactElement | null {
       <SearchField />
       {REG_ETAT.lectureSeule ? (
         <div className="loaderr">
-          <b>{t("screens.settingsPage.readOnlyLead")}</b>
-          {t("screens.settingsPage.readOnlyRest")}
+          <b>{t("screens.settings.readOnlyLead")}</b>
+          {t("screens.settings.readOnlyRest")}
         </div>
       ) : null}
       {REG_ETAT.redemarrage ? (
         <div className="loaderr">
-          <b>{t("screens.settingsPage.restartLead")}</b>{" "}
-          {fichiersModifies().map(nomDeFichier).join(", ") ||
-            t("screens.settingsPage.restartSomeSettings")}
-          {t("screens.settingsPage.restartRest")}{" "}
+          <b>{t("screens.settings.restartLead")}</b>{" "}
+          {fichiersModifies().join(", ") ||
+            t("screens.settings.restartSomeSettings")}
+          {t("screens.settings.restartRest")}{" "}
           <button data-redemarrer="1">
-            {t("screens.settingsPage.restartNow")}
+            {t("screens.settings.restartNow")}
           </button>
         </div>
       ) : null}
@@ -303,25 +302,25 @@ export function SettingsPage(): ReactElement | null {
       ))}
       <button className="topic" data-rubrique="secrets">
         <span style={{ minWidth: 0, flex: 1 }}>
-          <span className="rt">{t("screens.settingsPage.secretsTitle")}</span>
+          <span className="rt">{t("screens.settings.secretsTitle")}</span>
           <span className="rs">
-            {t("screens.settingsPage.secretsSubtitle")}
+            {t("screens.settings.secretsSubtitle")}
           </span>
         </span>
         <span className="rn">{SECRETS.length}</span>
       </button>
       <button className="topic" data-profil="global">
         <span style={{ minWidth: 0, flex: 1 }}>
-          <span className="rt">{t("screens.settingsPage.rankingTitle")}</span>
+          <span className="rt">{t("screens.settings.rankingTitle")}</span>
           <span className="rs">
-            {t("screens.settingsPage.rankingSubtitle")}
+            {t("screens.settings.rankingSubtitle")}
           </span>
         </span>
-        <span className="rn">{t("screens.settingsPage.arrow")}</span>
+        <span className="rn">{t("screens.settings.arrow")}</span>
       </button>
       <div className="note">
-        <b>{t("screens.settingsPage.mapNoteLead")}</b>
-        {t("screens.settingsPage.mapNoteRest")}
+        <b>{t("screens.settings.mapNoteLead")}</b>
+        {t("screens.settings.mapNoteRest")}
       </div>
       <SaveBar />
     </>

@@ -10,7 +10,7 @@
 // error surfaces) and `state.panne` (the simulated-fault state, which no UI
 // control toggles: only the harness drives it, and only through `__go`).
 //
-// The fact lists go through `lignesFaitsHTML`, the fragment's own row emitter,
+// The fact lists go through `factRowsHTML`, the fragment's own row emitter,
 // reused VERBATIM — the same discipline `add.tsx` applies to `cardHTML`, and
 // for the same reason: those rows carry `data-*` attributes the delegated click
 // handlers read, and re-deriving the markup here would drift the one thing that
@@ -25,7 +25,7 @@ export function SystemPage(): ReactElement | null {
   const state = useUiState();
   const { t } = useTranslation();
   const {
-    lignesFaitsHTML,
+    factRowsHTML,
     skelCardsInner,
     surfErrInner,
     SERVICES,
@@ -63,7 +63,7 @@ export function SystemPage(): ReactElement | null {
   const facts = (rows: Fact[]) => (
     <ol
       className="flux"
-      dangerouslySetInnerHTML={{ __html: lignesFaitsHTML(rows) }}
+      dangerouslySetInnerHTML={{ __html: factRowsHTML(rows) }}
     />
   );
 

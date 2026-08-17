@@ -60,6 +60,21 @@ runs, so nothing needs recording or replaying. A module that fails to evaluate s
 never calls `__demarrerMoteur`, and the startup screen — already first in the frame —
 stays up: a visible, truthful failure instead of an app with mute verbs.
 
+**Three PAGES are the shell's: `sys`, `maint`, `cfg`.** A page is not a screen — it has no
+address of its own, `/` stays the pages' route with its legacy query, the legacy parser keeps
+owning it, and a page's markup must land inside `#view`, where the stylesheet, the harness
+selectors and the document-level click delegation all expect it. So the shell PORTALS into
+`#view`: a `PAGES_OF()` entry carries `shellOwned`, `render()` skips its `innerHTML` write for
+such a page and does everything else it always did, and `src/pages/host.tsx` holds the ONE table
+a later wave adds a page to. The host element IS the page's root (`div.body`, which all three
+emit), never a wrapper; taking ownership calls `view.replaceChildren(host)` ONCE, on the
+transition; handing back needs nothing, because the legacy's own write removes what React left.
+A migrated page's entry loses its `render`, so clearing `shellOwned` without restoring a
+renderer crashes rather than quietly drawing a page nobody maintains. What the page host owes
+the fragment in return: the legacy must never touch a node React holds — the settings page's
+save bar is a second portal, into `#device`, and the legacy's own removal of that node tore the
+React root down until the mounter was deleted. R77 (`page_host.py`) holds all of it.
+
 **The panel is one component, opened through `window.__panneau`.** `<PanelContent>`
 (`components/panel.tsx`) is the single React constructor every panel draws through — a
 `PanelDescriptor` of typed `PanelBlock`s, refused outright if a block's `type` is not one of the five
@@ -769,7 +784,7 @@ They are committed because they encode recipes that cost time to get right.
 | `switchover.py`         | R73: the host serves the build to the byte, rebuilds stale sources before serving, and a broken build answers 503 that says so — proven against a scratch design root, never the real source                                                                                                                                                                                                                                                                                       |
 | `server.py`         | plumbing, not a rule, like `common.py`: a second static server (port 8917, never 8710/8711/8712/8899) that answers `wrapped.html` for any extensionless path with no file behind it, so a deep client-side address (`/profil/…`, `/ajout`) can be requested cold instead of only reached from inside an already-loaded document                                                                                                                                                    |
 | `screen_addresses.py` | R75: a screen route answers a real address, cold, and only while it is open — `/profil/$titre` opens the promised screen with no journey and no click, every image the document loads at that depth resolves through `<base href="/">`, one back from a walked-to screen lands exactly where the walk started with the address returning to what it was, a wrong deep address renders honestly instead of raising, and `/ajout?q=…` opens with its field and results already drawn |
-| `page_host.py`       | R77: one owner per PAGE, and the container never holds two — the fragment writes `#view` only for a page without `shellOwned`, the shell empties it when it takes ownership, and a page draws the same whichever world it was reached from (the residue hold, which measures constancy across predecessors rather than a root count, because pages emit different numbers of roots); and the delegation still reads what React emits — the nine `data-*` attributes the document-level handler acts on, each driven by a REAL tap and looked up before it is tapped |
+| `page_host.py`       | R77: one owner per PAGE, and the container never holds two — the fragment writes `#view` only for a page without `shellOwned`, the shell empties it when it takes ownership, and a page draws the same whichever world it was reached from (the residue hold, which measures constancy across predecessors rather than a root count, because pages emit different numbers of roots); the delegation still reads what React emits — the nine `data-*` attributes the document-level handler acts on, each driven by a REAL tap that compares the row's own value against what opened, and looked up before it is tapped so an absent or inert control is a verdict rather than a dead script; and leaving a migrated page with an unsaved change and coming back leaves the shell ALIVE — the hole that let the legacy remove a node React owned, tearing the root down |
 | `navigation.py`      | R76: the shell owns navigation through one door — `navigate(` appears exactly once under `design/src/`, inside `go()`'s own body; a round trip through the door writes one history entry per call and back walks them in reverse, judged by the screen's own observed state, never by `history.length`; two navigations issued in the same task, no `await` between them, still produce two separate entries                                                                    |
 
 Run them with the Python that carries Playwright, against a local static server on

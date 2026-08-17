@@ -22,27 +22,8 @@
 import { Fragment, type JSX } from "react";
 import { useTranslation } from "react-i18next";
 import { useReference, type Setting, type Reference } from "../data";
+import { Icon } from "./icon";
 import { settingLabel, unitOf } from "../settings-labels";
-
-// The exact shape `svgIcon(paths, strokeWidth)` produced as an HTML
-// string — rebuilt as a real element so it composes with JSX. Same helper
-// as `profile.tsx`'s and `add.tsx`'s, not shared between the three: this
-// is now the third copy the extraction comment on those two warned about,
-// but that extraction is a follow-up of its own.
-function Icon({ paths, strokeWidth }: { paths: string; strokeWidth?: number }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={strokeWidth || 2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      dangerouslySetInnerHTML={{ __html: paths }}
-    />
-  );
-}
 
 // A `richText` segment: plain text, a mono/code aside (`{ m }`), or an
 // emphasised aside (`{ e }`) — exactly the three shapes `richText` switches

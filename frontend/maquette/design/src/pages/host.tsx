@@ -26,7 +26,7 @@
 // pages emit exactly one `<div class="body">`, so the host carries that class
 // and the component renders its CHILDREN. A wrapper would be a markup change,
 // and this conversion changes no markup.
-import { useLayoutEffect, useMemo } from "react";
+import { useLayoutEffect, useRef } from "react";
 import type { ReactElement } from "react";
 import { createPortal } from "react-dom";
 import { useUiState } from "../data";
@@ -55,12 +55,18 @@ export function PageHost(): ReactElement | null {
 
   // One host per page id: switching between two migrated pages must not reuse
   // the previous page's element, or its root attributes would leak across.
-  const host = useMemo(() => {
-    if (!migrated) return null;
+  //
+  // A REF, not `useMemo`: React documents a memo's cache as droppable, and a
+  // drop here would silently re-create the page's whole DOM — a new host, a
+  // fresh `replaceChildren`, and the scroll position gone, with no state change
+  // to explain it. Assigning during render is the sanctioned lazy-init shape.
+  const hostRef = useRef<{ page: string; element: HTMLElement } | null>(null);
+  if (migrated && page && hostRef.current?.page !== page) {
     const element = document.createElement(migrated.tag);
     element.className = migrated.className;
-    return element;
-  }, [migrated]);
+    hostRef.current = { page, element };
+  }
+  const host = migrated && page ? (hostRef.current?.element ?? null) : null;
 
   useLayoutEffect(() => {
     if (!host) return undefined;

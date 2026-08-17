@@ -72,8 +72,12 @@ them. None is reproduced on a device yet; each entry below records the walk that
   screen), one Back after the navigation lands on a stale `{layer}` entry and answers a
   legitimate Back with the « Encore un retour pour quitter » toast; a second Back exits the app.
   **Latent, non atteignable** — re-measured post-SP4a, walked control by control: the DOM carries
-  exactly five `[data-go]` producers, no more. Four (12174, 12677, 12827, 12918) render only into
-  page-body `#view` content (`viewAcquisition`, `viewArrivals`, `viewIntrouvable`, `viewSystem`);
+  exactly five `[data-go]` producers, no more. Four render only into
+  page-body `#view` content (`viewAcquisition`, `viewArrivals`, `viewIntrouvable`, `viewSystem`)
+  — and that census now spans TWO files, because Système moved to the shell: three producers
+  remain in the fragment (`refonte.html` 12020, 12532, 12631) and the fourth is
+  `design/src/pages/system.tsx`'s own `data-go="arr"` button, which renders into the SAME `#view`
+  through the page host and is covered by a layer exactly as it was;
   `#view` sits under every layer (`.screen` z-45, `.sheet` z-47 over `.topbar` z-40), so each is
   covered — and therefore untappable — the instant any layer is open, meaning zero layers, let
   alone two, ever precede their tap. The fifth is the user sheet's « Profil et préférences »
@@ -124,7 +128,7 @@ them. None is reproduced on a device yet; each entry below records the walk that
   the interface never disagree », with nothing logged.
   **Fixed (SP4b, task 6).** Three swallows now `console.error` and raise
   `window.__navEchec = true`, a probe published next to the other probe flags
-  (the precedent set by the segments no table names, since SP4d wave 1 published by the shell as `window.__settingLabels.unnamedSubjects`) for the harness to read: the `data-go` handler's own tail,
+  (the precedent set by the unnamed-subject set, which the shell publishes as `window.__settingLabels.unnamedSubjects`) for the harness to read: the `data-go` handler's own tail,
   `noterLeChemin`'s (`refonte.html` ~16561, the write door every OTHER navigation goes
   through), and `data-navgo`'s own tail (`refonte.html` ~18188-18194) — the pattern's
   ORIGIN, byte-identical in shape and risk, and left silent in the first pass (a review

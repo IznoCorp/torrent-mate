@@ -25,7 +25,7 @@ export function MaintenancePage(): ReactElement | null {
   const state = useUiState();
   const { t } = useTranslation();
   const {
-    lignesFaitsHTML,
+    factRowsHTML,
     skelCardsInner,
     surfErrInner,
     MAINT_RUBRIQUES,
@@ -53,7 +53,7 @@ export function MaintenancePage(): ReactElement | null {
   const facts = (rows: Fact[]) => (
     <ol
       className="flux"
-      dangerouslySetInnerHTML={{ __html: lignesFaitsHTML(rows) }}
+      dangerouslySetInnerHTML={{ __html: factRowsHTML(rows) }}
     />
   );
 

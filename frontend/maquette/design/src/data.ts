@@ -297,14 +297,14 @@ export type Reference = {
   // otherwise silently diverge from.
   HEROS: Record<string, string>;
   POSTERS: Record<string, string>;
-  // SP4d wave 1 — what the Système page draws. `lignesFaitsHTML` emits the
+  // What the Système page draws. `factRowsHTML` emits the
   // ROWS of a fact list without the `<ol class="flux">` around them, because a
   // component draws that element itself; `listeFaitsHTML` (still published, for
   // every page the fragment keeps) emits both. `skelCardsInner` / `surfErrInner`
   // are the same split for the two non-ready surfaces. The data below is
   // read-only reference, never engine state.
   listeFaitsHTML: (rows: Fact[]) => string;
-  lignesFaitsHTML: (rows: Fact[]) => string;
+  factRowsHTML: (rows: Fact[]) => string;
   skelCards: (count: number) => string;
   skelCardsInner: (count: number) => string;
   surfErr: (subject: string) => string;
@@ -324,7 +324,7 @@ export type Reference = {
   REG_ETAT: SettingsState;
   SECRETS: Secret[];
   emptyInner: (title: string, body: string) => string;
-  chipHTML: (chip: [string, string] | null) => string;
+  chipHTML: (chip: [string, string] | null | undefined) => string;
   valeurCourante: (setting: Setting) => unknown;
   nomDeFichier: (file: string) => string;
   fichiersModifies: () => string[];

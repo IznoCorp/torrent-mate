@@ -27,7 +27,6 @@ type QualityProfile = {
   require_known_resolution: boolean;
 };
 
-
 // `retenus`: transplanted verbatim from `openProfil` — the SAME filter over
 // the SAME mock release list, so the count on screen matches what the
 // legacy screen showed for the same profile.

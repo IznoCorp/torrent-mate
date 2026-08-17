@@ -262,12 +262,15 @@ async def main():
         probe = await pg.evaluate("""()=>{
           const seam = window.__settingLabels;
           const before = [...seam.unnamedSubjects];
+          // french-ok: a DATA value shaped like a setting, whose path segment
+          // is deliberately one no table can name — the probe itself.
           seam.label({f: "sonde", c: "segment_que_rien_ne_nomme.x", n: "x"});
           const caught = seam.unnamedSubjects.has("segment_que_rien_ne_nomme");
           seam.unnamedSubjects.delete("segment_que_rien_ne_nomme");
           return {caught, before};}""")
-        check("the unnamed-subject detector actually detects", probe["caught"],
-              "a probe segment no table names was caught"
+        check("the unnamed-subject detector actually detects",
+              probe["caught"] and "segment_que_rien_ne_nomme" not in probe["before"],
+              "a probe segment no table names was absent, then caught"
               if probe["caught"] else "the detector is dead — the hold below "
               "would pass on nothing")
         unnamed_subjects = await pg.evaluate("""()=>{

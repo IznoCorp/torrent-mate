@@ -78,6 +78,30 @@ BLOCKS = (
     ("Dépendances", "dependencies", "dependency", "DEPENDANCES"),
 )
 
+# TWO MORE LISTS CARRY A TONE, and no comparison against a declared field can
+# judge them: their tone is DERIVED where they are drawn (`ok ? success :
+# alert`, and a fixed `alert` for the errors), so a rendered-versus-declared
+# check would be a derivation reading back its own output — the very thing the
+# note above says makes such a check worthless. What can still be held is the
+# half that needs no data: a badge says what its WORD means. Badge PRESENCE is
+# not held here either, and deliberately: the errors block draws a second row
+# that carries no state at all, exactly as the legacy did.
+DERIVED = (
+    ("Exécutions du pipeline", "runs", "run", None),
+    ("Erreurs de code", "codeErrors", "code-error row", None),
+)
+
+# WHAT THE WORD-AGREEMENT HALF CANNOT REACH TODAY, named rather than assumed:
+# the runs list is all-success in the embedded data and has no fault twin —
+# `SERVICES_PANNE` and `PLANIFICATEURS_PANNE` exist, `EXECUTIONS_PANNE` does
+# not — so forcing every run's tone to `success` renders nothing different and
+# no hold can see it. The hold below still bites the reverse (a succeeded run
+# wearing an alert). Closing it properly is a change to the prototype's own
+# named fault state, not to this rule: the state that replays a fault would
+# have to replay a FAILED RUN as well.
+
+ALL_BLOCKS = BLOCKS + DERIVED
+
 # Colours are converted through a canvas, never parsed: `getComputedStyle`
 # returns the space the author wrote — `oklch()` here — and three numbers pulled
 # out of that string with a regex built for `rgb()` mean nothing. Drawing over
@@ -140,13 +164,16 @@ READ = """() => {
   const block = (heading) => {
     const headings = [...document.querySelectorAll('#view .h2')];
     const t = headings.find((x) => x.textContent.trim() === heading);
-    if (!t) return null;
+    // NO HEADING and NO LIST UNDER ONE are different defects — the first sends
+    // a reader to the strings, the second to the component — so the miss says
+    // which of the two it was rather than one word for both.
+    if (!t) return {heading: false, rows: null};
     let n = t.nextElementSibling;
     while (n && !n.classList.contains('flux')) {
-      if (n.classList.contains('h2')) return null;
+      if (n.classList.contains('h2')) return {heading: true, rows: null};
       n = n.nextElementSibling;
     }
-    return n
+    return {heading: true, rows: n
       ? [...n.querySelectorAll('.fx')].map((x) => {
           // The badge IS the value: a row whose value is a state wears it as
           // a chip. Reading a dot beside the label would measure a shape the
@@ -165,7 +192,7 @@ READ = """() => {
               : null,
           };
         })
-      : null;
+      : null};
   };
   return {
     overflow: port.scrollWidth - port.clientWidth,
@@ -179,7 +206,7 @@ READ = """() => {
 }"""
 
 READ = READ.replace("__BLOCKS__", "".join(
-    f"{key}: block({heading!r}),\n    " for heading, key, _, _ in BLOCKS).strip())
+    f"{key}: block({heading!r}),\n    " for heading, key, _, _ in ALL_BLOCKS).strip())
 
 PANEL = """() => ({
   open: document.querySelector('#sheet').classList.contains('open'),
@@ -217,11 +244,21 @@ def real_commands():
 
 
 async def on_page(pg, page, **patch):
+    """Drives a named state and reads it, blocks flattened to their rows.
+
+    Every hold below reads a list, so the reading is flattened here — and what
+    a MISS was (no heading, or a heading with no list under it) is kept beside
+    it under `blocks`, which is what the rung reports.
+    """
     fields = ", ".join(f"{k}: {json.dumps(v)}" for k, v in patch.items())
     await pg.evaluate(
         f"()=>{{applyState({{page: '{page}', phase: 'prete'{', ' + fields if fields else ''}}});}}")
     await pg.wait_for_timeout(320)
-    return await pg.evaluate(READ)
+    seen = await pg.evaluate(READ)
+    seen["blocks"] = {key: seen[key] for _, key, _, _ in ALL_BLOCKS}
+    for _, key, _, _ in ALL_BLOCKS:
+        seen[key] = seen["blocks"][key]["rows"]
+    return seen
 
 
 async def main():
@@ -234,7 +271,11 @@ async def main():
         pg.on("pageerror", lambda e: errors.append(str(e)))
 
         # ── SYSTÈME ────────────────────────────────────────────────────────
-        sys_view = await on_page(pg, "sys")
+        # NAMED, both dials: a state driven without naming every dial inherits
+        # whatever the previous one left. The reading below is the one the rung
+        # and every badge hold rest on, so it is pinned exactly like the one on
+        # the way back from the fault.
+        sys_view = await on_page(pg, "sys", panne=False)
 
         # 0. THE RUNG EVERYTHING BELOW STANDS ON: a list that was not FOUND is
         # not a list that is fine. The five blocks are located by their French
@@ -243,14 +284,17 @@ async def main():
         # spells differently would leave the badge holds green while the page
         # showed nothing. Held first, and by count, because a found-but-empty
         # list passes exactly the same holds a missing one does.
-        for heading, key, word, _ in BLOCKS:
+        for heading, key, word, _ in ALL_BLOCKS:
             rows = sys_view[key]
+            found = sys_view["blocks"][key]["heading"]
             journal.check(
                 f"the « {heading} » list is found, and has rows to judge",
                 rows is not None and len(rows) > 0,
-                "NOT FOUND — no heading carries that text, so every "
-                f"{word} hold below would judge an empty list"
-                if rows is None else f"{len(rows)} row(s)")
+                f"{len(rows)} row(s)" if rows else
+                (f"NO HEADING carries that text — every {word} hold below would "
+                 "judge an empty list" if not found else
+                 f"the heading is there and NO LIST follows it — every {word} "
+                 "hold below would judge an empty list"))
 
         # 1. No blocked medium here. The two stuck folders are named on
         # Arrivées; finding either name on Système means a medium is being
@@ -320,10 +364,12 @@ async def main():
         # measuring the pattern rather than the interface. Reading `ok` off the
         # page's own data proves the derivation was not bypassed by a colour
         # written in by hand, which is the only way the two could disagree.
-        # EVERY list that carries a tone, not only the two the page opens with:
-        # a mutation that coloured a nearly-full disk as an alert changed
-        # nothing, because nothing looked at the disks. A guard that covers two
-        # lists out of five is a guard for two lists.
+        # EVERY list whose tone can be compared against a DECLARED field, not
+        # only the two the page opens with: a mutation that coloured a
+        # nearly-full disk as an alert changed nothing, because nothing looked
+        # at the disks. A guard that covers two lists out of five is a guard for
+        # two lists. The two whose tone is derived where they are drawn are held
+        # just below, by the half that needs no data.
         for _, key, name, source in BLOCKS:
             rows = sys_view[key]
             without_badge = [x["l"] for x in (rows or []) if x["tone"] is None]
@@ -337,6 +383,16 @@ async def main():
             misworded = [
                 f"« {x['v']} » en {x['tone']}"
                 for x in (rows or [])
+                for expected, words in VOCABULARY.items()
+                if x["v"] in words and x["tone"] != expected
+            ]
+            journal.check(f"a {name}'s tone says what its WORD means",
+                          not misworded, "; ".join(misworded) or "all agree")
+
+        for _, key, name, _ in DERIVED:
+            misworded = [
+                f"« {x['v']} » en {x['tone']}"
+                for x in (sys_view[key] or [])
                 for expected, words in VOCABULARY.items()
                 if x["v"] in words and x["tone"] != expected
             ]
@@ -360,6 +416,10 @@ async def main():
             })(),
           }))
           .filter((r) => r.badge && /^[\\d\\s  ]+$/.test(r.v.replace(/titres|éléments/g, '')))""")
+        journal.check("the page draws a badged quantity at all",
+                      len(quantities) > 0,
+                      f"{len(quantities)} — the hold below asserts an EMPTINESS, "
+                      "and an empty list satisfies it whatever the tones are")
         wrongly_toned = [q for q in quantities if q["tone"] != "info"]
         journal.check("a quantity carries only the « info » tone, never a success or an alert",
                       not wrongly_toned, str(wrongly_toned) or f"{len(quantities)} quantity(ies), all in info")
@@ -380,6 +440,11 @@ async def main():
             for state_ in (False, True):
                 await on_page(pg, "sys", panne=state_)
                 contrasts = await pg.evaluate(CONTRAST)
+                journal.check(
+                    f"there are badges to read — {theme} theme"
+                    + (", with a fault" if state_ else ""),
+                    len(contrasts) > 0,
+                    f"{len(contrasts)} badge(s)")
                 unreadable = [f"{c['word']} ({c['contrast']})"
                               for c in contrasts if c["contrast"] < CONTRAST_FLOOR]
                 journal.check(
@@ -398,18 +463,22 @@ async def main():
 
         # The rung again, on the reading « at rest » is judged from: that hold
         # says « nothing alerts », which is true of an empty list too.
-        resting = {key: sys_view[key] for _, key, _, _ in BLOCKS
-                   if not sys_view[key]}
-        journal.check("the resting reading still finds all five lists",
-                      not resting,
-                      f"missing or empty: {sorted(resting)}" if resting
+        resting = {key: ("no heading" if not sys_view["blocks"][key]["heading"]
+                         else "no list under the heading"
+                         if sys_view[key] is None else "empty")
+                   for _, key, _, _ in ALL_BLOCKS if not sys_view[key]}
+        journal.check("the resting reading still finds every toned list",
+                      not resting, str(resting) if resting
                       else ", ".join(f"{key}={len(sys_view[key])}"
-                                     for _, key, _, _ in BLOCKS))
+                                     for _, key, _, _ in ALL_BLOCKS))
 
-        journal.check("at rest, nothing alerts on this machine",
-                         all(x["tone"] == "success"
-                             for x in (sys_view["services"] or []) + (sys_view["schedulers"] or [])),
-                         "success everywhere")
+        alerting = [x["l"] for x in (sys_view["services"] or [])
+                    + (sys_view["schedulers"] or []) if x["tone"] != "success"]
+        journal.check("at rest, no service and no scheduler alerts",
+                      not alerting,
+                      str(alerting) if alerting else
+                      f"{len(sys_view['services']) + len(sys_view['schedulers'])} "
+                      "rows, success everywhere")
         journal.check("and the resting state does not present itself as a simulation",
                          not sys_view["simulated"])
 
