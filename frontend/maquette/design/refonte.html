@@ -12731,66 +12731,6 @@
   </div>`;
   }
 
-  function viewSystem() {
-    if (state.phase !== "prete")
-      return `<div class="body">${state.phase === "erreur" ? surfErr("l'état de la machine") : skelCards(3)}</div>`;
-    return `<div class="body">
-    <div class="note"><b>Système répond à une seule question : la machine va-t-elle bien ?</b> Un média bloqué n'est pas ici — c'est une décision du pipeline, et elle est dans Arrivées. Ce qu'on trouve ici, ce sont les processus, les passages programmés, la place qui reste, et le code qui a levé une erreur.</div>
-
-    ${
-      state.panne
-        ? `<div class="note"><b>Panne SIMULÉE.</b> Cette machine est verte partout, et un écran qui ne peut être que vert ne se juge pas : cet état rejoue une panne pour montrer ce qu'on verrait le jour où quelque chose s'arrête. Rien ici n'est lu du système.</div>`
-        : ""
-    }
-    <h2 class="h2">Services</h2>
-    ${listeFaitsHTML(state.panne ? SERVICES_PANNE : SERVICES)}
-
-    <h2 class="h2">Planificateurs</h2>
-    <div class="note"><b>Un planificateur entre deux passages n'est pas arrêté.</b> PM2 le dit « stopped », et c'est la vérité sur le processus et un mensonge sur le système : six lignes rouges sur une machine en parfaite santé. Un service se juge sur « tourne-t-il », un planificateur sur « a-t-il tourné ».</div>
-    ${listeFaitsHTML(state.panne ? PLANIFICATEURS_PANNE : PLANIFICATEURS)}
-
-    <h2 class="h2">Exécutions du pipeline</h2>
-    ${listeFaitsHTML(
-      EXECUTIONS.map((execution) => ({
-        l: execution.q,
-        ton: execution.ok ? "success" : "alert",
-        v: execution.ok ? "réussi" : "échoué",
-        s: execution.d + " · " + execution.r,
-      })),
-    )}
-    <button class="crossref" data-go="arr">Le pipeline se pilote depuis Arrivées, où l'on voit ce qu'il fait aux médias. <span>Arrivées →</span></button>
-
-    <h2 class="h2">Disques</h2>
-    ${listeFaitsHTML(DISQUES)}
-
-    <h2 class="h2">Index de la médiathèque</h2>
-    ${listeFaitsHTML(INDEX)}
-    <button class="crossref" data-page="maint">Réparer ce que l'index signale se fait depuis Maintenance. <span>Maintenance →</span></button>
-
-    <h2 class="h2">Dépendances</h2>
-    ${listeFaitsHTML(DEPENDANCES)}
-
-    <h2 class="h2">Erreurs de code</h2>
-    ${listeFaitsHTML([
-      {
-        l: "Du code a levé",
-        ton: "alert",
-        v: "des erreurs",
-        s: `${ERREURS.total} exécutions sur ${ERREURS.sur} · la dernière ${ERREURS.derniere} — ${ERREURS.quoi}`,
-      },
-      { l: "Où", v: "", s: ERREURS.ou },
-    ])}
-
-    <h2 class="h2">Réglages</h2>
-    <button class="topic" data-page="cfg" style="margin-top:0">
-      <span style="min-width:0;flex:1">
-        <span class="rt">Réglages</span>
-        <span class="rs">Ce que le pipeline fait, et comment — l'heure des passages programmés comprise. Rangés par ce qu'on veut changer, pas par fichier.</span>
-      </span>
-      <span class="rn">→</span>
-    </button>
-  </div>`;
-  }
 
   /* ── RÉGLAGES ────────────────────────────────────────────────────────
      The configuration, and the one decision that shapes everything else:
@@ -14941,7 +14881,9 @@
       id: "sys",
       l: "Système",
       ic: icons.wrench,
-      render: viewSystem,
+      /* No `render`: the shell draws this page (`pages/system.tsx`). Clearing
+         `shellOwned` without restoring a renderer therefore CRASHES rather
+         than quietly drawing a page nobody maintains any more. */
       shellOwned: true,
     },
     /* Réglages is a PAGE, not a fifth tab. The bar holds the four places one
