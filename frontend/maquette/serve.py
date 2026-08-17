@@ -52,11 +52,36 @@ import urllib.parse
 from collections.abc import Callable
 from pathlib import Path
 
+def renamed_env(current: str, former: str) -> str | None:
+    """Returns an environment value, answering to the name it used to have.
+
+    Both of this host's environment names were translated. A caller outside the
+    tree — a shell profile, a launcher — cannot be renamed with the file, and
+    silently falling back to the default is the one behaviour change this wave
+    would otherwise have shipped. The old name still works and says so.
+
+    Args:
+        current: The name to read first.
+        former: The name it used to be.
+
+    Returns:
+        The value, or None when neither name is set.
+    """
+    value = os.environ.get(current)
+    if value:
+        return value
+    value = os.environ.get(former)
+    if value:
+        print(f"{former} is the old name of {current}; still honoured, "
+              "rename it", file=sys.stderr, flush=True)
+    return value
+
+
 # The design root is overridable so a harness rule can point the server at a
 # SCRATCH copy and mutate it freely: no measurement may ever write into the
 # operator's real source.
 DESIGN_ROOT = Path(
-    os.environ.get("TM_DESIGN_ROOT")
+    renamed_env("TM_DESIGN_ROOT", "TM_DESIGN_RACINE")
     or Path(__file__).resolve().parent / "design"
 ).resolve()
 PROTOTYPE = DESIGN_ROOT / "refonte.html"
@@ -91,9 +116,19 @@ def served_texts() -> dict[str, dict[str, str]]:
             fail loudly rather than be served with holes where its words go.
         FileNotFoundError: When the resource file itself is absent.
     """
-    texts = json.loads(TEXTS.read_text(encoding="utf-8")).get("server")
-    if not isinstance(texts, dict):
-        raise ValueError(f'no "server" namespace in {TEXTS}')
+    document = json.loads(TEXTS.read_text(encoding="utf-8"))
+    # Every layer is checked, not only the middle one. A document that is not an
+    # object, or a page entry that is not an object, would otherwise raise an
+    # AttributeError or a TypeError — neither of which the callers catch, so the
+    # host would answer NOTHING AT ALL where it promises to answer loudly, and
+    # the front door of a credential gate would be indistinguishable from a
+    # dead host.
+    texts = document.get("server") if isinstance(document, dict) else None
+    if not isinstance(texts, dict) or not all(
+            isinstance(page, dict) and all(isinstance(word, str)
+                                           for word in page.values())
+            for page in texts.values()):
+        raise ValueError(f'no usable "server" namespace in {TEXTS.name}')
     return texts
 
 
@@ -122,7 +157,8 @@ def mtime_sources() -> int:
 NPM = "/Users/izno/.nvm/versions/node/v22.13.1/bin/npm"
 # Overridable so the timeout path itself can be proven live, the same way
 # TM_DESIGN_ROOT lets a rule serve a scratch root.
-BUILD_TIMEOUT = float(os.environ.get("TM_DESIGN_BUILD_TIMEOUT") or 120)
+BUILD_TIMEOUT = float(
+    renamed_env("TM_DESIGN_BUILD_TIMEOUT", "TM_DESIGN_DELAI_BUILD") or 120)
 
 USERNAME = os.environ.get("TM_DESIGN_USER", "izno")
 
@@ -245,7 +281,7 @@ def manifest() -> bytes:
         The manifest's bytes, escaped to ASCII exactly as the served copy was.
     """
     description = json.dumps(served_texts()["manifest"]["description"])[1:-1]
-    return MANIFEST.replace("DESCRIPTION", description).encode()
+    return MANIFEST.replace("DESCRIPTION", description, 1).encode()
 
 
 def offline_page() -> bytes:
@@ -614,7 +650,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
         """
         try:
             body = build()
-        except (OSError, ValueError, KeyError) as broken:
+        except KeyError as incomplete:
+            # An entry that is absent is the COPY being incomplete, not a build
+            # that failed: answering « Build en échec » would name the wrong
+            # culprit, and the reader would go looking at the build.
+            self._send(503, diagnostic_page(
+                f"missing entry in the served copy: {incomplete}"))
+            return
+        except (OSError, ValueError) as broken:
             self._send(503, build_failure(str(broken)))
             return
         self._send(status, body, content_type=content_type)

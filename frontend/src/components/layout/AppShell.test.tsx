@@ -205,9 +205,9 @@ describe("AppShell mobile nav Sheet", () => {
     expect(within(sheetNav).getByText("Supervision")).toBeInTheDocument();
     expect(within(sheetNav).getByText("Configuration")).toBeInTheDocument();
 
-    // Système (ex-Maintenance + Registre fusionnés, systeme-hub Phase 02).
-    const systeme = within(sheetNav).getByRole("link", { name: "Système" });
-    expect(systeme).toHaveAttribute("href", "/systeme");
+    // Système (ex-Maintenance + Registre fusionnés, system-hub Phase 02).
+    const system = within(sheetNav).getByRole("link", { name: "Système" });
+    expect(system).toHaveAttribute("href", "/systeme");
   });
 
   it("ferme le tiroir lorsqu'une destination est choisie", async () => {

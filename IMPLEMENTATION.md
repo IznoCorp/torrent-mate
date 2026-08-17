@@ -63,9 +63,11 @@ components into `design/src/i18n/fr.json` (343 leaves; the panel's three diction
 **T3** put `design/src`'s files, directories and ~140 declarations into English around a FROZEN
 seam — the ~65 member names the legacy fragment calls, every `data-*` name and value, the `__go`
 state ids, the route paths — with a 934-literal audit proving no rendered byte moved. **T9**
-turned the eight French CSS classes English across all four worlds (fragment, components, harness
-selectors, extracted stylesheet), and recorded in `regions.json`'s `$vocabulary` the thirteen
-names KEPT with the evidence for each. **T4/T5** renamed 29 harness files and translated all 49
+turned the French CSS vocabulary English across all four worlds (fragment,
+components, harness selectors, extracted stylesheet): 33 classes renamed, 3 dropped as
+dead, 6 frozen as data values, and 13 KEPT with the evidence for each recorded in
+`regions.json`'s `$vocabulary`. The plan's « eight » was its first measurement, not the
+executed set. **T4/T5** renamed 29 harness files and translated all 49
 scripts' identifiers, labels and printed formats — `OK`/`ECHEC` became `PASS`/`FAIL`, « N règles
 EXÉCUTÉES » became `N rules EXECUTED` — verified by AST-anonymised equality on 39 of the 49
 scripts and by the hold total, 485, unchanged.

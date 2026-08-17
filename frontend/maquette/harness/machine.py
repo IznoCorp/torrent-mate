@@ -346,7 +346,7 @@ async def main():
         # 2.02 (warning), under AA — true of every chip in the interface long
         # before this page existed. A rule that measures one theme certifies
         # half a design.
-        for theme, apply in (("sombre", "()=>document.documentElement.removeAttribute('data-theme')"),
+        for theme, apply in (("dark", "()=>document.documentElement.removeAttribute('data-theme')"),
                             ("clair", "()=>document.documentElement.setAttribute('data-theme','light')")):
             await pg.evaluate(apply)
             await pg.wait_for_timeout(220)

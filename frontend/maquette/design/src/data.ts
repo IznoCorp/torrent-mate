@@ -54,7 +54,7 @@ export type Release = {
 export type SearchResult = {
   t: string;
   y: string;
-  k: "Film" | "Série"; // french-ok: the legacy kind LABEL, a data value (see above)
+  k: "Film" | "Série"; // french-ok: a data VALUE — the label is read from fr.json at the render
   ov: string;
   owned: boolean;
   followed: boolean;

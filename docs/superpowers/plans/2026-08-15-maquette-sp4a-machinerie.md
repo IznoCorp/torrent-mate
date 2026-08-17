@@ -306,7 +306,7 @@ per call would loop. Components select the narrowest stable slice.
 - Modify: `frontend/maquette/design/index.html` (add `<base href="/" />` as the FIRST
   element of `<head>`, before the PWA block; add `<link rel="icon" href="/favicon.svg" />`
   inside the pwa markers if absent)
-- Modify: `frontend/maquette/harness/bascule.py` (R73 amendment)
+- Modify: `frontend/maquette/harness/switchover.py` (R73 amendment)
 - Modify: `frontend/maquette/regions.json`
 
 **Interfaces:**
@@ -315,7 +315,7 @@ per call would loop. Components select the narrowest stable slice.
   session-gated exactly like `/`); `/favicon.svg` answers 200 with the brand icon;
   unauthenticated `/assets/…` answers 401 (the permanent portal rule, now held).
 
-- [ ] **Step 1: Amend R73 first.** In `bascule.py` (it already boots `serve.py` against a
+- [ ] **Step 1: Amend R73 first.** In `switchover.py` (it already boots `serve.py` against a
       scratch root with `TM_DESIGN_ROOT`): add holds — (fallback) GET `/fiche/Quoi%20Que`
       with a session answers 200 and the SAME bytes as `/`; without a session answers the
       login page like `/` does; (favicon) GET `/favicon.svg` answers 200 `image/svg+xml`;

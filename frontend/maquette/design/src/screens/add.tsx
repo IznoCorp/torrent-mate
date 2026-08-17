@@ -154,7 +154,7 @@ export function AddScreen() {
       return cardHTML({
         t: r.t,
         k: r.k === "Film" ? "movie" : "show",
-        s: `${r.y} · ${r.k} · TMDB`,
+        s: `${r.y} · ${r.k === "Film" ? t("common.film") : t("common.series")} · TMDB`,
         overview: r.ov,
         chip: done
           ? ["success", addVerb(r, i)]
@@ -237,14 +237,24 @@ export function AddScreen() {
                   label here, so it stays in the code with the rest of the data
                   contract — translating the render would only add a mapping
                   between a value and itself. */}
-              {/* french-ok: the three VALUES of `state.addKind`, per the note above */}
-              {["Tout", "Séries", "Films"].map((element) => (
+              {(
+                [
+                  // The VALUES of `state.addKind` — written to the legacy store,
+                  // compared against below, initialised by the engine itself.
+                  // The datum is not its own label any more: the label is read
+                  // from the resource beside it, so the value can stay data.
+                  ["Tout", "kindAll"],
+                  // french-ok: a state VALUE, not the label beside it
+                  ["Séries", "kindSeries"],
+                  ["Films", "kindFilms"],
+                ] as const
+              ).map(([value, key]) => (
                 <button
-                  key={element}
-                  aria-pressed={addKind === element}
-                  onClick={() => write({ addKind: element })}
+                  key={value}
+                  aria-pressed={addKind === value}
+                  onClick={() => write({ addKind: value })}
                 >
-                  {element}
+                  {t(`screens.add.${key}`)}
                 </button>
               ))}
             </div>

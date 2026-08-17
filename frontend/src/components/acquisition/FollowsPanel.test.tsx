@@ -734,9 +734,9 @@ describe("FollowsPanel", () => {
     // Cards are present in list layout — the default mode.
     expect(screen.getAllByTestId("acq-card").length).toBeGreaterThan(0);
     // The "Liste" button should be active (aria-pressed=true).
-    const listeBtn = screen.getByRole("button", { name: /Liste/ });
-    expect(listeBtn).toBeInTheDocument();
-    expect(listeBtn.getAttribute("aria-pressed")).toBe("true");
+    const listBtn = screen.getByRole("button", { name: /Liste/ });
+    expect(listBtn).toBeInTheDocument();
+    expect(listBtn.getAttribute("aria-pressed")).toBe("true");
     // In liste mode, we should see status badges on cards (not the groupé header).
     const sections = screen.queryAllByTestId("section-head");
     expect(sections).toHaveLength(0); // No section headers in list mode.

@@ -80,7 +80,7 @@ them. None is reproduced on a device yet; each entry below records the walk that
   (`cible:{go:"profil"}`, the only dynamic producer in the whole file — confirmed by grep) — its
   only trigger is the header avatar (`data-sheet="utilisateur"`), itself in `.topbar` and so
   covered the same way whenever a screen is already open (measured: `elementFromPoint` at the
-  avatar's coordinates resolves to `.fichebar` inside `#screen`, not the avatar, and a click there
+  avatar's coordinates resolves to `.screenbar` inside `#screen`, not the avatar, and a click there
   opens nothing). One layer (the sheet itself) is therefore the most that can ever precede this
   control's tap; a fresh-boot walk confirms `history.length` is unchanged before and after tapping
   it, matching the single-entry case the fix already covers. No live call path stacks a second

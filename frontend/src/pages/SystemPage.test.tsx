@@ -209,8 +209,8 @@ describe("SystemPage", () => {
     ).toBeInTheDocument();
 
     // The état tab is selected.
-    const etatTab = screen.getByRole("tab", { name: "État" });
-    expect(etatTab).toHaveAttribute("aria-selected", "true");
+    const stateTab = screen.getByRole("tab", { name: "État" });
+    expect(stateTab).toHaveAttribute("aria-selected", "true");
 
     // Content from état tab — monitoring panels + providers section render.
     // DisksPanel, LocksPanel, and the "Fournisseurs" heading are always

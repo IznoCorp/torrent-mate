@@ -388,19 +388,19 @@ PY
 command python3 shell.py; echo "exit=$?"
 ```
 
-Expected: exit 1 — at least one `FAIL … identique` naming the diverging node — CAUTION: the rule REBUILDS at start, which would erase a pre-run mutation. The mutation must therefore be applied differently: run the rule once so `dist/` is fresh, then apply the mutation, then re-run **with the build skipped**. To keep the rule honest AND mutable, `construire()` skips the build when the environment variable `R72_SANS_BUILD=1` is set — add this line at the top of `construire`:
+Expected: exit 1 — at least one `FAIL … identique` naming the diverging node — CAUTION: the rule REBUILDS at start, which would erase a pre-run mutation. The mutation must therefore be applied differently: run the rule once so `dist/` is fresh, then apply the mutation, then re-run **with the build skipped**. To keep the rule honest AND mutable, `construire()` skips the build when the environment variable `R72_SKIP_BUILD=1` is set — add this line at the top of `construire`:
 
 ```python
-    if os.environ.get("R72_SANS_BUILD") == "1":
+    if os.environ.get("R72_SKIP_BUILD") == "1":
         journal.verifier("le build de la coquille aboutit", True,
-                         "sauté (R72_SANS_BUILD=1 — mutation en cours)")
+                         "sauté (R72_SKIP_BUILD=1 — mutation en cours)")
         return True
 ```
 
 (and `import os` at the top). Then the mutation run is:
 
 ```bash
-R72_SANS_BUILD=1 command python3 shell.py; echo "exit=$?"
+R72_SKIP_BUILD=1 command python3 shell.py; echo "exit=$?"
 ```
 
 Expected: exit 1, `FAIL` on DOM identity naming the node. Restore with a plain re-run (no env var — the rebuild restores dist): `command python3 shell.py` → green.
@@ -409,7 +409,7 @@ Expected: exit 1, `FAIL` on DOM identity naming the node. Restore with a plain r
 
 ```bash
 rm ../design/dist/assets
-R72_SANS_BUILD=1 command python3 shell.py; echo "exit=$?"
+R72_SKIP_BUILD=1 command python3 shell.py; echo "exit=$?"
 ```
 
 Expected: exit 1 with `JS errors:` listing failed image loads on the 8917 side (the DOM checks may stay green — the markup is intact; it is the error guard that bites). Restore: `command python3 shell.py` (rebuild recreates the symlink) → green.

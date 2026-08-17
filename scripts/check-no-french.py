@@ -85,11 +85,12 @@ FRENCH_TOKENS = {
     # surfaces and objects of this application
     "acteur", "acteurs", "adresse", "adresses", "affiche", "affiches", "ajout",
     "arrivee", "arrivees", "bandeau", "bascule", "bouton", "boutons", "carte",
-    "cartes", "champ", "champs", "chemin", "chemins", "composant", "composants",
+    "attribut", "attributs", "cartes", "champ", "champs", "chemin", "chemins",
+    "composant", "composants",
     "connexion", "coquille", "deconnexion", "demarrage", "doigt", "donnees",
     "dossier", "dossiers", "ecran", "ecrans", "entree", "entrees", "feuille",
     "fiche", "fiches", "fichier", "fichiers", "filtre", "filtres", "galerie",
-    "glisse", "grille", "heros", "installation", "jeton", "legende", "libelle",
+    "glisse", "grille", "heros", "jeton", "jetons", "legende", "libelle",
     "libelles", "liste", "listes", "magasin", "manquant", "manquants",
     "maquette", "mediatheque", "nombre", "nombres", "panneau", "panneaux",
     "pied", "pont", "profil", "reglage", "reglages", "recherche", "refonte",
@@ -102,7 +103,7 @@ FRENCH_TOKENS = {
     "ajuster", "ajustement", "ajustements", "attendu", "calcule", "chercher",
     "ecrire", "empreinte", "erreur", "erreurs", "etat", "etats", "identifiant",
     "introuvable", "introuvables", "lire", "motdepasse", "ouvrir", "ouvre",
-    "refus", "refusee", "refuser", "toucher", "valeur", "valeurs",
+    "refus", "refusee", "refuser", "sans", "toucher", "valeur", "valeurs",
     "verifier", "vider",
     # words a translation reaches for and gets wrong
     "balisage", "bloc", "blocs", "debut", "deploiement", "marque", "morceau",
@@ -149,7 +150,23 @@ FRENCH_FUNCTION_WORDS = {
     "aucune", "chaque", "meme", "deja", "encore", "moins", "etre", "avoir",
     "fait", "faire", "vers", "chez", "mais", "donc", "alors", "ainsi", "comme",
     "quand", "lorsque", "depuis", "entre", "sous", "trop", "rien", "jamais",
-    "toujours", "nest", "cest",
+    "toujours", "nest", "cest", "un", "aucun", "notre", "votre",
+}
+# `du`, `est` and `et` are NOT here, though they are French: they are also
+# `du -sh`, EST and « et al. » — and a guardrail that flags a shell command
+# teaches its reader to stop believing it. The function-word signal also
+# requires the words to be LOWERCASE in the source, for the same reason (`LA`,
+# `DES`, `EST` are abbreviations; French prose is lowercase).
+
+# Interface copy is rarely a sentence: it is one to three words, often with no
+# accent at all — « Fermer », « Ajouter un dossier », « Aucun resultat ». Two
+# function words never appear in those, so the label vocabulary is its own
+# signal, and ONE of these is enough.
+FRENCH_UI_WORDS = {
+    "ajouter", "annuler", "chercher", "choisir", "confirmer", "continuer",
+    "enregistrer", "fermer", "modifier", "ouvrir", "recommencer", "rechercher",
+    "reessayer", "relancer", "retirer", "retour", "supprimer", "telecharger",
+    "valider", "voir", "aucun", "aucune", "suivant", "precedent", "terminer",
 }
 
 # ── the exceptions, each with its reason ─────────────────────────────────────
@@ -183,10 +200,16 @@ FROZEN_PATH_SEGMENTS = {
     ),
 }
 
-# Declared names that stay French, over the shell and the harness. Empty, and
-# that is the finding: the seam this wave froze is made of object-literal KEYS
-# and `window.` properties, which no arm reads, so nothing had to be excused.
-FROZEN_IDENTIFIERS: dict[str, str] = {}
+# Declared NAMES that stay French. Kept apart from the path allowlist above on
+# purpose: « this directory is an address » is a reason about paths, and letting
+# it excuse a variable would make five French words legal as names everywhere on
+# a justification that says nothing about names.
+FROZEN_IDENTIFIERS = {
+    "MAQUETTE": (
+        "Names the maquette DIRECTORY, whose own name is frozen above — a "
+        "constant holding a path inherits that path's reason and nothing more."
+    ),
+}
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -240,7 +263,7 @@ def french_tokens_in(name: str, path: str = "") -> list[str]:
         if token not in FRENCH_TOKENS:
             continue
         scoped = TOKENS_BY_SCOPE.get(token)
-        if scoped and any(where in path for where in scoped[0]):
+        if scoped and path.startswith(scoped[0]):
             continue
         found.append(token)
     return found
@@ -251,6 +274,19 @@ def french_tokens_in(name: str, path: str = "") -> list[str]:
 # convention is recorded in `regions.json`'s `$vocabulary`). Word-splitting sees
 # `bandeaufiche` as one unknown word and lets it through, so the class arm
 # matches lexicon tokens as SUBSTRINGS instead. The cost of that is below.
+# Tokens the FLAT pass does not read, because each one lives inside an ordinary
+# English word and a flat name has no boundary to tell them apart: `vide`/`vider`
+# in `video`/`provider`/`divider`, `permis` in `permissions`, `marque` in
+# `marquee`, `liste` in `listen`, `bloc` in `block`, `pied` in `copied`. Excluded
+# by TOKEN, once, rather than by NAME — an allowlist that grows one class at a
+# time is an allowlist nobody decides. The identifier arm keeps the full lexicon:
+# it reads camelCase and snake_case, which do have boundaries.
+CSS_BLIND_TOKENS = {
+    "bloc", "blocs", "carte", "cartes", "debut", "entree", "entrees", "garde",
+    "gardees", "liste", "listes", "marque", "permis", "pied", "portee",
+    "principal", "reel", "reels", "sortie", "suite", "vide", "vider",
+}
+
 CSS_ENGLISH_DESPITE_A_TOKEN = {
     "blocked": (
         "English, and it CONTAINS `bloc` — the price of substring matching. The "
@@ -275,7 +311,15 @@ def french_tokens_in_flat(name: str) -> list[str]:
     flat = deaccent(name).lower()
     if flat in CSS_ENGLISH_DESPITE_A_TOKEN:
         return []
-    return sorted({token for token in FRENCH_TOKENS if token in flat})
+    # ANCHORED, and only for tokens long enough to mean something. An unanchored
+    # substring test read `video` as `vide`, `provider` as `vider`, `block` as
+    # `bloc`, `copied` as `pied`, `marquee` as `marque` and `permissions` as
+    # `permis` — eight English names out of eight, in a repository whose subject
+    # is video providers. This vocabulary compounds by prefix and suffix
+    # (`bandeaufiche`, `tiroirreglages`), which is what anchoring reads.
+    return sorted({token for token in FRENCH_TOKENS - CSS_BLIND_TOKENS
+                   if len(token) >= 5
+                   and (flat.startswith(token) or flat.endswith(token))})
 
 
 def relative(path: Path) -> str:
@@ -283,18 +327,71 @@ def relative(path: Path) -> str:
     return str(path.relative_to(ROOT))
 
 
+def read(path: Path) -> str:
+    """Returns a source file's text, BOM included or not.
+
+    `utf-8-sig`, because CPython strips a BOM when it RUNS a file and `ast`
+    refuses one when it parses the same file — a gate must not reject what the
+    project accepts.
+    """
+    return path.read_text(encoding="utf-8-sig")
+
+
 # What each arm actually READ. A guardrail whose scope silently empties — a
 # renamed directory, a glob that stops matching — reports « no violation » with
 # perfect confidence and measures nothing, which is how a rule goes quiet
 # instead of red. These counts are printed on success and asserted non-zero.
+# Keyed by (what, WHERE). Per-counter was not enough: `personalscraper/` and
+# `tests/` alone keep the identifier count near 125 000, so the maquette shell —
+# arm 1's and arm 4's primary target — could vanish entirely and the total would
+# barely move. A scope that empties must be visible as ITSELF.
 examined: dict[str, int] = {
-    "string literals": 0,
-    "hold labels": 0,
-    "declared identifiers": 0,
-    "path segments": 0,
-    "class names": 0,
-    "declared CSS classes": 0,
+    "string literals / shell": 0,
+    "string literals / servers": 0,
+    "string literals / harness tools": 0,
+    "string literals / repository tools": 0,
+    "rendered text / shell": 0,
+    "hold labels / harness": 0,
+    "declared identifiers / shell": 0,
+    "declared identifiers / servers": 0,
+    "declared identifiers / harness": 0,
+    "declared identifiers / harness tools": 0,
+    "declared identifiers / repository tools": 0,
+    "declared identifiers / package": 0,
+    "declared identifiers / tests": 0,
+    "declared identifiers / app": 0,
+    "path segments / repository": 0,
+    "class names / python": 0,
+    "class names / typescript": 0,
+    "declared CSS classes / fragment": 0,
+    "declared CSS classes / extracted": 0,
 }
+
+
+def scope_of(path: Path) -> str:
+    """Returns the coverage key a file belongs to.
+
+    Args:
+        path: The file being read.
+
+    Returns:
+        The suffix of the `examined` key, so an empty scope is visible as
+        itself rather than hidden inside a large total.
+    """
+    where = relative(path)
+    if where.startswith("frontend/maquette/design/src"):
+        return "shell"
+    if where.startswith("frontend/maquette/harness"):
+        return "harness tools" if path.suffix == ".mjs" else "harness"
+    if where.startswith("frontend/maquette/"):
+        return "servers"
+    if where.startswith("frontend/src"):
+        return "app"
+    if where.startswith("scripts/"):
+        return "repository tools"
+    if where.startswith("tests/"):
+        return "tests"
+    return "package"
 
 
 # ── arm 1: strings ───────────────────────────────────────────────────────────
@@ -306,13 +403,19 @@ examined: dict[str, int] = {
 # scanner below, which tracks comments, strings and templates.
 
 HOLD_LABEL = re.compile(
-    r"""(?:\bcheck|\bJournal|\bjournal\.check)\(\s*(?P<q>'''|\"\"\"|'|")"""
+    r"""(?:\bcheck|\bJournal|\bjournal\.check)\(\s*[frbuFRBU]{0,2}"""
+    r"""(?P<q>'''|\"\"\"|'|")"""
     r"""(?P<body>(?:\\.|(?!(?P=q))[^\\])*)(?P=q)""", re.S)
 
 # What the app RENDERS is quoted, in this repository's own convention, inside
 # guillemets. A quotation is not a French name in the code — it is the code
 # naming what the reader of the interface sees — so it is removed before judging.
 QUOTED_UI = re.compile(r"«[^»]*»")
+
+# The text between two tags. Interface copy in JSX carries no quotes at all, so
+# a scanner that only reads string literals walks straight past the very thing
+# arm 1 exists to find: `<p>Réglages du système</p>` is not a literal.
+JSX_TEXT = re.compile(r">([^<>{}]+)<")
 
 
 def python_string_literals(source: str) -> list[tuple[int, str]]:
@@ -415,10 +518,23 @@ def offending_string(body: str, quoting_allowed: bool = False) -> str:
     if has_accent(body):
         accents = sorted({c for c in body if has_accent(c)})
         return f"accented characters {accents}"
-    words = {deaccent(w).lower() for w in WORD.findall(body)}
-    hits = sorted(words & FRENCH_FUNCTION_WORDS)
+    found = WORD.findall(body)
+    # Lowercase in the SOURCE for the FUNCTION words only: French prose is
+    # lowercase, and `LA`/`EST`/`DES` are abbreviations. An interface LABEL is
+    # capitalised by nature — « Fermer » — so the label vocabulary reads every
+    # case.
+    words = {deaccent(word).lower() for word in found}
+    lowercase = {deaccent(word).lower() for word in found if word.islower()}
+    hits = sorted(lowercase & FRENCH_FUNCTION_WORDS)
     if len(hits) >= 2:
         return f"French function words {hits}"
+    # A tool message may NAME the button it presses — « a Retour from the sheet
+    # lands on … » — and that name is capitalised. Inside the application's own
+    # code there is no such excuse, so there the label vocabulary reads every
+    # case.
+    labels = sorted((lowercase if quoting_allowed else words) & FRENCH_UI_WORDS)
+    if labels:
+        return f"French interface words {labels}"
     return ""
 
 
@@ -435,12 +551,56 @@ def pragma_on(lines: list[str], line_no: int) -> str | None:
         JSX attribute has no room for a trailing comment, and a wrapped literal
         must not silently lose its permission to a line break.
     """
-    for candidate in (line_no, line_no - 1, line_no + 1):
-        if 1 <= candidate <= len(lines):
-            found = PRAGMA.search(lines[candidate - 1])
-            if found:
-                return found.group("reason").strip()
+    for candidate in (line_no, line_no - 1):
+        if not 1 <= candidate <= len(lines):
+            continue
+        line = lines[candidate - 1]
+        found = PRAGMA.search(line)
+        # A pragma written INSIDE a string is not a pragma. Without this, one
+        # literal reading `"# french-ok: …"` licensed its neighbours.
+        if found and not inside_quotes(line, found.start()):
+            return found.group("reason").strip()
     return None
+
+
+def inside_quotes(line: str, index: int) -> bool:
+    """Returns True when a position sits inside a quoted span of the line.
+
+    Args:
+        line: The source line.
+        index: The position to judge.
+
+    Returns:
+        True when an odd number of unescaped quotes of some kind precedes it.
+    """
+    for quote in "\'\"`":
+        opened, escaped = 0, False
+        for char in line[:index]:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == quote:
+                opened += 1
+        if opened % 2:
+            return True
+    return False
+
+
+def remedy(path: Path) -> str:
+    """Returns where this file's French is supposed to go instead.
+
+    Args:
+        path: The file the violation was found in.
+
+    Returns:
+        The sentence the violation ends with. A `scripts/` tool has no i18n
+        bundle to be sent to, and telling its author to put a message in the
+        front-end's resource file would be advice nobody can follow.
+    """
+    if scope_of(path) in {"repository tools", "harness tools", "harness"}:
+        return "a developer tool speaks English"
+    return "interface text belongs in design/src/i18n/fr.json"
 
 
 def check_strings(violations: list[str]) -> None:
@@ -458,11 +618,11 @@ def check_strings(violations: list[str]) -> None:
     strict += [p for p in sorted(SCRIPTS.glob("*.py"))
                if p.name != Path(__file__).name]
     for path in sorted(strict):
-        source = path.read_text(encoding="utf-8")
+        source = read(path)
         lines = source.splitlines()
         literals = (python_string_literals(source) if path.suffix == ".py"
                     else script_string_literals(source))
-        examined["string literals"] += len(literals)
+        examined[f"string literals / {scope_of(path)}"] += len(literals)
         for line_no, body in literals:
             reason = offending_string(body)
             if not reason:
@@ -477,14 +637,32 @@ def check_strings(violations: list[str]) -> None:
                 continue
             violations.append(
                 f"{relative(path)}:{line_no}: French string literal "
-                f"({reason}) — interface text belongs in "
-                f"design/src/i18n/fr.json: {body[:60]!r}")
+                f"({reason}) — {remedy(path)}: {body[:60]!r}")
+
+        # The text BETWEEN two tags. Interface copy in JSX carries no quotes,
+        # so the literal scan above walks straight past the commonest shape of
+        # the very thing this arm exists to find.
+        if path.suffix == ".tsx":
+            for match in JSX_TEXT.finditer(source):
+                text = match.group(1)
+                if not text.strip():
+                    continue
+                examined["rendered text / shell"] += 1
+                reason = offending_string(text)
+                if not reason:
+                    continue
+                line_no = source.count("\n", 0, match.start()) + 1
+                if pragma_on(lines, line_no):
+                    continue
+                violations.append(
+                    f"{relative(path)}:{line_no}: French text rendered from the "
+                    f"code ({reason}) — {remedy(path)}: {text.strip()[:60]!r}")
 
     for path in sorted(HARNESS.glob("*.py")):
-        source = path.read_text(encoding="utf-8")
+        source = read(path)
         lines = source.splitlines()
         for match in HOLD_LABEL.finditer(source):
-            examined["hold labels"] += 1
+            examined["hold labels / harness"] += 1
             line_no = source.count("\n", 0, match.start()) + 1
             reason = offending_string(match.group("body"), quoting_allowed=True)
             if not reason:
@@ -530,6 +708,13 @@ def python_declarations(source: str) -> list[tuple[str, int]]:
                     names.append((alias.asname, node.lineno))
         elif isinstance(node, ast.ExceptHandler) and node.name:
             names.append((node.name, node.lineno))
+        elif isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Store):
+            # `self.dossier = …` is how a French field name usually arrives.
+            names.append((node.attr, node.lineno))
+        elif isinstance(node, ast.keyword) and node.arg:
+            names.append((node.arg, getattr(node, "lineno", 0) or 0))
+        elif isinstance(node, (ast.MatchAs, ast.MatchStar)) and node.name:
+            names.append((node.name, node.lineno))
     return names
 
 
@@ -542,14 +727,13 @@ def check_identifiers(violations: list[str]) -> None:
               + sorted((ROOT / "personalscraper").rglob("*.py"))
               + sorted((ROOT / "tests").rglob("*.py")))
     for path in python:
-        source = path.read_text(encoding="utf-8")
+        source = read(path)
         declarations = python_declarations(source)
-        examined["declared identifiers"] += len(declarations)
+        examined[f"declared identifiers / {scope_of(path)}"] += len(declarations)
         for name, line_no in declarations:
             if name in FROZEN_IDENTIFIERS:
                 continue
-            hits = [h for h in french_tokens_in(name, relative(path))
-                    if h not in FROZEN_PATH_SEGMENTS]
+            hits = french_tokens_in(name, relative(path))
             if hits or has_accent(name):
                 violations.append(
                     f"{relative(path)}:{line_no}: French identifier {name!r} "
@@ -557,17 +741,18 @@ def check_identifiers(violations: list[str]) -> None:
 
     web = [p for p in SHELL.rglob("*") if p.is_file() and p.suffix in {".ts", ".tsx"}]
     web += sorted(HARNESS.glob("*.mjs"))
+    web += [p for p in (ROOT / "frontend" / "src").rglob("*")
+            if p.is_file() and p.suffix in {".ts", ".tsx"}]
     for path in sorted(web):
         if "i18n" in path.parts:
             continue
-        source = path.read_text(encoding="utf-8")
+        source = read(path)
         for match in TS_DECLARATION.finditer(source):
-            examined["declared identifiers"] += 1
+            examined[f"declared identifiers / {scope_of(path)}"] += 1
             name = match.group("name")
             if name in FROZEN_IDENTIFIERS:
                 continue
-            hits = [h for h in french_tokens_in(name, relative(path))
-                    if h not in FROZEN_PATH_SEGMENTS]
+            hits = french_tokens_in(name, relative(path))
             if hits or has_accent(name):
                 line_no = source.count("\n", 0, match.start()) + 1
                 violations.append(
@@ -577,11 +762,17 @@ def check_identifiers(violations: list[str]) -> None:
 
 # ── arm 3: file names ────────────────────────────────────────────────────────
 
-TRACKED_ROOTS = ("frontend", "scripts", "personalscraper", "tests")
+# `docs/` is the ONE tree this arm does not walk: dated records keep the names
+# they were written with, and rewriting a record would falsify it.
+UNWATCHED_ROOTS = ("docs/",)
 
 
 def tracked_paths() -> list[str]:
-    """Returns every path under the roots this arm watches.
+    """Returns every path in the repository this arm watches.
+
+    The WHOLE repository, minus `docs/` — four named roots used to be the scope,
+    which left `hooks/`, `config.example/`, `.github/` and the root itself
+    unwatched while the docstring said « anywhere ».
 
     Untracked-but-not-ignored files are listed too (`--others
     --exclude-standard`): a file created five minutes ago is exactly the one
@@ -590,10 +781,10 @@ def tracked_paths() -> list[str]:
     have blocked.
     """
     listed = subprocess.run(
-        ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard",
-         *TRACKED_ROOTS],
+        ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
         cwd=ROOT, capture_output=True, text=True, check=True)
-    return sorted({p for p in listed.stdout.split("\0") if p})
+    return sorted({p for p in listed.stdout.split("\0")
+                   if p and not p.startswith(UNWATCHED_ROOTS)})
 
 
 def check_file_names(violations: list[str]) -> None:
@@ -601,7 +792,7 @@ def check_file_names(violations: list[str]) -> None:
     seen: set[tuple[str, str]] = set()
     for path in tracked_paths():
         for segment in path.split("/"):
-            examined["path segments"] += 1
+            examined["path segments / repository"] += 1
             stem = segment.rsplit(".", 1)[0] if "." in segment else segment
             # Frozen TOKENS, not frozen segments: `maquette` stays wherever it
             # appears — the directory, `extract-maquette-css.py`, the extracted
@@ -695,10 +886,10 @@ def check_class_names(violations: list[str]) -> None:
 
     for path in ([MAQUETTE / "serve.py", MAQUETTE / "resync.py"]
                  + sorted(HARNESS.glob("*.py"))):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
+        tree = ast.parse(read(path))
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
-                examined["class names"] += 1
+                examined["class names / python"] += 1
                 hits = french_tokens_in(node.name, relative(path))
                 if hits or has_accent(node.name):
                     violations.append(
@@ -706,11 +897,14 @@ def check_class_names(violations: list[str]) -> None:
                         f"{node.name!r} ({', '.join(hits) or 'accented'})")
 
     code_class = re.compile(r"\bclass\s+(?P<name>[A-Za-z_$][\w$À-ɏ]*)")
-    for path in sorted(p for p in SHELL.rglob("*")
-                       if p.is_file() and p.suffix in {".ts", ".tsx"}):
-        source = path.read_text(encoding="utf-8")
+    typescript = [p for p in SHELL.rglob("*")
+                  if p.is_file() and p.suffix in {".ts", ".tsx"}]
+    typescript += [p for p in (ROOT / "frontend" / "src").rglob("*")
+                   if p.is_file() and p.suffix in {".ts", ".tsx"}]
+    for path in sorted(typescript):
+        source = read(path)
         for match in code_class.finditer(source):
-            examined["class names"] += 1
+            examined["class names / typescript"] += 1
             name = match.group("name")
             hits = french_tokens_in(name, relative(path))
             if hits or has_accent(name):
@@ -719,18 +913,22 @@ def check_class_names(violations: list[str]) -> None:
                     f"{relative(path)}:{line_no}: French class name {name!r} "
                     f"({', '.join(hits) or 'accented'})")
 
-    sheets = [FRAGMENT] + sorted(EXTRACTED_CSS.glob("*.css"))
+    # `rglob`, and the whole styles tree: `ps/tokens/` holds six real
+    # stylesheets and `globals.css` sits beside `ps/`, all of them unread while
+    # the arm globbed one directory one level deep.
+    sheets = [FRAGMENT] + sorted((ROOT / "frontend" / "src" / "styles").rglob("*.css"))
     for path in sheets:
         if not path.is_file():
             continue
-        source = path.read_text(encoding="utf-8")
+        source = read(path)
         if path is FRAGMENT:
             # The fragment is one document: only its <style> blocks declare CSS.
             source = "\n".join(
                 m.group(1) for m in re.finditer(
                     r"<style[^>]*>(.*?)</style>", source, re.S))
         declared = declared_css_classes(source)
-        examined["declared CSS classes"] += len(declared)
+        examined["declared CSS classes / "
+                 + ("fragment" if path == FRAGMENT else "extracted")] += len(declared)
         for name, line_no in declared.items():
             if allowed_class(name, allowed):
                 continue
