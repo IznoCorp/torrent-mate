@@ -11657,7 +11657,13 @@
   /* An empty section does not render — but an empty VIEW says so, with what
      explains it: never a blank screen, never a dead end. */
   function emptyHTML(titre, corps) {
-    return `<div class="empty"><b>${escapeHtml(titre)}</b>${corps}</div>`;
+    return `<div class="empty">${emptyInner(titre, corps)}</div>`;
+  }
+  /* Same split as `skelCardsInner` / `surfErrInner`: a migrated PAGE draws the
+     `<div class="empty">` itself and fills it with this. `corps` is HTML, not
+     text — the callers pass markup. */
+  function emptyInner(titre, corps) {
+    return `<b>${escapeHtml(titre)}</b>${corps}`;
   }
 
   function secHTML(pip, title, count, inner, note) {
@@ -14534,151 +14540,11 @@
     return REG_ETAT.modifs.has(id) ? REG_ETAT.modifs.get(id) : reglage.brut;
   }
 
-  function ligneReglageHTML(reglage, avecFichier = false) {
-    const modifie = REG_ETAT.modifs.has(reglageId(reglage));
-    const origine = avecFichier
-      ? `${nomDeFichier(reglage.f)} · ${reglage.c}`
-      : reglage.c;
-    return `<button class="settingrow${modifie ? " modified" : ""}" data-reglage="${escapeHtml(reglageId(reglage))}">
-      <span class="rl">${escapeHtml(libelleReglage(reglage))}
-        <span class="rf">${escapeHtml(origine)}</span>
-      </span>
-      <span class="rv">${escapeHtml(String(valeurCourante(reglage)))}</span>
-    </button>`;
-  }
 
-  function barreEnregistrerHTML() {
-    const nombre = REG_ETAT.modifs.size;
-    const fichiers = fichiersModifies();
-    if (nombre === 0) return "";
-    return `<div class="savebar" id="savebar">
-      <span class="sn"><b>${nombre} modification${nombre > 1 ? "s" : ""} en attente</b>
-        Écrira ${fichiers.map((f) => escapeHtml(nomDeFichier(f))).join(", ")}.</span>
-      <button data-enregistrer="1" ${REG_ETAT.lectureSeule ? "disabled" : ""}>Enregistrer</button>
-    </div>`;
-  }
 
-  function viewReglages() {
-    if (REG_ETAT.rubrique === "secrets") return vueSecrets();
-    if (REG_ETAT.rubrique) return vueRubrique(REG_ETAT.rubrique);
 
-    const q = REG_ETAT.q.trim().toLowerCase();
-    if (q) {
-      const trouves = tousLesReglages().filter(
-        (reglage) =>
-          libelleReglage(reglage).toLowerCase().includes(q) ||
-          reglage.c.toLowerCase().includes(q),
-      );
-      return `<div class="body">
-        ${chercheReglagesHTML()}
-        ${
-          trouves.length === 0
-            ? emptyHTML(
-                "Aucun réglage ne correspond",
-                "Cherchez par ce que le réglage FAIT — « espace », « seuil », « langue » — ou par le nom de sa clé.",
-              )
-            : `<p class="qhint">${trouves.length} réglage${trouves.length > 1 ? "s" : ""} sur ${tousLesReglages().length}</p>
-               <div class="panel">${trouves
-                 .slice(0, 40)
-                 .map((r) => ligneReglageHTML(r, true))
-                 .join("")}</div>`
-        }
-      </div>`;
-    }
 
-    return `<div class="body">
-      ${chercheReglagesHTML()}
-      ${
-        REG_ETAT.lectureSeule
-          ? `<div class="loaderr"><b>Lecture seule.</b> Cette instance ne modifie rien — c'est le staging, qui écrit sur les mêmes disques que la production.</div>`
-          : ""
-      }
-      ${
-        REG_ETAT.redemarrage
-          ? `<div class="loaderr"><b>Redémarrage nécessaire.</b> ${escapeHtml(fichiersModifies().join(", ") || "Certains réglages")} ne seront pris en compte qu'au prochain démarrage du service.
-               <button data-redemarrer="1">Redémarrer maintenant</button></div>`
-          : ""
-      }
-      ${REGLAGES.map(
-        (
-          rubrique,
-        ) => `<button class="topic" data-rubrique="${escapeHtml(rubrique.id)}">
-          <span style="min-width:0;flex:1">
-            <span class="rt">${escapeHtml(rubrique.t)}</span>
-            <span class="rs">${escapeHtml(rubrique.s)}</span>
-          </span>
-          <span class="rn">${rubrique.r.length}</span>
-        </button>`,
-      ).join("")}
-      <button class="topic" data-rubrique="secrets">
-        <span style="min-width:0;flex:1">
-          <span class="rt">Secrets et accès</span>
-          <span class="rs">Les clés d'API et les mots de passe. On voit qu'ils sont posés, jamais ce qu'ils valent.</span>
-        </span>
-        <span class="rn">${SECRETS.length}</span>
-      </button>
-      <button class="topic" data-profil="global">
-        <span style="min-width:0;flex:1">
-          <span class="rt">Classement des releases</span>
-          <span class="rs">Ce qui fait préférer une release à une autre. S'ajuste avec un aperçu en direct, donc c'est un écran à part.</span>
-        </span>
-        <span class="rn">→</span>
-      </button>
-      <div class="note"><b>On navigue par ce qu'on veut changer, jamais par fichier.</b> Le moteur en garde dix-neuf ; savoir lequel contient l'espace disque minimal avant une ingestion est une connaissance du code, pas de la médiathèque. Chaque réglage dit d'où il vient — c'est ce qu'il faut pour lire un journal — mais ce n'est pas la carte.</div>
-    </div>`;
-  }
 
-  function chercheReglagesHTML() {
-    return `<div class="search" style="margin-bottom:12px">
-      ${svgIcon(icons.search)}
-      <input id="qreg" type="search" placeholder="Chercher un réglage" value="${escapeHtml(REG_ETAT.q)}" autocomplete="off">
-      ${REG_ETAT.q ? `<button class="searchclear" data-qreg="">${svgIcon(icons.x)}</button>` : ""}
-    </div>`;
-  }
-
-  function vueRubrique(id) {
-    const rubrique = REGLAGES.find((r) => r.id === id);
-    if (!rubrique)
-      return `<div class="body">${emptyHTML("Rubrique inconnue", "")}</div>`;
-    const parFichier = new Map();
-    for (const reglage of rubrique.r) {
-      if (!parFichier.has(reglage.f)) parFichier.set(reglage.f, []);
-      parFichier.get(reglage.f).push(reglage);
-    }
-    return `<div class="body">
-      <h2 class="h2">${escapeHtml(rubrique.t)}</h2>
-      <p class="qhint">${escapeHtml(rubrique.s)}</p>
-      ${[...parFichier.entries()]
-        .map(
-          ([
-            fichier,
-            reglages,
-          ]) => `<h2 class="h2" style="margin-top:16px"><code>${escapeHtml(fichier)}.json5</code></h2>
-          <div class="panel">${reglages.map((r) => ligneReglageHTML(r)).join("")}</div>`,
-        )
-        .join("")}
-    </div>`;
-  }
-
-  function vueSecrets() {
-    return `<div class="body">
-      <h2 class="h2">Secrets et accès</h2>
-      <p class="qhint">On voit qu'une clé est posée, jamais ce qu'elle vaut. Une valeur affichée une fois est une valeur lue par tout ce qui regarde l'écran.</p>
-      <div class="panel">
-        ${SECRETS.map(
-          (
-            secret,
-          ) => `<button class="settingrow" data-secret="${escapeHtml(secret.k)}">
-            <span class="rl">${escapeHtml(secret.l)}
-              <span class="rf">${escapeHtml(secret.k)}</span>
-            </span>
-            <span class="rv">${chipHTML(secret.def ? ["success", "définie"] : ["warning", "absente"])}</span>
-          </button>`,
-        ).join("")}
-      </div>
-      <div class="note"><b>Écrire seulement ce qu'on a tapé.</b> Un champ laissé vide n'efface rien : seule une clé réellement saisie part vers le serveur, sinon ouvrir cet écran et l'enregistrer suffirait à tout effacer.</div>
-    </div>`;
-  }
 
   /* Changing a value. The prototype does not draw a keyboard: what it draws is
      that the change is PENDING — marked on its row, counted in the bar, and
@@ -14878,8 +14744,10 @@
       id: "cfg",
       l: "Réglages",
       ic: icons.wrench,
-      render: viewReglages,
+      /* Pas de `render` : la coquille dessine cette page (`pages/settings.tsx`),
+         barre d'enregistrement comprise, par un second portail dans #device. */
       horsBarre: true,
+      shellOwned: true,
     },
   ];
 
@@ -14935,10 +14803,22 @@
      settings never scrolls it away — and it exists only when there is
      something to save. */
   function monterBarreEnregistrer() {
+    /* The save bar belongs to the settings PAGE, and that page moved to the
+       shell — which draws the bar through a second portal into `#device`, the
+       same host this function used. Removing an existing `#savebar` here would
+       remove a node React holds, so this stops touching it entirely for as long
+       as the page is shell-owned. The condition is read from the page table
+       rather than from the id, so the day another page grows a bar the answer
+       is still in one place. */
+    const page = PAGES_OF().find((element) => element.id === state.page);
+    if (page && page.shellOwned) return;
+    /* No page draws a bar from here any more: the settings page, its only
+       producer, moved to the shell along with the bar. What stays is the
+       CLEANUP — a bar left by a page that has since been migrated would
+       otherwise outlive it — and the place a future page's bar would be
+       declared. */
     const ancienne = select("#savebar");
     if (ancienne) ancienne.remove();
-    if (state.page !== "cfg" || REG_ETAT.modifs.size === 0) return;
-    select("#device").insertAdjacentHTML("beforeend", barreEnregistrerHTML());
   }
 
   /* Loading
@@ -15060,6 +14940,22 @@
        un composant. */
     MAINT_RUBRIQUES,
     MAINT_ACTIONS,
+    /* SP4d vague 1 — ce que la page Réglages dessine. REG_ETAT est l'objet
+       MUTABLE que la délégation écrit : il reste la source, et le composant le
+       relit à chaque bump de version du magasin (`render()` appelle
+       `magasin?.toucher()` en premier). Les fonctions de libellé restent celles
+       du fragment tant que le fragment porte les tables : c'est ce qui garde
+       vivant le détecteur `__sujetsSansNom` que R60 lit. */
+    REGLAGES,
+    REG_ETAT,
+    SECRETS,
+    emptyInner,
+    chipHTML,
+    libelleReglage,
+    valeurCourante,
+    nomDeFichier,
+    fichiersModifies,
+    uniteDe,
     RISQUES,
     JOURNAL,
     // ACTEURS and AUJOURDHUI are declared with `const` further down this

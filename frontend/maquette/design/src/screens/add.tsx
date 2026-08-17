@@ -38,6 +38,7 @@ import { useTranslation } from "react-i18next";
 // today for two reasons: `go` is a hoisted function declaration there, so
 // its binding is live before either module's body runs, and this module has
 // no top-level side effect that could observe shell.tsx mid-evaluation.
+import { Icon } from "../components/icon";
 import { go } from "../shell";
 import {
   writeUiState,
@@ -48,24 +49,6 @@ import {
 
 type Mode = "suivi" | "identifier";
 
-// The exact shape `svgIcon(paths, strokeWidth)` produced as an HTML string —
-// rebuilt as a real element so it composes with JSX. Same helper as
-// `profile.tsx`'s, not shared between the two: a third migrated screen
-// needing it is the signal to extract it, not a guess made here.
-function Icon({ paths, strokeWidth }: { paths: string; strokeWidth?: number }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={strokeWidth || 2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      dangerouslySetInnerHTML={{ __html: paths }}
-    />
-  );
-}
 
 export function AddScreen() {
   const { q, mode: rawMode } = useSearch({ from: "/ajout" });

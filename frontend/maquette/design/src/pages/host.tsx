@@ -31,6 +31,7 @@ import type { ReactElement } from "react";
 import { createPortal } from "react-dom";
 import { useUiState } from "../data";
 import { MaintenancePage } from "./maintenance";
+import { SettingsPage } from "./settings";
 import { SystemPage } from "./system";
 
 type MigratedPage = {
@@ -45,6 +46,7 @@ type MigratedPage = {
 const PAGES: Record<string, MigratedPage> = {
   sys: { tag: "div", className: "body", Body: SystemPage },
   maint: { tag: "div", className: "body", Body: MaintenancePage },
+  cfg: { tag: "div", className: "body", Body: SettingsPage },
 };
 
 export function PageHost(): ReactElement | null {

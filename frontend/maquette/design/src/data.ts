@@ -241,6 +241,33 @@ export type Risk = { t: string; p: string };
 // through, and the rows describing them.
 export type DeletionJournal = { total: number; lignes: Fact[] };
 
+// One settings RUBRIC — the heading one navigates BY WHAT ONE WANTS TO CHANGE,
+// never by file, and the settings it holds.
+export type SettingsTopic = {
+  id: string;
+  t: string;
+  s: string;
+  r: Setting[];
+};
+
+// One secret: what it is called, its key, and whether it is SET. Never its
+// value — a value shown once is a value read by everything looking at the
+// screen.
+export type Secret = { k: string; l: string; def?: boolean };
+
+// The settings screen's own mutable state, owned by the fragment and written by
+// the document-level delegation: which rubric is open, the search text, the
+// PENDING edits (a Map keyed by `reglageId`), and the three banners. A component
+// READS it — it never replaces it — and re-reads on every store bump.
+export type SettingsState = {
+  modifs: Map<string, unknown>;
+  rubrique: string | null;
+  q: string;
+  lectureSeule: boolean;
+  redemarrage: boolean;
+  conflit: boolean;
+};
+
 // The code-error summary the Système page draws as two rows.
 export type CodeErrors = {
   total: number | string;
@@ -293,6 +320,16 @@ export type Reference = {
   ERREURS: CodeErrors;
   MAINT_RUBRIQUES: MaintenanceTopic[];
   MAINT_ACTIONS: MaintenanceAction[];
+  REGLAGES: SettingsTopic[];
+  REG_ETAT: SettingsState;
+  SECRETS: Secret[];
+  emptyInner: (title: string, body: string) => string;
+  chipHTML: (chip: [string, string] | null) => string;
+  libelleReglage: (setting: Setting) => string;
+  valeurCourante: (setting: Setting) => unknown;
+  nomDeFichier: (file: string) => string;
+  fichiersModifies: () => string[];
+  uniteDe: (setting: Setting) => string | null;
   RISQUES: Record<string, Risk>;
   JOURNAL: DeletionJournal;
   ACTEURS: Record<string, string>;
@@ -363,7 +400,6 @@ export type Reference = {
     kind?: "movie" | "show",
     opts?: { exact?: boolean },
   ) => string;
-  chipHTML: (chip: [string, string] | null | undefined) => string;
 };
 
 // `etat.resolveTarget` (the folder currently open on the resolution screen)

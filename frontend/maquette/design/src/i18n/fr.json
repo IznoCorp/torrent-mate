@@ -441,6 +441,36 @@
       "arrow": " →",
       "journal": "Journal des suppressions",
       "journalNote": "Les {{total}} opérations destructrices que la médiathèque a subies. Toutes ont été écrites par le pipeline lui-même, aucune par une main : un journal qui ne consignerait que l'opérateur serait un journal que personne n'ouvre."
+    },
+    "settingsPage": {
+      "searchPlaceholder": "Chercher un réglage",
+      "noMatchTitle": "Aucun réglage ne correspond",
+      "noMatchBody": "Cherchez par ce que le réglage FAIT — « espace », « seuil », « langue » — ou par le nom de sa clé.",
+      "countOne": "{{found}} réglage sur {{total}}",
+      "countMany": "{{found}} réglages sur {{total}}",
+      "readOnlyLead": "Lecture seule.",
+      "readOnlyRest": " Cette instance ne modifie rien — c'est le staging, qui écrit sur les mêmes disques que la production.",
+      "restartLead": "Redémarrage nécessaire.",
+      "restartRest": " ne seront pris en compte qu'au prochain démarrage du service.",
+      "restartSomeSettings": "Certains réglages",
+      "restartNow": "Redémarrer maintenant",
+      "secretsTitle": "Secrets et accès",
+      "secretsSubtitle": "Les clés d'API et les mots de passe. On voit qu'ils sont posés, jamais ce qu'ils valent.",
+      "secretsHint": "On voit qu'une clé est posée, jamais ce qu'elle vaut. Une valeur affichée une fois est une valeur lue par tout ce qui regarde l'écran.",
+      "secretSet": "définie",
+      "secretUnset": "absente",
+      "secretsNoteLead": "Écrire seulement ce qu'on a tapé.",
+      "secretsNoteRest": " Un champ laissé vide n'efface rien : seule une clé réellement saisie part vers le serveur, sinon ouvrir cet écran et l'enregistrer suffirait à tout effacer.",
+      "rankingTitle": "Classement des releases",
+      "rankingSubtitle": "Ce qui fait préférer une release à une autre. S'ajuste avec un aperçu en direct, donc c'est un écran à part.",
+      "arrow": "→",
+      "unknownTopic": "Rubrique inconnue",
+      "mapNoteLead": "On navigue par ce qu'on veut changer, jamais par fichier.",
+      "mapNoteRest": " Le moteur en garde dix-neuf ; savoir lequel contient l'espace disque minimal avant une ingestion est une connaissance du code, pas de la médiathèque. Chaque réglage dit d'où il vient — c'est ce qu'il faut pour lire un journal — mais ce n'est pas la carte.",
+      "pendingOne": "{{count}} modification en attente",
+      "pendingMany": "{{count}} modifications en attente",
+      "willWrite": "Écrira {{files}}.",
+      "save": "Enregistrer"
     }
   }
 }

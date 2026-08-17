@@ -9,6 +9,7 @@
 // geometry it measured on the legacy `#screen`.
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { Icon } from "../components/icon";
 import {
   writeUiState,
   useUiState,
@@ -26,25 +27,6 @@ type QualityProfile = {
   require_known_resolution: boolean;
 };
 
-// The exact shape `svgIcon(paths, strokeWidth)` produced as an HTML string —
-// rebuilt as a real element so it composes with JSX, `paths` is still the
-// SAME raw markup from `useReference().icons`, injected verbatim (trusted:
-// it is a fixed set of `<path>`/`<circle>` primitives defined in
-// refonte.html, never user input).
-function Icon({ paths, strokeWidth }: { paths: string; strokeWidth?: number }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={strokeWidth || 2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      dangerouslySetInnerHTML={{ __html: paths }}
-    />
-  );
-}
 
 // `retenus`: transplanted verbatim from `openProfil` — the SAME filter over
 // the SAME mock release list, so the count on screen matches what the

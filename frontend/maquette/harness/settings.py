@@ -245,6 +245,26 @@ async def main():
         # caught only by reading the file the segment comes from, which is how
         # « economy » stopped being « Économie d'appels » under a tracker whose
         # `economy` block is its seeding obligation.
+        # A POSITIVE CONTROL first, because this hold's shape is the one that
+        # passes on nothing: it asserts an EMPTY set, and an empty set is also
+        # what a dead detector produces. `window.__sujetsSansNom` is filled as a
+        # SIDE EFFECT of naming a subject, and that side effect has already been
+        # dropped once on the React side of this same code (`panel.tsx`'s
+        # `settingSubject`, deliberately, as "an unrelated diagnostic") — so the
+        # day the page's renderer stops going through the function that fills it,
+        # this hold goes green while measuring nothing. The probe is a segment no
+        # table can name: if it is NOT caught, the detector is dead, and nothing
+        # this hold says afterwards means anything.
+        probe = await pg.evaluate("""()=>{
+          const before = [...window.__sujetsSansNom];
+          libelleReglage({f: "sonde", c: "segment_que_rien_ne_nomme.x", n: "x"});
+          const caught = window.__sujetsSansNom.has("segment_que_rien_ne_nomme");
+          window.__sujetsSansNom.delete("segment_que_rien_ne_nomme");
+          return {caught, before};}""")
+        check("the unnamed-subject detector actually detects", probe["caught"],
+              "a probe segment no table names was caught"
+              if probe["caught"] else "the detector is dead — the hold below "
+              "would pass on nothing")
         unnamed_subjects = await pg.evaluate("""()=>{
           REGLAGES.flatMap(r => r.r).forEach(libelleReglage);
           return [...window.__sujetsSansNom];}""")
