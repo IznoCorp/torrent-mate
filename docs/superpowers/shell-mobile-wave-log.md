@@ -439,6 +439,79 @@ deep address); `make check` green including `check-frontend`;
 fragment went from 40 047 to 39 961 lines. Pages the shell owns: `sys`, `maint`, `cfg`, `arr`.
 Pages the fragment still draws: `lib`, `acq`, plus `viewIntrouvable` and `viewProfil`.
 
+## SP4d wave 3 — the Médiathèque, and E-001
+
+Branch `feat/maquette-sp4d3`, version 0.97.20 (ONE bump for the wave). The third page wave, and
+the one that changed the machinery: `viewLibrary` is 96 lines, but it is the only page whose
+CONTENT the fragment wrote AFTER the page was drawn — an empty `#libitems`, an empty `#libcount`,
+filled by `fillLib()` / `libFoot()` / `paintLibCount()` as the operator scrolled, `fillLib`
+replacing the element outright (`box.outerHTML = …`). Two worlds writing one container is what
+tore the React root down in wave 1, so the list, its footer, its sentinel and its search field all
+moved WITH the page rather than leaving a seam behind.
+
+**E-001 came first, and separately.** The operator's evolution — every sort reversible — is
+maquette-first: drawn in the PROTOTYPE and measured there before any conversion touched the page.
+That order is not a preference. A conversion is judged by « identical markup »; an evolution
+changes the markup; doing both at once would leave neither provable. The ruling, recorded and
+**open to contest**: the panel offers the six directions explicitly, each carrying its own NAME
+rather than an arrow bolted onto a shared one — « Ajout récent » / « Ajout ancien », « A → Z » /
+« Z → A », « Les plus incomplets » / « Les plus complets ». The alternative, tapping the
+already-chosen sort to flip it, halves the rows and is INVISIBLE: nothing on a phone says that a
+second tap on the row one just chose does something else. Reversing is a second PASS, never a
+second comparator — « ajout récent » has no comparator at all, its order is the source's — so one
+`.reverse()` says the same thing for all three. New rule **R78** (`harness/library_sort.py`, 15
+holds) is the first this behaviour has ever had, and it measures the reversal on the ROWS DRAWN,
+over a library narrowed until the whole set fits on one page: the list draws 24 of 260, so
+reversing the order and taking the first page again gives the LAST rows of the other end — right,
+and not the reverse of what was drawn.
+
+**The PAGE HOST stopped supplying a root element**, and that is this wave's principal
+arbitration. It portalled into a `<div class="body">` of its own so the legacy's write would
+remove one node whole and React would only ever touch children of a node it owned. That describes
+three pages emitting one root; it cannot describe a page emitting FOUR (`.viewtabs`, `.filters`,
+`.countline`, `.body`), and wrapping those would be a markup change this conversion does not make.
+So the shell portals straight into `#view`, and the handover is ANNOUNCED inside `render()`, the
+one place that already knows which world owns the page: taking, the fragment removes the nodes IT
+wrote and lets React draw; releasing, it calls `window.__releasePage()` — a `flushSync` — before
+writing. Removing its own nodes rather than emptying the container is not a matter of taste: a
+store write and a `render()` are not always the same task, so the shell may already have drawn,
+and emptying then deletes nodes React believes it holds, leaving a blank page nothing redraws.
+Measured — R77's first five holds fell before the correction existed.
+
+**What proves the machinery moved nothing**: `fidelity.py` learned to RECORD the legacy's drawn
+page and compare against the recording, because this page's markup is not what its renderer
+returned. The nineteen states of the four pages migrated before this one, recorded and compared
+across the host rewrite: **0 divergences**. The ten `lib-*` states, recorded from the legacy and
+compared after the conversion: **0 divergences**.
+
+**The search field's handler moved with the field.** `mountSearch` no longer binds `#libq` — the
+same reason it had already let go of `.fieldinput`: binding a node React owns from outside is two
+writers on one field. The caret dance the legacy needed disappeared with the rebuild that made it
+necessary, and what changes the query from OUTSIDE (the clear cross) reaches the field through an
+assignment made only when the two differ — measured by typing for real, character by character,
+and then clearing.
+
+**What did NOT move**: `trierLib` and `libFiltered` stay in the fragment. They touch no DOM — they
+answer « which media, in which order » — so a component asks them rather than reproducing them,
+and a rule reads `libFiltered()` by name. The selection bar stays the fragment's too: it lives in
+`#device`, React never draws it, and the component only asks for a repaint after it renders,
+exactly where `fillLib` asked for one.
+
+R77 grew to 32 holds: `lib` joins the shell-owned list, the drawn hold stops assuming a root
+count, the law hold reads the LAW rather than one spelling of it — it failed on the day the law
+was made stronger — and six delegation holds cover the page that carries the most of it: lens,
+category, view mode, selection, the search's cross, and `data-del`, read rather than tapped
+because that control lives behind a swipe R64 drives.
+
+**Wave gate**: `resync.py` moved the drawer's deployed-version card to the branch's base (0.97.19,
+build `aeac77cb`), committed as data; the full suite is **50 scripts, 548 holds, zero FAIL** (527
++ 15 for R78 + 6 for R77's library delegation); `make check` green including `check-frontend`;
+`scripts/check-no-french.py` green; R59/R69/R71 byte-identical against the merge point. The
+fragment went from 39 962 to 39 956 lines — nearly flat, and the number says something true: the
+conversion removed about 230 lines and E-001 put back about as many, because an evolution is
+written before it is moved. Pages the shell owns: `sys`, `maint`, `cfg`, `arr`, `lib`. The
+fragment still draws `acq`, plus `viewIntrouvable` and `viewProfil`.
+
 ## What is already done, ahead of the phase plan
 
 The prototype and its harness carry the design; some app-side work was pulled forward because

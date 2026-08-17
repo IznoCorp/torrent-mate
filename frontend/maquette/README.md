@@ -60,15 +60,21 @@ runs, so nothing needs recording or replaying. A module that fails to evaluate s
 never calls `__demarrerMoteur`, and the startup screen — already first in the frame —
 stays up: a visible, truthful failure instead of an app with mute verbs.
 
-**Four PAGES are the shell's: `sys`, `maint`, `cfg`, `arr`.** A page is not a screen — it has no
+**Five PAGES are the shell's: `sys`, `maint`, `cfg`, `arr`, `lib`.** A page is not a screen — it has no
 address of its own, `/` stays the pages' route with its legacy query, the legacy parser keeps
 owning it, and a page's markup must land inside `#view`, where the stylesheet, the harness
 selectors and the document-level click delegation all expect it. So the shell PORTALS into
 `#view`: a `PAGES_OF()` entry carries `shellOwned`, `render()` skips its `innerHTML` write for
 such a page and does everything else it always did, and `src/pages/host.tsx` holds the ONE table
-a later wave adds a page to. The host element IS the page's root (`div.body`, which all three
-emit), never a wrapper; taking ownership calls `view.replaceChildren(host)` ONCE, on the
-transition; handing back needs nothing, because the legacy's own write removes what React left.
+a later wave adds a page to. THE HANDOVER IS ANNOUNCED, in `render()`, the one place that already
+knows which world owns the page: taking, the fragment removes the nodes IT wrote and lets React
+draw into the container; releasing, it calls `window.__releasePage()` — a `flushSync`, so React
+has let go of every node before the next statement writes there. Removing its own nodes rather
+than emptying the container is deliberate: a store write and a `render()` are not always the same
+task, so the shell may already have drawn, and emptying then deletes nodes React believes it
+holds. An earlier arrangement gave each page a HOST ELEMENT of its own; it could not describe a
+page that emits several roots (the Médiathèque draws four siblings), and wrapping those would be
+a markup change.
 A migrated page's entry loses its `render`, so clearing `shellOwned` without restoring a
 renderer crashes rather than quietly drawing a page nobody maintains. What the page host owes
 the fragment in return: the legacy must never touch a node React holds — the settings page's
