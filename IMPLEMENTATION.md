@@ -103,6 +103,26 @@ could not run at all), a local `refonte` in `bridge.py`, and four literals that 
 addresses rather than copy, now each carrying a `french-ok:` pragma with the reason already
 written beside it.
 
+The gate closed its own two blind spots before the wave ended, and what it found
+there was corrected rather than allowlisted. The string arm reached `scripts/` —
+the repository's own tools speak to a DEVELOPER, so they speak English; seven of
+them did not. (The `personalscraper` CLI is the opposite case and no arm reads
+it: it speaks to the OPERATOR, in French, and it is interface.) The identifier
+arm reached `scripts/`, `personalscraper/` and `tests/`: it had been reading
+2 656 declarations and now reads 124 940. The finding worth keeping is that
+`personalscraper/` had NOT ONE French identifier, and that eleven of the twelve
+in `tests/` are built on `saison` — the library's own folder name on disk, a
+DATA value, frozen with that reason because renaming it would describe a layout
+the disk does not have. `extract-maquette-css.py`, the CSS contract's own tool,
+was French from end to end; renaming it is proven by the only proof that counts —
+regenerating the stylesheet moves not one byte.
+
+Two defects in the gate itself surfaced while widening it: `≠` decomposes to `=`
+plus a combining slash, so a test that merely asks « does anything here combine? »
+reads a mathematical sign as French; and `suite`, `refuse` and `porter` left the
+lexicon, because a guardrail that flags an English word teaches its reader to
+stop believing it.
+
 Wave gate: `resync.py` reports no drift, the full 48-script suite is green with **485 holds —
 the same total the wave started with**, `make check` and `make check-frontend` green. The count
 is the sum of the scripts' own `N rules EXECUTED` lines (`pwa.py`'s 28 checks are tallied
