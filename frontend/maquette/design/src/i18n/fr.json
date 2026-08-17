@@ -400,6 +400,35 @@
       "note2Body": "Le résultat automatique était peut-être le bon : cette voie l'entérine et ne re-scrape rien. Elle existait dans le moteur et nulle part dans l'interface, donc on ne pouvait qu'être en désaccord avec la machine, jamais d'accord.",
       "settledHeading": "Réglées récemment",
       "settledHint": "Ce qui a déjà été tranché, pour ne pas répondre deux fois — et pour retrouver ce qu'on avait choisi."
+    },
+    "system": {
+      "errorSubject": "l'état de la machine",
+      "introLead": "Système répond à une seule question : la machine va-t-elle bien ?",
+      "introRest": " Un média bloqué n'est pas ici — c'est une décision du pipeline, et elle est dans Arrivées. Ce qu'on trouve ici, ce sont les processus, les passages programmés, la place qui reste, et le code qui a levé une erreur.",
+      "faultLead": "Panne SIMULÉE.",
+      "faultRest": " Cette machine est verte partout, et un écran qui ne peut être que vert ne se juge pas : cet état rejoue une panne pour montrer ce qu'on verrait le jour où quelque chose s'arrête. Rien ici n'est lu du système.",
+      "services": "Services",
+      "schedulers": "Planificateurs",
+      "schedulerLead": "Un planificateur entre deux passages n'est pas arrêté.",
+      "schedulerRest": " PM2 le dit « stopped », et c'est la vérité sur le processus et un mensonge sur le système : six lignes rouges sur une machine en parfaite santé. Un service se juge sur « tourne-t-il », un planificateur sur « a-t-il tourné ».",
+      "runs": "Exécutions du pipeline",
+      "runSucceeded": "réussi",
+      "runFailed": "échoué",
+      "toArrivals": "Le pipeline se pilote depuis Arrivées, où l'on voit ce qu'il fait aux médias. ",
+      "toArrivalsLink": "Arrivées →",
+      "disks": "Disques",
+      "index": "Index de la médiathèque",
+      "toMaintenance": "Réparer ce que l'index signale se fait depuis Maintenance. ",
+      "toMaintenanceLink": "Maintenance →",
+      "dependencies": "Dépendances",
+      "codeErrors": "Erreurs de code",
+      "errorsRaised": "Du code a levé",
+      "errorsValue": "des erreurs",
+      "errorsDetail": "{{total}} exécutions sur {{over}} · la dernière {{last}} — {{what}}",
+      "errorsWhere": "Où",
+      "settings": "Réglages",
+      "settingsSubtitle": "Ce que le pipeline fait, et comment — l'heure des passages programmés comprise. Rangés par ce qu'on veut changer, pas par fichier.",
+      "arrow": "→"
     }
   }
 }

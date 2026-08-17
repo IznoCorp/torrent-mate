@@ -11933,16 +11933,26 @@
      all three: that is what « every screen AND every state » means, and it
      is what the parity probe must be able to reach deterministically. */
   function skelCards(count) {
-    return `<div class="sec">${'<div class="sk skcard"></div>'.repeat(count)}</div>`;
+    return `<div class="sec">${skelCardsInner(count)}</div>`;
+  }
+  /* The inside alone. A migrated PAGE renders the `<div class="sec">` itself —
+     React cannot set the outer markup of a node it also draws — and fills it
+     with this, so the skeleton stays one emitter rather than two that drift. */
+  function skelCardsInner(count) {
+    return '<div class="sk skcard"></div>'.repeat(count);
   }
   function skelTiles(count) {
     return `<div class="grid">${'<div class="sk tile"></div>'.repeat(count)}</div>`;
   }
   function surfErr(quoi) {
-    return `<div class="surferr"><b>Impossible de charger ${escapeHtml(quoi)}.</b>
+    return `<div class="surferr">${surfErrInner(quoi)}</div>`;
+  }
+  /* Same split as `skelCardsInner`, and for the same reason. */
+  function surfErrInner(quoi) {
+    return `<b>Impossible de charger ${escapeHtml(quoi)}.</b>
       Le serveur n'a pas répondu dans le temps imparti. Rien n'est perdu — ce qui
       est affiché ailleurs reste valide.
-      <button data-phase="prete">Réessayer</button></div>`;
+      <button data-phase="prete">Réessayer</button>`;
   }
 
   /* Views */
@@ -12379,7 +12389,16 @@
      and a caller wanting something outside it adds a field rather than
      passing markup. An envelope guarantees nothing about what it carries. */
   function listeFaitsHTML(lignes) {
-    return `<ol class="flux">${lignes
+    return `<ol class="flux">${lignesFaitsHTML(lignes)}</ol>`;
+  }
+
+  /* The rows alone, without the `<ol>` around them. A migrated PAGE renders
+     that `<ol class="flux">` as its own element — React cannot set the outer
+     markup of a node it is also drawing — and fills it with these, so the rows
+     stay one emitter shared by every fact list rather than two that drift.
+     `listeFaitsHTML` above keeps emitting exactly what it always did. */
+  function lignesFaitsHTML(lignes) {
+    return `${lignes
       .map((ligne) => {
         // No VALUE is what greys a line — a sub-line explaining why there is
         // nothing to report does not make the line a report.
@@ -12438,7 +12457,7 @@
       }${ligne.s ? escapeHtml(ligne.s) : ""}</span>
     </${balise}></li>`;
       })
-      .join("")}</ol>`;
+      .join("")}`;
   }
 
   function dernierPassageHTML() {
@@ -14918,7 +14937,13 @@
       badge: derived.stuck().length,
       render: viewArrivals,
     },
-    { id: "sys", l: "Système", ic: icons.wrench, render: viewSystem },
+    {
+      id: "sys",
+      l: "Système",
+      ic: icons.wrench,
+      render: viewSystem,
+      shellOwned: true,
+    },
     /* Réglages is a PAGE, not a fifth tab. The bar holds the four places one
        goes to see what is happening; settings are what one goes to change, and
        that is a different kind of errand — read rarely, changed rarely. It is
@@ -14991,7 +15016,13 @@
       magasin.ecrire({ introuvable: "/" + state.page, page: "404" });
       found = PAGES_OF().find((element) => element.id === "404");
     }
-    view.innerHTML = found.render();
+    /* A page the SHELL owns draws itself, through a React portal into this very
+       container: writing here would remove nodes React still believes it holds.
+       Everything below still runs — the bar, the nav and the save bar are shared
+       furniture, not the page's. `shellOwned` is what a migrated page carries;
+       the entry keeps its `render` until nothing calls it, so the two can be
+       compared byte for byte while the conversion is being proven. */
+    if (!found.shellOwned) view.innerHTML = found.render();
     monterBarreEnregistrer();
     fab.hidden = !found.fab;
     mountDeck();
@@ -15103,6 +15134,27 @@
     render,
     HEROS,
     POSTERS,
+    /* SP4d wave 1 — what the Système page draws. `listeFaitsHTML` is the
+       emitter every fact list on this page and on Maintenance goes through;
+       a component calls it VERBATIM rather than re-deriving its markup,
+       because the delegated click handlers depend on that markup being
+       byte-exact (the same reason `cardHTML` is reused above). `skelCards`
+       and `surfErr` are the page's two non-ready surfaces. */
+    listeFaitsHTML,
+    lignesFaitsHTML,
+    skelCards,
+    skelCardsInner,
+    surfErr,
+    surfErrInner,
+    SERVICES,
+    SERVICES_PANNE,
+    PLANIFICATEURS,
+    PLANIFICATEURS_PANNE,
+    EXECUTIONS,
+    DISQUES,
+    INDEX,
+    DEPENDANCES,
+    ERREURS,
     // ACTEURS and AUJOURDHUI are declared with `const` further down this
     // same script, past this literal's evaluation point — a plain shorthand
     // reference would hit the temporal dead zone the instant this object is

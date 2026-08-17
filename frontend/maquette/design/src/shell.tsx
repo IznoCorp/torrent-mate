@@ -32,6 +32,7 @@ import { MediaScreen } from "./screens/media";
 import { ProfileScreen } from "./screens/profile";
 import { ReleasesScreen } from "./screens/releases";
 import { ResolutionScreen } from "./screens/resolution";
+import { PageHost } from "./pages/host";
 import { createStore, type Store } from "./store";
 
 // R69's addressable state, validated — absent means "unchanged", as before.
@@ -136,14 +137,18 @@ declare global {
 // shell mounts on is written once, by the single writer, in the right order.
 const history = createBrowserHistory();
 
-// The root renders the matched route AND the bottom-sheet layer, which belongs
-// to no route: it opens over whatever is on screen — a React route, a legacy
-// `#screen`, a plain page — so it is mounted once, with the shell, and its
-// visibility is a class, not a mount.
+// The root renders the matched route, the bottom-sheet layer and the PAGE host
+// — the last two belong to no route. The sheet opens over whatever is on screen
+// (a React route, a legacy `#screen`, a plain page), so it is mounted once and
+// its visibility is a class rather than a mount. The page host is mounted for
+// the same reason from the other side: a PAGE has no address of its own, it is
+// a value of `state.page`, so nothing in the route table can select it — see
+// `pages/host.tsx` for why it portals into the legacy `#view`.
 const rootRoute = createRootRoute({
   component: () => (
     <>
       <Outlet />
+      <PageHost />
       <Sheet close={closePanel} />
     </>
   ),

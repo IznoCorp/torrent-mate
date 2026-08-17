@@ -190,6 +190,38 @@ export type QueueCard = Record<string, unknown>;
 // date the same way every other legacy navigation control already does,
 // since nothing subscribes the legacy side to the store automatically.
 //
+// One row of a fact list, exactly as `listeFaitsHTML` reads one. `ton` is the
+// operator's vocabulary (`success` / `alert` / `warning` / `info`) and the
+// emitter maps it onto the stylesheet's; `cible` becomes the row's `data-*`
+// attributes, which is what turns the row into the control.
+export type Fact = {
+  l: string;
+  v?: string;
+  s?: string;
+  k?: string;
+  ton?: string;
+  etat?: string;
+  cible?: Record<string, string>;
+};
+
+// One pipeline run, as `EXECUTIONS` shapes it: the question it answered, its
+// verdict, its date and its result line.
+export type PipelineRun = {
+  q: string;
+  ok: boolean;
+  d: string;
+  r: string;
+};
+
+// The code-error summary the Système page draws as two rows.
+export type CodeErrors = {
+  total: number | string;
+  sur: number | string;
+  derniere: string;
+  quoi: string;
+  ou: string;
+};
+
 // EVERY MEMBER NAME BELOW IS THE SEAM: the engine publishes this object under
 // these exact keys, so they stay whatever it publishes.
 export type Reference = {
@@ -210,6 +242,27 @@ export type Reference = {
   // otherwise silently diverge from.
   HEROS: Record<string, string>;
   POSTERS: Record<string, string>;
+  // SP4d wave 1 — what the Système page draws. `lignesFaitsHTML` emits the
+  // ROWS of a fact list without the `<ol class="flux">` around them, because a
+  // component draws that element itself; `listeFaitsHTML` (still published, for
+  // every page the fragment keeps) emits both. `skelCardsInner` / `surfErrInner`
+  // are the same split for the two non-ready surfaces. The data below is
+  // read-only reference, never engine state.
+  listeFaitsHTML: (rows: Fact[]) => string;
+  lignesFaitsHTML: (rows: Fact[]) => string;
+  skelCards: (count: number) => string;
+  skelCardsInner: (count: number) => string;
+  surfErr: (subject: string) => string;
+  surfErrInner: (subject: string) => string;
+  SERVICES: Fact[];
+  SERVICES_PANNE: Fact[];
+  PLANIFICATEURS: Fact[];
+  PLANIFICATEURS_PANNE: Fact[];
+  EXECUTIONS: PipelineRun[];
+  DISQUES: Fact[];
+  INDEX: Fact[];
+  DEPENDANCES: Fact[];
+  ERREURS: CodeErrors;
   ACTEURS: Record<string, string>;
   trailerIds: Record<string, Trailer>;
   EP_LABEL: Record<string, string>;
