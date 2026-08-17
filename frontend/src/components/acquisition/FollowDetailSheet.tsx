@@ -65,7 +65,7 @@ import {
 } from "@/hooks/useAcquisition";
 
 import { EpisodeDatePopover } from "./EpisodeDatePopover";
-import { EpisodeStateLegende } from "./EpisodeStateLegende";
+import { EpisodeStateLegend } from "./EpisodeStateLegend";
 import { relativeTimeUntil } from "@/lib/format";
 
 import {
@@ -475,7 +475,7 @@ function FollowDetailSheetContent({
       {/* ── Legend ABOVE the matrix (§5.3) ── */}
       {seasons.length > 0 && (
         <div data-testid="episode-legend" className="px-4">
-          <EpisodeStateLegende />
+          <EpisodeStateLegend />
         </div>
       )}
 
@@ -514,7 +514,7 @@ function FollowDetailSheetContent({
              button that simply is not there reads as a bug, not a fact. The
              header's unresolved paragraph already says it for a catalogue-less
              follow — no second sentence there (§12). */
-          <p className="nofiche">
+          <p className="noinfo">
             Pas de fiche : l&apos;identifiant TVDB de ce média n&apos;a pas pu
             être résolu.
           </p>

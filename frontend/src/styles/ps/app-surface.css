@@ -9,7 +9,7 @@
  * CONCEALS a defect in the reference, since the copy becomes the only place
  * anyone ever looks.
  *
- * 502 rules, from 484 allowlisted selectors.
+ * 502 rules, from 481 allowlisted selectors.
  * 9 rules were dropped as prototype harness.
  *
  * Declared BOTH exported and harness, and read as exported because extraction
@@ -510,7 +510,7 @@
     text-align: center;
 }
 
-.tm .act.chercher {
+.tm .act.resume {
     background: var(--primary);
     color: var(--primary-foreground);
 }
@@ -563,7 +563,7 @@
     gap: 10px;
 }
 
-.tm .dossier {
+.tm .folder {
     width: 58px;
     align-self: start;
     justify-self: start;
@@ -582,7 +582,7 @@
     padding: 0;
 }
 
-.tm .dossier svg {
+.tm .folder svg {
     width: 22px;
     height: 22px;
     margin: 0 auto;
@@ -1226,18 +1226,18 @@
     gap: 6px;
 }
 
-.tm .kv.avecpip > span:first-child {
+.tm .kv.withpip > span:first-child {
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
-.tm .kv.avenir > span:last-child {
+.tm .kv.upcoming > span:last-child {
     font-weight: 400;
     color: var(--muted-foreground);
 }
 
-.tm .sheetfaits {
+.tm .sheetfacts {
     margin-bottom: 14px;
 }
 
@@ -1284,7 +1284,7 @@
     font-weight: 600;
 }
 
-.tm .pilote {
+.tm .pipeline {
     border: 1px solid var(--border);
     border-radius: 10px;
     background: var(--card);
@@ -1294,19 +1294,19 @@
     gap: 10px;
 }
 
-.tm .pilote .ph {
+.tm .pipeline .ph {
     display: flex;
     align-items: center;
     gap: 8px;
     min-width: 0;
 }
 
-.tm .pilote .pt {
+.tm .pipeline .pt {
     font-size: 13px;
     font-weight: 600;
 }
 
-.tm .pilote .pq {
+.tm .pipeline .pq {
     min-width: 0;
     flex: 1;
     overflow: hidden;
@@ -1317,21 +1317,21 @@
     color: var(--muted-foreground);
 }
 
-.tm .pilote .jauge {
+.tm .pipeline .gauge {
     height: 4px;
     border-radius: 99px;
     background: var(--border);
     overflow: hidden;
 }
 
-.tm .pilote .jauge i {
+.tm .pipeline .gauge i {
     display: block;
     height: 100%;
     background: var(--info);
     border-radius: inherit;
 }
 
-.tm .pilote .pacts {
+.tm .pipeline .pacts {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 8px;
@@ -1361,7 +1361,7 @@
     font: inherit;
 }
 
-.tm .flux .fx.fclic .fw {
+.tm .flux .fx.fclick .fw {
     min-height: 44px;
     cursor: pointer;
 }
@@ -1381,12 +1381,12 @@
     color: var(--muted-foreground);
 }
 
-.tm .flux .fx.fvide .fn {
+.tm .flux .fx.fempty .fn {
     color: var(--muted-foreground);
     font-weight: 500;
 }
 
-.tm .flux .fx.fbloc .fr {
+.tm .flux .fx.fblocked .fr {
     color: var(--danger);
     font-weight: 600;
 }
@@ -1415,7 +1415,7 @@
     -webkit-touch-callout: none;
 }
 
-.tm .rub {
+.tm .topic {
     display: flex;
     align-items: center;
     gap: 12px;
@@ -1429,13 +1429,13 @@
     margin-bottom: 8px;
 }
 
-.tm .rub .rt {
+.tm .topic .rt {
     display: block;
     font-size: 14px;
     font-weight: 600;
 }
 
-.tm .rub .rs {
+.tm .topic .rs {
     display: block;
     margin-top: 2px;
     font-size: 12px;
@@ -1443,7 +1443,7 @@
     color: var(--muted-foreground);
 }
 
-.tm .rub .rn {
+.tm .topic .rn {
     flex: 0 0 auto;
     font-size: 12px;
     font-weight: 600;
@@ -1451,7 +1451,7 @@
     font-variant-numeric: tabular-nums;
 }
 
-.tm .reg {
+.tm .settingrow {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -1464,18 +1464,18 @@
     color: var(--foreground);
 }
 
-.tm .reg:last-child {
+.tm .settingrow:last-child {
     border-bottom: 0;
 }
 
-.tm .reg .rl {
+.tm .settingrow .rl {
     display: block;
     min-width: 0;
     flex: 1;
     font-size: 13px;
 }
 
-.tm .reg .rf {
+.tm .settingrow .rf {
     display: block;
     margin-top: 2px;
     font-size: 11px;
@@ -1483,7 +1483,7 @@
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-.tm .reg .rv {
+.tm .settingrow .rv {
     flex: 0 0 auto;
     max-width: 45%;
     overflow: hidden;
@@ -1494,11 +1494,11 @@
     font-variant-numeric: tabular-nums;
 }
 
-.tm .reg.modifie .rv {
+.tm .settingrow.modified .rv {
     color: var(--primary);
 }
 
-.tm .reg.modifie::before {
+.tm .settingrow.modified::before {
     content: "";
     width: 3px;
     align-self: stretch;
@@ -1507,20 +1507,20 @@
     margin-right: -4px;
 }
 
-.tm .champ {
+.tm .field {
     display: flex;
     align-items: center;
     gap: 10px;
     margin-top: 10px;
 }
 
-.tm .champ.liste {
+.tm .field.list {
     flex-direction: column;
     align-items: stretch;
     gap: 6px;
 }
 
-.tm .champsaisie {
+.tm .fieldinput {
     flex: 1;
     min-width: 0;
     padding: 11px 12px;
@@ -1532,28 +1532,28 @@
     font-size: 14px;
 }
 
-.tm .champsaisie.mono {
+.tm .fieldinput.mono {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 12px;
 }
 
-.tm .champsaisie:focus-visible {
+.tm .fieldinput:focus-visible {
     outline: 2px solid var(--primary);
     outline-offset: 1px;
 }
 
-.tm .champunite {
+.tm .fieldunit {
     flex: 0 0 auto;
     font-size: 12px;
     color: var(--muted-foreground);
 }
 
-.tm .champlbl {
+.tm .fieldlabel {
     font-size: 13px;
     color: var(--muted-foreground);
 }
 
-.tm .interrupteur {
+.tm .fieldtoggle {
     flex: 0 0 auto;
     width: 48px;
     height: 28px;
@@ -1565,12 +1565,12 @@
     transition: background 0.18s ease;
 }
 
-.tm .interrupteur.actif {
+.tm .fieldtoggle.active {
     background: var(--primary);
     justify-content: flex-end;
 }
 
-.tm .pastille {
+.tm .fieldknob {
     width: 22px;
     height: 22px;
     border-radius: 99px;
@@ -1597,7 +1597,7 @@
     white-space: nowrap;
 }
 
-.tm .lsupp {
+.tm .lremove {
     flex: 0 0 auto;
     border: 0;
     background: transparent;
@@ -1606,12 +1606,12 @@
     display: flex;
 }
 
-.tm .lsupp svg {
+.tm .lremove svg {
     width: 15px;
     height: 15px;
 }
 
-.tm .lajout {
+.tm .ladd {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1625,12 +1625,12 @@
     font-weight: 600;
 }
 
-.tm .lajout svg {
+.tm .ladd svg {
     width: 15px;
     height: 15px;
 }
 
-.tm .champ.refus .rulenote {
+.tm .field.readonly .rulenote {
     margin: 0;
 }
 
@@ -1837,7 +1837,7 @@
     visibility: visible;
 }
 
-.tm .fichebar {
+.tm .screenbar {
     flex: 0 0 auto;
     display: flex;
     align-items: center;
@@ -1950,7 +1950,7 @@
     padding-bottom: 4px;
 }
 
-.tm .sheethead.avecaffiche {
+.tm .sheethead.withposter {
     align-items: flex-start;
     padding-bottom: 0;
     margin-bottom: 12px;
@@ -2039,7 +2039,7 @@
     color: var(--primary-foreground);
 }
 
-.tm .nofiche {
+.tm .noinfo {
     margin: 0 0 4px;
     font-size: 12px;
     color: var(--muted-foreground);
@@ -2087,11 +2087,11 @@
     );
 }
 
-.tm .herowrap.noaffiche {
+.tm .herowrap.noposter {
     padding-top: 18px;
 }
 
-.tm .herowrap.noaffiche .herobg {
+.tm .herowrap.noposter .herobg {
     height: 72px;
     min-height: 0;
     background-image: linear-gradient(
@@ -2216,7 +2216,7 @@
     white-space: nowrap;
 }
 
-.tm .ficheadd {
+.tm .mediaadd {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2231,12 +2231,12 @@
     border-radius: 8px;
 }
 
-.tm .ficheadd svg {
+.tm .mediaadd svg {
     width: 16px;
     height: 16px;
 }
 
-.tm .ficheadd.done {
+.tm .mediaadd.done {
     background: transparent;
     color: var(--muted-foreground);
     border-color: var(--border);
@@ -2508,7 +2508,7 @@
     color: var(--warning);
 }
 
-.tm .manquants {
+.tm .missing {
     margin: 8px 0 0;
     font-size: 12px;
     font-weight: 600;
@@ -2744,7 +2744,7 @@
     font-size: 12.5px;
 }
 
-.tm .sact, .tm .cfoot, .tm .ficheadd, .tm .dlgbtn, .tm .btnprimary {
+.tm .sact, .tm .cfoot, .tm .mediaadd, .tm .dlgbtn, .tm .btnprimary {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2758,13 +2758,13 @@
     text-align: center;
 }
 
-.tm .sact svg, .tm .cfoot svg, .tm .ficheadd svg {
+.tm .sact svg, .tm .cfoot svg, .tm .mediaadd svg {
     width: 16px;
     height: 16px;
     flex: 0 0 auto;
 }
 
-.tm .sact:has(> svg), .tm .cfoot:has(> svg), .tm .ficheadd:has(> svg) {
+.tm .sact:has(> svg), .tm .cfoot:has(> svg), .tm .mediaadd:has(> svg) {
     justify-content: flex-start;
     text-align: left;
 }
@@ -2860,11 +2860,11 @@
     opacity: 0.5;
 }
 
-.tm .kv.reglage {
+.tm .kv.setting {
     align-items: flex-start;
 }
 
-.tm .kv.reglage > span:first-child {
+.tm .kv.setting > span:first-child {
     padding-right: 4px;
 }
 
@@ -3500,7 +3500,7 @@
     flex: 0 0 auto;
 }
 
-.tm .drawer a .nb {
+.tm .drawer a .count {
     margin-left: auto;
     display: inline-flex;
     height: 18px;

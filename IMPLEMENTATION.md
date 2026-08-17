@@ -35,7 +35,7 @@ code until the operator's judgement (step 2 above). Non-negotiable.
 
 ## Current state
 
-Seven waves have landed. Each squash-merged onto `main` after green CI and a clean final
+Eight waves have landed. Each squash-merged onto `main` after green CI and a clean final
 adversarial review; none of them derives app code.
 
 | Wave | Branch | PR | What it settled |
@@ -45,74 +45,100 @@ adversarial review; none of them derives app code.
 | **Bascule — the host serves the build** | `refactor/maquette-bascule` | #431 | `serve.py` serves `dist/index.html`, rebuilds under a lock when any input is newer, and on failure shows the build's own last words instead of a generic error (R73). |
 | **SP3 — the router, by strangler** | `feat/maquette-sp3` | #432 | React 19 + TanStack Router as the outer shell and the SINGLE writer of URL and history; the legacy engine speaks `window.__pont` (R74), and `design/` gained its own strict typecheck gate. |
 | **SP4a — the machinery** | `feat/maquette-sp4a` | #437 | `magasin` (TanStack Store) became the owner of the engine's state, the host learned to answer ANY address (SPA fallback), and `/profil/$titre` + `/ajout` landed as the first real routes (R75, R76). |
-| **SP4b — the fiche and the panel** | `feat/maquette-sp4b` | #441 | `<PanneauContenu>`/`<Feuille>` became the single React panel and `openSheet()` retired to a tripwire; `/fiche/$titre` landed as a real route, and scroll is now kept per HISTORY ENTRY rather than per address. |
+| **SP4b — the fiche and the panel** | `feat/maquette-sp4b` | #441 | `<PanelContent>`/`<Sheet>` became the single React panel and `openSheet()` retired to a tripwire; `/fiche/$titre` landed as a real route, and scroll is now kept per HISTORY ENTRY rather than per address. |
+| **SP4c — resolution and releases** | `feat/maquette-sp4c` | #442 | `/resolution/$dossier` and `/releases/$titre` landed as real routes, `Pont.reculer(n)` killed M11's double Back, and R57's probe moved off the legacy `#screen` onto the screen's own identity. |
 
 The full record of each wave, in the words written when it landed, is in
 `docs/superpowers/shell-mobile-wave-log.md`; the per-wave plans are in `docs/superpowers/plans/`.
 
 ### The latest wave, in full
 
-**SP4c — resolution and releases, and M11 dies**: Branch `feat/maquette-sp4c`. Two more screens
-land as real routes: `/resolution/$dossier` (`ResolutionEcran`, transplanted from `openResolve()`)
-and `/releases/$titre` (`ReleasesEcran`, transplanted from `openReleases()`), both through
-`window.__ecrans` alongside `.fiche()`/`.profil()`. A fidelity walk against the deleted legacy
-bodies found zero rendering divergence — 124/124, 78/78 and 80/80 boxes across the arbitration's
-three shapes, all textual differences traced to inter-tag whitespace the templates left between
-block boxes, never inside a run of text. The `data-resolve` collision the brief flagged as a
-pre-read (candidate branch vs. a panel branch reading the same attribute for a different purpose)
-turned out to be order-only: the candidate branch runs first and returns, the panel branch is
-unreachable dead code (proven with a synthetic click), rewired anyway to keep saying the true
-verb. `data-profil`'s three legacy producers were traced one by one; only `openReleases`' own
-"Ouvrir le profil de qualité →" lived inside a `#screen`, so the two-way branch
-(route-open → `__pont.retour()`; else → `__panneau.fermer()`) is complete — a third `#screen`
-branch would have been dead code. **M11 (the Associer flow's double `history.back()`) dies**:
-`Pont` gains `reculer(n)` — flush pending writes, announce, then `historique.go(-n)` — and the
-fragment's latch counts `deroulementEnCours += 1` per **announcement**, not per entry: the
-browser coalesces a multi-entry `history.go(-n)` traversal into ONE popstate, so the brief's own
-`+= n` was measured wrong (mutation m2 proved it swallows the operator's next real Back) before
-`ident.py`'s new history-hold caught it. R57 (`decision.py`) is amended: its `ECRAN` probe now
-reads `.screen.open[data-cle^="resolution:"]` instead of rooting on the legacy `#screen`, which
-the arbitration screen no longer renders into — the same identity-read shift `panneau.py` and
-`galerie.py` made for the fiche in SP4b, one line, mutation-proven (24/24 both ways). The
-per-identity ladder pair (`fiche:`/`ajout:`) that four harnesses (`audit.py`, `audit2.py`,
-`dest.py`, `states.py`) carried collapses to ONE generic, ladder-last rung —
-`.screen.open[data-cle]` — covering `resolution:`/`releases:` and closing the pre-existing
-`profil:` coverage hole in the same edit; wiring it surfaced a latent, pre-existing R10 defect in
-`audit.py`'s own `couche()` helper (it tested `#sheet`/`#screen`/`#dlg` but no route, so a click
-opening `/resolution/…` read as "changed nothing" — confirmed pre-existing via `git stash`, fixed
-alongside). `harness/serveur.py`'s SPA fallback mis-read any route param carrying its own dots
-(`Backrooms.2026.MULTi.2160p.WEB-DL`, a real staging folder name) as a missing file extension and
-404ed; fixed to fold to the document for any path that is not a real file, except under the two
-directories the served root actually holds files in (`/assets/`, `/vite/`). The live host
-(`serve.py`, R73) never carried this defect — verified with a new `bascule.py` hold, not assumed.
-R75 (`adresses_ecrans.py`) gains six holds (k)-(p): both screens open cold at a dotted deep
-address, one Back lands on `/`, an unknown subject renders the arbitration's own honest empty
-case rather than raising — 35 → 49 holds, all green, mutation-proven (a severed route falls 14).
-`releaseCardHTML`/`decisionCardHTML` — the legacy builders the two screens were transplanted
-from — are deleted with zero remaining callers once the components took over; `CarteRelease` and
-`CarteDecision` (`design/src/ecrans/resolution.tsx`) are their replacements. Wave gate: full
-48-script suite green, `make check`/`make check-frontend` green, R59/R69/R71
-(`retour.py`/`adresse_url.py`/`ecrans.py`) byte-identical against the SP4b merge point
-(`9842e44d`) — `ecrans.py` included, since this wave's two screens are not ones it traverses.
-Carried open: the 240 ms dead delay on `data-suivante` (a frozen quarter-second, was a legacy
-screen-close cover — kept identical under the binding-parity constraint; flagged for the operator
-in `BUGS.md`'s evolutions register, not fixed here); a deep `/releases/$titre` entry with no
-`__ecrans` call leaves `relTitre` null for `data-prendre` (mirrors the accepted `/ajout`
-addQ/addMode debt, dies with the legacy dispatcher), and a deep `/resolution/$dossier` entry the
-same way leaves `resolveTarget` stale for `data-resolve`/`data-laisser` (same settlement, same
-door, dies with the legacy dispatcher too); `ident.py`'s only remaining `#screen` read is `ou()`'s
-`ecran` field — deliberately left, recorded under R57 — since its two early informational probes
-(the arbitration screen's `.h2`, the add screen's banner/field/id-block) already moved to
-`.screen.open[data-cle^="resolution:"]` / `[data-cle^="ajout:"]` and no longer print `None`.
-Next: the rest of the catch-all surface by surface; then SP5 (visual language).
+**clean-code / i18n — no French in the code, and no interface text in it either**: Branch
+`refactor/clean-code-i18n`, version 0.97.17 (ONE bump for the whole wave). The operator's binding
+directive of 2026-08-16, made into something enforced rather than remembered.
+
+Nine tasks. **T1/T2** put `react-i18next` in the shell and moved every UI string of the six
+components into `design/src/i18n/fr.json` (343 leaves; the panel's three dictionaries account for
+156 of them), proven byte-identical on innerText AND textContent across 81 driven states.
+**T3** put `design/src`'s files, directories and ~140 declarations into English around a FROZEN
+seam — the ~65 member names the legacy fragment calls, every `data-*` name and value, the `__go`
+state ids, the route paths — with a 934-literal audit proving no rendered byte moved. **T9**
+turned the French CSS vocabulary English across all four worlds (fragment,
+components, harness selectors, extracted stylesheet): 33 classes renamed, 3 dropped as
+dead, 6 frozen as data values, and 13 KEPT with the evidence for each recorded in
+`regions.json`'s `$vocabulary`. The plan's « eight » was its first measurement, not the
+executed set. **T4/T5** renamed 29 harness files and translated all 49
+scripts' identifiers, labels and printed formats — `OK`/`ECHEC` became `PASS`/`FAIL`, « N règles
+EXÉCUTÉES » became `N rules EXECUTED` — verified by AST-anonymised equality on 39 of the 49
+scripts and by the hold total, 485, unchanged.
+
+**T6** finished the two servers. `serve.py`'s identifiers, its two environment names
+(`TM_DESIGN_ROOT`, `TM_DESIGN_BUILD_TIMEOUT`) and its diagnostics are English, and the French it
+SERVES left the file entirely: the sign-in gate's title, the two 503 pages, the offline page and
+the manifest's description are read per request from `fr.json`'s `server` namespace — the same
+discipline that already made the gate EXTRACT the login screen's markup instead of restating it.
+Every served page is byte-identical across the move (sign-in 108171 bytes, refused 108164,
+manifest 756, offline 652, missing-prototype 576, build-failure frame 572); the one thing that
+moved in the whole host is the service worker's own constant name. `build_failure` gained the
+guard a constant could not need: if the copy itself is unreadable it answers an English
+diagnostic page naming the copy as the defect, because the page that reports every other failure
+may not fail silently. `resync.py` followed, and its two `BUGS.md` mutation recipes were re-run
+and re-pointed — as was B-029's, whose quotation still named a French hold label the harness
+stopped printing two tasks earlier.
+
+**T7 is the half that outlives the wave**: `scripts/check-no-french.py`, four arms — strings,
+identifiers, file names, class names — in `make check` and in its own CI job. Each arm has its
+own scope, because "French" means one thing in a component and another in a rule script that
+ASSERTS the French the app renders: over the harness the string arm reads only the hold LABELS.
+Every exception cites its reason, and the CSS-class exceptions are READ from `regions.json`'s
+`$vocabulary` so those reasons have exactly one home. Five mutations, each felling exactly its
+own arm. Two of them earned their place immediately: the class arm did NOT fall at first — it
+split names into words, and this vocabulary is written flat (`bandeaufiche`), so it had been
+letting everything through; and the coverage guard exists because an arm whose scope silently
+empties otherwise announces « no violation » while measuring nothing.
+
+What the gate found on its first run, beyond the wave's own list: two French names still in the
+PRODUCTION app (`SystemePage`, `EpisodeStateLegende` — renamed, 1364 frontend tests green), the
+50th harness file (`rename.mjs`, entirely French — translated, and repaired: it read its
+hand-authored name table from a vanished session scratchpad, so it threw on its first line and
+could not run at all), a local `refonte` in `bridge.py`, and four literals that are data or
+addresses rather than copy, now each carrying a `french-ok:` pragma with the reason already
+written beside it.
+
+The gate closed its own two blind spots before the wave ended, and what it found
+there was corrected rather than allowlisted. The string arm reached `scripts/` —
+the repository's own tools speak to a DEVELOPER, so they speak English; seven of
+them did not. (The `personalscraper` CLI is the opposite case and no arm reads
+it: it speaks to the OPERATOR, in French, and it is interface.) The identifier
+arm reached `scripts/`, `personalscraper/` and `tests/`: it had been reading
+2 656 declarations and now reads 124 940. The finding worth keeping is that
+`personalscraper/` had NOT ONE French identifier, and that eleven of the twelve
+in `tests/` are built on `saison` — the library's own folder name on disk, a
+DATA value, frozen with that reason because renaming it would describe a layout
+the disk does not have. `extract-maquette-css.py`, the CSS contract's own tool,
+was French from end to end; renaming it is proven by the only proof that counts —
+regenerating the stylesheet moves not one byte.
+
+Two defects in the gate itself surfaced while widening it: `≠` decomposes to `=`
+plus a combining slash, so a test that merely asks « does anything here combine? »
+reads a mathematical sign as French; and `suite`, `refuse` and `porter` left the
+lexicon, because a guardrail that flags an English word teaches its reader to
+stop believing it.
+
+Wave gate: `resync.py` reports no drift, the full 48-script suite is green with **485 holds —
+the same total the wave started with**, `make check` and `make check-frontend` green. The count
+is the sum of the scripts' own `N rules EXECUTED` lines (`pwa.py`'s 28 checks are tallied
+separately, and six scripts print holds without a Journal tally) — recorded here because the
+next wave should not have to rediscover how the number is made.
 
 ### The wave order from here (operator ruling, 2026-08-16)
 
-1. **clean-code / i18n — IN PROGRESS.** No French anywhere in code, including class
-   names (code AND CSS) and file names; UI text lives in i18n files, never inline. The
-   legacy `refonte.html` fragment is exempt from IDENTIFIER renaming (it dies at
-   SP4-fin) but NOT from CSS class renaming — a class is a name shared by four worlds.
-   Scope: `design/src`, the harness, `serve.py`, `resync.py`, and all new code anywhere.
+1. **clean-code / i18n — DONE** (branch `refactor/clean-code-i18n`, recorded above). The
+   rule now has a gate, and it is written where it is enforced: root `CLAUDE.md`
+   (§Code Conventions, §Language) and `frontend/maquette/README.md` (§Language of the
+   source, §Where the interface's French lives). Every wave below is born under it:
+   English names on the day a thing is written, interface text in `fr.json` from the
+   first line.
 2. **SP4d — four waves**, in this order: sys + maint + config → arrivées → médiathèque
    (with E-001) → acquisition.
 3. **SP4-fin** — the engine's death: empty fragment, `refonte.html` retired as a source,
@@ -157,7 +183,7 @@ it Chrome falls back to the legacy 980px layout viewport and every measurement i
 ```bash
 cd frontend/maquette/harness
 for s in *.py; do
-  [ "$s" = commun.py ] && continue   # the shared plumbing, not a rule
+  [ "$s" = common.py ] && continue   # the shared plumbing, not a rule
   /Users/izno/.pyenv/versions/3.11.9/bin/python3 "$s" > /dev/null || echo "FAILED: $s"
 done
 ```
@@ -238,11 +264,11 @@ the third is derived from the rule rather than asked again.
 | Surface                                                                | State                                                                                                                            | Rule                       |
 | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
 | `/login`, `/acquisition`, `/medias`, `/config`, `/media/:provider/:id` | drawn before this                                                                                                                | R49–R63                    |
-| **Arrivées**                                                           | **drawn** — the pilot's bar, the nine steps of the last real run, its digest, and « arrivé dans les 24 h »                       | R66, `harness/arrivees.py` |
+| **Arrivées**                                                           | **drawn** — the pilot's bar, the nine steps of the last real run, its digest, and « arrivé dans les 24 h »                       | R66, `harness/arrivals.py` |
 | **Système**                                                            | **drawn** — the deferral is lifted. PM2 services, schedulers, the pipeline's executions, disks, index, dependencies, code errors | R67, `harness/machine.py`  |
 | **Maintenance**                                                        | **drawn** — six rubrics over the engine's 26 real `library-*` commands, plus the destructive journal                             | R67                        |
 | **Configuration**                                                      | **extended** — a seventh rubric, « Les passages programmés », over the six real cron schedules                                   | R60 extended               |
-| `*` (NotFound)                                                         | **drawn** — and it closed a crash: an unknown id used to stop the whole frame on a TypeError                                     | R68, `harness/adresse.py`  |
+| `*` (NotFound)                                                         | **drawn** — and it closed a crash: an unknown id used to stop the whole frame on a TypeError                                     | R68, `harness/address.py`  |
 | multi-user account                                                     | **drawn** — the one real account, its session read from `web.json5`, and the place of the others marked EMPTY                    | R68                        |
 
 Every figure on these surfaces is read from the live system — `pipeline_run`, `pm2 jlist`, `df`,
@@ -317,7 +343,7 @@ The state travels in the QUERY, not in the path, and that is a decision: this do
 from a static server, from the prototype host, and from `file://`, and path-based routing
 requires a server that rewrites every unknown path to the document — two of those three cannot.
 The binding will map `?page=lib` onto production's `/medias`; what is judged now is that the URL
-and the interface never contradict each other. R69, `harness/adresse_url.py`.
+and the interface never contradict each other. R69, `harness/url_state.py`.
 
 ---
 
@@ -416,7 +442,7 @@ These were argued, measured and recorded. Re-opening one costs a day; the reason
    all, and those must show nothing rather than a filler.
 9. ~~**Editing a setting is drawn only as far as the panel.**~~ **Closed.** Five fields, one
    refusal and one state that crosses them, each derived from the setting's VALUE rather than
-   from a list of keys. R60 extended, `harness/reglages.py` — 42 checks, eight named states, one
+   from a list of keys. R60 extended, `harness/settings.py` — 42 checks, eight named states, one
    per field.
 10. **Five tokens the app will owe.** The design-system lint found nine hardcoded colours in the
     prototype — a real C19 violation, and one of them (`var(--warning, #d97706)`) was the B-014

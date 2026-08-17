@@ -6,10 +6,10 @@ passes it (status ``valid``/``fixed``) — the real gate that decides dispatch. 
 the NFO, poster/landscape naming, the movie video-rename to the canonical ``Title.<ext>``
 (``Cube.mkv``, never the raw release name — enforced by the ``movie_video_renamed``
 catalog check since VERIFY-MAINTENANCE-04), and (TV) the episode renaming + episode NFOs.
-The web UI "Identifié / Vérification: Fait" read-model is looser and does NOT reflect this
-— never trust it.
+The web UI « Identifié / Vérification: Fait » read-model is looser and does NOT reflect
+this — never trust it.
 
-This is the executable definition of "scraped" for product-intent.md §méthode: no
+This is the executable definition of "scraped" for product-intent.md « §méthode »: no
 "scraping/dispatch OK" claim is valid without this green on EVERY affected item — never a
 single lucky case. Exit code = number of incomplete items (0 = all complete).
 

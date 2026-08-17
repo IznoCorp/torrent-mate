@@ -2,6 +2,15 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Re-pointed 2026-08-17 (clean-code / i18n wave).** The harness moved to
+> English: its scripts were renamed, its hold labels translated, and its printed
+> verdict is now `  PASS` / `  FAIL` and `N rules EXECUTED — no violation`. Every
+> quoted expectation and every file name below was re-pointed at what the current
+> sources actually say — a quotation that silently misses its target is how a
+> recipe stops working without anyone noticing. Two things were deliberately NOT
+> rewritten: the fenced source LISTINGS, which are the code as authored on the
+> day, and the hold COUNTS, which are what was expected then. R72 has since been rescoped (see the SP3 router plan): `shell.py` runs 4 holds today, not 18, and the DOM-comparison mutation at Task 4 can no longer fell anything — the label it names no longer exists.
+
 **Goal:** Wrap the untouched prototype in a Vite project (`frontend/maquette/design/`) whose build output is proved DOM-identical to the source by a new harness rule (R72).
 
 **Architecture:** `design/` becomes the Vite root; a tiny local plugin injects `refonte.html` verbatim into `index.html` after Vite's own HTML processing (`transformIndexHtml`, `order: "post"`) and symlinks `dist/assets` to the real assets at `closeBundle`. R72 builds, serves `dist/` on a scratch port, drives source and build to the same named states, and compares rendered DOM serialization + harness-region geometry.
@@ -197,20 +206,20 @@ module (SP3/SP4)."
 
 ---
 
-### Task 2: R72 — `harness/coquille.py`, the DOM-identity proof
+### Task 2: R72 — `harness/shell.py`, the DOM-identity proof
 
 **Files:**
 
-- Create: `frontend/maquette/harness/coquille.py`
+- Create: `frontend/maquette/harness/shell.py`
 - Modify: `frontend/maquette/regions.json` (add the `R72` entry in `$adversarialReview`)
-- Modify: `frontend/maquette/README.md` (script-table row after `ecrans.py`)
+- Modify: `frontend/maquette/README.md` (script-table row after `screens.py`)
 
 **Interfaces:**
 
-- Consumes: Task 1's `npm run build` contract (`dist/index.html` + `dist/assets` symlink); `commun.Journal`, `commun.RACINE`, `commun.TELEPHONE`; the source page on `http://127.0.0.1:8899/wrapped.html`; named states via `window.__go`.
+- Consumes: Task 1's `npm run build` contract (`dist/index.html` + `dist/assets` symlink); `common.Journal`, `common.ROOT`, `common.PHONE`; the source page on `http://127.0.0.1:8899/wrapped.html`; named states via `window.__go`.
 - Produces: the 43rd rule, picked up by the suite's `*.py` glob.
 
-- [ ] **Step 1: Write the rule** — `frontend/maquette/harness/coquille.py`:
+- [ ] **Step 1: Write the rule** — `frontend/maquette/harness/shell.py`:
 
 ```python
 """R72 — the Vite shell changes nothing the prototype renders.
@@ -360,10 +369,10 @@ asyncio.run(main())
 
 ```bash
 cd /Users/izno/dev/PersonalScraper/frontend/maquette/harness
-command python3 coquille.py
+command python3 shell.py
 ```
 
-Expected: `le build de la coquille aboutit`, the states check, then per state 3 surface checks + 1 geometry check, all OK — `18 règles EXÉCUTÉES — aucune violation`, exit 0.
+Expected: `the shell build succeeds`, the states check, then per state 3 surface checks + 1 geometry check, all PASS — `18 rules EXECUTED — no violation`, exit 0.
 
 - [ ] **Step 3: Mutation one — corrupt one class in the EMITTED html; the DOM comparison must fall**
 
@@ -376,48 +385,48 @@ assert 'class="topbar"' in s
 p.write_text(s.replace('class="topbar"', 'class="topbarr"', 1), encoding="utf-8")
 print("mutation posée: topbar → topbarr dans dist")
 PY
-command python3 coquille.py; echo "exit=$?"
+command python3 shell.py; echo "exit=$?"
 ```
 
-Expected: exit 1 — at least one `ECHEC … identique` naming the diverging node — CAUTION: the rule REBUILDS at start, which would erase a pre-run mutation. The mutation must therefore be applied differently: run the rule once so `dist/` is fresh, then apply the mutation, then re-run **with the build skipped**. To keep the rule honest AND mutable, `construire()` skips the build when the environment variable `R72_SANS_BUILD=1` is set — add this line at the top of `construire`:
+Expected: exit 1 — at least one `FAIL … identique` naming the diverging node — CAUTION: the rule REBUILDS at start, which would erase a pre-run mutation. The mutation must therefore be applied differently: run the rule once so `dist/` is fresh, then apply the mutation, then re-run **with the build skipped**. To keep the rule honest AND mutable, `construire()` skips the build when the environment variable `R72_SKIP_BUILD=1` is set — add this line at the top of `construire`:
 
 ```python
-    if os.environ.get("R72_SANS_BUILD") == "1":
+    if os.environ.get("R72_SKIP_BUILD") == "1":
         journal.verifier("le build de la coquille aboutit", True,
-                         "sauté (R72_SANS_BUILD=1 — mutation en cours)")
+                         "sauté (R72_SKIP_BUILD=1 — mutation en cours)")
         return True
 ```
 
 (and `import os` at the top). Then the mutation run is:
 
 ```bash
-R72_SANS_BUILD=1 command python3 coquille.py; echo "exit=$?"
+R72_SKIP_BUILD=1 command python3 shell.py; echo "exit=$?"
 ```
 
-Expected: exit 1, `ECHEC` on DOM identity naming the node. Restore with a plain re-run (no env var — the rebuild restores dist): `command python3 coquille.py` → green.
+Expected: exit 1, `FAIL` on DOM identity naming the node. Restore with a plain re-run (no env var — the rebuild restores dist): `command python3 shell.py` → green.
 
 - [ ] **Step 4: Mutation two — break the assets; the console-error guard must fall**
 
 ```bash
 rm ../design/dist/assets
-R72_SANS_BUILD=1 command python3 coquille.py; echo "exit=$?"
+R72_SKIP_BUILD=1 command python3 shell.py; echo "exit=$?"
 ```
 
-Expected: exit 1 with `erreurs JS` listing failed image loads on the 8917 side (the DOM checks may stay green — the markup is intact; it is the error guard that bites). Restore: `command python3 coquille.py` (rebuild recreates the symlink) → green.
+Expected: exit 1 with `JS errors:` listing failed image loads on the 8917 side (the DOM checks may stay green — the markup is intact; it is the error guard that bites). Restore: `command python3 shell.py` (rebuild recreates the symlink) → green.
 
 - [ ] **Step 5: Register R72 in `regions.json`** — read one existing `$adversarialReview` entry for shape, then add key `"R72"`: what it holds (the shell's build renders identically to the source — DOM serialization and region geometry per driven state, zero console errors either side), how it was verified (both mutations, each felling its own guard: a corrupted class fells the DOM comparison naming the node; removed assets fell the error guard).
 
-- [ ] **Step 6: Add the README row** after the `ecrans.py` row, matching the table's voice:
+- [ ] **Step 6: Add the README row** after the `screens.py` row, matching the table's voice:
 
 ```
-| `coquille.py`     | R72: the Vite shell's build renders identically to the source — DOM serialization and region geometry compared per driven state on both pages, zero console errors on either side |
+| `shell.py`        | R72: the Vite shell's build renders identically to the source — DOM serialization and region geometry compared per driven state on both pages, zero console errors on either side |
 ```
 
 - [ ] **Step 7: Commit**
 
 ```bash
 cd /Users/izno/dev/PersonalScraper
-git add frontend/maquette/harness/coquille.py frontend/maquette/regions.json frontend/maquette/README.md
+git add frontend/maquette/harness/shell.py frontend/maquette/regions.json frontend/maquette/README.md
 git commit -m "test(shell-mobile): R72 — la coquille ne change rien au rendu, prouvé par mutation
 
 Le build est comparé à la source dans le même navigateur, sur les mêmes
@@ -447,7 +456,7 @@ retirés font tomber la garde d'erreurs, seule."
 cd /Users/izno/dev/PersonalScraper/frontend/maquette/harness
 rm -f /tmp/tm-refonte/suite-sp2.log
 nohup bash -c 'for s in *.py; do
-    [ "$s" = commun.py ] && continue
+    [ "$s" = common.py ] && continue
     command python3 "$s" > /dev/null 2>&1 || echo "FAILED: $s" >> /tmp/tm-refonte/suite-sp2.log
   done; echo "SUITE TERMINEE" >> /tmp/tm-refonte/suite-sp2.log' > /dev/null 2>&1 &
 ```

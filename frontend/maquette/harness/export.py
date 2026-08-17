@@ -22,20 +22,20 @@ import pathlib
 import re
 import sys
 
-from commun import ouvrir
+from common import open_page
 from playwright.async_api import async_playwright
 
-RACINE = pathlib.Path(__file__).resolve().parent.parent
+ROOT = pathlib.Path(__file__).resolve().parent.parent
 BAR = "─" * 62
 
 # The harness is physically identifiable in the DOM.
 CHROME_PROTO = ".hpanel,.hbtn,.note,.states"
-HARNAIS_CONNUS = {"hpanel", "states", "notes", "stage", "device", "note", "hbtn"}
+KNOWN_HARNESS = {"hpanel", "states", "notes", "stage", "device", "note", "hbtn"}
 
 
-def classes_bloc2() -> set[str]:
+def block2_classes() -> set[str]:
     """Classes defined by a CSS rule inside BLOCK 2 — comments excluded."""
-    h = (RACINE / "design" / "refonte.html").read_text()
+    h = (ROOT / "design" / "refonte.html").read_text()
     i = h.find("BLOCK 2")
     if i < 0:
         sys.exit("BLOCK 2 not found: the prototype lost its harness/app separation.")
@@ -54,9 +54,9 @@ def classes_bloc2() -> set[str]:
 
 
 async def main():
-    cl = sorted(classes_bloc2())
-    src = (RACINE / "design" / "refonte.html").read_text()
-    src = src[src.find("</style>"):]  # markup + JS, sans le CSS
+    cl = sorted(block2_classes())
+    src = (ROOT / "design" / "refonte.html").read_text()
+    src = src[src.find("</style>"):]  # markup + JS, without the CSS
     # A migrated screen's markup lives in `design/src/**/*.tsx` now, not in
     # refonte.html: a class reached only through user interaction — never
     # present in any FROZEN `__go` state, like `.addfoot` (drawn once
@@ -65,16 +65,16 @@ async def main():
     # here is what keeps this classifier's "written" detection working
     # across the strangler seam, one screen at a time, exactly the way it
     # already worked for the legacy templates it used to be the only source.
-    for tsx in sorted((RACINE / "design" / "src").rglob("*.tsx")):
+    for tsx in sorted((ROOT / "design" / "src").rglob("*.tsx")):
         src += "\n" + tsx.read_text()
 
     async with async_playwright() as p:
         b = await p.chromium.launch(channel="chrome")
-        ctx, pg = await ouvrir(b)
+        ctx, pg = await open_page(b)
         await pg.evaluate("()=>window.__measure(true)")
-        etats = await pg.evaluate("()=>window.__states()")
-        app, har = set(), set()
-        for e in etats:
+        states = await pg.evaluate("()=>window.__states()")
+        app, harness = set(), set()
+        for e in states:
             await pg.evaluate("(i)=>window.__go(i)", e)
             await pg.wait_for_timeout(170)
             r = await pg.evaluate("""([CL, CHROME])=>{const a=[],h=[];
@@ -83,39 +83,39 @@ async def main():
                 else a.push(c);
               }
               return {a:[...new Set(a)], h:[...new Set(h)]};}""", [cl, CHROME_PROTO])
-            app |= set(r["a"]); har |= set(r["h"])
+            app |= set(r["a"]); harness |= set(r["h"])
         await b.close()
 
-    har -= app
-    reste = set(cl) - app - har
+    harness -= app
+    rest = set(cl) - app - harness
     # The harness is written by the code too: without this subtraction it
     # would land in « written », hence in the export allowlist.
-    posees = {c for c in reste - HARNAIS_CONNUS
+    written = {c for c in rest - KNOWN_HARNESS
               if re.search(r"[\"'` ]" + re.escape(c) + r"[\"'` ]", src)}
-    mortes = sorted(reste - posees - HARNAIS_CONNUS)
-    har |= (reste & HARNAIS_CONNUS)
+    dead = sorted(rest - written - KNOWN_HARNESS)
+    harness |= (rest & KNOWN_HARNESS)
 
-    print(f"{BAR}\nClassement des {len(cl)} classes de BLOC 2\n{BAR}")
+    print(f"{BAR}\nClassification of the {len(cl)} BLOCK 2 classes\n{BAR}")
     print(f"  app       {len(app):4d}")
-    print(f"  written   {len(posees):4d}  (transient: {', '.join(sorted(posees)) or '—'})")
-    print(f"  harnais   {len(har):4d}")
-    print(f"  MORTES    {len(mortes):4d}  {', '.join(mortes) or '—'}")
+    print(f"  written   {len(written):4d}  (transient: {', '.join(sorted(written)) or '—'})")
+    print(f"  harness   {len(harness):4d}")
+    print(f"  DEAD      {len(dead):4d}  {', '.join(dead) or '—'}")
 
     # The allowlist must cover everything bound for the app: rendered AND
     # transient.
-    regions = json.loads((RACINE / "regions.json").read_text())
-    attendu = {"." + c for c in (app | posees)}
-    manquantes = sorted(attendu - set(regions["exportedSelectors"]))
+    regions = json.loads((ROOT / "regions.json").read_text())
+    expected = {"." + c for c in (app | written)}
+    missing = sorted(expected - set(regions["exportedSelectors"]))
 
-    echecs = []
-    if mortes:
-        echecs.append(f"{len(mortes)} dead CSS rule(s): {', '.join(mortes)}")
-    if manquantes:
-        echecs.append(f"{len(manquantes)} class(es) outside the allowlist: {', '.join(manquantes)}")
+    failures = []
+    if dead:
+        failures.append(f"{len(dead)} dead CSS rule(s): {', '.join(dead)}")
+    if missing:
+        failures.append(f"{len(missing)} class(es) outside the allowlist: {', '.join(missing)}")
 
     print()
-    if echecs:
-        for x in echecs:
+    if failures:
+        for x in failures:
             print("■", x)
         print(f"{BAR}\nFAILURE - extraction would leave CSS behind.")
         sys.exit(1)

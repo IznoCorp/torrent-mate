@@ -745,7 +745,7 @@
     padding: 0 5px;
     text-align: center;
   }
-  .act.chercher {
+  .act.resume {
     background: var(--primary);
     color: var(--primary-foreground);
   }
@@ -828,7 +828,7 @@
      notches is derived from anything, and a number nobody derived is a number
      nobody can defend. */
 
-  .dossier {
+  .folder {
     width: 58px;
     align-self: start;
     justify-self: start;
@@ -846,7 +846,7 @@
     color: var(--muted-foreground);
     padding: 0;
   }
-  .dossier svg {
+  .folder svg {
     width: 22px;
     height: 22px;
     margin: 0 auto;
@@ -1520,19 +1520,19 @@
 
      The child combinator is not decoration: `.kv span:first-child` also matches
      the dot itself, which is the first child of the caption. */
-  .kv.avecpip > span:first-child {
+  .kv.withpip > span:first-child {
     display: flex;
     align-items: center;
     gap: 8px;
   }
   /* A value that has not happened yet is not a value: it reads as an
      announcement, not as a measurement. */
-  .kv.avenir > span:last-child {
+  .kv.upcoming > span:last-child {
     font-weight: 400;
     color: var(--muted-foreground);
   }
   /* A block of facts inside a panel keeps its distance from what follows. */
-  .sheetfaits {
+  .sheetfacts {
     margin-bottom: 14px;
   }
   .h2 {
@@ -1580,7 +1580,7 @@
      It sits where the pipeline is OBSERVED (DOIT-3): the stalled step and the
      button to run it again are one glance apart, so nothing sends the operator
      to another page to act on what they are reading. */
-  .pilote {
+  .pipeline {
     border: 1px solid var(--border);
     border-radius: 10px;
     background: var(--card);
@@ -1589,17 +1589,17 @@
     flex-direction: column;
     gap: 10px;
   }
-  .pilote .ph {
+  .pipeline .ph {
     display: flex;
     align-items: center;
     gap: 8px;
     min-width: 0;
   }
-  .pilote .pt {
+  .pipeline .pt {
     font-size: 13px;
     font-weight: 600;
   }
-  .pilote .pq {
+  .pipeline .pq {
     /* min-width: 0 with the ellipsis, so a long qualifier shortens instead of
        widening the row past the frame. */
     min-width: 0;
@@ -1611,19 +1611,19 @@
     font-size: 11.5px;
     color: var(--muted-foreground);
   }
-  .pilote .jauge {
+  .pipeline .gauge {
     height: 4px;
     border-radius: 99px;
     background: var(--border);
     overflow: hidden;
   }
-  .pilote .jauge i {
+  .pipeline .gauge i {
     display: block;
     height: 100%;
     background: var(--info);
     border-radius: inherit;
   }
-  .pilote .pacts {
+  .pipeline .pacts {
     display: grid;
     /* minmax(0, 1fr), never 1fr: an auto track's floor is its item's intrinsic
        size, so the longer label would size its column to max-content (R7). */
@@ -1662,7 +1662,7 @@
     color: inherit;
     font: inherit;
   }
-  .flux .fx.fclic .fw {
+  .flux .fx.fclick .fw {
     /* The whole row answers a thumb, so it carries the 44px floor a target
        needs rather than leaving it to whatever the text happens to measure. */
     min-height: 44px;
@@ -1680,11 +1680,11 @@
     text-align: right;
     color: var(--muted-foreground);
   }
-  .flux .fx.fvide .fn {
+  .flux .fx.fempty .fn {
     color: var(--muted-foreground);
     font-weight: 500;
   }
-  .flux .fx.fbloc .fr {
+  .flux .fx.fblocked .fr {
     color: var(--danger);
     font-weight: 600;
   }
@@ -1733,7 +1733,7 @@
      value as it stands on the right, and the control lives in the panel that
      opens on top of it. A screen of live inputs on a phone is a screen where
      every scroll risks changing something. */
-  .rub {
+  .topic {
     display: flex;
     align-items: center;
     gap: 12px;
@@ -1746,19 +1746,19 @@
     color: var(--foreground);
     margin-bottom: 8px;
   }
-  .rub .rt {
+  .topic .rt {
     display: block;
     font-size: 14px;
     font-weight: 600;
   }
-  .rub .rs {
+  .topic .rs {
     display: block;
     margin-top: 2px;
     font-size: 12px;
     line-height: 1.4;
     color: var(--muted-foreground);
   }
-  .rub .rn {
+  .topic .rn {
     flex: 0 0 auto;
     font-size: 12px;
     font-weight: 600;
@@ -1766,7 +1766,7 @@
     font-variant-numeric: tabular-nums;
   }
 
-  .reg {
+  .settingrow {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -1778,23 +1778,23 @@
     padding: 11px 2px;
     color: var(--foreground);
   }
-  .reg:last-child {
+  .settingrow:last-child {
     border-bottom: 0;
   }
-  .reg .rl {
+  .settingrow .rl {
     display: block;
     min-width: 0;
     flex: 1;
     font-size: 13px;
   }
-  .reg .rf {
+  .settingrow .rf {
     display: block;
     margin-top: 2px;
     font-size: 11px;
     color: var(--muted-foreground);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
-  .reg .rv {
+  .settingrow .rv {
     flex: 0 0 auto;
     max-width: 45%;
     overflow: hidden;
@@ -1806,10 +1806,10 @@
   }
   /* A setting the operator has touched but not yet written. It is marked on
      the ROW, where it is read, and not only in a counter at the bottom. */
-  .reg.modifie .rv {
+  .settingrow.modified .rv {
     color: var(--primary);
   }
-  .reg.modifie::before {
+  .settingrow.modified::before {
     content: "";
     width: 3px;
     align-self: stretch;
@@ -1823,18 +1823,18 @@
      owes it. It sits above the tab bar, like every other fixed thing. */
   /* A FIELD, inside the panel. The panel is the one place an action lives
      (R56), so editing a setting does not get a screen of its own. */
-  .champ {
+  .field {
     display: flex;
     align-items: center;
     gap: 10px;
     margin-top: 10px;
   }
-  .champ.liste {
+  .field.list {
     flex-direction: column;
     align-items: stretch;
     gap: 6px;
   }
-  .champsaisie {
+  .fieldinput {
     flex: 1;
     min-width: 0;
     padding: 11px 12px;
@@ -1845,25 +1845,25 @@
     font: inherit;
     font-size: 14px;
   }
-  .champsaisie.mono {
+  .fieldinput.mono {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 12px;
   }
-  .champsaisie:focus-visible {
+  .fieldinput:focus-visible {
     outline: 2px solid var(--primary);
     outline-offset: 1px;
   }
-  .champunite {
+  .fieldunit {
     flex: 0 0 auto;
     font-size: 12px;
     color: var(--muted-foreground);
   }
-  .champlbl {
+  .fieldlabel {
     font-size: 13px;
     color: var(--muted-foreground);
   }
   /* The switch is the whole field: nothing to type, nothing to validate. */
-  .interrupteur {
+  .fieldtoggle {
     flex: 0 0 auto;
     width: 48px;
     height: 28px;
@@ -1874,11 +1874,11 @@
     display: flex;
     transition: background 0.18s ease;
   }
-  .interrupteur.actif {
+  .fieldtoggle.active {
     background: var(--primary);
     justify-content: flex-end;
   }
-  .pastille {
+  .fieldknob {
     width: 22px;
     height: 22px;
     border-radius: 99px;
@@ -1902,7 +1902,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .lsupp {
+  .lremove {
     flex: 0 0 auto;
     border: 0;
     background: transparent;
@@ -1910,11 +1910,11 @@
     padding: 2px;
     display: flex;
   }
-  .lsupp svg {
+  .lremove svg {
     width: 15px;
     height: 15px;
   }
-  .lajout {
+  .ladd {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1927,11 +1927,11 @@
     font-size: 12.5px;
     font-weight: 600;
   }
-  .lajout svg {
+  .ladd svg {
     width: 15px;
     height: 15px;
   }
-  .champ.refus .rulenote {
+  .field.readonly .rulenote {
     margin: 0;
   }
   .savebar {
@@ -2138,7 +2138,7 @@
      created a second design (white) which, on screens without an image,
      OVERLAPPED the title instead of pushing it. A bar in the flow can cover
      nothing — and it reads the same everywhere. */
-  .fichebar {
+  .screenbar {
     flex: 0 0 auto;
     display: flex;
     align-items: center;
@@ -2250,7 +2250,7 @@
      short lines centred against it leaves the title floating in the middle of
      nothing. It also breathes below rather than inside: an 84px picture makes
      the same 4px read as nothing at all. */
-  .sheethead.avecaffiche {
+  .sheethead.withposter {
     align-items: flex-start;
     padding-bottom: 0;
     margin-bottom: 12px;
@@ -2338,7 +2338,7 @@
   /* Transplanted from maquette-acquisition.css — used in markup without
      having been ported, therefore inert: the « no trailer » message
      rendered at 14px without its dashed frame. */
-  .nofiche {
+  .noinfo {
     margin: 0 0 4px;
     font-size: 12px;
     color: var(--muted-foreground);
@@ -2381,7 +2381,7 @@
     position: relative;
     /* -10px cancels .body's top padding so the image touches the bar.
        Without an image the same pull would glue the title to it, hence the
-       breathing room restored in .noaffiche below. */
+       breathing room restored in .noposter below. */
     margin: -10px -14px 0;
     isolation: isolate;
     /* `clip`, not `hidden`: forbid overflow without creating a scroll
@@ -2414,12 +2414,12 @@
 
   /* Medium without a visual: the template does not change, only the content
      is missing. A muted field holds the place. */
-  .herowrap.noaffiche {
+  .herowrap.noposter {
     /* No image: the title must not be glued to the bar. */
     padding-top: 18px;
   }
 
-  .herowrap.noaffiche .herobg {
+  .herowrap.noposter .herobg {
     height: 72px;
     min-height: 0;
     background-image: linear-gradient(
@@ -2540,7 +2540,7 @@
      so one gesture always gets the same answer. Content centred: left-
      aligned like an action row, it read as a list item rather than the
      primary button. */
-  .ficheadd {
+  .mediaadd {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2554,11 +2554,11 @@
     padding: 12px;
     border-radius: 8px;
   }
-  .ficheadd svg {
+  .mediaadd svg {
     width: 16px;
     height: 16px;
   }
-  .ficheadd.done {
+  .mediaadd.done {
     background: transparent;
     color: var(--muted-foreground);
     border-color: var(--border);
@@ -2801,7 +2801,7 @@
   }
   /* The question an incomplete sheet answers is « which ones are missing »,
      not « how many ». Answer it in words, before the list. */
-  .manquants {
+  .missing {
     margin: 8px 0 0;
     font-size: 12px;
     font-weight: 600;
@@ -3039,7 +3039,7 @@
      radius 8, weight 600, 13.5px. */
   .sact,
   .cfoot,
-  .ficheadd,
+  .mediaadd,
   .dlgbtn,
   .btnprimary {
     display: flex;
@@ -3056,7 +3056,7 @@
   }
   .sact svg,
   .cfoot svg,
-  .ficheadd svg {
+  .mediaadd svg {
     width: 16px;
     height: 16px;
     flex: 0 0 auto;
@@ -3066,7 +3066,7 @@
      remember to add. */
   .sact:has(> svg),
   .cfoot:has(> svg),
-  .ficheadd:has(> svg) {
+  .mediaadd:has(> svg) {
     justify-content: flex-start;
     text-align: left;
   }
@@ -3165,10 +3165,10 @@
   }
   /* A setting row does not stretch: the label can wrap without dragging the
      control with it. */
-  .kv.reglage {
+  .kv.setting {
     align-items: flex-start;
   }
-  .kv.reglage > span:first-child {
+  .kv.setting > span:first-child {
     padding-right: 4px;
   }
 
@@ -3821,7 +3821,7 @@
     height: 20px;
     flex: 0 0 auto;
   }
-  .drawer a .nb {
+  .drawer a .count {
     margin-left: auto;
     display: inline-flex;
     height: 18px;
@@ -4482,7 +4482,7 @@
     ></aside>
     <div class="screen" id="screen"></div>
     <!-- The scrim and the bottom sheet are rendered by the shell
-         (`src/composants/feuille.tsx`), at these same ids and classes, into
+         (`src/components/sheet.tsx`), at these same ids and classes, into
          `#coquille` — which sits inside this frame, earlier in document order.
          They are absent here on purpose: two elements answering `#sheet` is
          one of them being measured and the other being shown. -->
@@ -4726,7 +4726,7 @@
       t: "Kyma, l'onde mystérieuse",
       serie: null,
       depuis: "9 août",
-      recherches: 7,
+      recherches: 8,
       k: "movie",
       y: 2026,
       st: "en_attente",
@@ -4736,7 +4736,7 @@
       t: "L'Odyssée",
       serie: null,
       depuis: "6 août",
-      recherches: 12,
+      recherches: 13,
       k: "movie",
       y: 2026,
       st: "en_attente",
@@ -4745,7 +4745,7 @@
       t: "Spider-Man : Brand New Day",
       serie: null,
       depuis: "5 août",
-      recherches: 15,
+      recherches: 16,
       k: "movie",
       y: 2026,
       st: "en_attente",
@@ -4785,7 +4785,7 @@
       t: "Furious",
       serie: "Continuing",
       depuis: "27 juillet",
-      recherches: 9,
+      recherches: 10,
       k: "show",
       y: 2026,
       st: "a_jour",
@@ -4807,7 +4807,7 @@
       t: "President Curtis",
       serie: "Continuing",
       depuis: "29 juillet",
-      recherches: 14,
+      recherches: 16,
       k: "show",
       y: 2026,
       st: "a_jour",
@@ -4852,7 +4852,7 @@
   /* 150 REAL suggestions: the output of the engine actually run against
      library.db (16 seeds → 32 TMDB calls → 640 raw titles → 503 survivors
      after excluding the 1,832 owned TMDB ids). */
-  /* Taken VERBATIM from components/acquisition/meta.ts and SuivisPanel.tsx:
+  /* Taken VERBATIM from components/acquisition/meta.ts and FollowsPanel.tsx:
      same labels, same tones, same urgency order, same groups. */
   const ST_LABEL = {
     disabled: "En pause",
@@ -11576,7 +11576,7 @@
       : posterBox(descriptor.t, descriptor.k);
     const poster = aFiche
       ? `<button class="poster" aria-label="Fiche de ${escapeHtml(descriptor.t)}" data-fiche="${escapeHtml(descriptor.t)}">${image}</button>`
-      : `<button class="dossier" aria-label="Actions pour le dossier ${escapeHtml(descriptor.t)}" data-panel="${escapeHtml(descriptor.panel || `dossier:${descriptor.t}`)}">${svgIcon(icons.folder, 1.6)}<span class="dlabel">Dossier</span></button>`;
+      : `<button class="folder" aria-label="Actions pour le dossier ${escapeHtml(descriptor.t)}" data-panel="${escapeHtml(descriptor.panel || `dossier:${descriptor.t}`)}">${svgIcon(icons.folder, 1.6)}<span class="dlabel">Dossier</span></button>`;
     /* Two lines, because they answer two questions. The first says WHAT THIS
        MEDIUM IS — how much of it is owned, what state it is in, how it is
        rated. The second annotates that state: what is pending, what has just
@@ -11604,8 +11604,8 @@
   }
 
   /* The release candidate's card and the decision's card moved to the shell
-     with the screen that draws them: `CarteRelease` and `CarteDecision` in
-     `src/ecrans/resolution.tsx`, at identical emission — `.card[data-nonmedia]`,
+     with the screen that draws them: `ReleaseCard` and `DecisionCard` in
+     `src/screens/resolution.tsx`, at identical emission — `.card[data-nonmedia]`,
      no media sheet and no panel, because neither subject is a medium. Their
      rationale moved there with them; nothing here builds either shape any
      more, and a second builder kept alive next to the one being drawn is
@@ -11632,8 +11632,8 @@
   }
 
   /* ONE bottom panel, and its shape follows the facts it is given — and it is
-     built in the shell now: `src/composants/panneau.tsx` is that single
-     constructor, `src/composants/feuille.tsx` the layer it draws into, and
+     built in the shell now: `src/components/panel.tsx` is that single
+     constructor, `src/components/sheet.tsx` the layer it draws into, and
      `window.__panneau.ouvrir` the verb a producer here calls, on a descriptor.
 
      The DESCRIPTOR crosses unchanged (facts, never markup: `titre`, `meta`,
@@ -12114,7 +12114,7 @@
             ? `<button class="act pause" data-swipeact="pause">${svgIcon(icons.x)}Ne plus chercher</button><button class="act remove" data-swipeact="remove">${svgIcon(icons.trash)}Retirer</button>`
             : `<button class="act pause" data-swipeact="pause">${svgIcon(icons.x)}Pause</button><button class="act remove" data-swipeact="remove">${svgIcon(icons.trash)}Retirer</button>`,
           follow.st === "en_attente" || follow.st === "a_recuperer"
-            ? `<button class="act chercher" data-swipeact="chercher">${svgIcon(icons.refresh)}Chercher</button>`
+            ? `<button class="act resume" data-swipeact="chercher">${svgIcon(icons.refresh)}Chercher</button>`
             : "",
         );
 
@@ -12345,10 +12345,10 @@
          and asking for another one is a legitimate thing to want. DOIT-4 makes
          it a QUEUE rather than a refusal — and a queue nobody can reach is a
          branch no gesture can enter, which is a branch nobody can trust. */
-      return `<section class="pilote">
+      return `<section class="pipeline">
       <div class="ph"><span class="pip info"></span><span class="pt">En cours</span>
       <span class="pq">étape 4 sur ${PIPELINE.etapes.length} · ${escapeHtml(etape.l)}</span></div>
-      <div class="jauge"><i style="width:44%"></i></div>
+      <div class="gauge"><i style="width:44%"></i></div>
       ${
         state.pipe === "file"
           ? `<div class="live"><span class="d"></span><span>Votre passage est <b>en file</b> — il partira dès que celui-ci sera fini.</span></div>
@@ -12360,7 +12360,7 @@
       }
     </section>`;
     }
-    return `<section class="pilote">
+    return `<section class="pipeline">
     <div class="ph"><span class="pip neutral"></span><span class="pt">Au repos</span>
     <span class="pq">dernier passage ${escapeHtml(PIPELINE.dernier.quand)}</span></div>
     <button class="cfoot solid" data-pipe="lancer">Lancer le pipeline</button>
@@ -12428,8 +12428,8 @@
         const badge = ligne.ton
           ? `<span class="chip ${TONS[ligne.ton]}">${valeur}</span>`
           : valeur;
-        return `<li class="fx${vide ? " fvide" : ""}${ligne.etat === "danger" ? " fbloc" : ""}${
-          ligne.cible ? " fclic" : ""
+        return `<li class="fx${vide ? " fempty" : ""}${ligne.etat === "danger" ? " fblocked" : ""}${
+          ligne.cible ? " fclick" : ""
         }"><${balise} class="fw"${cible}>
       <span class="fn">${escapeHtml(ligne.l)}</span>
       <span class="fr">${badge}</span>
@@ -12555,7 +12555,7 @@
     ${MAINT_RUBRIQUES.map((r) => {
       const dedans = MAINT_ACTIONS.filter((a) => a.g === r.id);
       const dur = dedans.filter((a) => a.r === "destructive").length;
-      return `<button class="rub" data-maintrub="${escapeHtml(r.id)}">
+      return `<button class="topic" data-maintrub="${escapeHtml(r.id)}">
       <span style="min-width:0;flex:1">
         <span class="rt">${escapeHtml(r.t)}</span>
         <span class="rs">${escapeHtml(r.s)}</span>
@@ -12763,7 +12763,7 @@
     ])}
 
     <h2 class="h2">Réglages</h2>
-    <button class="rub" data-page="cfg" style="margin-top:0">
+    <button class="topic" data-page="cfg" style="margin-top:0">
       <span style="min-width:0;flex:1">
         <span class="rt">Réglages</span>
         <span class="rs">Ce que le pipeline fait, et comment — l'heure des passages programmés comprise. Rangés par ce qu'on veut changer, pas par fichier.</span>
@@ -14625,7 +14625,7 @@
     const origine = avecFichier
       ? `${nomDeFichier(reglage.f)} · ${reglage.c}`
       : reglage.c;
-    return `<button class="reg${modifie ? " modifie" : ""}" data-reglage="${escapeHtml(reglageId(reglage))}">
+    return `<button class="settingrow${modifie ? " modified" : ""}" data-reglage="${escapeHtml(reglageId(reglage))}">
       <span class="rl">${escapeHtml(libelleReglage(reglage))}
         <span class="rf">${escapeHtml(origine)}</span>
       </span>
@@ -14688,7 +14688,7 @@
       ${REGLAGES.map(
         (
           rubrique,
-        ) => `<button class="rub" data-rubrique="${escapeHtml(rubrique.id)}">
+        ) => `<button class="topic" data-rubrique="${escapeHtml(rubrique.id)}">
           <span style="min-width:0;flex:1">
             <span class="rt">${escapeHtml(rubrique.t)}</span>
             <span class="rs">${escapeHtml(rubrique.s)}</span>
@@ -14696,14 +14696,14 @@
           <span class="rn">${rubrique.r.length}</span>
         </button>`,
       ).join("")}
-      <button class="rub" data-rubrique="secrets">
+      <button class="topic" data-rubrique="secrets">
         <span style="min-width:0;flex:1">
           <span class="rt">Secrets et accès</span>
           <span class="rs">Les clés d'API et les mots de passe. On voit qu'ils sont posés, jamais ce qu'ils valent.</span>
         </span>
         <span class="rn">${SECRETS.length}</span>
       </button>
-      <button class="rub" data-profil="global">
+      <button class="topic" data-profil="global">
         <span style="min-width:0;flex:1">
           <span class="rt">Classement des releases</span>
           <span class="rs">Ce qui fait préférer une release à une autre. S'ajuste avec un aperçu en direct, donc c'est un écran à part.</span>
@@ -14754,7 +14754,7 @@
         ${SECRETS.map(
           (
             secret,
-          ) => `<button class="reg" data-secret="${escapeHtml(secret.k)}">
+          ) => `<button class="settingrow" data-secret="${escapeHtml(secret.k)}">
             <span class="rl">${escapeHtml(secret.l)}
               <span class="rf">${escapeHtml(secret.k)}</span>
             </span>
@@ -15090,7 +15090,7 @@
      would drift the day one of these changes here. None of it is engine
      STATE (never mutated by an action), so exposing it does not bypass the
      store's reactivity contract; it is exposed once, at definition time,
-     well before the deferred module script (coquille.tsx) runs. */
+     well before the deferred module script (shell.tsx) runs. */
   window.__referentiel = {
     RELEASES,
     RESOS,
@@ -15375,7 +15375,7 @@
   }
 
   /* Bound to `document`, not `cadre` (`#device`, the phone frame). A
-     migrated screen renders inside `#coquille` — relocated by coquille.tsx
+     migrated screen renders inside `#coquille` — relocated by shell.tsx
      into `#device` at boot for containment (see that file's own comment),
      but that placement is decided by CSS geometry, not by event delegation:
      nothing here depends on it, and `document` stays the deliberately wider
@@ -16041,9 +16041,9 @@
           element3.setSelectionRange(pos, pos);
         }
       };
-    /* `.champsaisie` is NOT bound here anymore: a settings field only ever
+    /* `.fieldinput` is NOT bound here anymore: a settings field only ever
        appears inside the panel, and the panel's own `champ` block owns its
-       commit-on-blur handler now (`src/composants/panneau.tsx`). Binding it
+       commit-on-blur handler now (`src/components/panel.tsx`). Binding it
        from outside would put two writers on one field. */
     const element2 = document.querySelector("#follq");
     if (element2)
@@ -16109,7 +16109,7 @@
   }
 
   /* The panel layer belongs to the shell now (`window.__panneau`, rendered by
-     `src/composants/feuille.tsx`): a producer describes FACTS and the shell
+     `src/components/sheet.tsx`): a producer describes FACTS and the shell
      builds the panel. This function opens nothing anymore — it is a tripwire,
      kept so a producer nobody converted fails where it is written instead of
      quietly doing nothing. Every call site was converted with the layer. */
@@ -16188,7 +16188,7 @@
     if (nombreDEntrees > 0) deroulementEnCours += 1;
   };
 
-  /* Kept as a VERB the driver can still say: `doigt.py`, `glisse.py` and
+  /* Kept as a VERB the driver can still say: `touch.py`, `drag.py` and
      `machine.py` call `closeSheet()` from inside the page, and moving a layer
      to the shell must not take away the vocabulary that drives it. The layer
      state, the per-layer guard and the unwind all live in
@@ -16357,7 +16357,7 @@
   // The legacy engine's own address BASE — "/" in production, but whatever a
   // static host answers the document under otherwise (the rule harness's
   // 8899 server names it "/wrapped.html"). Computed once at boot by the
-  // shell (coquille.tsx, using the router's OWN matching — see its own
+  // shell (shell.tsx, using the router's OWN matching — see its own
   // comment) and handed through window.__demarrerMoteur, because deciding
   // it here would mean re-deriving what the router owns from a second,
   // independently-maintained list. Defaulted to "/" so a call made before
@@ -17560,7 +17560,7 @@
                 lab,
                 iconPath,
               ]) => `<a href="#" data-navgo="${id}" ${state.page === id ? 'aria-current="page"' : ""}>
-            ${svgIcon(iconPath)}<span>${lab}</span>${badges[id] ? `<span class="nb">${badges[id]}</span>` : ""}
+            ${svgIcon(iconPath)}<span>${lab}</span>${badges[id] ? `<span class="count">${badges[id]}</span>` : ""}
           </a>`,
             )
             .join("")}
@@ -17578,8 +17578,8 @@
       </div>
       <div class="ver">
         <p class="vt">Version déployée</p>
-        <p class="vv">0.97.11</p>
-        <p class="vc">build 9842e44d · à jour</p>
+        <p class="vv">0.97.16</p>
+        <p class="vc">build ad366621 · à jour</p>
       </div>`;
     element.classList.add("open");
     select("#scrim").classList.add("open");
@@ -18316,7 +18316,7 @@
         return;
       }
       // The screen stays open, re-rendered in place with the "added" chip
-      // and (once this is the first) the footer: `AjoutEcran` re-renders
+      // and (once this is the first) the footer: `AddScreen` re-renders
       // itself from this same store bump, so no redraw call belongs here
       // any more.
       state.added.add(index);
@@ -39418,12 +39418,12 @@
                 },
               ).join("")}</div>${
                 ligne.aired == null
-                  ? `<p class="nofiche" style="margin-top:6px">Au-delà de l'épisode ${borne}, le provider ne dit pas combien la saison en compte.</p>`
+                  ? `<p class="noinfo" style="margin-top:6px">Au-delà de l'épisode ${borne}, le provider ne dit pas combien la saison en compte.</p>`
                   : ""
               }`
             : ligne.aired === 0 || ligne.aired === null
-              ? `<p class="nofiche" style="margin-top:8px">Saison annoncée : aucun épisode diffusé pour l'instant.</p>`
-              : `<p class="nofiche" style="margin-top:8px">Épisodes non détaillés pour cette saison — la fiche le dit plutôt que d'afficher une liste vide.</p>`;
+              ? `<p class="noinfo" style="margin-top:8px">Saison annoncée : aucun épisode diffusé pour l'instant.</p>`
+              : `<p class="noinfo" style="margin-top:8px">Épisodes non détaillés pour cette saison — la fiche le dit plutôt que d'afficher une liste vide.</p>`;
         return `<details class="season"${complete || !possede ? "" : " open"}>
           <summary>Saison ${ligne.n}
             <span class="sfr">${
@@ -39438,7 +39438,7 @@
           </summary>
           ${
             numsManquants.length
-              ? `<p class="manquants">Manquants : ${plages(numsManquants)}</p>`
+              ? `<p class="missing">Manquants : ${plages(numsManquants)}</p>`
               : ""
           }
           ${corps}
@@ -39448,12 +39448,12 @@
   }
 
   /* The media sheet moved to the shell with the rest of the screens:
-     `src/ecrans/fiche.tsx` renders it as the route `/fiche/$titre`. The
+     `src/screens/media.tsx` renders it as the route `/fiche/$titre`. The
      verb a call site says is `window.__ecrans.fiche(title)`; the template,
      the seasons and the actions live there, at identical markup — the
      click delegation below still reads their data attributes. */
   /* The resolution screen moved to the shell the same way:
-     `src/ecrans/resolution.tsx` renders it as the route
+     `src/screens/resolution.tsx` renders it as the route
      `/resolution/$dossier`, and the design rationale it carries — what the
      screen is FOR, why a tied score is not printed, the three ways out —
      moved there with it. The verb a call site says is
@@ -39811,16 +39811,16 @@
     });
   }
 
-  /* Add screen (« + ») — migrated to a real route, `AjoutEcran`
-     (`design/src/ecrans/ajout.tsx`, reached at `/ajout`). The design
+  /* Add screen (« + ») — migrated to a real route, `AddScreen`
+     (`design/src/screens/add.tsx`, reached at `/ajout`). The design
      rationale (full screen not a sheet, vertical result list, the two
      modes' verbs) lives there now, next to the code it explains. `SEARCH`,
      `cardHTML` and `addVerb` stay defined here and cross the handshake
      through `window.__referentiel` — the search execution itself is still
      the engine's, reached through that seam. */
 
-  /* Choose another release — migrated to a real route, `ReleasesEcran`
-     (`design/src/ecrans/releases.tsx`, reached at `/releases/$titre`). Show
+  /* Choose another release — migrated to a real route, `ReleasesScreen`
+     (`design/src/screens/releases.tsx`, reached at `/releases/$titre`). Show
      what is NOT happening and why. Here: why the engine picked this one —
      and enough to pick another knowingly. The score shown is the ranking's,
      not an opinion. `RELEASES` stays defined here and crosses the handshake
@@ -40375,7 +40375,7 @@
   window.addEventListener("touchcancel", endPageDrag);
 
   /* 4) Sheet: dragging the handle to close moved to the shell with the layer
-     itself — `src/composants/feuille.tsx` owns the handle, the pointer capture
+     itself — `src/components/sheet.tsx` owns the handle, the pointer capture
      and the dismissal threshold. Nothing binds here anymore: `#sheetgrab` does
      not exist when this script runs. */
 

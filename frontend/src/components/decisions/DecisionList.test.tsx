@@ -52,9 +52,9 @@ describe("DecisionList", () => {
     renderList([makeItem()]);
     // The scrape could not name what is in the folder, so the extracted title
     // is the one thing that cannot be trusted here.
-    const dossier = screen.getByTestId("decision-folder");
-    expect(dossier).toHaveTextContent("Inception (2010)");
-    expect(dossier.className).toContain("font-mono");
+    const folder = screen.getByTestId("decision-folder");
+    expect(folder).toHaveTextContent("Inception (2010)");
+    expect(folder.className).toContain("font-mono");
     expect(screen.queryByText("Inception", { exact: true })).toBeNull();
   });
 

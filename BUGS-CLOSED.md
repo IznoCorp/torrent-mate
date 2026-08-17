@@ -88,7 +88,7 @@ poster to a share of the CARD, not of the text column, so shrinking it back is a
 knows the interface is ready in the app. The early exit is not a second path: resolving sooner
 ends it sooner. Measured on a cold load: visible at 0 ms, still up at 5.1 s, the bar monotonic
 from 0 to 99 %, gone at 5.4 s; and resolving at 800 ms ends it at once. Rule R53 extended,
-`harness/demarrage.py` — 27 checks, three mutations proven: the screen dropped on the first
+`harness/startup.py` — 27 checks, three mutations proven: the screen dropped on the first
 render (the original defect), the bar filling in one second, the seam made inert.
 
 **A rule was asserting the defect.** « retiré par le premier rendu, sans le harnais » certified
@@ -123,7 +123,7 @@ sampling the bar's width over time.
 poster's footprint so the row still lines up, saying « DOSSIER » rather than miming an artwork
 nobody has. Its card is marked `data-nonmedia="dossier"`, the way a release candidate's already
 was, and it addresses its own panel — never a `media:` one, which would promise a subject that
-does not exist. Rule R46 extended, `harness/cartes.py` — 137 checks over every named state, three
+does not exist. Rule R46 extended, `harness/cards.py` — 137 checks over every named state, three
 mutations proven: the folder back as a poster (the original defect), the folder addressing no
 panel, the folder addressing a media panel.
 
@@ -140,7 +140,7 @@ other poster in the interface opens the **media sheet**. Same object, same look,
 poster was pointed at the panel — which gave it a destination and broke the one invariant the
 whole card system rests on: « the poster opens the media sheet ».
 
-**Why no rule caught it.** `cartes.py` checks each card against its own shape. Nothing checks that
+**Why no rule caught it.** `cards.py` checks each card against its own shape. Nothing checks that
 one visual element keeps ONE behaviour across pages. **The invariant was written in prose and
 never made executable.**
 
@@ -156,7 +156,7 @@ poster at all — and a rule that walks every page and fails when the same eleme
 **Fixed.** The handle claims its axis with `touch-action: none` and captures the pointer, and its
 target is a 22px strip rather than the 4px bar it draws — a thumb aims at the bar and lands in the
 strip, and the events used to stop the moment the finger left it. A cancel springs the sheet back
-instead of closing it. Rule R55 extended, `harness/doigt.py` — 25 checks, four mutations proven:
+instead of closing it. Rule R55 extended, `harness/touch.py` — 25 checks, four mutations proven:
 the axis unclaimed (the original defect, under a real finger), the closing threshold dropped to
 10px, the pointer capture removed (which only a MOUSE drag can catch — touch gets an implicit
 capture), and a cancel treated as a lift.
@@ -192,7 +192,7 @@ claim the axis; then extend R55 to every draggable surface, sheet handle include
 pasting has no other route. Measuring it turned up a second defect the report had named without
 either of us knowing why: the press listeners lived on the SCROLLPORT, and every layer above it —
 sheet, screen, drawer, dialog — sits outside, so four states drew a poster no press could reach.
-Both listeners moved to the frame. Rule R55 extended, `harness/doigt.py` — 18 checks, four
+Both listeners moved to the frame. Rule R55 extended, `harness/touch.py` — 18 checks, four
 mutations proven: the refusal removed, the refusal reaching into text fields, the refusal back on
 the scrollport, and the press listeners back on the scrollport.
 
@@ -228,7 +228,7 @@ typography too, so the wordmark had `line-height: normal` there against 1.35 her
 screen rendered at 16 px instead of 14. The reset is now extracted through `login:socle` markers
 like the palette, and the host contributes only `.loginscreen { position: static }` and the
 startup screen's positioning — what a page needs that a layer does not. Rule R62,
-`harness/entree.py` — 10 checks comparing RENDERINGS, two mutations proven: the host taking back
+`harness/entry.py` — 10 checks comparing RENDERINGS, two mutations proven: the host taking back
 a palette of its own (the original fault), and the host dropping the typographic extract. A third
 mutation did not bite and earned its keep: removing the type scale I had first pinned on
 `.loginscreen` changed nothing once the reset was extracted, so that declaration was removed
@@ -241,7 +241,7 @@ the prototype shows `#login`. They are two documents and they do not look the sa
 then adds a hand-written `socle` block defining a palette of its own. The prototype's screen never
 gets that block.
 
-**Why no rule caught it.** `deconnexion.py` checks that signing out LANDS on the entry screen.
+**Why no rule caught it.** `logout.py` checks that signing out LANDS on the entry screen.
 Nothing compares the two renderings of the same screen. **A surface that exists in two places was
 verified in one.**
 
@@ -301,7 +301,7 @@ being a poster; the bottom bleed is what gave way, and only on cards the text ma
 One trap paid on the way: the artwork must contribute no intrinsic size of its own, or its pixels
 set the column — in flow, a 240px-wide picture made a 240px poster and dragged the card with it.
 
-Rule R47 rewritten, `harness/cartes.py` — 142 checks over every named state, three mutations
+Rule R47 rewritten, `harness/cards.py` — 142 checks over every named state, three mutations
 proven: the padding restored around the poster, the ratio broken, the width shrunk back to 42.
 
 **Asked for.** The poster grows by DROPPING the padding around it: it touches the card's top, left
@@ -335,7 +335,7 @@ an automatic margin, and WebKit sizes it without honouring its children's `flex-
 two 84px buttons — so they spilled twenty pixels past the rounded card. An explicit `width` leaves
 nothing to infer. Both engines now measure 168px, zero overflow.
 
-Rule R64, `harness/glisse.py` — 18 checks on BOTH engines, four mutations proven: the automatic
+Rule R64, `harness/drag.py` — 18 checks on BOTH engines, four mutations proven: the automatic
 margin restored (the iOS defect), one direction only, two rows open at once, the tap not scoped.
 
 **Two things the suite caught that I had just broken.** Clearing the swallow mark after the guard
@@ -352,7 +352,7 @@ over what it uncovered.
 actions. The tap that opens the bottom panel keeps working; the two gestures are scoped so neither
 steals the other.
 
-**What is already there.** Follow rows answer a swipe today (`souris.py` measures
+**What is already there.** Follow rows answer a swipe today (`mouse.py` measures
 `matrix(1,0,0,1,-168,0)`), and the deck answers one. What is asked is the same gesture on the
 media card, alongside the tap that opens the panel — which is exactly where a scope conflict
 lives: a horizontal drag must not fire the tap, and a tap must not be read as a drag.
@@ -383,7 +383,7 @@ only where the wait is played rather than observed, which is the sign-in inside 
 **One implementation trap on the way.** The seam that ends the screen was declared inside the
 function that plays a wait, so at boot it did not exist at all and the screen never came off.
 
-Rule R53 corrected, `harness/demarrage.py` — 27 checks, three mutations proven: the timer back at
+Rule R53 corrected, `harness/startup.py` — 27 checks, three mutations proven: the timer back at
 boot (the reported defect), the screen never painted, the played sign-in made instant. The rule
 itself has now been wrong in both directions, and both times it said what the code did instead of
 what the screen is for.

@@ -17,7 +17,7 @@ PWA assets). The `harness/`, `serve.py`, and `regions.json` siblings are never s
 by sub-project. `npm run build` emits `dist/` (gitignored): the real envelope from
 `index.html` with the prototype injected **verbatim** — a local plugin inserts the fragment
 after Vite's own HTML processing, so no minifier ever touches it — plus the shell's module
-bundle under `dist/vite/`, and `dist/assets` linked to the real files. R72 (`coquille.py`)
+bundle under `dist/vite/`, and `dist/assets` linked to the real files. R72 (`shell.py`)
 holds what remains true of that emission: the fragment appears verbatim exactly once, the
 document names exactly one module entry, and the bundle it names exists.
 
@@ -26,7 +26,7 @@ URL and the history: the legacy engine keeps its navigation logic but speaks to
 `window.__pont` (six verbs) instead of the History API. The shell creates the store and
 the real bridge FIRST and only then starts the engine (`window.__demarrerMoteur` — the boot
 inversion described below), so every bridge call the engine makes at boot lands straight on
-the single writer; nothing before it needs queueing or replaying. R74 (`pont.py`) holds the
+the single writer; nothing before it needs queueing or replaying. R74 (`bridge.py`) holds the
 bridge: no direct history writer left in the source, the back journey redraws through it,
 a deep URL lands on its promised state, `__go` drives without touching history depth, and
 the boot handshake is real — the startup screen comes off on its own, before the harness
@@ -35,15 +35,15 @@ from a sheet and then forward closes it rather than restoring it, exactly as bef
 router.
 
 **Two screens are routed for real, not merely driven by `__go()`.** `/profil/$titre`
-(the quality-profile screen, `ProfilEcran`) and `/ajout` (the add screen, `AjoutEcran`,
+(the quality-profile screen, `ProfileScreen`) and `/ajout` (the add screen, `AddScreen`,
 whose `q` and `mode` search params are router-owned for as long as the address reads
 `/ajout`) render as final components inside the React root, reached by a real address
-rather than by the legacy fragment's own state machine. `aller()` in `coquille.tsx` is
+rather than by the legacy fragment's own state machine. `go()` in `shell.tsx` is
 the ONLY function allowed to call `routeur.navigate()` — R76 (`navigation.py`) holds it
-to exactly one call site, source-level counted, sitting inside `aller()`'s own body:
+to exactly one call site, source-level counted, sitting inside `go()`'s own body:
 the router library batches its commits into a microtask, so two writes issued in the
 same task would merge into one entry unless something flushes between them, and the
-legacy unwinding logic counts entries. `aller()` flushes immediately after every
+legacy unwinding logic counts entries. `go()` flushes immediately after every
 `navigate()` to keep native `pushState` semantics — one call, one entry. Ownership of a
 history entry is decided by the entry's own SHAPE, never by matching the address
 against a list of routes: a `layer` entry and a `tm: "nav"` entry keep the legacy
@@ -60,41 +60,41 @@ runs, so nothing needs recording or replaying. A module that fails to evaluate s
 never calls `__demarrerMoteur`, and the startup screen — already first in the frame —
 stays up: a visible, truthful failure instead of an app with mute verbs.
 
-**The panel is one component, opened through `window.__panneau`.** `<PanneauContenu>`
-(`composants/panneau.tsx`) is the single React constructor every panel draws through — a
-`Descripteur` of typed `Bloc`s, refused outright if a block's `type` is not one of the five
+**The panel is one component, opened through `window.__panneau`.** `<PanelContent>`
+(`components/panel.tsx`) is the single React constructor every panel draws through — a
+`PanelDescriptor` of typed `PanelBlock`s, refused outright if a block's `type` is not one of the five
 declared kinds. A producer never builds markup: it calls `window.__panneau.ouvrir(descripteur)`,
 and `.fermer(pop?)` / `.ouverte()` complete the surface, backed by the shell's own store
 (`panneauOuvert`/`panneauDescripteur`). The legacy `openSheet()` is retired to a tripwire —
 it throws, so a producer nobody converted fails where it is written instead of quietly doing
 nothing; `closeSheet(pop)` stays as a one-line verb pointing at `window.__panneau.fermer`,
-kept because the harness driver still says it. R56 (`panneau.py`) holds the shape: no caller
+kept because the harness driver still says it. R56 (`panel.py`) holds the shape: no caller
 hands the panel markup, exactly one constructor, every declared block draws, an undeclared
 one is refused.
 
-**The fiche is a real route, `/fiche/$titre`.** `FicheEcran` renders it inside the React root
+**The fiche is a real route, `/fiche/$titre`.** `MediaScreen` renders it inside the React root
 like `/profil/$titre` and `/ajout` before it, reached through `window.__ecrans.fiche(titre)`
 (NFC-normalised on write, same door as `.profil()`). An unknown title still renders, honestly
 — the legacy `openFiche()` it was transplanted from never had a not-found branch either — and
 a real fiche without a trailer shows its own "no trailer" line rather than hiding the section.
-R75 (`adresses_ecrans.py`) holds the address at this depth: cold entry, the hero image the
+R75 (`screen_addresses.py`) holds the address at this depth: cold entry, the hero image the
 screen paints itself actually loads, one Back returns to where the walk started, a wrong
 address still renders instead of raising.
 
-**Two more real routes: `/resolution/$dossier` and `/releases/$titre`.** `ResolutionEcran`
-and `ReleasesEcran` are transplanted from `openResolve()` and `openReleases()` — the arbitration
+**Two more real routes: `/resolution/$dossier` and `/releases/$titre`.** `ResolutionScreen`
+and `ReleasesScreen` are transplanted from `openResolve()` and `openReleases()` — the arbitration
 screen and the release-choice screen — reached through `window.__ecrans.resolution(dossier?,
-remplacer?)` and `.releases(titre)`. `resolution`'s argument is optional: the legacy function
+replace?)` and `.releases(titre)`. `resolution`'s argument is optional: the legacy function
 picked the first stuck folder itself when called with none, and the shell reproduces that default
-rather than pushing the choice onto each caller; its `remplacer` flag turns a legacy
-close-then-reopen (a pop plus a push, net one history entry) into a single `aller(..., remplacer:
+rather than pushing the choice onto each caller; its `replace` flag turns a legacy
+close-then-reopen (a pop plus a push, net one history entry) into a single `go(..., replace:
 true)`, worth exactly as much. `releases` writes `state.relTitre` — the legacy function's own
 first line — BEFORE navigating, since the `data-prendre` delegation branch still reads it after
 the route has rendered. `releaseCardHTML`/`decisionCardHTML`, the legacy builders both screens
-drew their cards with, are gone once their last caller moved: `CarteRelease` and `CarteDecision`
-(`design/src/ecrans/resolution.tsx`) are what replaced them. R75 extends with six holds for the
+drew their cards with, are gone once their last caller moved: `ReleaseCard` and `DecisionCard`
+(`design/src/screens/resolution.tsx`) are what replaced them. R75 extends with six holds for the
 two screens: cold deep entry (including a dossier name carrying its own dots, the shape a real
-staging folder actually has — `serveur.py`'s and `serve.py`'s SPA fallbacks both fold it to the
+staging folder actually has — `server.py`'s and `serve.py`'s SPA fallbacks both fold it to the
 document rather than 404ing), one Back landing on `/`, and an unknown subject rendering the
 screen's own honest empty case instead of raising.
 
@@ -115,7 +115,7 @@ next Back still worth exactly one step.
 **Scroll position follows the HISTORY ENTRY, not the address.** A screen opened over another
 used to be the same legacy layer restoring its own scroll on unwind; a router-owned screen
 unmounts instead, taking its DOM — and its offset — with it. The shell keeps a small map keyed
-by each history entry's own `key` (`coquille.tsx`, "LE DÉFILEMENT SUIT L'ENTRÉE D'HISTORIQUE"),
+by each history entry's own `key` (`shell.tsx`, "SCROLL FOLLOWS THE HISTORY ENTRY"),
 reads the outgoing screen's position in the history subscription — the only instant it is
 still in the DOM — and reapplies it once the incoming screen's port exists and its images have
 settled. Components never see it: no prop, no hook, no context.
@@ -124,7 +124,7 @@ settled. Components never see it: no prop, no hook, no context.
 newest mtime of the build's inputs (the three roots and every file under `src/`) against
 `dist/index.html` and rebuilds under a lock before serving (0.4 s measured), so an edit is
 still visible at the next reload. A failed build answers 503 with its own last words —
-serving the previous output would date what is being judged falsely. R73 (`bascule.py`)
+serving the previous output would date what is being judged falsely. R73 (`switchover.py`)
 holds all of it against a scratch design root. The harness measures the same truth:
 `wrapped.html` is a COPY of the built document — the copy is what isolates rule mutations
 from what the host serves.
@@ -307,13 +307,13 @@ judged. Both are labelled as such in the design notes.
 
 **The copy ages by design.** The system keeps running: the scheduler searches twice a day
 and increments each follow's attempt counter in `acquire.db`, so the embedded counters
-drift and `contenu.py` (which compares the cards against the LIVE database) goes red with
-no code change. `resynchro.py` closes the gap the only honest way — it reads the live
+drift and `content.py` (which compares the cards against the LIVE database) goes red with
+no code change. `resync.py` closes the gap the only honest way — it reads the live
 counters and rewrites the embedded ones, nothing else. Run it when the suite names a
 drift, review the diff, commit it as data.
 
-`frontend/maquette/resynchro.py` is that tool, run standalone
-(`python3 frontend/maquette/resynchro.py`) before the suite, not as part of it: it opens
+`frontend/maquette/resync.py` is that tool, run standalone
+(`python3 frontend/maquette/resync.py`) before the suite, not as part of it: it opens
 `acquire.db` read-only, computes each followed title's real attempt count, and rewrites
 only the matching counters already embedded in `design/refonte.html`'s data blocks —
 never a layout, a class, or anything the harness itself measures. It reports how many
@@ -382,7 +382,7 @@ screen:
 | ------------- | ------------------------------ | ------------------------------------------------------------ |
 | Card          | `cardHTML(descripteur, opts)`  | every list — urgency sections, follows, library, arrivals    |
 | Tile          | `tileHTML(o, sousLigne, opts)` | every gallery — the library's three lenses, the follows grid |
-| Release card  | `CarteRelease`/`CarteDecision` | the resolution and release screens — **not a medium**        |
+| Release card  | `ReleaseCard`/`DecisionCard` | the resolution and release screens — **not a medium**        |
 | Selection row | `libRowHTML`                   | a mode of the LIST, not a variant of the card                |
 
 Three views used to rebuild a card by hand. One of them had already drifted, and it
@@ -414,7 +414,7 @@ A **fallback** builder had also appeared, answering for whatever the first did n
 and it shipped six buttons of which three led nowhere at all. That is what a fallback becomes:
 never the one being looked at, so never the one being fixed. There is one builder now, and
 « nothing is known about this medium » is one of the truths it derives from. R56
-(`harness/panneau.py`) states it.
+(`harness/panel.py`) states it.
 
 **Not everything that looks like a card is one.** A release candidate shares the markup
 and is a different object: it has no sheet and no panel, because it is one candidate
@@ -460,7 +460,7 @@ used to pin three columns by hand. That deviation is gone: the container query a
 actually available, and the app gets the same answer because there the scrollport IS the
 window.
 
-`harness/cartes.py` proves all of it; R41–R50 in `regions.json` state it.
+`harness/cards.py` proves all of it; R41–R50 in `regions.json` state it.
 
 ## It installs, and the invitation depends on the platform
 
@@ -565,7 +565,7 @@ yet. The first render drops it, synchronously: a timer either uncovers a frame t
 drawn or holds a ready interface, and both are visible.
 
 The gate gets the same screen by **extraction**, the rule it already obeys for the login card
-(R49), and reveals it on submit. R53 (`harness/demarrage.py`) checks all of it, gate included —
+(R49), and reveals it on submit. R53 (`harness/startup.py`) checks all of it, gate included —
 it starts `serve.py` on a scratch port and drives a real submit.
 
 **Leaving is the same story told backwards.** « Se déconnecter » used to answer with a message
@@ -573,7 +573,7 @@ saying the session had been closed, over an interface that had not moved and was
 in. A message is not a destination. The session IS the cookie, and the cookie belongs to the
 server, so the server is asked to drop it **first** and the entry screen only reflects what has
 already happened — an entry form shown over a live cookie is contradicted by the next reload.
-R54 (`harness/deconnexion.py`) checks both halves, and the invisible one is the one that
+R54 (`harness/logout.py`) checks both halves, and the invisible one is the one that
 matters: it asks the server, afterwards, whether the session is still accepted.
 
 ## The cut is by the nature of the trouble
@@ -647,7 +647,7 @@ measured as PAINTED, colours converted through a canvas and never parsed: `getCo
 returns the space the author wrote — `oklch()` here — and three numbers pulled out of it with a
 regex built for `rgb()` mean nothing.
 
-`harness/tiroir.py` holds all of it; R65 states it.
+`harness/drawer.py` holds all of it; R65 states it.
 
 ## A trap that cost real time: **screenshots are not an oracle**
 
@@ -691,7 +691,7 @@ real mouse on a browser with no touch at all:
 
 The **axis claim** stays in `touch-action`: it is what makes a real touch gesture arrive at all,
 and no synthetic event exercises it, so it is asserted on the declaration itself.
-`harness/souris.py` proves every gesture with a real mouse; `harness/deck.py` proves the deck
+`harness/mouse.py` proves every gesture with a real mouse; `harness/deck.py` proves the deck
 with pointer events of type « touch ».
 
 **And a pointer stream is not a touch stream.** Two gestures on the scrollport — the pull to
@@ -708,7 +708,7 @@ deck card) keep the pointer path, and the scrollport reads the finger from touch
 everything else from pointer events — one implementation, two sources, never both for the same
 finger. `pointercancel` is deliberately ignored for a finger; ending on it would undo the fix.
 
-`harness/doigt.py` drives all of it through `Input.dispatchTouchEvent`, which is real browser
+`harness/touch.py` drives all of it through `Input.dispatchTouchEvent`, which is real browser
 input rather than an event object handed to a listener. That is the only oracle that can tell
 the two apart.
 
@@ -724,52 +724,52 @@ They are committed because they encode recipes that cost time to get right.
 | `sweep.py`           | all views render content, no horizontal overflow, device at 390px, no JS error. **A view that renders nothing fails.**                                                                                                                                                                                                                                                                                                                                                             |
 | `scen.py`            | the same sweep across both data scenarios, with explicit sub-view reset between runs                                                                                                                                                                                                                                                                                                                                                                                               |
 | `states.py`          | every named state renders, without overflow or JS error                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `commun.py`          | not a rule: the plumbing every script borrows — how a verdict prints, how a run ends, how the document is opened past the startup screen. Twelve copies of the same `verifier()` meant a fix to the reporting had to be made twelve times, and one change to the opening cost twenty-eight hand edits                                                                                                                                                                              |
+| `common.py`          | not a rule: the plumbing every script borrows — how a verdict prints, how a run ends, how the document is opened past the startup screen. Twelve copies of the same `check()` meant a fix to the reporting had to be made twelve times, and one change to the opening cost twenty-eight hand edits                                                                                                                                                                              |
 | `deck.py`            | the deck answers a swipe either way — left skips and comes back, right dismisses with an undo                                                                                                                                                                                                                                                                                                                                                                                      |
-| `galerie.py`         | one tile pattern in every gallery                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `souris.py`          | every gesture answers a MOUSE too: the interface is used from a desktop browser                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `gallery.py`         | one tile pattern in every gallery                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `mouse.py`          | every gesture answers a MOUSE too: the interface is used from a desktop browser                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `surfaces.py`        | every surface the interface draws is reachable and renders                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `audit.py`           | rules R1–R10 and R20–R23 across every state, and it announces how many rules it EXECUTED                                                                                                                                                                                                                                                                                                                                                                                           |
 | `audit2.py`          | rules R11–R17 and R26–R31: uniformity, honesty of the text, one back design, one season rendering, episode presence against the data, a panel that never offers an action the medium does not support                                                                                                                                                                                                                                                                              |
-| `cartes.py`          | rules R41–R50: the card and gallery contract — poster to the sheet, body to the panel, no action reachable from a single surface, the same panel from a card and from a gallery                                                                                                                                                                                                                                                                                                    |
+| `cards.py`          | rules R41–R50: the card and gallery contract — poster to the sheet, body to the panel, no action reachable from a single surface, the same panel from a card and from a gallery                                                                                                                                                                                                                                                                                                    |
 | `export.py`          | every BLOCK 2 class is classified; fails on dead CSS or on a class missing from the allowlist                                                                                                                                                                                                                                                                                                                                                                                      |
 | `bugs.py`            | one test per defect found by hand                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `inter.py`           | swipe, infinite scroll, load error + retry, delete dialog                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `suivis.py`          | Suivis conformity across its three modes                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `sel.py`             | the two delete paths from the grid: long-press and selection mode                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `follows.py`          | Suivis conformity across its three modes                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `selection.py`             | the two delete paths from the grid: long-press and selection mode                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `scroll.py`          | no form interaction moves the scroll position                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `filtres.py`         | filters filter, and their parts sum to the whole                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `filters.py`         | filters filter, and their parts sum to the whole                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `actions.py`         | the simulated behaviours really mutate the state                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `dest.py`            | every button has a destination                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `ident.py`           | identify ≠ follow: the context picks the verb — and the journey settles the history it stacked (the panel's entry and `/ajout`) in ONE announced operation, landing where the walk stood before `/ajout`, the next back still worth exactly one step                                                                                                                                                                                                                               |
 | `pop.py`             | the episode date popover, in all its states                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `chrome.py`          | R51: the harness bar covers none of the app's fixed controls, in every named state, at both sides of the 520px breakpoint                                                                                                                                                                                                                                                                                                                                                          |
-| `retour.py`          | R59: the back gesture walks the path in reverse — tabs and lenses included — closes a layer first, and at the root warns instead of leaving, closing only on a second back within five seconds                                                                                                                                                                                                                                                                                     |
-| `reglages.py`        | R60: the settings are navigated by what one wants to change, never by file; every real setting belongs to one rubric and is identified by its label alone — subject then action, in French; nothing is written until the save bar names the files it will write; a secret says only whether it is set                                                                                                                                                                              |
+| `back.py`          | R59: the back gesture walks the path in reverse — tabs and lenses included — closes a layer first, and at the root warns instead of leaving, closing only on a second back within five seconds                                                                                                                                                                                                                                                                                     |
+| `settings.py`        | R60: the settings are navigated by what one wants to change, never by file; every real setting belongs to one rubric and is identified by its label alone — subject then action, in French; nothing is written until the save bar names the files it will write; a secret says only whether it is set                                                                                                                                                                              |
 | `palette.py`         | R61: no bare `var(--x)` names a property the document never defines, and the brand colour is actually painted on the wordmark, the sign-in button and the startup bar                                                                                                                                                                                                                                                                                                              |
-| `entree.py`          | R62: the sign-in screen renders identically on the host and inside the prototype, and the host redeclares nothing the reference owns                                                                                                                                                                                                                                                                                                                                               |
-| `contenu.py`         | R63: a follow's card carries what `acquire.db` really holds and phrases it as « En cours » does; a library row carries the synopsis, clamped to the largest number of lines that fits, and shows nothing when the NFO has no plot                                                                                                                                                                                                                                                  |
-| `glisse.py`          | R64: a row opens a drawer either way, one at a time, without firing the tap — measured on Chromium AND WebKit, where the drawer used to spill past the card; and a REVERSAL settles the row back rather than leaping, sampled during the drag because a jump is a discontinuity                                                                                                                                                                                                    |
-| `adresse_url.py`     | R69: the URL carries the state (DOIT-10) — walking writes the address, a reload lands on the same screen, only what differs from the opening state is written, a wrong address is left exactly as typed, and back walks the addresses in reverse                                                                                                                                                                                                                                   |
-| `adresse.py`         | R68: an unknown address renders instead of raising, names what was asked for and offers a way out; the account surface draws the one real account, compared against `web.json5`, and marks the place of the others EMPTY                                                                                                                                                                                                                                                           |
+| `entry.py`          | R62: the sign-in screen renders identically on the host and inside the prototype, and the host redeclares nothing the reference owns                                                                                                                                                                                                                                                                                                                                               |
+| `content.py`         | R63: a follow's card carries what `acquire.db` really holds and phrases it as « En cours » does; a library row carries the synopsis, clamped to the largest number of lines that fits, and shows nothing when the NFO has no plot                                                                                                                                                                                                                                                  |
+| `drag.py`          | R64: a row opens a drawer either way, one at a time, without firing the tap — measured on Chromium AND WebKit, where the drawer used to spill past the card; and a REVERSAL settles the row back rather than leaping, sampled during the drag because a jump is a discontinuity                                                                                                                                                                                                    |
+| `url_state.py`     | R69: the URL carries the state (DOIT-10) — walking writes the address, a reload lands on the same screen, only what differs from the opening state is written, a wrong address is left exactly as typed, and back walks the addresses in reverse                                                                                                                                                                                                                                   |
+| `address.py`         | R68: an unknown address renders instead of raising, names what was asked for and offers a way out; the account surface draws the one real account, compared against `web.json5`, and marks the place of the others EMPTY                                                                                                                                                                                                                                                           |
 | `machine.py`         | R67: Système is the machine, Maintenance is what one does to the library — no blocked medium on Système, no scheduler called « stopped » between two runs, both lists counted against `pm2 jlist`, every command checked against the engine's registry in both directions, and a command that DELETES inert until it has been run blank                                                                                                                                            |
-| `arrivees.py`        | R66: Arrivées carries the pipeline's health — one control that fits the state, a run asked during a run QUEUED rather than refused, the engine's nine steps in its order, nothing-to-do said with an em dash, and every figure checked against the run `library.db` really recorded                                                                                                                                                                                                |
-| `tiroir.py`          | R65: the drawer is a place one passes through, not a route — every entry names a page that exists and arrives there, the destination takes the drawer's own history entry, closing a layer neither rebuilds the page underneath nor loses where it was scrolled, and every entry is legible measured as PAINTED                                                                                                                                                                    |
-| `installation.py`    | R51: the install offer is actually OFFERED — `beforeinstallprompt` captured, its default prevented and replayed on a gesture; the iOS guide raised by an iPhone user agent; nothing offered to an installed app, over the entry screen, or after a refusal                                                                                                                                                                                                                         |
+| `arrivals.py`        | R66: Arrivées carries the pipeline's health — one control that fits the state, a run asked during a run QUEUED rather than refused, the engine's nine steps in its order, nothing-to-do said with an em dash, and every figure checked against the run `library.db` really recorded                                                                                                                                                                                                |
+| `drawer.py`          | R65: the drawer is a place one passes through, not a route — every entry names a page that exists and arrives there, the destination takes the drawer's own history entry, closing a layer neither rebuilds the page underneath nor loses where it was scrolled, and every entry is legible measured as PAINTED                                                                                                                                                                    |
+| `install.py`    | R51: the install offer is actually OFFERED — `beforeinstallprompt` captured, its default prevented and replayed on a gesture; the iOS guide raised by an iPhone user agent; nothing offered to an installed app, over the entry screen, or after a refusal                                                                                                                                                                                                                         |
 | `pwa.py`             | R52: the LIVE host is installable from the first document a phone reaches — manifest, icons that load, worker registered and controlling, offline fallback cached. Runs against `tm-design.iznogoudatall.xyz`, not the local server                                                                                                                                                                                                                                                |
-| `demarrage.py`       | R53: the startup screen is declared first, covers the frame, offers no control, is gone after the first render, and the gate the server builds shows the same screen — extracted — from the submit onwards. Starts `serve.py` on a scratch port                                                                                                                                                                                                                                    |
-| `deconnexion.py`     | R54: signing out lands on the entry screen AND the server stops accepting the session. Starts `serve.py` on a scratch port                                                                                                                                                                                                                                                                                                                                                         |
-| `panneau.py`         | R56: one panel builder, no caller passing markup, no inline style inside a panel, one heading, no action without a destination, and an undeclared block refused                                                                                                                                                                                                                                                                                                                    |
+| `startup.py`       | R53: the startup screen is declared first, covers the frame, offers no control, is gone after the first render, and the gate the server builds shows the same screen — extracted — from the submit onwards. Starts `serve.py` on a scratch port                                                                                                                                                                                                                                    |
+| `logout.py`     | R54: signing out lands on the entry screen AND the server stops accepting the session. Starts `serve.py` on a scratch port                                                                                                                                                                                                                                                                                                                                                         |
+| `panel.py`         | R56: one panel builder, no caller passing markup, no inline style inside a panel, one heading, no action without a destination, and an undeclared block refused                                                                                                                                                                                                                                                                                                                    |
 | `decision.py`        | R57: the arbitration screen — the folder as subject, no sheet or panel promised, no engine token on screen, a score printed only when it separates, each candidate wearing only its own poster, three ways out, and answering emptying the queue on both lists                                                                                                                                                                                                                     |
-| `doigt.py`           | R55: every gesture under REAL touch input (`Input.dispatchTouchEvent`), which the compositor can cancel — the pull to refresh on seven surfaces, the swipe between views, ordinary scrolling, the swipeable row and the deck                                                                                                                                                                                                                                                       |
+| `touch.py`           | R55: every gesture under REAL touch input (`Input.dispatchTouchEvent`), which the compositor can cancel — the pull to refresh on seven surfaces, the swipe between views, ordinary scrolling, the swipeable row and the deck                                                                                                                                                                                                                                                       |
 | `images.py`          | R70: the source embeds no image and every `assets/` reference resolves to a file                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `ecrans.py`          | R71: a screen above another one — back redraws the screen it covered (query and scroll included) through both exits, one more back leaves the layer, and a result card carries no inline action in its foot: the panel is the single path to the act                                                                                                                                                                                                                               |
-| `coquille.py`        | R72: the Vite shell emits the prototype verbatim inside a real envelope — the fragment refonte.html appears byte-for-byte exactly once, the module entry is present with the correct format, and the named bundle file exists under dist/vite/                                                                                                                                                                                                                                     |
-| `pont.py`            | R74: the bridge wires the legacy nav cluster to the router — zero raw history calls in source, the journey works through both exits, deep URL entry lands on promised state, __go() preserves history depth, and the boot handshake is real: `window.__demarrerMoteur` exists and the startup screen comes off on its own, before the harness ever touches it                                                                                                                      |
-| `bascule.py`         | R73: the host serves the build to the byte, rebuilds stale sources before serving, and a broken build answers 503 that says so — proven against a scratch design root, never the real source                                                                                                                                                                                                                                                                                       |
-| `serveur.py`         | plumbing, not a rule, like `commun.py`: a second static server (port 8917, never 8710/8711/8712/8899) that answers `wrapped.html` for any extensionless path with no file behind it, so a deep client-side address (`/profil/…`, `/ajout`) can be requested cold instead of only reached from inside an already-loaded document                                                                                                                                                    |
-| `adresses_ecrans.py` | R75: a screen route answers a real address, cold, and only while it is open — `/profil/$titre` opens the promised screen with no journey and no click, every image the document loads at that depth resolves through `<base href="/">`, one back from a walked-to screen lands exactly where the walk started with the address returning to what it was, a wrong deep address renders honestly instead of raising, and `/ajout?q=…` opens with its field and results already drawn |
-| `navigation.py`      | R76: the shell owns navigation through one door — `navigate(` appears exactly once under `design/src/`, inside `aller()`'s own body; a round trip through the door writes one history entry per call and back walks them in reverse, judged by the screen's own observed state, never by `history.length`; two navigations issued in the same task, no `await` between them, still produce two separate entries                                                                    |
+| `screens.py`          | R71: a screen above another one — back redraws the screen it covered (query and scroll included) through both exits, one more back leaves the layer, and a result card carries no inline action in its foot: the panel is the single path to the act                                                                                                                                                                                                                               |
+| `shell.py`        | R72: the Vite shell emits the prototype verbatim inside a real envelope — the fragment refonte.html appears byte-for-byte exactly once, the module entry is present with the correct format, and the named bundle file exists under dist/vite/                                                                                                                                                                                                                                     |
+| `bridge.py`            | R74: the bridge wires the legacy nav cluster to the router — zero raw history calls in source, the journey works through both exits, deep URL entry lands on promised state, __go() preserves history depth, and the boot handshake is real: `window.__demarrerMoteur` exists and the startup screen comes off on its own, before the harness ever touches it                                                                                                                      |
+| `switchover.py`         | R73: the host serves the build to the byte, rebuilds stale sources before serving, and a broken build answers 503 that says so — proven against a scratch design root, never the real source                                                                                                                                                                                                                                                                                       |
+| `server.py`         | plumbing, not a rule, like `common.py`: a second static server (port 8917, never 8710/8711/8712/8899) that answers `wrapped.html` for any extensionless path with no file behind it, so a deep client-side address (`/profil/…`, `/ajout`) can be requested cold instead of only reached from inside an already-loaded document                                                                                                                                                    |
+| `screen_addresses.py` | R75: a screen route answers a real address, cold, and only while it is open — `/profil/$titre` opens the promised screen with no journey and no click, every image the document loads at that depth resolves through `<base href="/">`, one back from a walked-to screen lands exactly where the walk started with the address returning to what it was, a wrong deep address renders honestly instead of raising, and `/ajout?q=…` opens with its field and results already drawn |
+| `navigation.py`      | R76: the shell owns navigation through one door — `navigate(` appears exactly once under `design/src/`, inside `go()`'s own body; a round trip through the door writes one history entry per call and back walks them in reverse, judged by the screen's own observed state, never by `history.length`; two navigations issued in the same task, no `await` between them, still produce two separate entries                                                                    |
 
 Run them with the Python that carries Playwright, against a local static server on
 **127.0.0.1:8899** — **never** 8710 / 8711, which the reverse proxy routes to prod and
@@ -804,3 +804,54 @@ Every comment in this directory — HTML, CSS, JavaScript, Python — is written
 and carries no reference to a work session, a phase, or a dated decision. It must read years
 from now, out of context. Interface copy quoted inside a comment stays in French, because that
 is what the screen says.
+
+**So is everything else the source NAMES.** Identifiers, function and type names, **class
+names — code and CSS alike** — **file and directory names**, and every message a tool prints:
+English, on the day the thing is written. This is not a cleanup someone does later; a French
+name arriving today is a French name a whole wave has to remove tomorrow, and it will be
+holding four worlds together by then (the fragment's markup, the shell's components, the
+harness's selectors, the extracted stylesheet).
+
+Two things are NOT covered by that rule, and confusing them is how a rule goes quiet:
+
+- **The French the app RENDERS.** A hold asserting « En cours » keeps asserting « En cours »
+  — the interface speaks French. Translating a word inside a rendered vocabulary does not go
+  red, it goes SILENT: `"des erreurs"` became `"des errors"` once and no rule noticed, because
+  a rule that measures nothing passes.
+- **Data and addresses.** `data-*` names and values, route paths, `__go` state ids, the
+  follow/episode state tokens, the config keys the settings dictionaries are keyed by: those
+  are contracts, and renaming one moves the contract rather than a name. The frozen ones are
+  listed, each with the reason it was kept, in `regions.json`'s `$vocabulary`.
+
+## Where the interface's French lives
+
+**No interface string lives in the code.** The shell's copy is in
+`design/src/i18n/fr.json`, read through `react-i18next`:
+
+```tsx
+const { t } = useTranslation();
+<h2 className="h2">{t("screens.profile.minResolution")}</h2>
+```
+
+- **Key convention**: `screens.<screen>.<slug>` for a screen's prose, `settings.labels.*` /
+  `settings.subjects.*` / `settings.units.*` for the panel's three dictionaries, `common.*`
+  for what several surfaces share, and `server.*` for the pages `serve.py` serves. The screen
+  segment is the screen's ENGLISH name (`media`, `profile`, `add`), like its component and its
+  file.
+- **`serve.py` reads the SAME file.** The sign-in gate's title, the two 503 pages, the offline
+  page and the manifest's description come from `fr.json`'s `server` namespace, read per
+  request — the same discipline as the login screen's markup, which is EXTRACTED from the
+  prototype rather than restated. One source, nothing to keep in step.
+- **Extract, never retype.** Cut the string out of the JSX and paste it into `fr.json`. A
+  retyped string is a defect even when it looks right: it renders correctly while the
+  reference is broken, and the copy is the only place anyone ever looks. The proof that an
+  extraction changed nothing is byte-identity of the rendered text across every driven state,
+  plus the full suite at unchanged hold counts.
+- **A few literals stay French, and say why.** A data value, a `data-*` value, a route
+  parameter: each carries a `// french-ok: <reason>` (or `# french-ok:`) pragma on its own
+  line, the line above, or the line below. A pragma citing no reason is itself a violation.
+
+**All of this is enforced, not remembered**: `python3 scripts/check-no-french.py` — four arms
+(strings, identifiers, file names, class names), wired into `make check` and into its own CI
+job. Each arm also reports what it READ, and an arm that read nothing fails: a scope that
+silently empties would otherwise announce « no violation » while measuring nothing.

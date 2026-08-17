@@ -20,20 +20,20 @@ async def main():
     # wait through the same seam the app uses, rather than sleeping it out.
     await pg.evaluate("()=>window.__chargementTermine?.()")
     await pg.evaluate("()=>window.__measure(true)")
-    etats=await pg.evaluate("()=>window.__states()")
-    viol={}
-    def note(r,d): viol.setdefault(r,[]).append(d)
+    states=await pg.evaluate("()=>window.__states()")
+    violations={}
+    def note(r,d): violations.setdefault(r,[]).append(d)
 
     # Same requirement as the first pass: count the rules EXECUTED, so an
     # audit that has gone mute no longer reads as a green audit.
-    evaluees=set()
-    def evalue(*r): evaluees.update(r)
-    REGLES_ATTENDUES=13
-    print(f"{BAR}\nAdversarial review, second pass — {len(etats)} states\n{BAR}")
+    executed=set()
+    def ran(*r): executed.update(r)
+    EXPECTED_RULES=13
+    print(f"{BAR}\nAdversarial review, second pass — {len(states)} states\n{BAR}")
 
-    evalue('R11')
+    ran('R11')
     # R11 — jargon, technical values and machine English in rendered text
-    for e in etats:
+    for e in states:
         await pg.evaluate("(i)=>window.__go(i)",e); await pg.wait_for_timeout(240)
         # Every screen migrated off `#screen` onto a real route — the fiche,
         # the add screen, the arbitration screen, the release picker, the
@@ -52,30 +52,30 @@ async def main():
                  :document.querySelector('.screen.open[data-cle]')?'.screen.open[data-cle]'
                  :'#view';
           const t=document.querySelector(r).innerText;
-          const motifs=[[/\\bundefined\\b/,'undefined'],[/\\bNaN\\b/,'NaN'],[/\\bnull\\b/,'null'],
-            [/\\[object /,'[object'],[/\\b0\\/0\\b/,'0/0'],[/\\*\\s\\*\\s\\*/,'expression cron'],
+          const patterns=[[/\\bundefined\\b/,'undefined'],[/\\bNaN\\b/,'NaN'],[/\\bnull\\b/,'null'],
+            [/\\[object /,'[object'],[/\\b0\\/0\\b/,'0/0'],[/\\*\\s\\*\\s\\*/,'cron expression'],
             [/\\bError\\b/,'Error'],[/\\bTrue\\b|\\bFalse\\b/,'raw boolean']];
-          return motifs.filter(([re])=>re.test(t)).map(([,n])=>n);}""")
+          return patterns.filter(([re])=>re.test(t)).map(([,n])=>n);}""")
         for x in bad: note("R11 visible jargon or technical value", f"{e} : {x}")
 
-    evalue('R12')
+    ran('R12')
     # R12 — uniformity of the primary action buttons
     geo=await pg.evaluate("""async ()=>{
       const out={};
-      const mesure=(sel,nom)=>{const el=document.querySelector(sel); if(!el) return;
+      const measure=(sel,name)=>{const el=document.querySelector(sel); if(!el) return;
         const s=getComputedStyle(el); const b=el.getBoundingClientRect();
-        out[nom]={h:Math.round(b.height),poids:s.fontWeight,taille:s.fontSize,centre:s.justifyContent,
-                  radius:s.borderRadius,icone:!!el.querySelector(':scope > svg')};};
+        out[name]={h:Math.round(b.height),weight:s.fontWeight,size:s.fontSize,justify:s.justifyContent,
+                   radius:s.borderRadius,icon:!!el.querySelector(':scope > svg')};};
       window.__go('acq-encours-charge'); await new Promise(r=>setTimeout(r,220));
-      mesure('.cfoot.solid','card footer (primary)');
+      measure('.cfoot.solid','card footer (primary)');
       window.__go('feuille-suivi-trous'); await new Promise(r=>setTimeout(r,240));
-      mesure('.sact.primary','sheet (primary)');
+      measure('.sact.primary','sheet (primary)');
       window.__go('fiche-suggestion-film'); await new Promise(r=>setTimeout(r,240));
-      mesure('.ficheadd','media sheet (add)');
+      measure('.mediaadd','media sheet (add)');
       window.__go('acq-ajout-resultats'); await new Promise(r=>setTimeout(r,240));
-      mesure('.resbtn','search result');
+      measure('.resbtn','search result');
       window.__go('lib-suppression'); await new Promise(r=>setTimeout(r,240));
-      mesure('.dlgbtn.danger','dialog (danger)');
+      measure('.dlgbtn.danger','dialog (danger)');
       return out;}""")
     print("Primary button geometry:")
     for k,v in geo.items(): print(f"   {k:26} {v}")
@@ -85,61 +85,61 @@ async def main():
         # « normal » is NOT centred: rule slackness of that kind let a real
         # misalignment through. Rule: with an icon → left-aligned; without →
         # centred.
-        attendu = "flex-start" if v.get("icone") else "center"
-        if v["centre"] != attendu:
-            note("R12 non-conformant alignment", f"{k}: {v['centre']} instead of {attendu} (icon: {v.get('icone')})")
+        expected = "flex-start" if v.get("icon") else "center"
+        if v["justify"] != expected:
+            note("R12 non-conformant alignment", f"{k}: {v['justify']} instead of {expected} (icon: {v.get('icon')})")
         if v["radius"] != "8px": note("R12 inconsistent radius", f"{k} : {v['radius']}")
-        if v["taille"] != "13.5px": note("R12 inconsistent text size", f"{k} : {v['taille']}")
+        if v["size"] != "13.5px": note("R12 inconsistent text size", f"{k} : {v['size']}")
 
-    evalue('R13')
+    ran('R13')
     # R13 — sheet uniformity: the SAME BASE for all of them.
     #
     # Sampling a handful of fixed states, none of them an INCOMPLETE medium,
     # is exactly how a divergence slips through unseen. The sample is
     # therefore drawn from the DATA: complete, incomplete, without visual,
     # suggestion, film and series.
-    ordres=await pg.evaluate("""async ()=>{
-      const out={}, choix=[];
-      const titres=Object.keys(FICHES_RAW ?? {});
-      const prend=(pred, n)=>titres.filter(pred).slice(0, n);
-      const incomplet=(t)=>{const s=POSSEDES[t]??POSSEDES[baseTitle(t)];
+    orders=await pg.evaluate("""async ()=>{
+      const out={}, picks=[];
+      const titles=Object.keys(FICHES_RAW ?? {});
+      const take=(pred, n)=>titles.filter(pred).slice(0, n);
+      const incomplete=(t)=>{const s=POSSEDES[t]??POSSEDES[baseTitle(t)];
         if(!s) return false; const f=sheetFor(t); if(!f?.saisons) return false;
         return f.saisons.some(x=>x.ep && (s[String(x.n)]??[]).length < x.ep);};
-      choix.push(...prend(t=>sheetFor(t)?.k==='movie', 2));
-      choix.push(...prend(t=>sheetFor(t)?.k==='show' && !incomplet(t), 2));
-      choix.push(...prend(incomplet, 4));
-      choix.push(...prend(t=>!(HEROS[t]??HEROS[baseTitle(t)]), 2));
-      for (const t of [...new Set(choix)]) {
+      picks.push(...take(t=>sheetFor(t)?.k==='movie', 2));
+      picks.push(...take(t=>sheetFor(t)?.k==='show' && !incomplete(t), 2));
+      picks.push(...take(incomplete, 4));
+      picks.push(...take(t=>!(HEROS[t]??HEROS[baseTitle(t)]), 2));
+      for (const t of [...new Set(picks)]) {
         window.__reset(); applyState({page:'lib', phase:'prete'});
         window.__ecrans.fiche(t);
         await new Promise(r=>setTimeout(r,240));
         const b=document.querySelector('.screen.open[data-cle^="fiche:"] .body');
-        if (!b) { out[t]=['FICHE VIDE']; continue; }
+        if (!b) { out[t]=['EMPTY SHEET']; continue; }
         out[t]=[...b.children]
           .filter(x=>x.getBoundingClientRect().height>0 && !x.classList.contains('note'))
           .map(x=>{const hh=x.querySelector('.h2');
             return hh ? hh.textContent.trim() : (x.className||x.tagName).toString().split(' ')[0];});
       }
       return out;}""")
-    print(f"\nMedia-sheet base, over {len(ordres)} media drawn from the data:")
+    print(f"\nMedia-sheet base, over {len(orders)} media drawn from the data:")
     # Sections that are OPTIONAL by nature (no trailer, unknown catalogue) do
     # not count as divergence; the skeleton does.
-    OPT = {"trailer", "nofiche", "rulenote"}
-    def ossature(l):
+    OPT = {"trailer", "noinfo", "rulenote"}
+    def skeleton(l):
         return [s.replace("Création", "X").replace("Réalisation", "X") for s in l if s not in OPT]
-    formes = {}
-    for k, v in ordres.items():
-        formes.setdefault(tuple(ossature(v)), []).append(k)
-    for f, l in formes.items():
+    shapes = {}
+    for k, v in orders.items():
+        shapes.setdefault(tuple(skeleton(v)), []).append(k)
+    for f, l in shapes.items():
         print(f"   {len(l):2d} media · {' → '.join(f)}")
-    if len(formes) > 1:
-        ref = max(formes.items(), key=lambda kv: len(kv[1]))[0]
-        for f, l in formes.items():
+    if len(shapes) > 1:
+        ref = max(shapes.items(), key=lambda kv: len(kv[1]))[0]
+        for f, l in shapes.items():
             if f != ref:
                 note("R13 sheet not following the common base",
-                     f"{', '.join(l[:3])} : {' → '.join(f)} au lieu de {' → '.join(ref)}")
+                     f"{', '.join(l[:3])} : {' → '.join(f)} instead of {' → '.join(ref)}")
 
-    evalue('R14')
+    ran('R14')
     # R14 — every layer closes via the scrim AND via Back
     #
     # `acq-ajout-resultats` and `fiche-serie` both left `#screen` for real
@@ -149,16 +149,16 @@ async def main():
     # which two stacked screens would both answer to. Every case closes the
     # same way from the operator's point of view (the screen's own « Retour »,
     # the scrim for a layer), so only the selector differs.
-    CAS_R14 = [
+    R14_CASES = [
         ("feuille-suivi-trous", "#sheet", "scrim"),
         ("lib-suppression", "#dlg", "scrim"),
-        ("fiche-serie", '.screen.open[data-cle^="fiche:"]', "retour"),
-        ("acq-ajout-resultats", ".screen.open", "retour"),
+        ("fiche-serie", '.screen.open[data-cle^="fiche:"]', "back"),
+        ("acq-ajout-resultats", ".screen.open", "back"),
     ]
-    for id_, sel, fermeture in CAS_R14:
+    for id_, sel, closing in R14_CASES:
         await pg.evaluate("(i)=>window.__go(i)", id_); await pg.wait_for_timeout(300)
-        ouvert = await pg.evaluate("(s)=>!!document.querySelector(s)?.classList.contains('open')", sel)
-        if fermeture == "scrim":
+        opened = await pg.evaluate("(s)=>!!document.querySelector(s)?.classList.contains('open')", sel)
+        if closing == "scrim":
             await pg.evaluate("()=>document.querySelector('#scrim').click()"); await pg.wait_for_timeout(300)
             if await pg.evaluate("(s)=>!!document.querySelector(s)?.classList.contains('open')", sel):
                 note("R14 layer not closable via the scrim", f"{id_}")
@@ -166,9 +166,9 @@ async def main():
             await pg.evaluate("(s)=>document.querySelector(s+' .fback').click()", sel); await pg.wait_for_timeout(350)
             if await pg.evaluate("(s)=>!!document.querySelector(s)?.classList.contains('open')", sel):
                 note("R14 screen not closable via Back", f"{id_}")
-        if not ouvert: note("R14 layer that does not open", id_)
+        if not opened: note("R14 layer that does not open", id_)
 
-    evalue('R15')
+    ran('R15')
     # R15 — the three Suivis modes show the SAME number of items
     n=await pg.evaluate("""async ()=>{const o={};
       for (const m of ['acq-suivis-liste','acq-suivis-groupe','acq-suivis-grille']) {
@@ -178,100 +178,100 @@ async def main():
     print("\nItems per Suivis mode:", n)
     if len(set(n.values()))>1: note("R15 inconsistent Suivis modes", json.dumps(n))
 
-    evalue('R16')
+    ran('R16')
     # R16 — the badge is the sum it claims to be
     bad=await pg.evaluate("""async ()=>{const out=[];
       for (const s of ['reel','charge']) { state.scen=s; window.__go('acq-encours-'+(s==='reel'?'repos':'charge'));
         await new Promise(r=>setTimeout(r,240));
         const badge=document.querySelector('[data-page=acq] .navbadge');
-        const attendu=derived.takeable().length+derived.blocked().length;
-        const lu=badge?Number(badge.textContent):0;
-        if (lu!==attendu) out.push(`${s}: badge ${lu} != to-grab+to-resolve ${attendu}`);
-        const onglet=document.querySelector('.seg .n');
-        const lu2=onglet?Number(onglet.textContent):0;
-        if (lu2!==attendu) out.push(`${s}: tab badge ${lu2} != ${attendu}`);
+        const expected=derived.takeable().length+derived.blocked().length;
+        const read=badge?Number(badge.textContent):0;
+        if (read!==expected) out.push(`${s}: badge ${read} != to-grab+to-resolve ${expected}`);
+        const tab=document.querySelector('.seg .n');
+        const read2=tab?Number(tab.textContent):0;
+        if (read2!==expected) out.push(`${s}: tab badge ${read2} != ${expected}`);
       } return out;}""")
     for x in bad: note("R16 badge not derived", x)
 
-    evalue('R17')
+    ran('R17')
     # R17 — every destructive mutation is confirmed or reversible
     rev=await pg.evaluate("""async ()=>{const out=[];
       window.__go('acq-suivis-liste'); await new Promise(r=>setTimeout(r,240));
       document.querySelector('#view .swipe .act.remove').click(); await new Promise(r=>setTimeout(r,320));
       if (!document.querySelector('#toastundo')) out.push('removing a follow: no undo');
       window.__go('lib-liste'); await new Promise(r=>setTimeout(r,260));
-      const av=world.lib.length;
+      const before=world.lib.length;
       document.querySelector('#libitems .swipe .act.remove').click(); await new Promise(r=>setTimeout(r,320));
       if (!document.querySelector('#dlg').classList.contains('open')) out.push('deleting a medium: no confirmation');
-      if (world.lib.length!==av) out.push('deleting a medium: mutation BEFORE confirmation');
+      if (world.lib.length!==before) out.push('deleting a medium: mutation BEFORE confirmation');
       return out;}""")
     for x in rev: note("R17 destruction without a guard", x)
 
-    evalue('R26')
+    ran('R26')
     # R26 — the melting visual header is a trait of ALL media sheets, not only
     # the ones that were looked at. The rule is conditional and says so: a
     # medium WITHOUT a visual degrades to a flat field (a difference justified
     # by its own context). A medium WITH a visual that has no header signals a
     # second rendering path that was never converted.
-    fonds=await pg.evaluate("""async ()=>{const out=[];
-      const racineDoc=document.documentElement;
+    heroes=await pg.evaluate("""async ()=>{const out=[];
+      const docRoot=document.documentElement;
       // BOTH THEMES. An orphan selector left by a deletion gave the header
       // position:absolute in the light theme only: the sheet was upside down,
       // and the rule looked at the dark theme alone.
       for (const theme of [null,'light']) {
-        theme ? racineDoc.setAttribute('data-theme',theme) : racineDoc.removeAttribute('data-theme');
+        theme ? docRoot.setAttribute('data-theme',theme) : docRoot.removeAttribute('data-theme');
         for (const s of window.__states()) {
           window.__go(s); await new Promise(r=>setTimeout(r,300));
           // The media sheet left `#screen` for a real route; it is added here
           // by the identity it carries, or this rule about ALL media sheets
           // would stop seeing the very screen it is named after.
-          const racine=document.querySelector('#screen.open, #sheet.open')
-                    || document.querySelector('.screen.open[data-cle^="fiche:"]');
-          const hero=racine && racine.querySelector('.hero');
+          const root=document.querySelector('#screen.open, #sheet.open')
+                  || document.querySelector('.screen.open[data-cle^="fiche:"]');
+          const hero=root && root.querySelector('.hero');
           if (!hero) continue;
-          const nom=`${s}/${theme||'sombre'}`;
+          const name=`${s}/${theme||'dark'}`;
           const wrap=hero.closest('.herowrap');
-          if (!wrap) { out.push(`${nom}: sheet without .herowrap`); continue; }
+          if (!wrap) { out.push(`${name}: sheet without .herowrap`); continue; }
           const bg=wrap.querySelector('.herobg');
-          if (!bg) { out.push(`${nom}: sheet without a header`); continue; }
+          if (!bg) { out.push(`${name}: sheet without a header`); continue; }
           const sb=getComputedStyle(bg), rb=bg.getBoundingClientRect(), rh=hero.getBoundingClientRect();
           // The header OCCUPIES the top: it pushes content, it does not float.
-          if (sb.position!=='relative') out.push(`${nom}: header in ${sb.position}`);
-          const aVisuelIci=!wrap.classList.contains('noaffiche');
+          if (sb.position!=='relative') out.push(`${name}: header in ${sb.position}`);
+          const hasVisualHere=!wrap.classList.contains('noposter');
           // With no visual the field is deliberately short: it holds the place
           // and claims nothing. The threshold applies only to a real image.
-          const seuil = aVisuelIci ? 240 : 48;
-          if (rb.height < seuil)
-            out.push(`${nom} : bandeau haut de ${Math.round(rb.height)}px (< ${seuil})`);
+          const threshold = hasVisualHere ? 240 : 48;
+          if (rb.height < threshold)
+            out.push(`${name}: top band of ${Math.round(rb.height)}px (< ${threshold})`);
           // The title sits UNDER the image, overlapping its lower edge.
-          if (rh.top <= rb.top) out.push(`${nom}: title above the header`);
-          if (rh.top >= rb.bottom) out.push(`${nom}: title detached from the header`);
+          if (rh.top <= rb.top) out.push(`${name}: title above the header`);
+          if (rh.top >= rb.bottom) out.push(`${name}: title detached from the header`);
           // Text NEVER rests on the bare image: the closing gradient is what
           // makes the rule true, not good intentions.
           if (!getComputedStyle(bg,'::after').backgroundImage.includes('gradient'))
-            out.push(`${nom}: header without a legibility gradient`);
-          const aVisuel=!wrap.classList.contains('noaffiche');
-          if (aVisuel && sb.backgroundImage==='none') out.push(`${nom}: header declared but empty`);
+            out.push(`${name}: header without a legibility gradient`);
+          const hasVisual=!wrap.classList.contains('noposter');
+          if (hasVisual && sb.backgroundImage==='none') out.push(`${name}: header declared but empty`);
         }
       }
-      racineDoc.removeAttribute('data-theme');
+      docRoot.removeAttribute('data-theme');
       return out;}""")
-    for x in fonds: note("R26 visual header not generalised", x)
+    for x in heroes: note("R26 visual header not generalised", x)
 
-    evalue('R27')
+    ran('R27')
     # R27 — a trailer ALWAYS opens in YouTube, never inside the application,
     # and the sheet offers it wherever one arrives from: library, acquisitions
     # or Découvrir. The rule carries that decision: a sheet promising in-app
     # playback would be wrong even if it were pretty.
-    bandes=await pg.evaluate("""async ()=>{const out=[];
+    trailers=await pg.evaluate("""async ()=>{const out=[];
       for (const s of window.__states()) {
         window.__go(s); await new Promise(r=>setTimeout(r,300));
         // Same reason as R26 above: the sheet is a route now, and it is where
         // the trailer lives — read it by its key or this rule goes quiet.
-        const racine=document.querySelector('#screen.open, #sheet.open')
-                  || document.querySelector('.screen.open[data-cle^="fiche:"]');
-        if (!racine || !racine.querySelector('.hero')) continue;
-        const el=racine.querySelector('.trailer');
+        const root=document.querySelector('#screen.open, #sheet.open')
+                || document.querySelector('.screen.open[data-cle^="fiche:"]');
+        if (!root || !root.querySelector('.hero')) continue;
+        const el=root.querySelector('.trailer');
         if (!el) continue;                       // declared absence: stated elsewhere
         if (el.tagName!=='A') { out.push(`${s}: trailer as <${el.tagName}>, not a link`); continue; }
         const href=el.getAttribute('href')||'';
@@ -282,53 +282,53 @@ async def main():
         if (/lecture ici|plein écran|dans l.app/i.test(el.textContent+(el.dataset.toast||'')))
           out.push(`${s}: promises in-app playback`);
       } return out;}""")
-    for x in bandes: note("R27 trailer not conformant", x)
+    for x in trailers: note("R27 trailer not conformant", x)
 
-    evalue('R28')
+    ran('R28')
     # R28 — there must be exactly ONE back-control design, compatible with
     # every page. A floating white bar over the image created a second design
     # which, on screens without an image, COVERED the title instead of pushing
     # it. The rule measures both things: a single signature, and never content
     # glued or covered.
-    retours=await pg.evaluate("""async ()=>{const sig={}, colles=[];
+    backs=await pg.evaluate("""async ()=>{const sig={}, glued=[];
       for (const s of window.__states()) {
         window.__go(s); await new Promise(r=>setTimeout(r,300));
         // The screen carrying the bar is the legacy layer when it is up, and
         // otherwise the migrated fiche, named by its own key: leaving the
         // fiche out would silently drop five states from this sweep, and a
         // rule that has gone quiet is not a rule that passes.
-        const ecran=document.querySelector('#screen.open')
-                 || document.querySelector('.screen.open[data-cle^="fiche:"]');
-        const bar=ecran?.querySelector('.fichebar');
+        const screen=document.querySelector('#screen.open')
+                  || document.querySelector('.screen.open[data-cle^="fiche:"]');
+        const bar=screen?.querySelector('.screenbar');
         if (!bar) continue;
         const btn=bar.querySelector('.fback');
-        if (!btn) { colles.push(`${s}: bar without a back control`); continue; }
+        if (!btn) { glued.push(`${s}: bar without a back control`); continue; }
         const sb=getComputedStyle(bar), sx=getComputedStyle(btn), rb=bar.getBoundingClientRect();
         // A bar outside the flow pushes nothing: it ends up covering.
         if (sb.position!=='static' && sb.position!=='relative')
-          colles.push(`${s}: bar in ${sb.position} — it does not push content`);
+          glued.push(`${s}: bar in ${sb.position} — it does not push content`);
         const k=[sb.position, sb.backgroundColor, sx.color, Math.round(rb.height)].join('|');
         (sig[k] ||= []).push(s);
         // Measure the first PIXEL OF TEXT, not the first box: a container can
         // touch the bar through its padding without anything being glued.
-        const port=ecran.querySelector('.port');
-        const texte=port && [...port.querySelectorAll('h1,h2,h3,p,span,button,a,label')]
+        const port=screen.querySelector('.port');
+        const text=port && [...port.querySelectorAll('h1,h2,h3,p,span,button,a,label')]
           .find(e=>{const r=e.getBoundingClientRect();
                     return r.height>0 && (e.textContent||'').trim().length>1 && !e.closest('.note');});
-        if (texte) {
-          const ecart=texte.getBoundingClientRect().top-rb.bottom;
-          if (ecart < 8) colles.push(`${s}: text ${Math.round(ecart)}px from the bar`);
+        if (text) {
+          const gap=text.getBoundingClientRect().top-rb.bottom;
+          if (gap < 8) glued.push(`${s}: text ${Math.round(gap)}px from the bar`);
         }
       }
-      return {sig, colles};}""")
-    if len(retours["sig"]) > 1:
-        for k, l in retours["sig"].items():
+      return {sig, glued};}""")
+    if len(backs["sig"]) > 1:
+        for k, l in backs["sig"].items():
             note("R28 several back-control designs", f"{k} → {', '.join(l[:4])}")
-    for x in retours["colles"]: note("R28 back control badly placed", x)
-    print(f"\nDistinct back-control designs: {len(retours['sig'])} across "
-          f"{sum(len(v) for v in retours['sig'].values())} screens")
+    for x in backs["glued"]: note("R28 back control badly placed", x)
+    print(f"\nDistinct back-control designs: {len(backs['sig'])} across "
+          f"{sum(len(v) for v in backs['sig'].values())} screens")
 
-    evalue('R29')
+    ran('R29')
     # R29 — episode presence is read from the LIST of owned numbers, never
     # from a « number <= owned count » threshold. That threshold assumes the
     # hole is at the end of the season: false for 35 series in this library.
@@ -338,41 +338,41 @@ async def main():
       // ALL series with an INTERNAL hole, not a sample: that is where the
       // threshold and the list diverge, so that is where the rule has a chance
       // to bite.
-      const atrous=Object.entries(POSSEDES).filter(([t,s])=>
+      const withHoles=Object.entries(POSSEDES).filter(([t,s])=>
         Object.values(s).some(l=>l.length && l.some((n,i)=>n!==i+1))).map(([t])=>t);
-      if (!atrous.length) return ['no series with an internal hole — the rule would be vacuous'];
-      let inspectes=0;
-      for (const titre of atrous) {
+      if (!withHoles.length) return ['no series with an internal hole — the rule would be vacuous'];
+      let inspected=0;
+      for (const title of withHoles) {
         window.__reset(); applyState({page:'lib', phase:'prete'});
-        window.__ecrans.fiche(titre);
+        window.__ecrans.fiche(title);
         await new Promise(r=>setTimeout(r,240));
         for (const det of document.querySelectorAll('.screen.open[data-cle^="fiche:"] details.season')) {
           const num=Number((det.querySelector('summary')?.textContent||'').match(/Saison\\s+(\\d+)/)?.[1]);
-          const detenus=possedesDe(titre, num);
-          if (!detenus) continue;
+          const owned=possedesDe(title, num);
+          if (!owned) continue;
           // BOTH renderings: titled rows AND the numbered matrix.
-          const cases=[...det.querySelectorAll('.eprow')].map(r=>[
+          const cells=[...det.querySelectorAll('.eprow')].map(r=>[
               Number((r.querySelector('.en')?.textContent||'').replace(/\\D/g,'')), r])
             .concat([...det.querySelectorAll('.eps .ep')].map(c=>[Number(c.textContent), c]));
-          for (const [n, el] of cases) {
+          for (const [n, el] of cells) {
             if (!n || el.classList.contains('annonce')) continue;
-            inspectes++;
-            const affiche=el.classList.contains('en_mediatheque');
-            if (affiche !== detenus.has(n))
-              out.push(`${titre} S${num}E${n}: shown ${affiche?'present':'missing'}, actually ${detenus.has(n)?'present':'missing'}`);
+            inspected++;
+            const shown=el.classList.contains('en_mediatheque');
+            if (shown !== owned.has(n))
+              out.push(`${title} S${num}E${n}: shown ${shown?'present':'missing'}, actually ${owned.has(n)?'present':'missing'}`);
           }
         }
       }
-      if (!inspectes) out.push('no episode inspected — the rule proves nothing');
+      if (!inspected) out.push('no episode inspected — the rule proves nothing');
       return out.slice(0, 12);}""")
     for x in ep: note("R29 episode presence not matching the data", x)
 
-    evalue('R30')
+    ran('R30')
     # R30 — ONE season rendering. Two existed: a titled list (29 series) and a
     # numbered matrix (177), and twelve sheets contained both at once. A sheet
     # must not have two faces depending on the data it happens to have.
-    rendus=await pg.evaluate("""async ()=>{
-      const c={lignes:[], matrice:[], mixte:[], jamaisOuverte:[], sansSaison:[]};
+    renders=await pg.evaluate("""async ()=>{
+      const c={rows:[], matrix:[], mixed:[], neverOpened:[], noSeason:[]};
       const series=Object.keys(FICHES_RAW).filter(t=>sheetFor(t)?.k!=='movie');
       // The sheet is a ROUTE now: it commits a frame later than an `innerHTML`
       // assignment did. A FIXED wait makes this rule's coverage depend on how
@@ -380,11 +380,11 @@ async def main():
       // every series is skipped, and the rule reports nothing behind a green
       // exit code. Waiting for THE SCREEN ONE ASKED FOR — its own key — removes
       // the guess, and a timeout is reported instead of silently skipped.
-      const attendre=async(t)=>{
-        const cle='fiche:'+t.normalize('NFC');
+      const waitFor=async(t)=>{
+        const key='fiche:'+t.normalize('NFC');
         for (let i=0;i<40;i++) {
           const el=document.querySelector('.screen.open[data-cle^="fiche:"]');
-          if (el && el.dataset.cle===cle) return el;
+          if (el && el.dataset.cle===key) return el;
           await new Promise(r=>setTimeout(r,25));
         }
         return null;
@@ -392,41 +392,41 @@ async def main():
       for (const t of series) {
         window.__reset(); applyState({page:'lib',phase:'prete'});
         window.__ecrans.fiche(t);
-        const s=await attendre(t);
-        if (!s) { c.jamaisOuverte.push(t); continue; }
+        const s=await waitFor(t);
+        if (!s) { c.neverOpened.push(t); continue; }
         const dets=[...s.querySelectorAll('details.season')];
         // A series whose provider declares no season draws none: a stated
         // absence, counted APART from a sheet that never opened.
-        if (!dets.length) { c.sansSaison.push(t); continue; }
-        const formes=new Set(dets.map(d=>
-          d.querySelector('.eprow') ? 'lignes' : d.querySelector('.eps .ep') ? 'matrice' : 'vide'));
-        formes.delete('vide');
-        if (formes.size>1) c.mixte.push(t);
-        else if (formes.has('lignes')) c.lignes.push(t);
-        else if (formes.has('matrice')) c.matrice.push(t);
+        if (!dets.length) { c.noSeason.push(t); continue; }
+        const shapes=new Set(dets.map(d=>
+          d.querySelector('.eprow') ? 'rows' : d.querySelector('.eps .ep') ? 'matrix' : 'empty'));
+        shapes.delete('empty');
+        if (shapes.size>1) c.mixed.push(t);
+        else if (shapes.has('rows')) c.rows.push(t);
+        else if (shapes.has('matrix')) c.matrix.push(t);
       }
       return c;}""")
-    inspectees = len(rendus["lignes"]) + len(rendus["matrice"]) + len(rendus["mixte"])
-    print(f"\nSeason rendering — list: {len(rendus['lignes'])} · "
-          f"matrice : {len(rendus['matrice'])} · MIXED: {len(rendus['mixte'])} "
-          f"· sans saison : {len(rendus['sansSaison'])} "
-          f"· inspectées : {inspectees}/{inspectees + len(rendus['sansSaison']) + len(rendus['jamaisOuverte'])}")
+    inspected = len(renders["rows"]) + len(renders["matrix"]) + len(renders["mixed"])
+    print(f"\nSeason rendering — list: {len(renders['rows'])} · "
+          f"matrix: {len(renders['matrix'])} · MIXED: {len(renders['mixed'])} "
+          f"· no season: {len(renders['noSeason'])} "
+          f"· inspected: {inspected}/{inspected + len(renders['noSeason']) + len(renders['neverOpened'])}")
     # A sheet that never opened is a MEASUREMENT failure, never a series to
     # skip: silence would let a slow host empty this rule and still exit green.
-    for t in rendus["jamaisOuverte"][:6]:
+    for t in renders["neverOpened"][:6]:
         note("R30 sheet never opened — nothing was measured on it", t)
-    if not inspectees:
+    if not inspected:
         note("R30 no season inspected — the rule proves nothing",
-             f"{len(rendus['sansSaison'])} sans saison, "
-             f"{len(rendus['jamaisOuverte'])} jamais ouvertes")
-    for t in rendus["mixte"][:6]:
+             f"{len(renders['noSeason'])} without a season, "
+             f"{len(renders['neverOpened'])} never opened")
+    for t in renders["mixed"][:6]:
         note("R30 two season renderings within ONE sheet", t)
-    if rendus["lignes"] and rendus["matrice"]:
+    if renders["rows"] and renders["matrix"]:
         note("R30 two season renderings across sheets",
-             f"{len(rendus['lignes'])} en liste (ex. {rendus['lignes'][0]}) contre "
-             f"{len(rendus['matrice'])} en matrice (ex. {rendus['matrice'][0]})")
+             f"{len(renders['rows'])} as a list (e.g. {renders['rows'][0]}) against "
+             f"{len(renders['matrix'])} as a matrix (e.g. {renders['matrix'][0]})")
 
-    evalue('R31')
+    ran('R31')
     # R31 — a card body opens the panel, and that panel offers follow actions
     # ONLY for a medium that is actually followed.
     #
@@ -437,24 +437,24 @@ async def main():
     # what is true about the medium, so the rule checks that derivation instead
     # of forbidding a destination.
     dest=await pg.evaluate("""async ()=>{const out=[];
-      const suivis=new Set(world.follows.map(x=>x.t));
-      for (const etat of ['lib-incomplets','lib-liste','lib-recents']) {
+      const followed=new Set(world.follows.map(x=>x.t));
+      for (const state_ of ['lib-incomplets','lib-liste','lib-recents']) {
         for (let i=0; i<6; i++) {
-          window.__go(etat); await new Promise(r=>setTimeout(r,300));
-          const bascule=document.querySelector('[data-lmode="list"]');
-          if (bascule) { bascule.click(); await new Promise(r=>setTimeout(r,260)); }
-          const cartes=[...document.querySelectorAll('#view .card .cbody')];
-          if (i>=cartes.length) break;
-          const complet=cartes[i].querySelector('.ctitle')?.textContent ?? '?';
-          const titre=complet.slice(0,26);
-          cartes[i].click(); await new Promise(r=>setTimeout(r,300));
-          const feuille=document.querySelector('#sheet');
-          if (!feuille.classList.contains('open')) { out.push(`${etat} · « ${titre} » opens nothing`); continue; }
-          const actions=[...feuille.querySelectorAll('.sact')].map(x=>x.textContent.trim());
-          if (!suivis.has(complet)) {
+          window.__go(state_); await new Promise(r=>setTimeout(r,300));
+          const toggle=document.querySelector('[data-lmode="list"]');
+          if (toggle) { toggle.click(); await new Promise(r=>setTimeout(r,260)); }
+          const cards=[...document.querySelectorAll('#view .card .cbody')];
+          if (i>=cards.length) break;
+          const full=cards[i].querySelector('.ctitle')?.textContent ?? '?';
+          const title=full.slice(0,26);
+          cards[i].click(); await new Promise(r=>setTimeout(r,300));
+          const sheet=document.querySelector('#sheet');
+          if (!sheet.classList.contains('open')) { out.push(`${state_} · « ${title} » opens nothing`); continue; }
+          const actions=[...sheet.querySelectorAll('.sact')].map(x=>x.textContent.trim());
+          if (!followed.has(full)) {
             for (const a of actions)
               if (/^(Mettre en pause|Ne plus chercher|Retirer)/.test(a))
-                out.push(`${etat} · « ${titre} » is not followed yet offers « ${a} »`);
+                out.push(`${state_} · « ${title} » is not followed yet offers « ${a} »`);
           }
           document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
           await new Promise(r=>setTimeout(r,260));
@@ -463,18 +463,18 @@ async def main():
     for x in dest: note("R31 panel offering an action the medium does not support", x)
 
     print()
-    if not viol: print("No violations on this second pass.")
-    for r,l in sorted(viol.items()):
+    if not violations: print("No violations on this second pass.")
+    for r,l in sorted(violations.items()):
         print(f"■ {r} — {len(l)}")
         for x in l[:5]: print("   ",x)
     print(f"\nJS errors: {errs or 'none'}")
-    print(f"{BAR}\nTOTAL, second pass: {sum(len(v) for v in viol.values())} violations "
-          f"· {len(evaluees)}/{REGLES_ATTENDUES} rules executed")
-    if len(evaluees) != REGLES_ATTENDUES:
-        print(f"⚠ {REGLES_ATTENDUES - len(evaluees)} rule(s) never executed: "
+    print(f"{BAR}\nTOTAL, second pass: {sum(len(v) for v in violations.values())} violations "
+          f"· {len(executed)}/{EXPECTED_RULES} rules executed")
+    if len(executed) != EXPECTED_RULES:
+        print(f"⚠ {EXPECTED_RULES - len(executed)} rule(s) never executed: "
               "a mute audit is not a green audit.")
     await b.close()
     # A script that only prints can never fail, and a script that cannot fail
     # proves nothing: the verdict has to reach the exit code.
-    if viol or errs: raise SystemExit(1)
+    if violations or errs: raise SystemExit(1)
 asyncio.run(main())

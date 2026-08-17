@@ -387,11 +387,11 @@ describe("ObligationsPanel — repli mobile des colonnes (ACQUISITION-4, ticket 
     // the Titre-cell title is reverted (vacuous — review finding, ticket 250).
     const dataRow = screen.getAllByRole("row")[1];
     if (dataRow === undefined) throw new Error("no obligation data row");
-    const titreCell = within(dataRow).getAllByRole("cell")[0];
-    if (titreCell === undefined) throw new Error("no Titre cell in the row");
-    expect(titreCell).toHaveAttribute("title", fullHash);
+    const titleCell = within(dataRow).getAllByRole("cell")[0];
+    if (titleCell === undefined) throw new Error("no Titre cell in the row");
+    expect(titleCell).toHaveAttribute("title", fullHash);
     // Its visible fallback text is the truncated hash.
-    expect(titreCell).toHaveTextContent("abcdef123456…");
+    expect(titleCell).toHaveTextContent("abcdef123456…");
   });
 });
 

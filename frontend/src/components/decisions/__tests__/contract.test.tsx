@@ -21,7 +21,7 @@ import { CandidateCard } from "@/components/decisions/CandidateCard";
 import { DecisionRow } from "@/components/ds/DecisionRow";
 
 /** The engine's vocabulary. None of it may reach a screen. */
-const JETONS = [
+const FRENCH_TOKENS = [
   "below_threshold",
   "mid_band",
   "ambiguous",
@@ -60,21 +60,21 @@ describe("R57 — une décision est un DOSSIER", () => {
 
   it("le dossier est le sujet, en chasse fixe, jamais le titre extrait", () => {
     render(<DecisionRow {...decisionFacts(REGLEE)} />);
-    const dossier = screen.getByTestId("decision-folder");
-    expect(dossier).toHaveTextContent("Lucky");
-    expect(dossier.className).toContain("font-mono");
+    const folder = screen.getByTestId("decision-folder");
+    expect(folder).toHaveTextContent("Lucky");
+    expect(folder.className).toContain("font-mono");
     // The full path is the tooltip; the row shows the folder.
-    expect(dossier).toHaveAttribute("title", REGLEE.staging_path);
+    expect(folder).toHaveAttribute("title", REGLEE.staging_path);
     expect(folderName(REGLEE.staging_path)).toBe("Lucky");
   });
 
   it("ne promet ni fiche ni panneau", () => {
     render(<DecisionRow {...decisionFacts(REGLEE)} />);
-    const carte = screen.getByTestId("decision-card");
-    expect(carte).toHaveAttribute("data-nonmedia", "decision");
-    expect(within(carte).queryByRole("link")).toBeNull();
+    const card = screen.getByTestId("decision-card");
+    expect(card).toHaveAttribute("data-nonmedia", "decision");
+    expect(within(card).queryByRole("link")).toBeNull();
     // The poster is never a control: there is no medium here, only a folder.
-    expect(carte.querySelector("button > img, button [data-slot=poster]")).toBeNull();
+    expect(card.querySelector("button > img, button [data-slot=poster]")).toBeNull();
   });
 
   it("dit son motif ET ce qu'elle est devenue, en français", () => {
@@ -86,19 +86,19 @@ describe("R57 — une décision est un DOSSIER", () => {
 
   it("aucun jeton du moteur n'atteint l'écran", () => {
     const { container } = render(<DecisionRow {...decisionFacts(REGLEE)} />);
-    const texte = container.textContent;
-    const attributs = container.innerHTML;
-    for (const jeton of JETONS) {
-      expect(texte).not.toContain(jeton);
-      expect(attributs).not.toContain(`>${jeton}<`);
+    const text = container.textContent;
+    const attributes = container.innerHTML;
+    for (const token of FRENCH_TOKENS) {
+      expect(text).not.toContain(token);
+      expect(attributes).not.toContain(`>${token}<`);
     }
   });
 
   it("une décision en attente ne montre aucune affiche devinée", () => {
     const attente = { ...REGLEE, status: "pending", resolution_json: null };
     render(<DecisionRow {...decisionFacts(attente)} />);
-    const carte = screen.getByTestId("decision-card");
-    expect(carte.querySelector("img")).toBeNull();
+    const card = screen.getByTestId("decision-card");
+    expect(card.querySelector("img")).toBeNull();
     expect(screen.queryByText("Réglée")).toBeNull();
   });
 });

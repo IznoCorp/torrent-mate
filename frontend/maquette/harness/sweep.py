@@ -21,13 +21,13 @@ async def main():
     # The worker-fetch miss is its own case: Chrome words it « A bad HTTP
     # response code (404) was received when fetching the script. » and gives
     # it NO url — the only script the envelope fetches that way is /sw.js.
-    ROUTES_HOTE = ("favicon", "sw.js", "manifest.webmanifest",
+    HOST_ROUTES = ("favicon", "sw.js", "manifest.webmanifest",
                    "when fetching the script")
     def _console(m):
         if m.type != "error":
             return
         url = (m.location or {}).get("url", "")
-        if any(r in url or r in m.text for r in ROUTES_HOTE):
+        if any(r in url or r in m.text for r in HOST_ROUTES):
             return
         errs.append("console:" + m.text + " ← " + url)
     pg.on("console", _console)
@@ -42,20 +42,20 @@ async def main():
         await pg.click(sel); await pg.wait_for_timeout(420)
         r = await pg.evaluate("""()=>{
           const v=document.querySelector('#view');
-          return {contenu: v.textContent.replace(/\\s+/g,' ').trim().length,
-                  noeuds: v.querySelectorAll('*').length,
+          return {content: v.textContent.replace(/\\s+/g,' ').trim().length,
+                  nodes: v.querySelectorAll('*').length,
                   // The shapes a view can be MADE of: a card, a gallery tile,
                   // a key/value row, a fact row. `.fx` joined the list when
                   // Système stopped being a wall of `.kv` — it is the same kind
                   // of object, so what this counts is unchanged: is there
                   // structure, or only prose.
-                  cartes: v.querySelectorAll('.card,.tile,.kv,.fx').length,
+                  cards: v.querySelectorAll('.card,.tile,.kv,.fx').length,
                   doc: document.documentElement.scrollWidth,
-                  dev: Math.round(document.querySelector('.device').getBoundingClientRect().width),
-                  deborde: [...v.querySelectorAll('*')].filter(e=>e.getBoundingClientRect().right>390.5&&!e.closest('.pillscroll')).length};}""")
-        ok = r['cartes'] > 0 and r['contenu'] > 120 and r['doc'] <= 390 and r['dev'] == 390 and r['deborde'] == 0
+                  device: Math.round(document.querySelector('.device').getBoundingClientRect().width),
+                  spills: [...v.querySelectorAll('*')].filter(e=>e.getBoundingClientRect().right>390.5&&!e.closest('.pillscroll')).length};}""")
+        ok = r['cards'] > 0 and r['content'] > 120 and r['doc'] <= 390 and r['device'] == 390 and r['spills'] == 0
         if not ok: bad += 1
-        print(("OK  " if ok else "FAIL"), f"{name:16}", r)
+        print(("PASS" if ok else "FAIL"), f"{name:16}", r)
         await pg.screenshot(path=f"w_{name.replace('/','_')}.png")
     print("\nJS errors:", errs or "none")
     print("VERDICT:", "all 8 views render content, with no overflow" if bad==0 and not errs else f"{bad} view(s) failed")

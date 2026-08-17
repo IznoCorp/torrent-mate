@@ -13,7 +13,7 @@ from playwright.async_api import async_playwright
 # Every popstate the document receives, counted from the page itself: a
 # settlement issuing two backs where it should issue one is invisible in the
 # landing address (both spend the same two entries) and perfectly visible here.
-COMPTEUR = """() => {
+COUNTER = """() => {
   window.__pops = [];
   window.addEventListener('popstate', () => window.__pops.push(
     location.pathname + location.search));
@@ -23,16 +23,16 @@ COMPTEUR = """() => {
 # naming the defect, so the departure is tested first. The test is the origin,
 # never the file name: a router-owned address (`/`, `/ajout`) is served by the
 # same document and carries no « wrapped.html » anywhere in it.
-async def ou(pg):
+async def where(pg):
   """Where the interface is, or None when the document is gone."""
   if pg.is_closed() or not pg.url.startswith("http://127.0.0.1:8899"):
     return None
   try:
     return await pg.evaluate("""()=>({
-      adresse: location.pathname + location.search,
+      address: location.pathname + location.search,
       page: state.page,
-      feuille: window.__panneau.ouverte(),
-      ecran: document.querySelector('#screen').classList.contains('open'),
+      sheet: window.__panneau.ouverte(),
+      screen: document.querySelector('#screen').classList.contains('open'),
       message: (document.querySelector('#toastmsg')||{}).textContent || '',
       pops: window.__pops.length,
     })""")
@@ -52,15 +52,15 @@ async def main():
     # wait through the same seam the app uses, rather than sleeping it out.
     await pg.evaluate("()=>window.__chargementTermine?.()")
     await pg.evaluate("()=>window.__measure(true)")
-    await pg.evaluate(COMPTEUR)
+    await pg.evaluate(COUNTER)
 
     await pg.evaluate("()=>window.__go('arr-charge')"); await pg.wait_for_timeout(320)
-    avant = await pg.evaluate("()=>({coince:derived.stuck().length, avance:derived.moving().length, suivis:world.follows.length})")
-    print("starting state           :", avant)
+    before = await pg.evaluate("()=>({stuck:derived.stuck().length, moving:derived.moving().length, follows:world.follows.length})")
+    print("starting state           :", before)
     # Where the walk stands BEFORE `/ajout` — the manual search pops the
     # resolution entry before pushing its own, so this is the entry the add
     # screen was stacked on, and the one the settlement must land back on.
-    depart = await ou(pg)
+    start = await where(pg)
 
     await pg.evaluate("()=>[...document.querySelectorAll('.cfoot')].find(x=>x.textContent.includes('Résoudre')).click()")
     await pg.wait_for_timeout(420)
@@ -78,29 +78,29 @@ async def main():
     # its own absence instead of a TypeError.
     r = await pg.evaluate("""()=>{const s=document.querySelector('.screen.open[data-cle^="ajout:"]')
         ?? document.createElement('div');
-      return {bandeau:(s.querySelector('.surferr b')||{}).textContent,
-              requete:s.querySelector('#addq')?.value,
-              blocId:(s.querySelector('.byid summary')||{}).textContent};}""")
+      return {banner:(s.querySelector('.surferr b')||{}).textContent,
+              query:s.querySelector('#addq')?.value,
+              idBlock:(s.querySelector('.byid summary')||{}).textContent};}""")
     # The card wears no inline action: the verb lives in the result's panel,
     # so the panel is where the rule reads it — same path the finger takes.
     await pg.evaluate("()=>document.querySelector('.reslist .cbody').click()"); await pg.wait_for_timeout(420)
-    r["verbes"] = await pg.evaluate("()=>[...document.querySelectorAll('#sheet .sact.primary')].map(x=>x.textContent.trim())")
+    r["verbs"] = await pg.evaluate("()=>[...document.querySelectorAll('#sheet .sact.primary')].map(x=>x.textContent.trim())")
     print("search screen            :", r)
     await pg.screenshot(path="p_identifier.png")
 
-    avant_assoc = await ou(pg)
+    before_assoc = await where(pg)
     await pg.evaluate("()=>document.querySelector('#sheet .sact.primary').click()"); await pg.wait_for_timeout(700)
-    apres = await pg.evaluate("()=>({coince:derived.stuck().length, avance:derived.moving().length, suivis:world.follows.length})")
-    print("après « Associer »       :", apres)
+    after = await pg.evaluate("()=>({stuck:derived.stuck().length, moving:derived.moving().length, follows:world.follows.length})")
+    print("after « Associer »       :", after)
     print("notification             :", (await pg.evaluate("()=>document.querySelector('#toastmsg')?.textContent"))[:90])
 
-    ok = (apres["coince"] == avant["coince"] - 1 and apres["avance"] == avant["avance"] + 1
-          and apres["suivis"] == avant["suivis"] and "Associer" in r["verbes"])
-    print("\n— le dossier quitte « Ça coince » :", apres["coince"] == avant["coince"] - 1)
-    print("— il rejoint « Ça avance »        :", apres["avance"] == avant["avance"] + 1)
-    print("— NO follow was created           :", apres["suivis"] == avant["suivis"])
+    ok = (after["stuck"] == before["stuck"] - 1 and after["moving"] == before["moving"] + 1
+          and after["follows"] == before["follows"] and "Associer" in r["verbs"])
+    print("\n— the folder leaves « Ça coince » :", after["stuck"] == before["stuck"] - 1)
+    print("— it joins « Ça avance »          :", after["moving"] == before["moving"] + 1)
+    print("— NO follow was created           :", after["follows"] == before["follows"])
 
-    # ── LA TENUE DE L'HISTORIQUE : un seul règlement, annoncé ─────────────
+    # ── THE HISTORY IT HOLDS: one settlement, announced ───────────────────
     # Associer settles TWO entries at once — the result's panel and `/ajout`
     # itself. Three things are held together, because no one of them alone
     # names the defect: the LANDING (both a correct settlement and two racing
@@ -110,13 +110,13 @@ async def main():
     # operator's own back gesture; an over-announced one swallows the next real
     # back in silence. One announced operation is the only shape that is
     # neither.
-    regle = await ou(pg)
-    pops = (regle["pops"] - avant_assoc["pops"]) if regle else None
-    print("\n— on revient là où l'on était avant « /ajout » :",
-          regle and regle["adresse"], f"(attendu {depart['adresse']})")
-    print("— le règlement tient en UNE opération d'historique :", pops, "pop(s)")
-    print("— aucune couche ne reste ouverte :",
-          regle and not regle["feuille"] and not regle["ecran"])
+    settled = await where(pg)
+    pops = (settled["pops"] - before_assoc["pops"]) if settled else None
+    print("\n— one lands where the walk stood before « /ajout » :",
+          settled and settled["address"], f"(expected {start['address']})")
+    print("— the settlement takes ONE history operation :", pops, "pop(s)")
+    print("— no layer stays open :",
+          settled and not settled["sheet"] and not settled["screen"])
 
     # And the entry underneath is still there to be walked: one more back is
     # worth exactly one step. Here that step is the guard at the bottom of the
@@ -124,16 +124,16 @@ async def main():
     # would say nothing at all, and the document would still be standing on an
     # entry nobody spent.
     await pg.go_back(); await pg.wait_for_timeout(400)
-    ensuite = await ou(pg)
-    print("— un retour de plus vaut exactement un pas :",
-          ensuite and ensuite["message"][:46] or "le document a été quitté")
+    next_ = await where(pg)
+    print("— one more back is worth exactly one step :",
+          next_ and next_["message"][:46] or "the document was left")
 
-    tenue = (regle is not None and ensuite is not None
-             and regle["adresse"] == depart["adresse"]
-             and pops == 1
-             and not regle["feuille"] and not regle["ecran"]
-             and "quitter" in ensuite["message"].lower()
-             and ensuite["page"] == depart["page"])
+    held = (settled is not None and next_ is not None
+            and settled["address"] == start["address"]
+            and pops == 1
+            and not settled["sheet"] and not settled["screen"]
+            and "quitter" in next_["message"].lower()
+            and next_["page"] == start["page"])
 
     # and the « + » returns to follow mode
     await pg.evaluate("()=>window.__go('acq-encours-charge')"); await pg.wait_for_timeout(300)
@@ -141,12 +141,12 @@ async def main():
     await pg.evaluate("()=>document.querySelector('[data-search]')?.click()"); await pg.wait_for_timeout(500)
     await pg.evaluate("()=>document.querySelector('.reslist .cbody')?.click()"); await pg.wait_for_timeout(420)
     v = await pg.evaluate("()=>[...document.querySelectorAll('#sheet .sact.primary')].map(x=>x.textContent.trim())")
-    print("— le « + » redit « Suivre/Ajouter » :", v)
+    print("— the « + » says « Suivre/Ajouter » again :", v)
     print("\nJS errors:", errs or "none")
     print("VERDICT:", "identify != follow, and context picks the verb"
-          if ok and tenue and not errs else "needs review")
+          if ok and held and not errs else "needs review")
     await b.close()
     # A script that only prints can never fail, and a script that cannot fail
     # proves nothing: the verdict has to reach the exit code.
-    if not ok or not tenue or errs: raise SystemExit(1)
+    if not ok or not held or errs: raise SystemExit(1)
 asyncio.run(main())

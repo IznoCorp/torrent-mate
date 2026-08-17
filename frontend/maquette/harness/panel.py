@@ -1,0 +1,160 @@
+"""R56 — ONE bottom panel, and its shape follows the facts it is given.
+
+The card and the tile were each reduced to a single builder taking a descriptor
+of facts. The panel had not been: `openSheet` took ready-made markup, so every
+surface assembled its own — three head shapes had grown that way, two of them
+out of inline styles, which belong to no stylesheet and are therefore exported
+nowhere. A second builder had also appeared for « whatever the first does not
+recognise », and it offered six buttons of which three led nowhere at all. That
+is what a fallback builder becomes: never the one being looked at, so never the
+one being fixed.
+
+An envelope guarantees nothing about what it carries. This script checks the
+guarantees a builder CAN make:
+
+  · no caller hands markup to the panel;
+  · nothing inside a panel is positioned by an inline style;
+  · every panel has exactly one heading;
+  · every action in a panel has a destination, or says why it has none;
+  · a block type nobody declared is refused rather than drawn empty.
+
+The builder and the verb have MOVED: the constructor is the component
+`design/src/components/panel.tsx`, and a producer opens a panel by calling
+the shell's `window.__panneau.ouvrir(descripteur)` rather than the engine's own
+`openSheet(panneauHTML({…}))`. The two source checks below follow them there.
+What they hold is unchanged — one constructor, no second one, and every caller
+handing FACTS rather than markup — and the behavioural checks that follow are
+untouched: they read the panel as drawn, and a panel is a panel wherever it is
+built.
+"""
+import asyncio
+import pathlib
+import re
+
+from common import Journal, open_page
+from playwright.async_api import async_playwright
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+
+_journal = None
+
+
+def check(name, condition, detail=""):
+    """Records one executed check and its verdict, in the shared journal."""
+    return _journal.check(name, condition, detail)
+
+
+# Every panel this interface can open, and how to reach it without knowing
+# which screen draws which.
+PANELS = [
+    ("complete follow", "feuille-suivi-complet", None),
+    ("follow with holes", "feuille-suivi-trous", None),
+    ("journey", "feuille-parcours", None),
+    ("watch", "feuille-plus", None),
+    ("user menu", "feuille-utilisateur", None),
+    ("suggestion", "acq-decouvrir", '#view [data-panel^="sug:"]'),
+    # The add screen left `#screen` for a real route (`/ajout`, rendered
+    # inside `#coquille`) — its results live under `.screen.open` now.
+    ("search result", "acq-ajout-resultats", '.screen.open [data-panel^="add:"]'),
+    ("library sort", "lib-grille", "[data-sort]"),
+]
+
+READ = """() => {
+  const p = document.querySelector('#sheetin');
+  const inline = [...p.querySelectorAll('[style]')]
+    .map(e => e.tagName + '.' + e.className);
+  const actions = [...p.querySelectorAll('.sact')].map(b => ({
+    text: (b.textContent || '').trim().slice(0, 34),
+    data: Object.keys(b.dataset).length,
+    disabled: b.disabled}));
+  return {empty: (p.textContent || '').trim().length < 8,
+          titles: p.querySelectorAll('.sheettitle').length,
+          inline, actions,
+          unknown: [...p.querySelectorAll('*')].filter(e =>
+            e.tagName === 'DIV' && e.className === '').length};
+}"""
+
+
+async def main():
+    global _journal
+    _journal = Journal("R56 — one single panel")
+
+    source = (ROOT / "design" / "refonte.html").read_text()
+    component = (ROOT / "design" / "src" / "components" / "panel.tsx").read_text()
+
+    # 1. No caller hands markup to the panel. Read on the SOURCE, because that
+    #    is where a panel is asked for; the DOM only shows what came out. A
+    #    descriptor is an OBJECT — a call opening on anything else (a string, a
+    #    template literal, a variable holding ready-made markup) is an envelope.
+    calls = re.findall(r"window\.__panneau\.ouvrir\(\s*(.{0,24})", source, re.S)
+    not_facts = [a.strip()[:24] for a in calls if not a.lstrip().startswith("{")]
+    check("no caller hands markup", not not_facts,
+          " · ".join(not_facts))
+    check("there really are callers", len(calls) >= 6, f"{len(calls)} calls")
+
+    # 2. One builder, not two. A fallback builder is the one that rots. The
+    #    engine's own builder must not come back either: two constructors are
+    #    two head shapes, whichever file they live in.
+    check("one panel constructor and no other",
+          component.count("export function PanelContent(") == 1
+          and "function panneauHTML(" not in source
+          and "openDetailSheetLegacy" not in source,
+          "openDetailSheetLegacy still present"
+          if "openDetailSheetLegacy" in source else
+          "panneauHTML is back in refonte.html"
+          if "function panneauHTML(" in source else
+          f"{component.count('export function PanelContent(')} PanelContent")
+
+    async with async_playwright() as p:
+        b = await p.chromium.launch(channel="chrome")
+        ctx, pg = await open_page(b)
+        errors = []
+        pg.on("pageerror", lambda e: errors.append(str(e)))
+        await pg.evaluate("()=>window.__measure(true)")
+
+        empty, styles, titles, without_destination = [], [], [], []
+        for name, state_, click in PANELS:
+            await pg.evaluate("(s)=>window.__go(s)", state_)
+            await pg.wait_for_timeout(320)
+            if click:
+                await pg.evaluate("(s)=>document.querySelector(s).click()", click)
+                await pg.wait_for_timeout(320)
+            r = await pg.evaluate(READ)
+            if r["empty"]:
+                empty.append(name)
+            if r["inline"]:
+                styles.append(f"{name}: {', '.join(r['inline'][:3])}")
+            if r["titles"] != 1:
+                titles.append(f"{name} ({r['titles']})")
+            for action in r["actions"]:
+                if action["data"] == 0 and not action["disabled"]:
+                    without_destination.append(f"{name} : « {action['text']} »")
+
+        check(f"the {len(PANELS)} panels open and carry content",
+              not empty, ", ".join(empty))
+        check("no inline style inside a panel", not styles, " · ".join(styles))
+        check("one heading per panel", not titles, ", ".join(titles))
+        # The exact defect the fallback builder shipped: a button that looks
+        # like an action and answers nothing. A disabled one is allowed — it
+        # says of itself that it does nothing yet.
+        check("no action without a destination", not without_destination,
+              " · ".join(without_destination))
+
+        # 3. A block the builder does not know is REFUSED. Silence here would
+        #    draw an empty panel and blame the data.
+        refusal = await pg.evaluate("""()=>{try{
+            window.__panneauInconnu();
+            return "no refusal";
+          }catch(e){return String(e.message||e);}}""")
+        # The message reads ENGLISH because it is a DEVELOPER message: it
+        # reaches this harness and a console, never the interface, so the
+        # no-French-in-code rule applies to it and the assertion follows it.
+        check("an undeclared block is refused",
+              "unknown panel block" in refusal, refusal)
+
+        check("no JS error", not errors, str(errors))
+        await b.close()
+
+    _journal.summary()
+
+asyncio.run(main())

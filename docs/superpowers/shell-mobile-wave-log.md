@@ -29,7 +29,7 @@ moved into the Vite envelope (`design/index.html`, between `pwa:start`/`pwa:end`
 and `serve.py` EXTRACTS it for the login gate instead of restating it; `serve.py` now
 serves `dist/index.html`, rebuilding under a lock when any build input is newer (0.4 s),
 with a truthful 503 taxonomy (missing prototype → MANQUANT; missing build input, timeout,
-failed build → the build's own last words, escaped). `TM_DESIGN_RACINE` env and `TM_DESIGN_DELAI_BUILD` exist so R73 (`bascule.py`) proves
+failed build → the build's own last words, escaped). `TM_DESIGN_ROOT` env and `TM_DESIGN_BUILD_TIMEOUT` exist so R73 (`switchover.py`) proves
 the serving contract (byte-identity, rebuild, failure-shown) against a scratch root
 without touching the real source; the finer 503 taxonomy is exercised by the task evidence.
 Merged as PR #431.
@@ -184,6 +184,88 @@ Next: the rest of the catch-all surface by surface; then SP5 (visual language).
 
 ---
 
+## clean-code / i18n — no French in the code, and no interface text in it either
+
+Branch
+`refactor/clean-code-i18n`, version 0.97.17 (ONE bump for the whole wave). The operator's binding
+directive of 2026-08-16, made into something enforced rather than remembered.
+
+Nine tasks. **T1/T2** put `react-i18next` in the shell and moved every UI string of the six
+components into `design/src/i18n/fr.json` (343 leaves; the panel's three dictionaries account for
+156 of them), proven byte-identical on innerText AND textContent across 81 driven states.
+**T3** put `design/src`'s files, directories and ~140 declarations into English around a FROZEN
+seam — the ~65 member names the legacy fragment calls, every `data-*` name and value, the `__go`
+state ids, the route paths — with a 934-literal audit proving no rendered byte moved. **T9**
+turned the French CSS vocabulary English across all four worlds (fragment,
+components, harness selectors, extracted stylesheet): 33 classes renamed, 3 dropped as
+dead, 6 frozen as data values, and 13 KEPT with the evidence for each recorded in
+`regions.json`'s `$vocabulary`. The plan's « eight » was its first measurement, not the
+executed set. **T4/T5** renamed 29 harness files and translated all 49
+scripts' identifiers, labels and printed formats — `OK`/`ECHEC` became `PASS`/`FAIL`, « N règles
+EXÉCUTÉES » became `N rules EXECUTED` — verified by AST-anonymised equality on 39 of the 49
+scripts and by the hold total, 485, unchanged.
+
+**T6** finished the two servers. `serve.py`'s identifiers, its two environment names
+(`TM_DESIGN_ROOT`, `TM_DESIGN_BUILD_TIMEOUT`) and its diagnostics are English, and the French it
+SERVES left the file entirely: the sign-in gate's title, the two 503 pages, the offline page and
+the manifest's description are read per request from `fr.json`'s `server` namespace — the same
+discipline that already made the gate EXTRACT the login screen's markup instead of restating it.
+Every served page is byte-identical across the move (sign-in 108171 bytes, refused 108164,
+manifest 756, offline 652, missing-prototype 576, build-failure frame 572); the one thing that
+moved in the whole host is the service worker's own constant name. `build_failure` gained the
+guard a constant could not need: if the copy itself is unreadable it answers an English
+diagnostic page naming the copy as the defect, because the page that reports every other failure
+may not fail silently. `resync.py` followed, and its two `BUGS.md` mutation recipes were re-run
+and re-pointed — as was B-029's, whose quotation still named a French hold label the harness
+stopped printing two tasks earlier.
+
+**T7 is the half that outlives the wave**: `scripts/check-no-french.py`, four arms — strings,
+identifiers, file names, class names — in `make check` and in its own CI job. Each arm has its
+own scope, because "French" means one thing in a component and another in a rule script that
+ASSERTS the French the app renders: over the harness the string arm reads only the hold LABELS.
+Every exception cites its reason, and the CSS-class exceptions are READ from `regions.json`'s
+`$vocabulary` so those reasons have exactly one home. Five mutations, each felling exactly its
+own arm. Two of them earned their place immediately: the class arm did NOT fall at first — it
+split names into words, and this vocabulary is written flat (`bandeaufiche`), so it had been
+letting everything through; and the coverage guard exists because an arm whose scope silently
+empties otherwise announces « no violation » while measuring nothing.
+
+What the gate found on its first run, beyond the wave's own list: two French names still in the
+PRODUCTION app (`SystemePage`, `EpisodeStateLegende` — renamed, 1364 frontend tests green), the
+50th harness file (`rename.mjs`, entirely French — translated, and repaired: it read its
+hand-authored name table from a vanished session scratchpad, so it threw on its first line and
+could not run at all), a local `refonte` in `bridge.py`, and four literals that are data or
+addresses rather than copy, now each carrying a `french-ok:` pragma with the reason already
+written beside it.
+
+The gate closed its own two blind spots before the wave ended, and what it found
+there was corrected rather than allowlisted. The string arm reached `scripts/` —
+the repository's own tools speak to a DEVELOPER, so they speak English; seven of
+them did not. (The `personalscraper` CLI is the opposite case and no arm reads
+it: it speaks to the OPERATOR, in French, and it is interface.) The identifier
+arm reached `scripts/`, `personalscraper/` and `tests/`: it had been reading
+2 656 declarations and now reads 124 940. The finding worth keeping is that
+`personalscraper/` had NOT ONE French identifier, and that eleven of the twelve
+in `tests/` are built on `saison` — the library's own folder name on disk, a
+DATA value, frozen with that reason because renaming it would describe a layout
+the disk does not have. `extract-maquette-css.py`, the CSS contract's own tool,
+was French from end to end; renaming it is proven by the only proof that counts —
+regenerating the stylesheet moves not one byte.
+
+Two defects in the gate itself surfaced while widening it: `≠` decomposes to `=`
+plus a combining slash, so a test that merely asks « does anything here combine? »
+reads a mathematical sign as French; and `suite`, `refuse` and `porter` left the
+lexicon, because a guardrail that flags an English word teaches its reader to
+stop believing it.
+
+Wave gate: `resync.py` reports no drift, the full 48-script suite is green with **485 holds —
+the same total the wave started with**, `make check` and `make check-frontend` green. The count
+is the sum of the scripts' own `N rules EXECUTED` lines (`pwa.py`'s 28 checks are tallied
+separately, and six scripts print holds without a Journal tally) — recorded here because the
+next wave should not have to rediscover how the number is made.
+
+---
+
 ## What is already done, ahead of the phase plan
 
 The prototype and its harness carry the design; some app-side work was pulled forward because
@@ -193,26 +275,26 @@ the audit that motivated it was done. Neither replaces a phase.
 
 - The **startup screen** (`demarrage`) covers the wait between signing in and an interface being
   there, and the **gate** shows the same screen — extracted, never retyped — from the submit
-  onwards. R53, `harness/demarrage.py`.
+  onwards. R53, `harness/startup.py`.
 - **Signing out** ends the session on the server and lands on the entry screen, instead of
   answering with a message over an interface that had not moved. R54,
-  `harness/deconnexion.py`.
+  `harness/logout.py`.
 - **Every gesture answers a real finger.** The pull to refresh and the swipe between views had
   both been lost to the compositor and worked only under synthetic events. R55,
-  `harness/doigt.py`.
+  `harness/touch.py`.
 - **One bottom panel**, taking a descriptor of facts and ordered blocks of declared kinds. The
   fallback builder that answered for « whatever the first does not recognise » is gone. R56,
-  `harness/panneau.py`.
+  `harness/panel.py`.
 - The prototype **installs as its own application** — « TorrentMate Design », with an explicit
   manifest `id`, and its own icons: a yellow ring where the app has none and staging has a cyan
   one, generated by `frontend/scripts/make-design-icons.py`. R52 extended.
 - **The install offer is actually offered.** The banner existed and nothing ever showed it:
   `beforeinstallprompt` was never captured, so on Android the browser kept the offer and on iOS
   Safari — which fires no event at all — the banner was the guide nobody saw. R51,
-  `harness/installation.py`.
+  `harness/install.py`.
 - **The back gesture follows the path actually walked**, tabs and lenses included, closes a layer
   first, and at the root warns instead of leaving — closing only on a second back within five
-  seconds. R59, `harness/retour.py`.
+  seconds. R59, `harness/back.py`.
 - **The list poster reaches the card's edges**, 84px wide with the card's height as its floor,
   so a card at that floor gives an exact 2:3 and its artwork is untouched. Full height AND the
   ratio cannot both hold on a taller card — measured, a grid sizes the column before the row's
@@ -222,13 +304,13 @@ the audit that motivated it was done. Neither replaces a phase.
   times and defined nowhere: the wordmark, the sign-in button, the install button and the startup
   bar were all unlit, and the host hid it by retyping the palette. R61, `harness/palette.py`.
 - **One sign-in screen**, wherever one meets it: the host extracts everything the screen
-  inherits — palette, box model, typography — instead of restating it. R62, `harness/entree.py`.
+  inherits — palette, box model, typography — instead of restating it. R62, `harness/entry.py`.
 - **A card says what the engine knows.** A follow carries its identity, what is happening and
   when, and what tells a healthy follow from a stalled one, all read from `acquire.db`; a library
   row carries the synopsis, clamped to the largest number of lines that fits. R63,
-  `harness/contenu.py`.
+  `harness/content.py`.
 - **A row's drawer opens either way, one row at a time**, without firing the tap — and it renders
-  identically on WebKit, where it used to spill past the rounded card. R64, `harness/glisse.py`.
+  identically on WebKit, where it used to spill past the rounded card. R64, `harness/drag.py`.
 - **The startup screen covers one wait and plays once**, across the two pages that wait spans.
   R53 corrected. Its history is in `BUGS.md`: the rule was wrong in both directions.
 - **The settings are navigated by what one wants to change**, never by file: five rubrics plus
@@ -237,7 +319,7 @@ the audit that motivated it was done. Neither replaces a phase.
   « Activé » seven times in one list; the key is in the mono face under it, the file on the group
   header. Nothing is written until the save bar — which exists only
   when there is something to save — NAMES the files it will write; a secret says whether it is
-  set and never what it is worth. R60, `harness/reglages.py`.
+  set and never what it is worth. R60, `harness/settings.py`.
 - **The arbitration screen is drawn** — a decision is a FOLDER, not a medium; the score is shown
   only when it separates; a candidate wears only its own poster; three ways out, the third of
   which (« Laisser tel quel ») existed in the engine and nowhere in the interface. R57,

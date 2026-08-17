@@ -18,9 +18,9 @@ async def main():
     # wait through the same seam the app uses, rather than sleeping it out.
     await pg.evaluate("()=>window.__chargementTermine?.()")
     await pg.evaluate("()=>window.__measure(true)")
-    etats=await pg.evaluate("()=>window.__states()")
-    sans=[]
-    for e in etats:
+    states=await pg.evaluate("()=>window.__states()")
+    without=[]
+    for e in states:
         await pg.evaluate("(i)=>window.__go(i)",e); await pg.wait_for_timeout(230)
         r=await pg.evaluate("""()=>{
           // Every screen migrated off `#screen` onto a real route takes its
@@ -31,27 +31,27 @@ async def main():
           // routes would fall through to `#view` and the rule would clear
           // the underlying page's buttons without ever having looked at the
           // screen's own.
-          const racine=document.querySelector('#dlg').classList.contains('open')?document.querySelector('#dlg')
+          const root=document.querySelector('#dlg').classList.contains('open')?document.querySelector('#dlg')
             :document.querySelector('#screen').classList.contains('open')?document.querySelector('#screen')
             :document.querySelector('#sheet').classList.contains('open')?document.querySelector('#sheet')
             :document.querySelector('.screen.open[data-cle]')
             ??document.querySelector('#view');
-          return [...racine.querySelectorAll('button, a')]
+          return [...root.querySelectorAll('button, a')]
             .filter(x=>x.getBoundingClientRect().height>0 && !x.disabled
                        && !x.closest('.hbtn') && !x.closest('.hpanel')
                        && !x.closest('details:not([open])'))
             .filter(x=>Object.keys(x.dataset).length===0 && !x.id && !x.onclick
                        && !/searchclear|burger|avatar|fback|more\b|fab|sel\b|vsw|seg\b|pill|tile|ep\b/.test(x.className))
             .map(x=>x.textContent.trim().slice(0,32));}""",)
-        for x in r: sans.append((e,x))
-    print(f"buttons WITHOUT a destination: {len(sans)}")
-    vus=set()
-    for e,x in sans:
-        if x in vus: continue
-        vus.add(x); print(f"   « {x} »   (ex. {e})")
+        for x in r: without.append((e,x))
+    print(f"buttons WITHOUT a destination: {len(without)}")
+    seen=set()
+    for e,x in without:
+        if x in seen: continue
+        seen.add(x); print(f"   « {x} »   (e.g. {e})")
     print("JS errors:", errs or "none")
     await b.close()
     # A script that only prints can never fail, and a script that cannot fail
     # proves nothing: the verdict has to reach the exit code.
-    if sans or errs: raise SystemExit(1)
+    if without or errs: raise SystemExit(1)
 asyncio.run(main())

@@ -26,10 +26,10 @@ async def main():
         await pg.evaluate('()=>{window.__reset(); applyState({page:"acq",acqTab:"decouvrir",phase:"prete"}); state.sugMode="deck"; render();}')
         await pg.wait_for_timeout(600)
 
-    async def titre():
+    async def title():
         return await pg.evaluate(f'()=>document.querySelector(\'{SEL} .t\').textContent')
 
-    async def glisser(dx):
+    async def swipe(dx):
         await pg.evaluate("""(dx)=>{
           const c=document.querySelector('.dcard[data-depth="0"]');
           const r=c.getBoundingClientRect(), x=r.left+r.width/2, y=r.top+r.height/2;
@@ -46,27 +46,27 @@ async def main():
         await pg.wait_for_timeout(700)
 
     await deck()
-    t0 = await titre(); n0 = await pg.evaluate("()=>state.sugGone.size")
-    await glisser(-170)
-    t1 = await titre(); n1 = await pg.evaluate("()=>state.sugGone.size")
-    revient = await pg.evaluate("(t)=>deckOrdre().map(i=>SUGGESTIONS[i].t).includes(t)", t0)
+    t0 = await title(); n0 = await pg.evaluate("()=>state.sugGone.size")
+    await swipe(-170)
+    t1 = await title(); n1 = await pg.evaluate("()=>state.sugGone.size")
+    comes_back = await pg.evaluate("(t)=>deckOrdre().map(i=>SUGGESTIONS[i].t).includes(t)", t0)
     print(f"LEFT   « {t0[:26]} » → « {t1[:26]} »")
-    print(f"       dismissed {n0} → {n1} · comes round again: {revient}")
+    print(f"       dismissed {n0} → {n1} · comes round again: {comes_back}")
 
     await deck()
-    t2 = await titre()
-    await glisser(170)
-    t3 = await titre(); n3 = await pg.evaluate("()=>state.sugGone.size")
-    annul = await pg.evaluate("()=>!!document.querySelector('#toastundo')")
+    t2 = await title()
+    await swipe(170)
+    t3 = await title(); n3 = await pg.evaluate("()=>state.sugGone.size")
+    undo = await pg.evaluate("()=>!!document.querySelector('#toastundo')")
     print(f"RIGHT  « {t2[:26]} » → « {t3[:26]} »")
-    print(f"       dismissed {n3} · undo offered: {annul}")
+    print(f"       dismissed {n3} · undo offered: {undo}")
 
     # The axis claim is what makes a REAL touch gesture reach us instead of
     # being taken by the browser. A synthetic event never exercises it, so it is
     # asserted on the declaration itself.
-    axe = await pg.evaluate("()=>getComputedStyle(document.querySelector('.deck')).touchAction")
-    print(f"       axis claim on the deck: {axe}")
-    ok = (t1 != t0 and n1 == n0 and revient) and (t3 != t2 and n3 == 1 and annul) and axe == "pan-y"
+    axis = await pg.evaluate("()=>getComputedStyle(document.querySelector('.deck')).touchAction")
+    print(f"       axis claim on the deck: {axis}")
+    ok = (t1 != t0 and n1 == n0 and comes_back) and (t3 != t2 and n3 == 1 and undo) and axis == "pan-y"
     print("\nJS errors:", errs or "none")
     print("VERDICT:", "left skips and comes back, right dismisses with an undo"
           if ok and not errs else "needs review")

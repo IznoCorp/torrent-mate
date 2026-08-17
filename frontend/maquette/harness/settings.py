@@ -1,0 +1,396 @@
+"""R60 — the settings, and the one decision that shapes them.
+
+ONE NAVIGATES BY WHAT ONE WANTS TO CHANGE, NEVER BY FILE.
+
+The engine keeps nineteen JSON5 files and the shipped editor put them in a
+dropdown. That asks the operator to know that « thresholds.json5 » holds how
+much free space is needed before an ingest — knowledge about the code, not
+about the media library. The files are not hidden: every setting says which one
+it lives in, in the mono face, because that is what one needs when reading a
+log or a diff. They are simply not the map.
+
+What this script holds to:
+
+  · the rubrics are named by what one changes, and every one of the 153 real
+    settings belongs to exactly one of them — a setting reachable from nowhere
+    is a setting nobody will ever find;
+  · a setting says WHERE it comes from, and the explanation it carries is the
+    comment its own file holds, never invented prose;
+  · nothing is written until the save bar is used, the bar exists only when
+    there is something to save, and it NAMES the files it will write;
+  · a pending change is marked on its own row, not only counted at the bottom;
+  · a secret's value is never shown — only whether it is set;
+  · a read-only instance says so and offers nothing.
+"""
+import asyncio
+import pathlib
+import re
+
+from common import Journal, open_page
+from playwright.async_api import async_playwright
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+CONFIG = pathlib.Path.home() / ".torrentmate" / "config"
+# Where a setting can live WITHOUT being a JSON5 overlay: the schedules belong
+# to PM2, and its ecosystem file is checked out with the deployment rather than
+# kept beside the engine's own configuration.
+OUTSIDE = (pathlib.Path.home() / "deploy" / "torrentmate",
+          pathlib.Path.home() / "dev")
+# Typed into one setting's field, and looked for everywhere else afterwards.
+# Nothing a real setting could hold, so finding it under another id names the
+# defect rather than a coincidence.
+PROBE = "cross-panel-probe"
+
+_journal = None
+
+
+def check(name, condition, detail=""):
+    """Records one executed check and its verdict, in the shared journal."""
+    return _journal.check(name, condition, detail)
+
+
+async def main():
+    global _journal
+    _journal = Journal("R60 — the settings")
+
+    async with async_playwright() as p:
+        b = await p.chromium.launch(channel="chrome")
+        ctx, pg = await open_page(b)
+        errors = []
+        pg.on("pageerror", lambda e: errors.append(str(e)))
+        await pg.evaluate("()=>window.__measure(true)")
+
+        # ── the map is what one wants to change ────────────────────────────
+        await pg.evaluate("()=>window.__go('reglages')")
+        await pg.wait_for_timeout(320)
+        map_ = await pg.evaluate("""()=>({
+          topics: [...document.querySelectorAll('.topic')].map(r => ({
+            title: (r.querySelector('.rt')||{}).textContent||'',
+            sub: (r.querySelector('.rs')||{}).textContent||'',
+            count: (r.querySelector('.rn')||{}).textContent||''})),
+          search: !!document.querySelector('#qreg'),
+          text: (document.querySelector('#view')||{}).textContent||''})""")
+        check("the topics are named by what one changes",
+              len(map_["topics"]) >= 6
+              and all(r["sub"].strip() for r in map_["topics"]),
+              str([r["title"] for r in map_["topics"]]))
+        # A rubric named after a file would be the defect this exists to avoid.
+        files = [f.stem for f in CONFIG.glob("*.json5")]
+        named = [r["title"].lower() for r in map_["topics"]]
+        check("no topic is named after a file",
+              not [f for f in files if f in named],
+              str([f for f in files if f in named]))
+        check("a setting can be searched for", map_["search"])
+
+        # ── every real setting belongs to exactly one rubric ───────────────
+        coverage = await pg.evaluate("""()=>{
+          const all = REGLAGES.flatMap(r => r.r.map(x => r.f + ':' + x.f + ':' + x.c));
+          const keys = REGLAGES.flatMap(r => r.r.map(x => x.f + ':' + x.c));
+          return {total: keys.length, distinct: new Set(keys).size,
+                  files: [...new Set(REGLAGES.flatMap(r => r.fichiers))].sort()};}""")
+        check("a setting belongs to one topic and no other",
+              coverage["total"] == coverage["distinct"],
+              f"{coverage['total']} settings, {coverage['distinct']} distinct")
+        # Nineteen of these are JSON5 overlays named by their concern; one is
+        # not. The schedules belong to PM2 and live in `ecosystem.config.js`,
+        # so a name carrying its own extension is looked for where PM2 keeps
+        # it. What the check holds to is unchanged and is the point: a setting
+        # names a file that EXISTS, never one the drawing invented.
+        missing = [
+            f for f in coverage["files"]
+            if not (CONFIG / f"{f}.json5").is_file()
+            and not any((base / f).is_file() for base in OUTSIDE)
+        ]
+        check("and they come from the real configuration files",
+              not missing,
+              f"{len(coverage['files'])} files"
+              + (f" — not found: {', '.join(missing)}" if missing else ""))
+
+        # ── a setting says where it comes from, and explains itself ────────
+        await pg.evaluate("()=>window.__go('reglages-rubrique')")
+        await pg.wait_for_timeout(320)
+        # The origin is read as it is SEEN: the row carries the path, its group
+        # header carries the file. Reading only the row would pass a screen where
+        # nothing on it names a file.
+        rows = await pg.evaluate("""()=>[...document.querySelectorAll('.settingrow')].map(r => ({
+          label: (r.querySelector('.rl')||{}).firstChild?.textContent?.trim()||'',
+          path: (r.querySelector('.rf')||{}).textContent||'',
+          header: (r.closest('.panel')?.previousElementSibling||{}).textContent||'',
+          value: (r.querySelector('.rv')||{}).textContent||''}))""")
+        check("a topic lists its settings", len(rows) > 10, str(len(rows)))
+        mute = [l for l in rows
+                if not l["path"].strip() or ".json5" not in l["header"]]
+        check("each says where it comes from — its key, under its file's name",
+              not mute, str([(m["path"], m["header"]) for m in mute][:2]))
+        check("and the key does not repeat the file",
+              not [l for l in rows if ".json5" in l["path"]],
+              str([l["path"] for l in rows if ".json5" in l["path"]][:2]))
+        check("and it shows its value",
+              all(l["value"].strip() for l in rows),
+              str([l["label"] for l in rows if not l["value"].strip()][:3]))
+
+        # The explanation is the comment the file itself carries. Compared
+        # against the file on disk, so invented prose cannot creep in.
+        await pg.evaluate("()=>window.__go('reglages-un')")
+        await pg.wait_for_timeout(350)
+        panel = await pg.evaluate("""()=>{
+          const s = document.querySelector('#sheetin');
+          return {text: (s.textContent||'').replace(/\\s+/g,' '),
+                  mono: !!s.querySelector('code'),
+                  field: !!s.querySelector('.field'),
+                  actions: [...s.querySelectorAll('.sact')].map(x=>x.textContent.trim())};}""")
+        source = (CONFIG / "thresholds.json5").read_text()
+        comment = re.search(r"//\s*(.+?)\n\s*min_free_space_staging_gb", source)
+        check("the panel carries the explanation WRITTEN IN THE FILE",
+              comment is not None
+              and comment.group(1).strip().rstrip(".") in panel["text"],
+              (comment.group(1) if comment else "comment not found"))
+        check("it names the file in the mono face", panel["mono"])
+        check("and it carries the field that edits",
+              panel["field"], str(panel["actions"]))
+
+        # ── nothing is written until the bar is used ───────────────────────
+        at_rest = await pg.evaluate("()=>!!document.querySelector('#savebar')")
+        check("no save bar at rest", not at_rest)
+
+        await pg.evaluate("()=>window.__go('reglages-modifie')")
+        await pg.wait_for_timeout(350)
+        pending = await pg.evaluate("""()=>{
+          const bar = document.querySelector('#savebar');
+          return {bar: !!bar, text: bar ? bar.textContent.replace(/\\s+/g,' ') : '',
+                  marked: document.querySelectorAll('.settingrow.modified').length,
+                  insideFrame: bar ? bar.getBoundingClientRect().bottom <=
+                    document.querySelector('#device').getBoundingClientRect().bottom + 1 : false};}""")
+        check("a change raises the bar", pending["bar"])
+        check("and the bar NAMES the files it will write",
+              ".json5" in pending["text"], pending["text"][:90])
+        check("the changed row is marked where one reads it",
+              pending["marked"] >= 1, f"{pending['marked']} row(s)")
+        check("the bar stays inside the frame", pending["insideFrame"])
+
+        # ── a secret is never shown ────────────────────────────────────────
+        await pg.evaluate("()=>window.__go('reglages-secrets')")
+        await pg.wait_for_timeout(320)
+        secrets = await pg.evaluate("""()=>({
+          rows: [...document.querySelectorAll('.settingrow')].map(r =>
+            (r.querySelector('.rv')||{}).textContent.trim()),
+          fields: document.querySelectorAll('#view input').length})""")
+        check("a secret says whether it is set, never what it holds",
+              all(v in ("définie", "absente") for v in secrets["rows"]),
+              str(sorted(set(secrets["rows"]))))
+        check("and no value is pre-filled into a field",
+              secrets["fields"] == 0, f"{secrets['fields']} field(s)")
+
+        # ── read-only says so, and offers nothing ─────────────────────────
+        await pg.evaluate("()=>window.__go('reglages-lecture-seule')")
+        await pg.wait_for_timeout(320)
+        read_only = await pg.evaluate("""()=>((document.querySelector('#view')||{}).textContent||'')
+          .replace(/\\s+/g,' ')""")
+        check("a read-only instance says so",
+              "lecture seule" in read_only.lower(), read_only[:80])
+
+        # ── restart required names what is waiting ────────────────────────
+        await pg.evaluate("()=>window.__go('reglages-redemarrage')")
+        await pg.wait_for_timeout(320)
+        restart = await pg.evaluate("""()=>{
+          const v = document.querySelector('#view');
+          return {text: (v.textContent||'').replace(/\\s+/g,' '),
+                  button: !!v.querySelector('[data-redemarrer]')};}""")
+        check("a required restart says so and offers it",
+              "edémarrage" in restart["text"] and restart["button"], restart["text"][:70])
+
+        # ── search looks through every setting ─────────────────────────────
+        await pg.evaluate("()=>window.__go('reglages-recherche')")
+        await pg.wait_for_timeout(320)
+        searched = await pg.evaluate("""()=>({
+          results: document.querySelectorAll('.settingrow').length,
+          empty: !!document.querySelector('.empty'),
+          text: (document.querySelector('#view')||{}).textContent||''})""")
+        # A FRENCH word must find something: the labels used to be the files'
+        # English comments, so « espace » matched no row at all — the search
+        # existed and answered nothing.
+        check("a French word finds settings",
+              searched["results"] > 0, f"{searched['results']} result(s) for « espace »")
+
+        # A result stands alone under no header, so THERE the row names its file.
+        unnamed = await pg.evaluate("""()=>[...document.querySelectorAll('.settingrow .rf')]
+          .map(e => e.textContent).filter(t => !t.includes('.json5'))""")
+        check("a search result names its own file",
+              not unnamed, str(unnamed[:2]))
+
+        # And no label is an English sentence — over EVERY setting, not the one
+        # rubric that happens to be on screen. The comment is not lost: it is
+        # the explanation in the panel, where a sentence has room.
+        english = await pg.evaluate("""()=>{
+          const words = /\\b(the|of|for|before|when|with|and|from|number|seconds|days|file|path|used|which|that)\\b/i;
+          return REGLAGES.flatMap(r => r.r).map(libelleReglage).filter(t => words.test(t));}""")
+        check("no setting is labelled in English",
+              not english, f"{len(english)}: {english[:3]}")
+
+        # And no two rows in the same list read the same. The leaf key alone drew
+        # « Activé » seven times under « Ce qu'on va chercher »: every tracker and
+        # every client owns one, and the only thing telling them apart was the
+        # machine path — which is there to be read AFTER one has found the row,
+        # not to find it.
+        collisions = await pg.evaluate("""()=>REGLAGES.flatMap(r => {
+          const by = {};
+          for (const x of r.r) (by[libelleReglage(x)] ||= []).push(x.c);
+          return Object.entries(by).filter(([, v]) => v.length > 1)
+                       .map(([l, v]) => `${r.t} : « ${l} » ×${v.length}`);})""")
+        check("two settings in one topic never wear the same label",
+              not collisions, f"{len(collisions)}: {collisions[:3]}")
+
+        # And every subject is NAMED — a tracker added tomorrow lands under a raw
+        # machine word otherwise. This catches an ABSENT name; a wrong one is
+        # caught only by reading the file the segment comes from, which is how
+        # « economy » stopped being « Économie d'appels » under a tracker whose
+        # `economy` block is its seeding obligation.
+        unnamed_subjects = await pg.evaluate("""()=>{
+          REGLAGES.flatMap(r => r.r).forEach(libelleReglage);
+          return [...window.__sujetsSansNom];}""")
+        check("every setting subject carries a written name", not unnamed_subjects,
+              str(unnamed_subjects))
+
+        # ── THE FIELD A VALUE ASKS FOR ─────────────────────────────────────
+        # « Modifier » used to be a button that flipped « oui »/« non » and
+        # otherwise appended « (modifié) » to the string — a placeholder that
+        # could express neither a number, nor a list, nor an empty value. The
+        # 153 real settings hold ten JSON shapes, and those ask for five fields,
+        # one refusal, and one state that crosses them.
+        #
+        # The field is derived from the VALUE, never from a list of keys, so a
+        # setting added tomorrow is editable without touching the rendering.
+        # Driven by TYPE for the same reason: naming a key here would pass the
+        # day that key moves and open something else.
+        expected = {
+            "booleen": ".fieldtoggle",
+            "nombre": ".fieldinput[type=number]",
+            "texte": ".fieldinput[type=text]",
+            "chemin": ".fieldinput.mono",
+            "liste": ".ladd",
+            "duree": ".fieldinput",
+            "structure": ".field.readonly",
+            "nul": ".fieldinput",
+        }
+        seen = await pg.evaluate(
+            """()=>[...new Set(REGLAGES.flatMap(r => r.r).map(x => x.type))].sort()""")
+        check("every setting carries the type of its value",
+              set(seen) == set(expected), str(sorted(seen)))
+
+        for kind, selector in expected.items():
+            await pg.evaluate("(g)=>window.__go(`reglages-champ-${g}`)", kind)
+            await pg.wait_for_timeout(320)
+            check(f"a « {kind} » value opens the field it asks for",
+                  await pg.evaluate("(s)=>!!document.querySelector('#sheetin ' + s)",
+                                    selector), selector)
+
+        # A structure is REFUSED rather than half-drawn: a form for a list of
+        # objects cannot be validated here, and drawing one would promise an
+        # edit that breaks the file.
+        await pg.evaluate("()=>window.__go('reglages-champ-structure')")
+        await pg.wait_for_timeout(320)
+        refusal = await pg.evaluate("""()=>{
+          const s = document.querySelector('#sheetin');
+          return {input: !!s.querySelector('.fieldinput, .fieldtoggle, .ladd'),
+                  names: !!s.querySelector('.field.readonly code')};}""")
+        check("a structure offers no field", not refusal["input"], str(refusal))
+        check("and it names the file to open", refusal["names"])
+
+        # The value a field files keeps its TYPE. Filed as a string, a number
+        # compares unequal to the file's for ever, and the change could never be
+        # undone by typing the original back — which is the check after.
+        await pg.evaluate("()=>window.__go('reglages-champ-nombre')")
+        await pg.wait_for_timeout(320)
+        await pg.fill("#sheetin .fieldinput", "42")
+        await pg.evaluate("()=>document.querySelector('#sheetin .fieldinput')"
+                          ".dispatchEvent(new Event('change'))")
+        await pg.wait_for_timeout(320)
+        filed = await pg.evaluate(
+            "()=>[...REG_ETAT.modifs.values()].map(v => [v, typeof v])")
+        check("a number is filed as a number",
+              filed == [[42, "number"]], str(filed))
+
+        original = await pg.evaluate(
+            """()=>String(REGLAGES.flatMap(r => r.r).find(x => x.type === 'nombre').brut)""")
+        await pg.fill("#sheetin .fieldinput", original)
+        await pg.evaluate("()=>document.querySelector('#sheetin .fieldinput')"
+                          ".dispatchEvent(new Event('change'))")
+        await pg.wait_for_timeout(320)
+        check("and typing the file's value back cancels the change",
+              await pg.evaluate("()=>REG_ETAT.modifs.size") == 0,
+              f"original value {original}")
+
+        await pg.evaluate("()=>window.__go('reglages-champ-booleen')")
+        await pg.wait_for_timeout(320)
+        await pg.click("#sheetin .fieldtoggle")
+        await pg.wait_for_timeout(320)
+        toggled = await pg.evaluate(
+            "()=>[...REG_ETAT.modifs.values()].map(v => [v, typeof v])")
+        check("a switch files a boolean",
+              len(toggled) == 1 and toggled[0][1] == "boolean", str(toggled))
+
+        await pg.evaluate("""()=>{
+          const x = REGLAGES.flatMap(r => r.r)
+            .find(y => y.type === 'liste' && (y.brut || []).length > 1);
+          REG_ETAT.rubrique = REGLAGES.find(r => r.r.includes(x)).id;
+          render(); ouvrirReglage(reglageId(x));}""")
+        await pg.wait_for_timeout(330)
+        before = await pg.evaluate("()=>document.querySelectorAll('#sheetin .litem').length")
+        await pg.click("#sheetin .lremove")
+        await pg.wait_for_timeout(330)
+        after = await pg.evaluate("()=>document.querySelectorAll('#sheetin .litem').length")
+        check("a list really loses an item", after == before - 1,
+              f"{before} → {after}")
+
+        # A field belongs to the setting it edits, and to no other. The panel
+        # is ONE layer, reused from one setting to the next — the checks above
+        # only ever open a single one, so a field handed on to the setting
+        # after it would pass every one of them. Two settings of the same type
+        # are opened in a row, with something typed into the first, because
+        # that is the whole defect: a text field carries a value the operator
+        # typed, and carrying it into the NEXT panel both shows a value that is
+        # not the setting's and files it under the setting's id on the next
+        # commit — a setting silently overwritten with another's value.
+        open_text = """(n) => {
+          const texts = REGLAGES.flatMap(r => r.r).filter(x => x.type === 'texte');
+          const x = texts[n];
+          REG_ETAT.rubrique = REGLAGES.find(r => r.r.includes(x)).id;
+          render(); ouvrirReglage(reglageId(x));
+          return {id: reglageId(x), own: String(x.brut ?? '')};}"""
+        read_field = """() => {const e = document.querySelector('#sheetin .fieldinput');
+          return e ? {value: e.value, field: e.dataset.champ} : null;}"""
+
+        first = await pg.evaluate(open_text, 0)
+        await pg.wait_for_timeout(330)
+        await pg.fill("#sheetin .fieldinput", PROBE)
+        await pg.evaluate("()=>document.querySelector('#sheetin .fieldinput')"
+                          ".dispatchEvent(new Event('change'))")
+        await pg.wait_for_timeout(330)
+        await pg.evaluate("()=>closeSheet()")
+        await pg.wait_for_timeout(330)
+
+        second = await pg.evaluate(open_text, 1)
+        await pg.wait_for_timeout(330)
+        read = await pg.evaluate(read_field)
+        check("the next setting opens on ITS OWN value",
+              bool(read) and read["value"] == second["own"]
+              and read["field"] == second["id"],
+              f"expected {second['own']!r} under {second['id']}, read {read}")
+
+        # And what a commit on the second one FILES, which is the half that
+        # corrupts the configuration rather than merely misinforming.
+        await pg.evaluate("()=>document.querySelector('#sheetin .fieldinput')"
+                          ".dispatchEvent(new Event('change'))")
+        await pg.wait_for_timeout(330)
+        filed = await pg.evaluate(
+            "()=>[...REG_ETAT.modifs.entries()].map(([k, v]) => [k, String(v)])")
+        leak = [k for k, v in filed if v == PROBE and k != first["id"]]
+        check("and nothing typed into the other is filed under it",
+              not leak, f"{PROBE!r} filed under {leak}" if leak else str(filed))
+
+        check("no JS error", not errors, str(errors))
+        await b.close()
+
+    _journal.summary()
+
+asyncio.run(main())

@@ -112,7 +112,7 @@ export function PlusSheet({
       <SheetContent side="right" className="mq px-4 pb-5" showCloseButton={false}>
         {/* Operator directive: EVERY back wears the search screen's
             « ‹ Retour » — never a cross. */}
-        <div className="fichebar -mx-2">
+        <div className="screenbar -mx-2">
           <button
             type="button"
             aria-label="Retour"

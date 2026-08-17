@@ -114,6 +114,23 @@ jobs:
       - run: python scripts/check_logging.py personalscraper/
         if: needs.changes.outputs.python == 'true'
 
+  # The no-French rule spans the WHOLE repository — its file-name arm reads every
+  # path outside `docs/` — so it gets a job of its own, and that job carries NO
+  # path filter at all. A filtered version skipped a version-bump-only PR
+  # (`personalscraper/__init__.py` is stripped from both python and frontend
+  # filters by design), which is a real shape this repository produces; and a
+  # guard that can report green having read nothing is the exact failure the
+  # script refuses to commit internally. Seven seconds, standard library only.
+  no-french:
+    name: no-french
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python scripts/check-no-french.py
+
   typecheck:
     name: typecheck
     runs-on: ubuntu-latest

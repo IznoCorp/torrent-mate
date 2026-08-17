@@ -194,9 +194,9 @@ describe("DecisionDetail", () => {
     // The scrape could not name what is in the folder, so the extracted title
     // is the one thing that cannot be trusted here.
     renderDetail(makeDecision());
-    const titre = screen.getByText("Test Movie (2024)");
-    expect(titre.className).toContain("font-mono");
-    expect(titre).toHaveAttribute(
+    const title = screen.getByText("Test Movie (2024)");
+    expect(title.className).toContain("font-mono");
+    expect(title).toHaveAttribute(
       "title",
       "/staging/001-MOVIES/Test Movie (2024)",
     );

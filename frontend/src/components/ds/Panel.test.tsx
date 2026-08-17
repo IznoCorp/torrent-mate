@@ -22,14 +22,14 @@ const EXCEPTIONS = new Set([
 ]);
 
 /** Every `.tsx` under a directory, repo-relative. */
-function fichiers(racine: string): string[] {
+function files(racine: string): string[] {
   const out: string[] = [];
-  for (const entree of readdirSync(racine)) {
-    const chemin = join(racine, entree);
-    if (statSync(chemin).isDirectory()) {
-      out.push(...fichiers(chemin));
-    } else if (chemin.endsWith(".tsx")) {
-      out.push(chemin);
+  for (const entry of readdirSync(racine)) {
+    const path = join(racine, entry);
+    if (statSync(path).isDirectory()) {
+      out.push(...files(path));
+    } else if (path.endsWith(".tsx")) {
+      out.push(path);
     }
   }
   return out;
@@ -64,7 +64,7 @@ describe("Panel", () => {
   it("est le SEUL endroit qui écrit la surface", () => {
     // A surface has no content of its own to be recognised by, so a copy that
     // drifts by one token is invisible until it sits next to the original.
-    const coupables = fichiers("src")
+    const coupables = files("src")
       .filter((f) => !EXCEPTIONS.has(f))
       .filter((f) => readFileSync(f, "utf8").includes(SURFACE));
     expect(coupables).toEqual([]);

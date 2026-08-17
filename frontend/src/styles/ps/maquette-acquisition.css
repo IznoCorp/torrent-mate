@@ -241,7 +241,7 @@
 
 /* ── Add screen — « ‹ Retour », search form, results, footer ── */
 
-.mq .fichebar {
+.mq .screenbar {
   flex: 0 0 auto;
   padding: 10px 8px;
 }
@@ -947,7 +947,7 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
-.mq .nofiche {
+.mq .noinfo {
   margin: 0 0 4px;
   font-size: 12px;
   color: var(--muted-foreground);

@@ -25,7 +25,7 @@ URL = "http://127.0.0.1:8899/wrapped.html"
 
 # Both sides of the 520px breakpoint: below it the frame fills the window,
 # above it the frame is centred and the bar has to follow it.
-LARGEURS = [390, 1280]
+WIDTHS = [390, 1280]
 
 # The app's FIXED chrome — the controls that are in the same place whatever is
 # on screen. The rule stops there on purpose. A floating overlay on a phone
@@ -33,7 +33,7 @@ LARGEURS = [390, 1280]
 # out from under it with one swipe; the avatar cannot. Widening this list to
 # every tappable element would forbid a harness bar at all, which is a rule
 # nobody could satisfy rather than a rule that catches anything.
-CONTROLES = ".avatar, .topbar button, .bottombar button, #fab, .fab"
+CONTROLS = ".avatar, .topbar button, .bottombar button, #fab, .fab"
 
 
 async def main():
@@ -42,56 +42,56 @@ async def main():
     Returns:
         0 when the bar is clear everywhere, 1 otherwise.
     """
-    echecs = []
-    executees = 0
+    failures = []
+    executed = 0
     async with async_playwright() as p:
         b = await p.chromium.launch(channel="chrome")
-        for largeur in LARGEURS:
+        for width in WIDTHS:
             ctx = await b.new_context(
-                viewport={"width": largeur, "height": 844},
+                viewport={"width": width, "height": 844},
                 device_scale_factor=2,
-                is_mobile=largeur < 520,
-                has_touch=largeur < 520,
+                is_mobile=width < 520,
+                has_touch=width < 520,
             )
             pg = await ctx.new_page()
             await pg.goto(URL, wait_until="load")
             await pg.evaluate("()=>document.querySelector('#toastx').click()")
-            etats = await pg.evaluate("()=>window.__states()")
-            for etat in etats:
-                await pg.evaluate("(i)=>window.__go(i)", etat)
+            states = await pg.evaluate("()=>window.__states()")
+            for state_ in states:
+                await pg.evaluate("(i)=>window.__go(i)", state_)
                 await pg.wait_for_timeout(300)
-                heurte = await pg.evaluate(
+                hits = await pg.evaluate(
                     """(sel)=>{
                       const bar=document.querySelector('.hbtn');
                       if(!bar) return ['ABSENT'];
                       const a=bar.getBoundingClientRect();
                       if(!a.width) return [];
-                      const croise=(b)=>!(a.right<=b.left||b.right<=a.left||
+                      const crosses=(b)=>!(a.right<=b.left||b.right<=a.left||
                                           a.bottom<=b.top||b.bottom<=a.top);
                       return [...document.querySelectorAll(sel)]
                         .filter(el=>el.getClientRects().length>0)
-                        .filter(el=>croise(el.getBoundingClientRect()))
+                        .filter(el=>crosses(el.getBoundingClientRect()))
                         .map(el=>el.className||el.id||el.tagName);}""",
-                    CONTROLES,
+                    CONTROLS,
                 )
-                executees += 1
-                if heurte:
-                    echecs.append(
-                        f"R51 {etat} @{largeur}px: the harness bar covers {heurte}"
+                executed += 1
+                if hits:
+                    failures.append(
+                        f"R51 {state_} @{width}px: the harness bar covers {hits}"
                     )
             await ctx.close()
         await b.close()
 
-    for ligne in echecs:
-        print(f"  FAIL {ligne}")
-    print(f"\n{executees} state/width pairs EXECUTED · {len(echecs)} failures")
+    for line in failures:
+        print(f"  FAIL {line}")
+    print(f"\n{executed} state/width pairs EXECUTED · {len(failures)} failures")
     print(
         "VERDICT:",
         "the harness bar covers no app control"
-        if not echecs
+        if not failures
         else "the harness bar sits on top of the product",
     )
-    return 1 if echecs else 0
+    return 1 if failures else 0
 
 
 sys.exit(asyncio.run(main()))

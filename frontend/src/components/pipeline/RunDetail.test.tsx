@@ -192,8 +192,8 @@ describe("RunDetail", () => {
     await screen.findByText("abc123-r…");
 
     // Both the outcome badge ("Échec") AND the error section heading ("Erreur").
-    const erreurElements = screen.getAllByText("Erreur");
-    expect(erreurElements.length).toBeGreaterThanOrEqual(1);
+    const errorElements = screen.getAllByText("Erreur");
+    expect(errorElements.length).toBeGreaterThanOrEqual(1);
     // Error body text (partial).
     expect(screen.getByText(/disk full/)).toBeInTheDocument();
   });
@@ -268,8 +268,8 @@ describe("RunDetail", () => {
     await screen.findByText("abc123-r…");
 
     // Both the outcome badge ("Échec") AND the error section heading ("Erreur").
-    const erreurElements = screen.getAllByText("Erreur");
-    expect(erreurElements.length).toBeGreaterThanOrEqual(1);
+    const errorElements = screen.getAllByText("Erreur");
+    expect(errorElements.length).toBeGreaterThanOrEqual(1);
     // The error body should also be visible.
     expect(screen.getByText("something broke")).toBeInTheDocument();
   });

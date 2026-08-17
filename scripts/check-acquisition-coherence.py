@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""§5 acquisition coherence guardrail (P0-B.5, product-intent.md §méthode).
+"""§5 acquisition coherence guardrail (P0-B.5, product-intent.md « §méthode »).
 
 Cross-checks, for every followed series/movie, the four sources of truth the
 acquisition lobe relies on and prints one loud line per incoherence:

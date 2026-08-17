@@ -17,8 +17,8 @@ associated ``media_file`` rows are stale ghosts.  Fix: run
 
 Affected shows (directory confirmed gone from FS):
 
-- Bloqués
-- Avez-vous déjà...
+- « Bloqués »
+- « Avez-vous déjà... »
 - Corneil et Bernie
 - Star Trek Enterprise
 - Star Trek Voyager
@@ -113,8 +113,8 @@ CLEANUP_LABEL: str = "phantom-shows-2026-05-21"
 
 #: Shows whose FS path was deleted → must be soft-deleted via library-repair.
 CLASS_A_DELETED_PATH_SHOWS: tuple[str, ...] = (
-    "Bloqués",
-    "Avez-vous déjà...",
+    "Bloqués",  # french-ok: a TV-show title, the verbatim media_item.title row value
+    "Avez-vous déjà...",  # french-ok: a TV-show title, the verbatim media_item.title row value
     "Corneil et Bernie",
     "Star Trek Enterprise",
     "Star Trek Voyager",
