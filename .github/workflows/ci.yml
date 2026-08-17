@@ -114,6 +114,34 @@ jobs:
       - run: python scripts/check_logging.py personalscraper/
         if: needs.changes.outputs.python == 'true'
 
+  # The no-French rule spans python AND the two front-end worlds (its file-name
+  # arm reads every tracked path under `personalscraper/`, `tests/`, `scripts/`
+  # and `frontend/`), so it gets a job of its own rather than a step inside one
+  # whose checkout is conditioned on a single filter. Standard library only — no
+  # install step to keep green.
+  no-french:
+    name: no-french
+    runs-on: ubuntu-latest
+    needs: [changes]
+    steps:
+      - uses: actions/checkout@v4
+        if: >-
+          needs.changes.outputs.python == 'true'
+          || needs.changes.outputs.frontend_app == 'true'
+          || needs.changes.outputs.maquette == 'true'
+      - uses: actions/setup-python@v5
+        if: >-
+          needs.changes.outputs.python == 'true'
+          || needs.changes.outputs.frontend_app == 'true'
+          || needs.changes.outputs.maquette == 'true'
+        with:
+          python-version: "3.12"
+      - run: python scripts/check-no-french.py
+        if: >-
+          needs.changes.outputs.python == 'true'
+          || needs.changes.outputs.frontend_app == 'true'
+          || needs.changes.outputs.maquette == 'true'
+
   typecheck:
     name: typecheck
     runs-on: ubuntu-latest

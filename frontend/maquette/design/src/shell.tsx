@@ -509,6 +509,9 @@ window.__ecrans = {
     window.__magasin.ecrire({ resolveTarget: target });
     go({
       to: "/resolution/$dossier",
+      // An address that changed with the interface language would no longer
+      // identify anything — see the note above this function.
+      // french-ok: a route PARAMETER, not interface copy
       params: { dossier: (target ?? "élément inconnu").normalize("NFC") },
       replace,
     });

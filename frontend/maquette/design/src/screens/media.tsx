@@ -695,6 +695,7 @@ export function MediaScreen() {
               <button
                 className="mediaadd"
                 data-follow={title}
+                // french-ok: a data-* VALUE, frozen with the DOM contract
                 data-fkind={isFilm ? "Film" : "Série"}
               >
                 <Icon paths={icons.plus} />

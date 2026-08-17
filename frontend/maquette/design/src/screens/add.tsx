@@ -237,6 +237,7 @@ export function AddScreen() {
                   label here, so it stays in the code with the rest of the data
                   contract — translating the render would only add a mapping
                   between a value and itself. */}
+              {/* french-ok: the three VALUES of `state.addKind`, per the note above */}
               {["Tout", "Séries", "Films"].map((element) => (
                 <button
                   key={element}

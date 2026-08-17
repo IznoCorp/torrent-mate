@@ -77,6 +77,7 @@ check: lint test-cov
 	python3 scripts/check-no-broad-registry-catch.py
 	python3 scripts/check-typed-api.py
 	python3 scripts/check-pragma-discipline.py
+	python3 scripts/check-no-french.py
 	python3 scripts/audit-cli-coverage.py
 	$(MAKE) cli-coverage-check
 	@echo "Checking feature map freshness..."

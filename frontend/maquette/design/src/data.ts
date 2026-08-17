@@ -54,7 +54,7 @@ export type Release = {
 export type SearchResult = {
   t: string;
   y: string;
-  k: "Film" | "Série";
+  k: "Film" | "Série"; // french-ok: the legacy kind LABEL, a data value (see above)
   ov: string;
   owned: boolean;
   followed: boolean;
