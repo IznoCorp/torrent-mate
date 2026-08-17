@@ -26,8 +26,8 @@ from playwright.async_api import async_playwright
 
 # The pages the shell owns today. A page absent here is one the fragment still
 # draws, and the rule holds that too — it is the other half of the law.
-SHELL_OWNED = ["sys", "maint", "cfg", "arr"]
-LEGACY_OWNED = ["lib", "acq"]
+SHELL_OWNED = ["sys", "maint", "cfg", "arr", "lib"]
+LEGACY_OWNED = ["acq"]
 
 READ = """()=>{
   const view = document.querySelector('#view');
@@ -54,9 +54,14 @@ async def main():
             await page.evaluate("()=>window.__referentiel.render()")
             await page.wait_for_timeout(300)
             seen = await page.evaluate(READ)
+            # « ONCE » is the residue hold's business, and it measures it
+            # across predecessors. What this one holds is that the page is
+            # DRAWN — and it may not assume a root count: the Médiathèque emits
+            # four siblings where the other four emit one, which is why the
+            # host stopped supplying a root element of its own.
             journal.check(
-                f"the shell-owned page « {identifier} » is drawn, once",
-                seen.get("children") == 1 and seen.get("elements", 0) > 20
+                f"the shell-owned page « {identifier} » is drawn",
+                seen.get("children", 0) >= 1 and seen.get("elements", 0) > 20
                 and seen.get("text", 0) > 200,
                 str(seen)[:140])
 
@@ -524,12 +529,22 @@ async def main():
         # says nothing about a SECOND, unguarded write elsewhere.
         served = await page.content()
         writes = re.findall(r"[^\n]*view\.innerHTML\s*=[^\n]*", served)
-        guarded = [w for w in writes if re.search(r"!\s*found\.shellOwned", w)]
+        # THE LAW, not one spelling of it. The guard was once a single line and
+        # is now a branch, and a hold that matched the line would have failed on
+        # the day the law was made STRONGER rather than weaker. What must be
+        # true: `#view` is written in one place, on the branch where the shell
+        # does NOT own the page, and the shell is asked to let go before that
+        # write happens.
+        renders = re.search(r"function render\(\)[\s\S]{0,3000}?\n  \}", served)
+        body = renders.group(0) if renders else ""
+        announced = "window.__releasePage?.()" in body
+        gated = re.search(r"if \(found\.shellOwned\)", body) is not None
         journal.check(
-            "the fragment writes #view only for a page it still owns",
-            len(writes) == 1 and len(guarded) == 1,
-            f"{len(writes)} write(s) to #view's innerHTML, {len(guarded)} guarded"
-            + ("" if len(writes) == 1 else f" — {[w.strip()[:80] for w in writes]}"))
+            "the fragment writes #view only for a page it still owns, and says "
+            "so before it does",
+            len(writes) == 1 and announced and gated,
+            f"{len(writes)} write(s) to #view's innerHTML; ownership branch: "
+            f"{gated}; handover announced: {announced}")
 
         await browser.close()
     journal.summary(errors)

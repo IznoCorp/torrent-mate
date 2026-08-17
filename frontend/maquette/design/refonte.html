@@ -14344,7 +14344,16 @@
       render: viewAcquisition,
       fab: true,
     },
-    { id: "lib", l: "Médiathèque", ic: icons.library, render: viewLibrary },
+    {
+      id: "lib",
+      l: "Médiathèque",
+      ic: icons.library,
+      /* No `render`: the shell draws this page (`pages/library.tsx`), and it is
+         the first that emits SEVERAL roots rather than one. Clearing
+         `shellOwned` without restoring a renderer therefore CRASHES rather than
+         quietly drawing a page nobody maintains any more. */
+      shellOwned: true,
+    },
     {
       id: "arr",
       l: "Arrivées",
@@ -14428,6 +14437,15 @@
       )
       .join("");
   }
+  /* Whether the SHELL is currently drawing into `#view`. Read and written by
+     `render()` alone: it is what turns « empty the container » and « ask the
+     shell to let go » into transitions rather than something done on every
+     draw. */
+  let shellOwnsView = false;
+  /* The nodes THIS side put in `#view`, so that handing the container over
+     removes exactly them and nothing else. */
+  let legacyNodes = [];
+
   function render() {
     // Every action ends in render(): one bump here reaches React for every
     // simulated mutation, including the ones made in place on `world`
@@ -14442,12 +14460,34 @@
       found = PAGES_OF().find((element) => element.id === "404");
     }
     /* A page the SHELL owns draws itself, through a React portal into this very
-       container: writing here would remove nodes React still believes it holds.
-       Everything below still runs — the bar, the nav and the save bar are shared
-       furniture, not the page's. `shellOwned` is what a migrated page carries;
-       the entry keeps its `render` until nothing calls it, so the two can be
-       compared byte for byte while the conversion is being proven. */
-    if (!found.shellOwned) view.innerHTML = found.render();
+       container, so the HANDOVER is announced in both directions — and this is
+       the one place that already knows which world owns the page. Taking:
+       empty the container once, on the transition, and let React draw into it.
+       Releasing: ask the shell to let go FIRST, synchronously, because writing
+       here while React still holds these nodes is what removes children it
+       believes it owns — measured once, on a save bar, and it tore the root
+       down. Everything below still runs either way: the bar, the nav and the
+       save bar are shared furniture, not the page's. */
+    if (found.shellOwned) {
+      if (!shellOwnsView) {
+        /* Only what THIS side wrote is removed. Emptying the container
+           outright looks equivalent and is not: the shell may already have
+           drawn into it — a store write and this call are not always the same
+           task — and clearing then would delete nodes React believes it still
+           holds, leaving a blank page nothing redraws. Measured, on a rule
+           that writes the state and renders in two steps. */
+        for (const node of legacyNodes) node.remove();
+        legacyNodes = [];
+        shellOwnsView = true;
+      }
+    } else {
+      if (shellOwnsView) {
+        window.__releasePage?.();
+        shellOwnsView = false;
+      }
+      view.innerHTML = found.render();
+      legacyNodes = [...view.childNodes];
+    }
     fab.hidden = !found.fab;
     mountDeck();
     renderNav();
@@ -14573,6 +14613,18 @@
        and the infinite scroll both speak in. */
     tileHTML,
     swipeHTML,
+    libRowHTML,
+    libFiltered,
+    /* The selection bar stays the FRAGMENT's: it lives in `#device`, React
+       never draws it, and the component only asks for it to be repainted after
+       a render — the legacy owns that node from creation to removal, which is
+       what keeps two worlds from writing one element. */
+    paintSelBar,
+    /* How many titles the prototype really carries, which the end mark says
+       out loud rather than letting the end of the list contradict the « of
+       1 861 » counter. A thin arrow, like `derivedStuck`: the value is the
+       WORLD's and stays live. */
+    libraryLoaded: () => world.lib.length,
     CATS,
     RECENT,
     INCOMPLETE,
@@ -14715,7 +14767,6 @@
   const LIB_PAGE = 24;
   const SUG_BATCH = 30;
   let sugObserver = null;
-  let libObserver = null;
 
   /* ONE tile, in every gallery of the interface — the library's three lenses
      and the follows grid alike. A gallery that draws its own tile drifts from
@@ -14765,6 +14816,54 @@
   /* Multiple selection must work in BOTH modes: it existed only on tiles,
      so « Sélectionner » switched on in list mode with nothing selectable. A
      mode one can enter and do nothing in is worse than no mode at all. */
+  /* THE PAGE'S OWN DERIVATION, and it stays HERE while the drawing leaves.
+     `trierLib` and `libFiltered` touch no DOM — they answer « which media, in
+     which order », over the world and the state — so they are what a component
+     asks rather than something it reproduces. A rule reads `libFiltered()` too,
+     which is the other reason it stays reachable by name. */
+  function trierLib(items) {
+    const slice = items.slice();
+    /* REVERSING IS A SECOND PASS, never a second comparator: « ajout récent »
+       has no comparator at all — its order is the source's — so the direction
+       has to be expressible on a list that was never compared. One `.reverse()`
+       at the end says the same thing for all three. */
+    const sens = (ordonne) => (state.sortReversed ? ordonne.reverse() : ordonne);
+    if (state.tri === "az")
+      return sens(slice.sort((l, index) => l.t.localeCompare(index.t, "fr")));
+    if (state.tri === "manque") {
+      const manque = (item) => {
+        const exec = /^(\d+)\/(\d+)/.exec(item.f ?? "");
+        const inc = INCOMPLETE.find((INCOMPLETE2) => INCOMPLETE2.t === item.t);
+        return inc
+          ? inc.a - inc.o
+          : exec
+            ? Number(exec[2]) - Number(exec[1])
+            : -1;
+      };
+      return sens(slice.sort((l, index) => manque(index) - manque(l)));
+    }
+    // « récent » = l'ordre de la source (date_created décroissante)
+    return sens(slice);
+  }
+
+  function libFiltered() {
+    const cat = CATS.find((CATS2) => CATS2.id === state.libCat);
+    let items =
+      cat && cat.of
+        ? world.lib.filter((lib) => cat.of.includes(lib.c))
+        : world.lib;
+    const trim = state.q.trim();
+    if (trim !== "") {
+      const norm = (text) =>
+        text
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLocaleLowerCase();
+      items = items.filter((l) => norm(l.t).includes(norm(trim)));
+    }
+    return trierLib(items);
+  }
+
   function libRowHTML(item, index) {
     if (state.selMode) {
       const has = state.selected.has(index);
@@ -15024,166 +15123,6 @@
     });
   }
 
-  /* Accepts an index into the library or a plain title: the gallery of a lens
-     shows rows that are not library indices, and a panel that only answers an
-     index would be unreachable from half the galleries. */
-
-  function paintLibCount() {
-    const element = document.querySelector("#libcount");
-    if (!element) return;
-    const tot = libFiltered().length;
-    const shown = Math.min(state.libCount, tot);
-    const cat = CATS.find((CATS2) => CATS2.id === state.libCat);
-    const univers = cat && cat.of ? cat.c : 1861;
-    const nomCat = cat && cat.of ? ` · ${cat.l.toLowerCase()}` : "";
-    element.innerHTML =
-      state.q.trim() === ""
-        ? `<b>${shown}</b> affichés sur <b>${univers}</b>${nomCat}`
-        : `<b>${tot}</b> résultat${tot > 1 ? "s" : ""} pour « ${escapeHtml(state.q)} »${nomCat}`;
-  }
-
-  function trierLib(items) {
-    const slice = items.slice();
-    /* REVERSING IS A SECOND PASS, never a second comparator: « ajout récent »
-       has no comparator at all — its order is the source's — so the direction
-       has to be expressible on a list that was never compared. One `.reverse()`
-       at the end says the same thing for all three. */
-    const sens = (ordonne) => (state.sortReversed ? ordonne.reverse() : ordonne);
-    if (state.tri === "az")
-      return sens(slice.sort((l, index) => l.t.localeCompare(index.t, "fr")));
-    if (state.tri === "manque") {
-      const manque = (item) => {
-        const exec = /^(\d+)\/(\d+)/.exec(item.f ?? "");
-        const inc = INCOMPLETE.find((INCOMPLETE2) => INCOMPLETE2.t === item.t);
-        return inc
-          ? inc.a - inc.o
-          : exec
-            ? Number(exec[2]) - Number(exec[1])
-            : -1;
-      };
-      return sens(slice.sort((l, index) => manque(index) - manque(l)));
-    }
-    // « récent » = l'ordre de la source (date_created décroissante)
-    return sens(slice);
-  }
-
-  function libFiltered() {
-    const cat = CATS.find((CATS2) => CATS2.id === state.libCat);
-    let items =
-      cat && cat.of
-        ? world.lib.filter((lib) => cat.of.includes(lib.c))
-        : world.lib;
-    const trim = state.q.trim();
-    if (trim !== "") {
-      const norm = (text) =>
-        text
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .toLocaleLowerCase();
-      items = items.filter((l) => norm(l.t).includes(norm(trim)));
-    }
-    return trierLib(items);
-  }
-
-  function fillLib() {
-    const box = document.querySelector("#libitems");
-    if (!box) return;
-    const grid = box.classList.contains("grid");
-    const src = libFiltered();
-    if (state.phase === "chargement") {
-      box.innerHTML = "";
-      box.insertAdjacentHTML("afterend", "");
-      box.outerHTML = `<div id="libitems" class="${grid ? "grid" : "sec"}">${grid ? '<div class="sk tile"></div>'.repeat(9) : '<div class="sk skcard"></div>'.repeat(5)}</div>`;
-      paintLibCount();
-      return;
-    }
-    if (state.phase === "erreur") {
-      box.innerHTML = surfErr("votre médiathèque");
-      paintLibCount();
-      return;
-    }
-    if (src.length === 0) {
-      const cat = CATS.find((CATS2) => CATS2.id === state.libCat);
-      const filtre = cat && cat.of ? cat.l.toLowerCase() : null;
-      box.innerHTML = "";
-      box.insertAdjacentHTML(
-        "beforeend",
-        state.q.trim() !== ""
-          ? `<div class="empty"><b>Rien ne correspond à « ${escapeHtml(state.q)} »${filtre ? ` dans ${filtre}` : ""}.</b>La recherche ignore la casse et les accents.${filtre ? " Le filtre de catégorie est peut-être trop étroit — essayez « Tout »." : "<br><br>Ce titre n'est peut-être pas chez vous : <b>ajoutez-le</b> depuis Acquisition."}</div>`
-          : `<div class="empty"><b>Aucun média chargé dans ${filtre ?? "cette vue"}.</b>Votre médiathèque en compte <b>${cat?.c ?? 0}</b>, mais cette maquette n'embarque que les 260 titres les plus récents — cette catégorie n'y figure pas.</div>`,
-      );
-      paintLibCount();
-      return;
-    }
-    box.innerHTML = src
-      .slice(0, state.libCount)
-      .map((slice, index) =>
-        grid
-          ? tileHTML(slice, slice.f, { index: index })
-          : libRowHTML(slice, index),
-      )
-      .join("");
-    paintSelBar();
-    paintLibCount();
-  }
-
-  function libFoot() {
-    const foot = document.querySelector("#libload");
-    if (!foot) return;
-    const grid = document.querySelector("#libitems").classList.contains("grid");
-    if (state.libCount >= libFiltered().length) {
-      // The prototype carries 260 real titles only; say it, rather than
-      // letting the end of the list contradict the « of 1,861 » counter.
-      foot.innerHTML = `<p class="endmark">Fin de l'échantillon — cette maquette charge ${world.lib.length} titres réels sur les 1 861 de votre médiathèque. En vrai, le défilement continuerait jusqu'au bout.</p>`;
-      return;
-    }
-    if (state.libErr) {
-      foot.innerHTML = `<div class="loaderr"><b>Impossible de charger la suite.</b> La connexion a été perdue pendant la requête. Les ${state.libCount} médias déjà affichés restent valides.<button id="libretry">Réessayer</button></div>`;
-      document.querySelector("#libretry").onclick = () => {
-        magasin.ecrire({ libErr: false });
-        libFoot();
-        loadMoreLib();
-      };
-      return;
-    }
-    foot.innerHTML = grid
-      ? `<div class="grid">${'<div class="sk tile"></div>'.repeat(3)}</div>`
-      : `<div class="sec">${'<div class="sk row"></div>'.repeat(2)}</div>`;
-    // Sentinel: the loading footer IS the sentinel.
-    if (libObserver) libObserver.disconnect();
-    libObserver = new IntersectionObserver(
-      (ents) => {
-        if (ents.some((ent) => ent.isIntersecting)) loadMoreLib();
-      },
-      { root: port, rootMargin: "220px" },
-    );
-    libObserver.observe(foot);
-  }
-
-  function loadMoreLib() {
-    if (
-      state.libLoading ||
-      state.libErr ||
-      state.libCount >= libFiltered().length
-    )
-      return;
-    magasin.ecrire({ libLoading: true });
-    if (libObserver) libObserver.disconnect();
-    setTimeout(() => {
-      magasin.ecrire({ libLoading: false });
-      // One failure, once, to show the error path for real.
-      if (!state.libFailedOnce && state.libCount >= LIB_PAGE * 3) {
-        magasin.ecrire({ libFailedOnce: true, libErr: true });
-        libFoot();
-        return;
-      }
-      magasin.ecrire({
-        libCount: Math.min(libFiltered().length, state.libCount + LIB_PAGE),
-      });
-      fillLib();
-      libFoot();
-    }, 620);
-  }
 
   /* Découvrir: one card, one tappable body
      · poster            → the media sheet, never a dead link
@@ -15578,20 +15517,14 @@
   /* Typing filters as you go (the source is LOCAL, therefore free) — unlike
      the provider search on the add screen, which runs on submit. */
   function mountSearch() {
-    const element = document.querySelector("#libq");
-    if (element)
-      element.oninput = () => {
-        magasin.ecrire({ q: element.value, libCount: LIB_PAGE, libErr: false });
-        const pos = element.selectionStart;
-        render();
-        const element3 = document.querySelector("#libq");
-        if (element3) {
-          element3.focus();
-          element3.setSelectionRange(pos, pos);
-        }
-      };
-    /* `.fieldinput` is NOT bound here anymore: a settings field only ever
-       appears inside the panel, and the panel's own `champ` block owns its
+    /* `#libq` is NOT bound here anymore either, for the same reason as
+       `.fieldinput` below: the library page owns its own search field now
+       (`src/pages/library.tsx`), and the caret dance this function used to do
+       around it existed only because the legacy rebuilt the node on every
+       draw. React keeps the node, so there is nothing to put back.
+
+       `.fieldinput` is NOT bound here: a settings field only ever appears
+       inside the panel, and the panel's own `champ` block owns its
        commit-on-blur handler now (`src/components/panel.tsx`). Binding it
        from outside would put two writers on one field. */
     const element2 = document.querySelector("#follq");
@@ -15608,18 +15541,14 @@
       };
   }
 
+  /* THE SUGGESTIONS' loader, and only theirs. The library's half left with the
+     page it belonged to: its list, its footer and its sentinel are drawn by the
+     component now, and filling a container React owns from here is what makes
+     two worlds write one element. */
   function mountLoaders() {
-    if (libObserver) {
-      libObserver.disconnect();
-      libObserver = null;
-    }
     if (sugObserver) {
       sugObserver.disconnect();
       sugObserver = null;
-    }
-    if (document.querySelector("#libitems")) {
-      fillLib();
-      libFoot();
     }
     if (document.querySelector("#sugitems")) {
       fillSug();

@@ -395,6 +395,14 @@ export type Reference = {
   SYNOPSIS: Record<string, string>;
   // The page size the count line and the infinite scroll both speak in.
   LIB_PAGE: number;
+  libRowHTML: (item: LibraryRow | QueueCard, index: number) => string;
+  libFiltered: () => (LibraryRow | QueueCard)[];
+  // The selection bar lives in `#device` and stays the FRAGMENT's: a component
+  // asks for a repaint after it draws, exactly where `fillLib` asked for one.
+  paintSelBar: () => void;
+  // How many titles the prototype really carries — the number the end mark
+  // says out loud.
+  libraryLoaded: () => number;
   // Every sort, in both directions, each with its own name — the table E-001
   // made two-dimensional. A rule reads the NAMES from here rather than
   // restating them.

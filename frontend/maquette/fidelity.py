@@ -11,6 +11,21 @@ It needs the legacy renderer reachable from `window.__referentiel` under a name
 of its own (`viewSystemLegacy: viewSystem`), added for the proof and removed
 with the renderer.
 
+TWO WAYS TO NAME THE LEGACY SIDE, and the second exists because of a page
+whose markup is not what its renderer returns. `viewArrivals()` returned the
+whole page, so the comparison could call it and diff the string. `viewLibrary()`
+returns a SKELETON — an empty `#libitems`, an empty `#libcount` — which the
+fragment fills afterwards, and diffing against that string would report every
+row as a divergence. So the legacy side can also be RECORDED: drive the states
+while the fragment still owns the page, save what `#view` actually held, then
+flip ownership and compare the component against the recording.
+
+    fidelity.py --record /tmp/lib.json lib-liste lib-grille …   (before)
+    fidelity.py --against /tmp/lib.json lib-liste lib-grille …  (after)
+
+The recording is the same normalised text the live comparison uses, so the two
+paths differ only in where the legacy side comes from.
+
 WHICH HOST IT READS, AND WHY THAT IS NOT A DETAIL
 -------------------------------------------------
 `#view` by default, because a PAGE draws there — but a page may have a SECOND
@@ -45,6 +60,8 @@ this conversion has already paid three times («&nbsp;Saison 33/13&nbsp;»).
 """
 import asyncio
 import difflib
+import json
+import pathlib
 import re
 import sys
 
@@ -84,7 +101,8 @@ def tidy(html: str) -> str:
     return re.sub(r">\s+<", "><", re.sub(r"\s+", " ", html)).strip()
 
 
-async def main(legacy_name: str, states: list[str], host: str = "#view") -> int:
+async def main(legacy_name: str, states: list[str], host: str = "#view",
+               record: str | None = None, against: str | None = None) -> int:
     divergences = 0
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(channel="chrome")
@@ -99,13 +117,24 @@ async def main(legacy_name: str, states: list[str], host: str = "#view") -> int:
         await page.evaluate("()=>document.querySelector('#toastx')?.click()")
         await page.evaluate(NORMALISER)
 
+        saved = json.loads(pathlib.Path(against).read_text(encoding="utf-8")) if against else {}
+        recorded: dict[str, str] = {}
         for state in states:
             await page.evaluate(f"()=>window.__go({state!r})")
             await page.wait_for_timeout(420)
             measured = await page.evaluate(READ, host)
-            legacy = await page.evaluate(
-                f"()=>window.__normaliser(window.__referentiel[{legacy_name!r}]())")
             drawn = measured["drawn"] or ""
+            if record:
+                recorded[state] = drawn
+                print(f"  RECORD {state:<24} elements={measured['elements']} "
+                      f"collapsed {len(tidy(drawn))}")
+                continue
+            legacy = (saved.get(state, "") if against else await page.evaluate(
+                f"()=>window.__normaliser(window.__referentiel[{legacy_name!r}]())"))
+            if against and state not in saved:
+                print(f"  MISSING {state} — the recording does not carry it")
+                divergences += 1
+                continue
             same = tidy(drawn) == tidy(legacy)
             divergences += 0 if same else 1
             print(f"  {'SAME  ' if same else 'DIFFER'} {state:<24} "
@@ -120,6 +149,11 @@ async def main(legacy_name: str, states: list[str], host: str = "#view") -> int:
                 for line in list(diff)[:40]:
                     print("      " + line[:200])
         await browser.close()
+    if record:
+        pathlib.Path(record).write_text(
+            json.dumps(recorded, ensure_ascii=False), encoding="utf-8")
+        print(f"\nrecorded {len(recorded)} state(s) into {record}")
+        return 1 if errors else 0
     print(f"\nJS errors: {errors or 'none'}")
     print(f"divergences: {divergences}/{len(states)}")
     return 1 if divergences or errors else 0
@@ -128,16 +162,29 @@ async def main(legacy_name: str, states: list[str], host: str = "#view") -> int:
 if __name__ == "__main__":
     arguments = sys.argv[1:]
     host = "#view"
-    if "--host" in arguments:
-        index = arguments.index("--host")
-        host = arguments[index + 1]
-        arguments = arguments[:index] + arguments[index + 2:]
+    record = against = None
+    for flag in ("--host", "--record", "--against"):
+        if flag in arguments:
+            index = arguments.index(flag)
+            value = arguments[index + 1]
+            arguments = arguments[:index] + arguments[index + 2:]
+            if flag == "--host":
+                host = value
+            elif flag == "--record":
+                record = value
+            else:
+                against = value
+    if record or against:
+        arguments = ["-"] + arguments
     if len(arguments) < 2:
         raise SystemExit(
             "usage: fidelity.py <legacyRendererName> <state> [state…] "
             "[--host <selector>]\n"
+            "       fidelity.py --record <file> <state> [state…]   (before)\n"
+            "       fidelity.py --against <file> <state> [state…]  (after)\n"
             "  the renderer must be reachable as window.__referentiel[<name>]\n"
             "  --host names the container to compare, `#view` by default —\n"
             "  a page with a second host (the save bar's `#device`) needs one\n"
             "  run per host, or half of it ships unproven")
-    raise SystemExit(asyncio.run(main(arguments[0], arguments[1:], host)))
+    raise SystemExit(asyncio.run(
+        main(arguments[0], arguments[1:], host, record, against)))
