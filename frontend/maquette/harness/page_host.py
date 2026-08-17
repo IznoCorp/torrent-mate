@@ -94,6 +94,47 @@ async def main():
             str(residue) or "; ".join(
                 f"{name}={next(iter(seen))}" for name, seen in signatures.items()))
 
+        # (c-bis) THE DELEGATION STILL READS WHAT REACT EMITS. A migrated page
+        # keeps emitting the `data-*` attributes the document-level click
+        # handler acts on — and nothing else in the suite drives them: R67
+        # reaches Maintenance through `applyState`, never through a tap. So the
+        # wave that moves the emitter owes these two holds, or a component that
+        # stopped writing one of those attributes would break the page while
+        # every existing rule stayed green.
+        await page.evaluate("()=>window.__magasin.ecrire({page: 'maint', maintRub: null})")
+        await page.evaluate("()=>window.__referentiel.render()")
+        await page.wait_for_timeout(300)
+        await page.click("#view .topic[data-maintrub='scan']")
+        await page.wait_for_timeout(360)
+        opened = await page.evaluate("""()=>({
+          rubrique: window.__magasin.lire().etat.maintRub,
+          back: !!document.querySelector('#view .crossref[data-maintrub=""]'),
+          rows: document.querySelectorAll('#view .flux .fx').length,
+        })""")
+        journal.check(
+            "a real tap on a rubric row opens that rubric",
+            opened["rubrique"] == "scan" and opened["back"] and opened["rows"] > 0,
+            str(opened))
+
+        # Looked up rather than clicked blind: a component that stopped emitting
+        # `data-maintact` would otherwise time the click out and CRASH the
+        # script, which reads as a broken rule instead of a named defect.
+        target = page.locator("#view .flux .fx .fw[data-maintact]").first
+        emitted = await target.count()
+        if emitted:
+            await target.click()
+            await page.wait_for_timeout(420)
+        panel = await page.evaluate("""()=>({
+          open: !!document.querySelector('#sheet.open'),
+          title: (document.querySelector('#sheet .sheettitle')||{}).textContent || null,
+        })""")
+        journal.check(
+            "and a real tap on a command row opens its panel",
+            bool(emitted) and panel["open"] and bool(panel["title"]),
+            str(panel)[:120] if emitted else "no row carries data-maintact")
+        await page.evaluate("()=>window.__panneau.fermer()")
+        await page.wait_for_timeout(300)
+
         # (d) The handover is the SHELL's: the fragment must not write into a
         # container React holds. Proven from the source rather than by drawing:
         # a write there would be invisible until the day it removes a node

@@ -429,6 +429,18 @@
       "settings": "Réglages",
       "settingsSubtitle": "Ce que le pipeline fait, et comment — l'heure des passages programmés comprise. Rangés par ce qu'on veut changer, pas par fichier.",
       "arrow": "→"
+    },
+    "maintenance": {
+      "errorSubject": "les commandes de maintenance",
+      "allCommands": "← Toutes les commandes",
+      "introLead": "Ce qu'on FAIT à la médiathèque.",
+      "introRest": " Système dit si la machine va bien ; ici on agit sur ce qu'elle contient. Les commandes sont rangées par ce qu'on veut faire, jamais par le fichier où elles vivent.",
+      "mayBeLong": " · peut être long",
+      "deletesOne": " · {{count}} qui supprime",
+      "deletesMany": " · {{count}} qui suppriment",
+      "arrow": " →",
+      "journal": "Journal des suppressions",
+      "journalNote": "Les {{total}} opérations destructrices que la médiathèque a subies. Toutes ont été écrites par le pipeline lui-même, aucune par une main : un journal qui ne consignerait que l'opérateur serait un journal que personne n'ouvre."
     }
   }
 }

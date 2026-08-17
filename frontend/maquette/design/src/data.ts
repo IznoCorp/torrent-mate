@@ -213,6 +213,34 @@ export type PipelineRun = {
   r: string;
 };
 
+// One maintenance RUBRIC — a heading and the sentence under it. The commands
+// are grouped by what one wants to DO, never by the file they live in.
+export type MaintenanceTopic = {
+  id: string;
+  t: string;
+  s: string;
+};
+
+// One maintenance COMMAND. `g` is its rubric, `r` its risk (a key of `RISQUES`),
+// `long` whether it can take a while, `blanc` whether it can run dry.
+export type MaintenanceAction = {
+  id: string;
+  l: string;
+  d: string;
+  g: string;
+  r: string;
+  long?: boolean;
+  blanc?: boolean;
+};
+
+// What a risk level is called and which pip colour says so. `t` is the
+// operator's words; the mapping onto the chip vocabulary lives with the emitter.
+export type Risk = { t: string; p: string };
+
+// The deletion journal: how many destructive operations the library has been
+// through, and the rows describing them.
+export type DeletionJournal = { total: number; lignes: Fact[] };
+
 // The code-error summary the Système page draws as two rows.
 export type CodeErrors = {
   total: number | string;
@@ -263,6 +291,10 @@ export type Reference = {
   INDEX: Fact[];
   DEPENDANCES: Fact[];
   ERREURS: CodeErrors;
+  MAINT_RUBRIQUES: MaintenanceTopic[];
+  MAINT_ACTIONS: MaintenanceAction[];
+  RISQUES: Record<string, Risk>;
+  JOURNAL: DeletionJournal;
   ACTEURS: Record<string, string>;
   trailerIds: Record<string, Trailer>;
   EP_LABEL: Record<string, string>;

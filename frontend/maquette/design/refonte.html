@@ -4785,7 +4785,7 @@
       t: "Furious",
       serie: "Continuing",
       depuis: "27 juillet",
-      recherches: 10,
+      recherches: 12,
       k: "show",
       y: 2026,
       st: "a_jour",
@@ -4807,7 +4807,7 @@
       t: "President Curtis",
       serie: "Continuing",
       depuis: "29 juillet",
-      recherches: 16,
+      recherches: 18,
       k: "show",
       y: 2026,
       st: "a_jour",
@@ -12543,51 +12543,6 @@
      A real deletion cannot be rehearsed on this machine — staging writes to
      the real disks — so what the interface owes is the look before, not a
      safety net after. */
-  function viewMaintenance() {
-    if (state.phase !== "prete")
-      return `<div class="body">${state.phase === "erreur" ? surfErr("les commandes de maintenance") : skelCards(3)}</div>`;
-    const rubrique = MAINT_RUBRIQUES.find((r) => r.id === state.maintRub);
-    if (rubrique) {
-      const actions = MAINT_ACTIONS.filter((a) => a.g === rubrique.id);
-      return `<div class="body">
-      <button class="crossref" data-maintrub="">← Toutes les commandes</button>
-      <h2 class="h2">${escapeHtml(rubrique.t)}</h2>
-      <div class="note">${escapeHtml(rubrique.s)}</div>
-      ${listeFaitsHTML(
-        actions.map((a) => ({
-          l: a.l,
-          k: a.id,
-          v: RISQUES[a.r].t,
-          s: a.d + (a.long ? " · peut être long" : ""),
-          etat: a.r === "destructive" ? "danger" : "",
-          // The row IS the control. A list of facts with a parallel column of
-          // buttons asks which of the two to aim at, and the answer is never
-          // on screen.
-          cible: { maintact: a.id },
-        })),
-      )}
-    </div>`;
-    }
-    const compte = (id) => MAINT_ACTIONS.filter((a) => a.g === id).length;
-    return `<div class="body">
-    <div class="note"><b>Ce qu'on FAIT à la médiathèque.</b> Système dit si la machine va bien ; ici on agit sur ce qu'elle contient. Les commandes sont rangées par ce qu'on veut faire, jamais par le fichier où elles vivent.</div>
-    ${MAINT_RUBRIQUES.map((r) => {
-      const dedans = MAINT_ACTIONS.filter((a) => a.g === r.id);
-      const dur = dedans.filter((a) => a.r === "destructive").length;
-      return `<button class="topic" data-maintrub="${escapeHtml(r.id)}">
-      <span style="min-width:0;flex:1">
-        <span class="rt">${escapeHtml(r.t)}</span>
-        <span class="rs">${escapeHtml(r.s)}</span>
-      </span>
-      <span class="rn">${compte(r.id)}${dur ? ` · ${dur} qui supprime${dur > 1 ? "nt" : ""}` : ""} →</span>
-    </button>`;
-    }).join("")}
-
-    <h2 class="h2">Journal des suppressions</h2>
-    <div class="note">Les ${JOURNAL.total} opérations destructrices que la médiathèque a subies. Toutes ont été écrites par le pipeline lui-même, aucune par une main : un journal qui ne consignerait que l'opérateur serait un journal que personne n'ouvre.</div>
-    ${listeFaitsHTML(JOURNAL.lignes)}
-  </div>`;
-  }
 
   /* One command's panel. Derived from what is TRUE about the command — does
      it delete, can it run blank, is it long — never from a list of screens. */
@@ -14913,8 +14868,11 @@
       id: "maint",
       l: "Maintenance",
       ic: icons.wrench,
-      render: viewMaintenance,
+      /* Pas de `render` : la coquille dessine cette page (`pages/maintenance.tsx`).
+         Retirer `shellOwned` sans rendre un dessinateur PLANTE, au lieu de
+         dessiner en silence une page que plus personne n'entretient. */
       horsBarre: true,
+      shellOwned: true,
     },
     {
       id: "cfg",
@@ -15097,6 +15055,13 @@
     INDEX,
     DEPENDANCES,
     ERREURS,
+    /* SP4d vague 1 — ce que la page Maintenance dessine. `ouvrirActionMaintenance`
+       reste au fragment : c'est la délégation `data-maintact` qui l'appelle, pas
+       un composant. */
+    MAINT_RUBRIQUES,
+    MAINT_ACTIONS,
+    RISQUES,
+    JOURNAL,
     // ACTEURS and AUJOURDHUI are declared with `const` further down this
     // same script, past this literal's evaluation point — a plain shorthand
     // reference would hit the temporal dead zone the instant this object is
@@ -17572,8 +17537,8 @@
       </div>
       <div class="ver">
         <p class="vt">Version déployée</p>
-        <p class="vv">0.97.16</p>
-        <p class="vc">build ad366621 · à jour</p>
+        <p class="vv">0.97.17</p>
+        <p class="vc">build 7ac230c8 · à jour</p>
       </div>`;
     element.classList.add("open");
     select("#scrim").classList.add("open");
