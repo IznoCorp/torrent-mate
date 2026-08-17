@@ -804,3 +804,54 @@ Every comment in this directory — HTML, CSS, JavaScript, Python — is written
 and carries no reference to a work session, a phase, or a dated decision. It must read years
 from now, out of context. Interface copy quoted inside a comment stays in French, because that
 is what the screen says.
+
+**So is everything else the source NAMES.** Identifiers, function and type names, **class
+names — code and CSS alike** — **file and directory names**, and every message a tool prints:
+English, on the day the thing is written. This is not a cleanup someone does later; a French
+name arriving today is a French name a whole wave has to remove tomorrow, and it will be
+holding four worlds together by then (the fragment's markup, the shell's components, the
+harness's selectors, the extracted stylesheet).
+
+Two things are NOT covered by that rule, and confusing them is how a rule goes quiet:
+
+- **The French the app RENDERS.** A hold asserting « En cours » keeps asserting « En cours »
+  — the interface speaks French. Translating a word inside a rendered vocabulary does not go
+  red, it goes SILENT: `"des erreurs"` became `"des errors"` once and no rule noticed, because
+  a rule that measures nothing passes.
+- **Data and addresses.** `data-*` names and values, route paths, `__go` state ids, the
+  follow/episode state tokens, the config keys the settings dictionaries are keyed by: those
+  are contracts, and renaming one moves the contract rather than a name. The frozen ones are
+  listed, each with the reason it was kept, in `regions.json`'s `$vocabulary`.
+
+## Where the interface's French lives
+
+**No interface string lives in the code.** The shell's copy is in
+`design/src/i18n/fr.json`, read through `react-i18next`:
+
+```tsx
+const { t } = useTranslation();
+<h2 className="h2">{t("screens.profile.minResolution")}</h2>
+```
+
+- **Key convention**: `screens.<screen>.<slug>` for a screen's prose, `settings.labels.*` /
+  `settings.subjects.*` / `settings.units.*` for the panel's three dictionaries, `common.*`
+  for what several surfaces share, and `server.*` for the pages `serve.py` serves. The screen
+  segment is the screen's ENGLISH name (`media`, `profile`, `add`), like its component and its
+  file.
+- **`serve.py` reads the SAME file.** The sign-in gate's title, the two 503 pages, the offline
+  page and the manifest's description come from `fr.json`'s `server` namespace, read per
+  request — the same discipline as the login screen's markup, which is EXTRACTED from the
+  prototype rather than restated. One source, nothing to keep in step.
+- **Extract, never retype.** Cut the string out of the JSX and paste it into `fr.json`. A
+  retyped string is a defect even when it looks right: it renders correctly while the
+  reference is broken, and the copy is the only place anyone ever looks. The proof that an
+  extraction changed nothing is byte-identity of the rendered text across every driven state,
+  plus the full suite at unchanged hold counts.
+- **A few literals stay French, and say why.** A data value, a `data-*` value, a route
+  parameter: each carries a `// french-ok: <reason>` (or `# french-ok:`) pragma on its own
+  line, the line above, or the line below. A pragma citing no reason is itself a violation.
+
+**All of this is enforced, not remembered**: `python3 scripts/check-no-french.py` — four arms
+(strings, identifiers, file names, class names), wired into `make check` and into its own CI
+job. Each arm also reports what it READ, and an arm that read nothing fails: a scope that
+silently empties would otherwise announce « no violation » while measuring nothing.

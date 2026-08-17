@@ -2,9 +2,18 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Re-pointed 2026-08-17 (clean-code / i18n wave).** The harness moved to
+> English: its scripts were renamed, its hold labels translated, and its printed
+> verdict is now `  PASS` / `  FAIL` and `N rules EXECUTED — no violation`. Every
+> quoted expectation and every file name below was re-pointed at what the current
+> sources actually say — a quotation that silently misses its target is how a
+> recipe stops working without anyone noticing. Two things were deliberately NOT
+> rewritten: the fenced source LISTINGS, which are the code as authored on the
+> day, and the hold COUNTS, which are what was expected then. `shell.py` runs 4 holds today, not 23, and `switchover.py` runs 11, not 5 — the six extra ones are R73's later SPA-fallback, dotted-path, favicon and gated-`/assets/` amendments. Both labels quoted in Task 3's mutations still exist verbatim.
+
 **Goal:** The design host serves the Vite build (byte-exact `dist/index.html`), auto-rebuilding on stale sources, with a build failure shown as a 503 that says so — held by a new rule R73.
 
-**Architecture:** The PWA head moves from `serve.py`'s synthesis into the Vite envelope (`index.html`) between extraction markers; `serve.py`'s login page EXTRACTS that head (one source of truth, the file's own pattern); `_document()` becomes stale-check → locked rebuild → serve `dist` bytes. A `TM_DESIGN_RACINE` env lets R73 point `serve.py` at a scratch copy so no rule ever mutates the real source.
+**Architecture:** The PWA head moves from `serve.py`'s synthesis into the Vite envelope (`index.html`) between extraction markers; `serve.py`'s login page EXTRACTS that head (one source of truth, the file's own pattern); `_document()` becomes stale-check → locked rebuild → serve `dist` bytes. A `TM_DESIGN_ROOT` env lets R73 point `serve.py` at a scratch copy so no rule ever mutates the real source.
 
 **Tech Stack:** Python 3.12 stdlib (serve.py), npm at `/Users/izno/.nvm/versions/node/v22.13.1/bin/npm` (build measured at 0.4 s), Playwright harness (`command python3`, `channel="chrome"`).
 
@@ -16,7 +25,7 @@
 - `refonte.html`: zero bytes changed. The harness's measuring URL and `wrapped.html` ritual: unchanged.
 - Conventional Commits, scope `(shell-mobile)`, French messages, no AI attribution. Comments English, no session/date refs.
 - Never `rg` unfiltered; `curl` with `--connect-timeout 10 --max-time 30`; `command python3`; scratch ports only (8913/8917/8918 — never 8710/8711/8899/8712 for scratch).
-- The pm2 host `torrentmate-design` serves THIS tree — restart it when `serve.py` or the envelope change, and note that `pwa.py`/`entree.py` measure it live.
+- The pm2 host `torrentmate-design` serves THIS tree — restart it when `serve.py` or the envelope change, and note that `pwa.py`/`entry.py` measure it live.
 - One measuring process at a time. Re-sync recipe (unchanged):
   ```bash
   command python3 - <<'EOF'
@@ -128,10 +137,10 @@ Expected: count ≥ 1 and the message.
       from the CURRENT envelope). Re-sync `wrapped.html` (Global Constraints), then:
 
 ```bash
-cd /Users/izno/dev/PersonalScraper/frontend/maquette/harness && command python3 coquille.py | tail -3
+cd /Users/izno/dev/PersonalScraper/frontend/maquette/harness && command python3 shell.py | tail -3
 ```
 
-Expected: `23 règles EXÉCUTÉES — aucune violation`.
+Expected: `23 rules EXECUTED — no violation`.
 
 - [ ] **Step 5: Commit**
 
@@ -147,12 +156,12 @@ git commit -m "refactor(shell-mobile): la tête PWA vit dans l'enveloppe; le por
 
 **Files:**
 
-- Modify: `frontend/maquette/serve.py` (`HEAD`/`TAIL` die; `_document()` rewritten; `MANQUANT` joined by `panne_build()`; `TM_DESIGN_RACINE` env; a build lock)
+- Modify: `frontend/maquette/serve.py` (`HEAD`/`TAIL` die; `_document()` rewritten; `MANQUANT` joined by `panne_build()`; `TM_DESIGN_ROOT` env; a build lock)
 
 **Interfaces:**
 
 - Consumes: Task 1's envelope; `npm run build` (0.4 s) emitting `design/dist/index.html`.
-- Produces: authenticated `GET /` ≡ `dist/index.html` bytes; stale sources rebuild before serving; build failure → 503 naming it. `TM_DESIGN_RACINE` (absolute path env) points serve.py at another design root — Task 3's rule depends on exactly that.
+- Produces: authenticated `GET /` ≡ `dist/index.html` bytes; stale sources rebuild before serving; build failure → 503 naming it. `TM_DESIGN_ROOT` (absolute path env) points serve.py at another design root — Task 3's rule depends on exactly that.
 
 - [ ] **Step 1: Root and constants.** At serve.py's constant section (top, where `PROTOTYPE` is defined), replace
 
@@ -295,7 +304,7 @@ ln -s "$(pwd)/design/assets" "$R/assets"
 HASH=$(command python3 -c "import hashlib,os,base64; s=os.urandom(16); \
 print(base64.b64encode(s).decode()+':'+base64.b64encode( \
 hashlib.scrypt(b'epreuve', salt=s, n=16384, r=8, p=1, dklen=32)).decode())")
-TM_DESIGN_RACINE="$R" TM_DESIGN_PASSWORD_HASH="$HASH" command python3 serve.py 8918 & SRV=$!
+TM_DESIGN_ROOT="$R" TM_DESIGN_PASSWORD_HASH="$HASH" command python3 serve.py 8918 & SRV=$!
 sleep 1
 COOKIE=$(curl --connect-timeout 10 --max-time 30 -s -D - -o /dev/null \
   -d "identifiant=izno&motdepasse=epreuve" "http://127.0.0.1:8918/connexion" \
@@ -334,25 +343,25 @@ _document() compare le mtime le plus récent des sources du build à celui de
 dist/index.html, reconstruit sous verrou quand c'est périmé (0,4 s mesuré),
 et sert les octets du build. Un build en échec répond 503 avec ses propres
 derniers mots — servir l'ancienne version daterait faussement ce qui est
-jugé. TM_DESIGN_RACINE pointe le serveur sur une copie de brouillon pour
+jugé. TM_DESIGN_ROOT pointe le serveur sur une copie de brouillon pour
 que la règle R73 mute sans toucher la source réelle."
 ```
 
 ---
 
-### Task 3: R73 — `harness/bascule.py`
+### Task 3: R73 — `harness/switchover.py`
 
 **Files:**
 
-- Create: `frontend/maquette/harness/bascule.py`
+- Create: `frontend/maquette/harness/switchover.py`
 - Modify: `frontend/maquette/regions.json` (R73 entry), `frontend/maquette/README.md` (row)
 
 **Interfaces:**
 
-- Consumes: `TM_DESIGN_RACINE` + `TM_DESIGN_PASSWORD_HASH` envs of serve.py; `commun.Journal`.
+- Consumes: `TM_DESIGN_ROOT` + `TM_DESIGN_PASSWORD_HASH` envs of serve.py; `common.Journal`.
 - Produces: the 44th rule.
 
-- [ ] **Step 1: Write the rule** — `frontend/maquette/harness/bascule.py` (no Playwright —
+- [ ] **Step 1: Write the rule** — `frontend/maquette/harness/switchover.py` (no Playwright —
       this rule measures HTTP, not rendering):
 
 ```python
@@ -481,21 +490,21 @@ main()
 - [ ] **Step 2: Run it green**
 
 ```bash
-cd /Users/izno/dev/PersonalScraper/frontend/maquette/harness && command python3 bascule.py; echo "exit=$?"
+cd /Users/izno/dev/PersonalScraper/frontend/maquette/harness && command python3 switchover.py; echo "exit=$?"
 ```
 
-Expected: `5 règles EXÉCUTÉES — aucune violation`, exit 0.
+Expected: `5 rules EXECUTED — no violation`, exit 0.
 
 - [ ] **Step 3: Mutation one — the staleness comparison inverted; hold (b) must fall.** In
       `frontend/maquette/serve.py`, temporarily change `if bati < sources:` to
-      `if bati > sources:` (Edit tool, one token), run `command python3 bascule.py; echo "exit=$?"`.
-      Expected: exit 1, `ECHEC une source modifiée est reconstruite à la volée` (the byte-identity
+      `if bati > sources:` (Edit tool, one token), run `command python3 switchover.py; echo "exit=$?"`.
+      Expected: exit 1, `FAIL an edited source is rebuilt on the fly` (the byte-identity
       check may also fall — dist never gets built on the fresh scratch — name whatever falls, the
       rebuild check MUST be among them). Restore with `git checkout -- ../serve.py`, re-run green.
 
 - [ ] **Step 4: Mutation two — the failure path masked; hold (c) must fall.** Temporarily
       change `raise RuntimeError("\n".join(queue))` to `pass  # muted` (keeping indentation
-      valid), run the rule. Expected: exit 1, `ECHEC un build cassé répond 503 en le disant` —
+      valid), run the rule. Expected: exit 1, `FAIL a broken build answers 503 and says so` —
       the host served the stale document instead. Restore with `git checkout -- ../serve.py`,
       re-run green.
 
@@ -503,17 +512,17 @@ Expected: `5 règles EXÉCUTÉES — aucune violation`, exit 0.
       siblings): what it holds (served bytes ≡ build; stale sources rebuilt before serving;
       broken build answers 503 naming itself, heals on restore), how verified (two serve.py
       mutations, each felling its own hold: inverted staleness starves the rebuild; muted
-      failure serves the stale document). README table row after `coquille.py`:
+      failure serves the stale document). README table row after `shell.py`:
 
 ```
-| `bascule.py`      | R73: the host serves the build to the byte, rebuilds stale sources before serving, and a broken build answers 503 that says so — proven against a scratch design root, never the real source |
+| `switchover.py`   | R73: the host serves the build to the byte, rebuilds stale sources before serving, and a broken build answers 503 that says so — proven against a scratch design root, never the real source |
 ```
 
 - [ ] **Step 6: Commit**
 
 ```bash
 cd /Users/izno/dev/PersonalScraper
-git add frontend/maquette/harness/bascule.py frontend/maquette/regions.json frontend/maquette/README.md
+git add frontend/maquette/harness/switchover.py frontend/maquette/regions.json frontend/maquette/README.md
 git commit -m "test(shell-mobile): R73 — l'hôte sert le build, prouvé sur une racine de brouillon
 
 Trois tenues sur HTTP nu : octets servis ≡ dist/index.html, source modifiée
@@ -529,7 +538,7 @@ la reconstruction ; l'échec muselé sert le document périmé."
 
 **Files:**
 
-- Modify (only if the suite says so): `harness/demarrage.py`, `harness/deconnexion.py`, `harness/pwa.py`, `harness/entree.py`
+- Modify (only if the suite says so): `harness/startup.py`, `harness/logout.py`, `harness/pwa.py`, `harness/entry.py`
 - Modify: `frontend/maquette/README.md` (serving-path paragraph), `IMPLEMENTATION.md` (bascule entry), `personalscraper/__init__.py` (`0.97.3`)
 
 **Interfaces:**
@@ -542,13 +551,13 @@ la reconstruction ; l'échec muselé sert le document périmé."
 cd /Users/izno/dev/PersonalScraper/frontend/maquette/harness
 rm -f /tmp/tm-refonte/suite-bascule.log
 nohup bash -c 'for s in *.py; do
-    [ "$s" = commun.py ] && continue
+    [ "$s" = common.py ] && continue
     command python3 "$s" > /dev/null 2>&1 || echo "FAILED: $s" >> /tmp/tm-refonte/suite-bascule.log
   done; echo "SUITE TERMINEE" >> /tmp/tm-refonte/suite-bascule.log' > /dev/null 2>&1 &
 ```
 
-Poll until `SUITE TERMINEE`. Expected: zero `FAILED:`. A failure in `demarrage.py`/
-`deconnexion.py`/`pwa.py`/`entree.py` is diagnosed by mechanism (what did the serving
+Poll until `SUITE TERMINEE`. Expected: zero `FAILED:`. A failure in `startup.py`/
+`logout.py`/`pwa.py`/`entry.py` is diagnosed by mechanism (what did the serving
 change actually alter?) and fixed inside the rule ONLY where its expectation described the
 old synthesis; anything else stops and reports.
 

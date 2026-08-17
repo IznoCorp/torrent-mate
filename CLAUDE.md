@@ -138,6 +138,8 @@ Alternative: run steps individually (`personalscraper ingest`, then `personalscr
 - Docstrings include: description, `Args:`, `Returns:`, `Raises:` (as applicable)
 - **Inline comments** for non-trivial logic explaining the "why" (not the "what")
 - Docstring/comment language: **English**
+- **No French in the code, and no interface text in the code** — see §Language below. It is
+  enforced, not remembered: `python3 scripts/check-no-french.py` (in `make check` and in CI).
 - New tests: choose unit / integration / manual E2E — see `docs/reference/testing.md`.
 - **Module size**: soft warning at 800 non-blank LOC, hard ceiling 1000 LOC (exit 1). Run `python3 scripts/check-module-size.py` (also wired into `make check`).
 
@@ -212,6 +214,26 @@ all engineering documentation (`docs/`, `BUGS.md`, `CHANGELOG.md`, `ROADMAP.md`,
 - `docs/archive/` is frozen history — never translated, never restyled.
 - Maquette/harness comments carry no reference to a session, a phase or a dated decision —
   they must still read years from now, out of context.
+
+**The code itself contains NO French, and no interface text.** Two halves of one rule,
+enforced by `scripts/check-no-french.py` (four arms, in `make check` and in CI):
+
+- **English names, everywhere and always**: identifiers, function/type/**class** names (code
+  AND CSS), **file and directory names**, and every message the tools print. A new file, a new
+  class, a new variable is named in English on the day it is written — this is not a cleanup
+  someone does later.
+- **No UI string lives in the code.** The French a reader of the interface sees lives in the
+  i18n resources: `frontend/maquette/design/src/i18n/fr.json` for the shell — read through
+  `useTranslation()` — and the same file's `server` namespace for the pages `serve.py` serves.
+  Extract strings, never retype them: a retyped string is a defect, because it renders
+  correctly while the reference is broken.
+- **What is NOT French-in-the-code**, and must stay as it is: the French a harness hold
+  ASSERTS (that is the app's rendered output — translating it would silently stop measuring
+  anything), data values and `data-*` names/values, route paths and addresses, and the config
+  keys the settings dictionaries are keyed by. Each such literal carries a
+  `# french-ok: <reason>` / `// french-ok: <reason>` pragma; a pragma with no reason is itself
+  a violation. The frozen CSS-class exceptions live in `frontend/maquette/regions.json`'s
+  `$vocabulary`, each with the reason it was kept.
 
 ## Reference Index (lazy-load when relevant)
 

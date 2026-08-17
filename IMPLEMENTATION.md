@@ -35,7 +35,7 @@ code until the operator's judgement (step 2 above). Non-negotiable.
 
 ## Current state
 
-Seven waves have landed. Each squash-merged onto `main` after green CI and a clean final
+Eight waves have landed. Each squash-merged onto `main` after green CI and a clean final
 adversarial review; none of them derives app code.
 
 | Wave | Branch | PR | What it settled |
@@ -46,73 +46,77 @@ adversarial review; none of them derives app code.
 | **SP3 — the router, by strangler** | `feat/maquette-sp3` | #432 | React 19 + TanStack Router as the outer shell and the SINGLE writer of URL and history; the legacy engine speaks `window.__pont` (R74), and `design/` gained its own strict typecheck gate. |
 | **SP4a — the machinery** | `feat/maquette-sp4a` | #437 | `magasin` (TanStack Store) became the owner of the engine's state, the host learned to answer ANY address (SPA fallback), and `/profil/$titre` + `/ajout` landed as the first real routes (R75, R76). |
 | **SP4b — the fiche and the panel** | `feat/maquette-sp4b` | #441 | `<PanelContent>`/`<Sheet>` became the single React panel and `openSheet()` retired to a tripwire; `/fiche/$titre` landed as a real route, and scroll is now kept per HISTORY ENTRY rather than per address. |
+| **SP4c — resolution and releases** | `feat/maquette-sp4c` | #442 | `/resolution/$dossier` and `/releases/$titre` landed as real routes, `Pont.reculer(n)` killed M11's double Back, and R57's probe moved off the legacy `#screen` onto the screen's own identity. |
 
 The full record of each wave, in the words written when it landed, is in
 `docs/superpowers/shell-mobile-wave-log.md`; the per-wave plans are in `docs/superpowers/plans/`.
 
 ### The latest wave, in full
 
-**SP4c — resolution and releases, and M11 dies**: Branch `feat/maquette-sp4c`. Two more screens
-land as real routes: `/resolution/$dossier` (`ResolutionScreen`, transplanted from `openResolve()`)
-and `/releases/$titre` (`ReleasesScreen`, transplanted from `openReleases()`), both through
-`window.__ecrans` alongside `.fiche()`/`.profil()`. A fidelity walk against the deleted legacy
-bodies found zero rendering divergence — 124/124, 78/78 and 80/80 boxes across the arbitration's
-three shapes, all textual differences traced to inter-tag whitespace the templates left between
-block boxes, never inside a run of text. The `data-resolve` collision the brief flagged as a
-pre-read (candidate branch vs. a panel branch reading the same attribute for a different purpose)
-turned out to be order-only: the candidate branch runs first and returns, the panel branch is
-unreachable dead code (proven with a synthetic click), rewired anyway to keep saying the true
-verb. `data-profil`'s three legacy producers were traced one by one; only `openReleases`' own
-"Ouvrir le profil de qualité →" lived inside a `#screen`, so the two-way branch
-(route-open → `__pont.retour()`; else → `__panneau.fermer()`) is complete — a third `#screen`
-branch would have been dead code. **M11 (the Associer flow's double `history.back()`) dies**:
-`Pont` gains `reculer(n)` — flush pending writes, announce, then `historique.go(-n)` — and the
-fragment's latch counts `deroulementEnCours += 1` per **announcement**, not per entry: the
-browser coalesces a multi-entry `history.go(-n)` traversal into ONE popstate, so the brief's own
-`+= n` was measured wrong (mutation m2 proved it swallows the operator's next real Back) before
-`ident.py`'s new history-hold caught it. R57 (`decision.py`) is amended: its `ECRAN` probe now
-reads `.screen.open[data-cle^="resolution:"]` instead of rooting on the legacy `#screen`, which
-the arbitration screen no longer renders into — the same identity-read shift `panel.py` and
-`gallery.py` made for the fiche in SP4b, one line, mutation-proven (24/24 both ways). The
-per-identity ladder pair (`fiche:`/`ajout:`) that four harnesses (`audit.py`, `audit2.py`,
-`dest.py`, `states.py`) carried collapses to ONE generic, ladder-last rung —
-`.screen.open[data-cle]` — covering `resolution:`/`releases:` and closing the pre-existing
-`profil:` coverage hole in the same edit; wiring it surfaced a latent, pre-existing R10 defect in
-`audit.py`'s own `couche()` helper (it tested `#sheet`/`#screen`/`#dlg` but no route, so a click
-opening `/resolution/…` read as "changed nothing" — confirmed pre-existing via `git stash`, fixed
-alongside). `harness/server.py`'s SPA fallback mis-read any route param carrying its own dots
-(`Backrooms.2026.MULTi.2160p.WEB-DL`, a real staging folder name) as a missing file extension and
-404ed; fixed to fold to the document for any path that is not a real file, except under the two
-directories the served root actually holds files in (`/assets/`, `/vite/`). The live host
-(`serve.py`, R73) never carried this defect — verified with a new `switchover.py` hold, not assumed.
-R75 (`screen_addresses.py`) gains six holds (k)-(p): both screens open cold at a dotted deep
-address, one Back lands on `/`, an unknown subject renders the arbitration's own honest empty
-case rather than raising — 35 → 49 holds, all green, mutation-proven (a severed route falls 14).
-`releaseCardHTML`/`decisionCardHTML` — the legacy builders the two screens were transplanted
-from — are deleted with zero remaining callers once the components took over; `ReleaseCard` and
-`DecisionCard` (`design/src/screens/resolution.tsx`) are their replacements. Wave gate: full
-48-script suite green, `make check`/`make check-frontend` green, R59/R69/R71
-(`back.py`/`url_state.py`/`screens.py`) byte-identical against the SP4b merge point
-(`9842e44d`) — `screens.py` included, since this wave's two screens are not ones it traverses.
-Carried open: the 240 ms dead delay on `data-suivante` (a frozen quarter-second, was a legacy
-screen-close cover — kept identical under the binding-parity constraint; flagged for the operator
-in `BUGS.md`'s evolutions register, not fixed here); a deep `/releases/$titre` entry with no
-`__ecrans` call leaves `relTitre` null for `data-prendre` (mirrors the accepted `/ajout`
-addQ/addMode debt, dies with the legacy dispatcher), and a deep `/resolution/$dossier` entry the
-same way leaves `resolveTarget` stale for `data-resolve`/`data-laisser` (same settlement, same
-door, dies with the legacy dispatcher too); `ident.py`'s only remaining `#screen` read is `ou()`'s
-`ecran` field — deliberately left, recorded under R57 — since its two early informational probes
-(the arbitration screen's `.h2`, the add screen's banner/field/id-block) already moved to
-`.screen.open[data-cle^="resolution:"]` / `[data-cle^="ajout:"]` and no longer print `None`.
-Next: the rest of the catch-all surface by surface; then SP5 (visual language).
+**clean-code / i18n — no French in the code, and no interface text in it either**: Branch
+`refactor/clean-code-i18n`, version 0.97.17 (ONE bump for the whole wave). The operator's binding
+directive of 2026-08-16, made into something enforced rather than remembered.
+
+Nine tasks. **T1/T2** put `react-i18next` in the shell and moved every UI string of the six
+components into `design/src/i18n/fr.json` (343 leaves; the panel's three dictionaries account for
+156 of them), proven byte-identical on innerText AND textContent across 81 driven states.
+**T3** put `design/src`'s files, directories and ~140 declarations into English around a FROZEN
+seam — the ~65 member names the legacy fragment calls, every `data-*` name and value, the `__go`
+state ids, the route paths — with a 934-literal audit proving no rendered byte moved. **T9**
+turned the eight French CSS classes English across all four worlds (fragment, components, harness
+selectors, extracted stylesheet), and recorded in `regions.json`'s `$vocabulary` the thirteen
+names KEPT with the evidence for each. **T4/T5** renamed 29 harness files and translated all 49
+scripts' identifiers, labels and printed formats — `OK`/`ECHEC` became `PASS`/`FAIL`, « N règles
+EXÉCUTÉES » became `N rules EXECUTED` — verified by AST-anonymised equality on 39 of the 49
+scripts and by the hold total, 485, unchanged.
+
+**T6** finished the two servers. `serve.py`'s identifiers, its two environment names
+(`TM_DESIGN_ROOT`, `TM_DESIGN_BUILD_TIMEOUT`) and its diagnostics are English, and the French it
+SERVES left the file entirely: the sign-in gate's title, the two 503 pages, the offline page and
+the manifest's description are read per request from `fr.json`'s `server` namespace — the same
+discipline that already made the gate EXTRACT the login screen's markup instead of restating it.
+Every served page is byte-identical across the move (sign-in 108171 bytes, refused 108164,
+manifest 756, offline 652, missing-prototype 576, build-failure frame 572); the one thing that
+moved in the whole host is the service worker's own constant name. `build_failure` gained the
+guard a constant could not need: if the copy itself is unreadable it answers an English
+diagnostic page naming the copy as the defect, because the page that reports every other failure
+may not fail silently. `resync.py` followed, and its two `BUGS.md` mutation recipes were re-run
+and re-pointed — as was B-029's, whose quotation still named a French hold label the harness
+stopped printing two tasks earlier.
+
+**T7 is the half that outlives the wave**: `scripts/check-no-french.py`, four arms — strings,
+identifiers, file names, class names — in `make check` and in its own CI job. Each arm has its
+own scope, because "French" means one thing in a component and another in a rule script that
+ASSERTS the French the app renders: over the harness the string arm reads only the hold LABELS.
+Every exception cites its reason, and the CSS-class exceptions are READ from `regions.json`'s
+`$vocabulary` so those reasons have exactly one home. Five mutations, each felling exactly its
+own arm. Two of them earned their place immediately: the class arm did NOT fall at first — it
+split names into words, and this vocabulary is written flat (`bandeaufiche`), so it had been
+letting everything through; and the coverage guard exists because an arm whose scope silently
+empties otherwise announces « no violation » while measuring nothing.
+
+What the gate found on its first run, beyond the wave's own list: two French names still in the
+PRODUCTION app (`SystemePage`, `EpisodeStateLegende` — renamed, 1364 frontend tests green), the
+50th harness file (`rename.mjs`, entirely French — translated, and repaired: it read its
+hand-authored name table from a vanished session scratchpad, so it threw on its first line and
+could not run at all), a local `refonte` in `bridge.py`, and four literals that are data or
+addresses rather than copy, now each carrying a `french-ok:` pragma with the reason already
+written beside it.
+
+Wave gate: `resync.py` reports no drift, the full 48-script suite is green with **485 holds —
+the same total the wave started with**, `make check` and `make check-frontend` green. The count
+is the sum of the scripts' own `N rules EXECUTED` lines (`pwa.py`'s 28 checks are tallied
+separately, and six scripts print holds without a Journal tally) — recorded here because the
+next wave should not have to rediscover how the number is made.
 
 ### The wave order from here (operator ruling, 2026-08-16)
 
-1. **clean-code / i18n — IN PROGRESS.** No French anywhere in code, including class
-   names (code AND CSS) and file names; UI text lives in i18n files, never inline. The
-   legacy `refonte.html` fragment is exempt from IDENTIFIER renaming (it dies at
-   SP4-fin) but NOT from CSS class renaming — a class is a name shared by four worlds.
-   Scope: `design/src`, the harness, `serve.py`, `resync.py`, and all new code anywhere.
+1. **clean-code / i18n — DONE** (branch `refactor/clean-code-i18n`, recorded above). The
+   rule now has a gate, and it is written where it is enforced: root `CLAUDE.md`
+   (§Code Conventions, §Language) and `frontend/maquette/README.md` (§Language of the
+   source, §Where the interface's French lives). Every wave below is born under it:
+   English names on the day a thing is written, interface text in `fr.json` from the
+   first line.
 2. **SP4d — four waves**, in this order: sys + maint + config → arrivées → médiathèque
    (with E-001) → acquisition.
 3. **SP4-fin** — the engine's death: empty fragment, `refonte.html` retired as a source,

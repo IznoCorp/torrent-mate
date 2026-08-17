@@ -316,7 +316,7 @@ per call would loop. Components select the narrowest stable slice.
   unauthenticated `/assets/…` answers 401 (the permanent portal rule, now held).
 
 - [ ] **Step 1: Amend R73 first.** In `bascule.py` (it already boots `serve.py` against a
-      scratch root with `TM_DESIGN_RACINE`): add holds — (fallback) GET `/fiche/Quoi%20Que`
+      scratch root with `TM_DESIGN_ROOT`): add holds — (fallback) GET `/fiche/Quoi%20Que`
       with a session answers 200 and the SAME bytes as `/`; without a session answers the
       login page like `/` does; (favicon) GET `/favicon.svg` answers 200 `image/svg+xml`;
       (portal) GET `/assets/x.webp` WITHOUT a session answers 401 — never the login page,

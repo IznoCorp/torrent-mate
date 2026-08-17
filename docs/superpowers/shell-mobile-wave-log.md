@@ -184,6 +184,66 @@ Next: the rest of the catch-all surface by surface; then SP5 (visual language).
 
 ---
 
+## clean-code / i18n — no French in the code, and no interface text in it either
+
+Branch
+`refactor/clean-code-i18n`, version 0.97.17 (ONE bump for the whole wave). The operator's binding
+directive of 2026-08-16, made into something enforced rather than remembered.
+
+Nine tasks. **T1/T2** put `react-i18next` in the shell and moved every UI string of the six
+components into `design/src/i18n/fr.json` (343 leaves; the panel's three dictionaries account for
+156 of them), proven byte-identical on innerText AND textContent across 81 driven states.
+**T3** put `design/src`'s files, directories and ~140 declarations into English around a FROZEN
+seam — the ~65 member names the legacy fragment calls, every `data-*` name and value, the `__go`
+state ids, the route paths — with a 934-literal audit proving no rendered byte moved. **T9**
+turned the eight French CSS classes English across all four worlds (fragment, components, harness
+selectors, extracted stylesheet), and recorded in `regions.json`'s `$vocabulary` the thirteen
+names KEPT with the evidence for each. **T4/T5** renamed 29 harness files and translated all 49
+scripts' identifiers, labels and printed formats — `OK`/`ECHEC` became `PASS`/`FAIL`, « N règles
+EXÉCUTÉES » became `N rules EXECUTED` — verified by AST-anonymised equality on 39 of the 49
+scripts and by the hold total, 485, unchanged.
+
+**T6** finished the two servers. `serve.py`'s identifiers, its two environment names
+(`TM_DESIGN_ROOT`, `TM_DESIGN_BUILD_TIMEOUT`) and its diagnostics are English, and the French it
+SERVES left the file entirely: the sign-in gate's title, the two 503 pages, the offline page and
+the manifest's description are read per request from `fr.json`'s `server` namespace — the same
+discipline that already made the gate EXTRACT the login screen's markup instead of restating it.
+Every served page is byte-identical across the move (sign-in 108171 bytes, refused 108164,
+manifest 756, offline 652, missing-prototype 576, build-failure frame 572); the one thing that
+moved in the whole host is the service worker's own constant name. `build_failure` gained the
+guard a constant could not need: if the copy itself is unreadable it answers an English
+diagnostic page naming the copy as the defect, because the page that reports every other failure
+may not fail silently. `resync.py` followed, and its two `BUGS.md` mutation recipes were re-run
+and re-pointed — as was B-029's, whose quotation still named a French hold label the harness
+stopped printing two tasks earlier.
+
+**T7 is the half that outlives the wave**: `scripts/check-no-french.py`, four arms — strings,
+identifiers, file names, class names — in `make check` and in its own CI job. Each arm has its
+own scope, because "French" means one thing in a component and another in a rule script that
+ASSERTS the French the app renders: over the harness the string arm reads only the hold LABELS.
+Every exception cites its reason, and the CSS-class exceptions are READ from `regions.json`'s
+`$vocabulary` so those reasons have exactly one home. Five mutations, each felling exactly its
+own arm. Two of them earned their place immediately: the class arm did NOT fall at first — it
+split names into words, and this vocabulary is written flat (`bandeaufiche`), so it had been
+letting everything through; and the coverage guard exists because an arm whose scope silently
+empties otherwise announces « no violation » while measuring nothing.
+
+What the gate found on its first run, beyond the wave's own list: two French names still in the
+PRODUCTION app (`SystemePage`, `EpisodeStateLegende` — renamed, 1364 frontend tests green), the
+50th harness file (`rename.mjs`, entirely French — translated, and repaired: it read its
+hand-authored name table from a vanished session scratchpad, so it threw on its first line and
+could not run at all), a local `refonte` in `bridge.py`, and four literals that are data or
+addresses rather than copy, now each carrying a `french-ok:` pragma with the reason already
+written beside it.
+
+Wave gate: `resync.py` reports no drift, the full 48-script suite is green with **485 holds —
+the same total the wave started with**, `make check` and `make check-frontend` green. The count
+is the sum of the scripts' own `N rules EXECUTED` lines (`pwa.py`'s 28 checks are tallied
+separately, and six scripts print holds without a Journal tally) — recorded here because the
+next wave should not have to rediscover how the number is made.
+
+---
+
 ## What is already done, ahead of the phase plan
 
 The prototype and its harness carry the design; some app-side work was pulled forward because

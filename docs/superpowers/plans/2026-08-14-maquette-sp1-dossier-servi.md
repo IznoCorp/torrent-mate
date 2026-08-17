@@ -2,6 +2,15 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Re-pointed 2026-08-17 (clean-code / i18n wave).** The harness moved to
+> English: its scripts were renamed, its hold labels translated, and its printed
+> verdict is now `  PASS` / `  FAIL` and `N rules EXECUTED — no violation`. Every
+> quoted expectation and every file name below was re-pointed at what the current
+> sources actually say — a quotation that silently misses its target is how a
+> recipe stops working without anyone noticing. Two things were deliberately NOT
+> rewritten: the fenced source LISTINGS, which are the code as authored on the
+> day, and the hold COUNTS, which are what was expected then. The counts quoted here still match.
+
 **Goal:** Move the prototype into a dedicated served directory (`frontend/maquette/design/`) and turn its 930 embedded base64 images into real files under `design/assets/`, without changing a line of prototype logic or harness rule logic.
 
 **Architecture:** `design/` becomes the served root (everything a browser reaches, nothing else); the four image tables keep their keys and lookup semantics but their values become relative `assets/...` URLs; `serve.py` gains one session-gated `/assets/` route; the harness reaches assets through a symlink next to `wrapped.html`.
@@ -31,7 +40,7 @@
 
 - Create: `frontend/maquette/design/` (via `git mv`)
 - Modify: `frontend/maquette/serve.py:50`
-- Modify: `frontend/maquette/harness/panneau.py:71`, `harness/export.py:33,53`, `harness/demarrage.py:48,78`, `harness/palette.py:30`, `harness/renommer.mjs:25`
+- Modify: `frontend/maquette/harness/panel.py:71`, `harness/export.py:33,53`, `harness/startup.py:48,78`, `harness/palette.py:30`, `harness/rename.mjs:25`
 - Modify: `scripts/extract-maquette-css.py:41`
 - Modify: `frontend/maquette/regions.json:4`
 
@@ -62,7 +71,7 @@ PROTOTYPE = Path(__file__).resolve().parent / "design" / "refonte.html"
 
 (`DOSSIER_ASSETS = PROTOTYPE.parent / "assets"` at line 66 follows automatically — do not touch it.)
 
-`harness/panneau.py:71`, `harness/export.py:33`, `harness/export.py:53`, `harness/demarrage.py:48`, `harness/demarrage.py:78` — same one-token change at each site:
+`harness/panel.py:71`, `harness/export.py:33`, `harness/export.py:53`, `harness/startup.py:48`, `harness/startup.py:78` — same one-token change at each site:
 
 ```python
 # old
@@ -80,7 +89,7 @@ PROTOTYPE = pathlib.Path(__file__).resolve().parent.parent / "refonte.html"
 PROTOTYPE = pathlib.Path(__file__).resolve().parent.parent / "design" / "refonte.html"
 ```
 
-`harness/renommer.mjs:25`:
+`harness/rename.mjs:25`:
 
 ```js
 // old
@@ -124,7 +133,7 @@ head = ('<!doctype html><html><head><meta charset="utf-8">'
 Path("/tmp/tm-refonte/wrapped.html").write_text(head + src)
 EOF
 cd frontend/maquette/harness
-for s in export.py panneau.py demarrage.py cartes.py; do
+for s in export.py panel.py startup.py cards.py; do
   /Users/izno/.pyenv/versions/3.11.9/bin/python3 "$s" > /dev/null && echo "OK $s" || echo "FAILED: $s"
 done
 ```
@@ -275,12 +284,12 @@ Expected: `200`. (`http.server` follows symlinks — this is the measurement, no
 
 ```bash
 cd frontend/maquette/harness
-for s in cartes.py contenu.py galerie.py deck.py; do
+for s in cards.py content.py gallery.py deck.py; do
   /Users/izno/.pyenv/versions/3.11.9/bin/python3 "$s" > /dev/null && echo "OK $s" || echo "FAILED: $s"
 done
 ```
 
-Expected: four `OK`. A 404'd asset shows up as a console error and `Journal.bilan(erreurs)` fails on those — so green here proves the URLs resolve.
+Expected: four `OK`. A 404'd asset shows up as a console error and `Journal.summary(errors)` fails on those — so green here proves the URLs resolve.
 
 - [ ] **Step 6: Commit** (the extraction script stays in the scratchpad; the message records the method)
 
@@ -305,7 +314,7 @@ byte-à-byte prouvée. 925 contenus distincts + l'avatar du compte."
 **Interfaces:**
 
 - Consumes: `design/assets/` layout from Task 2.
-- Produces: `GET /assets/<sub>` → 200 (session) / 401 (none); brand assets by exact name stay session-free. `entree.py`/`pwa.py` (live host) and the Task 4 suite depend on this behaviour.
+- Produces: `GET /assets/<sub>` → 200 (session) / 401 (none); brand assets by exact name stay session-free. `entry.py`/`pwa.py` (live host) and the Task 4 suite depend on this behaviour.
 
 - [ ] **Step 1: Let a route override the default `Cache-Control`** — in `_send`, replace the unconditional header:
 
@@ -379,7 +388,7 @@ pm2 restart torrentmate-design
 curl --connect-timeout 10 --max-time 30 -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8712/
 ```
 
-Expected: `401` (gate up). The full live proof (`pwa.py`, `entree.py`) runs with the suite in Task 4.
+Expected: `401` (gate up). The full live proof (`pwa.py`, `entry.py`) runs with the suite in Task 4.
 
 - [ ] **Step 5: Commit**
 
@@ -408,7 +417,7 @@ git commit -m "feat(shell-mobile): serve.py sert design/assets/ derrière la ses
 ```bash
 cd frontend/maquette/harness
 ( for s in *.py; do
-    [ "$s" = commun.py ] && continue
+    [ "$s" = common.py ] && continue
     /Users/izno/.pyenv/versions/3.11.9/bin/python3 "$s" > /dev/null 2>&1 \
       || echo "FAILED: $s"
   done; echo "SUITE TERMINEE" ) > /tmp/tm-refonte/suite-sp1.log 2>&1 &
@@ -418,7 +427,7 @@ Poll `/tmp/tm-refonte/suite-sp1.log` until `SUITE TERMINEE` (>20 min). Expected:
 
 - [ ] **Step 3: If a rule fails** — read its output by re-running it alone, in the foreground. Classify:
   - **404 console error** → a URL shape the extraction missed; fix the data, not the rule.
-  - **geometry off with images pending** → the known async-decode risk; fix inside the affected rule (`await pg.evaluate("() => Promise.all([...document.images].map(i => i.decode().catch(() => null)))")` after `ouvrir()`, or explicit dimensions in the prototype if the box should never have been image-sized). One commit per fixed rule, message naming the mechanism.
+  - **geometry off with images pending** → the known async-decode risk; fix inside the affected rule (`await pg.evaluate("() => Promise.all([...document.images].map(i => i.decode().catch(() => null)))")` after `open_page()`, or explicit dimensions in the prototype if the box should never have been image-sized). One commit per fixed rule, message naming the mechanism.
   - Anything else → stop and report; it is not on this task's causal path.
 
 - [ ] **Step 4: Commit** (only if Step 3 touched files)
@@ -439,7 +448,7 @@ git commit -m "fix(shell-mobile): <règle> attend le décodage des images désor
 
 **Interfaces:**
 
-- Consumes: `Journal` and `RACINE` from `harness/commun.py`; the `"assets/<dir>/<hash8>.webp"` value shape from Task 2.
+- Consumes: `Journal` and `ROOT` from `harness/common.py`; the `"assets/<dir>/<hash8>.webp"` value shape from Task 2.
 - Produces: the 42nd script; the suite loop picks it up by globbing `*.py`.
 
 - [ ] **Step 1: Find the next free rule number**
@@ -496,7 +505,7 @@ cd frontend/maquette/harness
 /Users/izno/.pyenv/versions/3.11.9/bin/python3 images.py
 ```
 
-Expected: `2 règles EXÉCUTÉES — aucune violation`, exit 0.
+Expected: `2 rules EXECUTED — no violation`, exit 0.
 
 - [ ] **Step 4: Mutation one — reinsert a data URI, the FIRST check must fall naming it**
 
@@ -510,7 +519,7 @@ EOF
 git checkout -- ../design/refonte.html
 ```
 
-Expected: `ECHEC aucun data:image dans la source` and `exit=1`. The second check stays OK — the mutation names exactly its own defect.
+Expected: `FAIL no data:image in the source` and `exit=1`. The second check stays PASS — the mutation names exactly its own defect.
 
 - [ ] **Step 5: Mutation two — hide one asset file, the SECOND check must fall naming it**
 
@@ -522,7 +531,7 @@ mv /tmp/tm-refonte/_hidden.webp "../design/assets/posters/$UN"
 /Users/izno/.pyenv/versions/3.11.9/bin/python3 images.py > /dev/null && echo "restored green"
 ```
 
-Expected: `ECHEC chaque référence assets/ existe sur disque` with the missing name printed, `exit=1`, then `restored green`.
+Expected: `FAIL every assets/ reference exists on disk` with the missing name printed, `exit=1`, then `restored green`.
 
 - [ ] **Step 6: Register the rule in `regions.json`** — read one existing `$adversarialReview` entry first and append a new entry of the **same shape** for R70, stating: what it holds (no embedded image, no dangling reference), how it was mutation-verified (both mutations, each felling its own check).
 
