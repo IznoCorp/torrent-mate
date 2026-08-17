@@ -75,7 +75,7 @@ def main():
         prepare_scratch()
         server = subprocess.Popen(
             [sys.executable, str(ROOT / "serve.py"), str(PORT)],
-            env={**os.environ, "TM_DESIGN_RACINE": str(SCRATCH),
+            env={**os.environ, "TM_DESIGN_ROOT": str(SCRATCH),
                  "TM_DESIGN_PASSWORD_HASH": fingerprint()},
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 

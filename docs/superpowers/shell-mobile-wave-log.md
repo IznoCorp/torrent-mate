@@ -29,7 +29,7 @@ moved into the Vite envelope (`design/index.html`, between `pwa:start`/`pwa:end`
 and `serve.py` EXTRACTS it for the login gate instead of restating it; `serve.py` now
 serves `dist/index.html`, rebuilding under a lock when any build input is newer (0.4 s),
 with a truthful 503 taxonomy (missing prototype → MANQUANT; missing build input, timeout,
-failed build → the build's own last words, escaped). `TM_DESIGN_RACINE` env and `TM_DESIGN_DELAI_BUILD` exist so R73 (`bascule.py`) proves
+failed build → the build's own last words, escaped). `TM_DESIGN_ROOT` env and `TM_DESIGN_BUILD_TIMEOUT` exist so R73 (`switchover.py`) proves
 the serving contract (byte-identity, rebuild, failure-shown) against a scratch root
 without touching the real source; the finer 503 taxonomy is exercised by the task evidence.
 Merged as PR #431.

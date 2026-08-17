@@ -31,25 +31,25 @@ when the defect comes back.
 
 ## Open
 
-| ID    | Defect                                                  | Reported    | Status       |
-| ----- | ------------------------------------------------------- | ----------- | ------------ |
-| B-019 | Many media sheets have lost their visual                | 1×          | `closed`     |
-| B-020 | Actor portraits on media sheets are broken              | 1×          | `closed`     |
-| B-021 | Signing out leaves the bottom panel on top              | 1×          | `to confirm` |
-| B-022 | « Voir mes suivis » in the add search is inert          | 1×          | `to confirm` |
-| B-023 | Médiathèque « Incomplets »: every visual broken         | 1×          | `closed`     |
-| B-013 | The drawer's entries lead nowhere                       | 2×          | `to confirm` |
-| B-014 | The drawer's current entry is unreadable                | 1×          | `to confirm` |
-| B-015 | Back reopens the drawer that was just closed            | 1×          | `to confirm` |
-| B-016 | Swiping a row right, then left, makes it jump           | 1×          | `to confirm` |
-| B-017 | Closing a panel sends the list back to its top          | by mutation | `to confirm` |
-| B-018 | On a desktop, dragging a row opens the panel            | 1×          | `to confirm` |
-| B-024 | `data-go` settles ONE history entry, layers pile        | by review   | `open`       |
-| B-025 | The screen half of the `data-go` fix has no Back rule   | by review   | `to confirm` |
-| B-026 | A silent `catch {}` can let URL and UI disagree         | by review   | `to confirm` |
-| B-027 | `resync.py` trusts `t:` first-match + naive braces   | by review   | `to confirm` |
-| B-028 | `resync.py` says « 0 correction » for unknown titles | by review   | `to confirm` |
-| B-029 | Counter rule misses suffix drift (« 1 » in « 11 »)      | by review   | `to confirm` |
+| ID    | Defect                                                | Reported    | Status       |
+| ----- | ----------------------------------------------------- | ----------- | ------------ |
+| B-019 | Many media sheets have lost their visual              | 1×          | `closed`     |
+| B-020 | Actor portraits on media sheets are broken            | 1×          | `closed`     |
+| B-021 | Signing out leaves the bottom panel on top            | 1×          | `to confirm` |
+| B-022 | « Voir mes suivis » in the add search is inert        | 1×          | `to confirm` |
+| B-023 | Médiathèque « Incomplets »: every visual broken       | 1×          | `closed`     |
+| B-013 | The drawer's entries lead nowhere                     | 2×          | `to confirm` |
+| B-014 | The drawer's current entry is unreadable              | 1×          | `to confirm` |
+| B-015 | Back reopens the drawer that was just closed          | 1×          | `to confirm` |
+| B-016 | Swiping a row right, then left, makes it jump         | 1×          | `to confirm` |
+| B-017 | Closing a panel sends the list back to its top        | by mutation | `to confirm` |
+| B-018 | On a desktop, dragging a row opens the panel          | 1×          | `to confirm` |
+| B-024 | `data-go` settles ONE history entry, layers pile      | by review   | `open`       |
+| B-025 | The screen half of the `data-go` fix has no Back rule | by review   | `to confirm` |
+| B-026 | A silent `catch {}` can let URL and UI disagree       | by review   | `to confirm` |
+| B-027 | `resync.py` trusts `t:` first-match + naive braces    | by review   | `to confirm` |
+| B-028 | `resync.py` says « 0 correction » for unknown titles  | by review   | `to confirm` |
+| B-029 | Counter rule misses suffix drift (« 1 » in « 11 »)    | by review   | `to confirm` |
 
 **B-018 was written down as a regression from B-016, and that was wrong.** It has two ways in, one
 of which is older than this work — the correction is recorded here rather than quietly amended,
@@ -157,30 +157,40 @@ them. None is reproduced on a device yet; each entry below records the walk that
   follow's counter. Holds today only by convention (all 12 objects start with `t:`), asserted
   nowhere.
   **Fixed.** The title is now read anchored on the object's own opening brace
-  (`re.match(r'\s*\{\s*t:\s*"((?:[^"\\]|\\.)*)"', objet)`): the title must be the FIRST key or the
-  script RAISES, naming the object's head. **Mutation** (proof executed, `task-7-report.md`): a
-  scratch FOLLOWS fragment whose sole object opens on `x:` instead of `t:` → `resync.py`
-  raises `ValueError: objet FOLLOWS sans « t » en première clé : …` quoting the object, rather than
+  (`re.match(r'\s*\{\s*t:\s*"((?:[^"\\]|\\.)*)"', obj)`): the title must be the FIRST key or the
+  script RAISES, naming the object's head. **Mutation** (proof executed, `task-7-report.md`, re-run
+  after the script's messages moved to English): a scratch FOLLOWS fragment whose sole object opens
+  on `x:` instead of `t:` → `resync.py` raises
+  `ValueError: FOLLOWS object whose first key is not "t": …` quoting the object, rather than
   silently skipping it.
 - **B-028** — `resync.py` cannot say a title went unmatched: a FOLLOWS title absent from the
   DB reads exactly like « already in sync », prints `0 correction(s)` and exits 0. Especially
   live once vo-title (#435) changes which spelling a follow carries — the operator running the
   documented remedy gets silence instead of « 4 of 12 titles never looked up ».
   **Fixed.** Every FOLLOWS title with no matching row in `acquire.db` is now collected during the
-  same pass and, if any exist, `resync.py` prints `N titre(s) jamais retrouvé(s): …` naming
-  each and exits 1 — `0 correction(s)` is only ever printed once every title matched. **Mutation**
-  (proof executed): a copy of `refonte.html` with one real FOLLOWS title (« Kyma, l'onde
-  mystérieuse ») misspelled → exit 1, `1 titre(s) jamais retrouvé(s): Kyma, l'onde MISSPELLED`.
-- **B-029** — `content.py`'s counter rule tests `f"{n} recherche" in faits`: « 1 recherche » is a
-  substring of « 11 recherches », so whenever the real count is a suffix of the embedded one the
+  same pass and, if any exist, `resync.py` prints
+  `nothing written — N title(s) never looked up: …` naming each and exits 1 — `0 correction(s)` is
+  only ever printed once every title matched. **Mutation** (proof executed, re-run after the
+  script's messages moved to English): a copy of `refonte.html` with one real FOLLOWS title
+  (« Kyma, l'onde mystérieuse ») misspelled → exit 1,
+  `nothing written — 1 title(s) never looked up: Kyma, l'onde MISSPELLED`. **The mutation must be
+  applied INSIDE the `const FOLLOWS = [` block**: that same title string also appears in the
+  embedded référentiel earlier in the file, so a first-match replace edits the référentiel, leaves
+  FOLLOWS intact, and the run prints `0 correction(s)` — which reads exactly like a guard that no
+  longer bites.
+- **B-029** — `content.py`'s counter rule tests `f"{n} recherche" in s["facts"]`: « 1 recherche » is
+  a substring of « 11 recherches », so whenever the real count is a suffix of the embedded one the
   drift the rule exists to name is never named.
   **Fixed.** The hold now compares numbers with a word boundary
-  (`re.search(rf"\b{n}\s+recherche", faits)`), so a digit that merely ENDS the embedded count no
-  longer satisfies it. **Mutation** (proof executed against the built prototype on 8899): a copy
-  of `refonte.html` with « Kyma, l'onde mystérieuse »'s embedded `recherches` set to 17 while
-  `acquire.db` still holds 7 → the rule falls: `ECHEC les nombres viennent de acquire.db, pas de la
-maquette — ["Kyma, l'onde mystérieuse : « … 17 recherches » vs 7"]`, where the pre-fix substring
-  check (`"7 recherche" in "… 17 recherches"`) would have stayed silently green.
+  (`re.search(rf"\b{r['searches']}\s+recherche", s["facts"])`), so a digit that merely ENDS the
+  embedded count no longer satisfies it. **Mutation** (proof executed against the built prototype on
+  8899): a copy of `refonte.html` with « Kyma, l'onde mystérieuse »'s embedded `recherches` set to
+  17 while `acquire.db` still holds 7 → the rule falls:
+  `FAIL the numbers come from acquire.db, not from the mock-up — ["Kyma, l'onde mystérieuse : « …
+17 recherches » vs 7"]`, where the pre-fix substring check
+  (`"7 recherche" in "… 17 recherches"`) would have stayed silently green. The searched word
+  `recherche` is the French the prototype RENDERS — it stays French; only the hold's own label and
+  the verdict word moved to English.
 
 ---
 

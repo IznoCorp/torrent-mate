@@ -17,159 +17,165 @@ import sqlite3
 import subprocess
 import sys
 
-RACINE = pathlib.Path(__file__).resolve().parent
-PROTOTYPE = RACINE / "design" / "refonte.html"
+ROOT = pathlib.Path(__file__).resolve().parent
+PROTOTYPE = ROOT / "design" / "refonte.html"
 ACQUIRE = pathlib.Path(os.path.expanduser(
     "~/dev/PersonalScraper/.data/acquire.db"))
 # The drawer's « Version déployée » names what PRODUCTION runs — the deploy
 # checkout is where that truth lives, not this working tree.
-DEPLOIEMENT = pathlib.Path(os.path.expanduser("~/deploy/torrentmate"))
+DEPLOYMENT = pathlib.Path(os.path.expanduser("~/deploy/torrentmate"))
 
 
-def compteurs_reels() -> dict[str, int]:
+def real_counters() -> dict[str, int]:
     """Returns, per followed title, the search count the engine really holds."""
     db = sqlite3.connect(f"file:{ACQUIRE}?mode=ro", uri=True)
     db.row_factory = sqlite3.Row
-    reels = {}
-    for f in db.execute("SELECT title, media_ref_json FROM followed_series"):
-        w = db.execute(
+    real = {}
+    for follow in db.execute("SELECT title, media_ref_json FROM followed_series"):
+        attempts = db.execute(
             "SELECT sum(attempts) att FROM wanted WHERE media_ref_json = ?",
-            (f["media_ref_json"],)).fetchone()
-        reels[f["title"]] = w["att"] or 0
+            (follow["media_ref_json"],)).fetchone()
+        real[follow["title"]] = attempts["att"] or 0
     db.close()
-    return reels
+    return real
 
 
-def objets_du_bloc(bloc: str) -> list[tuple[int, int]]:
+def block_objects(block: str) -> list[tuple[int, int]]:
     """Returns the [start, end) spans of the array's top-level objects."""
-    spans, prof, debut = [], 0, 0
-    for i, ch in enumerate(bloc):
-        if ch == "{":
-            if prof == 0:
-                debut = i
-            prof += 1
-        elif ch == "}":
-            prof -= 1
-            if prof == 0:
-                spans.append((debut, i + 1))
+    spans, depth, start = [], 0, 0
+    for index, char in enumerate(block):
+        if char == "{":
+            if depth == 0:
+                start = index
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                spans.append((start, index + 1))
     return spans
 
 
-def principal() -> int:
+def main() -> int:
+    """Rewrites every drifted counter, plus the drawer's footer.
+
+    Returns:
+        Process exit status: 1 when a title was never looked up (nothing is
+        written in that case), 0 otherwise.
+    """
     if not ACQUIRE.is_file():
-        print(f"base absente : {ACQUIRE}")
+        print(f"database absent: {ACQUIRE}")
         return 1
-    reels = compteurs_reels()
-    texte = PROTOTYPE.read_text(encoding="utf-8")
-    i = texte.find("const FOLLOWS = [")
-    j = texte.find("\n  ];", i)
+    real = real_counters()
+    text = PROTOTYPE.read_text(encoding="utf-8")
+    i = text.find("const FOLLOWS = [")
+    j = text.find("\n  ];", i)
     if i < 0 or j < 0:
-        print("bloc FOLLOWS introuvable dans le prototype")
+        print("FOLLOWS block not found in the prototype")
         return 1
-    bloc = texte[i:j]
+    block = text[i:j]
 
     corrections = []
-    introuvables = []
-    morceaux, prec = [], 0
-    for a, b in objets_du_bloc(bloc):
-        objet = bloc[a:b]
+    unmatched = []
+    pieces, previous = [], 0
+    for a, b in block_objects(block):
+        obj = block[a:b]
         # Anchored on the object's opening brace: the title must be the FIRST
         # key, not merely the first `t: "…"` found anywhere in the object —
         # a stray `t:`-shaped key elsewhere would otherwise win silently.
-        mt = re.match(r'\s*\{\s*t:\s*"((?:[^"\\]|\\.)*)"', objet)
-        if not mt:
+        title_match = re.match(r'\s*\{\s*t:\s*"((?:[^"\\]|\\.)*)"', obj)
+        if not title_match:
             raise ValueError(
-                f"objet FOLLOWS sans « t » en première clé : {objet[:80]!r}")
-        titre = mt.group(1).replace('\\"', '"')
-        mr = re.search(r"recherches: (\d+)", objet)
+                f'FOLLOWS object whose first key is not "t": {obj[:80]!r}')
+        title = title_match.group(1).replace('\\"', '"')
+        searches_match = re.search(r"recherches: (\d+)", obj)
         # A title with no `recherches:` key is just as malformed as one with
         # no `t:` key (B-027's own case) — skipping it silently would leave
         # its counter stale forever without a single line saying so.
-        if not mr:
+        if not searches_match:
             raise ValueError(
-                f"objet FOLLOWS « {titre} » sans « recherches » : {objet[:80]!r}")
-        embarque = int(mr.group(1))
-        if titre in reels:
-            if reels[titre] != embarque:
-                corrections.append((titre, embarque, reels[titre]))
-                objet = objet.replace(
-                    f"recherches: {embarque},",
-                    f"recherches: {reels[titre]},", 1)
+                f'FOLLOWS object "{title}" has no "recherches" key: {obj[:80]!r}')
+        embedded = int(searches_match.group(1))
+        if title in real:
+            if real[title] != embedded:
+                corrections.append((title, embedded, real[title]))
+                obj = obj.replace(
+                    f"recherches: {embedded},",
+                    f"recherches: {real[title]},", 1)
         else:
-            introuvables.append(titre)
-        morceaux.extend((bloc[prec:a], objet))
-        prec = b
-    morceaux.append(bloc[prec:])
+            unmatched.append(title)
+        pieces.extend((block[previous:a], obj))
+        previous = b
+    pieces.append(block[previous:])
 
-    for titre, avant, apres in corrections:
-        print(f"  {titre} : {avant} -> {apres}")
+    for title, before, after in corrections:
+        print(f"  {title} : {before} -> {after}")
 
     # An unmatched title reads exactly like « already in sync » unless it is
     # named here — silence is the bug (B-028), not a valid outcome. And the
     # corrections just printed above were computed, never written: the script
     # returns before reaching `PROTOTYPE.write_text` below, so the output
     # must say so explicitly rather than let those lines read as applied.
-    if introuvables:
-        print(f"aucune écriture — {len(introuvables)} titre(s) jamais "
-              f"retrouvé(s): " + ", ".join(introuvables))
+    if unmatched:
+        print(f"nothing written — {len(unmatched)} title(s) never "
+              f"looked up: " + ", ".join(unmatched))
         return 1
 
     if corrections:
-        texte = texte[:i] + "".join(morceaux) + texte[j:]
+        text = text[:i] + "".join(pieces) + text[j:]
 
-    corrections_pied = synchroniser_pied(texte)
-    if corrections_pied:
-        texte = corrections_pied
-        corrections.append(("pied du tiroir", "", ""))
+    footer = sync_footer(text)
+    if footer:
+        text = footer
+        corrections.append(("drawer footer", "", ""))
 
     if corrections:
-        PROTOTYPE.write_text(texte, encoding="utf-8")
+        PROTOTYPE.write_text(text, encoding="utf-8")
     print(f"{len(corrections)} correction(s)")
     return 0
 
 
-def version_deployee() -> tuple[str, str] | None:
+def deployed_version() -> tuple[str, str] | None:
     """Returns production's (version, short sha), or None when unreadable.
 
     Read from the deploy checkout — the drawer's footer claims what is
     DEPLOYED, and this working tree is often ahead of it.
     """
-    init = DEPLOIEMENT / "personalscraper" / "__init__.py"
+    init = DEPLOYMENT / "personalscraper" / "__init__.py"
     if not init.is_file():
         return None
-    m = re.search(r'__version__ = "([^"]+)"', init.read_text(encoding="utf-8"))
-    if not m:
+    found = re.search(r'__version__ = "([^"]+)"', init.read_text(encoding="utf-8"))
+    if not found:
         return None
     sha = subprocess.run(
-        ["git", "-C", str(DEPLOIEMENT), "rev-parse", "--short=8", "HEAD"],
+        ["git", "-C", str(DEPLOYMENT), "rev-parse", "--short=8", "HEAD"],
         capture_output=True, text=True)
     if sha.returncode != 0:
         return None
-    return m.group(1), sha.stdout.strip()
+    return found.group(1), sha.stdout.strip()
 
 
-def synchroniser_pied(texte: str) -> str | None:
+def sync_footer(text: str) -> str | None:
     """Rewrites the drawer footer's version and build, or returns None.
 
     The footer was once a hand-written snapshot and aged invisibly — no rule
     compares it to anything. Reading production keeps it a real datum.
     """
-    reel = version_deployee()
-    if reel is None:
-        print(f"pied du tiroir : déploiement illisible ({DEPLOIEMENT}), inchangé")
+    real = deployed_version()
+    if real is None:
+        print(f"drawer footer: deployment unreadable ({DEPLOYMENT}), unchanged")
         return None
-    version, sha = reel
-    neuf = re.sub(
+    version, sha = real
+    updated = re.sub(
         r'(<p class="vv">)[^<]*(</p>)',
-        rf"\g<1>{version}\g<2>", texte, count=1)
-    neuf = re.sub(
+        rf"\g<1>{version}\g<2>", text, count=1)
+    updated = re.sub(
         r'(<p class="vc">build )[0-9a-f]+([^<]*</p>)',
-        rf"\g<1>{sha}\g<2>", neuf, count=1)
-    if neuf == texte:
+        rf"\g<1>{sha}\g<2>", updated, count=1)
+    if updated == text:
         return None
-    print(f"  pied du tiroir : version {version}, build {sha}")
-    return neuf
+    print(f"  drawer footer: version {version}, build {sha}")
+    return updated
 
 
 if __name__ == "__main__":
-    sys.exit(principal())
+    sys.exit(main())
