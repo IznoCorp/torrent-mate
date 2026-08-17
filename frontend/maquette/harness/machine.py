@@ -61,6 +61,23 @@ VOCABULARY = {
 # a label on its own background once already (B-014).
 CONTRAST_FLOOR = 4.5
 
+# THE FIVE LISTS, NAMED ONCE — heading, reading key, the word the verdicts are
+# phrased in, and the declared source they are compared against.
+#
+# A list is located by the FRENCH text of its `<h2>`, and that text is now the
+# component's, read from `fr.json`. One character of drift and the lookup finds
+# nothing; every hold below phrased as « no row is wrong » then judges an EMPTY
+# list and passes. Naming the heading here, and generating the reading from the
+# same tuples, is what makes the lookup and the verdict share one spelling —
+# and the rung that follows is what makes a list that was not found say so.
+BLOCKS = (
+    ("Services", "services", "service", "SERVICES"),
+    ("Planificateurs", "schedulers", "scheduler", "PLANIFICATEURS"),
+    ("Disques", "disks", "disk", "DISQUES"),
+    ("Index de la médiathèque", "index", "index row", "INDEX"),
+    ("Dépendances", "dependencies", "dependency", "DEPENDANCES"),
+)
+
 # Colours are converted through a canvas, never parsed: `getComputedStyle`
 # returns the space the author wrote — `oklch()` here — and three numbers pulled
 # out of that string with a regex built for `rgb()` mean nothing. Drawing over
@@ -155,15 +172,14 @@ READ = """() => {
     text: document.querySelector('#view').textContent,
     simulated: document.querySelector('#view').textContent.includes('SIMULÉE'),
     headings: [...document.querySelectorAll('#view .h2')].map((x) => x.textContent.trim()),
-    services: block('Services'),
-    schedulers: block('Planificateurs'),
-    disks: block('Disques'),
-    index: block('Index de la médiathèque'),
-    dependencies: block('Dépendances'),
+    __BLOCKS__
     topics: [...document.querySelectorAll('#view .topic .rt')].map((x) => x.textContent.trim()),
     commands: [...document.querySelectorAll('#view .flux .fx .fk')].map((x) => x.textContent.trim()),
   };
 }"""
+
+READ = READ.replace("__BLOCKS__", "".join(
+    f"{key}: block({heading!r}),\n    " for heading, key, _, _ in BLOCKS).strip())
 
 PANEL = """() => ({
   open: document.querySelector('#sheet').classList.contains('open'),
@@ -219,6 +235,22 @@ async def main():
 
         # ── SYSTÈME ────────────────────────────────────────────────────────
         sys_view = await on_page(pg, "sys")
+
+        # 0. THE RUNG EVERYTHING BELOW STANDS ON: a list that was not FOUND is
+        # not a list that is fine. The five blocks are located by their French
+        # heading, `rows or []` turns a miss into an empty list, and « no row
+        # is wrong » is true of no rows at all — so a heading the component
+        # spells differently would leave the badge holds green while the page
+        # showed nothing. Held first, and by count, because a found-but-empty
+        # list passes exactly the same holds a missing one does.
+        for heading, key, word, _ in BLOCKS:
+            rows = sys_view[key]
+            journal.check(
+                f"the « {heading} » list is found, and has rows to judge",
+                rows is not None and len(rows) > 0,
+                "NOT FOUND — no heading carries that text, so every "
+                f"{word} hold below would judge an empty list"
+                if rows is None else f"{len(rows)} row(s)")
 
         # 1. No blocked medium here. The two stuck folders are named on
         # Arrivées; finding either name on Système means a medium is being
@@ -292,13 +324,8 @@ async def main():
         # a mutation that coloured a nearly-full disk as an alert changed
         # nothing, because nothing looked at the disks. A guard that covers two
         # lists out of five is a guard for two lists.
-        for name, rows, source in (
-            ("service", sys_view["services"], "SERVICES"),
-            ("scheduler", sys_view["schedulers"], "PLANIFICATEURS"),
-            ("disk", sys_view["disks"], "DISQUES"),
-            ("index row", sys_view["index"], "INDEX"),
-            ("dependency", sys_view["dependencies"], "DEPENDANCES"),
-        ):
+        for _, key, name, source in BLOCKS:
+            rows = sys_view[key]
             without_badge = [x["l"] for x in (rows or []) if x["tone"] is None]
             journal.check(f"every {name} carries a badge", not without_badge, str(without_badge) or "all of them")
             declared = await pg.evaluate(f"()=>{source}.map((x) => x.ton)")
@@ -368,6 +395,16 @@ async def main():
         # dial inherits whatever the previous one left, which is the defect R10
         # found in the interface and which this probe had just repeated.
         sys_view = await on_page(pg, "sys", panne=False)
+
+        # The rung again, on the reading « at rest » is judged from: that hold
+        # says « nothing alerts », which is true of an empty list too.
+        resting = {key: sys_view[key] for _, key, _, _ in BLOCKS
+                   if not sys_view[key]}
+        journal.check("the resting reading still finds all five lists",
+                      not resting,
+                      f"missing or empty: {sorted(resting)}" if resting
+                      else ", ".join(f"{key}={len(sys_view[key])}"
+                                     for _, key, _, _ in BLOCKS))
 
         journal.check("at rest, nothing alerts on this machine",
                          all(x["tone"] == "success"

@@ -24,7 +24,7 @@ from playwright.async_api import async_playwright
 
 # The pages the shell owns today. A page absent here is one the fragment still
 # draws, and the rule holds that too — it is the other half of the law.
-SHELL_OWNED = ["sys"]
+SHELL_OWNED = ["sys", "maint", "cfg"]
 LEGACY_OWNED = ["lib", "arr", "acq"]
 
 READ = """()=>{
@@ -76,7 +76,8 @@ async def main():
         # that survives a handover, and it shows up as a page carrying more
         # than it emits. Each page below is reached from two different
         # predecessors, once across each world's boundary.
-        walk = ["lib", "sys", "lib", "arr", "sys", "arr", "acq", "sys", "acq"]
+        walk = ["lib", "sys", "lib", "arr", "sys", "arr", "acq", "sys", "acq",
+                "maint", "lib", "maint", "cfg", "arr", "cfg", "sys", "cfg"]
         signatures: dict[str, set[str]] = {}
         residue = []
         for identifier in walk:
@@ -134,6 +135,134 @@ async def main():
             str(panel)[:120] if emitted else "no row carries data-maintact")
         await page.evaluate("()=>window.__panneau.fermer()")
         await page.wait_for_timeout(300)
+
+        # (c-ter) THE SAME DEBT, on the page that carries the most of it. The
+        # settings page emits seven attributes the document-level delegation
+        # acts on, and R60 reaches every one of its states through
+        # `window.__go(...)` — never through a tap. So the whole delegation
+        # path was unmeasured: a component that stopped writing
+        # `data-rubrique` would leave a page of rows nothing opens, with R60
+        # entirely green. Each control is LOOKED UP before it is tapped: a
+        # click on a selector that matches nothing times out and crashes the
+        # script, which reads as a broken rule instead of a named defect.
+        async def tap(selector):
+            """Taps the first match, or reports that nothing carries it."""
+            control = page.locator(selector).first
+            if not await control.count():
+                return False
+            await control.click()
+            await page.wait_for_timeout(360)
+            return True
+
+        await page.evaluate(
+            "()=>{REG_ETAT.rubrique = null; REG_ETAT.q = '';"
+            " REG_ETAT.modifs.clear(); REG_ETAT.redemarrage = false;}")
+        await page.evaluate("()=>window.__magasin.ecrire({page: 'cfg'})")
+        await page.evaluate("()=>window.__referentiel.render()")
+        await page.wait_for_timeout(300)
+
+        wanted = await page.evaluate(
+            "()=>{const b = document.querySelector('#view .topic[data-rubrique]');"
+            " return b ? b.dataset.rubrique : null;}")
+        tapped = await tap("#view .topic[data-rubrique]") if wanted else False
+        opened = await page.evaluate("""()=>({
+          rubrique: REG_ETAT.rubrique,
+          rows: document.querySelectorAll('#view .settingrow[data-reglage]').length,
+        })""")
+        journal.check(
+            "a real tap on a settings topic opens that topic",
+            tapped and opened["rubrique"] == wanted and opened["rows"] > 0,
+            f"{wanted} → {opened}" if tapped else "no row carries data-rubrique")
+
+        identity = await page.evaluate(
+            "()=>{const b = document.querySelector('#view .settingrow[data-reglage]');"
+            " return b ? b.dataset.reglage : null;}")
+        tapped = await tap("#view .settingrow[data-reglage]") if identity else False
+        edited = await page.evaluate("""()=>{
+          const field = document.querySelector('#sheetin [data-champ]');
+          return {open: !!document.querySelector('#sheet.open'),
+                  field: field ? field.dataset.champ : null};}""")
+        journal.check(
+            "and a real tap on a setting opens THAT setting's field",
+            tapped and edited["open"] and edited["field"] == identity,
+            f"{identity} → {edited}" if tapped else "no row carries data-reglage")
+        await page.evaluate("()=>window.__panneau.fermer()")
+        await page.wait_for_timeout(300)
+
+        # The save bar is the page's second host, and its button is the only
+        # control in the prototype that WRITES. The change is staged through
+        # the legacy's own verb rather than typed, because what is held here is
+        # the tap, not the field.
+        staged = await page.evaluate("""()=>{
+          const setting = window.__referentiel.tousLesReglages()
+            .find((x) => x.type === 'booleen');
+          if (!setting) return null;
+          const id = window.__referentiel.reglageId(setting);
+          window.__referentiel.modifierReglage(id, !setting.brut);
+          window.__referentiel.render();
+          return id;}""")
+        await page.wait_for_timeout(300)
+        tapped = await tap("#savebar [data-enregistrer]") if staged else False
+        saved = await page.evaluate(
+            "()=>({pending: REG_ETAT.modifs.size, restart: REG_ETAT.redemarrage,"
+            " bar: !!document.querySelector('#savebar')})")
+        journal.check(
+            "a real tap on the save bar files the change and asks for a restart",
+            tapped and saved["pending"] == 0 and saved["restart"] and not saved["bar"],
+            str(saved) if tapped else "nothing carries data-enregistrer")
+
+        await page.evaluate("()=>{REG_ETAT.rubrique = null;}")
+        await page.evaluate("()=>window.__referentiel.render()")
+        await page.wait_for_timeout(300)
+        tapped = await tap("#view [data-redemarrer]")
+        journal.check(
+            "and a real tap on the restart offer takes it",
+            tapped and not await page.evaluate("()=>REG_ETAT.redemarrage"),
+            "restart cleared" if tapped else "nothing carries data-redemarrer")
+
+        tapped = await tap("#view .topic[data-rubrique='secrets']")
+        listed = await page.evaluate(
+            "()=>({rubrique: REG_ETAT.rubrique,"
+            " rows: document.querySelectorAll('#view [data-secret]').length})")
+        journal.check(
+            "a real tap on the secrets topic lists the secrets",
+            tapped and listed["rubrique"] == "secrets" and listed["rows"] > 0,
+            str(listed) if tapped else "no row carries data-rubrique='secrets'")
+        tapped = await tap("#view [data-secret]")
+        journal.check(
+            "and a real tap on a secret opens its panel",
+            tapped and await page.evaluate(
+                "()=>!!document.querySelector('#sheet.open')"),
+            "the panel opened" if tapped else "no row carries data-secret")
+        await page.evaluate("()=>window.__panneau.fermer()")
+        await page.wait_for_timeout(300)
+
+        # The search's clear button exists only while something is searched
+        # for, so the query is staged first — the tap is what is held.
+        await page.evaluate(
+            "()=>{REG_ETAT.rubrique = null; REG_ETAT.q = 'espace';}")
+        await page.evaluate("()=>window.__referentiel.render()")
+        await page.wait_for_timeout(300)
+        tapped = await tap("#view [data-qreg]")
+        cleared = await page.evaluate(
+            "()=>({q: REG_ETAT.q,"
+            " clear: !!document.querySelector('#view [data-qreg]')})")
+        journal.check(
+            "a real tap on the search's cross clears the search",
+            tapped and cleared["q"] == "" and not cleared["clear"],
+            str(cleared) if tapped else "nothing carries data-qreg")
+
+        # And the one row that leaves the page entirely: the quality profile is
+        # a ROUTE, so what proves the tap landed is the address.
+        tapped = await tap("#view .topic[data-profil]")
+        await page.wait_for_timeout(400)
+        address = await page.evaluate("()=>location.pathname")
+        journal.check(
+            "a real tap on the quality-profile row goes to its address",
+            tapped and address.startswith("/profil/"),
+            address if tapped else "no row carries data-profil")
+        await page.evaluate("()=>window.__pont.retour()")
+        await page.wait_for_timeout(420)
 
         # (d) The handover is the SHELL's: the fragment must not write into a
         # container React holds. Proven from the source rather than by drawing:
