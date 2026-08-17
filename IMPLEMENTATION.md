@@ -35,7 +35,7 @@ code until the operator's judgement (step 2 above). Non-negotiable.
 
 ## Current state
 
-Ten waves have landed. Each squash-merged onto `main` after green CI and a clean final
+Eleven waves have landed. Each squash-merged onto `main` after green CI and a clean final
 adversarial review; none of them derives app code.
 
 | Wave | Branch | PR | What it settled |
@@ -49,67 +49,124 @@ adversarial review; none of them derives app code.
 | **SP4c — resolution and releases** | `feat/maquette-sp4c` | #442 | `/resolution/$dossier` and `/releases/$titre` landed as real routes, `Pont.reculer(n)` killed M11's double Back, and R57's probe moved off the legacy `#screen` onto the screen's own identity. |
 | **clean-code / i18n** | `refactor/clean-code-i18n` | #446 | No French in the code and no interface text in it either: `react-i18next` in the shell, every UI string in `fr.json`, English names across `design/src`, the harness and the two servers — and `scripts/check-no-french.py`, four arms, in `make check` and in CI, which is the half that outlives the wave. |
 | **SP4d wave 1 — the shell owns a PAGE** | `feat/maquette-sp4d1` | #447 | Système, Maintenance and Configuration became final components inside the legacy `#view` through a page host (R77); R67 stopped judging a list it had not found, R60 gained a positive control, and the nine delegation attributes gained tap-driven holds. The wave's own adversarial review found a shipped defect no rule covered: the legacy removed a node React owned, tearing the root down. |
+| **SP4d wave 2 — Arrivées** | `feat/maquette-sp4d2` | #448 | The pipeline's health page became a final component, with the first migrated control that WRITES (the pilot's bar, whose three states include DOIT-4's queue). A defect of class came out of it: a harness driver mutating the engine's `state` alias in place leaves a migrated page stale, and R77 gained the source-level hold that catches it. |
 
 The full record of each wave, in the words written when it landed, is in
 `docs/superpowers/shell-mobile-wave-log.md`; the per-wave plans are in `docs/superpowers/plans/`.
 
 ### The latest wave, in full
 
-**SP4d wave 2 — Arrivées, and the first migrated control that writes**: Branch `feat/maquette-sp4d2`, version 0.97.19 (ONE bump for the wave). The second page wave,
-on the machinery wave 1 paid for: `viewArrivals` — 43 lines — becomes `pages/arrivals.tsx`, and
-with it the two emitters whose ONLY caller it was, `barrePipelineHTML` (29 lines) and
-`dernierPassageHTML` (26). That is the difference from wave 1: there, every emitter had other
-callers and was reused verbatim through the référentiel; here two of them had none, so they
-became real JSX rather than published helpers. `secHTML`, which nine call sites share, stayed in
-the fragment and gained its `secInner` — the same split as `emptyInner`, `skelCardsInner` and
-`surfErrInner`, and the component reproduces the outer function's EMPTY case by drawing no
-section at all.
+**SP4d wave 3 — the Médiathèque, and E-001**: Branch `feat/maquette-sp4d3`, version 0.97.20 (ONE bump for the wave). The third page wave, and
+the one that changed the machinery: `viewLibrary` is 96 lines, but it is the only page whose
+CONTENT the fragment wrote AFTER the page was drawn — an empty `#libitems`, an empty `#libcount`,
+filled by `fillLib()` / `libFoot()` / `paintLibCount()` as the operator scrolled, `fillLib`
+replacing the element outright (`box.outerHTML = …`). Two worlds writing one container is what
+tore the React root down in wave 1, so the list, its footer, its sentinel and its search field all
+moved WITH the page rather than leaving a seam behind.
 
-**Arrivées is the first migrated page carrying a control that WRITES.** The pilot's bar writes
-nothing itself: it emits `data-pipe="lancer"` / `"arreter"` and the document-level delegation
-does the writing, exactly as before. Its three states include the one DOIT-4 exists for — a pass
-asked DURING a run is QUEUED, visibly, never refused with « busy, try again ».
+**E-001 came first, and separately.** The operator's evolution — every sort reversible — is
+maquette-first: drawn in the PROTOTYPE and measured there before any conversion touched the page.
+That order is not a preference. A conversion is judged by « identical markup »; an evolution
+changes the markup; doing both at once would leave neither provable. The ruling, recorded and
+**open to contest**: the panel offers the six directions explicitly, each carrying its own NAME
+rather than an arrow bolted onto a shared one — « Ajout récent » / « Ajout ancien », « A → Z » /
+« Z → A », « Les plus incomplets » / « Les plus complets ». The alternative, tapping the
+already-chosen sort to flip it, halves the rows and is INVISIBLE: nothing on a phone says that a
+second tap on the row one just chose does something else. Reversing is a second PASS, never a
+second comparator — « ajout récent » has no comparator at all, its order is the source's — so one
+`.reverse()` says the same thing for all three. New rule **R78** (`harness/library_sort.py`, 15
+holds) is the first this behaviour has ever had, and it measures the reversal on the ROWS DRAWN,
+over a library narrowed until the whole set fits on one page: the list draws 24 of 260, so
+reversing the order and taking the first page again gives the LAST rows of the other end — right,
+and not the reverse of what was drawn.
 
-Fidelity proven before any deletion: **0 divergences over all six `arr-*` states** (repos,
-running, queued, loaded, loading, error).
+**The PAGE HOST stopped supplying a root element**, and that is this wave's principal
+arbitration. It portalled into a `<div class="body">` of its own so the legacy's write would
+remove one node whole and React would only ever touch children of a node it owned. That describes
+three pages emitting one root; it cannot describe a page emitting FOUR (`.viewtabs`, `.filters`,
+`.countline`, `.body`), and wrapping those would be a markup change this conversion does not make.
+So the shell portals straight into `#view`, and the handover is ANNOUNCED inside `render()`, the
+one place that already knows which world owns the page: taking, the fragment removes the nodes IT
+wrote and lets React draw; releasing, it calls `window.__releasePage()` — a `flushSync` — before
+writing. Removing its own nodes rather than emptying the container is not a matter of taste: a
+store write and a `render()` are not always the same task, so the shell may already have drawn,
+and emptying then deletes nodes React believes it holds, leaving a blank page nothing redraws.
+Measured — R77's first five holds fell before the correction existed.
 
-**And a defect of CLASS, measured on the way.** R66 drove the page by writing `state.page = "arr"`
-— the engine's alias — and calling `render()`. That alias points at the store's CURRENT object,
-so mutating it in place leaves the object's identity unchanged: nothing React subscribes to
-moves, and the page keeps drawing whatever was there before. Measured, not argued: the store said
-« arr » while `#view` held the ACQUISITION page's roots, and the rule reported a missing button
-rather than a stale page. The fragment itself no longer writes the alias anywhere — SP4a
-converted its ~70 write sites — but six harness scripts still did. All six now go through the
-store, and R77 gained the source-level hold that catches the class: no rule drives a page by
-mutating the alias. Mutation: putting a single driver back fells it, naming the file and the
-line. It matters beyond this wave — the same write would have silently broken the Médiathèque and
-Acquisition waves, on rules that look green.
+**What proves the machinery moved nothing**: `fidelity.py` learned to RECORD the legacy's drawn
+page and compare against the recording, because this page's markup is not what its renderer
+returned. The nineteen states of the four pages migrated before this one, recorded and compared
+across the host rewrite: **0 divergences**. The ten `lib-*` states, recorded from the legacy and
+compared after the conversion: **0 divergences**.
 
-R77 took Arrivées in (25 holds): the residue walk crosses both worlds on it, and the bar's three
-taps plus the `data-go` crossref each have a hold driven by a REAL tap. Mutation: `data-pipe`
-disabled in the served bundle alone fells the three taps, each naming the attribute that went
-missing.
+**The search field's handler moved with the field.** `mountSearch` no longer binds `#libq` — the
+same reason it had already let go of `.fieldinput`: binding a node React owns from outside is two
+writers on one field. The caret dance the legacy needed disappeared with the rebuild that made it
+necessary, and what changes the query from OUTSIDE (the clear cross) reaches the field through an
+assignment made only when the two differ — measured by typing for real, character by character,
+and then clearing.
 
-**The wave's own adversarial review** found the new alias-drive hold matched only ONE shape —
-`state.x =` on a single physical line — and would have been walked past by
-`Object.assign(state, …)`, which the engine itself uses, by `state["page"] =`, and by a write
-split across two source lines, which is this directory's own house style. It now flattens the
-text and looks for three shapes; three mutations, one run each, fell it. The engine's single
-`Object.assign(state, etatDeLURL())` earned a hold of its own in the process: a COLD deep address
-must land on the page it names, drawn by the shell. It holds for a sturdier reason than the boot
-order — starting the engine after React's first paint does NOT fell it, because the address write
-that follows re-renders the shell — so the mutation that proves it is the URL parser ceasing to
-read `page`. The review also caught a tap that read only the store where its two siblings read
-the drawing, a block inheriting a scenario it did not name, and three fresh comments repeating a
-call-site count that was wrong at the source (`rg -c` counts the definition line).
+**What did NOT move**: `trierLib` and `libFiltered` stay in the fragment. They touch no DOM — they
+answer « which media, in which order » — so a component asks them rather than reproducing them,
+and a rule reads `libFiltered()` by name. The selection bar stays the fragment's too: it lives in
+`#device`, React never draws it, and the component only asks for a repaint after it renders,
+exactly where `fillLib` asked for one.
 
-**Wave gate**: `resync.py` moved the drawer's deployed-version card to the branch's base
-(0.97.18, build `21c54a98`), committed as data; the full suite is **49 scripts, 527 holds, zero
-FAIL** (521 + 6 for R77: Arrivées' four delegation holds, the alias-drive law and the cold
-deep address); `make check` green including `check-frontend`;
+R77 grew to 32 holds: `lib` joins the shell-owned list, the drawn hold stops assuming a root
+count, the law hold reads the LAW rather than one spelling of it — it failed on the day the law
+was made stronger — and six delegation holds cover the page that carries the most of it: lens,
+category, view mode, selection, the search's cross, and `data-del`, read rather than tapped
+because that control lives behind a swipe R64 drives.
+
+**And then the review found four defects of one family**, all of them a component reading its
+render's SNAPSHOT where the legacy read the engine's live alias. « Réessayer » reloaded nothing:
+the handler clears the error on one line and the guard below it, frozen at the value the footer
+was drawn with, refused — the page arrived anyway, from the SENTINEL, which is what hid it. The
+same closure froze the count, so a search or a sort during a load overwrote it with the old count
+plus a page. `paintSelBar` ran on every draw where `fillLib` reached it only after the ROWS,
+rebuilding a node in `#device` the legacy left alone. And `#libitems` stopped being rebuilt on
+every draw, so a swipe left open survived a repaint that used to shut it. Two quieter ones came
+with them: the observer stayed connected during a load the legacy disconnected it for, and
+`#libq`'s value ATTRIBUTE froze at mount while the legacy re-emitted it every draw.
+
+**The surface nobody could measure now has a name and a rule.** No named state produced a failed
+NEXT page — only a long scroll reached it — so the sentence it prints and the control that
+retries were asserted by nothing. `lib-erreur-suite` names it and **R79** (`library_load.py`, 8
+holds) holds it, measuring the retry with the SENTINEL NEUTRALISED, because the sentinel produces
+the same outcome for a different reason and that is exactly how the defect survived being
+written.
+
+**Two holds that were not holding.** R77's law hold no longer required the `#view` write to be on
+the not-owned BRANCH — only that a branch and an announcement existed somewhere; it reads the
+structure now, and a write hoisted out of the `else` fells it. And the two page tables — the
+shell's and the fragment's flags — are compared, because an id claimed on one side and not the
+other draws a page in both worlds at once, on every render, perfectly consistently, which no
+drawing-shaped hold can see.
+
+**R78 could not tell two sorts apart.** Its narrowing contained no incomplete show, so « les plus
+incomplets » ranked a set where every row scores the same and answered the source order — which
+is what « ajout récent » answers. The narrowing is held now; the marked entry is measured after a
+REVERSED direction is chosen; « A → Z » is held alphabetical by the platform's French collation,
+which breaks the tautology that a reversal assertion is true of any comparator; and the direction
+is checked in the GRID, where the rows go through a different emitter.
+
+**A rule found a defect nobody had reached.** The new state drew two pages, and R1 — the
+adversarial auditor's « every tappable poster leads to a filled-in sheet » — fired at once: **87
+of the library's 345 titles have a sheet with no genre and no cast**, none of them in the first
+page, which is why no state had ever shown one. It is a defect of the embedded DATA, recorded as
+**B-030** rather than fixed in a conversion wave. Chasing it also surfaced a real timing hole: a
+state that draws a skeleton starts a load, and 620 ms later that load landed on whatever state
+had replaced it. A load now remembers the store VERSION it was asked at and does nothing if
+anything has happened since.
+
+**Wave gate**: `resync.py` moved the drawer's deployed-version card to the branch's base (0.97.19,
+build `aeac77cb`), committed as data; the full suite is **51 scripts, 562 holds, zero FAIL** (527 + 19 for R78, 8 for R79 and 8 for
+R77); `make check` green including `check-frontend`;
 `scripts/check-no-french.py` green; R59/R69/R71 byte-identical against the merge point. The
-fragment went from 40 047 to 39 961 lines. Pages the shell owns: `sys`, `maint`, `cfg`, `arr`.
-Pages the fragment still draws: `lib`, `acq`, plus `viewIntrouvable` and `viewProfil`.
+fragment went from 39 962 to 39 956 lines — nearly flat, and the number says something true: the
+conversion removed about 230 lines and E-001 put back about as many, because an evolution is
+written before it is moved. Pages the shell owns: `sys`, `maint`, `cfg`, `arr`, `lib`. The
+fragment still draws `acq`, plus `viewIntrouvable` and `viewProfil`.
 
 ### The wave order from here (operator ruling, 2026-08-16)
 
@@ -120,10 +177,13 @@ Pages the fragment still draws: `lib`, `acq`, plus `viewIntrouvable` and `viewPr
    English names on the day a thing is written, interface text in `fr.json` from the
    first line.
 2. **SP4d — four waves**, in this order: sys + maint + config → arrivées → médiathèque
-   (with E-001) → acquisition. **Waves 1 and 2 DONE** (`feat/maquette-sp4d1` #447,
-   `feat/maquette-sp4d2`): the PAGE machinery is paid for, `src/pages/host.tsx`'s table is
-   the ONE place the next wave adds its page, and every harness driver now writes through
-   the store — an in-place alias write leaves a migrated page stale.
+   (with E-001) → acquisition. **Waves 1, 2 and 3 DONE** (`feat/maquette-sp4d1` #447,
+   `feat/maquette-sp4d2` #448, `feat/maquette-sp4d3`): the PAGE machinery is paid for and
+   has since been simplified — the shell portals straight into `#view` and the handover is
+   announced, which is what a page emitting several roots needs; `src/pages/host.tsx`'s
+   table is the ONE place the next wave adds its page; every harness driver writes through
+   the store; and E-001 is drawn, held by R78. **Acquisition is what remains**, and with it
+   the question of whether it is the drawer's last consumer.
 3. **SP4-fin** — the engine's death: empty fragment, `refonte.html` retired as a source,
    bridge and aliases removed, `openScreen` swept, the deep-entry `relTitre` /
    `resolveTarget` debt settled.

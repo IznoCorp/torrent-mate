@@ -170,6 +170,22 @@ export type SettledDecision = DecisionCommon & {
 // actually reads, starting with `t` to match against a decision's `d`.
 export type QueueCard = Record<string, unknown>;
 
+// A library CATEGORY pill: its id, its name, the count it claims, and the
+// engine's own category ids it stands for (`null` for « Tout »).
+export type LibraryCategory = {
+  id: string;
+  l: string;
+  c: number;
+  of: string[] | null;
+};
+
+// A library ROW as the recent list holds one: a title and the line under it.
+export type LibraryRow = { t: string; f: string };
+
+// A show the index knows is INCOMPLETE: owned over announced, and the year
+// that tells two shows of the same name apart.
+export type IncompleteShow = { t: string; o: number; a: number; y: number };
+
 // A card's FOOT, the only options `cardHTML` takes. `footAct` becomes the
 // `data-act` attribute the document-level delegation reads, which is why it is
 // a string and not a handler.
@@ -363,6 +379,34 @@ export type Reference = {
   secInner: (pip: string, title: string, count: string, inner: string,
              note?: string) => string;
   PIPELINE: Pipeline;
+  // What the Médiathèque draws. `tileHTML` and `swipeHTML` are called VERBATIM
+  // for the same reason as `cardHTML` — the rows they emit carry the `data-*`
+  // the document-level delegation reads. `sousLigne` is the line under a tile's
+  // title; `opts.index` is what selection mode addresses a tile by.
+  tileHTML: (
+    descriptor: CardDescriptor | QueueCard,
+    subLine?: string,
+    options?: { index?: number; badge?: { tone: string; text?: string } },
+  ) => string;
+  swipeHTML: (inner: string, actions: string) => string;
+  CATS: LibraryCategory[];
+  RECENT: LibraryRow[];
+  INCOMPLETE: IncompleteShow[];
+  SYNOPSIS: Record<string, string>;
+  // The page size the count line and the infinite scroll both speak in.
+  LIB_PAGE: number;
+  libRowHTML: (item: LibraryRow | QueueCard, index: number) => string;
+  libFiltered: () => (LibraryRow | QueueCard)[];
+  // The selection bar lives in `#device` and stays the FRAGMENT's: a component
+  // asks for a repaint after it draws, exactly where `fillLib` asked for one.
+  paintSelBar: () => void;
+  // How many titles the prototype really carries — the number the end mark
+  // says out loud.
+  libraryLoaded: () => number;
+  // Every sort, in both directions, each with its own name — the table E-001
+  // made two-dimensional. A rule reads the NAMES from here rather than
+  // restating them.
+  TRIS: Record<string, { normal: string; inverse: string }>;
   skelCards: (count: number) => string;
   skelCardsInner: (count: number) => string;
   surfErr: (subject: string) => string;

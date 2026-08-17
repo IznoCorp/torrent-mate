@@ -1,7 +1,7 @@
 // design/src/pages/host.tsx
 // The PAGE host — the machinery a page needs and a screen never did.
 //
-// Every surface migrated before this one is an overlay SCREEN: it has its own
+// Every surface migrated before the pages is an overlay SCREEN: it has its own
 // path, and it renders inside the React root `#coquille`, which sits beside
 // `.stage`. A PAGE has no address of its own. `/` stays the pages' route with
 // its legacy query (`?page=&rub=`), the legacy parser keeps owning it, and a
@@ -10,80 +10,125 @@
 //
 // So the shell PORTALS into the legacy `#view`, and the fragment stops writing
 // there for a page that has migrated (`shellOwned` on its `PAGES_OF` entry;
-// `render()` skips the `innerHTML` write and does everything else, because the
-// bar, the nav and the save bar are shared furniture).
+// everything else `render()` does still runs, because the bar, the nav and the
+// save bar are shared furniture).
 //
-// WHY A HOST ELEMENT RATHER THAN PORTALLING STRAIGHT INTO `#view`. Leaving a
+// THE HANDOVER IS ANNOUNCED, and that is the whole of the difficulty. Leaving a
 // migrated page for a legacy one, the legacy's own `view.innerHTML = …` runs
-// FIRST (synchronously, from `applyState`) and React unmounts the portal after,
-// on its own schedule — so React would be removing children that are already
-// detached. With a host element, React only ever adds and removes children of
-// `host`, which it owns whether or not `host` is still in the document; the
-// legacy write removes the whole host in one operation, and the cleanup below
-// removes it again harmlessly.
+// FIRST, synchronously, from `render()` — and React would unmount the portal
+// after, on its own schedule, removing children that are already detached. That
+// throws `NotFoundError` and tears the root down, which this conversion has
+// measured once already, on a save bar.
 //
-// The host IS the page's root element, never a wrapper: all three migrated
-// pages emit exactly one `<div class="body">`, so the host carries that class
-// and the component renders its CHILDREN. A wrapper would be a markup change,
-// and this conversion changes no markup.
-import { useLayoutEffect, useRef } from "react";
+// An earlier arrangement dodged it with a HOST ELEMENT: React portalled into a
+// `<div class="body">` of its own, the legacy's write removed that one node
+// whole, and React only ever touched children of a node it owned. It worked for
+// three pages that each emit exactly one root — and it cannot describe a page
+// that emits FOUR (the Médiathèque draws `.viewtabs`, `.filters`, `.countline`
+// and `.body` as siblings). Wrapping those four would be a markup change, which
+// this conversion does not make.
+//
+// So the fragment ANNOUNCES the handover instead, and EMPTIES the container when
+// it hands ownership over — both inside `render()`, the one place that already
+// knows which world owns the page:
+//
+//   · taking:    `view.innerHTML = ""`, once, on the transition; React draws
+//     into the empty container on its own schedule;
+//   · releasing: `window.__releasePage()` — synchronous, so React has let go of
+//     every node before the next statement writes the container.
+//
+// What was implicit and fragile is now explicit, and both halves are measured.
+import { useLayoutEffect, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
-import { createPortal } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import { useUiState } from "../data";
 import { ArrivalsPage } from "./arrivals";
+import { LibraryPage } from "./library";
 import { MaintenancePage } from "./maintenance";
 import { SettingsPage } from "./settings";
 import { SystemPage } from "./system";
 
 type MigratedPage = {
-  // The root element the legacy view emitted, recreated verbatim.
-  tag: string;
-  className: string;
   Body: () => ReactElement | null;
+  // The single root the legacy view emitted, when there is one. A page that
+  // emits SEVERAL roots (the Médiathèque draws four siblings) declares none and
+  // draws them itself. Either way the markup is what the legacy returned: this
+  // wrapper is rendered by React, not added by it.
+  root?: string;
 };
 
 // The ONE place a later wave adds a page. An id absent from this table is a
 // page the legacy still draws, and nothing here touches it.
 const PAGES: Record<string, MigratedPage> = {
-  sys: { tag: "div", className: "body", Body: SystemPage },
-  arr: { tag: "div", className: "body", Body: ArrivalsPage },
-  maint: { tag: "div", className: "body", Body: MaintenancePage },
-  cfg: { tag: "div", className: "body", Body: SettingsPage },
+  sys: { Body: SystemPage, root: "body" },
+  arr: { Body: ArrivalsPage, root: "body" },
+  lib: { Body: LibraryPage },
+  maint: { Body: MaintenancePage, root: "body" },
+  cfg: { Body: SettingsPage, root: "body" },
 };
+
+// The release, as a value React can subscribe to. It lives outside React
+// because the FRAGMENT is what asks for it, and `useSyncExternalStore` is the
+// same door every other out-of-React value comes through here.
+let released = false;
+const listeners = new Set<() => void>();
+
+function subscribeRelease(callback: () => void): () => void {
+  listeners.add(callback);
+  return () => {
+    listeners.delete(callback);
+  };
+}
+
+function setReleased(next: boolean): void {
+  if (released === next) return;
+  released = next;
+  for (const listener of listeners) listener();
+}
+
+declare global {
+  interface Window {
+    // Called by the fragment's `render()` immediately BEFORE it writes `#view`
+    // for a page the shell does not own.
+    __releasePage?: () => void;
+    // The pages this side claims, published so the two tables can be COMPARED.
+    // They are independent lists that must agree — an id here without
+    // `shellOwned` in `PAGES_OF()` draws in both worlds at once, consistently,
+    // which no drawing-shaped hold can see.
+    __shellPages?: string[];
+  }
+}
+
+window.__releasePage = () => {
+  flushSync(() => setReleased(true));
+};
+
+window.__shellPages = Object.keys(PAGES);
 
 export function PageHost(): ReactElement | null {
   const page = useUiState().page as string | undefined;
   const migrated = page ? PAGES[page] : undefined;
+  const isReleased = useSyncExternalStore(subscribeRelease, () => released);
 
-  // One host per page id: switching between two migrated pages must not reuse
-  // the previous page's element, or its root attributes would leak across.
-  //
-  // A REF, not `useMemo`: React documents a memo's cache as droppable, and a
-  // drop here would silently re-create the page's whole DOM — a new host, a
-  // fresh `replaceChildren`, and the scroll position gone, with no state change
-  // to explain it. Assigning during render is the sanctioned lazy-init shape.
-  const hostRef = useRef<{ page: string; element: HTMLElement } | null>(null);
-  if (migrated && page && hostRef.current?.page !== page) {
-    const element = document.createElement(migrated.tag);
-    element.className = migrated.className;
-    hostRef.current = { page, element };
-  }
-  const host = migrated && page ? (hostRef.current?.element ?? null) : null;
-
+  // Ownership resumes the moment a migrated page is current again. The fragment
+  // has already emptied `#view` by then — it does that on the same transition,
+  // for the same reason the shell used to do it itself.
   useLayoutEffect(() => {
-    if (!host) return undefined;
-    const view = document.getElementById("view");
-    if (!view) return undefined;
-    // Taking ownership removes whatever the previous page left. It happens
-    // HERE, once, on the transition — not on every render, and not in the
-    // legacy, which cannot know when React is ready to draw.
-    view.replaceChildren(host);
-    return () => {
-      host.remove();
-    };
-  }, [host]);
+    if (migrated && released) setReleased(false);
+  });
 
-  if (!migrated || !host) return null;
-  const { Body } = migrated;
-  return createPortal(<Body />, host);
+  if (!migrated || isReleased) return null;
+  const view = document.getElementById("view");
+  if (!view) return null;
+  const { Body, root } = migrated;
+  return createPortal(
+    root ? (
+      <div className={root}>
+        <Body />
+      </div>
+    ) : (
+      <Body />
+    ),
+    view,
+  );
 }

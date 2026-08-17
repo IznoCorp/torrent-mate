@@ -26,8 +26,8 @@ from playwright.async_api import async_playwright
 
 # The pages the shell owns today. A page absent here is one the fragment still
 # draws, and the rule holds that too — it is the other half of the law.
-SHELL_OWNED = ["sys", "maint", "cfg", "arr"]
-LEGACY_OWNED = ["lib", "acq"]
+SHELL_OWNED = ["sys", "maint", "cfg", "arr", "lib"]
+LEGACY_OWNED = ["acq"]
 
 READ = """()=>{
   const view = document.querySelector('#view');
@@ -54,9 +54,14 @@ async def main():
             await page.evaluate("()=>window.__referentiel.render()")
             await page.wait_for_timeout(300)
             seen = await page.evaluate(READ)
+            # « ONCE » is the residue hold's business, and it measures it
+            # across predecessors. What this one holds is that the page is
+            # DRAWN — and it may not assume a root count: the Médiathèque emits
+            # four siblings where the other four emit one, which is why the
+            # host stopped supplying a root element of its own.
             journal.check(
-                f"the shell-owned page « {identifier} » is drawn, once",
-                seen.get("children") == 1 and seen.get("elements", 0) > 20
+                f"the shell-owned page « {identifier} » is drawn",
+                seen.get("children", 0) >= 1 and seen.get("elements", 0) > 20
                 and seen.get("text", 0) > 200,
                 str(seen)[:140])
 
@@ -338,6 +343,105 @@ async def main():
         await page.evaluate("()=>window.__pont.retour()")
         await page.wait_for_timeout(420)
 
+        # (c-sexies) THE MÉDIATHÈQUE'S OWN DELEGATION. This page carries more
+        # of it than any other — the lens, the category, the view mode, the
+        # selection, the deletion and the search's cross — and R63 drives it
+        # through the store, never through a tap.
+        await page.evaluate("()=>window.__reset()")
+        await page.evaluate("()=>window.__magasin.ecrire({page: 'lib', phase: 'prete',"
+                            " libLens: 'cat', libMode: 'list', libCat: 'all', q: ''})")
+        await page.evaluate("()=>window.__referentiel.render()")
+        await page.wait_for_timeout(400)
+
+        refused = await tap("#view .seg [data-lens='rec']")
+        lens = await page.evaluate("""()=>({
+          lens: window.__magasin.lire().etat.libLens,
+          drawn: (document.querySelector('#view .countline')||{}).textContent || '',
+        })""")
+        journal.check(
+            "a real tap on a lens opens THAT lens",
+            not refused and lens["lens"] == "rec" and "index" in lens["drawn"],
+            str(lens)[:120] if not refused else f"data-lens {refused}")
+
+        await page.evaluate("()=>window.__magasin.ecrire({libLens: 'cat'})")
+        await page.evaluate("()=>window.__referentiel.render()")
+        await page.wait_for_timeout(400)
+        wanted = await page.evaluate(
+            "()=>{const b = [...document.querySelectorAll('#view .pill[data-cat]')]"
+            ".find((x) => x.dataset.cat !== 'all'); return b ? b.dataset.cat : null;}")
+        refused = (await tap(f"#view .pill[data-cat='{wanted}']") if wanted else "absent")
+        chosen = await page.evaluate(
+            "()=>({cat: window.__magasin.lire().etat.libCat,"
+            " pressed: (document.querySelector('#view .pill[aria-pressed=true]')||{})"
+            ".dataset?.cat || null})")
+        journal.check(
+            "a real tap on a category pill filters by THAT category",
+            not refused and chosen["cat"] == wanted and chosen["pressed"] == wanted,
+            f"{wanted} → {chosen}" if not refused else f"data-cat {refused}")
+
+        refused = await tap("#view [data-lmode='grid']")
+        mode = await page.evaluate("""()=>({
+          mode: window.__magasin.lire().etat.libMode,
+          drawn: (document.querySelector('#libitems')||{}).className || null,
+        })""")
+        journal.check(
+            "a real tap on the view switch really switches the view",
+            not refused and mode["mode"] == "grid" and mode["drawn"] == "grid",
+            str(mode) if not refused else f"data-lmode {refused}")
+        await page.evaluate("()=>window.__magasin.ecrire({libMode: 'list', libCat: 'all'})")
+        await page.evaluate("()=>window.__referentiel.render()")
+        await page.wait_for_timeout(400)
+
+        # The selection bar is the FRAGMENT's node in `#device`: tapping the
+        # entry proves the seam still works across the two worlds.
+        refused = await tap("#view [data-selmode='1']")
+        selecting = await page.evaluate("""()=>({
+          mode: !!window.__magasin.lire().etat.selMode,
+          bar: !!document.querySelector('#device .selbar'),
+          rows: document.querySelectorAll('#libitems .selrow[data-tile]').length,
+        })""")
+        journal.check(
+            "a real tap on « sélectionner » opens selection, bar included",
+            not refused and selecting["mode"] and selecting["bar"]
+            and selecting["rows"] > 0,
+            str(selecting) if not refused else f"data-selmode {refused}")
+        await page.evaluate("()=>window.__magasin.ecrire({selMode: false})")
+        await page.evaluate("()=>window.__referentiel.render()")
+        await page.wait_for_timeout(400)
+
+        # `data-del` is READ rather than tapped: the control lives behind a
+        # swipe, and R64 is what drives that gesture. What this holds is that
+        # the attribute still names the row it belongs to — the half a moved
+        # emitter can break.
+        named = await page.evaluate("""()=>{
+          const rows = [...document.querySelectorAll('#libitems .card')];
+          const first = rows[0];
+          const action = first ? first.parentElement.querySelector('[data-del]') : null;
+          const title = first ? (first.querySelector('.ctitle')||{}).textContent : null;
+          return {title: title ? title.trim() : null,
+                  del: action ? action.dataset.del : null};}""")
+        journal.check(
+            "a row's delete action names THAT row",
+            bool(named["title"]) and named["del"] == named["title"],
+            str(named))
+
+        await page.evaluate(
+            # french-ok: a French search WORD, typed into the app's own search.
+            "()=>{window.__magasin.ecrire({q: 'stargate'});}")
+        await page.evaluate("()=>window.__referentiel.render()")
+        await page.wait_for_timeout(400)
+        refused = await tap("#view [data-clearq]")
+        cleared = await page.evaluate("""()=>({
+          q: window.__magasin.lire().etat.q,
+          field: (document.querySelector('#libq')||{}).value,
+          cross: !!document.querySelector('#view [data-clearq]'),
+        })""")
+        journal.check(
+            "a real tap on the search's cross clears the field AND the search",
+            not refused and cleared["q"] == "" and cleared["field"] == ""
+            and not cleared["cross"],
+            str(cleared) if not refused else f"data-clearq {refused}")
+
         # (c-quater) LEAVING A MIGRATED PAGE MUST NOT KILL THE SHELL. This is
         # the half of the ownership law no hold covered, and it cost a real
         # defect: the settings page's save bar is a React portal into `#device`,
@@ -447,6 +551,38 @@ async def main():
             not refused and landed == "acq",
             f"page={landed}" if not refused else f"data-go='acq' {refused}")
 
+        # (d-quinquies) THE LEGACY'S `render()` IS NEVER CALLED FROM A REACT
+        # LIFECYCLE. The handover rests on `window.__releasePage()` being
+        # SYNCHRONOUS, and `flushSync` silently degrades to an async flush when
+        # it is called during render or commit — at which point the fragment's
+        # `view.innerHTML = …` runs with React's portal children still in place,
+        # and the root tears down on the next unmount. The two call sites in the
+        # shell today are both DOM event handlers, which is safe; the invariant
+        # is what needs holding, because nothing about `render()` announces it.
+        sources = sorted((pathlib.Path(__file__).resolve().parent.parent
+                          / "design" / "src").rglob("*.tsx"))
+        inside = []
+        for source in sources:
+            text = source.read_text(encoding="utf-8")
+            for match in re.finditer(r"use(?:Layout)?Effect\(", text):
+                depth, index = 0, match.end() - 1
+                while index < len(text):
+                    if text[index] == "(":
+                        depth += 1
+                    elif text[index] == ")":
+                        depth -= 1
+                        if depth == 0:
+                            break
+                    index += 1
+                body = text[match.end():index]
+                if re.search(r"(?<![.\w])render\(\)", body):
+                    inside.append(f"{source.name}:"
+                                  f"{text[:match.start()].count(chr(10)) + 1}")
+        journal.check(
+            "no component calls the legacy render() from an effect",
+            not inside, str(inside) if inside
+            else f"{len(sources)} component file(s) read")
+
         # (d-bis) NO RULE DRIVES A PAGE BY MUTATING THE ENGINE'S ALIAS.
         # `state` is a module-global alias onto the store's CURRENT object, so
         # `state.page = "arr"` mutates that object IN PLACE: its identity never
@@ -522,14 +658,65 @@ async def main():
         # Read as a pattern rather than as a byte-exact line, because reflowing
         # the line changes nothing about the law; and counted, because the guard
         # says nothing about a SECOND, unguarded write elsewhere.
+        # (d-quater) THE TWO TABLES MUST AGREE. `PAGES` in the shell and the
+        # `shellOwned` flags in the fragment's `PAGES_OF()` are independent
+        # lists kept identical by hand. One direction crashes loudly — the
+        # fragment calls `found.render()` where there is none. The other draws
+        # the page in BOTH worlds at once, on every render, perfectly
+        # consistently — which is invisible to every hold shaped like « the
+        # page looks the same each time ». So they are compared.
+        tables = await page.evaluate("""()=>{
+          const shell = [...(window.__shellPages || [])].sort();
+          const table = window.__referentiel.PAGES_OF();
+          return {shell,
+                  owned: table.filter((x) => x.shellOwned).map((x) => x.id).sort(),
+                  ownedWithRenderer: table.filter((x) => x.shellOwned && x.render)
+                    .map((x) => x.id),
+                  legacyWithout: table.filter((x) => !x.shellOwned && !x.render)
+                    .map((x) => x.id)};}""")
+        journal.check(
+            "the shell's page table and the fragment's flags name the same pages",
+            tables["shell"] == tables["owned"]
+            and not tables["ownedWithRenderer"] and not tables["legacyWithout"],
+            f"shell {tables['shell']} vs shellOwned {tables['owned']}"
+            + (f"; owned but still drawable: {tables['ownedWithRenderer']}"
+               if tables["ownedWithRenderer"] else "")
+            + (f"; legacy with no renderer: {tables['legacyWithout']}"
+               if tables["legacyWithout"] else ""))
+
         served = await page.content()
         writes = re.findall(r"[^\n]*view\.innerHTML\s*=[^\n]*", served)
-        guarded = [w for w in writes if re.search(r"!\s*found\.shellOwned", w)]
+        # THE LAW, not one spelling of it. The guard was once a single line and
+        # is now a branch, and a hold that matched the line would have failed on
+        # the day the law was made STRONGER rather than weaker. What must be
+        # true: `#view` is written in one place, on the branch where the shell
+        # does NOT own the page, and the shell is asked to let go before that
+        # write happens.
+        # THE WRITE MUST BE ON THE NOT-OWNED BRANCH, which is the whole law —
+        # a first version of this hold asserted only that a branch and a
+        # release EXISTED somewhere in `render()`, and would have stayed green
+        # over a write hoisted out of the `else`, i.e. over a migrated page
+        # destroyed under React on every draw. The structure is read: the
+        # ownership test, then its `else`, then the write inside it, then the
+        # announcement before it.
+        law = re.search(
+            r"if \(found\.shellOwned\)\s*\{(?P<owned>[\s\S]*?)\}\s*else\s*\{"
+            r"(?P<legacy>[\s\S]*?)\n    \}",
+            served)
+        owned = law.group("owned") if law else ""
+        legacy = law.group("legacy") if law else ""
         journal.check(
-            "the fragment writes #view only for a page it still owns",
-            len(writes) == 1 and len(guarded) == 1,
-            f"{len(writes)} write(s) to #view's innerHTML, {len(guarded)} guarded"
-            + ("" if len(writes) == 1 else f" — {[w.strip()[:80] for w in writes]}"))
+            "the fragment writes #view only on the branch where the shell does "
+            "NOT own the page, and announces the handover first",
+            law is not None
+            and len(writes) == 1
+            and "view.innerHTML" in legacy
+            and "view.innerHTML" not in owned
+            and legacy.index("window.__releasePage?.()")
+            < legacy.index("view.innerHTML"),
+            f"{len(writes)} write(s) to #view's innerHTML; branch found: "
+            f"{law is not None}; write on the not-owned branch: "
+            f"{'view.innerHTML' in legacy and 'view.innerHTML' not in owned}")
 
         await browser.close()
     journal.summary(errors)
