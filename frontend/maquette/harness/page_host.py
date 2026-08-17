@@ -19,7 +19,7 @@ import re
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import Journal, open_page
+from common import PROTOTYPE, Journal, open_page
 
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 from playwright.async_api import async_playwright
@@ -387,8 +387,14 @@ async def main():
         # R66 drives the page through the store and never through a tap, so the
         # bar's three states were emitted by a component nothing had ever
         # clicked.
+        # EVERY DIAL NAMED, and the world reset: this block runs after the
+        # settings taps, which leave a scenario and a mutated world behind. The
+        # crossref hold below is gated on `scen`, so the dependency is real —
+        # naming half of it is what makes a hold measure a surface nobody asked
+        # for.
+        await page.evaluate("()=>window.__reset()")
         await page.evaluate("()=>window.__magasin.ecrire({page: 'arr',"
-                            " phase: 'prete', pipe: 'repos'})")
+                            " phase: 'prete', pipe: 'repos', scen: 'charge'})")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(320)
         refused = await tap("#view .pipeline [data-pipe='lancer']")
@@ -414,19 +420,26 @@ async def main():
             str(queued) if not refused else f"data-pipe='lancer' {refused}")
 
         refused = await tap("#view .pipeline [data-pipe='arreter']")
-        stopped = await page.evaluate(
-            "()=>window.__magasin.lire().etat.pipe")
+        # The STORE and the DRAWING, because a component that kept drawing the
+        # running bar over a stopped pipeline satisfies the store alone — which
+        # is the half its two siblings above already read.
+        stopped = await page.evaluate("""()=>({
+          pipe: window.__magasin.lire().etat.pipe,
+          idle: !!document.querySelector('#view .pipeline .pip.neutral'),
+          start: !!document.querySelector('#view .pipeline .cfoot.solid'),
+          controls: [...document.querySelectorAll('#view [data-pipe]')]
+            .map((x) => x.dataset.pipe),
+        })""")
         journal.check(
-            "and a real tap on « arrêter » stops it",
-            not refused and stopped == "repos",
-            f"pipe={stopped}" if not refused else f"data-pipe='arreter' {refused}")
+            "and a real tap on « arrêter » stops it, and the bar says so",
+            not refused and stopped["pipe"] == "repos" and stopped["idle"]
+            and stopped["start"] and stopped["controls"] == ["lancer"],
+            str(stopped) if not refused else f"data-pipe='arreter' {refused}")
 
         # The crossref leaves the page entirely, and it is the page's own
-        # `data-go` — the attribute B-024's containment argument counts.
-        await page.evaluate("()=>window.__magasin.ecrire({page: 'arr',"
-                            " phase: 'prete', pipe: 'repos', scen: 'charge'})")
-        await page.evaluate("()=>window.__referentiel.render()")
-        await page.wait_for_timeout(320)
+        # `data-go` — the attribute B-024's containment argument counts. It is
+        # drawn only outside the real-data scenario, which the block named at
+        # its head.
         refused = await tap("#view .crossref[data-go='acq']")
         landed = await page.evaluate("()=>window.__magasin.lire().etat.page")
         journal.check(
@@ -438,27 +451,68 @@ async def main():
         # `state` is a module-global alias onto the store's CURRENT object, so
         # `state.page = "arr"` mutates that object IN PLACE: its identity never
         # changes, nothing React subscribes to moves, and the page keeps drawing
-        # whatever was there before. Measured on the wave that migrated
-        # Arrivées — the store said « arr », `#view` held the acquisition page's
-        # roots, and the rule that hit it reported a MISSING BUTTON rather than
-        # a stale page, which is what makes this worth a source-level hold. The
-        # door is the store (`window.__magasin.ecrire`), or `applyState` /
-        # `__go`, which go through it.
+        # whatever was there before. It was measured rather than reasoned about
+        # — the store named one page, `#view` held another page's roots,
+        # and the rule that hit it reported a MISSING BUTTON rather than a stale
+        # page, which is what makes this worth a source-level hold. The door is
+        # the store (`window.__magasin.ecrire`), or `applyState` / `__go`, which
+        # go through it.
+        #
+        # THREE SHAPES, not one. A first version matched `state.x =` on a single
+        # physical line and would have been walked past by `Object.assign(state,
+        # …)` — which the engine itself uses — by `state["page"] =`, and by a
+        # write split across two source lines, which is this directory's own
+        # house style for long driver strings. So the text is flattened first:
+        # comments dropped, quotes and backslashes removed (a driver is a STRING
+        # here, split at the author's convenience), whitespace collapsed.
         scripts = sorted(pathlib.Path(__file__).resolve().parent.glob("*.py"))
+        shapes = (
+            r"(?<![.\w])state\s*\.\s*\w+\s*(?:\+|-|\*|\?\?|\|\|)?=(?!=)",
+            r"(?<![.\w])state\s*\[[^\]]*\]\s*=(?!=)",
+            r"Object\s*\.\s*assign\s*\(\s*state\b",
+        )
         writers = []
         for script in scripts:
-            for number, line in enumerate(
-                    script.read_text(encoding="utf-8").split("\n"), 1):
-                # A COMMENT is not a drive — this hold's own explanation
-                # above says the forbidden thing in order to name it.
-                if line.lstrip().startswith("#"):
-                    continue
-                if re.search(r"(?<![.\w])state\.\w+\s*=(?!=)", line):
-                    writers.append(f"{script.name}:{number}")
+            source = "\n".join(
+                line for line in script.read_text(encoding="utf-8").split("\n")
+                if not line.lstrip().startswith("#"))
+            flat = re.sub(r"\s+", " ", re.sub(r"[\"'\\]", "", source))
+            hit = [shape for shape in shapes if re.search(shape, flat)]
+            if hit:
+                writers.append(f"{script.name} ({len(hit)} shape(s))")
         journal.check(
             "no rule drives a page by mutating the engine's state alias",
             not writers,
-            str(writers) if writers else f"{len(scripts)} scripts read, none does")
+            str(writers) if writers
+            else f"{len(scripts)} scripts read, three shapes each, none writes")
+
+        # (d-ter) A COLD DEEP ADDRESS LANDS ON THE SHELL-OWNED PAGE. `/` keeps
+        # its legacy query and the LEGACY parser keeps owning it, so a link to
+        # `?page=arr` reaches a migrated page only if what that parser reads
+        # crosses into the store the component reads. The engine reads it once
+        # at boot, through the one in-place write left anywhere
+        # (`Object.assign(state, etatDeLURL())`), which is why this is measured
+        # rather than assumed. Measured, it holds for a sturdier reason than the
+        # ordering alone: the address write that follows re-renders the shell,
+        # which re-reads the mutated object — starting the engine AFTER React's
+        # first paint does not fell this hold. What fells it is the parser
+        # ceasing to read `page`, which is the promise itself.
+        cold = await context.new_page()
+        await cold.goto(f"{PROTOTYPE}?page=arr", wait_until="load")
+        await cold.evaluate("()=>window.__chargementTermine?.()")
+        await cold.evaluate("()=>document.querySelector('#toastx')?.click()")
+        await cold.wait_for_timeout(500)
+        landed = await cold.evaluate("""()=>({
+          page: window.__magasin.lire().etat.page,
+          roots: [...document.querySelector('#view').children].map((x) => x.className),
+          bar: !!document.querySelector('#view .pipeline [data-pipe]'),
+        })""")
+        journal.check(
+            "a cold deep address lands on the page it names, drawn by the shell",
+            landed["page"] == "arr" and landed["roots"] == ["body"]
+            and landed["bar"],
+            str(landed))
+        await cold.close()
 
         # (d) The handover is the SHELL's: the fragment must not write into a
         # container React holds. Read from the DOCUMENT THE BROWSER RAN, never

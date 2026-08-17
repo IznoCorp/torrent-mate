@@ -25,8 +25,11 @@ is an anchor HINT — re-grep the SYMBOL before editing.
   lines) and `dernierPassageHTML` (~12469, 26 lines). They are NOT shared, so they become real
   JSX in the component rather than published emitters. This is the difference from wave 1, where
   every emitter had other callers.
-- **`secHTML` (~11669, 8 lines) has NINE call sites** — `viewLibrary` and `viewAcquisition` among
-  them, both still legacy. It stays in the fragment and gains an INNER split (`secInner`), the
+- **`secHTML` (~11669, 8 lines) has EIGHT call sites**, three of them `viewArrivals`' own and
+  five inside `viewAcquisition`, which is still legacy. (The recon first said nine: `rg -c`
+  counts the DEFINITION line too, and `viewLibrary` — named here at first — never called it. The
+  miscount is left recorded rather than quietly fixed, because it is the same one a reader would
+  make.) It stays in the fragment and gains an INNER split (`secInner`), the
   same shape as `emptyInner` / `skelCardsInner` / `surfErrInner`: the component draws the
   `<section class="sec">` itself and fills it. Its short-circuit (`count === "0" || inner === ""`
   → no section at all) is the component's to reproduce.

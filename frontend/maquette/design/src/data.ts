@@ -353,8 +353,8 @@ export type Reference = {
   // read-only reference, never engine state.
   listeFaitsHTML: (rows: Fact[]) => string;
   factRowsHTML: (rows: Fact[]) => string;
-  // What the Arrivées page draws. `secHTML` is the section emitter nine call
-  // sites share; a migrated page draws the `<section class="sec">` itself and
+  // What the Arrivées page draws. `secHTML` is the section emitter the
+  // acquisition page's five sections still share; a migrated page draws the `<section class="sec">` itself and
   // fills it with `secInner`, the same split as the empty and skeleton
   // surfaces. The EMPTY case (`count` of zero, or nothing inside) belongs to
   // the outer function, and a component reproduces it by drawing no section.

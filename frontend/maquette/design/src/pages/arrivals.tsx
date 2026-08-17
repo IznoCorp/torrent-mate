@@ -18,8 +18,9 @@
 // The cards go through `cardHTML` and the fact rows through `factRowsHTML`,
 // both reused VERBATIM: the delegated handlers depend on that markup being
 // byte-exact. A section goes through `secInner`, the inside of the `secHTML`
-// nine call sites share — this component draws the `<section class="sec">`
-// itself, because React cannot set the outer markup of a node it also renders,
+// the acquisition page's five sections still share — this component draws the
+// `<section class="sec">` itself, because React cannot set the outer markup of
+// a node it also renders,
 // and it reproduces the outer function's EMPTY case by drawing no section at
 // all.
 import { useTranslation } from "react-i18next";
