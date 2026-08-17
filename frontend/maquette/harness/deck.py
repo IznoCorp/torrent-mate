@@ -23,7 +23,7 @@ async def main():
     await pg.evaluate("()=>window.__measure(true)")
 
     async def deck():
-        await pg.evaluate('()=>{window.__reset(); applyState({page:"acq",acqTab:"decouvrir",phase:"prete"}); state.sugMode="deck"; render();}')
+        await pg.evaluate('()=>{window.__reset(); applyState({page:"acq",acqTab:"decouvrir",phase:"prete"}); window.__magasin.ecrire({sugMode: "deck"}); render();}')
         await pg.wait_for_timeout(600)
 
     async def title():

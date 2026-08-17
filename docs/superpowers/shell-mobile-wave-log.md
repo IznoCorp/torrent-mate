@@ -381,6 +381,64 @@ lines. Pages the shell now owns: `sys`, `maint`, `cfg`. Pages the fragment still
 `acq`, `arr`, `lib`, plus `viewIntrouvable` and `viewProfil`. The DRAWER stays where it was —
 this wave was not its last consumer: the topbar burger and `viewIntrouvable` still open it.
 
+## SP4d wave 2 — Arrivées, and the first migrated control that writes
+
+Branch `feat/maquette-sp4d2`, version 0.97.19 (ONE bump for the wave). The second page wave,
+on the machinery wave 1 paid for: `viewArrivals` — 43 lines — becomes `pages/arrivals.tsx`, and
+with it the two emitters whose ONLY caller it was, `barrePipelineHTML` (29 lines) and
+`dernierPassageHTML` (26). That is the difference from wave 1: there, every emitter had other
+callers and was reused verbatim through the référentiel; here two of them had none, so they
+became real JSX rather than published helpers. `secHTML`, which nine call sites share, stayed in
+the fragment and gained its `secInner` — the same split as `emptyInner`, `skelCardsInner` and
+`surfErrInner`, and the component reproduces the outer function's EMPTY case by drawing no
+section at all.
+
+**Arrivées is the first migrated page carrying a control that WRITES.** The pilot's bar writes
+nothing itself: it emits `data-pipe="lancer"` / `"arreter"` and the document-level delegation
+does the writing, exactly as before. Its three states include the one DOIT-4 exists for — a pass
+asked DURING a run is QUEUED, visibly, never refused with « busy, try again ».
+
+Fidelity proven before any deletion: **0 divergences over all six `arr-*` states** (repos,
+running, queued, loaded, loading, error).
+
+**And a defect of CLASS, measured on the way.** R66 drove the page by writing `state.page = "arr"`
+— the engine's alias — and calling `render()`. That alias points at the store's CURRENT object,
+so mutating it in place leaves the object's identity unchanged: nothing React subscribes to
+moves, and the page keeps drawing whatever was there before. Measured, not argued: the store said
+« arr » while `#view` held the ACQUISITION page's roots, and the rule reported a missing button
+rather than a stale page. The fragment itself no longer writes the alias anywhere — SP4a
+converted its ~70 write sites — but six harness scripts still did. All six now go through the
+store, and R77 gained the source-level hold that catches the class: no rule drives a page by
+mutating the alias. Mutation: putting a single driver back fells it, naming the file and the
+line. It matters beyond this wave — the same write would have silently broken the Médiathèque and
+Acquisition waves, on rules that look green.
+
+R77 took Arrivées in (25 holds): the residue walk crosses both worlds on it, and the bar's three
+taps plus the `data-go` crossref each have a hold driven by a REAL tap. Mutation: `data-pipe`
+disabled in the served bundle alone fells the three taps, each naming the attribute that went
+missing.
+
+**The wave's own adversarial review** found the new alias-drive hold matched only ONE shape —
+`state.x =` on a single physical line — and would have been walked past by
+`Object.assign(state, …)`, which the engine itself uses, by `state["page"] =`, and by a write
+split across two source lines, which is this directory's own house style. It now flattens the
+text and looks for three shapes; three mutations, one run each, fell it. The engine's single
+`Object.assign(state, etatDeLURL())` earned a hold of its own in the process: a COLD deep address
+must land on the page it names, drawn by the shell. It holds for a sturdier reason than the boot
+order — starting the engine after React's first paint does NOT fell it, because the address write
+that follows re-renders the shell — so the mutation that proves it is the URL parser ceasing to
+read `page`. The review also caught a tap that read only the store where its two siblings read
+the drawing, a block inheriting a scenario it did not name, and three fresh comments repeating a
+call-site count that was wrong at the source (`rg -c` counts the definition line).
+
+**Wave gate**: `resync.py` moved the drawer's deployed-version card to the branch's base
+(0.97.18, build `21c54a98`), committed as data; the full suite is **49 scripts, 527 holds, zero
+FAIL** (521 + 6 for R77: Arrivées' four delegation holds, the alias-drive law and the cold
+deep address); `make check` green including `check-frontend`;
+`scripts/check-no-french.py` green; R59/R69/R71 byte-identical against the merge point. The
+fragment went from 40 047 to 39 961 lines. Pages the shell owns: `sys`, `maint`, `cfg`, `arr`.
+Pages the fragment still draws: `lib`, `acq`, plus `viewIntrouvable` and `viewProfil`.
+
 ## What is already done, ahead of the phase plan
 
 The prototype and its harness carry the design; some app-side work was pulled forward because

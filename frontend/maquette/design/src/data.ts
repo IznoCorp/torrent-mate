@@ -170,6 +170,17 @@ export type SettledDecision = DecisionCommon & {
 // actually reads, starting with `t` to match against a decision's `d`.
 export type QueueCard = Record<string, unknown>;
 
+// A card's FOOT, the only options `cardHTML` takes. `footAct` becomes the
+// `data-act` attribute the document-level delegation reads, which is why it is
+// a string and not a handler.
+export type CardFoot = {
+  foot?: string;
+  footAct?: string;
+  footSolid?: boolean;
+  footTone?: string;
+  footDone?: boolean;
+};
+
 // Read-only reference data + pure rendering helpers the engine's own script
 // publishes once, at definition time — well before any component's module
 // evaluates (see shell.tsx's boot-order comment). None of it is ever
@@ -211,6 +222,34 @@ export type PipelineRun = {
   ok: boolean;
   d: string;
   r: string;
+};
+
+// THE PIPELINE, as the page that carries its health reads it: the nine steps in
+// the engine's own order, the trigger vocabulary said in words rather than in
+// the engine's token, and the last run exactly as `pipeline_run` recorded it.
+// A step's `faits` entry may carry nothing at all — that is the em dash the
+// interface draws for « nothing to do », and it is not the same sentence as a
+// step that looked and found everything already in order.
+export type PipelineStep = { n: string; l: string; d: string };
+
+export type PipelineFact = {
+  n: string;
+  r?: string;
+  s?: string;
+  bloque?: number;
+};
+
+export type Pipeline = {
+  etapes: PipelineStep[];
+  declencheurs: Record<string, string>;
+  dernier: {
+    uid: string;
+    quand: string;
+    duree: string;
+    declencheur: string;
+    issue: string;
+    faits: PipelineFact[];
+  };
 };
 
 // One maintenance RUBRIC — a heading and the sentence under it. The commands
@@ -286,7 +325,16 @@ export type Reference = {
   icons: Record<string, string>;
   baseTitle: (title: string) => string;
   SEARCH: SearchResults;
-  cardHTML: (descriptor: CardDescriptor) => string;
+  // The SECOND parameter is the fragment's own, and it was missing here: a
+  // card's foot is an option, not a property of the medium — `foot` is its
+  // label, `footAct` the `data-act` the delegation reads, and the three others
+  // decide how it looks and whether it is spent. A queue card is a looser shape
+  // than a search result's descriptor (the engine's own world objects carry
+  // more), so both are accepted, exactly as the fragment accepts them.
+  cardHTML: (
+    descriptor: CardDescriptor | QueueCard,
+    options?: CardFoot,
+  ) => string;
   addVerb: (result: SearchResult, index: number) => string;
   render: () => void;
   // Media-sheet data: hero banners, posters, cast portraits, trailers and
@@ -305,6 +353,16 @@ export type Reference = {
   // read-only reference, never engine state.
   listeFaitsHTML: (rows: Fact[]) => string;
   factRowsHTML: (rows: Fact[]) => string;
+  // What the Arrivées page draws. `secHTML` is the section emitter the
+  // acquisition page's five sections still share; a migrated page draws the `<section class="sec">` itself and
+  // fills it with `secInner`, the same split as the empty and skeleton
+  // surfaces. The EMPTY case (`count` of zero, or nothing inside) belongs to
+  // the outer function, and a component reproduces it by drawing no section.
+  secHTML: (pip: string, title: string, count: string, inner: string,
+            note?: string) => string;
+  secInner: (pip: string, title: string, count: string, inner: string,
+             note?: string) => string;
+  PIPELINE: Pipeline;
   skelCards: (count: number) => string;
   skelCardsInner: (count: number) => string;
   surfErr: (subject: string) => string;
@@ -383,6 +441,8 @@ export type Reference = {
   // stable selector without ever seeing a stale snapshot.
   derivedBlocked: () => QueueCard[];
   derivedStuck: () => QueueCard[];
+  derivedMoving: () => QueueCard[];
+  derivedSettled: () => QueueCard[];
   // Agreeing with the machine (`actionLaisser`) or with a candidate
   // (`actionResoudre`, `choix` the chosen title when the operator picked
   // one) both remove the folder from wherever it is queued and hand it back

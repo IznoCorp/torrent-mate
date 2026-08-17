@@ -11668,11 +11668,18 @@
 
   function secHTML(pip, title, count, inner, note) {
     if (String(count) === "0" || inner === "") return "";
-    return `<section class="sec">
+    return `<section class="sec">${secInner(pip, title, count, inner, note)}</section>`;
+  }
+  /* Same split as `emptyInner` / `skelCardsInner` / `surfErrInner`: a migrated
+     PAGE draws the `<section class="sec">` itself and fills it with this. The
+     EMPTY case stays the outer function's, and a component reproduces it by
+     drawing no section at all — which is what the legacy's empty string did. */
+  function secInner(pip, title, count, inner, note) {
+    return `
     <div class="sechead"><span class="pip ${pip}"></span><span class="t">${escapeHtml(title)}</span><span class="k">${count}</span></div>
     ${note ? `<div class="note">${note}</div>` : ""}
     ${inner}
-  </section>`;
+  `;
   }
 
   /* WORKING STATE — actions really MUTATE
@@ -12350,38 +12357,6 @@
     );
   }
 
-  /* The pilot's bar. Three states, and the third is the one DOIT-4 exists for:
-     an action asked at a bad moment is QUEUED, visibly, and never refused with
-     « occupé, réessaie ». */
-  function barrePipelineHTML() {
-    if (state.pipe === "encours" || state.pipe === "file") {
-      const etape = PIPELINE.etapes[3];
-      /* « Relancer ensuite » stays offered WHILE a run is going, and that is
-         the point rather than an oversight: new downloads land during a pass,
-         and asking for another one is a legitimate thing to want. DOIT-4 makes
-         it a QUEUE rather than a refusal — and a queue nobody can reach is a
-         branch no gesture can enter, which is a branch nobody can trust. */
-      return `<section class="pipeline">
-      <div class="ph"><span class="pip info"></span><span class="pt">En cours</span>
-      <span class="pq">étape 4 sur ${PIPELINE.etapes.length} · ${escapeHtml(etape.l)}</span></div>
-      <div class="gauge"><i style="width:44%"></i></div>
-      ${
-        state.pipe === "file"
-          ? `<div class="live"><span class="d"></span><span>Votre passage est <b>en file</b> — il partira dès que celui-ci sera fini.</span></div>
-      <button class="cfoot" data-pipe="arreter">Arrêter le pipeline</button>`
-          : `<div class="pacts">
-        <button class="cfoot" data-pipe="lancer">Relancer ensuite</button>
-        <button class="cfoot" data-pipe="arreter">Arrêter</button>
-      </div>`
-      }
-    </section>`;
-    }
-    return `<section class="pipeline">
-    <div class="ph"><span class="pip neutral"></span><span class="pt">Au repos</span>
-    <span class="pq">dernier passage ${escapeHtml(PIPELINE.dernier.quand)}</span></div>
-    <button class="cfoot solid" data-pipe="lancer">Lancer le pipeline</button>
-  </section>`;
-  }
 
   /* The last run, told as its nine steps. The counts are the ones
      `pipeline_run` recorded; nothing here is derived from what the page shows,
@@ -12466,76 +12441,6 @@
       .join("")}`;
   }
 
-  function dernierPassageHTML() {
-    const run = PIPELINE.dernier;
-    const parNom = Object.fromEntries(run.faits.map((f) => [f.n, f]));
-    const lignes = PIPELINE.etapes.map((etape) => {
-      const fait = parNom[etape.n] || {};
-      const rien = !fait.r && !fait.s && !fait.bloque;
-      return {
-        l: etape.l,
-        k: etape.n,
-        v: fait.bloque
-          ? `${fait.r ? fait.r + " · " : ""}${fait.bloque} bloqué`
-          : fait.r || "",
-        s: fait.bloque
-          ? `${fait.s ? fait.s + " · " : ""}ce qui coince est juste dessous`
-          : rien
-            ? "rien à faire"
-            : fait.s || "",
-        etat: fait.bloque ? "danger" : "",
-      };
-    });
-    return `<section class="sec">
-    <div class="sechead"><span class="pip success"></span><span class="t">Dernier passage</span><span class="k">${escapeHtml(run.duree)}</span></div>
-    <div class="live"><span class="d" style="animation:none;background:var(--success)"></span><span>Déclenché par <b>${escapeHtml(PIPELINE.declencheurs[run.declencheur])}</b>, ${escapeHtml(run.quand)}.</span></div>
-    ${listeFaitsHTML(lignes)}
-  </section>`;
-  }
-
-  function viewArrivals() {
-    const stuck = derived.stuck(),
-      moving = derived.moving(),
-      settled = derived.settled();
-    const rien = stuck.length + moving.length + settled.length === 0;
-    if (state.phase !== "prete")
-      return `<div class="body">${state.phase === "erreur" ? surfErr("ce qui arrive") : skelCards(3)}</div>`;
-    return `<div class="body">
-    <div class="note"><b>Arrivées porte la santé du PIPELINE</b> — ce qui coince, ce qui est arrivé, et le passage lui-même. Une machine en peine est l'affaire de Système ; un média en peine est l'affaire d'ici. C'est cette coupure qui décide de la place de chaque panneau, et non la page dont il venait.</div>
-    ${barrePipelineHTML()}
-    ${dernierPassageHTML()}
-    ${
-      state.scen === "reel"
-        ? `<div class="note"><b>Contenu réel de la zone de staging</b> et dernier passage réel, lus dans <code>library.db</code> : deux dossiers bloqués pour des raisons différentes, et le run du 14 août à 07 h 08.</div>`
-        : ""
-    }
-    ${moving.length > 0 ? `<div class="live"><span class="d"></span><span>Scraping en cours : <b>Furious</b> S01E01 — affiches récupérées</span></div>` : ""}
-    ${
-      rien
-        ? emptyHTML(
-            "Rien n'entre en ce moment.",
-            "La zone de tri est vide : aucun média en cours de traitement, rien de bloqué. Le dernier passage est raconté ci-dessus.",
-          )
-        : ""
-    }
-    ${secHTML(
-      "danger",
-      "Ça coince",
-      String(stuck.length),
-      stuck
-        .map((st) => cardHTML(st, { foot: "Résoudre →", footAct: "resolve" }))
-        .join(""),
-      "<b>La raison ne tronque jamais (§12).</b> C'est ce sur quoi vous décidez : elle passe à la ligne et l'action descend en pleine largeur sous la frise.",
-    )}
-    ${
-      state.scen !== "reel"
-        ? `<button class="crossref" data-go="acq">2 de ces éléments viennent d'une acquisition suivie. <span>Acquisition →</span></button>`
-        : ""
-    }
-    ${secHTML("info", "Ça avance", String(moving.length), moving.map((mv) => cardHTML(mv)).join(""))}
-    ${secHTML("success", "Arrivé dans les 24 h", String(settled.length), settled.map((se) => cardHTML(se)).join(""))}
-  </div>`;
-  }
 
   /* ── MAINTENANCE ──────────────────────────────────────────────────────
      Two levels and a panel, the shape the settings already use: the rubrics,
@@ -14294,11 +14199,6 @@
   }
 
 
-
-
-
-
-
   /* Changing a value. The prototype does not draw a keyboard: what it draws is
      that the change is PENDING — marked on its row, counted in the bar, and
      written by nothing until the bar is used. */
@@ -14449,7 +14349,10 @@
       l: "Arrivées",
       ic: icons.inbox,
       badge: derived.stuck().length,
-      render: viewArrivals,
+      /* No `render`: the shell draws this page (`pages/arrivals.tsx`). Clearing
+         `shellOwned` without restoring a renderer therefore CRASHES rather
+         than quietly drawing a page nobody maintains any more. */
+      shellOwned: true,
     },
     {
       id: "sys",
@@ -14652,6 +14555,16 @@
        and `surfErr` are the page's two non-ready surfaces. */
     listeFaitsHTML,
     factRowsHTML,
+    /* What the Arrivées page draws. `secHTML` is the section emitter the
+       acquisition page's five sections still share — a migrated page draws the
+       section itself and fills it with `secInner`, exactly as it does for the
+       empty and skeleton surfaces.
+       `PIPELINE` is the run's own data, read and never written; the three
+       `derived` verbs answer what is stuck, moving and settled, which depends
+       on the scenario and so cannot be a frozen value. */
+    secHTML,
+    secInner,
+    PIPELINE,
     skelCards,
     skelCardsInner,
     surfErr,
@@ -14738,6 +14651,8 @@
     // call returns stays live against the scenario switch inside `derived`.
     derivedBlocked: () => derived.blocked(),
     derivedStuck: () => derived.stuck(),
+    derivedMoving: () => derived.moving(),
+    derivedSettled: () => derived.settled(),
     actionResoudre,
     actionLaisser,
     actionRecuperer,
@@ -17160,8 +17075,8 @@
       </div>
       <div class="ver">
         <p class="vt">Version déployée</p>
-        <p class="vv">0.97.17</p>
-        <p class="vc">build 7ac230c8 · à jour</p>
+        <p class="vv">0.97.18</p>
+        <p class="vc">build 21c54a98 · à jour</p>
       </div>`;
     element.classList.add("open");
     select("#scrim").classList.add("open");
