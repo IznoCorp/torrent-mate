@@ -170,6 +170,17 @@ export type SettledDecision = DecisionCommon & {
 // actually reads, starting with `t` to match against a decision's `d`.
 export type QueueCard = Record<string, unknown>;
 
+// A card's FOOT, the only options `cardHTML` takes. `footAct` becomes the
+// `data-act` attribute the document-level delegation reads, which is why it is
+// a string and not a handler.
+export type CardFoot = {
+  foot?: string;
+  footAct?: string;
+  footSolid?: boolean;
+  footTone?: string;
+  footDone?: boolean;
+};
+
 // Read-only reference data + pure rendering helpers the engine's own script
 // publishes once, at definition time — well before any component's module
 // evaluates (see shell.tsx's boot-order comment). None of it is ever
@@ -314,7 +325,16 @@ export type Reference = {
   icons: Record<string, string>;
   baseTitle: (title: string) => string;
   SEARCH: SearchResults;
-  cardHTML: (descriptor: CardDescriptor) => string;
+  // The SECOND parameter is the fragment's own, and it was missing here: a
+  // card's foot is an option, not a property of the medium — `foot` is its
+  // label, `footAct` the `data-act` the delegation reads, and the three others
+  // decide how it looks and whether it is spent. A queue card is a looser shape
+  // than a search result's descriptor (the engine's own world objects carry
+  // more), so both are accepted, exactly as the fragment accepts them.
+  cardHTML: (
+    descriptor: CardDescriptor | QueueCard,
+    options?: CardFoot,
+  ) => string;
   addVerb: (result: SearchResult, index: number) => string;
   render: () => void;
   // Media-sheet data: hero banners, posters, cast portraits, trailers and

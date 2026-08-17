@@ -26,8 +26,8 @@ from playwright.async_api import async_playwright
 
 # The pages the shell owns today. A page absent here is one the fragment still
 # draws, and the rule holds that too — it is the other half of the law.
-SHELL_OWNED = ["sys", "maint", "cfg"]
-LEGACY_OWNED = ["lib", "arr", "acq"]
+SHELL_OWNED = ["sys", "maint", "cfg", "arr"]
+LEGACY_OWNED = ["lib", "acq"]
 
 READ = """()=>{
   const view = document.querySelector('#view');
@@ -80,7 +80,7 @@ async def main():
         # predecessors, once across each world's boundary.
         walk = ["lib", "sys", "lib", "arr", "sys", "arr", "acq", "sys", "acq",
                 "maint", "lib", "maint", "cfg", "maint", "sys", "cfg", "arr",
-                "cfg", "sys", "cfg"]
+                "cfg", "sys", "cfg", "lib", "arr", "acq", "arr"]
         signatures: dict[str, set[str]] = {}
         residue = []
         absent = []
@@ -380,6 +380,85 @@ async def main():
             and not console_errors,
             f"bar raised: {raised}; back: {returned}; console errors: "
             + (str(console_errors[:1])[:160] if console_errors else "none"))
+
+        # (c-quinquies) ARRIVÉES' OWN DELEGATION. This page carries the first
+        # migrated control that MUTATES: the pilot's bar writes nothing itself,
+        # it emits `data-pipe` and the document-level handler does the writing.
+        # R66 drives the page through the store and never through a tap, so the
+        # bar's three states were emitted by a component nothing had ever
+        # clicked.
+        await page.evaluate("()=>window.__magasin.ecrire({page: 'arr',"
+                            " phase: 'prete', pipe: 'repos'})")
+        await page.evaluate("()=>window.__referentiel.render()")
+        await page.wait_for_timeout(320)
+        refused = await tap("#view .pipeline [data-pipe='lancer']")
+        started = await page.evaluate(
+            "()=>({pipe: window.__magasin.lire().etat.pipe,"
+            " controls: [...document.querySelectorAll('#view [data-pipe]')]"
+            ".map((x) => x.dataset.pipe)})")
+        journal.check(
+            "a real tap on « lancer » starts the pipeline",
+            not refused and started["pipe"] == "encours"
+            and "arreter" in started["controls"],
+            str(started) if not refused else f"data-pipe='lancer' {refused}")
+
+        # DOIT-4, the one the bar exists for: asked DURING a run, another pass
+        # is QUEUED — visibly — never refused with « busy, try again ».
+        refused = await tap("#view .pipeline [data-pipe='lancer']")
+        queued = await page.evaluate(
+            "()=>({pipe: window.__magasin.lire().etat.pipe,"
+            " live: !!document.querySelector('#view .pipeline .live')})")
+        journal.check(
+            "and asked again DURING a run, the next pass is queued, not refused",
+            not refused and queued["pipe"] == "file" and queued["live"],
+            str(queued) if not refused else f"data-pipe='lancer' {refused}")
+
+        refused = await tap("#view .pipeline [data-pipe='arreter']")
+        stopped = await page.evaluate(
+            "()=>window.__magasin.lire().etat.pipe")
+        journal.check(
+            "and a real tap on « arrêter » stops it",
+            not refused and stopped == "repos",
+            f"pipe={stopped}" if not refused else f"data-pipe='arreter' {refused}")
+
+        # The crossref leaves the page entirely, and it is the page's own
+        # `data-go` — the attribute B-024's containment argument counts.
+        await page.evaluate("()=>window.__magasin.ecrire({page: 'arr',"
+                            " phase: 'prete', pipe: 'repos', scen: 'charge'})")
+        await page.evaluate("()=>window.__referentiel.render()")
+        await page.wait_for_timeout(320)
+        refused = await tap("#view .crossref[data-go='acq']")
+        landed = await page.evaluate("()=>window.__magasin.lire().etat.page")
+        journal.check(
+            "a real tap on the crossref lands on Acquisition",
+            not refused and landed == "acq",
+            f"page={landed}" if not refused else f"data-go='acq' {refused}")
+
+        # (d-bis) NO RULE DRIVES A PAGE BY MUTATING THE ENGINE'S ALIAS.
+        # `state` is a module-global alias onto the store's CURRENT object, so
+        # `state.page = "arr"` mutates that object IN PLACE: its identity never
+        # changes, nothing React subscribes to moves, and the page keeps drawing
+        # whatever was there before. Measured on the wave that migrated
+        # Arrivées — the store said « arr », `#view` held the acquisition page's
+        # roots, and the rule that hit it reported a MISSING BUTTON rather than
+        # a stale page, which is what makes this worth a source-level hold. The
+        # door is the store (`window.__magasin.ecrire`), or `applyState` /
+        # `__go`, which go through it.
+        scripts = sorted(pathlib.Path(__file__).resolve().parent.glob("*.py"))
+        writers = []
+        for script in scripts:
+            for number, line in enumerate(
+                    script.read_text(encoding="utf-8").split("\n"), 1):
+                # A COMMENT is not a drive — this hold's own explanation
+                # above says the forbidden thing in order to name it.
+                if line.lstrip().startswith("#"):
+                    continue
+                if re.search(r"(?<![.\w])state\.\w+\s*=(?!=)", line):
+                    writers.append(f"{script.name}:{number}")
+        journal.check(
+            "no rule drives a page by mutating the engine's state alias",
+            not writers,
+            str(writers) if writers else f"{len(scripts)} scripts read, none does")
 
         # (d) The handover is the SHELL's: the fragment must not write into a
         # container React holds. Read from the DOCUMENT THE BROWSER RAN, never

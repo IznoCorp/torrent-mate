@@ -138,8 +138,8 @@ async def main():
 
         # ── the library says what a medium is ABOUT ─────────────────────────
         for lens, name in (("cat", "Médias"), ("rec", "Récents")):
-            await pg.evaluate("(l)=>{state.page='lib'; state.libLens=l; "
-                              "state.libMode='list'; render();}", lens)
+            await pg.evaluate("(l)=>{window.__magasin.ecrire({page: 'lib',"
+                              " libLens: l, libMode: 'list'}); render();}", lens)
             await pg.wait_for_timeout(650)
             seen = await pg.evaluate("""()=>{
               const cards = [...document.querySelectorAll('#libitems .card')];
@@ -177,8 +177,8 @@ async def main():
               if (!st) { st = document.createElement('style'); st.id = 'clamptrial';
                          document.head.appendChild(st); }
               st.textContent = '.cov{-webkit-line-clamp:' + n + ' !important}';}""", n)
-            await pg.evaluate("()=>{state.page='lib'; state.libLens='cat'; "
-                              "state.libMode='list'; render();}")
+            await pg.evaluate("()=>{window.__magasin.ecrire({page: 'lib',"
+                              " libLens: 'cat', libMode: 'list'}); render();}")
             await pg.wait_for_timeout(520)
             return await pg.evaluate(
                 """()=>[...document.querySelectorAll('#libitems .card')]
@@ -194,8 +194,8 @@ async def main():
               (await cards_that_grow(lines + 1)) > 0, f"at {lines + 1} lines")
         await pg.evaluate("""()=>{const st = document.querySelector('#clamptrial');
                                if (st) st.remove();}""")
-        await pg.evaluate("()=>{state.page='lib'; state.libLens='cat'; "
-                          "state.libMode='list'; render();}")
+        await pg.evaluate("()=>{window.__magasin.ecrire({page: 'lib',"
+                          " libLens: 'cat', libMode: 'list'}); render();}")
         await pg.wait_for_timeout(520)
 
         # A clamped line must SAY it is clamped rather than stop mid-word.
@@ -229,8 +229,8 @@ async def main():
         for mode in ("list", "grid"):
             starts = {}
             for lens in ("cat", "rec", "inc"):
-                await pg.evaluate("([l, m])=>{state.page='lib'; state.libLens=l; "
-                                  "state.libMode=m; render();}", [lens, mode])
+                await pg.evaluate("([l, m])=>{window.__magasin.ecrire({page: 'lib',"
+                                  " libLens: l, libMode: m}); render();}", [lens, mode])
                 await pg.wait_for_timeout(620)
                 starts[lens] = await pg.evaluate("""()=>{
                   const frame = document.querySelector('#device').getBoundingClientRect();

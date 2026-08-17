@@ -30,6 +30,7 @@ import { useLayoutEffect, useRef } from "react";
 import type { ReactElement } from "react";
 import { createPortal } from "react-dom";
 import { useUiState } from "../data";
+import { ArrivalsPage } from "./arrivals";
 import { MaintenancePage } from "./maintenance";
 import { SettingsPage } from "./settings";
 import { SystemPage } from "./system";
@@ -45,6 +46,7 @@ type MigratedPage = {
 // page the legacy still draws, and nothing here touches it.
 const PAGES: Record<string, MigratedPage> = {
   sys: { tag: "div", className: "body", Body: SystemPage },
+  arr: { tag: "div", className: "body", Body: ArrivalsPage },
   maint: { tag: "div", className: "body", Body: MaintenancePage },
   cfg: { tag: "div", className: "body", Body: SettingsPage },
 };

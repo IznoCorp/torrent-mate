@@ -1,0 +1,296 @@
+// design/src/pages/arrivals.tsx
+// The fourth migrated PAGE: legacy `viewArrivals()` — with `barrePipelineHTML()`
+// and `dernierPassageHTML()`, whose only caller it was — reborn as a final
+// component. Markup is TRANSPLANTED, not translated.
+//
+// Arrivées carries the PIPELINE's health: what is stuck, what is moving, what
+// arrived, and the run itself. A machine in trouble is Système's business; a
+// medium in trouble is this page's, and that cut is what decides where a panel
+// belongs — never the page it came from.
+//
+// THE FIRST MIGRATED PAGE THAT CARRIES A CONTROL WHICH MUTATES. The pilot's bar
+// emits `data-pipe="lancer"` / `"arreter"` and nothing else: the writing stays
+// the document-level delegation's, exactly as it was, so this component never
+// touches the world. Its three states include the one DOIT-4 exists for — an
+// action asked during a run is QUEUED, visibly, never refused with « busy, try
+// again ».
+//
+// The cards go through `cardHTML` and the fact rows through `factRowsHTML`,
+// both reused VERBATIM: the delegated handlers depend on that markup being
+// byte-exact. A section goes through `secInner`, the inside of the `secHTML`
+// nine call sites share — this component draws the `<section class="sec">`
+// itself, because React cannot set the outer markup of a node it also renders,
+// and it reproduces the outer function's EMPTY case by drawing no section at
+// all.
+import { useTranslation } from "react-i18next";
+import type { ReactElement } from "react";
+import type { PipelineFact, QueueCard } from "../data";
+import { useReference, useUiState } from "../data";
+
+// The nine steps, told as the last run left them. A step with nothing recorded
+// at all reads « rien à faire »; a step that BLOCKED something says so and
+// points just below, where the stuck section is. The two sentences are
+// different on purpose: a step that looked and found everything already in
+// order is not a step that had nothing to look at.
+function lastRunRows(
+  steps: { n: string; l: string }[],
+  facts: PipelineFact[],
+  t: (key: string, options?: Record<string, unknown>) => string,
+) {
+  const byName = Object.fromEntries(facts.map((fact) => [fact.n, fact]));
+  return steps.map((step) => {
+    const fact: PipelineFact = byName[step.n] || { n: step.n };
+    const nothing = !fact.r && !fact.s && !fact.bloque;
+    return {
+      l: step.l,
+      k: step.n,
+      v: fact.bloque
+        ? `${fact.r ? fact.r + " · " : ""}${t("screens.arrivals.blockedCount", { count: fact.bloque })}`
+        : fact.r || "",
+      s: fact.bloque
+        ? `${fact.s ? fact.s + " · " : ""}${t("screens.arrivals.blockedBelow")}`
+        : nothing
+          ? t("screens.arrivals.nothingToDo")
+          : fact.s || "",
+      etat: fact.bloque ? "danger" : "",
+    };
+  });
+}
+
+// The pilot's bar. Three states, and the third is the one DOIT-4 exists for:
+// an action asked at a bad moment is QUEUED, visibly, and never refused with
+// « occupé, réessaie ».
+function PipelineBar(): ReactElement {
+  const state = useUiState();
+  const { t } = useTranslation();
+  const { PIPELINE } = useReference();
+
+  if (state.pipe === "encours" || state.pipe === "file") {
+    const step = PIPELINE.etapes[3];
+    return (
+      <section className="pipeline">
+        <div className="ph">
+          <span className="pip info"></span>
+          <span className="pt">{t("screens.arrivals.runningTitle")}</span>
+          <span className="pq">
+            {t("screens.arrivals.stepOf", {
+              count: PIPELINE.etapes.length,
+              label: step.l,
+            })}
+          </span>
+        </div>
+        <div className="gauge">
+          <i style={{ width: "44%" }}></i>
+        </div>
+        {/* « Relancer ensuite » stays offered WHILE a run is going, and that is
+            the point rather than an oversight: new downloads land during a
+            pass, and asking for another one is a legitimate thing to want. */}
+        {state.pipe === "file" ? (
+          <>
+            <div className="live">
+              <span className="d"></span>
+              <span>
+                {t("screens.arrivals.queuedLead")}
+                <b>{t("screens.arrivals.queuedBold")}</b>
+                {t("screens.arrivals.queuedRest")}
+              </span>
+            </div>
+            <button className="cfoot" data-pipe="arreter">
+              {t("screens.arrivals.stopPipeline")}
+            </button>
+          </>
+        ) : (
+          <div className="pacts">
+            <button className="cfoot" data-pipe="lancer">
+              {t("screens.arrivals.runAfterwards")}
+            </button>
+            <button className="cfoot" data-pipe="arreter">
+              {t("screens.arrivals.stop")}
+            </button>
+          </div>
+        )}
+      </section>
+    );
+  }
+
+  return (
+    <section className="pipeline">
+      <div className="ph">
+        <span className="pip neutral"></span>
+        <span className="pt">{t("screens.arrivals.idleTitle")}</span>
+        <span className="pq">
+          {t("screens.arrivals.idleQualifier", {
+            when: PIPELINE.dernier.quand,
+          })}
+        </span>
+      </div>
+      <button className="cfoot solid" data-pipe="lancer">
+        {t("screens.arrivals.startPipeline")}
+      </button>
+    </section>
+  );
+}
+
+// The last run, told as its nine steps. The counts are the ones `pipeline_run`
+// recorded; nothing here is derived from what the page shows.
+function LastRun(): ReactElement {
+  const { t } = useTranslation();
+  const { PIPELINE, factRowsHTML } = useReference();
+  const run = PIPELINE.dernier;
+  return (
+    <section className="sec">
+      <div className="sechead">
+        <span className="pip success"></span>
+        <span className="t">{t("screens.arrivals.lastRunTitle")}</span>
+        <span className="k">{run.duree}</span>
+      </div>
+      <div className="live">
+        <span
+          className="d"
+          style={{ animation: "none", background: "var(--success)" }}
+        ></span>
+        <span>
+          {t("screens.arrivals.triggeredBy")}
+          <b>{PIPELINE.declencheurs[run.declencheur]}</b>
+          {t("screens.arrivals.triggeredWhen", { when: run.quand })}
+        </span>
+      </div>
+      <ol
+        className="flux"
+        dangerouslySetInnerHTML={{
+          __html: factRowsHTML(lastRunRows(PIPELINE.etapes, run.faits, t)),
+        }}
+      />
+    </section>
+  );
+}
+
+export function ArrivalsPage(): ReactElement | null {
+  const state = useUiState();
+  const { t } = useTranslation();
+  const {
+    cardHTML,
+    secInner,
+    emptyInner,
+    skelCardsInner,
+    surfErrInner,
+    derivedStuck,
+    derivedMoving,
+    derivedSettled,
+  } = useReference();
+
+  if (state.phase !== "prete") {
+    // Each emits ONE root element, and this draws that element itself so no
+    // wrapper appears where the legacy had none.
+    return state.phase === "erreur" ? (
+      <div
+        className="surferr"
+        dangerouslySetInnerHTML={{
+          __html: surfErrInner(t("screens.arrivals.errorSubject")),
+        }}
+      />
+    ) : (
+      <div
+        className="sec"
+        dangerouslySetInnerHTML={{ __html: skelCardsInner(3) }}
+      />
+    );
+  }
+
+  const stuck = derivedStuck();
+  const moving = derivedMoving();
+  const settled = derivedSettled();
+  const nothing = stuck.length + moving.length + settled.length === 0;
+
+  // A section that would be empty is not drawn at all — the outer `secHTML`
+  // answered the empty string, and an empty string renders nothing.
+  const section = (
+    pip: string,
+    title: string,
+    cards: QueueCard[],
+    inner: string,
+    note?: string,
+  ) =>
+    cards.length === 0 || inner === "" ? null : (
+      <section
+        className="sec"
+        dangerouslySetInnerHTML={{
+          __html: secInner(pip, title, String(cards.length), inner, note),
+        }}
+      />
+    );
+
+  return (
+    <>
+      <div className="note">
+        <b>{t("screens.arrivals.introLead")}</b>
+        {t("screens.arrivals.introRest")}
+      </div>
+      <PipelineBar />
+      <LastRun />
+      {state.scen === "reel" ? (
+        <div className="note">
+          <b>{t("screens.arrivals.realLead")}</b>
+          {t("screens.arrivals.realMiddle")}
+          <code>library.db</code>
+          {t("screens.arrivals.realRest")}
+        </div>
+      ) : null}
+      {moving.length > 0 ? (
+        <div className="live">
+          <span className="d"></span>
+          <span>
+            {t("screens.arrivals.scrapingLead")}
+            {/* french-ok: a media TITLE, which is data — the same one the
+                legacy named here. */}
+            <b>Furious</b>
+            {t("screens.arrivals.scrapingRest")}
+          </span>
+        </div>
+      ) : null}
+      {nothing ? (
+        <div
+          className="empty"
+          dangerouslySetInnerHTML={{
+            __html: emptyInner(
+              t("screens.arrivals.emptyTitle"),
+              t("screens.arrivals.emptyBody"),
+            ),
+          }}
+        />
+      ) : null}
+      {section(
+        "danger",
+        t("screens.arrivals.stuckTitle"),
+        stuck,
+        stuck
+          .map((card) =>
+            cardHTML(card, {
+              foot: t("screens.arrivals.stuckFoot"),
+              footAct: "resolve",
+            }),
+          )
+          .join(""),
+        `<b>${t("screens.arrivals.stuckNoteLead")}</b>${t("screens.arrivals.stuckNoteRest")}`,
+      )}
+      {state.scen !== "reel" ? (
+        <button className="crossref" data-go="acq">
+          {t("screens.arrivals.toAcquisition")}
+          <span>{t("screens.arrivals.toAcquisitionLink")}</span>
+        </button>
+      ) : null}
+      {section(
+        "info",
+        t("screens.arrivals.movingTitle"),
+        moving,
+        moving.map((card) => cardHTML(card)).join(""),
+      )}
+      {section(
+        "success",
+        t("screens.arrivals.settledTitle"),
+        settled,
+        settled.map((card) => cardHTML(card)).join(""),
+      )}
+    </>
+  );
+}
