@@ -11466,6 +11466,7 @@
     addKind: "Tout",
     idProv: "TMDB",
     tri: "recent",
+    sortReversed: false,
     resolveTarget: null,
     phase: "prete",
     tmdb: true,
@@ -12347,7 +12348,7 @@
       head +
       `<div class="countline"><span id="libcount"></span>
     <button class="linkbtn" data-selmode="1">Sélectionner</button>
-    <button style="margin-left:12px" data-sort="1">${svgIcon(icons.sort)}${TRIS[state.tri]}</button></div>
+    <button style="margin-left:12px" data-sort="1">${svgIcon(icons.sort)}${libelleTri()}</button></div>
   <div class="body">
     <div class="note"><b>Page entièrement neuve.</b> Aucune route ne listait ce que vous possédez : la fiche <code>/media/:provider/:id</code> n'était atteignable qu'en connaissant déjà l'identifiant. En mode liste, un glissé vers la gauche révèle « Supprimer ».</div>
     <div id="libitems" class="${state.libMode === "grid" ? "grid" : "sec"}"></div>
@@ -14564,6 +14565,15 @@
        on the scenario and so cannot be a frozen value. */
     secHTML,
     secInner,
+    /* The sort table, published because the rule that holds E-001 reads the
+       NAMES from the prototype rather than restating them: a rule carrying its
+       own copy of six labels would go green the day the interface renamed one.
+       A GETTER, because `TRIS` is a `const` declared further down this same
+       script: a plain shorthand would hit the temporal dead zone the instant
+       this literal is built, and the engine would never finish booting. */
+    get TRIS() {
+      return TRIS;
+    },
     PIPELINE,
     skelCards,
     skelCardsInner,
@@ -14661,11 +14671,28 @@
     chipHTML,
   };
 
+  /* EVERY SORT GOES BOTH WAYS, and each way has its own NAME rather than an
+     arrow bolted onto a shared one: « Ajout récent » reversed is « Ajout
+     ancien », which is what one would say out loud, and « Les plus incomplets »
+     reversed is « Les plus complets », not « incomplets, à l'envers ».
+
+     The panel lists the six, and the one in force is marked. The alternative —
+     tapping the sort one has already chosen to flip it — costs half the rows
+     and is invisible: nothing on a phone says that a second tap on the row one
+     just chose does something else. A row that reads « A → Z » and answers
+     Z → A is the opposite of showing what the machine will do. */
   const TRIS = {
-    recent: "Ajout récent",
-    az: "A → Z",
-    manque: "Les plus incomplets",
+    recent: { normal: "Ajout récent", inverse: "Ajout ancien" },
+    az: { normal: "A → Z", inverse: "Z → A" },
+    manque: { normal: "Les plus incomplets", inverse: "Les plus complets" },
   };
+
+  /* The name of the sort in force, which is what the control on the count line
+     reads. `sortReversed` is a store field like any other and, like `tri`, it
+     stays OUT of the address: the sort is a preference, not a place (A7). */
+  function libelleTri() {
+    return TRIS[state.tri][state.sortReversed ? "inverse" : "normal"];
+  }
   const LIB_PAGE = 24;
   const SUG_BATCH = 30;
   let sugObserver = null;
@@ -14998,8 +15025,13 @@
 
   function trierLib(items) {
     const slice = items.slice();
+    /* REVERSING IS A SECOND PASS, never a second comparator: « ajout récent »
+       has no comparator at all — its order is the source's — so the direction
+       has to be expressible on a list that was never compared. One `.reverse()`
+       at the end says the same thing for all three. */
+    const sens = (ordonne) => (state.sortReversed ? ordonne.reverse() : ordonne);
     if (state.tri === "az")
-      return slice.sort((l, index) => l.t.localeCompare(index.t, "fr"));
+      return sens(slice.sort((l, index) => l.t.localeCompare(index.t, "fr")));
     if (state.tri === "manque") {
       const manque = (item) => {
         const exec = /^(\d+)\/(\d+)/.exec(item.f ?? "");
@@ -15010,9 +15042,10 @@
             ? Number(exec[2]) - Number(exec[1])
             : -1;
       };
-      return slice.sort((l, index) => manque(index) - manque(l));
+      return sens(slice.sort((l, index) => manque(index) - manque(l)));
     }
-    return slice; // « récent » = l'ordre de la source (date_created décroissante)
+    // « récent » = l'ordre de la source (date_created décroissante)
+    return sens(slice);
   }
 
   function libFiltered() {
@@ -17671,22 +17704,35 @@
         blocs: [
           {
             type: "actions",
-            actions: Object.entries(TRIS).map(([cle, libelle]) => ({
-              texte: libelle,
-              icone: icons.sort,
-              ton: state.tri === cle ? "primary" : null,
-              cible: { settri: cle },
-            })),
+            actions: Object.entries(TRIS).flatMap(([cle, noms]) =>
+              ["normal", "inverse"].map((sens) => ({
+                texte: noms[sens],
+                icone: icons.sort,
+                ton:
+                  state.tri === cle &&
+                  state.sortReversed === (sens === "inverse")
+                    ? "primary"
+                    : null,
+                cible:
+                  sens === "inverse"
+                    ? { settri: cle, reversed: "1" }
+                    : { settri: cle },
+              })),
+            ),
           },
         ],
       });
       return;
     }
     if (closest.dataset.settri) {
-      magasin.ecrire({ tri: closest.dataset.settri, libCount: LIB_PAGE });
+      magasin.ecrire({
+        tri: closest.dataset.settri,
+        sortReversed: closest.dataset.reversed === "1",
+        libCount: LIB_PAGE,
+      });
       window.__panneau.fermer();
       render();
-      toast(`Trié par ${TRIS[state.tri].toLowerCase()}.`);
+      toast(`Trié par ${libelleTri().toLowerCase()}.`);
       return;
     }
     if (closest.dataset.phase) {

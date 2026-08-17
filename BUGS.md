@@ -263,6 +263,19 @@ checks 10/10b.
   prototype before any conversion work touches it. **Arbitrated by the operator
   (2026-08-15): folded into the Médiathèque wave of SP4**, where that page is drawn into
   its final component.
+  **Drawn, and held by a rule of its own (R78, `harness/library_sort.py`).** The panel offers
+  the six directions explicitly, each carrying its own NAME — « Ajout récent » / « Ajout
+  ancien », « A → Z » / « Z → A », « Les plus incomplets » / « Les plus complets » — rather
+  than an arrow bolted onto a shared one; exactly one is marked; the control on the count line
+  reads the direction in force; and the reversal is measured on the ROWS DRAWN, over a library
+  narrowed until the whole set fits on one page (the list draws 24 of 260, so reversing the
+  order and taking the first page again gives the last rows of the other end — right, and not
+  the reverse of what was drawn). MUTATION: the direction stops being applied, in the served
+  copy alone — the three reversal holds fall, each naming its sort, while every hold about the
+  NAMES stays green. **The ruling against the alternative — tapping the already-chosen sort to
+  flip it — is recorded in `regions.json` under R78 and is open to contest**: it halves the
+  rows but is invisible, and a row that reads « A → Z » and answers Z → A is the opposite of
+  showing what the machine will do.
 
 - **Ouvert opérateur — the 240 ms dead delay on `data-suivante`** (2026-08-16, SP4c): the
   "Passer à la suivante" action in the arbitration screen still carries a `setTimeout(240)`
