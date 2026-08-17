@@ -213,6 +213,34 @@ export type PipelineRun = {
   r: string;
 };
 
+// THE PIPELINE, as the page that carries its health reads it: the nine steps in
+// the engine's own order, the trigger vocabulary said in words rather than in
+// the engine's token, and the last run exactly as `pipeline_run` recorded it.
+// A step's `faits` entry may carry nothing at all — that is the em dash the
+// interface draws for « nothing to do », and it is not the same sentence as a
+// step that looked and found everything already in order.
+export type PipelineStep = { n: string; l: string; d: string };
+
+export type PipelineFact = {
+  n: string;
+  r?: string;
+  s?: string;
+  bloque?: number;
+};
+
+export type Pipeline = {
+  etapes: PipelineStep[];
+  declencheurs: Record<string, string>;
+  dernier: {
+    uid: string;
+    quand: string;
+    duree: string;
+    declencheur: string;
+    issue: string;
+    faits: PipelineFact[];
+  };
+};
+
 // One maintenance RUBRIC — a heading and the sentence under it. The commands
 // are grouped by what one wants to DO, never by the file they live in.
 export type MaintenanceTopic = {
@@ -305,6 +333,16 @@ export type Reference = {
   // read-only reference, never engine state.
   listeFaitsHTML: (rows: Fact[]) => string;
   factRowsHTML: (rows: Fact[]) => string;
+  // What the Arrivées page draws. `secHTML` is the section emitter nine call
+  // sites share; a migrated page draws the `<section class="sec">` itself and
+  // fills it with `secInner`, the same split as the empty and skeleton
+  // surfaces. The EMPTY case (`count` of zero, or nothing inside) belongs to
+  // the outer function, and a component reproduces it by drawing no section.
+  secHTML: (pip: string, title: string, count: string, inner: string,
+            note?: string) => string;
+  secInner: (pip: string, title: string, count: string, inner: string,
+             note?: string) => string;
+  PIPELINE: Pipeline;
   skelCards: (count: number) => string;
   skelCardsInner: (count: number) => string;
   surfErr: (subject: string) => string;
@@ -383,6 +421,8 @@ export type Reference = {
   // stable selector without ever seeing a stale snapshot.
   derivedBlocked: () => QueueCard[];
   derivedStuck: () => QueueCard[];
+  derivedMoving: () => QueueCard[];
+  derivedSettled: () => QueueCard[];
   // Agreeing with the machine (`actionLaisser`) or with a candidate
   // (`actionResoudre`, `choix` the chosen title when the operator picked
   // one) both remove the folder from wherever it is queued and hand it back

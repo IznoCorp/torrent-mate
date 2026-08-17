@@ -11668,11 +11668,18 @@
 
   function secHTML(pip, title, count, inner, note) {
     if (String(count) === "0" || inner === "") return "";
-    return `<section class="sec">
+    return `<section class="sec">${secInner(pip, title, count, inner, note)}</section>`;
+  }
+  /* Same split as `emptyInner` / `skelCardsInner` / `surfErrInner`: a migrated
+     PAGE draws the `<section class="sec">` itself and fills it with this. The
+     EMPTY case stays the outer function's, and a component reproduces it by
+     drawing no section at all — which is what the legacy's empty string did. */
+  function secInner(pip, title, count, inner, note) {
+    return `
     <div class="sechead"><span class="pip ${pip}"></span><span class="t">${escapeHtml(title)}</span><span class="k">${count}</span></div>
     ${note ? `<div class="note">${note}</div>` : ""}
     ${inner}
-  </section>`;
+  `;
   }
 
   /* WORKING STATE — actions really MUTATE
@@ -14652,6 +14659,15 @@
        and `surfErr` are the page's two non-ready surfaces. */
     listeFaitsHTML,
     factRowsHTML,
+    /* What the Arrivées page draws. `secHTML` is the section emitter nine call
+       sites share — the migrated page draws the section itself and fills it
+       with `secInner`, exactly as it does for the empty and skeleton surfaces.
+       `PIPELINE` is the run's own data, read and never written; the three
+       `derived` verbs answer what is stuck, moving and settled, which depends
+       on the scenario and so cannot be a frozen value. */
+    secHTML,
+    secInner,
+    PIPELINE,
     skelCards,
     skelCardsInner,
     surfErr,
@@ -14738,6 +14754,8 @@
     // call returns stays live against the scenario switch inside `derived`.
     derivedBlocked: () => derived.blocked(),
     derivedStuck: () => derived.stuck(),
+    derivedMoving: () => derived.moving(),
+    derivedSettled: () => derived.settled(),
     actionResoudre,
     actionLaisser,
     actionRecuperer,
