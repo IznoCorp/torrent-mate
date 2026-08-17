@@ -16326,9 +16326,20 @@
       "lib-erreur-suite",
       "Médiathèque — la suite ne charge plus",
       () => {
-        applyState({ page: "lib", libLens: "cat", libMode: "list", phase: "prete" });
-        magasin.ecrire({ libCount: 48, libFailedOnce: true, libErr: true });
-        render();
+        /* ONE write, not two: the failure has to be in force at the FIRST
+           draw. Setting it afterwards lets the sentinel mount for one render,
+           and a sentinel in view starts a load — which then lands 620 ms
+           later, over the state, with a second page of media whose sheets are
+           hollow (B-030). A state exists to show ONE thing; racing its own
+           loader makes a red run say something other than what it is for. */
+        applyState({
+          page: "lib",
+          libLens: "cat",
+          libMode: "list",
+          phase: "prete",
+          libFailedOnce: true,
+          libErr: true,
+        });
       },
     ],
     [

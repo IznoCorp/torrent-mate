@@ -118,9 +118,50 @@ was made stronger — and six delegation holds cover the page that carries the m
 category, view mode, selection, the search's cross, and `data-del`, read rather than tapped
 because that control lives behind a swipe R64 drives.
 
+**And then the review found four defects of one family**, all of them a component reading its
+render's SNAPSHOT where the legacy read the engine's live alias. « Réessayer » reloaded nothing:
+the handler clears the error on one line and the guard below it, frozen at the value the footer
+was drawn with, refused — the page arrived anyway, from the SENTINEL, which is what hid it. The
+same closure froze the count, so a search or a sort during a load overwrote it with the old count
+plus a page. `paintSelBar` ran on every draw where `fillLib` reached it only after the ROWS,
+rebuilding a node in `#device` the legacy left alone. And `#libitems` stopped being rebuilt on
+every draw, so a swipe left open survived a repaint that used to shut it. Two quieter ones came
+with them: the observer stayed connected during a load the legacy disconnected it for, and
+`#libq`'s value ATTRIBUTE froze at mount while the legacy re-emitted it every draw.
+
+**The surface nobody could measure now has a name and a rule.** No named state produced a failed
+NEXT page — only a long scroll reached it — so the sentence it prints and the control that
+retries were asserted by nothing. `lib-erreur-suite` names it and **R79** (`library_load.py`, 8
+holds) holds it, measuring the retry with the SENTINEL NEUTRALISED, because the sentinel produces
+the same outcome for a different reason and that is exactly how the defect survived being
+written.
+
+**Two holds that were not holding.** R77's law hold no longer required the `#view` write to be on
+the not-owned BRANCH — only that a branch and an announcement existed somewhere; it reads the
+structure now, and a write hoisted out of the `else` fells it. And the two page tables — the
+shell's and the fragment's flags — are compared, because an id claimed on one side and not the
+other draws a page in both worlds at once, on every render, perfectly consistently, which no
+drawing-shaped hold can see.
+
+**R78 could not tell two sorts apart.** Its narrowing contained no incomplete show, so « les plus
+incomplets » ranked a set where every row scores the same and answered the source order — which
+is what « ajout récent » answers. The narrowing is held now; the marked entry is measured after a
+REVERSED direction is chosen; « A → Z » is held alphabetical by the platform's French collation,
+which breaks the tautology that a reversal assertion is true of any comparator; and the direction
+is checked in the GRID, where the rows go through a different emitter.
+
+**A rule found a defect nobody had reached.** The new state drew two pages, and R1 — the
+adversarial auditor's « every tappable poster leads to a filled-in sheet » — fired at once: **87
+of the library's 345 titles have a sheet with no genre and no cast**, none of them in the first
+page, which is why no state had ever shown one. It is a defect of the embedded DATA, recorded as
+**B-030** rather than fixed in a conversion wave. Chasing it also surfaced a real timing hole: a
+state that draws a skeleton starts a load, and 620 ms later that load landed on whatever state
+had replaced it. A load now remembers the store VERSION it was asked at and does nothing if
+anything has happened since.
+
 **Wave gate**: `resync.py` moved the drawer's deployed-version card to the branch's base (0.97.19,
-build `aeac77cb`), committed as data; the full suite is **50 scripts, 548 holds, zero FAIL** (527
-+ 15 for R78 + 6 for R77's library delegation); `make check` green including `check-frontend`;
+build `aeac77cb`), committed as data; the full suite is **51 scripts, 562 holds, zero FAIL** (527 + 19 for R78, 8 for R79 and 8 for
+R77); `make check` green including `check-frontend`;
 `scripts/check-no-french.py` green; R59/R69/R71 byte-identical against the merge point. The
 fragment went from 39 962 to 39 956 lines — nearly flat, and the number says something true: the
 conversion removed about 230 lines and E-001 put back about as many, because an evolution is

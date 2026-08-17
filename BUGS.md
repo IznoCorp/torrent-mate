@@ -50,6 +50,7 @@ when the defect comes back.
 | B-027 | `resync.py` trusts `t:` first-match + naive braces    | by review   | `to confirm` |
 | B-028 | `resync.py` says « 0 correction » for unknown titles  | by review   | `to confirm` |
 | B-029 | Counter rule misses suffix drift (« 1 » in « 11 »)    | by review   | `to confirm` |
+| B-030 | 87 library sheets carry no genre and no cast          | by rule     | `open`       |
 
 **B-018 was written down as a regression from B-016, and that was wrong.** It has two ways in, one
 of which is older than this work — the correction is recorded here rather than quietly amended,
@@ -61,6 +62,20 @@ rules — merging them would let two hide behind the one that got fixed.
 
 B-017 was reported by nobody. The mutation proving R65 bites found it, which is the whole reason
 mutations are run against a rule rather than trusted to be green.
+
+**B-030 was found by a RULE that could not reach it before.** R1 (« every tappable poster leads
+to a filled-in sheet », `harness/audit.py`) drives named states, and every state that drew the
+library drew its FIRST page — twenty-four rows, all of whose sheets are complete. The wave that
+migrated the Médiathèque added a state for the load-failure surface, which drew two pages, and R1
+fired immediately. Measured over the whole library: **87 of 345 titles have a sheet with no genre
+(`g`) and no cast**, and none of them is in the first twenty-four — « Chouette, un jeu
+d'enfants », « Andrew The Problem Prince », « Furies » and eighty-four more. It is reachable in
+the app by scrolling past the first page and tapping any of their posters: the sheet opens, and
+it has nothing to say. The defect is in the embedded DATA, not in the drawing, so closing it is a
+scraping question rather than a rendering one — which is why it is written down rather than
+fixed in a conversion wave. The state that found it was narrowed back to one page, so the suite
+measures the surface it was added for; R1 remains the rule that bites the day the data is filled
+in or the state widened.
 
 **B-024 to B-029 arrived from an adversarial code review of commit `3e66fa66` (#434), not from
 the operator** — same standing as B-017: found by tooling, written down before anyone walks into

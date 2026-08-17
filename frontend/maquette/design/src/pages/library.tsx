@@ -300,18 +300,31 @@ function LibraryList(): ReactElement {
     const live = () => window.__magasin.lire().etat;
     if (live().libLoading || live().libErr) return;
     if ((live().libCount as number) >= libFiltered().length) return;
+    // WHAT THE LOAD WAS ASKED FROM. Six hundred and twenty milliseconds is long
+    // enough for the page to have moved on — a search, a sort, another lens,
+    // all of which put the count back to one page — and a load that lands after
+    // that would extend a list nobody asked to extend, from a number that no
+    // longer exists. So the page it was asked from is remembered, and a landing
+    // that does not recognise it does nothing. Measured: a state that draws a
+    // skeleton starts a load, and 620 ms later it landed on the NEXT state,
+    // which then drew two pages where it had asked for one.
+    const asked = live().libCount as number;
     writeUiState({ libLoading: true });
+    // THE STORE'S OWN VERSION is the identity, not the count: two different
+    // states can both sit at one page, and « the count is what it was » would
+    // then let a stale load through. Every write bumps the version, so anything
+    // that happened while this load was in flight — a search, a sort, a lens,
+    // another state driven by the harness — makes it stale by definition.
+    const askedAt = window.__magasin.lire().version;
     window.setTimeout(() => {
+      if (window.__magasin.lire().version !== askedAt) return;
       writeUiState({ libLoading: false });
-      if (!live().libFailedOnce && (live().libCount as number) >= LIB_PAGE * 3) {
+      if (!live().libFailedOnce && asked >= LIB_PAGE * 3) {
         writeUiState({ libFailedOnce: true, libErr: true });
         return;
       }
       writeUiState({
-        libCount: Math.min(
-          libFiltered().length,
-          (live().libCount as number) + LIB_PAGE,
-        ),
+        libCount: Math.min(libFiltered().length, asked + LIB_PAGE),
       });
     }, 620);
   };
