@@ -37,18 +37,18 @@ import pathlib
 import re
 import sys
 
-RACINE = pathlib.Path(__file__).resolve().parent.parent
-PROTOTYPE = RACINE / "frontend" / "maquette" / "design" / "refonte.html"
-REGIONS = RACINE / "frontend" / "maquette" / "regions.json"
-SORTIE = RACINE / "frontend" / "src" / "styles" / "ps" / "app-surface.css"
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+PROTOTYPE = ROOT / "frontend" / "maquette" / "design" / "refonte.html"
+REGIONS = ROOT / "frontend" / "maquette" / "regions.json"
+OUTPUT = ROOT / "frontend" / "src" / "styles" / "ps" / "app-surface.css"
 
 # The scope every rule is nested under. One class, on the app's own root.
-PORTEE = ".tm"
+SCOPE = ".tm"
 
-ENTETE = """/* GENERATED — do not edit.
+HEADER = """/* GENERATED — do not edit.
  *
  * Extracted from `frontend/maquette/design/refonte.html` (BLOCK 2 — APPLICATION CSS)
- * by `scripts/extract-maquette-css.py`, and scoped under `{portee}`.
+ * by `scripts/extract-maquette-css.py`, and scoped under `{scope}`.
  *
  * The prototype IS the product (product-intent §15). A pixel changes there and
  * is extracted here; a hand edit to this file is reverted by the drift guard in
@@ -56,16 +56,16 @@ ENTETE = """/* GENERATED — do not edit.
  * CONCEALS a defect in the reference, since the copy becomes the only place
  * anyone ever looks.
  *
- * {compte} rules, from {classes} allowlisted selectors.
- * {ecartees} rules were dropped as prototype harness.
+ * {count} rules, from {classes} allowlisted selectors.
+ * {dropped} rules were dropped as prototype harness.
  *
  * Declared BOTH exported and harness, and read as exported because extraction
- * only ever looks at BLOCK 2: {ambigues}.
+ * only ever looks at BLOCK 2: {ambiguous}.
  */
 """
 
 
-def bloc_application(source: str) -> str:
+def application_block(source: str) -> str:
     """Returns BLOCK 2 of the prototype's `<style>`, comments included.
 
     Args:
@@ -80,18 +80,18 @@ def bloc_application(source: str) -> str:
     """
     i = source.find("BLOCK 2")
     if i < 0:
-        sys.exit("BLOCK 2 introuvable : la maquette a perdu sa séparation "
-                 "harnais / application, et rien ne peut être extrait sans elle.")
+        sys.exit("BLOCK 2 not found: the maquette has lost its harness / "
+                 "application separation, and nothing can be extracted without it.")
     # Back to the OPENER of the header comment: slicing on « BLOCK 2 » leaves an
     # orphan `*/` behind, and the header's own prose then parses as selectors.
     i = source.rfind("/*", 0, i)
-    fin = source.find("</style>", i)
-    if fin < 0:
-        sys.exit("le `<style>` de la maquette ne se ferme pas.")
-    return source[i:fin]
+    end = source.find("</style>", i)
+    if end < 0:
+        sys.exit("the maquette's `<style>` element never closes.")
+    return source[i:end]
 
 
-def contrat() -> tuple[set[str], set[str]]:
+def contract() -> tuple[set[str], set[str]]:
     """The two lists `regions.json` keeps, and they are not symmetric.
 
     `exportedSelectors` is the allowlist: what may ship. `harnessSelectors` is
@@ -107,11 +107,11 @@ def contrat() -> tuple[set[str], set[str]]:
     import json
 
     with REGIONS.open(encoding="utf-8") as f:
-        donnees = json.load(f)
-    return set(donnees["exportedSelectors"]), set(donnees.get("harnessSelectors", []))
+        data = json.load(f)
+    return set(data["exportedSelectors"]), set(data.get("harnessSelectors", []))
 
 
-def regles(css: str) -> list[tuple[str, str, str]]:
+def rules(css: str) -> list[tuple[str, str, str]]:
     """Splits CSS into its rules, keeping at-rules whole.
 
     Comments are dropped: they document the prototype's decisions and belong
@@ -125,72 +125,72 @@ def regles(css: str) -> list[tuple[str, str, str]]:
         enclosing `@media` / `@supports` condition, or `""` at the top level.
     """
     css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
-    sorties: list[tuple[str, str, str]] = []
+    collected: list[tuple[str, str, str]] = []
     i = 0
-    contexte = ""
+    context = ""
     while i < len(css):
-        ouvre = css.find("{", i)
-        if ouvre < 0:
+        opens = css.find("{", i)
+        if opens < 0:
             break
-        tete = css[i:ouvre].strip()
+        head = css[i:opens].strip()
         # Find this block's matching close, counting nesting.
-        profondeur = 0
-        j = ouvre
+        depth = 0
+        j = opens
         while j < len(css):
             if css[j] == "{":
-                profondeur += 1
+                depth += 1
             elif css[j] == "}":
-                profondeur -= 1
-                if profondeur == 0:
+                depth -= 1
+                if depth == 0:
                     break
             j += 1
-        corps = css[ouvre + 1 : j]
-        if tete.startswith("@") and not tete.startswith("@keyframes"):
+        body = css[opens + 1 : j]
+        if head.startswith("@") and not head.startswith("@keyframes"):
             # A conditional group: recurse into it, carrying the condition.
-            for _, sel, cps in regles(corps):
-                sorties.append((tete, sel, cps))
-        elif tete.startswith("@keyframes"):
+            for _, sel, sub_body in rules(body):
+                collected.append((head, sel, sub_body))
+        elif head.startswith("@keyframes"):
             # Animations have no selector to allowlist and no scope to take.
-            sorties.append(("", tete, corps))
-        elif tete:
-            sorties.append((contexte, tete, corps))
+            collected.append(("", head, body))
+        elif head:
+            collected.append((context, head, body))
         i = j + 1
-    return sorties
+    return collected
 
 
-def porter(selecteur: str) -> str:
-    """Scopes one selector list under {PORTEE}.
+def apply_scope(selector: str) -> str:
+    """Scopes one selector list under {SCOPE}.
 
     `:root` becomes the scope itself rather than a descendant of it: custom
     properties declared on the document's root must land on the app's root, or
     every `var()` under it resolves to nothing.
 
     Args:
-        selecteur: A comma-separated selector list.
+        selector: A comma-separated selector list.
 
     Returns:
         The same list, each part scoped.
     """
-    parties = []
-    for part in selecteur.split(","):
+    parts = []
+    for part in selector.split(","):
         part = part.strip()
         if not part:
             continue
         if part.startswith(":root") or part == "html" or part == "body":
-            parties.append(PORTEE + part[len(part.split()[0]):] if " " in part else PORTEE)
+            parts.append(SCOPE + part[len(part.split()[0]):] if " " in part else SCOPE)
         elif part.startswith("@"):
-            parties.append(part)
+            parts.append(part)
         else:
-            parties.append(f"{PORTEE} {part}")
-    return ", ".join(parties)
+            parts.append(f"{SCOPE} {part}")
+    return ", ".join(parts)
 
 
-def classes_de(selecteur: str) -> set[str]:
+def classes_of(selector: str) -> set[str]:
     """The class names a selector list mentions."""
-    return set(re.findall(r"\.([a-zA-Z][\w-]*)", selecteur))
+    return set(re.findall(r"\.([a-zA-Z][\w-]*)", selector))
 
 
-def construire() -> str:
+def build() -> str:
     """Builds the stylesheet the app ships.
 
     Returns:
@@ -202,13 +202,13 @@ def construire() -> str:
             only by being listed, never by being forgotten.
     """
     source = PROTOTYPE.read_text(encoding="utf-8")
-    permis, harnais = contrat()
-    classes_permises = set()
-    for s in permis:
-        classes_permises |= classes_de(s)
-    classes_harnais = set()
-    for s in harnais:
-        classes_harnais |= classes_de(s)
+    allowed, harness = contract()
+    allowed_classes = set()
+    for s in allowed:
+        allowed_classes |= classes_of(s)
+    harness_classes = set()
+    for s in harness:
+        harness_classes |= classes_of(s)
     # A class on BOTH lists is a genuine contradiction in the contract, and it
     # is not hypothetical: eight of them are, because the prototype's demo bars
     # and the app's own bars share their names — one set lives in BLOCK 1, the
@@ -216,71 +216,71 @@ def construire() -> str:
     # that fits is « exported ». It is REPORTED rather than resolved in
     # silence: a contradiction nobody is told about is how the wrong reading
     # survives for a year.
-    ambigues = sorted(classes_harnais & classes_permises)
-    classes_harnais -= classes_permises
+    ambiguous = sorted(harness_classes & allowed_classes)
+    harness_classes -= allowed_classes
 
-    lignes: list[str] = []
-    gardees = 0
-    ecartees = 0
-    refusees: dict[str, set[str]] = {}
-    for condition, selecteur, corps in regles(bloc_application(source)):
-        classes = classes_de(selecteur)
-        if classes and classes <= classes_harnais:
-            ecartees += 1
+    lines: list[str] = []
+    kept = 0
+    dropped = 0
+    refused: dict[str, set[str]] = {}
+    for condition, selector, body in rules(application_block(source)):
+        classes = classes_of(selector)
+        if classes and classes <= harness_classes:
+            dropped += 1
             continue
-        inconnues = classes - classes_permises - classes_harnais
-        if inconnues:
-            refusees.setdefault(selecteur.strip(), set()).update(inconnues)
+        unknown = classes - allowed_classes - harness_classes
+        if unknown:
+            refused.setdefault(selector.strip(), set()).update(unknown)
             continue
-        corps = "\n".join(f"    {l.strip()}" for l in corps.strip().splitlines() if l.strip())
-        if not corps:
+        body = "\n".join(f"    {l.strip()}" for l in body.strip().splitlines() if l.strip())
+        if not body:
             continue
-        regle = f"{porter(selecteur)} {{\n{corps}\n}}"
+        rule = f"{apply_scope(selector)} {{\n{body}\n}}"
         if condition:
-            regle = f"{condition} {{\n" + "\n".join("  " + l for l in regle.splitlines()) + "\n}"
-        lignes.append(regle)
-        gardees += 1
+            rule = f"{condition} {{\n" + "\n".join("  " + l for l in rule.splitlines()) + "\n}"
+        lines.append(rule)
+        kept += 1
 
-    if refusees:
+    if refused:
         detail = "\n".join(f"  {sel} → {', '.join(sorted(cls))}"
-                           for sel, cls in sorted(refusees.items())[:20])
+                           for sel, cls in sorted(refused.items())[:20])
         sys.exit(
-            "des règles nomment des classes que `regions.json` n'autorise pas.\n"
-            "L'extraction part d'une LISTE BLANCHE : ajoutez-les à "
-            "`exportedSelectors`, ou classez-les comme harnais.\n" + detail)
+            "rules name classes that `regions.json` does not allow.\n"
+            "Extraction works from an ALLOWLIST: add them to "
+            "`exportedSelectors`, or classify them as harness.\n" + detail)
 
-    entete = ENTETE.format(portee=PORTEE, compte=gardees, classes=len(permis),
-                           ecartees=ecartees,
-                           ambigues=", ".join(ambigues) or "aucune")
-    return entete + "\n" + "\n\n".join(lignes) + "\n"
+    header = HEADER.format(scope=SCOPE, count=kept, classes=len(allowed),
+                           dropped=dropped,
+                           ambiguous=", ".join(ambiguous) or "none")
+    return header + "\n" + "\n\n".join(lines) + "\n"
 
 
 def main() -> int:
-    parseur = argparse.ArgumentParser(description=__doc__)
-    parseur.add_argument("--check", action="store_true",
-                         help="ne rien écrire ; sortir en erreur si le fichier a dérivé")
-    args = parseur.parse_args()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--check", action="store_true",
+                        help="write nothing; exit with an error if the file has drifted")
+    args = parser.parse_args()
 
-    attendu = construire()
+    expected = build()
     if args.check:
-        if not SORTIE.is_file():
-            print(f"extract-maquette-css: {SORTIE.relative_to(RACINE)} manque — "
-                  "lancez `python3 scripts/extract-maquette-css.py`.", file=sys.stderr)
+        if not OUTPUT.is_file():
+            print(f"extract-maquette-css: {OUTPUT.relative_to(ROOT)} is missing — "
+                  "run `python3 scripts/extract-maquette-css.py`.", file=sys.stderr)
             return 1
-        actuel = SORTIE.read_text(encoding="utf-8")
-        if actuel != attendu:
-            print("extract-maquette-css: la feuille de style a DÉRIVÉ de la maquette.\n"
-                  "Une modification à la main de ce fichier généré est le défaut, "
-                  "pas un raccourci : changez la maquette, puis relancez\n"
+        current = OUTPUT.read_text(encoding="utf-8")
+        if current != expected:
+            print("extract-maquette-css: the stylesheet has DRIFTED from the maquette.\n"
+                  "Editing this generated file by hand is the defect, "
+                  "not a shortcut: change the maquette, then re-run\n"
                   "  python3 scripts/extract-maquette-css.py", file=sys.stderr)
             return 1
-        print(f"extract-maquette-css: à jour ({len(attendu.splitlines())} lignes).")
+        print(f"extract-maquette-css: up to date ({len(expected.splitlines())} lines).")
         return 0
 
-    SORTIE.parent.mkdir(parents=True, exist_ok=True)
-    SORTIE.write_text(attendu, encoding="utf-8")
-    print(f"extract-maquette-css: {SORTIE.relative_to(RACINE)} écrit "
-          f"({len(attendu.splitlines())} lignes).")
+    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+    OUTPUT.write_text(expected, encoding="utf-8")
+    print(f"extract-maquette-css: {OUTPUT.relative_to(ROOT)} written "
+          f"({len(expected.splitlines())} lines).")
     return 0
 
 

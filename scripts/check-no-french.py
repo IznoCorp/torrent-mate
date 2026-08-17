@@ -17,7 +17,10 @@ component than it does in a rule script that ASSERTS the French the app renders:
    `Journal("…")`) — those are the tool's own messages. The French a hold COMPARES
    is the app's rendered output and must stay French; no arm may ask it to change.
 2. **Identifiers** — declared names (Python read through `ast`, TypeScript through
-   its declaration keywords) over the same sources plus the harness.
+   its declaration keywords) over the same sources, the harness, `scripts/`,
+   `personalscraper/` and `tests/` — the whole repository, in other words. A name
+   that NAMES a frozen thing (`MAQUETTE`) inherits that thing's reason, and two
+   tokens are read differently depending on where they sit (`TOKENS_BY_SCOPE`).
 3. **File names** — every path SEGMENT, tracked or merely present, under
    `frontend/`, `scripts/`, `personalscraper/` and `tests/`. This is the arm that
    keeps the rule alive for files created later, anywhere. `docs/` is NOT read:
@@ -68,6 +71,7 @@ HARNESS = MAQUETTE / "harness"
 REGIONS = MAQUETTE / "regions.json"
 FRAGMENT = MAQUETTE / "design" / "refonte.html"
 EXTRACTED_CSS = ROOT / "frontend" / "src" / "styles" / "ps"
+SCRIPTS = ROOT / "scripts"
 
 # ── the lexicon ──────────────────────────────────────────────────────────────
 #
@@ -104,11 +108,35 @@ FRENCH_TOKENS = {
     "balisage", "bloc", "blocs", "debut", "deploiement", "marque", "morceau",
     "morceaux", "objet", "objets", "parametre", "parametres", "precedent",
     "principal", "reel", "reels", "taille", "texte", "vide",
+    # the vocabulary of the repository's own tools, measured the same way — the
+    # words `scripts/` actually used before this wave. `porter` is deliberately
+    # absent: it is an English verb.
+    "actuel", "ambigue", "ambigues", "construire", "contrat", "ecarte",
+    "ecartees", "entete", "garde", "gardees", "harnais", "ordre", "parseur",
+    "permis", "portee", "profondeur", "racine", "regle", "regles", "refusees",
+    "selecteur", "sortie",
 }
-# `verifier` is in the lexicon for the SHELL and the HARNESS, where it was the
-# French verb, and exempted for `personalscraper/` and `tests/`, where it is the
-# English noun (the NFO verifier). Scope, not a word list, settles the ambiguity.
-VERIFIER_IS_ENGLISH_UNDER = ("personalscraper/", "tests/", "frontend/src/")
+# Two tokens mean different things in different halves of the repository, and
+# scope — not a word list — is what settles them. Each entry names the reason.
+TOKENS_BY_SCOPE = {
+    "verifier": (
+        ("personalscraper/", "tests/", "scripts/", "frontend/src/"),
+        "The English NOUN — a thing that verifies, the NFO verifier. It is the "
+        "French VERB only in the maquette's harness, where it was renamed to "
+        "`check`.",
+    ),
+    "saison": (
+        ("personalscraper/", "tests/"),
+        "The LIBRARY's own folder convention: a season directory on disk is "
+        "named « Saison XX ». A test or a pattern naming it names a DATA value, "
+        "not a variable someone chose — renaming it would describe a layout the "
+        "disk does not have.",
+    ),
+    "saisons": (
+        ("personalscraper/", "tests/"),
+        "Plural of the same folder convention.",
+    ),
+}
 
 # The string arm's second signal: French function words. Only words that are NOT
 # English words, so that one of them in an English sentence cannot fire — and two
@@ -174,9 +202,15 @@ def deaccent(text: str) -> str:
 
 
 def has_accent(text: str) -> bool:
-    """Returns True when the text carries a letter no English word carries."""
-    return any(unicodedata.combining(c)
-               for c in unicodedata.normalize("NFD", text))
+    """Returns True when the text carries a LETTER no English word carries.
+
+    The letter part is not pedantry: `≠` decomposes to `=` plus a combining
+    slash, so a test that only asks « does anything here combine? » reads a
+    mathematical sign as French and says so with a straight face.
+    """
+    decomposed = unicodedata.normalize("NFD", text)
+    return any(previous.isalpha() and unicodedata.combining(char)
+               for previous, char in zip(decomposed, decomposed[1:]))
 
 
 def split_identifier(name: str) -> list[str]:
@@ -205,7 +239,8 @@ def french_tokens_in(name: str, path: str = "") -> list[str]:
         token = deaccent(word).lower()
         if token not in FRENCH_TOKENS:
             continue
-        if token == "verifier" and any(s in path for s in VERIFIER_IS_ENGLISH_UNDER):
+        scoped = TOKENS_BY_SCOPE.get(token)
+        if scoped and any(where in path for where in scoped[0]):
             continue
         found.append(token)
     return found
@@ -309,6 +344,13 @@ def script_string_literals(source: str) -> list[tuple[int, str]]:
     holes included) — conservative in the only direction that matters: a French
     sentence inside a template is still seen.
 
+    Known limit, and its failure mode: a regular-expression literal carrying a
+    quote character (`/['"]/`) would open a string this scanner never closes
+    where it should. There is none in scope today (three regex literals, none
+    with a quote), and the day one appears the scanner mis-reads a span and
+    reports a violation nobody can explain — LOUD, not silent, which is the
+    only acceptable way for a guardrail to be wrong.
+
     Args:
         source: The module's text.
 
@@ -407,6 +449,14 @@ def check_strings(violations: list[str]) -> None:
                           and p.suffix in {".ts", ".tsx"} and "i18n" not in p.parts]
     strict += [MAQUETTE / "serve.py", MAQUETTE / "resync.py"]
     strict += sorted(HARNESS.glob("*.mjs"))
+    # The repository's own tools speak to a DEVELOPER, so they speak English.
+    # (The `personalscraper` CLI is a different case entirely: it speaks to the
+    # OPERATOR, in French, and it is interface — no arm reads it.)
+    # This file is the one exception the arm makes for itself: its French IS its
+    # subject — the lexicon is a list of French words, and pragmas on a word list
+    # would say nothing a reader does not already see.
+    strict += [p for p in sorted(SCRIPTS.glob("*.py"))
+               if p.name != Path(__file__).name]
     for path in sorted(strict):
         source = path.read_text(encoding="utf-8")
         lines = source.splitlines()
@@ -484,9 +534,13 @@ def python_declarations(source: str) -> list[tuple[str, int]]:
 
 
 def check_identifiers(violations: list[str]) -> None:
-    """Runs the identifier arm over the shell, the servers and the harness."""
+    """Runs the identifier arm over the shell, the servers, the harness, the tools."""
     python = ([MAQUETTE / "serve.py", MAQUETTE / "resync.py"]
-              + sorted(HARNESS.glob("*.py")))
+              + sorted(HARNESS.glob("*.py"))
+              + [p for p in sorted(SCRIPTS.glob("*.py"))
+                 if p.name != Path(__file__).name]
+              + sorted((ROOT / "personalscraper").rglob("*.py"))
+              + sorted((ROOT / "tests").rglob("*.py")))
     for path in python:
         source = path.read_text(encoding="utf-8")
         declarations = python_declarations(source)
@@ -494,7 +548,8 @@ def check_identifiers(violations: list[str]) -> None:
         for name, line_no in declarations:
             if name in FROZEN_IDENTIFIERS:
                 continue
-            hits = french_tokens_in(name, relative(path))
+            hits = [h for h in french_tokens_in(name, relative(path))
+                    if h not in FROZEN_PATH_SEGMENTS]
             if hits or has_accent(name):
                 violations.append(
                     f"{relative(path)}:{line_no}: French identifier {name!r} "
@@ -511,7 +566,8 @@ def check_identifiers(violations: list[str]) -> None:
             name = match.group("name")
             if name in FROZEN_IDENTIFIERS:
                 continue
-            hits = french_tokens_in(name, relative(path))
+            hits = [h for h in french_tokens_in(name, relative(path))
+                    if h not in FROZEN_PATH_SEGMENTS]
             if hits or has_accent(name):
                 line_no = source.count("\n", 0, match.start()) + 1
                 violations.append(

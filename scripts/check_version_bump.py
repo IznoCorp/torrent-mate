@@ -4,7 +4,7 @@
 Operator rule (2026-07-15, constitution §10-3): every PR bumps the version.
 This guard extracts ``__version__`` from ``personalscraper/__init__.py`` on
 HEAD and on the PR base ref and fails when HEAD's version is not strictly
-greater. It is the CI teeth behind the "bump à chaque PR" discipline.
+greater. It is the CI teeth behind the « bump à chaque PR » discipline.
 
 Usage:
   scripts/check_version_bump.py --base origin/main

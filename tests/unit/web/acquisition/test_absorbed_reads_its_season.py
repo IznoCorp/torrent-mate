@@ -83,7 +83,7 @@ class TestEndToEndStateOfAnAbsorbedEpisode:
     """What the operator finally reads, per season-row status."""
 
     @pytest.mark.parametrize(
-        "season_facts,attendu",
+        "season_facts,expected",
         [
             (("grabbed", "grabbed", 4), "en_acquisition"),
             (("available", "available", 2), "a_recuperer"),
@@ -92,7 +92,7 @@ class TestEndToEndStateOfAnAbsorbedEpisode:
             (("searching", "no_candidates", 0), "en_attente"),
         ],
     )
-    def test_episode_mirrors_its_season(self, season_facts: tuple[str, str | None, int | None], attendu: str) -> None:
+    def test_episode_mirrors_its_season(self, season_facts: tuple[str, str | None, int | None], expected: str) -> None:
         """The episode says exactly what the row carrying its acquisition says."""
         rows = [(10, "absorbed", "no_candidates", 0, 88)]
         out = substitute_absorbed_facts(rows, {88: season_facts})
@@ -105,7 +105,7 @@ class TestEndToEndStateOfAnAbsorbedEpisode:
                 last_search_outcome=outcome,
                 last_search_found=found,
             )
-            == attendu
+            == expected
         )
 
 
