@@ -14565,6 +14565,25 @@
        on the scenario and so cannot be a frozen value. */
     secHTML,
     secInner,
+    /* What the Médiathèque draws. `tileHTML` and `swipeHTML` are emitters a
+       component calls VERBATIM, for the same reason as `cardHTML`: the rows
+       they emit carry the `data-*` the document-level delegation reads. `CATS`,
+       `RECENT`, `INCOMPLETE` and `SYNOPSIS` are the page's own reference data,
+       read and never written, and `LIB_PAGE` is the page size the count line
+       and the infinite scroll both speak in. */
+    tileHTML,
+    swipeHTML,
+    CATS,
+    RECENT,
+    INCOMPLETE,
+    SYNOPSIS,
+    /* A GETTER: `LIB_PAGE` is a `const` declared further down this same script,
+       so a plain shorthand would hit the temporal dead zone the instant this
+       literal is built — the same trap `ACTEURS` and `TRIS` are published
+       around. */
+    get LIB_PAGE() {
+      return LIB_PAGE;
+    },
     /* The sort table, published because the rule that holds E-001 reads the
        NAMES from the prototype rather than restating them: a rule carrying its
        own copy of six labels would go green the day the interface renamed one.
