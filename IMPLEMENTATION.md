@@ -90,9 +90,23 @@ taps plus the `data-go` crossref each have a hold driven by a REAL tap. Mutation
 disabled in the served bundle alone fells the three taps, each naming the attribute that went
 missing.
 
+**The wave's own adversarial review** found the new alias-drive hold matched only ONE shape —
+`state.x =` on a single physical line — and would have been walked past by
+`Object.assign(state, …)`, which the engine itself uses, by `state["page"] =`, and by a write
+split across two source lines, which is this directory's own house style. It now flattens the
+text and looks for three shapes; three mutations, one run each, fell it. The engine's single
+`Object.assign(state, etatDeLURL())` earned a hold of its own in the process: a COLD deep address
+must land on the page it names, drawn by the shell. It holds for a sturdier reason than the boot
+order — starting the engine after React's first paint does NOT fell it, because the address write
+that follows re-renders the shell — so the mutation that proves it is the URL parser ceasing to
+read `page`. The review also caught a tap that read only the store where its two siblings read
+the drawing, a block inheriting a scenario it did not name, and three fresh comments repeating a
+call-site count that was wrong at the source (`rg -c` counts the definition line).
+
 **Wave gate**: `resync.py` moved the drawer's deployed-version card to the branch's base
-(0.97.18, build `21c54a98`), committed as data; the full suite is **49 scripts, 526 holds, zero
-FAIL** (521 + 5 for R77's Arrivées holds); `make check` green including `check-frontend`;
+(0.97.18, build `21c54a98`), committed as data; the full suite is **49 scripts, 527 holds, zero
+FAIL** (521 + 6 for R77: Arrivées' four delegation holds, the alias-drive law and the cold
+deep address); `make check` green including `check-frontend`;
 `scripts/check-no-french.py` green; R59/R69/R71 byte-identical against the merge point. The
 fragment went from 40 047 to 39 961 lines. Pages the shell owns: `sys`, `maint`, `cfg`, `arr`.
 Pages the fragment still draws: `lib`, `acq`, plus `viewIntrouvable` and `viewProfil`.
