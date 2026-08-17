@@ -551,6 +551,38 @@ async def main():
             not refused and landed == "acq",
             f"page={landed}" if not refused else f"data-go='acq' {refused}")
 
+        # (d-quinquies) THE LEGACY'S `render()` IS NEVER CALLED FROM A REACT
+        # LIFECYCLE. The handover rests on `window.__releasePage()` being
+        # SYNCHRONOUS, and `flushSync` silently degrades to an async flush when
+        # it is called during render or commit — at which point the fragment's
+        # `view.innerHTML = …` runs with React's portal children still in place,
+        # and the root tears down on the next unmount. The two call sites in the
+        # shell today are both DOM event handlers, which is safe; the invariant
+        # is what needs holding, because nothing about `render()` announces it.
+        sources = sorted((pathlib.Path(__file__).resolve().parent.parent
+                          / "design" / "src").rglob("*.tsx"))
+        inside = []
+        for source in sources:
+            text = source.read_text(encoding="utf-8")
+            for match in re.finditer(r"use(?:Layout)?Effect\(", text):
+                depth, index = 0, match.end() - 1
+                while index < len(text):
+                    if text[index] == "(":
+                        depth += 1
+                    elif text[index] == ")":
+                        depth -= 1
+                        if depth == 0:
+                            break
+                    index += 1
+                body = text[match.end():index]
+                if re.search(r"(?<![.\w])render\(\)", body):
+                    inside.append(f"{source.name}:"
+                                  f"{text[:match.start()].count(chr(10)) + 1}")
+        journal.check(
+            "no component calls the legacy render() from an effect",
+            not inside, str(inside) if inside
+            else f"{len(sources)} component file(s) read")
+
         # (d-bis) NO RULE DRIVES A PAGE BY MUTATING THE ENGINE'S ALIAS.
         # `state` is a module-global alias onto the store's CURRENT object, so
         # `state.page = "arr"` mutates that object IN PLACE: its identity never
@@ -626,6 +658,32 @@ async def main():
         # Read as a pattern rather than as a byte-exact line, because reflowing
         # the line changes nothing about the law; and counted, because the guard
         # says nothing about a SECOND, unguarded write elsewhere.
+        # (d-quater) THE TWO TABLES MUST AGREE. `PAGES` in the shell and the
+        # `shellOwned` flags in the fragment's `PAGES_OF()` are independent
+        # lists kept identical by hand. One direction crashes loudly — the
+        # fragment calls `found.render()` where there is none. The other draws
+        # the page in BOTH worlds at once, on every render, perfectly
+        # consistently — which is invisible to every hold shaped like « the
+        # page looks the same each time ». So they are compared.
+        tables = await page.evaluate("""()=>{
+          const shell = [...(window.__shellPages || [])].sort();
+          const table = window.__referentiel.PAGES_OF();
+          return {shell,
+                  owned: table.filter((x) => x.shellOwned).map((x) => x.id).sort(),
+                  ownedWithRenderer: table.filter((x) => x.shellOwned && x.render)
+                    .map((x) => x.id),
+                  legacyWithout: table.filter((x) => !x.shellOwned && !x.render)
+                    .map((x) => x.id)};}""")
+        journal.check(
+            "the shell's page table and the fragment's flags name the same pages",
+            tables["shell"] == tables["owned"]
+            and not tables["ownedWithRenderer"] and not tables["legacyWithout"],
+            f"shell {tables['shell']} vs shellOwned {tables['owned']}"
+            + (f"; owned but still drawable: {tables['ownedWithRenderer']}"
+               if tables["ownedWithRenderer"] else "")
+            + (f"; legacy with no renderer: {tables['legacyWithout']}"
+               if tables["legacyWithout"] else ""))
+
         served = await page.content()
         writes = re.findall(r"[^\n]*view\.innerHTML\s*=[^\n]*", served)
         # THE LAW, not one spelling of it. The guard was once a single line and
@@ -634,16 +692,31 @@ async def main():
         # true: `#view` is written in one place, on the branch where the shell
         # does NOT own the page, and the shell is asked to let go before that
         # write happens.
-        renders = re.search(r"function render\(\)[\s\S]{0,3000}?\n  \}", served)
-        body = renders.group(0) if renders else ""
-        announced = "window.__releasePage?.()" in body
-        gated = re.search(r"if \(found\.shellOwned\)", body) is not None
+        # THE WRITE MUST BE ON THE NOT-OWNED BRANCH, which is the whole law —
+        # a first version of this hold asserted only that a branch and a
+        # release EXISTED somewhere in `render()`, and would have stayed green
+        # over a write hoisted out of the `else`, i.e. over a migrated page
+        # destroyed under React on every draw. The structure is read: the
+        # ownership test, then its `else`, then the write inside it, then the
+        # announcement before it.
+        law = re.search(
+            r"if \(found\.shellOwned\)\s*\{(?P<owned>[\s\S]*?)\}\s*else\s*\{"
+            r"(?P<legacy>[\s\S]*?)\n    \}",
+            served)
+        owned = law.group("owned") if law else ""
+        legacy = law.group("legacy") if law else ""
         journal.check(
-            "the fragment writes #view only for a page it still owns, and says "
-            "so before it does",
-            len(writes) == 1 and announced and gated,
-            f"{len(writes)} write(s) to #view's innerHTML; ownership branch: "
-            f"{gated}; handover announced: {announced}")
+            "the fragment writes #view only on the branch where the shell does "
+            "NOT own the page, and announces the handover first",
+            law is not None
+            and len(writes) == 1
+            and "view.innerHTML" in legacy
+            and "view.innerHTML" not in owned
+            and legacy.index("window.__releasePage?.()")
+            < legacy.index("view.innerHTML"),
+            f"{len(writes)} write(s) to #view's innerHTML; branch found: "
+            f"{law is not None}; write on the not-owned branch: "
+            f"{'view.innerHTML' in legacy and 'view.innerHTML' not in owned}")
 
         await browser.close()
     journal.summary(errors)

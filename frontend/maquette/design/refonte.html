@@ -12261,103 +12261,6 @@
     );
   }
 
-  function viewLibrary() {
-    const lenses = [
-      { id: "cat", l: "Médias" },
-      { id: "rec", l: "Récents" },
-      { id: "inc", l: "Incomplets", c: 47 },
-    ];
-    const head = `<div class="viewtabs">
-    <div class="seg" role="tablist">${lenses
-      .map(
-        (lense) => `
-      <button role="tab" aria-selected="${state.libLens === lense.id}" data-lens="${lense.id}">${lense.l}${lense.c ? `<span class="n">${lense.c}</span>` : ""}</button>`,
-      )
-      .join("")}
-    </div>
-  </div>
-  <div class="filters">
-    <div class="search">${svgIcon(icons.search)}<input type="search" id="libq" value="${escapeHtml(state.q)}" placeholder="Chercher dans ma médiathèque" aria-label="Chercher">${state.q ? `<button class="searchclear" data-clearq="lib" aria-label="Effacer">${svgIcon(icons.x)}</button>` : ""}</div>
-    <div class="pillbar">
-      <div class="pillscroll">${
-        state.libLens === "cat"
-          ? CATS.map(
-              (CATS2) =>
-                `<button class="pill" aria-pressed="${state.libCat === CATS2.id}" data-cat="${CATS2.id}">${CATS2.l}<span class="c">${CATS2.c}</span></button>`,
-            ).join("")
-          : ""
-      }</div>
-      <div class="vswwrap"><div class="vsw">
-        <button aria-pressed="${state.libMode === "list"}" data-lmode="list" aria-label="Liste">${svgIcon(icons.list)}</button>
-        <button aria-pressed="${state.libMode === "grid"}" data-lmode="grid" aria-label="Grille">${svgIcon(icons.grid)}</button>
-      </div></div>
-    </div>
-  </div>`;
-
-    if (state.libLens === "inc") {
-      return (
-        head +
-        `<div class="countline"><span class="pip warning"></span><span>Séries incomplètes</span><b style="margin-left:auto">47</b></div>
-  <div class="body">
-      <div class="note"><b>Une seule dérivation par question (§13).</b> La fraction affichée ici lit le même calcul que la fiche et que les en-têtes de saison. Une saison dont le nombre d'épisodes est inconnu affiche <code>?</code> — jamais un <code>12/12</code> inventé.</div>
-      ${
-        state.libMode === "grid"
-          ? `<div class="grid">${INCOMPLETE.map((INCOMPLETE2) => tileHTML(INCOMPLETE2, `${INCOMPLETE2.o}/${INCOMPLETE2.a} épisodes`)).join("")}</div>`
-          : `<div class="sec">${INCOMPLETE.map((INCOMPLETE2) =>
-              cardHTML({
-                t: INCOMPLETE2.t,
-                s: `${INCOMPLETE2.y} · il manque ${INCOMPLETE2.a - INCOMPLETE2.o} épisode${INCOMPLETE2.a - INCOMPLETE2.o > 1 ? "s" : ""}`,
-                f: `${INCOMPLETE2.o}/${INCOMPLETE2.a}`,
-                chip: ["warning", "Incomplet"],
-              }),
-            ).join("")}</div>`
-      }
-    </div>`
-      );
-    }
-
-    if (state.libLens === "rec") {
-      return (
-        head +
-        `<div class="countline"><span>Vu par l'index pour la première fois</span></div>
-  <div class="body">
-      <div class="note"><b>Libellé honnête.</b> La base ne connaît pas la date d'arrivée sur le disque, seulement celle où <em>l'index a vu le média pour la première fois</em>. C'est donc ce que la page dit — §13 : aucun état affiché n'est une approximation muette.</div>
-      <div id="libitems" class="${state.libMode === "grid" ? "grid" : "sec"}"></div>
-      <div id="libload" class="loadfoot"></div>
-    </div>`
-      );
-    }
-
-    const rows = RECENT.concat(
-      INCOMPLETE.map((INCOMPLETE2) => ({
-        t: INCOMPLETE2.t,
-        f: `${INCOMPLETE2.o}/${INCOMPLETE2.a} épisodes`,
-      })),
-    );
-    const grid = rows.map((row) => tileHTML(row, row.f)).join("");
-    const list = rows
-      .map((row) =>
-        swipeHTML(
-          cardHTML({ t: row.t, s: row.f, overview: SYNOPSIS[row.t] }),
-          `<button class="act remove" data-swipeact="del" data-del="${escapeHtml(row.t)}">${svgIcon(icons.trash)}Supprimer</button>`,
-        ),
-      )
-      .join("");
-
-    return (
-      head +
-      `<div class="countline"><span id="libcount"></span>
-    <button class="linkbtn" data-selmode="1">Sélectionner</button>
-    <button style="margin-left:12px" data-sort="1">${svgIcon(icons.sort)}${libelleTri()}</button></div>
-  <div class="body">
-    <div class="note"><b>Page entièrement neuve.</b> Aucune route ne listait ce que vous possédez : la fiche <code>/media/:provider/:id</code> n'était atteignable qu'en connaissant déjà l'identifiant. En mode liste, un glissé vers la gauche révèle « Supprimer ».</div>
-    <div id="libitems" class="${state.libMode === "grid" ? "grid" : "sec"}"></div>
-    <div id="libload" class="loadfoot"></div>
-    <div class="note"><b>Chargement : défilement infini, parce qu'ici c'est gratuit.</b> La médiathèque se lit dans <code>library.db</code>, en local : une page de 24 de plus ne coûte ni quota ni réseau externe. La ligne de compte au-dessus dit toujours combien sont affichés sur le total — §8, on ne cache jamais ce qui manque.</div>
-  </div>`
-    );
-  }
-
 
   /* The last run, told as its nine steps. The counts are the ones
      `pipeline_run` recorded; nothing here is derived from what the page shows,
@@ -14605,6 +14508,10 @@
        on the scenario and so cannot be a frozen value. */
     secHTML,
     secInner,
+    /* The page table itself, published so a rule can compare it against the
+       shell's: two independent lists that must agree, and a disagreement in
+       one direction draws a page in both worlds at once. */
+    PAGES_OF,
     /* What the Médiathèque draws. `tileHTML` and `swipeHTML` are emitters a
        component calls VERBATIM, for the same reason as `cardHTML`: the rows
        they emit carry the `data-*` the document-level delegation reads. `CATS`,
@@ -14761,7 +14668,7 @@
   /* The name of the sort in force, which is what the control on the count line
      reads. `sortReversed` is a store field like any other and, like `tri`, it
      stays OUT of the address: the sort is a preference, not a place (A7). */
-  function libelleTri() {
+  function sortLabel() {
     return TRIS[state.tri][state.sortReversed ? "inverse" : "normal"];
   }
   const LIB_PAGE = 24;
@@ -14827,9 +14734,10 @@
        has no comparator at all — its order is the source's — so the direction
        has to be expressible on a list that was never compared. One `.reverse()`
        at the end says the same thing for all three. */
-    const sens = (ordonne) => (state.sortReversed ? ordonne.reverse() : ordonne);
+    const direction = (ordered) =>
+      state.sortReversed ? ordered.reverse() : ordered;
     if (state.tri === "az")
-      return sens(slice.sort((l, index) => l.t.localeCompare(index.t, "fr")));
+      return direction(slice.sort((l, index) => l.t.localeCompare(index.t, "fr")));
     if (state.tri === "manque") {
       const manque = (item) => {
         const exec = /^(\d+)\/(\d+)/.exec(item.f ?? "");
@@ -14840,10 +14748,10 @@
             ? Number(exec[2]) - Number(exec[1])
             : -1;
       };
-      return sens(slice.sort((l, index) => manque(index) - manque(l)));
+      return direction(slice.sort((l, index) => manque(index) - manque(l)));
     }
-    // « récent » = l'ordre de la source (date_created décroissante)
-    return sens(slice);
+    // « récent » is the SOURCE's own order (`date_created` descending)
+    return direction(slice);
   }
 
   function libFiltered() {
@@ -16409,6 +16317,20 @@
       "Médiathèque — erreur",
       () => applyState({ page: "lib", libLens: "cat", phase: "erreur" }),
     ],
+    /* The OTHER error, and it is a different surface: the page loaded, and the
+       NEXT page of the list did not. It has always existed — the infinite
+       scroll fails once, on purpose, to show that path for real — but only a
+       long scroll reached it, so nothing could drive it and nothing measured
+       the sentence it prints or the control that retries. */
+    [
+      "lib-erreur-suite",
+      "Médiathèque — la suite ne charge plus",
+      () => {
+        applyState({ page: "lib", libLens: "cat", libMode: "list", phase: "prete" });
+        magasin.ecrire({ libCount: 48, libFailedOnce: true, libErr: true });
+        render();
+      },
+    ],
     [
       "arr-repos",
       "Arrivées — état réel (2 blocages)",
@@ -17680,7 +17602,7 @@
       });
       window.__panneau.fermer();
       render();
-      toast(`Trié par ${libelleTri().toLowerCase()}.`);
+      toast(`Trié par ${sortLabel().toLowerCase()}.`);
       return;
     }
     if (closest.dataset.phase) {

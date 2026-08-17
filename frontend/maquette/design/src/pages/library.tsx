@@ -23,7 +23,12 @@ import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Icon } from "../components/icon";
 import type { IncompleteShow, LibraryRow } from "../data";
-import { useReference, useUiState, writeUiState } from "../data";
+import {
+  useReference,
+  useStoreContent,
+  useUiState,
+  writeUiState,
+} from "../data";
 
 // The three lenses, in the order the tab bar draws them. The count on
 // « Incomplets » is the drawing's own, exactly as the legacy hard-coded it.
@@ -87,6 +92,12 @@ function LibraryHead(): ReactElement {
               // types, they are equal.
               const query = state.q as string;
               if (element.value !== query) element.value = query;
+              // The ATTRIBUTE too. `defaultValue` writes it at mount only, and
+              // the legacy re-emitted it on every draw — so anything reading
+              // the serialised markup (the fidelity oracle included) would see
+              // an empty field over one that shows a word.
+              if (element.getAttribute("value") !== query)
+                element.setAttribute("value", query);
               const commit = () => {
                 writeUiState({
                   q: element.value,
@@ -244,6 +255,9 @@ function EmptyLibrary(): ReactElement {
 // page arrives.
 function LibraryList(): ReactElement {
   const state = useUiState();
+  // The store's own draw counter, which every write bumps — including the
+  // in-place world mutations a delegated action makes.
+  const version = useStoreContent((content) => content.version);
   const { t } = useTranslation();
   const {
     libFiltered,
@@ -262,24 +276,42 @@ function LibraryList(): ReactElement {
 
   // The selection bar is the FRAGMENT's node, repainted after this component
   // draws — exactly where `fillLib` repainted it.
+  // `fillLib` reached this line only after populating the ROWS: it returned
+  // before it on the skeleton, on the error surface and on an empty list. So
+  // repainting on every draw would destroy and rebuild a node the legacy left
+  // alone — and that node lives in `#device`, beside the settings save bar.
+  const drawsRows = state.phase === "prete" && rows.length > 0;
   useEffect(() => {
-    paintSelBar();
+    if (drawsRows) paintSelBar();
   });
 
   // ONE PAGE MORE, asked for by the sentinel coming into view. The delay, the
   // single simulated failure and the page size are the legacy's own: this is
   // the same function, moved, not a new one.
+  // IT READS THE LIVE STATE, never this render's snapshot, and that is a
+  // correctness fix rather than a style: the legacy read the engine's alias,
+  // which is always current. A closure over `state` freezes `libErr` at the
+  // value the footer was drawn with — so « Réessayer », which clears the error
+  // on the line above, is refused by the guard on the line below, every time.
+  // The same closure froze `libCount`: a search or a sort that resets it to one
+  // page while the 620 ms timer is in flight would then be overwritten with the
+  // OLD count plus a page, jumping the list past what the count line promised.
   const loadMore = () => {
-    if (state.libLoading || state.libErr || count >= rows.length) return;
+    const live = () => window.__magasin.lire().etat;
+    if (live().libLoading || live().libErr) return;
+    if ((live().libCount as number) >= libFiltered().length) return;
     writeUiState({ libLoading: true });
     window.setTimeout(() => {
       writeUiState({ libLoading: false });
-      if (!state.libFailedOnce && count >= LIB_PAGE * 3) {
+      if (!live().libFailedOnce && (live().libCount as number) >= LIB_PAGE * 3) {
         writeUiState({ libFailedOnce: true, libErr: true });
         return;
       }
       writeUiState({
-        libCount: Math.min(libFiltered().length, count + LIB_PAGE),
+        libCount: Math.min(
+          libFiltered().length,
+          (live().libCount as number) + LIB_PAGE,
+        ),
       });
     }, 620);
   };
@@ -288,6 +320,11 @@ function LibraryList(): ReactElement {
     const foot = footRef.current;
     const port = document.querySelector("#port");
     if (!foot || !port || complete || state.libErr) return undefined;
+    // NOT WHILE A PAGE IS IN FLIGHT: `loadMoreLib` disconnected the observer
+    // for the duration of its own load and reconnected after. The live guard
+    // already refuses a second load, but an observer that keeps firing during
+    // those 620 ms is a difference in what the page DOES.
+    if (state.libLoading) return undefined;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) loadMore();
@@ -324,8 +361,15 @@ function LibraryList(): ReactElement {
       </div>
     );
   } else {
+    // KEYED BY THE DRAW, deliberately. `fillLib` rewrote this container on every
+    // `render()`, and things are written into it IMPERATIVELY afterwards — a
+    // swipe leaves an inline transform on the row it opened. React keeps nodes
+    // whose generated string is unchanged, so an open swipe would survive a
+    // repaint that used to snap it shut. A key that moves with the store's own
+    // version makes each draw a new node, which is what the legacy did.
     items = (
       <div
+        key={version}
         id="libitems"
         className={grid ? "grid" : "sec"}
         dangerouslySetInnerHTML={{
@@ -361,6 +405,14 @@ function LibraryList(): ReactElement {
         <div className="loaderr">
           <b>{t("screens.library.loadErrorLead")}</b>
           {t("screens.library.loadErrorRest", { count })}
+          {/* THE ONLY CONTROL ON A MIGRATED PAGE THAT IS NOT DELEGATED. Every
+              other one emits a `data-*` the legacy's document-level handler
+              reads; this one is React's own — and it works from inside the
+              portal because React attaches its listeners to each portal
+              CONTAINER as well as to the root. It was inert all the same until
+              R79 measured it alone, for a different reason: the load it starts
+              read this render's snapshot, where the error it had just cleared
+              was still set. */}
           <button
             id="libretry"
             onClick={() => {

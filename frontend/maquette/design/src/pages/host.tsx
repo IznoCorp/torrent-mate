@@ -91,12 +91,19 @@ declare global {
     // Called by the fragment's `render()` immediately BEFORE it writes `#view`
     // for a page the shell does not own.
     __releasePage?: () => void;
+    // The pages this side claims, published so the two tables can be COMPARED.
+    // They are independent lists that must agree — an id here without
+    // `shellOwned` in `PAGES_OF()` draws in both worlds at once, consistently,
+    // which no drawing-shaped hold can see.
+    __shellPages?: string[];
   }
 }
 
 window.__releasePage = () => {
   flushSync(() => setReleased(true));
 };
+
+window.__shellPages = Object.keys(PAGES);
 
 export function PageHost(): ReactElement | null {
   const page = useUiState().page as string | undefined;
