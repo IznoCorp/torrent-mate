@@ -248,8 +248,8 @@ async def main():
     _journal = Journal("R74 — the bridge wires the nav cluster to the router")
 
     # ─── Hold (a): the engine holds no primitive of its own ───────────
-    refonte = (ROOT / "design" / "refonte.html").read_text(encoding="utf-8")
-    calls = count_history_primitives(refonte)
+    fragment = (ROOT / "design" / "refonte.html").read_text(encoding="utf-8")
+    calls = count_history_primitives(fragment)
     check(
         "zero direct history.* call in refonte.html",
         calls == 0,

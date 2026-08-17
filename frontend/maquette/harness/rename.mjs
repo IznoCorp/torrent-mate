@@ -18,11 +18,11 @@
  */
 import { readFileSync, writeFileSync } from "node:fs";
 
-const RACINE = "/Users/izno/dev/PersonalScraper/frontend";
-const espree = await import(`${RACINE}/node_modules/espree/dist/espree.cjs`);
-const eslintScope = (await import(`${RACINE}/node_modules/eslint-scope/dist/eslint-scope.cjs`)).default;
+const ROOT = "/Users/izno/dev/PersonalScraper/frontend";
+const espree = await import(`${ROOT}/node_modules/espree/dist/espree.cjs`);
+const eslintScope = (await import(`${ROOT}/node_modules/eslint-scope/dist/eslint-scope.cjs`)).default;
 
-const CHEMIN = `${RACINE}/maquette/design/refonte.html`;
+const FRAGMENT = `${ROOT}/maquette/design/refonte.html`;
 
 /** The module-scope singletons, where only judgement can name them. */
 const SINGLETONS = {
@@ -49,19 +49,25 @@ const SINGLETONS = {
 };
 
 /** Names that are module-scope and must be renamed whatever their length. */
-const NOMS_DE_MODULE = new Set(Object.keys(SINGLETONS));
+const MODULE_NAMES = new Set(Object.keys(SINGLETONS));
 
 /** Names that are already clear enough at two characters. */
-const GARDER = new Set(["id"]);
+const KEEP = new Set(["id"]);
 
-/** Collections whose singular is not just « drop the s ». */
-const SINGULIERS = {
+/**
+ * Collections whose singular is not just « drop the s ».
+ *
+ * The KEYS are the legacy script's own collection names, French ones included
+ * (`saisons`, `titres`, `lignes`) — they are what this tool READS, data about
+ * its subject. The VALUES are the names it WRITES, and those are English.
+ */
+const SINGULARS = {
   follows: "follow",
   suggestions: "suggestion",
   releases: "release",
   entries: "entry",
   candidates: "candidate",
-  saisons: "saison",
+  saisons: "season",
   seasons: "season",
   states: "state",
   regions: "region",
@@ -70,11 +76,11 @@ const SINGULIERS = {
   children: "child",
   values: "value",
   keys: "key",
-  titres: "titre",
+  titres: "title",
   titles: "title",
   episodes: "episode",
   items: "item",
-  lignes: "ligne",
+  lignes: "line",
   bits: "bit",
   parts: "part",
   rows: "row",
@@ -82,19 +88,19 @@ const SINGULIERS = {
   tiles: "tile",
 };
 
-const singulier = (nom) =>
-  SINGULIERS[nom] ?? (nom.endsWith("s") && nom.length > 3 ? nom.slice(0, -1) : nom);
+const singular = (name) =>
+  SINGULARS[name] ?? (name.endsWith("s") && name.length > 3 ? name.slice(0, -1) : name);
 
-const ITERATEURS = new Set([
+const ITERATORS = new Set([
   "map", "filter", "find", "findIndex", "some", "every", "forEach", "flatMap", "sort", "reduce",
 ]);
 
-const html = readFileSync(CHEMIN, "utf8");
-const ouvre = html.indexOf("<script>");
-const ferme = html.lastIndexOf("</script>");
-const avant = html.slice(0, ouvre + "<script>".length);
-const script = html.slice(ouvre + "<script>".length, ferme);
-const apres = html.slice(ferme);
+const html = readFileSync(FRAGMENT, "utf8");
+const opens = html.indexOf("<script>");
+const closes = html.lastIndexOf("</script>");
+const before = html.slice(0, opens + "<script>".length);
+const script = html.slice(opens + "<script>".length, closes);
+const after = html.slice(closes);
 
 const ast = espree.parse(script, {
   ecmaVersion: "latest",
@@ -104,89 +110,89 @@ const ast = espree.parse(script, {
 });
 
 // Parent links: the naming rules need to look upward, and espree sets none.
-(function relier(noeud, parent) {
-  if (!noeud || typeof noeud !== "object") return;
-  if (Array.isArray(noeud)) {
-    for (const x of noeud) relier(x, parent);
+(function link(node, parent) {
+  if (!node || typeof node !== "object") return;
+  if (Array.isArray(node)) {
+    for (const x of node) link(x, parent);
     return;
   }
-  if (typeof noeud.type === "string") {
-    Object.defineProperty(noeud, "parent", { value: parent, enumerable: false, writable: true });
-    for (const [clef, valeur] of Object.entries(noeud)) relier(valeur, noeud);
+  if (typeof node.type === "string") {
+    Object.defineProperty(node, "parent", { value: parent, enumerable: false, writable: true });
+    for (const [key, value] of Object.entries(node)) link(value, node);
   }
 })(ast, null);
 
-const portees = eslintScope.analyze(ast, { ecmaVersion: 2024, sourceType: "script" });
-const texteDe = (noeud) => script.slice(noeud.range[0], noeud.range[1]);
+const scopes = eslintScope.analyze(ast, { ecmaVersion: 2024, sourceType: "script" });
+const textOf = (node) => script.slice(node.range[0], node.range[1]);
 
 /**
  * Chooses a name for a variable from what the surrounding code says.
  *
  * @param {object} variable an eslint-scope Variable
- * @param {object} portee its scope
+ * @param {object} scope its scope
  * @returns {string|null} the new name, or null to leave it alone
  */
-function nommer(variable, portee) {
-  const nom = variable.name;
-  if (nom === "arguments" || GARDER.has(nom)) return null;
-  if (portee.type === "module" || portee.block.type === "Program") {
-    if (SINGLETONS[nom]) return SINGLETONS[nom];
+function nameFor(variable, scope) {
+  const name = variable.name;
+  if (name === "arguments" || KEEP.has(name)) return null;
+  if (scope.type === "module" || scope.block.type === "Program") {
+    if (SINGLETONS[name]) return SINGLETONS[name];
   }
-  if (SINGLETONS[nom] && nom !== "S" && nom !== "W" && nom !== "D") return SINGLETONS[nom];
+  if (SINGLETONS[name] && name !== "S" && name !== "W" && name !== "D") return SINGLETONS[name];
 
   const def = variable.defs[0];
   if (!def) return null;
-  const noeud = def.name;
-  const genre = def.type;
+  const node = def.name;
+  const kind = def.type;
 
   // A callback parameter is named by what it iterates.
-  if (genre === "Parameter") {
-    const fonction = def.node;
-    const appel = fonction.parent;
-    if (appel?.type === "CallExpression" && appel.callee?.type === "MemberExpression") {
-      const methode = appel.callee.property?.name;
-      if (ITERATEURS.has(methode)) {
-        const rang = fonction.params.indexOf(noeud);
-        if (rang === 1) return methode === "reduce" ? "element" : "index";
-        if (rang === 2) return "collection";
-        if (rang === 0) {
-          if (methode === "reduce") return "accumulator";
-          const receveur = appel.callee.object;
+  if (kind === "Parameter") {
+    const fn = def.node;
+    const call = fn.parent;
+    if (call?.type === "CallExpression" && call.callee?.type === "MemberExpression") {
+      const method = call.callee.property?.name;
+      if (ITERATORS.has(method)) {
+        const position = fn.params.indexOf(node);
+        if (position === 1) return method === "reduce" ? "element" : "index";
+        if (position === 2) return "collection";
+        if (position === 0) {
+          if (method === "reduce") return "accumulator";
+          const receiver = call.callee.object;
           const source =
-            receveur.type === "MemberExpression" ? receveur.property?.name
-            : receveur.type === "Identifier" ? receveur.name
-            : receveur.type === "CallExpression" && receveur.callee?.type === "MemberExpression"
-              ? receveur.callee.property?.name
+            receiver.type === "MemberExpression" ? receiver.property?.name
+            : receiver.type === "Identifier" ? receiver.name
+            : receiver.type === "CallExpression" && receiver.callee?.type === "MemberExpression"
+              ? receiver.callee.property?.name
               : null;
-          if (source && /^[a-zA-Z_]/.test(source)) return singulier(source);
+          if (source && /^[a-zA-Z_]/.test(source)) return singular(source);
           return "element";
         }
       }
     }
     // An event handler's parameter.
     if (
-      appel?.type === "CallExpression" &&
-      appel.callee?.property?.name === "addEventListener"
+      call?.type === "CallExpression" &&
+      call.callee?.property?.name === "addEventListener"
     ) {
       return "event";
     }
-    if (genre === "Parameter" && nom === "e") return "event";
+    if (kind === "Parameter" && name === "e") return "event";
     return null; // named by hand below, or left as is
   }
 
-  if (genre === "Variable" && def.node?.init) {
+  if (kind === "Variable" && def.node?.init) {
     const init = def.node.init;
     if (init.type === "CallExpression") {
-      const appelee = init.callee;
-      const methode = appelee?.property?.name ?? appelee?.name;
-      if (methode === "querySelector" || methode === "getElementById" || methode === "select") {
+      const callee = init.callee;
+      const method = callee?.property?.name ?? callee?.name;
+      if (method === "querySelector" || method === "getElementById" || method === "select") {
         return "element";
       }
-      if (methode === "querySelectorAll") return "elements";
-      if (methode === "getBoundingClientRect") return "rect";
-      if (methode === "find") return "found";
-      if (methode === "getComputedStyle") return "styles";
-      if (methode && /^[a-z][\w]{2,}$/.test(methode)) return methode;
+      if (method === "querySelectorAll") return "elements";
+      if (method === "getBoundingClientRect") return "rect";
+      if (method === "find") return "found";
+      if (method === "getComputedStyle") return "styles";
+      if (method && /^[a-z][\w]{2,}$/.test(method)) return method;
     }
     if (init.type === "MemberExpression" && init.property?.name) {
       const p = init.property.name;
@@ -196,23 +202,31 @@ function nommer(variable, portee) {
   return null;
 }
 
-/** Hand-authored names, keyed by `scopeLine:oldName`, for what rules cannot see. */
-const AU_CAS_PAR_CAS = JSON.parse(
-  readFileSync(
-    "/private/tmp/claude-501/-Users-izno-dev-PersonalScraper/8b2afafb-4484-4e1e-b3e1-cee400fe2d5b/scratchpad/noms.json",
-    "utf8",
-  ),
-);
+/**
+ * Hand-authored names, keyed by `scopeLine:oldName`, for what the rules cannot
+ * see. Passed as `--names <file>`; without it the rules decide alone and every
+ * name they cannot derive is listed at the end instead.
+ *
+ * It used to be read from an absolute path inside a session's scratch
+ * directory, which stopped existing with the session: the script then could not
+ * run at all, and a tool that throws on its first line teaches nothing about
+ * the code it was written to read.
+ */
+const namesArgument = process.argv.indexOf("--names");
+const BY_HAND =
+  namesArgument >= 0 && process.argv[namesArgument + 1]
+    ? JSON.parse(readFileSync(process.argv[namesArgument + 1], "utf8"))
+    : {};
 
-const nomsFinaux = new Map();
-const court = (nom) =>
-  nom.length <= 2 || /^[A-Z$]{1,3}$/.test(nom) || NOMS_DE_MODULE.has(nom);
+const finalNames = new Map();
+const isShort = (name) =>
+  name.length <= 2 || /^[A-Z$]{1,3}$/.test(name) || MODULE_NAMES.has(name);
 const edits = [];
-const restants = [];
-let renommees = 0;
+const unnamed = [];
+let renamedCount = 0;
 
-for (const portee of portees.scopes) {
-  const ligneBloc = portee.block.loc.start.line;
+for (const scope of scopes.scopes) {
+  const blockLine = scope.block.loc.start.line;
   // Names already taken in this scope, so a rename never shadows or collides.
   // Every name visible from this scope, taken at its FINAL value.
   //
@@ -221,27 +235,27 @@ for (const portee of portees.scopes) {
   // name about to be chosen. That is how `const el` and a nested `const f`
   // both became `element` — legal to the parser, and a temporal dead zone at
   // runtime the moment the inner one is declared after a use of the outer.
-  const pris = new Set();
-  const ajouter = (v) => pris.add(nomsFinaux.get(v) ?? v.name);
-  (function sousArbre(courante) {
-    for (const v of courante.variables) ajouter(v);
-    for (const ref of courante.through) pris.add(ref.identifier.name);
-    for (const enfant of courante.childScopes) sousArbre(enfant);
-  })(portee);
-  for (let haut = portee.upper; haut; haut = haut.upper) {
-    for (const v of haut.variables) ajouter(v);
+  const taken = new Set();
+  const add = (v) => taken.add(finalNames.get(v) ?? v.name);
+  (function subtree(current) {
+    for (const v of current.variables) add(v);
+    for (const ref of current.through) taken.add(ref.identifier.name);
+    for (const child of current.childScopes) subtree(child);
+  })(scope);
+  for (let up = scope.upper; up; up = up.upper) {
+    for (const v of up.variables) add(v);
   }
 
-  for (const variable of portee.variables) {
-    if (!court(variable.name)) continue;
-    const clef = `${ligneBloc}:${variable.name}`;
-    let neuf = AU_CAS_PAR_CAS[clef] ?? nommer(variable, portee);
-    if (!neuf || neuf === variable.name) {
-      restants.push({
-        clef,
-        nom: variable.name,
-        ligne: variable.defs[0]?.name.loc.start.line,
-        source: texteDe(
+  for (const variable of scope.variables) {
+    if (!isShort(variable.name)) continue;
+    const key = `${blockLine}:${variable.name}`;
+    let chosen = BY_HAND[key] ?? nameFor(variable, scope);
+    if (!chosen || chosen === variable.name) {
+      unnamed.push({
+        key,
+        name: variable.name,
+        line: variable.defs[0]?.name.loc.start.line,
+        source: textOf(
           variable.defs[0]?.node?.parent?.type === "VariableDeclaration"
             ? variable.defs[0].node
             : (variable.defs[0]?.node ?? variable.defs[0].name),
@@ -250,58 +264,58 @@ for (const portee of portees.scopes) {
       continue;
     }
     // Collision-free: append a qualifier rather than shadow something.
-    let candidat = neuf;
-    let suffixe = 2;
-    while (pris.has(candidat)) candidat = `${neuf}${suffixe++}`;
-    pris.add(candidat);
-    nomsFinaux.set(variable, candidat);
+    let candidate = chosen;
+    let suffix = 2;
+    while (taken.has(candidate)) candidate = `${chosen}${suffix++}`;
+    taken.add(candidate);
+    finalNames.set(variable, candidate);
 
     // Shorthand is a trap: in `{ n, aired }` the identifier IS the property
     // key, so replacing it renames the KEY as well and every reader of
     // `.n` downstream silently gets undefined. Expanding to `n: number`
     // keeps the shape of the object and renames only the variable.
-    const inscrire = (identifiant) => {
-      const parent = identifiant.parent;
+    const record = (identifier) => {
+      const parent = identifier.parent;
       // espree gives a shorthand property two DISTINCT nodes over the same
       // range, so identity is the wrong test — the range is the right one.
-      const abrege =
+      const shorthand =
         parent?.type === "Property" &&
         parent.shorthand === true &&
-        parent.value?.range?.[0] === identifiant.range[0] &&
-        parent.value?.range?.[1] === identifiant.range[1];
+        parent.value?.range?.[0] === identifier.range[0] &&
+        parent.value?.range?.[1] === identifier.range[1];
       edits.push([
-        identifiant.range[0],
-        identifiant.range[1],
-        abrege ? `${identifiant.name}: ${candidat}` : candidat,
+        identifier.range[0],
+        identifier.range[1],
+        shorthand ? `${identifier.name}: ${candidate}` : candidate,
       ]);
     };
-    for (const identifiant of variable.identifiers) inscrire(identifiant);
-    for (const ref of variable.references) inscrire(ref.identifier);
-    renommees += 1;
+    for (const identifier of variable.identifiers) record(identifier);
+    for (const ref of variable.references) record(ref.identifier);
+    renamedCount += 1;
   }
 }
 
 // Deduplicate (a declaration is both an identifier and a reference) and apply
 // from the end, so every range stays valid while editing.
-const vus = new Set();
-const uniques = edits.filter(([a, b]) => {
-  const clef = `${a}:${b}`;
-  if (vus.has(clef)) return false;
-  vus.add(clef);
+const seen = new Set();
+const unique = edits.filter(([a, b]) => {
+  const key = `${a}:${b}`;
+  if (seen.has(key)) return false;
+  seen.add(key);
   return true;
 });
-uniques.sort((x, y) => y[0] - x[0]);
+unique.sort((x, y) => y[0] - x[0]);
 
-let sortie = script;
-for (const [a, b, texte] of uniques) sortie = sortie.slice(0, a) + texte + sortie.slice(b);
+let output = script;
+for (const [a, b, text] of unique) output = output.slice(0, a) + text + output.slice(b);
 
-if (process.argv.includes("--ecrire")) {
-  writeFileSync(CHEMIN, avant + sortie + apres);
-  console.log(`écrit · ${renommees} variables renommées, ${uniques.length} occurrences`);
+if (process.argv.includes("--write")) {
+  writeFileSync(FRAGMENT, before + output + after);
+  console.log(`written · ${renamedCount} variables renamed, ${unique.length} occurrences`);
 } else {
-  console.log(`à blanc · ${renommees} variables renommées, ${uniques.length} occurrences`);
-  console.log(`${restants.length} sans nom dérivable :`);
-  for (const r of restants) {
-    console.log(`  ${r.clef.padEnd(12)} l.${String(r.ligne).padEnd(6)} ${r.source}`);
+  console.log(`dry run · ${renamedCount} variables renamed, ${unique.length} occurrences`);
+  console.log(`${unnamed.length} with no derivable name:`);
+  for (const r of unnamed) {
+    console.log(`  ${r.key.padEnd(12)} l.${String(r.line).padEnd(6)} ${r.source}`);
   }
 }
