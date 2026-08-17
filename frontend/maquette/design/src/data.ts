@@ -190,6 +190,93 @@ export type QueueCard = Record<string, unknown>;
 // date the same way every other legacy navigation control already does,
 // since nothing subscribes the legacy side to the store automatically.
 //
+// One row of a fact list, exactly as `listeFaitsHTML` reads one. `ton` is the
+// operator's vocabulary (`success` / `alert` / `warning` / `info`) and the
+// emitter maps it onto the stylesheet's; `cible` becomes the row's `data-*`
+// attributes, which is what turns the row into the control.
+export type Fact = {
+  l: string;
+  v?: string;
+  s?: string;
+  k?: string;
+  ton?: string;
+  etat?: string;
+  cible?: Record<string, string>;
+};
+
+// One pipeline run, as `EXECUTIONS` shapes it: the question it answered, its
+// verdict, its date and its result line.
+export type PipelineRun = {
+  q: string;
+  ok: boolean;
+  d: string;
+  r: string;
+};
+
+// One maintenance RUBRIC — a heading and the sentence under it. The commands
+// are grouped by what one wants to DO, never by the file they live in.
+export type MaintenanceTopic = {
+  id: string;
+  t: string;
+  s: string;
+};
+
+// One maintenance COMMAND. `g` is its rubric, `r` its risk (a key of `RISQUES`),
+// `long` whether it can take a while, `blanc` whether it can run dry.
+export type MaintenanceAction = {
+  id: string;
+  l: string;
+  d: string;
+  g: string;
+  r: string;
+  long?: boolean;
+  blanc?: boolean;
+};
+
+// What a risk level is called and which pip colour says so. `t` is the
+// operator's words; the mapping onto the chip vocabulary lives with the emitter.
+export type Risk = { t: string; p: string };
+
+// The deletion journal: how many destructive operations the library has been
+// through, and the rows describing them.
+export type DeletionJournal = { total: number; lignes: Fact[] };
+
+// One settings RUBRIC — the heading one navigates BY WHAT ONE WANTS TO CHANGE,
+// never by file, and the settings it holds.
+export type SettingsTopic = {
+  id: string;
+  t: string;
+  s: string;
+  r: Setting[];
+};
+
+// One secret: what it is called, its key, and whether it is SET. Never its
+// value — a value shown once is a value read by everything looking at the
+// screen.
+export type Secret = { k: string; l: string; def?: boolean };
+
+// The settings screen's own mutable state, owned by the fragment and written by
+// the document-level delegation: which rubric is open, the search text, the
+// PENDING edits (a Map keyed by `reglageId`), and the three banners. A component
+// READS it — it never replaces it — and re-reads on every store bump.
+export type SettingsState = {
+  modifs: Map<string, unknown>;
+  rubrique: string | null;
+  q: string;
+  lectureSeule: boolean;
+  redemarrage: boolean;
+  conflit: boolean;
+};
+
+// The code-error summary the Système page draws as two rows.
+export type CodeErrors = {
+  total: number | string;
+  sur: number | string;
+  derniere: string;
+  quoi: string;
+  ou: string;
+};
+
 // EVERY MEMBER NAME BELOW IS THE SEAM: the engine publishes this object under
 // these exact keys, so they stay whatever it publishes.
 export type Reference = {
@@ -210,6 +297,39 @@ export type Reference = {
   // otherwise silently diverge from.
   HEROS: Record<string, string>;
   POSTERS: Record<string, string>;
+  // What the Système page draws. `factRowsHTML` emits the
+  // ROWS of a fact list without the `<ol class="flux">` around them, because a
+  // component draws that element itself; `listeFaitsHTML` (still published, for
+  // every page the fragment keeps) emits both. `skelCardsInner` / `surfErrInner`
+  // are the same split for the two non-ready surfaces. The data below is
+  // read-only reference, never engine state.
+  listeFaitsHTML: (rows: Fact[]) => string;
+  factRowsHTML: (rows: Fact[]) => string;
+  skelCards: (count: number) => string;
+  skelCardsInner: (count: number) => string;
+  surfErr: (subject: string) => string;
+  surfErrInner: (subject: string) => string;
+  SERVICES: Fact[];
+  SERVICES_PANNE: Fact[];
+  PLANIFICATEURS: Fact[];
+  PLANIFICATEURS_PANNE: Fact[];
+  EXECUTIONS: PipelineRun[];
+  DISQUES: Fact[];
+  INDEX: Fact[];
+  DEPENDANCES: Fact[];
+  ERREURS: CodeErrors;
+  MAINT_RUBRIQUES: MaintenanceTopic[];
+  MAINT_ACTIONS: MaintenanceAction[];
+  REGLAGES: SettingsTopic[];
+  REG_ETAT: SettingsState;
+  SECRETS: Secret[];
+  emptyInner: (title: string, body: string) => string;
+  chipHTML: (chip: [string, string] | null | undefined) => string;
+  valeurCourante: (setting: Setting) => unknown;
+  nomDeFichier: (file: string) => string;
+  fichiersModifies: () => string[];
+  RISQUES: Record<string, Risk>;
+  JOURNAL: DeletionJournal;
   ACTEURS: Record<string, string>;
   trailerIds: Record<string, Trailer>;
   EP_LABEL: Record<string, string>;
@@ -278,7 +398,6 @@ export type Reference = {
     kind?: "movie" | "show",
     opts?: { exact?: boolean },
   ) => string;
-  chipHTML: (chip: [string, string] | null | undefined) => string;
 };
 
 // `etat.resolveTarget` (the folder currently open on the resolution screen)

@@ -266,6 +266,121 @@ next wave should not have to rediscover how the number is made.
 
 ---
 
+## SP4d wave 1 — Système, Maintenance, Configuration: the shell owns a PAGE
+
+Branch `feat/maquette-sp4d1`, version 0.97.18 (ONE bump for the whole wave). The first of
+SP4d's four page waves: the three surfaces the legacy engine drew with `viewSystem`,
+`viewMaintenance` and `viewReglages` leave the fragment and become final React components.
+They went first not because they are small — Réglages is the largest data surface in the
+prototype — but because they **write almost nothing**, which is what makes them the place to
+pay for the PAGE machinery, exactly as SP4a paid for the SCREEN machinery on the two smallest
+screens.
+
+**A PAGE is not a screen, and that is the whole of the machinery.** Every surface migrated
+before this wave is an overlay screen with its own path, drawn inside the React root. A page
+has no address of its own: `/` stays the pages' route with its legacy query, the LEGACY parser
+keeps owning it, and a page's markup has to land inside `#view`, where the stylesheet, the
+harness selectors and the document-level click delegation all expect it. So the shell PORTALS
+into `#view`: a `PAGES_OF()` entry gains `shellOwned`, `render()` skips its `innerHTML` write
+for such a page and does everything else it always did (the bar, the nav and the save bar are
+shared furniture), and `src/pages/host.tsx` holds the ONE table a later wave adds a page to.
+
+Four rulings, all contestable, all recorded in `regions.json`: **the host element IS the page's
+root** (`div.body`, which all three pages emit) rather than a wrapper, and it lives inside
+`#view` rather than in a container of the shell's own — the alternative moves the markup out of
+`.stage`'s layout context, forces a CSS amendment the spec reserves for SP5, and would move
+every harness selector reading `#view …` with it. **The shell empties `#view` when it takes
+ownership**, once, on the transition — not on every render, and not in the legacy, which cannot
+know when React is ready to draw; handing back needs nothing, because the legacy's own write
+removes what React left. **A host element rather than a portal straight into `#view`**, because
+leaving a migrated page the legacy's write runs FIRST, synchronously, and React would then be
+removing children that are already detached. And **a migrated page's entry loses its
+`render`**, so clearing `shellOwned` without restoring a renderer CRASHES rather than silently
+drawing a page nobody maintains.
+
+**`REG_ETAT` stays the fragment's**, read by the component through the store's `version` bump:
+R60 reads `REG_ETAT.modifs` in five holds, and making the settings state React-owned would
+leave them reading nothing. The shared emitters are reused VERBATIM and SPLIT rather than
+re-derived — `listeFaitsHTML` gained `lignesFaitsHTML`, `skelCards` gained `skelCardsInner`,
+`surfErr` gained `surfErrInner`, `emptyHTML` gained `emptyInner` — each outer function emitting
+exactly what it always did, the inner one existing because React cannot set the outer markup of
+a node it also draws. The save bar is the settings page's SECOND portal, into `#device`, because
+`#savebar` never lived inside `#view`.
+
+**Every deletion was preceded by its own fidelity proof.** `frontend/maquette/fidelity.py` — run
+by hand, against the legacy renderer, BEFORE deleting it — compares `#view`'s markup with the
+legacy function's own output in the same document, through ONE serialiser: 0 divergences over
+the four `systeme-*` states, 0 over the four `maintenance-*`, 0 over all sixteen `reglages-*`
+(the eight field types included). It normalises the three things that are the WRITER and not the
+markup — inline-style serialisation, attribute ORDER, whitespace runs — and each of those cost a
+full measuring cycle to understand; it deliberately does NOT normalise a whitespace text node
+between TEXT and a tag, because that one renders. Two such nodes were restored in this wave.
+
+**The rule ladders gained the identity these three pages never had, in the same wave that moved
+them.** New rule **R77** (`harness/page_host.py`) holds the ownership law: a migrated page is
+drawn once, a legacy page still draws, and a page draws the SAME whichever world it was reached
+from — the residue hold measures constancy across predecessors rather than a root count, because
+pages emit different numbers of roots. **R67** stopped judging a list it had not found: its five
+Système lists are located by the FRENCH text of their `<h2>`, which now comes from `fr.json`, and
+`rows or []` turned a lookup miss into an empty list that « no row is wrong » is true of; the
+heading, the reading key, the verdict's word and the declared source are now named once, in one
+table the reading is generated from, and every list must be FOUND with rows to judge first.
+**R60** gained a POSITIVE CONTROL, and it is the wave's most durable lesson: its « every setting
+subject carries a written name » hold reads a set filled as a SIDE EFFECT of naming a subject —
+delete the side effect and the hold stays GREEN. And the DELEGATION, which no rule touched at
+all: R67 reaches Maintenance through `applyState` and R60 reaches every settings state through
+`__go`, never through a tap, so the nine `data-*` attributes the document-level handler acts on
+were unmeasured. Each now has a hold driven by a REAL tap, with the control looked up before it
+is tapped — a click on a selector that matches nothing times out and CRASHES the script, which
+reads as a broken rule instead of a named defect.
+
+**A setting is no longer named in two places.** The fragment's four literal tables
+(`LIBELLES_REGLAGES`, `CONTENANTS_REGLAGES`, `NOMS_SUJETS`, `UNITES`) and the panel component's
+copy reading `fr.json` were two implementations of one naming — a label curated on one side and
+not the other renames a row on the page and leaves the panel above it saying something else. The
+naming moved to `settings-labels.ts`, read by the page, by the panel and by the fragment's own
+panel title through `window.__settingLabels`; the fragment gave up 247 lines. The ORDER was the
+substance: the detector came back to the React side FIRST (`panel.tsx` had dropped
+`window.__sujetsSansNom.add(s)` as « an unrelated diagnostic », which is exactly what makes a
+hold go quiet), then the page pointed at it, then R60's four call sites followed, and only then
+the fragment lost its tables. Proven both ways: the two implementations compared over all 159 rows the prototype
+declares (the 153 JSON5 settings plus the six PM2 schedules) — labels, subjects, units — 0
+divergence; and a mutation dropping the recording line
+fells the control ALONE while the hold below it stays green on the empty set.
+
+**And then the wave's own adversarial review found what the whole suite had walked past.** The
+settings page's save bar is a React portal into `#device`; the legacy still removed that node by
+hand when the page changed, and the guard written for it read the ARRIVING page — so on the way
+OUT of Réglages it did not hold. React unmounted the portal a microtask later and removed a node
+that was no longer its container's child: `NotFoundError` on the CONSOLE, never a page error,
+the React root torn down, and every migrated page and screen dead until a reload. Measured
+rather than argued: coming back to Réglages drew the LIBRARY's four roots and zero settings
+rows. The legacy's mounter is deleted — no page draws a bar from there any more, so what was
+left could only ever remove someone else's node — and R77 gained the hold that would have caught
+it, mutation-proven by re-injecting the removal into the served copy alone. Two more divergences
+came out of the same reading, both invisible to the fidelity oracle because it could only ever
+see `#view` and the bar lives in `#device`: the restart banner named its files through
+`nomDeFichier` where the legacy printed them raw, and the save bar had lost the whitespace text
+node the legacy's own line break put between « en attente » and « Écrira » — the SP4b trap, one
+instance not restored. `fidelity.py` now takes the host to compare, so a page's second host
+cannot ship unproven again. The rules gained the rest: two more emptiness holds got the
+denominator the rung had just given the five block lists, the runs and code-errors lists (whose
+tone is derived where they are drawn, so no declared field can judge them) got the half that
+needs no data, three delegation taps that accepted « something happened » now compare the row's
+own value against what opened, and the ownership law reads the document the BROWSER ran instead
+of the source on disk — under this wave's own mutation method, a source read could have stayed
+green over a page that had lost the guard.
+
+**Wave gate**: `resync.py` reports 0 corrections; the full suite is **49 scripts, 521 holds,
+zero FAIL** (494 at the wave's mid-point, +15 for R67 and +12 for R77 — the count
+is the sum of the scripts' own `N rules EXECUTED` lines; four scripts print verdicts without a
+Journal tally and contribute none); `make check` green including `check-frontend` (10 566
+backend tests, 1 364 frontend tests); `scripts/check-no-french.py` green on four arms;
+R59/R69/R71 byte-identical against the merge point. The fragment went from 40 465 to 40 071
+lines. Pages the shell now owns: `sys`, `maint`, `cfg`. Pages the fragment still draws:
+`acq`, `arr`, `lib`, plus `viewIntrouvable` and `viewProfil`. The DRAWER stays where it was —
+this wave was not its last consumer: the topbar burger and `viewIntrouvable` still open it.
+
 ## What is already done, ahead of the phase plan
 
 The prototype and its harness carry the design; some app-side work was pulled forward because

@@ -4785,7 +4785,7 @@
       t: "Furious",
       serie: "Continuing",
       depuis: "27 juillet",
-      recherches: 10,
+      recherches: 12,
       k: "show",
       y: 2026,
       st: "a_jour",
@@ -4807,7 +4807,7 @@
       t: "President Curtis",
       serie: "Continuing",
       depuis: "29 juillet",
-      recherches: 16,
+      recherches: 18,
       k: "show",
       y: 2026,
       st: "a_jour",
@@ -11657,7 +11657,13 @@
   /* An empty section does not render — but an empty VIEW says so, with what
      explains it: never a blank screen, never a dead end. */
   function emptyHTML(titre, corps) {
-    return `<div class="empty"><b>${escapeHtml(titre)}</b>${corps}</div>`;
+    return `<div class="empty">${emptyInner(titre, corps)}</div>`;
+  }
+  /* Same split as `skelCardsInner` / `surfErrInner`: a migrated PAGE draws the
+     `<div class="empty">` itself and fills it with this. `corps` is HTML, not
+     text — the callers pass markup. */
+  function emptyInner(titre, corps) {
+    return `<b>${escapeHtml(titre)}</b>${corps}`;
   }
 
   function secHTML(pip, title, count, inner, note) {
@@ -11933,16 +11939,26 @@
      all three: that is what « every screen AND every state » means, and it
      is what the parity probe must be able to reach deterministically. */
   function skelCards(count) {
-    return `<div class="sec">${'<div class="sk skcard"></div>'.repeat(count)}</div>`;
+    return `<div class="sec">${skelCardsInner(count)}</div>`;
+  }
+  /* The inside alone. A migrated PAGE renders the `<div class="sec">` itself —
+     React cannot set the outer markup of a node it also draws — and fills it
+     with this, so the skeleton stays one emitter rather than two that drift. */
+  function skelCardsInner(count) {
+    return '<div class="sk skcard"></div>'.repeat(count);
   }
   function skelTiles(count) {
     return `<div class="grid">${'<div class="sk tile"></div>'.repeat(count)}</div>`;
   }
   function surfErr(quoi) {
-    return `<div class="surferr"><b>Impossible de charger ${escapeHtml(quoi)}.</b>
+    return `<div class="surferr">${surfErrInner(quoi)}</div>`;
+  }
+  /* Same split as `skelCardsInner`, and for the same reason. */
+  function surfErrInner(quoi) {
+    return `<b>Impossible de charger ${escapeHtml(quoi)}.</b>
       Le serveur n'a pas répondu dans le temps imparti. Rien n'est perdu — ce qui
       est affiché ailleurs reste valide.
-      <button data-phase="prete">Réessayer</button></div>`;
+      <button data-phase="prete">Réessayer</button>`;
   }
 
   /* Views */
@@ -12379,7 +12395,16 @@
      and a caller wanting something outside it adds a field rather than
      passing markup. An envelope guarantees nothing about what it carries. */
   function listeFaitsHTML(lignes) {
-    return `<ol class="flux">${lignes
+    return `<ol class="flux">${factRowsHTML(lignes)}</ol>`;
+  }
+
+  /* The rows alone, without the `<ol>` around them. A migrated PAGE renders
+     that `<ol class="flux">` as its own element — React cannot set the outer
+     markup of a node it is also drawing — and fills it with these, so the rows
+     stay one emitter shared by every fact list rather than two that drift.
+     `listeFaitsHTML` above keeps emitting exactly what it always did. */
+  function factRowsHTML(lignes) {
+    return `${lignes
       .map((ligne) => {
         // No VALUE is what greys a line — a sub-line explaining why there is
         // nothing to report does not make the line a report.
@@ -12438,7 +12463,7 @@
       }${ligne.s ? escapeHtml(ligne.s) : ""}</span>
     </${balise}></li>`;
       })
-      .join("")}</ol>`;
+      .join("")}`;
   }
 
   function dernierPassageHTML() {
@@ -12524,51 +12549,6 @@
      A real deletion cannot be rehearsed on this machine — staging writes to
      the real disks — so what the interface owes is the look before, not a
      safety net after. */
-  function viewMaintenance() {
-    if (state.phase !== "prete")
-      return `<div class="body">${state.phase === "erreur" ? surfErr("les commandes de maintenance") : skelCards(3)}</div>`;
-    const rubrique = MAINT_RUBRIQUES.find((r) => r.id === state.maintRub);
-    if (rubrique) {
-      const actions = MAINT_ACTIONS.filter((a) => a.g === rubrique.id);
-      return `<div class="body">
-      <button class="crossref" data-maintrub="">← Toutes les commandes</button>
-      <h2 class="h2">${escapeHtml(rubrique.t)}</h2>
-      <div class="note">${escapeHtml(rubrique.s)}</div>
-      ${listeFaitsHTML(
-        actions.map((a) => ({
-          l: a.l,
-          k: a.id,
-          v: RISQUES[a.r].t,
-          s: a.d + (a.long ? " · peut être long" : ""),
-          etat: a.r === "destructive" ? "danger" : "",
-          // The row IS the control. A list of facts with a parallel column of
-          // buttons asks which of the two to aim at, and the answer is never
-          // on screen.
-          cible: { maintact: a.id },
-        })),
-      )}
-    </div>`;
-    }
-    const compte = (id) => MAINT_ACTIONS.filter((a) => a.g === id).length;
-    return `<div class="body">
-    <div class="note"><b>Ce qu'on FAIT à la médiathèque.</b> Système dit si la machine va bien ; ici on agit sur ce qu'elle contient. Les commandes sont rangées par ce qu'on veut faire, jamais par le fichier où elles vivent.</div>
-    ${MAINT_RUBRIQUES.map((r) => {
-      const dedans = MAINT_ACTIONS.filter((a) => a.g === r.id);
-      const dur = dedans.filter((a) => a.r === "destructive").length;
-      return `<button class="topic" data-maintrub="${escapeHtml(r.id)}">
-      <span style="min-width:0;flex:1">
-        <span class="rt">${escapeHtml(r.t)}</span>
-        <span class="rs">${escapeHtml(r.s)}</span>
-      </span>
-      <span class="rn">${compte(r.id)}${dur ? ` · ${dur} qui supprime${dur > 1 ? "nt" : ""}` : ""} →</span>
-    </button>`;
-    }).join("")}
-
-    <h2 class="h2">Journal des suppressions</h2>
-    <div class="note">Les ${JOURNAL.total} opérations destructrices que la médiathèque a subies. Toutes ont été écrites par le pipeline lui-même, aucune par une main : un journal qui ne consignerait que l'opérateur serait un journal que personne n'ouvre.</div>
-    ${listeFaitsHTML(JOURNAL.lignes)}
-  </div>`;
-  }
 
   /* One command's panel. Derived from what is TRUE about the command — does
      it delete, can it run blank, is it long — never from a list of screens. */
@@ -12712,66 +12692,6 @@
   </div>`;
   }
 
-  function viewSystem() {
-    if (state.phase !== "prete")
-      return `<div class="body">${state.phase === "erreur" ? surfErr("l'état de la machine") : skelCards(3)}</div>`;
-    return `<div class="body">
-    <div class="note"><b>Système répond à une seule question : la machine va-t-elle bien ?</b> Un média bloqué n'est pas ici — c'est une décision du pipeline, et elle est dans Arrivées. Ce qu'on trouve ici, ce sont les processus, les passages programmés, la place qui reste, et le code qui a levé une erreur.</div>
-
-    ${
-      state.panne
-        ? `<div class="note"><b>Panne SIMULÉE.</b> Cette machine est verte partout, et un écran qui ne peut être que vert ne se juge pas : cet état rejoue une panne pour montrer ce qu'on verrait le jour où quelque chose s'arrête. Rien ici n'est lu du système.</div>`
-        : ""
-    }
-    <h2 class="h2">Services</h2>
-    ${listeFaitsHTML(state.panne ? SERVICES_PANNE : SERVICES)}
-
-    <h2 class="h2">Planificateurs</h2>
-    <div class="note"><b>Un planificateur entre deux passages n'est pas arrêté.</b> PM2 le dit « stopped », et c'est la vérité sur le processus et un mensonge sur le système : six lignes rouges sur une machine en parfaite santé. Un service se juge sur « tourne-t-il », un planificateur sur « a-t-il tourné ».</div>
-    ${listeFaitsHTML(state.panne ? PLANIFICATEURS_PANNE : PLANIFICATEURS)}
-
-    <h2 class="h2">Exécutions du pipeline</h2>
-    ${listeFaitsHTML(
-      EXECUTIONS.map((execution) => ({
-        l: execution.q,
-        ton: execution.ok ? "success" : "alert",
-        v: execution.ok ? "réussi" : "échoué",
-        s: execution.d + " · " + execution.r,
-      })),
-    )}
-    <button class="crossref" data-go="arr">Le pipeline se pilote depuis Arrivées, où l'on voit ce qu'il fait aux médias. <span>Arrivées →</span></button>
-
-    <h2 class="h2">Disques</h2>
-    ${listeFaitsHTML(DISQUES)}
-
-    <h2 class="h2">Index de la médiathèque</h2>
-    ${listeFaitsHTML(INDEX)}
-    <button class="crossref" data-page="maint">Réparer ce que l'index signale se fait depuis Maintenance. <span>Maintenance →</span></button>
-
-    <h2 class="h2">Dépendances</h2>
-    ${listeFaitsHTML(DEPENDANCES)}
-
-    <h2 class="h2">Erreurs de code</h2>
-    ${listeFaitsHTML([
-      {
-        l: "Du code a levé",
-        ton: "alert",
-        v: "des erreurs",
-        s: `${ERREURS.total} exécutions sur ${ERREURS.sur} · la dernière ${ERREURS.derniere} — ${ERREURS.quoi}`,
-      },
-      { l: "Où", v: "", s: ERREURS.ou },
-    ])}
-
-    <h2 class="h2">Réglages</h2>
-    <button class="topic" data-page="cfg" style="margin-top:0">
-      <span style="min-width:0;flex:1">
-        <span class="rt">Réglages</span>
-        <span class="rs">Ce que le pipeline fait, et comment — l'heure des passages programmés comprise. Rangés par ce qu'on veut changer, pas par fichier.</span>
-      </span>
-      <span class="rn">→</span>
-    </button>
-  </div>`;
-  }
 
   /* ── RÉGLAGES ────────────────────────────────────────────────────────
      The configuration, and the one decision that shapes everything else:
@@ -14344,237 +14264,6 @@
     );
   }
 
-  /* THE LABEL IS FRENCH, AND IT IS CURATED.
-
-     The engine's key is snake_case English, and so is the comment above it in
-     the file. Using that comment as the label — the obvious shortcut — gives a
-     settings screen written in English, on which a French search finds
-     nothing: « espace » matched no row, because the row said « Minimum free
-     space on the staging drive before ingest ».
-
-     So the label comes from a written map, the same way the shipped editor
-     already names its sections and its secrets, and a key absent from it falls
-     back to itself, humanised. Never invented prose about what a key might do:
-     a wrong explanation is worse than a raw key, because a raw key at least
-     admits it needs looking up.
-
-     The comment is not lost — it is the EXPLANATION shown in the panel, where
-     there is room for a sentence and where being English is a smaller cost
-     than being absent. */
-  const LIBELLES_REGLAGES = {
-    /* The six schedulers share the key `cron_restart`, so the leaf would draw
-       « cron restart » six times in one list — the very defect this map exists
-       for. Each is named by what it goes and does. */
-    "personalscraper-health-check": "Contrôle de santé du système",
-    "personalscraper-search": "Recherche des releases suivies",
-    "personalscraper-grab": "Récupération des releases trouvées",
-    "personalscraper-follow-detect": "Détection des épisodes diffusés",
-    "personalscraper-index-enrich": "Enrichissement de l'index",
-    "personalscraper-backfill-ids": "Complétion des identifiants croisés",
-    torrent_complete_dir: "Dossier où qBittorrent dépose les torrents terminés",
-    staging_dir: "Dossier de transit avant rangement",
-    data_dir: "Dossier des données du pipeline",
-    disks: "Disques de destination",
-    active: "Actif",
-    priority: "Priorité",
-    movies: "Films",
-    tv_shows: "Séries",
-    staging_dirs: "Sous-dossiers du transit",
-    category_rules: "Règles de catégorie",
-    custom_categories: "Catégories personnalisées",
-    default_movies_category: "Catégorie par défaut des films",
-    default_tv_category: "Catégorie par défaut des séries",
-    maps_to: "Range dans",
-    applies_to: "S'applique à",
-    requires_genre_id: "Exige le genre",
-    requires_origin_country: "Exige le pays d'origine",
-    aliases: "Autres noms acceptés",
-    episode_default_name: "Nom donné à un épisode sans titre",
-    folder_name: "Motif du nom de dossier",
-    encoding_rules: "Règles d'encodage des noms",
-    allow_synthetic_rename_on_unmatched: "Renommer même sans correspondance",
-    long_title_threshold: "Longueur au-delà de laquelle un titre est long",
-    short_title_length: "Longueur d'un titre raccourci",
-    short_title_threshold: "Longueur en dessous de laquelle un titre est court",
-    min_length_ratio: "Proportion minimale conservée d'un titre",
-    enabled: "Activé",
-    max_per_tracker: "Résultats maximum par tracker",
-    max_total_results: "Résultats maximum au total",
-    timeout_per_tracker: "Délai d'attente par tracker",
-    search_query_format: "Forme de la requête envoyée au tracker",
-    tiers: "Paliers de trackers",
-    preferred_resolution: "Résolution préférée",
-    preferred_codec: "Codec préféré",
-    fallback_codecs: "Codecs acceptés à défaut",
-    rejected_codecs: "Codecs refusés",
-    required_languages: "Langues exigées",
-    fallback_language: "Langue acceptée à défaut",
-    max_size_movie_gb: "Taille maximale d'un film",
-    max_size_episode_gb: "Taille maximale d'un épisode",
-    min_free_space_staging_gb: "Espace libre minimal avant une ingestion",
-    min_free_space_disk_gb: "Espace libre minimal avant un rangement",
-    circuit_breaker_threshold: "Erreurs d'affilée avant de couper",
-    circuit_breaker_cooldown: "Attente avant de réessayer après une coupure",
-    target_ratio: "Ratio de partage visé",
-    min_ratio: "Ratio de partage minimal",
-    min_seed_time: "Durée de partage minimale",
-    hit_and_run_grace: "Tolérance avant de considérer un abandon",
-    cross_seed: "Partage croisé",
-    verify_seed_pure: "Vérifier qu'un partage reste intact",
-    cutoff_days: "Ancienneté au-delà de laquelle on n'insiste plus",
-    budget_seconds: "Temps accordé à une recherche",
-    language: "Langue des métadonnées",
-    languages: "Langues acceptées",
-    artwork_language: "Langue des visuels",
-    prefer_local_title: "Préférer le titre local",
-    fallback_youtube_search: "Chercher sur YouTube à défaut",
-    lock_to_series_provider: "S'en tenir au fournisseur de la série",
-    use_when_available: "Utiliser quand c'est disponible",
-    profile_priority: "Ordre des profils",
-    overlays: "Surcouches de configuration",
-    tmdb: "TMDB",
-    tvdb: "TVDB",
-    omdb: "OMDb",
-    trakt: "Trakt",
-    paranoia_window_seconds: "Fenêtre de vérification supplémentaire",
-    db_path: "Emplacement de la base d'index",
-    max_workers_total: "Travailleurs simultanés",
-    read_rate_mb_per_sec: "Débit de lecture accordé",
-    checkpoint_every_n_files: "Points de reprise, tous les N fichiers",
-    drop_indexes_during_full_scan: "Retirer les index pendant un scan complet",
-    merkle_delta_freeze_threshold: "Seuil de gel du calcul d'écarts",
-    n_strikes_for_softdelete: "Absences avant de marquer un média disparu",
-    deleted_item_retention_days: "Durée de conservation d'un média supprimé",
-    host: "Adresse d'écoute",
-    port: "Port d'écoute",
-    username: "Nom d'utilisateur",
-    redis_url: "Adresse de Redis",
-    stream_key: "Nom du flux d'événements",
-    stream_maxlen: "Événements gardés dans le flux",
-    session_ttl_hours: "Durée d'une session",
-    cookie_secure: "Cookie réservé aux connexions sûres",
-    dev_mode: "Mode développement",
-    config_version: "Version du format de configuration",
-
-    // Keyed by full path where the leaf alone would name two different things.
-    "scraper.language": "Langue visée par le scrapage",
-    "scraper.fallback_language": "Langue de repli du scrapage",
-    "scraper.prefer_local_title": "Préférer le titre local au scrapage",
-    "web.enabled": "Serveur web activé",
-  };
-
-  /* A leaf key alone does not identify a setting. `enabled` sits under every
-     tracker, every torrent client, every metadata provider and the web server:
-     labelling the rows by the leaf drew « Activé » seven times in one list, and
-     the only thing telling them apart was a machine path nobody scans. A row is
-     labelled by its SUBJECT — the instance it belongs to — then by what it does.
-
-     The subject is derived from the path, so a provider added tomorrow is named
-     without touching the rendering. Segments that name a COLLECTION rather than
-     an instance carry nothing and are dropped. */
-  const CONTENANTS_REGLAGES = new Set([
-    "providers",
-    "clients",
-    "categories",
-    "priorities",
-    "defaults",
-    "genre_mapping",
-    "cadence",
-  ]);
-
-  const NOMS_SUJETS = {
-    c411: "C411",
-    tr4ker: "Tr4ker",
-    lacale: "LaCale",
-    qbittorrent: "qBittorrent",
-    transmission: "Transmission",
-    tmdb: "TMDB",
-    tvdb: "TVDB",
-    omdb: "OMDb",
-    trakt: "Trakt",
-    telegram: "Telegram",
-    healthchecks: "Healthchecks",
-    movies: "Films",
-    movies_animation: "Films d'animation",
-    movies_documentary: "Documentaires",
-    tv_shows: "Séries",
-    tv_shows_animation: "Séries d'animation",
-    tv_shows_documentary: "Séries documentaires",
-    anime: "Animés",
-    tv_programs: "Émissions",
-    standup: "Spectacles",
-    theater: "Théâtre",
-    audiobooks: "Livres audio",
-    movie_scraping: "Scrapage des films",
-    series_scraping: "Scrapage des séries",
-    episode_scraping: "Scrapage des épisodes",
-    episode_scraping_policy: "Politique de scrapage des épisodes",
-    season_pack_policy: "Saisons en un seul fichier",
-    anime_rule: "Règle des animés",
-    recommendations: "Recommandations",
-    notations: "Notations",
-    spotlight: "Spotlight",
-    drift: "Dérive",
-    economy: "Obligations de partage",
-    fuzzy_match: "Rapprochement approximatif",
-    library_check: "Contrôle de la médiathèque",
-    library: "Médiathèque",
-    ingest: "Récupération",
-    scan: "Balayage",
-    sort: "Tri",
-    watch: "Surveillance",
-    seasons: "Saisons",
-    subtitles: "Sous-titres",
-    cross_seed: "Partage croisé",
-    audio: "Audio",
-    video: "Vidéo",
-    log: "Journal",
-    tmdb_movies: "Genres TMDB (films)",
-    tmdb_tv: "Genres TMDB (séries)",
-    Searchable: "Recherche",
-    MovieDetailsProvider: "Détails des films",
-    TvDetailsProvider: "Détails des séries",
-    EpisodeFetcher: "Épisodes",
-    ArtworkProvider: "Illustrations",
-    VideoProvider: "Bandes-annonces",
-  };
-
-  // A segment falling through to the humanised key is a subject nobody named: a
-  // tracker added tomorrow would show up as a raw machine word. The set is
-  // published so a rule can read it — it catches an ABSENT name, never a wrong
-  // one, and a wrong one is only caught by reading the file it comes from.
-  window.__sujetsSansNom = new Set();
-
-  function sujetReglage(reglage) {
-    const segments = reglage.c
-      .split(".")
-      .slice(0, -1)
-      .filter((s) => s !== reglage.f && !CONTENANTS_REGLAGES.has(s));
-    return segments
-      .map((s) => {
-        if (!NOMS_SUJETS[s]) window.__sujetsSansNom.add(s);
-        return NOMS_SUJETS[s] ?? s.replace(/_/g, " ");
-      })
-      .join(" · ");
-  }
-
-  function libelleReglage(reglage) {
-    // A full path wins over a leaf: `language` means the metadata language in
-    // one file and the scrape language in another, and two rows reading
-    // « Langue des métadonnées » would name the same thing twice.
-    const propre =
-      LIBELLES_REGLAGES[reglage.c] ??
-      LIBELLES_REGLAGES[reglage.n] ??
-      (/^\d+$/.test(reglage.n)
-        ? `Genre ${reglage.n}`
-        : reglage.n.replace(/_/g, " "));
-    const sujet = sujetReglage(reglage);
-    return sujet ? `${sujet} — ${propre}` : propre;
-  }
-
-  // `avecFichier` is false when a group header already names the file: repeating
-  // it there prints « tracker » twice on one line and wraps the origin onto two,
-  // which costs a phone more than it tells anyone.
   /* THE FIELD A VALUE ASKS FOR.
 
      The 153 settings the engine really keeps hold ten JSON shapes, and those
@@ -14599,172 +14288,16 @@
 
      A value that is not set (2) keeps the field its type asks for and says it
      is empty — never a zero, never an empty string standing in for « absent ». */
-  const UNITES = {
-    gb: "Go",
-    days: "jours",
-    hours: "heures",
-    seconds: "secondes",
-    minutes: "minutes",
-    m: "minutes",
-    s: "secondes",
-    ratio: "ratio",
-  };
-
-  function uniteDe(reglage) {
-    const dernier = reglage.n.split("_").pop();
-    return UNITES[dernier] ?? null;
-  }
-
   function valeurEnCours(reglage) {
     const id = reglageId(reglage);
     return REG_ETAT.modifs.has(id) ? REG_ETAT.modifs.get(id) : reglage.brut;
   }
 
-  function ligneReglageHTML(reglage, avecFichier = false) {
-    const modifie = REG_ETAT.modifs.has(reglageId(reglage));
-    const origine = avecFichier
-      ? `${nomDeFichier(reglage.f)} · ${reglage.c}`
-      : reglage.c;
-    return `<button class="settingrow${modifie ? " modified" : ""}" data-reglage="${escapeHtml(reglageId(reglage))}">
-      <span class="rl">${escapeHtml(libelleReglage(reglage))}
-        <span class="rf">${escapeHtml(origine)}</span>
-      </span>
-      <span class="rv">${escapeHtml(String(valeurCourante(reglage)))}</span>
-    </button>`;
-  }
 
-  function barreEnregistrerHTML() {
-    const nombre = REG_ETAT.modifs.size;
-    const fichiers = fichiersModifies();
-    if (nombre === 0) return "";
-    return `<div class="savebar" id="savebar">
-      <span class="sn"><b>${nombre} modification${nombre > 1 ? "s" : ""} en attente</b>
-        Écrira ${fichiers.map((f) => escapeHtml(nomDeFichier(f))).join(", ")}.</span>
-      <button data-enregistrer="1" ${REG_ETAT.lectureSeule ? "disabled" : ""}>Enregistrer</button>
-    </div>`;
-  }
 
-  function viewReglages() {
-    if (REG_ETAT.rubrique === "secrets") return vueSecrets();
-    if (REG_ETAT.rubrique) return vueRubrique(REG_ETAT.rubrique);
 
-    const q = REG_ETAT.q.trim().toLowerCase();
-    if (q) {
-      const trouves = tousLesReglages().filter(
-        (reglage) =>
-          libelleReglage(reglage).toLowerCase().includes(q) ||
-          reglage.c.toLowerCase().includes(q),
-      );
-      return `<div class="body">
-        ${chercheReglagesHTML()}
-        ${
-          trouves.length === 0
-            ? emptyHTML(
-                "Aucun réglage ne correspond",
-                "Cherchez par ce que le réglage FAIT — « espace », « seuil », « langue » — ou par le nom de sa clé.",
-              )
-            : `<p class="qhint">${trouves.length} réglage${trouves.length > 1 ? "s" : ""} sur ${tousLesReglages().length}</p>
-               <div class="panel">${trouves
-                 .slice(0, 40)
-                 .map((r) => ligneReglageHTML(r, true))
-                 .join("")}</div>`
-        }
-      </div>`;
-    }
 
-    return `<div class="body">
-      ${chercheReglagesHTML()}
-      ${
-        REG_ETAT.lectureSeule
-          ? `<div class="loaderr"><b>Lecture seule.</b> Cette instance ne modifie rien — c'est le staging, qui écrit sur les mêmes disques que la production.</div>`
-          : ""
-      }
-      ${
-        REG_ETAT.redemarrage
-          ? `<div class="loaderr"><b>Redémarrage nécessaire.</b> ${escapeHtml(fichiersModifies().join(", ") || "Certains réglages")} ne seront pris en compte qu'au prochain démarrage du service.
-               <button data-redemarrer="1">Redémarrer maintenant</button></div>`
-          : ""
-      }
-      ${REGLAGES.map(
-        (
-          rubrique,
-        ) => `<button class="topic" data-rubrique="${escapeHtml(rubrique.id)}">
-          <span style="min-width:0;flex:1">
-            <span class="rt">${escapeHtml(rubrique.t)}</span>
-            <span class="rs">${escapeHtml(rubrique.s)}</span>
-          </span>
-          <span class="rn">${rubrique.r.length}</span>
-        </button>`,
-      ).join("")}
-      <button class="topic" data-rubrique="secrets">
-        <span style="min-width:0;flex:1">
-          <span class="rt">Secrets et accès</span>
-          <span class="rs">Les clés d'API et les mots de passe. On voit qu'ils sont posés, jamais ce qu'ils valent.</span>
-        </span>
-        <span class="rn">${SECRETS.length}</span>
-      </button>
-      <button class="topic" data-profil="global">
-        <span style="min-width:0;flex:1">
-          <span class="rt">Classement des releases</span>
-          <span class="rs">Ce qui fait préférer une release à une autre. S'ajuste avec un aperçu en direct, donc c'est un écran à part.</span>
-        </span>
-        <span class="rn">→</span>
-      </button>
-      <div class="note"><b>On navigue par ce qu'on veut changer, jamais par fichier.</b> Le moteur en garde dix-neuf ; savoir lequel contient l'espace disque minimal avant une ingestion est une connaissance du code, pas de la médiathèque. Chaque réglage dit d'où il vient — c'est ce qu'il faut pour lire un journal — mais ce n'est pas la carte.</div>
-    </div>`;
-  }
 
-  function chercheReglagesHTML() {
-    return `<div class="search" style="margin-bottom:12px">
-      ${svgIcon(icons.search)}
-      <input id="qreg" type="search" placeholder="Chercher un réglage" value="${escapeHtml(REG_ETAT.q)}" autocomplete="off">
-      ${REG_ETAT.q ? `<button class="searchclear" data-qreg="">${svgIcon(icons.x)}</button>` : ""}
-    </div>`;
-  }
-
-  function vueRubrique(id) {
-    const rubrique = REGLAGES.find((r) => r.id === id);
-    if (!rubrique)
-      return `<div class="body">${emptyHTML("Rubrique inconnue", "")}</div>`;
-    const parFichier = new Map();
-    for (const reglage of rubrique.r) {
-      if (!parFichier.has(reglage.f)) parFichier.set(reglage.f, []);
-      parFichier.get(reglage.f).push(reglage);
-    }
-    return `<div class="body">
-      <h2 class="h2">${escapeHtml(rubrique.t)}</h2>
-      <p class="qhint">${escapeHtml(rubrique.s)}</p>
-      ${[...parFichier.entries()]
-        .map(
-          ([
-            fichier,
-            reglages,
-          ]) => `<h2 class="h2" style="margin-top:16px"><code>${escapeHtml(fichier)}.json5</code></h2>
-          <div class="panel">${reglages.map((r) => ligneReglageHTML(r)).join("")}</div>`,
-        )
-        .join("")}
-    </div>`;
-  }
-
-  function vueSecrets() {
-    return `<div class="body">
-      <h2 class="h2">Secrets et accès</h2>
-      <p class="qhint">On voit qu'une clé est posée, jamais ce qu'elle vaut. Une valeur affichée une fois est une valeur lue par tout ce qui regarde l'écran.</p>
-      <div class="panel">
-        ${SECRETS.map(
-          (
-            secret,
-          ) => `<button class="settingrow" data-secret="${escapeHtml(secret.k)}">
-            <span class="rl">${escapeHtml(secret.l)}
-              <span class="rf">${escapeHtml(secret.k)}</span>
-            </span>
-            <span class="rv">${chipHTML(secret.def ? ["success", "définie"] : ["warning", "absente"])}</span>
-          </button>`,
-        ).join("")}
-      </div>
-      <div class="note"><b>Écrire seulement ce qu'on a tapé.</b> Un champ laissé vide n'efface rien : seule une clé réellement saisie part vers le serveur, sinon ouvrir cet écran et l'enregistrer suffirait à tout effacer.</div>
-    </div>`;
-  }
 
   /* Changing a value. The prototype does not draw a keyboard: what it draws is
      that the change is PENDING — marked on its row, counted in the bar, and
@@ -14852,7 +14385,7 @@
     const courante = valeurCourante(reglage);
     const modifie = REG_ETAT.modifs.has(id);
     window.__panneau.ouvrir({
-      titre: libelleReglage(reglage),
+      titre: window.__settingLabels.label(reglage),
       meta: [{ m: `${reglage.f}.json5 · ${reglage.c}` }],
       ...(modifie ? { puce: ["info", "modifié, pas encore écrit"] } : {}),
       blocs: [
@@ -14918,7 +14451,15 @@
       badge: derived.stuck().length,
       render: viewArrivals,
     },
-    { id: "sys", l: "Système", ic: icons.wrench, render: viewSystem },
+    {
+      id: "sys",
+      l: "Système",
+      ic: icons.wrench,
+      /* No `render`: the shell draws this page (`pages/system.tsx`). Clearing
+         `shellOwned` without restoring a renderer therefore CRASHES rather
+         than quietly drawing a page nobody maintains any more. */
+      shellOwned: true,
+    },
     /* Réglages is a PAGE, not a fifth tab. The bar holds the four places one
        goes to see what is happening; settings are what one goes to change, and
        that is a different kind of errand — read rarely, changed rarely. It is
@@ -14946,15 +14487,20 @@
       id: "maint",
       l: "Maintenance",
       ic: icons.wrench,
-      render: viewMaintenance,
+      /* No `render`: the shell draws this page (`pages/maintenance.tsx`).
+         Clearing `shellOwned` without restoring a renderer therefore CRASHES
+         rather than quietly drawing a page nobody maintains any more. */
       horsBarre: true,
+      shellOwned: true,
     },
     {
       id: "cfg",
       l: "Réglages",
       ic: icons.wrench,
-      render: viewReglages,
+      /* No `render`: the shell draws this page (`pages/settings.tsx`),
+         barre d'enregistrement comprise, par un second portail dans #device. */
       horsBarre: true,
+      shellOwned: true,
     },
   ];
 
@@ -14991,23 +14537,18 @@
       magasin.ecrire({ introuvable: "/" + state.page, page: "404" });
       found = PAGES_OF().find((element) => element.id === "404");
     }
-    view.innerHTML = found.render();
-    monterBarreEnregistrer();
+    /* A page the SHELL owns draws itself, through a React portal into this very
+       container: writing here would remove nodes React still believes it holds.
+       Everything below still runs — the bar, the nav and the save bar are shared
+       furniture, not the page's. `shellOwned` is what a migrated page carries;
+       the entry keeps its `render` until nothing calls it, so the two can be
+       compared byte for byte while the conversion is being proven. */
+    if (!found.shellOwned) view.innerHTML = found.render();
     fab.hidden = !found.fab;
     mountDeck();
     renderNav();
     mountLoaders();
     mountSearch();
-  }
-
-  /* The save bar lives beside the view rather than inside it, so scrolling the
-     settings never scrolls it away — and it exists only when there is
-     something to save. */
-  function monterBarreEnregistrer() {
-    const ancienne = select("#savebar");
-    if (ancienne) ancienne.remove();
-    if (state.page !== "cfg" || REG_ETAT.modifs.size === 0) return;
-    select("#device").insertAdjacentHTML("beforeend", barreEnregistrerHTML());
   }
 
   /* Loading
@@ -15103,6 +14644,47 @@
     render,
     HEROS,
     POSTERS,
+    /* What the Système page draws. `listeFaitsHTML` is the
+       emitter every fact list on this page and on Maintenance goes through;
+       a component calls it VERBATIM rather than re-deriving its markup,
+       because the delegated click handlers depend on that markup being
+       byte-exact (the same reason `cardHTML` is reused above). `skelCards`
+       and `surfErr` are the page's two non-ready surfaces. */
+    listeFaitsHTML,
+    factRowsHTML,
+    skelCards,
+    skelCardsInner,
+    surfErr,
+    surfErrInner,
+    SERVICES,
+    SERVICES_PANNE,
+    PLANIFICATEURS,
+    PLANIFICATEURS_PANNE,
+    EXECUTIONS,
+    DISQUES,
+    INDEX,
+    DEPENDANCES,
+    ERREURS,
+    /* What the Maintenance page draws. `ouvrirActionMaintenance`
+       reste au fragment : c'est la délégation `data-maintact` qui l'appelle, pas
+       un composant. */
+    MAINT_RUBRIQUES,
+    MAINT_ACTIONS,
+    /* What the Réglages page draws. REG_ETAT est l'objet
+       MUTABLE que la délégation écrit : il reste la source, et le composant le
+       relit à chaque bump de version du magasin (`render()` appelle
+       `magasin?.toucher()` en premier). Le NOM d'un réglage, lui, n'est plus
+       ici : `settings-labels.ts` le porte pour la page comme pour le panneau,
+       et le fragment le lit par `window.__settingLabels`. */
+    REGLAGES,
+    REG_ETAT,
+    SECRETS,
+    emptyInner,
+    valeurCourante,
+    nomDeFichier,
+    fichiersModifies,
+    RISQUES,
+    JOURNAL,
     // ACTEURS and AUJOURDHUI are declared with `const` further down this
     // same script, past this literal's evaluation point — a plain shorthand
     // reference would hit the temporal dead zone the instant this object is
@@ -16455,9 +16037,9 @@
 
   /* B-026: a navigation write that fails must not fail silently — the URL
      and the interface would then disagree with nothing on record. Published
-     so the harness can read it, the same way `__sujetsSansNom` publishes an
-     absent name rather than hiding it: it catches a write that DID fail,
-     never a wrong one. Reset only at load — a measurement that ran before
+     so the harness can read it, the same way the shell publishes the set of
+     path segments no table names rather than hiding them: it catches a write
+     that DID fail, never a wrong one. Reset only at load — a measurement that ran before
      leaves no residue, because nothing here ever clears it back to false. */
   window.__navEchec = false;
 
@@ -17578,8 +17160,8 @@
       </div>
       <div class="ver">
         <p class="vt">Version déployée</p>
-        <p class="vv">0.97.16</p>
-        <p class="vc">build ad366621 · à jour</p>
+        <p class="vv">0.97.17</p>
+        <p class="vc">build 7ac230c8 · à jour</p>
       </div>`;
     element.classList.add("open");
     select("#scrim").classList.add("open");

@@ -223,7 +223,8 @@ async def main():
         # the explanation in the panel, where a sentence has room.
         english = await pg.evaluate("""()=>{
           const words = /\\b(the|of|for|before|when|with|and|from|number|seconds|days|file|path|used|which|that)\\b/i;
-          return REGLAGES.flatMap(r => r.r).map(libelleReglage).filter(t => words.test(t));}""")
+          return REGLAGES.flatMap(r => r.r)
+            .map((x) => window.__settingLabels.label(x)).filter(t => words.test(t));}""")
         check("no setting is labelled in English",
               not english, f"{len(english)}: {english[:3]}")
 
@@ -234,7 +235,7 @@ async def main():
         # not to find it.
         collisions = await pg.evaluate("""()=>REGLAGES.flatMap(r => {
           const by = {};
-          for (const x of r.r) (by[libelleReglage(x)] ||= []).push(x.c);
+          for (const x of r.r) (by[window.__settingLabels.label(x)] ||= []).push(x.c);
           return Object.entries(by).filter(([, v]) => v.length > 1)
                        .map(([l, v]) => `${r.t} : « ${l} » ×${v.length}`);})""")
         check("two settings in one topic never wear the same label",
@@ -245,9 +246,36 @@ async def main():
         # caught only by reading the file the segment comes from, which is how
         # « economy » stopped being « Économie d'appels » under a tracker whose
         # `economy` block is its seeding obligation.
+        # A POSITIVE CONTROL first, because this hold's shape is the one that
+        # passes on nothing: it asserts an EMPTY set, and an empty set is also
+        # what a dead detector produces. The set is filled as a SIDE EFFECT of
+        # naming a subject, and that side effect had already been dropped once,
+        # deliberately, when the naming was first reimplemented on the React
+        # side as "an unrelated diagnostic" — so the day the page's renderer
+        # stops going through the function that fills it, this hold goes green
+        # while measuring nothing. It is what this control caught when the two
+        # implementations were unified: the naming moved to `settings-labels.ts`
+        # and the recording had to move with it, or the hold below would have
+        # gone quiet in the same commit. The probe is a segment no table can
+        # name: if it is NOT caught, the detector is dead, and nothing this hold
+        # says afterwards means anything.
+        probe = await pg.evaluate("""()=>{
+          const seam = window.__settingLabels;
+          const before = [...seam.unnamedSubjects];
+          // french-ok: a DATA value shaped like a setting, whose path segment
+          // is deliberately one no table can name — the probe itself.
+          seam.label({f: "sonde", c: "segment_que_rien_ne_nomme.x", n: "x"});
+          const caught = seam.unnamedSubjects.has("segment_que_rien_ne_nomme");
+          seam.unnamedSubjects.delete("segment_que_rien_ne_nomme");
+          return {caught, before};}""")
+        check("the unnamed-subject detector actually detects",
+              probe["caught"] and "segment_que_rien_ne_nomme" not in probe["before"],
+              "a probe segment no table names was absent, then caught"
+              if probe["caught"] else "the detector is dead — the hold below "
+              "would pass on nothing")
         unnamed_subjects = await pg.evaluate("""()=>{
-          REGLAGES.flatMap(r => r.r).forEach(libelleReglage);
-          return [...window.__sujetsSansNom];}""")
+          REGLAGES.flatMap(r => r.r).forEach((x) => window.__settingLabels.label(x));
+          return [...window.__settingLabels.unnamedSubjects];}""")
         check("every setting subject carries a written name", not unnamed_subjects,
               str(unnamed_subjects))
 
