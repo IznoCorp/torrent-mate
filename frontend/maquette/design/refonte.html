@@ -11969,298 +11969,6 @@
       <button data-phase="prete">Réessayer</button>`;
   }
 
-  /* Views */
-  function viewAcquisition() {
-    const tabs = [
-      {
-        id: "maintenant",
-        l: "En cours",
-        n: derived.takeable().length + derived.blocked().length,
-      },
-      { id: "suivis", l: "Suivis" },
-      { id: "decouvrir", l: "Découvrir" },
-    ];
-    let head = `<div class="viewtabs">
-    <div class="seg" role="tablist">${tabs
-      .map(
-        (tab) => `
-      <button role="tab" aria-selected="${state.acqTab === tab.id}" data-acqtab="${tab.id}">${tab.l}${tab.n ? `<span class="n">${tab.n}</span>` : ""}</button>`,
-      )
-      .join("")}
-    </div>
-    <button class="more" aria-label="Plus — veille et obligations" data-sheet="plus">${svgIcon(icons.more)}</button>
-  </div>`;
-
-    if (state.acqTab === "maintenant") {
-      const takeable = derived.takeable(),
-        blocked = derived.blocked(),
-        inflight = derived.inflight(),
-        notfound = derived.notfound(),
-        doneToday = derived.doneToday();
-      const rien =
-        takeable.length +
-          blocked.length +
-          inflight.length +
-          notfound.length +
-          doneToday.length ===
-        0;
-      if (state.phase !== "prete")
-        return (
-          head +
-          `<div class="body">${state.phase === "erreur" ? surfErr("ce qui vous attend") : skelCards(4)}</div>`
-        );
-      return (
-        head +
-        `<div class="body">
-      <div class="note"><b>Vue « En cours » — livrée, inchangée.</b> Elle sert de référence de langage aux trois autres pages : cinq sections d'urgence, une pastille de couleur par section, un compteur qui EST son propre lien.</div>
-      ${
-        rien
-          ? emptyHTML(
-              "Rien ne vous attend.",
-              "Aucun média à récupérer, aucun blocage, rien en vol. Vos <b>12</b> suivis sont surveillés — la prochaine recherche automatique est à 15 h 20.",
-            )
-          : ""
-      }
-      ${secHTML("warning", "À récupérer", String(takeable.length), takeable.map((tk) => cardHTML(tk, { foot: "Récupérer maintenant", footSolid: true })).join(""))}
-      ${secHTML("danger", "À traiter", String(blocked.length), blocked.map((bl) => cardHTML(bl, { foot: "Résoudre →" })).join(""))}
-      ${
-        derived.stuck().length > 0
-          ? `<button class="crossref" data-go="arr">${blocked.length > 0 ? "Ces items viennent d'une acquisition. " : ""}<b>${derived.stuck().length}</b> média${derived.stuck().length > 1 ? "s" : ""} à traiter ${derived.stuck().length > 1 ? "sont entrés" : "est entré"} sans suivi. <span>Arrivées →</span></button>`
-          : ""
-      }
-      ${secHTML("info", "En vol", String(inflight.length), inflight.map((fl) => cardHTML(fl)).join(""))}
-      ${secHTML(
-        "waiting",
-        "Cherché, rien trouvé",
-        String(notfound.length),
-        notfound.map((nf) => cardHTML(nf)).join(""),
-        "<b>§14.1 — un état de repos légitime.</b> « Cherché sans succès » n'est pas « pas encore regardé ». La carte donne la date de la prochaine recherche, jamais un silence. C'est l'état réel de vos quatre films suivis.",
-      )}
-      ${secHTML("success", "Rangé aujourd'hui", String(doneToday.length), doneToday.map((dn) => cardHTML(dn)).join(""))}
-    </div>`
-      );
-    }
-
-    if (state.acqTab === "suivis") {
-      const pills = [
-        { id: "tout", l: "Tout", n: world.follows.length },
-        {
-          id: "series",
-          l: "Séries",
-          n: world.follows.filter((follow) => follow.k !== "movie").length,
-        },
-        {
-          id: "films",
-          l: "Films",
-          n: world.follows.filter((follow) => follow.k === "movie").length,
-        },
-        {
-          id: "pause",
-          l: "En pause",
-          n: world.follows.filter((follow) => follow.st === "disabled").length,
-        },
-      ];
-      const match = (follow) =>
-        state.pill === "tout" ||
-        (state.pill === "series" && follow.k !== "movie") ||
-        (state.pill === "films" && follow.k === "movie") ||
-        (state.pill === "pause" && follow.st === "disabled");
-      const terme = state.filtre.trim().toLocaleLowerCase();
-      const norm = (text) =>
-        text
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .toLocaleLowerCase();
-      const matchNom = (follow) =>
-        terme === "" || norm(follow.t).includes(norm(terme));
-      const visible = world.follows
-        .filter((follow) => match(follow) && matchNom(follow))
-        .sort(
-          (filter, index) =>
-            (filter.fresh ? 0 : 1) - (index.fresh ? 0 : 1) ||
-            URGENCY[filter.st] - URGENCY[index.st] ||
-            filter.t.localeCompare(index.t, "fr"),
-        );
-
-      /* A follow, described as a CARD. The meta line is fraction (mono) ·
-         status chip · numeric caption. In « grouped » mode the status LEAVES
-         the line — it lives in the section header, because nothing repeats. */
-      // Read once for the whole list: every card names the same next slot.
-      const prochaine = prochaineRechercheFR(CADENCE_CRON, new Date());
-
-      const etatSerie = (follow) =>
-        follow.k === "movie"
-          ? null
-          : follow.serie === "Continuing"
-            ? "en cours"
-            : follow.serie === "Ended"
-              ? "terminée"
-              : null;
-
-      const descripteurSuivi = (follow, showStatus) => ({
-        t: follow.t,
-        k: follow.k,
-        s: [
-          String(follow.y),
-          follow.k === "movie" ? "film" : "série",
-          etatSerie(follow),
-        ]
-          .filter(Boolean)
-          .join(" · "),
-        r:
-          follow.st === "en_attente"
-            ? [
-                "Aucune release conforme au profil.",
-                prochaine ? `Prochaine recherche à ${prochaine}.` : null,
-              ]
-                .filter(Boolean)
-                .join(" ")
-            : undefined,
-        f: stFraction(follow) ?? undefined,
-        chip: showStatus ? [ST_TONE[follow.st], stLabel(follow)] : undefined,
-        caption:
-          [
-            follow.depuis ? `suivi depuis le ${follow.depuis}` : null,
-            // Zero is a fact worth printing: a follow added and never searched is
-            // exactly what one wants to spot.
-            follow.recherches != null
-              ? `${follow.recherches} recherche${follow.recherches > 1 ? "s" : ""}`
-              : null,
-          ]
-            .filter(Boolean)
-            .join(" · ") || undefined,
-      });
-
-      const rowOf = (follow, showStatus) =>
-        swipeHTML(
-          cardHTML(descripteurSuivi(follow, showStatus)),
-          follow.k === "movie"
-            ? `<button class="act pause" data-swipeact="pause">${svgIcon(icons.x)}Ne plus chercher</button><button class="act remove" data-swipeact="remove">${svgIcon(icons.trash)}Retirer</button>`
-            : `<button class="act pause" data-swipeact="pause">${svgIcon(icons.x)}Pause</button><button class="act remove" data-swipeact="remove">${svgIcon(icons.trash)}Retirer</button>`,
-          follow.st === "en_attente" || follow.st === "a_recuperer"
-            ? `<button class="act resume" data-swipeact="chercher">${svgIcon(icons.refresh)}Chercher</button>`
-            : "",
-        );
-
-      const tileOf = (follow) => {
-        const gridBadge2 = gridBadge(follow);
-        return tileHTML(
-          follow,
-          stFraction(follow) ??
-            (follow.st === "disabled" ? "en pause" : String(follow.y)),
-          {
-            muted: follow.st === "disabled",
-            badge: gridBadge2,
-          },
-        );
-      };
-
-      let content;
-      if (state.phase === "chargement") {
-        content = skelCards(5);
-      } else if (state.phase === "erreur") {
-        content = surfErr("vos suivis");
-      } else if (visible.length === 0) {
-        content = emptyHTML(
-          terme !== ""
-            ? `Aucun suivi ne contient « ${escapeHtml(state.filtre)} ».`
-            : state.pill === "pause"
-              ? "Aucun suivi en pause."
-              : "Aucun suivi.",
-          terme !== ""
-            ? `Sur vos <b>${world.follows.length}</b> suivis, aucun ne porte ce nom. Le filtre ignore la casse et les accents.`
-            : state.pill === "pause"
-              ? "Mettre un suivi en pause l'arrête sans le supprimer : il reste ici, et se réactive d'un geste."
-              : "Le <b>+</b> en bas à droite ajoute un film ou une série.",
-        );
-      } else if (state.followMode === "grid") {
-        content = `<div class="grid">${visible.map(tileOf).join("")}</div>`;
-      } else if (state.followMode === "group") {
-        content = GROUPS.map((GROUPS2) => {
-          const items = visible.filter((visible2) =>
-            GROUPS2.of.includes(visible2.st),
-          );
-          if (items.length === 0) return "";
-          // A heterogeneous group KEEPS the chip on its cards: its header
-          // cannot say which of its three values each card carries.
-          const showStatus = GROUPS2.of.length > 1;
-          return `<section class="sec">
-            <div class="sechead"><span class="pip ${GROUPS2.pip}"></span><span class="t">${GROUPS2.l}</span><span class="k">${items.length}</span></div>
-            ${items.map((item) => rowOf(item, showStatus)).join("")}
-          </section>`;
-        }).join("");
-      } else {
-        content = `<div class="sec">${visible.map((visible2) => rowOf(visible2, true)).join("")}</div>`;
-      }
-
-      return (
-        head +
-        `<div class="filters">
-      <div class="search">${svgIcon(icons.search)}<input type="search" id="follq" value="${escapeHtml(state.filtre)}" placeholder="Filtrer par nom" aria-label="Filtrer les suivis">${state.filtre ? `<button class="searchclear" data-clearq="foll" aria-label="Effacer">${svgIcon(icons.x)}</button>` : ""}</div>
-      <div class="pillbar">
-        <div class="pillscroll">${pills.map((pill) => `<button class="pill" aria-pressed="${state.pill === pill.id}" data-pill="${pill.id}">${pill.l}<span class="c">${pill.n}</span></button>`).join("")}</div>
-        <div class="vswwrap"><div class="vsw">
-          <button aria-pressed="${state.followMode === "list"}" data-fmode="list" aria-label="Liste">${svgIcon(icons.list)}</button>
-          <button aria-pressed="${state.followMode === "group"}" data-fmode="group" aria-label="Groupé">${svgIcon(icons.group)}</button>
-          <button aria-pressed="${state.followMode === "grid"}" data-fmode="grid" aria-label="Grille">${svgIcon(icons.grid)}</button>
-        </div></div>
-      </div>
-    </div>
-    <p class="cadence">${cadenceFR(CADENCE_CRON)}</p>
-    <div class="body">
-      <div class="note"><b>Vue livrée, reprise à la lettre.</b> Trois modes (liste · groupé · grille), pastille à point sur fond teinté à 20 %, ligne méta = fraction puis statut puis légende chiffrée, aucun sous-titre : l'année vit dans la fiche. Les 12 suivis affichés sont les vôtres, avec leur état réel.</div>
-      <div class="note"><b>Un défaut que cette reprise fait apparaître.</b> La cadence s'affiche telle que le planificateur la renvoie — <code>20 3,15 * * *</code>. Une expression cron sur une carte de téléphone, c'est du jargon brut : NE-DOIT-PAS-4. À traduire en « deux fois par jour, à 3 h 20 et 15 h 20 ».</div>
-      ${content}
-    </div>`
-      );
-    }
-
-    const modes = [
-      ["list", icons.list, "Liste"],
-      ["poster", icons.grid, "Affiches"],
-      ["deck", icons.cards, "Slide cards"],
-    ];
-    const selecteur = `<div class="filters"><div class="pillbar">
-      <div class="pillscroll"></div>
-      <div class="vswwrap"><div class="vsw">${modes
-        .map(
-          ([id, iconPath, label]) =>
-            `<button aria-pressed="${state.sugMode === id}" data-sugmode="${id}" aria-label="${label}">${svgIcon(iconPath)}</button>`,
-        )
-        .join("")}</div></div>
-    </div></div>`;
-
-    if (state.sugMode === "deck" && state.phase === "prete") {
-      return (
-        head + selecteur + `<div class="body deckbody">${deckHTML()}</div>`
-      );
-    }
-
-    return (
-      head +
-      selecteur +
-      `<div class="body${state.sugMode === "deck" ? " deckbody" : ""}">
-    <div class="note"><b>Vue neuve.</b> La reco vit ici parce qu'elle débouche sur « Suivre » — l'action du (+) juste à côté. Le badge de la barre ne la compte jamais : elle n'attend rien de vous.</div>
-    ${
-      state.tmdb
-        ? `<div class="live"><span class="d"></span><span>Réserve remplie il y a 2 h · <b>503</b> suggestions · <b>1 832</b> ids TMDB possédés exclus</span></div>`
-        : `<div class="surferr" style="border-color:color-mix(in oklab,var(--warning) 45%,transparent);background:color-mix(in oklab,var(--warning) 8%,transparent)">
-             <b style="color:var(--warning)">Compte TMDB non connecté.</b>
-             Sans lui, deux choses manquent : vos <b>notes</b> — donc on ne peut pas savoir ce que vous avez déjà vu sans le posséder — et les recommandations personnalisées que TMDB calcule pour vous.
-             <br><br>La vue ne se vide pas pour autant : ci-dessous, les <b>similaires</b> de ce que vous possédez, filtrés de votre médiathèque et de vos suivis. C'est moins fin, et c'est dit.
-             <button data-tmdb="1">Connecter mon compte TMDB</button>
-           </div>`
-    }
-    <div class="note"><b>Les appels TMDB sont sortis du pouce.</b> Une passe de fond — comme la veille — pagine TMDB à un rythme civil, filtre contre votre médiathèque, vos notes, vos suivis et vos écartés, puis range les survivants dans une réserve locale. Mesuré sur vos vraies données : <b>32 appels → 503 suggestions</b>. L'écran lit la réserve, donc défiler ne coûte plus rien — c'est ce qui rend les lots de 30 possibles sans jamais faire de rafale (NE-DOIT-PAS-8).</div>
-    <div class="note"><b>Gestes.</b> Le poster ouvre la fiche. Le reste de la carte ouvre le panneau du bas (« Suivre » / « Ajouter », « Voir la fiche »). Un glissé <em>dans un sens ou dans l'autre</em> écarte la suggestion — avec un « Annuler » dans la notification, parce qu'un geste rapide se trompe.</div>
-    ${state.phase === "chargement" ? skelCards(4) : state.phase === "erreur" ? surfErr("les suggestions") : ""}
-    <div id="sugitems"${state.phase !== "prete" ? " hidden" : ""}></div>
-    <div id="sugload" class="loadfoot"${state.phase !== "prete" || state.sugMode === "deck" ? " hidden" : ""}></div>
-    <div class="note"><b>Si le compte TMDB n'est pas connecté</b>, la vue ne se vide pas : elle sert les similaires de votre médiathèque et dit ce qui manque et pourquoi. §8 — aucun rien silencieux.</div>
-  </div>`
-    );
-  }
-
 
   /* The last run, told as its nine steps. The counts are the ones
      `pipeline_run` recorded; nothing here is derived from what the page shows,
@@ -12416,89 +12124,6 @@
         },
       ].filter(Boolean),
     });
-  }
-
-  /* ── UNE ADRESSE QUI N'EXISTE PAS ─────────────────────────────────────
-     Production serves a `*` route and the prototype had none, which is worse
-     than a missing page: an unknown id made `render()` look up a page table
-     that does not carry it, and the whole interface stopped on a TypeError.
-     A wrong address is the one input an interface never controls — a stale
-     bookmark, a shared link, a renamed route — so it is the one it may not
-     answer with a blank frame.
-
-     What it owes is DOIT-7: never a dead end. It says what was asked for, in
-     the mono face because it is not a sentence, says plainly that nothing
-     lives there, and offers the way out — the main page, and the drawer for
-     everywhere else. It does NOT offer « go back »: one usually arrives here
-     from outside, where there is nothing behind. */
-  function viewIntrouvable() {
-    return `<div class="body">
-    ${emptyHTML(
-      "Cette adresse ne mène nulle part.",
-      `Rien n'est servi à <code>${escapeHtml(state.introuvable || "/inconnu")}</code> — un lien a vieilli, ou l'adresse a été retapée. Rien n'est cassé pour autant.`,
-    )}
-    <button class="cfoot solid" data-go="acq">Aller à Acquisition</button>
-    <button class="crossref" data-drawer="1">Voir toutes les pages <span>Menu →</span></button>
-  </div>`;
-  }
-
-  /* ── PROFIL ET PRÉFÉRENCES ────────────────────────────────────────────
-     The account surface the user menu has been pointing at. It draws what
-     EXISTS today — one account, its session, and how that session ends — and
-     the PLACE the others will take, empty and saying why.
-
-     It does not draw a list of users. There is one account on this server and
-     inventing colleagues to fill a screen is exactly what §13 forbids: an
-     interface that shows data the system does not hold teaches its operator
-     to distrust the rest of it. An empty place that explains itself is
-     honest; a populated one is a lie with a nice layout. */
-  function viewProfil() {
-    return `<div class="body">
-    <div class="note"><b>Un seul compte existe sur ce serveur.</b> Ce qui est dessiné ici est ce qui existe : votre identité, votre session, et la façon dont elle se termine. La place des autres comptes est marquée et vide — la remplir de collègues inventés apprendrait à se méfier du reste de l'interface.</div>
-
-    <h2 class="h2">Vous</h2>
-    ${listeFaitsHTML([
-      {
-        l: "Identifiant",
-        v: COMPTE.nom,
-        k: "web.username",
-        s: "défini dans la configuration, pas ici",
-      },
-      {
-        l: "Adresse",
-        v: COMPTE.mail,
-        s: "sert aux notifications, jamais à la connexion",
-      },
-    ])}
-
-    <h2 class="h2">Votre session</h2>
-    ${listeFaitsHTML([
-      {
-        l: "Durée",
-        v: "30 jours",
-        k: "web.session_ttl_hours",
-        s: "720 heures — au-delà, il faut se reconnecter",
-      },
-      {
-        l: "Transport",
-        v: "chiffré",
-        k: "web.cookie_secure",
-        s: "le cookie n'est envoyé que sur une connexion sûre",
-      },
-      {
-        l: "Où elle vit",
-        v: "sur le serveur",
-        s: "la session EST le cookie ; se déconnecter demande au serveur de le lâcher, et l'écran ne fait que refléter ce qui a déjà eu lieu",
-      },
-    ])}
-    <button class="cfoot" data-deconnexion="1">Se déconnecter</button>
-
-    <h2 class="h2">Les autres comptes</h2>
-    ${emptyHTML(
-      "Il n'y en a pas encore.",
-      "Les comptes multiples et leurs droits sont une mission à part. Leur place est ici, pour que la forme soit arrêtée avant que la fonctionnalité arrive — un menu qui gagne une entrée plus tard enseigne sa forme deux fois.",
-    )}
-  </div>`;
   }
 
 
@@ -14244,7 +13869,10 @@
          awaits the operator = to grab + to resolve. Never a constant, never
          a neighbouring counter. */
       badge: derived.takeable().length + derived.blocked().length,
-      render: viewAcquisition,
+      /* No `render`: the shell draws this page (`pages/acquisition.tsx`).
+         Clearing `shellOwned` without restoring a renderer therefore CRASHES
+         rather than quietly drawing a page nobody maintains any more. */
+      shellOwned: true,
       fab: true,
     },
     {
@@ -14289,14 +13917,16 @@
       id: "profil",
       l: "Profil et préférences",
       ic: icons.user,
-      render: viewProfil,
+      /* No `render`: the shell draws this page (`pages/account.tsx`). */
+      shellOwned: true,
       horsBarre: true,
     },
     {
       id: "404",
       l: "Adresse introuvable",
       ic: icons.wrench,
-      render: viewIntrouvable,
+      /* No `render`: the shell draws this page (`pages/not-found.tsx`). */
+      shellOwned: true,
       horsBarre: true,
     },
     {
@@ -14508,6 +14138,38 @@
        on the scenario and so cannot be a frozen value. */
     secHTML,
     secInner,
+    /* What the Acquisition page draws. The follow DESCRIPTORS and their
+       vocabulary (`stFraction`, `stLabel`, `gridBadge`, `ST_TONE`, `URGENCY`,
+       `GROUPS`) are the page's own language; `cadenceFR` and
+       `prochaineRechercheFR` turn a cron expression into a sentence — and the
+       page says out loud that the raw expression is a defect it inherited. The
+       SUGGESTION machinery is NOT here: `#sugitems`, `#sugload` and
+       `.deckbody` stay the fragment's to fill, because the deck's gesture
+       mutates its own DOM and a replaced node cannot animate. */
+    stFraction,
+    stLabel,
+    gridBadge,
+    cadenceFR,
+    prochaineRechercheFR,
+    ST_TONE,
+    URGENCY,
+    GROUPS,
+    CADENCE_CRON,
+    derivedFollows: () => derived.follows(),
+    /* The account the server really has, and the escaper the fragment's own
+       emitters use — a migrated page that builds a fragment of markup has to
+       escape exactly what the legacy escaped. */
+    COMPTE,
+    escapeHtml,
+    /* The suggestion machinery, called by the page AFTER React has drawn its
+       containers. `render()` calls these too, for as long as a legacy page can
+       hold them — but it calls them BEFORE the shell has drawn, so a migrated
+       page asks again from an effect, exactly as it asks for the selection bar
+       to be repainted. */
+    fillSug,
+    sugFoot,
+    mountDeck,
+    deckHTML,
     /* The page table itself, published so a rule can compare it against the
        shell's: two independent lists that must agree, and a disagreement in
        one direction draws a page in both worlds at once. */
@@ -14641,6 +14303,10 @@
     derivedStuck: () => derived.stuck(),
     derivedMoving: () => derived.moving(),
     derivedSettled: () => derived.settled(),
+    derivedTakeable: () => derived.takeable(),
+    derivedInflight: () => derived.inflight(),
+    derivedNotfound: () => derived.notfound(),
+    derivedDoneToday: () => derived.doneToday(),
     actionResoudre,
     actionLaisser,
     actionRecuperer,
@@ -15047,6 +14713,34 @@
      sheet, the same long press opens its panel, at the same size as every
      other gallery. What it alone carries is a rating to show and a handle to
      be dismissed by. */
+  /* USED AS A VALUE, never called by name: `fillSug` picks between this and
+     `sugTileHTML` and calls whichever it picked. A count of « name( » says zero
+     callers, which is how it was deleted once — and the page went blank the
+     moment the suggestions were drawn. */
+  /* A suggestion, described as a CARD. It had its own builder and its own class
+     vocabulary, and drew a poster 63 % larger than every other list on a page
+     that already offers two visual formats for browsing — the poster gallery
+     and the deck. A list is a list.
+
+     What stays its own is the swipe wrapper: dismissing a suggestion is a
+     gesture no other list has. */
+  function sugCardHTML(suggestion, index) {
+    return `<div class="sugwrap" data-dismissable="${index}">
+      <div class="sugback">
+        <span>${svgIcon(icons.x)}Pas intéressé</span>
+        <span>Pas intéressé${svgIcon(icons.x)}</span>
+      </div>
+      ${cardHTML({
+        t: suggestion.t,
+        k: suggestion.k === "Film" ? "movie" : "show",
+        s: `${suggestion.y} · ${suggestion.k}`,
+        note: suggestion.note,
+        r: suggestion.why,
+        panel: `sug:${index}`,
+      })}
+    </div>`;
+  }
+
   function sugTileHTML(suggestion, rang) {
     return tileHTML(
       { t: suggestion.t, k: suggestion.k === "Film" ? "movie" : "show" },
@@ -15120,29 +14814,6 @@
     return `<div class="deck">${pile}</div>`;
   }
 
-  /* A suggestion, described as a CARD. It had its own builder and its own class
-     vocabulary, and drew a poster 63 % larger than every other list on a page
-     that already offers two visual formats for browsing — the poster gallery
-     and the deck. A list is a list.
-
-     What stays its own is the swipe wrapper: dismissing a suggestion is a
-     gesture no other list has. */
-  function sugCardHTML(suggestion, index) {
-    return `<div class="sugwrap" data-dismissable="${index}">
-      <div class="sugback">
-        <span>${svgIcon(icons.x)}Pas intéressé</span>
-        <span>Pas intéressé${svgIcon(icons.x)}</span>
-      </div>
-      ${cardHTML({
-        t: suggestion.t,
-        k: suggestion.k === "Film" ? "movie" : "show",
-        s: `${suggestion.y} · ${suggestion.k}`,
-        note: suggestion.note,
-        r: suggestion.why,
-        panel: `sug:${index}`,
-      })}
-    </div>`;
-  }
 
   /* Gives the deck the height actually left in the scrollport, once. Re-run on
      every render and on resize, because a rotated phone is a different height. */

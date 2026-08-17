@@ -170,6 +170,25 @@ export type SettledDecision = DecisionCommon & {
 // actually reads, starting with `t` to match against a decision's `d`.
 export type QueueCard = Record<string, unknown>;
 
+// A FOLLOW, as the world holds one: a title, its kind, its year, the status the
+// acquisition engine last put it in, and — for a series — whether the show is
+// still running. `fresh` is what pushes a newly-added follow to the top.
+export type Follow = {
+  t: string;
+  k: string;
+  y: number | string;
+  st: string;
+  serie?: string;
+  fresh?: boolean;
+  depuis?: string;
+  recherches?: number;
+};
+
+// One GROUP of the grouped mode: its heading, its pip, and the statuses it
+// gathers. A group holding several statuses keeps the chip on its cards,
+// because its header cannot say which one each card carries.
+export type FollowGroup = { l: string; pip: string; of: string[] };
+
 // A library CATEGORY pill: its id, its name, the count it claims, and the
 // engine's own category ids it stands for (`null` for « Tout »).
 export type LibraryCategory = {
@@ -379,6 +398,34 @@ export type Reference = {
   secInner: (pip: string, title: string, count: string, inner: string,
              note?: string) => string;
   PIPELINE: Pipeline;
+  // What the Acquisition page draws. The follow VOCABULARY — a fraction, a
+  // status word, a grid badge — and the two functions that turn a cron
+  // expression into a sentence. `GROUPS` is the grouped mode's own order, and
+  // `URGENCY` the order a list sorts by; `ST_TONE` maps a status to its chip
+  // tone. All of it is the page's language, not the engine's state.
+  stFraction: (follow: Follow) => string | null;
+  stLabel: (follow: Follow) => string;
+  gridBadge: (follow: Follow) => { tone: string; text?: string } | null;
+  cadenceFR: (cron: string) => string;
+  prochaineRechercheFR: (cron: string, now: Date) => string | null;
+  ST_TONE: Record<string, string>;
+  URGENCY: Record<string, number>;
+  GROUPS: FollowGroup[];
+  CADENCE_CRON: string;
+  derivedFollows: () => Follow[];
+  // The one account this server has, and the escaper the fragment's emitters
+  // use — a page that hands a string of markup to one of them escapes exactly
+  // what the legacy escaped.
+  COMPTE: { nom: string; mail: string };
+  escapeHtml: (text: string) => string;
+  // The suggestion machinery. It stays the FRAGMENT's — the deck's gesture
+  // mutates its own DOM and a replaced node cannot animate — and a migrated
+  // page asks it to fill the containers React has just drawn.
+  fillSug: () => void;
+  sugFoot: () => void;
+  mountDeck: () => void;
+  deckHTML: () => string;
+  emptyHTML: (title: string, body: string) => string;
   // What the Médiathèque draws. `tileHTML` and `swipeHTML` are called VERBATIM
   // for the same reason as `cardHTML` — the rows they emit carry the `data-*`
   // the document-level delegation reads. `sousLigne` is the line under a tile's
@@ -386,9 +433,18 @@ export type Reference = {
   tileHTML: (
     descriptor: CardDescriptor | QueueCard,
     subLine?: string,
-    options?: { index?: number; badge?: { tone: string; text?: string } },
+    options?: {
+      index?: number;
+      // `null` and absent both mean « no badge » — `gridBadge` answers `null`,
+      // and the fragment reads the option for truthiness.
+      badge?: { tone: string; text?: string } | null;
+      muted?: boolean;
+    },
   ) => string;
-  swipeHTML: (inner: string, actions: string) => string;
+  // THREE arguments, as the fragment declares it: the row, the actions revealed
+  // on one side, and — for a follow that can be searched again — the action on
+  // the other.
+  swipeHTML: (inner: string, actions: string, other?: string) => string;
   CATS: LibraryCategory[];
   RECENT: LibraryRow[];
   INCOMPLETE: IncompleteShow[];
@@ -487,6 +543,10 @@ export type Reference = {
   derivedStuck: () => QueueCard[];
   derivedMoving: () => QueueCard[];
   derivedSettled: () => QueueCard[];
+  derivedTakeable: () => QueueCard[];
+  derivedInflight: () => QueueCard[];
+  derivedNotfound: () => QueueCard[];
+  derivedDoneToday: () => QueueCard[];
   // Agreeing with the machine (`actionLaisser`) or with a candidate
   // (`actionResoudre`, `choix` the chosen title when the operator picked
   // one) both remove the folder from wherever it is queued and hand it back

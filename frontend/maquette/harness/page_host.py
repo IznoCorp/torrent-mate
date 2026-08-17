@@ -26,8 +26,11 @@ from playwright.async_api import async_playwright
 
 # The pages the shell owns today. A page absent here is one the fragment still
 # draws, and the rule holds that too — it is the other half of the law.
-SHELL_OWNED = ["sys", "maint", "cfg", "arr", "lib"]
-LEGACY_OWNED = ["acq"]
+SHELL_OWNED = ["sys", "maint", "cfg", "arr", "lib", "acq", "profil", "404"]
+# EMPTY, and that is the point of this wave: no page is drawn by the fragment
+# any more. The hold below says so out loud rather than passing over an empty
+# list — a scope that silently empties is a rule that stopped measuring.
+LEGACY_OWNED: list[str] = []
 
 READ = """()=>{
   const view = document.querySelector('#view');
@@ -59,13 +62,26 @@ async def main():
             # DRAWN — and it may not assume a root count: the Médiathèque emits
             # four siblings where the other four emit one, which is why the
             # host stopped supplying a root element of its own.
+            # THE FLOOR IS « SOMETHING WAS DRAWN », not « the page is big ».
+            # An earlier version asked for twenty elements and two hundred
+            # characters, which is true of five pages and false of the sixth:
+            # the unknown-address page is SEVEN elements and one sentence, by
+            # design. A threshold that encodes the size of the pages that
+            # happened to exist when it was written fails the day a small one
+            # is added — and says « not drawn » about a page that draws fine.
             journal.check(
                 f"the shell-owned page « {identifier} » is drawn",
-                seen.get("children", 0) >= 1 and seen.get("elements", 0) > 20
-                and seen.get("text", 0) > 200,
+                seen.get("children", 0) >= 1 and seen.get("elements", 0) >= 5
+                and seen.get("text", 0) >= 100,
                 str(seen)[:140])
 
-        # (b) A page the fragment still owns is drawn exactly as before.
+        # (b) A page the fragment still owns is drawn exactly as before — and
+        # when there are none left, that is itself the thing to say.
+        journal.check(
+            "every page in the table has an owner, and the fragment draws none",
+            not LEGACY_OWNED,
+            f"{len(SHELL_OWNED)} shell-owned, {len(LEGACY_OWNED)} legacy-owned"
+            + (f": {LEGACY_OWNED}" if LEGACY_OWNED else ""))
         for identifier in LEGACY_OWNED:
             await page.evaluate(f"()=>window.__magasin.ecrire({{page: {identifier!r}}})")
             await page.evaluate("()=>window.__referentiel.render()")
@@ -85,7 +101,8 @@ async def main():
         # predecessors, once across each world's boundary.
         walk = ["lib", "sys", "lib", "arr", "sys", "arr", "acq", "sys", "acq",
                 "maint", "lib", "maint", "cfg", "maint", "sys", "cfg", "arr",
-                "cfg", "sys", "cfg", "lib", "arr", "acq", "arr"]
+                "cfg", "sys", "cfg", "lib", "arr", "acq", "arr", "profil",
+                "acq", "profil", "404", "lib", "404"]
         signatures: dict[str, set[str]] = {}
         residue = []
         absent = []
@@ -484,6 +501,83 @@ async def main():
             and not console_errors,
             f"bar raised: {raised}; back: {returned}; console errors: "
             + (str(console_errors[:1])[:160] if console_errors else "none"))
+
+        # (c-septies) ACQUISITION'S OWN DELEGATION, on the page that carries
+        # the most controls of all: three tabs, four pills, three display modes,
+        # three suggestion modes, and the sheet that holds watch and
+        # obligations. R63 and the audit reach this page through `__go`; none of
+        # them taps.
+        await page.evaluate("()=>window.__reset()")
+        await page.evaluate("()=>window.__magasin.ecrire({page: 'acq',"
+                            " acqTab: 'maintenant', phase: 'prete'})")
+        await page.evaluate("()=>window.__referentiel.render()")
+        await page.wait_for_timeout(400)
+
+        refused = await tap("#view .seg [data-acqtab='suivis']")
+        opened = await page.evaluate("""()=>({
+          tab: window.__magasin.lire().etat.acqTab,
+          field: !!document.querySelector('#view #follq'),
+          rows: document.querySelectorAll('#view .card').length,
+        })""")
+        journal.check(
+            "a real tap on a tab opens THAT tab",
+            not refused and opened["tab"] == "suivis" and opened["field"]
+            and opened["rows"] > 0,
+            str(opened) if not refused else f"data-acqtab {refused}")
+
+        wanted = await page.evaluate(
+            "()=>{const b = [...document.querySelectorAll('#view .pill[data-pill]')]"
+            ".find((x) => x.dataset.pill !== 'tout'); return b ? b.dataset.pill : null;}")
+        refused = (await tap(f"#view .pill[data-pill='{wanted}']") if wanted else "absent")
+        filtered = await page.evaluate(
+            "()=>({pill: window.__magasin.lire().etat.pill,"
+            " pressed: (document.querySelector('#view .pill[aria-pressed=true]')||{})"
+            ".dataset?.pill || null})")
+        journal.check(
+            "a real tap on a pill filters by THAT pill",
+            not refused and filtered["pill"] == wanted
+            and filtered["pressed"] == wanted,
+            f"{wanted} → {filtered}" if not refused else f"data-pill {refused}")
+
+        refused = await tap("#view [data-fmode='grid']")
+        mode = await page.evaluate(
+            "()=>({mode: window.__magasin.lire().etat.followMode,"
+            " tiles: document.querySelectorAll('#view .grid .tile').length})")
+        journal.check(
+            "a real tap on a display mode really changes the display",
+            not refused and mode["mode"] == "grid" and mode["tiles"] > 0,
+            str(mode) if not refused else f"data-fmode {refused}")
+
+        await page.evaluate("()=>window.__magasin.ecrire({acqTab: 'decouvrir',"
+                            " followMode: 'list', sugMode: 'list'})")
+        await page.evaluate("()=>window.__referentiel.render()")
+        await page.wait_for_timeout(500)
+        refused = await tap("#view [data-sugmode='poster']")
+        suggestions = await page.evaluate(
+            "()=>({mode: window.__magasin.lire().etat.sugMode,"
+            " grid: (document.querySelector('#sugitems')||{}).className,"
+            " tiles: document.querySelectorAll('#sugitems .tile').length})")
+        journal.check(
+            "a real tap on a suggestion mode redraws the suggestions",
+            not refused and suggestions["mode"] == "poster"
+            and suggestions["grid"] == "grid" and suggestions["tiles"] > 0,
+            str(suggestions) if not refused else f"data-sugmode {refused}")
+
+        # THE CONTAINERS ARE THE FRAGMENT'S TO FILL, and that seam is what this
+        # wave chose deliberately — so it is held: React draws them, the
+        # fragment fills them, and a re-render does not empty them.
+        await page.evaluate("()=>window.__magasin.ecrire({page: 'lib'})")
+        await page.evaluate("()=>window.__referentiel.render()")
+        await page.wait_for_timeout(300)
+        await page.evaluate("()=>window.__magasin.ecrire({page: 'acq'})")
+        await page.evaluate("()=>window.__referentiel.render()")
+        await page.wait_for_timeout(600)
+        refilled = await page.evaluate(
+            "()=>({items: (document.querySelector('#sugitems')||{}).children?.length || 0,"
+            " foot: !!document.querySelector('#sugload')})")
+        journal.check(
+            "the suggestion containers survive a round trip, still filled",
+            refilled["items"] > 0 and refilled["foot"], str(refilled))
 
         # (c-quinquies) ARRIVÉES' OWN DELEGATION. This page carries the first
         # migrated control that MUTATES: the pilot's bar writes nothing itself,
