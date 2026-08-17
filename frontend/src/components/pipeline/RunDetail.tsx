@@ -50,7 +50,7 @@ export interface RunDetailProps {
    * ``→ Voir les exécutions de maintenance`` pointing to
    * ``/systeme?tab=maintenance``.
    *
-   * Defaults to ``false`` so the SystemePage maintenance tab renders the
+   * Defaults to ``false`` so the SystemPage maintenance tab renders the
    * detail without a circular self-link (systeme-hub Phase 02).
    */
   readonly showMaintenanceLink?: boolean;

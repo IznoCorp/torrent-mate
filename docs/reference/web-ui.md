@@ -1096,7 +1096,7 @@ Cross-references:
 ## Registry (§S6)
 
 The `/registry` route now redirects to `/systeme`; the provider health cards
-are inlined as `ProvidersPanel` in `SystemePage`. The
+are inlined as `ProvidersPanel` in `SystemPage`. The
 `/api/registry/status` endpoint (reg-health feature,
 ticket #185) expose the live health of every configured metadata provider:
 circuit-breaker state, recent failure count, last success/failure timestamps,
@@ -1168,7 +1168,7 @@ documents the additive change).
 
 - **Page**: `RegistryPage.tsx` was deleted (systeme-hub). The provider cards
   are now rendered by `ProvidersPanel` — an inlined component inside
-  `frontend/src/pages/SystemePage.tsx` — with circuit-state badge, recent
+  `frontend/src/pages/SystemPage.tsx` — with circuit-state badge, recent
   failures, relative timestamps, latency.
 - **Typed client**: `frontend/src/api/registry.ts` — `apiFetch` with
   schema-typed paths (R15 convention, see §REST Contract Conventions).

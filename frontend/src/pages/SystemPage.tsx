@@ -1,5 +1,5 @@
 /**
- * SystemePage — the /systeme hub with 4 URL-addressable tabs.
+ * SystemPage — the /systeme hub with 4 URL-addressable tabs.
  *
  * Mirrors the AcquisitionPage tab pattern (``TAB_IDS`` array validated against
  * ``?tab=`` from ``useSearchParams``, ``setActiveTab`` pushing/clearing the
@@ -266,7 +266,7 @@ function ProvidersPanel(): ReactElement {
 // ---------------------------------------------------------------------------
 
 /**
- * SystemePage — the authenticated system hub route (``/systeme``).
+ * SystemPage — the authenticated system hub route (``/systeme``).
  *
  * Four tabbed panels for system health (état), maintenance actions,
  * maintenance run history, and the destructive-operations journal.  The
@@ -277,7 +277,7 @@ function ProvidersPanel(): ReactElement {
  * Returns:
  *   The system hub page element.
  */
-export default function SystemePage(): ReactElement {
+export default function SystemPage(): ReactElement {
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Derive the active tab from the URL (single source of truth). Unknown

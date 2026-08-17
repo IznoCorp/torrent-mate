@@ -1,5 +1,5 @@
 /**
- * EpisodeStateLegende — the colour key derives from the vocabulary maps (#9).
+ * EpisodeStateLegend — the colour key derives from the vocabulary maps (#9).
  *
  * The load-bearing assertion: the legend lists EXACTLY the keys of
  * `EPISODE_STATE_LABEL`, with its labels — no hardcoded copy, no missing state.
@@ -15,7 +15,7 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { EpisodeStateLegende } from "./EpisodeStateLegende";
+import { EpisodeStateLegend } from "./EpisodeStateLegend";
 import { EPISODE_LEGEND_ORDER, EPISODE_STATE_LABEL } from "./meta";
 
 afterEach(cleanup);
@@ -27,9 +27,9 @@ function entries(legend: HTMLElement): HTMLElement[] {
   );
 }
 
-describe("EpisodeStateLegende", () => {
+describe("EpisodeStateLegend", () => {
   it("lists exactly the states of EPISODE_LEGEND_ORDER (no drift)", () => {
-    render(<EpisodeStateLegende />);
+    render(<EpisodeStateLegend />);
     const legend = screen.getByLabelText("Légende des statuts d'épisode");
 
     const labels = EPISODE_LEGEND_ORDER.map((s) => EPISODE_STATE_LABEL[s]);
@@ -43,7 +43,7 @@ describe("EpisodeStateLegende", () => {
   });
 
   it("walks the lifecycle order the operator reads, left to right", () => {
-    render(<EpisodeStateLegende />);
+    render(<EpisodeStateLegend />);
     const legend = screen.getByLabelText("Légende des statuts d'épisode");
 
     // Unknown → announced → searched-but-nothing → takeable → being taken →
@@ -61,7 +61,7 @@ describe("EpisodeStateLegende", () => {
   });
 
   it("never prints the absorbed state as a legend entry of its own", () => {
-    render(<EpisodeStateLegende />);
+    render(<EpisodeStateLegend />);
     const legend = screen.getByLabelText("Légende des statuts d'épisode");
 
     // An absorbed episode renders as « En cours d'acquisition » — listing it
@@ -73,7 +73,7 @@ describe("EpisodeStateLegende", () => {
   });
 
   it("renders each entry as a SQUARE swatch carrying its label", () => {
-    render(<EpisodeStateLegende />);
+    render(<EpisodeStateLegend />);
     const legend = screen.getByLabelText("Légende des statuts d'épisode");
 
     for (const entry of entries(legend)) {

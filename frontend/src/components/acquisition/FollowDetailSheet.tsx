@@ -65,7 +65,7 @@ import {
 } from "@/hooks/useAcquisition";
 
 import { EpisodeDatePopover } from "./EpisodeDatePopover";
-import { EpisodeStateLegende } from "./EpisodeStateLegende";
+import { EpisodeStateLegend } from "./EpisodeStateLegend";
 import { relativeTimeUntil } from "@/lib/format";
 
 import {
@@ -475,7 +475,7 @@ function FollowDetailSheetContent({
       {/* ── Legend ABOVE the matrix (§5.3) ── */}
       {seasons.length > 0 && (
         <div data-testid="episode-legend" className="px-4">
-          <EpisodeStateLegende />
+          <EpisodeStateLegend />
         </div>
       )}
 

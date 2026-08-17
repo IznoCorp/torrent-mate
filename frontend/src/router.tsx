@@ -32,7 +32,7 @@ import Medias from "@/pages/Medias";
 import Config from "@/pages/Config";
 import NotFound from "@/pages/NotFound";
 import Pipeline from "@/pages/Pipeline";
-import SystemePage from "@/pages/SystemePage";
+import SystemPage from "@/pages/SystemPage";
 
 /** The full route table (shared by the browser router and memory-router tests). */
 export const routes: RouteObject[] = [
@@ -72,7 +72,7 @@ export const routes: RouteObject[] = [
               },
               {
                 path: "systeme",
-                element: <SystemePage />,
+                element: <SystemPage />,
               },
               {
                 path: "registry",

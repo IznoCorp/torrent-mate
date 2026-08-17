@@ -1,5 +1,5 @@
 /**
- * Unit tests for the SystemePage component (systeme-hub Phase 2.1).
+ * Unit tests for the SystemPage component (systeme-hub Phase 2.1).
  *
  * Verifies the 4-tab shell (etat, actions, maintenance, journal), default and
  * unknown-tab fallback, the ``&run=`` RunDetail drawer on the maintenance tab,
@@ -37,7 +37,7 @@ vi.mock("@/hooks/useEventStreamContext", () => ({
   useEventStreamContext: () => useEventStreamContextMock(),
 }));
 
-import SystemePage from "@/pages/SystemePage";
+import SystemPage from "@/pages/SystemPage";
 import { MockWebSocket } from "@/test/mockWebSocket";
 
 // ---------------------------------------------------------------------------
@@ -144,14 +144,14 @@ const fetchMock = vi.fn<typeof fetch>();
 // ---------------------------------------------------------------------------
 
 /** Render the systeme page behind the router and query client. */
-function renderSystemePage(initialEntries: string[] = ["/systeme"]): void {
+function renderSystemPage(initialEntries: string[] = ["/systeme"]): void {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   const tree: ReactElement = (
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={initialEntries}>
-        <SystemePage />
+        <SystemPage />
       </MemoryRouter>
     </QueryClientProvider>
   );
@@ -187,11 +187,11 @@ afterEach(() => {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe("SystemePage", () => {
+describe("SystemPage", () => {
   // ── Tablist class contract ──────────────────────────────────────────────
 
   it("la tablist porte les classes flex-nowrap et overflow-x-auto (contrat AcquisitionPage)", () => {
-    renderSystemePage();
+    renderSystemPage();
 
     const tablist = screen.getByRole("tablist");
     expect(tablist.className).toMatch(/flex-nowrap/);
@@ -201,7 +201,7 @@ describe("SystemePage", () => {
   // ── Default tab (clean URL) ─────────────────────────────────────────────
 
   it("affiche l'onglet état par défaut (URL propre, pas de ?tab=)", () => {
-    renderSystemePage();
+    renderSystemPage();
 
     // The page heading is always visible.
     expect(
@@ -223,7 +223,7 @@ describe("SystemePage", () => {
   // ── All 4 tabs render their content ─────────────────────────────────────
 
   it("les 4 onglets sont présents avec leur label", () => {
-    renderSystemePage();
+    renderSystemPage();
 
     for (const label of [
       "État",
@@ -236,7 +236,7 @@ describe("SystemePage", () => {
   });
 
   it("l'onglet actions affiche le catalogue d'actions", () => {
-    renderSystemePage(["/systeme?tab=actions"]);
+    renderSystemPage(["/systeme?tab=actions"]);
 
     // The ActionCatalog fetches /api/maintenance/actions. Since fetch is mocked
     // synchronously, the tab selection is immediate. Assert that the actions
@@ -248,7 +248,7 @@ describe("SystemePage", () => {
   });
 
   it("l'onglet maintenance affiche l'historique filtré", async () => {
-    renderSystemePage(["/systeme?tab=maintenance"]);
+    renderSystemPage(["/systeme?tab=maintenance"]);
 
     expect(
       screen.getByRole("tab", { name: "Exécutions de maintenance" }),
@@ -261,7 +261,7 @@ describe("SystemePage", () => {
   });
 
   it("l'onglet journal affiche le panneau de journal des suppressions", async () => {
-    renderSystemePage(["/systeme?tab=journal"]);
+    renderSystemPage(["/systeme?tab=journal"]);
 
     expect(screen.getByRole("tab", { name: "Journal" })).toHaveAttribute(
       "aria-selected",
@@ -277,7 +277,7 @@ describe("SystemePage", () => {
   // ── Unknown tab fallback ────────────────────────────────────────────────
 
   it("un ?tab= inconnu retombe sur l'onglet état", () => {
-    renderSystemePage(["/systeme?tab=inconnu"]);
+    renderSystemPage(["/systeme?tab=inconnu"]);
 
     // The état tab is still selected — unknown tab falls back to default.
     expect(screen.getByRole("tab", { name: "État" })).toHaveAttribute(
@@ -302,7 +302,7 @@ describe("SystemePage", () => {
   // ── &run= drawer on maintenance tab ─────────────────────────────────────
 
   it("ouvre le drawer RunDetail quand &run= est présent sur l'onglet maintenance", async () => {
-    renderSystemePage(["/systeme?tab=maintenance&run=abc123def456"]);
+    renderSystemPage(["/systeme?tab=maintenance&run=abc123def456"]);
 
     // The RunDetail component fetches the run and renders. Wait for the
     // "Retour" button (always present in the RunDetail header, even while
@@ -311,7 +311,7 @@ describe("SystemePage", () => {
   });
 
   it("ne charge PAS le RunDetail quand &run= est présent sur un autre onglet", () => {
-    renderSystemePage(["/systeme?tab=etat&run=abc123def456"]);
+    renderSystemPage(["/systeme?tab=etat&run=abc123def456"]);
 
     // The état tab is selected — RunDetail should NOT mount. The RunDetail
     // header button "Retour" is absent.
@@ -340,7 +340,7 @@ describe("SystemePage", () => {
       error: null,
     });
 
-    renderSystemePage();
+    renderSystemPage();
 
     // The "Fournisseurs" heading and the provider card are visible.
     expect(screen.getByText("Fournisseurs")).toBeInTheDocument();
@@ -367,7 +367,7 @@ describe("SystemePage", () => {
       error: null,
     });
 
-    renderSystemePage();
+    renderSystemPage();
 
     // CIRCUIT_LABEL.closed === "OK".
     expect(screen.getByText("OK")).toBeInTheDocument();
@@ -405,7 +405,7 @@ describe("SystemePage", () => {
       error: null,
     });
 
-    renderSystemePage();
+    renderSystemPage();
 
     // CIRCUIT_LABEL.open === "Ouvert".
     expect(screen.getByText("Ouvert")).toBeInTheDocument();
@@ -441,7 +441,7 @@ describe("SystemePage", () => {
       error: null,
     });
 
-    renderSystemePage();
+    renderSystemPage();
 
     expect(screen.getByText("En attente de données live")).toBeInTheDocument();
     expect(screen.getByText("omdb")).toBeInTheDocument();
@@ -476,7 +476,7 @@ describe("SystemePage", () => {
       error: null,
     });
 
-    renderSystemePage();
+    renderSystemPage();
 
     // The parent renders; the raw sub-circuit name does not appear as its own
     // card title — it is relabelled "Authentification".
@@ -489,7 +489,7 @@ describe("SystemePage", () => {
   // ── Event feed + recent events in état tab ─────────────────────────────
 
   it("affiche le flux d'événements et la table récente dans l'onglet état", () => {
-    renderSystemePage();
+    renderSystemPage();
 
     expect(screen.getByText("Flux d’événements")).toBeInTheDocument();
     expect(screen.getByText("Événements récents")).toBeInTheDocument();
@@ -498,7 +498,7 @@ describe("SystemePage", () => {
   // ── Maintenance tab fetch contract ─────────────────────────────────────
 
   it("ne charge QUE l'historique maintenance, pas celui du pipeline (onglet maintenance)", async () => {
-    renderSystemePage(["/systeme?tab=maintenance"]);
+    renderSystemPage(["/systeme?tab=maintenance"]);
 
     await screen.findByText("Historique des exécutions");
 
@@ -519,7 +519,7 @@ describe("SystemePage", () => {
       error: null,
     });
 
-    renderSystemePage();
+    renderSystemPage();
 
     const skeletons = document.querySelectorAll(".animate-pulse");
     expect(skeletons.length).toBeGreaterThan(0);
@@ -535,7 +535,7 @@ describe("SystemePage", () => {
       error: null,
     });
 
-    renderSystemePage();
+    renderSystemPage();
 
     expect(
       screen.getByText("Aucun fournisseur configuré"),
@@ -552,15 +552,15 @@ describe("SystemePage", () => {
       error: new Error("Network error"),
     });
 
-    renderSystemePage();
+    renderSystemPage();
 
     expect(screen.getByText(/Impossible de charger/)).toBeInTheDocument();
   });
 });
 
-describe("SystemePage — tablist ARIA (ACQUISITION-7, ticket 250)", () => {
+describe("SystemPage — tablist ARIA (ACQUISITION-7, ticket 250)", () => {
   it("relie chaque onglet au panneau : aria-controls, tabpanel, aria-labelledby", () => {
-    renderSystemePage();
+    renderSystemPage();
 
     const tab = screen.getByRole("tab", { name: "État" });
     expect(tab).toHaveAttribute("id", "systeme-tab-etat");
@@ -572,7 +572,7 @@ describe("SystemePage — tablist ARIA (ACQUISITION-7, ticket 250)", () => {
   });
 
   it("le tabpanel suit l'onglet actif (aria-labelledby)", () => {
-    renderSystemePage();
+    renderSystemPage();
 
     fireEvent.click(screen.getByRole("tab", { name: "Journal" }));
     expect(screen.getByRole("tabpanel")).toHaveAttribute(
@@ -582,7 +582,7 @@ describe("SystemePage — tablist ARIA (ACQUISITION-7, ticket 250)", () => {
   });
 
   it("roving tabindex : seul l'onglet actif est tabbable", () => {
-    renderSystemePage();
+    renderSystemPage();
 
     expect(screen.getByRole("tab", { name: "État" })).toHaveAttribute(
       "tabindex",
@@ -595,7 +595,7 @@ describe("SystemePage — tablist ARIA (ACQUISITION-7, ticket 250)", () => {
   });
 
   it("ArrowRight/ArrowLeft naviguent, Home/End sautent aux extrêmes", () => {
-    renderSystemePage();
+    renderSystemPage();
 
     const tablist = screen.getByRole("tablist");
 
@@ -627,7 +627,7 @@ describe("SystemePage — tablist ARIA (ACQUISITION-7, ticket 250)", () => {
   });
 });
 
-describe("SystemePage — activation clavier sans empilement d'historique (ACQUISITION-7, ticket 250)", () => {
+describe("SystemPage — activation clavier sans empilement d'historique (ACQUISITION-7, ticket 250)", () => {
   /** Probe exposing the live URL search + a navigate(-1) trigger. */
   function BackProbe(): ReactElement {
     const navigate = useNavigate();
@@ -655,7 +655,7 @@ describe("SystemePage — activation clavier sans empilement d'historique (ACQUI
     const tree: ReactElement = (
       <QueryClientProvider client={client}>
         <MemoryRouter initialEntries={["/systeme"]}>
-          <SystemePage />
+          <SystemPage />
           <BackProbe />
         </MemoryRouter>
       </QueryClientProvider>

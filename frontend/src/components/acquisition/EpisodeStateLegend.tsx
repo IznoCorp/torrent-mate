@@ -1,5 +1,5 @@
 /**
- * EpisodeStateLegende — the colour key under the completeness matrix (#9).
+ * EpisodeStateLegend — the colour key under the completeness matrix (#9).
  *
  * One row per {@link EpisodeState}: its DS-tone swatch (a dotted {@link Badge})
  * next to its French label. The whole legend is DERIVED from the single-source
@@ -27,13 +27,13 @@ import {
 const LEGEND_ORDER = EPISODE_LEGEND_ORDER;
 
 /**
- * EpisodeStateLegende — the per-state colour legend.
+ * EpisodeStateLegend — the per-state colour legend.
  *
  * Returns:
  *   The legend element: a wrapping row of swatch + label pairs, legible in both
  *   themes (the swatches are the same tinted DS tones the chips use).
  */
-export function EpisodeStateLegende(): ReactElement {
+export function EpisodeStateLegend(): ReactElement {
   return (
     <div
       aria-label="Légende des statuts d'épisode"
