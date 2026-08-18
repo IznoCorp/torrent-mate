@@ -24,6 +24,11 @@ import "./i18n";
 // below any other statement would not reorder anything — imports hoist —
 // but writing it anywhere else would suggest otherwise.
 import "./engine/legacy.js";
+// The scenario table, registered with the engine as this module evaluates —
+// after the engine, because it imports twenty names from it. It is the
+// harness's fixture, not the product's, and the engine looks its states up
+// there rather than carrying them.
+import "./states.js";
 import {
   createBrowserHistory,
   createRootRoute,
