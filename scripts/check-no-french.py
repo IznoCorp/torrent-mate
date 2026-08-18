@@ -175,21 +175,12 @@ FRENCH_UI_WORDS = {
 
 # Path segments that stay French. Read as data, not as names.
 FROZEN_PATH_SEGMENTS = {
-    "acteurs": (
-        "An artwork directory of the embedded référentiel. The paths under it are "
-        "DATA VALUES inside the prototype's own data (`assets/acteurs/<hash>.webp`) "
-        "and ADDRESSES served over HTTP — the same class the recorded ruling "
-        "freezes for `data-*` values and route paths. They settle when the artwork "
-        "is bound to the backend, never in a naming pass."
-    ),
-    "affiches": (
-        "Same family as `acteurs`: a poster path is a data value in the embedded "
-        "référentiel and an address served over HTTP."
-    ),
-    "heros": (
-        "Same family as `acteurs`: a hero-image path is a data value in the "
-        "embedded référentiel and an address served over HTTP."
-    ),
+    # `acteurs`, `affiches` and `heros` were frozen here as « data values and
+    # addresses », and the operator overturned that: a directory is a NAME
+    # someone chose, and the rule says file and directory names are English.
+    # They are `cast`, `posters-hd` and `heroes` now, with all 528 paths and
+    # the directories themselves moved in one step — and every one of the 925
+    # references still resolves, which is what R70 checks.
     "maquette": (
         "The design reference's own name, and the operator's word for the thing "
         "— it is named in the product constitution (§15), in CLAUDE.md and in "
