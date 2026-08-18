@@ -126,12 +126,12 @@ vi.mock("@/hooks/useStagingMedia", () => ({
 
 import { AddMediaScreen } from "@/components/acquisition/AddMediaScreen";
 import { MediaRow } from "@/components/ds/MediaRow";
-import { MaintenantPanel } from "@/components/acquisition/MaintenantPanel";
+import { NowPanel } from "@/components/acquisition/NowPanel";
 import { FollowsPanel } from "@/components/acquisition/FollowsPanel";
 import { FollowDetailSheet } from "@/components/acquisition/FollowDetailSheet";
 import { CandidateCard } from "@/components/decisions/CandidateCard";
 import { StagingLibrary } from "@/components/staging/StagingLibrary";
-import { ATraiterList } from "@/components/controle/ATraiterList";
+import { ToHandleList } from "@/components/control/ToHandleList";
 import { StageMediaList } from "@/components/staging/StageMediaList";
 
 // ---------------------------------------------------------------------------
@@ -141,12 +141,12 @@ import { StageMediaList } from "@/components/staging/StageMediaList";
 const WIRED_SURFACES = [
   "AddMediaScreen",
   "MediaRow",
-  "MaintenantPanel",
+  "NowPanel",
   "FollowsPanel",
   "FollowDetailSheet",
   "CandidateCard",
   "StagingLibrary",
-  "ATraiterList",
+  "ToHandleList",
   "StageMediaList",
 ] as const;
 type WiredSurface = (typeof WIRED_SURFACES)[number];
@@ -529,13 +529,13 @@ describe("§11 constitution — « Tout média est consultable »", () => {
   });
 
   // -----------------------------------------------------------------------
-  // SURFACE 5 — ATraiterList (indirect: « Résoudre → » opens the staging
+  // SURFACE 5 — ToHandleList (indirect: « Résoudre → » opens the staging
   // drawer at /medias?media=<id>, whose « Voir la fiche » button is the
   // second hop to the sheet — covered by StagingLibrary above).
   // -----------------------------------------------------------------------
 
-  describe("ATraiterList", () => {
-    coveredSurfaces.add("ATraiterList");
+  describe("ToHandleList", () => {
+    coveredSurfaces.add("ToHandleList");
 
     it("renders a resolve link to the staging drawer for an identified blocked item", () => {
       const blocked = identifiedStagingItem({
@@ -565,7 +565,7 @@ describe("§11 constitution — « Tout média est consultable »", () => {
       render(
         <MemoryRouter>
           <QueryClientProvider client={makeQueryClient()}>
-            <ATraiterList />
+            <ToHandleList />
           </QueryClientProvider>
         </MemoryRouter>,
       );
@@ -580,7 +580,7 @@ describe("§11 constitution — « Tout média est consultable »", () => {
   // -----------------------------------------------------------------------
   // SURFACE 6 — StageMediaList (indirect: « Ouvrir la fiche média » button
   // fires onOpenMedia, which the host opens the staging drawer — same
-  // two-hop contract as ATraiterList).
+  // two-hop contract as ToHandleList).
   // -----------------------------------------------------------------------
 
   describe("StageMediaList", () => {
@@ -682,8 +682,8 @@ describe("§11 constitution — « Tout média est consultable »", () => {
     );
   }
 
-  describe("MaintenantPanel", () => {
-    coveredSurfaces.add("MaintenantPanel");
+  describe("NowPanel", () => {
+    coveredSurfaces.add("NowPanel");
 
     it("gives an identified item a poster that reaches its sheet", () => {
       followedMock.mockReturnValue({
@@ -691,7 +691,7 @@ describe("§11 constitution — « Tout média est consultable »", () => {
         isLoading: false,
         isError: false,
       });
-      renderInRouter(<MaintenantPanel />);
+      renderInRouter(<NowPanel />);
 
       expect(
         screen.getByRole("button", { name: "Fiche de Silo" }),
@@ -704,7 +704,7 @@ describe("§11 constitution — « Tout média est consultable »", () => {
         isLoading: false,
         isError: false,
       });
-      renderInRouter(<MaintenantPanel />);
+      renderInRouter(<NowPanel />);
 
       expect(
         screen.queryByRole("button", { name: "Fiche de Inconnu" }),

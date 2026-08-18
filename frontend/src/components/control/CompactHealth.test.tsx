@@ -4,7 +4,7 @@ import type { ReactElement } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CompactHealth } from "@/components/controle/CompactHealth";
+import { CompactHealth } from "@/components/control/CompactHealth";
 
 /** Build a minimal ``Response``-shaped object the API client can consume. */
 function buildResponse(status: number, body: unknown): Response {

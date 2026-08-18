@@ -91,7 +91,7 @@ PROTOTYPE = "http://127.0.0.1:8899/wrapped.html"
 
 # One serialiser for both sides. Everything a browser considers equal is made
 # textually equal here, and nothing else.
-NORMALISER = """()=>{
+NORMALIZE = """()=>{
   window.__normaliser = (html) => {
     const holder = document.createElement('div');
     holder.innerHTML = html;
@@ -152,7 +152,7 @@ async def main(legacy_name: str, states: list[str], host: str = "#view",
             # day stop being raised, and that is not this tool breaking.
             print("  (no boot toast to dismiss — measuring as-is)")
         await page.evaluate("()=>document.querySelector('#toastx')?.click()")
-        await page.evaluate(NORMALISER)
+        await page.evaluate(NORMALIZE)
 
         saved = json.loads(pathlib.Path(against).read_text(encoding="utf-8")) if against else {}
         recorded: dict[str, str] = {}

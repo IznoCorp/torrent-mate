@@ -691,7 +691,7 @@ export function MediaScreen() {
                   : t("screens.media.followed")}
               </button>
             ) : (
-              // No `data-refiche`: the legacy button asked the sheet to
+              // No sheet-refresh attribute: the legacy button asked the sheet to
               // REOPEN itself so the label would flip under the finger. This
               // screen re-renders from the store instead — the follow act
               // bumps it, and the button becomes `mediaadd done` in place.

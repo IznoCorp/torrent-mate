@@ -149,7 +149,7 @@ function ListSkeleton(): ReactElement {
  * Returns:
  *   The medias page element.
  */
-export default function Medias(): ReactElement {
+export default function MediaLibrary(): ReactElement {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
 

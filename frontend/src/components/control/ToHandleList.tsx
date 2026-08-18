@@ -1,5 +1,5 @@
 /**
- * ATraiterList — the "À traiter" attention panel for the Contrôle dashboard.
+ * ToHandleList — the "À traiter" attention panel for the Contrôle dashboard.
  *
  * Lists every staged media currently ``position_state === "blocked"`` — the
  * unified cross-stage blocked inventory. Each row shows a mini poster, the
@@ -113,7 +113,7 @@ function blockedItems(
 }
 
 /**
- * ATraiterList — the unified blocked-items inventory for the Contrôle dashboard.
+ * ToHandleList — the unified blocked-items inventory for the Contrôle dashboard.
  *
  * Heading « À traiter » with the live count, each row a compact blocked-media
  * card with the reason and a resolve link.  Empty state → one calm row « Rien à
@@ -122,7 +122,7 @@ function blockedItems(
  * Returns:
  *   The à-traiter list element.
  */
-export function ATraiterList(): ReactElement {
+export function ToHandleList(): ReactElement {
   const query = useStagingMedia(
     { page_size: BLOCKED_PAGE_SIZE },
     { refetchInterval: REFETCH_MS },

@@ -133,7 +133,7 @@ import { ApiError } from "@/api/client";
 import { dismissDecision } from "@/api/decisions";
 const dismissDecisionMock = vi.mocked(dismissDecision);
 
-import Medias from "@/pages/Medias";
+import MediaLibrary from "@/pages/MediaLibrary";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -220,7 +220,7 @@ function renderPage(
   const tree: ReactElement = (
     <MemoryRouter initialEntries={["/medias"]}>
       <QueryClientProvider client={qc}>
-        <Medias />
+        <MediaLibrary />
       </QueryClientProvider>
     </MemoryRouter>
   );
@@ -275,7 +275,7 @@ describe("Medias", () => {
     render(
       <MemoryRouter initialEntries={["/medias?media=0268dd337626b989"]}>
         <QueryClientProvider client={qc}>
-          <Medias />
+          <MediaLibrary />
         </QueryClientProvider>
       </MemoryRouter>,
     );
@@ -324,8 +324,8 @@ describe("Medias", () => {
     const group = screen.getByRole("group", {
       name: /Filtrer par étape du pipeline/,
     });
-    const tousBtn = within(group).getByText("Tous").closest("button");
-    expect(tousBtn).toHaveAttribute("aria-pressed", "true");
+    const allButton = within(group).getByText("Tous").closest("button");
+    expect(allButton).toHaveAttribute("aria-pressed", "true");
 
     const pretsBtn = within(group).getByText("Prêts").closest("button");
     if (pretsBtn == null) throw new Error("Prêts button not found");
@@ -334,7 +334,7 @@ describe("Medias", () => {
       "aria-pressed",
       "true",
     );
-    expect(tousBtn).toHaveAttribute("aria-pressed", "false");
+    expect(allButton).toHaveAttribute("aria-pressed", "false");
   });
 
   it("affiche les chips de filtre de statut", () => {

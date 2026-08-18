@@ -74,7 +74,7 @@ async def main():
         # sort: « les plus incomplets » ranks by episodes missing, and a set
         # where no row is incomplete ranks by nothing at all — every row scores
         # the same, the sort is stable, and the order comes back identical to
-        # « add récent ». A rule reading such a set cannot tell those two
+        # « ajout récent ». A rule reading such a set cannot tell those two
         # sorts apart. So the set is chosen to CONTAIN incomplete shows, and
         # that is asserted rather than assumed.
         # french-ok: a French search WORD, typed into the app's own search.
@@ -96,7 +96,7 @@ async def main():
             f"{len(incomplete)} incomplete show(s) in the narrowed set: {incomplete}"
             if incomplete else "none — that sort would rank a set where every "
             "row scores the same, and answer the source order, which is what "
-            "« add récent » answers")
+            "« ajout récent » answers")
 
         declared = await page.evaluate("()=>window.__referentiel.TRIS")
         journal.check(

@@ -10,7 +10,7 @@
 // migrated screen already does (see `shell.tsx`'s dispatcher rewrite).
 //
 // The `.rel` rows are release CANDIDATES, not media cards — no poster, no
-// `data-mediasheet`/`data-panel`. `data-prendre` (pick this release) and
+// `data-mediasheet`/`data-panel`. `data-take` (pick this release) and
 // `data-profile` (open the quality profile) carry NO onClick: the
 // document-level click delegation the legacy engine still runs is the seam
 // this screen leans on, exactly as `media.tsx` and `profile.tsx`.
@@ -110,7 +110,7 @@ export function ReleasesScreen() {
               )}
               <button
                 className={`cfoot${index === 0 ? " solid" : ""}`}
-                data-prendre={index}
+                data-take={index}
               >
                 {index === 0
                   ? t("screens.releases.pickCurrent")

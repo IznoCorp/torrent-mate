@@ -1,5 +1,5 @@
 /**
- * MaintenantPanel — the five-section urgency-ordered « Maintenant » view.
+ * NowPanel — the five-section urgency-ordered « Maintenant » view.
  *
  * Composes five building blocks — ``MediaRow``, ``JourneyStrip``,
  * ``FollowDetailSheet``, the ``actionWords`` vocabulary, and the
@@ -111,13 +111,13 @@ const SECTION_META: Record<SectionSlug, SectionMeta> = {
 };
 
 // ---------------------------------------------------------------------------
-// Resolve href — same shape as ``ATraiterList.tsx:74``
+// Resolve href — same shape as ``ToHandleList.tsx:74``
 // ---------------------------------------------------------------------------
 
 /**
  * Build the resolve link for a blocked decision item.
  *
- * Reuses the EXACT href shape from ``ATraiterList.tsx:72-74`` —
+ * Reuses the EXACT href shape from ``ToHandleList.tsx:72-74`` —
  * ``/medias?decision=<id>``.  Do NOT invent a second builder; the resolution
  * deck is the single destination for every blocked decision.
  *
@@ -162,26 +162,26 @@ function enVolFacts(
   if (journeysEnErreur && download == null) {
     return [];
   }
-  const faits: MediaFact[] = [];
+  const facts: MediaFact[] = [];
   if (download != null) {
     // Live progress folded into the card — percentage, state, and a broken
     // torrent's reason in French (§8).
-    faits.push({
+    facts.push({
       kind: "gauge",
       tone: DOWNLOAD_STATE_TONE[download.state] ?? "neutral",
       text: `${String(Math.round(download.progress * 100))} %`,
     });
-    faits.push({
+    facts.push({
       kind: "note",
       text: DOWNLOAD_STATE_LABEL[download.state] ?? "état inconnu",
     });
     // Maquette FROM card: « 12 min restantes » folded into the card — only
     // while downloading AND known (addition B).
     if (download.state === "downloading" && download.eta_seconds != null) {
-      faits.push({ kind: "note", text: formatEta(download.eta_seconds) });
+      facts.push({ kind: "note", text: formatEta(download.eta_seconds) });
     }
     if (download.error_reason != null && download.error_reason !== "") {
-      faits.push({ kind: "alert", text: download.error_reason });
+      facts.push({ kind: "alert", text: download.error_reason });
     }
   }
   // Maquette « depuis 4 min » — time spent in the CURRENT stage, when no live
@@ -190,7 +190,7 @@ function enVolFacts(
   if (download == null && journey != null) {
     const ecoule = stageElapsed(journey);
     if (ecoule != null) {
-      faits.push({
+      facts.push({
         kind: "note",
         text: `${ecoule.approx ? "~ " : ""}${formatSince(ecoule.seconds)}`,
       });
@@ -202,7 +202,7 @@ function enVolFacts(
     // download we could not tie to any recorded acquisition at all. « Non
     // enregistré » claims we consulted the record; that is only true in the
     // first case.
-    faits.push({
+    facts.push({
       kind: "release",
       text:
         journey == null
@@ -211,7 +211,7 @@ function enVolFacts(
       hint: journey?.release_name ?? undefined,
     });
   }
-  return faits;
+  return facts;
 }
 
 // ---------------------------------------------------------------------------
@@ -227,7 +227,7 @@ function enVolFacts(
  * Returns:
  *   The panel element.
  */
-export function MaintenantPanel(): ReactElement {
+export function NowPanel(): ReactElement {
   const navigate = useNavigate();
   const followed = useFollowed();
   const wanted = useWanted({ status: "grabbed" });
@@ -303,7 +303,7 @@ export function MaintenantPanel(): ReactElement {
     followed.data?.items.filter((i) => i.status === "a_recuperer") ?? [];
 
   /** « À traiter » — blocked items from our acquisitions. */
-  const aTraiter: readonly ToHandleItem[] = toHandle.data?.items ?? [];
+  const toHandleItems: readonly ToHandleItem[] = toHandle.data?.items ?? [];
   const orphanCount = toHandle.data?.orphan_count ?? 0;
 
   /** « En vol » — wanted items currently in the pipeline (status=grabbed). */
@@ -312,7 +312,7 @@ export function MaintenantPanel(): ReactElement {
   /** « Cherché, rien trouvé » — searched, nothing conforming (§14.1 rest
    *  state), PLUS active never-verified follows (maquette renderNow: a
    *  follow the machine has not checked yet is also waiting on nothing). */
-  const chercheRienTrouve: readonly FollowedSeriesItem[] =
+  const searchedNothingFound: readonly FollowedSeriesItem[] =
     followed.data?.items.filter(
       (i) =>
         i.active && (i.status === "en_attente" || i.status === "non_verifie"),
@@ -383,13 +383,13 @@ export function MaintenantPanel(): ReactElement {
       slug === "a-recuperer"
         ? aRecuperer.length
         : slug === "a-traiter"
-          ? aTraiter.length
+          ? toHandleItems.length
           : slug === "en-vol"
             ? // A correlated download IS its card — counting both would
               // announce more in-flight items than exist.
               enVol.length + uncorrelatedDownloads.length
             : slug === "cherche-rien-trouve"
-              ? chercheRienTrouve.length
+              ? searchedNothingFound.length
               : rangeAujourdhui.length;
 
     // « À traiter » renders when items>0 OR orphans>0 (§3.2),
@@ -401,7 +401,7 @@ export function MaintenantPanel(): ReactElement {
     // re-create the silence this section exists to end.
     const visible =
       slug === "a-traiter"
-        ? aTraiter.length > 0 ||
+        ? toHandleItems.length > 0 ||
           orphanCount > 0 ||
           toHandle.isError ||
           toHandleDegraded
@@ -647,7 +647,7 @@ export function MaintenantPanel(): ReactElement {
   }
 
   /** Render one « à traiter » card with its journey strip + resolve action. */
-  function renderATraiterCard(item: ToHandleItem): ReactElement {
+  function renderToHandleCard(item: ToHandleItem): ReactElement {
     // Maquette blocked sub: « S16E12 · titre ambigu — … » — the episode
     // identity from the provenance spine opens the reason line.
     const epLabel =
@@ -820,7 +820,7 @@ export function MaintenantPanel(): ReactElement {
               {/* « À traiter » — cards + crossref for orphans */}
               {s.slug === "a-traiter" && (
                 <>
-                  {!toHandle.isError && aTraiter.map(renderATraiterCard)}
+                  {!toHandle.isError && toHandleItems.map(renderToHandleCard)}
                   {/* Crossref — orphans with NO acquisition provenance (§3.1).
                        Renders whenever orphans exist, even alongside items —
                        §méthode: never under-count what needs attention. */}
@@ -868,7 +868,7 @@ export function MaintenantPanel(): ReactElement {
 
               {/* « Cherché, rien trouvé » — verdict + next check, not counts. */}
               {s.slug === "cherche-rien-trouve" &&
-                chercheRienTrouve.map((i) => renderFollowedCard(i, true))}
+                searchedNothingFound.map((i) => renderFollowedCard(i, true))}
 
               {/* « Rangé aujourd'hui » — compact acknowledgement rows. */}
               {s.slug === "range-aujourdhui" &&

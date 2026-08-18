@@ -2,7 +2,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { LastRunDigest } from "@/components/controle/LastRunDigest";
+import { LastRunDigest } from "@/components/control/LastRunDigest";
 import type { LastPipelineRun } from "@/hooks/useLastPipelineRun";
 import type { InterpretedLine } from "@/components/pipeline/interpretRun";
 

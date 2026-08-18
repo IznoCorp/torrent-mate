@@ -53,7 +53,7 @@ const SCHEDULERS = {
   ],
 };
 
-/** Empty staging media response — no blocked items (ATraiterList). */
+/** Empty staging media response — no blocked items (ToHandleList). */
 const EMPTY_STAGING = {
   items: [],
   total: 0,
@@ -162,7 +162,7 @@ function routeFetch(input: RequestInfo | URL): Promise<Response> {
       }),
     );
   }
-  // ATraiterList → GET /api/staging/media
+  // ToHandleList → GET /api/staging/media
   if (url.includes("/api/staging/media")) {
     return Promise.resolve(buildResponse(200, EMPTY_STAGING));
   }
@@ -250,7 +250,7 @@ describe("Contrôle", () => {
 
     // ----- Panel ORDER (DESIGN §2.1) -----
     // The section labels must appear in this sequence:
-    //   1. À traiter     (ATraiterList)
+    //   1. À traiter     (ToHandleList)
     //   2. Dernier run   (LastRunDigest)
     //   3. Acquisitions & planificateurs  (merged section)
     //   4. Santé         (CompactHealth)
@@ -266,19 +266,19 @@ describe("Contrôle", () => {
     }
     const text = main.textContent;
 
-    const posATraiter = text.indexOf("À traiter");
-    const posDernierRun = text.indexOf("Dernier run");
+    const posToHandle = text.indexOf("À traiter");
+    const posLastRun = text.indexOf("Dernier run");
     const posAcquisitions = text.indexOf("Acquisitions & planificateurs");
     const posSante = text.indexOf("Santé");
     const posDemarrer = text.indexOf("Démarrer");
 
     // All four headings + the pipeline button must be present.
     expect(
-      posATraiter,
+      posToHandle,
       "« À traiter » heading should be in the DOM",
     ).toBeGreaterThan(-1);
     expect(
-      posDernierRun,
+      posLastRun,
       "« Dernier run » heading should be in the DOM",
     ).toBeGreaterThan(-1);
     expect(
@@ -294,11 +294,11 @@ describe("Contrôle", () => {
     ).toBeGreaterThan(-1);
 
     // Each must appear before the next one in the text stream.
-    expect(posATraiter, "À traiter must come before Dernier run").toBeLessThan(
-      posDernierRun,
+    expect(posToHandle, "À traiter must come before Dernier run").toBeLessThan(
+      posLastRun,
     );
     expect(
-      posDernierRun,
+      posLastRun,
       "Dernier run must come before Acquisitions",
     ).toBeLessThan(posAcquisitions);
     expect(posAcquisitions, "Acquisitions must come before Santé").toBeLessThan(
@@ -348,7 +348,7 @@ describe("Contrôle", () => {
   it("affiche la liste À traiter (vide par défaut)", async () => {
     renderDashboard();
 
-    // Even when empty, ATraiterList renders a calm row « Rien à traiter ».
+    // Even when empty, ToHandleList renders a calm row « Rien à traiter ».
     expect(await screen.findByText("Rien à traiter")).toBeInTheDocument();
   });
 });

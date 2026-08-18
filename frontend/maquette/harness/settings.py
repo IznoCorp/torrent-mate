@@ -68,7 +68,7 @@ async def main():
             title: (r.querySelector('.rt')||{}).textContent||'',
             sub: (r.querySelector('.rs')||{}).textContent||'',
             count: (r.querySelector('.rn')||{}).textContent||''})),
-          search: !!document.querySelector('#qreg'),
+          search: !!document.querySelector('#qsettings'),
           text: (document.querySelector('#view')||{}).textContent||''})""")
         check("the topics are named by what one changes",
               len(map_["topics"]) >= 6

@@ -1,5 +1,5 @@
 /**
- * MaintenantPanel — five-section composition of the « Maintenant » view.
+ * NowPanel — five-section composition of the « Maintenant » view.
  *
  * Each building block (AcquisitionCard, JourneyStrip, FollowDetailSheet,
  * actionWords vocabulary, useToHandle hook) is tested in its own module.
@@ -29,7 +29,7 @@ import type {
   WantedItem,
 } from "@/api/acquisition";
 
-import { MaintenantPanel } from "./MaintenantPanel";
+import { NowPanel } from "./NowPanel";
 import { STAGES } from "./JourneyStrip";
 import * as hooks from "@/hooks/useAcquisition";
 
@@ -325,7 +325,7 @@ function renderPanelPreMocked(): void {
   render(
     <QueryClientProvider client={qc}>
       <MemoryRouter>
-        <MaintenantPanel />
+        <NowPanel />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -339,7 +339,7 @@ function renderPanel(f: FullFixtures | EmptyFixtures): void {
   render(
     <QueryClientProvider client={qc}>
       <MemoryRouter>
-        <MaintenantPanel />
+        <NowPanel />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -347,7 +347,7 @@ function renderPanel(f: FullFixtures | EmptyFixtures): void {
 
 // ── Tests ───────────────────────────────────────────────────────────────────
 
-describe("MaintenantPanel", () => {
+describe("NowPanel", () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
@@ -808,7 +808,7 @@ describe("MaintenantPanel", () => {
     render(
       <QueryClientProvider client={qc}>
         <MemoryRouter>
-          <MaintenantPanel />
+          <NowPanel />
         </MemoryRouter>
       </QueryClientProvider>,
     );
@@ -857,7 +857,7 @@ describe("MaintenantPanel", () => {
     render(
       <QueryClientProvider client={qc}>
         <MemoryRouter>
-          <MaintenantPanel />
+          <NowPanel />
         </MemoryRouter>
       </QueryClientProvider>,
     );
@@ -900,7 +900,7 @@ describe("MaintenantPanel", () => {
     render(
       <QueryClientProvider client={qc}>
         <MemoryRouter>
-          <MaintenantPanel />
+          <NowPanel />
         </MemoryRouter>
       </QueryClientProvider>,
     );
@@ -948,7 +948,7 @@ describe("MaintenantPanel", () => {
     render(
       <QueryClientProvider client={qc}>
         <MemoryRouter>
-          <MaintenantPanel />
+          <NowPanel />
         </MemoryRouter>
       </QueryClientProvider>,
     );
@@ -1000,7 +1000,7 @@ describe("MaintenantPanel", () => {
     render(
       <QueryClientProvider client={qc}>
         <MemoryRouter>
-          <MaintenantPanel />
+          <NowPanel />
         </MemoryRouter>
       </QueryClientProvider>,
     );
@@ -1051,7 +1051,7 @@ describe("MaintenantPanel", () => {
     render(
       <QueryClientProvider client={qc}>
         <MemoryRouter>
-          <MaintenantPanel />
+          <NowPanel />
         </MemoryRouter>
       </QueryClientProvider>,
     );

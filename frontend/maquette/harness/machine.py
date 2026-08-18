@@ -514,7 +514,7 @@ async def main():
                          fault["overflow"] <= 0, f"{fault['overflow']}px")
 
         # ── MAINTENANCE ────────────────────────────────────────────────────
-        maint = await on_page(pg, "maint", maintRub=None)
+        maint = await on_page(pg, "maint", maintTopic=None)
         journal.check("Maintenance is navigated by what one wants to DO",
                          len(maint["topics"]) >= 5, str(maint["topics"]))
         journal.check("the deletion journal is on Maintenance",
@@ -524,7 +524,7 @@ async def main():
         registry = real_commands()
         seen = set()
         for topic in ("query", "scan", "repair", "clean", "fix", "analyze"):
-            page = await on_page(pg, "maint", maintRub=topic)
+            page = await on_page(pg, "maint", maintTopic=topic)
             seen.update(page["commands"])
             journal.check(f"the « {topic} » topic draws commands",
                              len(page["commands"]) > 0, str(page["commands"]))
@@ -548,7 +548,7 @@ async def main():
         journal.check("the engine does have commands that delete",
                          len(destructive) > 0, f"{len(destructive)}")
         for action in destructive:
-            await on_page(pg, "maint", maintRub=action.category)
+            await on_page(pg, "maint", maintTopic=action.category)
             await pg.evaluate(f"()=>openActionMaintenance({json.dumps(action.id)})")
             await pg.wait_for_timeout(320)
             panel = await pg.evaluate(PANEL)

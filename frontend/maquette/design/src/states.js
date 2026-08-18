@@ -578,18 +578,18 @@ const STATES = [
     [
       "maintenance",
       "Maintenance — les rubriques de commandes",
-      () => applyState({ page: "maint", phase: "prete", maintRub: null }),
+      () => applyState({ page: "maint", phase: "prete", maintTopic: null }),
     ],
     [
       "maintenance-rubrique",
       "Maintenance — une rubrique et ses commandes",
-      () => applyState({ page: "maint", phase: "prete", maintRub: "fix" }),
+      () => applyState({ page: "maint", phase: "prete", maintTopic: "fix" }),
     ],
     [
       "maintenance-suppression",
       "Maintenance — une commande qui supprime",
       () => {
-        applyState({ page: "maint", phase: "prete", maintRub: "clean" });
+        applyState({ page: "maint", phase: "prete", maintTopic: "clean" });
         openActionMaintenance("library-clean");
       },
     ],

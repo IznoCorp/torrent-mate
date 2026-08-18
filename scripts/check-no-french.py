@@ -68,6 +68,10 @@ ROOT = Path(__file__).resolve().parent.parent
 MAQUETTE = ROOT / "frontend" / "maquette"
 # The words this codebase's names are built from — see its own header.
 VOCABULARY = ROOT / "scripts" / "code-vocabulary.txt"
+# The line in that file below which the words are French on purpose, and the
+# one file allowed to need them.
+DEBT_BANNER = "# ── THE ENGINE'S LAST FRENCH WORDS"
+DEBT_FILE = "frontend/maquette/design/src/engine/legacy.js"
 SHELL = MAQUETTE / "design" / "src"
 HARNESS = MAQUETTE / "harness"
 REGIONS = MAQUETTE / "regions.json"
@@ -118,6 +122,20 @@ FRENCH_TOKENS = {
     "ecartees", "entete", "garde", "gardees", "harnais", "ordre", "parseur",
     "permis", "portee", "profondeur", "racine", "regle", "regles", "refusees",
     "selecteur", "sortie",
+    # Measured the same way, and by the campaign that found them missing: every
+    # word below named something in this repository while the gate read green.
+    # `suivante`, `trier` and `fermer` were the first three; a hundred and
+    # forty names sat under the rest. A word that reads the same in both
+    # languages is still NOT here — `centre`, `cote`, `sortie` and `rayon` are
+    # English too, and a gate that flagged them would teach its reader to stop
+    # believing it.
+    "actifs", "anneau", "apparence", "apparences", "bordees", "calque",
+    "candidats", "cherche", "chercher", "circulaire", "combien", "controle",
+    "coupables", "couverture", "denominateur", "depuis", "dessin", "faits",
+    "frise", "lignes", "maintenant", "masquables", "masquer", "mots",
+    "normaliser", "numerateur", "pilotage", "plages", "prendre", "reglee",
+    "remis", "restants", "retirer", "risques", "rubrique", "traiter",
+    "transparents", "tris", "trier", "trouve",
 }
 # Two tokens mean different things in different halves of the repository, and
 # scope — not a word list — is what settles them. Each entry names the reason.
@@ -370,6 +388,8 @@ examined: dict[str, int] = {
     "declared CSS classes / extracted": 0,
     "unread javascript / shell": 0,
     "name words / shell": 0,
+    "data-* names / markup": 0,
+    "french debt words / vocabulary": 0,
 }
 
 
@@ -729,6 +749,11 @@ def check_identifiers(violations: list[str]) -> None:
               + sorted(HARNESS.glob("*.py"))
               + [p for p in sorted(SCRIPTS.glob("*.py"))
                  if p.name != Path(__file__).name]
+              # `frontend/scripts/` is not `scripts/`, and that one letter of
+              # scope left an entire tool — 18 French names, `SORTIE`, `JAUNE`,
+              # `anneau_depuis_staging` — outside every arm while the gate
+              # reported no violation.
+              + sorted((ROOT / "frontend" / "scripts").glob("*.py"))
               + sorted((ROOT / "personalscraper").rglob("*.py"))
               + sorted((ROOT / "tests").rglob("*.py")))
     for path in python:
@@ -945,6 +970,83 @@ def check_class_names(violations: list[str]) -> None:
                     "name shared by four worlds")
 
 
+def vocabulary(debt_only: bool = False) -> set[str]:
+    """Returns the words this codebase's names are built from.
+
+    Args:
+        debt_only: When true, returns only the words below the debt banner —
+            French on purpose, and owed by one file.
+
+    Returns:
+        The set of words, lower-cased.
+    """
+    words, below = set(), False
+    for line in VOCABULARY.read_text(encoding="utf-8").splitlines():
+        if line.startswith(DEBT_BANNER):
+            below = True
+        if not line.strip() or line.startswith("#"):
+            continue
+        # Without the flag this is the WHOLE vocabulary, debt included: the
+        # engine's names must still pass the arm that reads them. What the
+        # flag isolates is who may BORROW those words, which is one file.
+        if not debt_only or below:
+            words.add(line.strip().lower())
+    return words
+
+
+def check_french_debt(violations: list[str]) -> None:
+    """Refuses a debt word anywhere but the one file that owes it.
+
+    The vocabulary was seeded FROM the codebase, so every French name still
+    standing quietly contributed its own word and the arm reading that file
+    certified them. Naming the debt is only half of it — the other half is
+    that it must not grow: a new name built from `apparence` or `tris`
+    outside the dying engine would inherit an exemption nobody granted it.
+
+    Args:
+        violations: The accumulator every arm appends to.
+    """
+    owed = vocabulary(debt_only=True)
+    if not owed:
+        # Deleting the BANNER alone would fold every French word back into the
+        # general vocabulary and silence this arm without removing a thing —
+        # the section and the file it exists for go together, or neither does.
+        if (ROOT / DEBT_FILE).exists() and DEBT_BANNER not in VOCABULARY.read_text(
+                encoding="utf-8"):
+            violations.append(
+                f"{relative(VOCABULARY)}: the debt banner is gone while "
+                f"{DEBT_FILE} is still here — either the words below it moved "
+                "back in unmarked, or the section was removed before the file "
+                "it was written for")
+        return
+    examined["french debt words / vocabulary"] += len(owed)
+    # The app is read too: a debt word borrowed in `frontend/src` would be no
+    # less an exemption nobody granted, and it is not the engine's file.
+    sources = [p for p in SHELL.rglob("*")
+               if p.is_file() and p.suffix in {".ts", ".tsx", ".js"}
+               and "i18n" not in p.parts and relative(p) != DEBT_FILE]
+    sources += [p for p in (ROOT / "frontend" / "src").rglob("*")
+                if p.is_file() and p.suffix in {".ts", ".tsx"}]
+    for path in sorted(sources):
+        raw = read(path)
+        lines = raw.splitlines()
+        source = code_only(raw)
+        for match in re.finditer(
+                r"(?:function|const|let|var|class|type|interface)\s+"
+                r"([A-Za-z_$][\w$]*)", source):
+            name = match.group(1)
+            line_no = source[: match.start()].count("\n") + 1
+            if pragma_on(lines, line_no) is not None:
+                continue
+            borrowed = [w for w in split_identifier(name) if w.lower() in owed]
+            if borrowed:
+                violations.append(
+                    f"{relative(path)}:{line_no}: {name!r} borrows "
+                    f"{', '.join(repr(w) for w in borrowed)} from the French "
+                    f"words {DEBT_FILE} still owes — that exemption is the "
+                    "engine's alone, and it dies with it")
+
+
 def code_only(source: str) -> str:
     """Returns the source with comments and string bodies blanked out.
 
@@ -1030,9 +1132,7 @@ def check_vocabulary(violations: list[str]) -> None:
     Args:
         violations: The accumulator every arm appends to.
     """
-    words = {line.strip().lower() for line in VOCABULARY.read_text(
-        encoding="utf-8").splitlines()
-        if line.strip() and not line.startswith("#")}
+    words = vocabulary()
     if not words:
         violations.append(f"{relative(VOCABULARY)} is empty — the arm reading it "
                           "would accept every name ever written")
@@ -1065,6 +1165,49 @@ def check_vocabulary(violations: list[str]) -> None:
                     f"{', '.join(repr(w) for w in unknown)}, which "
                     f"{'is' if len(unknown) == 1 else 'are'} not in "
                     f"{relative(VOCABULARY)} — rename it in English, or add the "
+                    "word there if the codebase really speaks it")
+
+
+def check_data_attributes(violations: list[str]) -> None:
+    """Refuses a `data-*` attribute NAME built from a word this codebase lacks.
+
+    CLAUDE.md brings these names under the rule — a `data-*` name is a name
+    someone chose — and until now nothing read them. Nineteen were renamed by
+    hand in the same wave that wrote the rule, and four were missed:
+    `data-prendre`, `data-maintrub`, `data-qreg` and `data-apparence` stayed,
+    green, because no arm looked. A rule with no arm is a sentence in a file.
+
+    The VALUES are not read, and must not be: `data-go="profil"` names a page,
+    and a page id is an address.
+
+    It asks the vocabulary's question rather than « is this word French? »,
+    because the names here are abbreviations — `rub` for « rubrique » is
+    invisible to any list of French words, and `maintopic` is not.
+
+    Args:
+        violations: The accumulator every arm appends to.
+    """
+    words = vocabulary()
+    sources = [p for p in SHELL.rglob("*")
+               if p.is_file() and p.suffix in {".ts", ".tsx", ".js"}]
+    sources += [FRAGMENT]
+    sources += [p for p in (ROOT / "frontend" / "src").rglob("*")
+                if p.is_file() and p.suffix in {".ts", ".tsx", ".css"}]
+    for path in sorted(sources):
+        source = read(path)
+        for match in re.finditer(r"\bdata-([a-zA-Z][\w-]*)", source):
+            name = match.group(1)
+            examined["data-* names / markup"] += 1
+            line_no = source.count("\n", 0, match.start()) + 1
+            unknown = [w for w in split_identifier(name)
+                       if len(w) > 1 and w.lower() not in words]
+            if unknown:
+                violations.append(
+                    f"{relative(path)}:{line_no}: the attribute name "
+                    f"'data-{name}' is built from "
+                    f"{', '.join(repr(w) for w in unknown)}, which "
+                    f"{'is' if len(unknown) == 1 else 'are'} not in "
+                    f"{relative(VOCABULARY)} — name it in English, or add the "
                     "word there if the codebase really speaks it")
 
 
@@ -1116,6 +1259,8 @@ def main() -> int:
     check_class_names(violations)
     check_unread_javascript(violations)
     check_vocabulary(violations)
+    check_data_attributes(violations)
+    check_french_debt(violations)
     for what, count in examined.items():
         if count == 0:
             violations.append(
@@ -1130,8 +1275,9 @@ def main() -> int:
               "a reader of the interface sees lives in the i18n resources.",
               file=sys.stderr)
         return 1
-    print("no-French guardrail: 4 arms + the vocabulary + the unread-JavaScript "
-          "ledger, no violation — read "
+    print("no-French guardrail: 4 arms + the vocabulary + the data-* names + "
+          "the engine's declared debt + the unread-JavaScript ledger, no "
+          "violation — read "
           + ", ".join(f"{count} {what}" for what, count in examined.items()))
     return 0
 

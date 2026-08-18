@@ -6997,7 +6997,7 @@ import { screens, panel, bridge } from "../seams.js";
     /* Maintenance: which rubric is open, and whether the blank run is on. A
        command that DELETES ignores the second — it is on until the dry run
        has named what would go. */
-    maintRub: null,
+    maintTopic: null,
     /* Shows the SIMULATED fault on Système. Everything on this machine is
        green, and a screen that can only be green cannot be judged. */
     panne: false,
@@ -11022,7 +11022,7 @@ import { screens, panel, bridge } from "../seams.js";
       lens: currentState().libLens,
       mode: currentState().libMode,
       cat: currentState().libCat,
-      rub: currentState().maintRub || "",
+      rub: currentState().maintTopic || "",
     };
     const params = new URLSearchParams();
     for (const [nom, value] of Object.entries(courant))
@@ -11041,15 +11041,15 @@ import { screens, panel, bridge } from "../seams.js";
   function stateFromUrl() {
     const params = new URLSearchParams(location.search);
     const lu = {};
-    const prendre = (param, field) => {
+    const take = (param, field) => {
       if (params.has(param) && params.get(param)) lu[field] = params.get(param);
     };
-    prendre("page", "page");
-    prendre("tab", "acqTab");
-    prendre("lens", "libLens");
-    prendre("mode", "libMode");
-    prendre("cat", "libCat");
-    prendre("rub", "maintRub");
+    take("page", "page");
+    take("tab", "acqTab");
+    take("lens", "libLens");
+    take("mode", "libMode");
+    take("cat", "libCat");
+    take("rub", "maintTopic");
     return lu;
   }
 
@@ -11747,8 +11747,8 @@ import { screens, panel, bridge } from "../seams.js";
       toast("Service redémarré — les réglages sont pris en compte.");
       return;
     }
-    if (closest.dataset.qreg != null) {
-      SETTINGS_STATE.q = closest.dataset.qreg;
+    if (closest.dataset.qsettings != null) {
+      SETTINGS_STATE.q = closest.dataset.qsettings;
       render();
       return;
     }
@@ -12036,8 +12036,8 @@ import { screens, panel, bridge } from "../seams.js";
       }
       return;
     }
-    if (closest.dataset.prendre) {
-      const release = RELEASES[Number(closest.dataset.prendre)];
+    if (closest.dataset.take) {
+      const release = RELEASES[Number(closest.dataset.take)];
       // One router pop — the release-choice screen is a route now, and the
       // dispatcher's own `layer`/`tm: "nav"` checks no-op harmlessly on the
       // entry it wrote, so the screen simply unmounts.
@@ -12065,8 +12065,8 @@ import { screens, panel, bridge } from "../seams.js";
       openDrawer();
       return;
     }
-    if (closest.dataset.maintrub !== undefined) {
-      store.write({ maintRub: closest.dataset.maintrub || null });
+    if (closest.dataset.maintopic !== undefined) {
+      store.write({ maintTopic: closest.dataset.maintopic || null });
       port.scrollTop = 0;
       render();
       recordPath();

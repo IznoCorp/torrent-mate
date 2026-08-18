@@ -15,12 +15,15 @@
 #
 # Seeded from the codebase on the day the engine's identifiers became English.
 account
+acqtab
 acquisition
+act
 action
 actions
 active
 add
 added
+addfield
 address
 advance
 after
@@ -30,8 +33,6 @@ aired
 all
 already
 annotations
-apparence
-apparences
 appearance
 apply
 arm
@@ -42,6 +43,7 @@ artwork
 asked
 at
 attempt
+attribute
 attributes
 audio
 audios
@@ -53,7 +55,6 @@ base
 batch
 before
 best
-blanc
 block
 blocked
 body
@@ -61,7 +62,6 @@ borne
 bound
 box
 bridge
-brut
 button
 by
 cadence
@@ -83,6 +83,7 @@ changed
 chip
 choice
 clean
+clearq
 clef
 click
 close
@@ -93,14 +94,13 @@ collapse
 commit
 common
 complete
+confirmadd
 containers
 content
 copy
 corps
 cote
 count
-courant
-courante
 cover
 create
 cron
@@ -112,10 +112,14 @@ decisions
 deck
 deep
 defaults
+del
 delete
 deleted
+deletefield
 deletion
+delsel
 delta
+dense
 dependencies
 depth
 derived
@@ -132,6 +136,7 @@ direction
 discover
 disks
 dismiss
+dismissable
 displayed
 distance
 dlg
@@ -161,6 +166,7 @@ executions
 exit
 fact
 facts
+fetching
 field
 fields
 file
@@ -172,6 +178,8 @@ filtered
 find
 finger
 first
+fkind
+fmode
 folder
 follow
 followed
@@ -180,7 +188,6 @@ foot
 for
 found
 fr
-frac
 fraction
 frames
 freq
@@ -195,16 +202,21 @@ groups
 harness
 has
 hauteur
+hclose
 hd
 head
 height
 held
 hero
+hgo
 hide
 hint
 history
 host
 hours
+hphase
+hscen
+htmdb
 html
 icon
 icons
@@ -214,6 +226,7 @@ identify
 identity
 ids
 idx
+illusion
 image
 images
 imgs
@@ -226,6 +239,7 @@ inflight
 info
 initial
 inner
+inset
 inside
 install
 installation
@@ -248,35 +262,35 @@ layers
 leave
 left
 legacy
+lens
 lenses
 lib
 library
 light
-ligne
-lignes
 line
 list
 listener
 listeners
 live
+lmode
 load
 loaders
 loading
 lock
-lu
-maint
+maintact
 maintenance
+maintopic
 manque
+manual
 mark
-masquer
 matches
 media
+mediasheet
 migrated
 min
 missing
 mode
 modes
-mois
 mono
 more
 motif
@@ -288,15 +302,18 @@ multi
 name
 names
 nav
+navgo
 navigation
 nb
 new
 next
 node
 nodes
+nonmedia
 norm
 normalise
 normalised
+noswipe
 not
 note
 notfound
@@ -323,7 +340,6 @@ page
 pages
 paint
 panel
-panne
 params
 passer
 password
@@ -331,13 +347,14 @@ path
 pause
 pct
 pending
+phase
 phrase
 pick
 pile
+pill
 pills
-pilotage
+pipe
 pipeline
-plages
 point
 pop
 popover
@@ -346,7 +363,6 @@ pos
 positions
 poster
 posters
-prendre
 present
 press
 previous
@@ -356,6 +372,10 @@ proposer
 prov
 ptr
 publish
+qaud
+qflag
+qres
+qsettings
 quality
 query
 queue
@@ -379,24 +399,19 @@ release
 released
 releases
 remembered
-remis
 render
-repos
 required
 reset
 resolution
 resolutions
 resolve
-restant
-restants
+restart
 restore
 result
 results
-retirer
 rich
 right
 risk
-risques
 root
 route
 router
@@ -421,10 +436,10 @@ section
 seed
 segment
 segments
-sel
 select
 selected
 selector
+selmode
 series
 services
 set
@@ -437,9 +452,11 @@ shell
 show
 shown
 sign
+signout
 size
 skel
 slice
+slot
 sort
 sorted
 src
@@ -451,6 +468,7 @@ start
 startup
 state
 states
+station
 status
 step
 steps
@@ -465,23 +483,29 @@ suffix
 sug
 suggestion
 suggestions
+sugmode
+sugmore
 suite
 surf
 svg
 swallow
 swatch
 swipe
+swipeact
 synopsis
 system
 tab
 tabs
+tabular
 tag
 take
 takeable
 target
 template
 term
+testid
 text
+theme
 threshold
 tied
 tier
@@ -489,6 +513,7 @@ tile
 tiles
 title
 titles
+tmdb
 to
 toast
 today
@@ -504,15 +529,16 @@ total
 trailer
 travelled
 trim
-tris
 typed
 ua
 ui
+uid
 under
 undo
 unit
 units
 universe
+unknown
 unnamed
 unwind
 unwinding
@@ -524,6 +550,7 @@ user
 username
 valid
 value
+variant
 verb
 version
 via
@@ -536,3 +563,46 @@ window
 words
 world
 write
+yt
+
+# ── THE ENGINE'S LAST FRENCH WORDS ─────────────────────────────────────
+#
+# Everything above is English. Everything below is NOT, and saying so is
+# the whole point of the line: the first version of this file was SEEDED
+# from the codebase, so the twenty-five French words that twenty-nine
+# names still needed came in with the rest and the gate went green over
+# them. A vocabulary that certifies the status quo answers no question.
+#
+# They are needed by exactly ONE file — `frontend/maquette/design/src/
+# engine/legacy.js`, the 35 000-line fragment SP4-fin dismantles — and
+# `check_french_debt` refuses them anywhere else, so the debt cannot
+# spread while it waits. Measured, not assumed: removing all of them
+# reports twenty-nine names, every one in that file.
+#
+# When the engine goes, this section goes with it, and the arm that
+# guards it says so by finding nothing left to guard.
+
+apparence
+apparences
+blanc
+brut
+courant
+courante
+frac
+ligne
+lignes
+lu
+maint
+masquer
+mois
+panne
+pilotage
+plages
+remis
+repos
+restant
+restants
+retirer
+risques
+sel
+tris

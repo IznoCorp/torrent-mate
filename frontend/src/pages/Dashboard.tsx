@@ -1,9 +1,9 @@
 import type { ReactElement } from "react";
 
 import { PageHeader } from "@/components/ds/PageHeader";
-import { ATraiterList } from "@/components/controle/ATraiterList";
-import { CompactHealth } from "@/components/controle/CompactHealth";
-import { LastRunDigest } from "@/components/controle/LastRunDigest";
+import { ToHandleList } from "@/components/control/ToHandleList";
+import { CompactHealth } from "@/components/control/CompactHealth";
+import { LastRunDigest } from "@/components/control/LastRunDigest";
 import { AcquisitionSummaryCard } from "@/components/dashboard/AcquisitionSummaryCard";
 import { SchedulersPanel } from "@/components/dashboard/SchedulersPanel";
 import { ScrapeActivityPanel } from "@/components/decisions/ScrapeActivityPanel";
@@ -42,7 +42,7 @@ export default function Dashboard(): ReactElement {
       <PageHeader title="Contrôle" />
 
       {/* 1. À traiter — all blocked cases, unified (DESIGN §2.1). */}
-      <ATraiterList />
+      <ToHandleList />
 
       {/* 2. Activité scraping — live scrape feed, relocated from the former /scraping page (now /medias). */}
       <ScrapeActivityPanel />

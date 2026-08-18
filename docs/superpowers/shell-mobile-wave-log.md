@@ -842,6 +842,75 @@ The check this adds, and it belongs before any property-mode rename: **does the 
 already exist as a contract?** Target collisions had been checked for bindings and for `data-*`
 names — not for a binding whose rename lands on an existing attribute.
 
+### The seams thawed, and the screen keys with them
+
+The operator read the frozen list and asked what the reasons actually were: « pourquoi des
+frozen-with-reason (ecrans, panneau, pont, refonte.html, fiche) ? » Three of the four did not
+survive the question. « The fragment spells them that way » is circular — the fragment, the
+engine and the harness are all in this repository, and a hundred and forty names the fragment
+spelled had already moved. `pont`, `ecrans` and `panneau` are `bridge`, `screens` and `panel`,
+with their eleven methods (`noter`→`record`, `coucher`→`pushLayer`, `surRetour`→`onBack`,
+`ouverte`→`isOpen`, …), and the media sheet is `mediaSheet` with a contract of its own,
+`data-mediasheet`, because `data-sheet` was already the panel opener. The `data-key` values
+moved on both sides in the same step: `fiche:` → `mediaSheet:`, `profil:` → `profile:`,
+`ajout:` → `add:`. What stays French is what an address is made of, and `refonte.html`, which
+R72 names and SP4-fin deletes.
+
+### The guarantor pass — what a green gate was still hiding
+
+Everything above was green — 12/12 in CI, every arm of the guard, 10 703 tests, 1 364 front —
+and a review before merge found **five things a green gate cannot see**. They are worth
+recording because each one is a shape, not an incident.
+
+**A vocabulary seeded FROM the codebase certifies the status quo.** The new arm was written to
+end « no violation means none among the words we thought of », and its own word list was
+generated from the names that existed on the day it was written — so the **twenty-five French
+words that twenty-nine names in `legacy.js` still needed came in with the rest**, and the arm
+that was meant to catch them licensed them instead. Removing those words reports the
+twenty-nine, every one in that single file. They live below a banner now, named as French on
+purpose, and `check_french_debt` refuses them to every file but the dying engine — the debt is
+declared, bounded, and it goes when the engine goes.
+
+**A rule with no arm is a sentence in a file.** `data-*` names were brought under the rule in
+the very wave that renamed nineteen of them, and nothing was written to read them, so
+`data-prendre`, `data-maintrub`, `data-qreg` and `data-apparence` simply stayed. The arm exists
+now and asks the vocabulary's question, which is the only one that can see `rub` for
+« rubrique ».
+
+**A scope is a claim, and it is checked the same way.** `frontend/scripts/` is not `scripts/`,
+and that one word of difference left an entire tool outside every arm — `SORTIE`, `JAUNE`,
+`BORDEES`, `anneau_depuis_staging`, eighteen names — while the gate reported no violation.
+
+**The word list still had the holes it was built to have.** `traiter`, `maintenant`,
+`controle`, `cherche`, `rien`, `faits`, `actifs`, `combien`, `frise`, `coupables` were all
+invisible, and under them sat the production app: a directory `components/controle/`, the files
+`ATraiterList.tsx`, `MaintenantPanel.tsx`, `Controle.test.tsx`, `Medias.tsx`, and nineteen
+identifiers. They are `control/`, `ToHandleList`, `NowPanel`, `Dashboard.test.tsx` and
+`MediaLibrary` now, and the measured words are in the list.
+
+**And the renaming tool corrupted interface copy, silently.** Two forms it did not know, plus
+two of its own:
+
+| Form | What it did |
+| --- | --- |
+| `/n'est plus cherché/i` | a REGEX literal holding an apostrophe opened a string that never closed — every literal after it in the file read as CODE, and « En attente de torrent » became « En pendingDecision de torrent » |
+| `<p>En attente de torrent</p>` | JSX text wears no quote, so a quote-aware scanner reads it as code |
+| `{ ...REGLEE }` | the SPREAD operator looks like a member access; the lookbehind that protects `x.name` skipped it, leaving a half-rename the type-checker found |
+| `[center - radius, …]` | in Python a bracket is also a LIST, and the hold that protects `[data-go=profil]` swallowed one |
+
+The first form had already fired in the committed work: `audit.py` carried
+`retrait:'Retirer le isFollowed'` and `library_sort.py` a hold named « add récent ». Both are
+restored. **Three heuristics for JSX text were tried and each traded a corruption for a silent
+half-rename** — prose between `}` and `{` also describes `} export function Name(): Thing {`.
+So the tool stopped guessing: `scripts/source-spans.mjs` asks TypeScript's own parser for the
+strings, template pieces, regexes and JSX text, and the renamer refuses to write a file whose
+protected spans moved. Measured on the finished diff: **0 of 19 files had a protected span
+change**.
+
+The lesson under all five: **a gate proves what it reads, and nothing about what it does not.**
+Every one of these was green — the question that found them was not « does it pass? » but
+« what does it look at? »
+
 ## SP4-fin wave 3 — the bridge dies, and the fixture leaves the product
 
 Branch `refactor/maquette-sp4fin3`, version 0.97.24. Four things the spec named for SP4-end,

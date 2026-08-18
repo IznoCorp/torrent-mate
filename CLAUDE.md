@@ -248,6 +248,19 @@ enforced by `scripts/check-no-french.py` (four arms, in `make check` and in CI):
   names are built from; a name built from a word nobody wrote down is refused, whatever
   language it comes from. **Adding a word is one line, and that is the point**: a French word
   can only enter by someone typing it into a file under review.
+- **A vocabulary SEEDED from the codebase certifies the status quo.** The first version of
+  that file was, so the twenty-five French words that twenty-nine names in
+  `design/src/engine/legacy.js` still needed came in with the rest and the gate went green
+  over them — the exact failure the arm was written to end. They live below a banner in the
+  file now, named as French on purpose, and `check_french_debt` refuses them to every file
+  but the dying engine, so the debt cannot spread while SP4-fin waits. **When the engine
+  goes, that section goes with it.**
+- **Every rule in this section has an ARM, or it is a sentence in a file.** `data-*` names
+  were brought under the rule and nothing read them for a wave: nineteen moved by hand and
+  four — `data-prendre`, `data-maintrub`, `data-qreg`, `data-apparence` — simply stayed.
+  A scope is checked the same way: `frontend/scripts/` is not `scripts/`, and that one word
+  of difference left an entire tool (`SORTIE`, `JAUNE`, `anneau_depuis_staging`) outside
+  every arm while the gate reported no violation.
 
 ## Reference Index (lazy-load when relevant)
 

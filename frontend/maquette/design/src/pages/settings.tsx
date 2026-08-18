@@ -12,7 +12,7 @@
 //
 // `SETTINGS_STATE` STAYS THE SOURCE, and this component never replaces it. The
 // document-level delegation writes it (`data-topic`, `data-setting`,
-// `data-qreg`, `data-secret`, `data-save`, `data-restart`) and then
+// `data-qsettings`, `data-secret`, `data-save`, `data-restart`) and then
 // calls `render()`, whose first act is `store?.toucher()` — so subscribing to
 // the store's `version` is what re-reads the mutated object here. Two reasons it
 // must stay there and not become React state: the edits are PENDING data the
@@ -72,7 +72,7 @@ function SearchField(): ReactElement {
     <div className="search" style={{ marginBottom: 12 }}>
       <Icon paths={icons.search} />
       <input
-        id="qreg"
+        id="qsettings"
         key={SETTINGS_STATE.q}
         type="search"
         placeholder={t("screens.settings.searchPlaceholder")}
@@ -80,7 +80,7 @@ function SearchField(): ReactElement {
         autoComplete="off"
       />
       {SETTINGS_STATE.q ? (
-        <button className="searchclear" data-qreg="">
+        <button className="searchclear" data-qsettings="">
           <Icon paths={icons.x} />
         </button>
       ) : null}

@@ -14,7 +14,7 @@
 // has NAMED what would be destroyed.
 //
 // Like Système, this page writes nothing. It reads `state.phase` (the skeleton
-// and error surfaces) and `state.maintRub` (which rubric is open, `null` for the
+// and error surfaces) and `state.maintTopic` (which rubric is open, `null` for the
 // list) — and the delegation is what writes them.
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
@@ -58,12 +58,12 @@ export function MaintenancePage(): ReactElement | null {
   );
 
   // One rubric open: its commands, and the way back to all of them.
-  const topic = MAINT_TOPICS.find((entry) => entry.id === state.maintRub);
+  const topic = MAINT_TOPICS.find((entry) => entry.id === state.maintTopic);
   if (topic) {
     const actions = MAINT_ACTIONS.filter((action) => action.g === topic.id);
     return (
       <>
-        <button className="crossref" data-maintrub="">
+        <button className="crossref" data-maintopic="">
           {t("screens.maintenance.allCommands")}
         </button>
         <h2 className="h2">{topic.t}</h2>
@@ -100,7 +100,7 @@ export function MaintenancePage(): ReactElement | null {
           (action) => action.r === "destructive",
         ).length;
         return (
-          <button className="topic" data-maintrub={entry.id} key={entry.id}>
+          <button className="topic" data-maintopic={entry.id} key={entry.id}>
             <span style={{ minWidth: 0, flex: 1 }}>
               <span className="rt">{entry.t}</span>
               <span className="rs">{entry.s}</span>

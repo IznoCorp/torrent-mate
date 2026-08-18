@@ -175,20 +175,20 @@ async def main():
         # wave that moves the emitter owes these two holds, or a component that
         # stopped writing one of those attributes would break the page while
         # every existing rule stayed green.
-        await page.evaluate("()=>window.__magasin.write({page: 'maint', maintRub: null})")
+        await page.evaluate("()=>window.__magasin.write({page: 'maint', maintTopic: null})")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(300)
-        refused = await tap("#view .topic[data-maintrub='scan']")
+        refused = await tap("#view .topic[data-maintopic='scan']")
         opened = await page.evaluate("""()=>({
-          rubrique: window.__magasin.read().state.maintRub,
-          back: !!document.querySelector('#view .crossref[data-maintrub=""]'),
+          rubrique: window.__magasin.read().state.maintTopic,
+          back: !!document.querySelector('#view .crossref[data-maintopic=""]'),
           rows: document.querySelectorAll('#view .flux .fx').length,
         })""")
         journal.check(
             "a real tap on a rubric row opens that rubric",
             not refused and opened["rubrique"] == "scan" and opened["back"]
             and opened["rows"] > 0,
-            str(opened) if not refused else f"data-maintrub='scan' {refused}")
+            str(opened) if not refused else f"data-maintopic='scan' {refused}")
 
         # Looked up rather than clicked blind, and identified: the panel must be
         # THAT command's. « a panel opened » is satisfied by
@@ -345,14 +345,14 @@ async def main():
             "()=>{SETTINGS_STATE.rubrique = null; SETTINGS_STATE.q = 'espace';}")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(300)
-        refused = await tap("#view [data-qreg]")
+        refused = await tap("#view [data-qsettings]")
         cleared = await page.evaluate(
             "()=>({q: SETTINGS_STATE.q,"
-            " clear: !!document.querySelector('#view [data-qreg]')})")
+            " clear: !!document.querySelector('#view [data-qsettings]')})")
         journal.check(
             "a real tap on the search's cross clears the search",
             not refused and cleared["q"] == "" and not cleared["clear"],
-            str(cleared) if not refused else f"data-qreg {refused}")
+            str(cleared) if not refused else f"data-qsettings {refused}")
 
         # And the one row that leaves the page entirely: the quality profile is
         # a ROUTE, so what proves the tap landed is the address — the address
