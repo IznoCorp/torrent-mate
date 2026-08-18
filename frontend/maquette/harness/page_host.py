@@ -225,8 +225,8 @@ async def main():
         # click on a selector that matches nothing times out and crashes the
         # script, which reads as a broken rule instead of a named defect.
         await page.evaluate(
-            "()=>{REG_ETAT.rubrique = null; REG_ETAT.q = '';"
-            " REG_ETAT.modifs.clear(); REG_ETAT.redemarrage = false;}")
+            "()=>{SETTINGS_STATE.rubrique = null; SETTINGS_STATE.q = '';"
+            " SETTINGS_STATE.modifs.clear(); SETTINGS_STATE.redemarrage = false;}")
         await page.evaluate("()=>window.__magasin.ecrire({page: 'cfg'})")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(300)
@@ -236,7 +236,7 @@ async def main():
             " return b ? b.dataset.rubrique : null;}")
         refused = await tap("#view .topic[data-rubrique]") if topic else "absent"
         opened = await page.evaluate("""()=>({
-          rubrique: REG_ETAT.rubrique,
+          rubrique: SETTINGS_STATE.rubrique,
           rows: document.querySelectorAll('#view .settingrow[data-reglage]').length,
         })""")
         journal.check(
@@ -275,17 +275,17 @@ async def main():
         # the legacy's own verb rather than typed, because what is held here is
         # the tap, not the field.
         staged = await page.evaluate("""()=>{
-          const setting = window.__referentiel.tousLesReglages()
+          const setting = window.__referentiel.allSettings()
             .find((x) => x.type === 'booleen');
           if (!setting) return null;
-          const id = window.__referentiel.reglageId(setting);
-          window.__referentiel.modifierReglage(id, !setting.brut);
+          const id = window.__referentiel.settingId(setting);
+          window.__referentiel.changeSetting(id, !setting.brut);
           window.__referentiel.render();
           return id;}""")
         await page.wait_for_timeout(300)
         refused = (await tap("#savebar [data-enregistrer]") if staged else "absent")
         saved = await page.evaluate(
-            "()=>({pending: REG_ETAT.modifs.size, restart: REG_ETAT.redemarrage,"
+            "()=>({pending: SETTINGS_STATE.modifs.size, restart: SETTINGS_STATE.redemarrage,"
             " bar: !!document.querySelector('#savebar')})")
         journal.check(
             "a real tap on the save bar files the change and asks for a restart",
@@ -293,7 +293,7 @@ async def main():
             and not saved["bar"],
             str(saved) if not refused else f"data-enregistrer {refused}")
 
-        await page.evaluate("()=>{REG_ETAT.rubrique = null;}")
+        await page.evaluate("()=>{SETTINGS_STATE.rubrique = null;}")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(300)
         refused = await tap("#view [data-redemarrer]")
@@ -301,7 +301,7 @@ async def main():
         # lost `data-enregistrer` reaches this hold as « absent ». The detail
         # says what was MEASURED either way — a line that reads « restart
         # cleared » under a FAIL tells a reader the opposite of what happened.
-        restart_left = await page.evaluate("()=>REG_ETAT.redemarrage")
+        restart_left = await page.evaluate("()=>SETTINGS_STATE.redemarrage")
         journal.check(
             "and a real tap on the restart offer takes it",
             not refused and not restart_left,
@@ -310,7 +310,7 @@ async def main():
 
         refused = await tap("#view .topic[data-rubrique='secrets']")
         listed = await page.evaluate(
-            "()=>({rubrique: REG_ETAT.rubrique,"
+            "()=>({rubrique: SETTINGS_STATE.rubrique,"
             " rows: document.querySelectorAll('#view [data-secret]').length})")
         journal.check(
             "a real tap on the secrets topic lists the secrets",
@@ -342,12 +342,12 @@ async def main():
         await page.evaluate(
             # french-ok: a French search WORD, typed into the app's own search
             # — the data a French interface is searched with, not a name.
-            "()=>{REG_ETAT.rubrique = null; REG_ETAT.q = 'espace';}")
+            "()=>{SETTINGS_STATE.rubrique = null; SETTINGS_STATE.q = 'espace';}")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(300)
         refused = await tap("#view [data-qreg]")
         cleared = await page.evaluate(
-            "()=>({q: REG_ETAT.q,"
+            "()=>({q: SETTINGS_STATE.q,"
             " clear: !!document.querySelector('#view [data-qreg]')})")
         journal.check(
             "a real tap on the search's cross clears the search",
@@ -484,16 +484,16 @@ async def main():
         console_errors: list[str] = []
         page.on("console", lambda message: console_errors.append(message.text)
                 if message.type == "error" else None)
-        await page.evaluate("()=>{REG_ETAT.rubrique = null; REG_ETAT.q = '';"
-                            " REG_ETAT.modifs.clear(); REG_ETAT.redemarrage = false;}")
+        await page.evaluate("()=>{SETTINGS_STATE.rubrique = null; SETTINGS_STATE.q = '';"
+                            " SETTINGS_STATE.modifs.clear(); SETTINGS_STATE.redemarrage = false;}")
         await page.evaluate("()=>window.__magasin.ecrire({page: 'cfg'})")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(300)
         await page.evaluate("""()=>{
-          const setting = window.__referentiel.tousLesReglages()
+          const setting = window.__referentiel.allSettings()
             .find((x) => x.type === 'booleen');
-          window.__referentiel.modifierReglage(
-            window.__referentiel.reglageId(setting), !setting.brut);
+          window.__referentiel.changeSetting(
+            window.__referentiel.settingId(setting), !setting.brut);
           window.__referentiel.render();}""")
         await page.wait_for_timeout(300)
         raised = await page.evaluate("()=>!!document.querySelector('#savebar')")
@@ -620,7 +620,7 @@ async def main():
         moved = await page.evaluate(
             "()=>{const first = window.__referentiel.derivedTakeable()[0];"
             " if (!first) return null;"
-            " window.__referentiel.actionRecuperer(first.t);"
+            " window.__referentiel.actionTake(first.t);"
             " return first.t;}")
         await page.wait_for_timeout(700)
         after_action = await page.evaluate(

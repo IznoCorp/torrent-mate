@@ -102,7 +102,7 @@ function SeasonList({
   catalog: CatalogSeason[];
   title: string;
 }) {
-  const { possedesDe, plages, dateFR, EP_LABEL, AUJOURDHUI } = useReference();
+  const { ownedFor, plages, dateFR, EP_LABEL, TODAY } = useReference();
   const { t } = useTranslation();
   const eps = sheet?.eps ?? {};
   const rows: SeasonRow[] = owns
@@ -118,7 +118,7 @@ function SeasonList({
     <div style={{ marginTop: "10px" }}>
       {rows.map((row) => {
         const list = eps[String(row.n)] ?? null;
-        const held = owns ? possedesDe(title, row.n) : null;
+        const held = owns ? ownedFor(title, row.n) : null;
         /* The count is DERIVED from the owned numbers when they are known;
            a total that does not say where the holes are is no longer
            trusted. */
@@ -151,7 +151,7 @@ function SeasonList({
                  tone. The title stays neutral — it is what one reads
                  first, so it keeps maximum contrast. One colour signal
                  per row, not a Christmas tree. */
-              const upcoming = episode.air && episode.air > AUJOURDHUI;
+              const upcoming = episode.air && episode.air > TODAY;
               /* State comes from the LIST of owned numbers. A « number <=
                  owned count » threshold assumes the hole is always at the
                  end of the season: false for 35 series in this library. */
@@ -272,6 +272,9 @@ function SeasonList({
             {missingNums.length ? (
               <p className="missing">
                 {t("screens.media.missingList", {
+                  // french-ok: the INTERPOLATION placeholder, named by
+                  // `missingList` in fr.json — renaming this half alone
+                  // leaves « Manquants : {{liste}} » on screen.
                   liste: plages(missingNums),
                 })}
               </p>

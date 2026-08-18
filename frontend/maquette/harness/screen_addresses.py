@@ -503,7 +503,7 @@ async def main():
             await ctx.close()
 
             # ─── Hold (o): an unknown deep /resolution value renders the
-            # screen's OWN honest empty case — `decisionEnAttente` finds no
+            # screen's OWN honest empty case — `decisionPending` finds no
             # pending decision for a name nobody scraped, so `ResolutionScreen`
             # takes the branch it already draws for that: no candidates
             # borrowed, the "aucun candidat" rulenote, and the two ways out

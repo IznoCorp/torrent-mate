@@ -13,7 +13,7 @@
 //
 // The DESCRIPTOR's own field names are the seam: the legacy producers build
 // those objects, so every key below (`titre`, `blocs`, a block's `type`, an
-// action's `cible`…) stays whatever the fragment writes.
+// action's `target`…) stays whatever the fragment writes.
 //
 // Prose — anything a reader reads as a sentence — goes through `t()`, so this
 // component re-renders when the language changes. HOW A SETTING IS NAMED is
@@ -78,13 +78,13 @@ function Poster({ poster }: { poster: { t: string; k?: string } }) {
 }
 
 // An ACTION is `{ texte, icone, cible, ton, desactive, mention, infobulle }`
-// — `cible` is a map of DATA ATTRIBUTES, never a handler and never markup;
+// — `target` is a map of DATA ATTRIBUTES, never a handler and never markup;
 // the click delegation reads those attributes, exactly as it does for a
 // card. This component adds NO `onClick` of its own for it.
 export type Action = {
   texte: string;
   icone?: string;
-  cible?: Record<string, string | number>;
+  target?: Record<string, string | number>;
   ton?: string;
   desactive?: boolean;
   mention?: string;
@@ -93,11 +93,11 @@ export type Action = {
 
 function ActionButton({ action }: { action: Action | null | undefined }) {
   if (!action) return null;
-  // The only dynamically-keyed attribute set in this file: `cible`'s keys
+  // The only dynamically-keyed attribute set in this file: `target`'s keys
   // are the action's own vocabulary (`fiche`, `go`, `toast`, …), decided by
   // each call site, not by this component.
   const attributes = Object.fromEntries(
-    Object.entries(action.cible ?? {}).map(([name, value]) => [
+    Object.entries(action.target ?? {}).map(([name, value]) => [
       `data-${name}`,
       String(value),
     ]),
@@ -211,9 +211,9 @@ const EP_SWATCH: Record<string, string> = {
 };
 
 // The slice of a "follow" record the season blocks read: `t` for lookups
-// against the référentiel (`sheetFor`/`possedesDe`), `st` as the fallback
+// against the référentiel (`sheetFor`/`ownedFor`), `st` as the fallback
 // state when a season has no per-episode ownership data. Not an exported
-// data.ts type — the panel receives whatever the caller's `suivi` object
+// data.ts type — the panel receives whatever the caller's `isFollowed` object
 // is, and only ever reads these two fields.
 export type Follow = { t: string; st?: string };
 
@@ -232,7 +232,7 @@ function epState(
   number: number,
   owned: number,
 ): string {
-  const held = reference.possedesDe(follow.t, seasonNum);
+  const held = reference.ownedFor(follow.t, seasonNum);
   if (held)
     return held.has(number)
       ? "en_mediatheque"
@@ -279,7 +279,7 @@ function SeasonDetails({
   const cells = Array.from({ length: total }, (_, index) => {
     const number = index + 1;
     const info = catalog?.find((entry) => entry.n === number) ?? null;
-    const upcoming = Boolean(info?.air && info.air > reference.AUJOURDHUI);
+    const upcoming = Boolean(info?.air && info.air > reference.TODAY);
     const state = upcoming
       ? "annonce"
       : epState(reference, follow, num, number, owned);
@@ -331,10 +331,10 @@ function SeasonsBlock({
   block: Extract<PanelBlock, { type: "saisons" }>;
 }) {
   const reference = useReference();
-  const { suivi: follow, saisons: seasons } = block;
+  const { isFollowed: follow, saisons: seasons } = block;
   const hasUpcoming = seasons.some((season) =>
     (catalogFor(reference, follow, season[0]) ?? []).some(
-      (episode) => episode.air && episode.air > reference.AUJOURDHUI,
+      (episode) => episode.air && episode.air > reference.TODAY,
     ),
   );
   const statesPresent = new Set<string>([
@@ -387,16 +387,16 @@ function FieldBlock({
   block: Extract<PanelBlock, { type: "champ" }>;
 }) {
   const {
-    reglageId,
+    settingId,
     valeurEnCours,
     typedValue,
-    modifierReglage,
+    changeSetting,
     openSetting,
     icons,
   } = useReference();
   const { t } = useTranslation();
   const { reglage: setting } = block;
-  const id = reglageId(setting);
+  const id = settingId(setting);
   // The field draws what `valeurEnCours` answers — the pending edit if there
   // is one, the file's `brut` otherwise. Reading `.brut` alone would draw a
   // list one has just shortened at its old length, so a removal would look
@@ -511,7 +511,7 @@ function FieldBlock({
         ref={(element) => {
           if (!element) return;
           const commit = () => {
-            modifierReglage(id, typedValue(setting, element.value));
+            changeSetting(id, typedValue(setting, element.value));
             openSetting(id);
           };
           element.addEventListener("change", commit);
@@ -540,7 +540,7 @@ export type PanelBlock =
       actions: (Action | null | undefined)[];
       secondaire?: boolean;
     }
-  | { type: "saisons"; suivi: Follow; saisons: Season[] }
+  | { type: "saisons"; isFollowed: Follow; saisons: Season[] }
   | { type: "champ"; reglage: Setting };
 
 // The refusal itself, named, so the probe that exercises it

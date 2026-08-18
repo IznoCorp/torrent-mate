@@ -169,20 +169,20 @@ function DecisionCard({ decision }: { decision: SettledDecision }) {
     posterBox,
     svgIcon,
     icons,
-    ETAT_DECISION,
+    DECISION_STATE,
     DECISION_STATE_DETAIL,
     MOTIF_TON,
     MOTIF_LABEL,
     VIA_LABEL,
   } = useReference();
   const settled = decision.etat != null;
-  const state = settled ? ETAT_DECISION[decision.etat] : null;
+  const state = settled ? DECISION_STATE[decision.etat] : null;
   const poster =
-    settled && decision.choix
-      ? posterBox(decision.choix.t, decision.k)
+    settled && decision.choice
+      ? posterBox(decision.choice.t, decision.k)
       : `<span class="pfall">${svgIcon(decision.k === "movie" ? icons.film : icons.tv, 1.25)}<b>?</b></span>`;
-  const identity = decision.choix
-    ? `${decision.choix.t} · ${decision.choix.p.toUpperCase()} ${decision.choix.id} · ${VIA_LABEL[decision.choix.via] ?? decision.choix.via}`
+  const identity = decision.choice
+    ? `${decision.choice.t} · ${decision.choice.p.toUpperCase()} ${decision.choice.id} · ${VIA_LABEL[decision.choice.via] ?? decision.choice.via}`
     : null;
   return (
     <div className="card" data-nonmedia="decision">
@@ -195,7 +195,7 @@ function DecisionCard({ decision }: { decision: SettledDecision }) {
           <span className="ctitle" title={decision.d}>
             <code>{decision.d}</code>
           </span>
-          <span className="csub">{decision.quand}</span>
+          <span className="csub">{decision.when}</span>
           {/* What was chosen is the most useful line here — it is the answer
               one comes back to read — so it wraps rather than truncating. On
               one line it lost its provider id and how it was found, which is
@@ -276,7 +276,7 @@ export function ResolutionScreen() {
   // reached by a typed/bookmarked URL did not necessarily go through it.
   const folder = raw.normalize("NFC");
   // The queue lists (`world.blocked` / `world.stuck` / `world.stuckReel`) are
-  // MUTATED IN PLACE by `actionResoudre` / `actionLeave` (splice, unshift),
+  // MUTATED IN PLACE by `actionResolve` / `actionLeave` (splice, unshift),
   // which bump the store's `version` through `render()` without producing a new
   // `etat` reference. Subscribing to `version` is what makes the progression
   // (« 1 sur 2 ») and « Passer à la suivante » answer the queue as it is now —
@@ -288,7 +288,7 @@ export function ResolutionScreen() {
     MOTIF_LABEL,
     MOTIF_TON,
     DECISIONS_REGLEES,
-    decisionEnAttente,
+    decisionPending,
     derivedBlocked,
     derivedStuck,
   } = useReference();
@@ -296,20 +296,20 @@ export function ResolutionScreen() {
   // A folder either HAS a pending decision or it has none, and the screen must
   // not borrow one. Showing another folder's candidates would be the worst
   // possible lie on the one screen whose job is to name what is on disk.
-  const decision = decisionEnAttente(folder);
+  const decision = decisionPending(folder);
   // The queue spans BOTH surfaces a decision shows up on: « À traiter » on the
   // acquisition side and « Ça coince » in Arrivées. They are two views of one
   // thing — a folder the scrape could not name — and a progression that
   // counted only one of them would be wrong on the other.
   const pending = derivedBlocked()
     .concat(derivedStuck())
-    .filter((card: QueueCard) => decisionEnAttente(card.t as string) != null);
+    .filter((card: QueueCard) => decisionPending(card.t as string) != null);
   const rank = decision
     ? pending.findIndex((card: QueueCard) => card.t === decision.d) + 1
     : 0;
   // The legacy screen picked its own subject between `decision.d` and
   // `state.resolveTarget`; here the ROUTE PARAM is the identity, and
-  // `decisionEnAttente` matches on that very `d` — so the two legacy branches
+  // `decisionPending` matches on that very `d` — so the two legacy branches
   // are one value. A target the door could not resolve at all reaches this
   // screen as the legacy's own last resort, « élément inconnu ».
   return (

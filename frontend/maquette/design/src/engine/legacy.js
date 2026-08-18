@@ -448,7 +448,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       return `Recherche automatique : ${escapeHtml(cron)} (cadence non interprétée)`;
     const min = exec[1].padStart(2, "0");
     const hours = exec[2].split(",").map((split) => `${split} h ${min}`);
-    const quand =
+    const when =
       hours.length === 1
         ? `à ${hours[0]}`
         : `à ${hours.slice(0, -1).join(", ")} et ${hours[hours.length - 1]}`;
@@ -456,7 +456,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       hours.length === 1
         ? "une fois par jour"
         : `${hours.length} fois par jour`;
-    return `Recherche automatique : ${freq}, ${quand}`;
+    return `Recherche automatique : ${freq}, ${when}`;
   }
 
   /* The next slot that cron will fire, phrased as the cadence line phrases the
@@ -4598,7 +4598,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      returns today, embedded because this prototype has no external resource —
      a page that reaches the network is a page that renders differently
      depending on where it is opened. */
-  const COMPTE = {
+  const ACCOUNT = {
     nom: "izno",
     mail: "iznogoudatall@gmail.com",
     avatar: "assets/avatar.webp",
@@ -5956,7 +5956,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   };
   /* `dismissed` and `superseded` are spelled out: the raw words say what the
      code did, not what happened to the folder. */
-  const ETAT_DECISION = {
+  const DECISION_STATE = {
     resolved: ["success", "Réglée"],
     dismissed: ["neutral", "Laissée telle quelle"],
     superseded: ["info", "Remplacée depuis"],
@@ -5981,7 +5981,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       t: "The Odyssey",
       motif: "ambiguous",
       etat: "superseded",
-      quand: "6 août, 09 h 24",
+      when: "6 août, 09 h 24",
       y: 2026,
     },
     {
@@ -5990,8 +5990,8 @@ import { ecrans, panneau, pont } from "../seams.js";
       t: "The Bombing of Pan Am S01E03",
       motif: "below_threshold",
       etat: "resolved",
-      quand: "4 août, 12 h 37",
-      choix: {
+      when: "4 août, 12 h 37",
+      choice: {
         t: "The Bombing of Pan Am S01E03",
         p: "tvdb",
         id: 456595,
@@ -6004,7 +6004,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       t: "Star Trek",
       motif: "mid_band",
       etat: "superseded",
-      quand: "30 juillet, 15 h 42",
+      when: "30 juillet, 15 h 42",
     },
     {
       d: "The Hawk",
@@ -6012,8 +6012,8 @@ import { ecrans, panneau, pont } from "../seams.js";
       t: "The Hawk",
       motif: "ambiguous",
       etat: "resolved",
-      quand: "22 juillet, 22 h 11",
-      choix: { t: "The Hawk", p: "tvdb", id: 450088, via: "pick" },
+      when: "22 juillet, 22 h 11",
+      choice: { t: "The Hawk", p: "tvdb", id: 450088, via: "pick" },
     },
     {
       d: "Lucky",
@@ -6021,8 +6021,8 @@ import { ecrans, panneau, pont } from "../seams.js";
       t: "Lucky",
       motif: "ambiguous",
       etat: "resolved",
-      quand: "15 juillet, 14 h 55",
-      choix: { t: "Lucky (2026)", p: "tvdb", id: 457437, via: "pick" },
+      when: "15 juillet, 14 h 55",
+      choice: { t: "Lucky (2026)", p: "tvdb", id: 457437, via: "pick" },
     },
     {
       d: "Top Chef Le Concours Parallèle (2026)",
@@ -6030,9 +6030,9 @@ import { ecrans, panneau, pont } from "../seams.js";
       t: "Top Chef Le Concours Parallele",
       motif: "mid_band",
       etat: "resolved",
-      quand: "13 juillet, 18 h 44",
+      when: "13 juillet, 18 h 44",
       y: 2026,
-      choix: {
+      choice: {
         t: "Top Chef Le Concours Parallele",
         p: "tvdb",
         id: 475278,
@@ -6045,9 +6045,9 @@ import { ecrans, panneau, pont } from "../seams.js";
       t: "Ferrari Tsamere Lecaplain La tournee du Trio",
       motif: "manual",
       etat: "resolved",
-      quand: "13 juillet, 18 h 44",
+      when: "13 juillet, 18 h 44",
       y: 2025,
-      choix: {
+      choice: {
         t: "Ferrari, Tsamere, Lecaplain : La Tournée du Trio",
         p: "tmdb",
         id: 1433379,
@@ -6060,9 +6060,9 @@ import { ecrans, panneau, pont } from "../seams.js";
       t: "Aymeric Lompret et Pierre Emmanuel Barre Woke me up",
       motif: "manual",
       etat: "resolved",
-      quand: "13 juillet, 18 h 44",
+      when: "13 juillet, 18 h 44",
       y: 2026,
-      choix: {
+      choice: {
         t: "Aymeric Lompret et Pierre Emmanuel Barre Woke me up",
         p: "tmdb",
         id: 1629753,
@@ -6075,9 +6075,9 @@ import { ecrans, panneau, pont } from "../seams.js";
       t: "Obsession",
       motif: "manual",
       etat: "resolved",
-      quand: "13 juillet, 16 h 46",
+      when: "13 juillet, 16 h 46",
       y: 2026,
-      choix: { t: "Obsession", p: "tmdb", id: 1339713, via: "pick" },
+      choice: { t: "Obsession", p: "tmdb", id: 1339713, via: "pick" },
     },
     {
       d: "Remarkably Bright Creatures (2026)",
@@ -6085,9 +6085,9 @@ import { ecrans, panneau, pont } from "../seams.js";
       t: "Remarkably Bright Creatures",
       motif: "manual",
       etat: "resolved",
-      quand: "13 juillet, 16 h 05",
+      when: "13 juillet, 16 h 05",
       y: 2026,
-      choix: {
+      choice: {
         t: "Remarkably Bright Creatures",
         p: "tmdb",
         id: 1330021,
@@ -6108,13 +6108,13 @@ import { ecrans, panneau, pont } from "../seams.js";
      two of the ten rows in the base came back with no candidate at all. It
      hangs on the dense scenario's folder, whose stated reason already says
      precisely that. */
-  const DECISIONS_ATTENTE = [
+  const PENDING_DECISIONS = [
     {
       d: "Lucky",
       k: "show",
       t: "Lucky",
       motif: "ambiguous",
-      quand: "15 juillet, 14 h 52",
+      when: "15 juillet, 14 h 52",
       c: [
         {
           t: "Lucky!",
@@ -6174,7 +6174,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       t: "Backrooms",
       y: 2026,
       motif: "below_threshold",
-      quand: "aujourd'hui, 06 h 16",
+      when: "aujourd'hui, 06 h 16",
       c: [],
     },
   ];
@@ -6240,7 +6240,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      is the one the operator can act on, and it points at « Ça coince » just
      below rather than at a log. */
   const PIPELINE = {
-    etapes: [
+    steps: [
       {
         n: "ingest",
         l: "Récupération",
@@ -6298,7 +6298,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     /* The run of 14/08 07:08, exactly as `pipeline_run` recorded it. */
     dernier: {
       uid: "2b598104",
-      quand: "aujourd'hui à 07 h 08",
+      when: "aujourd'hui à 07 h 08",
       duree: "1 min 44 s",
       declencheur: "completion",
       issue: "success",
@@ -6981,7 +6981,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      reads `currentState().page` — the parentheses are the point, visible at
      every site, saying « this is a read, now » instead of looking like a
      module-level variable that someone must remember to refresh. */
-  const currentState = () => magasin.lire().etat;
+  const currentState = () => store.lire().etat;
 
   const INITIAL_STATE = {
     page: "acq",
@@ -7192,7 +7192,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      describing a fact the panel does not know about yet. The fix is still to
      add the fact.
 
-     An ACTION's `cible` remains a map of DATA ATTRIBUTES, never a handler:
+     An ACTION's `target` remains a map of DATA ATTRIBUTES, never a handler:
      the click delegation below reads those attributes, exactly as it does for
      a card, and that is what keeps a panel opened by the shell answering to
      the engine's own acts. */
@@ -7239,7 +7239,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   let world = null;
   // The single owner of the mutable state, adopted at boot by
   // window.__demarrerMoteur — null until the shell calls it.
-  let magasin = null;
+  let store = null;
   function seedWorld() {
     const deepCopy = (value) => JSON.parse(JSON.stringify(value));
     world = {
@@ -7264,7 +7264,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     // `world` in place, and a store still holding the previous object would
     // hand a component a world nobody writes to anymore. Optional because the
     // first seed runs before the shell hands the store over.
-    magasin?.adopterMonde(world);
+    store?.adopterMonde(world);
   }
   seedWorld();
   /* Simulated behaviours
@@ -7272,7 +7272,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      is not « a toast appears » but « the card leaves À récupérer, appears
      in En vol at the taken step, and the badge loses 1 ». */
 
-  function actionRecuperer(titre) {
+  function actionTake(titre) {
     const findIndex = world.takeable.findIndex(
       (takeable) => takeable.t === titre,
     );
@@ -7298,15 +7298,15 @@ import { ecrans, panneau, pont } from "../seams.js";
      button was there, the screen opened, the choice was made, and the item
      stayed exactly where it was. */
   function leaveQueue(titre) {
-    for (const [liste, versCharge] of [
+    for (const [list, versCharge] of [
       [world.stuck, true],
       [world.stuckReel, false],
       [world.blocked, true],
     ]) {
-      if (!liste) continue;
-      const index = liste.findIndex((item) => item.t === titre);
+      if (!list) continue;
+      const index = list.findIndex((item) => item.t === titre);
       if (index < 0) continue;
-      const [sorti] = liste.splice(index, 1);
+      const [sorti] = list.splice(index, 1);
       return { sorti, versCharge };
     }
     return null;
@@ -7334,11 +7334,11 @@ import { ecrans, panneau, pont } from "../seams.js";
     return true;
   }
 
-  function actionResoudre(titre, choix) {
+  function actionResolve(titre, choice) {
     const sortie = leaveQueue(titre);
     if (!sortie) return;
     const carte = {
-      t: choix ?? sortie.sorti.t,
+      t: choice ?? sortie.sorti.t,
       s: sortie.sorti.s,
       strip: [1, 1, 1, "now", 0],
       chip: ["info", "Scraping"],
@@ -7347,7 +7347,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     else (world.movingReel ??= []).unshift(carte);
     render();
     toast(
-      `Identifié comme « ${choix ?? sortie.sorti.t} » — le pipeline reprend jusqu'à la médiathèque.`,
+      `Identifié comme « ${choice ?? sortie.sorti.t} » — le pipeline reprend jusqu'à la médiathèque.`,
     );
   }
 
@@ -7404,7 +7404,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   function actionDelete(titres) {
     titres.forEach((titre) => world.removedLib.add(titre));
     world.lib = world.lib.filter((lib) => !world.removedLib.has(lib.t));
-    magasin.ecrire({ selMode: false, selected: new Set() });
+    store.ecrire({ selMode: false, selected: new Set() });
     render();
     toast(
       `${titres.length} média${titres.length > 1 ? "s" : ""} supprimé${titres.length > 1 ? "s" : ""} — simulation, aucun fichier touché.`,
@@ -7414,11 +7414,11 @@ import { ecrans, panneau, pont } from "../seams.js";
   /* The shell is static markup, so the avatar is placed once at boot — which is
      also what the app does, from its session payload. */
   const beforeReset = document.querySelector(".topbar .avatar img");
-  if (beforeReset) beforeReset.src = COMPTE.avatar;
+  if (beforeReset) beforeReset.src = ACCOUNT.avatar;
 
   window.__reset = () => {
     seedWorld();
-    magasin.ecrire({
+    store.ecrire({
       /* The SCENARIO is state too, and the loudest kind: it decides which
          world every later reading is taken from. A state that switched to the
          dense scenario left it switched for the next one, so a surface
@@ -7449,7 +7449,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     if (typeof resetSettings === "function") resetSettings();
     // The screen stack is navigation state: a measurement must not inherit
     // the screens a previous journey left underneath the visible one.
-    pileEcrans.length = 0;
+    screenStack.length = 0;
     currentRender = null;
     // The router is navigation state too: `__go` states are DRIVEN, not a
     // journey — a measurement must not inherit whichever screen ROUTE a
@@ -7524,7 +7524,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      label, a value, a sub-line, an optional state and an optional mono key —
      and a caller wanting something outside it adds a field rather than
      passing markup. An envelope guarantees nothing about what it carries. */
-  function listeFaitsHTML(lignes) {
+  function factsListHTML(lignes) {
     return `<ol class="flux">${factRowsHTML(lignes)}</ol>`;
   }
 
@@ -7532,7 +7532,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      that `<ol class="flux">` as its own element — React cannot set the outer
      markup of a node it is also drawing — and fills it with these, so the rows
      stay one emitter shared by every fact list rather than two that drift.
-     `listeFaitsHTML` above keeps emitting exactly what it always did. */
+     `factsListHTML` above keeps emitting exactly what it always did. */
   function factRowsHTML(lignes) {
     return `${lignes
       .map((ligne) => {
@@ -7542,15 +7542,15 @@ import { ecrans, panneau, pont } from "../seams.js";
         // A line that leads somewhere IS the control: a list of facts beside a
         // parallel column of buttons asks which of the two to aim at, and the
         // answer is never on screen.
-        const cible = ligne.cible
-          ? Object.entries(ligne.cible)
+        const target = ligne.target
+          ? Object.entries(ligne.target)
               .map(
                 ([nom, valeur]) =>
                   ` data-${nom}="${escapeHtml(String(valeur))}"`,
               )
               .join("")
           : "";
-        const tag = ligne.cible ? "button" : "span";
+        const tag = ligne.target ? "button" : "span";
         /* A BADGE, and it carries the word rather than sitting beside it.
 
            A row whose value is a STATE — en ligne / hors ligne, connecté /
@@ -7584,8 +7584,8 @@ import { ecrans, panneau, pont } from "../seams.js";
           ? `<span class="chip ${TONS[ligne.ton]}">${valeur}</span>`
           : valeur;
         return `<li class="fx${empty ? " fempty" : ""}${ligne.etat === "danger" ? " fblocked" : ""}${
-          ligne.cible ? " fclick" : ""
-        }"><${tag} class="fw"${cible}>
+          ligne.target ? " fclick" : ""
+        }"><${tag} class="fw"${target}>
       <span class="fn">${escapeHtml(ligne.l)}</span>
       <span class="fr">${badge}</span>
       <span class="fs">${ligne.k ? `<span class="fk">${escapeHtml(ligne.k)}</span>` : ""}${
@@ -7651,7 +7651,7 @@ import { ecrans, panneau, pont } from "../seams.js";
             {
               texte: action.blanc ? "Lancer à blanc" : "Lancer",
               ton: "solid",
-              cible: {
+              target: {
                 toast: `${action.l} — lancée${action.blanc ? " à blanc" : ""}. Le résultat s'affichera ici.`,
               },
             },
@@ -7695,7 +7695,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       id: "rangement",
       t: "Où vont les médias",
       s: "Les disques, les dossiers, et la catégorie dans laquelle chaque média atterrit.",
-      fichiers: ["paths", "disks", "categories"],
+      fileNames: ["paths", "disks", "categories"],
       r: [
         {
           f: "paths",
@@ -8067,7 +8067,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       id: "nommage",
       t: "Comment ils sont nommés",
       s: "Les motifs de renommage et l'encodage des noms de fichiers.",
-      fichiers: ["patterns", "encoding"],
+      fileNames: ["patterns", "encoding"],
       r: [
         {
           f: "patterns",
@@ -8174,7 +8174,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       id: "acquisition",
       t: "Ce qu'on va chercher",
       s: "Les trackers, le classement des releases, les seuils et les obligations de partage.",
-      fichiers: ["acquire", "tracker", "thresholds", "torrent", "watch_seed"],
+      fileNames: ["acquire", "tracker", "thresholds", "torrent", "watch_seed"],
       r: [
         {
           f: "acquire",
@@ -8435,7 +8435,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       id: "identite",
       t: "Ce qu'on en sait",
       s: "Les fournisseurs de métadonnées, le scrapage et les bandes-annonces.",
-      fichiers: ["metadata", "providers", "scraper", "trailers"],
+      fileNames: ["metadata", "providers", "scraper", "trailers"],
       r: [
         {
           f: "metadata",
@@ -8846,7 +8846,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       id: "service",
       t: "Ce qui tourne",
       s: "L'index, les notifications et le serveur web.",
-      fichiers: ["indexer", "notify", "web", "config"],
+      fileNames: ["indexer", "notify", "web", "config"],
       r: [
         {
           f: "indexer",
@@ -9085,7 +9085,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       id: "passages",
       t: "Les passages programmés",
       s: "À quelle heure le moteur cherche, récupère, et remet son index à jour.",
-      fichiers: ["ecosystem.config.js"],
+      fileNames: ["ecosystem.config.js"],
       r: [
         {
           f: "ecosystem.config.js",
@@ -9190,7 +9190,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      Nothing is written until the save bar is used. A setting changed here is
      PENDING, marked on its own row and counted in the bar, and the bar names
      the files it will write. */
-  const REG_ETAT = {
+  const SETTINGS_STATE = {
     modifs: new Map(),
     rubrique: null,
     q: "",
@@ -9203,20 +9203,20 @@ import { ecrans, panneau, pont } from "../seams.js";
      one is in and the search are all state, and a measurement must not inherit
      the one before it. */
   function resetSettings() {
-    REG_ETAT.modifs.clear();
-    REG_ETAT.rubrique = null;
-    REG_ETAT.q = "";
-    REG_ETAT.lectureSeule = false;
-    REG_ETAT.redemarrage = false;
-    REG_ETAT.conflit = false;
+    SETTINGS_STATE.modifs.clear();
+    SETTINGS_STATE.rubrique = null;
+    SETTINGS_STATE.q = "";
+    SETTINGS_STATE.lectureSeule = false;
+    SETTINGS_STATE.redemarrage = false;
+    SETTINGS_STATE.conflit = false;
   }
 
-  function reglageId(reglage) {
+  function settingId(reglage) {
     return `${reglage.f}:${reglage.c}`;
   }
 
   function valeurCourante(reglage) {
-    const change = REG_ETAT.modifs.get(reglageId(reglage));
+    const change = SETTINGS_STATE.modifs.get(settingId(reglage));
     return change === undefined ? reglage.v : change;
   }
 
@@ -9231,11 +9231,11 @@ import { ecrans, panneau, pont } from "../seams.js";
 
   function changedFiles() {
     return [
-      ...new Set([...REG_ETAT.modifs.keys()].map((id) => id.split(":")[0])),
+      ...new Set([...SETTINGS_STATE.modifs.keys()].map((id) => id.split(":")[0])),
     ];
   }
 
-  function tousLesReglages() {
+  function allSettings() {
     return SETTINGS.flatMap((rubrique) =>
       rubrique.r.map((reglage) => ({ ...reglage, rubrique })),
     );
@@ -9266,8 +9266,8 @@ import { ecrans, panneau, pont } from "../seams.js";
      A value that is not set (2) keeps the field its type asks for and says it
      is empty — never a zero, never an empty string standing in for « absent ». */
   function valeurEnCours(reglage) {
-    const id = reglageId(reglage);
-    return REG_ETAT.modifs.has(id) ? REG_ETAT.modifs.get(id) : reglage.brut;
+    const id = settingId(reglage);
+    return SETTINGS_STATE.modifs.has(id) ? SETTINGS_STATE.modifs.get(id) : reglage.brut;
   }
 
 
@@ -9280,14 +9280,14 @@ import { ecrans, panneau, pont } from "../seams.js";
       : a === b;
   }
 
-  function modifierReglage(id, valeur) {
-    const reglage = tousLesReglages().find((r) => reglageId(r) === id);
+  function changeSetting(id, valeur) {
+    const reglage = allSettings().find((r) => settingId(r) === id);
     if (!reglage) return;
     // A value equal to the file's is not a pending change: it is no change, and
     // leaving it in the map would make the save bar name a file it would write
     // identically.
-    if (sameValue(valeur, reglage.brut)) REG_ETAT.modifs.delete(id);
-    else REG_ETAT.modifs.set(id, valeur);
+    if (sameValue(valeur, reglage.brut)) SETTINGS_STATE.modifs.delete(id);
+    else SETTINGS_STATE.modifs.set(id, valeur);
     render();
   }
 
@@ -9316,7 +9316,7 @@ import { ecrans, panneau, pont } from "../seams.js";
         {
           type: "actions",
           actions: [
-            REG_ETAT.lectureSeule
+            SETTINGS_STATE.lectureSeule
               ? {
                   texte: "Lecture seule sur cette instance",
                   icone: icons.x,
@@ -9326,7 +9326,7 @@ import { ecrans, panneau, pont } from "../seams.js";
                   texte: "Remplacer la valeur",
                   icone: icons.wrench,
                   ton: "primary",
-                  cible: {
+                  target: {
                     toast:
                       "Un champ masqué s'ouvre ici. Laissé vide, il n'efface rien.",
                   },
@@ -9336,7 +9336,7 @@ import { ecrans, panneau, pont } from "../seams.js";
                   texte: "Retirer la clé",
                   icone: icons.trash,
                   ton: "danger",
-                  cible: {
+                  target: {
                     toast:
                       "Retirer une clé coupe ce qu'elle autorisait — le service le dira avant.",
                   },
@@ -9352,17 +9352,17 @@ import { ecrans, panneau, pont } from "../seams.js";
      same descriptor of facts. What it says: where the value comes from, what
      the file's own comment explains, and what it is now. */
   function openSetting(id) {
-    const reglage = tousLesReglages().find((r) => reglageId(r) === id);
+    const reglage = allSettings().find((r) => settingId(r) === id);
     if (!reglage) return;
     const courante = valeurCourante(reglage);
-    const changed = REG_ETAT.modifs.has(id);
+    const changed = SETTINGS_STATE.modifs.has(id);
     panneau.ouvrir({
       titre: window.__settingLabels.label(reglage),
       meta: [{ m: `${reglage.f}.json5 · ${reglage.c}` }],
       ...(changed ? { puce: ["info", "modifié, pas encore écrit"] } : {}),
       blocs: [
         reglage.note ? { type: "note", texte: reglage.note } : null,
-        REG_ETAT.lectureSeule ? null : { type: "champ", reglage },
+        SETTINGS_STATE.lectureSeule ? null : { type: "champ", reglage },
         {
           type: "faits",
           lignes: [
@@ -9377,7 +9377,7 @@ import { ecrans, panneau, pont } from "../seams.js";
         {
           type: "actions",
           actions: [
-            REG_ETAT.lectureSeule
+            SETTINGS_STATE.lectureSeule
               ? {
                   texte: "Lecture seule sur cette instance",
                   icone: icons.x,
@@ -9388,7 +9388,7 @@ import { ecrans, panneau, pont } from "../seams.js";
               ? {
                   texte: "Annuler la modification",
                   icone: icons.x,
-                  cible: { annulerreg: id },
+                  target: { annulerreg: id },
                 }
               : null,
           ],
@@ -9526,13 +9526,13 @@ import { ecrans, panneau, pont } from "../seams.js";
     // Every action ends in render(): one bump here reaches React for every
     // simulated mutation, including the ones made in place on `world`
     // (splice, unshift…) that never pass through `ecrire`.
-    magasin?.toucher();
+    store?.toucher();
     /* An id no page carries is not a crash: it is the `*` route. Looking one
        up and calling `.render()` on nothing stopped the whole interface on a
        TypeError, which is the worst possible answer to a stale bookmark. */
     let found = PAGES_OF().find((element) => element.id === currentState().page);
     if (!found) {
-      magasin.ecrire({ introuvable: "/" + currentState().page, page: "404" });
+      store.ecrire({ introuvable: "/" + currentState().page, page: "404" });
       found = PAGES_OF().find((element) => element.id === "404");
     }
     /* A page the SHELL owns draws itself, through a React portal into this very
@@ -9664,13 +9664,13 @@ import { ecrans, panneau, pont } from "../seams.js";
     render,
     HEROS,
     POSTERS,
-    /* What the Système page draws. `listeFaitsHTML` is the
+    /* What the Système page draws. `factsListHTML` is the
        emitter every fact list on this page and on Maintenance goes through;
        a component calls it VERBATIM rather than re-deriving its markup,
        because the delegated click handlers depend on that markup being
        byte-exact (the same reason `cardHTML` is reused above). `skelCards`
        and `surfErr` are the page's two non-ready surfaces. */
-    listeFaitsHTML,
+    factsListHTML,
     factRowsHTML,
     /* What the Arrivées page draws. `secHTML` is the section emitter the
        acquisition page's five sections still share — a migrated page draws the
@@ -9702,7 +9702,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     /* The account the server really has, and the escaper the fragment's own
        emitters use — a migrated page that builds a fragment of markup has to
        escape exactly what the legacy escaped. */
-    COMPTE,
+    ACCOUNT,
     escapeHtml,
     /* The suggestion machinery, called by the page AFTER React has drawn its
        containers. `render()` calls these too, for as long as a legacy page can
@@ -9784,11 +9784,11 @@ import { ecrans, panneau, pont } from "../seams.js";
     /* What the Réglages page draws. REG_ETAT est l'objet
        MUTABLE que la délégation écrit : il reste la source, et le composant le
        relit à chaque bump de version du magasin (`render()` appelle
-       `magasin?.toucher()` en premier). Le NOM d'un réglage, lui, n'est plus
+       `store?.toucher()` en premier). Le NOM d'un réglage, lui, n'est plus
        ici : `settings-labels.ts` le porte pour la page comme pour le panneau,
        et le fragment le lit par `window.__settingLabels`. */
     SETTINGS,
-    REG_ETAT,
+    SETTINGS_STATE,
     SECRETS,
     emptyInner,
     valeurCourante,
@@ -9808,16 +9808,16 @@ import { ecrans, panneau, pont } from "../seams.js";
     EP_LABEL,
     sheetFor,
     seasonsOf,
-    possedesDe,
+    ownedFor,
     plages,
     initials,
     dateFR,
-    get AUJOURDHUI() {
-      return AUJOURDHUI;
+    get TODAY() {
+      return TODAY;
     },
     svgIcon,
-    tousLesReglages,
-    reglageId,
+    allSettings,
+    settingId,
     // What a field must DRAW: the pending edit if there is one, the file's
     // value otherwise. The pending-edit overlay itself stays private — a
     // reader of this returns the value, never the map — but a panel that drew
@@ -9825,24 +9825,24 @@ import { ecrans, panneau, pont } from "../seams.js";
     // length, and the removal would look like it did nothing.
     valeurEnCours,
     typedValue,
-    modifierReglage,
+    changeSetting,
     openSetting,
-    // The arbitration flow. `DECISIONS_ATTENTE` / `DECISIONS_REGLEES` and the
+    // The arbitration flow. `PENDING_DECISIONS` / `DECISIONS_REGLEES` and the
     // label maps are all `const` declared above this literal, so a plain
     // shorthand reference reads the finished value — no TDZ here. `toast` and
-    // `decisionEnAttente` are declared with `function` further down this same
+    // `decisionPending` are declared with `function` further down this same
     // script; a function declaration hoists its whole definition (unlike
     // `let`/`const`, which only hoist to a temporal dead zone), so a plain
     // shorthand reference to either is already callable at this point too.
-    DECISIONS_ATTENTE,
+    PENDING_DECISIONS,
     DECISIONS_REGLEES,
     MOTIF_LABEL,
     MOTIF_TON,
     REASON_DETAIL,
-    ETAT_DECISION,
+    DECISION_STATE,
     DECISION_STATE_DETAIL,
     VIA_LABEL,
-    decisionEnAttente,
+    decisionPending,
     // Thin arrows over `derived.blocked` / `derived.stuck` — `derived` itself
     // is already initialized above this literal, but the wrapper still earns
     // its keep: it publishes a STABLE function reference while the value each
@@ -9855,9 +9855,9 @@ import { ecrans, panneau, pont } from "../seams.js";
     derivedInflight: () => derived.inflight(),
     derivedNotfound: () => derived.notfound(),
     derivedDoneToday: () => derived.doneToday(),
-    actionResoudre,
+    actionResolve,
     actionLeave,
-    actionRecuperer,
+    actionTake,
     toast,
     posterBox,
     chipHTML,
@@ -10077,7 +10077,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   const PRESS_MS = 480;
   const PRESS_TOLERANCE = 12;
   let press = null;
-  let clicAvaler = null;
+  let swallowClick = null;
 
   /* Which panel a press addresses, from wherever the finger landed.
 
@@ -10085,22 +10085,22 @@ import { ecrans, panneau, pont } from "../seams.js";
      `data-panel`: it carries the sheet it opens on a tap. Its card knows the
      panel, so the search widens to the card the finger is in — one gesture,
      one meaning, on every part of a medium. */
-  function panelUnderFinger(cible) {
+  function panelUnderFinger(target) {
     return (
-      cible.closest?.("[data-panel]") ??
-      cible.closest?.(".card, .sugwrap")?.querySelector("[data-panel]") ??
+      target.closest?.("[data-panel]") ??
+      target.closest?.(".card, .sugwrap")?.querySelector("[data-panel]") ??
       null
     );
   }
 
-  function armPress(point, cible) {
-    const element = panelUnderFinger(cible);
+  function armPress(point, target) {
+    const element = panelUnderFinger(target);
     if (currentState().selMode || !element) return;
     /* A card body opens the panel on a simple TAP, so arming a timer on it
        would fire the panel twice — once on the press, once on the click. */
-    if (element.classList.contains("cbody") && cible.closest?.(".cbody"))
+    if (element.classList.contains("cbody") && target.closest?.(".cbody"))
       return;
-    annulerAppui();
+    cancelPress();
     press = {
       element,
       x: point.clientX,
@@ -10120,7 +10120,7 @@ import { ecrans, panneau, pont } from "../seams.js";
            deliberate tap somewhere else never does. Measured: the click
            arrives 1 ms after the lift, which is why no timer can tell them
            apart. */
-        clicAvaler = { x: point.clientX, y: point.clientY };
+        swallowClick = { x: point.clientX, y: point.clientY };
         openPanel(element);
       }, PRESS_MS),
     };
@@ -10129,10 +10129,10 @@ import { ecrans, panneau, pont } from "../seams.js";
   function followPress(point) {
     if (!press) return;
     const distance = Math.hypot(point.clientX - press.x, point.clientY - press.y);
-    if (distance > PRESS_TOLERANCE) annulerAppui();
+    if (distance > PRESS_TOLERANCE) cancelPress();
   }
 
-  function annulerAppui() {
+  function cancelPress() {
     if (!press) return;
     clearTimeout(press.minuteur);
     press = null;
@@ -10153,7 +10153,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     "pointerdown",
     (event) => {
       // A new gesture clears any mark the previous one left unconsumed.
-      clicAvaler = null;
+      swallowClick = null;
       if (event.isPrimary) armPress(event, event.target);
     },
     { passive: true },
@@ -10164,12 +10164,12 @@ import { ecrans, panneau, pont } from "../seams.js";
   /* The mark is NEVER cleared on pointerup: for a real finger the click comes
      1 ms later, in a later task, so clearing there — even deferred by a
      macrotask — clears it before the click it exists for. */
-  window.addEventListener("pointerup", annulerAppui);
+  window.addEventListener("pointerup", cancelPress);
   window.addEventListener("pointercancel", () => {
     // The compositor claimed the gesture: it is a scroll, not a press — and no
     // click will follow it, so nothing is left waiting to be swallowed.
-    annulerAppui();
-    clicAvaler = null;
+    cancelPress();
+    swallowClick = null;
   });
 
   /* The browser's own menu is refused wherever the interface answers a press.
@@ -10199,12 +10199,12 @@ import { ecrans, panneau, pont } from "../seams.js";
   document.addEventListener(
     "click",
     (event) => {
-      if (!clicAvaler) return;
+      if (!swallowClick) return;
       const distance = Math.hypot(
-        event.clientX - clicAvaler.x,
-        event.clientY - clicAvaler.y,
+        event.clientX - swallowClick.x,
+        event.clientY - swallowClick.y,
       );
-      clicAvaler = null;
+      swallowClick = null;
       if (distance > PRESS_TOLERANCE) return;
       event.preventDefault();
       event.stopPropagation();
@@ -10220,9 +10220,9 @@ import { ecrans, panneau, pont } from "../seams.js";
      its shape twice. */
   function openUserSheet() {
     panneau.ouvrir({
-      titre: COMPTE.nom,
-      sousTitre: COMPTE.mail,
-      avatar: COMPTE.avatar,
+      titre: ACCOUNT.nom,
+      sousTitre: ACCOUNT.mail,
+      avatar: ACCOUNT.avatar,
       blocs: [
         {
           type: "actions",
@@ -10231,13 +10231,13 @@ import { ecrans, panneau, pont } from "../seams.js";
             {
               texte: "Profil et préférences",
               icone: icons.user,
-              cible: { go: "profil" },
+              target: { go: "profil" },
             },
             {
               texte: "Se déconnecter",
               icone: icons.logout,
               ton: "danger",
-              cible: { deconnexion: "1" },
+              target: { deconnexion: "1" },
             },
           ],
         },
@@ -10331,7 +10331,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      back, so it comes round again. « Pas intéressé » removes it, with an undo. */
   function deckOrder() {
     if (!currentState().sugOrder)
-      magasin.ecrire({
+      store.ecrire({
         sugOrder: SUGGESTIONS.map((SUGGESTIONS2, index) => index),
       });
     return currentState().sugOrder.filter((sugOrder) => !currentState().sugGone.has(sugOrder));
@@ -10339,7 +10339,7 @@ import { ecrans, panneau, pont } from "../seams.js";
 
   function passerSug(index) {
     const filter = deckOrder().filter((element) => element !== index);
-    magasin.ecrire({ sugOrder: [...filter, index] });
+    store.ecrire({ sugOrder: [...filter, index] });
   }
 
   function deckHTML() {
@@ -10471,11 +10471,11 @@ import { ecrans, panneau, pont } from "../seams.js";
       // legacy deck directly, so React needs the explicit bump `ecrire`
       // would otherwise have given it for free.
       currentState().sugGone.add(index);
-      magasin.toucher();
+      store.toucher();
       refreshDeck();
       toastUndo(`« ${SUGGESTIONS[index].t} » écarté.`, () => {
         currentState().sugGone.delete(index);
-        magasin.toucher();
+        store.toucher();
         refreshDeck();
       });
       return;
@@ -10483,13 +10483,13 @@ import { ecrans, panneau, pont } from "../seams.js";
     const element = document.querySelector(`[data-dismissable="${index}"]`);
     if (!element) return;
     currentState().sugGone.add(index);
-    magasin.toucher();
+    store.toucher();
     element.style.height = element.getBoundingClientRect().height + "px";
     requestAnimationFrame(() => element.classList.add("gone"));
     setTimeout(() => element.remove(), 320);
     toastUndo(`« ${SUGGESTIONS[index].t} » écarté.`, () => {
       currentState().sugGone.delete(index);
-      magasin.toucher();
+      store.toucher();
       fillSug();
       sugFoot();
     });
@@ -10509,12 +10509,12 @@ import { ecrans, panneau, pont } from "../seams.js";
               texte: sugVerb(suggestion),
               icone: icons.plus,
               ton: "primary",
-              cible: { follow: suggestion.t, sugidx: index },
+              target: { follow: suggestion.t, sugidx: index },
             },
             {
               texte: "Voir la fiche",
               icone: icons.eye,
-              cible: { fiche: suggestion.t },
+              target: { fiche: suggestion.t },
             },
           ],
         },
@@ -10526,7 +10526,7 @@ import { ecrans, panneau, pont } from "../seams.js";
               texte: "Pas intéressé",
               icone: icons.x,
               ton: "danger",
-              cible: { dropsug: index },
+              target: { dropsug: index },
             },
           ],
         },
@@ -10596,12 +10596,12 @@ import { ecrans, panneau, pont } from "../seams.js";
               icone: icons.plus,
               ton: "primary",
               desactive: done,
-              cible: { act: `add:${index}` },
+              target: { act: `add:${index}` },
             },
             {
               texte: "Voir la fiche",
               icone: icons.eye,
-              cible: { fiche: result.t },
+              target: { fiche: result.t },
             },
           ],
         },
@@ -10629,10 +10629,10 @@ import { ecrans, panneau, pont } from "../seams.js";
 
   function loadMoreSug() {
     if (currentState().sugLoading || currentState().sugCount >= SUGGESTIONS.length) return;
-    magasin.ecrire({ sugLoading: true });
+    store.ecrire({ sugLoading: true });
     if (sugObserver) sugObserver.disconnect();
     setTimeout(() => {
-      magasin.ecrire({
+      store.ecrire({
         sugLoading: false,
         sugCount: Math.min(SUGGESTIONS.length, currentState().sugCount + SUG_BATCH),
       });
@@ -10657,7 +10657,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     const element2 = document.querySelector("#follq");
     if (element2)
       element2.oninput = () => {
-        magasin.ecrire({ filtre: element2.value });
+        store.ecrire({ filtre: element2.value });
         const pos = element2.selectionStart;
         render();
         const element3 = document.querySelector("#follq");
@@ -10837,16 +10837,16 @@ import { ecrans, panneau, pont } from "../seams.js";
      would lie about it. The « close then act » flows (answering a decision,
      picking a release) are not replacements — they empty the layer first,
      so nothing stacks and back keeps meaning « leave ». */
-  const pileEcrans = [];
+  const screenStack = [];
   let currentRender = null;
-  let depilage = false;
+  let unwinding = false;
 
   function openScreen(html, cle, rendre) {
     const element = select("#screen");
     const alreadyOpen = element.classList.contains("open");
     const sameScreen = alreadyOpen && cle != null && element.dataset.cle === cle;
-    if (alreadyOpen && !sameScreen && !depilage && currentRender) {
-      pileEcrans.push({
+    if (alreadyOpen && !sameScreen && !unwinding && currentRender) {
+      screenStack.push({
         rendre: currentRender,
         scrollY: element.querySelector(".port")?.scrollTop ?? 0,
       });
@@ -10911,16 +10911,16 @@ import { ecrans, panneau, pont } from "../seams.js";
   }
   function closeScreen(pop) {
     if (!select("#screen").classList.contains("open")) return;
-    const precedent = pileEcrans.pop();
+    const precedent = screenStack.pop();
     if (precedent) {
       // A screen above another one: this back REDRAWS what it covered
-      // instead of closing the layer. `depilage` keeps the redraw from
+      // instead of closing the layer. `unwinding` keeps the redraw from
       // stacking the screen being left on top of itself.
-      depilage = true;
+      unwinding = true;
       try {
         precedent.rendre();
       } finally {
-        depilage = false;
+        unwinding = false;
       }
       const port = select("#screen").querySelector(".port");
       if (port && precedent.scrollY > 0) {
@@ -10968,7 +10968,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   // independently-maintained list. Defaulted to "/" so a call made before
   // the boot handshake (there should be none) fails toward the common case
   // rather than toward whatever the document happens to be opened from.
-  let adresseBase = "/";
+  let baseAddress = "/";
 
   /* ── L'URL PORTE L'ÉTAT (DOIT-10) ─────────────────────────────────────
      « Chaque détail a son URL » is a rule of the constitution, and the
@@ -11006,7 +11006,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     // subscribes to that same history instance (Transitioner mounts
     // `router.history.subscribe(router.load)`) and re-derives its matches
     // from whatever URL lands there, regardless of who pushed it. A legacy
-    // nav writing `adresseBase + "?page=lib"` while the address reads
+    // nav writing `baseAddress + "?page=lib"` while the address reads
     // `/ajout` is exactly what makes the router notice the address no
     // longer matches `/ajout` and unmount the screen — no navigate() call
     // needed on this side of the bridge.
@@ -11023,7 +11023,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       if (valeur && valeur !== URL_DEFAULTS[nom])
         params.set(nom, String(valeur));
     const query = params.toString();
-    return adresseBase + (query ? "?" + query : "");
+    return baseAddress + (query ? "?" + query : "");
   }
 
   /* Reads back what the URL carries. An absent parameter is not « empty »: it
@@ -11071,7 +11071,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      previous arrival. Pushing the state being left instead puts the history
      one step ahead of the interface, and every back then overshoots by one —
      measured, and it is the mistake this ordering exists to avoid. */
-  function noterLeChemin() {
+  function recordPath() {
     if (pilotage) return;
     try {
       __pont.noter(navigationState(), urlFromState());
@@ -11149,7 +11149,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     armedExit = now;
     // Where one IS is pushed back on, so the route does not change and the
     // next back lands on the guard again.
-    noterLeChemin();
+    recordPath();
     toast("Encore un retour pour quitter TorrentMate.");
   }
 
@@ -11165,7 +11165,7 @@ import { ecrans, panneau, pont } from "../seams.js";
 
   /* Design notes */
   select("#notesBtn").onclick = (event) => {
-    magasin.ecrire({ notes: !currentState().notes });
+    store.ecrire({ notes: !currentState().notes });
     document.documentElement.classList.toggle("notes", currentState().notes);
     event.currentTarget.setAttribute("aria-pressed", String(currentState().notes));
     toast(currentState().notes ? "Notes de conception affichées." : "Notes masquées.");
@@ -11197,9 +11197,9 @@ import { ecrans, panneau, pont } from "../seams.js";
 
   function applyState(patch) {
     hideLayers();
-    magasin.ecrire(patch);
+    store.ecrire(patch);
     if (patch.page || patch.libLens || patch.q !== undefined)
-      magasin.ecrire({ libCount: LIB_PAGE });
+      store.ecrire({ libCount: LIB_PAGE });
     port.scrollTop = 0;
     render();
   }
@@ -11349,7 +11349,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     // Refused: not asked again this session. The next visit may ask again —
     // a banner that never returns after one dismissal is a feature nobody
     // finds twice.
-    installRefusee = true;
+    installRefused = true;
   });
   document.querySelector("#installgo").addEventListener("click", async () => {
     masquerInstallation();
@@ -11360,10 +11360,10 @@ import { ecrans, panneau, pont } from "../seams.js";
     /* The captured event is REPLAYED here, on a gesture, which is the only
        moment a browser accepts it. It can be used exactly once. */
     installEvent.prompt();
-    const choix = await installEvent.userChoice.catch(() => null);
+    const choice = await installEvent.userChoice.catch(() => null);
     installEvent = null;
     toast(
-      choix && choix.outcome === "accepted"
+      choice && choice.outcome === "accepted"
         ? "Installation en cours — l'icône arrive sur votre écran d'accueil."
         : "Installation refusée — le bandeau reviendra à la prochaine visite.",
     );
@@ -11389,7 +11389,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      the icon is already on the home screen, and a banner there is noise about
      something already done. */
   let installEvent = null;
-  let installRefusee = false;
+  let installRefused = false;
 
   function alreadyInstalled() {
     return (
@@ -11410,7 +11410,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   }
 
   function proposerInstallation(plateforme) {
-    if (installRefusee || alreadyInstalled()) return;
+    if (installRefused || alreadyInstalled()) return;
     // Never over the entry screen: there is nothing to install yet, and the
     // banner would cover the only field on it.
     if (!document.querySelector("#login").hidden) return;
@@ -11667,11 +11667,11 @@ import { ecrans, panneau, pont } from "../seams.js";
     if (closest.tagName === "A") event.preventDefault();
 
     if (closest.dataset.rubrique) {
-      REG_ETAT.rubrique = closest.dataset.rubrique;
-      REG_ETAT.q = "";
+      SETTINGS_STATE.rubrique = closest.dataset.rubrique;
+      SETTINGS_STATE.q = "";
       port.scrollTop = 0;
       render();
-      noterLeChemin();
+      recordPath();
       return;
     }
     if (closest.dataset.reglage) {
@@ -11687,39 +11687,39 @@ import { ecrans, panneau, pont } from "../seams.js";
     }
     if (closest.dataset.champ && closest.dataset.vers) {
       const id = closest.dataset.champ;
-      const reglage = tousLesReglages().find((r) => reglageId(r) === id);
+      const reglage = allSettings().find((r) => settingId(r) === id);
       if (reglage) {
-        modifierReglage(id, closest.dataset.vers === "oui");
+        changeSetting(id, closest.dataset.vers === "oui");
         openSetting(id);
       }
       return;
     }
     if (closest.dataset.champsupp) {
       const id = closest.dataset.champsupp;
-      const reglage = tousLesReglages().find((r) => reglageId(r) === id);
+      const reglage = allSettings().find((r) => settingId(r) === id);
       if (reglage) {
-        const liste = [...(valeurEnCours(reglage) || [])];
-        liste.splice(Number(closest.dataset.index), 1);
-        modifierReglage(id, liste);
+        const list = [...(valeurEnCours(reglage) || [])];
+        list.splice(Number(closest.dataset.index), 1);
+        changeSetting(id, list);
         openSetting(id);
       }
       return;
     }
     if (closest.dataset.champajout) {
       const id = closest.dataset.champajout;
-      const reglage = tousLesReglages().find((r) => reglageId(r) === id);
+      const reglage = allSettings().find((r) => settingId(r) === id);
       if (reglage) {
         // A prototype cannot show a keyboard; the added item is named after
         // what the list already holds, so the shape of the row is judgeable.
-        const liste = [...(valeurEnCours(reglage) || [])];
-        liste.push(`valeur ${liste.length + 1}`);
-        modifierReglage(id, liste);
+        const list = [...(valeurEnCours(reglage) || [])];
+        list.push(`valeur ${list.length + 1}`);
+        changeSetting(id, list);
         openSetting(id);
       }
       return;
     }
     if (closest.dataset.annulerreg) {
-      REG_ETAT.modifs.delete(closest.dataset.annulerreg);
+      SETTINGS_STATE.modifs.delete(closest.dataset.annulerreg);
       panneau.fermer();
       setTimeout(() => {
         render();
@@ -11728,21 +11728,21 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.enregistrer) {
-      const fichiers = changedFiles();
-      REG_ETAT.modifs.clear();
-      REG_ETAT.redemarrage = true;
+      const fileNames = changedFiles();
+      SETTINGS_STATE.modifs.clear();
+      SETTINGS_STATE.redemarrage = true;
       render();
-      toast(`Enregistré — ${fichiers.map(fileName).join(", ")}.`);
+      toast(`Enregistré — ${fileNames.map(fileName).join(", ")}.`);
       return;
     }
     if (closest.dataset.redemarrer) {
-      REG_ETAT.redemarrage = false;
+      SETTINGS_STATE.redemarrage = false;
       render();
       toast("Service redémarré — les réglages sont pris en compte.");
       return;
     }
     if (closest.dataset.qreg != null) {
-      REG_ETAT.q = closest.dataset.qreg;
+      SETTINGS_STATE.q = closest.dataset.qreg;
       render();
       return;
     }
@@ -11750,10 +11750,10 @@ import { ecrans, panneau, pont } from "../seams.js";
       // Navigating CLOSES whatever is open above: without this, one changed
       // page while staying stuck on the media sheet.
       hideLayers();
-      magasin.ecrire({ page: closest.dataset.page });
+      store.ecrire({ page: closest.dataset.page });
       port.scrollTop = 0;
       render();
-      noterLeChemin();
+      recordPath();
       return;
     }
     if (closest.dataset.go) {
@@ -11781,16 +11781,16 @@ import { ecrans, panneau, pont } from "../seams.js";
       // itself. Held there, not fixed here; settling by entry count is
       // owed if the ownership law lets more producers reach a buried layer
       // (data-go's own migration, SP4d).
-      pileEcrans.length = 0;
+      screenStack.length = 0;
       closeScreen(true);
-      magasin.ecrire({ page: closest.dataset.go });
+      store.ecrire({ page: closest.dataset.go });
       if (closest.dataset.go === "acq")
-        magasin.ecrire({ acqTab: "maintenant" });
+        store.ecrire({ acqTab: "maintenant" });
       port.scrollTop = 0;
       render();
       try {
         if (onLayer) __pont.remplacer(navigationState(), urlFromState());
-        else noterLeChemin();
+        else recordPath();
       } catch (error) {
         console.error("data-go : écriture de navigation échouée", error);
         window.__navEchec = true;
@@ -11798,26 +11798,26 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.acqtab) {
-      magasin.ecrire({ acqTab: closest.dataset.acqtab });
+      store.ecrire({ acqTab: closest.dataset.acqtab });
       port.scrollTop = 0;
       render();
-      noterLeChemin();
+      recordPath();
       return;
     }
     if (closest.dataset.lens) {
       // Changing lens changes the list: start again from the first page.
-      magasin.ecrire({
+      store.ecrire({
         libLens: closest.dataset.lens,
         libCount: LIB_PAGE,
         libErr: false,
       });
       port.scrollTop = 0;
       render();
-      noterLeChemin();
+      recordPath();
       return;
     }
     if (closest.dataset.cat) {
-      magasin.ecrire({
+      store.ecrire({
         libCat: closest.dataset.cat,
         libCount: LIB_PAGE,
         libErr: false,
@@ -11827,22 +11827,22 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.lmode) {
-      magasin.ecrire({ libMode: closest.dataset.lmode });
+      store.ecrire({ libMode: closest.dataset.lmode });
       render();
       return;
     }
     if (closest.dataset.pill) {
-      magasin.ecrire({ pill: closest.dataset.pill });
+      store.ecrire({ pill: closest.dataset.pill });
       render();
       return;
     }
     if (closest.dataset.fmode) {
-      magasin.ecrire({ followMode: closest.dataset.fmode });
+      store.ecrire({ followMode: closest.dataset.fmode });
       render();
       return;
     }
     if (closest.dataset.sugmode) {
-      magasin.ecrire({ sugMode: closest.dataset.sugmode });
+      store.ecrire({ sugMode: closest.dataset.sugmode });
       render();
       return;
     }
@@ -11851,7 +11851,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.sugmore) {
-      magasin.ecrire({ sugGone: new Set(), sugOrder: null });
+      store.ecrire({ sugGone: new Set(), sugOrder: null });
       render();
       toast("Nouveau lot chargé — 30 suggestions de plus.");
       return;
@@ -11893,7 +11893,7 @@ import { ecrans, panneau, pont } from "../seams.js";
         // follow-up screens draw directly, so the bump has to be explicit
         // or React never learns this suggestion left the deck.
         currentState().sugGone.add(Number(idx));
-        magasin.toucher();
+        store.toucher();
         const element = document.querySelector(`[data-dismissable="${idx}"]`);
         if (element) {
           element.style.height = element.getBoundingClientRect().height + "px";
@@ -11909,7 +11909,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       // PLACE and no `render()` follows on this branch: the bump has to be
       // explicit, exactly as it is for the dismissed suggestion above, or
       // the button never learns the follow happened.
-      magasin.toucher();
+      store.toucher();
       return;
     }
 
@@ -11942,17 +11942,17 @@ import { ecrans, panneau, pont } from "../seams.js";
        further down and never gets there, which is the order this rewire keeps
        exactly as it found it. */
     if (closest.dataset.resolve) {
-      const cible = currentState().resolveTarget;
+      const target = currentState().resolveTarget;
       pont.retour();
-      setTimeout(() => actionResoudre(cible, closest.dataset.resolve), 240);
+      setTimeout(() => actionResolve(target, closest.dataset.resolve), 240);
       return;
     }
     /* Agreeing with the machine. It keeps the automatic result and re-scrapes
        nothing — which is why it says what it did rather than « fait ». */
     if (closest.dataset.laisser) {
-      const cible = currentState().resolveTarget;
+      const target = currentState().resolveTarget;
       pont.retour();
-      setTimeout(() => actionLeave(cible), 240);
+      setTimeout(() => actionLeave(target), 240);
       return;
     }
     /* What the desktop deck's ⏎ did, without a keyboard: the next folder
@@ -11961,7 +11961,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       const suite = derived
         .blocked()
         .concat(derived.stuck())
-        .map((bloque) => decisionEnAttente(bloque.t))
+        .map((bloque) => decisionPending(bloque.t))
         .find(
           (decision) =>
             decision != null && decision.d !== closest.dataset.suivante,
@@ -11980,7 +11980,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       const [split, split2] = closest.dataset.sheetprim.split("|");
       panneau.fermer();
       setTimeout(() => {
-        if (split2 === "a_recuperer") actionRecuperer(split);
+        if (split2 === "a_recuperer") actionTake(split);
         else
           toast(
             `Recherche lancée pour « ${baseTitle(split)} » — le résultat s'affichera sur la carte.`,
@@ -12037,7 +12037,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       // entry it wrote, so the screen simply unmounts.
       pont.retour();
       setTimeout(() => {
-        actionRecuperer(currentState().relTitre);
+        actionTake(currentState().relTitre);
         toast(
           `« ${release.res} ${release.src} ${release.lang} » retenue — récupération lancée.`,
         );
@@ -12060,10 +12060,10 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.maintrub !== undefined) {
-      magasin.ecrire({ maintRub: closest.dataset.maintrub || null });
+      store.ecrire({ maintRub: closest.dataset.maintrub || null });
       port.scrollTop = 0;
       render();
-      noterLeChemin();
+      recordPath();
       return;
     }
     if (closest.dataset.maintact) {
@@ -12074,7 +12074,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       /* Asked while a run is already going, a run is QUEUED and says so
          (DOIT-4). « Occupé, réessaie » is the answer this interface does not
          give: it puts the burden of remembering on the operator. */
-      magasin.ecrire({
+      store.ecrire({
         pipe:
           closest.dataset.pipe === "arreter"
             ? "repos"
@@ -12105,12 +12105,12 @@ import { ecrans, panneau, pont } from "../seams.js";
          therefore told not to touch history at all. */
       const onDrawer = history.state && history.state.layer === "drawer";
       closeDrawer(true);
-      magasin.ecrire({ page: id });
+      store.ecrire({ page: id });
       port.scrollTop = 0;
       render();
       try {
         if (onDrawer) __pont.remplacer(navigationState(), urlFromState());
-        else noterLeChemin();
+        else recordPath();
       } catch (error) {
         console.error("data-navgo : écriture de navigation échouée", error);
         window.__navEchec = true;
@@ -12144,19 +12144,19 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.hscen) {
-      magasin.ecrire({ scen: closest.dataset.hscen });
+      store.ecrire({ scen: closest.dataset.hscen });
       render();
       openHarness();
       return;
     }
     if (closest.dataset.hphase) {
-      magasin.ecrire({ phase: closest.dataset.hphase });
+      store.ecrire({ phase: closest.dataset.hphase });
       render();
       openHarness();
       return;
     }
     if (closest.dataset.htmdb) {
-      magasin.ecrire({ tmdb: closest.dataset.htmdb === "1" });
+      store.ecrire({ tmdb: closest.dataset.htmdb === "1" });
       render();
       openHarness();
       return;
@@ -12177,7 +12177,7 @@ import { ecrans, panneau, pont } from "../seams.js";
                   currentState().sortReversed === (sens === "inverse")
                     ? "primary"
                     : null,
-                cible:
+                target:
                   sens === "inverse"
                     ? { settri: cle, reversed: "1" }
                     : { settri: cle },
@@ -12189,7 +12189,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.settri) {
-      magasin.ecrire({
+      store.ecrire({
         tri: closest.dataset.settri,
         sortReversed: closest.dataset.reversed === "1",
         libCount: LIB_PAGE,
@@ -12200,12 +12200,12 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.phase) {
-      magasin.ecrire({ phase: closest.dataset.phase });
+      store.ecrire({ phase: closest.dataset.phase });
       render();
       return;
     }
     if (closest.dataset.tmdb) {
-      magasin.ecrire({ tmdb: true });
+      store.ecrire({ tmdb: true });
       render();
       toast(
         "Compte TMDB connecté — la réserve se remplit, vos notes sont lues.",
@@ -12214,13 +12214,13 @@ import { ecrans, panneau, pont } from "../seams.js";
     }
     if (closest.dataset.clearq) {
       if (closest.dataset.clearq === "lib")
-        magasin.ecrire({ q: "", libCount: LIB_PAGE });
-      else magasin.ecrire({ filtre: "" });
+        store.ecrire({ q: "", libCount: LIB_PAGE });
+      else store.ecrire({ filtre: "" });
       render();
       return;
     }
     if (closest.dataset.selmode) {
-      magasin.ecrire({ selMode: closest.dataset.selmode === "1" });
+      store.ecrire({ selMode: closest.dataset.selmode === "1" });
       // Set mutated in place; render() right below carries the bump.
       currentState().selected.clear();
       render();
@@ -12239,7 +12239,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       else currentState().selected.add(index);
       // paintSelBar() below draws the bar directly, not through render():
       // the explicit bump is what tells React the selection changed.
-      magasin.toucher();
+      store.toucher();
       closest.setAttribute("aria-selected", String(currentState().selected.has(index)));
       paintSelBar();
       return;
@@ -12282,11 +12282,11 @@ import { ecrans, panneau, pont } from "../seams.js";
       if (currentState().addMode === "identifier") {
         // This ASSOCIATES: the stuck folder becomes this medium and the pipeline
         // resumes. No follow is created — that was not the request.
-        const cible = currentState().resolveTarget;
+        const target = currentState().resolveTarget;
         // No render() on this branch until the delayed actionResoudre()
         // fires — the bump is explicit so React sees the pick immediately.
         currentState().added.add(index);
-        magasin.toucher();
+        store.toucher();
         /* ONE settlement for the TWO entries this journey stacked — the
            result's panel, and `/ajout` itself, a router-owned address (which
            is why no legacy screen is closed here: `#screen` was never its
@@ -12300,9 +12300,9 @@ import { ecrans, panneau, pont } from "../seams.js";
         panneau.fermer(true);
         pont.reculer(entrees);
         setTimeout(() => {
-          actionResoudre(cible, result.t);
+          actionResolve(target, result.t);
           toast(
-            `« ${baseTitle(cible ?? "")} » identifié comme « ${result.t} » — le scrape reprend, aucun suivi créé.`,
+            `« ${baseTitle(target ?? "")} » identifié comme « ${result.t} » — le scrape reprend, aucun suivi créé.`,
           );
         }, 260);
         return;
@@ -12327,13 +12327,13 @@ import { ecrans, panneau, pont } from "../seams.js";
       // itself from this same store bump, so no redraw call belongs here
       // any more.
       currentState().added.add(index);
-      magasin.toucher();
+      store.toucher();
       actionFollow(result.t, result.k);
       return;
     }
     if (closest.dataset.confirmadd) {
       currentState().added.add(Number(closest.dataset.confirmadd));
-      magasin.toucher();
+      store.toucher();
       closeDlg();
       toast(
         "Ajouté — la version en place sera remplacée une fois la nouvelle récupérée.",
@@ -12360,7 +12360,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.completer) {
-      magasin.ecrire({ page: "acq", acqTab: "maintenant" });
+      store.ecrire({ page: "acq", acqTab: "maintenant" });
       panneau.fermer();
       render();
       toast(
@@ -12382,7 +12382,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     if (closest.dataset.recuperer) {
       const recuperer = closest.dataset.recuperer;
       panneau.fermer();
-      setTimeout(() => actionRecuperer(recuperer), 260);
+      setTimeout(() => actionTake(recuperer), 260);
       return;
     }
     if (closest.dataset.rescrape) {
@@ -12395,7 +12395,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       const title =
         closest.closest(".card")?.querySelector(".ctitle")?.textContent ?? "";
       const lab = closest.textContent.trim();
-      if (lab.startsWith("Récupérer")) return actionRecuperer(title);
+      if (lab.startsWith("Récupérer")) return actionTake(title);
       if (lab.startsWith("Résoudre")) return ecrans.resolution(title);
       toast("Action lancée — le résultat s'affichera ici.");
       return;
@@ -33274,7 +33274,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     const [map, map2, map3] = iso.split("-").map(Number);
     return `${map3} ${MOIS[map2 - 1]} ${map}`;
   }
-  const AUJOURDHUI = "2026-08-10";
+  const TODAY = "2026-08-10";
 
   /* Media sheet — ONE template, for every medium
      Fixed order: hero → trailer → synopsis → cast → library state → dated
@@ -33292,11 +33292,11 @@ import { ecrans, panneau, pont } from "../seams.js";
      derivation. */
   function seasonsOf(titre) {
     const fiche2 = sheetFor(titre);
-    const detenus = OWNED[titre] ?? OWNED[baseTitle(titre)] ?? null;
+    const held = OWNED[titre] ?? OWNED[baseTitle(titre)] ?? null;
     const cat = fiche2?.saisons ?? [];
     if (cat.length) {
       return cat.map((cat2) => {
-        const ownedNumbers = detenus?.[String(cat2.n)] ?? [];
+        const ownedNumbers = held?.[String(cat2.n)] ?? [];
         const diffuses = typeof cat2.ep === "number" ? cat2.ep : null;
         const own = diffuses
           ? ownedNumbers.filter((l) => l <= diffuses).length
@@ -33304,12 +33304,12 @@ import { ecrans, panneau, pont } from "../seams.js";
         return [cat2.n, diffuses, own];
       });
     }
-    if (detenus) {
+    if (held) {
       // No catalogue: the owned seasons are known, the totals are not.
-      return Object.keys(detenus)
+      return Object.keys(held)
         .map(Number)
         .sort((map, index) => map - index)
-        .map((sort) => [sort, null, detenus[String(sort)].length]);
+        .map((sort) => [sort, null, held[String(sort)].length]);
     }
     return (SEASONS[titre] ?? SEASONS[baseTitle(titre)] ?? []).map(
       (element) => [element[0], element[1], element[2]],
@@ -33318,7 +33318,7 @@ import { ecrans, panneau, pont } from "../seams.js";
 
   /* Owned episodes of a season, as a set. Null when the series is unknown
      to the library: claim nothing in that case. */
-  function possedesDe(titre, saison) {
+  function ownedFor(titre, saison) {
     const ownedBySeason = OWNED[titre] ?? OWNED[baseTitle(titre)] ?? null;
     if (!ownedBySeason) return null;
     const ownedNumbers = ownedBySeason[String(saison)];
@@ -33355,13 +33355,13 @@ import { ecrans, panneau, pont } from "../seams.js";
     if (!lignes.length) return "";
     return `<div style="margin-top:10px">${lignes
       .map((ligne) => {
-        const liste = eps[String(ligne.n)] ?? null;
-        const detenus = possede ? possedesDe(title0, ligne.n) : null;
+        const list = eps[String(ligne.n)] ?? null;
+        const held = possede ? ownedFor(title0, ligne.n) : null;
         /* The count is DERIVED from the owned numbers when they are known;
            a total that does not say where the holes are is no longer
            trusted. */
-        const nbOwn = detenus
-          ? [...detenus].filter(
+        const nbOwn = held
+          ? [...held].filter(
               (element) => !ligne.aired || element <= ligne.aired,
             ).length
           : ligne.own;
@@ -33373,32 +33373,32 @@ import { ecrans, panneau, pont } from "../seams.js";
         const borne =
           ligne.aired === 0
             ? 0
-            : detenus && detenus.size
-              ? (ligne.aired ?? Math.max(...detenus))
+            : held && held.size
+              ? (ligne.aired ?? Math.max(...held))
               : ligne.aired || 0;
         const missingNums =
-          possede && detenus && ligne.aired
+          possede && held && ligne.aired
             ? Array.from(
                 { length: ligne.aired },
                 (ignored, index) => index + 1,
-              ).filter((from) => !detenus.has(from))
+              ).filter((from) => !held.has(from))
             : [];
-        const corps = liste
-          ? `<div class="panel" style="margin-top:8px">${liste
+        const corps = list
+          ? `<div class="panel" style="margin-top:8px">${list
               .map((liste2) => {
                 /* SUBTLE state colour: a 6px dot and the number in the
                    tone. The title stays neutral — it is what one reads
                    first, so it keeps maximum contrast. One colour signal
                    per row, not a Christmas tree. */
-                const future = liste2.air && liste2.air > AUJOURDHUI;
+                const future = liste2.air && liste2.air > TODAY;
                 /* State comes from the LIST of owned numbers. A « number <=
                    owned count » threshold assumes the hole is always at the
                    end of the season: false for 35 series in this library. */
                 const episodeState = future
                   ? "annonce"
-                  : !possede || !detenus
+                  : !possede || !held
                     ? "non_verifie"
-                    : detenus.has(liste2.n)
+                    : held.has(liste2.n)
                       ? "en_mediatheque"
                       : "a_recuperer";
                 return `<div class="eprow ${episodeState}">
@@ -33409,7 +33409,7 @@ import { ecrans, panneau, pont } from "../seams.js";
                 </div>`;
               })
               .join("")}</div>`
-          : borne && detenus
+          : borne && held
             ? /* Pas de titres d'épisodes, mais on connaît les numéros : la
                  matrice répond quand même à « lesquels manquent ». Quand le
                  total diffusé est inconnu, on ne va que jusqu'au plus grand
@@ -33418,7 +33418,7 @@ import { ecrans, panneau, pont } from "../seams.js";
                 { length: borne },
                 (ignored, index) => {
                   const number = index + 1;
-                  const episodeState = detenus.has(number)
+                  const episodeState = held.has(number)
                     ? "en_mediatheque"
                     : "a_recuperer";
                   return `<span class="ep ${episodeState}" aria-label="Épisode ${number} — ${EP_LABEL[episodeState]}">${String(number).padStart(2, "0")}</span>`;
@@ -33468,14 +33468,14 @@ import { ecrans, panneau, pont } from "../seams.js";
      default this file used to (the first stuck folder) and writes
      `currentState().resolveTarget` before navigating, so the `data-resolve` and
      `data-laisser` branches below still read the folder they always read.
-     `decisionEnAttente` stays here: it is the référentiel's own answer to
+     `decisionPending` stays here: it is the référentiel's own answer to
      « does this folder have a pending decision », read by the screen AND by
      the « Passer à la suivante » branch below. */
   /* A folder either HAS a pending decision or it has none, and the screen must
      not borrow one. Showing another folder's candidates would be the worst
      possible lie on the one screen whose job is to name what is on disk. */
-  function decisionEnAttente(cible) {
-    return DECISIONS_ATTENTE.find((decision) => decision.d === cible) ?? null;
+  function decisionPending(target) {
+    return PENDING_DECISIONS.find((decision) => decision.d === target) ?? null;
   }
 
   /* Every medium opens the SAME panel, and this function exists only to say
@@ -33501,9 +33501,9 @@ import { ecrans, panneau, pont } from "../seams.js";
        of owned numbers, not from a « num <= owned » threshold that assumes
        the hole is at the end of the season. 35 series in this library have
        an internal hole. */
-    const detenus = possedesDe(follow.t, seasonNumber);
-    if (detenus)
-      return detenus.has(num)
+    const held = ownedFor(follow.t, seasonNumber);
+    if (held)
+      return held.has(num)
         ? "en_mediatheque"
         : follow && follow.st === "en_attente"
           ? "en_attente"
@@ -33528,11 +33528,11 @@ import { ecrans, panneau, pont } from "../seams.js";
     closePopEp();
     const [titre, saison, episodeNumber, etat] = btn.dataset.ep.split("|");
     const fiche2 = sheetFor(titre);
-    const liste = fiche2?.eps?.[saison] ?? null;
+    const list = fiche2?.eps?.[saison] ?? null;
     const episode =
-      liste?.find((liste2) => String(liste2.n) === episodeNumber) ?? null;
+      list?.find((liste2) => String(liste2.n) === episodeNumber) ?? null;
     const airDate = episode?.air ? dateFR(episode.air) : null;
-    const future = episode?.air && episode.air > AUJOURDHUI;
+    const future = episode?.air && episode.air > TODAY;
     const phrase =
       airDate == null
         ? "Date de diffusion inconnue."
@@ -33582,7 +33582,7 @@ import { ecrans, panneau, pont } from "../seams.js";
        the panel was opened from. That is what makes the panel the same object
        everywhere, instead of a family of look-alikes. */
     const incomplete = INCOMPLETE.some((INCOMPLETE2) => INCOMPLETE2.t === title);
-    const suivi = world.follows.some((follow2) => follow2.t === title);
+    const isFollowed = world.follows.some((follow2) => follow2.t === title);
     const inLibrary = incomplete || LIBRARY.some((LIB) => LIB.t === title);
     /* Read from the SAME derivations the urgency sections read. A section that
        computes what to grab while the panel computes it separately is two
@@ -33634,23 +33634,23 @@ import { ecrans, panneau, pont } from "../seams.js";
                   texte: "Résoudre →",
                   icone: icons.play,
                   ton: "primary",
-                  cible: { resolve: follow.t },
+                  target: { resolve: follow.t },
                 }
               : toTake
                 ? {
                     texte: "Récupérer maintenant",
                     icone: icons.play,
                     ton: "primary",
-                    cible: { recuperer: follow.t },
+                    target: { recuperer: follow.t },
                   }
                 : incomplete
                   ? {
                       texte: "Compléter → Acquisitions",
                       icone: icons.play,
                       ton: "primary",
-                      cible: { completer: follow.t },
+                      target: { completer: follow.t },
                     }
-                  : suivi
+                  : isFollowed
                     ? {
                         texte:
                           follow.st === "a_recuperer"
@@ -33658,25 +33658,25 @@ import { ecrans, panneau, pont } from "../seams.js";
                             : "Chercher maintenant",
                         icone: icons.play,
                         ton: "primary",
-                        cible: { sheetprim: `${follow.t}|${follow.st}` },
+                        target: { sheetprim: `${follow.t}|${follow.st}` },
                       }
                     : aFiche
                       ? {
                           texte: "Voir la fiche",
                           icone: icons.eye,
                           ton: "primary",
-                          cible: { fiche: follow.t },
+                          target: { fiche: follow.t },
                         }
                       : {
                           texte: "Voir le parcours",
                           icone: icons.refresh,
                           ton: "primary",
-                          cible: { journey: follow.t },
+                          target: { journey: follow.t },
                         },
           ],
         },
         seasons.length
-          ? { type: "saisons", suivi: follow, saisons: seasons }
+          ? { type: "saisons", isFollowed: follow, saisons: seasons }
           : isFilm
             ? {
                 type: "note",
@@ -33695,58 +33695,58 @@ import { ecrans, panneau, pont } from "../seams.js";
             /* « Voir la fiche » is reachable from the panel whenever a sheet
                exists. It is omitted only when it is ALREADY the primary
                action, which happens for a medium that is owned and whole. */
-            aFiche && (toResolve || toTake || incomplete || suivi)
+            aFiche && (toResolve || toTake || incomplete || isFollowed)
               ? {
                   texte: "Voir la fiche",
                   icone: icons.eye,
-                  cible: { fiche: follow.t },
+                  target: { fiche: follow.t },
                 }
               : null,
             {
               texte: "Voir le parcours",
               icone: icons.refresh,
-              cible: { journey: follow.t },
+              target: { journey: follow.t },
             },
             /* Chasing a release only means something for a medium still
                being acquired. Offered on a complete one it is a button that
                can only disappoint. */
-            suivi || incomplete || toTake
+            isFollowed || incomplete || toTake
               ? {
                   texte: "Chercher une autre release",
                   icone: icons.search,
-                  cible: { releases: follow.t },
+                  target: { releases: follow.t },
                 }
               : null,
-            suivi || incomplete || toTake
+            isFollowed || incomplete || toTake
               ? {
                   texte: "Profil de qualité",
                   icone: icons.sort,
-                  cible: { profil: follow.t },
+                  target: { profil: follow.t },
                 }
               : null,
             inLibrary
               ? {
                   texte: "Re-scraper les métadonnées",
                   icone: icons.refresh,
-                  cible: { rescrape: follow.t },
+                  target: { rescrape: follow.t },
                 }
               : null,
             /* Pausing or dropping a follow requires a follow. An incomplete
                series in the library is not one: nothing is watching it, so
                there is nothing to stop. */
-            suivi
+            isFollowed
               ? {
                   texte: isFilm ? "Ne plus chercher" : "Mettre en pause",
                   icone: icons.x,
-                  cible: { pause: follow.t },
+                  target: { pause: follow.t },
                 }
               : null,
-            suivi
+            isFollowed
               ? {
                   texte: isFilm ? "Retirer de la liste" : "Retirer le suivi",
                   icone: icons.trash,
                   ton: "danger",
-                  cible: { retirer: follow.t },
+                  target: { retirer: follow.t },
                 }
               : null,
             inLibrary
@@ -33754,7 +33754,7 @@ import { ecrans, panneau, pont } from "../seams.js";
                   texte: "Supprimer de la médiathèque",
                   icone: icons.trash,
                   ton: "danger",
-                  cible: { del: follow.t },
+                  target: { del: follow.t },
                 }
               : null,
           ],
@@ -33775,7 +33775,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      « pas faite »; a step without a date is stated « inconnue », never
      given an invented date. */
   function openJourneySheet(title) {
-    const etapes = [
+    const steps = [
       ["Pris chez le tracker", "10 août, 03 h 21", "done"],
       ["Téléchargé", "10 août, 03 h 48", "done"],
       ["Ingéré dans le staging", "10 août, 04 h 02", "done"],
@@ -33791,7 +33791,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       blocs: [
         {
           type: "faits",
-          lignes: etapes.map(([libelle, detail, ton]) => ({
+          lignes: steps.map(([libelle, detail, ton]) => ({
             c: libelle,
             v: detail,
             pip:
@@ -33810,7 +33810,7 @@ import { ecrans, panneau, pont } from "../seams.js";
             {
               texte: "Voir la fiche",
               icone: icons.eye,
-              cible: { fiche: title },
+              target: { fiche: title },
             },
           ],
         },
@@ -33854,7 +33854,7 @@ import { ecrans, panneau, pont } from "../seams.js";
               texte: "Lancer la veille maintenant",
               icone: icons.refresh,
               ton: "primary",
-              cible: { veille: "1" },
+              target: { veille: "1" },
             },
           ],
         },
@@ -34175,11 +34175,11 @@ import { ecrans, panneau, pont } from "../seams.js";
         // avancerDeck() animates the DOM directly, never through render():
         // the bump is explicit so React learns the card left the deck.
         currentState().sugGone.add(index);
-        magasin.toucher();
+        store.toucher();
         advanceDeck(index, 1);
         toastUndo(`« ${SUGGESTIONS[index].t} » écarté.`, () => {
           currentState().sugGone.delete(index);
-          magasin.toucher();
+          store.toucher();
           refreshDeck();
         });
       } else {
@@ -34242,14 +34242,14 @@ import { ecrans, panneau, pont } from "../seams.js";
     return true;
   };
 
-  function debutGestePage(point, cible) {
+  function debutGestePage(point, target) {
     if (
-      cible.closest?.(".swipe") ||
-      cible.closest?.(".sugwrap") ||
+      target.closest?.(".swipe") ||
+      target.closest?.(".sugwrap") ||
       // A drag born on a deck card belongs to the card: without this the
       // page-swipe handler also fires and navigates away mid-gesture.
-      cible.closest?.(".deck") ||
-      cible.closest?.(".pillscroll")
+      target.closest?.(".deck") ||
+      target.closest?.(".pillscroll")
     ) {
       pageDrag = null;
       return;
@@ -34391,13 +34391,13 @@ import { ecrans, panneau, pont } from "../seams.js";
      module that never evaluates leaves the startup screen on screen: a
      visible, truthful failure instead of an app with mute verbs. */
   window.__demarrerMoteur = function (deps) {
-    magasin = deps.magasin;
+    store = deps.store;
     // Set before any write can happen (`adopterEtat`/`adopterMonde` below
     // do not write to history, but the earliest legacy write is one line
     // away): urlDeLEtat() must never compose against the placeholder "/".
-    adresseBase = deps.base;
-    magasin.adopterEtat(INITIAL_STATE);
-    magasin.adopterMonde(world);
+    baseAddress = deps.base;
+    store.adopterEtat(INITIAL_STATE);
+    store.adopterMonde(world);
     /* No subscription here anymore. The only thing this one ever did was
        re-point the cached `state` binding at the store's object; with every
        read going to the store directly, there is nothing left to refresh. */
@@ -34478,18 +34478,18 @@ import { ecrans, panneau, pont } from "../seams.js";
    nothing about what it actually depends on. Twenty names, listed, so the
    dependency is readable and a deletion breaks the build instead of a run.
 
-   `magasin` is among them, and it is assigned at boot: an ES export of a `let`
+   `store` is among them, and it is assigned at boot: an ES export of a `let`
    is a LIVE binding, so the importer reads what the engine currently holds
    rather than a copy taken at evaluation. That is the same property the
    getters below exist to give the `window` surface, obtained here for free. */
 export {
   SETTINGS,
-  REG_ETAT,
+  SETTINGS_STATE,
   showSignIn,
   showStartup,
   showInstallation,
   applyState,
-  magasin,
+  store,
   openDeleteDialog,
   openFollowSheet,
   openJourneySheet,
@@ -34498,7 +34498,7 @@ export {
   openActionMaintenance,
   openSetting,
   openDrawer,
-  reglageId,
+  settingId,
   resetSettings,
   render,
 };
@@ -34536,68 +34536,68 @@ export {
    across all 254 names, and this is the only one. */
 Object.assign(window, {
   CAST, POSTERS_HD, APPARENCES, PRESS_MS, PRESS_TOLERANCE, AUDIOS,
-  AUJOURDHUI, BLOCKED, CADENCE_CRON, CATS, COMPTE, DECISIONS_ATTENTE,
+  TODAY, BLOCKED, CADENCE_CRON, CATS, ACCOUNT, PENDING_DECISIONS,
   DECISIONS_REGLEES, STARTUP_MS, DEPENDENCIES, DISKS, DONE_TODAY,
-  EP_LABEL, EP_ORDER, EP_SWATCH, ERRORS, ETAT_DECISION,
+  EP_LABEL, EP_ORDER, EP_SWATCH, ERRORS, DECISION_STATE,
   DECISION_STATE_DETAIL, EXECUTIONS, FICHES_IDX, FICHES_OLD, FICHES_RAW,
   FOLLOWS, GROUPS, HEROS, INCOMPLETE, INDEX, INFLIGHT, JOURNAL, LIBRARY,
   LIB_PAGE, LIB_TOTAL, MAINT_ACTIONS, MAINT_TOPICS, MOIS, MOTIF_LABEL,
   REASON_DETAIL, MOTIF_TON, MOVING, NAVIGATION, NOTFOUND, NOTFOUND_REEL,
   PAGES_OF, PIPELINE, SCHEDULERS, SCHEDULERS_DOWN, OWNED,
-  POSTERS, RECENT, SETTINGS, REG_ETAT, RELEASES, RESOLUTIONS, BACK_WINDOW,
+  POSTERS, RECENT, SETTINGS, SETTINGS_STATE, RELEASES, RESOLUTIONS, BACK_WINDOW,
   RISQUES, SEARCH, SEASONS, SECRETS, SERVICES, SERVICES_PANNE, SETTLED,
   SETTLED_REEL, STRIP_LABELS, STUCK, STUCK_REEL, ST_LABEL,
   ST_LABEL_MOVIE, ST_TONE, SUGGESTIONS, SUG_BATCH, SYNOPSIS, TAKEABLE,
   TRIS, URGENCY, URL_DEFAULTS, VIA_LABEL, actionLeave, actionPause,
-  actionRecuperer, actionResoudre, actionRetirer, actionFollow,
+  actionTake, actionResolve, actionRetirer, actionFollow,
   actionDelete, addVerb, showSignIn, showStartup,
-  showInstallation, annulerAppui, apparenceCourante,
+  showInstallation, cancelPress, apparenceCourante,
   applyAppearance, applyState, armPress, advanceDeck,
   advancePageGesture, baseTitle, beforeReset, cadenceFR, cardHTML, chipHTML,
   closeDlg, closeHarness, closeScreen, closeSheet, coverLoading,
-  dateFR, debutGestePage, decisionEnAttente, deckCardHTML, deckHTML,
+  dateFR, debutGestePage, decisionPending, deckCardHTML, deckHTML,
   deckOrder, signOut, alreadyInstalled, derived, unwindLayer,
   dismissSug, emptyInner, endCardDrag, endDeckDrag, endPageDrag,
   endSugDrag, epState, escapeHtml, stateFromUrl, navigationState,
   factRowsHTML, closePopEp, closeDrawer, changedFiles, fillSug,
   gridBadge, hideLayers, icons, initials, initialsOf, drawerWidth,
-  libFiltered, libRowHTML, listeFaitsHTML, loadMoreSug, masquerConnexion,
-  hideStartup, masquerInstallation, sameValue, modifierReglage,
+  libFiltered, libRowHTML, factsListHTML, loadMoreSug, masquerConnexion,
+  hideStartup, masquerInstallation, sameValue, changeSetting,
   mountDeck, mountLoaders, mountSearch, fileName, normalisedKey,
-  noterLeChemin, openAddSheet, openDeleteDialog, openDetailSheet, openDlg,
+  recordPath, openAddSheet, openDeleteDialog, openDetailSheet, openDlg,
   openFollowSheet, openHarness, openJourneySheet, openPanel, openPlusSheet,
   openScreen, openSheet, openSugSheet, openUserSheet,
   openActionMaintenance, openPopEp, openSetting, openSecret,
-  openDrawer, paintSelBar, panelUnderFinger, passerSug, pileEcrans,
-  plages, possedesDe, posterBox, nextSearchFR,
+  openDrawer, paintSelBar, panelUnderFinger, passerSug, screenStack,
+  plages, ownedFor, posterBox, nextSearchFR,
   proposerInstallation, ptr, publishBarHeight, refPanel, collapseCard,
-  refreshDeck, reglageId, resetSettings, render, renderNav,
+  refreshDeck, settingId, resetSettings, render, renderNav,
   richText, seasonsOf, sheetSeasonsHTML, secHTML, secInner, seedWorld,
   select, sheetFor, skelCards, skelCardsInner, skelTiles, sortLabel,
   leaveQueue, stFraction, stLabel, stripHTML, sugCardHTML, sugFoot,
   sugTileHTML, sugVerb, followPress, surIOSSafari, surRetourEngine,
   surfErr, surfErrInner, svgIcon, swipeHTML, tileHTML, toast, toastUndo,
-  tousLesReglages, trailerIds, trierLib, urlFromState, valeurCourante,
+  allSettings, trailerIds, trierLib, urlFromState, valeurCourante,
   valeurEnCours, typedValue, view,
 });
 
 // Read live, because the engine reassigns each of these.
 Object.defineProperties(window, {
-  adresseBase: { get: () => adresseBase, configurable: true },
+  baseAddress: { get: () => baseAddress, configurable: true },
   press: { get: () => press, configurable: true },
   cardDrag: { get: () => cardDrag, configurable: true },
   openCard: { get: () => openCard, configurable: true },
   openCardDx: { get: () => openCardDx, configurable: true },
   clickAfterDrag: { get: () => clickAfterDrag, configurable: true },
-  clicAvaler: { get: () => clicAvaler, configurable: true },
+  swallowClick: { get: () => swallowClick, configurable: true },
   deckDrag: { get: () => deckDrag, configurable: true },
-  depilage: { get: () => depilage, configurable: true },
+  unwinding: { get: () => unwinding, configurable: true },
   unwindInProgress: { get: () => unwindInProgress, configurable: true },
   loadingEnd: { get: () => loadingEnd, configurable: true },
   installEvent: { get: () => installEvent, configurable: true },
-  installRefusee: { get: () => installRefusee, configurable: true },
+  installRefused: { get: () => installRefused, configurable: true },
   legacyNodes: { get: () => legacyNodes, configurable: true },
-  magasin: { get: () => magasin, configurable: true },
+  store: { get: () => store, configurable: true },
   pageDrag: { get: () => pageDrag, configurable: true },
   pilotage: { get: () => pilotage, configurable: true },
   currentRender: { get: () => currentRender, configurable: true },

@@ -87,7 +87,7 @@ async def main():
           const all = SETTINGS.flatMap(r => r.r.map(x => r.f + ':' + x.f + ':' + x.c));
           const keys = SETTINGS.flatMap(r => r.r.map(x => x.f + ':' + x.c));
           return {total: keys.length, distinct: new Set(keys).size,
-                  files: [...new Set(SETTINGS.flatMap(r => r.fichiers))].sort()};}""")
+                  files: [...new Set(SETTINGS.flatMap(r => r.fileNames))].sort()};}""")
         check("a setting belongs to one topic and no other",
               coverage["total"] == coverage["distinct"],
               f"{coverage['total']} settings, {coverage['distinct']} distinct")
@@ -334,7 +334,7 @@ async def main():
                           ".dispatchEvent(new Event('change'))")
         await pg.wait_for_timeout(320)
         filed = await pg.evaluate(
-            "()=>[...REG_ETAT.modifs.values()].map(v => [v, typeof v])")
+            "()=>[...SETTINGS_STATE.modifs.values()].map(v => [v, typeof v])")
         check("a number is filed as a number",
               filed == [[42, "number"]], str(filed))
 
@@ -345,7 +345,7 @@ async def main():
                           ".dispatchEvent(new Event('change'))")
         await pg.wait_for_timeout(320)
         check("and typing the file's value back cancels the change",
-              await pg.evaluate("()=>REG_ETAT.modifs.size") == 0,
+              await pg.evaluate("()=>SETTINGS_STATE.modifs.size") == 0,
               f"original value {original}")
 
         await pg.evaluate("()=>window.__go('reglages-champ-booleen')")
@@ -353,15 +353,15 @@ async def main():
         await pg.click("#sheetin .fieldtoggle")
         await pg.wait_for_timeout(320)
         toggled = await pg.evaluate(
-            "()=>[...REG_ETAT.modifs.values()].map(v => [v, typeof v])")
+            "()=>[...SETTINGS_STATE.modifs.values()].map(v => [v, typeof v])")
         check("a switch files a boolean",
               len(toggled) == 1 and toggled[0][1] == "boolean", str(toggled))
 
         await pg.evaluate("""()=>{
           const x = SETTINGS.flatMap(r => r.r)
             .find(y => y.type === 'liste' && (y.brut || []).length > 1);
-          REG_ETAT.rubrique = SETTINGS.find(r => r.r.includes(x)).id;
-          render(); openSetting(reglageId(x));}""")
+          SETTINGS_STATE.rubrique = SETTINGS.find(r => r.r.includes(x)).id;
+          render(); openSetting(settingId(x));}""")
         await pg.wait_for_timeout(330)
         before = await pg.evaluate("()=>document.querySelectorAll('#sheetin .litem').length")
         await pg.click("#sheetin .lremove")
@@ -382,9 +382,9 @@ async def main():
         open_text = """(n) => {
           const texts = SETTINGS.flatMap(r => r.r).filter(x => x.type === 'texte');
           const x = texts[n];
-          REG_ETAT.rubrique = SETTINGS.find(r => r.r.includes(x)).id;
-          render(); openSetting(reglageId(x));
-          return {id: reglageId(x), own: String(x.brut ?? '')};}"""
+          SETTINGS_STATE.rubrique = SETTINGS.find(r => r.r.includes(x)).id;
+          render(); openSetting(settingId(x));
+          return {id: settingId(x), own: String(x.brut ?? '')};}"""
         read_field = """() => {const e = document.querySelector('#sheetin .fieldinput');
           return e ? {value: e.value, field: e.dataset.champ} : null;}"""
 
@@ -411,7 +411,7 @@ async def main():
                           ".dispatchEvent(new Event('change'))")
         await pg.wait_for_timeout(330)
         filed = await pg.evaluate(
-            "()=>[...REG_ETAT.modifs.entries()].map(([k, v]) => [k, String(v)])")
+            "()=>[...SETTINGS_STATE.modifs.entries()].map(([k, v]) => [k, String(v)])")
         leak = [k for k, v in filed if v == PROBE and k != first["id"]]
         check("and nothing typed into the other is filed under it",
               not leak, f"{PROBE!r} filed under {leak}" if leak else str(filed))

@@ -28,7 +28,7 @@ The boot order used to run the other way: the engine booted itself, ahead
 of the bridge, through a pre-bridge that queued the engine's writes and
 replayed them once the real bridge existed (hold (e), now retired along
 with that pre-bridge). The shell now creates the store and the bridge
-FIRST and only then calls `window.__demarrerMoteur({ magasin })`, so
+FIRST and only then calls `window.__demarrerMoteur({ store })`, so
 nothing is queued and nothing is replayed — a module that never evaluates
 simply never makes that call, and the startup screen stays up: a visible,
 truthful failure rather than an app with mute verbs.

@@ -117,7 +117,7 @@ declare global {
     // below) — "/" in production, whatever else a static host answers the
     // document under otherwise (the rule harness's 8899 server names it
     // "/wrapped.html"). The deps object's own keys are the engine's.
-    __demarrerMoteur?: (deps: { magasin: Store; base: string }) => void;
+    __demarrerMoteur?: (deps: { store: Store; base: string }) => void;
     // The domain hooks and the probes read the engine's state through this.
     __magasin: Store;
     __ecrans: Screens;
@@ -135,7 +135,7 @@ declare global {
     // Published here because the constructor it exercises is a component now.
     __panneauInconnu: () => void;
     // B-026's probe: raised by every write that fails silently otherwise
-    // (`noterLeChemin`, `data-navgo`, and this file's own `openPanel`),
+    // (`recordPath`, `data-navgo`, and this file's own `openPanel`),
     // declared here (`refonte.html` declares and resets it for its own two
     // sites) so this file's own catch can set it without a type error.
     __navEchec?: boolean;
@@ -595,7 +595,7 @@ function openPanel(descriptor: PanelDescriptor): void {
     // write itself failed, and the store above already flushed the panel
     // open: silence would leave the interface showing the panel with no
     // history entry recording it, the exact URL/UI disagreement DOIT-10
-    // forbids. Same wiring as `noterLeChemin`'s and `data-navgo`'s own
+    // forbids. Same wiring as `recordPath`'s and `data-navgo`'s own
     // tails.
     // ENGLISH, and not in `fr.json`: a console message is a tool message,
     // read by a developer, never by a reader of the interface.
@@ -666,7 +666,7 @@ window.__magasin = store;
 const [, , matchedRoute] = router.getMatchedRoutes(location.pathname);
 const base = matchedRoute ? "/" : location.pathname;
 const start = window.__demarrerMoteur;
-if (typeof start === "function") start({ magasin: store, base });
+if (typeof start === "function") start({ store: store, base });
 
 // `#coquille` starts, in the markup, as a static sibling of `.stage` —
 // index.html knows nothing about the phone frame the fragment draws. A

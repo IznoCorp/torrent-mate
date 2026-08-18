@@ -250,8 +250,8 @@ async def main():
     # R9 — film/series vocabulary, across ALL surfaces
     voc = await pg.evaluate("""()=>{
       const out=[];
-      const expected={movie:{ajout:'Ajouter',pause:'Ne plus chercher',retrait:'Retirer de la liste'},
-                      show:{ajout:'Suivre',pause:'Mettre en pause',retrait:'Retirer le suivi'}};
+      const expected={movie:{ajout:'Ajouter',pause:'Ne plus chercher',retrait:'Retirer de la list'},
+                      show:{ajout:'Suivre',pause:'Mettre en pause',retrait:'Retirer le isFollowed'}};
       for (const f of world.follows) {
         const lab = stLabel(f);
         if (f.k==='movie' && /jour|Terminé/.test(lab)) out.push(`movie « ${f.t} » wears « ${lab} » (series vocabulary)`);

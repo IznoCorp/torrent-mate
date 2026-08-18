@@ -67,8 +67,15 @@ def regions(text):
     out.append(("code", mark, n))
     return [(k, s, e) for k, s, e in out if e > s]
 
-def apply(text, mapping, in_python=False):
-    """Renames in code regions, and backticked mentions in comment regions."""
+def apply(text, mapping, in_python=False, properties=False):
+    """Renames in code regions, and backticked mentions in comment regions.
+
+    With `properties`, the name is renamed as a PROPERTY as well — member
+    access, object key, type member, indexed access. That is all-or-nothing on
+    purpose: a property and its accesses are one contract with several ends,
+    and moving one end alone is how a rename becomes a defect. It stays off by
+    default because most names are only ever bindings.
+    """
     if in_python:
         # A rule drives the engine from inside a `page.evaluate` STRING, so for
         # Python the strings are where the identifiers live. Three shapes there
@@ -93,14 +100,24 @@ def apply(text, mapping, in_python=False):
             text = re.sub(r"\bwindow\." + re.escape(fr) + r"\b", "window." + en, text)
             if fr.upper() == fr:
                 text = re.sub(r"(['\"])" + re.escape(fr) + r"\1", r"\g<1>" + en + r"\1", text)
-            text = re.sub(r"(?<![-.\w$'\"])" + re.escape(fr) + r"\b(?![-\w])", en, text)
+            #   "ajout:suivi"         a COMPOSED data key. A colon composes one
+            #                         exactly as a hyphen does, and renaming the
+            #                         half after it rewrote a rule's own EXPECTED
+            #                         value — the hold then measured the app
+            #                         against a key the app never produces.
+            lookbehind = r"(?<![-:\w$'\"])" if properties else r"(?<![-:.\w$'\"])"
+            text = re.sub(lookbehind + re.escape(fr) + r"\b(?![-\w])", en, text)
         return text
     pieces, count = [], 0
     for kind, s, e in regions(text):
         chunk = text[s:e]
         if kind == "code":
             for fr, en in sorted(mapping.items(), key=lambda kv: -len(kv[0])):
-                chunk = re.sub(rf"(?<![.\w$]){re.escape(fr)}\b", en, chunk)
+                if properties:
+                    # `.name`, `name:`, and the binding itself — every end.
+                    chunk = re.sub(rf"(?<![\w$]){re.escape(fr)}\b", en, chunk)
+                else:
+                    chunk = re.sub(rf"(?<![.\w$]){re.escape(fr)}\b", en, chunk)
         elif kind == "comment":
             for fr, en in sorted(mapping.items(), key=lambda kv: -len(kv[0])):
                 chunk = re.sub(rf"`{re.escape(fr)}\b", "`" + en, chunk)
@@ -110,6 +127,7 @@ def apply(text, mapping, in_python=False):
 
 if __name__ == "__main__":
     mapping = json.load(open(sys.argv[1]))
+    PROPERTIES = "--properties" in sys.argv
     changed = collections.Counter()
     ROOT = pathlib.Path("frontend/maquette")
     for path in sorted(ROOT.rglob("*")):
@@ -120,7 +138,8 @@ if __name__ == "__main__":
         if path.name in {"serve.py", "rename.py"}:
             continue
         before = path.read_text(encoding="utf-8")
-        after = apply(before, mapping, in_python=path.suffix == ".py")
+        after = apply(before, mapping, in_python=path.suffix == ".py",
+                      properties=PROPERTIES)
         if after != before:
             path.write_text(after, encoding="utf-8")
             changed[str(path.relative_to(ROOT))] = sum(

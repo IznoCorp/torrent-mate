@@ -153,7 +153,7 @@ async def main():
         # capitalised-words regex reads two adjacent headings as a person and
         # would have failed on « Vous Identifiant », which names nobody.
         addresses = set(re.findall(r"[\w.+-]+@[\w-]+\.[\w.]+", account["text"]))
-        real_one = await pg.evaluate("()=>COMPTE.mail")
+        real_one = await pg.evaluate("()=>ACCOUNT.mail")
         journal.check("no other account is invented to fill the screen",
                       addresses <= {real_one},
                       f"{len(addresses)} address(es): {', '.join(sorted(addresses)) or 'none'}")

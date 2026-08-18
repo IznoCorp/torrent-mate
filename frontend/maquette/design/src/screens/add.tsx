@@ -106,7 +106,7 @@ export function AddScreen() {
   // Leaving a ROUTER-OWNED screen back onto legacy ground is not a `back`
   // (however many entries deep the operator is, this always lands on the
   // right page) and not a `data-go` click either — that shared delegated
-  // handler's own history handling (`closeScreen`, `pileEcrans`,
+  // handler's own history handling (`closeScreen`, `screenStack`,
   // `__pont.remplacer`) is built for the LEGACY layer stack, which this
   // screen no longer belongs to. The router entry is REPLACED with the
   // destination — the same "the layer's entry becomes the arrival" semantics

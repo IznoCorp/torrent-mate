@@ -78,7 +78,7 @@ export function MaintenancePage(): ReactElement | null {
               (action.long ? t("screens.maintenance.mayBeLong") : ""),
             etat: action.r === "destructive" ? "danger" : "",
             // The row IS the control — see the note at the top of this file.
-            cible: { maintact: action.id },
+            target: { maintact: action.id },
           })),
         )}
       </>

@@ -25,12 +25,12 @@
 */
 import {
   SETTINGS,
-  REG_ETAT,
+  SETTINGS_STATE,
   showSignIn,
   showStartup,
   showInstallation,
   applyState,
-  magasin,
+  store,
   openDeleteDialog,
   openFollowSheet,
   openJourneySheet,
@@ -39,7 +39,7 @@ import {
   openActionMaintenance,
   openSetting,
   openDrawer,
-  reglageId,
+  settingId,
   resetSettings,
   render,
 } from "./engine/legacy.js";
@@ -194,7 +194,7 @@ const STATES = [
       "Découvrir · affiches",
       () => {
         applyState({ page: "acq", acqTab: "decouvrir", phase: "prete" });
-        magasin.ecrire({ sugMode: "poster" });
+        store.ecrire({ sugMode: "poster" });
         render();
       },
     ],
@@ -203,7 +203,7 @@ const STATES = [
       "Découvrir · slide cards",
       () => {
         applyState({ page: "acq", acqTab: "decouvrir", phase: "prete" });
-        magasin.ecrire({ sugMode: "deck" });
+        store.ecrire({ sugMode: "deck" });
         render();
       },
     ],
@@ -273,7 +273,7 @@ const STATES = [
       "Recherche en mode IDENTIFIER (depuis une résolution)",
       () => {
         applyState({ page: "arr", phase: "prete", pipe: "repos" });
-        magasin.ecrire({
+        store.ecrire({
           resolveTarget: "Backrooms.2026.MULTi.2160p.WEB-DL",
         });
         window.__ecrans.ajout("Backrooms 2026", "identifier");
@@ -372,7 +372,7 @@ const STATES = [
           phase: "prete",
           selMode: true,
         });
-        magasin.ecrire({ selected: new Set([0, 2, 5]) });
+        store.ecrire({ selected: new Set([0, 2, 5]) });
         render();
       },
     ],
@@ -611,7 +611,7 @@ const STATES = [
       "Réglages — une rubrique",
       () => {
         resetSettings();
-        REG_ETAT.rubrique = "acquisition";
+        SETTINGS_STATE.rubrique = "acquisition";
         applyState({ page: "cfg", phase: "prete" });
       },
     ],
@@ -620,7 +620,7 @@ const STATES = [
       "Réglages — recherche dans tous les réglages",
       () => {
         resetSettings();
-        REG_ETAT.q = "espace";
+        SETTINGS_STATE.q = "espace";
         applyState({ page: "cfg", phase: "prete" });
       },
     ],
@@ -629,7 +629,7 @@ const STATES = [
       "Réglages — un réglage, dans son panneau",
       () => {
         resetSettings();
-        REG_ETAT.rubrique = "acquisition";
+        SETTINGS_STATE.rubrique = "acquisition";
         applyState({ page: "cfg", phase: "prete" });
         openSetting("thresholds:thresholds.min_free_space_staging_gb");
       },
@@ -639,12 +639,12 @@ const STATES = [
       "Réglages — modifications en attente",
       () => {
         resetSettings();
-        REG_ETAT.rubrique = "acquisition";
-        REG_ETAT.modifs.set(
+        SETTINGS_STATE.rubrique = "acquisition";
+        SETTINGS_STATE.modifs.set(
           "thresholds:thresholds.min_free_space_staging_gb",
           40,
         );
-        REG_ETAT.modifs.set("tracker:tracker.providers.c411.enabled", false);
+        SETTINGS_STATE.modifs.set("tracker:tracker.providers.c411.enabled", false);
         applyState({ page: "cfg", phase: "prete" });
       },
     ],
@@ -668,10 +668,10 @@ const STATES = [
         const trouve = SETTINGS.flatMap((r) => r.r).find(
           (x) => x.type === genre,
         );
-        REG_ETAT.rubrique =
+        SETTINGS_STATE.rubrique =
           SETTINGS.find((r) => r.r.includes(trouve))?.id ?? null;
         applyState({ page: "cfg", phase: "prete" });
-        if (trouve) openSetting(reglageId(trouve));
+        if (trouve) openSetting(settingId(trouve));
       },
     ]),
     [
@@ -679,7 +679,7 @@ const STATES = [
       "Réglages — secrets et accès",
       () => {
         resetSettings();
-        REG_ETAT.rubrique = "secrets";
+        SETTINGS_STATE.rubrique = "secrets";
         applyState({ page: "cfg", phase: "prete" });
       },
     ],
@@ -688,7 +688,7 @@ const STATES = [
       "Réglages — instance en lecture seule",
       () => {
         resetSettings();
-        REG_ETAT.lectureSeule = true;
+        SETTINGS_STATE.lectureSeule = true;
         applyState({ page: "cfg", phase: "prete" });
       },
     ],
@@ -697,7 +697,7 @@ const STATES = [
       "Réglages — redémarrage nécessaire",
       () => {
         resetSettings();
-        REG_ETAT.redemarrage = true;
+        SETTINGS_STATE.redemarrage = true;
         applyState({ page: "cfg", phase: "prete" });
       },
     ],
