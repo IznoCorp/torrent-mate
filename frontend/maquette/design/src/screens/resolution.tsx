@@ -39,7 +39,7 @@
 // `media.tsx`, `profile.tsx` and `releases.tsx`. `data-resolve` (pick this
 // candidate) is read by the branch that treats `state.resolveTarget` as the
 // folder and the attribute as the CHOICE — which is why the shell's
-// `window.__ecrans.resolution()` door writes that target before navigating.
+// `window.__screens.resolution()` door writes that target before navigating.
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 // The number words below are a LOOKUP TABLE, not prose: the same
@@ -272,7 +272,7 @@ function Candidates({ decision }: { decision: PendingDecision }) {
 
 export function ResolutionScreen() {
   const { dossier: raw } = useParams({ from: "/resolution/$dossier" });
-  // Defensive: `__ecrans.resolution` already normalises on write, but an entry
+  // Defensive: `__screens.resolution` already normalises on write, but an entry
   // reached by a typed/bookmarked URL did not necessarily go through it.
   const folder = raw.normalize("NFC");
   // The queue lists (`world.blocked` / `world.stuck` / `world.stuckReel`) are
@@ -315,7 +315,7 @@ export function ResolutionScreen() {
   return (
     <section className="screen open" data-key={`resolution:${folder}`}>
       <div className="screenbar">
-        <button className="fback" onClick={() => window.__pont.retour()}>
+        <button className="fback" onClick={() => window.__bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.resolution.back")}
         </button>

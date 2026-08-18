@@ -35,7 +35,7 @@ async def main():
     # R11 — jargon, technical values and machine English in rendered text
     for e in states:
         await pg.evaluate("(i)=>window.__go(i)",e); await pg.wait_for_timeout(240)
-        # Every screen migrated off `#screen` onto a real route — the fiche,
+        # Every screen migrated off `#screen` onto a real route — the mediaSheet,
         # the add screen, the arbitration screen, the release picker, the
         # quality profile — answers to ONE generic rung: any OPEN screen
         # carries a `data-key`, so its presence is enough, its identity never
@@ -111,9 +111,9 @@ async def main():
       picks.push(...take(t=>!(HERO_IMAGES[t]??HERO_IMAGES[baseTitle(t)]), 2));
       for (const t of [...new Set(picks)]) {
         window.__reset(); applyState({page:'lib', phase:'prete'});
-        window.__ecrans.fiche(t);
+        window.__screens.mediaSheet(t);
         await new Promise(r=>setTimeout(r,240));
-        const b=document.querySelector('.screen.open[data-key^="fiche:"] .body');
+        const b=document.querySelector('.screen.open[data-key^="mediaSheet:"] .body');
         if (!b) { out[t]=['EMPTY SHEET']; continue; }
         out[t]=[...b.children]
           .filter(x=>x.getBoundingClientRect().height>0 && !x.classList.contains('note'))
@@ -144,15 +144,15 @@ async def main():
     #
     # `acq-ajout-resultats` and `fiche-serie` both left `#screen` for real
     # routes rendered inside `#coquille`: their open/close check is the screen
-    # itself, not the legacy layer id. The fiche is named by the identity it
-    # carries (`data-key="fiche:…"`) rather than by a bare `.screen.open`,
+    # itself, not the legacy layer id. The mediaSheet is named by the identity it
+    # carries (`data-key="mediaSheet:…"`) rather than by a bare `.screen.open`,
     # which two stacked screens would both answer to. Every case closes the
     # same way from the operator's point of view (the screen's own « Retour »,
     # the scrim for a layer), so only the selector differs.
     R14_CASES = [
         ("feuille-suivi-trous", "#sheet", "scrim"),
         ("lib-suppression", "#dlg", "scrim"),
-        ("fiche-serie", '.screen.open[data-key^="fiche:"]', "back"),
+        ("fiche-serie", '.screen.open[data-key^="mediaSheet:"]', "back"),
         ("acq-ajout-resultats", ".screen.open", "back"),
     ]
     for id_, sel, closing in R14_CASES:
@@ -226,7 +226,7 @@ async def main():
           // by the identity it carries, or this rule about ALL media sheets
           // would stop seeing the very screen it is named after.
           const root=document.querySelector('#screen.open, #sheet.open')
-                  || document.querySelector('.screen.open[data-key^="fiche:"]');
+                  || document.querySelector('.screen.open[data-key^="mediaSheet:"]');
           const hero=root && root.querySelector('.hero');
           if (!hero) continue;
           const name=`${s}/${theme||'dark'}`;
@@ -269,7 +269,7 @@ async def main():
         // Same reason as R26 above: the sheet is a route now, and it is where
         // the trailer lives — read it by its key or this rule goes quiet.
         const root=document.querySelector('#screen.open, #sheet.open')
-                || document.querySelector('.screen.open[data-key^="fiche:"]');
+                || document.querySelector('.screen.open[data-key^="mediaSheet:"]');
         if (!root || !root.querySelector('.hero')) continue;
         const el=root.querySelector('.trailer');
         if (!el) continue;                       // declared absence: stated elsewhere
@@ -294,11 +294,11 @@ async def main():
       for (const s of window.__states()) {
         window.__go(s); await new Promise(r=>setTimeout(r,300));
         // The screen carrying the bar is the legacy layer when it is up, and
-        // otherwise the migrated fiche, named by its own key: leaving the
-        // fiche out would silently drop five states from this sweep, and a
+        // otherwise the migrated mediaSheet, named by its own key: leaving the
+        // mediaSheet out would silently drop five states from this sweep, and a
         // rule that has gone quiet is not a rule that passes.
         const screen=document.querySelector('#screen.open')
-                  || document.querySelector('.screen.open[data-key^="fiche:"]');
+                  || document.querySelector('.screen.open[data-key^="mediaSheet:"]');
         const bar=screen?.querySelector('.screenbar');
         if (!bar) continue;
         const btn=bar.querySelector('.fback');
@@ -344,9 +344,9 @@ async def main():
       let inspected=0;
       for (const title of withHoles) {
         window.__reset(); applyState({page:'lib', phase:'prete'});
-        window.__ecrans.fiche(title);
+        window.__screens.mediaSheet(title);
         await new Promise(r=>setTimeout(r,240));
-        for (const det of document.querySelectorAll('.screen.open[data-key^="fiche:"] details.season')) {
+        for (const det of document.querySelectorAll('.screen.open[data-key^="mediaSheet:"] details.season')) {
           const num=Number((det.querySelector('summary')?.textContent||'').match(/Saison\\s+(\\d+)/)?.[1]);
           const owned=ownedFor(title, num);
           if (!owned) continue;
@@ -381,9 +381,9 @@ async def main():
       // exit code. Waiting for THE SCREEN ONE ASKED FOR — its own key — removes
       // the guess, and a timeout is reported instead of silently skipped.
       const waitFor=async(t)=>{
-        const key='fiche:'+t.normalize('NFC');
+        const key='mediaSheet:'+t.normalize('NFC');
         for (let i=0;i<40;i++) {
-          const el=document.querySelector('.screen.open[data-key^="fiche:"]');
+          const el=document.querySelector('.screen.open[data-key^="mediaSheet:"]');
           if (el && el.dataset.key===key) return el;
           await new Promise(r=>setTimeout(r,25));
         }
@@ -391,7 +391,7 @@ async def main():
       };
       for (const t of series) {
         window.__reset(); applyState({page:'lib',phase:'prete'});
-        window.__ecrans.fiche(t);
+        window.__screens.mediaSheet(t);
         const s=await waitFor(t);
         if (!s) { c.neverOpened.push(t); continue; }
         const dets=[...s.querySelectorAll('details.season')];

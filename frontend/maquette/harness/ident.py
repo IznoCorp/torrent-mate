@@ -31,7 +31,7 @@ async def where(pg):
     return await pg.evaluate("""()=>({
       address: location.pathname + location.search,
       page: state.page,
-      sheet: window.__panneau.ouverte(),
+      sheet: window.__panel.isOpen(),
       screen: document.querySelector('#screen').classList.contains('open'),
       message: (document.querySelector('#toastmsg')||{}).textContent || '',
       pops: window.__pops.length,
@@ -76,7 +76,7 @@ async def main():
     # screen at `/ajout`, also a real route now — read by its own identity,
     # falling back to an empty node so a screen that failed to open reports
     # its own absence instead of a TypeError.
-    r = await pg.evaluate("""()=>{const s=document.querySelector('.screen.open[data-key^="ajout:"]')
+    r = await pg.evaluate("""()=>{const s=document.querySelector('.screen.open[data-key^="add:"]')
         ?? document.createElement('div');
       return {banner:(s.querySelector('.surferr b')||{}).textContent,
               query:s.querySelector('#addq')?.value,

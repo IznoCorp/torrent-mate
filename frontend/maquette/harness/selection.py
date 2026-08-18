@@ -21,7 +21,7 @@ async def main():
     print("\n── grid at rest ──")
     print("  chips visible      :", await pg.evaluate("()=>document.querySelectorAll('.tile .sel').length"), "(expected 0)")
     print("  selection bar:", await pg.evaluate("()=>!!document.querySelector('.selbar')"), "(expected False)")
-    print("  tap opens the sheet:", await pg.evaluate("()=>!!document.querySelector('[data-tile]').dataset.fiche"))
+    print("  tap opens the sheet:", await pg.evaluate("()=>!!document.querySelector('[data-tile]').dataset.mediasheet"))
     await pg.screenshot(path="x_grille_repos.png")
 
     print("\n── long press ──")

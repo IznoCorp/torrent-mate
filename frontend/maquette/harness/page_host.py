@@ -212,7 +212,7 @@ async def main():
             and panel["title"] == wanted["title"],
             f"{wanted} → {panel}" if not refused
             else f"data-maintact {refused}")
-        await page.evaluate("()=>window.__panneau.fermer()")
+        await page.evaluate("()=>window.__panel.close()")
         await page.wait_for_timeout(300)
 
         # (c-ter) THE SAME DEBT, on the page that carries the most of it. The
@@ -267,7 +267,7 @@ async def main():
             not refused and edited["open"] and bool(named)
             and (edited["field"] is None or edited["field"] == identity),
             f"{identity} → {edited}" if not refused else f"data-setting {refused}")
-        await page.evaluate("()=>window.__panneau.fermer()")
+        await page.evaluate("()=>window.__panel.close()")
         await page.wait_for_timeout(300)
 
         # The save bar is the page's second host, and its button is the only
@@ -322,7 +322,7 @@ async def main():
         key = await page.evaluate(
             "()=>{const b = document.querySelector('#view [data-secret]');"
             " return b ? b.dataset.secret : null;}")
-        await page.evaluate("()=>window.__panneau.fermer()")
+        await page.evaluate("()=>window.__panel.close()")
         await page.wait_for_timeout(250)
         refused = await tap("#view [data-secret]") if key else "absent"
         sheet = await page.evaluate("""()=>({
@@ -334,7 +334,7 @@ async def main():
             not refused and sheet["open"] and bool(key) and key in sheet["text"],
             f"{key} → open={sheet['open']}, named={bool(key) and key in sheet['text']}"
             if not refused else f"data-secret {refused}")
-        await page.evaluate("()=>window.__panneau.fermer()")
+        await page.evaluate("()=>window.__panel.close()")
         await page.wait_for_timeout(300)
 
         # The search's clear button exists only while something is searched
@@ -370,7 +370,7 @@ async def main():
             and address == f"/profil/{profile}" and before_address != address,
             f"{before_address} → {address} for data-profile={profile!r}"
             if not refused else f"data-profile {refused}")
-        await page.evaluate("()=>window.__pont.retour()")
+        await page.evaluate("()=>window.__bridge.back()")
         await page.wait_for_timeout(420)
 
         # (c-sexies) THE MÉDIATHÈQUE'S OWN DELEGATION. This page carries more

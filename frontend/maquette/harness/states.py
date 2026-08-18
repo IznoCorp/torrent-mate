@@ -26,7 +26,7 @@ async def main():
         await pg.wait_for_timeout(320)
         r=await pg.evaluate("""()=>{const v=document.querySelector('#view');
           const sh=document.querySelector('#sheet'), sc=document.querySelector('#screen'), dg=document.querySelector('#dlg');
-          // Every screen migrated off `#screen` onto a real route (the fiche
+          // Every screen migrated off `#screen` onto a real route (the mediaSheet
           // at `/fiche/$titre`, the add screen at `/ajout`, the arbitration
           // screen at `/resolution/$dossier`, the release picker at
           // `/releases/$titre`, the quality profile at `/profil/$titre`) is

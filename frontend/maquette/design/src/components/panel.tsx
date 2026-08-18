@@ -4,7 +4,7 @@
 // from a plain descriptor of facts — never ready-made markup — and this
 // component is that same constructor, transplanted: same tags, same
 // classes, same data-attribute vocabulary, so the document-level click
-// delegation the legacy engine still runs (`.sact[data-fiche]`,
+// delegation the legacy engine still runs (`.sact[data-mediasheet]`,
 // `.ep[data-ep]`, `.field*[data-field]`, …) keeps working unchanged.
 //
 // Markup is TRANSPLANTED, not translated: React escapes text nodes
@@ -94,7 +94,7 @@ export type Action = {
 function ActionButton({ action }: { action: Action | null | undefined }) {
   if (!action) return null;
   // The only dynamically-keyed attribute set in this file: `target`'s keys
-  // are the action's own vocabulary (`fiche`, `go`, `toast`, …), decided by
+  // are the action's own vocabulary (`mediaSheet`, `go`, `toast`, …), decided by
   // each call site, not by this component.
   const attributes = Object.fromEntries(
     Object.entries(action.target ?? {}).map(([name, value]) => [

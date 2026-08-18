@@ -10,7 +10,7 @@
 // migrated screen already does (see `shell.tsx`'s dispatcher rewrite).
 //
 // The `.rel` rows are release CANDIDATES, not media cards — no poster, no
-// `data-fiche`/`data-panel`. `data-prendre` (pick this release) and
+// `data-mediasheet`/`data-panel`. `data-prendre` (pick this release) and
 // `data-profile` (open the quality profile) carry NO onClick: the
 // document-level click delegation the legacy engine still runs is the seam
 // this screen leans on, exactly as `media.tsx` and `profile.tsx`.
@@ -38,7 +38,7 @@ function Icon({ paths, strokeWidth }: { paths: string; strokeWidth?: number }) {
 
 export function ReleasesScreen() {
   const { titre: raw } = useParams({ from: "/releases/$titre" });
-  // Defensive: `__ecrans.releases` already normalises on write, but an entry
+  // Defensive: `__screens.releases` already normalises on write, but an entry
   // reached by a typed/bookmarked URL did not necessarily go through it.
   const title = raw.normalize("NFC");
   const { icons, baseTitle, RELEASES } = useReference();
@@ -47,7 +47,7 @@ export function ReleasesScreen() {
   return (
     <section className="screen open" data-key={`releases:${title}`}>
       <div className="screenbar">
-        <button className="fback" onClick={() => window.__pont.retour()}>
+        <button className="fback" onClick={() => window.__bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.releases.back")}
         </button>{" "}

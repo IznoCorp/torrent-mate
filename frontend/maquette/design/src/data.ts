@@ -225,7 +225,7 @@ export type CardFoot = {
 // no writer ever calling it.
 //
 // `cardHTML` / `addVerb` are reused VERBATIM rather than re-implemented in
-// JSX: a search-result card carries `data-panel="add:N"` / `data-fiche`
+// JSX: a search-result card carries `data-panel="add:N"` / `data-mediasheet`
 // attributes that the legacy document-level click delegation still reads
 // to open the panel or the media sheet (the strangler seam a migrated
 // screen leans on rather than replaces) — re-deriving that markup by hand
@@ -570,22 +570,22 @@ export type Reference = {
 // point of use, exactly as `add.tsx` already does for `resolveTarget`.
 
 // The shell's bottom-panel API — what a legacy producer calls instead of the
-// dead `openSheet(html)`. `ouverte()` answers from the STORE, never from the
+// dead `openSheet(html)`. `isOpen()` answers from the STORE, never from the
 // DOM: a legacy caller asks mid-task ("is a layer up before I open a screen?")
 // and the store is already right at that instant, whatever React has committed.
 // The three member names are the seam the fragment calls by.
 export type Panel = {
-  ouvrir: (descripteur: PanelDescriptor) => void;
+  open: (descripteur: PanelDescriptor) => void;
   // `pop` mirrors the legacy `closeSheet(pop)`: truthy means the history entry
   // is ALREADY being popped, so the layer must not unwind one of its own.
-  fermer: (pop?: boolean) => void;
-  ouverte: () => boolean;
+  close: (pop?: boolean) => void;
+  isOpen: () => boolean;
 };
 
 declare global {
   interface Window {
     __referentiel: Reference;
-    __panneau: Panel;
+    __panel: Panel;
     // The engine's own multi-layer closer, published by refonte.html: the
     // scrim covers the drawer, the dialog and the sheet alike, and a tap on it
     // closes whichever is up. Optional for the same reason

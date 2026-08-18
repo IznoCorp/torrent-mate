@@ -24,7 +24,7 @@ What it holds to:
    started, with the screen gone — the screen owns no address once closed.
 4. The address is written only while the screen is open: walking onto it
    writes `/profil/…`, and the ONLY way off it is back (`.fback` calls
-   `__pont.retour()`, nothing else) — so closing it is, by construction,
+   `__bridge.back()`, nothing else) — so closing it is, by construction,
    also the address returning to what it was.
 5. A wrong deep address does not raise, blank the frame, or invent a
    not-found surface: `QualityProfile` is a GLOBAL setting, not a per-title
@@ -44,7 +44,7 @@ template it was transplanted from never had a not-found branch either":
 `openFiche(title)` (`refonte.html`, deleted when this screen became a real
 route — recovered from the commit that deleted it) built the SAME markup
 whether `sheetFor(title)` found a record or not, every field simply
-printing "inconnu" in its place. What the harness holds for the fiche:
+printing "inconnu" in its place. What the harness holds for the mediaSheet:
 (f) a deep address opens it cold, `h2.ht` carrying the promised title;
 (g) the hero/poster the screen draws ITSELF actually loads — proven on the
 image the CSS background resolves to, not on a stand-in; (h) one Back
@@ -75,7 +75,7 @@ TITLE = "Silo"
 # corrects this on the way in.
 UNKNOWN_ADDRESS = "N'Existe%20Pas"
 
-# The fiche titles below are picked straight from the embedded référentiel
+# The mediaSheet titles below are picked straight from the embedded référentiel
 # (`refonte.html`'s `SHEETS_RAW`/`HERO_IMAGES`/`trailerIds`), not invented:
 # `Silo (2023)` carries both a hero image and a trailer (`sheetFor` resolves
 # it directly, no `baseTitle` fallback needed), which is what makes holds
@@ -97,7 +97,7 @@ TITLE_WITHOUT_TRAILER = "Broadchurch"
 # SPA, not merely the raw HTTP response `server.py`'s own self-test covers.
 RESOLUTION_FOLDER = "Backrooms.2026.MULTi.2160p.WEB-DL"
 # `Silo` is the states table's own pick for `screen-releases`
-# (`window.__ecrans.releases("Silo")`, refonte.html).
+# (`window.__screens.releases("Silo")`, refonte.html).
 RELEASES_TITLE = "Silo"
 
 SCREEN_STATE = """() => {
@@ -177,7 +177,7 @@ RESOLUTION_STATE = """() => {
 }"""
 
 # `RELEASES` (the ranked candidates) is a FIXED référentiel, not looked up
-# per title — unlike `sheetFor` for a fiche, there is nothing here for an
+# per title — unlike `sheetFor` for a mediaSheet, there is nothing here for an
 # unknown `title` to fail against, so `candidates` stays what it is
 # regardless of which title the bar shows.
 RELEASES_STATE = """() => {
@@ -220,7 +220,7 @@ async def main():
             state_ = await pg.evaluate(SCREEN_STATE)
             journal.check(
                 "a deep address opens the right screen, cold",
-                state_["open"] and state_["key"] == f"profil:{TITLE}",
+                state_["open"] and state_["key"] == f"profile:{TITLE}",
                 f"key={state_['key']}")
             journal.check(
                 "the screen renders its promised content (resolution, tracks, locks)",
@@ -246,7 +246,7 @@ async def main():
                              not start["open"] and start["pathname"] == "/",
                              start["pathname"])
 
-            await pg.evaluate(f"()=>window.__ecrans.profile({json.dumps(TITLE)})")
+            await pg.evaluate(f"()=>window.__screens.profile({json.dumps(TITLE)})")
             await pg.wait_for_timeout(300)
             on_profile = await pg.evaluate(SCREEN_STATE)
             journal.check(
@@ -286,7 +286,7 @@ async def main():
             journal.check(
                 "a deep /ajout address opens the screen, cold, with the field filled",
                 add_cold["open"] and add_cold["field"] == "lucky"
-                and add_cold["key"] == "ajout:suivi",
+                and add_cold["key"] == "add:suivi",
                 f"field={add_cold['field']!r} key={add_cold['key']}")
             journal.check(
                 "and the query shows results",
@@ -307,7 +307,7 @@ async def main():
                              not add_start["open"] and add_start["pathname"] == "/",
                              add_start["pathname"])
 
-            await pg.evaluate("()=>window.__ecrans.ajout('')")
+            await pg.evaluate("()=>window.__screens.add('')")
             await pg.wait_for_timeout(300)
             on_add = await pg.evaluate(ADD_STATE)
             journal.check(
@@ -377,15 +377,15 @@ async def main():
             journal.check("no JS error when leaving through the bar", not errors, str(errors))
             await ctx.close()
 
-            # ─── Holds (f)-(h): the fiche's deep entry, its OWN artwork,
+            # ─── Holds (f)-(h): the mediaSheet's deep entry, its OWN artwork,
             # one Back — same server, same `open_at`, a second screen. ──
             sheet_address = f"{base}/fiche/{urllib.parse.quote(SHEET_TITLE)}"
             ctx, pg, errors = await open_at(browser, sheet_address)
             sheet_cold = await pg.evaluate(SHEET_STATE)
             journal.check(
-                "(f) a deep /fiche address opens the promised media sheet, cold",
+                "(f) a deep /mediaSheet address opens the promised media sheet, cold",
                 sheet_cold["open"]
-                and sheet_cold["key"] == f"fiche:{SHEET_TITLE}"
+                and sheet_cold["key"] == f"mediaSheet:{SHEET_TITLE}"
                 and sheet_cold["title"] == SHEET_TITLE.split(" (")[0],
                 f"key={sheet_cold['key']} title={sheet_cold['title']!r}")
             artwork = await pg.evaluate(HEROBG_STATE)
@@ -393,7 +393,7 @@ async def main():
                 "(g) the hero/poster the sheet draws ITSELF really loads",
                 artwork["url"] is not None and artwork["drawn"],
                 f"url={artwork['url']!r} drawn={artwork['drawn']}")
-            journal.check("no JS error on deep /fiche entry", not errors, str(errors))
+            journal.check("no JS error on deep /mediaSheet entry", not errors, str(errors))
 
             await pg.evaluate("()=>document.querySelector('.screen.open .fback').click()")
             await pg.wait_for_timeout(300)
@@ -475,7 +475,7 @@ async def main():
             # ─── Holds (m)-(n): the release picker's deep entry — its bar
             # carries the title, not a lookup: RELEASES is a fixed
             # référentiel, so there is nothing here to fail against a title,
-            # unlike the fiche's `sheetFor`. ──────────────────────────────
+            # unlike the mediaSheet's `sheetFor`. ──────────────────────────────
             releases_address = f"{base}/releases/{urllib.parse.quote(RELEASES_TITLE)}"
             ctx, pg, errors = await open_at(browser, releases_address)
             releases_cold = await pg.evaluate(RELEASES_STATE)
@@ -530,7 +530,7 @@ async def main():
 
             # ─── Hold (p): an unknown deep /releases value renders the SAME
             # candidate list — RELEASES carries no per-title lookup to fail,
-            # unlike a fiche's `sheetFor`, so the honest case here is simply
+            # unlike a mediaSheet's `sheetFor`, so the honest case here is simply
             # the ordinary screen, wearing whatever title was typed. ───────
             wrong_releases_address = f"{base}/releases/{UNKNOWN_ADDRESS}"
             ctx, pg, errors = await open_at(browser, wrong_releases_address)

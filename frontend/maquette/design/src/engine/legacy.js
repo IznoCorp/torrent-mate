@@ -32,7 +32,7 @@
    because narrowing it means editing the instrument that measures the move.
 */
 
-import { ecrans, panneau, pont } from "../seams.js";
+import { screens, panel, bridge } from "../seams.js";
 
   /* TorrentMate — mobile-first redesign prototype
      Data: real library titles (1,861 items). */
@@ -7124,7 +7124,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       ? `<span class="pfall"><b>${escapeHtml(initials(descriptor.t))}</b></span>`
       : posterBox(descriptor.t, descriptor.k);
     const poster = hasSheet
-      ? `<button class="poster" aria-label="Fiche de ${escapeHtml(descriptor.t)}" data-fiche="${escapeHtml(descriptor.t)}">${image}</button>`
+      ? `<button class="poster" aria-label="Fiche de ${escapeHtml(descriptor.t)}" data-mediasheet="${escapeHtml(descriptor.t)}">${image}</button>`
       : `<button class="folder" aria-label="Actions pour le dossier ${escapeHtml(descriptor.t)}" data-panel="${escapeHtml(descriptor.panel || `dossier:${descriptor.t}`)}">${svgIcon(icons.folder, 1.6)}<span class="dlabel">Dossier</span></button>`;
     /* Two lines, because they answer two questions. The first says WHAT THIS
        MEDIUM IS — how much of it is owned, what state it is in, how it is
@@ -7183,7 +7183,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   /* ONE bottom panel, and its shape follows the facts it is given — and it is
      built in the shell now: `src/components/panel.tsx` is that single
      constructor, `src/components/sheet.tsx` the layer it draws into, and
-     `panneau.ouvrir` the verb a producer here calls, on a descriptor.
+     `panel.ouvrir` the verb a producer here calls, on a descriptor.
 
      The DESCRIPTOR crosses unchanged (facts, never markup: `titre`, `meta`,
      `sousTitre`, `affiche`, `avatar`, `puce`, `blocs`, and the typed blocks
@@ -7617,7 +7617,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     if (!action) return;
     const deleted = action.r === "destructive";
     const blanc = deleted ? true : !!currentState().maintBlanc;
-    panneau.ouvrir({
+    panel.open({
       titre: action.l,
       sousTitre: action.id,
       meta: action.d,
@@ -9303,7 +9303,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   }
 
   function openSecret(secret) {
-    panneau.ouvrir({
+    panel.open({
       titre: secret.l,
       meta: [{ m: secret.k }],
       puce: secret.def ? ["success", "définie"] : ["warning", "absente"],
@@ -9356,7 +9356,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     if (!setting) return;
     const courante = displayedValue(setting);
     const changed = SETTINGS_STATE.modifs.has(id);
-    panneau.ouvrir({
+    panel.open({
       titre: window.__settingLabels.label(setting),
       meta: [{ m: `${setting.f}.json5 · ${setting.c}` }],
       ...(changed ? { puce: ["info", "modifié, pas encore écrit"] } : {}),
@@ -9927,7 +9927,7 @@ import { ecrans, panneau, pont } from "../seams.js";
               ? "info"
               : "warning"
       : null;
-    return `<button class="tile${opts.muted ? " off" : ""}" ${opts.index != null ? `data-tile="${opts.index}"` : ""} ${opts.dismiss != null ? `data-dismissable="${escapeHtml(String(opts.dismiss))}"` : ""} data-panel="${escapeHtml(opts.panel || `media:${descriptor.t}`)}" ${sel ? `aria-selected="${selected}"` : `data-fiche="${escapeHtml(descriptor.t)}"`}>
+    return `<button class="tile${opts.muted ? " off" : ""}" ${opts.index != null ? `data-tile="${opts.index}"` : ""} ${opts.dismiss != null ? `data-dismissable="${escapeHtml(String(opts.dismiss))}"` : ""} data-panel="${escapeHtml(opts.panel || `media:${descriptor.t}`)}" ${sel ? `aria-selected="${selected}"` : `data-mediasheet="${escapeHtml(descriptor.t)}"`}>
       <span class="p">${posterBox(descriptor.t, descriptor.k)}</span>
       ${sel ? `<span class="sel">${svgIcon(icons.check, 3)}</span>` : badge ? `<span class="tilebadge" style="background:var(--${tone})">${escapeHtml(badge.txt)}</span>` : ""}
       <span class="nm">${escapeHtml(descriptor.t)}</span>
@@ -10033,9 +10033,15 @@ import { ecrans, panneau, pont } from "../seams.js";
      Split on the FIRST colon only: titles carry their own — « Dexter:
      Resurrection » would otherwise address a panel for « Dexter ». */
   function refPanel(element) {
-    const panel = element.dataset.panel;
-    const indexOf = panel.indexOf(":");
-    return { genre: panel.slice(0, indexOf), ref: panel.slice(indexOf + 1) };
+    // `panelName`, not `panel`: the seam the engine calls to OPEN a panel is
+    // named `panel`, and a local of the same name would shadow it silently
+    // inside this function. The value here is the attribute's text.
+    const panelName = element.dataset.panel;
+    const indexOf = panelName.indexOf(":");
+    return {
+      genre: panelName.slice(0, indexOf),
+      ref: panelName.slice(indexOf + 1),
+    };
   }
 
   /* Opens the panel an element addresses. One entry point, so a surface that
@@ -10219,7 +10225,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      says why, rather than being absent: a menu that grows an item later teaches
      its shape twice. */
   function openUserSheet() {
-    panneau.ouvrir({
+    panel.open({
       titre: ACCOUNT.nom,
       sousTitre: ACCOUNT.mail,
       avatar: ACCOUNT.avatar,
@@ -10308,7 +10314,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      panel it addresses and never how to build it. */
   function deckCardHTML(suggestion, index, depth) {
     return `<article class="dcard" data-deck="${index}" data-depth="${depth}" data-panel="sug:${index}">
-      <button class="p" data-fiche="${escapeHtml(suggestion.t)}" aria-label="Fiche de ${escapeHtml(suggestion.t)}">
+      <button class="p" data-mediasheet="${escapeHtml(suggestion.t)}" aria-label="Fiche de ${escapeHtml(suggestion.t)}">
         ${
           POSTERS_HD[suggestion.t]
             ? `<img src="${POSTERS_HD[suggestion.t]}" alt="" loading="lazy">`
@@ -10497,7 +10503,7 @@ import { ecrans, panneau, pont } from "../seams.js";
 
   function openSugSheet(index) {
     const suggestion = SUGGESTIONS[index];
-    panneau.ouvrir({
+    panel.open({
       titre: suggestion.t,
       meta: `${suggestion.y} · ${suggestion.k} · note TMDB ${suggestion.note}`,
       blocs: [
@@ -10514,7 +10520,7 @@ import { ecrans, panneau, pont } from "../seams.js";
             {
               texte: "Voir la fiche",
               icone: icons.eye,
-              target: { fiche: suggestion.t },
+              target: { mediasheet: suggestion.t },
             },
           ],
         },
@@ -10574,7 +10580,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   function openAddSheet(index) {
     const result = SEARCH.results[index];
     const done = currentState().added.has(index);
-    panneau.ouvrir({
+    panel.open({
       titre: result.t,
       meta: `${result.y} · ${result.k} · TMDB`,
       blocs: [
@@ -10601,7 +10607,7 @@ import { ecrans, panneau, pont } from "../seams.js";
             {
               texte: "Voir la fiche",
               icone: icons.eye,
-              target: { fiche: result.t },
+              target: { mediasheet: result.t },
             },
           ],
         },
@@ -10713,13 +10719,13 @@ import { ecrans, panneau, pont } from "../seams.js";
       };
   }
 
-  /* The panel layer belongs to the shell now (`window.__panneau`, rendered by
+  /* The panel layer belongs to the shell now (`window.__panel`, rendered by
      `src/components/sheet.tsx`): a producer describes FACTS and the shell
      builds the panel. This function opens nothing anymore — it is a tripwire,
      kept so a producer nobody converted fails where it is written instead of
      quietly doing nothing. Every call site was converted with the layer. */
   function openSheet() {
-    throw new Error("openSheet est mort — passer par __panneau");
+    throw new Error("openSheet est mort — passer par __panel");
   }
   /* Closing WITHOUT touching history — the harness driver uses it to
      restart from a clean surface. Chaining the « normal » close functions
@@ -10729,9 +10735,9 @@ import { ecrans, panneau, pont } from "../seams.js";
     select("#drawer").classList.remove("open");
     select("#screen").classList.remove("open");
     // The sheet is the shell's layer: closing it without touching history is
-    // what `fermer(true)` means, the same contract this function has always
+    // what `close(true)` means, the same contract this function has always
     // had for every layer it resets.
-    panneau.fermer(true);
+    panel.close(true);
     // The scrim stays cleared HERE too: it is shared ground, raised by the
     // drawer and the dialog on their own, and the line above only clears it
     // for a sheet that was actually open.
@@ -10763,7 +10769,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     if (!history.state || history.state.layer !== nom) return;
     unwindInProgress += 1;
     try {
-      __pont.retour();
+      __bridge.back();
     } catch (error) {
       unwindInProgress -= 1;
     }
@@ -10775,7 +10781,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      verb rather than a copy of the bookkeeping. */
   window.__derouler = unwindLayer;
 
-  /* A settlement of SEVERAL entries at once (`__pont.reculer`) announces itself
+  /* A settlement of SEVERAL entries at once (`__bridge.reculer`) announces itself
      through the same latch — and raises it by ONE, never by the number of
      entries: the browser coalesces a multi-entry traversal into a SINGLE
      popstate, fired at the destination. Measured, because the whole point of
@@ -10797,10 +10803,10 @@ import { ecrans, panneau, pont } from "../seams.js";
      `machine.py` call `closeSheet()` from inside the page, and moving a layer
      to the shell must not take away the vocabulary that drives it. The layer
      state, the per-layer guard and the unwind all live in
-     `panneau.fermer` now — this is one line pointing there, not a
+     `panel.fermer` now — this is one line pointing there, not a
      second implementation. */
   function closeSheet(pop) {
-    panneau.fermer(pop);
+    panel.close(pop);
   }
   /* The dialog raises the SHARED scrim itself, on an element the shell renders
      — which is why the shell's own panel verbs commit synchronously: a caller
@@ -10851,7 +10857,7 @@ import { ecrans, panneau, pont } from "../seams.js";
         scrollY: element.querySelector(".port")?.scrollTop ?? 0,
       });
       try {
-        __pont.coucher("screen");
+        __bridge.pushLayer("screen");
       } catch (error) {}
     }
     let startY = 0;
@@ -10904,7 +10910,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     if (!alreadyOpen) {
       element.classList.add("open");
       try {
-        __pont.coucher("screen");
+        __bridge.pushLayer("screen");
       } catch (error) {}
     }
     currentRender = rendre ?? null;
@@ -11074,7 +11080,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   function recordPath() {
     if (pilotage) return;
     try {
-      __pont.noter(navigationState(), urlFromState());
+      __bridge.record(navigationState(), urlFromState());
     } catch (error) {
       console.error("noterLeChemin : écriture de navigation échouée", error);
       window.__navEchec = true;
@@ -11087,7 +11093,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      `popstate` reported too, so the reading below is unchanged.
 
      The registration itself moved into window.__demarrerMoteur, below: like
-     every other `__pont` verb, it needs the REAL bridge to exist first, and
+     every other `__bridge` verb, it needs the REAL bridge to exist first, and
      nothing here forces that anymore — there is no pre-bridge queueing calls
      made before the module evaluates. */
   function onEngineBack(etatCourant) {
@@ -11105,8 +11111,8 @@ import { ecrans, panneau, pont } from "../seams.js";
     if (select("#screen").classList.contains("open")) return closeScreen(true);
     // The sheet lives in the shell; it is asked, not inspected. Same rank in
     // the ladder as before — drawer, then screen, then sheet.
-    if (panneau.ouverte()) {
-      panneau.fermer(true);
+    if (panel.isOpen()) {
+      panel.close(true);
       return;
     }
 
@@ -11127,7 +11133,7 @@ import { ecrans, panneau, pont } from "../seams.js";
 
     // Ownership, once more, decided by the entry's own SHAPE: only an entry
     // that carries the guard's own marker (written once, at boot, by
-    // __pont.remplacer({ tm: "garde" })) is the guard. Anything else that
+    // __bridge.remplacer({ tm: "garde" })) is the guard. Anything else that
     // falls through here — notably an entry the ROUTER wrote for /profil/$titre
     // or /ajout, which carries neither "layer" nor "tm" — is not ours to
     // react to: the router has already re-rendered by the new URL, so a true
@@ -11143,7 +11149,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       armedExit = 0;
       // Nothing is put back: from the guard, one more back leaves the
       // document — which is what closes an installed app on Android.
-      __pont.retour();
+      __bridge.back();
       return;
     }
     armedExit = now;
@@ -11159,7 +11165,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      line runs — the shell calls this from its own `onClick`. */
   window.__fermerCouches = () => {
     closeDlg();
-    panneau.fermer();
+    panel.close();
     closeDrawer();
   };
 
@@ -11232,7 +11238,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      is no such route, and a design reference that dead-ends on a 404 teaches
      nothing about the design. Nothing else here depends on the answer. */
   async function signOut() {
-    panneau.fermer();
+    panel.close();
     try {
       await fetch("/deconnexion", { redirect: "manual" });
     } catch (error) {}
@@ -11578,7 +11584,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     element.classList.add("open");
     select("#scrim").classList.add("open");
     try {
-      __pont.coucher("drawer");
+      __bridge.pushLayer("drawer");
     } catch (error) {}
   }
   function closeDrawer(pop) {
@@ -11627,7 +11633,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   select("#fab").onclick = () => {
     // The « + » ALWAYS means « follow »: the mode must never stay
     // stuck from a previous resolution.
-    ecrans.ajout(currentState().addQ, "suivi");
+    screens.add(currentState().addQ, "suivi");
   };
   select("#scenBtn").onclick = () => {
     openHarness();
@@ -11720,7 +11726,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     }
     if (closest.dataset.cancelsetting) {
       SETTINGS_STATE.modifs.delete(closest.dataset.cancelsetting);
-      panneau.fermer();
+      panel.close();
       setTimeout(() => {
         render();
         toast("Modification annulée — rien n'avait été écrit.");
@@ -11769,10 +11775,10 @@ import { ecrans, panneau, pont } from "../seams.js";
          overwriting it. */
       const onLayer = history.state && history.state.layer;
       closeDrawer(true);
-      panneau.fermer(true);
+      panel.close(true);
       // This empties the covered-screen STACK too, so the DOM ends up clean
       // however many screens were stacked — but that is DOM bookkeeping
-      // only, not history: `__pont.remplacer` below settles exactly ONE
+      // only, not history: `__bridge.remplacer` below settles exactly ONE
       // entry, on the assumption that at most one layer (drawer, sheet or a
       // covered-screen stack — never several at once) precedes a `data-go`
       // tap. B-024 found that assumption unenforced in code, then walked
@@ -11789,7 +11795,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       port.scrollTop = 0;
       render();
       try {
-        if (onLayer) __pont.remplacer(navigationState(), urlFromState());
+        if (onLayer) __bridge.replace(navigationState(), urlFromState());
         else recordPath();
       } catch (error) {
         console.error("data-go : écriture de navigation échouée", error);
@@ -11871,7 +11877,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     }
     if (closest.dataset.dropsug) {
       const index = Number(closest.dataset.dropsug);
-      panneau.fermer();
+      panel.close();
       dismissSug(index);
       return;
     }
@@ -11887,7 +11893,7 @@ import { ecrans, panneau, pont } from "../seams.js";
         suggestion && suggestion.k === "Film"
           ? "ajouté à votre liste"
           : "ajouté à vos suivis";
-      panneau.fermer();
+      panel.close();
       if (idx != null) {
         // No render() follows on this branch: the sheet close and the
         // follow-up screens draw directly, so the bump has to be explicit
@@ -11926,13 +11932,13 @@ import { ecrans, panneau, pont } from "../seams.js";
         .replace(/\s{2,}/g, " ")
         .trim();
       // `/resolution` is a router-owned address now: leaving it is
-      // `__pont.retour()` — the same single pop `.fback` uses — unwinding the
-      // ONE entry `ecrans.resolution` pushed to get here. The
+      // `__bridge.retour()` — the same single pop `.fback` uses — unwinding the
+      // ONE entry `screens.resolution` pushed to get here. The
       // dispatcher no-ops that pop: the entry carries neither `layer` nor
       // `tm`, so the legacy popstate checks fall through it and the router has
       // already re-rendered by the time they run.
-      pont.retour();
-      setTimeout(() => ecrans.ajout(trim, "identifier"), 260);
+      bridge.back();
+      setTimeout(() => screens.add(trim, "identifier"), 260);
       return;
     }
     /* THE FOLDER IS `currentState().resolveTarget`, NEVER THE ATTRIBUTE: what
@@ -11943,7 +11949,7 @@ import { ecrans, panneau, pont } from "../seams.js";
        exactly as it found it. */
     if (closest.dataset.resolve) {
       const target = currentState().resolveTarget;
-      pont.retour();
+      bridge.back();
       setTimeout(() => actionResolve(target, closest.dataset.resolve), 240);
       return;
     }
@@ -11951,7 +11957,7 @@ import { ecrans, panneau, pont } from "../seams.js";
        nothing — which is why it says what it did rather than « fait ». */
     if (closest.dataset.leave) {
       const target = currentState().resolveTarget;
-      pont.retour();
+      bridge.back();
       setTimeout(() => actionLeave(target), 240);
       return;
     }
@@ -11972,13 +11978,13 @@ import { ecrans, panneau, pont } from "../seams.js";
         // now, so the same depth is a REPLACE: one entry in, one entry out,
         // and a single back still leaves the arbitration rather than walking
         // the folders one has already answered.
-        setTimeout(() => ecrans.resolution(suite.d, true), 240);
+        setTimeout(() => screens.resolution(suite.d, true), 240);
       }
       return;
     }
     if (closest.dataset.sheetprim) {
       const [split, split2] = closest.dataset.sheetprim.split("|");
-      panneau.fermer();
+      panel.close();
       setTimeout(() => {
         if (split2 === "a_recuperer") actionTake(split);
         else
@@ -11990,19 +11996,19 @@ import { ecrans, panneau, pont } from "../seams.js";
     }
     if (closest.dataset.pause) {
       const pause = closest.dataset.pause;
-      panneau.fermer();
+      panel.close();
       setTimeout(() => actionPause(pause), 240);
       return;
     }
     if (closest.dataset.remove) {
       const retirer = closest.dataset.remove;
-      panneau.fermer();
+      panel.close();
       setTimeout(() => actionRetirer(retirer), 240);
       return;
     }
     if (closest.dataset.releases) {
-      panneau.fermer();
-      setTimeout(() => ecrans.releases(closest.dataset.releases), 260);
+      panel.close();
+      setTimeout(() => screens.releases(closest.dataset.releases), 260);
       return;
     }
     if (
@@ -12019,14 +12025,14 @@ import { ecrans, panneau, pont } from "../seams.js";
       // still needs the same close-then-open choreography its own trigger
       // was built against, and a router screen leaves no trace in
       // `#screen.classList`: test the router's own identity instead.
-      // `__ecrans.profil` does the navigating either way.
+      // `__screens.profil` does the navigating either way.
       const profile = closest.dataset.profile;
       if (document.querySelector('.screen.open[data-key^="releases:"]')) {
-        pont.retour();
-        setTimeout(() => ecrans.profile(profile), 260);
+        bridge.back();
+        setTimeout(() => screens.profile(profile), 260);
       } else {
-        panneau.fermer();
-        setTimeout(() => ecrans.profile(profile), 260);
+        panel.close();
+        setTimeout(() => screens.profile(profile), 260);
       }
       return;
     }
@@ -12035,7 +12041,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       // One router pop — the release-choice screen is a route now, and the
       // dispatcher's own `layer`/`tm: "nav"` checks no-op harmlessly on the
       // entry it wrote, so the screen simply unmounts.
-      pont.retour();
+      bridge.back();
       setTimeout(() => {
         actionTake(currentState().relTitre);
         toast(
@@ -12045,7 +12051,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.standby) {
-      panneau.fermer();
+      panel.close();
       toast(
         "Veille lancée — 12 suivis balayés, 0 nouvelle release conforme. Prochain passage à 15 h 20.",
       );
@@ -12109,7 +12115,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       port.scrollTop = 0;
       render();
       try {
-        if (onDrawer) __pont.remplacer(navigationState(), urlFromState());
+        if (onDrawer) __bridge.replace(navigationState(), urlFromState());
         else recordPath();
       } catch (error) {
         console.error("data-navgo : écriture de navigation échouée", error);
@@ -12162,7 +12168,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.sort) {
-      panneau.ouvrir({
+      panel.open({
         titre: "Trier la médiathèque",
         meta: "Le tri est une préférence, pas un emplacement : il reste sur cet appareil et n'entre pas dans l'URL (A7).",
         blocs: [
@@ -12194,7 +12200,7 @@ import { ecrans, panneau, pont } from "../seams.js";
         sortReversed: closest.dataset.reversed === "1",
         libCount: LIB_PAGE,
       });
-      panneau.fermer();
+      panel.close();
       render();
       toast(`Trié par ${sortLabel().toLowerCase()}.`);
       return;
@@ -12245,28 +12251,28 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.del) {
-      panneau.fermer();
+      panel.close();
       openDeleteDialog(closest.dataset.del);
       return;
     }
-    if (closest.dataset.fiche) {
+    if (closest.dataset.mediasheet) {
       // An open sheet sits ABOVE a screen (z-47 against z-45):
       // opening the sheet without closing it left the sheet invisible below.
       // The delay lets the sheet finish leaving before the screen enters.
-      const fiche = closest.dataset.fiche;
+      const mediaSheet = closest.dataset.mediasheet;
       // Asked of the shell, not read off the DOM: the layer is the shell's,
       // and its store answers truthfully in the middle of this task.
-      const layer = panneau.ouverte();
+      const layer = panel.isOpen();
       if (layer) {
-        panneau.fermer();
-        setTimeout(() => ecrans.fiche(fiche), 260);
+        panel.close();
+        setTimeout(() => screens.mediaSheet(mediaSheet), 260);
       } else {
-        ecrans.fiche(fiche);
+        screens.mediaSheet(mediaSheet);
       }
       return;
     }
     if (closest.dataset.act === "resolve") {
-      ecrans.resolution();
+      screens.resolution();
       return;
     }
     if (closest.dataset.sheet === "plus") {
@@ -12292,13 +12298,13 @@ import { ecrans, panneau, pont } from "../seams.js";
            is why no legacy screen is closed here: `#screen` was never its
            host). The panel is ASKED before it is closed, because the layer's
            own entry is what decides the count, and it is closed DOM-only
-           (`fermer(true)`) so it does not unwind on its own: its unwind plus a
-           raw `__pont.retour()` were two backs racing in the same task, only
+           (`close(true)`) so it does not unwind on its own: its unwind plus a
+           raw `__bridge.retour()` were two backs racing in the same task, only
            one of them announced, and the surplus pop was then read as the
            operator's own back gesture. */
-        const entries = (panneau.ouverte() ? 1 : 0) + 1;
-        panneau.fermer(true);
-        pont.reculer(entries);
+        const entries = (panel.isOpen() ? 1 : 0) + 1;
+        panel.close(true);
+        bridge.rewind(entries);
         setTimeout(() => {
           actionResolve(target, result.t);
           toast(
@@ -12311,7 +12317,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       // behind what comes next — the dialog below, or the re-rendered list.
       // The identify branch above settles its own layer, with the entry count
       // its single settlement needs, so this close is the follow branches'.
-      panneau.fermer();
+      panel.close();
       if (result.owned) {
         openDlg(`<h3>Remplacer « ${escapeHtml(result.t)} » ?</h3>
           <p>Ce ${result.k === "Film" ? "film est déjà" : "média est déjà"} en médiathèque. L'acquisition <b>remplacera</b> la version en place par celle qui sera récupérée.</p>
@@ -12341,7 +12347,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.journey) {
-      panneau.fermer();
+      panel.close();
       setTimeout(() => openJourneySheet(closest.dataset.journey), 260);
       return;
     }
@@ -12361,7 +12367,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     }
     if (closest.dataset.complete) {
       store.write({ page: "acq", acqTab: "maintenant" });
-      panneau.fermer();
+      panel.close();
       render();
       toast(
         `« ${baseTitle(closest.dataset.complete)} » : recherche des épisodes manquants lancée.`,
@@ -12375,13 +12381,13 @@ import { ecrans, panneau, pont } from "../seams.js";
        this branch says the same verb as every other call site. */
     if (closest.dataset.resolve) {
       const resolve = closest.dataset.resolve;
-      panneau.fermer();
-      setTimeout(() => ecrans.resolution(resolve), 260);
+      panel.close();
+      setTimeout(() => screens.resolution(resolve), 260);
       return;
     }
     if (closest.dataset.take) {
       const take = closest.dataset.take;
-      panneau.fermer();
+      panel.close();
       setTimeout(() => actionTake(take), 260);
       return;
     }
@@ -12396,7 +12402,7 @@ import { ecrans, panneau, pont } from "../seams.js";
         closest.closest(".card")?.querySelector(".ctitle")?.textContent ?? "";
       const lab = closest.textContent.trim();
       if (lab.startsWith("Récupérer")) return actionTake(title);
-      if (lab.startsWith("Résoudre")) return ecrans.resolution(title);
+      if (lab.startsWith("Résoudre")) return screens.resolution(title);
       toast("Action lancée — le résultat s'affichera ici.");
       return;
     }
@@ -33456,7 +33462,7 @@ import { ecrans, panneau, pont } from "../seams.js";
 
   /* The media sheet moved to the shell with the rest of the screens:
      `src/screens/media.tsx` renders it as the route `/fiche/$titre`. The
-     verb a call site says is `ecrans.fiche(title)`; the template,
+     verb a call site says is `screens.mediaSheet(title)`; the template,
      the seasons and the actions live there, at identical markup — the
      click delegation below still reads their data attributes. */
   /* The resolution screen moved to the shell the same way:
@@ -33464,7 +33470,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      `/resolution/$dossier`, and the design rationale it carries — what the
      screen is FOR, why a tied score is not printed, the three ways out —
      moved there with it. The verb a call site says is
-     `ecrans.resolution(dossier, remplacer)`: it resolves the same
+     `screens.resolution(dossier, remplacer)`: it resolves the same
      default this file used to (the first stuck folder) and writes
      `currentState().resolveTarget` before navigating, so the `data-resolve` and
      `data-leave` branches below still read the folder they always read.
@@ -33612,7 +33618,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       : seasons.length
         ? `${own}/${aired}`
         : (stFraction(follow) ?? "—");
-    panneau.ouvrir({
+    panel.open({
       titre: follow.t,
       affiche: { t: follow.t, k: follow.k },
       meta: `${follow.y ? String(follow.y) + " · " : ""}${isFilm ? "Film" : "Série"}${frac ? " · " + frac + " épisodes" : ""}`,
@@ -33665,7 +33671,7 @@ import { ecrans, panneau, pont } from "../seams.js";
                           texte: "Voir la fiche",
                           icone: icons.eye,
                           ton: "primary",
-                          target: { fiche: follow.t },
+                          target: { mediasheet: follow.t },
                         }
                       : {
                           texte: "Voir le parcours",
@@ -33699,7 +33705,7 @@ import { ecrans, panneau, pont } from "../seams.js";
               ? {
                   texte: "Voir la fiche",
                   icone: icons.eye,
-                  target: { fiche: follow.t },
+                  target: { mediasheet: follow.t },
                 }
               : null,
             {
@@ -33782,7 +33788,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       ["Scrapé", "en cours depuis 4 min", "now"],
       ["Rangé en médiathèque", "à venir", "todo"],
     ];
-    panneau.ouvrir({
+    panel.open({
       titre: title,
       meta: [
         "Parcours de l'acquisition · release ",
@@ -33810,7 +33816,7 @@ import { ecrans, panneau, pont } from "../seams.js";
             {
               texte: "Voir la fiche",
               icone: icons.eye,
-              target: { fiche: title },
+              target: { mediasheet: title },
             },
           ],
         },
@@ -33834,7 +33840,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      through `window.__referentiel` — same seam as `SEARCH`/`cardHTML` above. */
 
   function openMoreSheet() {
-    panneau.ouvrir({
+    panel.open({
       titre: "Veille et obligations",
       meta: "Second rang — consulté, pas surveillé.",
       blocs: [
@@ -33869,9 +33875,9 @@ import { ecrans, panneau, pont } from "../seams.js";
   // own onClick unwinds — not a `closeScreen()` call, which is a harmless
   // no-op against an address it was never the host of.
   window.__close = (layer) => {
-    if (layer !== "screen") return panneau.fermer();
+    if (layer !== "screen") return panel.close();
     if (select("#screen").classList.contains("open")) return closeScreen();
-    if (document.querySelector(".screen.open")) return pont.retour();
+    if (document.querySelector(".screen.open")) return bridge.back();
   };
 
   /* Gestures — pointer events, so one path serves finger, mouse and pen.
@@ -34403,10 +34409,10 @@ import { ecrans, panneau, pont } from "../seams.js";
        read going to the store directly, there is nothing left to refresh. */
 
     /* The bridge announces a back the way `popstate` did. Registered HERE,
-       not at the engine's top level: it is a `__pont` verb like the writes
+       not at the engine's top level: it is a `__bridge` verb like the writes
        below, and the real bridge only exists from this call on — nothing
        upstream queues it anymore. */
-    __pont.surRetour(onEngineBack);
+    __bridge.onBack(onEngineBack);
 
     /* The opening state comes from the ADDRESS, before the first paint: a
        reload that lands on the opening page rather than where one was is the
@@ -34424,7 +34430,7 @@ import { ecrans, panneau, pont } from "../seams.js";
        anywhere reaches the page the link named rather than a bare
        document. */
     try {
-      __pont.remplacer(navigationState(), arrivalAddress);
+      __bridge.replace(navigationState(), arrivalAddress);
     } catch (error) {}
     /* The interface exists from here on, so the startup screen has nothing
        left to cover — but it does not come off on that line. It comes off
@@ -34435,7 +34441,7 @@ import { ecrans, panneau, pont } from "../seams.js";
        It cannot be anywhere else: nothing can be inserted below the entry a
        document opens on, so the guard has to BE that entry. */
     try {
-      __pont.remplacer({ tm: "garde" });
+      __bridge.replace({ tm: "garde" });
     } catch (error) {}
     /* Pushed with the address one ARRIVED at rather than with the one the
        state now implies. Rendering an unknown id moves the state onto the
@@ -34444,7 +34450,7 @@ import { ecrans, panneau, pont } from "../seams.js";
        operator's address behind their back. A browser answering 404 leaves
        the address alone. */
     try {
-      __pont.noter(navigationState(), arrivalAddress);
+      __bridge.record(navigationState(), arrivalAddress);
     } catch (error) {}
     /* The welcome hint disappears on first interaction: a bubble that
        returns over an open sheet is a nuisance, not help. */

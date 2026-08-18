@@ -305,7 +305,7 @@ function artworkFor(reference: Reference, title: string): string | null {
 
 export function MediaScreen() {
   const { titre: raw } = useParams({ from: "/fiche/$titre" });
-  // Defensive: `__ecrans.fiche` already normalises on write, but an entry
+  // Defensive: `__screens.mediaSheet` already normalises on write, but an entry
   // reached by a typed/bookmarked URL did not necessarily go through it.
   const title = raw.normalize("NFC");
   // `world.follows` is MUTATED IN PLACE by the still-legacy follow act
@@ -379,9 +379,9 @@ export function MediaScreen() {
   const trailer = trailerIds[title] ?? trailerIds[baseTitle(title)] ?? null;
 
   return (
-    <section className="screen open" data-key={`fiche:${title}`}>
+    <section className="screen open" data-key={`mediaSheet:${title}`}>
       <div className="screenbar">
-        <button className="fback" onClick={() => window.__pont.retour()}>
+        <button className="fback" onClick={() => window.__bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.media.back")}
         </button>{" "}

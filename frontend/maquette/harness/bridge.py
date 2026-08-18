@@ -11,14 +11,14 @@ the startup screen comes off on its own, before this harness ever calls
 `window.__chargementTermine`.
 
 WHAT « THE BRIDGE » MEANS NOW, and it is not what it meant when this rule was
-written. It was three globals — `window.__pont`, `__ecrans`, `__panneau` —
+written. It was three globals — `window.__bridge`, `__screens`, `__panel` —
 because a classic script inside the fragment had no other way to reach a
 module. The engine is a module itself since SP4-fin, and it imports those three
 names from `src/seams.ts` instead: 61 call sites, and a wrong name is a failed
 BUILD rather than `undefined is not a function` on a click nobody tested.
 
 The globals did NOT disappear, and the honest reason is that this harness uses
-them — `__ecrans` nine times, `__panneau` seven, `__pont` twice — to drive the
+them — `__screens` nine times, `__panel` seven, `__bridge` twice — to drive the
 app the way a legacy call site would. They are the same objects the shell fills
 the imports with, so the two ways cannot disagree. What they are now is a
 DRIVING SURFACE for measurement, not a bridge between two worlds; the world
@@ -317,7 +317,7 @@ async def main():
         # inside `#coquille`): its results live under `.screen.open` now —
         # the FICHE this journey opens next stays fully legacy, still
         # `#screen`. Not read here (nothing has opened yet), but read
-        # explicitly below once the fiche is expected to have closed.
+        # explicitly below once the mediaSheet is expected to have closed.
         start_state = await pg.evaluate(
             """()=>({
                 screen: !!document.querySelector('.screen.open'),
@@ -347,7 +347,7 @@ async def main():
         # the legacy `#screen` can both carry `open` at once — `#coquille`
         # mounts BEFORE the legacy fragment in DOM order, so
         # `document.querySelector` always resolves the React screen first
-        # and would never surface a legacy `#screen` (the fiche this
+        # and would never surface a legacy `#screen` (the mediaSheet this
         # journey opened) that failed to close. Read explicitly here.
         back_state = await pg.evaluate(
             """()=>({
@@ -363,13 +363,13 @@ async def main():
         check(
             "the back redraws the results list",
             back_state["screen"]
-            and (back_state["key"] or "").startswith("ajout:")
+            and (back_state["key"] or "").startswith("add:")
             and back_state["cards"] == start_state["cards"]
             and back_state["query"] == start_state["query"],
             f"{back_state['cards']} cards · query « {back_state['query']} »",
         )
         check(
-            "and the legacy fiche is gone",
+            "and the legacy mediaSheet is gone",
             not back_state["legacySheetStillThere"],
             f"#screen open={back_state['legacySheetStillThere']}",
         )

@@ -29,7 +29,7 @@ from common import Journal, open_page
 from playwright.async_api import async_playwright
 
 # The rendered rows, read through the TITLE each one draws — not through
-# `data-fiche`, which a first version used and which is only on the rows whose
+# `data-mediasheet`, which a first version used and which is only on the rows whose
 # title resolves to an embedded media sheet: measured, one end of the library
 # had twenty-four of them and the other end none, so the rule read an empty
 # list and called it a failed reversal. The title is the row's identity
@@ -74,7 +74,7 @@ async def main():
         # sort: « les plus incomplets » ranks by episodes missing, and a set
         # where no row is incomplete ranks by nothing at all — every row scores
         # the same, the sort is stable, and the order comes back identical to
-        # « ajout récent ». A rule reading such a set cannot tell those two
+        # « add récent ». A rule reading such a set cannot tell those two
         # sorts apart. So the set is chosen to CONTAIN incomplete shows, and
         # that is asserted rather than assumed.
         # french-ok: a French search WORD, typed into the app's own search.
@@ -96,7 +96,7 @@ async def main():
             f"{len(incomplete)} incomplete show(s) in the narrowed set: {incomplete}"
             if incomplete else "none — that sort would rank a set where every "
             "row scores the same, and answer the source order, which is what "
-            "« ajout récent » answers")
+            "« add récent » answers")
 
         declared = await page.evaluate("()=>window.__referentiel.TRIS")
         journal.check(
@@ -175,7 +175,7 @@ async def main():
             len(current) == 1 and current[0]["sort"] == "az"
             and current[0]["reversed"],
             str([(entry["text"], entry["current"]) for entry in marked]))
-        await page.evaluate("()=>window.__panneau.fermer()")
+        await page.evaluate("()=>window.__panel.close()")
         await page.wait_for_timeout(300)
 
         # AND THE NORMAL DIRECTION IS NOT MERELY THE OTHER ONE: « A → Z » says

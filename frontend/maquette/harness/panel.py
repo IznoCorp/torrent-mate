@@ -20,7 +20,7 @@ guarantees a builder CAN make:
 
 The builder and the verb have MOVED: the constructor is the component
 `design/src/components/panel.tsx`, and a producer opens a panel by calling
-the shell's `window.__panneau.ouvrir(descripteur)` rather than the engine's own
+the shell's `window.__panel.open(descripteur)` rather than the engine's own
 `openSheet(panneauHTML({…}))`. The two source checks below follow them there.
 What they hold is unchanged — one constructor, no second one, and every caller
 handing FACTS rather than markup — and the behavioural checks that follow are
@@ -90,14 +90,14 @@ async def main():
     #    descriptor is an OBJECT — a call opening on anything else (a string, a
     #    template literal, a variable holding ready-made markup) is an envelope.
     # BOTH SPELLINGS, because there are two and they are the same object. The
-    # engine imports `panneau` from `src/seams.ts` and says `panneau.ouvrir(`;
-    # anything reaching it as a global still says `window.__panneau.ouvrir(`,
+    # engine imports `panel` from `src/seams.ts` and says `panel.open(`;
+    # anything reaching it as a global still says `window.__panel.open(`,
     # and the shell fills the one from the other. Counting only the global form
     # found ZERO callers the day the engine converted its 40 call sites — which
     # is what the « there really are callers » check below exists to notice,
     # and did.
     calls = re.findall(
-        r"(?:window\.__)?panneau\.ouvrir\(\s*(.{0,24})", source, re.S)
+        r"(?:window\.__)?panel\.open\(\s*(.{0,24})", source, re.S)
     not_facts = [a.strip()[:24] for a in calls if not a.lstrip().startswith("{")]
     check("no caller hands markup", not not_facts,
           " · ".join(not_facts))

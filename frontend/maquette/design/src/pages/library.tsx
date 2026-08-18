@@ -10,7 +10,7 @@
 // Markup is TRANSPLANTED, not translated. The rows go through `libRowHTML` and
 // `tileHTML`, reused VERBATIM: they carry the `data-*` the document-level
 // delegation reads (`data-tile`, `data-del`, `data-swipeact`, `data-panel`,
-// `data-fiche`), and re-deriving that markup here would drift the one thing
+// `data-mediasheet`), and re-deriving that markup here would drift the one thing
 // that seam depends on being byte-exact.
 //
 // WHAT DOES NOT MOVE: the selection bar. `paintSelBar()` creates and removes a

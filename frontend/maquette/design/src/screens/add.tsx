@@ -82,14 +82,14 @@ export function AddScreen() {
 
   // Always invoked from INSIDE this screen — search() runs only while
   // AddScreen is mounted, which means the address already reads `/ajout`.
-  // Routing it through `window.__ecrans.ajout()` (a PUSH, meant for arriving
+  // Routing it through `window.__screens.ajout()` (a PUSH, meant for arriving
   // here fresh from elsewhere — the FAB, a resolution's manual search)
   // stacked a second `/ajout` entry per search: the legacy engine never
   // pushed for a same-key re-render, and a screen already open should not
   // either — one "Retour" from a chip search used to leave the screen still
   // open, having only popped back onto an earlier `/ajout` entry. `go()`
   // direct, with `replace: true`, keeps the sync with the legacy readers
-  // (`state.addQ`/`state.addMode`) `window.__ecrans.ajout()` also performs,
+  // (`state.addQ`/`state.addMode`) `window.__screens.ajout()` also performs,
   // without the push.
   function search(value: string): void {
     write({ addQ: value, addMode: mode });
@@ -107,11 +107,11 @@ export function AddScreen() {
   // (however many entries deep the operator is, this always lands on the
   // right page) and not a `data-go` click either — that shared delegated
   // handler's own history handling (`closeScreen`, `screenStack`,
-  // `__pont.remplacer`) is built for the LEGACY layer stack, which this
+  // `__bridge.remplacer`) is built for the LEGACY layer stack, which this
   // screen no longer belongs to. The router entry is REPLACED with the
   // destination — the same "the layer's entry becomes the arrival" semantics
   // `data-go`'s own comment describes, expressed as a router-owned replace
-  // instead of a `__pont.remplacer` — and the legacy state is written +
+  // instead of a `__bridge.remplacer` — and the legacy state is written +
   // rendered explicitly, since nothing subscribes the legacy `#view` to the
   // store automatically (see `render`'s own doc comment in data.ts).
   function toFollows(): void {
@@ -152,9 +152,9 @@ export function AddScreen() {
     .join("");
 
   return (
-    <section className="screen open" data-key={`ajout:${mode}`}>
+    <section className="screen open" data-key={`add:${mode}`}>
       <div className="screenbar">
-        <button className="fback" onClick={() => window.__pont.retour()}>
+        <button className="fback" onClick={() => window.__bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.add.back")}
         </button>

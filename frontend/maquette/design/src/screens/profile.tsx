@@ -53,7 +53,7 @@ function countKept(profile: QualityProfile, releases: Release[]): number {
 
 export function ProfileScreen() {
   const { titre: raw } = useParams({ from: "/profil/$titre" });
-  // Defensive: `__ecrans.profil` already normalises on write, but an entry
+  // Defensive: `__screens.profil` already normalises on write, but an entry
   // reached by a typed/bookmarked URL did not necessarily go through it.
   const title = raw.normalize("NFC");
   const state = useUiState();
@@ -82,9 +82,9 @@ export function ProfileScreen() {
   }
 
   return (
-    <section className="screen open" data-key={`profil:${title}`}>
+    <section className="screen open" data-key={`profile:${title}`}>
       <div className="screenbar">
-        <button className="fback" onClick={() => window.__pont.retour()}>
+        <button className="fback" onClick={() => window.__bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.profile.back")}
         </button>

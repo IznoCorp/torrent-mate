@@ -241,7 +241,7 @@ const STATES = [
       "Écran d'ajout — au repos",
       () => {
         applyState({ page: "acq", phase: "prete" });
-        window.__ecrans.ajout("");
+        window.__screens.add("");
       },
     ],
     [
@@ -249,7 +249,7 @@ const STATES = [
       "Écran d'ajout — résultats réels",
       () => {
         applyState({ page: "acq", phase: "prete" });
-        window.__ecrans.ajout("star wars");
+        window.__screens.add("star wars");
       },
     ],
     [
@@ -276,7 +276,7 @@ const STATES = [
         store.write({
           resolveTarget: "Backrooms.2026.MULTi.2160p.WEB-DL",
         });
-        window.__ecrans.ajout("Backrooms 2026", "identifier");
+        window.__screens.add("Backrooms 2026", "identifier");
       },
     ],
     [
@@ -284,7 +284,7 @@ const STATES = [
       "Écran — choisir une autre release",
       () => {
         applyState({ page: "acq", acqTab: "suivis", phase: "prete" });
-        window.__ecrans.releases("Silo");
+        window.__screens.releases("Silo");
       },
     ],
     [
@@ -292,7 +292,7 @@ const STATES = [
       "Écran — profil de qualité",
       () => {
         applyState({ page: "acq", acqTab: "suivis", phase: "prete" });
-        window.__ecrans.profile("Silo");
+        window.__screens.profile("Silo");
       },
     ],
     [
@@ -481,7 +481,7 @@ const STATES = [
       "Arrivées — résolution, aucun candidat",
       () => {
         applyState({ page: "arr", phase: "prete", pipe: "repos" });
-        window.__ecrans.resolution();
+        window.__screens.resolution();
       },
     ],
     [
@@ -494,7 +494,7 @@ const STATES = [
           phase: "prete",
           pipe: "repos",
         });
-        window.__ecrans.resolution("Lucky");
+        window.__screens.resolution("Lucky");
       },
     ],
     [
@@ -502,7 +502,7 @@ const STATES = [
       "Fiche — suggestion NON possédée (série)",
       () => {
         applyState({ page: "acq", acqTab: "decouvrir", phase: "prete" });
-        window.__ecrans.fiche("The Venture Bros");
+        window.__screens.mediaSheet("The Venture Bros");
       },
     ],
     [
@@ -510,7 +510,7 @@ const STATES = [
       "Fiche — suggestion NON possédée (film)",
       () => {
         applyState({ page: "acq", acqTab: "decouvrir", phase: "prete" });
-        window.__ecrans.fiche("Superman : L'Homme de demain");
+        window.__screens.mediaSheet("Superman : L'Homme de demain");
       },
     ],
     [
@@ -518,7 +518,7 @@ const STATES = [
       "Fiche — série avec épisodes datés",
       () => {
         applyState({ page: "lib", phase: "prete" });
-        window.__ecrans.fiche("Silo (2023)");
+        window.__screens.mediaSheet("Silo (2023)");
       },
     ],
     [
@@ -526,7 +526,7 @@ const STATES = [
       "Fiche — film",
       () => {
         applyState({ page: "lib", phase: "prete" });
-        window.__ecrans.fiche("Marjorie Prime");
+        window.__screens.mediaSheet("Marjorie Prime");
       },
     ],
     [
@@ -534,7 +534,7 @@ const STATES = [
       "Fiche — sans bande-annonce",
       () => {
         applyState({ page: "lib", phase: "prete" });
-        window.__ecrans.fiche("Broadchurch");
+        window.__screens.mediaSheet("Broadchurch");
       },
     ],
     [

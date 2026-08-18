@@ -65,7 +65,7 @@ async def main():
                      ?? document.querySelector('#view');
 
           // R1 — every tappable poster leads to a FILLED-IN sheet
-          R.hollowSheets = [...root.querySelectorAll('[data-fiche]')].map(el=>el.dataset.fiche)
+          R.hollowSheets = [...root.querySelectorAll('[data-mediasheet]')].map(el=>el.dataset.mediasheet)
             .filter(t=>{const f=sheetFor(t); return !f || !f.ov || !f.g || !(f.cast||[]).length;});
 
           // R2 — HARDENED: a button must have a declared DESTINATION, not
@@ -191,7 +191,7 @@ async def main():
           // like the others — the tab bar passes above it too — and joins
           // this sweep through the SAME generic entry the root ladder above
           // uses: any open `.screen.open[data-key]`, never a per-identity
-          // prefix. One generic entry covers the fiche, the add screen, the
+          // prefix. One generic entry covers the mediaSheet, the add screen, the
           // arbitration screen, the release picker, the quality profile and
           // whatever migrates next — naming each one here would have re-open
           // this exact gap on every future migration. Dropping it entirely
@@ -202,7 +202,7 @@ async def main():
                           ['.screen.open[data-key]','.port']];
           for (const [sel, inner] of layers) {
             const el = document.querySelector(sel);
-            // The fiche's selector matches only while it is open, so an absent
+            // The mediaSheet's selector matches only while it is open, so an absent
             // node is a closed layer — not an error, and not a reason to throw.
             if (!el || !el.classList.contains('open')) continue;
             const port = el.querySelector(inner);
@@ -250,8 +250,8 @@ async def main():
     # R9 — film/series vocabulary, across ALL surfaces
     voc = await pg.evaluate("""()=>{
       const out=[];
-      const expected={movie:{ajout:'Ajouter',pause:'Ne plus chercher',retrait:'Retirer de la list'},
-                      show:{ajout:'Suivre',pause:'Mettre en pause',retrait:'Retirer le isFollowed'}};
+      const expected={movie:{add:'Ajouter',pause:'Ne plus chercher',retrait:'Retirer de la list'},
+                      show:{add:'Suivre',pause:'Mettre en pause',retrait:'Retirer le isFollowed'}};
       for (const f of world.follows) {
         const lab = stLabel(f);
         if (f.k==='movie' && /jour|Terminé/.test(lab)) out.push(`movie « ${f.t} » wears « ${lab} » (series vocabulary)`);

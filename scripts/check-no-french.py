@@ -202,37 +202,16 @@ FROZEN_IDENTIFIERS = {
         "Names the maquette DIRECTORY, whose own name is frozen above — a "
         "constant holding a path inherits that path's reason and nothing more."
     ),
-    # The three seams the legacy engine calls. Their names are the FRAGMENT's:
-    # the same objects are published as `window.__pont`, `window.__ecrans` and
-    # `window.__panneau`, which is how the rule harness drives them, and the
-    # engine's 61 call sites spell them that way. Renaming the TypeScript half
-    # would invent a second vocabulary for one thing, and leave every rule and
-    # every call site pointing at the old one.
-    "pont": (
-        "A seam NAME, spelled as the fragment spells it — the same object is "
-        "`window.__pont`, which the harness drives and the engine calls."
-    ),
-    "ecrans": (
-        "A seam NAME, spelled as the fragment spells it — the same object is "
-        "`window.__ecrans`, which the harness drives and the engine calls."
-    ),
-    "panneau": (
-        "A seam NAME, spelled as the fragment spells it — the same object is "
-        "`window.__panneau`, which the harness drives and the engine calls."
-    ),
-    # A NAMED DEBT, not an exemption on principle. `data-fiche` is the
-    # media-sheet contract, and the obvious English for it — `data-sheet` — is
-    # ALREADY TAKEN by the sheet-opener (`data-sheet="utilisateur"`,
-    # `data-sheet="plus"`). Renaming this one to `sheet` merged two distinct
-    # contracts: the user menu started answering with the media sheet's
-    # actions. It needs a distinct English name and its own step, moving the
-    # markup, the reader and the rules together — which is exactly what the
-    # `data-*` batch did for the other nineteen.
-    "fiche": (
-        "The media-sheet contract. `data-sheet` is taken by a DIFFERENT "
-        "attribute, so this rename needs a name of its own and its own step; "
-        "merging them was measured and reverted."
-    ),
+    # `ecrans`, `panneau`, `pont` and `fiche` were frozen here, and the
+    # operator asked what the reason actually was. It did not survive the
+    # question: « the fragment spells them that way » is circular — the
+    # fragment, the engine and the harness are all in this repository, and a
+    # hundred and forty names the fragment spelled had already moved. They are
+    # `screens`, `panel`, `bridge` now, with their eleven methods, and the
+    # media-sheet contract is `data-mediasheet` — a name of its own, because
+    # `data-sheet` belongs to the panel opener and merging them broke the user
+    # menu. A constraint on WHICH English name to pick was never a reason to
+    # keep the French one.
 }
 
 # ── helpers ──────────────────────────────────────────────────────────────────

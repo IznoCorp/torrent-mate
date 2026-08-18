@@ -1,6 +1,6 @@
 // The strangler shell. One owner for the URL and the history: this router.
 // The legacy engine keeps its navigation LOGIC (what to push, when to
-// unwind) and loses only its primitives — it speaks to `window.__pont`,
+// unwind) and loses only its primitives — it speaks to `window.__bridge`,
 // implemented here on the router's history. `window.__go` keeps driving
 // states without navigation, exactly as before.
 //
@@ -66,15 +66,15 @@ type SearchParams = {
 // primitives, and their names are the fragment's own; the state objects
 // crossing them are the legacy ones.
 type Bridge = {
-  noter: (state: unknown, url: string) => void;
-  remplacer: (state: unknown, url?: string) => void;
-  coucher: (layer: string) => void;
-  retour: () => void;
+  record: (state: unknown, url: string) => void;
+  replace: (state: unknown, url?: string) => void;
+  pushLayer: (layer: string) => void;
+  back: () => void;
   // Settling SEVERAL entries at once — the door a caller uses instead of
-  // saying `retour()` twice in the same task. `n` counts ENTRIES, and the
+  // saying `back()` twice in the same task. `n` counts ENTRIES, and the
   // traversal is announced to the engine before it is issued.
-  reculer: (n: number) => void;
-  surRetour: (callback: (state: unknown) => void) => () => void;
+  rewind: (n: number) => void;
+  onBack: (callback: (state: unknown) => void) => () => void;
 };
 
 // One entry per migrated screen: what a legacy call site invokes instead of
@@ -85,9 +85,9 @@ type Screens = {
   // The media sheet — the centre of the product. `titre` crosses as a plain
   // string here too; the percent-encoding and the NFC normalisation are done
   // below, on write, and again by `MediaScreen` on read.
-  fiche: (titre: string) => void;
+  mediaSheet: (titre: string) => void;
   // The release-choice screen — same `titre`-crosses-as-a-plain-string
-  // contract as `fiche`/`profile` above. Unlike them, it also writes
+  // contract as `mediaSheet`/`profile` above. Unlike them, it also writes
   // `state.relTitre` (the legacy first line of `openReleases`, still read by
   // the `data-prendre` click-delegation branch) BEFORE navigating.
   releases: (titre: string) => void;
@@ -102,12 +102,12 @@ type Screens = {
   // `q`/`mode` cross the bridge as plain strings, the way a legacy call site
   // already holds them (`state.addQ`, a literal like `"identifier"`) — the
   // validated union lives in `/ajout`'s own `validateSearch`, not here.
-  ajout: (q?: string, mode?: string) => void;
+  add: (q?: string, mode?: string) => void;
 };
 
 declare global {
   interface Window {
-    __pont: Bridge;
+    __bridge: Bridge;
     __routeur: typeof router;
     // The engine's handshake: defined by refonte.html, called exactly once
     // below, once the store exists and the bridge is real. Optional because
@@ -120,7 +120,7 @@ declare global {
     __demarrerMoteur?: (deps: { store: Store; base: string }) => void;
     // The domain hooks and the probes read the engine's state through this.
     __magasin: Store;
-    __ecrans: Screens;
+    __screens: Screens;
     // The layer-unwind bookkeeping stays ENGINE-side (the named-entry check
     // and the one-in-flight latch live with the popstate handler that consumes
     // them); the fragment publishes it so the shell's own layer can announce
@@ -325,25 +325,25 @@ declare module "@tanstack/react-router" {
 // harmlessly — the router has already re-rendered by the new URL before this
 // runs, and the callback simply has nothing left to do. Filtering pops by
 // pathname here was tried and withdrawn: a layer opened OVER a screen route
-// (via `coucher`, still a `layer` entry) needs the SAME forwarding a layer
+// (via `pushLayer`, still a `layer` entry) needs the SAME forwarding a layer
 // opened anywhere else gets, or its own unwind guard never runs and closing
 // it silently stops working.
-window.__pont = {
-  noter: (state: unknown, url: string) => {
+window.__bridge = {
+  record: (state: unknown, url: string) => {
     history.push(url, state);
     history.flush();
   },
-  remplacer: (state: unknown, url?: string) => {
+  replace: (state: unknown, url?: string) => {
     history.replace(url ?? history.location.href, state);
     history.flush();
   },
-  coucher: (layer: string) => {
+  pushLayer: (layer: string) => {
     history.push(history.location.href, { layer });
     history.flush();
   },
-  retour: () => history.back(),
+  back: () => history.back(),
   /* One logical navigation, ONE history operation — R76's rule read on the way
-     BACK. A caller leaving several entries behind used to say `retour()` twice
+     BACK. A caller leaving several entries behind used to say `back()` twice
      in the same task: two backs, two pops, and the engine's latch had only
      ever been told about one of them, so the surplus pop was read as the
      operator's own Back gesture (M11). Here the traversal is asked for once.
@@ -356,13 +356,13 @@ window.__pont = {
      its announcement is a pop nobody expected. `n` counts ENTRIES; how many
      popstate events a traversal of n entries costs is knowledge that belongs
      with the handler consuming them, and it is the announcer's to apply. */
-  reculer: (n: number) => {
+  rewind: (n: number) => {
     if (n <= 0) return;
     history.flush();
     window.__annoncerPops?.(n);
     history.go(-n);
   },
-  surRetour: (callback: (state: unknown) => void) =>
+  onBack: (callback: (state: unknown) => void) =>
     history.subscribe(({ action, location }) => {
       if (
         action.type === "BACK" ||
@@ -484,10 +484,10 @@ export function go(target: {
 // NFC-normalised here, once, on write — `ProfileScreen` normalises again on
 // read so an entry arriving by direct URL (not through this bridge) is
 // covered too.
-window.__ecrans = {
+window.__screens = {
   profile: (titre: string) =>
     go({ to: "/profil/$titre", params: { titre: titre.normalize("NFC") } }),
-  fiche: (titre: string) =>
+  mediaSheet: (titre: string) =>
     go({ to: "/fiche/$titre", params: { titre: titre.normalize("NFC") } }),
   // The legacy `openReleases`'s own first line, transplanted here rather than
   // into the component: `state.relTitre` is what the `data-prendre`
@@ -548,7 +548,7 @@ window.__ecrans = {
   // reflects the screen's ENTRY query, not its live one. That staleness is
   // the accepted cost of the ownership flip: the router is the only thing
   // that stays current for as long as the address reads `/ajout`.
-  ajout: (q?: string, mode?: string) => {
+  add: (q?: string, mode?: string) => {
     const validMode = mode === "identifier" ? "identifier" : "suivi";
     // This file is SHELL code, not a component — it is the seam itself, so
     // it writes the store directly rather than through data.ts's
@@ -586,10 +586,10 @@ function openPanel(descriptor: PanelDescriptor): void {
     store.write({ panneauDescripteur: descriptor, panneauOuvert: true }),
   );
   try {
-    window.__pont.coucher("sheet");
+    window.__bridge.pushLayer("sheet");
   } catch (error) {
-    // B-026's own residual: `window.__pont` is assigned synchronously at this
-    // module's top level, before any producer can call `ouvrir` — so unlike
+    // B-026's own residual: `window.__bridge` is assigned synchronously at this
+    // module's top level, before any producer can call `open` — so unlike
     // the legacy `openSheet` swallow this copies, there is no boot-time
     // window where the bridge is genuinely absent. A throw here means the
     // write itself failed, and the store above already flushed the panel
@@ -621,10 +621,10 @@ function isPanelOpen(): boolean {
   return store.read().state.panneauOuvert === true;
 }
 
-window.__panneau = {
-  ouvrir: openPanel,
-  fermer: closePanel,
-  ouverte: isPanelOpen,
+window.__panel = {
+  open: openPanel,
+  close: closePanel,
+  isOpen: isPanelOpen,
 };
 
 // The engine reads these three by import rather than off `window` — same
@@ -632,9 +632,9 @@ window.__panneau = {
 // exist and before the engine is started below, which is the only window in
 // which they can be both real and unused.
 installSeams({
-  pont: window.__pont,
-  ecrans: window.__ecrans,
-  panneau: window.__panneau,
+  bridge: window.__bridge,
+  screens: window.__screens,
+  panel: window.__panel,
 });
 
 /* Lets the contract check prove the refusal rather than trust the comment on
@@ -686,7 +686,7 @@ if (typeof start === "function") start({ store: store, base });
 //     already was relative to `#screen` (earlier in document order, simply
 //     re-parented), so a React screen still sits BEHIND the legacy one in
 //     the stacking order the harness (screens.py, bridge.py) already relies on:
-//     when both carry `.open` at once (a legacy fiche opened over a migrated
+//     when both carry `.open` at once (a legacy mediaSheet opened over a migrated
 //     results screen), `#screen` — later in the DOM — paints on top, and
 //     `document.querySelector('.screen.open')` still resolves the React
 //     screen first.
