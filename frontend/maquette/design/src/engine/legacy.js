@@ -253,7 +253,7 @@
       t: "Kyma, l'onde mystérieuse",
       serie: null,
       depuis: "9 août",
-      recherches: 8,
+      recherches: 9,
       k: "movie",
       y: 2026,
       st: "en_attente",
@@ -263,7 +263,7 @@
       t: "L'Odyssée",
       serie: null,
       depuis: "6 août",
-      recherches: 13,
+      recherches: 14,
       k: "movie",
       y: 2026,
       st: "en_attente",
@@ -272,7 +272,7 @@
       t: "Spider-Man : Brand New Day",
       serie: null,
       depuis: "5 août",
-      recherches: 16,
+      recherches: 17,
       k: "movie",
       y: 2026,
       st: "en_attente",
@@ -12187,8 +12187,8 @@
       </div>
       <div class="ver">
         <p class="vt">Version déployée</p>
-        <p class="vv">0.97.20</p>
-        <p class="vc">build 52f28213 · à jour</p>
+        <p class="vv">0.97.21</p>
+        <p class="vc">build e21462f4 · à jour</p>
       </div>`;
     element.classList.add("open");
     select("#scrim").classList.add("open");
