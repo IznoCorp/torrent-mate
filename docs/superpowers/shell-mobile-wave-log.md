@@ -661,7 +661,7 @@ same thing for the wrong reason.
 **The engine republishes its own surface, and that is a SEAM, written down rather than
 inferred.** A classic script's declarations are global, and the harness drives the engine by
 bare name at some forty `page.evaluate` call sites; a module's are private. So `legacy.js` ends
-by republishing exactly what existed: **231 by value, 23 by getter**. The split is measured, not
+by republishing exactly what existed: **230 by value, 24 by getter**. The split is measured, not
 chosen — a binding the engine REASSIGNS cannot be published by value, and `state` and `world`
 are both reassigned and both are what the harness reads most. By value they would have answered
 a world that no longer exists, silently, and every rule reading them would have measured a page
@@ -726,6 +726,30 @@ hidden 5 775 ms after, within 5 ms across four runs. The walk simply crosses tha
 two adjacent states. `fidelity.py` dismissed the toast immediately after `load` — before it is
 raised — so the click hit nothing. It now waits for the toast to exist and dismisses it then,
 and the pre-move tree was re-recorded with the corrected oracle before any verdict was taken.
+
+### And what the adversarial review found, which no gate had
+
+Two, and both are the same shape: **a pattern that answers a question narrower than the one
+being asked**, printing a true-sounding sentence about a scope it does not cover.
+
+**`deroulementEnCours` was published by value, and it is rebound.** The test for « does the
+engine reassign this » looked for `name =`. That binding is only ever written
+`deroulementEnCours += 1` and `-= 1`, so it read as stable and went on the value side, where
+`window.deroulementEnCours` would have answered 0 forever — the same silent lie the getters
+exist to prevent, arrived at from the other direction. The rebinding forms that carry no bare
+`=` are compound assignment, `++`/`--`, destructuring on either side, and `for (name of …)`;
+all four were then searched across all 254 names, and this is the only one. The split is
+**230 by value, 24 by getter**.
+
+**R76 printed « `navigate(` appears exactly once under `design/src/` » about a scope that had
+stopped containing the file most likely to break it.** Its glob reads `.ts` and `.tsx`; the
+engine is a `.js`, and it navigates the router once — `window.__routeur.navigate({to: "/",
+replace: true})`, inside `window.__go`. That call is not a journey: `__go` is the harness's
+state DRIVER, and it resets the router before applying a named state exactly as it clears the
+legacy screen stack, so a measurement never inherits the route a previous one left. The law
+holds in spirit; the sentence did not. The rule now globs `.js` too and bounds both calls at
+one each — the product's single door, and the driver's reset — so a third fails, which it does
+under mutation.
 
 ### What stays in the fragment, and it is the spec's decision, not this wave's
 

@@ -67,10 +67,10 @@ ReferenceError instead of a verdict.
 The engine therefore **republishes exactly the surface it already had** — no more, no less. Two
 lists, and the split is measured:
 
-- **231 by value.** A `const` cannot be reassigned, and no `function` here is either — checked,
+- **230 by value.** A `const` cannot be reassigned, and no `function` here is either — checked,
   not assumed. (`toast` reads as reassigned only if `data-toast="…"` inside a template string is
   mistaken for an assignment; the lookbehind has to exclude the hyphen.)
-- **23 by getter.** These the engine reassigns — `state` and `world` among them, which are also
+- **24 by getter.** These the engine reassigns — `state` and `world` among them, which are also
   what the harness reads most. Published by value they would answer a world that no longer
   exists, silently.
 
@@ -96,7 +96,7 @@ measures the move, in the same change as the move.
 - [x] Record all 82 states against `#device` on the pre-move tree.
 - [x] Move the script body verbatim to `src/engine/legacy.js`; add the header explaining what
       it is, why it stays JavaScript, and why it publishes itself.
-- [x] Append the publication block: 231 by value, 23 by getter, each list measured.
+- [x] Append the publication block: 230 by value, 24 by getter, each list measured.
 - [x] Delete the `<script>` element from the fragment, tag included.
 - [x] `import "./engine/legacy.js"` in `shell.tsx`, with the comment that says why it is placed
       where it is.

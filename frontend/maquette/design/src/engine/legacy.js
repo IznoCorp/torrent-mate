@@ -35098,12 +35098,24 @@
    reassigned — checked, not assumed), so a plain value is exactly as live as
    a getter and reads better.
 
-   231 by value, 23 by getter, 254 in all. The first count of this list said
-   253, and it was wrong by exactly one: the regex that collected the names
-   knew `function`, `const`, `let`, `var` and `class`, and `deconnecter` is an
+   230 by value, 24 by getter, 254 in all — and BOTH numbers were wrong once,
+   for the same reason twice: a pattern that answers a question narrower than
+   the one being asked.
+
+   The first count said 253, because the regex collecting the names knew
+   `function`, `const`, `let`, `var` and `class`, and `deconnecter` is an
    `async function`. No state's markup depends on logging out, so a
    state-by-state comparison of the whole frame said « identical » while the
-   rule suite said `ReferenceError`. */
+   rule suite said `ReferenceError`.
+
+   The first SPLIT put `deroulementEnCours` on the by-value side, because the
+   test for « does the engine rebind this » looked for `name =` — and this one
+   is only ever written `deroulementEnCours += 1` and `-= 1`. Published by
+   value it would have answered 0 forever, which is the same class of silent
+   lie the getters exist to prevent, arrived at from the other direction. The
+   forms that rebind without a bare `=` are compound assignment, `++`/`--`,
+   destructuring on either side, and `for (name of …)`; all four were searched
+   across all 254 names, and this is the only one. */
 Object.assign(window, {
   ACTEURS, AFFICHES_HD, APPARENCES, APPUI_MS, APPUI_TOLERANCE, AUDIOS,
   AUJOURDHUI, BLOCKED, CADENCE_CRON, CATS, COMPTE, DECISIONS_ATTENTE,
@@ -35126,29 +35138,29 @@ Object.assign(window, {
   avancerGestePage, baseTitle, beforeReset, cadenceFR, cardHTML, chipHTML,
   closeDlg, closeHarness, closeScreen, closeSheet, couvrirLeChargement,
   dateFR, debutGestePage, decisionEnAttente, deckCardHTML, deckHTML,
-  deckOrdre, deconnecter, dejaInstallee, derived, deroulementEnCours,
-  deroulerCouche, dismissSug, emptyInner, endCardDrag, endDeckDrag,
-  endPageDrag, endSugDrag, epState, escapeHtml, etatDeLURL,
-  etatDeNavigation, factRowsHTML, fermerPopEp, fermerTiroir,
-  fichiersModifies, fillSug, gridBadge, hideLayers, icons, initials,
-  initialsOf, largeurTiroir, libFiltered, libRowHTML, listeFaitsHTML,
-  loadMoreSug, masquerConnexion, masquerDemarrage, masquerInstallation,
-  memeValeur, modifierReglage, mountDeck, mountLoaders, mountSearch,
-  nomDeFichier, normalisedKey, noterLeChemin, openAddSheet,
-  openDeleteDialog, openDetailSheet, openDlg, openFollowSheet, openHarness,
-  openJourneySheet, openPanel, openPlusSheet, openScreen, openSheet,
-  openSugSheet, openUserSheet, ouvrirActionMaintenance, ouvrirPopEp,
-  ouvrirReglage, ouvrirSecret, ouvrirTiroir, paintSelBar,
-  panneauSousLeDoigt, passerSug, pileEcrans, plages, possedesDe, posterBox,
-  prochaineRechercheFR, proposerInstallation, ptr, publierHauteurBarre,
-  refPanel, refermerCarte, refreshDeck, reglageId, reinitialiserReglages,
-  render, renderNav, richText, saisonsDe, saisonsFicheHTML, secHTML,
-  secInner, seedWorld, select, sheetFor, skelCards, skelCardsInner,
-  skelTiles, sortLabel, sortirDeLaFile, stFraction, stLabel, stripHTML,
-  sugCardHTML, sugFoot, sugTileHTML, sugVerb, suivreAppui, surIOSSafari,
-  surRetourEngine, surfErr, surfErrInner, svgIcon, swipeHTML, tileHTML,
-  toast, toastUndo, tousLesReglages, trailerIds, trierLib, urlDeLEtat,
-  valeurCourante, valeurEnCours, valeurSaisie, view,
+  deckOrdre, deconnecter, dejaInstallee, derived, deroulerCouche,
+  dismissSug, emptyInner, endCardDrag, endDeckDrag, endPageDrag,
+  endSugDrag, epState, escapeHtml, etatDeLURL, etatDeNavigation,
+  factRowsHTML, fermerPopEp, fermerTiroir, fichiersModifies, fillSug,
+  gridBadge, hideLayers, icons, initials, initialsOf, largeurTiroir,
+  libFiltered, libRowHTML, listeFaitsHTML, loadMoreSug, masquerConnexion,
+  masquerDemarrage, masquerInstallation, memeValeur, modifierReglage,
+  mountDeck, mountLoaders, mountSearch, nomDeFichier, normalisedKey,
+  noterLeChemin, openAddSheet, openDeleteDialog, openDetailSheet, openDlg,
+  openFollowSheet, openHarness, openJourneySheet, openPanel, openPlusSheet,
+  openScreen, openSheet, openSugSheet, openUserSheet,
+  ouvrirActionMaintenance, ouvrirPopEp, ouvrirReglage, ouvrirSecret,
+  ouvrirTiroir, paintSelBar, panneauSousLeDoigt, passerSug, pileEcrans,
+  plages, possedesDe, posterBox, prochaineRechercheFR,
+  proposerInstallation, ptr, publierHauteurBarre, refPanel, refermerCarte,
+  refreshDeck, reglageId, reinitialiserReglages, render, renderNav,
+  richText, saisonsDe, saisonsFicheHTML, secHTML, secInner, seedWorld,
+  select, sheetFor, skelCards, skelCardsInner, skelTiles, sortLabel,
+  sortirDeLaFile, stFraction, stLabel, stripHTML, sugCardHTML, sugFoot,
+  sugTileHTML, sugVerb, suivreAppui, surIOSSafari, surRetourEngine,
+  surfErr, surfErrInner, svgIcon, swipeHTML, tileHTML, toast, toastUndo,
+  tousLesReglages, trailerIds, trierLib, urlDeLEtat, valeurCourante,
+  valeurEnCours, valeurSaisie, view,
 });
 
 // Read live, because the engine reassigns each of these.
@@ -35162,6 +35174,7 @@ Object.defineProperties(window, {
   clicAvaler: { get: () => clicAvaler, configurable: true },
   deckDrag: { get: () => deckDrag, configurable: true },
   depilage: { get: () => depilage, configurable: true },
+  deroulementEnCours: { get: () => deroulementEnCours, configurable: true },
   finDuChargement: { get: () => finDuChargement, configurable: true },
   installEvenement: { get: () => installEvenement, configurable: true },
   installRefusee: { get: () => installRefusee, configurable: true },
