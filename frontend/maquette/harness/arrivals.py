@@ -96,7 +96,7 @@ async def on_arrivals(pg, pipe="repos"):
     # re-renders and the measurement lands on whatever page was drawn before —
     # measured, not assumed: it read the acquisition page's roots.
     await pg.evaluate(
-        f"()=>{{window.__magasin.ecrire({{page: 'arr', pipe: '{pipe}'}}); render();}}")
+        f"()=>{{window.__magasin.write({{page: 'arr', pipe: '{pipe}'}}); render();}}")
     await pg.wait_for_timeout(320)
     return await pg.evaluate(READ)
 

@@ -58,7 +58,7 @@ export function AddScreen() {
 
   // `state.added` is a Set MUTATED IN PLACE by the still-legacy cross-world
   // "add:N" panel act and the replace-confirm dialog (refonte.html) — both
-  // bump the store's `version` without producing a new `etat` reference,
+  // bump the store's `version` without producing a new `state` reference,
   // which `useUiState()` alone would not notice (`useSyncExternalStore`
   // compares the selected value by reference). Subscribing to `version`
   // directly forces this component to re-render on that bump too; the read

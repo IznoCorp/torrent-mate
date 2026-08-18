@@ -497,7 +497,7 @@ window.__ecrans = {
   // itself — so it writes the store directly rather than through
   // `data.ts`'s `writeUiState` component door.
   releases: (titre: string) => {
-    window.__magasin.ecrire({ relTitre: titre });
+    window.__magasin.write({ relTitre: titre });
     go({
       to: "/releases/$titre",
       params: { titre: titre.normalize("NFC") },
@@ -528,7 +528,7 @@ window.__ecrans = {
   resolution: (dossier?: string, replace?: boolean) => {
     const first = window.__referentiel.derivedStuck()[0]?.t;
     const target = dossier ?? (typeof first === "string" ? first : null);
-    window.__magasin.ecrire({ resolveTarget: target });
+    window.__magasin.write({ resolveTarget: target });
     go({
       to: "/resolution/$dossier",
       // An address that changed with the interface language would no longer
@@ -554,7 +554,7 @@ window.__ecrans = {
     // it writes the store directly rather than through data.ts's
     // `writeUiState` write door (components must use that one; see its own
     // doc comment).
-    window.__magasin.ecrire({ addQ: q ?? "", addMode: validMode });
+    window.__magasin.write({ addQ: q ?? "", addMode: validMode });
     go({
       to: "/ajout",
       search: {
@@ -583,7 +583,7 @@ function openPanel(descriptor: PanelDescriptor): void {
   // second. This file is SHELL code — the seam itself — so it writes the store
   // directly rather than through data.ts's `writeUiState` component door.
   flushSync(() =>
-    store.ecrire({ panneauDescripteur: descriptor, panneauOuvert: true }),
+    store.write({ panneauDescripteur: descriptor, panneauOuvert: true }),
   );
   try {
     window.__pont.coucher("sheet");
@@ -608,7 +608,7 @@ function closePanel(pop?: boolean): void {
   // Guarded per LAYER, exactly as `closeSheet` was: closing an already-closed
   // sheet would consume a history entry that belongs to someone else.
   if (!isPanelOpen()) return;
-  flushSync(() => store.ecrire({ panneauOuvert: false }));
+  flushSync(() => store.write({ panneauOuvert: false }));
   // `pop` means the entry is already being popped by the gesture that got us
   // here; otherwise the layer unwinds its own, through the engine's latch.
   if (!pop) window.__derouler?.("sheet");
@@ -618,7 +618,7 @@ function closePanel(pop?: boolean): void {
 // own task ("is a layer up before I open a screen?"), and the store is right
 // at that instant whatever React has painted.
 function isPanelOpen(): boolean {
-  return store.lire().etat.panneauOuvert === true;
+  return store.read().state.panneauOuvert === true;
 }
 
 window.__panneau = {

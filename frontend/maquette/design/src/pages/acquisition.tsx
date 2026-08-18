@@ -752,8 +752,8 @@ export function AcquisitionPage(): ReactElement | null {
   const state = useUiState();
   // THE WORLD IS MUTATED IN PLACE by every action this page offers — grabbing a
   // medium splices it out of one list and unshifts it into another, pausing a
-  // follow writes its status — and those actions signal with `toucher()`, which
-  // bumps the store's VERSION and leaves `etat` identical. Subscribing to the
+  // follow writes its status — and those actions signal with `touch()`, which
+  // bumps the store's VERSION and leaves `state` identical. Subscribing to the
   // state alone leaves React bailing out: measured, « Récupérer maintenant »
   // moved the medium and left every counter on screen unchanged. The two other
   // pages that read mutable data subscribe the same way, for the same reason.

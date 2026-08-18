@@ -181,7 +181,7 @@ async def main():
     ran('R16')
     # R16 — the badge is the sum it claims to be
     bad=await pg.evaluate("""async ()=>{const out=[];
-      for (const s of ['reel','charge']) { window.__magasin.ecrire({scen: s}); window.__go('acq-encours-'+(s==='reel'?'repos':'charge'));
+      for (const s of ['reel','charge']) { window.__magasin.write({scen: s}); window.__go('acq-encours-'+(s==='reel'?'repos':'charge'));
         await new Promise(r=>setTimeout(r,240));
         const badge=document.querySelector('[data-page=acq] .navbadge');
         const expected=derived.takeable().length+derived.blocked().length;

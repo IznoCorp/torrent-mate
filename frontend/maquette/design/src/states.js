@@ -194,7 +194,7 @@ const STATES = [
       "Découvrir · affiches",
       () => {
         applyState({ page: "acq", acqTab: "decouvrir", phase: "prete" });
-        store.ecrire({ sugMode: "poster" });
+        store.write({ sugMode: "poster" });
         render();
       },
     ],
@@ -203,7 +203,7 @@ const STATES = [
       "Découvrir · slide cards",
       () => {
         applyState({ page: "acq", acqTab: "decouvrir", phase: "prete" });
-        store.ecrire({ sugMode: "deck" });
+        store.write({ sugMode: "deck" });
         render();
       },
     ],
@@ -273,7 +273,7 @@ const STATES = [
       "Recherche en mode IDENTIFIER (depuis une résolution)",
       () => {
         applyState({ page: "arr", phase: "prete", pipe: "repos" });
-        store.ecrire({
+        store.write({
           resolveTarget: "Backrooms.2026.MULTi.2160p.WEB-DL",
         });
         window.__ecrans.ajout("Backrooms 2026", "identifier");
@@ -372,7 +372,7 @@ const STATES = [
           phase: "prete",
           selMode: true,
         });
-        store.ecrire({ selected: new Set([0, 2, 5]) });
+        store.write({ selected: new Set([0, 2, 5]) });
         render();
       },
     ],

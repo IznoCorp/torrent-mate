@@ -53,7 +53,7 @@ function lastRunRows(
         : nothing
           ? t("screens.arrivals.nothingToDo")
           : fact.s || "",
-      etat: fact.bloque ? "danger" : "",
+      state: fact.bloque ? "danger" : "",
     };
   });
 }

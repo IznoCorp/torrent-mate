@@ -10,45 +10,45 @@
 import { Store as TanStackStore } from "@tanstack/store";
 
 export type UiState = { page: string; [key: string]: unknown };
-export type StoreContent = { etat: UiState; monde: unknown; version: number };
+export type StoreContent = { state: UiState; world: unknown; version: number };
 
-// MEMBER NAMES ARE THE SEAM: the legacy fragment calls `lire`, `ecrire`,
-// `adopterEtat`, `adopterMonde`, `toucher` and reads `store` by those exact
-// names, and `lire().etat` is the alias its own `state` is refreshed from.
+// MEMBER NAMES ARE THE SEAM: the legacy fragment calls `read`, `write`,
+// `adoptState`, `adoptWorld`, `touch` and reads `store` by those exact
+// names, and `read().etat` is the alias its own `state` is refreshed from.
 // They stay whatever the fragment says they are.
 export type Store = {
   store: TanStackStore<StoreContent>;
-  lire(): StoreContent;
-  ecrire(patch: Partial<UiState>): void;
-  adopterEtat(initial: UiState): void;
-  adopterMonde(world: unknown): void;
-  toucher(): void;
+  read(): StoreContent;
+  write(patch: Partial<UiState>): void;
+  adoptState(initial: UiState): void;
+  adoptWorld(world: unknown): void;
+  touch(): void;
 };
 
 export function createStore(): Store {
   const store = new TanStackStore<StoreContent>({
-    etat: { page: "acq" },
-    monde: null,
+    state: { page: "acq" },
+    world: null,
     version: 0,
   });
   return {
     store,
-    lire: () => store.state,
-    ecrire: (patch) =>
+    read: () => store.state,
+    write: (patch) =>
       store.setState((prev) => ({
         ...prev,
-        etat: { ...prev.etat, ...patch },
+        state: { ...prev.state, ...patch },
         version: prev.version + 1,
       })),
-    adopterEtat: (initial) =>
+    adoptState: (initial) =>
       store.setState((prev) => ({
         ...prev,
-        etat: initial,
+        state: initial,
         version: prev.version + 1,
       })),
-    adopterMonde: (monde) =>
-      store.setState((prev) => ({ ...prev, monde, version: prev.version + 1 })),
-    toucher: () =>
+    adoptWorld: (world) =>
+      store.setState((prev) => ({ ...prev, world, version: prev.version + 1 })),
+    touch: () =>
       store.setState((prev) => ({ ...prev, version: prev.version + 1 })),
   };
 }

@@ -5980,7 +5980,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       k: "movie",
       t: "The Odyssey",
       motif: "ambiguous",
-      etat: "superseded",
+      state: "superseded",
       when: "6 août, 09 h 24",
       y: 2026,
     },
@@ -5989,7 +5989,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       k: "show",
       t: "The Bombing of Pan Am S01E03",
       motif: "below_threshold",
-      etat: "resolved",
+      state: "resolved",
       when: "4 août, 12 h 37",
       choice: {
         t: "The Bombing of Pan Am S01E03",
@@ -6003,7 +6003,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       k: "show",
       t: "Star Trek",
       motif: "mid_band",
-      etat: "superseded",
+      state: "superseded",
       when: "30 juillet, 15 h 42",
     },
     {
@@ -6011,7 +6011,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       k: "show",
       t: "The Hawk",
       motif: "ambiguous",
-      etat: "resolved",
+      state: "resolved",
       when: "22 juillet, 22 h 11",
       choice: { t: "The Hawk", p: "tvdb", id: 450088, via: "pick" },
     },
@@ -6020,7 +6020,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       k: "show",
       t: "Lucky",
       motif: "ambiguous",
-      etat: "resolved",
+      state: "resolved",
       when: "15 juillet, 14 h 55",
       choice: { t: "Lucky (2026)", p: "tvdb", id: 457437, via: "pick" },
     },
@@ -6029,7 +6029,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       k: "show",
       t: "Top Chef Le Concours Parallele",
       motif: "mid_band",
-      etat: "resolved",
+      state: "resolved",
       when: "13 juillet, 18 h 44",
       y: 2026,
       choice: {
@@ -6044,7 +6044,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       k: "movie",
       t: "Ferrari Tsamere Lecaplain La tournee du Trio",
       motif: "manual",
-      etat: "resolved",
+      state: "resolved",
       when: "13 juillet, 18 h 44",
       y: 2025,
       choice: {
@@ -6059,7 +6059,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       k: "movie",
       t: "Aymeric Lompret et Pierre Emmanuel Barre Woke me up",
       motif: "manual",
-      etat: "resolved",
+      state: "resolved",
       when: "13 juillet, 18 h 44",
       y: 2026,
       choice: {
@@ -6074,7 +6074,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       k: "movie",
       t: "Obsession",
       motif: "manual",
-      etat: "resolved",
+      state: "resolved",
       when: "13 juillet, 16 h 46",
       y: 2026,
       choice: { t: "Obsession", p: "tmdb", id: 1339713, via: "pick" },
@@ -6084,7 +6084,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       k: "movie",
       t: "Remarkably Bright Creatures",
       motif: "manual",
-      etat: "resolved",
+      state: "resolved",
       when: "13 juillet, 16 h 05",
       y: 2026,
       choice: {
@@ -6981,7 +6981,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      reads `currentState().page` — the parentheses are the point, visible at
      every site, saying « this is a read, now » instead of looking like a
      module-level variable that someone must remember to refresh. */
-  const currentState = () => store.lire().etat;
+  const currentState = () => store.read().state;
 
   const INITIAL_STATE = {
     page: "acq",
@@ -7264,7 +7264,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     // `world` in place, and a store still holding the previous object would
     // hand a component a world nobody writes to anymore. Optional because the
     // first seed runs before the shell hands the store over.
-    store?.adopterMonde(world);
+    store?.adoptWorld(world);
   }
   seedWorld();
   /* Simulated behaviours
@@ -7404,7 +7404,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   function actionDelete(titres) {
     titres.forEach((titre) => world.removedLib.add(titre));
     world.lib = world.lib.filter((lib) => !world.removedLib.has(lib.t));
-    store.ecrire({ selMode: false, selected: new Set() });
+    store.write({ selMode: false, selected: new Set() });
     render();
     toast(
       `${titres.length} média${titres.length > 1 ? "s" : ""} supprimé${titres.length > 1 ? "s" : ""} — simulation, aucun fichier touché.`,
@@ -7418,7 +7418,7 @@ import { ecrans, panneau, pont } from "../seams.js";
 
   window.__reset = () => {
     seedWorld();
-    store.ecrire({
+    store.write({
       /* The SCENARIO is state too, and the loudest kind: it decides which
          world every later reading is taken from. A state that switched to the
          dense scenario left it switched for the next one, so a surface
@@ -7583,7 +7583,7 @@ import { ecrans, panneau, pont } from "../seams.js";
         const badge = ligne.ton
           ? `<span class="chip ${TONS[ligne.ton]}">${valeur}</span>`
           : valeur;
-        return `<li class="fx${empty ? " fempty" : ""}${ligne.etat === "danger" ? " fblocked" : ""}${
+        return `<li class="fx${empty ? " fempty" : ""}${ligne.state === "danger" ? " fblocked" : ""}${
           ligne.target ? " fclick" : ""
         }"><${tag} class="fw"${target}>
       <span class="fn">${escapeHtml(ligne.l)}</span>
@@ -9525,14 +9525,14 @@ import { ecrans, panneau, pont } from "../seams.js";
   function render() {
     // Every action ends in render(): one bump here reaches React for every
     // simulated mutation, including the ones made in place on `world`
-    // (splice, unshift…) that never pass through `ecrire`.
-    store?.toucher();
+    // (splice, unshift…) that never pass through `write`.
+    store?.touch();
     /* An id no page carries is not a crash: it is the `*` route. Looking one
        up and calling `.render()` on nothing stopped the whole interface on a
        TypeError, which is the worst possible answer to a stale bookmark. */
     let found = PAGES_OF().find((element) => element.id === currentState().page);
     if (!found) {
-      store.ecrire({ introuvable: "/" + currentState().page, page: "404" });
+      store.write({ introuvable: "/" + currentState().page, page: "404" });
       found = PAGES_OF().find((element) => element.id === "404");
     }
     /* A page the SHELL owns draws itself, through a React portal into this very
@@ -10331,7 +10331,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      back, so it comes round again. « Pas intéressé » removes it, with an undo. */
   function deckOrder() {
     if (!currentState().sugOrder)
-      store.ecrire({
+      store.write({
         sugOrder: SUGGESTIONS.map((SUGGESTIONS2, index) => index),
       });
     return currentState().sugOrder.filter((sugOrder) => !currentState().sugGone.has(sugOrder));
@@ -10339,7 +10339,7 @@ import { ecrans, panneau, pont } from "../seams.js";
 
   function passerSug(index) {
     const filter = deckOrder().filter((element) => element !== index);
-    store.ecrire({ sugOrder: [...filter, index] });
+    store.write({ sugOrder: [...filter, index] });
   }
 
   function deckHTML() {
@@ -10468,14 +10468,14 @@ import { ecrans, panneau, pont } from "../seams.js";
       // In the deck the whole pile changes, not one row: re-render, and the
       // undo restores both the suggestion and its place in the order.
       // `sugGone` is a Set mutated in place — refreshDeck() redraws the
-      // legacy deck directly, so React needs the explicit bump `ecrire`
+      // legacy deck directly, so React needs the explicit bump `write`
       // would otherwise have given it for free.
       currentState().sugGone.add(index);
-      store.toucher();
+      store.touch();
       refreshDeck();
       toastUndo(`« ${SUGGESTIONS[index].t} » écarté.`, () => {
         currentState().sugGone.delete(index);
-        store.toucher();
+        store.touch();
         refreshDeck();
       });
       return;
@@ -10483,13 +10483,13 @@ import { ecrans, panneau, pont } from "../seams.js";
     const element = document.querySelector(`[data-dismissable="${index}"]`);
     if (!element) return;
     currentState().sugGone.add(index);
-    store.toucher();
+    store.touch();
     element.style.height = element.getBoundingClientRect().height + "px";
     requestAnimationFrame(() => element.classList.add("gone"));
     setTimeout(() => element.remove(), 320);
     toastUndo(`« ${SUGGESTIONS[index].t} » écarté.`, () => {
       currentState().sugGone.delete(index);
-      store.toucher();
+      store.touch();
       fillSug();
       sugFoot();
     });
@@ -10629,10 +10629,10 @@ import { ecrans, panneau, pont } from "../seams.js";
 
   function loadMoreSug() {
     if (currentState().sugLoading || currentState().sugCount >= SUGGESTIONS.length) return;
-    store.ecrire({ sugLoading: true });
+    store.write({ sugLoading: true });
     if (sugObserver) sugObserver.disconnect();
     setTimeout(() => {
-      store.ecrire({
+      store.write({
         sugLoading: false,
         sugCount: Math.min(SUGGESTIONS.length, currentState().sugCount + SUG_BATCH),
       });
@@ -10657,7 +10657,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     const element2 = document.querySelector("#follq");
     if (element2)
       element2.oninput = () => {
-        store.ecrire({ filtre: element2.value });
+        store.write({ filtre: element2.value });
         const pos = element2.selectionStart;
         render();
         const element3 = document.querySelector("#follq");
@@ -11110,16 +11110,16 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
 
-    const etat = etatCourant;
-    if (etat && etat.tm === "nav") {
+    const state = etatCourant;
+    if (state && state.tm === "nav") {
       armedExit = 0;
       pilotage = true;
       applyState({
-        page: etat.page,
-        acqTab: etat.acqTab,
-        libLens: etat.libLens,
-        libMode: etat.libMode,
-        libCat: etat.libCat,
+        page: state.page,
+        acqTab: state.acqTab,
+        libLens: state.libLens,
+        libMode: state.libMode,
+        libCat: state.libCat,
       });
       pilotage = false;
       return;
@@ -11135,7 +11135,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     // the exit guard". Reading it as the guard used to arm the exit warning
     // and rewrite the address via noterLeChemin()/urlDeLEtat() over whatever
     // the router had just written — destroying its search params.
-    if (!(etat && etat.tm === "garde")) return;
+    if (!(state && state.tm === "garde")) return;
 
     // The guard was popped: there is nowhere left to go back to.
     const now = Date.now();
@@ -11165,7 +11165,7 @@ import { ecrans, panneau, pont } from "../seams.js";
 
   /* Design notes */
   select("#notesBtn").onclick = (event) => {
-    store.ecrire({ notes: !currentState().notes });
+    store.write({ notes: !currentState().notes });
     document.documentElement.classList.toggle("notes", currentState().notes);
     event.currentTarget.setAttribute("aria-pressed", String(currentState().notes));
     toast(currentState().notes ? "Notes de conception affichées." : "Notes masquées.");
@@ -11197,9 +11197,9 @@ import { ecrans, panneau, pont } from "../seams.js";
 
   function applyState(patch) {
     hideLayers();
-    store.ecrire(patch);
+    store.write(patch);
     if (patch.page || patch.libLens || patch.q !== undefined)
-      store.ecrire({ libCount: LIB_PAGE });
+      store.write({ libCount: LIB_PAGE });
     port.scrollTop = 0;
     render();
   }
@@ -11750,7 +11750,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       // Navigating CLOSES whatever is open above: without this, one changed
       // page while staying stuck on the media sheet.
       hideLayers();
-      store.ecrire({ page: closest.dataset.page });
+      store.write({ page: closest.dataset.page });
       port.scrollTop = 0;
       render();
       recordPath();
@@ -11783,9 +11783,9 @@ import { ecrans, panneau, pont } from "../seams.js";
       // (data-go's own migration, SP4d).
       screenStack.length = 0;
       closeScreen(true);
-      store.ecrire({ page: closest.dataset.go });
+      store.write({ page: closest.dataset.go });
       if (closest.dataset.go === "acq")
-        store.ecrire({ acqTab: "maintenant" });
+        store.write({ acqTab: "maintenant" });
       port.scrollTop = 0;
       render();
       try {
@@ -11798,7 +11798,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.acqtab) {
-      store.ecrire({ acqTab: closest.dataset.acqtab });
+      store.write({ acqTab: closest.dataset.acqtab });
       port.scrollTop = 0;
       render();
       recordPath();
@@ -11806,7 +11806,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     }
     if (closest.dataset.lens) {
       // Changing lens changes the list: start again from the first page.
-      store.ecrire({
+      store.write({
         libLens: closest.dataset.lens,
         libCount: LIB_PAGE,
         libErr: false,
@@ -11817,7 +11817,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.cat) {
-      store.ecrire({
+      store.write({
         libCat: closest.dataset.cat,
         libCount: LIB_PAGE,
         libErr: false,
@@ -11827,22 +11827,22 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.lmode) {
-      store.ecrire({ libMode: closest.dataset.lmode });
+      store.write({ libMode: closest.dataset.lmode });
       render();
       return;
     }
     if (closest.dataset.pill) {
-      store.ecrire({ pill: closest.dataset.pill });
+      store.write({ pill: closest.dataset.pill });
       render();
       return;
     }
     if (closest.dataset.fmode) {
-      store.ecrire({ followMode: closest.dataset.fmode });
+      store.write({ followMode: closest.dataset.fmode });
       render();
       return;
     }
     if (closest.dataset.sugmode) {
-      store.ecrire({ sugMode: closest.dataset.sugmode });
+      store.write({ sugMode: closest.dataset.sugmode });
       render();
       return;
     }
@@ -11851,7 +11851,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.sugmore) {
-      store.ecrire({ sugGone: new Set(), sugOrder: null });
+      store.write({ sugGone: new Set(), sugOrder: null });
       render();
       toast("Nouveau lot chargé — 30 suggestions de plus.");
       return;
@@ -11893,7 +11893,7 @@ import { ecrans, panneau, pont } from "../seams.js";
         // follow-up screens draw directly, so the bump has to be explicit
         // or React never learns this suggestion left the deck.
         currentState().sugGone.add(Number(idx));
-        store.toucher();
+        store.touch();
         const element = document.querySelector(`[data-dismissable="${idx}"]`);
         if (element) {
           element.style.height = element.getBoundingClientRect().height + "px";
@@ -11909,7 +11909,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       // PLACE and no `render()` follows on this branch: the bump has to be
       // explicit, exactly as it is for the dismissed suggestion above, or
       // the button never learns the follow happened.
-      store.toucher();
+      store.touch();
       return;
     }
 
@@ -12060,7 +12060,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.maintrub !== undefined) {
-      store.ecrire({ maintRub: closest.dataset.maintrub || null });
+      store.write({ maintRub: closest.dataset.maintrub || null });
       port.scrollTop = 0;
       render();
       recordPath();
@@ -12074,7 +12074,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       /* Asked while a run is already going, a run is QUEUED and says so
          (DOIT-4). « Occupé, réessaie » is the answer this interface does not
          give: it puts the burden of remembering on the operator. */
-      store.ecrire({
+      store.write({
         pipe:
           closest.dataset.pipe === "arreter"
             ? "repos"
@@ -12105,7 +12105,7 @@ import { ecrans, panneau, pont } from "../seams.js";
          therefore told not to touch history at all. */
       const onDrawer = history.state && history.state.layer === "drawer";
       closeDrawer(true);
-      store.ecrire({ page: id });
+      store.write({ page: id });
       port.scrollTop = 0;
       render();
       try {
@@ -12144,19 +12144,19 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.hscen) {
-      store.ecrire({ scen: closest.dataset.hscen });
+      store.write({ scen: closest.dataset.hscen });
       render();
       openHarness();
       return;
     }
     if (closest.dataset.hphase) {
-      store.ecrire({ phase: closest.dataset.hphase });
+      store.write({ phase: closest.dataset.hphase });
       render();
       openHarness();
       return;
     }
     if (closest.dataset.htmdb) {
-      store.ecrire({ tmdb: closest.dataset.htmdb === "1" });
+      store.write({ tmdb: closest.dataset.htmdb === "1" });
       render();
       openHarness();
       return;
@@ -12189,7 +12189,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.settri) {
-      store.ecrire({
+      store.write({
         tri: closest.dataset.settri,
         sortReversed: closest.dataset.reversed === "1",
         libCount: LIB_PAGE,
@@ -12200,12 +12200,12 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.phase) {
-      store.ecrire({ phase: closest.dataset.phase });
+      store.write({ phase: closest.dataset.phase });
       render();
       return;
     }
     if (closest.dataset.tmdb) {
-      store.ecrire({ tmdb: true });
+      store.write({ tmdb: true });
       render();
       toast(
         "Compte TMDB connecté — la réserve se remplit, vos notes sont lues.",
@@ -12214,13 +12214,13 @@ import { ecrans, panneau, pont } from "../seams.js";
     }
     if (closest.dataset.clearq) {
       if (closest.dataset.clearq === "lib")
-        store.ecrire({ q: "", libCount: LIB_PAGE });
-      else store.ecrire({ filtre: "" });
+        store.write({ q: "", libCount: LIB_PAGE });
+      else store.write({ filtre: "" });
       render();
       return;
     }
     if (closest.dataset.selmode) {
-      store.ecrire({ selMode: closest.dataset.selmode === "1" });
+      store.write({ selMode: closest.dataset.selmode === "1" });
       // Set mutated in place; render() right below carries the bump.
       currentState().selected.clear();
       render();
@@ -12239,7 +12239,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       else currentState().selected.add(index);
       // paintSelBar() below draws the bar directly, not through render():
       // the explicit bump is what tells React the selection changed.
-      store.toucher();
+      store.touch();
       closest.setAttribute("aria-selected", String(currentState().selected.has(index)));
       paintSelBar();
       return;
@@ -12286,7 +12286,7 @@ import { ecrans, panneau, pont } from "../seams.js";
         // No render() on this branch until the delayed actionResoudre()
         // fires — the bump is explicit so React sees the pick immediately.
         currentState().added.add(index);
-        store.toucher();
+        store.touch();
         /* ONE settlement for the TWO entries this journey stacked — the
            result's panel, and `/ajout` itself, a router-owned address (which
            is why no legacy screen is closed here: `#screen` was never its
@@ -12327,13 +12327,13 @@ import { ecrans, panneau, pont } from "../seams.js";
       // itself from this same store bump, so no redraw call belongs here
       // any more.
       currentState().added.add(index);
-      store.toucher();
+      store.touch();
       actionFollow(result.t, result.k);
       return;
     }
     if (closest.dataset.confirmadd) {
       currentState().added.add(Number(closest.dataset.confirmadd));
-      store.toucher();
+      store.touch();
       closeDlg();
       toast(
         "Ajouté — la version en place sera remplacée une fois la nouvelle récupérée.",
@@ -12360,7 +12360,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.completer) {
-      store.ecrire({ page: "acq", acqTab: "maintenant" });
+      store.write({ page: "acq", acqTab: "maintenant" });
       panneau.fermer();
       render();
       toast(
@@ -33526,7 +33526,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   }
   function openPopEp(btn) {
     closePopEp();
-    const [titre, saison, episodeNumber, etat] = btn.dataset.ep.split("|");
+    const [titre, saison, episodeNumber, state] = btn.dataset.ep.split("|");
     const fiche2 = sheetFor(titre);
     const list = fiche2?.eps?.[saison] ?? null;
     const episode =
@@ -33536,12 +33536,12 @@ import { ecrans, panneau, pont } from "../seams.js";
     const phrase =
       airDate == null
         ? "Date de diffusion inconnue."
-        : future || etat === "annonce"
+        : future || state === "annonce"
           ? `Sortie prévue le ${airDate}`
           : `Diffusé le ${airDate}`;
     const createElement = document.createElement("div");
     createElement.className = "eppop";
-    createElement.innerHTML = `<b>S${String(saison).padStart(2, "0")}E${String(episodeNumber).padStart(2, "0")}${episode?.t ? " · " + escapeHtml(episode.t) : ""}</b>${escapeHtml(phrase)}<br><span style="color:var(--muted-foreground)">${escapeHtml(EP_LABEL[etat] ?? "")}</span>`;
+    createElement.innerHTML = `<b>S${String(saison).padStart(2, "0")}E${String(episodeNumber).padStart(2, "0")}${episode?.t ? " · " + escapeHtml(episode.t) : ""}</b>${escapeHtml(phrase)}<br><span style="color:var(--muted-foreground)">${escapeHtml(EP_LABEL[state] ?? "")}</span>`;
     document.querySelector("#device").appendChild(createElement);
     const rect = btn.getBoundingClientRect();
     const dev = document.querySelector("#device").getBoundingClientRect();
@@ -34175,11 +34175,11 @@ import { ecrans, panneau, pont } from "../seams.js";
         // avancerDeck() animates the DOM directly, never through render():
         // the bump is explicit so React learns the card left the deck.
         currentState().sugGone.add(index);
-        store.toucher();
+        store.touch();
         advanceDeck(index, 1);
         toastUndo(`« ${SUGGESTIONS[index].t} » écarté.`, () => {
           currentState().sugGone.delete(index);
-          store.toucher();
+          store.touch();
           refreshDeck();
         });
       } else {
@@ -34392,12 +34392,12 @@ import { ecrans, panneau, pont } from "../seams.js";
      visible, truthful failure instead of an app with mute verbs. */
   window.__demarrerMoteur = function (deps) {
     store = deps.store;
-    // Set before any write can happen (`adopterEtat`/`adopterMonde` below
+    // Set before any write can happen (`adoptState`/`adoptWorld` below
     // do not write to history, but the earliest legacy write is one line
     // away): urlDeLEtat() must never compose against the placeholder "/".
     baseAddress = deps.base;
-    store.adopterEtat(INITIAL_STATE);
-    store.adopterMonde(world);
+    store.adoptState(INITIAL_STATE);
+    store.adoptWorld(world);
     /* No subscription here anymore. The only thing this one ever did was
        re-point the cached `state` binding at the store's object; with every
        read going to the store directly, there is nothing left to refresh. */

@@ -175,8 +175,8 @@ function DecisionCard({ decision }: { decision: SettledDecision }) {
     MOTIF_LABEL,
     VIA_LABEL,
   } = useReference();
-  const settled = decision.etat != null;
-  const state = settled ? DECISION_STATE[decision.etat] : null;
+  const settled = decision.state != null;
+  const state = settled ? DECISION_STATE[decision.state] : null;
   const poster =
     settled && decision.choice
       ? posterBox(decision.choice.t, decision.k)
@@ -208,7 +208,7 @@ function DecisionCard({ decision }: { decision: SettledDecision }) {
             {state ? (
               <span
                 className={`chip ${state[0]}`}
-                title={DECISION_STATE_DETAIL[decision.etat] ?? ""}
+                title={DECISION_STATE_DETAIL[decision.state] ?? ""}
               >
                 {state[1]}
               </span>
@@ -278,7 +278,7 @@ export function ResolutionScreen() {
   // The queue lists (`world.blocked` / `world.stuck` / `world.stuckReel`) are
   // MUTATED IN PLACE by `actionResolve` / `actionLeave` (splice, unshift),
   // which bump the store's `version` through `render()` without producing a new
-  // `etat` reference. Subscribing to `version` is what makes the progression
+  // `state` reference. Subscribing to `version` is what makes the progression
   // (« 1 sur 2 ») and « Passer à la suivante » answer the queue as it is now —
   // the legacy screen re-opened itself for the same reason.
   useStoreContent((c) => c.version);

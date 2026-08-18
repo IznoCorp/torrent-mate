@@ -202,7 +202,7 @@ function SeasonList({
                     key={number}
                     aria-label={t("screens.media.episodeAria", {
                       n: number,
-                      etat: EP_LABEL[episodeState],
+                      state: EP_LABEL[episodeState],
                     })}
                   >
                     {String(number).padStart(2, "0")}

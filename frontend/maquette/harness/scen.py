@@ -26,10 +26,10 @@ async def main():
     total_bad = 0
     for scen, word in (("reel", "repos"), ("charge", "charge")):
         print(f"\n=== scenario {scen} ===")
-        await pg.evaluate("(s)=>{window.__magasin.ecrire({scen: s}); render();}", scen)
+        await pg.evaluate("(s)=>{window.__magasin.write({scen: s}); render();}", scen)
         for name, sid in VIEWS:
             await pg.evaluate("(i)=>window.__go(i)", sid.format(s=word))
-            await pg.evaluate("(s)=>{window.__magasin.ecrire({scen: s}); render();}", scen)
+            await pg.evaluate("(s)=>{window.__magasin.write({scen: s}); render();}", scen)
             await pg.wait_for_timeout(320)
             r = await pg.evaluate("""()=>{const v=document.querySelector('#view');
               return {txt:v.textContent.replace(/\\s+/g,' ').trim().length,

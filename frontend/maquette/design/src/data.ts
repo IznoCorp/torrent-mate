@@ -15,11 +15,11 @@ export function useStoreContent<T>(select: (c: StoreContent) => T): T {
   // `version` bumps on every write INCLUDING in-place world mutations, so a
   // selector over a mutated-in-place object still re-reads: the snapshot the
   // comparison sees is the selected value, re-derived per notification.
-  return useSyncExternalStore(subscribe, () => select(window.__magasin.lire()));
+  return useSyncExternalStore(subscribe, () => select(window.__magasin.read()));
 }
 
-export const useUiState = (): UiState => useStoreContent((c) => c.etat);
-export const useWorld = (): unknown => useStoreContent((c) => c.monde);
+export const useUiState = (): UiState => useStoreContent((c) => c.state);
+export const useWorld = (): unknown => useStoreContent((c) => c.world);
 
 // The single write door, matching the read side above: a component patches
 // the store through THIS function, never through `window.__magasin.ecrire`
@@ -30,7 +30,7 @@ export const useWorld = (): unknown => useStoreContent((c) => c.monde);
 // have no hook to go through; a component reaching around this accessor is
 // what would make that replacement touch component code too.
 export function writeUiState(patch: Partial<UiState>): void {
-  window.__magasin.ecrire(patch);
+  window.__magasin.write(patch);
 }
 
 export type Resolution = "720p" | "1080p" | "2160p";
@@ -155,11 +155,11 @@ type DecisionCommon = {
 export type PendingDecision = DecisionCommon & { c: DecisionCandidate[] };
 
 // A decision already settled, exactly as `DECISIONS_REGLEES` shapes one.
-// `etat` keys `DECISION_STATE` / `DECISION_STATE_DETAIL`. `choice` is present
+// `state` keys `DECISION_STATE` / `DECISION_STATE_DETAIL`. `choice` is present
 // only for a "resolved" row — a "superseded" or "dismissed" row never
 // recorded one, because no candidate was ever chosen.
 export type SettledDecision = DecisionCommon & {
-  etat: string;
+  state: string;
   choice?: DecisionChoice;
 };
 
@@ -246,7 +246,7 @@ export type Fact = {
   s?: string;
   k?: string;
   ton?: string;
-  etat?: string;
+  state?: string;
   target?: Record<string, string>;
 };
 
@@ -563,8 +563,8 @@ export type Reference = {
   ) => string;
 };
 
-// `etat.resolveTarget` (the folder currently open on the resolution screen)
-// and `etat.relTitre` (the item a "Récupérer" gesture targets) are both
+// `state.resolveTarget` (the folder currently open on the resolution screen)
+// and `state.relTitre` (the item a "Récupérer" gesture targets) are both
 // `string | null` at runtime. `UiState` itself stays the loose
 // `{ [key: string]: unknown }` shape (see store.ts) — a reader casts at the
 // point of use, exactly as `add.tsx` already does for `resolveTarget`.
