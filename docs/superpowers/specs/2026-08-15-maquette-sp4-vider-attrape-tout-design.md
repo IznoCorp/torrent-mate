@@ -60,6 +60,31 @@ permanent `/assets/` portal rule (§ wave A housekeeping).
    deletion); the measured write-site count (~70) made it tractable, and B buys a
    use-based Store verdict and no end-of-SP4 ownership flip.
 
+## Landed — what this spec became
+
+**SP4 closed on 2026-08-18.** The catch-all is empty: `design/refonte.html` went from 39 561
+lines to **4 217 — a title and a stylesheet**, holding no script, no element and no inline
+handler. The engine is `design/src/engine/legacy.js`, the application shell's markup is in
+`index.html`, the scenario table is `design/src/states.js`, and the three seams the engine used
+to read off `window` are imports from `design/src/seams.ts`.
+
+Three waves closed it, each proven at **0 divergence on 82 states** over the whole phone frame,
+with the rule suite green at unchanged hold counts: the engine leaves the fragment (#451), the
+markup leaves the fragment (#452), the bridge dies (#453).
+
+**One item was argued rather than done**, and it stays open to contest: `__go` did not move
+shell-side. It holds `pilotage`, a latch the engine reassigns, and an imported binding cannot be
+assigned — moving it would have meant exporting a setter for a private flag, one indirection
+traded for a worse one. `__states` and the 656-line table did move.
+
+**R72 needed no renegotiation** — measured, not assumed: the fragment is still injected verbatim
+exactly once. **R74 was renegotiated** and recorded in `regions.json`: what it called « the
+bridge » was three globals bridging a classic script to a module world, and that world is gone;
+they are a driving surface for measurement now.
+
+The CSS contract did not move, as this spec fixes: BLOCK 2, the extraction and `regions.json`
+are SP5's subject.
+
 ## The waves
 
 | Wave                             | Content                                                                                                                                                                                                                                                                                                                                                        | What it proves                                           |

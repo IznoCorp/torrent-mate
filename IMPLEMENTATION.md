@@ -36,8 +36,32 @@ code until the operator's judgement (step 2 above). Non-negotiable.
 
 ## Current state
 
-Twelve waves have landed. Each squash-merged onto `main` after green CI and a clean final
-adversarial review; none of them derives app code.
+**SP4 is complete.** Fifteen waves have landed, each squash-merged onto `main` after green CI
+and a clean final adversarial review; none of them derives app code.
+
+The catch-all is empty. `design/refonte.html` — 39 561 lines when SP4 opened, an entire
+application inside one injected fragment — is **4 217 lines: a title and a stylesheet**. It
+holds no script, no element, no inline handler. What it carries is BLOCK 1 and BLOCK 2, and
+that is deliberate: the CSS contract is SP5's subject, and the spec fixes it there.
+
+| Where it lives now | What it is |
+| ------------------ | ---------- |
+| `design/src/engine/legacy.js` | the engine, moved byte for byte, still JavaScript on purpose |
+| `design/index.html` | the application shell's markup, in the document Vite owns |
+| `design/src/states.js` | the 656-line scenario table — the harness's fixture, not the product's |
+| `design/src/seams.ts` | the three names the engine imports instead of reading off `window` |
+| `design/src/**` | every page and every screen, as components |
+
+Every step of it was proven the same way: a state-by-state comparison of the WHOLE phone frame,
+recorded before and replayed after — **0 divergence on 82 states**, at each of the three
+SP4-fin waves, with the rule suite green at unchanged hold counts.
+
+**One item of the spec's SP4-end list was argued rather than done**, and it is open to
+contest: `__go` did not move shell-side. It holds `pilotage`, a latch the engine reassigns, and
+an imported binding cannot be assigned — moving it would have meant exporting a setter for a
+private flag. The 656-line TABLE moved; the driving stayed. The residual behaviour debts (the
+deep-entry path, the 240 ms delay on `data-suivante`) are named in the SP4-fin plan and belong
+to their own work: none of these waves changed behaviour, by construction.
 
 | Wave | Branch | PR | What it settled |
 | ---- | ------ | -- | --------------- |
@@ -55,7 +79,7 @@ adversarial review; none of them derives app code.
 | **SP4d wave 4 — Acquisition, and the last two pages** | `feat/maquette-sp4d4` | #450 | The last page wave: `viewAcquisition` — three tabs, a deck and a second infinite scroll — plus `viewProfil` and `viewIntrouvable`. `PAGES_OF()` carries no `render` at all, which is SP4-fin's entry condition. The review found four real defects, the first of which left the page inert: every action mutates the world IN PLACE and signals with `toucher()`, and the component subscribed only to the state. |
 | **SP4-fin wave 1 — the engine leaves the fragment** | `refactor/maquette-sp4fin1` | #451 | The 35 052-line inline script became `design/src/engine/legacy.js`; the fragment fell from 39 561 to 4 507 lines and holds nothing executable. 0 divergence on 82 states. The engine republishes its 254 top-level names — 230 by value, 24 by getter, the split measured — because the harness drives it by bare name. Four rules had gone green over a file emptied of their subject; `common.py` now owns `DESIGN_SOURCES`. |
 | **SP4-fin wave 2 — the markup leaves the fragment** | `refactor/maquette-sp4fin2` | #452 | The 287 lines of application shell move to `index.html` — not into React, because the engine captures its containers at module evaluation, before React has rendered anything. **The fragment is now a title and a stylesheet.** The login gate, built from both files now, is byte-identical. Two more readers had to follow the markup; R72 needed no renegotiation, measured. |
-| **SP4-fin wave 3 — the bridge dies** | `refactor/maquette-sp4fin3` | — | The 656-line scenario table leaves the product for `src/states.js`; the state ALIAS dies (99 reads go to the store, and a whole defect class goes with it); 61 seam call sites become imports through live `export let` bindings, so a typo fails the build. R74 renegotiated — what it called a bridge is now a driving surface for measurement; R72 needed nothing, measured. |
+| **SP4-fin wave 3 — the bridge dies** | `refactor/maquette-sp4fin3` | #453 | The 656-line scenario table leaves the product for `src/states.js`; the state ALIAS dies (99 reads go to the store, and a whole defect class goes with it); 61 seam call sites become imports through live `export let` bindings, so a typo fails the build. R74 renegotiated — what it called a bridge is now a driving surface for measurement; R72 needed nothing, measured. |
 
 The full record of each wave, in the words written when it landed, is in
 `docs/superpowers/shell-mobile-wave-log.md`; the per-wave plans are in `docs/superpowers/plans/`.
