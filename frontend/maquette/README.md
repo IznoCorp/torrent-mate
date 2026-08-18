@@ -835,6 +835,16 @@ Run them with the Python that carries Playwright, against a local static server 
 **127.0.0.1:8899** — **never** 8710 / 8711, which the reverse proxy routes to prod and
 staging.
 
+**Two rules measure the LIVE host instead** — `pwa.py` (R52) and `entry.py`, because
+installability and the sign-in gate are things only a real server hands out. That makes them
+the only rules whose verdict depends on a PROCESS rather than on a file: `serve.py` is read
+once, at boot, so a change to it is not live until `pm2 restart torrentmate-design`. Until
+then the host answers its own build-failure page, and those two go red naming symptoms that
+have nothing to do with the change under test — « the login gate declares no manifest »,
+`Cannot read properties of null`. Both were seen, and both were the stale process.
+
+**So: after any edit to `serve.py`, restart the design host before reading the suite.**
+
 **The harness measures the BUILD.** `wrapped.html` is a copy of `dist/index.html` — the
 same document the host serves — rebuilt and re-copied before every run, or the suite
 measures the previous version. The copy is what isolates rule mutations from the host:

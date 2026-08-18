@@ -811,6 +811,19 @@ that list serves TODAY — zero asset references, zero `var(--…)`, zero histor
 panel callers. That is not a reason to leave it out: the list names where the design is WRITTEN,
 so the next one added to the shell is covered on the day it is typed.
 
+### Two rules went red on a PROCESS, not on the code
+
+`pwa.py` and `entry.py` are the only rules that measure the LIVE host, because installability
+and the sign-in gate are things only a real server hands out. `serve.py` is read once, at boot —
+so the edit above was not live, the running process still looked for `login:markup` in the
+fragment, and the host answered its own build-failure page. The two rules then reported « the
+login gate declares no manifest » and `Cannot read properties of null`: eight symptoms, none of
+them about the change under test.
+
+`pm2 restart torrentmate-design`, and both are green — the gate it now serves is 108 171 bytes,
+the same count proven byte-identical against `main`. Written into the README, because it recurs
+every time `serve.py` changes.
+
 ### R72 needed no renegotiation, and that was measured rather than assumed
 
 The plan reserved the right to renegotiate « the fragment appears verbatim exactly once », since
