@@ -55,13 +55,18 @@ def block2_classes() -> set[str]:
 
 async def main():
     cl = sorted(block2_classes())
-    src = (ROOT / "design" / "refonte.html").read_text()
-    src = src[src.find("</style>"):]  # markup + JS, without the CSS
+    # EVERYTHING THAT WRITES A CLASS, and the fragment is no longer any of it.
+    # This used to slice the fragment at `</style>` to keep « markup + JS
+    # without the CSS »; the fragment now ENDS at `</style>`, so that slice is
+    # two characters long and this classifier would call every class the
+    # application writes « dead ». The application shell's markup is in
+    # `index.html` and the engine is a module under `src/` — both are read.
+    src = (ROOT / "design" / "index.html").read_text()
     # A migrated screen's markup lives in `design/src/**/*.tsx` now, not in
-    # refonte.html: a class reached only through user interaction — never
-    # present in any FROZEN `__go` state, like `.addfoot` (drawn once
+    # the shell document: a class reached only through user interaction —
+    # never present in any FROZEN `__go` state, like `.addfoot` (drawn once
     # `added.size > 0`) — is invisible to the DOM scan below AND to a
-    # refonte.html-only source scan alike. Concatenating the TSX sources
+    # markup-only source scan alike. Concatenating the TSX sources
     # here is what keeps this classifier's "written" detection working
     # across the strangler seam, one screen at a time, exactly the way it
     # already worked for the legacy templates it used to be the only source.

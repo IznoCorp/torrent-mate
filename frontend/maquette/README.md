@@ -21,21 +21,36 @@ bundle under `dist/vite/`, and `dist/assets` linked to the real files. R72 (`she
 holds what remains true of that emission: the fragment appears verbatim exactly once, the
 document names exactly one module entry, and the bundle it names exists.
 
-**The fragment is no longer a program.** The engine — the 35 052-line script it used to
-carry — lives at `design/src/engine/legacy.js`, a module the shell imports before it starts
-it. It was moved byte for byte, not rewritten, and it stays JavaScript on purpose: typing it
-would mean editing it, and an edit hidden inside a move that size is an edit nobody can
-review. What the fragment still holds is the stylesheet (BLOCK 1 and BLOCK 2, unchanged —
-the CSS contract is SP5's subject) and the app shell's markup.
+**The fragment is a title and a stylesheet, and nothing else.** Two things left it. The
+engine — the 35 052-line script it used to carry — lives at `design/src/engine/legacy.js`, a
+module the shell imports before it starts it; it was moved byte for byte, not rewritten, and
+it stays JavaScript on purpose, because typing it would mean editing it and an edit hidden
+inside a move that size is an edit nobody can review. The application shell's markup — the
+phone frame, the splash, the sign-in card, the topbar, the drawer, the layer hosts — lives in
+`index.html`, the document Vite owns.
+
+**The markup went to `index.html` rather than into React**, and the reason is the engine's
+boot: it captures its containers at module evaluation (`view = F('#view')` and its siblings),
+and a module evaluates before React has rendered anything. Markup drawn by a component would
+not exist when the engine looks for it. `index.html`'s body is parsed before any module runs —
+the order the markup already had — and it sits after the injection marker so the order inside
+`<body>` is unchanged too: mount node, stylesheet, shell.
+
+What remains in the fragment is BLOCK 1 and BLOCK 2, unchanged: the CSS contract is SP5's
+subject, not SP4's.
 
 Two consequences worth knowing before writing a rule:
 
-- **The design has SOURCES, plural.** `common.py` names them (`DESIGN_SOURCES`) and
-  `design_source()` reads them together. A rule that greps « the design » greps that, never
-  one file: four rules once grepped `refonte.html` alone and stayed green after their
-  subject moved out of it — 930 image references, five colour references, and the body of
-  code one of them counts history primitives in. Reading a declared source that no longer
-  exists raises, deliberately.
+- **The design has SOURCES, plural** — the fragment, `index.html`, and the engine module.
+  `common.py` names them (`DESIGN_SOURCES`) and `design_source()` reads them together. A rule
+  that greps « the design » greps that, never one file: four rules once grepped
+  `refonte.html` alone and stayed green after their subject moved out of it — 930 image
+  references, five colour references, and the body of code one of them counts history
+  primitives in. Reading a declared source that no longer exists raises, deliberately.
+- **The login gate reads each block where it lives.** `serve.py` clones the sign-in MARKUP
+  from `index.html` and inherits its STYLE from the fragment; `extract` raises on a missing
+  marker, so pointing one at the wrong file fails the gate rather than serving a screen
+  stripped of its design.
 - **The engine republishes its own surface.** A classic script's top-level declarations are
   global; a module's are not, and the harness drives the engine by bare name in some forty
   `page.evaluate` call sites. The block at the bottom of `legacy.js` republishes exactly

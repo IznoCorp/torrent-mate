@@ -761,6 +761,62 @@ fails on drift; re-pointing it is SP5's opening move.
 `resync.py` did move with its subject: both things it rewrites — the `FOLLOWS` counters and the
 drawer's « Version déployée » footer — are the engine's, not the fragment's.
 
+## SP4-fin wave 2 — the markup leaves the fragment
+
+Branch `refactor/maquette-sp4fin2`, version 0.97.23. The 287 lines of application shell —
+`.stage`, `.device`, the splash, the sign-in card, the topbar and its burger, the drawer,
+`#view`, `#screen`, the sheet and dialog hosts, the toast — move to `index.html`. **The fragment
+is now a title and a stylesheet: zero `<script>`, zero top-level element, zero inline handler.**
+4 507 → 4 217 lines.
+
+**It went to `index.html`, not into React, and the reason is the engine's boot.** The engine
+captures its containers at module evaluation — `view = F('#view')` and its siblings — and a
+module evaluates before React has rendered anything. Markup drawn by a component would not exist
+when the engine looks for it, and the shell would have to stop starting the engine before its
+first render to fix that: a change to the boot contract, in order to move static markup.
+`index.html` is the document Vite owns, it is real source rather than a fragment injected
+verbatim, and its body is parsed before any module runs — exactly the order the markup already
+had. It sits AFTER the injection marker so the order inside `<body>` is unchanged too: mount
+node, stylesheet, shell.
+
+**0 divergence on 82 states, zero JS errors.**
+
+### The login gate, proven byte for byte rather than eyeballed
+
+`serve.py` builds the sign-in page out of the prototype's own screen — it clones the MARKUP and
+inherits the STYLE — and those two halves now live in different files. It reads each block where
+it lives: `login:markup` and `login:splash` from `index.html`, `login:font` / `palette` / `socle`
+/ `style` / `splashstyle` from the fragment. Pointing one at the wrong file raises, because
+`extract` raises on a missing marker.
+
+The gate was then built on both sides of the change and compared: **byte-identical, in both its
+normal and its refused state** (108 171 and 108 164 bytes).
+
+### The same failure shape, a third and fourth time — and one of them was loud
+
+`startup.py` (R53) reads the markup for the startup screen's declaration ORDER, and it did not go
+quietly green: it raised `min() iterable argument is empty`, because all three landmarks it looks
+for returned -1. Loud is better than silent, but « the harness is broken » is the wrong sentence
+for « the document moved ». Each landmark is now looked up by name and the misses are NAMED, in
+a hold that falls under mutation instead of raising.
+
+`export.py` sliced the fragment at `</style>` to keep « markup + JS without the CSS ». The
+fragment now ENDS at `</style>`, so that slice is two characters long — and this classifier would
+have called every class the application writes « dead », i.e. reported that the stylesheet was
+wrong. It reads `index.html` plus the `src/` sources, and classifies exactly as before: 267 app,
+22 written-only, 4 harness, **0 dead**.
+
+`common.py`'s `DESIGN_SOURCES` gained `index.html`. It contributes nothing to the four counts
+that list serves TODAY — zero asset references, zero `var(--…)`, zero history primitives, zero
+panel callers. That is not a reason to leave it out: the list names where the design is WRITTEN,
+so the next one added to the shell is covered on the day it is typed.
+
+### R72 needed no renegotiation, and that was measured rather than assumed
+
+The plan reserved the right to renegotiate « the fragment appears verbatim exactly once », since
+a fragment that is only a stylesheet is a different object. It did not need it: the fragment is
+still injected verbatim, exactly once, and `shell.py` is green untouched.
+
 ## What is already done, ahead of the phase plan
 
 The prototype and its harness carry the design; some app-side work was pulled forward because

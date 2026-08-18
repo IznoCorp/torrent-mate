@@ -53,112 +53,15 @@ adversarial review; none of them derives app code.
 | **SP4d wave 2 — Arrivées** | `feat/maquette-sp4d2` | #448 | The pipeline's health page became a final component, with the first migrated control that WRITES (the pilot's bar, whose three states include DOIT-4's queue). A defect of class came out of it: a harness driver mutating the engine's `state` alias in place leaves a migrated page stale, and R77 gained the source-level hold that catches it. |
 | **SP4d wave 3 — the Médiathèque, and E-001** | `feat/maquette-sp4d3` | #449 | The largest data surface, its infinite scroll and its search field became a component; the page host stopped supplying a root, because a page emitting four of them cannot live in one. E-001 shipped maquette-first with its own rule (R78), and a rule found 87 library sheets with no genre and no cast (B-030). |
 | **SP4d wave 4 — Acquisition, and the last two pages** | `feat/maquette-sp4d4` | #450 | The last page wave: `viewAcquisition` — three tabs, a deck and a second infinite scroll — plus `viewProfil` and `viewIntrouvable`. `PAGES_OF()` carries no `render` at all, which is SP4-fin's entry condition. The review found four real defects, the first of which left the page inert: every action mutates the world IN PLACE and signals with `toucher()`, and the component subscribed only to the state. |
-| **SP4-fin wave 1 — the engine leaves the fragment** | `refactor/maquette-sp4fin1` | — | The 35 052-line inline script became `design/src/engine/legacy.js`; the fragment fell from 39 561 to 4 507 lines and holds nothing executable. 0 divergence on 82 states. The engine republishes its 254 top-level names — 230 by value, 24 by getter, the split measured — because the harness drives it by bare name. Four rules had gone green over a file emptied of their subject; `common.py` now owns `DESIGN_SOURCES`. |
+| **SP4-fin wave 1 — the engine leaves the fragment** | `refactor/maquette-sp4fin1` | #451 | The 35 052-line inline script became `design/src/engine/legacy.js`; the fragment fell from 39 561 to 4 507 lines and holds nothing executable. 0 divergence on 82 states. The engine republishes its 254 top-level names — 230 by value, 24 by getter, the split measured — because the harness drives it by bare name. Four rules had gone green over a file emptied of their subject; `common.py` now owns `DESIGN_SOURCES`. |
+| **SP4-fin wave 2 — the markup leaves the fragment** | `refactor/maquette-sp4fin2` | — | The 287 lines of application shell move to `index.html` — not into React, because the engine captures its containers at module evaluation, before React has rendered anything. **The fragment is now a title and a stylesheet.** The login gate, built from both files now, is byte-identical. Two more readers had to follow the markup; R72 needed no renegotiation, measured. |
 
 The full record of each wave, in the words written when it landed, is in
 `docs/superpowers/shell-mobile-wave-log.md`; the per-wave plans are in `docs/superpowers/plans/`.
 
 ### The latest wave, in full
 
-**SP4-fin wave 1 — the engine leaves the fragment**: Branch `refactor/maquette-sp4fin1`, version 0.97.22. The inline script — **35 052 lines** —
-becomes `design/src/engine/legacy.js`, a module the shell imports before it reads
-`window.__demarrerMoteur`. The fragment goes from **39 561 to 4 507 lines**: a title, the
-stylesheet, and the app shell's markup. Nothing executable.
 
-**What the recon settled about the shape of the rest.** The script was never one thing: 30 531
-lines of DATA across 118 constants (`FICHES_RAW` alone is 20 538) against 4 507 lines of code
-across 135 functions. That ratio is why the engine moved whole rather than being split during
-the move — 78 % of the volume is a fixture library no split makes clearer. And the order is
-forced: the engine's top level calls `seedWorld()` and binds document-level listeners, so data
-extracted ahead of it would not exist when the classic script ran. Everything becomes deferred
-at once, or nothing can.
-
-**Four things measured before the move, each of which would have been a defect.** It parses as
-an ES module under strict mode. It reads no parse timing — zero `readyState`, zero
-`DOMContentLoaded`, zero `document.write`, zero `currentScript` — so being deferred changes no
-branch. The static markup carries one inline handler, `onclick="return false;"`, which needs no
-global. And none of the 254 top-level names collides with a real `window` property — checked
-against Chrome, because Node's `globalThis` has a different surface and would have said the
-same thing for the wrong reason.
-
-**The engine republishes its own surface, and that is a SEAM, written down rather than
-inferred.** A classic script's declarations are global, and the harness drives the engine by
-bare name at some forty `page.evaluate` call sites; a module's are private. So `legacy.js` ends
-by republishing exactly what existed: **230 by value, 24 by getter**. The split is measured, not
-chosen — a binding the engine REASSIGNS cannot be published by value, and `state` and `world`
-are both reassigned and both are what the harness reads most. By value they would have answered
-a world that no longer exists, silently, and every rule reading them would have measured a page
-that was no longer there. The seam narrows in the wave that kills the bridge, not before:
-narrowing it means editing the instrument that measures the move.
-
-**0 divergence on 82 states, zero JS errors** — `fidelity.py --host '#device'`, so the
-comparison covers the whole phone frame: screens, sheets, drawer and topbar, not `#view` alone.
-
-### What the fidelity oracle could not see, and the suite could
-
-`deconnecter` is an `async function`. The regex that collected the top-level names knew
-`function`, `const`, `let`, `var` and `class`, and not that form — so it was the ONE name never
-published. No state's markup depends on logging out, so 82 comparisons said « identical » while
-`entry.py` said `ReferenceError: deconnecter is not defined`. Two gates, two blind spots, and
-neither is redundant.
-
-### Four rules went green over a file emptied of their subject
-
-`images.py`, `bridge.py`, `palette.py` and `panel.py` each read `refonte.html` from disk and
-grepped it. After the move that file no longer held what they were grepping FOR — 930 image
-references, five colour references, the callers of `window.__panneau.ouvrir`, and the body of
-code history primitives are counted in. **None of them failed.** A hold that greps a file which
-no longer holds its subject reports « no violation » about nothing at all.
-
-The fix is the class, not the four instances: `common.py` now names `DESIGN_SOURCES` and reads
-them with `design_source()`, which RAISES on a source that has been renamed away rather than
-returning "". Each of the four falls under a mutation planted in the engine — a missing asset,
-a `history.pushState`, an undefined custom property, a returning `panneauHTML`.
-
-`export.py`'s classifier had the same shape of failure with the opposite symptom: it globbed
-`design/src/**/*.tsx` for the class names the interface WRITES, and the engine — which writes
-the great majority of them — is a `.js`. It reported that the extraction would leave CSS behind,
-which read as « the stylesheet is wrong » when what had moved was the writer.
-
-### The handover law is now held twice, and the second half carries its own control
-
-R77's structural hold read `render()`'s shape out of `page.content()`, deliberately: the served
-copy, never disk. That reason expired with this move — what the browser runs is now minified,
-where `if (found.shellOwned)` reads `if(e.shellOwned)`, and a structural assertion written
-against mangled names measures the minifier. It reads the engine's source instead, and it is
-honest about guarding a branch that is currently DEAD: every page is shell-owned, so the `else`
-never runs, and no runtime probe can reach it.
-
-The live branch got its own hold: `#view`'s own `innerHTML` setter is wrapped for one real
-redraw, which must write it zero times. **And that hold proves its own detector every run** — a
-deliberate write, counted, after the measurement — because a hold asserting a count of ZERO
-passes just as happily when its spy is dead.
-
-That was not caution. It was found: the obvious mutation for it — a write on the shell-owned
-branch, spelled so the structural pattern cannot see it — breaks the page so thoroughly that
-thirty earlier holds fail and the script never reaches the line. « The suite went red » is not
-the same as « this hold works ». And a first attempt at that mutation proved nothing at all,
-because it edited the source while the harness served a build staged before it: **a runtime
-hold can only be mutated THROUGH THE BUILD.**
-
-### An oracle defect, and it was about a clock
-
-The first comparison reported one divergence, and it was the boot hint toast — recorded with
-`.show`, compared without. Its clock is identical on both trees: raised 770 ms after load,
-hidden 5 775 ms after, within 5 ms across four runs. The walk simply crosses that expiry between
-two adjacent states. `fidelity.py` dismissed the toast immediately after `load` — before it is
-raised — so the click hit nothing. It now waits for the toast to exist and dismisses it then,
-and the pre-move tree was re-recorded with the corrected oracle before any verdict was taken.
-
-### What stays in the fragment, and it is the spec's decision, not this wave's
-
-The stylesheet. « The CSS contract (BLOCK 2, extraction, `regions.json`) does not move — SP4
-converts structure and behaviour at IDENTICAL markup; the visual language stays SP5's
-question. » `scripts/extract-maquette-css.py` reads BLOCK 2 out of that file and `make check`
-fails on drift; re-pointing it is SP5's opening move.
-
-`resync.py` did move with its subject: both things it rewrites — the `FOLLOWS` counters and the
-drawer's « Version déployée » footer — are the engine's, not the fragment's.
 
 ---
 

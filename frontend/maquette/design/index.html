@@ -72,5 +72,303 @@
     <div id="coquille"></div>
     <script type="module" src="/src/shell.tsx"></script>
     <!-- maquette -->
+    <!-- The application shell. It used to live in the fragment, and it is here
+         now for one reason: the engine captures its containers at module
+         evaluation — `view = F('#view')` and its siblings — and a module
+         evaluates before React has rendered anything. Markup drawn by a
+         component would not exist when the engine looks for it.
+
+         This document's body is parsed before any module runs, which is
+         exactly the order the markup had when the fragment carried it. It sits
+         AFTER the injection marker so the order inside `<body>` is unchanged
+         too: the mount node, then the stylesheet the fragment still carries,
+         then this. -->
+<div class="stage">
+  <div class="device" id="device">
+    <!-- login:splash:start -->
+    <!-- The startup screen, and it is FIRST on purpose.
+
+         A browser paints what it has parsed so far; anything declared after the
+         embedded artwork would appear only once the wait it exists to cover is
+         already over. Being first, it is on screen within the first frames and
+         stays until the interface has rendered.
+
+         It carries no controls: there is nothing to do yet, and a disabled
+         control would only invite a tap that answers nothing. -->
+    <div class="splash" id="splash">
+      <div class="brandbig">
+        <svg
+          class="mk"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M3 4h18l-7 8v7l-4 2v-9z" />
+        </svg>
+        <span class="wm">Torrent<em>Mate</em></span>
+      </div>
+      <div
+        class="splashbar"
+        role="progressbar"
+        aria-label="Chargement de l'interface"
+      >
+        <i></i>
+      </div>
+      <p class="splashmsg">Chargement de votre médiathèque…</p>
+    </div>
+    <!-- login:splash:end -->
+
+    <header class="topbar">
+      <button
+        class="burger"
+        aria-label="Ouvrir le menu de navigation"
+        data-drawer="1"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          aria-hidden="true"
+        >
+          <path d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+      <a class="brand" href="#" onclick="return false;">
+        <svg
+          class="mk"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M3 4h18l-7 8v7l-4 2v-9z" />
+        </svg>
+        <span class="wm">Torrent<em>Mate</em></span>
+      </a>
+      <div class="sp">
+        <span class="ps-dot ps-dot--done" title="Temps réel connecté">
+          <span class="ps-dot__d"></span
+          ><span class="ps-dot__label">Connecté</span>
+        </span>
+        <button
+          class="avatar"
+          data-sheet="utilisateur"
+          aria-label="Menu utilisateur"
+        >
+          <img alt="" />
+        </button>
+      </div>
+    </header>
+
+    <div class="port" id="port">
+      <div class="ptr" id="ptr"><div class="spin"></div></div>
+      <div id="view"></div>
+    </div>
+
+    <!-- Install proposal. Two paths, because the two platforms do not offer the
+         same thing: Android and desktop fire a native install event the page can
+         trigger, iOS Safari fires nothing at all — so there the banner IS the
+         guide and walks the actual steps rather than saying « installez-moi ».
+         It sits ABOVE the tab bar: anchored to the bottom edge, its close button
+         lands under the fixed bar and cannot be reached. -->
+    <div class="installbar" id="installbar" hidden>
+      <div class="installcard">
+        <div class="installtext">
+          <p class="installtitle">Installer l'application</p>
+          <p class="installsub" id="installsub">
+            Ajoutez TorrentMate à votre écran d'accueil pour un accès direct.
+          </p>
+          <ol class="installsteps" id="installsteps" hidden>
+            <li>Ouvrez cette page dans Safari.</li>
+            <li>
+              Touchez
+              <span class="installkey"
+                ><svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M12 3v13M8 7l4-4 4 4M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"
+                  /></svg
+                >Partager</span
+              >
+              dans la barre du bas.
+            </li>
+            <li>
+              Choisissez «&nbsp;Sur l'écran d'accueil&nbsp;», puis
+              «&nbsp;Ajouter&nbsp;».
+            </li>
+          </ol>
+          <button class="installgo" id="installgo">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 3v12M7 10l5 5 5-5M5 21h14" /></svg
+            >Installer TorrentMate
+          </button>
+        </div>
+        <button class="installclose" id="installclose" aria-label="Masquer">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            aria-hidden="true"
+          >
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- login:markup:start -->
+    <!-- The unauthenticated entry screen. It covers the shell entirely: before
+         a session exists there is nothing to navigate to, so showing a
+         navigation bar would offer destinations that answer with a redirect.
+         It carries no credentials of its own — the server decides, and a
+         password living in a page anyone can read is not a password. -->
+    <div class="loginscreen" id="login" hidden>
+      <div class="brandbig">
+        <svg
+          class="mk"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M3 4h18l-7 8v7l-4 2v-9z" />
+        </svg>
+        <span class="wm">Torrent<em>Mate</em></span>
+      </div>
+      <form class="logincard" id="loginform" autocomplete="on">
+        <h1 class="logintitle">Connexion</h1>
+        <p class="loginsub">Accès à votre médiathèque et à vos acquisitions.</p>
+        <label class="loginfield">
+          <span>Identifiant</span>
+          <input
+            type="text"
+            name="identifiant"
+            autocomplete="username"
+            autocapitalize="none"
+            spellcheck="false"
+            required
+          />
+        </label>
+        <label class="loginfield">
+          <span>Mot de passe</span>
+          <input
+            type="password"
+            name="motdepasse"
+            autocomplete="current-password"
+            required
+          />
+        </label>
+        <p class="loginerr" id="loginerr" hidden>Identifiants invalides</p>
+        <button class="loginsubmit" type="submit">Se connecter</button>
+      </form>
+    </div>
+    <!-- login:markup:end -->
+
+    <div class="hbtn">
+      <button
+        id="notesBtn"
+        aria-pressed="false"
+        aria-label="Notes de conception"
+        title="Notes de conception"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 16v-4M12 8h.01" />
+        </svg>
+      </button>
+      <button
+        id="scenBtn"
+        aria-label="Harnais"
+        title="Harnais — états et données"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        >
+          <path d="M3 6h18M3 12h12M3 18h6" />
+        </svg>
+      </button>
+    </div>
+
+    <button class="fab" id="fab" aria-label="Ajouter un média" hidden>
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.4"
+        stroke-linecap="round"
+      >
+        <path d="M12 5v14M5 12h14" />
+      </svg>
+    </button>
+
+    <nav class="bottombar" id="nav" aria-label="Navigation principale"></nav>
+
+    <aside
+      class="drawer"
+      id="drawer"
+      aria-label="Navigation principale"
+    ></aside>
+    <div class="screen" id="screen"></div>
+    <!-- The scrim and the bottom sheet are rendered by the shell
+         (`src/components/sheet.tsx`), at these same ids and classes, into
+         `#coquille` — which sits inside this frame, earlier in document order.
+         They are absent here on purpose: two elements answering `#sheet` is
+         one of them being measured and the other being shown. -->
+    <div class="dlg" id="dlg"></div>
+    <div class="toast" id="toast">
+      <span id="toastmsg"></span
+      ><button id="toastx" aria-label="Fermer">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        >
+          <path d="M18 6 6 18M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>
   </body>
 </html>

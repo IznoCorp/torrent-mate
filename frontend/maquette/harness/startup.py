@@ -55,7 +55,11 @@ def check(name, condition, detail=""):
 
 def prototype_excerpt(marker):
     """Returns the prototype text between a pair of `login:<marker>` markers."""
-    source = (ROOT / "design" / "refonte.html").read_text()
+    # THE SHELL DOCUMENT, not the fragment: the startup screen is application
+    # SHELL markup, and it moved to `index.html` when the fragment stopped
+    # carrying a program. The fragment still holds the STYLE the screen wears,
+    # which is a different question and a different marker.
+    source = (ROOT / "design" / "index.html").read_text()
     start = source.find(f"login:{marker}:start")
     end = source.find(f"login:{marker}:end")
     if start < 0 or end < 0:
@@ -85,13 +89,22 @@ async def main():
         # 1. Declared first, so it is painted first. Measured on the SOURCE,
         #    because that is what parse order follows; the DOM would answer the
         #    same question only by accident.
-        source = (ROOT / "design" / "refonte.html").read_text()
+        source = (ROOT / "design" / "index.html").read_text()
         body = source[source.find('<div class="device"'):]
         splash_rank = body.find('id="splash"')
-        first_other = min(
-            x for x in (body.find("<header"), body.find('id="port"'), body.find('id="login"'))
-            if x > 0
-        )
+        # Each landmark is looked up BY NAME and the misses are named: a
+        # `find()` that returns -1 for all three used to reach `min()` over an
+        # empty generator and raise, which reports « the harness is broken »
+        # about a document that simply moved. The markup left the fragment
+        # once; it can leave this file too.
+        landmarks = {"<header": body.find("<header"),
+                     'id="port"': body.find('id="port"'),
+                     'id="login"': body.find('id="login"')}
+        absent = sorted(name for name, at in landmarks.items() if at <= 0)
+        check("the frame's landmarks are all in the document read",
+              not absent and splash_rank > 0,
+              f"absent: {absent}" if absent else f"splash at {splash_rank}")
+        first_other = min([at for at in landmarks.values() if at > 0], default=-1)
         check("declared before everything else in the frame", 0 < splash_rank < first_other,
                  f"splash at {splash_rank}, first other element at {first_other}")
 
