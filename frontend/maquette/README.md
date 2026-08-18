@@ -54,8 +54,18 @@ Two consequences worth knowing before writing a rule:
 - **The engine republishes its own surface.** A classic script's top-level declarations are
   global; a module's are not, and the harness drives the engine by bare name in some forty
   `page.evaluate` call sites. The block at the bottom of `legacy.js` republishes exactly
-  what already existed — 230 by value, 24 by getter for the bindings the engine reassigns
-  (`state` and `world` among them, which is why the split is measured and not chosen).
+  what already existed — by value, or by getter for the bindings the engine reassigns, and
+  the split is measured rather than chosen. `state` is neither: there is no cached binding
+  left to publish, so its getter reads the store.
+- **The engine imports what it calls.** `src/seams.ts` holds `pont`, `ecrans` and `panneau`
+  as live `export let` bindings the shell fills at boot — the implementations need the
+  store, which the shell creates in its body, after its imports. The globals stay published
+  because this harness drives through them; they are the same objects, so the two ways
+  cannot disagree.
+- **The scenario table is not the engine's.** `src/states.js` holds the 656 lines every
+  `window.__go(id)` reaches, and registers them with the engine. The DRIVING stayed engine-
+  side: `__go` holds `pilotage`, a latch the engine reassigns, and an imported binding
+  cannot be assigned.
 
 **React and TanStack Router are the outer shell.** The router is the SINGLE writer of the
 URL and the history: the legacy engine keeps its navigation logic but speaks to

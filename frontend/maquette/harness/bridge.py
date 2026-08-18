@@ -1,15 +1,28 @@
-"""R74 — the bridge wires the legacy nav cluster to the router.
+"""R74 — the nav cluster is wired to the router, and the seam is now an import.
 
-The shell is the single writer of history entries, speaking through
-`window.__pont`; the legacy engine keeps its navigation LOGIC (when to
-push, when to unwind) and loses only its history primitives. The bridge
-verifies that: (a) the engine's source makes no raw history calls that
-bypass the bridge; (b) the journey through the bridge (results → sheet →
-back) redraws and restores state correctly; (c) deep URL entry lands on
-the promised state; (d) a state-only navigation (__go) does not change
-history depth; (f′) the boot handshake is real — `window.__demarrerMoteur`
-exists AND the startup screen comes off on its own, before this harness
-ever calls `window.__chargementTermine`.
+The shell is the single writer of history entries; the legacy engine keeps its
+navigation LOGIC (when to push, when to unwind) and loses only its history
+primitives. This rule verifies that: (a) the engine's source makes no raw
+history calls that bypass the seam; (b) the journey through it (results →
+sheet → back) redraws and restores state correctly; (c) deep URL entry lands on
+the promised state; (d) a state-only navigation (__go) does not change history
+depth; (f′) the boot handshake is real — `window.__demarrerMoteur` exists AND
+the startup screen comes off on its own, before this harness ever calls
+`window.__chargementTermine`.
+
+WHAT « THE BRIDGE » MEANS NOW, and it is not what it meant when this rule was
+written. It was three globals — `window.__pont`, `__ecrans`, `__panneau` —
+because a classic script inside the fragment had no other way to reach a
+module. The engine is a module itself since SP4-fin, and it imports those three
+names from `src/seams.ts` instead: 61 call sites, and a wrong name is a failed
+BUILD rather than `undefined is not a function` on a click nobody tested.
+
+The globals did NOT disappear, and the honest reason is that this harness uses
+them — `__ecrans` nine times, `__panneau` seven, `__pont` twice — to drive the
+app the way a legacy call site would. They are the same objects the shell fills
+the imports with, so the two ways cannot disagree. What they are now is a
+DRIVING SURFACE for measurement, not a bridge between two worlds; the world
+they used to bridge to is gone.
 
 The boot order used to run the other way: the engine booted itself, ahead
 of the bridge, through a pre-bridge that queued the engine's writes and

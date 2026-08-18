@@ -32,6 +32,8 @@
    because narrowing it means editing the instrument that measures the move.
 */
 
+import { ecrans, panneau, pont } from "../seams.js";
+
   /* TorrentMate — mobile-first redesign prototype
      Data: real library titles (1,861 items). */
 
@@ -7181,7 +7183,7 @@
   /* ONE bottom panel, and its shape follows the facts it is given — and it is
      built in the shell now: `src/components/panel.tsx` is that single
      constructor, `src/components/sheet.tsx` the layer it draws into, and
-     `window.__panneau.ouvrir` the verb a producer here calls, on a descriptor.
+     `panneau.ouvrir` the verb a producer here calls, on a descriptor.
 
      The DESCRIPTOR crosses unchanged (facts, never markup: `titre`, `meta`,
      `sousTitre`, `affiche`, `avatar`, `puce`, `blocs`, and the typed blocks
@@ -7615,7 +7617,7 @@
     if (!action) return;
     const supprime = action.r === "destructive";
     const blanc = supprime ? true : !!currentState().maintBlanc;
-    window.__panneau.ouvrir({
+    panneau.ouvrir({
       titre: action.l,
       sousTitre: action.id,
       meta: action.d,
@@ -9301,7 +9303,7 @@
   }
 
   function ouvrirSecret(secret) {
-    window.__panneau.ouvrir({
+    panneau.ouvrir({
       titre: secret.l,
       meta: [{ m: secret.k }],
       puce: secret.def ? ["success", "définie"] : ["warning", "absente"],
@@ -9354,7 +9356,7 @@
     if (!reglage) return;
     const courante = valeurCourante(reglage);
     const modifie = REG_ETAT.modifs.has(id);
-    window.__panneau.ouvrir({
+    panneau.ouvrir({
       titre: window.__settingLabels.label(reglage),
       meta: [{ m: `${reglage.f}.json5 · ${reglage.c}` }],
       ...(modifie ? { puce: ["info", "modifié, pas encore écrit"] } : {}),
@@ -10217,7 +10219,7 @@
      says why, rather than being absent: a menu that grows an item later teaches
      its shape twice. */
   function openUserSheet() {
-    window.__panneau.ouvrir({
+    panneau.ouvrir({
       titre: COMPTE.nom,
       sousTitre: COMPTE.mail,
       avatar: COMPTE.avatar,
@@ -10495,7 +10497,7 @@
 
   function openSugSheet(index) {
     const suggestion = SUGGESTIONS[index];
-    window.__panneau.ouvrir({
+    panneau.ouvrir({
       titre: suggestion.t,
       meta: `${suggestion.y} · ${suggestion.k} · note TMDB ${suggestion.note}`,
       blocs: [
@@ -10572,7 +10574,7 @@
   function openAddSheet(index) {
     const result = SEARCH.results[index];
     const fait = currentState().added.has(index);
-    window.__panneau.ouvrir({
+    panneau.ouvrir({
       titre: result.t,
       meta: `${result.y} · ${result.k} · TMDB`,
       blocs: [
@@ -10729,7 +10731,7 @@
     // The sheet is the shell's layer: closing it without touching history is
     // what `fermer(true)` means, the same contract this function has always
     // had for every layer it resets.
-    window.__panneau.fermer(true);
+    panneau.fermer(true);
     // The scrim stays cleared HERE too: it is shared ground, raised by the
     // drawer and the dialog on their own, and the line above only clears it
     // for a sheet that was actually open.
@@ -10795,10 +10797,10 @@
      `machine.py` call `closeSheet()` from inside the page, and moving a layer
      to the shell must not take away the vocabulary that drives it. The layer
      state, the per-layer guard and the unwind all live in
-     `window.__panneau.fermer` now — this is one line pointing there, not a
+     `panneau.fermer` now — this is one line pointing there, not a
      second implementation. */
   function closeSheet(pop) {
-    window.__panneau.fermer(pop);
+    panneau.fermer(pop);
   }
   /* The dialog raises the SHARED scrim itself, on an element the shell renders
      — which is why the shell's own panel verbs commit synchronously: a caller
@@ -11103,8 +11105,8 @@
     if (select("#screen").classList.contains("open")) return closeScreen(true);
     // The sheet lives in the shell; it is asked, not inspected. Same rank in
     // the ladder as before — drawer, then screen, then sheet.
-    if (window.__panneau.ouverte()) {
-      window.__panneau.fermer(true);
+    if (panneau.ouverte()) {
+      panneau.fermer(true);
       return;
     }
 
@@ -11157,7 +11159,7 @@
      line runs — the shell calls this from its own `onClick`. */
   window.__fermerCouches = () => {
     closeDlg();
-    window.__panneau.fermer();
+    panneau.fermer();
     fermerTiroir();
   };
 
@@ -11230,7 +11232,7 @@
      is no such route, and a design reference that dead-ends on a 404 teaches
      nothing about the design. Nothing else here depends on the answer. */
   async function deconnecter() {
-    window.__panneau.fermer();
+    panneau.fermer();
     try {
       await fetch("/deconnexion", { redirect: "manual" });
     } catch (error) {}
@@ -11625,7 +11627,7 @@
   select("#fab").onclick = () => {
     // The « + » ALWAYS means « follow »: the mode must never stay
     // stuck from a previous resolution.
-    window.__ecrans.ajout(currentState().addQ, "suivi");
+    ecrans.ajout(currentState().addQ, "suivi");
   };
   select("#scenBtn").onclick = () => {
     openHarness();
@@ -11718,7 +11720,7 @@
     }
     if (closest.dataset.annulerreg) {
       REG_ETAT.modifs.delete(closest.dataset.annulerreg);
-      window.__panneau.fermer();
+      panneau.fermer();
       setTimeout(() => {
         render();
         toast("Modification annulée — rien n'avait été écrit.");
@@ -11767,7 +11769,7 @@
          overwriting it. */
       const surCouche = history.state && history.state.layer;
       fermerTiroir(true);
-      window.__panneau.fermer(true);
+      panneau.fermer(true);
       // This empties the covered-screen STACK too, so the DOM ends up clean
       // however many screens were stacked — but that is DOM bookkeeping
       // only, not history: `__pont.remplacer` below settles exactly ONE
@@ -11869,7 +11871,7 @@
     }
     if (closest.dataset.dropsug) {
       const index = Number(closest.dataset.dropsug);
-      window.__panneau.fermer();
+      panneau.fermer();
       dismissSug(index);
       return;
     }
@@ -11885,7 +11887,7 @@
         suggestion && suggestion.k === "Film"
           ? "ajouté à votre liste"
           : "ajouté à vos suivis";
-      window.__panneau.fermer();
+      panneau.fermer();
       if (idx != null) {
         // No render() follows on this branch: the sheet close and the
         // follow-up screens draw directly, so the bump has to be explicit
@@ -11925,12 +11927,12 @@
         .trim();
       // `/resolution` is a router-owned address now: leaving it is
       // `__pont.retour()` — the same single pop `.fback` uses — unwinding the
-      // ONE entry `window.__ecrans.resolution` pushed to get here. The
+      // ONE entry `ecrans.resolution` pushed to get here. The
       // dispatcher no-ops that pop: the entry carries neither `layer` nor
       // `tm`, so the legacy popstate checks fall through it and the router has
       // already re-rendered by the time they run.
-      window.__pont.retour();
-      setTimeout(() => window.__ecrans.ajout(trim, "identifier"), 260);
+      pont.retour();
+      setTimeout(() => ecrans.ajout(trim, "identifier"), 260);
       return;
     }
     /* THE FOLDER IS `currentState().resolveTarget`, NEVER THE ATTRIBUTE: what
@@ -11941,7 +11943,7 @@
        exactly as it found it. */
     if (closest.dataset.resolve) {
       const cible = currentState().resolveTarget;
-      window.__pont.retour();
+      pont.retour();
       setTimeout(() => actionResoudre(cible, closest.dataset.resolve), 240);
       return;
     }
@@ -11949,7 +11951,7 @@
        nothing — which is why it says what it did rather than « fait ». */
     if (closest.dataset.laisser) {
       const cible = currentState().resolveTarget;
-      window.__pont.retour();
+      pont.retour();
       setTimeout(() => actionLaisser(cible), 240);
       return;
     }
@@ -11970,13 +11972,13 @@
         // now, so the same depth is a REPLACE: one entry in, one entry out,
         // and a single back still leaves the arbitration rather than walking
         // the folders one has already answered.
-        setTimeout(() => window.__ecrans.resolution(suite.d, true), 240);
+        setTimeout(() => ecrans.resolution(suite.d, true), 240);
       }
       return;
     }
     if (closest.dataset.sheetprim) {
       const [split, split2] = closest.dataset.sheetprim.split("|");
-      window.__panneau.fermer();
+      panneau.fermer();
       setTimeout(() => {
         if (split2 === "a_recuperer") actionRecuperer(split);
         else
@@ -11988,19 +11990,19 @@
     }
     if (closest.dataset.pause) {
       const pause = closest.dataset.pause;
-      window.__panneau.fermer();
+      panneau.fermer();
       setTimeout(() => actionPause(pause), 240);
       return;
     }
     if (closest.dataset.retirer) {
       const retirer = closest.dataset.retirer;
-      window.__panneau.fermer();
+      panneau.fermer();
       setTimeout(() => actionRetirer(retirer), 240);
       return;
     }
     if (closest.dataset.releases) {
-      window.__panneau.fermer();
-      setTimeout(() => window.__ecrans.releases(closest.dataset.releases), 260);
+      panneau.fermer();
+      setTimeout(() => ecrans.releases(closest.dataset.releases), 260);
       return;
     }
     if (
@@ -12020,11 +12022,11 @@
       // `__ecrans.profil` does the navigating either way.
       const profil = closest.dataset.profil;
       if (document.querySelector('.screen.open[data-cle^="releases:"]')) {
-        window.__pont.retour();
-        setTimeout(() => window.__ecrans.profil(profil), 260);
+        pont.retour();
+        setTimeout(() => ecrans.profil(profil), 260);
       } else {
-        window.__panneau.fermer();
-        setTimeout(() => window.__ecrans.profil(profil), 260);
+        panneau.fermer();
+        setTimeout(() => ecrans.profil(profil), 260);
       }
       return;
     }
@@ -12033,7 +12035,7 @@
       // One router pop — the release-choice screen is a route now, and the
       // dispatcher's own `layer`/`tm: "nav"` checks no-op harmlessly on the
       // entry it wrote, so the screen simply unmounts.
-      window.__pont.retour();
+      pont.retour();
       setTimeout(() => {
         actionRecuperer(currentState().relTitre);
         toast(
@@ -12043,7 +12045,7 @@
       return;
     }
     if (closest.dataset.veille) {
-      window.__panneau.fermer();
+      panneau.fermer();
       toast(
         "Veille lancée — 12 suivis balayés, 0 nouvelle release conforme. Prochain passage à 15 h 20.",
       );
@@ -12160,7 +12162,7 @@
       return;
     }
     if (closest.dataset.sort) {
-      window.__panneau.ouvrir({
+      panneau.ouvrir({
         titre: "Trier la médiathèque",
         meta: "Le tri est une préférence, pas un emplacement : il reste sur cet appareil et n'entre pas dans l'URL (A7).",
         blocs: [
@@ -12192,7 +12194,7 @@
         sortReversed: closest.dataset.reversed === "1",
         libCount: LIB_PAGE,
       });
-      window.__panneau.fermer();
+      panneau.fermer();
       render();
       toast(`Trié par ${sortLabel().toLowerCase()}.`);
       return;
@@ -12243,7 +12245,7 @@
       return;
     }
     if (closest.dataset.del) {
-      window.__panneau.fermer();
+      panneau.fermer();
       openDeleteDialog(closest.dataset.del);
       return;
     }
@@ -12254,17 +12256,17 @@
       const fiche = closest.dataset.fiche;
       // Asked of the shell, not read off the DOM: the layer is the shell's,
       // and its store answers truthfully in the middle of this task.
-      const couche = window.__panneau.ouverte();
+      const couche = panneau.ouverte();
       if (couche) {
-        window.__panneau.fermer();
-        setTimeout(() => window.__ecrans.fiche(fiche), 260);
+        panneau.fermer();
+        setTimeout(() => ecrans.fiche(fiche), 260);
       } else {
-        window.__ecrans.fiche(fiche);
+        ecrans.fiche(fiche);
       }
       return;
     }
     if (closest.dataset.act === "resolve") {
-      window.__ecrans.resolution();
+      ecrans.resolution();
       return;
     }
     if (closest.dataset.sheet === "plus") {
@@ -12294,9 +12296,9 @@
            raw `__pont.retour()` were two backs racing in the same task, only
            one of them announced, and the surplus pop was then read as the
            operator's own back gesture. */
-        const entrees = (window.__panneau.ouverte() ? 1 : 0) + 1;
-        window.__panneau.fermer(true);
-        window.__pont.reculer(entrees);
+        const entrees = (panneau.ouverte() ? 1 : 0) + 1;
+        panneau.fermer(true);
+        pont.reculer(entrees);
         setTimeout(() => {
           actionResoudre(cible, result.t);
           toast(
@@ -12309,7 +12311,7 @@
       // behind what comes next — the dialog below, or the re-rendered list.
       // The identify branch above settles its own layer, with the entry count
       // its single settlement needs, so this close is the follow branches'.
-      window.__panneau.fermer();
+      panneau.fermer();
       if (result.owned) {
         openDlg(`<h3>Remplacer « ${escapeHtml(result.t)} » ?</h3>
           <p>Ce ${result.k === "Film" ? "film est déjà" : "média est déjà"} en médiathèque. L'acquisition <b>remplacera</b> la version en place par celle qui sera récupérée.</p>
@@ -12339,7 +12341,7 @@
       return;
     }
     if (closest.dataset.journey) {
-      window.__panneau.fermer();
+      panneau.fermer();
       setTimeout(() => openJourneySheet(closest.dataset.journey), 260);
       return;
     }
@@ -12359,7 +12361,7 @@
     }
     if (closest.dataset.completer) {
       magasin.ecrire({ page: "acq", acqTab: "maintenant" });
-      window.__panneau.fermer();
+      panneau.fermer();
       render();
       toast(
         `« ${baseTitle(closest.dataset.completer)} » : recherche des épisodes manquants lancée.`,
@@ -12373,13 +12375,13 @@
        this branch says the same verb as every other call site. */
     if (closest.dataset.resolve) {
       const resolve = closest.dataset.resolve;
-      window.__panneau.fermer();
-      setTimeout(() => window.__ecrans.resolution(resolve), 260);
+      panneau.fermer();
+      setTimeout(() => ecrans.resolution(resolve), 260);
       return;
     }
     if (closest.dataset.recuperer) {
       const recuperer = closest.dataset.recuperer;
-      window.__panneau.fermer();
+      panneau.fermer();
       setTimeout(() => actionRecuperer(recuperer), 260);
       return;
     }
@@ -12394,7 +12396,7 @@
         closest.closest(".card")?.querySelector(".ctitle")?.textContent ?? "";
       const lab = closest.textContent.trim();
       if (lab.startsWith("Récupérer")) return actionRecuperer(title);
-      if (lab.startsWith("Résoudre")) return window.__ecrans.resolution(title);
+      if (lab.startsWith("Résoudre")) return ecrans.resolution(title);
       toast("Action lancée — le résultat s'affichera ici.");
       return;
     }
@@ -33454,7 +33456,7 @@
 
   /* The media sheet moved to the shell with the rest of the screens:
      `src/screens/media.tsx` renders it as the route `/fiche/$titre`. The
-     verb a call site says is `window.__ecrans.fiche(title)`; the template,
+     verb a call site says is `ecrans.fiche(title)`; the template,
      the seasons and the actions live there, at identical markup — the
      click delegation below still reads their data attributes. */
   /* The resolution screen moved to the shell the same way:
@@ -33462,7 +33464,7 @@
      `/resolution/$dossier`, and the design rationale it carries — what the
      screen is FOR, why a tied score is not printed, the three ways out —
      moved there with it. The verb a call site says is
-     `window.__ecrans.resolution(dossier, remplacer)`: it resolves the same
+     `ecrans.resolution(dossier, remplacer)`: it resolves the same
      default this file used to (the first stuck folder) and writes
      `currentState().resolveTarget` before navigating, so the `data-resolve` and
      `data-laisser` branches below still read the folder they always read.
@@ -33610,7 +33612,7 @@
       : seasons.length
         ? `${own}/${aired}`
         : (stFraction(follow) ?? "—");
-    window.__panneau.ouvrir({
+    panneau.ouvrir({
       titre: follow.t,
       affiche: { t: follow.t, k: follow.k },
       meta: `${follow.y ? String(follow.y) + " · " : ""}${isFilm ? "Film" : "Série"}${frac ? " · " + frac + " épisodes" : ""}`,
@@ -33780,7 +33782,7 @@
       ["Scrapé", "en cours depuis 4 min", "now"],
       ["Rangé en médiathèque", "à venir", "todo"],
     ];
-    window.__panneau.ouvrir({
+    panneau.ouvrir({
       titre: title,
       meta: [
         "Parcours de l'acquisition · release ",
@@ -33832,7 +33834,7 @@
      through `window.__referentiel` — same seam as `SEARCH`/`cardHTML` above. */
 
   function openPlusSheet() {
-    window.__panneau.ouvrir({
+    panneau.ouvrir({
       titre: "Veille et obligations",
       meta: "Second rang — consulté, pas surveillé.",
       blocs: [
@@ -33867,9 +33869,9 @@
   // own onClick unwinds — not a `closeScreen()` call, which is a harmless
   // no-op against an address it was never the host of.
   window.__close = (layer) => {
-    if (layer !== "screen") return window.__panneau.fermer();
+    if (layer !== "screen") return panneau.fermer();
     if (select("#screen").classList.contains("open")) return closeScreen();
-    if (document.querySelector(".screen.open")) return window.__pont.retour();
+    if (document.querySelector(".screen.open")) return pont.retour();
   };
 
   /* Gestures — pointer events, so one path serves finger, mouse and pen.
