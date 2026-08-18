@@ -18,7 +18,14 @@ import subprocess
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent
-PROTOTYPE = ROOT / "design" / "refonte.html"
+# BOTH things this tool rewrites live in the engine, not in the fragment: the
+# `FOLLOWS` block is data the engine declares, and the drawer footer is markup
+# the engine emits. They moved together when the engine became a module, and
+# the fragment kept only the stylesheet and the app shell. A stale path here
+# would not corrupt anything — `main` reports « FOLLOWS block not found » and
+# writes nothing — but it would stop correcting, which is the same as being
+# wrong on the day a counter drifts.
+ENGINE = ROOT / "design" / "src" / "engine" / "legacy.js"
 ACQUIRE = pathlib.Path(os.path.expanduser(
     "~/dev/PersonalScraper/.data/acquire.db"))
 # The drawer's « Version déployée » names what PRODUCTION runs — the deploy
@@ -66,11 +73,11 @@ def main() -> int:
         print(f"database absent: {ACQUIRE}")
         return 1
     real = real_counters()
-    text = PROTOTYPE.read_text(encoding="utf-8")
+    text = ENGINE.read_text(encoding="utf-8")
     i = text.find("const FOLLOWS = [")
     j = text.find("\n  ];", i)
     if i < 0 or j < 0:
-        print("FOLLOWS block not found in the prototype")
+        print(f"FOLLOWS block not found in {ENGINE.name}")
         return 1
     block = text[i:j]
 
@@ -113,7 +120,7 @@ def main() -> int:
     # An unmatched title reads exactly like « already in sync » unless it is
     # named here — silence is the bug (B-028), not a valid outcome. And the
     # corrections just printed above were computed, never written: the script
-    # returns before reaching `PROTOTYPE.write_text` below, so the output
+    # returns before reaching `ENGINE.write_text` below, so the output
     # must say so explicitly rather than let those lines read as applied.
     if unmatched:
         print(f"nothing written — {len(unmatched)} title(s) never "
@@ -129,7 +136,7 @@ def main() -> int:
         corrections.append(("drawer footer", "", ""))
 
     if corrections:
-        PROTOTYPE.write_text(text, encoding="utf-8")
+        ENGINE.write_text(text, encoding="utf-8")
     print(f"{len(corrections)} correction(s)")
     return 0
 

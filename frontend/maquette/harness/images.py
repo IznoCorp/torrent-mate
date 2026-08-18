@@ -11,12 +11,15 @@ import re
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ROOT, Journal
+from common import ROOT, Journal, design_source
 
 
 def main():
     journal = Journal("R70 — no embedded image")
-    source = (ROOT / "design" / "refonte.html").read_text()
+    # EVERY source the design is written in, not the fragment alone: the
+    # 930 image references this rule exists to check live in the engine
+    # module, and reading only the fragment would check none of them.
+    source = design_source()
 
     embedded = re.findall(r"data:image/", source)
     journal.check("no data:image in the source", not embedded,

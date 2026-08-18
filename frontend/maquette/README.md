@@ -336,7 +336,7 @@ drift, review the diff, commit it as data.
 `frontend/maquette/resync.py` is that tool, run standalone
 (`python3 frontend/maquette/resync.py`) before the suite, not as part of it: it opens
 `acquire.db` read-only, computes each followed title's real attempt count, and rewrites
-only the matching counters already embedded in `design/refonte.html`'s data blocks —
+only the matching counters already embedded in `design/src/engine/legacy.js`'s data blocks —
 never a layout, a class, or anything the harness itself measures. It reports how many
 objects it corrected and touches the file only when a count actually changed, so a clean
 run leaves no diff to review. A correction is committed on its own, as data, never folded

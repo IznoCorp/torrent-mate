@@ -114,6 +114,17 @@ async def main(legacy_name: str, states: list[str], host: str = "#view",
         page.on("pageerror", lambda error: errors.append(str(error)))
         await page.goto(PROTOTYPE, wait_until="load")
         await page.evaluate("()=>window.__chargementTermine?.()")
+        # THE BOOT HINT IS DISMISSED ONCE IT EXISTS, not before. It is raised
+        # about 770 ms after load and hides itself about five seconds later —
+        # so a click issued here, immediately, lands before there is anything
+        # to click, and the toast then rides the walk as a floating overlay
+        # that expires partway through it. Whichever state happens to be
+        # sampled at the boundary is recorded WITH `.show` and compared
+        # WITHOUT it, and the oracle reports a divergence about a timer.
+        # Measured: identical clock on both sides of a move (raised 770 ms,
+        # hidden 5775 ms), one state apart in the walk — a real difference
+        # would not care where in the sequence it was read.
+        await page.wait_for_selector("#toast.show", timeout=4000, state="attached")
         await page.evaluate("()=>document.querySelector('#toastx')?.click()")
         await page.evaluate(NORMALISER)
 

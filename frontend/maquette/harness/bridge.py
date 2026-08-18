@@ -36,7 +36,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, ROOT, Journal
+from common import PHONE, ROOT, Journal, design_source
 
 # The engine may hold no history primitive of its own — the bridge is the
 # only way to the single writer.
@@ -248,10 +248,12 @@ async def main():
     _journal = Journal("R74 — the bridge wires the nav cluster to the router")
 
     # ─── Hold (a): the engine holds no primitive of its own ───────────
-    fragment = (ROOT / "design" / "refonte.html").read_text(encoding="utf-8")
-    calls = count_history_primitives(fragment)
+    # The engine is where the primitives would be, and it is no longer in
+    # the fragment — a count taken on the fragment alone is a count of
+    # nothing.
+    calls = count_history_primitives(design_source())
     check(
-        "zero direct history.* call in refonte.html",
+        "zero direct history.* call in the design's sources",
         calls == 0,
         f"{calls} call(s) found",
     )
