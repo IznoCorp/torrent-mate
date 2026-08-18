@@ -24,6 +24,11 @@ import "./i18n";
 // below any other statement would not reorder anything — imports hoist —
 // but writing it anywhere else would suggest otherwise.
 import "./engine/legacy.js";
+// The scenario table, registered with the engine as this module evaluates —
+// after the engine, because it imports twenty names from it. It is the
+// harness's fixture, not the product's, and the engine looks its states up
+// there rather than carrying them.
+import "./states.js";
 import {
   createBrowserHistory,
   createRootRoute,
@@ -45,6 +50,7 @@ import { ReleasesScreen } from "./screens/releases";
 import { ResolutionScreen } from "./screens/resolution";
 import { PageHost } from "./pages/host";
 import { createStore, type Store } from "./store";
+import { installSeams } from "./seams";
 
 // R69's addressable state, validated — absent means "unchanged", as before.
 type SearchParams = {
@@ -620,6 +626,16 @@ window.__panneau = {
   fermer: closePanel,
   ouverte: isPanelOpen,
 };
+
+// The engine reads these three by import rather than off `window` — same
+// objects, so the two ways cannot disagree. Filled HERE, after all three
+// exist and before the engine is started below, which is the only window in
+// which they can be both real and unused.
+installSeams({
+  pont: window.__pont,
+  ecrans: window.__ecrans,
+  panneau: window.__panneau,
+});
 
 /* Lets the contract check prove the refusal rather than trust the comment on
    it: a block type nobody declared must raise, not draw nothing. Called as a

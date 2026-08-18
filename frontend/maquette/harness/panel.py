@@ -89,7 +89,15 @@ async def main():
     #    is where a panel is asked for; the DOM only shows what came out. A
     #    descriptor is an OBJECT — a call opening on anything else (a string, a
     #    template literal, a variable holding ready-made markup) is an envelope.
-    calls = re.findall(r"window\.__panneau\.ouvrir\(\s*(.{0,24})", source, re.S)
+    # BOTH SPELLINGS, because there are two and they are the same object. The
+    # engine imports `panneau` from `src/seams.ts` and says `panneau.ouvrir(`;
+    # anything reaching it as a global still says `window.__panneau.ouvrir(`,
+    # and the shell fills the one from the other. Counting only the global form
+    # found ZERO callers the day the engine converted its 40 call sites — which
+    # is what the « there really are callers » check below exists to notice,
+    # and did.
+    calls = re.findall(
+        r"(?:window\.__)?panneau\.ouvrir\(\s*(.{0,24})", source, re.S)
     not_facts = [a.strip()[:24] for a in calls if not a.lstrip().startswith("{")]
     check("no caller hands markup", not not_facts,
           " · ".join(not_facts))

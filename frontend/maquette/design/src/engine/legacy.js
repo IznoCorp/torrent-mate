@@ -32,6 +32,8 @@
    because narrowing it means editing the instrument that measures the move.
 */
 
+import { ecrans, panneau, pont } from "../seams.js";
+
   /* TorrentMate — mobile-first redesign prototype
      Data: real library titles (1,861 items). */
 
@@ -6962,7 +6964,26 @@
   ];
 
   /* State */
-  let state = {
+  /* THE SEED, and only the seed. This used to be `let state`, a module-level
+     binding re-pointed at the store's object on every notification — a cached
+     copy, correct only for as long as the subscriber that refreshed it kept
+     up. Every read now goes through `currentState()` instead, so there is no
+     copy to be stale: the store is the one place the state is.
+
+     What that removes is a whole class rather than an instance. A rule could
+     drive a page by mutating the cached object, and R77 had to hold that
+     nobody did; with no cached object there is nothing to mutate. */
+  /* THE ONE READ PATH. Every `state.x` in this engine is now
+     `currentState().x`, and this is what it calls: the store, each time. No
+     copy is kept anywhere, so none can be stale.
+
+     It is a function rather than a getter on some object because the call site
+     reads `currentState().page` — the parentheses are the point, visible at
+     every site, saying « this is a read, now » instead of looking like a
+     module-level variable that someone must remember to refresh. */
+  const currentState = () => magasin.lire().etat;
+
+  const INITIAL_STATE = {
     page: "acq",
     acqTab: "maintenant",
     libLens: "cat",
@@ -7162,7 +7183,7 @@
   /* ONE bottom panel, and its shape follows the facts it is given — and it is
      built in the shell now: `src/components/panel.tsx` is that single
      constructor, `src/components/sheet.tsx` the layer it draws into, and
-     `window.__panneau.ouvrir` the verb a producer here calls, on a descriptor.
+     `panneau.ouvrir` the verb a producer here calls, on a descriptor.
 
      The DESCRIPTOR crosses unchanged (facts, never markup: `titre`, `meta`,
      `sousTitre`, `affiche`, `avatar`, `puce`, `blocs`, and the typed blocks
@@ -7448,19 +7469,19 @@
   /* Active datasets, resolved by scenario. The rest of the code does not
      know which scenario is running — it reads these accessors. */
   const derived = {
-    takeable: () => (state.scen === "reel" ? [] : world.takeable),
-    blocked: () => (state.scen === "reel" ? [] : world.blocked),
+    takeable: () => (currentState().scen === "reel" ? [] : world.takeable),
+    blocked: () => (currentState().scen === "reel" ? [] : world.blocked),
     inflight: () =>
-      state.scen === "reel" ? (world.inflightReel ?? []) : world.inflight,
+      currentState().scen === "reel" ? (world.inflightReel ?? []) : world.inflight,
     notfound: () =>
-      state.scen === "reel" ? world.notfoundReel : world.notfound,
+      currentState().scen === "reel" ? world.notfoundReel : world.notfound,
     doneToday: () =>
-      state.scen === "reel" ? (world.doneReel ?? []) : world.doneToday,
-    stuck: () => (state.scen === "reel" ? world.stuckReel : world.stuck),
+      currentState().scen === "reel" ? (world.doneReel ?? []) : world.doneToday,
+    stuck: () => (currentState().scen === "reel" ? world.stuckReel : world.stuck),
     moving: () =>
-      state.scen === "reel" ? (world.movingReel ?? []) : world.moving,
+      currentState().scen === "reel" ? (world.movingReel ?? []) : world.moving,
     settled: () =>
-      state.scen === "reel" ? (world.settledReel ?? []) : world.settled,
+      currentState().scen === "reel" ? (world.settledReel ?? []) : world.settled,
     follows: () => world.follows,
   };
 
@@ -7595,8 +7616,8 @@
     const action = MAINT_ACTIONS.find((a) => a.id === id);
     if (!action) return;
     const supprime = action.r === "destructive";
-    const blanc = supprime ? true : !!state.maintBlanc;
-    window.__panneau.ouvrir({
+    const blanc = supprime ? true : !!currentState().maintBlanc;
+    panneau.ouvrir({
       titre: action.l,
       sousTitre: action.id,
       meta: action.d,
@@ -9282,7 +9303,7 @@
   }
 
   function ouvrirSecret(secret) {
-    window.__panneau.ouvrir({
+    panneau.ouvrir({
       titre: secret.l,
       meta: [{ m: secret.k }],
       puce: secret.def ? ["success", "définie"] : ["warning", "absente"],
@@ -9335,7 +9356,7 @@
     if (!reglage) return;
     const courante = valeurCourante(reglage);
     const modifie = REG_ETAT.modifs.has(id);
-    window.__panneau.ouvrir({
+    panneau.ouvrir({
       titre: window.__settingLabels.label(reglage),
       meta: [{ m: `${reglage.f}.json5 · ${reglage.c}` }],
       ...(modifie ? { puce: ["info", "modifié, pas encore écrit"] } : {}),
@@ -9485,7 +9506,7 @@
       .map(
         (
           element,
-        ) => `<button data-page="${element.id}" ${state.page === element.id ? 'aria-current="page"' : ""}>
+        ) => `<button data-page="${element.id}" ${currentState().page === element.id ? 'aria-current="page"' : ""}>
       <span class="ic">${svgIcon(element.ic)}${element.badge ? `<span class="navbadge">${element.badge}</span>` : ""}</span>
       <span class="lb">${element.l}</span>
     </button>`,
@@ -9509,9 +9530,9 @@
     /* An id no page carries is not a crash: it is the `*` route. Looking one
        up and calling `.render()` on nothing stopped the whole interface on a
        TypeError, which is the worst possible answer to a stale bookmark. */
-    let found = PAGES_OF().find((element) => element.id === state.page);
+    let found = PAGES_OF().find((element) => element.id === currentState().page);
     if (!found) {
-      magasin.ecrire({ introuvable: "/" + state.page, page: "404" });
+      magasin.ecrire({ introuvable: "/" + currentState().page, page: "404" });
       found = PAGES_OF().find((element) => element.id === "404");
     }
     /* A page the SHELL owns draws itself, through a React portal into this very
@@ -9862,7 +9883,7 @@
      reads. `sortReversed` is a store field like any other and, like `tri`, it
      stays OUT of the address: the sort is a preference, not a place (A7). */
   function sortLabel() {
-    return TRIS[state.tri][state.sortReversed ? "inverse" : "normal"];
+    return TRIS[currentState().tri][currentState().sortReversed ? "inverse" : "normal"];
   }
   const LIB_PAGE = 24;
   const SUG_BATCH = 30;
@@ -9890,8 +9911,8 @@
      index opens the panel of whatever film sits at that rank. */
   function tileHTML(descriptor, sousLigne, opts) {
     opts = opts || {};
-    const sel = state.selMode && opts.index != null;
-    const selected = sel && state.selected.has(opts.index);
+    const sel = currentState().selMode && opts.index != null;
+    const selected = sel && currentState().selected.has(opts.index);
     const badge = opts.badge;
     // A rating is not a status: it reads over the picture without claiming a
     // meaning in the status palette, so it takes the neutral overlay.
@@ -9928,10 +9949,10 @@
        has to be expressible on a list that was never compared. One `.reverse()`
        at the end says the same thing for all three. */
     const direction = (ordered) =>
-      state.sortReversed ? ordered.reverse() : ordered;
-    if (state.tri === "az")
+      currentState().sortReversed ? ordered.reverse() : ordered;
+    if (currentState().tri === "az")
       return direction(slice.sort((l, index) => l.t.localeCompare(index.t, "fr")));
-    if (state.tri === "manque") {
+    if (currentState().tri === "manque") {
       const manque = (item) => {
         const exec = /^(\d+)\/(\d+)/.exec(item.f ?? "");
         const inc = INCOMPLETE.find((INCOMPLETE2) => INCOMPLETE2.t === item.t);
@@ -9948,12 +9969,12 @@
   }
 
   function libFiltered() {
-    const cat = CATS.find((CATS2) => CATS2.id === state.libCat);
+    const cat = CATS.find((CATS2) => CATS2.id === currentState().libCat);
     let items =
       cat && cat.of
         ? world.lib.filter((lib) => cat.of.includes(lib.c))
         : world.lib;
-    const trim = state.q.trim();
+    const trim = currentState().q.trim();
     if (trim !== "") {
       const norm = (text) =>
         text
@@ -9966,8 +9987,8 @@
   }
 
   function libRowHTML(item, index) {
-    if (state.selMode) {
-      const has = state.selected.has(index);
+    if (currentState().selMode) {
+      const has = currentState().selected.has(index);
       return `<button class="selrow" data-tile="${index}" aria-selected="${has}">
         <span class="sel">${svgIcon(icons.check, 3)}</span>
         <span class="poster">${posterBox(item.t)}</span>
@@ -9997,9 +10018,9 @@
   function paintSelBar() {
     const old = document.querySelector(".selbar");
     if (old) old.remove();
-    document.documentElement.classList.toggle("selecting", !!state.selMode);
-    if (!state.selMode) return;
-    const size = state.selected.size;
+    document.documentElement.classList.toggle("selecting", !!currentState().selMode);
+    if (!currentState().selMode) return;
+    const size = currentState().selected.size;
     const bar = document.createElement("div");
     bar.className = "selbar";
     bar.innerHTML = `<span class="n">${size === 0 ? "Touchez les affiches à supprimer" : `${size} sélectionné${size > 1 ? "s" : ""}`}</span>
@@ -10074,7 +10095,7 @@
 
   function armerAppui(point, cible) {
     const element = panneauSousLeDoigt(cible);
-    if (state.selMode || !element) return;
+    if (currentState().selMode || !element) return;
     /* A card body opens the panel on a simple TAP, so arming a timer on it
        would fire the panel twice — once on the press, once on the click. */
     if (element.classList.contains("cbody") && cible.closest?.(".cbody"))
@@ -10198,7 +10219,7 @@
      says why, rather than being absent: a menu that grows an item later teaches
      its shape twice. */
   function openUserSheet() {
-    window.__panneau.ouvrir({
+    panneau.ouvrir({
       titre: COMPTE.nom,
       sousTitre: COMPTE.mail,
       avatar: COMPTE.avatar,
@@ -10309,11 +10330,11 @@
   /* Deck order. « Passer » does not decide anything: it sends the card to the
      back, so it comes round again. « Pas intéressé » removes it, with an undo. */
   function deckOrdre() {
-    if (!state.sugOrder)
+    if (!currentState().sugOrder)
       magasin.ecrire({
         sugOrder: SUGGESTIONS.map((SUGGESTIONS2, index) => index),
       });
-    return state.sugOrder.filter((sugOrder) => !state.sugGone.has(sugOrder));
+    return currentState().sugOrder.filter((sugOrder) => !currentState().sugGone.has(sugOrder));
   }
 
   function passerSug(index) {
@@ -10426,34 +10447,34 @@
   function fillSug() {
     const box = document.querySelector("#sugitems");
     if (!box) return;
-    if (state.sugMode === "deck") {
+    if (currentState().sugMode === "deck") {
       box.innerHTML = deckHTML();
       box.className = "";
       mountDeck();
       return;
     }
-    const rendu = state.sugMode === "poster" ? sugTileHTML : sugCardHTML;
-    box.className = state.sugMode === "poster" ? "grid" : "";
-    box.innerHTML = SUGGESTIONS.slice(0, state.sugCount)
+    const rendu = currentState().sugMode === "poster" ? sugTileHTML : sugCardHTML;
+    box.className = currentState().sugMode === "poster" ? "grid" : "";
+    box.innerHTML = SUGGESTIONS.slice(0, currentState().sugCount)
       .map((slice, index) =>
-        state.sugGone.has(index) ? "" : rendu(slice, index),
+        currentState().sugGone.has(index) ? "" : rendu(slice, index),
       )
       .join("");
   }
 
   /* Dismiss — reversible. A quick gesture gets it wrong, hence « Annuler ». */
   function dismissSug(index) {
-    if (state.sugMode === "deck") {
+    if (currentState().sugMode === "deck") {
       // In the deck the whole pile changes, not one row: re-render, and the
       // undo restores both the suggestion and its place in the order.
       // `sugGone` is a Set mutated in place — refreshDeck() redraws the
       // legacy deck directly, so React needs the explicit bump `ecrire`
       // would otherwise have given it for free.
-      state.sugGone.add(index);
+      currentState().sugGone.add(index);
       magasin.toucher();
       refreshDeck();
       toastUndo(`« ${SUGGESTIONS[index].t} » écarté.`, () => {
-        state.sugGone.delete(index);
+        currentState().sugGone.delete(index);
         magasin.toucher();
         refreshDeck();
       });
@@ -10461,13 +10482,13 @@
     }
     const element = document.querySelector(`[data-dismissable="${index}"]`);
     if (!element) return;
-    state.sugGone.add(index);
+    currentState().sugGone.add(index);
     magasin.toucher();
     element.style.height = element.getBoundingClientRect().height + "px";
     requestAnimationFrame(() => element.classList.add("gone"));
     setTimeout(() => element.remove(), 320);
     toastUndo(`« ${SUGGESTIONS[index].t} » écarté.`, () => {
-      state.sugGone.delete(index);
+      currentState().sugGone.delete(index);
       magasin.toucher();
       fillSug();
       sugFoot();
@@ -10476,7 +10497,7 @@
 
   function openSugSheet(index) {
     const suggestion = SUGGESTIONS[index];
-    window.__panneau.ouvrir({
+    panneau.ouvrir({
       titre: suggestion.t,
       meta: `${suggestion.y} · ${suggestion.k} · note TMDB ${suggestion.note}`,
       blocs: [
@@ -10527,8 +10548,8 @@
      « Associer » is not a synonym of « Ajouter »: identifying a stuck folder
      tells the pipeline WHICH medium that folder is, and creates no follow. */
   function addVerb(result, index) {
-    const identifier = state.addMode === "identifier";
-    if (state.added.has(index)) {
+    const identifier = currentState().addMode === "identifier";
+    if (currentState().added.has(index)) {
       return identifier
         ? "✓ Associé"
         : result.k === "Film"
@@ -10552,12 +10573,12 @@
      what it lists. */
   function openAddSheet(index) {
     const result = SEARCH.results[index];
-    const fait = state.added.has(index);
-    window.__panneau.ouvrir({
+    const fait = currentState().added.has(index);
+    panneau.ouvrir({
       titre: result.t,
       meta: `${result.y} · ${result.k} · TMDB`,
       blocs: [
-        result.owned && state.addMode !== "identifier"
+        result.owned && currentState().addMode !== "identifier"
           ? {
               type: "note",
               texte: [
@@ -10591,7 +10612,7 @@
   function sugFoot() {
     const foot = document.querySelector("#sugload");
     if (!foot) return;
-    if (state.sugCount >= SUGGESTIONS.length) {
+    if (currentState().sugCount >= SUGGESTIONS.length) {
       foot.innerHTML = `<p class="endmark">Fin de la réserve chargée dans cette maquette — ${SUGGESTIONS.length} des 503 suggestions réellement calculées pour vous. La passe de fond en recalcule après chaque nouvelle note TMDB.</p>`;
       return;
     }
@@ -10607,13 +10628,13 @@
   }
 
   function loadMoreSug() {
-    if (state.sugLoading || state.sugCount >= SUGGESTIONS.length) return;
+    if (currentState().sugLoading || currentState().sugCount >= SUGGESTIONS.length) return;
     magasin.ecrire({ sugLoading: true });
     if (sugObserver) sugObserver.disconnect();
     setTimeout(() => {
       magasin.ecrire({
         sugLoading: false,
-        sugCount: Math.min(SUGGESTIONS.length, state.sugCount + SUG_BATCH),
+        sugCount: Math.min(SUGGESTIONS.length, currentState().sugCount + SUG_BATCH),
       });
       fillSug();
       sugFoot();
@@ -10710,7 +10731,7 @@
     // The sheet is the shell's layer: closing it without touching history is
     // what `fermer(true)` means, the same contract this function has always
     // had for every layer it resets.
-    window.__panneau.fermer(true);
+    panneau.fermer(true);
     // The scrim stays cleared HERE too: it is shared ground, raised by the
     // drawer and the dialog on their own, and the line above only clears it
     // for a sheet that was actually open.
@@ -10776,10 +10797,10 @@
      `machine.py` call `closeSheet()` from inside the page, and moving a layer
      to the shell must not take away the vocabulary that drives it. The layer
      state, the per-layer guard and the unwind all live in
-     `window.__panneau.fermer` now — this is one line pointing there, not a
+     `panneau.fermer` now — this is one line pointing there, not a
      second implementation. */
   function closeSheet(pop) {
-    window.__panneau.fermer(pop);
+    panneau.fermer(pop);
   }
   /* The dialog raises the SHARED scrim itself, on an element the shell renders
      — which is why the shell's own panel verbs commit synchronously: a caller
@@ -10990,12 +11011,12 @@
     // longer matches `/ajout` and unmount the screen — no navigate() call
     // needed on this side of the bridge.
     const courant = {
-      page: state.page,
-      tab: state.acqTab,
-      lens: state.libLens,
-      mode: state.libMode,
-      cat: state.libCat,
-      rub: state.maintRub || "",
+      page: currentState().page,
+      tab: currentState().acqTab,
+      lens: currentState().libLens,
+      mode: currentState().libMode,
+      cat: currentState().libCat,
+      rub: currentState().maintRub || "",
     };
     const params = new URLSearchParams();
     for (const [nom, valeur] of Object.entries(courant))
@@ -11029,11 +11050,11 @@
   function etatDeNavigation() {
     return {
       tm: "nav",
-      page: state.page,
-      acqTab: state.acqTab,
-      libLens: state.libLens,
-      libMode: state.libMode,
-      libCat: state.libCat,
+      page: currentState().page,
+      acqTab: currentState().acqTab,
+      libLens: currentState().libLens,
+      libMode: currentState().libMode,
+      libCat: currentState().libCat,
     };
   }
 
@@ -11084,8 +11105,8 @@
     if (select("#screen").classList.contains("open")) return closeScreen(true);
     // The sheet lives in the shell; it is asked, not inspected. Same rank in
     // the ladder as before — drawer, then screen, then sheet.
-    if (window.__panneau.ouverte()) {
-      window.__panneau.fermer(true);
+    if (panneau.ouverte()) {
+      panneau.fermer(true);
       return;
     }
 
@@ -11138,16 +11159,16 @@
      line runs — the shell calls this from its own `onClick`. */
   window.__fermerCouches = () => {
     closeDlg();
-    window.__panneau.fermer();
+    panneau.fermer();
     fermerTiroir();
   };
 
   /* Design notes */
   select("#notesBtn").onclick = (event) => {
-    magasin.ecrire({ notes: !state.notes });
-    document.documentElement.classList.toggle("notes", state.notes);
-    event.currentTarget.setAttribute("aria-pressed", String(state.notes));
-    toast(state.notes ? "Notes de conception affichées." : "Notes masquées.");
+    magasin.ecrire({ notes: !currentState().notes });
+    document.documentElement.classList.toggle("notes", currentState().notes);
+    event.currentTarget.setAttribute("aria-pressed", String(currentState().notes));
+    toast(currentState().notes ? "Notes de conception affichées." : "Notes masquées.");
   };
   /* STATE ENUMERATION — HARNESS
      Every measurable state carries a stable id and knows how to reach
@@ -11157,664 +11178,22 @@
      blocked card » requires knowing how to make one appear, and that
      knowledge is exactly what evaporates over time.
      These ids are the ones `regions.json` references. */
-  const STATES = [
-    [
-      "pwa-android",
-      "Installation — Android et bureau",
-      () => {
-        applyState({ page: "acq", acqTab: "maintenant", phase: "prete" });
-        afficherInstallation("android");
-      },
-    ],
-    [
-      "pwa-ios",
-      "Installation — iOS, méthode manuelle",
-      () => {
-        applyState({ page: "acq", acqTab: "maintenant", phase: "prete" });
-        afficherInstallation("ios");
-      },
-    ],
-    [
-      "demarrage",
-      "Démarrage — l'interface se charge",
-      () => {
-        applyState({ page: "acq", acqTab: "maintenant", phase: "prete" });
-        afficherDemarrage();
-      },
-    ],
-    ["connexion", "Connexion — écran d'entrée", () => afficherConnexion(false)],
-    [
-      "connexion-erreur",
-      "Connexion — identifiants refusés",
-      () => afficherConnexion(true),
-    ],
-    [
-      "acq-encours-repos",
-      "Acquisition · En cours — état réel (repos)",
-      () =>
-        applyState({
-          page: "acq",
-          acqTab: "maintenant",
-          scen: "reel",
-          phase: "prete",
-        }),
-    ],
-    [
-      "acq-encours-charge",
-      "Acquisition · En cours — chargé",
-      () =>
-        applyState({
-          page: "acq",
-          acqTab: "maintenant",
-          scen: "charge",
-          phase: "prete",
-        }),
-    ],
-    [
-      "acq-encours-chargement",
-      "Acquisition · En cours — chargement",
-      () =>
-        applyState({ page: "acq", acqTab: "maintenant", phase: "chargement" }),
-    ],
-    [
-      "acq-encours-erreur",
-      "Acquisition · En cours — erreur",
-      () => applyState({ page: "acq", acqTab: "maintenant", phase: "erreur" }),
-    ],
-    [
-      "acq-suivis-liste",
-      "Acquisition · Suivis — liste",
-      () =>
-        applyState({
-          page: "acq",
-          acqTab: "suivis",
-          followMode: "list",
-          pill: "tout",
-          filtre: "",
-          phase: "prete",
-        }),
-    ],
-    [
-      "acq-suivis-groupe",
-      "Acquisition · Suivis — groupé",
-      () =>
-        applyState({
-          page: "acq",
-          acqTab: "suivis",
-          followMode: "group",
-          pill: "tout",
-          filtre: "",
-          phase: "prete",
-        }),
-    ],
-    [
-      "acq-suivis-grille",
-      "Acquisition · Suivis — grille",
-      () =>
-        applyState({
-          page: "acq",
-          acqTab: "suivis",
-          followMode: "grid",
-          pill: "tout",
-          filtre: "",
-          phase: "prete",
-        }),
-    ],
-    [
-      "acq-suivis-filtre-vide",
-      "Acquisition · Suivis — filtre sans résultat",
-      () =>
-        applyState({
-          page: "acq",
-          acqTab: "suivis",
-          followMode: "list",
-          filtre: "zzz",
-          phase: "prete",
-        }),
-    ],
-    [
-      "acq-suivis-pause-vide",
-      "Acquisition · Suivis — « En pause » vide",
-      () =>
-        applyState({
-          page: "acq",
-          acqTab: "suivis",
-          followMode: "list",
-          pill: "pause",
-          filtre: "",
-          phase: "prete",
-        }),
-    ],
-    [
-      "acq-suivis-erreur",
-      "Acquisition · Suivis — erreur",
-      () => applyState({ page: "acq", acqTab: "suivis", phase: "erreur" }),
-    ],
-    [
-      "acq-decouvrir",
-      "Acquisition · Découvrir — réserve pleine",
-      () =>
-        applyState({
-          page: "acq",
-          acqTab: "decouvrir",
-          tmdb: true,
-          phase: "prete",
-          sugCount: 30,
-        }),
-    ],
-    [
-      "acq-decouvrir-affiches",
-      "Découvrir · affiches",
-      () => {
-        applyState({ page: "acq", acqTab: "decouvrir", phase: "prete" });
-        magasin.ecrire({ sugMode: "poster" });
-        render();
-      },
-    ],
-    [
-      "acq-decouvrir-deck",
-      "Découvrir · slide cards",
-      () => {
-        applyState({ page: "acq", acqTab: "decouvrir", phase: "prete" });
-        magasin.ecrire({ sugMode: "deck" });
-        render();
-      },
-    ],
-    [
-      "acq-decouvrir-degrade",
-      "Acquisition · Découvrir — sans compte TMDB",
-      () =>
-        applyState({
-          page: "acq",
-          acqTab: "decouvrir",
-          tmdb: false,
-          phase: "prete",
-        }),
-    ],
-    [
-      "acq-decouvrir-epuise",
-      "Acquisition · Découvrir — réserve épuisée",
-      () =>
-        applyState({
-          page: "acq",
-          acqTab: "decouvrir",
-          tmdb: true,
-          phase: "prete",
-          sugCount: 999,
-        }),
-    ],
-    [
-      "acq-decouvrir-chargement",
-      "Acquisition · Découvrir — chargement",
-      () =>
-        applyState({ page: "acq", acqTab: "decouvrir", phase: "chargement" }),
-    ],
-    [
-      "acq-ajout-vide",
-      "Écran d'ajout — au repos",
-      () => {
-        applyState({ page: "acq", phase: "prete" });
-        window.__ecrans.ajout("");
-      },
-    ],
-    [
-      "acq-ajout-resultats",
-      "Écran d'ajout — résultats réels",
-      () => {
-        applyState({ page: "acq", phase: "prete" });
-        window.__ecrans.ajout("star wars");
-      },
-    ],
-    [
-      "feuille-suivi-complet",
-      "Feuille de suivi — gros catalogue complet",
-      () => {
-        applyState({ page: "acq", acqTab: "suivis", phase: "prete" });
-        openFollowSheet("American Dad!");
-      },
-    ],
-    [
-      "feuille-suivi-trous",
-      "Feuille de suivi — matrice à trous",
-      () => {
-        applyState({ page: "lib", libLens: "inc", phase: "prete" });
-        openFollowSheet("Les aventures de Tintin");
-      },
-    ],
-    [
-      "acq-identifier",
-      "Recherche en mode IDENTIFIER (depuis une résolution)",
-      () => {
-        applyState({ page: "arr", phase: "prete", pipe: "repos" });
-        magasin.ecrire({
-          resolveTarget: "Backrooms.2026.MULTi.2160p.WEB-DL",
-        });
-        window.__ecrans.ajout("Backrooms 2026", "identifier");
-      },
-    ],
-    [
-      "ecran-releases",
-      "Écran — choisir une autre release",
-      () => {
-        applyState({ page: "acq", acqTab: "suivis", phase: "prete" });
-        window.__ecrans.releases("Silo");
-      },
-    ],
-    [
-      "ecran-profil",
-      "Écran — profil de qualité",
-      () => {
-        applyState({ page: "acq", acqTab: "suivis", phase: "prete" });
-        window.__ecrans.profil("Silo");
-      },
-    ],
-    [
-      "feuille-parcours",
-      "Feuille de parcours",
-      () => {
-        applyState({ page: "acq", phase: "prete" });
-        openJourneySheet("Furious");
-      },
-    ],
-    [
-      "feuille-plus",
-      "Feuille « ⋮ » — veille et obligations",
-      () => {
-        applyState({ page: "acq", phase: "prete" });
-        openPlusSheet();
-      },
-    ],
-    [
-      "feuille-utilisateur",
-      "Menu utilisateur — profil et déconnexion",
-      () => {
-        applyState({ page: "acq", phase: "prete" });
-        openUserSheet();
-      },
-    ],
-    [
-      "lib-grille",
-      "Médiathèque · Médias — grille",
-      () =>
-        applyState({
-          page: "lib",
-          libLens: "cat",
-          libMode: "grid",
-          q: "",
-          phase: "prete",
-          selMode: false,
-        }),
-    ],
-    [
-      "lib-liste",
-      "Médiathèque · Médias — liste",
-      () =>
-        applyState({
-          page: "lib",
-          libLens: "cat",
-          libMode: "list",
-          q: "",
-          phase: "prete",
-          selMode: false,
-        }),
-    ],
-    [
-      "lib-recherche-vide",
-      "Médiathèque — recherche sans résultat",
-      () =>
-        applyState({ page: "lib", libLens: "cat", q: "zzzz", phase: "prete" }),
-    ],
-    [
-      "lib-incomplets",
-      "Médiathèque · Incomplets",
-      () => applyState({ page: "lib", libLens: "inc", phase: "prete" }),
-    ],
-    [
-      "lib-recents",
-      "Médiathèque · Récents",
-      () => applyState({ page: "lib", libLens: "rec", phase: "prete" }),
-    ],
-    [
-      "lib-selection",
-      "Médiathèque — mode sélection",
-      () => {
-        applyState({
-          page: "lib",
-          libLens: "cat",
-          libMode: "grid",
-          phase: "prete",
-          selMode: true,
-        });
-        magasin.ecrire({ selected: new Set([0, 2, 5]) });
-        render();
-      },
-    ],
-    [
-      "lib-suppression",
-      "Médiathèque — dialogue de suppression",
-      () => {
-        applyState({ page: "lib", phase: "prete" });
-        openDeleteDialog("Les Animaniacs");
-      },
-    ],
-    [
-      "lib-suppression-multiple",
-      "Médiathèque — suppression multiple",
-      () => {
-        applyState({ page: "lib", phase: "prete" });
-        openDeleteDialog(null, ["Les Animaniacs", "La cour de récré", "Earl"]);
-      },
-    ],
-    [
-      "lib-chargement",
-      "Médiathèque — chargement",
-      () => applyState({ page: "lib", libLens: "cat", phase: "chargement" }),
-    ],
-    [
-      "lib-erreur",
-      "Médiathèque — erreur",
-      () => applyState({ page: "lib", libLens: "cat", phase: "erreur" }),
-    ],
-    /* The OTHER error, and it is a different surface: the page loaded, and the
-       NEXT page of the list did not. It has always existed — the infinite
-       scroll fails once, on purpose, to show that path for real — but only a
-       long scroll reached it, so nothing could drive it and nothing measured
-       the sentence it prints or the control that retries. */
-    [
-      "lib-erreur-suite",
-      "Médiathèque — la suite ne charge plus",
-      () => {
-        /* ONE write, not two: the failure has to be in force at the FIRST
-           draw. Setting it afterwards lets the sentinel mount for one render,
-           and a sentinel in view starts a load — which then lands 620 ms
-           later, over the state, with a second page of media whose sheets are
-           hollow (B-030). A state exists to show ONE thing; racing its own
-           loader makes a red run say something other than what it is for. */
-        applyState({
-          page: "lib",
-          libLens: "cat",
-          libMode: "list",
-          phase: "prete",
-          libFailedOnce: true,
-          libErr: true,
-        });
-      },
-    ],
-    [
-      "arr-repos",
-      "Arrivées — état réel (2 blocages)",
-      () =>
-        applyState({
-          page: "arr",
-          scen: "reel",
-          phase: "prete",
-          pipe: "repos",
-        }),
-    ],
-    [
-      "arr-encours",
-      "Arrivées — pipeline en cours",
-      () =>
-        applyState({
-          page: "arr",
-          scen: "reel",
-          phase: "prete",
-          pipe: "encours",
-        }),
-    ],
-    [
-      "arr-file",
-      "Arrivées — un passage demandé pendant un autre",
-      () =>
-        applyState({ page: "arr", scen: "reel", phase: "prete", pipe: "file" }),
-    ],
-    [
-      "arr-charge",
-      "Arrivées — chargé",
-      () =>
-        applyState({
-          page: "arr",
-          scen: "charge",
-          phase: "prete",
-          pipe: "repos",
-        }),
-    ],
-    [
-      "arr-chargement",
-      "Arrivées — chargement",
-      () => applyState({ page: "arr", phase: "chargement", pipe: "repos" }),
-    ],
-    [
-      "arr-erreur",
-      "Arrivées — erreur",
-      () => applyState({ page: "arr", phase: "erreur", pipe: "repos" }),
-    ],
-    [
-      "arr-resolution",
-      "Arrivées — résolution, aucun candidat",
-      () => {
-        applyState({ page: "arr", phase: "prete", pipe: "repos" });
-        window.__ecrans.resolution();
-      },
-    ],
-    [
-      "arr-decision",
-      "Arrivées — résolution, candidats à égalité",
-      () => {
-        applyState({
-          page: "arr",
-          scen: "charge",
-          phase: "prete",
-          pipe: "repos",
-        });
-        window.__ecrans.resolution("Lucky");
-      },
-    ],
-    [
-      "fiche-suggestion-serie",
-      "Fiche — suggestion NON possédée (série)",
-      () => {
-        applyState({ page: "acq", acqTab: "decouvrir", phase: "prete" });
-        window.__ecrans.fiche("The Venture Bros");
-      },
-    ],
-    [
-      "fiche-suggestion-film",
-      "Fiche — suggestion NON possédée (film)",
-      () => {
-        applyState({ page: "acq", acqTab: "decouvrir", phase: "prete" });
-        window.__ecrans.fiche("Superman : L'Homme de demain");
-      },
-    ],
-    [
-      "fiche-serie",
-      "Fiche — série avec épisodes datés",
-      () => {
-        applyState({ page: "lib", phase: "prete" });
-        window.__ecrans.fiche("Silo (2023)");
-      },
-    ],
-    [
-      "fiche-film",
-      "Fiche — film",
-      () => {
-        applyState({ page: "lib", phase: "prete" });
-        window.__ecrans.fiche("Marjorie Prime");
-      },
-    ],
-    [
-      "fiche-sans-trailer",
-      "Fiche — sans bande-annonce",
-      () => {
-        applyState({ page: "lib", phase: "prete" });
-        window.__ecrans.fiche("Broadchurch");
-      },
-    ],
-    [
-      "tiroir-navigation",
-      "Tiroir de navigation (hamburger)",
-      () => {
-        applyState({ page: "acq", phase: "prete" });
-        ouvrirTiroir();
-      },
-    ],
-    [
-      "systeme",
-      "Système — la santé de la machine",
-      () => applyState({ page: "sys", phase: "prete", panne: false }),
-    ],
-    [
-      "systeme-panne",
-      "Système — une panne (simulée)",
-      () => applyState({ page: "sys", phase: "prete", panne: true }),
-    ],
-    [
-      "systeme-chargement",
-      "Système — chargement",
-      () => applyState({ page: "sys", phase: "chargement", panne: false }),
-    ],
-    [
-      "systeme-erreur",
-      "Système — erreur",
-      () => applyState({ page: "sys", phase: "erreur", panne: false }),
-    ],
-    [
-      "introuvable",
-      "Une adresse qui n'existe pas",
-      () => applyState({ page: "une-page-qui-n-existe-pas", phase: "prete" }),
-    ],
-    [
-      "profil",
-      "Profil et préférences",
-      () => applyState({ page: "profil", phase: "prete" }),
-    ],
-    [
-      "maintenance",
-      "Maintenance — les rubriques de commandes",
-      () => applyState({ page: "maint", phase: "prete", maintRub: null }),
-    ],
-    [
-      "maintenance-rubrique",
-      "Maintenance — une rubrique et ses commandes",
-      () => applyState({ page: "maint", phase: "prete", maintRub: "fix" }),
-    ],
-    [
-      "maintenance-suppression",
-      "Maintenance — une commande qui supprime",
-      () => {
-        applyState({ page: "maint", phase: "prete", maintRub: "clean" });
-        ouvrirActionMaintenance("library-clean");
-      },
-    ],
-    [
-      "maintenance-chargement",
-      "Maintenance — chargement",
-      () => applyState({ page: "maint", phase: "chargement" }),
-    ],
-    [
-      "reglages",
-      "Réglages — les rubriques",
-      () => {
-        reinitialiserReglages();
-        applyState({ page: "cfg", phase: "prete" });
-      },
-    ],
-    [
-      "reglages-rubrique",
-      "Réglages — une rubrique",
-      () => {
-        reinitialiserReglages();
-        REG_ETAT.rubrique = "acquisition";
-        applyState({ page: "cfg", phase: "prete" });
-      },
-    ],
-    [
-      "reglages-recherche",
-      "Réglages — recherche dans tous les réglages",
-      () => {
-        reinitialiserReglages();
-        REG_ETAT.q = "espace";
-        applyState({ page: "cfg", phase: "prete" });
-      },
-    ],
-    [
-      "reglages-un",
-      "Réglages — un réglage, dans son panneau",
-      () => {
-        reinitialiserReglages();
-        REG_ETAT.rubrique = "acquisition";
-        applyState({ page: "cfg", phase: "prete" });
-        ouvrirReglage("thresholds:thresholds.min_free_space_staging_gb");
-      },
-    ],
-    [
-      "reglages-modifie",
-      "Réglages — modifications en attente",
-      () => {
-        reinitialiserReglages();
-        REG_ETAT.rubrique = "acquisition";
-        REG_ETAT.modifs.set(
-          "thresholds:thresholds.min_free_space_staging_gb",
-          40,
-        );
-        REG_ETAT.modifs.set("tracker:tracker.providers.c411.enabled", false);
-        applyState({ page: "cfg", phase: "prete" });
-      },
-    ],
-    /* One state per FIELD, because a field is a shape one judges by looking at
-       it. The setting each opens is found by TYPE rather than named, so a
-       config change that moves a key does not silently open something else. */
-    ...[
-      ["booleen", "un interrupteur"],
-      ["nombre", "un nombre"],
-      ["texte", "un texte"],
-      ["chemin", "un chemin"],
-      ["liste", "une liste"],
-      ["duree", "une durée"],
-      ["structure", "une structure, qui refuse"],
-      ["nul", "une valeur non définie"],
-    ].map(([genre, quoi]) => [
-      `reglages-champ-${genre}`,
-      `Réglages — ${quoi}`,
-      () => {
-        reinitialiserReglages();
-        const trouve = REGLAGES.flatMap((r) => r.r).find(
-          (x) => x.type === genre,
-        );
-        REG_ETAT.rubrique =
-          REGLAGES.find((r) => r.r.includes(trouve))?.id ?? null;
-        applyState({ page: "cfg", phase: "prete" });
-        if (trouve) ouvrirReglage(reglageId(trouve));
-      },
-    ]),
-    [
-      "reglages-secrets",
-      "Réglages — secrets et accès",
-      () => {
-        reinitialiserReglages();
-        REG_ETAT.rubrique = "secrets";
-        applyState({ page: "cfg", phase: "prete" });
-      },
-    ],
-    [
-      "reglages-lecture-seule",
-      "Réglages — instance en lecture seule",
-      () => {
-        reinitialiserReglages();
-        REG_ETAT.lectureSeule = true;
-        applyState({ page: "cfg", phase: "prete" });
-      },
-    ],
-    [
-      "reglages-redemarrage",
-      "Réglages — redémarrage nécessaire",
-      () => {
-        reinitialiserReglages();
-        REG_ETAT.redemarrage = true;
-        applyState({ page: "cfg", phase: "prete" });
-      },
-    ],
-  ];
+  /* The scenario table is not the engine's — it is the harness's, and it lives
+     in `src/states.js`. What stays here is the DRIVING, because driving is not
+     a table lookup: `__go` closes the harness panel, unmasks three overlays,
+     resets the world unless asked not to, and holds `pilotage` — a private
+     latch this module reassigns. An imported binding cannot be assigned, so
+     moving `__go` out would mean exporting a setter for a private flag: one
+     indirection traded for a worse one.
+
+     Registered rather than imported, so the engine never depends on the module
+     that measures it. An empty table is a legitimate state — a document with
+     no driver simply cannot be driven — and `__go` says so by name. */
+  let STATES = [];
+  window.__enregistrerEtats = (table) => {
+    STATES = table;
+  };
+
 
   function applyState(patch) {
     hideLayers();
@@ -11853,7 +11232,7 @@
      is no such route, and a design reference that dead-ends on a 404 teaches
      nothing about the design. Nothing else here depends on the answer. */
   async function deconnecter() {
-    window.__panneau.fermer();
+    panneau.fermer();
     try {
       await fetch("/deconnexion", { redirect: "manual" });
     } catch (error) {}
@@ -12059,7 +11438,11 @@
 
   window.__go = (stateId, opts) => {
     const found = STATES.find((STATES2) => STATES2[0] === stateId);
-    if (!found) throw new Error("état inconnu : " + stateId);
+    if (!found)
+      throw new Error(
+        STATES.length
+          ? "état inconnu : " + stateId
+          : "aucun état enregistré — src/states.js n'a pas été chargé");
     closeHarness();
     if (!stateId.startsWith("connexion")) masquerConnexion();
     if (stateId !== "demarrage") masquerDemarrage();
@@ -12078,7 +11461,9 @@
     }
     return stateId;
   };
-  window.__states = () => STATES.map((STATES2) => STATES2[0]);
+  window.__states = () => STATES.map((entree) => entree[0]);
+  // The harness panel lists the states by NAME, so it needs the label too.
+  window.__etatsDetailles = () => STATES.map(([id, libelle]) => [id, libelle]);
 
   /* The ids the interface can actually render. Any control naming something
      else is a dead end however carefully it is drawn — a drawer entry pointed
@@ -12168,7 +11553,7 @@
                 id,
                 lab,
                 iconPath,
-              ]) => `<a href="#" data-navgo="${id}" ${state.page === id ? 'aria-current="page"' : ""}>
+              ]) => `<a href="#" data-navgo="${id}" ${currentState().page === id ? 'aria-current="page"' : ""}>
             ${svgIcon(iconPath)}<span>${lab}</span>${badges[id] ? `<span class="count">${badges[id]}</span>` : ""}
           </a>`,
             )
@@ -12220,21 +11605,21 @@
       <p>Ce panneau ne fait pas partie de l'interface. Il pilote les données et les états pour qu'on puisse tous les regarder — et pour que la sonde de parité les atteigne sans deviner. <code>window.__go("id")</code> fait la même chose sans clic.</p>
       <h4>Données</h4>
       <div class="row">
-        <button data-hscen="reel" aria-pressed="${state.scen === "reel"}">État réel du 10 août</button>
-        <button data-hscen="charge" aria-pressed="${state.scen === "charge"}">Scénario de charge</button>
+        <button data-hscen="reel" aria-pressed="${currentState().scen === "reel"}">État réel du 10 août</button>
+        <button data-hscen="charge" aria-pressed="${currentState().scen === "charge"}">Scénario de charge</button>
       </div>
       <h4>Phase de la surface</h4>
       <div class="row">
-        ${["prete", "chargement", "erreur"].map((element) => `<button data-hphase="${element}" aria-pressed="${state.phase === element}">${element === "prete" ? "Prête" : element === "chargement" ? "Chargement" : "Erreur"}</button>`).join("")}
+        ${["prete", "chargement", "erreur"].map((element) => `<button data-hphase="${element}" aria-pressed="${currentState().phase === element}">${element === "prete" ? "Prête" : element === "chargement" ? "Chargement" : "Erreur"}</button>`).join("")}
       </div>
       <h4>Compte TMDB</h4>
       <div class="row">
-        <button data-htmdb="1" aria-pressed="${state.tmdb}">Connecté</button>
-        <button data-htmdb="0" aria-pressed="${!state.tmdb}">Non connecté</button>
+        <button data-htmdb="1" aria-pressed="${currentState().tmdb}">Connecté</button>
+        <button data-htmdb="0" aria-pressed="${!currentState().tmdb}">Non connecté</button>
       </div>
-      <h4>${STATES.length} états mesurables</h4>
+      <h4>${window.__etatsDetailles().length} états mesurables</h4>
       <div class="row states">
-        ${STATES.map(([id, lab]) => `<button data-hgo="${id}">${escapeHtml(lab)}<code>${id}</code></button>`).join("")}
+        ${window.__etatsDetailles().map(([id, lab]) => `<button data-hgo="${id}">${escapeHtml(lab)}<code>${id}</code></button>`).join("")}
       </div>`;
     document.querySelector("#device").appendChild(createElement);
   }
@@ -12242,7 +11627,7 @@
   select("#fab").onclick = () => {
     // The « + » ALWAYS means « follow »: the mode must never stay
     // stuck from a previous resolution.
-    window.__ecrans.ajout(state.addQ, "suivi");
+    ecrans.ajout(currentState().addQ, "suivi");
   };
   select("#scenBtn").onclick = () => {
     openHarness();
@@ -12335,7 +11720,7 @@
     }
     if (closest.dataset.annulerreg) {
       REG_ETAT.modifs.delete(closest.dataset.annulerreg);
-      window.__panneau.fermer();
+      panneau.fermer();
       setTimeout(() => {
         render();
         toast("Modification annulée — rien n'avait été écrit.");
@@ -12384,7 +11769,7 @@
          overwriting it. */
       const surCouche = history.state && history.state.layer;
       fermerTiroir(true);
-      window.__panneau.fermer(true);
+      panneau.fermer(true);
       // This empties the covered-screen STACK too, so the DOM ends up clean
       // however many screens were stacked — but that is DOM bookkeeping
       // only, not history: `__pont.remplacer` below settles exactly ONE
@@ -12486,7 +11871,7 @@
     }
     if (closest.dataset.dropsug) {
       const index = Number(closest.dataset.dropsug);
-      window.__panneau.fermer();
+      panneau.fermer();
       dismissSug(index);
       return;
     }
@@ -12502,12 +11887,12 @@
         suggestion && suggestion.k === "Film"
           ? "ajouté à votre liste"
           : "ajouté à vos suivis";
-      window.__panneau.fermer();
+      panneau.fermer();
       if (idx != null) {
         // No render() follows on this branch: the sheet close and the
         // follow-up screens draw directly, so the bump has to be explicit
         // or React never learns this suggestion left the deck.
-        state.sugGone.add(Number(idx));
+        currentState().sugGone.add(Number(idx));
         magasin.toucher();
         const element = document.querySelector(`[data-dismissable="${idx}"]`);
         if (element) {
@@ -12542,31 +11927,31 @@
         .trim();
       // `/resolution` is a router-owned address now: leaving it is
       // `__pont.retour()` — the same single pop `.fback` uses — unwinding the
-      // ONE entry `window.__ecrans.resolution` pushed to get here. The
+      // ONE entry `ecrans.resolution` pushed to get here. The
       // dispatcher no-ops that pop: the entry carries neither `layer` nor
       // `tm`, so the legacy popstate checks fall through it and the router has
       // already re-rendered by the time they run.
-      window.__pont.retour();
-      setTimeout(() => window.__ecrans.ajout(trim, "identifier"), 260);
+      pont.retour();
+      setTimeout(() => ecrans.ajout(trim, "identifier"), 260);
       return;
     }
-    /* THE FOLDER IS `state.resolveTarget`, NEVER THE ATTRIBUTE: what
+    /* THE FOLDER IS `currentState().resolveTarget`, NEVER THE ATTRIBUTE: what
        `data-resolve` carries here is the CHOSEN CANDIDATE, and the folder is
        what the resolution screen was opened on. This branch answers every
        carrier of the attribute — the panel's own « Résoudre → » act reads it
        further down and never gets there, which is the order this rewire keeps
        exactly as it found it. */
     if (closest.dataset.resolve) {
-      const cible = state.resolveTarget;
-      window.__pont.retour();
+      const cible = currentState().resolveTarget;
+      pont.retour();
       setTimeout(() => actionResoudre(cible, closest.dataset.resolve), 240);
       return;
     }
     /* Agreeing with the machine. It keeps the automatic result and re-scrapes
        nothing — which is why it says what it did rather than « fait ». */
     if (closest.dataset.laisser) {
-      const cible = state.resolveTarget;
-      window.__pont.retour();
+      const cible = currentState().resolveTarget;
+      pont.retour();
       setTimeout(() => actionLaisser(cible), 240);
       return;
     }
@@ -12587,13 +11972,13 @@
         // now, so the same depth is a REPLACE: one entry in, one entry out,
         // and a single back still leaves the arbitration rather than walking
         // the folders one has already answered.
-        setTimeout(() => window.__ecrans.resolution(suite.d, true), 240);
+        setTimeout(() => ecrans.resolution(suite.d, true), 240);
       }
       return;
     }
     if (closest.dataset.sheetprim) {
       const [split, split2] = closest.dataset.sheetprim.split("|");
-      window.__panneau.fermer();
+      panneau.fermer();
       setTimeout(() => {
         if (split2 === "a_recuperer") actionRecuperer(split);
         else
@@ -12605,19 +11990,19 @@
     }
     if (closest.dataset.pause) {
       const pause = closest.dataset.pause;
-      window.__panneau.fermer();
+      panneau.fermer();
       setTimeout(() => actionPause(pause), 240);
       return;
     }
     if (closest.dataset.retirer) {
       const retirer = closest.dataset.retirer;
-      window.__panneau.fermer();
+      panneau.fermer();
       setTimeout(() => actionRetirer(retirer), 240);
       return;
     }
     if (closest.dataset.releases) {
-      window.__panneau.fermer();
-      setTimeout(() => window.__ecrans.releases(closest.dataset.releases), 260);
+      panneau.fermer();
+      setTimeout(() => ecrans.releases(closest.dataset.releases), 260);
       return;
     }
     if (
@@ -12637,11 +12022,11 @@
       // `__ecrans.profil` does the navigating either way.
       const profil = closest.dataset.profil;
       if (document.querySelector('.screen.open[data-cle^="releases:"]')) {
-        window.__pont.retour();
-        setTimeout(() => window.__ecrans.profil(profil), 260);
+        pont.retour();
+        setTimeout(() => ecrans.profil(profil), 260);
       } else {
-        window.__panneau.fermer();
-        setTimeout(() => window.__ecrans.profil(profil), 260);
+        panneau.fermer();
+        setTimeout(() => ecrans.profil(profil), 260);
       }
       return;
     }
@@ -12650,9 +12035,9 @@
       // One router pop — the release-choice screen is a route now, and the
       // dispatcher's own `layer`/`tm: "nav"` checks no-op harmlessly on the
       // entry it wrote, so the screen simply unmounts.
-      window.__pont.retour();
+      pont.retour();
       setTimeout(() => {
-        actionRecuperer(state.relTitre);
+        actionRecuperer(currentState().relTitre);
         toast(
           `« ${release.res} ${release.src} ${release.lang} » retenue — récupération lancée.`,
         );
@@ -12660,7 +12045,7 @@
       return;
     }
     if (closest.dataset.veille) {
-      window.__panneau.fermer();
+      panneau.fermer();
       toast(
         "Veille lancée — 12 suivis balayés, 0 nouvelle release conforme. Prochain passage à 15 h 20.",
       );
@@ -12693,15 +12078,15 @@
         pipe:
           closest.dataset.pipe === "arreter"
             ? "repos"
-            : state.pipe === "repos"
+            : currentState().pipe === "repos"
               ? "encours"
               : "file",
       });
       render();
       toast(
-        state.pipe === "encours"
+        currentState().pipe === "encours"
           ? "Pipeline lancé — il se raconte ici, étape par étape."
-          : state.pipe === "file"
+          : currentState().pipe === "file"
             ? "En file — votre passage partira dès que celui-ci sera fini."
             : "Pipeline arrêté. Ce qui était déjà rangé le reste.",
       );
@@ -12777,7 +12162,7 @@
       return;
     }
     if (closest.dataset.sort) {
-      window.__panneau.ouvrir({
+      panneau.ouvrir({
         titre: "Trier la médiathèque",
         meta: "Le tri est une préférence, pas un emplacement : il reste sur cet appareil et n'entre pas dans l'URL (A7).",
         blocs: [
@@ -12788,8 +12173,8 @@
                 texte: noms[sens],
                 icone: icons.sort,
                 ton:
-                  state.tri === cle &&
-                  state.sortReversed === (sens === "inverse")
+                  currentState().tri === cle &&
+                  currentState().sortReversed === (sens === "inverse")
                     ? "primary"
                     : null,
                 cible:
@@ -12809,7 +12194,7 @@
         sortReversed: closest.dataset.reversed === "1",
         libCount: LIB_PAGE,
       });
-      window.__panneau.fermer();
+      panneau.fermer();
       render();
       toast(`Trié par ${sortLabel().toLowerCase()}.`);
       return;
@@ -12837,7 +12222,7 @@
     if (closest.dataset.selmode) {
       magasin.ecrire({ selMode: closest.dataset.selmode === "1" });
       // Set mutated in place; render() right below carries the bump.
-      state.selected.clear();
+      currentState().selected.clear();
       render();
       return;
     }
@@ -12848,19 +12233,19 @@
       );
       return;
     }
-    if (closest.dataset.tile != null && state.selMode) {
+    if (closest.dataset.tile != null && currentState().selMode) {
       const index = Number(closest.dataset.tile);
-      if (state.selected.has(index)) state.selected.delete(index);
-      else state.selected.add(index);
+      if (currentState().selected.has(index)) currentState().selected.delete(index);
+      else currentState().selected.add(index);
       // paintSelBar() below draws the bar directly, not through render():
       // the explicit bump is what tells React the selection changed.
       magasin.toucher();
-      closest.setAttribute("aria-selected", String(state.selected.has(index)));
+      closest.setAttribute("aria-selected", String(currentState().selected.has(index)));
       paintSelBar();
       return;
     }
     if (closest.dataset.del) {
-      window.__panneau.fermer();
+      panneau.fermer();
       openDeleteDialog(closest.dataset.del);
       return;
     }
@@ -12871,17 +12256,17 @@
       const fiche = closest.dataset.fiche;
       // Asked of the shell, not read off the DOM: the layer is the shell's,
       // and its store answers truthfully in the middle of this task.
-      const couche = window.__panneau.ouverte();
+      const couche = panneau.ouverte();
       if (couche) {
-        window.__panneau.fermer();
-        setTimeout(() => window.__ecrans.fiche(fiche), 260);
+        panneau.fermer();
+        setTimeout(() => ecrans.fiche(fiche), 260);
       } else {
-        window.__ecrans.fiche(fiche);
+        ecrans.fiche(fiche);
       }
       return;
     }
     if (closest.dataset.act === "resolve") {
-      window.__ecrans.resolution();
+      ecrans.resolution();
       return;
     }
     if (closest.dataset.sheet === "plus") {
@@ -12894,13 +12279,13 @@
       // film and a series here — so the title does not identify the result.
       const index = Number(closest.dataset.act.slice(4));
       const result = SEARCH.results[index];
-      if (state.addMode === "identifier") {
+      if (currentState().addMode === "identifier") {
         // This ASSOCIATES: the stuck folder becomes this medium and the pipeline
         // resumes. No follow is created — that was not the request.
-        const cible = state.resolveTarget;
+        const cible = currentState().resolveTarget;
         // No render() on this branch until the delayed actionResoudre()
         // fires — the bump is explicit so React sees the pick immediately.
-        state.added.add(index);
+        currentState().added.add(index);
         magasin.toucher();
         /* ONE settlement for the TWO entries this journey stacked — the
            result's panel, and `/ajout` itself, a router-owned address (which
@@ -12911,9 +12296,9 @@
            raw `__pont.retour()` were two backs racing in the same task, only
            one of them announced, and the surplus pop was then read as the
            operator's own back gesture. */
-        const entrees = (window.__panneau.ouverte() ? 1 : 0) + 1;
-        window.__panneau.fermer(true);
-        window.__pont.reculer(entrees);
+        const entrees = (panneau.ouverte() ? 1 : 0) + 1;
+        panneau.fermer(true);
+        pont.reculer(entrees);
         setTimeout(() => {
           actionResoudre(cible, result.t);
           toast(
@@ -12926,7 +12311,7 @@
       // behind what comes next — the dialog below, or the re-rendered list.
       // The identify branch above settles its own layer, with the entry count
       // its single settlement needs, so this close is the follow branches'.
-      window.__panneau.fermer();
+      panneau.fermer();
       if (result.owned) {
         openDlg(`<h3>Remplacer « ${escapeHtml(result.t)} » ?</h3>
           <p>Ce ${result.k === "Film" ? "film est déjà" : "média est déjà"} en médiathèque. L'acquisition <b>remplacera</b> la version en place par celle qui sera récupérée.</p>
@@ -12941,13 +12326,13 @@
       // and (once this is the first) the footer: `AddScreen` re-renders
       // itself from this same store bump, so no redraw call belongs here
       // any more.
-      state.added.add(index);
+      currentState().added.add(index);
       magasin.toucher();
       actionSuivre(result.t, result.k);
       return;
     }
     if (closest.dataset.confirmadd) {
-      state.added.add(Number(closest.dataset.confirmadd));
+      currentState().added.add(Number(closest.dataset.confirmadd));
       magasin.toucher();
       closeDlg();
       toast(
@@ -12956,7 +12341,7 @@
       return;
     }
     if (closest.dataset.journey) {
-      window.__panneau.fermer();
+      panneau.fermer();
       setTimeout(() => openJourneySheet(closest.dataset.journey), 260);
       return;
     }
@@ -12976,7 +12361,7 @@
     }
     if (closest.dataset.completer) {
       magasin.ecrire({ page: "acq", acqTab: "maintenant" });
-      window.__panneau.fermer();
+      panneau.fermer();
       render();
       toast(
         `« ${baseTitle(closest.dataset.completer)} » : recherche des épisodes manquants lancée.`,
@@ -12990,13 +12375,13 @@
        this branch says the same verb as every other call site. */
     if (closest.dataset.resolve) {
       const resolve = closest.dataset.resolve;
-      window.__panneau.fermer();
-      setTimeout(() => window.__ecrans.resolution(resolve), 260);
+      panneau.fermer();
+      setTimeout(() => ecrans.resolution(resolve), 260);
       return;
     }
     if (closest.dataset.recuperer) {
       const recuperer = closest.dataset.recuperer;
-      window.__panneau.fermer();
+      panneau.fermer();
       setTimeout(() => actionRecuperer(recuperer), 260);
       return;
     }
@@ -13011,7 +12396,7 @@
         closest.closest(".card")?.querySelector(".ctitle")?.textContent ?? "";
       const lab = closest.textContent.trim();
       if (lab.startsWith("Récupérer")) return actionRecuperer(title);
-      if (lab.startsWith("Résoudre")) return window.__ecrans.resolution(title);
+      if (lab.startsWith("Résoudre")) return ecrans.resolution(title);
       toast("Action lancée — le résultat s'affichera ici.");
       return;
     }
@@ -13027,7 +12412,7 @@
       if (carteOuverte === carte) refermerCarte();
       else carte.style.transform = "";
       if (closest.classList.contains("remove"))
-        return state.page === "lib"
+        return currentState().page === "lib"
           ? openDeleteDialog(textContent)
           : actionRetirer(textContent);
       if (closest.classList.contains("pause")) return actionPause(textContent);
@@ -34071,7 +33456,7 @@
 
   /* The media sheet moved to the shell with the rest of the screens:
      `src/screens/media.tsx` renders it as the route `/fiche/$titre`. The
-     verb a call site says is `window.__ecrans.fiche(title)`; the template,
+     verb a call site says is `ecrans.fiche(title)`; the template,
      the seasons and the actions live there, at identical markup — the
      click delegation below still reads their data attributes. */
   /* The resolution screen moved to the shell the same way:
@@ -34079,9 +33464,9 @@
      `/resolution/$dossier`, and the design rationale it carries — what the
      screen is FOR, why a tied score is not printed, the three ways out —
      moved there with it. The verb a call site says is
-     `window.__ecrans.resolution(dossier, remplacer)`: it resolves the same
+     `ecrans.resolution(dossier, remplacer)`: it resolves the same
      default this file used to (the first stuck folder) and writes
-     `state.resolveTarget` before navigating, so the `data-resolve` and
+     `currentState().resolveTarget` before navigating, so the `data-resolve` and
      `data-laisser` branches below still read the folder they always read.
      `decisionEnAttente` stays here: it is the référentiel's own answer to
      « does this folder have a pending decision », read by the screen AND by
@@ -34227,7 +33612,7 @@
       : seasons.length
         ? `${own}/${aired}`
         : (stFraction(follow) ?? "—");
-    window.__panneau.ouvrir({
+    panneau.ouvrir({
       titre: follow.t,
       affiche: { t: follow.t, k: follow.k },
       meta: `${follow.y ? String(follow.y) + " · " : ""}${isFilm ? "Film" : "Série"}${frac ? " · " + frac + " épisodes" : ""}`,
@@ -34397,7 +33782,7 @@
       ["Scrapé", "en cours depuis 4 min", "now"],
       ["Rangé en médiathèque", "à venir", "todo"],
     ];
-    window.__panneau.ouvrir({
+    panneau.ouvrir({
       titre: title,
       meta: [
         "Parcours de l'acquisition · release ",
@@ -34449,7 +33834,7 @@
      through `window.__referentiel` — same seam as `SEARCH`/`cardHTML` above. */
 
   function openPlusSheet() {
-    window.__panneau.ouvrir({
+    panneau.ouvrir({
       titre: "Veille et obligations",
       meta: "Second rang — consulté, pas surveillé.",
       blocs: [
@@ -34484,9 +33869,9 @@
   // own onClick unwinds — not a `closeScreen()` call, which is a harmless
   // no-op against an address it was never the host of.
   window.__close = (layer) => {
-    if (layer !== "screen") return window.__panneau.fermer();
+    if (layer !== "screen") return panneau.fermer();
     if (select("#screen").classList.contains("open")) return closeScreen();
-    if (document.querySelector(".screen.open")) return window.__pont.retour();
+    if (document.querySelector(".screen.open")) return pont.retour();
   };
 
   /* Gestures — pointer events, so one path serves finger, mouse and pen.
@@ -34789,11 +34174,11 @@
       if (drag.dx > 0) {
         // avancerDeck() animates the DOM directly, never through render():
         // the bump is explicit so React learns the card left the deck.
-        state.sugGone.add(index);
+        currentState().sugGone.add(index);
         magasin.toucher();
         avancerDeck(index, 1);
         toastUndo(`« ${SUGGESTIONS[index].t} » écarté.`, () => {
-          state.sugGone.delete(index);
+          currentState().sugGone.delete(index);
           magasin.toucher();
           refreshDeck();
         });
@@ -35011,12 +34396,11 @@
     // do not write to history, but the earliest legacy write is one line
     // away): urlDeLEtat() must never compose against the placeholder "/".
     adresseBase = deps.base;
-    magasin.adopterEtat(state);
+    magasin.adopterEtat(INITIAL_STATE);
     magasin.adopterMonde(world);
-    state = magasin.lire().etat;
-    magasin.store.subscribe(() => {
-      state = magasin.lire().etat;
-    });
+    /* No subscription here anymore. The only thing this one ever did was
+       re-point the cached `state` binding at the store's object; with every
+       read going to the store directly, there is nothing left to refresh. */
 
     /* The bridge announces a back the way `popstate` did. Registered HERE,
        not at the engine's top level: it is a `__pont` verb like the writes
@@ -35085,6 +34469,40 @@
     );
   };
 
+/* ── what the scenario table needs, exported by name ────────────────────────
+
+   `src/states.js` holds the table this engine used to carry, and its entries
+   call back into it. They could have gone through the `window` surface below
+   like the harness does — but the table is SOURCE, not a probe typed into a
+   browser, and a source file that reaches its neighbour through a global says
+   nothing about what it actually depends on. Twenty names, listed, so the
+   dependency is readable and a deletion breaks the build instead of a run.
+
+   `magasin` is among them, and it is assigned at boot: an ES export of a `let`
+   is a LIVE binding, so the importer reads what the engine currently holds
+   rather than a copy taken at evaluation. That is the same property the
+   getters below exist to give the `window` surface, obtained here for free. */
+export {
+  REGLAGES,
+  REG_ETAT,
+  afficherConnexion,
+  afficherDemarrage,
+  afficherInstallation,
+  applyState,
+  magasin,
+  openDeleteDialog,
+  openFollowSheet,
+  openJourneySheet,
+  openPlusSheet,
+  openUserSheet,
+  ouvrirActionMaintenance,
+  ouvrirReglage,
+  ouvrirTiroir,
+  reglageId,
+  reinitialiserReglages,
+  render,
+};
+
 /* ── the published surface ───────────────────────────────────────────────────
 
    Two lists, and the split is measured rather than chosen: a binding the
@@ -35128,7 +34546,7 @@ Object.assign(window, {
   PAGES_OF, PIPELINE, PLANIFICATEURS, PLANIFICATEURS_PANNE, POSSEDES,
   POSTERS, RECENT, REGLAGES, REG_ETAT, RELEASES, RESOS, RETOUR_FENETRE,
   RISQUES, SEARCH, SEASONS, SECRETS, SERVICES, SERVICES_PANNE, SETTLED,
-  SETTLED_REEL, STATES, STRIP_LABELS, STUCK, STUCK_REEL, ST_LABEL,
+  SETTLED_REEL, STRIP_LABELS, STUCK, STUCK_REEL, ST_LABEL,
   ST_LABEL_MOVIE, ST_TONE, SUGGESTIONS, SUG_BATCH, SYNOPSIS, TAKEABLE,
   TRIS, URGENCY, URL_DEFAUTS, VIA_LABEL, actionLaisser, actionPause,
   actionRecuperer, actionResoudre, actionRetirer, actionSuivre,
@@ -35185,7 +34603,17 @@ Object.defineProperties(window, {
   renduCourant: { get: () => renduCourant, configurable: true },
   shellOwnsView: { get: () => shellOwnsView, configurable: true },
   sortieArmee: { get: () => sortieArmee, configurable: true },
-  state: { get: () => state, configurable: true },
+  STATES: { get: () => STATES, configurable: true },
+  // A LIVE READ, not an alias. There is no cached `state` binding left to
+  // publish — the getter goes to the store, exactly as the engine's own
+  // reads do, so a rule reading `state.page` reads what is on screen.
+  //
+  // Written `() => state` for one build, after the binding was removed:
+  // the name then resolved to `window.state`, i.e. to THIS getter, and
+  // the page died at load with « Maximum call stack size exceeded ». A
+  // getter that names the property it defines is a loop, and the only
+  // reason it is not a syntax error is that the resolution is late.
+  state: { get: () => currentState(), configurable: true },
   sugDrag: { get: () => sugDrag, configurable: true },
   sugObserver: { get: () => sugObserver, configurable: true },
   world: { get: () => world, configurable: true },

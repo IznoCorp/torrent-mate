@@ -156,16 +156,21 @@ Measured on the branch, so the wave is sized before it is planned: **74 engine c
 cross a `window` seam — `__panneau` 41, `__ecrans` 26, `__pont` 7 (and `__routeur` 3,
 `__releasePage` 1). `STATES` is **659 lines** and `applyState` 15.
 
-- [ ] `window.__pont`, `window.__ecrans` and `window.__panneau` become direct imports. The
+- [x] `window.__pont`, `window.__ecrans` and `window.__panneau` become direct imports — 61
+      sites, through `src/seams.ts`'s live `export let` bindings, so no restructuring of the
+      shell was needed. A typo now fails the build (exercised). The
       engine is in the module graph now, so the seam that existed to cross worlds has no worlds
       to cross — but the shell already imports the engine, so the implementations must move to
       modules BOTH import, or the graph closes on itself.
-- [ ] `__go` / `__states` reimplemented shell-side — they are the harness's driving API, so this
+- [x] The TABLE moved shell-side (656 lines); the DRIVING did not, and that is argued
+      rather than skipped: `__go` holds `pilotage`, a latch the engine reassigns, and an
+      imported binding cannot be assigned. `__go` / `__states` reimplemented shell-side — they are the harness's driving API, so this
       is the wave where the published surface narrows and the rules that name bare globals are
       converted, one file at a time, each proven by its own suite run.
-- [ ] R74 renegotiated and recorded.
+- [x] R74 renegotiated and recorded in `regions.json`; R72 needed nothing, measured.
 - [ ] The residual debts, each named in the wave log: the deep-entry path (`relTitre`,
-      `resolveTarget`), and the 240 ms dead delay on `data-suivante`.
+      `resolveTarget`), and the 240 ms dead delay on `data-suivante`. NOT in this wave —
+      they are behaviour, and this one changed none.
 
 ## What SP4-fin does NOT do
 

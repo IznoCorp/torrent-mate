@@ -209,6 +209,24 @@ FROZEN_IDENTIFIERS = {
         "Names the maquette DIRECTORY, whose own name is frozen above — a "
         "constant holding a path inherits that path's reason and nothing more."
     ),
+    # The three seams the legacy engine calls. Their names are the FRAGMENT's:
+    # the same objects are published as `window.__pont`, `window.__ecrans` and
+    # `window.__panneau`, which is how the rule harness drives them, and the
+    # engine's 61 call sites spell them that way. Renaming the TypeScript half
+    # would invent a second vocabulary for one thing, and leave every rule and
+    # every call site pointing at the old one.
+    "pont": (
+        "A seam NAME, spelled as the fragment spells it — the same object is "
+        "`window.__pont`, which the harness drives and the engine calls."
+    ),
+    "ecrans": (
+        "A seam NAME, spelled as the fragment spells it — the same object is "
+        "`window.__ecrans`, which the harness drives and the engine calls."
+    ),
+    "panneau": (
+        "A seam NAME, spelled as the fragment spells it — the same object is "
+        "`window.__panneau`, which the harness drives and the engine calls."
+    ),
 }
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -958,7 +976,11 @@ def check_unread_javascript(violations: list[str]) -> None:
     Args:
         violations: The accumulator every arm appends to.
     """
-    allowed = {SHELL / "engine" / "legacy.js"}
+    # Each entry is here because it was MOVED, not written: its French
+    # identifiers predate the rule and only a conversion — not a rename — will
+    # reach them. `legacy.js` is the engine; `states.js` is the scenario table
+    # lifted out of it, whose entries call the engine's own French names.
+    allowed = {SHELL / "engine" / "legacy.js", SHELL / "states.js"}
     unread = {path for path in SHELL.rglob("*.js") if path.is_file()}
     for path in sorted(unread - allowed):
         violations.append(

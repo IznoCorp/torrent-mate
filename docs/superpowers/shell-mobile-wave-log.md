@@ -761,6 +761,85 @@ fails on drift; re-pointing it is SP5's opening move.
 `resync.py` did move with its subject: both things it rewrites — the `FOLLOWS` counters and the
 drawer's « Version déployée » footer — are the engine's, not the fragment's.
 
+## SP4-fin wave 3 — the bridge dies, and the fixture leaves the product
+
+Branch `refactor/maquette-sp4fin3`, version 0.97.24. Four things the spec named for SP4-end,
+each proven at **0 divergence on 82 states**.
+
+### The scenario table was never the engine's
+
+`STATES` — **656 lines of FIXTURE** — was carried by the product so that something outside it
+could measure the product. It is `src/states.js` now, importing by name the eighteen engine
+names its entries call, which the engine EXPORTS explicitly rather than being reached through a
+global.
+
+**What did not move is the driving, and that is an arbitrage rather than an oversight.** `__go`
+closes the harness panel, unmasks three overlays, resets the world unless asked not to, and
+holds `pilotage` — a latch the engine REASSIGNS. An imported binding cannot be assigned, so
+moving `__go` out would have meant exporting a setter for a private flag: one indirection
+traded for a worse one. The engine keeps the mechanics and looks the state up in the table this
+module REGISTERS with it — in that direction, so the engine never depends on the module that
+measures it. An empty table is a legitimate state (a document with no driver cannot be driven)
+and `__go` says so by name.
+
+### The state alias is gone, and with it a whole class
+
+`let state` was re-pointed at the store's object on every notification: a CACHED COPY, correct
+only for as long as the subscriber refreshing it kept up. All 99 reads go through
+`currentState()`, which reads the store. The seed became `INITIAL_STATE`, used once at boot; the
+subscriber — whose entire body was the refresh — is deleted; `window.state` became a live read.
+
+What that removes is a class, not an instance: a rule could drive a page by mutating the cached
+object, and R77 had to hold that none did. With no cached object there is nothing to mutate.
+
+### The seam is an import, and what that buys is narrower than it sounds
+
+61 call sites — `panneau` 40, `ecrans` 14, `pont` 7 — stop going through `window` and import
+from `src/seams.ts`. The exports are `let`, deliberately: the implementations need the store,
+which the shell creates in its BODY, after its imports, and the engine is one of them. An ES
+export is a LIVE BINDING, so the shell fills them at boot and the engine reads them at call
+time, which is the only time it calls.
+
+**Stated plainly, because it is easy to oversell**: the engine is JavaScript `tsc` does not
+check, so this is not type safety at the call sites. What it is — a declared dependency, and a
+name the BUNDLER resolves. Exercised: renaming one import to `pnot` fails the build.
+
+**And the globals do not disappear**, for a measured reason rather than a tidy one: this harness
+drives through them — `__ecrans` nine times, `__panneau` seven, `__pont` twice. They are the
+same objects the shell fills the imports with, so the two ways cannot disagree.
+
+### R74 renegotiated, R72 not — and both by measurement
+
+R74's subject changed meaning: what it called « the bridge » was three globals bridging a
+classic script to a module world, and that world is gone. It now describes a DRIVING SURFACE for
+measurement. Recorded in `regions.json`. R72 needed nothing at all, measured rather than assumed:
+the fragment is still injected verbatim, exactly once.
+
+### A positive control earned its keep, on the day it was supposed to
+
+`panel.py` went red on « there really are callers — 0 calls ». That check exists for one reason:
+its neighbour asserts that NO caller hands markup to the panel, and an assertion about an empty
+set is true of nothing. The engine's 40 call sites had just stopped spelling the verb
+`window.__panneau.ouvrir(` and started spelling it `panneau.ouvrir(` — so the count fell to
+zero, and the pair said so instead of quietly passing.
+
+It counts both spellings now, because there are two and they are the same object. Both halves
+fall under mutation, separately: a caller handing a string fails the first, every caller renamed
+away fails the second.
+
+### Two errors of mine, and one of them killed the page
+
+The blanket rewrite of `state.` landed in PROSE in four comments. Found with a scanner that
+tracks comment / string / template-interpolation context properly — which also showed that the
+six occurrences it flagged « in strings » were `${…}` interpolations, i.e. code.
+
+Worse: the edit to the publication block **never ran**. Its command was issued in a shell whose
+`cd` had failed, and I read the un-edited line in a later grep without registering it. The result
+was `state: { get: () => state }` with the binding removed — so the name resolved to
+`window.state`, i.e. to that getter, and the page died at load with « Maximum call stack size
+exceeded ». **A failed command is not a no-op; it is an edit that did not happen, and the next
+read must be treated as evidence rather than scenery.** The reason is written at the exact line.
+
 ## SP4-fin wave 2 — the markup leaves the fragment
 
 Branch `refactor/maquette-sp4fin2`, version 0.97.23. The 287 lines of application shell —
