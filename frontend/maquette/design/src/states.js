@@ -292,7 +292,7 @@ const STATES = [
       "Écran — profil de qualité",
       () => {
         applyState({ page: "acq", acqTab: "suivis", phase: "prete" });
-        window.__ecrans.profil("Silo");
+        window.__ecrans.profile("Silo");
       },
     ],
     [
@@ -665,13 +665,13 @@ const STATES = [
       `Réglages — ${quoi}`,
       () => {
         resetSettings();
-        const trouve = SETTINGS.flatMap((r) => r.r).find(
+        const found = SETTINGS.flatMap((r) => r.r).find(
           (x) => x.type === genre,
         );
         SETTINGS_STATE.rubrique =
-          SETTINGS.find((r) => r.r.includes(trouve))?.id ?? null;
+          SETTINGS.find((r) => r.r.includes(found))?.id ?? null;
         applyState({ page: "cfg", phase: "prete" });
-        if (trouve) openSetting(settingId(trouve));
+        if (found) openSetting(settingId(found));
       },
     ]),
     [

@@ -57,13 +57,13 @@ export function ProfileScreen() {
   // reached by a typed/bookmarked URL did not necessarily go through it.
   const title = raw.normalize("NFC");
   const state = useUiState();
-  const profile = state.profil as QualityProfile;
+  const profile = state.profile as QualityProfile;
   const { RELEASES, RESOLUTIONS, AUDIOS, icons, baseTitle } = useReference();
   const { t } = useTranslation();
   const kept = countKept(profile, RELEASES);
 
   function writeProfile(patch: Partial<QualityProfile>): void {
-    writeUiState({ profil: { ...profile, ...patch } });
+    writeUiState({ profile: { ...profile, ...patch } });
   }
 
   function pickResolution(reso: Resolution | null): void {

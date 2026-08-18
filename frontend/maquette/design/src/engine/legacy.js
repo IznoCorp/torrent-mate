@@ -472,9 +472,9 @@ import { ecrans, panneau, pont } from "../seams.js";
       .sort((a2, b) => a2 - b);
     const h = now.getHours(),
       m = now.getMinutes();
-    const suivante =
+    const next =
       hours.find((x) => x > h || (x === h && min > m)) ?? hours[0];
-    return `${suivante} h ${String(min).padStart(2, "0")}`;
+    return `${next} h ${String(min).padStart(2, "0")}`;
   }
 
   function stLabel(follow) {
@@ -7005,7 +7005,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     addMode: "suivi",
     relTitre: null,
     /* The backend defaults: permissive everywhere EXCEPT exclude_3d. */
-    profil: {
+    profile: {
       min_resolution: "1080p",
       required_audio: ["VF"],
       require_known_resolution: false,
@@ -9211,13 +9211,13 @@ import { ecrans, panneau, pont } from "../seams.js";
     SETTINGS_STATE.conflit = false;
   }
 
-  function settingId(reglage) {
-    return `${reglage.f}:${reglage.c}`;
+  function settingId(setting) {
+    return `${setting.f}:${setting.c}`;
   }
 
-  function valeurCourante(reglage) {
-    const change = SETTINGS_STATE.modifs.get(settingId(reglage));
-    return change === undefined ? reglage.v : change;
+  function valeurCourante(setting) {
+    const change = SETTINGS_STATE.modifs.get(settingId(setting));
+    return change === undefined ? setting.v : change;
   }
 
   /* The file a setting really lives in. Nineteen of them are JSON5 overlays
@@ -9237,7 +9237,7 @@ import { ecrans, panneau, pont } from "../seams.js";
 
   function allSettings() {
     return SETTINGS.flatMap((rubrique) =>
-      rubrique.r.map((reglage) => ({ ...reglage, rubrique })),
+      rubrique.r.map((setting) => ({ ...setting, rubrique })),
     );
   }
 
@@ -9265,9 +9265,9 @@ import { ecrans, panneau, pont } from "../seams.js";
 
      A value that is not set (2) keeps the field its type asks for and says it
      is empty — never a zero, never an empty string standing in for « absent ». */
-  function valeurEnCours(reglage) {
-    const id = settingId(reglage);
-    return SETTINGS_STATE.modifs.has(id) ? SETTINGS_STATE.modifs.get(id) : reglage.brut;
+  function valeurEnCours(setting) {
+    const id = settingId(setting);
+    return SETTINGS_STATE.modifs.has(id) ? SETTINGS_STATE.modifs.get(id) : setting.brut;
   }
 
 
@@ -9281,12 +9281,12 @@ import { ecrans, panneau, pont } from "../seams.js";
   }
 
   function changeSetting(id, valeur) {
-    const reglage = allSettings().find((r) => settingId(r) === id);
-    if (!reglage) return;
+    const setting = allSettings().find((r) => settingId(r) === id);
+    if (!setting) return;
     // A value equal to the file's is not a pending change: it is no change, and
     // leaving it in the map would make the save bar name a file it would write
     // identically.
-    if (sameValue(valeur, reglage.brut)) SETTINGS_STATE.modifs.delete(id);
+    if (sameValue(valeur, setting.brut)) SETTINGS_STATE.modifs.delete(id);
     else SETTINGS_STATE.modifs.set(id, valeur);
     render();
   }
@@ -9294,10 +9294,10 @@ import { ecrans, panneau, pont } from "../seams.js";
   /* What a field's value BECOMES, read from the field itself. A number field
      returns a string; storing it as one would compare unequal to the file's
      number for ever, so the type it goes back as is the type it came from. */
-  function typedValue(reglage, texte) {
-    if (reglage.type === "nombre") {
+  function typedValue(setting, texte) {
+    if (setting.type === "nombre") {
       const n = Number(texte);
-      return texte.trim() === "" ? null : Number.isNaN(n) ? reglage.brut : n;
+      return texte.trim() === "" ? null : Number.isNaN(n) ? setting.brut : n;
     }
     return texte === "" ? null : texte;
   }
@@ -9352,23 +9352,23 @@ import { ecrans, panneau, pont } from "../seams.js";
      same descriptor of facts. What it says: where the value comes from, what
      the file's own comment explains, and what it is now. */
   function openSetting(id) {
-    const reglage = allSettings().find((r) => settingId(r) === id);
-    if (!reglage) return;
-    const courante = valeurCourante(reglage);
+    const setting = allSettings().find((r) => settingId(r) === id);
+    if (!setting) return;
+    const courante = valeurCourante(setting);
     const changed = SETTINGS_STATE.modifs.has(id);
     panneau.ouvrir({
-      titre: window.__settingLabels.label(reglage),
-      meta: [{ m: `${reglage.f}.json5 · ${reglage.c}` }],
+      titre: window.__settingLabels.label(setting),
+      meta: [{ m: `${setting.f}.json5 · ${setting.c}` }],
       ...(changed ? { puce: ["info", "modifié, pas encore écrit"] } : {}),
       blocs: [
-        reglage.note ? { type: "note", texte: reglage.note } : null,
-        SETTINGS_STATE.lectureSeule ? null : { type: "champ", reglage },
+        setting.note ? { type: "note", texte: setting.note } : null,
+        SETTINGS_STATE.lectureSeule ? null : { type: "champ", setting },
         {
           type: "faits",
           lignes: [
             { c: "Valeur actuelle", v: String(courante) },
             ...(changed
-              ? [{ c: "Valeur écrite", v: String(reglage.v), terne: true }]
+              ? [{ c: "Valeur écrite", v: String(setting.v), terne: true }]
               : []),
             // The file is on the mono line above; a « Fichier » fact under it
             // says the same thing twice on a screen that has no room for it.
@@ -10403,11 +10403,11 @@ import { ecrans, panneau, pont } from "../seams.js";
         Number(element.dataset.deck),
       ),
     );
-    const suivante = deckOrder().find((element) => !shown.has(element));
-    if (suivante != null) {
+    const next = deckOrder().find((element) => !shown.has(element));
+    if (next != null) {
       deck.insertAdjacentHTML(
         "afterbegin",
-        deckCardHTML(SUGGESTIONS[suivante], suivante, 3),
+        deckCardHTML(SUGGESTIONS[next], next, 3),
       );
       const incoming = deck.querySelector('.dcard[data-depth="3"]');
       requestAnimationFrame(() =>
@@ -11687,8 +11687,8 @@ import { ecrans, panneau, pont } from "../seams.js";
     }
     if (closest.dataset.field && closest.dataset.to) {
       const id = closest.dataset.field;
-      const reglage = allSettings().find((r) => settingId(r) === id);
-      if (reglage) {
+      const setting = allSettings().find((r) => settingId(r) === id);
+      if (setting) {
         changeSetting(id, closest.dataset.to === "oui");
         openSetting(id);
       }
@@ -11696,9 +11696,9 @@ import { ecrans, panneau, pont } from "../seams.js";
     }
     if (closest.dataset.deletefield) {
       const id = closest.dataset.deletefield;
-      const reglage = allSettings().find((r) => settingId(r) === id);
-      if (reglage) {
-        const list = [...(valeurEnCours(reglage) || [])];
+      const setting = allSettings().find((r) => settingId(r) === id);
+      if (setting) {
+        const list = [...(valeurEnCours(setting) || [])];
         list.splice(Number(closest.dataset.index), 1);
         changeSetting(id, list);
         openSetting(id);
@@ -11707,11 +11707,11 @@ import { ecrans, panneau, pont } from "../seams.js";
     }
     if (closest.dataset.addfield) {
       const id = closest.dataset.addfield;
-      const reglage = allSettings().find((r) => settingId(r) === id);
-      if (reglage) {
+      const setting = allSettings().find((r) => settingId(r) === id);
+      if (setting) {
         // A prototype cannot show a keyboard; the added item is named after
         // what the list already holds, so the shape of the row is judgeable.
-        const list = [...(valeurEnCours(reglage) || [])];
+        const list = [...(valeurEnCours(setting) || [])];
         list.push(`valeur ${list.length + 1}`);
         changeSetting(id, list);
         openSetting(id);
@@ -12020,13 +12020,13 @@ import { ecrans, panneau, pont } from "../seams.js";
       // was built against, and a router screen leaves no trace in
       // `#screen.classList`: test the router's own identity instead.
       // `__ecrans.profil` does the navigating either way.
-      const profil = closest.dataset.profile;
+      const profile = closest.dataset.profile;
       if (document.querySelector('.screen.open[data-key^="releases:"]')) {
         pont.retour();
-        setTimeout(() => ecrans.profil(profil), 260);
+        setTimeout(() => ecrans.profile(profile), 260);
       } else {
         panneau.fermer();
-        setTimeout(() => ecrans.profil(profil), 260);
+        setTimeout(() => ecrans.profile(profile), 260);
       }
       return;
     }
@@ -12380,9 +12380,9 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (closest.dataset.take) {
-      const recuperer = closest.dataset.take;
+      const take = closest.dataset.take;
       panneau.fermer();
-      setTimeout(() => actionTake(recuperer), 260);
+      setTimeout(() => actionTake(take), 260);
       return;
     }
     if (closest.dataset.rescrape) {

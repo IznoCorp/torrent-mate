@@ -81,13 +81,13 @@ type Bridge = {
 // its old `openX(...)` function. `titre` crosses the bridge as a plain
 // string — normalisation and encoding are this file's job, not the caller's.
 type Screens = {
-  profil: (titre: string) => void;
+  profile: (titre: string) => void;
   // The media sheet — the centre of the product. `titre` crosses as a plain
   // string here too; the percent-encoding and the NFC normalisation are done
   // below, on write, and again by `MediaScreen` on read.
   fiche: (titre: string) => void;
   // The release-choice screen — same `titre`-crosses-as-a-plain-string
-  // contract as `fiche`/`profil` above. Unlike them, it also writes
+  // contract as `fiche`/`profile` above. Unlike them, it also writes
   // `state.relTitre` (the legacy first line of `openReleases`, still read by
   // the `data-prendre` click-delegation branch) BEFORE navigating.
   releases: (titre: string) => void;
@@ -485,7 +485,7 @@ export function go(target: {
 // read so an entry arriving by direct URL (not through this bridge) is
 // covered too.
 window.__ecrans = {
-  profil: (titre: string) =>
+  profile: (titre: string) =>
     go({ to: "/profil/$titre", params: { titre: titre.normalize("NFC") } }),
   fiche: (titre: string) =>
     go({ to: "/fiche/$titre", params: { titre: titre.normalize("NFC") } }),

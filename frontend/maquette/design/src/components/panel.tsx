@@ -395,7 +395,7 @@ function FieldBlock({
     icons,
   } = useReference();
   const { t } = useTranslation();
-  const { reglage: setting } = block;
+  const { setting: setting } = block;
   const id = settingId(setting);
   // The field draws what `valeurEnCours` answers — the pending edit if there
   // is one, the file's `brut` otherwise. Reading `.brut` alone would draw a
@@ -541,7 +541,7 @@ export type PanelBlock =
       secondaire?: boolean;
     }
   | { type: "saisons"; isFollowed: Follow; saisons: Season[] }
-  | { type: "champ"; reglage: Setting };
+  | { type: "champ"; setting: Setting };
 
 // The refusal itself, named, so the probe that exercises it
 // (`window.__panneauInconnu`, published by the shell) raises the SAME error
@@ -587,7 +587,7 @@ export type PanelDescriptor = {
   affiche?: { t: string; k?: string };
   avatar?: string;
   // A block may be ABSENT and say so in place: a caller writes
-  // `reglage.note ? { type: "note", … } : null` inline rather than assembling
+  // `setting.note ? { type: "note", … } : null` inline rather than assembling
   // the list conditionally, and `panneauBlocHTML` answered an empty string for
   // it. The same tolerance, expressed in the type instead of discovered at
   // render time.

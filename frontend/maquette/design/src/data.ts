@@ -506,12 +506,12 @@ export type Reference = {
   // type, and apply/open a pending edit. See refonte.html's `SETTINGS`
   // neighbourhood for the file/rubric structure `Setting.rubrique` carries.
   allSettings: () => Setting[];
-  settingId: (reglage: Setting) => string;
+  settingId: (setting: Setting) => string;
   // The value a field must DRAW: the pending edit when there is one, the
   // file's `brut` otherwise. The pending-edit overlay itself stays private to
   // the engine — this returns the value, never the map.
-  valeurEnCours: (reglage: Setting) => unknown;
-  typedValue: (reglage: Setting, texte: string) => unknown;
+  valeurEnCours: (setting: Setting) => unknown;
+  typedValue: (setting: Setting, texte: string) => unknown;
   changeSetting: (id: string, valeur: unknown) => void;
   openSetting: (id: string) => void;
   // The arbitration flow — decisions the scrape could not make on its own,

@@ -246,7 +246,7 @@ async def main():
                              not start["open"] and start["pathname"] == "/",
                              start["pathname"])
 
-            await pg.evaluate(f"()=>window.__ecrans.profil({json.dumps(TITLE)})")
+            await pg.evaluate(f"()=>window.__ecrans.profile({json.dumps(TITLE)})")
             await pg.wait_for_timeout(300)
             on_profile = await pg.evaluate(SCREEN_STATE)
             journal.check(

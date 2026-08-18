@@ -38,7 +38,7 @@ export type Bridge = {
 // One entry per migrated screen: what a legacy call site invokes instead of
 // its old `openX(...)`.
 export type Screens = {
-  profil: (titre: string) => void;
+  profile: (titre: string) => void;
   fiche: (titre: string) => void;
   releases: (titre: string) => void;
   resolution: (dossier?: string, replace?: boolean) => void;

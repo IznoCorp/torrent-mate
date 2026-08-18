@@ -96,6 +96,16 @@ def apply(text, mapping, in_python=False, properties=False):
         #                         so the two are told apart by CASE: this app
         #                         writes its data values in lower case and its
         #                         constants in upper.
+        # A BRACKETED SELECTOR IS DATA, all of it. `[data-go=profil]` names an
+        # attribute and the VALUE it must carry — a page id — and renaming the
+        # value made a rule look for a control the interface never emits. The
+        # spans are lifted out, the rename runs, and they are put back.
+        held = []
+        def hold(match):
+            held.append(match.group(0))
+            return f"\x00{len(held) - 1}\x00"
+        text = re.sub(r"\[[^\[\]\n]*\]", hold, text)
+
         for fr, en in sorted(mapping.items(), key=lambda kv: -len(kv[0])):
             text = re.sub(r"\bwindow\." + re.escape(fr) + r"\b", "window." + en, text)
             if fr.upper() == fr:
@@ -105,8 +115,15 @@ def apply(text, mapping, in_python=False, properties=False):
             #                         half after it rewrote a rule's own EXPECTED
             #                         value — the hold then measured the app
             #                         against a key the app never produces.
-            lookbehind = r"(?<![-:\w$'\"])" if properties else r"(?<![-:.\w$'\"])"
+            #   "/profil/{titre}"     a ROUTE PATH. A slash delimits an address
+            #                         segment exactly as a hyphen and a colon
+            #                         compose a key — and rewriting one changed
+            #                         a rule's EXPECTED address, so the hold
+            #                         waited for a URL the app never navigates to.
+            lookbehind = (r"(?<![-:/\w$'\"])" if properties
+                          else r"(?<![-:/.\w$'\"])")
             text = re.sub(lookbehind + re.escape(fr) + r"\b(?![-\w])", en, text)
+        text = re.sub(r"\x00(\d+)\x00", lambda m: held[int(m.group(1))], text)
         return text
     pieces, count = [], 0
     for kind, s, e in regions(text):
