@@ -365,6 +365,7 @@ examined: dict[str, int] = {
     "class names / typescript": 0,
     "declared CSS classes / fragment": 0,
     "declared CSS classes / extracted": 0,
+    "unread javascript / shell": 0,
 }
 
 
@@ -940,6 +941,37 @@ def check_class_names(violations: list[str]) -> None:
                     "name shared by four worlds")
 
 
+def check_unread_javascript(violations: list[str]) -> None:
+    """Refuses a `.js` under the shell that no arm reads, except the engine.
+
+    Every arm above globs `.ts`/`.tsx`, so a JavaScript file under
+    `design/src/` is examined by none of them. That is correct for exactly one
+    file — the legacy engine, moved there byte for byte, whose French
+    identifiers predate the rule and would be rewritten by a conversion, not by
+    a rename. It is wrong for anything else: a NEW `.js` would be new code, in
+    the one scope where nobody is looking.
+
+    An implicit exclusion is what this file exists to distrust — it reports
+    « no violation » about a scope it never opened. So the exclusion is written
+    down, and it is a list of one.
+
+    Args:
+        violations: The accumulator every arm appends to.
+    """
+    allowed = {SHELL / "engine" / "legacy.js"}
+    unread = {path for path in SHELL.rglob("*.js") if path.is_file()}
+    for path in sorted(unread - allowed):
+        violations.append(
+            f"{relative(path)} is JavaScript under the shell, which no arm "
+            "reads — write it in TypeScript, or name it here with the reason "
+            "it is exempt")
+    for path in sorted(allowed - unread):
+        violations.append(
+            f"{relative(path)} is named as exempt but does not exist — the "
+            "exemption outlived its subject")
+    examined["unread javascript / shell"] += len(unread)
+
+
 def main() -> int:
     """Runs the four arms and reports every violation.
 
@@ -951,6 +983,7 @@ def main() -> int:
     check_identifiers(violations)
     check_file_names(violations)
     check_class_names(violations)
+    check_unread_javascript(violations)
     for what, count in examined.items():
         if count == 0:
             violations.append(
@@ -965,7 +998,7 @@ def main() -> int:
               "a reader of the interface sees lives in the i18n resources.",
               file=sys.stderr)
         return 1
-    print("no-French guardrail: 4 arms, no violation — read "
+    print("no-French guardrail: 4 arms + the unread-JavaScript ledger, no violation — read "
           + ", ".join(f"{count} {what}" for what, count in examined.items()))
     return 0
 

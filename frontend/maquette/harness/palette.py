@@ -24,7 +24,7 @@ import asyncio
 import pathlib
 import re
 
-from common import Journal, open_page
+from common import Journal, design_source, open_page
 from playwright.async_api import async_playwright
 
 PROTOTYPE = pathlib.Path(__file__).resolve().parent.parent / "design" / "refonte.html"
@@ -71,7 +71,10 @@ async def main():
     global _journal
     _journal = Journal("R61 — the palette keeps its promises")
 
-    source = PROTOTYPE.read_text()
+    # The stylesheet still lives in the fragment, but five `var(--…)`
+    # references are emitted from the engine as inline styles — and a
+    # colour promised there is as broken as one promised in a rule.
+    source = design_source()
     missing = dangling(source)
     check("no colour referenced without being defined",
              not missing,

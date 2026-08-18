@@ -28,7 +28,8 @@ prototype track (`frontend/maquette/`, its CI gates and docs), and nothing deriv
 code until the operator's judgement (step 2 above). Non-negotiable.
 
 **Spec:** `docs/superpowers/specs/2026-08-10-refonte-mobile-quatre-pages-design.md`
-**The prototype:** `frontend/maquette/design/refonte.html` — §15 of `docs/reference/product-intent.md`
+**The prototype:** `frontend/maquette/design/refonte.html` — §15 of `docs/reference/product-intent.md`. It is the VISUAL reference and carries the stylesheet; since SP4-fin wave 1 it carries no program — the engine is
+`frontend/maquette/design/src/engine/legacy.js`, and every migrated surface starts in its own component.
 **Bug register:** `BUGS.md` at the repo root — every reported defect, one closed at a time.
 
 ---
@@ -51,113 +52,113 @@ adversarial review; none of them derives app code.
 | **SP4d wave 1 — the shell owns a PAGE** | `feat/maquette-sp4d1` | #447 | Système, Maintenance and Configuration became final components inside the legacy `#view` through a page host (R77); R67 stopped judging a list it had not found, R60 gained a positive control, and the nine delegation attributes gained tap-driven holds. The wave's own adversarial review found a shipped defect no rule covered: the legacy removed a node React owned, tearing the root down. |
 | **SP4d wave 2 — Arrivées** | `feat/maquette-sp4d2` | #448 | The pipeline's health page became a final component, with the first migrated control that WRITES (the pilot's bar, whose three states include DOIT-4's queue). A defect of class came out of it: a harness driver mutating the engine's `state` alias in place leaves a migrated page stale, and R77 gained the source-level hold that catches it. |
 | **SP4d wave 3 — the Médiathèque, and E-001** | `feat/maquette-sp4d3` | #449 | The largest data surface, its infinite scroll and its search field became a component; the page host stopped supplying a root, because a page emitting four of them cannot live in one. E-001 shipped maquette-first with its own rule (R78), and a rule found 87 library sheets with no genre and no cast (B-030). |
+| **SP4d wave 4 — Acquisition, and the last two pages** | `feat/maquette-sp4d4` | #450 | The last page wave: `viewAcquisition` — three tabs, a deck and a second infinite scroll — plus `viewProfil` and `viewIntrouvable`. `PAGES_OF()` carries no `render` at all, which is SP4-fin's entry condition. The review found four real defects, the first of which left the page inert: every action mutates the world IN PLACE and signals with `toucher()`, and the component subscribed only to the state. |
+| **SP4-fin wave 1 — the engine leaves the fragment** | `refactor/maquette-sp4fin1` | — | The 35 052-line inline script became `design/src/engine/legacy.js`; the fragment fell from 39 561 to 4 507 lines and holds nothing executable. 0 divergence on 82 states. The engine republishes its 254 top-level names — 230 by value, 24 by getter, the split measured — because the harness drives it by bare name. Four rules had gone green over a file emptied of their subject; `common.py` now owns `DESIGN_SOURCES`. |
 
 The full record of each wave, in the words written when it landed, is in
 `docs/superpowers/shell-mobile-wave-log.md`; the per-wave plans are in `docs/superpowers/plans/`.
 
 ### The latest wave, in full
 
-**SP4d wave 4 — Acquisition, and the last two pages**: Branch `feat/maquette-sp4d4`, version 0.97.21 (ONE bump for the wave). The last page wave, and
-the one that empties the page table: `viewAcquisition` — 290 lines, three tabs, a deck and a
-second infinite scroll — becomes `pages/acquisition.tsx`, and the two small pages nobody had
-counted go with it: `viewProfil` (48 lines, « Profil et préférences », off-bar) and
-`viewIntrouvable` (10, the unknown address). **`PAGES_OF()` now carries no `render` at all**,
-which is the condition SP4-end starts from.
+**SP4-fin wave 1 — the engine leaves the fragment**: Branch `refactor/maquette-sp4fin1`, version 0.97.22. The inline script — **35 052 lines** —
+becomes `design/src/engine/legacy.js`, a module the shell imports before it reads
+`window.__demarrerMoteur`. The fragment goes from **39 561 to 4 507 lines**: a title, the
+stylesheet, and the app shell's markup. Nothing executable.
 
-**What does NOT move, and why it was measured before deciding.** `avancerDeck` mutates the deck's
-own DOM in place — it inserts a card at the back, decrements every `data-depth`, writes an inline
-transform on the outgoing one and removes it 440 ms later — and its own comment says why: a
-replaced node cannot animate. React owning that markup would restore the string it last rendered
-on the next repaint and undo the gesture FOUR rules measure (R55, R64, `deck.py`, `mouse.py`). So
-the component draws `#sugitems`, `#sugload` and `.deckbody` and fills them only with what the FRAGMENT emits — the rows come from `fillSug` / `sugFoot`, and the deck's pile from `deckHTML`, written once when the container has none rather than on every commit: rewriting it on each render replaces the very nodes `avancerDeck` is animating, and « Passer » does write the store, so it re-renders. React manages no children there. React manages zero children there, so neither world removes the
-other's nodes — the arrangement `paintSelBar` already had, one level down. What SP4-end owes that
-machinery is a new HOME (`src/`, as an imperative module) rather than a rewrite: an imperative
-gesture engine is final code; what must die is the fragment as an editing source.
+**What the recon settled about the shape of the rest.** The script was never one thing: 30 531
+lines of DATA across 118 constants (`FICHES_RAW` alone is 20 538) against 4 507 lines of code
+across 135 functions. That ratio is why the engine moved whole rather than being split during
+the move — 78 % of the volume is a fixture library no split makes clearer. And the order is
+forced: the engine's top level calls `seedWorld()` and binds document-level listeners, so data
+extracted ahead of it would not exist when the classic script ran. Everything becomes deferred
+at once, or nothing can.
 
-**Two things the wholesale `innerHTML` rewrite did for free**, which had to be said out loud
-here. The fragment fills those containers DURING `render()`, before React has put them in the
-document, so a migrated page asks again from an effect — the same way it asks for the selection
-bar to be repainted. And the deck at rest, written into the body by that effect, is a node React
-does not know: a re-render leaves it in place, so the pile stayed at the top of every other
-state until the component learned to clear it.
+**Four things measured before the move, each of which would have been a defect.** It parses as
+an ES module under strict mode. It reads no parse timing — zero `readyState`, zero
+`DOMContentLoaded`, zero `document.write`, zero `currentScript` — so being deferred changes no
+branch. The static markup carries one inline handler, `onclick="return false;"`, which needs no
+global. And none of the 254 top-level names collides with a real `window` property — checked
+against Chrome, because Node's `globalThis` has a different surface and would have said the
+same thing for the wrong reason.
 
-Fidelity by RECORDING, taken before any deletion: **0 divergences over all EIGHTEEN states** —
-the four of « En cours », the six of « Suivis », the six of « Découvrir », plus Profil and
-Introuvable.
+**The engine republishes its own surface, and that is a SEAM, written down rather than
+inferred.** A classic script's declarations are global, and the harness drives the engine by
+bare name at some forty `page.evaluate` call sites; a module's are private. So `legacy.js` ends
+by republishing exactly what existed: **230 by value, 24 by getter**. The split is measured, not
+chosen — a binding the engine REASSIGNS cannot be published by value, and `state` and `world`
+are both reassigned and both are what the harness reads most. By value they would have answered
+a world that no longer exists, silently, and every rule reading them would have measured a page
+that was no longer there. The seam narrows in the wave that kills the bridge, not before:
+narrowing it means editing the instrument that measures the move.
 
-**A deletion that blanked the page, and the lesson under it.** `sugCardHTML` was deleted as dead
-code because counting `name(` found zero callers. It is used as a VALUE — `fillSug` chooses
-between it and `sugTileHTML` and calls whichever it chose — and the suggestions went blank at the
-first measurement. Restored, with the reason it looked dead written above it. The same faulty
-count is what made the recon miscount `secHTML`'s call sites a wave earlier: a symbol referenced
-without parentheses is invisible to it.
+**0 divergence on 82 states, zero JS errors** — `fidelity.py --host '#device'`, so the
+comparison covers the whole phone frame: screens, sheets, drawer and topbar, not `#view` alone.
 
-R77 grew to 42 holds: the eight pages are all shell-owned, `LEGACY_OWNED` is EMPTY and the rule
-says so out loud rather than passing over an empty list, the « the page is drawn » floor stopped
-encoding the size of the pages that happened to exist when it was written (the unknown-address
-page is seven elements, by design), Acquisition's delegation gained four tap-driven holds — tab,
-pill, display mode, suggestion mode — and the seam itself gained one: the containers survive a
-round trip, still filled. Four mutations, one run each.
+### What the fidelity oracle could not see, and the suite could
 
-**The drawer stays**, and this wave was not its last consumer: it still has two — the topbar
-burger, which is static app shell, and the « Voir toutes les pages » crossref of the
-unknown-address page, which is React now and emits the same `data-drawer`.
+`deconnecter` is an `async function`. The regex that collected the top-level names knew
+`function`, `const`, `let`, `var` and `class`, and not that form — so it was the ONE name never
+published. No state's markup depends on logging out, so 82 comparisons said « identical » while
+`entry.py` said `ReferenceError: deconnecter is not defined`. Two gates, two blind spots, and
+neither is redundant.
 
-**And the review found four defects, the first of which made the page inert.** Every action this
-page offers mutates the world IN PLACE and signals with `toucher()`, which leaves the state's
-identity unchanged — and the component subscribed to the state alone, so React bailed out and the
-page kept drawing what it had drawn. Measured: « Récupérer maintenant » moved a medium from one
-list to the other and left every counter on screen unchanged, 2/1/3/2/4 before and after. The two
-other pages that read mutable data subscribe to the version; this one did not. `#follq` had no
-handler at all — migrated as markup, its binding left to `mountSearch`, which runs inside
-`render()` before React has put the field in the document: typing filtered nothing until some
-other control forced a second render, the clear cross emptied the list but left the word in the
-field, and the `value` attribute never followed. What the operator TYPES reached a
-`dangerouslySetInnerHTML` unescaped, where the legacy escaped it — on the one call site that was
-missed, in a wave that had exported `escapeHtml` for exactly this. And the deck's « Passer »
-swipe had stopped animating: it writes the order to the store, so it re-renders, and the
-dependency-less effect rewrote `.deckbody` on every commit — replacing the very nodes
-`avancerDeck` animates, which is what that function's own comment forbids in as many words.
+### Four rules went green over a file emptied of their subject
 
-R77 gained the hold that would have caught the first: an action that moves a medium redraws the
-page it moved it on. Mutation: removing the version subscription fells it, showing the counters
-identical on both sides. **Three more holds were not measuring enough.** The seam hold accepted
-« there are children », which a component rendering one satisfies too — it now reads what only
-the FRAGMENT does: the `className` it sets and the `data-dismissable` rows no component emits.
-The ownership hold read a constant declared fifty lines above it in the same file and could never
-fail — it asks `PAGES_OF()` now. And the « the page is drawn » floor had been lowered for ALL
-eight pages to admit the smallest; it is per page, measured, so a Médiathèque reduced to its tab
-bar no longer passes. `emptyHTML`, whose last four callers left with the pages, was deleted — it
-had stayed, and had been declared in the shell's type as if exported, which would have answered
-« is not a function » to the first component that believed it.
+`images.py`, `bridge.py`, `palette.py` and `panel.py` each read `refonte.html` from disk and
+grepped it. After the move that file no longer held what they were grepping FOR — 930 image
+references, five colour references, the callers of `window.__panneau.ouvrir`, and the body of
+code history primitives are counted in. **None of them failed.** A hold that greps a file which
+no longer holds its subject reports « no violation » about nothing at all.
 
-**Wave gate**: `resync.py` moved the drawer's deployed-version card to the branch's base (0.97.20,
-build `52f28213`), committed as data; the full suite is **51 scripts, 571 holds, zero FAIL** (562 + 9 for R77); `make check` green including `check-frontend`; `scripts/check-no-french.py` green;
-R59/R69/R71 byte-identical against the merge point. The fragment went from 39 889 to 39 560
-lines. Every page belongs to the shell: `sys`, `maint`, `cfg`, `arr`, `lib`, `acq`, `profil`,
-`404`.
+The fix is the class, not the four instances: `common.py` now names `DESIGN_SOURCES` and reads
+them with `design_source()`, which RAISES on a source that has been renamed away rather than
+returning "". Each of the four falls under a mutation planted in the engine — a missing asset,
+a `history.pushState`, an undefined custom property, a returning `panneauHTML`.
 
-### The wave order from here (operator ruling, 2026-08-16)
+`export.py`'s classifier had the same shape of failure with the opposite symptom: it globbed
+`design/src/**/*.tsx` for the class names the interface WRITES, and the engine — which writes
+the great majority of them — is a `.js`. It reported that the extraction would leave CSS behind,
+which read as « the stylesheet is wrong » when what had moved was the writer.
 
-1. **clean-code / i18n — DONE** (branch `refactor/clean-code-i18n`, recorded above). The
-   rule now has a gate, and it is written where it is enforced: root `CLAUDE.md`
-   (§Code Conventions, §Language) and `frontend/maquette/README.md` (§Language of the
-   source, §Where the interface's French lives). Every wave below is born under it:
-   English names on the day a thing is written, interface text in `fr.json` from the
-   first line.
-2. **SP4d — four waves**, in this order: sys + maint + config → arrivées → médiathèque
-   (with E-001) → acquisition. **Waves 1, 2 and 3 DONE** (`feat/maquette-sp4d1` #447,
-   `feat/maquette-sp4d2` #448, `feat/maquette-sp4d3`): the PAGE machinery is paid for and
-   has since been simplified — the shell portals straight into `#view` and the handover is
-   announced, which is what a page emitting several roots needs; `src/pages/host.tsx`'s
-   table is the ONE place the next wave adds its page; every harness driver writes through
-   the store; and E-001 is drawn, held by R78. **SP4d is DONE**: wave 4
-   (`feat/maquette-sp4d4`) took Acquisition and the two small pages nobody had counted, so
-   `PAGES_OF()` carries no renderer at all. The drawer stays — it still has two consumers,
-   one of them React's.
-3. **SP4-fin** — the engine's death: empty fragment, `refonte.html` retired as a source,
-   bridge and aliases removed, `openScreen` swept, the deep-entry `relTitre` /
-   `resolveTarget` debt settled.
+### The handover law is now held twice, and the second half carries its own control
+
+R77's structural hold read `render()`'s shape out of `page.content()`, deliberately: the served
+copy, never disk. That reason expired with this move — what the browser runs is now minified,
+where `if (found.shellOwned)` reads `if(e.shellOwned)`, and a structural assertion written
+against mangled names measures the minifier. It reads the engine's source instead, and it is
+honest about guarding a branch that is currently DEAD: every page is shell-owned, so the `else`
+never runs, and no runtime probe can reach it.
+
+The live branch got its own hold: `#view`'s own `innerHTML` setter is wrapped for one real
+redraw, which must write it zero times. **And that hold proves its own detector every run** — a
+deliberate write, counted, after the measurement — because a hold asserting a count of ZERO
+passes just as happily when its spy is dead.
+
+That was not caution. It was found: the obvious mutation for it — a write on the shell-owned
+branch, spelled so the structural pattern cannot see it — breaks the page so thoroughly that
+thirty earlier holds fail and the script never reaches the line. « The suite went red » is not
+the same as « this hold works ». And a first attempt at that mutation proved nothing at all,
+because it edited the source while the harness served a build staged before it: **a runtime
+hold can only be mutated THROUGH THE BUILD.**
+
+### An oracle defect, and it was about a clock
+
+The first comparison reported one divergence, and it was the boot hint toast — recorded with
+`.show`, compared without. Its clock is identical on both trees: raised 770 ms after load,
+hidden 5 775 ms after, within 5 ms across four runs. The walk simply crosses that expiry between
+two adjacent states. `fidelity.py` dismissed the toast immediately after `load` — before it is
+raised — so the click hit nothing. It now waits for the toast to exist and dismisses it then,
+and the pre-move tree was re-recorded with the corrected oracle before any verdict was taken.
+
+### What stays in the fragment, and it is the spec's decision, not this wave's
+
+The stylesheet. « The CSS contract (BLOCK 2, extraction, `regions.json`) does not move — SP4
+converts structure and behaviour at IDENTICAL markup; the visual language stays SP5's
+question. » `scripts/extract-maquette-css.py` reads BLOCK 2 out of that file and `make check`
+fails on drift; re-pointing it is SP5's opening move.
+
+`resync.py` did move with its subject: both things it rewrites — the `FOLLOWS` counters and the
+drawer's « Version déployée » footer — are the engine's, not the fragment's.
 
 ---
 

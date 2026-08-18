@@ -37,6 +37,25 @@ whitespace text node and gained a file-name mapping the legacy did not apply.
 Both were found by reading, which is the expensive way. Pass the host as the
 last argument (`--host '#device'`) and compare each one.
 
+A RECORDING AGES, AND TWO THINGS IN IT AGE FASTER THAN THE REST
+---------------------------------------------------------------
+`--against` compares today's page with a file written earlier, so anything the
+page derives from something OUTSIDE its own code will differ for reasons that
+have nothing to do with the conversion being measured. Two are known, and both
+have cost a diagnosis:
+
+- **The wall clock.** « Prochaine recherche à 3 h 20 » is
+  `prochaineRechercheFR(CADENCE_CRON, new Date())`. A recording taken at 03:00
+  and replayed at 15:00 differs on that line in every state that draws it.
+- **The embedded data.** `resync.py` rewrites the follow counters and the
+  drawer's deployed version from the live system, and the drawer is on screen
+  in every state — so one data commit makes a whole recording stale.
+
+Neither is a divergence to debug. Re-record, and take the comparison that
+matters BEFORE committing anything that moves data; if a recording must be
+compared across such a change, classify every differing token rather than
+reading the count — 35 of 82 states differed once, and all of it was those two.
+
 WHAT IT NORMALISES, AND WHY EACH ONE IS NOT A DIFFERENCE
 --------------------------------------------------------
 Three classes of difference cost a full measuring cycle each before they were
@@ -65,6 +84,7 @@ import pathlib
 import re
 import sys
 
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 from playwright.async_api import async_playwright
 
 PROTOTYPE = "http://127.0.0.1:8899/wrapped.html"
@@ -114,6 +134,23 @@ async def main(legacy_name: str, states: list[str], host: str = "#view",
         page.on("pageerror", lambda error: errors.append(str(error)))
         await page.goto(PROTOTYPE, wait_until="load")
         await page.evaluate("()=>window.__chargementTermine?.()")
+        # THE BOOT HINT IS DISMISSED ONCE IT EXISTS, not before. It is raised
+        # about 770 ms after load and hides itself about five seconds later —
+        # so a click issued here, immediately, lands before there is anything
+        # to click, and the toast then rides the walk as a floating overlay
+        # that expires partway through it. Whichever state happens to be
+        # sampled at the boundary is recorded WITH `.show` and compared
+        # WITHOUT it, and the oracle reports a divergence about a timer.
+        # Measured: identical clock on both sides of a move (raised 770 ms,
+        # hidden 5775 ms), one state apart in the walk — a real difference
+        # would not care where in the sequence it was read.
+        try:
+            await page.wait_for_selector("#toast.show", timeout=4000,
+                                         state="attached")
+        except PlaywrightTimeoutError:
+            # Said plainly rather than as a traceback: the toast may one
+            # day stop being raised, and that is not this tool breaking.
+            print("  (no boot toast to dismiss — measuring as-is)")
         await page.evaluate("()=>document.querySelector('#toastx')?.click()")
         await page.evaluate(NORMALISER)
 

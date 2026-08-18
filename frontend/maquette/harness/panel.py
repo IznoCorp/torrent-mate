@@ -31,7 +31,7 @@ import asyncio
 import pathlib
 import re
 
-from common import Journal, open_page
+from common import Journal, design_source, open_page
 from playwright.async_api import async_playwright
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -79,7 +79,10 @@ async def main():
     global _journal
     _journal = Journal("R56 — one single panel")
 
-    source = (ROOT / "design" / "refonte.html").read_text()
+    # The callers, and the constructor this rule forbids coming back, are
+    # both in the engine now — reading the fragment alone would count no
+    # callers at all and still call it « no violation ».
+    source = design_source()
     component = (ROOT / "design" / "src" / "components" / "panel.tsx").read_text()
 
     # 1. No caller hands markup to the panel. Read on the SOURCE, because that
@@ -101,7 +104,7 @@ async def main():
           and "openDetailSheetLegacy" not in source,
           "openDetailSheetLegacy still present"
           if "openDetailSheetLegacy" in source else
-          "panneauHTML is back in refonte.html"
+          "panneauHTML is back in the design's sources"
           if "function panneauHTML(" in source else
           f"{component.count('export function PanelContent(')} PanelContent")
 

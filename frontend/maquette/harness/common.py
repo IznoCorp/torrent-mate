@@ -17,6 +17,39 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 PROTOTYPE = "http://127.0.0.1:8899/wrapped.html"
 BAR = "─" * 62
 
+# THE DESIGN'S SOURCES, and it is a LIST because the design stopped being one
+# file. A rule that greps « the design » must grep all of them.
+#
+# This exists because of what happened the day the engine left the fragment:
+# three rules kept reading `refonte.html` alone and stayed green over evidence
+# that had simply moved — 930 image references, five colour references, and the
+# whole body of code a fourth rule counts history primitives in. None of them
+# failed. A hold that greps a file which no longer holds its subject reports
+# « no violation » about nothing at all, and it does so silently, for as long
+# as nobody thinks to check.
+#
+# Reading a missing path raises here rather than yielding "": a renamed source
+# must break the rule that depends on it, loudly, on the next run.
+DESIGN_SOURCES = (
+    ROOT / "design" / "refonte.html",
+    ROOT / "design" / "src" / "engine" / "legacy.js",
+)
+
+
+def design_source():
+    """Returns every source the design is written in, concatenated.
+
+    Returns:
+        The text of each entry in `DESIGN_SOURCES`, joined by a newline so a
+        pattern cannot match across the seam between two files.
+
+    Raises:
+        FileNotFoundError: If a declared source no longer exists — the failure
+            this helper is built to make loud.
+    """
+    return "\n".join(path.read_text(encoding="utf-8")
+                      for path in DESIGN_SOURCES)
+
 # The phone the design targets. Every measurement is taken here, because a
 # geometry read at another width answers a question nobody asked.
 # The appearance is PINNED: the document's « systeme » mode follows the

@@ -797,10 +797,23 @@ async def main():
         await cold.close()
 
         # (d) The handover is the SHELL's: the fragment must not write into a
-        # container React holds. Read from the DOCUMENT THE BROWSER RAN, never
-        # from the source on disk — every other hold here measures the served
-        # copy, and this rule's own mutations disable things in that copy alone,
-        # so a source read could stay green over a page that lost the guard.
+        # container React holds. THE LAW IS HELD TWICE, and the two halves ask
+        # different questions.
+        #
+        # The first is STRUCTURAL, and it is read from the engine's source —
+        # because the branch it guards is currently DEAD. Every page is
+        # shell-owned today, so the `else` never runs, and no runtime probe can
+        # reach it. It still has to be right for the day a page is handed back.
+        # This used to read the served document instead, and the reason was
+        # sound while the engine WAS the served document: a source read cannot
+        # see a served copy a rule corrupted. That reason expired when the
+        # engine became a module — what the browser now runs is minified, where
+        # `if (found.shellOwned)` reads `if(e.shellOwned)`, and a structural
+        # assertion written against mangled names measures the minifier rather
+        # than the law. This rule already reads `design/src` from disk two holds
+        # above, for an invariant of exactly the same kind.
+        #
+        # The second is BEHAVIOURAL and covers the live branch — see below.
         # Read as a pattern rather than as a byte-exact line, because reflowing
         # the line changes nothing about the law; and counted, because the guard
         # says nothing about a SECOND, unguarded write elsewhere.
@@ -830,8 +843,9 @@ async def main():
             + (f"; legacy with no renderer: {tables['legacyWithout']}"
                if tables["legacyWithout"] else ""))
 
-        served = await page.content()
-        writes = re.findall(r"[^\n]*view\.innerHTML\s*=[^\n]*", served)
+        engine = (pathlib.Path(__file__).resolve().parent.parent / "design"
+                  / "src" / "engine" / "legacy.js").read_text(encoding="utf-8")
+        writes = re.findall(r"[^\n]*view\.innerHTML\s*=[^\n]*", engine)
         # THE LAW, not one spelling of it. The guard was once a single line and
         # is now a branch, and a hold that matched the line would have failed on
         # the day the law was made STRONGER rather than weaker. What must be
@@ -848,7 +862,7 @@ async def main():
         law = re.search(
             r"if \(found\.shellOwned\)\s*\{(?P<owned>[\s\S]*?)\}\s*else\s*\{"
             r"(?P<legacy>[\s\S]*?)\n    \}",
-            served)
+            engine)
         owned = law.group("owned") if law else ""
         legacy = law.group("legacy") if law else ""
         journal.check(
@@ -863,6 +877,53 @@ async def main():
             f"{len(writes)} write(s) to #view's innerHTML; branch found: "
             f"{law is not None}; write on the not-owned branch: "
             f"{'view.innerHTML' in legacy and 'view.innerHTML' not in owned}")
+
+        # (d-sexies) AND THE LIVE BRANCH, measured rather than read. The half
+        # above proves the shape of code that does not run; this one proves the
+        # code that does. `#view`'s own `innerHTML` setter is wrapped for the
+        # duration of one real redraw of a shell-owned page: the fragment must
+        # write it ZERO times. A guard hoisted out of its `else` — the exact
+        # defect the structural half describes — destroys React's portal
+        # children on every draw, and would count here.
+        # AND IT CARRIES ITS OWN POSITIVE CONTROL, because a hold that asserts
+        # a count of ZERO passes just as happily when its detector is dead. The
+        # control cannot come first: it writes `#view` on purpose, which tears
+        # out the children React holds there and leaves the shell unable to
+        # commit. So the order is measure, then prove the measurement — and
+        # this is the last thing the rule does before the browser closes, which
+        # is why the damage costs nothing.
+        #
+        # Learned the expensive way: the obvious mutation for this hold — a
+        # write on the shell-owned branch, spelled so the structural pattern
+        # above cannot see it — breaks the page so thoroughly that thirty
+        # earlier holds fail and the script never reaches this line. « The
+        # suite went red » is not the same as « this hold works ».
+        spied = await page.evaluate("""()=>{
+          const view = document.querySelector('#view');
+          const setter = Object.getOwnPropertyDescriptor(
+            Element.prototype, 'innerHTML').set;
+          let writes = 0;
+          Object.defineProperty(view, 'innerHTML', {
+            configurable: true,
+            set(value) { writes++; setter.call(this, value); },
+            get() { return view.textContent; },
+          });
+          window.__referentiel.render();
+          const drawn = {writes, children: view.children.length};
+          // The control: one deliberate write, which the spy must count.
+          view.innerHTML = '<i data-control></i>';
+          const counted = writes - drawn.writes;
+          delete view.innerHTML;
+          return {...drawn, counted,
+                  page: window.__magasin.lire().etat.page};}""")
+        journal.check(
+            "redrawing a shell-owned page writes #view zero times, and the "
+            "spy that says so is alive",
+            spied["writes"] == 0 and spied["children"] > 0
+            and spied["counted"] == 1,
+            f"{spied['writes']} write(s) on « {spied['page']} », "
+            f"{spied['children']} child(ren) left standing, "
+            f"control counted {spied['counted']}/1")
 
         await browser.close()
     journal.summary(errors)

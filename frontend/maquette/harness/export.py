@@ -65,8 +65,16 @@ async def main():
     # here is what keeps this classifier's "written" detection working
     # across the strangler seam, one screen at a time, exactly the way it
     # already worked for the legacy templates it used to be the only source.
-    for tsx in sorted((ROOT / "design" / "src").rglob("*.tsx")):
-        src += "\n" + tsx.read_text()
+    # `.js` as well as `.tsx`, and that is not a detail: the legacy engine
+    # emits the great majority of the class names in this document, and it
+    # is a `.js` module under `src/` now rather than a script inside the
+    # fragment. Globbing only `.tsx` classified every class it writes as
+    # « defined but never written », i.e. as CSS the extraction would leave
+    # behind — a red that says the stylesheet is wrong when what moved was
+    # the writer.
+    for written in sorted(p for p in (ROOT / "design" / "src").rglob("*")
+                          if p.suffix in {".tsx", ".js"}):
+        src += "\n" + written.read_text()
 
     async with async_playwright() as p:
         b = await p.chromium.launch(channel="chrome")

@@ -13,6 +13,17 @@
 // `i18next`) — every migrated screen calls `useTranslation()`, and the
 // first of them can render before any other import here settles.
 import "./i18n";
+// The legacy engine, for its side effect too, and the order matters more
+// here than anywhere else in this file. It used to be a classic script
+// inside the fragment, evaluated while the document parsed — everything it
+// declares therefore existed before this module's body ever ran, and the
+// body below depends on exactly that: it reads `window.__demarrerMoteur`
+// and calls it. As a module the engine keeps that guarantee for the same
+// reason it had it before: a module's dependencies evaluate before its
+// body, so importing it HERE is what makes it run FIRST. Moving this line
+// below any other statement would not reorder anything — imports hoist —
+// but writing it anywhere else would suggest otherwise.
+import "./engine/legacy.js";
 import {
   createBrowserHistory,
   createRootRoute,
