@@ -64,7 +64,7 @@ async def on_the_list(p, launch):
     b = await launch()
     ctx, pg = await open_page(b)
     await pg.wait_for_timeout(450)
-    await pg.evaluate("()=>window.__go('acq-suivis-liste')")
+    await pg.evaluate("()=>window.__go('acq-follows-liste')")
     await pg.wait_for_timeout(550)
     return b, ctx, pg
 
@@ -238,7 +238,7 @@ async def main():
         # would otherwise have killed along with the tap. The row is measured
         # AGAIN: opening the panel re-renders the list, and a point read before
         # that lands on whatever replaced it.
-        await pg.evaluate("()=>window.__go('acq-suivis-liste')")
+        await pg.evaluate("()=>window.__go('acq-follows-liste')")
         await pg.wait_for_timeout(550)
         rows = await pg.evaluate(
             """()=>[...document.querySelectorAll('#view .swipe')].slice(0, 1).map(s => {
@@ -260,7 +260,7 @@ async def main():
         # click from a click that never happened — and a rule that cannot fail
         # proves nothing. A mouse drag really does fire one, in the same place,
         # which is exactly the case the swallowing exists for.
-        await pg.evaluate("()=>window.__go('acq-suivis-liste')")
+        await pg.evaluate("()=>window.__go('acq-follows-liste')")
         await pg.wait_for_timeout(520)
         body = await pg.evaluate(
             """()=>{const b = document.querySelector('#view .swipe .cbody');

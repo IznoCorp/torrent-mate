@@ -530,7 +530,7 @@ describe("§11 constitution — « Tout média est consultable »", () => {
 
   // -----------------------------------------------------------------------
   // SURFACE 5 — ToHandleList (indirect: « Résoudre → » opens the staging
-  // drawer at /medias?media=<id>, whose « Voir la fiche » button is the
+  // drawer at /media?media=<id>, whose « Voir la fiche » button is the
   // second hop to the sheet — covered by StagingLibrary above).
   // -----------------------------------------------------------------------
 
@@ -573,7 +573,7 @@ describe("§11 constitution — « Tout média est consultable »", () => {
       // « Résoudre → » links to the staging drawer — the indirect §11 path.
       const link = screen.getByText("Résoudre →");
       expect(link.tagName).toBe("A");
-      expect(link.getAttribute("href")).toBe("/medias?media=blocked-at");
+      expect(link.getAttribute("href")).toBe("/media?media=blocked-at");
     });
   });
 
@@ -647,7 +647,7 @@ describe("§11 constitution — « Tout média est consultable »", () => {
       id: 1,
       title: "Silo",
       kind: "show",
-      status: "a_recuperer",
+      status: "to_grab",
       active: true,
       added_at: 1_750_000_000,
       wanted_pending: 0,
@@ -754,7 +754,7 @@ describe("§11 constitution — « Tout média est consultable »", () => {
       renderInRouter(
         <FollowDetailSheet
           followedId={1}
-          status="a_recuperer"
+          status="to_grab"
           kind="show"
           open
           onOpenChange={vi.fn()}
@@ -778,7 +778,7 @@ describe("§11 constitution — « Tout média est consultable »", () => {
       renderInRouter(
         <FollowDetailSheet
           followedId={2}
-          status="a_recuperer"
+          status="to_grab"
           kind="show"
           open
           onOpenChange={vi.fn()}

@@ -30,8 +30,8 @@ READ = """()=>({
   foot: (document.querySelector('#libload')||{}).textContent || '',
   retry: !!document.querySelector('#libretry'),
   rows: document.querySelectorAll('#libitems .card, #libitems .tile').length,
-  count: window.__magasin.read().state.libCount,
-  err: !!window.__magasin.read().state.libErr,
+  count: window.__store.read().state.libCount,
+  err: !!window.__store.read().state.libErr,
   total: window.__referentiel.libFiltered().length,
   carried: window.__referentiel.libraryLoaded(),
 })"""
@@ -92,8 +92,8 @@ async def main():
         # ── the end of the sample says it is the end of the SAMPLE ─────────
         await page.evaluate("()=>window.__go('lib-liste')")
         await page.wait_for_timeout(600)
-        await page.evaluate("""()=>{const state = window.__magasin.read().state;
-          window.__magasin.write({libCount: window.__referentiel.libFiltered().length});
+        await page.evaluate("""()=>{const state = window.__store.read().state;
+          window.__store.write({libCount: window.__referentiel.libFiltered().length});
           window.__referentiel.render();}""")
         await page.wait_for_timeout(600)
         ended = await page.evaluate(READ)

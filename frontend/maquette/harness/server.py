@@ -1,7 +1,7 @@
 """A static server that lets deep client-side paths be requested directly.
 
 The plain `http.server` on 8899 — the one every existing rule points at —
-answers a file for a file's own path and nothing else: request `/profil/12`
+answers a file for a file's own path and nothing else: request `/profile/12`
 against it and the answer is 404, because no such file exists on disk. The
 router only ever sees a path like that from inside an already-loaded
 document, never from a fresh navigation, so nothing measured through 8899
@@ -108,7 +108,7 @@ def start_server(port: int, root: pathlib.Path) -> Iterator[None]:
 
     Files under `root` are served as-is; any path with no file behind it
     instead answers `root/wrapped.html` — the fallback that lets a deep
-    client-side address (`/profil/…`, `/ajout`, `/resolution/<dossier
+    client-side address (`/profile/…`, `/add`, `/resolution/<dossier
     portant des points>`) be requested directly rather than only reached by
     navigating there inside an already-loaded document — EXCEPT under
     `FallbackHandler.ASSET_PREFIXES`, where a missing file still 404s.
@@ -169,7 +169,7 @@ if __name__ == "__main__":
     with start_server(PROOF_PORT, PROOF_ROOT):
         base = f"http://127.0.0.1:{PROOF_PORT}"
 
-        with urllib.request.urlopen(f"{base}/profil/X%20Y", timeout=5) as response:
+        with urllib.request.urlopen(f"{base}/profile/X%20Y", timeout=5) as response:
             profile_status, profile_body = response.status, response.read()
         journal.check(
             "a deep address answers 200 + the document",

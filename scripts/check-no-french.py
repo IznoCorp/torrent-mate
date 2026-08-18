@@ -390,6 +390,7 @@ examined: dict[str, int] = {
     "name words / shell": 0,
     "data-* names / markup": 0,
     "french debt words / vocabulary": 0,
+    "lines / shell scripts": 0,
 }
 
 
@@ -1190,25 +1191,64 @@ def check_data_attributes(violations: list[str]) -> None:
     words = vocabulary()
     sources = [p for p in SHELL.rglob("*")
                if p.is_file() and p.suffix in {".ts", ".tsx", ".js"}]
-    sources += [FRAGMENT]
+    # `design/index.html` is the application shell's markup since SP4-fin wave
+    # 2, and it was read by no arm: `id="coquille"` — the React mount point —
+    # sat there in French while every gate was green.
+    sources += [FRAGMENT, MAQUETTE / "design" / "index.html"]
     sources += [p for p in (ROOT / "frontend" / "src").rglob("*")
                 if p.is_file() and p.suffix in {".ts", ".tsx", ".css"}]
     for path in sorted(sources):
         source = read(path)
-        for match in re.finditer(r"\bdata-([a-zA-Z][\w-]*)", source):
-            name = match.group(1)
+        for match in re.finditer(
+                r"\bdata-([a-zA-Z][\w-]*)|\bid=\"([A-Za-z][\w-]*)\"", source):
+            name = match.group(1) or match.group(2)
             examined["data-* names / markup"] += 1
             line_no = source.count("\n", 0, match.start()) + 1
             unknown = [w for w in split_identifier(name)
                        if len(w) > 1 and w.lower() not in words]
             if unknown:
                 violations.append(
-                    f"{relative(path)}:{line_no}: the attribute name "
-                    f"'data-{name}' is built from "
+                    f"{relative(path)}:{line_no}: the markup name "
+                    f"{name!r} is built from "
                     f"{', '.join(repr(w) for w in unknown)}, which "
                     f"{'is' if len(unknown) == 1 else 'are'} not in "
                     f"{relative(VOCABULARY)} — name it in English, or add the "
                     "word there if the codebase really speaks it")
+
+
+def check_shell_scripts(violations: list[str]) -> None:
+    """Refuses French in a `.sh` — every line of one is the tool speaking.
+
+    NO ARM READ `.sh` AT ALL, and three of this repository's nine shell scripts
+    were written in French throughout — the two deploy scripts and the poller,
+    which between them are the only sanctioned way to put anything in front of
+    the operator. The rule has always covered them: a message a tool prints is
+    English. Nothing had ever looked.
+
+    A shell script has no i18n bundle and renders nothing to a reader of the
+    interface, so the distinction the other arms draw — code here, copy there —
+    does not exist in one. Every line is read, comment and message alike.
+
+    Args:
+        violations: The accumulator every arm appends to.
+    """
+    for relative_path in tracked_paths():
+        if not relative_path.endswith(".sh"):
+            continue
+        path = ROOT / relative_path
+        if not path.is_file():
+            continue
+        lines = read(path).splitlines()
+        for line_no, line in enumerate(lines, start=1):
+            examined["lines / shell scripts"] += 1
+            reason = offending_string(line)
+            if not reason:
+                continue
+            if pragma_on(lines, line_no):
+                continue
+            violations.append(
+                f"{relative_path}:{line_no}: French in a shell script "
+                f"({reason}) — a developer tool speaks English: {line.strip()[:60]!r}")
 
 
 def check_unread_javascript(violations: list[str]) -> None:
@@ -1261,6 +1301,7 @@ def main() -> int:
     check_vocabulary(violations)
     check_data_attributes(violations)
     check_french_debt(violations)
+    check_shell_scripts(violations)
     for what, count in examined.items():
         if count == 0:
             violations.append(
@@ -1275,9 +1316,9 @@ def main() -> int:
               "a reader of the interface sees lives in the i18n resources.",
               file=sys.stderr)
         return 1
-    print("no-French guardrail: 4 arms + the vocabulary + the data-* names + "
-          "the engine's declared debt + the unread-JavaScript ledger, no "
-          "violation — read "
+    print("no-French guardrail: 4 arms + the vocabulary + the markup names + "
+          "the engine's declared debt + the shell scripts + the "
+          "unread-JavaScript ledger, no violation — read "
           + ", ".join(f"{count} {what}" for what, count in examined.items()))
     return 0
 

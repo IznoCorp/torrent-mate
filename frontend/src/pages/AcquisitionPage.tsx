@@ -96,8 +96,10 @@ export default function AcquisitionPage(): ReactElement {
     // The ranking editor did not dissolve into a view — it MOVED to /config.
     // Redirecting its deep link to « maintenant » landed the operator on the
     // wrong page with no pointer to the new home.
-    if (rawTab === "reglages") {
-      void navigate("/config?tab=classement", { replace: true });
+    // The tab is `settings`; `reglages` is the spelling a bookmark may still
+    // carry, so both are recognised and both land in the same place.
+    if (rawTab === "settings" || rawTab === "reglages") {
+      void navigate("/config?tab=ranking", { replace: true });
       return;
     }
     const target = rawTab === DEFAULT_TAB ? DEFAULT_TAB : LEGACY_TAB_REDIRECTS[rawTab];
@@ -536,9 +538,9 @@ export default function AcquisitionPage(): ReactElement {
               {tab.label}
               {/* §3.2 — the badge counts WHAT AWAITS THE OPERATOR, same
                   derivation as the nav badge (§13). « ? » when unknowable. */}
-              {tab.id === "maintenant" && (waiting.unknown || waiting.count > 0) && (
+              {tab.id === "now" && (waiting.unknown || waiting.count > 0) && (
                 <span
-                  data-testid="tab-maintenant-badge"
+                  data-testid="tab-now-badge"
                   className="n"
                   aria-label={
                     waiting.unknown
@@ -611,8 +613,8 @@ export default function AcquisitionPage(): ReactElement {
                 : ""}
           </p>
         </div>
-        {activeTab === "maintenant" && <NowPanel />}
-        {activeTab === "suivis" && <FollowsPanel />}
+        {activeTab === "now" && <NowPanel />}
+        {activeTab === "follows" && <FollowsPanel />}
       </div>
 
       {/* ── « Plus » : Veille et Obligations ─────────────────────────── */}

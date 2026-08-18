@@ -34,7 +34,7 @@ describe("Accordion", () => {
     ).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("expands on trigger click and shows the content region", () => {
+  it("expands on trigger click and series the content region", () => {
     renderItem();
     fireEvent.click(screen.getByRole("button", { name: "Journal brut" }));
     expect(screen.getByText("secret body")).toBeInTheDocument();

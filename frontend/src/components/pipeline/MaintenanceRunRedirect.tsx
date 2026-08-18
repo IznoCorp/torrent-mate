@@ -8,7 +8,7 @@
  * history, preserving DOIT-10.
  *
  * When ``?run=`` is absent or empty, the request redirects (replace) to
- * ``/systeme?tab=journal``.  The old ``/maintenance`` page carried the
+ * ``/system?tab=journal``.  The old ``/maintenance`` page carried the
  * destructive-operations journal inline (now ``DestructiveLogPanel`` on the
  * Journal tab); the operator's bookmark must land where the journal is
  * (arbitrated sub-phase 5.4, 2026-07-17).
@@ -28,5 +28,5 @@ export function MaintenanceRunRedirect(): ReactElement {
       <Navigate to={`/pipeline?run=${encodeURIComponent(runUid)}`} replace />
     );
   }
-  return <Navigate to="/systeme?tab=journal" replace />;
+  return <Navigate to="/system?tab=journal" replace />;
 }

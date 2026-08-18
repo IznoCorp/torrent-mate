@@ -252,7 +252,7 @@ async def on_page(pg, page, **patch):
     """
     fields = ", ".join(f"{k}: {json.dumps(v)}" for k, v in patch.items())
     await pg.evaluate(
-        f"()=>{{applyState({{page: '{page}', phase: 'prete'{', ' + fields if fields else ''}}});}}")
+        f"()=>{{applyState({{page: '{page}', phase: 'ready'{', ' + fields if fields else ''}}});}}")
     await pg.wait_for_timeout(320)
     seen = await pg.evaluate(READ)
     seen["blocks"] = {key: seen[key] for _, key, _, _ in ALL_BLOCKS}
@@ -299,7 +299,7 @@ async def main():
         # 1. No blocked medium here. The two stuck folders are named on
         # Arrivées; finding either name on Système means a medium is being
         # reported twice and answered nowhere.
-        blocked = await pg.evaluate("()=>window.__bloques ? window.__bloques() : null")
+        blocked = await pg.evaluate("()=>window.__blocked ? window.__blocked() : null")
         journal.check("the list of blocked media is reachable",
                          bool(blocked),
                          f"{len(blocked or [])} : {', '.join(blocked or [])}")
@@ -434,7 +434,7 @@ async def main():
         # before this page existed. A rule that measures one theme certifies
         # half a design.
         for theme, apply in (("dark", "()=>document.documentElement.removeAttribute('data-theme')"),
-                            ("clair", "()=>document.documentElement.setAttribute('data-theme','light')")):
+                            ("light", "()=>document.documentElement.setAttribute('data-theme','light')")):
             await pg.evaluate(apply)
             await pg.wait_for_timeout(220)
             for state_ in (False, True):

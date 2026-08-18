@@ -141,7 +141,7 @@ export default function Pipeline(): ReactElement {
       />
 
       {/* Inline detail view when a history row is selected (URL: ?run=<uid>).
-          showMaintenanceLink adds a cross-link to /systeme?tab=maintenance when
+          showMaintenanceLink adds a cross-link to /system?tab=maintenance when
           the selected run is a maintenance run (systeme-hub Phase 02). */}
       {selectedRun !== null && (
         <RunDetail

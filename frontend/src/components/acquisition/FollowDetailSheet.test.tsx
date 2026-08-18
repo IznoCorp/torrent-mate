@@ -43,7 +43,7 @@ vi.mock("react-router-dom", async (importOriginal) => {
 function silo(): CompletenessResponse {
   const s01Owned = Array.from({ length: 10 }, (_, i) => ({
     episode: i + 1,
-    state: "en_mediatheque" as const,
+    state: "in_library" as const,
     title: `S01E${String(i + 1).padStart(2, "0")}`,
     air_date: `2023-0${String(Math.ceil((i + 1) / 4))}-${String((i % 4) * 7 + 1).padStart(2, "0")}`,
   }));
@@ -51,12 +51,12 @@ function silo(): CompletenessResponse {
   const s02Episodes = [
     ...Array.from({ length: 13 }, (_, i) => ({
       episode: i + 1,
-      state: "en_mediatheque" as const,
+      state: "in_library" as const,
       title: `S02E${String(i + 1).padStart(2, "0")}`,
       air_date: `2024-0${String(Math.ceil((i + 1) / 5))}-${String((i % 5) * 6 + 1).padStart(2, "0")}`,
     })),
-    { episode: 14, state: "a_recuperer" as const, title: "The Missing", air_date: "2024-06-08" },
-    { episode: 15, state: "annonce" as const, title: "The Future", air_date: "2099-01-01" },
+    { episode: 14, state: "to_grab" as const, title: "The Missing", air_date: "2024-06-08" },
+    { episode: 15, state: "announced" as const, title: "The Future", air_date: "2099-01-01" },
   ];
 
   return {
@@ -103,8 +103,8 @@ function americanDad(): CompletenessResponse {
     const episodes = Array.from({ length: episodeCount }, (_, ei) => ({
       episode: ei + 1,
       state: incomplete && ei === episodeCount - 1
-        ? ("a_recuperer" as const)
-        : ("en_mediatheque" as const),
+        ? ("to_grab" as const)
+        : ("in_library" as const),
       title: `S${String(n).padStart(2, "0")}E${String(ei + 1).padStart(2, "0")}`,
       air_date: null,
     }));
@@ -181,7 +181,7 @@ function renderSheet(
       <MemoryRouter>
         <FollowDetailSheet
           followedId={fixture.followed_id}
-          status={opts?.status ?? "a_jour"}
+          status={opts?.status ?? "up_to_date"}
           kind={opts?.kind ?? (fixture.kind as MediaKind)}
           mediaHref={opts?.mediaHref}
           open={true}
@@ -226,10 +226,10 @@ describe("date d'épisode au toucher (régression : perdue avec l'ancien accord�
 describe("seasonCounts — la dérivation unique (§13)", () => {
   it("compte possédés = en_mediatheque, diffusés = tout sauf annonce", () => {
     const eps = [
-      { state: "en_mediatheque" as const },
-      { state: "en_mediatheque" as const },
-      { state: "a_recuperer" as const },
-      { state: "annonce" as const },
+      { state: "in_library" as const },
+      { state: "in_library" as const },
+      { state: "to_grab" as const },
+      { state: "announced" as const },
     ];
     const r = seasonCounts(eps);
     expect(r.owned).toBe(2);
@@ -238,8 +238,8 @@ describe("seasonCounts — la dérivation unique (§13)", () => {
 
   it("exclut 'annonce' du dénominateur — un épisode futur ne peut pas manquer", () => {
     const eps = [
-      { state: "annonce" as const },
-      { state: "annonce" as const },
+      { state: "announced" as const },
+      { state: "announced" as const },
     ];
     const r = seasonCounts(eps);
     expect(r.owned).toBe(0);
@@ -307,13 +307,13 @@ describe("FollowDetailSheet", () => {
   });
 
   it("§5.3 — 'a_recuperer' affiche 'Récupérer maintenant' comme action primaire", async () => {
-    renderSheet(silo(), { status: "a_recuperer" });
+    renderSheet(silo(), { status: "to_grab" });
     expect(await screen.findByTestId("primary-action")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Récupérer maintenant" })).toBeInTheDocument();
   });
 
   it("§5.3 — 'a_jour' n'affiche PAS d'action primaire (rien à récupérer)", async () => {
-    renderSheet(silo(), { status: "a_jour" });
+    renderSheet(silo(), { status: "up_to_date" });
     await screen.findByTestId("sheet-meta");
     expect(screen.queryByTestId("primary-action")).toBeNull();
   });
@@ -321,7 +321,7 @@ describe("FollowDetailSheet", () => {
   it("§5 — la fiche d'un film non acquis annonce la sortie AUTOMATIQUE, pas le retrait", async () => {
     // The sheet once rendered the REMOVAL-confirmation body here: « ne sera
     // plus cherché » on every open read as a threat. §9 fixes the sentence.
-    renderSheet(movieNotOwned(), { kind: "movie", status: "en_attente" });
+    renderSheet(movieNotOwned(), { kind: "movie", status: "pending" });
     expect(
       await screen.findByText("Une fois acquis, ce film quittera automatiquement votre liste."),
     ).toBeInTheDocument();
@@ -329,7 +329,7 @@ describe("FollowDetailSheet", () => {
   });
 
   it("§5 — un film acquis ne porte plus la phrase de cycle de vie", async () => {
-    renderSheet(movieNotOwned(), { kind: "movie", status: "a_jour" });
+    renderSheet(movieNotOwned(), { kind: "movie", status: "up_to_date" });
     await screen.findByTestId("secondary-actions");
     expect(screen.queryByText(/quittera automatiquement/)).toBeNull();
   });
@@ -419,7 +419,7 @@ describe("FollowDetailSheet", () => {
       isPending: false,
     } as unknown as ReturnType<typeof hooks.useGrabNow>);
 
-    renderSheet(silo(), { status: "a_recuperer", onOpenChange });
+    renderSheet(silo(), { status: "to_grab", onOpenChange });
     fireEvent.click(screen.getByText("Récupérer maintenant"));
 
     expect(mutate).toHaveBeenCalledWith(42);

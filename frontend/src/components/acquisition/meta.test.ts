@@ -41,35 +41,35 @@ import {
 /** The eight card statuses the backend serves (schema.d.ts truth). */
 const FOLLOW_STATUSES: readonly FollowStatus[] = [
   "disabled",
-  "verification_en_cours",
-  "a_recuperer",
-  "en_acquisition",
-  "en_attente",
-  "non_verifie",
-  "a_jour",
-  "termine",
+  "verifying",
+  "to_grab",
+  "acquiring",
+  "pending",
+  "unverified",
+  "up_to_date",
+  "ended",
 ];
 
 /** The per-episode states the backend serves (schema.d.ts truth). */
 const EPISODE_STATES: readonly EpisodeState[] = [
-  "annonce",
-  "en_mediatheque",
-  "a_recuperer",
-  "en_acquisition",
-  "en_attente",
-  "non_verifie",
+  "announced",
+  "in_library",
+  "to_grab",
+  "acquiring",
+  "pending",
+  "unverified",
   "absorbed",
 ];
 
 describe("FOLLOW status vocabulary", () => {
   it.each([
     ["disabled", "En pause", "neutral"],
-    ["verification_en_cours", "Vérification en cours", "info"],
-    ["a_recuperer", "À récupérer", "warning"],
-    ["en_acquisition", "En cours d'acquisition", "info"],
-    ["en_attente", "En attente de torrent", "waiting"],
-    ["non_verifie", "Non vérifié", "muted"],
-    ["a_jour", "À jour", "success"],
+    ["verifying", "Vérification en cours", "info"],
+    ["to_grab", "À récupérer", "warning"],
+    ["acquiring", "En cours d'acquisition", "info"],
+    ["pending", "En attente de torrent", "waiting"],
+    ["unverified", "Non vérifié", "muted"],
+    ["up_to_date", "À jour", "success"],
   ])("maps %s to its série label and tone", (status, label, tone) => {
     expect(FOLLOW_STATUS_LABEL[status as FollowStatus]).toBe(label);
     expect(FOLLOW_STATUS_TONE[status as FollowStatus]).toBe(tone);
@@ -89,7 +89,12 @@ describe("FOLLOW status vocabulary", () => {
   });
 
   it("carries no dead literal from the pre-split vocabulary", () => {
-    for (const dead of ["pending", "acquiring", "incomplete", "up_to_date"]) {
+    // The words this guarded — `pending`, `acquiring`, `up_to_date` — are the
+    // CANONICAL vocabulary since the wave that put the states in English, so
+    // guarding against them would now forbid the live names. What it has always
+    // asserted is that the PREVIOUS vocabulary leaves no literal behind, and
+    // the previous vocabulary is the French one.
+    for (const dead of ["en_attente", "en_acquisition", "incomplets", "a_jour"]) {
       expect(Object.keys(FOLLOW_STATUS_LABEL)).not.toContain(dead);
       expect(Object.keys(FOLLOW_STATUS_TONE)).not.toContain(dead);
     }
@@ -98,9 +103,9 @@ describe("FOLLOW status vocabulary", () => {
 
 describe("followStatusLabel / followStatusHint (film vs série)", () => {
   it("reads « Acquis » for an owned film and « À jour » for a série", () => {
-    expect(followStatusLabel("a_jour", "movie")).toBe("Acquis");
-    expect(followStatusLabel("a_jour", "show")).toBe("À jour");
-    expect(followStatusHint("a_jour", "movie")).toBe(
+    expect(followStatusLabel("up_to_date", "movie")).toBe("Acquis");
+    expect(followStatusLabel("up_to_date", "show")).toBe("À jour");
+    expect(followStatusHint("up_to_date", "movie")).toBe(
       "Le film est en médiathèque.",
     );
   });
@@ -133,12 +138,12 @@ describe("followStatusLabel / followStatusHint (film vs série)", () => {
 
 describe("EPISODE state vocabulary", () => {
   it.each([
-    ["en_mediatheque", "En médiathèque", "success"],
-    ["a_recuperer", "À récupérer", "warning"],
-    ["en_acquisition", "En cours d'acquisition", "info"],
-    ["en_attente", "En attente de torrent", "waiting"],
-    ["non_verifie", "Non vérifié", "muted"],
-    ["annonce", "Annoncé", "upcoming"],
+    ["in_library", "En médiathèque", "success"],
+    ["to_grab", "À récupérer", "warning"],
+    ["acquiring", "En cours d'acquisition", "info"],
+    ["pending", "En attente de torrent", "waiting"],
+    ["unverified", "Non vérifié", "muted"],
+    ["announced", "Annoncé", "upcoming"],
   ])("maps %s to its label and tone", (state, label, tone) => {
     expect(EPISODE_STATE_LABEL[state as EpisodeState]).toBe(label);
     expect(EPISODE_STATE_TONE[state as EpisodeState]).toBe(tone);
@@ -170,10 +175,10 @@ describe("EPISODE state vocabulary", () => {
     // arbitrated reading — never « never checked ». Do NOT read this test as
     // « an absorbed episode is always being acquired »: that reading is what
     // kept 31 finished queue rows claiming « En cours d'acquisition ».
-    expect(EPISODE_STATE_LABEL.absorbed).toBe(EPISODE_STATE_LABEL.en_acquisition);
-    expect(EPISODE_STATE_TONE.absorbed).toBe(EPISODE_STATE_TONE.en_acquisition);
-    expect(STATUS_LABEL.absorbed).toBe(EPISODE_STATE_LABEL.en_acquisition);
-    expect(STATUS_TONE.absorbed).toBe(EPISODE_STATE_TONE.en_acquisition);
+    expect(EPISODE_STATE_LABEL.absorbed).toBe(EPISODE_STATE_LABEL.acquiring);
+    expect(EPISODE_STATE_TONE.absorbed).toBe(EPISODE_STATE_TONE.acquiring);
+    expect(STATUS_LABEL.absorbed).toBe(EPISODE_STATE_LABEL.acquiring);
+    expect(STATUS_TONE.absorbed).toBe(EPISODE_STATE_TONE.acquiring);
   });
 
   it("never claims a torrent was taken in the absorbed hint", () => {
@@ -245,9 +250,9 @@ describe("searchOutcomeReason — le motif d'attente en français", () => {
   it.each([
     ["no_candidates", "aucun résultat"],
     ["no_matching_episode", "pas d'épisode exact"],
-    ["all_filtered", "rien de conforme au profil"],
+    ["all_filtered", "rien de conforme au profile"],
   ])("traduit %s en « %s » pour un épisode en attente", (outcome, reason) => {
-    expect(searchOutcomeReason("en_attente", outcome)).toBe(reason);
+    expect(searchOutcomeReason("pending", outcome)).toBe(reason);
   });
 
   it.each([
@@ -256,21 +261,21 @@ describe("searchOutcomeReason — le motif d'attente en français", () => {
     ["search_api_error", "erreur de recherche côté tracker"],
     ["no_seeders", "aucune source active"],
   ])("explique un non vérifié par %s", (outcome, reason) => {
-    expect(searchOutcomeReason("non_verifie", outcome)).toBe(reason);
+    expect(searchOutcomeReason("unverified", outcome)).toBe(reason);
   });
 
   it("ne rend JAMAIS le jeton machine, même inconnu (NE-DOIT-PAS-4)", () => {
-    const reason = searchOutcomeReason("en_attente", "brand_new_verdict");
+    const reason = searchOutcomeReason("pending", "brand_new_verdict");
     expect(reason).toBe("rien de prenable au dernier passage");
     expect(reason).not.toContain("brand_new_verdict");
   });
 
   it("se tait quand l'unité n'attend pas ou n'a aucun verdict", () => {
-    expect(searchOutcomeReason("en_mediatheque", "no_candidates")).toBeNull();
-    expect(searchOutcomeReason("a_recuperer", "no_candidates")).toBeNull();
-    expect(searchOutcomeReason("en_acquisition", "all_filtered")).toBeNull();
-    expect(searchOutcomeReason("non_verifie", null)).toBeNull();
-    expect(searchOutcomeReason("en_attente", undefined)).toBeNull();
+    expect(searchOutcomeReason("in_library", "no_candidates")).toBeNull();
+    expect(searchOutcomeReason("to_grab", "no_candidates")).toBeNull();
+    expect(searchOutcomeReason("acquiring", "all_filtered")).toBeNull();
+    expect(searchOutcomeReason("unverified", null)).toBeNull();
+    expect(searchOutcomeReason("pending", undefined)).toBeNull();
   });
 });
 
@@ -278,31 +283,31 @@ describe("« En attente » vs « Non vérifié » (must not be confusable)", () 
   it("gives the two states DISTINCT tones, labels AND hints (#24)", () => {
     // #24 — they no longer share a colour: en_attente = solid neutral grey,
     // non_verifie = the muted (dashed info-blue) idle tone, in BOTH maps.
-    expect(FOLLOW_STATUS_TONE.en_attente).not.toBe(
-      FOLLOW_STATUS_TONE.non_verifie,
+    expect(FOLLOW_STATUS_TONE.pending).not.toBe(
+      FOLLOW_STATUS_TONE.unverified,
     );
-    expect(EPISODE_STATE_TONE.en_attente).not.toBe(
-      EPISODE_STATE_TONE.non_verifie,
+    expect(EPISODE_STATE_TONE.pending).not.toBe(
+      EPISODE_STATE_TONE.unverified,
     );
-    expect(FOLLOW_STATUS_LABEL.en_attente).not.toBe(
-      FOLLOW_STATUS_LABEL.non_verifie,
+    expect(FOLLOW_STATUS_LABEL.pending).not.toBe(
+      FOLLOW_STATUS_LABEL.unverified,
     );
-    expect(FOLLOW_STATUS_HINT.en_attente).not.toBe(
-      FOLLOW_STATUS_HINT.non_verifie,
+    expect(FOLLOW_STATUS_HINT.pending).not.toBe(
+      FOLLOW_STATUS_HINT.unverified,
     );
-    expect(EPISODE_STATE_LABEL.en_attente).not.toBe(
-      EPISODE_STATE_LABEL.non_verifie,
+    expect(EPISODE_STATE_LABEL.pending).not.toBe(
+      EPISODE_STATE_LABEL.unverified,
     );
-    expect(EPISODE_STATE_HINT.en_attente).not.toBe(
-      EPISODE_STATE_HINT.non_verifie,
+    expect(EPISODE_STATE_HINT.pending).not.toBe(
+      EPISODE_STATE_HINT.unverified,
     );
   });
 
   it("says « rien de conforme » for en_attente and « pas encore » for non_verifie", () => {
-    expect(FOLLOW_STATUS_HINT.en_attente).toMatch(/rien de conforme/);
-    expect(FOLLOW_STATUS_HINT.non_verifie).toMatch(/[Pp]as encore vérifié/);
-    expect(EPISODE_STATE_HINT.en_attente).toMatch(/rien de conforme/);
-    expect(EPISODE_STATE_HINT.non_verifie).toMatch(/[Pp]as encore vérifié/);
+    expect(FOLLOW_STATUS_HINT.pending).toMatch(/rien de conforme/);
+    expect(FOLLOW_STATUS_HINT.unverified).toMatch(/[Pp]as encore vérifié/);
+    expect(EPISODE_STATE_HINT.pending).toMatch(/rien de conforme/);
+    expect(EPISODE_STATE_HINT.unverified).toMatch(/[Pp]as encore vérifié/);
   });
 });
 
@@ -443,15 +448,15 @@ function mediaRefItem(
     overview: null,
     poster_url: null,
     media_ref: { tvdb_id: 400000, tmdb_id: 125910, imdb_id: null },
-    status: "a_jour",
+    status: "up_to_date",
     priming_running: false,
     tvdb_unresolved: false,
     aired_count: null,
     owned_count: null,
-    a_recuperer_count: null,
-    en_acquisition_count: null,
-    en_attente_count: null,
-    non_verifie_count: null,
+    to_grab_count: null,
+    acquiring_count: null,
+    pending_count: null,
+    unverified_count: null,
     movie_facts: null,
     ...overrides,
   };

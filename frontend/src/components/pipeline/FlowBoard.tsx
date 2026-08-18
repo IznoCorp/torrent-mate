@@ -501,7 +501,7 @@ export function FlowBoard(): ReactElement {
               {selected.key === "matching" && selected.count > 0 && (
                 <Button
                   onClick={() => {
-                    void navigate("/medias");
+                    void navigate("/media");
                   }}
                 >
                   <Target className="size-4" aria-hidden="true" />
@@ -518,10 +518,10 @@ export function FlowBoard(): ReactElement {
                 <StageMediaList
                   stageKey={selected.key as StageKey}
                   onOpenResolution={() => {
-                    void navigate("/medias");
+                    void navigate("/media");
                   }}
                   onOpenMedia={(mediaId) => {
-                    void navigate(`/medias?media=${mediaId}`);
+                    void navigate(`/media?media=${mediaId}`);
                   }}
                 />
               </div>

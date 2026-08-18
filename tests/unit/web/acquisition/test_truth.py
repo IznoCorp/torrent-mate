@@ -2,7 +2,7 @@
 
 The named production cases pin the derivation:
 - Silo: everything aired is owned, one phantom grabbed row → ``a_jour`` card
-  (``en_acquisition_count`` 0), never « en cours d'acquisition ».
+  (``acquiring_count`` 0), never « en cours d'acquisition ».
 - House of the Dragon: an aired episode neither owned nor open in the queue →
   ``non_verifie`` (no open row = no verdict = no knowledge), never « à jour ».
 
@@ -124,14 +124,14 @@ def test_silo_shape_phantom_grabbed_is_not_inflight(acquire_conn: sqlite3.Connec
 
     assert truth.aired_count == 2
     assert truth.owned_count == 2
-    assert truth.en_acquisition_count == 0
-    assert truth.a_recuperer_count == 0
-    assert truth.en_attente_count == 0
-    assert truth.non_verifie_count == 0
+    assert truth.acquiring_count == 0
+    assert truth.to_grab_count == 0
+    assert truth.pending_count == 0
+    assert truth.unverified_count == 0
 
     # And the derived card status is « à jour », never « en cours ».
     item = _item(truth, wanted_grabbed=1)
-    assert item.status == "a_jour"
+    assert item.status == "up_to_date"
 
 
 def test_hotd_shape_unqueued_missing_episode(acquire_conn: sqlite3.Connection) -> None:
@@ -147,8 +147,8 @@ def test_hotd_shape_unqueued_missing_episode(acquire_conn: sqlite3.Connection) -
     _seed_wanted(acquire_conn, 3, 4, "abandoned")
     truth = compute_follow_truth(acquire_conn, _StubChecker({(3, 3)}), followed_id=1, media_ref=REF)
 
-    assert truth.non_verifie_count == 1
-    assert _item(truth, wanted_grabbed=0).status == "non_verifie"
+    assert truth.unverified_count == 1
+    assert _item(truth, wanted_grabbed=0).status == "unverified"
 
 
 def test_real_inflight_and_queue_counts(acquire_conn: sqlite3.Connection) -> None:
@@ -165,14 +165,14 @@ def test_real_inflight_and_queue_counts(acquire_conn: sqlite3.Connection) -> Non
     truth = compute_follow_truth(acquire_conn, _StubChecker({(1, 1)}), followed_id=1, media_ref=REF)
 
     assert truth.owned_count == 1
-    assert truth.en_acquisition_count == 1
-    assert truth.non_verifie_count == 1
-    assert truth.a_recuperer_count == 0
-    assert truth.en_attente_count == 0
-    assert _item(truth, wanted_grabbed=1).status == "en_acquisition"
+    assert truth.acquiring_count == 1
+    assert truth.unverified_count == 1
+    assert truth.to_grab_count == 0
+    assert truth.pending_count == 0
+    assert _item(truth, wanted_grabbed=1).status == "acquiring"
 
 
-def test_searched_pending_row_splits_a_recuperer_and_en_attente(acquire_conn: sqlite3.Connection) -> None:
+def test_searched_pending_row_splits_to_grab_and_pending(acquire_conn: sqlite3.Connection) -> None:
     """The last search verdict decides between « à récupérer » and « en attente ».
 
     New in the five-state model: two identical ``pending`` rows read differently
@@ -184,24 +184,24 @@ def test_searched_pending_row_splits_a_recuperer_and_en_attente(acquire_conn: sq
     _seed_wanted(acquire_conn, 2, 2, "pending", outcome="available", found=2)
     truth = compute_follow_truth(acquire_conn, _StubChecker(set()), followed_id=1, media_ref=REF)
 
-    assert truth.en_attente_count == 1
-    assert truth.a_recuperer_count == 1
-    assert truth.non_verifie_count == 0
-    assert _item(truth, wanted_grabbed=0).status == "a_recuperer"
+    assert truth.pending_count == 1
+    assert truth.to_grab_count == 1
+    assert truth.unverified_count == 0
+    assert _item(truth, wanted_grabbed=0).status == "to_grab"
 
 
-def test_inconclusive_verdict_never_reads_en_attente(acquire_conn: sqlite3.Connection) -> None:
+def test_inconclusive_verdict_never_reads_pending(acquire_conn: sqlite3.Connection) -> None:
     """A tracker outage is « non vérifié », never « en attente » (panne ≠ absence)."""
     _seed_aired(acquire_conn, [(4, 1)])
     _seed_wanted(acquire_conn, 4, 1, "pending", outcome="trackers_unavailable", found=None)
     truth = compute_follow_truth(acquire_conn, _StubChecker(set()), followed_id=1, media_ref=REF)
 
-    assert truth.non_verifie_count == 1
-    assert truth.en_attente_count == 0
-    assert _item(truth, wanted_grabbed=0).status == "non_verifie"
+    assert truth.unverified_count == 1
+    assert truth.pending_count == 0
+    assert _item(truth, wanted_grabbed=0).status == "unverified"
 
 
-def test_absorbed_episodes_read_en_acquisition_not_non_verifie(acquire_conn: sqlite3.Connection) -> None:
+def test_absorbed_episodes_read_acquiring_not_unverified(acquire_conn: sqlite3.Connection) -> None:
     """Review F7: a season being grabbed keeps the card at « en acquisition ».
 
     Every live episode wanted of the season was absorbed by an open season row
@@ -221,9 +221,9 @@ def test_absorbed_episodes_read_en_acquisition_not_non_verifie(acquire_conn: sql
 
     truth = compute_follow_truth(acquire_conn, _StubChecker(set()), followed_id=1, media_ref=REF)
 
-    assert truth.en_acquisition_count == 2  # absorbed episodes are IN MOTION
-    assert truth.non_verifie_count == 0
-    assert _item(truth, wanted_grabbed=0).status == "en_acquisition"
+    assert truth.acquiring_count == 2  # absorbed episodes are IN MOTION
+    assert truth.unverified_count == 0
+    assert _item(truth, wanted_grabbed=0).status == "acquiring"
 
 
 def _item(truth: FollowTruth, *, wanted_grabbed: int) -> FollowedSeriesItem:
@@ -239,10 +239,10 @@ def _item(truth: FollowTruth, *, wanted_grabbed: int) -> FollowedSeriesItem:
         wanted_grabbed=wanted_grabbed,
         aired_count=truth.aired_count,
         owned_count=truth.owned_count,
-        a_recuperer_count=truth.a_recuperer_count,
-        en_acquisition_count=truth.en_acquisition_count,
-        en_attente_count=truth.en_attente_count,
-        non_verifie_count=truth.non_verifie_count,
+        to_grab_count=truth.to_grab_count,
+        acquiring_count=truth.acquiring_count,
+        pending_count=truth.pending_count,
+        unverified_count=truth.unverified_count,
     )
 
 
@@ -304,7 +304,7 @@ def test_movie_owned_beats_phantom_grabbed_counter(acquire_conn: sqlite3.Connect
     facts = compute_movie_truth(acquire_conn, _MovieChecker(owned=True), followed_id=2, media_ref=_MOVIE_REF)
     assert facts.owned is True
     assert facts.wanted_status == "grabbed"
-    assert _movie_item(facts, wanted_grabbed=1, wanted_pending=0).status == "a_jour"
+    assert _movie_item(facts, wanted_grabbed=1, wanted_pending=0).status == "up_to_date"
 
 
 def test_movie_absent_with_grabbed_is_acquiring(acquire_conn: sqlite3.Connection) -> None:
@@ -313,10 +313,10 @@ def test_movie_absent_with_grabbed_is_acquiring(acquire_conn: sqlite3.Connection
     _seed_movie_wanted(acquire_conn, "grabbed")
     facts = compute_movie_truth(acquire_conn, _MovieChecker(owned=False), followed_id=2, media_ref=_MOVIE_REF)
     assert facts.owned is False
-    assert _movie_item(facts, wanted_grabbed=1, wanted_pending=0).status == "en_acquisition"
+    assert _movie_item(facts, wanted_grabbed=1, wanted_pending=0).status == "acquiring"
 
 
-def test_movie_absent_available_row_is_a_recuperer(acquire_conn: sqlite3.Connection) -> None:
+def test_movie_absent_available_row_is_to_grab(acquire_conn: sqlite3.Connection) -> None:
     """A film NOT on disk whose search found a takeable candidate → ``a_recuperer``.
 
     Translated from the old « pending → pending » case: a queued row now reads
@@ -327,18 +327,18 @@ def test_movie_absent_available_row_is_a_recuperer(acquire_conn: sqlite3.Connect
     _seed_movie_wanted(acquire_conn, "available", outcome="available", found=3)
     facts = compute_movie_truth(acquire_conn, _MovieChecker(owned=False), followed_id=2, media_ref=_MOVIE_REF)
     assert facts.wanted_status == "available"
-    assert _movie_item(facts, wanted_grabbed=0, wanted_pending=1).status == "a_recuperer"
+    assert _movie_item(facts, wanted_grabbed=0, wanted_pending=1).status == "to_grab"
 
 
-def test_movie_absent_searched_nothing_takeable_is_en_attente(acquire_conn: sqlite3.Connection) -> None:
+def test_movie_absent_searched_nothing_takeable_is_pending(acquire_conn: sqlite3.Connection) -> None:
     """A film NOT on disk, searched, nothing takeable → ``en_attente``."""
     _seed_movie_follow(acquire_conn)
     _seed_movie_wanted(acquire_conn, "pending", outcome="no_candidates", found=0)
     facts = compute_movie_truth(acquire_conn, _MovieChecker(owned=False), followed_id=2, media_ref=_MOVIE_REF)
-    assert _movie_item(facts, wanted_grabbed=0, wanted_pending=1).status == "en_attente"
+    assert _movie_item(facts, wanted_grabbed=0, wanted_pending=1).status == "pending"
 
 
-def test_movie_absent_no_open_row_is_non_verifie(acquire_conn: sqlite3.Connection) -> None:
+def test_movie_absent_no_open_row_is_unverified(acquire_conn: sqlite3.Connection) -> None:
     """A film NOT on disk with no wanted row at all → honest ``non_verifie``.
 
     Old code read ``up_to_date`` here (no grabbed, no pending) — claiming a film
@@ -348,7 +348,7 @@ def test_movie_absent_no_open_row_is_non_verifie(acquire_conn: sqlite3.Connectio
     _seed_movie_follow(acquire_conn)
     facts = compute_movie_truth(acquire_conn, _MovieChecker(owned=False), followed_id=2, media_ref=_MOVIE_REF)
     assert facts == MovieFacts(owned=False)
-    assert _movie_item(facts, wanted_grabbed=0, wanted_pending=0).status == "non_verifie"
+    assert _movie_item(facts, wanted_grabbed=0, wanted_pending=0).status == "unverified"
 
 
 def test_movie_open_row_wins_over_closed_leftover(acquire_conn: sqlite3.Connection) -> None:
@@ -358,7 +358,7 @@ def test_movie_open_row_wins_over_closed_leftover(acquire_conn: sqlite3.Connecti
     _seed_movie_wanted(acquire_conn, "grabbed")
     facts = compute_movie_truth(acquire_conn, _MovieChecker(owned=False), followed_id=2, media_ref=_MOVIE_REF)
     assert facts.wanted_status == "grabbed"
-    assert _movie_item(facts, wanted_grabbed=1, wanted_pending=0).status == "en_acquisition"
+    assert _movie_item(facts, wanted_grabbed=1, wanted_pending=0).status == "acquiring"
 
 
 # ---------------------------------------------------------------------------
@@ -366,7 +366,7 @@ def test_movie_open_row_wins_over_closed_leftover(acquire_conn: sqlite3.Connecti
 # ---------------------------------------------------------------------------
 
 
-def test_movie_whose_only_row_is_abandoned_is_non_verifie(acquire_conn: sqlite3.Connection) -> None:
+def test_movie_whose_only_row_is_abandoned_is_unverified(acquire_conn: sqlite3.Connection) -> None:
     """A film whose ONLY row is ``abandoned`` reads ``non_verifie``, not « En attente ».
 
     Red-on-old (VISIBLE CHANGE, arbitrated by D3): the movie selector used to
@@ -382,10 +382,10 @@ def test_movie_whose_only_row_is_abandoned_is_non_verifie(acquire_conn: sqlite3.
     facts = compute_movie_truth(acquire_conn, _MovieChecker(owned=False), followed_id=2, media_ref=_MOVIE_REF)
 
     assert facts == MovieFacts(owned=False), "a closed row must not speak for the card"
-    assert _movie_item(facts, wanted_grabbed=0, wanted_pending=0).status == "non_verifie"
+    assert _movie_item(facts, wanted_grabbed=0, wanted_pending=0).status == "unverified"
 
 
-def test_movie_whose_only_row_is_done_is_non_verifie_when_unowned(acquire_conn: sqlite3.Connection) -> None:
+def test_movie_whose_only_row_is_done_is_unverified_when_unowned(acquire_conn: sqlite3.Connection) -> None:
     """Same rule for a ``done`` leftover: history cannot claim the card.
 
     An unowned film with a ``done`` row is a contradiction (the file left the
@@ -398,10 +398,10 @@ def test_movie_whose_only_row_is_done_is_non_verifie_when_unowned(acquire_conn: 
     facts = compute_movie_truth(acquire_conn, _MovieChecker(owned=False), followed_id=2, media_ref=_MOVIE_REF)
 
     assert facts == MovieFacts(owned=False)
-    assert _movie_item(facts, wanted_grabbed=0, wanted_pending=0).status == "non_verifie"
+    assert _movie_item(facts, wanted_grabbed=0, wanted_pending=0).status == "unverified"
 
 
-def test_owned_film_with_only_a_closed_row_still_reads_a_jour(acquire_conn: sqlite3.Connection) -> None:
+def test_owned_film_with_only_a_closed_row_still_reads_up_to_date(acquire_conn: sqlite3.Connection) -> None:
     """Dropping the closed row never hides OWNERSHIP: the disk still wins.
 
     The rule change removes a stale VERDICT, not the library fact — a film on
@@ -414,7 +414,7 @@ def test_owned_film_with_only_a_closed_row_still_reads_a_jour(acquire_conn: sqli
 
     assert facts.owned is True
     assert facts.wanted_status is None
-    assert _movie_item(facts, wanted_grabbed=0, wanted_pending=0).status == "a_jour"
+    assert _movie_item(facts, wanted_grabbed=0, wanted_pending=0).status == "up_to_date"
 
 
 def test_movie_selection_matches_the_episode_selector(acquire_conn: sqlite3.Connection) -> None:
@@ -481,7 +481,7 @@ def test_future_episode_is_excluded_from_the_card_counts(acquire_conn: sqlite3.C
 
     assert truth.aired_count == 2, "only the two AIRED episodes are counted"
     assert truth.owned_count == 2
-    assert truth.non_verifie_count == 0, "the future must not fall into non_verifie and degrade the card"
+    assert truth.unverified_count == 0, "the future must not fall into unverified and degrade the card"
 
     # And the aggregated card status stays « À jour ».
     item = FollowedSeriesItem(
@@ -495,15 +495,15 @@ def test_future_episode_is_excluded_from_the_card_counts(acquire_conn: sqlite3.C
         wanted_grabbed=0,
         aired_count=truth.aired_count,
         owned_count=truth.owned_count,
-        a_recuperer_count=truth.a_recuperer_count,
-        en_acquisition_count=truth.en_acquisition_count,
-        en_attente_count=truth.en_attente_count,
-        non_verifie_count=truth.non_verifie_count,
+        to_grab_count=truth.to_grab_count,
+        acquiring_count=truth.acquiring_count,
+        pending_count=truth.pending_count,
+        unverified_count=truth.unverified_count,
     )
-    assert item.status == "a_jour"
+    assert item.status == "up_to_date"
 
 
-def test_only_future_episodes_read_non_verifie(acquire_conn: sqlite3.Connection) -> None:
+def test_only_future_episodes_read_unverified(acquire_conn: sqlite3.Connection) -> None:
     """A series whose ONLY cached episodes are future has no aired catalog → non_verifie.
 
     Honest: there is nothing aired to be « up to date » on yet, so the card
@@ -558,7 +558,7 @@ def test_absorbed_episodes_count_as_acquiring_while_the_season_is_grabbed(
 
     truth = compute_follow_truth(acquire_conn, _StubChecker(set()), followed_id=1, media_ref=REF)
 
-    assert truth.en_acquisition_count == 2
+    assert truth.acquiring_count == 2
 
 
 def test_absorbed_episodes_stop_claiming_acquisition_once_the_season_is_requeued(
@@ -576,8 +576,8 @@ def test_absorbed_episodes_stop_claiming_acquisition_once_the_season_is_requeued
 
     truth = compute_follow_truth(acquire_conn, _StubChecker(set()), followed_id=1, media_ref=REF)
 
-    assert truth.en_acquisition_count == 0, "nothing is downloading — the card must not say it is"
-    assert truth.non_verifie_count == 2, "a requeued season has concluded nothing yet"
+    assert truth.acquiring_count == 0, "nothing is downloading — the card must not say it is"
+    assert truth.unverified_count == 2, "a requeued season has concluded nothing yet"
 
 
 def _seed_dated(conn: sqlite3.Connection, rows: list[tuple[int, int, str]]) -> None:
@@ -621,7 +621,7 @@ class TestAnnouncedCount:
 
         assert truth.aired_count == 2, "a future must never inflate the aired count"
         assert truth.owned_count == 2
-        assert truth.non_verifie_count == 0, "a future must never land in a bucket"
+        assert truth.unverified_count == 0, "a future must never land in a bucket"
         assert truth.announced_count == 3
 
     def test_no_future_leaves_the_count_at_zero(self, acquire_conn: sqlite3.Connection) -> None:

@@ -47,9 +47,9 @@ export const routes: RouteObject[] = [
             element: <AppShell />,
             children: [
               // Operator directive: Acquisitions is the main page — the root redirects
-              // there (query-preserving). Contrôle (the control station) moves to /controle.
+              // there (query-preserving). Contrôle (the control station) moves to /control.
               { index: true, element: <LegacyRedirect to="/acquisition" /> },
-              { path: "controle", element: <Dashboard /> },
+              { path: "control", element: <Dashboard /> },
               {
                 path: "pipeline",
                 element: <Pipeline />,
@@ -63,20 +63,20 @@ export const routes: RouteObject[] = [
                 element: <Config />,
               },
               {
-                path: "medias",
+                path: "media",
                 element: <MediaLibrary />,
               },
               {
                 path: "scraping",
-                element: <LegacyRedirect to="/medias" />,
+                element: <LegacyRedirect to="/media" />,
               },
               {
-                path: "systeme",
+                path: "system",
                 element: <SystemPage />,
               },
               {
                 path: "registry",
-                element: <LegacyRedirect to="/systeme" />,
+                element: <LegacyRedirect to="/system" />,
               },
               {
                 path: "acquisition",
@@ -85,6 +85,23 @@ export const routes: RouteObject[] = [
               {
                 path: "media/:provider/:providerId",
                 element: <MediaSheetPage />,
+              },
+              // The French addresses these three replaced. They are LIVE — in
+              // the operator's bookmarks and in the PWA's cache — so they
+              // answer as redirects rather than as a not-found page. A rename
+              // that 404s the address it renamed is a break wearing a rename's
+              // clothes.
+              {
+                path: "medias",
+                element: <LegacyRedirect to="/media" />,
+              },
+              {
+                path: "systeme",
+                element: <LegacyRedirect to="/system" />,
+              },
+              {
+                path: "controle",
+                element: <LegacyRedirect to="/control" />,
               },
             ],
           },

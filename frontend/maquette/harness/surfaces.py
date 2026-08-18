@@ -13,12 +13,12 @@ async def main():
     # The startup screen covers the frame for as long as the load it stands
     # for lasts. Nothing is being fetched here, so the harness closes that
     # wait through the same seam the app uses, rather than sleeping it out.
-    await pg.evaluate("()=>window.__chargementTermine?.()")
+    await pg.evaluate("()=>window.__loadingDone?.()")
     await pg.evaluate("()=>document.querySelector('#toastx').click()")
 
     print("── add screen ──")
     await pg.click("#fab"); await pg.wait_for_timeout(500)
-    # The add screen left `#screen` for a real route (`/ajout`, rendered inside
+    # The add screen left `#screen` for a real route (`/add`, rendered inside
     # `#coquille`), and is read by the identity it carries — `data-key="add:…"`
     # (the mode it was opened in) — never by a bare `.screen.open`, which two
     # stacked screens would both answer to. Read at the old layer id, this block
@@ -50,7 +50,7 @@ async def main():
     await pg.evaluate("()=>__close('screen')"); await pg.wait_for_timeout(400)
 
     print("── season matrix ──")
-    await pg.click('[data-acqtab="suivis"]'); await pg.wait_for_timeout(350)
+    await pg.click('[data-acqtab="follows"]'); await pg.wait_for_timeout(350)
     # A card body addresses its panel; it no longer opens a sheet of its own.
     await pg.click('[data-panel="media:American Dad!"]'); await pg.wait_for_timeout(500)
     r=await pg.evaluate("""()=>{const s=document.querySelector('#sheet');
@@ -66,7 +66,7 @@ async def main():
     # A library card leads to the media SHEET now, not to the acquisition
     # panel: the seasons are read on the screen it opens.
     await pg.click("[data-mediasheet='Les aventures de Tintin']"); await pg.wait_for_timeout(600)
-    # The media sheet left `#screen` for a real route (`/fiche/$titre`, rendered
+    # The media sheet left `#screen` for a real route (`/mediasheet/$title`, rendered
     # inside `#coquille`): it is read by the identity it carries,
     # `data-key="mediaSheet:…"`, never by a bare `.screen.open` — two screens can
     # carry `open` at once and the seasons must come from the mediaSheet, not from

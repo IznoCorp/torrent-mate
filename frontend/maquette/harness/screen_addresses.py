@@ -7,7 +7,7 @@ missing detail (a fallback route on the host, a `<base>` tag in the envelope)
 only shows up once something is actually served from BELOW the document
 root. `server.py` (Task 8) is what makes that depth reachable at all: the
 plain 8899 host 45 other rules already point at answers a 404 for
-`/profil/…`, because no such file exists — nothing served through it can
+`/profile/…`, because no such file exists — nothing served through it can
 tell a deep reload from a broken link. This rule runs entirely against 8917.
 
 What it holds to:
@@ -23,7 +23,7 @@ What it holds to:
 3. One back from a screen reached by walking there lands where the walk
    started, with the screen gone — the screen owns no address once closed.
 4. The address is written only while the screen is open: walking onto it
-   writes `/profil/…`, and the ONLY way off it is back (`.fback` calls
+   writes `/profile/…`, and the ONLY way off it is back (`.fback` calls
    `__bridge.back()`, nothing else) — so closing it is, by construction,
    also the address returning to what it was.
 5. A wrong deep address does not raise, blank the frame, or invent a
@@ -34,7 +34,7 @@ What it holds to:
 
 EXTENDED (SP4b) to `MediaScreen` — the media sheet, the one screen every
 poster, tile, suggestion and panel act already led to, now also reachable
-as `/fiche/$title` on its own. Unlike `ProfileScreen`, this screen DOES draw
+as `/mediasheet/$title` on its own. Unlike `ProfileScreen`, this screen DOES draw
 an image of its own (the hero/poster banner), so its own artwork is the
 proof at this depth rather than a stand-in read off the legacy fragment
 underneath. And unlike a `QualityProfile` name, a title here resolves
@@ -199,7 +199,7 @@ async def open_at(browser, address):
     errors = []
     pg.on("pageerror", lambda e: errors.append(str(e)))
     await pg.goto(address, wait_until="load")
-    await pg.evaluate("()=>window.__chargementTermine?.()")
+    await pg.evaluate("()=>window.__loadingDone?.()")
     await pg.evaluate("()=>document.querySelector('#toastx')?.click()")
     await pg.wait_for_timeout(300)
     return ctx, pg, errors
@@ -215,7 +215,7 @@ async def main():
             base = f"http://127.0.0.1:{PORT}"
 
             # ─── Hold 1: deep entry opens the promised screen, cold ────────
-            title_address = f"{base}/profil/{urllib.parse.quote(TITLE)}"
+            title_address = f"{base}/profile/{urllib.parse.quote(TITLE)}"
             ctx, pg, errors = await open_at(browser, title_address)
             state_ = await pg.evaluate(SCREEN_STATE)
             journal.check(
@@ -251,7 +251,7 @@ async def main():
             on_profile = await pg.evaluate(SCREEN_STATE)
             journal.check(
                 "walking to the profile WRITES the address",
-                on_profile["open"] and on_profile["pathname"] == f"/profil/{TITLE}",
+                on_profile["open"] and on_profile["pathname"] == f"/profile/{TITLE}",
                 on_profile["pathname"])
 
             await pg.evaluate("()=>document.querySelector('.screen.open .fback').click()")
@@ -266,7 +266,7 @@ async def main():
             await ctx.close()
 
             # ─── Hold 5: a wrong deep address renders the honest empty case ──
-            wrong_address = f"{base}/profil/{UNKNOWN_ADDRESS}"
+            wrong_address = f"{base}/profile/{UNKNOWN_ADDRESS}"
             ctx, pg, errors = await open_at(browser, wrong_address)
             lost = await pg.evaluate(SCREEN_STATE)
             journal.check(
@@ -280,7 +280,7 @@ async def main():
             await ctx.close()
 
             # ─── Hold 6: /ajout deep entry, cold — field filled, results shown ──
-            add_address = f"{base}/ajout?q=lucky"
+            add_address = f"{base}/add?q=lucky"
             ctx, pg, errors = await open_at(browser, add_address)
             add_cold = await pg.evaluate(ADD_STATE)
             journal.check(
@@ -289,7 +289,7 @@ async def main():
                 and add_cold["key"] == "add:suivi",
                 f"field={add_cold['field']!r} key={add_cold['key']}")
             journal.check(
-                "and the query shows results",
+                "and the query series results",
                 add_cold["cards"] >= 2, f"{add_cold['cards']} cards")
             journal.check("no JS error on deep /ajout entry", not errors, str(errors))
             await ctx.close()
@@ -312,7 +312,7 @@ async def main():
             on_add = await pg.evaluate(ADD_STATE)
             journal.check(
                 "walking to /ajout WRITES the address",
-                on_add["open"] and on_add["pathname"] == "/ajout",
+                on_add["open"] and on_add["pathname"] == "/add",
                 on_add["pathname"])
 
             await pg.click("#addq")
@@ -351,7 +351,7 @@ async def main():
             on_add_via_fab = await pg.evaluate(SCREEN_STATE)
             journal.check(
                 "the FAB opens the screen (the journey's start)",
-                on_add_via_fab["open"] and on_add_via_fab["pathname"] == "/ajout",
+                on_add_via_fab["open"] and on_add_via_fab["pathname"] == "/add",
                 on_add_via_fab["pathname"])
 
             await pg.evaluate("()=>document.querySelector('[data-page=\"lib\"]').click()")
@@ -379,7 +379,7 @@ async def main():
 
             # ─── Holds (f)-(h): the mediaSheet's deep entry, its OWN artwork,
             # one Back — same server, same `open_at`, a second screen. ──
-            sheet_address = f"{base}/fiche/{urllib.parse.quote(SHEET_TITLE)}"
+            sheet_address = f"{base}/mediasheet/{urllib.parse.quote(SHEET_TITLE)}"
             ctx, pg, errors = await open_at(browser, sheet_address)
             sheet_cold = await pg.evaluate(SHEET_STATE)
             journal.check(
@@ -408,7 +408,7 @@ async def main():
             # ─── Hold (i): an unknown title renders the SAME honest
             # template `openFiche` always did — no not-found branch to
             # mirror, only a gabarit whose fields say "inconnu" ──────────
-            wrong_sheet_address = f"{base}/fiche/{UNKNOWN_ADDRESS}"
+            wrong_sheet_address = f"{base}/mediasheet/{UNKNOWN_ADDRESS}"
             ctx, pg, errors = await open_at(browser, wrong_sheet_address)
             sheet_lost = await pg.evaluate(SHEET_STATE)
             journal.check(
@@ -430,7 +430,7 @@ async def main():
             # otherwise fully populated, so this is the ONLY p.noinfo the
             # screen draws; a stray match here would be a real regression,
             # not a coincidence from an unrelated missing field. ─────────
-            no_trailer_address = f"{base}/fiche/{urllib.parse.quote(TITLE_WITHOUT_TRAILER)}"
+            no_trailer_address = f"{base}/mediasheet/{urllib.parse.quote(TITLE_WITHOUT_TRAILER)}"
             ctx, pg, errors = await open_at(browser, no_trailer_address)
             sheet_no_trailer = await pg.evaluate(SHEET_STATE)
             journal.check(

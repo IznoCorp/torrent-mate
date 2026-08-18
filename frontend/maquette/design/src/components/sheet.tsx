@@ -8,7 +8,7 @@
 // moved.
 //
 // It paints ABOVE a legacy `#screen` for the same reason it always did: the
-// sheet is z-47 and a screen is z-45, and the React mount node (`#coquille`)
+// sheet is z-47 and a screen is z-45, and the React mount node (`#shell`)
 // creates no stacking context of its own, so the two z-indexes are compared
 // in the SAME context even though the elements now live in different subtrees.
 //
@@ -35,11 +35,11 @@ export function Sheet({
   close: (pop?: boolean) => void;
 }) {
   const state = useUiState();
-  const open = state.panneauOuvert === true;
+  const open = state.panelOpen === true;
   // The last descriptor stays rendered while closed. The legacy layer kept
   // `#sheetin`'s markup after `closeSheet`, and the sheet slides out over
   // several frames — emptying it on close would blank the panel mid-exit.
-  const descriptor = (state.panneauDescripteur ??
+  const descriptor = (state.panelDescriptor ??
     null) as PanelDescriptor | null;
 
   const sheetRef = useRef<HTMLDivElement | null>(null);
@@ -87,7 +87,7 @@ export function Sheet({
         // engine still owns that decision — reproduced here by calling the
         // verb it publishes, rather than by closing the sheet alone and
         // leaving the other two open.
-        onClick={() => window.__fermerCouches?.()}
+        onClick={() => window.__closeLayers?.()}
       />
       <div
         ref={sheetRef}

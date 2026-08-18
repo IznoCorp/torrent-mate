@@ -152,7 +152,7 @@ describe("ToHandleList", () => {
     expect(screen.getByText("Bloqué : aucun poster trouvé")).toBeDefined();
     const link = screen.getByText("Résoudre →");
     expect(link).toBeDefined();
-    expect(link.getAttribute("href")).toBe("/medias?media=abc123");
+    expect(link.getAttribute("href")).toBe("/media?media=abc123");
   });
 
   it("lays the title+reason row out so it cannot overflow a narrow viewport (mobile-shell)", () => {
@@ -232,7 +232,7 @@ describe("ToHandleList", () => {
     expect(screen.getByText("À résoudre")).toBeDefined();
     const link = screen.getByText("Résoudre →");
     expect(link).toBeDefined();
-    expect(link.getAttribute("href")).toBe("/medias?decision=42");
+    expect(link.getAttribute("href")).toBe("/media?decision=42");
   });
 
   it("renders multiple blocked items", () => {
@@ -263,11 +263,11 @@ describe("ToHandleList", () => {
     // Two resolve links
     const links = screen.getAllByText("Résoudre →");
     expect(links).toHaveLength(2);
-    expect(links[0]?.getAttribute("href")).toBe("/medias?media=a1");
-    expect(links[1]?.getAttribute("href")).toBe("/medias?decision=7");
+    expect(links[0]?.getAttribute("href")).toBe("/media?media=a1");
+    expect(links[1]?.getAttribute("href")).toBe("/media?decision=7");
   });
 
-  it("shows the count badge", () => {
+  it("series the count badge", () => {
     stagingMock.mockReturnValue({
       data: response([
         item({ id: "b1", position_state: "blocked" }),

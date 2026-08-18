@@ -23,7 +23,7 @@ interface NavSectionsProps {
   readonly onNavigate?: () => void;
   /**
    * Optional per-path badge nodes rendered next to the label (e.g. pending-count
-   * chip on the Médias entry).  Keys are router paths (``"/medias"``);
+   * chip on the Médias entry).  Keys are router paths (``"/media"``);
    * missing keys render no badge.
    */
   readonly badges?: Record<string, ReactNode>;

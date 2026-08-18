@@ -151,7 +151,7 @@ export function useFollowActions(): FollowActions {
     // The affirmative side exists only when the server says the item is
     // takeable — a « Récupérer » that fires a search on a complete série
     // would be a dead promise wearing a primary tone.
-    if (item.status !== "a_recuperer") return { right };
+    if (item.status !== "to_grab") return { right };
     return {
       left: {
         key: "grab",

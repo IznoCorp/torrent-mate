@@ -1,6 +1,6 @@
 // design/src/screens/resolution.tsx
 // Legacy `openResolve(cible)` (`refonte.html`) — the arbitration screen —
-// reborn as a real route (`/resolution/$dossier`) and a final component.
+// reborn as a real route (`/resolution/$folder`) and a final component.
 // Markup is TRANSPLANTED, not translated: every tag, class and data-attribute
 // below is the one the legacy screen drew, so the same stylesheet applies
 // unchanged. `data-key="resolution:" + dossier` is an identity this screen
@@ -271,7 +271,7 @@ function Candidates({ decision }: { decision: PendingDecision }) {
 }
 
 export function ResolutionScreen() {
-  const { dossier: raw } = useParams({ from: "/resolution/$dossier" });
+  const { folder: raw } = useParams({ from: "/resolution/$folder" });
   // Defensive: `__screens.resolution` already normalises on write, but an entry
   // reached by a typed/bookmarked URL did not necessarily go through it.
   const folder = raw.normalize("NFC");

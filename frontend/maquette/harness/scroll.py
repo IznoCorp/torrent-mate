@@ -14,7 +14,7 @@ async def main():
     # The startup screen covers the frame for as long as the load it stands
     # for lasts. Nothing is being fetched here, so the harness closes that
     # wait through the same seam the app uses, rather than sleeping it out.
-    await pg.evaluate("()=>window.__chargementTermine?.()")
+    await pg.evaluate("()=>window.__loadingDone?.()")
     await pg.evaluate("()=>window.__measure(true)")
 
     async def trial(state_, sel, idx, label, port="#screen .port"):
@@ -41,9 +41,9 @@ async def main():
     # resolves (the React section carries the same classes `#screen` did),
     # not literally inside the legacy container.
     screen_port = ".screen.open .port"
-    await trial("ecran-profil", ".opt.check", 2, "checkbox", port=screen_port)
-    await trial("ecran-profil", ".opt.radio", 3, "radio button", port=screen_port)
-    await trial("ecran-profil", ".switch", 0, "switch", port=screen_port)
+    await trial("ecran-profile", ".opt.check", 2, "checkbox", port=screen_port)
+    await trial("ecran-profile", ".opt.radio", 3, "radio button", port=screen_port)
+    await trial("ecran-profile", ".switch", 0, "switch", port=screen_port)
     print("── add screen ──")
     await trial("acq-ajout-resultats", ".segmini button", 1, "type segment", port=screen_port)
 

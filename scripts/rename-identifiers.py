@@ -15,6 +15,25 @@ Property keys are not identifiers either: `etat:` in a type and `.etat` on an
 object are one contract with two ends, and moving one end alone is how a rename
 becomes a defect. They are passed in separately, deliberately.
 
+WHAT `--values` IS FOR, AND WHY IT IS NOT THE DEFAULT. Everything above
+protects DATA from a rename. `--values` moves the data itself — the acquisition
+state vocabulary was a set of French words that is a string in the backend, a
+string over the API, a class name in the stylesheet and a key in the fixture,
+and the operator ruled that the data's own words are English too. It renames a
+WHOLE quoted value and the identifiers built on one, and it still never touches
+prose.
+
+WHAT MAKES IT SAFE over a tree full of French interface copy is the boundary
+rule, not care: a state token carries an UNDERSCORE, and the sentence a reader
+sees does not. The two cannot be confused, in either direction. A value that is
+an ordinary French word on its own — with no underscore to be told apart by —
+is passed through `--whole=`, and then only its whole quoted form may move: a
+bare word inside a sentence is left exactly where it is.
+
+This mode is also the one that steps around the read-back proof, because
+changing a string is precisely what it is for. Its own proof is the boundary
+rule above, exercised on every shape in `tests/scripts/`.
+
 WHO DECIDES WHICH IS WHICH. For everything TypeScript can parse — `.ts`, `.tsx`,
 `.js`, `.jsx`, `.mjs` — the compiler does, through `source-spans.mjs`. The
 hand-written scanner below stays for Python, where the identifiers live inside
@@ -32,10 +51,86 @@ JSX text must still say exactly what it said. The older proof — an empty table
 must round-trip byte for byte — cannot show this, because a misclassified span
 reassembles byte for byte as happily as a correct one.
 """
-import json, pathlib, re, subprocess, sys, collections
+import bisect, io, json, pathlib, re, subprocess, sys, tokenize, collections
 
 SPAN_TOOL = pathlib.Path(__file__).with_name("source-spans.mjs")
 COMPILED = {".ts", ".tsx", ".js", ".jsx", ".mjs"}
+
+
+def utf16_offsets(text):
+    """Returns a function turning a UTF-16 offset into a Python index.
+
+    JavaScript counts a string in UTF-16 CODE UNITS and Python in code points,
+    so an emoji — two units, one character — shifts every offset after it by
+    one. `design/src/engine/legacy.js` holds four of them, the first at
+    character 88 847, and every span the parser reported past that point landed
+    four characters late: a string literal was cut in half, `"en_attente"`
+    arriving as `"en_` in one chunk and `attente"` in the next, so a rename
+    matched neither. It MISSED, silently, which is the safe half of this bug —
+    the other half, had the drift gone the other way, is renaming inside a
+    string.
+
+    Args:
+        text: The file's contents, as Python sees them.
+
+    Returns:
+        A callable mapping a UTF-16 offset to a Python index.
+    """
+    wide = [index for index, char in enumerate(text) if ord(char) > 0xFFFF]
+    if not wide:
+        return lambda offset: offset
+    # Where each wide character sits once the earlier ones have each taken an
+    # extra unit of their own.
+    starts = [index + rank for rank, index in enumerate(wide)]
+    return lambda offset: offset - bisect.bisect_right(starts, offset)
+
+
+def python_spans(text):
+    """Returns the regions of a Python source, read by Python's tokeniser.
+
+    `regions()` below is a JavaScript scanner: it knows `//` and `/* */` and
+    nothing about `#`. A French comment holding an apostrophe — « l'ajout » —
+    therefore opened a string that never closed, and every literal after it in
+    the file read as code. It is the same failure the regex literal caused on
+    the JavaScript side, in the other language, and it was found the same way:
+    a value pass that changed nothing at all in a file full of the values.
+
+    Args:
+        text: The Python source.
+
+    Returns:
+        The (kind, start, end) covering the whole text, gaps filled with `code`.
+    """
+    reported = []
+    try:
+        for token in tokenize.generate_tokens(io.StringIO(text).readline):
+            if token.type not in {tokenize.STRING, tokenize.COMMENT}:
+                continue
+            kind = "string" if token.type == tokenize.STRING else "comment"
+            reported.append((kind, offset_of(text, *token.start),
+                             offset_of(text, *token.end)))
+    except (tokenize.TokenError, IndentationError, SyntaxError):
+        # A file the tokeniser cannot read is left whole rather than guessed at.
+        return [("code", 0, len(text))]
+    out, cursor = [], 0
+    for kind, first, last in reported:
+        if first < cursor:
+            continue
+        if first > cursor:
+            out.append(("code", cursor, first))
+        out.append((kind, first, last))
+        cursor = last
+    if cursor < len(text):
+        out.append(("code", cursor, len(text)))
+    return out
+
+
+def offset_of(text, line, column):
+    """Turns a (1-based line, 0-based column) pair into a character index."""
+    start = 0
+    for _ in range(line - 1):
+        start = text.index("\n", start) + 1
+    return start + column
 
 
 def compiler_spans(path, text):
@@ -67,13 +162,14 @@ def compiler_spans(path, text):
                           capture_output=True, text=True)
     if done.returncode != 0:
         raise SystemExit(f"cannot parse {path}: {done.stderr.strip()}")
+    into_index = utf16_offsets(text)
     reported = []
     for line in done.stdout.splitlines():
         if not line.strip():
             continue
         kind, a, b = line.split()
         reported.append(("string" if kind == "protected" else "comment",
-                         int(a), int(b)))
+                         into_index(int(a)), into_index(int(b))))
     out, cursor = [], 0
     for kind, a, b in reported:
         if a < cursor:          # a comment inside a template, already covered
@@ -204,6 +300,58 @@ def regions(text):
     out.append(("code", mark, n))
     return [(k, s, e) for k, s, e in out if e > s]
 
+# A template HEAD ends on its separator — `` `profil:${…}` `` — and a tail
+# starts on one, so a dangling separator is part of the shape.
+ID_TOKEN = re.compile(r"^[-_:.]?[a-z0-9]+(?:[-_:.][a-z0-9]+)*[-_:.]?$")
+
+
+def apply_values(text, mapping, spans=None, whole_only=()):
+    """Renames DATA values: whole quoted tokens, and identifiers built on them.
+
+    Args:
+        text: The source.
+        mapping: French value → English value.
+        spans: The parser's regions, when it could read the file.
+        whole_only: Values that must move ONLY as a whole quoted string,
+            because they are ordinary French words elsewhere.
+
+    Returns:
+        The source with the values moved.
+    """
+    regions_ = spans if spans is not None else regions(text)
+    pieces = []
+    for kind, first, last in regions_:
+        chunk = text[first:last]
+        # ONLY strings, and only strings that are IDS. A value is a string
+        # literal — never a bare word in code — and the thing it must never be
+        # mistaken for is a bare word in a SENTENCE, which is also a string.
+        #
+        # The discriminator is the whole string rather than the word inside it:
+        # « Aucune release conforme au profil depuis l'ajout. » and "profil" both
+        # hold the word with spaces around it, and no rule reading the word's
+        # surroundings can tell them apart. A capital, an apostrophe, a full
+        # stop, an accent — copy has them and an id does not.
+        if kind != "string":
+            pieces.append(chunk)
+            continue
+        # A template piece wears `${` and `}` as well as its backtick, and the
+        # id is what sits between them.
+        head = re.match(r"^(['\"`]|\})", chunk)
+        tail = re.search(r"(['\"`]|\$\{)$", chunk)
+        opening = head.group(0) if head else ""
+        closing = tail.group(0) if tail else ""
+        body_ = chunk[len(opening):len(chunk) - len(closing)]
+        if not body_ or not all(ID_TOKEN.match(piece) for piece in body_.split(" ")):
+            pieces.append(chunk)
+            continue
+        for source_value, target in sorted(mapping.items(), key=lambda kv: -len(kv[0])):
+            body_ = re.sub(
+                rf"(?<![A-Za-z0-9]){re.escape(source_value)}(?![A-Za-z0-9])",
+                target, body_)
+        pieces.append(opening + body_ + closing)
+    return "".join(pieces)
+
+
 def apply(text, mapping, in_python=False, properties=False, spans=None):
     """Renames in code regions, and backticked mentions in comment regions.
 
@@ -300,6 +448,14 @@ def apply(text, mapping, in_python=False, properties=False, spans=None):
 if __name__ == "__main__":
     mapping = json.load(open(sys.argv[1]))
     PROPERTIES = "--properties" in sys.argv
+    VALUES = "--values" in sys.argv
+    # Values that are ordinary French words, so only their whole quoted form
+    # may move. Passed as `--whole=annonce,termine`.
+    WHOLE_ONLY = tuple(
+        word
+        for argument in sys.argv[2:] if argument.startswith("--whole=")
+        for word in argument.split("=", 1)[1].split(",") if word
+    )
     changed = collections.Counter()
     # The tree to walk. It defaulted to the maquette, and every surface outside
     # it — the app under `frontend/src`, the icon tool under `frontend/scripts`
@@ -309,17 +465,30 @@ if __name__ == "__main__":
              if a.startswith("--root=")]
     ROOT = roots[0] if roots else pathlib.Path("frontend/maquette")
     for path in sorted(ROOT.rglob("*")):
-        if not path.is_file() or path.suffix not in {".js", ".ts", ".tsx", ".py", ".mjs"}:
+        kinds = ({".js", ".ts", ".tsx", ".py", ".mjs", ".css", ".json", ".html"}
+                 if VALUES else {".js", ".ts", ".tsx", ".py", ".mjs"})
+        if not path.is_file() or path.suffix not in kinds:
             continue
         if "node_modules" in path.parts or "dist" in path.parts:
+            continue
+        # The TRANSLATIONS are the one place French belongs, and a value pass
+        # walks JSON. Nothing may reach `i18n/`.
+        if "i18n" in path.parts:
             continue
         if path.name in {"serve.py", "rename.py"}:
             continue
         before = path.read_text(encoding="utf-8")
         spans = (compiler_spans(path, before) if path.suffix in COMPILED
+                 else python_spans(before) if path.suffix == ".py"
                  else None)
-        after = apply(before, mapping, in_python=path.suffix == ".py",
-                      properties=PROPERTIES, spans=spans)
+        if VALUES and path.suffix in {".css", ".json", ".html"}:
+            spans = [("string", 0, len(before))]
+        if VALUES:
+            after = apply_values(before, mapping, spans=spans,
+                                 whole_only=WHOLE_ONLY)
+        else:
+            after = apply(before, mapping, in_python=path.suffix == ".py",
+                          properties=PROPERTIES, spans=spans)
         if after != before:
             path.write_text(after, encoding="utf-8")
             # THE PROOF, taken on what was actually written: the parser reads
@@ -327,7 +496,7 @@ if __name__ == "__main__":
             # JSX text must still say exactly what it said. An empty table
             # round-trips byte for byte even when every span is misclassified,
             # so it can never show this — and this is the failure that ships.
-            if spans is not None and protected_text(path, after) != [
+            if not VALUES and spans is not None and protected_text(path, after) != [
                     text for kind, s, e in spans if kind == "string"
                     for text in [before[s:e]]]:
                 path.write_text(before, encoding="utf-8")

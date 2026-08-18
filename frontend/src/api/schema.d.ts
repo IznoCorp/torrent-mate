@@ -3125,7 +3125,7 @@ export interface components {
              * State
              * @enum {string}
              */
-            state: "annonce" | "en_mediatheque" | "a_recuperer" | "en_acquisition" | "en_attente" | "non_verifie" | "absorbed";
+            state: "announced" | "in_library" | "to_grab" | "acquiring" | "pending" | "unverified" | "absorbed";
             /** Title */
             title?: string | null;
         };
@@ -3202,8 +3202,8 @@ export interface components {
          * @description A single followed series or film in the list response.
          */
         FollowedSeriesItem: {
-            /** A Recuperer Count */
-            a_recuperer_count?: number | null;
+            /** Acquiring Count */
+            acquiring_count?: number | null;
             /** Active */
             active: boolean;
             /** Added At */
@@ -3218,10 +3218,6 @@ export interface components {
             } | null;
             /** Cadence Tier */
             cadence_tier?: string | null;
-            /** En Acquisition Count */
-            en_acquisition_count?: number | null;
-            /** En Attente Count */
-            en_attente_count?: number | null;
             /** Id */
             id: number;
             /**
@@ -3235,14 +3231,14 @@ export interface components {
             movie_facts?: components["schemas"]["MovieFacts"] | null;
             /** Next Search At */
             next_search_at?: number | null;
-            /** Non Verifie Count */
-            non_verifie_count?: number | null;
             /** Original Title */
             original_title?: string | null;
             /** Overview */
             overview?: string | null;
             /** Owned Count */
             owned_count?: number | null;
+            /** Pending Count */
+            pending_count?: number | null;
             /** Poster Url */
             poster_url?: string | null;
             /**
@@ -3287,14 +3283,18 @@ export interface components {
              *         The derived lifecycle status.
              * @enum {string}
              */
-            readonly status: "disabled" | "verification_en_cours" | "a_recuperer" | "en_acquisition" | "en_attente" | "non_verifie" | "a_jour" | "termine";
+            readonly status: "disabled" | "verifying" | "to_grab" | "acquiring" | "pending" | "unverified" | "up_to_date" | "ended";
             /** Title */
             title: string;
+            /** To Grab Count */
+            to_grab_count?: number | null;
             /**
              * Tvdb Unresolved
              * @default false
              */
             tvdb_unresolved: boolean;
+            /** Unverified Count */
+            unverified_count?: number | null;
             /**
              * Wanted Grabbed
              * @default 0

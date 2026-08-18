@@ -14,14 +14,14 @@ async def main():
     # The startup screen covers the frame for as long as the load it stands
     # for lasts. Nothing is being fetched here, so the harness closes that
     # wait through the same seam the app uses, rather than sleeping it out.
-    await pg.evaluate("()=>window.__chargementTermine?.()")
+    await pg.evaluate("()=>window.__loadingDone?.()")
     await pg.evaluate("()=>window.__measure(true)")
     def chk(name, cond, detail=""):
         print(("  PASS" if cond else "  FAIL"), name, detail)
         if not cond: ko.append(name)
 
     # 1 — cadence translated into words
-    await pg.evaluate("()=>window.__go('acq-suivis-liste')"); await pg.wait_for_timeout(300)
+    await pg.evaluate("()=>window.__go('acq-follows-liste')"); await pg.wait_for_timeout(300)
     cad = await pg.evaluate("()=>document.querySelector('.cadence').textContent.trim()")
     chk("1. cadence in words", "*" not in cad, f"→ « {cad} »")
 
@@ -29,7 +29,7 @@ async def main():
     await pg.evaluate("()=>window.__go('feuille-suivi-trous')"); await pg.wait_for_timeout(400)
     await pg.evaluate("()=>[...document.querySelectorAll('#sheet .sact')].find(x=>x.textContent.includes('Voir la fiche')).click()")
     await pg.wait_for_timeout(700)
-    # The media sheet left `#screen` for a real route (`/fiche/$titre`, rendered
+    # The media sheet left `#screen` for a real route (`/mediasheet/$title`, rendered
     # inside `#coquille`), so it is read by the identity it carries —
     # `data-key="mediaSheet:…"` — rather than by a layer id it no longer uses, or by
     # a bare `.screen.open` that cannot tell two stacked screens apart.
@@ -38,7 +38,7 @@ async def main():
     chk("2. media sheet from a follow sheet", r["screen"] and not r["sheet"], str(r))
 
     # 2b — from Découvrir
-    await pg.evaluate("()=>window.__go('acq-decouvrir')"); await pg.wait_for_timeout(400)
+    await pg.evaluate("()=>window.__go('acq-discover')"); await pg.wait_for_timeout(400)
     await pg.evaluate("()=>[...document.querySelectorAll('[data-panel]')].find(e=>e.dataset.panel.startsWith('sug:')).click()"); await pg.wait_for_timeout(400)
     await pg.evaluate("()=>[...document.querySelectorAll('#sheet .sact')].find(x=>x.textContent.includes('Voir la fiche')).click()")
     await pg.wait_for_timeout(700)
@@ -99,18 +99,18 @@ async def main():
     # boot records — that entry is what the back below must land on. Driving
     # states over the previous checks' history would bury it.
     await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
-    await pg.evaluate("()=>window.__chargementTermine?.()")
+    await pg.evaluate("()=>window.__loadingDone?.()")
     await pg.evaluate("()=>window.__measure(true)")
     await pg.wait_for_timeout(300)
     await pg.evaluate("()=>document.querySelector('.avatar[data-sheet=utilisateur]').click()")
     await pg.wait_for_timeout(400)
-    await pg.evaluate("()=>document.querySelector('#sheet [data-go=profil]').click()")
+    await pg.evaluate("()=>document.querySelector('#sheet [data-go=profile]').click()")
     await pg.wait_for_timeout(500)
     r = await pg.evaluate("""()=>({sheet:document.querySelector('#sheet').classList.contains('open'),
       page:state.page,
       onTop:(()=>{const e=document.elementFromPoint(195,700);
         return e && e.closest('#sheet') ? 'sheet' : 'page'})()})""")
-    chk("9. profile from the sheet — the sheet leaves", not r["sheet"] and r["page"]=="profil" and r["onTop"]=="page", str(r))
+    chk("9. profile from the sheet — the sheet leaves", not r["sheet"] and r["page"]=="profile" and r["onTop"]=="page", str(r))
     await pg.go_back(); await pg.wait_for_timeout(600)
     r = await pg.evaluate("()=>({page:state.page, sheet:document.querySelector('#sheet').classList.contains('open')})")
     chk("9b. one back reaches the page held before the sheet", r["page"]=="acq" and not r["sheet"], str(r))
@@ -121,12 +121,12 @@ async def main():
     # A fresh document: the journey above ends in the very history desync this
     # defect creates, and its late pops would close the screen mid-journey.
     await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
-    await pg.evaluate("()=>window.__chargementTermine?.()")
+    await pg.evaluate("()=>window.__loadingDone?.()")
     await pg.evaluate("()=>window.__measure(true)")
     await pg.evaluate("()=>window.__go('acq-ajout-resultats')"); await pg.wait_for_timeout(450)
     # The card body opens the result's panel; the panel carries the add act
     # (« Suivre » / « Ajouter »), which is what makes the footer exist.
-    # The add screen left `#screen` for a real route (`/ajout`, rendered
+    # The add screen left `#screen` for a real route (`/add`, rendered
     # inside `#coquille`): its results list is now `.screen.open`, not
     # literally `#screen`. This journey opens no mediaSheet, so no key is matched
     # here — the one control on screen is the result's own panel trigger.
@@ -159,8 +159,8 @@ async def main():
         # the add screen's own entry (same "the layer's entry becomes the
         # arrival" semantics `data-go`'s comment describes — add.tsx's own
         # doc comment) instead of pushing beside it. A single real Back must
-        # therefore leave `/ajout` in ONE step: no buried layer entry, no
-        # stale `/ajout` still one hop under the landing. The comparison is
+        # therefore leave `/add` in ONE step: no buried layer entry, no
+        # stale `/add` still one hop under the landing. The comparison is
         # structural, not a literal address string — the harness serves the
         # document off `/wrapped.html`, a path outside the router's own
         # table, so the router's OWN first-navigation settle rewrites the
@@ -168,7 +168,7 @@ async def main():
         # journey's first push; comparing against a pre-captured href would
         # be measuring that settle, not the fix.
         await pg.go_back(); await pg.wait_for_timeout(600)
-        after = await pg.evaluate("""()=>({onAdd:location.pathname.startsWith('/ajout'),
+        after = await pg.evaluate("""()=>({onAdd:location.pathname.startsWith('/add'),
           layer:!!(history.state && history.state.layer), page:state.page})""")
         chk("10c. … and one Back settles the entry",
             not after["onAdd"] and not after["layer"] and after["page"]=="acq", str(after))

@@ -52,8 +52,8 @@ PANELS = [
     ("journey", "feuille-parcours", None),
     ("watch", "feuille-plus", None),
     ("user menu", "feuille-utilisateur", None),
-    ("suggestion", "acq-decouvrir", '#view [data-panel^="sug:"]'),
-    # The add screen left `#screen` for a real route (`/ajout`, rendered
+    ("suggestion", "acq-discover", '#view [data-panel^="sug:"]'),
+    # The add screen left `#screen` for a real route (`/add`, rendered
     # inside `#coquille`) — its results live under `.screen.open` now.
     ("search result", "acq-ajout-resultats", '.screen.open [data-panel^="add:"]'),
     ("library sort", "lib-grille", "[data-sort]"),
@@ -154,7 +154,7 @@ async def main():
         # 3. A block the builder does not know is REFUSED. Silence here would
         #    draw an empty panel and blame the data.
         refusal = await pg.evaluate("""()=>{try{
-            window.__panneauInconnu();
+            window.__unknownPanel();
             return "no refusal";
           }catch(e){return String(e.message||e);}}""")
         # The message reads ENGLISH because it is a DEVELOPER message: it

@@ -26,30 +26,30 @@ describe("nav model", () => {
 
     expect(byTitle.Supervision).toEqual([
       "/acquisition",
-      "/medias",
+      "/media",
       "/pipeline",
-      "/controle",
+      "/control",
     ]);
-    expect(byTitle["Système"]).toEqual(["/systeme"]);
+    expect(byTitle["Système"]).toEqual(["/system"]);
     expect(byTitle.Configuration).toEqual(["/config"]);
   });
 
   it("Système (S3+) est désormais actif — plus aucun item désactivé", () => {
     const disabled = NAV_ITEMS.filter((item) => item.disabled);
     expect(disabled).toEqual([]);
-    // Tous les items sont interactifs — Maintenance et Registre fusionnés dans /systeme.
+    // Tous les items sont interactifs — Maintenance et Registre fusionnés dans /system.
     expect(
       NAV_ITEMS.map((item) => item.to),
-    ).toEqual(["/acquisition", "/medias", "/pipeline", "/controle", "/systeme", "/config"]);
+    ).toEqual(["/acquisition", "/media", "/pipeline", "/control", "/system", "/config"]);
   });
 
   it("dérive NAV_ITEMS de la projection à plat des sections", () => {
     expect(NAV_ITEMS.map((item) => item.to)).toEqual([
       "/acquisition",
-      "/medias",
+      "/media",
       "/pipeline",
-      "/controle",
-      "/systeme",
+      "/control",
+      "/system",
       "/config",
     ]);
   });
@@ -57,9 +57,9 @@ describe("nav model", () => {
   it("réduit la barre d'onglets mobile à Acquisition · Médias · Pipeline · Contrôle", () => {
     expect(BOTTOM_TAB_PATHS).toEqual([
       "/acquisition",
-      "/medias",
+      "/media",
       "/pipeline",
-      "/controle",
+      "/control",
     ]);
     expect(BOTTOM_TAB_ITEMS.map((item) => item.label)).toEqual([
       "Acquisition",
@@ -69,7 +69,7 @@ describe("nav model", () => {
     ]);
     // Systeme (replacing Maintenance) and the disabled stubs are excluded from
     // the bottom bar; the dashboard (control station, A3) leads it.
-    expect(BOTTOM_TAB_ITEMS.some((item) => item.to === "/systeme")).toBe(false);
+    expect(BOTTOM_TAB_ITEMS.some((item) => item.to === "/system")).toBe(false);
     expect(BOTTOM_TAB_ITEMS.some((item) => item.disabled)).toBe(false);
   });
 });

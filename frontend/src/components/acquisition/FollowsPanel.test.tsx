@@ -33,7 +33,7 @@ function takeableShow(): FollowedSeriesItem {
     id: 1,
     title: "Silo",
     kind: "show",
-    status: "a_recuperer",
+    status: "to_grab",
     active: true,
     added_at: 1_750_000_000,
     wanted_pending: 3,
@@ -43,7 +43,7 @@ function takeableShow(): FollowedSeriesItem {
     tvdb_unresolved: false,
     priming_running: false,
     media_ref: { tvdb_id: 400000, tmdb_id: 125910, imdb_id: null },
-    a_recuperer_count: 1,
+    to_grab_count: 1,
     owned_count: 23,
     aired_count: 24,
   };
@@ -55,7 +55,7 @@ function upToDateShow(): FollowedSeriesItem {
     id: 2,
     title: "Shōgun",
     kind: "show",
-    status: "a_jour",
+    status: "up_to_date",
     active: true,
     added_at: 1_740_000_000,
     owned_count: 10,
@@ -76,7 +76,7 @@ function inAcquisitionShow(): FollowedSeriesItem {
     id: 3,
     title: "Severance",
     kind: "show",
-    status: "en_acquisition",
+    status: "acquiring",
     active: true,
     added_at: 1_745_000_000,
     wanted_pending: 0,
@@ -86,7 +86,7 @@ function inAcquisitionShow(): FollowedSeriesItem {
     tvdb_unresolved: false,
     priming_running: false,
     media_ref: { tvdb_id: 371980, tmdb_id: 95396, imdb_id: null },
-    en_acquisition_count: 1,
+    acquiring_count: 1,
     owned_count: 19,
     aired_count: 20,
   };
@@ -98,7 +98,7 @@ function waitingShow(): FollowedSeriesItem {
     id: 4,
     title: "From",
     kind: "show",
-    status: "en_attente",
+    status: "pending",
     active: true,
     added_at: 1_744_000_000,
     wanted_pending: 0,
@@ -108,7 +108,7 @@ function waitingShow(): FollowedSeriesItem {
     tvdb_unresolved: false,
     priming_running: false,
     media_ref: { tvdb_id: 411000, tmdb_id: 123456, imdb_id: null },
-    en_attente_count: 3,
+    pending_count: 3,
     owned_count: 10,
     aired_count: 15,
   };
@@ -120,7 +120,7 @@ function nonVerifieShow(): FollowedSeriesItem {
     id: 5,
     title: "Dark Matter",
     kind: "show",
-    status: "non_verifie",
+    status: "unverified",
     active: true,
     added_at: 1_748_000_000,
     wanted_pending: 0,
@@ -139,7 +139,7 @@ function movie(): FollowedSeriesItem {
     id: 6,
     title: "Dune",
     kind: "movie",
-    status: "en_attente",
+    status: "pending",
     active: true,
     added_at: 1_745_000_000,
     wanted_pending: 0,
@@ -196,7 +196,7 @@ function verificationRunningShow(): FollowedSeriesItem {
     id: 10,
     title: "Verifying Show",
     kind: "show",
-    status: "verification_en_cours",
+    status: "verifying",
     active: true,
     added_at: 1_750_000_000,
     wanted_pending: 0,
@@ -217,7 +217,7 @@ function unknownCatalogueShow(): FollowedSeriesItem {
     id: 11,
     title: "Unknown Catalog",
     kind: "show",
-    status: "en_attente",
+    status: "pending",
     active: true,
     added_at: 1_750_000_000,
     wanted_pending: 0,
@@ -238,7 +238,7 @@ function manyMissingShow(): FollowedSeriesItem {
     id: 9,
     title: "Batman",
     kind: "show",
-    status: "a_recuperer",
+    status: "to_grab",
     active: true,
     added_at: 1_750_000_000,
     wanted_pending: 0,
@@ -248,7 +248,7 @@ function manyMissingShow(): FollowedSeriesItem {
     tvdb_unresolved: false,
     priming_running: false,
     media_ref: { tvdb_id: 76168, tmdb_id: 1496, imdb_id: null },
-    a_recuperer_count: 22,
+    to_grab_count: 22,
     owned_count: 0,
     aired_count: 22,
   };
@@ -544,7 +544,7 @@ describe("FollowsPanel", () => {
     // Operator: « 1 » counts nothing a film's own presence did not already
     // say. A dot signals « celui-ci demande quelque chose » without pretending
     // to be a count.
-    renderPanel([{ ...movie(), status: "a_recuperer" }]);
+    renderPanel([{ ...movie(), status: "to_grab" }]);
     fireEvent.click(screen.getByRole("button", { name: "Grille d'affiches" }));
 
     const tile = screen.getByTestId("tile-6");
@@ -553,7 +553,7 @@ describe("FollowsPanel", () => {
   });
 
   it("mode grille : un film sans rien à faire ne porte pas de pastille", () => {
-    renderPanel([{ ...movie(), status: "a_jour" }]);
+    renderPanel([{ ...movie(), status: "up_to_date" }]);
     fireEvent.click(screen.getByRole("button", { name: /Grille/ }));
 
     expect(
@@ -562,7 +562,7 @@ describe("FollowsPanel", () => {
   });
 
   it("mode grille : un film sans verdict porte « ? », pas « ! »", () => {
-    renderPanel([{ ...movie(), status: "non_verifie" }]);
+    renderPanel([{ ...movie(), status: "unverified" }]);
     fireEvent.click(screen.getByRole("button", { name: /Grille/ }));
 
     const badge = screen.getByTestId("tile-6").querySelector("[data-badge]");
@@ -867,8 +867,8 @@ describe("FollowsPanel", () => {
   });
   it("une série terminée porte « Terminé », pas « À jour » (opérateur 2026-08-09)", () => {
     renderPanel([
-      { ...upToDateShow(), id: 10, title: "Fini", status: "termine" },
-      { ...upToDateShow(), id: 11, title: "Continue", status: "a_jour" },
+      { ...upToDateShow(), id: 10, title: "Fini", status: "ended" },
+      { ...upToDateShow(), id: 11, title: "Continue", status: "up_to_date" },
     ]);
 
     // The whole point of the split: the two settled series must not read the
@@ -880,8 +880,8 @@ describe("FollowsPanel", () => {
 
   it("mode groupé : les terminées ont leur propre groupe", () => {
     renderPanel([
-      { ...upToDateShow(), id: 10, title: "Fini", status: "termine" },
-      { ...upToDateShow(), id: 11, title: "Continue", status: "a_jour" },
+      { ...upToDateShow(), id: 10, title: "Fini", status: "ended" },
+      { ...upToDateShow(), id: 11, title: "Continue", status: "up_to_date" },
     ]);
     act(() => {
       fireEvent.click(screen.getByRole("button", { name: /Groupé par état/ }));
@@ -900,13 +900,13 @@ describe("FollowsPanel", () => {
     // error and no empty state. That is a silent data loss, and the kind of
     // thing a new status introduces without anyone noticing.
     const statuses: readonly FollowedSeriesItem["status"][] = [
-      "a_recuperer",
-      "en_acquisition",
-      "verification_en_cours",
-      "en_attente",
-      "non_verifie",
-      "a_jour",
-      "termine",
+      "to_grab",
+      "acquiring",
+      "verifying",
+      "pending",
+      "unverified",
+      "up_to_date",
+      "ended",
       "disabled",
     ];
     renderPanel(

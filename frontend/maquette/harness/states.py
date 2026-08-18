@@ -13,7 +13,7 @@ async def main():
     # The startup screen covers the frame for as long as the load it stands
     # for lasts. Nothing is being fetched here, so the harness closes that
     # wait through the same seam the app uses, rather than sleeping it out.
-    await pg.evaluate("()=>window.__chargementTermine?.()")
+    await pg.evaluate("()=>window.__loadingDone?.()")
     await pg.evaluate("()=>document.querySelector('#toastx').click()")
     ids = await pg.evaluate("()=>window.__states()")
     print(f"{len(ids)} declared states\n")
@@ -27,9 +27,9 @@ async def main():
         r=await pg.evaluate("""()=>{const v=document.querySelector('#view');
           const sh=document.querySelector('#sheet'), sc=document.querySelector('#screen'), dg=document.querySelector('#dlg');
           // Every screen migrated off `#screen` onto a real route (the mediaSheet
-          // at `/fiche/$titre`, the add screen at `/ajout`, the arbitration
-          // screen at `/resolution/$dossier`, the release picker at
-          // `/releases/$titre`, the quality profile at `/profil/$titre`) is
+          // at `/mediasheet/$title`, the add screen at `/add`, the arbitration
+          // screen at `/resolution/$folder`, the release picker at
+          // `/releases/$title`, the quality profile at `/profile/$title`) is
           // read through ONE generic rung — any OPEN screen carries a
           // `data-key`, so its presence is enough, never a per-identity
           // prefix. Without it, a state opening one of those routes would

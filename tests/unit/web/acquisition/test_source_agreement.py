@@ -126,14 +126,14 @@ def test_card_and_completeness_agree_on_an_uncached_follow() -> None:
     card_status = derive_follow_status(
         active=True,
         aired_count=None,
-        a_recuperer_count=None,
-        en_acquisition_count=None,
-        en_attente_count=None,
-        non_verifie_count=None,
+        to_grab_count=None,
+        acquiring_count=None,
+        pending_count=None,
+        unverified_count=None,
         announced_count=None,
         series_status=None,
     )
-    assert card_status == "non_verifie", (
+    assert card_status == "unverified", (
         "The card MUST read non_verifie when the catalog is absent — the founding incident's direct fix."
     )
 
@@ -184,14 +184,14 @@ def test_card_and_completeness_agree_on_an_uncached_follow() -> None:
     "season,episode,owned,wanted_status,last_search_outcome,last_search_found,expected_5state",
     [
         # owned beats everything — the one case that agrees today.
-        pytest.param(1, 1, True, None, None, None, "en_mediatheque", id="owned"),
+        pytest.param(1, 1, True, None, None, None, "in_library", id="owned"),
         # grabbed → 5-state: en_acquisition, old: en_cours
-        pytest.param(1, 2, False, "grabbed", "available", 1, "en_acquisition", id="grabbed"),
+        pytest.param(1, 2, False, "grabbed", "available", 1, "acquiring", id="grabbed"),
         # available → 5-state: a_recuperer, old: manquant (available is not a recognised
         # status in the old _episode_state → falls through to the default "manquant")
-        pytest.param(1, 3, False, "available", "available", 3, "a_recuperer", id="available"),
+        pytest.param(1, 3, False, "available", "available", 3, "to_grab", id="available"),
         # pending, never searched → 5-state: non_verifie, old: en_file
-        pytest.param(1, 4, False, "pending", None, None, "non_verifie", id="pending_never_searched"),
+        pytest.param(1, 4, False, "pending", None, None, "unverified", id="pending_never_searched"),
         # pending, searched, nothing takeable → 5-state: en_attente, old: en_file
         # (old code does not read the verdict → same en_file for both pending cases)
         pytest.param(
@@ -201,11 +201,11 @@ def test_card_and_completeness_agree_on_an_uncached_follow() -> None:
             "pending",
             "no_candidates",
             0,
-            "en_attente",
+            "pending",
             id="pending_searched_nothing",
         ),
         # no wanted row, never searched → 5-state: non_verifie, old: manquant
-        pytest.param(1, 6, False, None, None, None, "non_verifie", id="no_row"),
+        pytest.param(1, 6, False, None, None, None, "unverified", id="no_row"),
     ],
 )
 def test_card_and_completeness_agree_on_cached_facts(
@@ -286,7 +286,7 @@ def test_card_and_completeness_agree_on_cached_facts(
 
 
 @pytest.mark.parametrize("closed_status", ["done", "abandoned"])
-def test_a_closed_row_alone_reads_non_verifie_on_both_surfaces(closed_status: str) -> None:
+def test_a_closed_row_alone_reads_unverified_on_both_surfaces(closed_status: str) -> None:
     """A ``done`` / ``abandoned`` row is history — it must not answer for its episode.
 
     Agreeing on the derivation is not enough: the two surfaces must also read
@@ -308,7 +308,7 @@ def test_a_closed_row_alone_reads_non_verifie_on_both_surfaces(closed_status: st
     result = compute_completeness(_follow(), ownership=ownership, store=store)
 
     card_state = derive_episode_state(owned=False, wanted_status=None, last_search_outcome=None, last_search_found=None)
-    assert card_state == "non_verifie"
+    assert card_state == "unverified"
     assert result.seasons[0].episodes[0].state == card_state, (
         f"A lone {closed_status} row must not speak for its episode: the card reads "
         f"{card_state!r} from « no open row », so the panel must too."
@@ -338,7 +338,7 @@ def test_duplicate_rows_resolve_to_the_latest_open_one_on_both_surfaces() -> Non
     card_state = derive_episode_state(
         owned=False, wanted_status="available", last_search_outcome="available", last_search_found=2
     )
-    assert card_state == "a_recuperer"
+    assert card_state == "to_grab"
     assert result.seasons[0].episodes[0].state == card_state
     # And it counts as « en mouvement » in the season aggregate.
     assert result.seasons[0].queued == 1
@@ -442,14 +442,14 @@ def test_provider_catalog_empty_stays_distinct() -> None:
     card_status = derive_follow_status(
         active=True,
         aired_count=None,
-        a_recuperer_count=None,
-        en_acquisition_count=None,
-        en_attente_count=None,
-        non_verifie_count=None,
+        to_grab_count=None,
+        acquiring_count=None,
+        pending_count=None,
+        unverified_count=None,
         announced_count=None,
         series_status=None,
     )
-    assert card_status == "non_verifie", (
+    assert card_status == "unverified", (
         "The card reads non_verifie when the catalog is absent. The panel's "
         "empty seasons match this — both say 'we don't know yet'."
     )

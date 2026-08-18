@@ -207,7 +207,7 @@ describe("AppShell mobile nav Sheet", () => {
 
     // Système (ex-Maintenance + Registre fusionnés, system-hub Phase 02).
     const system = within(sheetNav).getByRole("link", { name: "Système" });
-    expect(system).toHaveAttribute("href", "/systeme");
+    expect(system).toHaveAttribute("href", "/system");
   });
 
   it("ferme le tiroir lorsqu'une destination est choisie", async () => {
@@ -443,15 +443,15 @@ describe("AppShell nav badges", () => {
           buildResponse(
             200,
             followedPayload([
-              { status: "a_recuperer" },
-              { status: "a_recuperer" },
-              { status: "en_acquisition" },
-              { status: "en_acquisition" },
-              { status: "en_acquisition" },
-              { status: "en_acquisition" },
-              { status: "en_acquisition" },
-              { status: "en_acquisition" },
-              { status: "en_acquisition" },
+              { status: "to_grab" },
+              { status: "to_grab" },
+              { status: "acquiring" },
+              { status: "acquiring" },
+              { status: "acquiring" },
+              { status: "acquiring" },
+              { status: "acquiring" },
+              { status: "acquiring" },
+              { status: "acquiring" },
             ]),
           ),
         );
@@ -532,7 +532,7 @@ describe("AppShell nav badges", () => {
         return Promise.resolve(
           buildResponse(
             200,
-            followedPayload([{ status: "a_recuperer" }, { status: "a_recuperer" }]),
+            followedPayload([{ status: "to_grab" }, { status: "to_grab" }]),
           ),
         );
       }
@@ -889,8 +889,8 @@ describe("AppShell nav badges", () => {
         // other half of the sum is unknowable.
         return Promise.resolve(
           buildResponse(200, followedPayload([
-            { status: "a_recuperer" },
-            { status: "a_recuperer" },
+            { status: "to_grab" },
+            { status: "to_grab" },
           ])),
         );
       }

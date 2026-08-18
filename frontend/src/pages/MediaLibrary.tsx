@@ -1,6 +1,6 @@
 /**
  * Medias page — the media library grid + resolution deck + decision browse
- * (``/medias``).
+ * (``/media``).
  *
  * Default view is the library grid with pipeline-stage segments. Three tabs:
  * ``Bibliothèque`` (grid with segments), ``À résoudre`` (resolution deck),
@@ -135,7 +135,7 @@ function ListSkeleton(): ReactElement {
 // ---------------------------------------------------------------------------
 
 /**
- * Medias — the authenticated medias route (``/medias``).
+ * Medias — the authenticated medias route (``/media``).
  *
  * Layout:
  * - Desktop: tab bar → content (library grid with segments, resolution deck, or

@@ -42,7 +42,7 @@ export function SystemPage(): ReactElement | null {
   // The two non-ready surfaces, emitted by the fragment exactly as before. The
   // host element is the `div.body` the legacy returned, so what goes here is
   // its CONTENT.
-  if (state.phase !== "prete") {
+  if (state.phase !== "ready") {
     // Each emits ONE root element, and this draws that element itself so no
     // wrapper appears where the legacy had none.
     return state.phase === "erreur" ? (
@@ -126,12 +126,12 @@ export function SystemPage(): ReactElement | null {
           v: t("screens.system.errorsValue"),
           s: t("screens.system.errorsDetail", {
             total: ERRORS.total,
-            over: ERRORS.sur,
-            last: ERRORS.derniere,
-            what: ERRORS.quoi,
+            over: ERRORS.outOf,
+            last: ERRORS.latest,
+            what: ERRORS.what,
           }),
         },
-        { l: t("screens.system.errorsWhere"), v: "", s: ERRORS.ou },
+        { l: t("screens.system.errorsWhere"), v: "", s: ERRORS.where },
       ])}
 
       <h2 className="h2">{t("screens.system.settings")}</h2>

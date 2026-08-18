@@ -94,20 +94,20 @@ def main() -> int:
             raise ValueError(
                 f'FOLLOWS object whose first key is not "t": {obj[:80]!r}')
         title = title_match.group(1).replace('\\"', '"')
-        searches_match = re.search(r"recherches: (\d+)", obj)
-        # A title with no `recherches:` key is just as malformed as one with
+        searches_match = re.search(r"searches: (\d+)", obj)
+        # A title with no `searches:` key is just as malformed as one with
         # no `t:` key (B-027's own case) — skipping it silently would leave
         # its counter stale forever without a single line saying so.
         if not searches_match:
             raise ValueError(
-                f'FOLLOWS object "{title}" has no "recherches" key: {obj[:80]!r}')
+                f'FOLLOWS object "{title}" has no "searches" key: {obj[:80]!r}')
         embedded = int(searches_match.group(1))
         if title in real:
             if real[title] != embedded:
                 corrections.append((title, embedded, real[title]))
                 obj = obj.replace(
-                    f"recherches: {embedded},",
-                    f"recherches: {real[title]},", 1)
+                    f"searches: {embedded},",
+                    f"searches: {real[title]},", 1)
         else:
             unmatched.append(title)
         pieces.extend((block[previous:a], obj))

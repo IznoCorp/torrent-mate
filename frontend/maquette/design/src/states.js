@@ -49,7 +49,7 @@ const STATES = [
       "pwa-android",
       "Installation — Android et bureau",
       () => {
-        applyState({ page: "acq", acqTab: "maintenant", phase: "prete" });
+        applyState({ page: "acq", acqTab: "now", phase: "ready" });
         showInstallation("android");
       },
     ],
@@ -57,7 +57,7 @@ const STATES = [
       "pwa-ios",
       "Installation — iOS, méthode manuelle",
       () => {
-        applyState({ page: "acq", acqTab: "maintenant", phase: "prete" });
+        applyState({ page: "acq", acqTab: "now", phase: "ready" });
         showInstallation("ios");
       },
     ],
@@ -65,7 +65,7 @@ const STATES = [
       "demarrage",
       "Démarrage — l'interface se charge",
       () => {
-        applyState({ page: "acq", acqTab: "maintenant", phase: "prete" });
+        applyState({ page: "acq", acqTab: "now", phase: "ready" });
         showStartup();
       },
     ],
@@ -81,166 +81,166 @@ const STATES = [
       () =>
         applyState({
           page: "acq",
-          acqTab: "maintenant",
-          scen: "reel",
-          phase: "prete",
+          acqTab: "now",
+          scen: "real",
+          phase: "ready",
         }),
     ],
     [
-      "acq-encours-charge",
+      "acq-encours-loaded",
       "Acquisition · En cours — chargé",
       () =>
         applyState({
           page: "acq",
-          acqTab: "maintenant",
-          scen: "charge",
-          phase: "prete",
+          acqTab: "now",
+          scen: "loaded",
+          phase: "ready",
         }),
     ],
     [
       "acq-encours-chargement",
       "Acquisition · En cours — chargement",
       () =>
-        applyState({ page: "acq", acqTab: "maintenant", phase: "chargement" }),
+        applyState({ page: "acq", acqTab: "now", phase: "chargement" }),
     ],
     [
       "acq-encours-erreur",
       "Acquisition · En cours — erreur",
-      () => applyState({ page: "acq", acqTab: "maintenant", phase: "erreur" }),
+      () => applyState({ page: "acq", acqTab: "now", phase: "erreur" }),
     ],
     [
-      "acq-suivis-liste",
+      "acq-follows-liste",
       "Acquisition · Suivis — liste",
       () =>
         applyState({
           page: "acq",
-          acqTab: "suivis",
+          acqTab: "follows",
           followMode: "list",
           pill: "tout",
-          filtre: "",
-          phase: "prete",
+          filter: "",
+          phase: "ready",
         }),
     ],
     [
-      "acq-suivis-groupe",
+      "acq-follows-groupe",
       "Acquisition · Suivis — groupé",
       () =>
         applyState({
           page: "acq",
-          acqTab: "suivis",
+          acqTab: "follows",
           followMode: "group",
           pill: "tout",
-          filtre: "",
-          phase: "prete",
+          filter: "",
+          phase: "ready",
         }),
     ],
     [
-      "acq-suivis-grille",
+      "acq-follows-grille",
       "Acquisition · Suivis — grille",
       () =>
         applyState({
           page: "acq",
-          acqTab: "suivis",
+          acqTab: "follows",
           followMode: "grid",
           pill: "tout",
-          filtre: "",
-          phase: "prete",
+          filter: "",
+          phase: "ready",
         }),
     ],
     [
-      "acq-suivis-filtre-vide",
+      "acq-follows-filtre-vide",
       "Acquisition · Suivis — filtre sans résultat",
       () =>
         applyState({
           page: "acq",
-          acqTab: "suivis",
+          acqTab: "follows",
           followMode: "list",
-          filtre: "zzz",
-          phase: "prete",
+          filter: "zzz",
+          phase: "ready",
         }),
     ],
     [
-      "acq-suivis-pause-vide",
+      "acq-follows-pause-vide",
       "Acquisition · Suivis — « En pause » vide",
       () =>
         applyState({
           page: "acq",
-          acqTab: "suivis",
+          acqTab: "follows",
           followMode: "list",
           pill: "pause",
-          filtre: "",
-          phase: "prete",
+          filter: "",
+          phase: "ready",
         }),
     ],
     [
-      "acq-suivis-erreur",
+      "acq-follows-erreur",
       "Acquisition · Suivis — erreur",
-      () => applyState({ page: "acq", acqTab: "suivis", phase: "erreur" }),
+      () => applyState({ page: "acq", acqTab: "follows", phase: "erreur" }),
     ],
     [
-      "acq-decouvrir",
+      "acq-discover",
       "Acquisition · Découvrir — réserve pleine",
       () =>
         applyState({
           page: "acq",
-          acqTab: "decouvrir",
+          acqTab: "discover",
           tmdb: true,
-          phase: "prete",
+          phase: "ready",
           sugCount: 30,
         }),
     ],
     [
-      "acq-decouvrir-affiches",
+      "acq-discover-affiches",
       "Découvrir · affiches",
       () => {
-        applyState({ page: "acq", acqTab: "decouvrir", phase: "prete" });
+        applyState({ page: "acq", acqTab: "discover", phase: "ready" });
         store.write({ sugMode: "poster" });
         render();
       },
     ],
     [
-      "acq-decouvrir-deck",
+      "acq-discover-deck",
       "Découvrir · slide cards",
       () => {
-        applyState({ page: "acq", acqTab: "decouvrir", phase: "prete" });
+        applyState({ page: "acq", acqTab: "discover", phase: "ready" });
         store.write({ sugMode: "deck" });
         render();
       },
     ],
     [
-      "acq-decouvrir-degrade",
+      "acq-discover-degrade",
       "Acquisition · Découvrir — sans compte TMDB",
       () =>
         applyState({
           page: "acq",
-          acqTab: "decouvrir",
+          acqTab: "discover",
           tmdb: false,
-          phase: "prete",
+          phase: "ready",
         }),
     ],
     [
-      "acq-decouvrir-epuise",
+      "acq-discover-epuise",
       "Acquisition · Découvrir — réserve épuisée",
       () =>
         applyState({
           page: "acq",
-          acqTab: "decouvrir",
+          acqTab: "discover",
           tmdb: true,
-          phase: "prete",
+          phase: "ready",
           sugCount: 999,
         }),
     ],
     [
-      "acq-decouvrir-chargement",
+      "acq-discover-chargement",
       "Acquisition · Découvrir — chargement",
       () =>
-        applyState({ page: "acq", acqTab: "decouvrir", phase: "chargement" }),
+        applyState({ page: "acq", acqTab: "discover", phase: "chargement" }),
     ],
     [
       "acq-ajout-vide",
       "Écran d'ajout — au repos",
       () => {
-        applyState({ page: "acq", phase: "prete" });
+        applyState({ page: "acq", phase: "ready" });
         window.__screens.add("");
       },
     ],
@@ -248,7 +248,7 @@ const STATES = [
       "acq-ajout-resultats",
       "Écran d'ajout — résultats réels",
       () => {
-        applyState({ page: "acq", phase: "prete" });
+        applyState({ page: "acq", phase: "ready" });
         window.__screens.add("star wars");
       },
     ],
@@ -256,7 +256,7 @@ const STATES = [
       "feuille-suivi-complet",
       "Feuille de suivi — gros catalogue complet",
       () => {
-        applyState({ page: "acq", acqTab: "suivis", phase: "prete" });
+        applyState({ page: "acq", acqTab: "follows", phase: "ready" });
         openFollowSheet("American Dad!");
       },
     ],
@@ -264,7 +264,7 @@ const STATES = [
       "feuille-suivi-trous",
       "Feuille de suivi — matrice à trous",
       () => {
-        applyState({ page: "lib", libLens: "inc", phase: "prete" });
+        applyState({ page: "lib", libLens: "inc", phase: "ready" });
         openFollowSheet("Les aventures de Tintin");
       },
     ],
@@ -272,7 +272,7 @@ const STATES = [
       "acq-identifier",
       "Recherche en mode IDENTIFIER (depuis une résolution)",
       () => {
-        applyState({ page: "arr", phase: "prete", pipe: "repos" });
+        applyState({ page: "arr", phase: "ready", pipe: "repos" });
         store.write({
           resolveTarget: "Backrooms.2026.MULTi.2160p.WEB-DL",
         });
@@ -283,15 +283,15 @@ const STATES = [
       "ecran-releases",
       "Écran — choisir une autre release",
       () => {
-        applyState({ page: "acq", acqTab: "suivis", phase: "prete" });
+        applyState({ page: "acq", acqTab: "follows", phase: "ready" });
         window.__screens.releases("Silo");
       },
     ],
     [
-      "ecran-profil",
+      "ecran-profile",
       "Écran — profil de qualité",
       () => {
-        applyState({ page: "acq", acqTab: "suivis", phase: "prete" });
+        applyState({ page: "acq", acqTab: "follows", phase: "ready" });
         window.__screens.profile("Silo");
       },
     ],
@@ -299,7 +299,7 @@ const STATES = [
       "feuille-parcours",
       "Feuille de parcours",
       () => {
-        applyState({ page: "acq", phase: "prete" });
+        applyState({ page: "acq", phase: "ready" });
         openJourneySheet("Furious");
       },
     ],
@@ -307,7 +307,7 @@ const STATES = [
       "feuille-plus",
       "Feuille « ⋮ » — veille et obligations",
       () => {
-        applyState({ page: "acq", phase: "prete" });
+        applyState({ page: "acq", phase: "ready" });
         openMoreSheet();
       },
     ],
@@ -315,7 +315,7 @@ const STATES = [
       "feuille-utilisateur",
       "Menu utilisateur — profil et déconnexion",
       () => {
-        applyState({ page: "acq", phase: "prete" });
+        applyState({ page: "acq", phase: "ready" });
         openUserSheet();
       },
     ],
@@ -328,7 +328,7 @@ const STATES = [
           libLens: "cat",
           libMode: "grid",
           q: "",
-          phase: "prete",
+          phase: "ready",
           selMode: false,
         }),
     ],
@@ -341,7 +341,7 @@ const STATES = [
           libLens: "cat",
           libMode: "list",
           q: "",
-          phase: "prete",
+          phase: "ready",
           selMode: false,
         }),
     ],
@@ -349,17 +349,17 @@ const STATES = [
       "lib-recherche-vide",
       "Médiathèque — recherche sans résultat",
       () =>
-        applyState({ page: "lib", libLens: "cat", q: "zzzz", phase: "prete" }),
+        applyState({ page: "lib", libLens: "cat", q: "zzzz", phase: "ready" }),
     ],
     [
-      "lib-incomplets",
+      "lib-incomplete",
       "Médiathèque · Incomplets",
-      () => applyState({ page: "lib", libLens: "inc", phase: "prete" }),
+      () => applyState({ page: "lib", libLens: "inc", phase: "ready" }),
     ],
     [
-      "lib-recents",
+      "lib-recent",
       "Médiathèque · Récents",
-      () => applyState({ page: "lib", libLens: "rec", phase: "prete" }),
+      () => applyState({ page: "lib", libLens: "rec", phase: "ready" }),
     ],
     [
       "lib-selection",
@@ -369,7 +369,7 @@ const STATES = [
           page: "lib",
           libLens: "cat",
           libMode: "grid",
-          phase: "prete",
+          phase: "ready",
           selMode: true,
         });
         store.write({ selected: new Set([0, 2, 5]) });
@@ -380,7 +380,7 @@ const STATES = [
       "lib-suppression",
       "Médiathèque — dialogue de suppression",
       () => {
-        applyState({ page: "lib", phase: "prete" });
+        applyState({ page: "lib", phase: "ready" });
         openDeleteDialog("Les Animaniacs");
       },
     ],
@@ -388,7 +388,7 @@ const STATES = [
       "lib-suppression-multiple",
       "Médiathèque — suppression multiple",
       () => {
-        applyState({ page: "lib", phase: "prete" });
+        applyState({ page: "lib", phase: "ready" });
         openDeleteDialog(null, ["Les Animaniacs", "La cour de récré", "Earl"]);
       },
     ],
@@ -421,7 +421,7 @@ const STATES = [
           page: "lib",
           libLens: "cat",
           libMode: "list",
-          phase: "prete",
+          phase: "ready",
           libFailedOnce: true,
           libErr: true,
         });
@@ -433,8 +433,8 @@ const STATES = [
       () =>
         applyState({
           page: "arr",
-          scen: "reel",
-          phase: "prete",
+          scen: "real",
+          phase: "ready",
           pipe: "repos",
         }),
     ],
@@ -444,8 +444,8 @@ const STATES = [
       () =>
         applyState({
           page: "arr",
-          scen: "reel",
-          phase: "prete",
+          scen: "real",
+          phase: "ready",
           pipe: "encours",
         }),
     ],
@@ -453,16 +453,16 @@ const STATES = [
       "arr-file",
       "Arrivées — un passage demandé pendant un autre",
       () =>
-        applyState({ page: "arr", scen: "reel", phase: "prete", pipe: "file" }),
+        applyState({ page: "arr", scen: "real", phase: "ready", pipe: "file" }),
     ],
     [
-      "arr-charge",
+      "arr-loaded",
       "Arrivées — chargé",
       () =>
         applyState({
           page: "arr",
-          scen: "charge",
-          phase: "prete",
+          scen: "loaded",
+          phase: "ready",
           pipe: "repos",
         }),
     ],
@@ -480,7 +480,7 @@ const STATES = [
       "arr-resolution",
       "Arrivées — résolution, aucun candidat",
       () => {
-        applyState({ page: "arr", phase: "prete", pipe: "repos" });
+        applyState({ page: "arr", phase: "ready", pipe: "repos" });
         window.__screens.resolution();
       },
     ],
@@ -490,8 +490,8 @@ const STATES = [
       () => {
         applyState({
           page: "arr",
-          scen: "charge",
-          phase: "prete",
+          scen: "loaded",
+          phase: "ready",
           pipe: "repos",
         });
         window.__screens.resolution("Lucky");
@@ -501,7 +501,7 @@ const STATES = [
       "fiche-suggestion-serie",
       "Fiche — suggestion NON possédée (série)",
       () => {
-        applyState({ page: "acq", acqTab: "decouvrir", phase: "prete" });
+        applyState({ page: "acq", acqTab: "discover", phase: "ready" });
         window.__screens.mediaSheet("The Venture Bros");
       },
     ],
@@ -509,7 +509,7 @@ const STATES = [
       "fiche-suggestion-film",
       "Fiche — suggestion NON possédée (film)",
       () => {
-        applyState({ page: "acq", acqTab: "decouvrir", phase: "prete" });
+        applyState({ page: "acq", acqTab: "discover", phase: "ready" });
         window.__screens.mediaSheet("Superman : L'Homme de demain");
       },
     ],
@@ -517,7 +517,7 @@ const STATES = [
       "fiche-serie",
       "Fiche — série avec épisodes datés",
       () => {
-        applyState({ page: "lib", phase: "prete" });
+        applyState({ page: "lib", phase: "ready" });
         window.__screens.mediaSheet("Silo (2023)");
       },
     ],
@@ -525,7 +525,7 @@ const STATES = [
       "fiche-film",
       "Fiche — film",
       () => {
-        applyState({ page: "lib", phase: "prete" });
+        applyState({ page: "lib", phase: "ready" });
         window.__screens.mediaSheet("Marjorie Prime");
       },
     ],
@@ -533,7 +533,7 @@ const STATES = [
       "fiche-sans-trailer",
       "Fiche — sans bande-annonce",
       () => {
-        applyState({ page: "lib", phase: "prete" });
+        applyState({ page: "lib", phase: "ready" });
         window.__screens.mediaSheet("Broadchurch");
       },
     ],
@@ -541,55 +541,55 @@ const STATES = [
       "tiroir-navigation",
       "Tiroir de navigation (hamburger)",
       () => {
-        applyState({ page: "acq", phase: "prete" });
+        applyState({ page: "acq", phase: "ready" });
         openDrawer();
       },
     ],
     [
-      "systeme",
+      "system",
       "Système — la santé de la machine",
-      () => applyState({ page: "sys", phase: "prete", panne: false }),
+      () => applyState({ page: "sys", phase: "ready", panne: false }),
     ],
     [
-      "systeme-panne",
+      "system-panne",
       "Système — une panne (simulée)",
-      () => applyState({ page: "sys", phase: "prete", panne: true }),
+      () => applyState({ page: "sys", phase: "ready", panne: true }),
     ],
     [
-      "systeme-chargement",
+      "system-chargement",
       "Système — chargement",
       () => applyState({ page: "sys", phase: "chargement", panne: false }),
     ],
     [
-      "systeme-erreur",
+      "system-erreur",
       "Système — erreur",
       () => applyState({ page: "sys", phase: "erreur", panne: false }),
     ],
     [
       "introuvable",
       "Une adresse qui n'existe pas",
-      () => applyState({ page: "une-page-qui-n-existe-pas", phase: "prete" }),
+      () => applyState({ page: "une-page-qui-n-existe-pas", phase: "ready" }),
     ],
     [
-      "profil",
+      "profile",
       "Profil et préférences",
-      () => applyState({ page: "profil", phase: "prete" }),
+      () => applyState({ page: "profile", phase: "ready" }),
     ],
     [
       "maintenance",
       "Maintenance — les rubriques de commandes",
-      () => applyState({ page: "maint", phase: "prete", maintTopic: null }),
+      () => applyState({ page: "maint", phase: "ready", maintTopic: null }),
     ],
     [
       "maintenance-rubrique",
       "Maintenance — une rubrique et ses commandes",
-      () => applyState({ page: "maint", phase: "prete", maintTopic: "fix" }),
+      () => applyState({ page: "maint", phase: "ready", maintTopic: "fix" }),
     ],
     [
       "maintenance-suppression",
       "Maintenance — une commande qui supprime",
       () => {
-        applyState({ page: "maint", phase: "prete", maintTopic: "clean" });
+        applyState({ page: "maint", phase: "ready", maintTopic: "clean" });
         openActionMaintenance("library-clean");
       },
     ],
@@ -599,106 +599,106 @@ const STATES = [
       () => applyState({ page: "maint", phase: "chargement" }),
     ],
     [
-      "reglages",
+      "settings",
       "Réglages — les rubriques",
       () => {
         resetSettings();
-        applyState({ page: "cfg", phase: "prete" });
+        applyState({ page: "cfg", phase: "ready" });
       },
     ],
     [
-      "reglages-rubrique",
+      "settings-topic",
       "Réglages — une rubrique",
       () => {
         resetSettings();
-        SETTINGS_STATE.rubrique = "acquisition";
-        applyState({ page: "cfg", phase: "prete" });
+        SETTINGS_STATE.topic = "acquisition";
+        applyState({ page: "cfg", phase: "ready" });
       },
     ],
     [
-      "reglages-recherche",
+      "settings-search",
       "Réglages — recherche dans tous les réglages",
       () => {
         resetSettings();
         SETTINGS_STATE.q = "espace";
-        applyState({ page: "cfg", phase: "prete" });
+        applyState({ page: "cfg", phase: "ready" });
       },
     ],
     [
-      "reglages-un",
+      "settings-one",
       "Réglages — un réglage, dans son panneau",
       () => {
         resetSettings();
-        SETTINGS_STATE.rubrique = "acquisition";
-        applyState({ page: "cfg", phase: "prete" });
+        SETTINGS_STATE.topic = "acquisition";
+        applyState({ page: "cfg", phase: "ready" });
         openSetting("thresholds:thresholds.min_free_space_staging_gb");
       },
     ],
     [
-      "reglages-modifie",
+      "settings-edited",
       "Réglages — modifications en attente",
       () => {
         resetSettings();
-        SETTINGS_STATE.rubrique = "acquisition";
+        SETTINGS_STATE.topic = "acquisition";
         SETTINGS_STATE.modifs.set(
           "thresholds:thresholds.min_free_space_staging_gb",
           40,
         );
         SETTINGS_STATE.modifs.set("tracker:tracker.providers.c411.enabled", false);
-        applyState({ page: "cfg", phase: "prete" });
+        applyState({ page: "cfg", phase: "ready" });
       },
     ],
     /* One state per FIELD, because a field is a shape one judges by looking at
        it. The setting each opens is found by TYPE rather than named, so a
        config change that moves a key does not silently open something else. */
     ...[
-      ["booleen", "un interrupteur"],
-      ["nombre", "un nombre"],
-      ["texte", "un texte"],
-      ["chemin", "un chemin"],
-      ["liste", "une liste"],
-      ["duree", "une durée"],
+      ["boolean", "un interrupteur"],
+      ["number", "un number"],
+      ["text", "un text"],
+      ["path", "un path"],
+      ["list", "une liste"],
+      ["duration", "une durée"],
       ["structure", "une structure, qui refuse"],
-      ["nul", "une valeur non définie"],
-    ].map(([genre, quoi]) => [
-      `reglages-champ-${genre}`,
-      `Réglages — ${quoi}`,
+      ["empty", "une valeur non définie"],
+    ].map(([genre, what]) => [
+      `settings-field-${genre}`,
+      `Réglages — ${what}`,
       () => {
         resetSettings();
         const found = SETTINGS.flatMap((r) => r.r).find(
           (x) => x.type === genre,
         );
-        SETTINGS_STATE.rubrique =
+        SETTINGS_STATE.topic =
           SETTINGS.find((r) => r.r.includes(found))?.id ?? null;
-        applyState({ page: "cfg", phase: "prete" });
+        applyState({ page: "cfg", phase: "ready" });
         if (found) openSetting(settingId(found));
       },
     ]),
     [
-      "reglages-secrets",
+      "settings-secrets",
       "Réglages — secrets et accès",
       () => {
         resetSettings();
-        SETTINGS_STATE.rubrique = "secrets";
-        applyState({ page: "cfg", phase: "prete" });
+        SETTINGS_STATE.topic = "secrets";
+        applyState({ page: "cfg", phase: "ready" });
       },
     ],
     [
-      "reglages-lecture-seule",
+      "settings-read-only",
       "Réglages — instance en lecture seule",
       () => {
         resetSettings();
-        SETTINGS_STATE.lectureSeule = true;
-        applyState({ page: "cfg", phase: "prete" });
+        SETTINGS_STATE.readOnly = true;
+        applyState({ page: "cfg", phase: "ready" });
       },
     ],
     [
-      "reglages-redemarrage",
+      "settings-restart",
       "Réglages — redémarrage nécessaire",
       () => {
         resetSettings();
         SETTINGS_STATE.redemarrage = true;
-        applyState({ page: "cfg", phase: "prete" });
+        applyState({ page: "cfg", phase: "ready" });
       },
     ],
 ];
@@ -706,4 +706,4 @@ const STATES = [
 // The engine owns the driving and looks the state up here. Registering at
 // module evaluation — before the shell's body starts the engine — means the
 // table is in place by the time anything can ask for a state.
-window.__enregistrerEtats(STATES);
+window.__recordStates(STATES);

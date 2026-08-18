@@ -17,7 +17,7 @@ import "./i18n";
 // here than anywhere else in this file. It used to be a classic script
 // inside the fragment, evaluated while the document parsed — everything it
 // declares therefore existed before this module's body ever ran, and the
-// body below depends on exactly that: it reads `window.__demarrerMoteur`
+// body below depends on exactly that: it reads `window.__startEngine`
 // and calls it. As a module the engine keeps that guarantee for the same
 // reason it had it before: a module's dependencies evaluate before its
 // body, so importing it HERE is what makes it run FIRST. Moving this line
@@ -78,19 +78,19 @@ type Bridge = {
 };
 
 // One entry per migrated screen: what a legacy call site invokes instead of
-// its old `openX(...)` function. `titre` crosses the bridge as a plain
+// its old `openX(...)` function. `title` crosses the bridge as a plain
 // string — normalisation and encoding are this file's job, not the caller's.
 type Screens = {
-  profile: (titre: string) => void;
-  // The media sheet — the centre of the product. `titre` crosses as a plain
+  profile: (title: string) => void;
+  // The media sheet — the centre of the product. `title` crosses as a plain
   // string here too; the percent-encoding and the NFC normalisation are done
   // below, on write, and again by `MediaScreen` on read.
-  mediaSheet: (titre: string) => void;
-  // The release-choice screen — same `titre`-crosses-as-a-plain-string
+  mediaSheet: (title: string) => void;
+  // The release-choice screen — same `title`-crosses-as-a-plain-string
   // contract as `mediaSheet`/`profile` above. Unlike them, it also writes
   // `state.relTitre` (the legacy first line of `openReleases`, still read by
   // the `data-take` click-delegation branch) BEFORE navigating.
-  releases: (titre: string) => void;
+  releases: (title: string) => void;
   // The arbitration screen — the folder crosses as a plain string, and the
   // ARGUMENT IS OPTIONAL: the legacy `openResolve()` was called with nothing
   // from two call sites and picked the first stuck folder itself, so the
@@ -98,10 +98,10 @@ type Screens = {
   // the one caller that used to close the screen and re-open it on the next
   // folder — a pop plus a push, net one entry, which a replace reproduces
   // exactly.
-  resolution: (dossier?: string, replace?: boolean) => void;
+  resolution: (folder?: string, replace?: boolean) => void;
   // `q`/`mode` cross the bridge as plain strings, the way a legacy call site
   // already holds them (`state.addQ`, a literal like `"identifier"`) — the
-  // validated union lives in `/ajout`'s own `validateSearch`, not here.
+  // validated union lives in `/add`'s own `validateSearch`, not here.
   add: (q?: string, mode?: string) => void;
 };
 
@@ -117,9 +117,9 @@ declare global {
     // below) — "/" in production, whatever else a static host answers the
     // document under otherwise (the rule harness's 8899 server names it
     // "/wrapped.html"). The deps object's own keys are the engine's.
-    __demarrerMoteur?: (deps: { store: Store; base: string }) => void;
+    __startEngine?: (deps: { store: Store; base: string }) => void;
     // The domain hooks and the probes read the engine's state through this.
-    __magasin: Store;
+    __store: Store;
     __screens: Screens;
     // The layer-unwind bookkeeping stays ENGINE-side (the named-entry check
     // and the one-in-flight latch live with the popstate handler that consumes
@@ -130,10 +130,10 @@ declare global {
     // shell says how many ENTRIES it settles, and the engine — which owns the
     // latch and the popstate handler reading it — turns that into the number
     // of pops it must swallow.
-    __annoncerPops?: (nombreDEntrees: number) => void;
+    __announcePops?: (entryCount: number) => void;
     // The probe R56 calls to prove the panel REFUSES a block nobody declared.
     // Published here because the constructor it exercises is a component now.
-    __panneauInconnu: () => void;
+    __unknownPanel: () => void;
     // B-026's probe: raised by every write that fails silently otherwise
     // (`recordPath`, `data-navgo`, and this file's own `openPanel`),
     // declared here (`refonte.html` declares and resets it for its own two
@@ -150,7 +150,7 @@ declare global {
 // Creating it stamps the current entry with the library's own bookkeeping
 // keys. Nothing is preserved across that stamp on purpose: the engine no
 // longer writes the entry itself — its boot writes go straight onto this
-// instance BELOW, once window.__demarrerMoteur is called, so the entry the
+// instance BELOW, once window.__startEngine is called, so the entry the
 // shell mounts on is written once, by the single writer, in the right order.
 const history = createBrowserHistory();
 
@@ -184,20 +184,20 @@ const catchAllRoute = createRoute({
 });
 // The quality-profile screen: a real route, rendering a final component
 // INSIDE the React root — a surface reached directly rather than through the
-// legacy fragment. `$titre` is percent-encoded and
+// legacy fragment. `$title` is percent-encoded and
 // NFC-normalised by both ends of the bridge (`go()` below on write,
 // `ProfileScreen` on read) so a title carrying combining characters survives
 // the round trip through the URL unchanged.
 const profileRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/profil/$titre",
+  path: "/profile/$title",
   component: ProfileScreen,
 });
 // The second screen route, and the first whose OWN search params are
 // router-owned rather than merely read: `q` (the typed query) and `mode`
 // ("suivi" — follow a new title — or "identifier" — associate a stuck
 // folder, reached from the resolution screen's manual search) live here for
-// as long as the address reads `/ajout`, replacing `state.addQ`/
+// as long as the address reads `/add`, replacing `state.addQ`/
 // `state.addMode` as the SOURCE of truth on this path (see `add.tsx`'s own
 // doc comment for the transitional contract with the one legacy reader that
 // remains). Absent means "suivi" / no query, the same "absent is unchanged"
@@ -205,7 +205,7 @@ const profileRoute = createRoute({
 type AddSearchParams = { q?: string; mode?: "suivi" | "identifier" };
 const addRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/ajout",
+  path: "/add",
   validateSearch: (raw: Record<string, unknown>): AddSearchParams => {
     const read: AddSearchParams = {};
     if (typeof raw.q === "string" && raw.q) read.q = raw.q;
@@ -215,33 +215,33 @@ const addRoute = createRoute({
   component: AddScreen,
 });
 // The media sheet: ONE screen for every medium, reached from a poster, a
-// tile, a suggestion or a panel act. `$titre` follows `/profil/$titre`'s
+// tile, a suggestion or a panel act. `$title` follows `/profile/$title`'s
 // discipline exactly — percent-encoded, NFC-normalised on both ends. NO
 // search param: the legacy sheet had no open-season state either; a
 // `<details open>` is computed per render and toggled natively by the finger,
 // so there is nothing here for the address to carry.
 const mediaRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/fiche/$titre",
+  path: "/mediasheet/$title",
   component: MediaScreen,
 });
 // "Choose another release": the ranking's own reasoning, made inspectable.
-// `$titre` follows `/fiche/$titre`'s discipline exactly — percent-encoded,
+// `$title` follows `/mediasheet/$title`'s discipline exactly — percent-encoded,
 // NFC-normalised on both ends. No search param: same reason as the media
 // sheet — nothing here for the address to carry.
 const releasesRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/releases/$titre",
+  path: "/releases/$title",
   component: ReleasesScreen,
 });
-// The arbitration screen: what is stuck, and which medium it is. `$dossier` is
+// The arbitration screen: what is stuck, and which medium it is. `$folder` is
 // the FOLDER as it is on disk — not a media title, which is precisely what is
 // missing — percent-encoded and NFC-normalised on both ends like every other
 // `$` param here. No search param: the screen carries no state of its own, and
 // an answer changes the queue rather than the address.
 const resolutionRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/resolution/$dossier",
+  path: "/resolution/$folder",
   component: ResolutionScreen,
 });
 // A thrown component used to fail into a bare `null` — the exact failure
@@ -296,7 +296,7 @@ const router = createRouter({
 // Registers `router` as THE router for every `useParams`/`useNavigate` call
 // in the tree, so a screen component (in its own file, importing neither
 // `router` nor `rootRoute` — that would cycle back to this module) still gets
-// fully typed params from a bare path literal like `/profil/$titre`.
+// fully typed params from a bare path literal like `/profile/$title`.
 declare module "@tanstack/react-router" {
   interface Register {
     router: typeof router;
@@ -359,7 +359,7 @@ window.__bridge = {
   rewind: (n: number) => {
     if (n <= 0) return;
     history.flush();
-    window.__annoncerPops?.(n);
+    window.__announcePops?.(n);
     history.go(-n);
   },
   onBack: (callback: (state: unknown) => void) =>
@@ -384,13 +384,13 @@ window.__routeur = router;
 
    The memory is kept HERE, in the shell, and keyed per HISTORY ENTRY (the
    library stamps every entry with its own `key`), never per address: the
-   same `/ajout?q=lucky` reached twice is two entries and two positions.
+   same `/add?q=lucky` reached twice is two entries and two positions.
    Components stay unaware — nothing below is a prop, a hook or a context.
 
    Reading happens in the history subscription, which runs BEFORE React
    commits the new route: the outgoing screen is still in the DOM at that
    instant, which is the only moment its position can still be read.
-   `.screen.open .port` resolves the React screen first (`#coquille` precedes
+   `.screen.open .port` resolves the React screen first (`#shell` precedes
    the legacy `#screen` in document order), which is exactly the one that is
    about to be unmounted; a legacy screen above it keeps its own restoration.
 
@@ -485,10 +485,10 @@ export function go(target: {
 // read so an entry arriving by direct URL (not through this bridge) is
 // covered too.
 window.__screens = {
-  profile: (titre: string) =>
-    go({ to: "/profil/$titre", params: { titre: titre.normalize("NFC") } }),
-  mediaSheet: (titre: string) =>
-    go({ to: "/fiche/$titre", params: { titre: titre.normalize("NFC") } }),
+  profile: (title: string) =>
+    go({ to: "/profile/$title", params: { title: title.normalize("NFC") } }),
+  mediaSheet: (title: string) =>
+    go({ to: "/mediasheet/$title", params: { title: title.normalize("NFC") } }),
   // The legacy `openReleases`'s own first line, transplanted here rather than
   // into the component: `state.relTitre` is what the `data-take`
   // click-delegation branch reads once the operator picks a candidate, and it
@@ -496,11 +496,11 @@ window.__screens = {
   // wrote it before drawing the screen. This file is SHELL code — the seam
   // itself — so it writes the store directly rather than through
   // `data.ts`'s `writeUiState` component door.
-  releases: (titre: string) => {
-    window.__magasin.write({ relTitre: titre });
+  releases: (title: string) => {
+    window.__store.write({ relatedTitle: title });
     go({
-      to: "/releases/$titre",
-      params: { titre: titre.normalize("NFC") },
+      to: "/releases/$title",
+      params: { title: title.normalize("NFC") },
     });
   },
   // The legacy `openResolve`'s own first two lines, transplanted here rather
@@ -515,7 +515,7 @@ window.__screens = {
   //     `data-leave` click-delegation branches read as THE FOLDER (the
   //     attribute they carry is the choice, not the subject), so it must be
   //     current before the route renders — exactly as the legacy function
-  //     wrote it before drawing the screen. Same accepted debt as `/ajout` and
+  //     wrote it before drawing the screen. Same accepted debt as `/add` and
   //     `/releases`: an entry reached by a typed URL never crossed this door,
   //     so those branches would act on a stale target until the legacy
   //     dispatcher itself goes.
@@ -525,38 +525,38 @@ window.__screens = {
   // identity now. That makes it the ONE French string in this file that stays
   // out of `fr.json`: it is a route parameter, and an address that changed
   // with the interface language would no longer identify anything.
-  resolution: (dossier?: string, replace?: boolean) => {
+  resolution: (folder?: string, replace?: boolean) => {
     const first = window.__referentiel.derivedStuck()[0]?.t;
-    const target = dossier ?? (typeof first === "string" ? first : null);
-    window.__magasin.write({ resolveTarget: target });
+    const target = folder ?? (typeof first === "string" ? first : null);
+    window.__store.write({ resolveTarget: target });
     go({
-      to: "/resolution/$dossier",
+      to: "/resolution/$folder",
       // An address that changed with the interface language would no longer
       // identify anything — see the note above this function.
       // french-ok: a route PARAMETER, not interface copy
-      params: { dossier: (target ?? "élément inconnu").normalize("NFC") },
+      params: { folder: (target ?? "élément inconnu").normalize("NFC") },
       replace,
     });
   },
-  // Kept in sync in `window.__magasin.ecrire` BEFORE navigating: `state.addMode` is
+  // Kept in sync in `window.__store.write` BEFORE navigating: `state.addMode` is
   // still read by the untouched cross-world "add:N" panel act (it decides
   // ASSOCIATE vs regular add — see refonte.html) and by `addVerb`, and
   // `state.addQ` still seeds the FAB's next open. Neither is written again
-  // after this call — typing on `/ajout` updates the ROUTER's search params
+  // after this call — typing on `/add` updates the ROUTER's search params
   // only, through `go()` directly, not through this bridge — so a value
   // read off `state.addQ`/`state.addMode` after the operator has typed
   // reflects the screen's ENTRY query, not its live one. That staleness is
   // the accepted cost of the ownership flip: the router is the only thing
-  // that stays current for as long as the address reads `/ajout`.
+  // that stays current for as long as the address reads `/add`.
   add: (q?: string, mode?: string) => {
     const validMode = mode === "identifier" ? "identifier" : "suivi";
     // This file is SHELL code, not a component — it is the seam itself, so
     // it writes the store directly rather than through data.ts's
     // `writeUiState` write door (components must use that one; see its own
     // doc comment).
-    window.__magasin.write({ addQ: q ?? "", addMode: validMode });
+    window.__store.write({ addQ: q ?? "", addMode: validMode });
     go({
-      to: "/ajout",
+      to: "/add",
       search: {
         q: q || undefined,
         mode: validMode === "identifier" ? "identifier" : undefined,
@@ -583,7 +583,7 @@ function openPanel(descriptor: PanelDescriptor): void {
   // second. This file is SHELL code — the seam itself — so it writes the store
   // directly rather than through data.ts's `writeUiState` component door.
   flushSync(() =>
-    store.write({ panneauDescripteur: descriptor, panneauOuvert: true }),
+    store.write({ panelDescriptor: descriptor, panelOpen: true }),
   );
   try {
     window.__bridge.pushLayer("sheet");
@@ -608,7 +608,7 @@ function closePanel(pop?: boolean): void {
   // Guarded per LAYER, exactly as `closeSheet` was: closing an already-closed
   // sheet would consume a history entry that belongs to someone else.
   if (!isPanelOpen()) return;
-  flushSync(() => store.write({ panneauOuvert: false }));
+  flushSync(() => store.write({ panelOpen: false }));
   // `pop` means the entry is already being popped by the gesture that got us
   // here; otherwise the layer unwinds its own, through the engine's latch.
   if (!pop) window.__derouler?.("sheet");
@@ -618,7 +618,7 @@ function closePanel(pop?: boolean): void {
 // own task ("is a layer up before I open a screen?"), and the store is right
 // at that instant whatever React has painted.
 function isPanelOpen(): boolean {
-  return store.read().state.panneauOuvert === true;
+  return store.read().state.panelOpen === true;
 }
 
 window.__panel = {
@@ -641,7 +641,7 @@ installSeams({
    it: a block type nobody declared must raise, not draw nothing. Called as a
    plain function, not rendered — the dispatcher refuses before it reads
    anything else, which is what makes the refusal provable from outside. */
-window.__panneauInconnu = () => refuseBlock({ type: "ceci-n-existe-pas" });
+window.__unknownPanel = () => refuseBlock({ type: "ceci-n-existe-pas" });
 
 // The store is created here, and the engine starts only once it — and the
 // bridge above — are real. No queue, no replay: the engine's own boot writes
@@ -651,24 +651,24 @@ window.__panneauInconnu = () => refuseBlock({ type: "ceci-n-existe-pas" });
 // startup screen — already first in the frame — stays up: a visible,
 // truthful failure instead of an app with mute verbs.
 const store = createStore();
-window.__magasin = store;
+window.__store = store;
 // The legacy engine's own address BASE, decided by the ROUTER's OWN
 // matching rather than by a second, independently-maintained list of the
 // two screen paths: `getMatchedRoutes` is the cleanest fit here — a pure,
 // synchronous lookup keyed on a bare pathname, unlike `router.state.matches`
 // (needs a load this router has not run yet, since RouterProvider has not
 // mounted) or `router.navigate` (this is a read, not a navigation). A
-// pathname that resolves to a registered route (`/`, `/profil/$titre`,
-// `/ajout`, `/fiche/$titre` — any of them) is router territory, and the shared
+// pathname that resolves to a registered route (`/`, `/profile/$title`,
+// `/add`, `/mediasheet/$title` — any of them) is router territory, and the shared
 // production root for all of them is "/"; a pathname the router does not
 // recognise at all (the harness's own "/wrapped.html") is the legacy
 // engine's ground exactly as it is.
 const [, , matchedRoute] = router.getMatchedRoutes(location.pathname);
 const base = matchedRoute ? "/" : location.pathname;
-const start = window.__demarrerMoteur;
+const start = window.__startEngine;
 if (typeof start === "function") start({ store: store, base });
 
-// `#coquille` starts, in the markup, as a static sibling of `.stage` —
+// `#shell` starts, in the markup, as a static sibling of `.stage` —
 // index.html knows nothing about the phone frame the fragment draws. A
 // migrated screen's `.screen{position:absolute;inset:0}` resolves against
 // its nearest POSITIONED ancestor, which for the legacy `#screen` is
@@ -693,7 +693,7 @@ if (typeof start === "function") start({ store: store, base });
 // A missing `#device`/`#screen` (a document without the fragment injected)
 // leaves the node where the markup put it rather than throwing — the same
 // fail-soft posture as the rest of this boot sequence.
-const mountNode = document.getElementById("coquille")!;
+const mountNode = document.getElementById("shell")!;
 const device = document.getElementById("device");
 const legacyScreen = document.getElementById("screen");
 if (device && legacyScreen) device.insertBefore(mountNode, legacyScreen);

@@ -51,7 +51,7 @@ function dateSentence(
   if (formatted === null) {
     return "Date de diffusion inconnue.";
   }
-  return state === "annonce"
+  return state === "announced"
     ? `Sortie prévue le ${formatted}`
     : `Diffusé le ${formatted}`;
 }

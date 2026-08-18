@@ -10,9 +10,9 @@ async def main():
     # The startup screen covers the frame for as long as the load it stands
     # for lasts. Nothing is being fetched here, so the harness closes that
     # wait through the same seam the app uses, rather than sleeping it out.
-    await pg.evaluate("()=>window.__chargementTermine?.()")
+    await pg.evaluate("()=>window.__loadingDone?.()")
     await pg.evaluate("()=>document.querySelector('#toastx').click()")
-    await pg.click('[data-acqtab="suivis"]'); await pg.wait_for_timeout(350)
+    await pg.click('[data-acqtab="follows"]'); await pg.wait_for_timeout(350)
 
     print("modes offered     :", await pg.evaluate("()=>[...document.querySelectorAll('.vsw button')].map(b=>b.getAttribute('aria-label'))"))
     print("chips             :", await pg.evaluate("()=>[...document.querySelectorAll('.pill')].map(b=>b.textContent.trim())"))
@@ -40,7 +40,7 @@ async def main():
           "| badges :", await pg.evaluate("()=>[...document.querySelectorAll('.tilebadge')].map(e=>e.textContent)"))
     await pg.screenshot(path="s_grille.png")
 
-    await pg.click('[data-fmode="list"]'); await pg.click('[data-pill="films"]'); await pg.wait_for_timeout(300)
+    await pg.click('[data-fmode="list"]'); await pg.click('[data-pill="movies"]'); await pg.wait_for_timeout(300)
     print("Films filter      :", await pg.evaluate("()=>[...document.querySelectorAll('.ctitle')].map(e=>e.textContent)"))
     print("film label        :", await pg.evaluate("()=>document.querySelector('.chip').textContent"))
     print("film actions      :", await pg.evaluate("()=>[...document.querySelectorAll('.swipe .act')].slice(0,2).map(e=>e.textContent.trim())"))

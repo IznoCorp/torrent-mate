@@ -21,7 +21,7 @@ import { usePipelineStatus } from "@/hooks/usePipelineStatus";
  * 1. **À traiter** — every blocked staged item, unified across all pipeline
  *    stages (the reason the operator opens the app).
  * 2. **Activité scraping** — live scrape-activity feed (relocated from the
- *    former ``/scraping`` page (now ``/medias``)).
+ *    former ``/scraping`` page (now ``/media``)).
  * 3. **Dernier run** — digest card (trigger + counts + detail link).
  * 4. **Ce qui n'a pas avancé** — per-step skip/defer/error reasons from the
  *    last pipeline run, so stalled items are visible at a glance.
@@ -44,7 +44,7 @@ export default function Dashboard(): ReactElement {
       {/* 1. À traiter — all blocked cases, unified (DESIGN §2.1). */}
       <ToHandleList />
 
-      {/* 2. Activité scraping — live scrape feed, relocated from the former /scraping page (now /medias). */}
+      {/* 2. Activité scraping — live scrape feed, relocated from the former /scraping page (now /media). */}
       <ScrapeActivityPanel />
 
       {/* 3. Dernier run — digest card (trigger + counts + detail link). */}

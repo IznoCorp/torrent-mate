@@ -41,19 +41,19 @@ URL = "http://127.0.0.1:8899/wrapped.html"
 LIST_POSTER = 84  # two thirds of the card's floor, so a card at that floor is 2:3  # the notch of the card that explains; see refonte.html
 CARD_STATES = [
     "acq-encours-repos",
-    "acq-encours-charge",
-    "acq-suivis-liste",
-    "acq-suivis-groupe",
+    "acq-encours-loaded",
+    "acq-follows-liste",
+    "acq-follows-groupe",
     "lib-liste",
-    "lib-incomplets",
-    "lib-recents",
+    "lib-incomplete",
+    "lib-recent",
     "arr-repos",
-    "arr-charge",
+    "arr-loaded",
     "arr-resolution",
     "ecran-releases",
     "acq-identifier",
-    "acq-decouvrir",
-    "acq-decouvrir-degrade",
+    "acq-discover",
+    "acq-discover-degrade",
     # Search results were absent from this list, and the surface had drifted
     # exactly as far as the absence allowed: its poster box was sized, the
     # image inside it was not, and every thumbnail showed the top-left corner
@@ -62,10 +62,10 @@ CARD_STATES = [
 ]
 
 # States drawing tiles, and how to reach the tile layout from them.
-TILE_STATES = ["lib-grille", "lib-incomplets", "lib-recents", "acq-suivis-grille"]
+TILE_STATES = ["lib-grille", "lib-incomplete", "lib-recent", "acq-follows-grille"]
 
 # The medium the operator reported: incomplete, and reachable both ways.
-COMPARISON = ("lib-incomplets", "Compléter → Acquisitions")
+COMPARISON = ("lib-incomplete", "Compléter → Acquisitions")
 
 
 async def mode(pg, which):
@@ -272,7 +272,7 @@ async def main():
         # query would read the window instead, and a 390px frame on a 1280px
         # desktop would be told it has room for six columns it does not have.
         geometries = {}
-        for state_ in TILE_STATES + ["acq-decouvrir-affiches"]:
+        for state_ in TILE_STATES + ["acq-discover-affiches"]:
             await pg.evaluate("(i)=>window.__go(i)", state_)
             await pg.wait_for_timeout(400)
             await mode(pg, "grid")

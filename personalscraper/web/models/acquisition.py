@@ -115,13 +115,13 @@ class FollowedSeriesItem(BaseModel):
     #: Aired episodes with a live file in the library (``en_mediatheque``).
     owned_count: int | None = None
     #: Aired, unowned episodes with a takeable candidate known (``a_recuperer``).
-    a_recuperer_count: int | None = None
+    to_grab_count: int | None = None
     #: Aired, unowned episodes taken / carried by the pipeline (``en_acquisition``).
-    en_acquisition_count: int | None = None
+    acquiring_count: int | None = None
     #: Aired, unowned episodes searched with nothing takeable (``en_attente``).
-    en_attente_count: int | None = None
+    pending_count: int | None = None
     #: Aired, unowned episodes never searched or inconclusive (``non_verifie``).
-    non_verifie_count: int | None = None
+    unverified_count: int | None = None
     #: Episodes cached with an air date STILL AHEAD. Enters no state bucket and
     #: can never degrade the card; it only tells « À jour » (caught up, more to
     #: come) from « Terminé » (caught up, nothing left).
@@ -178,7 +178,7 @@ class FollowedSeriesItem(BaseModel):
             The derived lifecycle status.
         """
         if self.priming_running:
-            return "verification_en_cours"
+            return "verifying"
         if self.kind == "movie":
             facts = self.movie_facts or MovieFacts()
             return derive_movie_status(
@@ -191,10 +191,10 @@ class FollowedSeriesItem(BaseModel):
         return derive_follow_status(
             active=self.active,
             aired_count=self.aired_count,
-            a_recuperer_count=self.a_recuperer_count,
-            en_acquisition_count=self.en_acquisition_count,
-            en_attente_count=self.en_attente_count,
-            non_verifie_count=self.non_verifie_count,
+            to_grab_count=self.to_grab_count,
+            acquiring_count=self.acquiring_count,
+            pending_count=self.pending_count,
+            unverified_count=self.unverified_count,
             announced_count=self.announced_count,
             series_status=self.series_status,
         )

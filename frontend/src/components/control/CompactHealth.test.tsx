@@ -46,8 +46,8 @@ function routeFetch(input: RequestInfo | URL): Promise<Response> {
     return Promise.resolve(
       buildResponse(200, {
         items: 1200,
-        movies: 800,
-        shows: 400,
+        films: 800,
+        series: 400,
         files: 3400,
         size_gb: 4200.5,
         nfo: { valid: 1150, invalid: 30, missing: 20 },
@@ -150,23 +150,23 @@ describe("CompactHealth", () => {
     expect(await screen.findByText("1/1 fournisseurs OK")).toBeInTheDocument();
   });
 
-  it("affiche des liens vers /systeme (systeme-hub)", async () => {
+  it("affiche des liens vers /system (systeme-hub)", async () => {
     renderCompactHealth();
 
-    // Disks row → "Détails →" links to /systeme.
+    // Disks row → "Détails →" links to /system.
     expect(
       await screen.findByRole("link", { name: "Détails →" }),
-    ).toHaveAttribute("href", "/systeme");
+    ).toHaveAttribute("href", "/system");
 
-    // Index row → "Maintenance →" links to /systeme.
+    // Index row → "Maintenance →" links to /system.
     expect(screen.getByRole("link", { name: "Maintenance →" })).toHaveAttribute(
       "href",
-      "/systeme",
+      "/system",
     );
 
-    // Providers row → "Fournisseurs →" (was "Registre →") links to /systeme.
+    // Providers row → "Fournisseurs →" (was "Registre →") links to /system.
     expect(
       screen.getByRole("link", { name: "Fournisseurs →" }),
-    ).toHaveAttribute("href", "/systeme");
+    ).toHaveAttribute("href", "/system");
   });
 });

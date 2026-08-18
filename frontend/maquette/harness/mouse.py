@@ -18,7 +18,7 @@ async def main():
     # The startup screen covers the frame for as long as the load it stands
     # for lasts. Nothing is being fetched here, so the harness closes that
     # wait through the same seam the app uses, rather than sleeping it out.
-    await pg.evaluate("()=>window.__chargementTermine?.()")
+    await pg.evaluate("()=>window.__loadingDone?.()")
     await pg.evaluate("()=>window.__measure(true)")
 
     async def drag(selector, dx):
@@ -33,7 +33,7 @@ async def main():
         await pg.wait_for_timeout(700)
 
     # 1. Slide cards — the case the operator reported.
-    await pg.evaluate("()=>{window.__reset(); applyState({page:'acq',acqTab:'decouvrir',phase:'prete'}); window.__magasin.write({sugMode: 'deck'}); render();}")
+    await pg.evaluate("()=>{window.__reset(); applyState({page:'acq',acqTab:'discover',phase:'ready'}); window.__store.write({sugMode: 'deck'}); render();}")
     await pg.wait_for_timeout(600)
     t0 = await pg.evaluate("()=>document.querySelector('.dcard[data-depth=\"0\"] .t').textContent")
     await drag('.dcard[data-depth="0"]', -180)
@@ -42,7 +42,7 @@ async def main():
     if not (t1 != t0): failures.append("slide cards, mouse left")
     # Reset between gestures: chaining two drags without one measures the
     # second against the state the first left, which is not what is being asked.
-    await pg.evaluate("()=>{window.__reset(); applyState({page:'acq',acqTab:'decouvrir',phase:'prete'}); window.__magasin.write({sugMode: 'deck'}); render();}")
+    await pg.evaluate("()=>{window.__reset(); applyState({page:'acq',acqTab:'discover',phase:'ready'}); window.__store.write({sugMode: 'deck'}); render();}")
     await pg.wait_for_timeout(600)
     await drag('.dcard[data-depth="0"]', 180)
     n = await pg.evaluate("()=>state.sugGone.size")
@@ -50,14 +50,14 @@ async def main():
     if not (n == 1): failures.append("slide cards, mouse right")
 
     # 2. Card swipe in Suivis.
-    await pg.evaluate("()=>window.__go('acq-suivis-liste')"); await pg.wait_for_timeout(500)
+    await pg.evaluate("()=>window.__go('acq-follows-liste')"); await pg.wait_for_timeout(500)
     await drag(".swipe", -150)
     tr = await pg.evaluate("()=>{const c=document.querySelector('.swipe .card'); return getComputedStyle(c).transform;}")
     print(f"follow row, mouse swipe : {tr[:34]}  {'PASS' if tr != 'none' else 'FAIL'}")
     if not (tr != 'none'): failures.append("follow row, mouse swipe")
 
     # 3. Suggestion card swipe in the list format.
-    await pg.evaluate("()=>{window.__reset(); applyState({page:'acq',acqTab:'decouvrir',phase:'prete'}); window.__magasin.write({sugMode: 'list'}); render();}")
+    await pg.evaluate("()=>{window.__reset(); applyState({page:'acq',acqTab:'discover',phase:'ready'}); window.__store.write({sugMode: 'list'}); render();}")
     await pg.wait_for_timeout(600)
     before = await pg.evaluate("()=>document.querySelectorAll('.sugwrap').length")
     await drag(".sugwrap", 200)
@@ -82,7 +82,7 @@ async def main():
     await pg.evaluate("""()=>{window.__clicks = [];
       document.addEventListener('click',
         (e) => window.__clicks.push({swallowed: e.defaultPrevented}), true);}""")
-    for state_, list_label in (("acq-suivis-liste", "a follow row"),
+    for state_, list_label in (("acq-follows-liste", "a follow row"),
                          ("lib-liste", "a library row")):
         for direction, dx in (("right", 150), ("left", -150)):
             await pg.evaluate(f"()=>window.__go({state_!r})")

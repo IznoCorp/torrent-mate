@@ -80,7 +80,7 @@ describe("Sidebar", () => {
 
     expect(screen.getByRole("link", { name: "Contrôle" })).toHaveAttribute(
       "href",
-      "/controle",
+      "/control",
     );
     expect(screen.getByRole("link", { name: "Pipeline" })).toBeInTheDocument();
     expect(
@@ -88,7 +88,7 @@ describe("Sidebar", () => {
     ).toBeInTheDocument();
   });
 
-  it("rend Config comme lien actif (Registre fusionné dans /systeme)", () => {
+  it("rend Config comme lien actif (Registre fusionné dans /system)", () => {
     renderSidebar();
 
     // Config is an active link.
@@ -97,7 +97,7 @@ describe("Sidebar", () => {
       "/config",
     );
 
-    // Registre is gone — merged into /systeme (systeme-hub Phase 02).
+    // Registre is gone — merged into /system (systeme-hub Phase 02).
     expect(
       screen.queryByRole("link", { name: "Registre" }),
     ).not.toBeInTheDocument();

@@ -85,7 +85,7 @@ async def main():
         # The startup screen covers the frame for as long as the load it stands
         # for lasts. Nothing is being fetched here, so the harness closes that
         # wait through the same seam the app uses, rather than sleeping it out.
-        await pg.evaluate("()=>window.__chargementTermine?.()")
+        await pg.evaluate("()=>window.__loadingDone?.()")
         await pg.evaluate("()=>document.querySelector('#toastx').click()")
 
         global _journal
@@ -99,8 +99,8 @@ async def main():
         # 1. Pull to refresh — on every scrolling surface, not the convenient
         #    one. The indicator has to ARM and then show its spinner; a pull
         #    that travels a few pixels and stops has no loader to show.
-        surfaces = ["acq-encours-repos", "acq-suivis-liste", "acq-decouvrir",
-                    "lib-grille", "lib-liste", "arr-repos", "systeme"]
+        surfaces = ["acq-encours-repos", "acq-follows-liste", "acq-discover",
+                    "lib-grille", "lib-liste", "arr-repos", "system"]
         without_loading = []
         for state_ in surfaces:
             await pg.evaluate("(s)=>window.__go(s)", state_)
@@ -149,7 +149,7 @@ async def main():
 
         # 4. The gestures that claim their axis keep the pointer path, and the
         #    claim is what makes them survive. Measured, not assumed.
-        await pg.evaluate("()=>window.__go('acq-suivis-liste')")
+        await pg.evaluate("()=>window.__go('acq-follows-liste')")
         await pg.wait_for_timeout(300)
         r = await rect("#view .swipe")
         await drag(cdp, r["x"] + r["width"] / 2, r["y"] + r["height"] / 2, 12, -20, 0)
@@ -159,7 +159,7 @@ async def main():
         check("a row still opens", transformed not in ("none", "matrix(1, 0, 0, 1, 0, 0)"),
                  transformed)
 
-        await pg.evaluate("()=>window.__go('acq-decouvrir-deck')")
+        await pg.evaluate("()=>window.__go('acq-discover-deck')")
         await pg.wait_for_timeout(350)
         before = await pg.evaluate("()=>document.querySelectorAll('.sugwrap, .dcard').length")
         r = await rect(".deck .dcard[data-depth='0']")
@@ -188,11 +188,11 @@ async def main():
             await cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
 
         press_surfaces = [
-            ("follows gallery", "acq-suivis-grille", ".tile"),
+            ("follows gallery", "acq-follows-grille", ".tile"),
             ("library gallery", "lib-grille", ".tile"),
-            ("a card's poster", "acq-suivis-liste", "#view .card .poster"),
-            ("a card's body", "acq-suivis-liste", "#view .card .cbody"),
-            ("deck card", "acq-decouvrir-deck", ".deck .dcard[data-depth='0']"),
+            ("a card's poster", "acq-follows-liste", "#view .card .poster"),
+            ("a card's body", "acq-follows-liste", "#view .card .cbody"),
+            ("deck card", "acq-discover-deck", ".deck .dcard[data-depth='0']"),
         ]
         without_panel, with_selection, fired = [], [], []
         for name, state_, sel in press_surfaces:
@@ -232,9 +232,9 @@ async def main():
         # declaration itself. Exactly like the `touch-action` axis claim.
         # Each surface is checked in a state that DRAWS it: the deck state has
         # no list poster, and a rule that skips what is absent proves nothing.
-        for state_, selectors in (("acq-suivis-liste", [".poster"]),
+        for state_, selectors in (("acq-follows-liste", [".poster"]),
                                  ("lib-grille", [".tile"]),
-                                 ("acq-decouvrir-deck", [".dcard"]),
+                                 ("acq-discover-deck", [".dcard"]),
                                  ("feuille-suivi-complet", [".sheetposter"])):
             await pg.evaluate("(s)=>window.__go(s)", state_)
             await pg.wait_for_timeout(320)
@@ -289,7 +289,7 @@ async def main():
         await pg.evaluate("()=>window.__go('acq-identifier')")
         await pg.wait_for_timeout(450)
         # `acq-identifier` opens the add screen — a real route now
-        # (`/ajout`, rendered inside `#coquille`), not `#screen`: the card
+        # (`/add`, rendered inside `#coquille`), not `#screen`: the card
         # this hold reaches is drawn there, above the scrollport just the
         # same.
         layer = await pg.evaluate("""()=>{

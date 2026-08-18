@@ -573,7 +573,7 @@ describe("RankingPanel", () => {
     ]);
   });
 
-  it("a type without entry shows the inherit state", async () => {
+  it("a type without entry series the inherit state", async () => {
     const RANKING_WITH_PARTIAL = {
       ...RANKING,
       size_thresholds_by_type: {

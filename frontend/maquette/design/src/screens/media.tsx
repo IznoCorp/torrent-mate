@@ -1,6 +1,6 @@
 // design/src/screens/media.tsx
 // The centre of the product: legacy `openFiche(title)` (`refonte.html`) — ONE
-// media sheet for every medium — reborn as a real route (`/fiche/$titre`) and
+// media sheet for every medium — reborn as a real route (`/mediasheet/$title`) and
 // a final component. Markup is TRANSPLANTED, not translated: every tag, class
 // and data-attribute below is the one `refonte.html`'s BLOCK 2 CSS already
 // targets (`.screen`, `.screenbar`, `.herowrap`, `.trailer`, `.cast`,
@@ -68,8 +68,8 @@ type MediaSheetFields = {
   crea?: string | null;
   cast?: { n: string; r?: string }[];
   ids?: Record<string, string | number>;
-  statut?: string;
-  saisons?: CatalogSeason[];
+  status?: string;
+  seasons?: CatalogSeason[];
   eps?: Record<string, SheetEpisode[]>;
   possede?: boolean;
 };
@@ -156,12 +156,12 @@ function SeasonList({
                  owned count » threshold assumes the hole is always at the
                  end of the season: false for 35 series in this library. */
               const episodeState = upcoming
-                ? "annonce"
+                ? "announced"
                 : !owns || !held
-                  ? "non_verifie"
+                  ? "unverified"
                   : held.has(episode.n)
-                    ? "en_mediatheque"
-                    : "a_recuperer";
+                    ? "in_library"
+                    : "to_grab";
               return (
                 // Same blanks as the season summary, same reason: the row is
                 // a flex container (they draw nothing) and its `textContent`
@@ -176,7 +176,7 @@ function SeasonList({
                     {episode.air
                       ? dateFR(episode.air)
                       : t("screens.media.dateUnknown")}
-                    {episodeState === "en_mediatheque"
+                    {episodeState === "in_library"
                       ? ""
                       : ` · ${EP_LABEL[episodeState].toLowerCase()}`}
                   </span>
@@ -194,8 +194,8 @@ function SeasonList({
               {Array.from({ length: bound }, (ignored, index) => {
                 const number = index + 1;
                 const episodeState = held.has(number)
-                  ? "en_mediatheque"
-                  : "a_recuperer";
+                  ? "in_library"
+                  : "to_grab";
                 return (
                   <span
                     className={`ep ${episodeState}`}
@@ -304,7 +304,7 @@ function artworkFor(reference: Reference, title: string): string | null {
 }
 
 export function MediaScreen() {
-  const { titre: raw } = useParams({ from: "/fiche/$titre" });
+  const { title: raw } = useParams({ from: "/mediasheet/$title" });
   // Defensive: `__screens.mediaSheet` already normalises on write, but an entry
   // reached by a typed/bookmarked URL did not necessarily go through it.
   const title = raw.normalize("NFC");
@@ -359,7 +359,7 @@ export function MediaScreen() {
   const followed = follows.some(
     (follow) => baseTitle(follow.t) === baseTitle(title),
   );
-  const catalog = (sheet?.saisons ?? [])
+  const catalog = (sheet?.seasons ?? [])
     .slice()
     .sort((slice, index) => index.n - slice.n);
   // `?? 0` where the legacy addition simply let `null` coerce to zero: same
@@ -422,11 +422,11 @@ export function MediaScreen() {
                     {t("screens.media.genresUnknown")}
                   </>
                 )}{" "}
-                {sheet && !isFilm && sheet.statut ? (
+                {sheet && !isFilm && sheet.status ? (
                   <>
                     <br />
                     {t("screens.media.seriesStatus", {
-                      statut: sheet.statut.toLowerCase(),
+                      status: sheet.status.toLowerCase(),
                     })}
                   </>
                 ) : (
@@ -466,7 +466,7 @@ export function MediaScreen() {
               </span>{" "}
               <span>
                 {t("screens.media.trailer")}
-                <small>{trailer.nom}</small>
+                <small>{trailer.name}</small>
               </span>{" "}
               <span className="tsrc">
                 <Icon paths={icons.ext} />

@@ -2346,47 +2346,47 @@
     align-self: center;
 }
 
-.tm .eprow.en_mediatheque .epdot {
+.tm .eprow.in_library .epdot {
     background: var(--success);
 }
 
-.tm .eprow.en_mediatheque .en {
+.tm .eprow.in_library .en {
     color: var(--success);
 }
 
-.tm .eprow.a_recuperer .epdot {
+.tm .eprow.to_grab .epdot {
     background: var(--warning);
 }
 
-.tm .eprow.a_recuperer .en {
+.tm .eprow.to_grab .en {
     color: var(--warning);
 }
 
-.tm .eprow.en_acquisition .epdot {
+.tm .eprow.acquiring .epdot {
     background: var(--info);
 }
 
-.tm .eprow.en_acquisition .en {
+.tm .eprow.acquiring .en {
     color: var(--info);
 }
 
-.tm .eprow.en_attente .epdot {
+.tm .eprow.pending .epdot {
     background: var(--waiting);
 }
 
-.tm .eprow.en_attente .en {
+.tm .eprow.pending .en {
     color: var(--waiting);
 }
 
-.tm .eprow.annonce .epdot {
+.tm .eprow.announced .epdot {
     background: var(--upcoming);
 }
 
-.tm .eprow.annonce .en {
+.tm .eprow.announced .en {
     color: var(--upcoming);
 }
 
-.tm .eprow.non_verifie .epdot {
+.tm .eprow.unverified .epdot {
     background: transparent;
     border: 1px dashed var(--border);
 }
@@ -2535,32 +2535,32 @@
     border: 0;
 }
 
-.tm .ep.en_mediatheque {
+.tm .ep.in_library {
     background: color-mix(in oklab, var(--success) 20%, transparent);
     color: var(--success);
 }
 
-.tm .ep.a_recuperer {
+.tm .ep.to_grab {
     background: color-mix(in oklab, var(--warning) 20%, transparent);
     color: var(--warning);
 }
 
-.tm .ep.en_acquisition {
+.tm .ep.acquiring {
     background: color-mix(in oklab, var(--info) 20%, transparent);
     color: var(--info);
 }
 
-.tm .ep.en_attente {
+.tm .ep.pending {
     background: color-mix(in oklab, var(--waiting) 20%, transparent);
     color: var(--waiting);
 }
 
-.tm .ep.annonce {
+.tm .ep.announced {
     background: color-mix(in oklab, var(--upcoming) 20%, transparent);
     color: var(--upcoming);
 }
 
-.tm .ep.non_verifie {
+.tm .ep.unverified {
     border: 1px dashed var(--border);
     background: transparent;
     color: var(--muted-foreground);

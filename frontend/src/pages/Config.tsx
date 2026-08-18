@@ -35,7 +35,7 @@ const CONFIG_TABS = [
   // Ranking profiles used to sit on the acquisition page. They are settings —
   // read rarely, changed rarely — and they were crowding a surface whose job is
   // to answer "what needs me now". Their home is here.
-  { id: "classement", label: "Classement" },
+  { id: "ranking", label: "Classement" },
 ] as const;
 
 /**
@@ -114,7 +114,7 @@ export default function Config(): ReactElement {
         onSelect={editor.handleSelectFile}
         onSelectSecrets={editor.handleSelectSecrets}
         onSelectClassement={() => {
-          editor.setLeftTab("classement");
+          editor.setLeftTab("ranking");
         }}
       />
 
@@ -204,11 +204,11 @@ export default function Config(): ReactElement {
 
       {/* Secrets tab (sibling of the file list — no more scroll-to-find,
           G2/E3). X6: DS Card instead of a hand-rolled bordered div. */}
-      {editor.leftTab === "classement" && (
+      {editor.leftTab === "ranking" && (
         <Card
           id="config-tabpanel"
           role="tabpanel"
-          aria-labelledby="config-tab-classement"
+          aria-labelledby="config-tab-ranking"
           className="gap-0 p-4"
         >
           <RankingPanel />

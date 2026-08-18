@@ -1,6 +1,6 @@
 /**
  * Unit tests for the Medias page — library grid default, segments, resolution
- * deck, and decision browse (``/medias``).
+ * deck, and decision browse (``/media``).
  *
  * Mocks the data hooks so the page logic (tabs, library segments, optional
  * multi-select filter chips + counts, list/detail navigation, inline
@@ -218,7 +218,7 @@ function renderPage(
   });
 
   const tree: ReactElement = (
-    <MemoryRouter initialEntries={["/medias"]}>
+    <MemoryRouter initialEntries={["/media"]}>
       <QueryClientProvider client={qc}>
         <MediaLibrary />
       </QueryClientProvider>
@@ -261,7 +261,7 @@ describe("Medias", () => {
   });
 
   it("un chargement direct avec ?media ouvre la vue bibliothèque (deep-link)", () => {
-    // Regression (caught live): a FRESH load of /medias?media=<id> landed on
+    // Regression (caught live): a FRESH load of /media?media=<id> landed on
     // a non-library view and silently dropped the param. The view must
     // initialize from the URL so the route-addressable promise (#255) holds on
     // a fresh load too.
@@ -273,7 +273,7 @@ describe("Medias", () => {
       },
     });
     render(
-      <MemoryRouter initialEntries={["/medias?media=0268dd337626b989"]}>
+      <MemoryRouter initialEntries={["/media?media=0268dd337626b989"]}>
         <QueryClientProvider client={qc}>
           <MediaLibrary />
         </QueryClientProvider>

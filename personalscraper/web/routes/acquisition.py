@@ -398,10 +398,10 @@ def get_followed(
                         last_search_at=last_search_by_series.get(row["id"]),
                         aired_count=truth.aired_count,
                         owned_count=truth.owned_count,
-                        a_recuperer_count=truth.a_recuperer_count,
-                        en_acquisition_count=truth.en_acquisition_count,
-                        en_attente_count=truth.en_attente_count,
-                        non_verifie_count=truth.non_verifie_count,
+                        to_grab_count=truth.to_grab_count,
+                        acquiring_count=truth.acquiring_count,
+                        pending_count=truth.pending_count,
+                        unverified_count=truth.unverified_count,
                         announced_count=truth.announced_count,
                         # Read defensively like every late-added column: a row
                         # written before migrations 023/024 has no value, and

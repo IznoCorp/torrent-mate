@@ -106,12 +106,12 @@ def main():
                       + (f"{len(built)} in the build" if built is not None
                          else "dist never emitted"))
 
-        # (fallback) A path routing owns client-side (/fiche/…, /profil/…) is
+        # (fallback) A path routing owns client-side (/mediasheet/…, /profile/…) is
         # not a route this static host knows about — it must still answer the
         # ONE document, exactly like "/", session-gated the same way. A 303
         # here would drop the address bar's path and defeat the router before
         # it runs; a 404 would dead-end a reload or a shared link.
-        response_without, without_session = request_("/fiche/Quoi%20Que")
+        response_without, without_session = request_("/mediasheet/Quoi%20Que")
         response_root, login_page = request_("/")
         journal.check(
             "an unknown address with no session answers the sign-in screen, like «/»",
@@ -119,7 +119,7 @@ def main():
             and without_session == login_page,
             f"{response_without.status} vs {response_root.status}")
 
-        response_with, with_session = request_("/fiche/Quoi%20Que", cookie)
+        response_with, with_session = request_("/mediasheet/Quoi%20Que", cookie)
         journal.check(
             "an unknown address with a session answers the SAME document as «/»",
             response_with.status == 200 and with_session == served,

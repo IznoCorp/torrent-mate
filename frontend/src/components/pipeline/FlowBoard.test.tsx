@@ -283,7 +283,7 @@ describe("FlowBoard", () => {
     expect(screen.queryByText("run-1…")).not.toBeInTheDocument();
   });
 
-  it("shows a loading skeleton row while fetching", () => {
+  it("series a loading skeleton row while fetching", () => {
     stagesMock.mockReturnValue({
       data: undefined,
       isLoading: true,
@@ -320,7 +320,7 @@ describe("FlowBoard", () => {
     expect(screen.queryByText("Arrivée")).not.toBeInTheDocument();
   });
 
-  it("shows an error state with a retry action on failure", () => {
+  it("series an error state with a retry action on failure", () => {
     const refetch = vi.fn();
     stagesMock.mockReturnValue({
       data: undefined,
@@ -400,6 +400,6 @@ describe("FlowBoard", () => {
     });
     fireEvent.click(action);
     // Real router: the action leaves /pipeline for the resolution deck.
-    expect(screen.getByTestId("location-search").textContent).toBe("/medias");
+    expect(screen.getByTestId("location-search").textContent).toBe("/media");
   });
 });

@@ -58,7 +58,7 @@ function Host(): React.ReactElement {
 function renderHost() {
   const router = createMemoryRouter(
     [{ path: "/acquisition", element: <Host /> }],
-    { initialEntries: ["/acquisition?tab=suivis"] },
+    { initialEntries: ["/acquisition?tab=follows"] },
   );
   render(<RouterProvider router={router} />);
   return router;
@@ -74,7 +74,7 @@ describe("useBackCloses", () => {
     expect(screen.getByTestId("state")).toHaveTextContent("open");
     // The marker entry duplicates the URL — the page did not move.
     expect(screen.getByTestId("path")).toHaveTextContent(
-      "/acquisition?tab=suivis",
+      "/acquisition?tab=follows",
     );
 
     await act(async () => {
@@ -83,7 +83,7 @@ describe("useBackCloses", () => {
 
     expect(screen.getByTestId("state")).toHaveTextContent("closed");
     expect(screen.getByTestId("path")).toHaveTextContent(
-      "/acquisition?tab=suivis",
+      "/acquisition?tab=follows",
     );
   });
 
@@ -98,7 +98,7 @@ describe("useBackCloses", () => {
     expect(screen.getByTestId("state")).toHaveTextContent("closed");
     expect(router.state.location.state).toBeNull();
     expect(screen.getByTestId("path")).toHaveTextContent(
-      "/acquisition?tab=suivis",
+      "/acquisition?tab=follows",
     );
   });
 
@@ -117,7 +117,7 @@ describe("useBackCloses", () => {
     });
     expect(screen.getByTestId("state")).toHaveTextContent("closed");
     expect(screen.getByTestId("path")).toHaveTextContent(
-      "/acquisition?tab=suivis",
+      "/acquisition?tab=follows",
     );
   });
 });
@@ -162,7 +162,7 @@ describe("useBackCloses — deux couches", () => {
 
     const router = createMemoryRouter(
       [{ path: "/acquisition", element: <TwoLayers /> }],
-      { initialEntries: ["/acquisition?tab=suivis"] },
+      { initialEntries: ["/acquisition?tab=follows"] },
     );
     render(<RouterProvider router={router} />);
 

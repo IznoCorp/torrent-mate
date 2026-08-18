@@ -1,5 +1,5 @@
 /**
- * SystemPage — the /systeme hub with 4 URL-addressable tabs.
+ * SystemPage — the /system hub with 4 URL-addressable tabs.
  *
  * Mirrors the AcquisitionPage tab pattern (``TAB_IDS`` array validated against
  * ``?tab=`` from ``useSearchParams``, ``setActiveTab`` pushing/clearing the
@@ -266,13 +266,13 @@ function ProvidersPanel(): ReactElement {
 // ---------------------------------------------------------------------------
 
 /**
- * SystemPage — the authenticated system hub route (``/systeme``).
+ * SystemPage — the authenticated system hub route (``/system``).
  *
  * Four tabbed panels for system health (état), maintenance actions,
  * maintenance run history, and the destructive-operations journal.  The
  * active tab is URL-addressable via ``?tab=<id>`` — DOIT-10: the tab is a
  * shareable deep-link and Back returns to the previous tab.  The default
- * ``etat`` tab carries no param so ``/systeme`` stays clean.
+ * ``etat`` tab carries no param so ``/system`` stays clean.
  *
  * Returns:
  *   The system hub page element.
@@ -362,7 +362,7 @@ export default function SystemPage(): ReactElement {
             (id) => {
               setActiveTab(id, true);
             },
-            (id) => `systeme-tab-${id}`,
+            (id) => `system-tab-${id}`,
           );
         }}
       >
@@ -370,10 +370,10 @@ export default function SystemPage(): ReactElement {
           <button
             key={tab.id}
             type="button"
-            id={`systeme-tab-${tab.id}`}
+            id={`system-tab-${tab.id}`}
             role="tab"
             aria-selected={activeTab === tab.id}
-            aria-controls="systeme-tabpanel"
+            aria-controls="system-tabpanel"
             tabIndex={activeTab === tab.id ? 0 : -1}
             onClick={() => {
               setActiveTab(tab.id);
@@ -394,9 +394,9 @@ export default function SystemPage(): ReactElement {
           ACQUISITION-7 (ticket 250): the single tabpanel wrapper carries the
           tab/panel linkage (aria-labelledby follows the active tab). */}
       <div
-        id="systeme-tabpanel"
+        id="system-tabpanel"
         role="tabpanel"
-        aria-labelledby={`systeme-tab-${activeTab}`}
+        aria-labelledby={`system-tab-${activeTab}`}
         className="flex flex-col gap-4"
       >
         {/* État — system health at a glance: disks, locks, index, providers,
@@ -414,7 +414,7 @@ export default function SystemPage(): ReactElement {
             <ProvidersPanel />
 
             {/* Live event feed + recent-events table (formerly on the
-              /maintenance page; relocated to /systeme?tab=etat). */}
+              /maintenance page; relocated to /system?tab=etat). */}
             <EventFeed events={events} />
             <RecentEventsTable events={events} />
           </div>
@@ -444,7 +444,7 @@ export default function SystemPage(): ReactElement {
 
         {/* Journal — the append-only destructive-operations trail (§7).
           Gets its addressable home here, linked directly via
-          /systeme?tab=journal. */}
+          /system?tab=journal. */}
         {activeTab === "journal" && <DestructiveLogPanel />}
       </div>
     </section>

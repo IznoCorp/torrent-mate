@@ -59,9 +59,9 @@ const REFETCH_MS = 60_000;
 /**
  * Build the resolve link for a blocked media item.
  *
- * Ambiguous items link to the resolution deck (``/medias?decision=<id>``);
+ * Ambiguous items link to the resolution deck (``/media?decision=<id>``);
  * matched and absent items link to the media detail sheet
- * (``/medias?media=<id>``).
+ * (``/media?media=<id>``).
  *
  * Args:
  *   item: The blocked staging media item.
@@ -71,9 +71,9 @@ const REFETCH_MS = 60_000;
  */
 function resolveLink(item: StagingMediaItem): string {
   if (item.match === "ambiguous" && item.decision_id != null) {
-    return `/medias?decision=${String(item.decision_id)}`;
+    return `/media?decision=${String(item.decision_id)}`;
   }
-  return `/medias?media=${item.id}`;
+  return `/media?media=${item.id}`;
 }
 
 /**

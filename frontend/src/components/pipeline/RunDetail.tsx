@@ -9,10 +9,10 @@
  * Displayed inline on the ``/pipeline`` page when a row in the single
  * {@link RunHistoryTable} is clicked. The ``/maintenance`` route redirects
  * (``MaintenanceRunRedirect``) here via ``?run=<uid>`` (DOIT-10) — the
- * maintenance panels now live on ``/systeme`` (systeme-hub). A "Retour"
+ * maintenance panels now live on ``/system`` (systeme-hub). A "Retour"
  * button calls ``onClose`` (which clears the query param). When
  * ``showMaintenanceLink`` is set, a cross-link to
- * ``/systeme?tab=maintenance`` appears for maintenance runs.
+ * ``/system?tab=maintenance`` appears for maintenance runs.
  */
 
 import { useQuery } from "@tanstack/react-query";
@@ -48,7 +48,7 @@ export interface RunDetailProps {
   /**
    * When ``true`` and the loaded run is a maintenance run, render a cross-link
    * ``→ Voir les exécutions de maintenance`` pointing to
-   * ``/systeme?tab=maintenance``.
+   * ``/system?tab=maintenance``.
    *
    * Defaults to ``false`` so the SystemPage maintenance tab renders the
    * detail without a circular self-link (systeme-hub Phase 02).
@@ -338,12 +338,12 @@ export function RunDetail({
           </div>
         </div>
 
-        {/* Cross-link to /systeme?tab=maintenance when viewing a maintenance
+        {/* Cross-link to /system?tab=maintenance when viewing a maintenance
             run from the Pipeline page (systeme-hub). Not rendered on the
-            /systeme page itself (showMaintenanceLink defaults to false). */}
+            /system page itself (showMaintenanceLink defaults to false). */}
         {showMaintenanceLink && data.kind === "maintenance" && (
           <Link
-            to="/systeme?tab=maintenance"
+            to="/system?tab=maintenance"
             className="text-xs text-muted-foreground underline-offset-2 hover:underline"
           >
             → Voir les exécutions de maintenance

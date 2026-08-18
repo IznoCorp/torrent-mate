@@ -85,7 +85,7 @@ function takeableShow(): FollowedSeriesItem {
     id: 1,
     title: "Silo",
     kind: "show",
-    status: "a_recuperer",
+    status: "to_grab",
     active: true,
     added_at: 1_750_000_000,
     wanted_pending: 3,
@@ -187,7 +187,7 @@ function waitingShow(): FollowedSeriesItem {
     id: 2,
     title: "From",
     kind: "show",
-    status: "en_attente",
+    status: "pending",
     active: true,
     added_at: 1_745_000_000,
     wanted_pending: 0,
@@ -240,7 +240,7 @@ function upToDateShow(): FollowedSeriesItem {
     id: 3,
     title: "Shōgun",
     kind: "show",
-    status: "a_jour",
+    status: "up_to_date",
     active: true,
     added_at: 1_740_000_000,
     owned_count: 10,
@@ -512,13 +512,13 @@ describe("NowPanel", () => {
       ...waitingShow(),
       id: 9,
       title: "Star City",
-      status: "non_verifie",
+      status: "unverified",
     };
     const paused: FollowedSeriesItem = {
       ...waitingShow(),
       id: 10,
       title: "Rooster",
-      status: "non_verifie",
+      status: "unverified",
       active: false,
     };
     renderPanel({ ...full, followed: [...full.followed, nonVerifie, paused] });
@@ -557,7 +557,7 @@ describe("NowPanel", () => {
     ).toBeTruthy();
 
     // The resolve link targets the resolution deck with the decision id.
-    expect(resolve).toHaveAttribute("href", "/medias?decision=42");
+    expect(resolve).toHaveAttribute("href", "/media?decision=42");
   });
 
   it("les bloqués sans provenance ne sont pas listés mais ne sont pas tus non plus", async () => {
@@ -575,7 +575,7 @@ describe("NowPanel", () => {
     const link = await screen.findByRole("link", {
       name: /2 autres médias à traiter.*Contrôle/i,
     });
-    expect(link).toHaveAttribute("href", "/controle");
+    expect(link).toHaveAttribute("href", "/control");
   });
 
   it("le renvoi orphelin apparaît même quand des items sont présents (§méthode)", async () => {
@@ -599,7 +599,7 @@ describe("NowPanel", () => {
     const crossref = await within(section).findByRole("link", {
       name: /5 autres médias à traiter.*Contrôle/i,
     });
-    expect(crossref).toHaveAttribute("href", "/controle");
+    expect(crossref).toHaveAttribute("href", "/control");
   });
 
   it("« À traiter » disparaît quand il n'y a ni item ni orphelin", () => {

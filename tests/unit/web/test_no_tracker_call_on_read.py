@@ -414,9 +414,9 @@ def test_reading_follows_never_calls_a_tracker(
     # With a cached catalog, the counts are known.
     assert show_item["aired_count"] == 10
     assert isinstance(show_item["owned_count"], int)
-    assert isinstance(show_item["a_recuperer_count"], int)
-    assert isinstance(show_item["en_acquisition_count"], int)
-    assert isinstance(show_item["en_attente_count"], int)
+    assert isinstance(show_item["to_grab_count"], int)
+    assert isinstance(show_item["acquiring_count"], int)
+    assert isinstance(show_item["pending_count"], int)
 
     # The movie card.
     movie_item = next(it for it in items if it["id"] == movie_id)

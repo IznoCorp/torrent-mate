@@ -347,7 +347,7 @@ async def main():
         # seam, a duration instead of an observation.
         played = await ctx.new_page()
         await played.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
-        await played.evaluate("()=>window.__chargementTermine?.()")
+        await played.evaluate("()=>window.__loadingDone?.()")
         await played.evaluate("()=>window.__go('connexion')")
         await played.wait_for_timeout(350)
         await played.evaluate("""()=>{
@@ -379,7 +379,7 @@ async def main():
           document.querySelector('#loginform').requestSubmit();}""")
         await played.wait_for_timeout(700)
         before = await played.evaluate("()=>!document.querySelector('#splash').hidden")
-        await played.evaluate("()=>window.__chargementTermine()")
+        await played.evaluate("()=>window.__loadingDone()")
         await played.wait_for_timeout(300)
         after = await played.evaluate("()=>!document.querySelector('#splash').hidden")
         check("a load that finishes early takes the screen off early",

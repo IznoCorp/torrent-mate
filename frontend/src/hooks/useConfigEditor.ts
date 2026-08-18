@@ -50,7 +50,7 @@ import { configKeys } from "@/hooks/useConfigKeys";
 
 /** Everything the config page shell + panels need to render the editor. */
 /** Sections of the config page. */
-export type ConfigLeftTab = "files" | "secrets" | "classement";
+export type ConfigLeftTab = "files" | "secrets" | "ranking";
 
 export interface ConfigEditorState {
   // ---- Top-level query lifecycle ----
@@ -192,11 +192,11 @@ export function useConfigEditor(): ConfigEditorState {
   // Restart confirmation dialog visibility.
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
   // Active section. Seeded from ?tab= so a deep link (the old Acquisition
-  // « Réglages » redirects to /config?tab=classement) lands on the RIGHT
+  // « Réglages » redirects to /config?tab=ranking) lands on the RIGHT
   // section instead of the file list; afterwards it is local UI state.
   const [leftTab, setLeftTab] = useState<ConfigLeftTab>(() => {
     const t = searchParams.get("tab");
-    return t === "classement" || t === "secrets" ? t : "files";
+    return t === "ranking" || t === "secrets" ? t : "files";
   });
 
   const queryClient = useQueryClient();

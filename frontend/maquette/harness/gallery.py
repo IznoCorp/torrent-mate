@@ -10,10 +10,10 @@ from playwright.async_api import async_playwright
 
 GALLERIES = [
   ("Médiathèque · Médias",    "lib-grille",                ".tile[data-panel]"),
-  ("Médiathèque · Incomplets","lib-incomplets",            None),
-  ("Médiathèque · Récents",   "lib-recents",               None),
-  ("Suivis · grille",         "acq-suivis-grille",         ".tile[data-panel]"),
-  ("Découvrir · affiches",    "acq-decouvrir-affiches",    ".tile[data-panel]"),
+  ("Médiathèque · Incomplets","lib-incomplete",            None),
+  ("Médiathèque · Récents",   "lib-recent",               None),
+  ("Suivis · grille",         "acq-follows-grille",         ".tile[data-panel]"),
+  ("Découvrir · affiches",    "acq-discover-affiches",    ".tile[data-panel]"),
 ]
 
 async def main():
@@ -29,7 +29,7 @@ async def main():
       # The startup screen covers the frame for as long as the load it stands
       # for lasts. Nothing is being fetched here, so the harness closes that
       # wait through the same seam the app uses, rather than sleeping it out.
-      await pg.evaluate("()=>window.__chargementTermine?.()")
+      await pg.evaluate("()=>window.__loadingDone?.()")
       await pg.evaluate("()=>window.__measure(true)")
       print(f"\n── {'finger' if touch else 'mouse'} ──")
       for name, state_, sel in GALLERIES:
@@ -45,7 +45,7 @@ async def main():
             failures.append(f"{name}: no tile declares a panel"); print(f"  {name:26} NO PANEL DECLARED"); continue
 
         # 1. A tap opens the media sheet. The sheet left `#screen` for a real
-        # route (`/fiche/$titre`, rendered inside `#coquille`), so it is read by
+        # route (`/mediasheet/$title`, rendered inside `#coquille`), so it is read by
         # the identity it carries — `data-key="mediaSheet:…"` — and not by a bare
         # `.screen.open`, which cannot tell two stacked screens apart.
         await pg.locator(sel).first.click()
@@ -85,7 +85,7 @@ async def main():
     for lens in ("cat", "inc", "rec"):
         shapes = {}
         for mode in ("grid", "list"):
-            await pg.evaluate("([l,m])=>{window.__reset(); applyState({page:'lib',libLens:l,libMode:m,phase:'prete'}); render();}", [lens, mode])
+            await pg.evaluate("([l,m])=>{window.__reset(); applyState({page:'lib',libLens:l,libMode:m,phase:'ready'}); render();}", [lens, mode])
             await pg.wait_for_timeout(420)
             shapes[mode] = await pg.evaluate("""()=>({
                 tiles:document.querySelectorAll('#view .tile[data-panel]').length,

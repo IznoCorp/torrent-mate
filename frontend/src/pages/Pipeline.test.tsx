@@ -200,7 +200,7 @@ describe("Pipeline page", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows live interpreted lines when a run is active", () => {
+  it("series live interpreted lines when a run is active", () => {
     mocks.usePipelineStatus.mockReturnValue({
       snapshot: snapshot({
         state: "running",

@@ -18,7 +18,7 @@ async def main():
     # The startup screen covers the frame for as long as the load it stands
     # for lasts. Nothing is being fetched here, so the harness closes that
     # wait through the same seam the app uses, rather than sleeping it out.
-    await pg.evaluate("()=>window.__chargementTermine?.()")
+    await pg.evaluate("()=>window.__loadingDone?.()")
     await pg.evaluate("()=>window.__measure(true)")
     states=await pg.evaluate("()=>window.__states()")
     violations={}
@@ -66,7 +66,7 @@ async def main():
         const s=getComputedStyle(el); const b=el.getBoundingClientRect();
         out[name]={h:Math.round(b.height),weight:s.fontWeight,size:s.fontSize,justify:s.justifyContent,
                    radius:s.borderRadius,icon:!!el.querySelector(':scope > svg')};};
-      window.__go('acq-encours-charge'); await new Promise(r=>setTimeout(r,220));
+      window.__go('acq-encours-loaded'); await new Promise(r=>setTimeout(r,220));
       measure('.cfoot.solid','card footer (primary)');
       window.__go('feuille-suivi-trous'); await new Promise(r=>setTimeout(r,240));
       measure('.sact.primary','sheet (primary)');
@@ -103,14 +103,14 @@ async def main():
       const titles=Object.keys(SHEETS_RAW ?? {});
       const take=(pred, n)=>titles.filter(pred).slice(0, n);
       const incomplete=(t)=>{const s=OWNED[t]??OWNED[baseTitle(t)];
-        if(!s) return false; const f=sheetFor(t); if(!f?.saisons) return false;
-        return f.saisons.some(x=>x.ep && (s[String(x.n)]??[]).length < x.ep);};
+        if(!s) return false; const f=sheetFor(t); if(!f?.seasons) return false;
+        return f.seasons.some(x=>x.ep && (s[String(x.n)]??[]).length < x.ep);};
       picks.push(...take(t=>sheetFor(t)?.k==='movie', 2));
       picks.push(...take(t=>sheetFor(t)?.k==='show' && !incomplete(t), 2));
       picks.push(...take(incomplete, 4));
       picks.push(...take(t=>!(HERO_IMAGES[t]??HERO_IMAGES[baseTitle(t)]), 2));
       for (const t of [...new Set(picks)]) {
-        window.__reset(); applyState({page:'lib', phase:'prete'});
+        window.__reset(); applyState({page:'lib', phase:'ready'});
         window.__screens.mediaSheet(t);
         await new Promise(r=>setTimeout(r,240));
         const b=document.querySelector('.screen.open[data-key^="mediaSheet:"] .body');
@@ -171,7 +171,7 @@ async def main():
     ran('R15')
     # R15 — the three Suivis modes show the SAME number of items
     n=await pg.evaluate("""async ()=>{const o={};
-      for (const m of ['acq-suivis-liste','acq-suivis-groupe','acq-suivis-grille']) {
+      for (const m of ['acq-follows-liste','acq-follows-groupe','acq-follows-grille']) {
         window.__go(m); await new Promise(r=>setTimeout(r,240));
         o[m]=document.querySelectorAll('#view .card, #view .tile').length;}
       return o;}""")
@@ -181,7 +181,7 @@ async def main():
     ran('R16')
     # R16 — the badge is the sum it claims to be
     bad=await pg.evaluate("""async ()=>{const out=[];
-      for (const s of ['reel','charge']) { window.__magasin.write({scen: s}); window.__go('acq-encours-'+(s==='reel'?'repos':'charge'));
+      for (const s of ['real','loaded']) { window.__store.write({scen: s}); window.__go('acq-encours-'+(s==='real'?'repos':'loaded'));
         await new Promise(r=>setTimeout(r,240));
         const badge=document.querySelector('[data-page=acq] .navbadge');
         const expected=derived.takeable().length+derived.blocked().length;
@@ -196,7 +196,7 @@ async def main():
     ran('R17')
     # R17 — every destructive mutation is confirmed or reversible
     rev=await pg.evaluate("""async ()=>{const out=[];
-      window.__go('acq-suivis-liste'); await new Promise(r=>setTimeout(r,240));
+      window.__go('acq-follows-liste'); await new Promise(r=>setTimeout(r,240));
       document.querySelector('#view .swipe .act.remove').click(); await new Promise(r=>setTimeout(r,320));
       if (!document.querySelector('#toastundo')) out.push('removing a follow: no undo');
       window.__go('lib-liste'); await new Promise(r=>setTimeout(r,260));
@@ -343,7 +343,7 @@ async def main():
       if (!withHoles.length) return ['no series with an internal hole — the rule would be vacuous'];
       let inspected=0;
       for (const title of withHoles) {
-        window.__reset(); applyState({page:'lib', phase:'prete'});
+        window.__reset(); applyState({page:'lib', phase:'ready'});
         window.__screens.mediaSheet(title);
         await new Promise(r=>setTimeout(r,240));
         for (const det of document.querySelectorAll('.screen.open[data-key^="mediaSheet:"] details.season')) {
@@ -355,9 +355,9 @@ async def main():
               Number((r.querySelector('.en')?.textContent||'').replace(/\\D/g,'')), r])
             .concat([...det.querySelectorAll('.eps .ep')].map(c=>[Number(c.textContent), c]));
           for (const [n, el] of cells) {
-            if (!n || el.classList.contains('annonce')) continue;
+            if (!n || el.classList.contains('announced')) continue;
             inspected++;
-            const shown=el.classList.contains('en_mediatheque');
+            const shown=el.classList.contains('in_library');
             if (shown !== owned.has(n))
               out.push(`${title} S${num}E${n}: shown ${shown?'present':'missing'}, actually ${owned.has(n)?'present':'missing'}`);
           }
@@ -390,7 +390,7 @@ async def main():
         return null;
       };
       for (const t of series) {
-        window.__reset(); applyState({page:'lib',phase:'prete'});
+        window.__reset(); applyState({page:'lib',phase:'ready'});
         window.__screens.mediaSheet(t);
         const s=await waitFor(t);
         if (!s) { c.neverOpened.push(t); continue; }
@@ -438,7 +438,7 @@ async def main():
     # of forbidding a destination.
     dest=await pg.evaluate("""async ()=>{const out=[];
       const followed=new Set(world.follows.map(x=>x.t));
-      for (const state_ of ['lib-incomplets','lib-liste','lib-recents']) {
+      for (const state_ of ['lib-incomplete','lib-liste','lib-recent']) {
         for (let i=0; i<6; i++) {
           window.__go(state_); await new Promise(r=>setTimeout(r,300));
           const toggle=document.querySelector('[data-lmode="list"]');

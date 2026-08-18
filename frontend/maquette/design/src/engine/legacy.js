@@ -13,7 +13,7 @@
 
    HOW IT REACHES THE PAGE. It used to be a classic script, evaluated while
    the document parsed. It is now a module, evaluated as the shell's own
-   dependency — `shell.tsx` imports it before it reads `window.__demarrerMoteur`,
+   dependency — `shell.tsx` imports it before it reads `window.__startEngine`,
    so the order the engine has always relied on is the order it still gets:
    everything here runs first, the shell's boot runs second. Nothing in here
    reads `document.readyState` or waits for `DOMContentLoaded`, so being
@@ -254,125 +254,125 @@ import { screens, panel, bridge } from "../seams.js";
     {
       t: "Kyma, l'onde mystérieuse",
       serie: null,
-      depuis: "9 août",
-      recherches: 9,
+      since: "9 août",
+      searches: 9,
       k: "movie",
       y: 2026,
-      st: "en_attente",
+      st: "pending",
       fresh: true,
     },
     {
       t: "L'Odyssée",
       serie: null,
-      depuis: "6 août",
-      recherches: 14,
+      since: "6 août",
+      searches: 14,
       k: "movie",
       y: 2026,
-      st: "en_attente",
+      st: "pending",
     },
     {
       t: "Spider-Man : Brand New Day",
       serie: null,
-      depuis: "5 août",
-      recherches: 17,
+      since: "5 août",
+      searches: 17,
       k: "movie",
       y: 2026,
-      st: "en_attente",
+      st: "pending",
     },
     {
       t: "Wicker",
       serie: null,
-      depuis: "31 juillet",
-      recherches: 17,
+      since: "31 juillet",
+      searches: 17,
       k: "movie",
       y: 2026,
-      st: "en_attente",
+      st: "pending",
     },
     {
       t: "American Dad!",
       serie: "Continuing",
-      depuis: "3 juillet",
-      recherches: 79,
+      since: "3 juillet",
+      searches: 79,
       k: "show",
       y: 2005,
-      st: "a_jour",
+      st: "up_to_date",
       own: 403,
       aired: 403,
     },
     {
       t: "Dexter: Resurrection",
       serie: "Continuing",
-      depuis: "5 août",
-      recherches: 0,
+      since: "5 août",
+      searches: 0,
       k: "show",
       y: 2025,
-      st: "a_jour",
+      st: "up_to_date",
       own: 96,
       aired: 96,
     },
     {
       t: "Furious",
       serie: "Continuing",
-      depuis: "27 juillet",
-      recherches: 12,
+      since: "27 juillet",
+      searches: 12,
       k: "show",
       y: 2026,
-      st: "a_jour",
+      st: "up_to_date",
       own: 5,
       aired: 5,
     },
     {
       t: "House of the Dragon",
       serie: "Continuing",
-      depuis: "3 juillet",
-      recherches: 17,
+      since: "3 juillet",
+      searches: 17,
       k: "show",
       y: 2022,
-      st: "a_jour",
+      st: "up_to_date",
       own: 26,
       aired: 26,
     },
     {
       t: "President Curtis",
       serie: "Continuing",
-      depuis: "29 juillet",
-      recherches: 18,
+      since: "29 juillet",
+      searches: 18,
       k: "show",
       y: 2026,
-      st: "a_jour",
+      st: "up_to_date",
       own: 3,
       aired: 3,
     },
     {
       t: "Silo",
       serie: "Continuing",
-      depuis: "3 juillet",
-      recherches: 11,
+      since: "3 juillet",
+      searches: 11,
       k: "show",
       y: 2023,
-      st: "en_attente",
+      st: "pending",
       own: 26,
       aired: 27,
     },
     {
       t: "Star Trek: Strange New Worlds",
       serie: "Continuing",
-      depuis: "28 juillet",
-      recherches: 15,
+      since: "28 juillet",
+      searches: 15,
       k: "show",
       y: 2022,
-      st: "a_jour",
+      st: "up_to_date",
       own: 33,
       aired: 33,
     },
     {
       t: "Ted Lasso",
       serie: "Continuing",
-      depuis: "4 août",
-      recherches: 10,
+      since: "4 août",
+      searches: 10,
       k: "show",
       y: 2020,
-      st: "a_jour",
+      st: "up_to_date",
       own: 35,
       aired: 35,
     },
@@ -385,37 +385,37 @@ import { screens, panel, bridge } from "../seams.js";
      same labels, same tones, same urgency order, same groups. */
   const ST_LABEL = {
     disabled: "En pause",
-    verification_en_cours: "Vérification en cours",
-    a_recuperer: "À récupérer",
-    en_acquisition: "En cours d'acquisition",
-    en_attente: "En attente de torrent",
-    non_verifie: "Non vérifié",
-    a_jour: "À jour",
-    termine: "Terminé",
+    verifying: "Vérification en cours",
+    to_grab: "À récupérer",
+    acquiring: "En cours d'acquisition",
+    pending: "En attente de torrent",
+    unverified: "Non vérifié",
+    up_to_date: "À jour",
+    ended: "Terminé",
   };
   const ST_LABEL_MOVIE = {
-    a_jour: "Acquis",
-    termine: "Acquis",
+    up_to_date: "Acquis",
+    ended: "Acquis",
     disabled: "Recherche arrêtée",
   };
   const ST_TONE = {
     disabled: "neutral",
-    verification_en_cours: "info",
-    a_recuperer: "warning",
-    en_acquisition: "info",
-    en_attente: "waiting",
-    non_verifie: "muted",
-    a_jour: "success",
-    termine: "neutral",
+    verifying: "info",
+    to_grab: "warning",
+    acquiring: "info",
+    pending: "waiting",
+    unverified: "muted",
+    up_to_date: "success",
+    ended: "neutral",
   };
   const URGENCY = {
-    a_recuperer: 0,
-    en_acquisition: 1,
-    verification_en_cours: 2,
-    en_attente: 3,
-    non_verifie: 4,
-    a_jour: 5,
-    termine: 6,
+    to_grab: 0,
+    acquiring: 1,
+    verifying: 2,
+    pending: 3,
+    unverified: 4,
+    up_to_date: 5,
+    ended: 6,
     disabled: 7,
   };
   const GROUPS = [
@@ -423,16 +423,16 @@ import { screens, panel, bridge } from "../seams.js";
       key: "demandent",
       l: "Demandent quelque chose",
       pip: "warning",
-      of: ["a_recuperer", "en_attente", "non_verifie"],
+      of: ["to_grab", "pending", "unverified"],
     },
     {
       key: "en-cours",
       l: "En cours",
       pip: "info",
-      of: ["en_acquisition", "verification_en_cours"],
+      of: ["acquiring", "verifying"],
     },
-    { key: "a-jour", l: "À jour", pip: "success", of: ["a_jour"] },
-    { key: "terminees", l: "Terminées", pip: "neutral", of: ["termine"] },
+    { key: "a-jour", l: "À jour", pip: "success", of: ["up_to_date"] },
+    { key: "terminees", l: "Terminées", pip: "neutral", of: ["ended"] },
     { key: "en-pause", l: "En pause", pip: "neutral", of: ["disabled"] },
   ];
   /* A cron expression on a phone card is raw jargon. The scheduler returns
@@ -494,9 +494,9 @@ import { screens, panel, bridge } from "../seams.js";
      signal. */
   function gridBadge(follow) {
     if (
-      follow.st === "a_recuperer" ||
-      follow.st === "en_acquisition" ||
-      follow.st === "en_attente"
+      follow.st === "to_grab" ||
+      follow.st === "acquiring" ||
+      follow.st === "pending"
     ) {
       if (follow.k === "movie") return { txt: "•", tone: follow.st };
       return {
@@ -504,7 +504,7 @@ import { screens, panel, bridge } from "../seams.js";
         tone: follow.st,
       };
     }
-    if (follow.st === "non_verifie" || follow.st === "verification_en_cours")
+    if (follow.st === "unverified" || follow.st === "verifying")
       return { txt: "?", tone: "muted" };
     return null;
   }
@@ -633,29 +633,29 @@ import { screens, panel, bridge } from "../seams.js";
   };
 
   const EP_LABEL = {
-    en_mediatheque: "En médiathèque",
-    a_recuperer: "À récupérer",
-    en_acquisition: "En cours d'acquisition",
-    en_attente: "En attente de torrent",
-    annonce: "Annoncé",
-    non_verifie: "Non vérifié",
+    in_library: "En médiathèque",
+    to_grab: "À récupérer",
+    acquiring: "En cours d'acquisition",
+    pending: "En attente de torrent",
+    announced: "Annoncé",
+    unverified: "Non vérifié",
   };
   /* Lifecycle order, as the operator reads it. */
   const EP_ORDER = [
-    "non_verifie",
-    "annonce",
-    "en_attente",
-    "a_recuperer",
-    "en_acquisition",
-    "en_mediatheque",
+    "unverified",
+    "announced",
+    "pending",
+    "to_grab",
+    "acquiring",
+    "in_library",
   ];
   const EP_SWATCH = {
-    non_verifie: "sw-muted",
-    annonce: "sw-upcoming",
-    en_attente: "sw-waiting",
-    a_recuperer: "sw-warning",
-    en_acquisition: "sw-info",
-    en_mediatheque: "sw-success",
+    unverified: "sw-muted",
+    announced: "sw-upcoming",
+    pending: "sw-waiting",
+    to_grab: "sw-warning",
+    acquiring: "sw-info",
+    in_library: "sw-success",
   };
 
   /* Only FILLED-IN suggestions are served: a card that opens a hollow sheet
@@ -1834,1316 +1834,1316 @@ import { screens, panel, bridge } from "../seams.js";
   const trailerIds = {
     "Silo (2023)": {
       key: "8QOFIMvl-PU",
-      nom: "Bande-annonce officielle",
-      langue: "fr",
+      name: "Bande-annonce officielle",
+      language: "fr",
     },
     "Furious (2026)": {
       key: "jixmBcBxPto",
-      nom: "Furious - Bande-annonce officielle (VF) | Disney+",
-      langue: "fr",
+      name: "Furious - Bande-annonce officielle (VF) | Disney+",
+      language: "fr",
     },
     "Ninja Turtles": {
       key: "MgLKnM66qbA",
-      nom: "NINJA TURTLES - Bande Annonce VF",
-      langue: "fr",
+      name: "NINJA TURTLES - Bande Annonce VF",
+      language: "fr",
     },
     "Marjorie Prime": {
       key: "5tZpZjBYZ7g",
-      nom: "Marjorie Prime v.f.",
-      langue: "fr",
+      name: "Marjorie Prime v.f.",
+      language: "fr",
     },
     "American Dad!": {
       key: "apr31MFjg08",
-      nom: "Theatrical Trailer",
-      langue: "en",
+      name: "Theatrical Trailer",
+      language: "en",
     },
     "Les aventures de Tintin": {
       key: "vDxDJqdI6P0",
-      nom: "Générique de Tintin",
-      langue: "fr",
+      name: "Générique de Tintin",
+      language: "fr",
     },
     "On l'appelait Robin des Bois": {
       key: "hfrJlwxkkJ8",
-      nom: "ON L'APPELAIT ROBIN DES BOIS - Bande-annonce VF",
-      langue: "fr",
+      name: "ON L'APPELAIT ROBIN DES BOIS - Bande-annonce VF",
+      language: "fr",
     },
     "Batman Caped Crusader (2024)": {
       key: "hTwbHI8RbgQ",
-      nom: "Bande-Annonce",
-      langue: "fr",
+      name: "Bande-Annonce",
+      language: "fr",
     },
     "The Bombing of Pan Am 103": {
       key: "bSOYE7jhd6s",
-      nom: "Official Trailer",
-      langue: "en",
+      name: "Official Trailer",
+      language: "en",
     },
     "Big Chicken Le complot de la malbouffe": {
       key: "7sGkQM6TyQU",
-      nom: "Official Trailer",
-      langue: "en",
+      name: "Official Trailer",
+      language: "en",
     },
     "Margin Call": {
       key: "rc_WrFEZiJA",
-      nom: "MARGIN CALL : BANDE ANNONCE OFFICIELLE VOSTF HD",
-      langue: "fr",
+      name: "MARGIN CALL : BANDE ANNONCE OFFICIELLE VOSTF HD",
+      language: "fr",
     },
     "President Curtis (2026)": {
       key: "FCNN4usJJy4",
-      nom: "Official Trailer",
-      langue: "en",
+      name: "Official Trailer",
+      language: "en",
     },
     "Superman : L'Homme de demain": {
       key: "weOF9_FGjOk",
-      nom: "Official Trailer",
-      langue: "en",
+      name: "Official Trailer",
+      language: "en",
     },
     "Alita : Battle Angel": {
       key: "7FxsOTd8q7k",
-      nom: "Bande-annonce #1 VOST",
-      langue: "fr",
+      name: "Bande-annonce #1 VOST",
+      language: "fr",
     },
     "Numéro quatre": {
       key: "6nSupfu35Yw",
-      nom: "Numéro Quatre - Bande Annonce Officielle 2 - VF - En DVD / Blu-Ray le 10 Août 2011 I Disney",
-      langue: "fr",
+      name: "Numéro Quatre - Bande Annonce Officielle 2 - VF - En DVD / Blu-Ray le 10 Août 2011 I Disney",
+      language: "fr",
     },
     "Avengers : Endgame": {
       key: "bgTlt5-l-AA",
-      nom: "Avengers : Endgame - Bande-annonce VF",
-      langue: "fr",
+      name: "Avengers : Endgame - Bande-annonce VF",
+      language: "fr",
     },
     "L'Incroyable Hulk": {
       key: "LCjTxK1B5Pg",
-      nom: "L'Incroyable Hulk - Bande Annonce (VF)",
-      langue: "fr",
+      name: "L'Incroyable Hulk - Bande Annonce (VF)",
+      language: "fr",
     },
     "Man of Steel": {
       key: "SOsGcWnwzWI",
-      nom: "Man Of Steel - Bande Annonce Officielle 3 (VOST) - Zack Snyder / Henri Cavill / Kevin Costner",
-      langue: "fr",
+      name: "Man Of Steel - Bande Annonce Officielle 3 (VOST) - Zack Snyder / Henri Cavill / Kevin Costner",
+      language: "fr",
     },
     "X-Men : Dark Phoenix": {
       key: "jyTgXu5bZf4",
-      nom: "X-Men : Dark Phoenix | Bande-Annonce [Officielle] VF HD | 2019",
-      langue: "fr",
+      name: "X-Men : Dark Phoenix | Bande-Annonce [Officielle] VF HD | 2019",
+      language: "fr",
     },
     "Premier Contact": {
       key: "rcOKL69bKpQ",
-      nom: "Premier Contact - Bande-Annonce 1 - VF",
-      langue: "fr",
+      name: "Premier Contact - Bande-Annonce 1 - VF",
+      language: "fr",
     },
     "Ant-Man et la Guêpe : Quantumania": {
       key: "v_3iSE7nKbg",
-      nom: "Ant-Man et La Guêpe : Quantumania - Première bande-annonce [VF]",
-      langue: "fr",
+      name: "Ant-Man et La Guêpe : Quantumania - Première bande-annonce [VF]",
+      language: "fr",
     },
     "The Venture Bros": {
       key: "r-u5-uMQ9JQ",
-      nom: "The Venture Bros | Season 1 | Villainy Shopping | Adult Swim Europe",
-      langue: "en",
+      name: "The Venture Bros | Season 1 | Villainy Shopping | Adult Swim Europe",
+      language: "en",
     },
     "Fast Charlie": {
       key: "kEjexRdeuo0",
-      nom: "Official Trailer",
-      langue: "en",
+      name: "Official Trailer",
+      language: "en",
     },
-    Grimsburg: { key: "S915fKfTjNk", nom: "Official Trailer", langue: "en" },
+    Grimsburg: { key: "S915fKfTjNk", name: "Official Trailer", language: "en" },
     "Solo: A Star Wars Story": {
       key: "oEtUcPl7i44",
-      nom: "Solo : A Star Wars Story - Bande Annonce VF",
-      langue: "fr",
+      name: "Solo : A Star Wars Story - Bande Annonce VF",
+      language: "fr",
     },
-    "L'Assassin": { key: "qnyyaHNqk0Y", nom: "Official Trailer", langue: "en" },
+    "L'Assassin": { key: "qnyyaHNqk0Y", name: "Official Trailer", language: "en" },
     "Power Rangers": {
       key: "voBpoiJzn1g",
-      nom: "POWER RANGERS - Bande Annonce VOST",
-      langue: "fr",
+      name: "POWER RANGERS - Bande Annonce VOST",
+      language: "fr",
     },
     "Agent Elvis": {
       key: "3TYhS2qZvPc",
-      nom: "Agent Elvis | Official Trailer | Sony Animation",
-      langue: "fr",
+      name: "Agent Elvis | Official Trailer | Sony Animation",
+      language: "fr",
     },
     "Marvel's M.O.D.O.K.": {
       key: "UNOynBuYn9E",
-      nom: "M.O.D.O.K. - Bande Annonce (VOST)",
-      langue: "fr",
+      name: "M.O.D.O.K. - Bande Annonce (VOST)",
+      language: "fr",
     },
     "Un Duplex pour 3": {
       key: "eUDS3p08qig",
-      nom: "1 duplex pour 3",
-      langue: "fr",
+      name: "1 duplex pour 3",
+      language: "fr",
     },
     "Les Trois Corniauds": {
       key: "mDBmqHBOl0o",
-      nom: "Les Trois Corniauds - Bande Annonce [VO-HD]",
-      langue: "fr",
+      name: "Les Trois Corniauds - Bande Annonce [VO-HD]",
+      language: "fr",
     },
     "L'Embrouille est dans le sac": {
       key: "cANH6lG7roo",
-      nom: "Oscar - Trailer",
-      langue: "fr",
+      name: "Oscar - Trailer",
+      language: "fr",
     },
     Impostor: {
       key: "Vh6xFG7l8ss",
-      nom: "Impostor (2001) Official Trailer 1 - Gary Sinise Movie",
-      langue: "en",
+      name: "Impostor (2001) Official Trailer 1 - Gary Sinise Movie",
+      language: "en",
     },
     "Green Lantern : Le Complot": {
       key: "B_v_-A26xK8",
-      nom: "The Green Lantern: First Flight - Trailer",
-      langue: "en",
+      name: "The Green Lantern: First Flight - Trailer",
+      language: "en",
     },
     "Green Lantern : Méfiez-vous de mon pouvoir": {
       key: "bjD3r8wPQQA",
-      nom: "Trailer",
-      langue: "en",
+      name: "Trailer",
+      language: "en",
     },
     "Monsieur le député": {
       key: "pLB2o7xzOrI",
-      nom: "Monsieur le député bande annonce vf",
-      langue: "fr",
+      name: "Monsieur le député bande annonce vf",
+      language: "fr",
     },
     "Touche pas à mon gazon": {
       key: "ELG_z7z8_3I",
-      nom: "Official Trailer",
-      langue: "en",
+      name: "Official Trailer",
+      language: "en",
     },
     "LOL 2.0": {
       key: "2tyGg2W5NfE",
-      nom: "LOL 2.0 - Bande-annonce",
-      langue: "fr",
+      name: "LOL 2.0 - Bande-annonce",
+      language: "fr",
     },
     Thunderstruck: {
       key: "65qyPfZe9Eg",
-      nom: "Thunderstruck TRAILER (2012) Kevin Durant Basketball Movie HD",
-      langue: "en",
+      name: "Thunderstruck TRAILER (2012) Kevin Durant Basketball Movie HD",
+      language: "en",
     },
     "American Dreamer": {
       key: "ip1M_fjL2Bo",
-      nom: "Official Trailer",
-      langue: "en",
+      name: "Official Trailer",
+      language: "en",
     },
     "Gabriel Iglesias: I'm Sorry for What I Said When I Was Hungry": {
       key: "OfbA9a_CUxU",
-      nom: "Trailer",
-      langue: "en",
+      name: "Trailer",
+      language: "en",
     },
     "Eddie Murphy: Delirious": {
       key: "XhHgYnAZGpI",
-      nom: "Eddie Murphy Delirious Trailer",
-      langue: "en",
+      name: "Eddie Murphy Delirious Trailer",
+      language: "en",
     },
     "La Guerre des étoiles": {
       key: "HKQgMXvgxsM",
-      nom: "Star Wars, Episode IV : Un Nouvel Espoir - La Collection des Films en Digital",
-      langue: "fr",
+      name: "Star Wars, Episode IV : Un Nouvel Espoir - La Collection des Films en Digital",
+      language: "fr",
     },
     "Scary Movie": {
       key: "aNJ7tty-eaA",
-      nom: "Scary Movie 1 Avec moi tu n'à rien perdu",
-      langue: "fr",
+      name: "Scary Movie 1 Avec moi tu n'à rien perdu",
+      language: "fr",
     },
     RoboCop: {
       key: "aWSEsbU3UWU",
-      nom: "ROBOCOP (1987) BANDE-ANNONCE 2018 [RE-TRAILER VF HD]",
-      langue: "fr",
+      name: "ROBOCOP (1987) BANDE-ANNONCE 2018 [RE-TRAILER VF HD]",
+      language: "fr",
     },
-    Superman: { key: "pUwxH4SM9Rg", nom: "Trailer", langue: "en" },
+    Superman: { key: "pUwxH4SM9Rg", name: "Trailer", language: "en" },
     "Le Livre de la jungle": {
       key: "qFGkJphcYVk",
-      nom: "The Jungle Book (VF) - Bande Annonce",
-      langue: "fr",
+      name: "The Jungle Book (VF) - Bande Annonce",
+      language: "fr",
     },
     Pinocchio: {
       key: "YQBeMwYUM5I",
-      nom: "Pinocchio (1940) (VF) - Bande Annonce",
-      langue: "fr",
+      name: "Pinocchio (1940) (VF) - Bande Annonce",
+      language: "fr",
     },
     "La Petite Sirène": {
       key: "363URFzzCgg",
-      nom: "La Petite Sirène - Bande Annonce VF - En Pack+ Disney et Coffret Prestige le 25 septembre ! I Disney",
-      langue: "fr",
+      name: "La Petite Sirène - Bande Annonce VF - En Pack+ Disney et Coffret Prestige le 25 septembre ! I Disney",
+      language: "fr",
     },
     Mulan: {
       key: "fQWU5Yxhm7Q",
-      nom: "Mulan - La Bande Annonce VF",
-      langue: "fr",
+      name: "Mulan - La Bande Annonce VF",
+      language: "fr",
     },
     "Les Schtroumpfs": {
       key: "3GclcezQvFU",
-      nom: "Les Schtroumpfs - Bande annonce 1 VF",
-      langue: "fr",
+      name: "Les Schtroumpfs - Bande annonce 1 VF",
+      language: "fr",
     },
     "Lilo & Stitch": {
       key: "hBkNbyGBa2w",
-      nom: "Lilo & Stitch - Bande-annonce [VF]",
-      langue: "fr",
+      name: "Lilo & Stitch - Bande-annonce [VF]",
+      language: "fr",
     },
     "Dark Matter": {
       key: "asNlmlj-Dxs",
-      nom: "Dark Matter, la bande annonce longue SyFy France",
-      langue: "fr",
+      name: "Dark Matter, la bande annonce longue SyFy France",
+      language: "fr",
     },
     Friends: {
       key: "-6-rrJIL-nM",
-      nom: "FRIENDS - Bande Annonce Officielle 1 (VOST)",
-      langue: "fr",
+      name: "FRIENDS - Bande Annonce Officielle 1 (VOST)",
+      language: "fr",
     },
     Scrubs: {
       key: "KKm-lQK4-vY",
-      nom: "Scrubs Le Reboot - Bande-annonce officielle (VF) | Disney+",
-      langue: "fr",
+      name: "Scrubs Le Reboot - Bande-annonce officielle (VF) | Disney+",
+      language: "fr",
     },
     "Zero Day": {
       key: "sc3gu0FUKmM",
-      nom: "Bande-annonce officielle",
-      langue: "fr",
+      name: "Bande-annonce officielle",
+      language: "fr",
     },
     "Ça Bienvenue à Derry": {
       key: "ZAkiOIdcFHU",
-      nom: "Bande-annonce VF",
-      langue: "fr",
+      name: "Bande-annonce VF",
+      language: "fr",
     },
     "The Big Bang Theory": {
       key: "rCj-Fb1OmXg",
-      nom: "The Big Bang Theory Trailer",
-      langue: "en",
+      name: "The Big Bang Theory Trailer",
+      language: "en",
     },
     "The Big Door Prize": {
       key: "Mu-KfLd-d9U",
-      nom: "Official Trailer",
-      langue: "en",
+      name: "Official Trailer",
+      language: "en",
     },
     "The Bridge": {
       key: "83FcxzlXbKs",
-      nom: "The Bridge - Bron / Broen Trailer",
-      langue: "en",
+      name: "The Bridge - Bron / Broen Trailer",
+      language: "en",
     },
     "The Crowded Room": {
       key: "4w1xZA7pX2c",
-      nom: "Official Trailer",
-      langue: "en",
+      name: "Official Trailer",
+      language: "en",
     },
-    "The Deal": { key: "lnvj2yqMOfA", nom: "Trailer", langue: "en" },
+    "The Deal": { key: "lnvj2yqMOfA", name: "Trailer", language: "en" },
     "The Fall": {
       key: "9R6Edq9C-gQ",
-      nom: "The Fall Saison 1 - Bande Annonce",
-      langue: "fr",
+      name: "The Fall Saison 1 - Bande Annonce",
+      language: "fr",
     },
     "The Flight Attendant": {
       key: "kH4wmQ5tnjs",
-      nom: "The Flight Attendant - Bande Annonce [VOST]",
-      langue: "fr",
+      name: "The Flight Attendant - Bande Annonce [VOST]",
+      language: "fr",
     },
     "The Inbetweeners": {
       key: "T1Wwtj-YF7w",
-      nom: "BEST OF THE INBETWEENERS | Jay's Funniest Moments | Series 1",
-      langue: "en",
+      name: "BEST OF THE INBETWEENERS | Jay's Funniest Moments | Series 1",
+      language: "en",
     },
     "The Island": {
       key: "xxTfMsPfr9M",
-      nom: "An t-Eilean | BBC ALBA",
-      langue: "en",
+      name: "An t-Eilean | BBC ALBA",
+      language: "en",
     },
     "The Keepers": {
       key: "9IKldWkDzvs",
-      nom: "Bande-annonce [VOSTFR]",
-      langue: "fr",
+      name: "Bande-annonce [VOSTFR]",
+      language: "fr",
     },
     "Derrière la façade": {
       key: "JKufPJ-JHvA",
-      nom: "Official Trailer",
-      langue: "en",
+      name: "Official Trailer",
+      language: "en",
     },
     "Des gens bien": {
       key: "jbTXdKQYrys",
-      nom: "DES GENS BIEN | S01 | BANDE ANNONCE",
-      langue: "fr",
+      name: "DES GENS BIEN | S01 | BANDE ANNONCE",
+      language: "fr",
     },
     "Des vivants": {
       key: "FpW2CqI5-yw",
-      nom: '"Des vivants" - Bande-annonce officielle - Avec Benjamin Lavernhe, Alix Poisson, Félix Moati…',
-      langue: "fr",
+      name: '"Des vivants" - Bande-annonce officielle - Avec Benjamin Lavernhe, Alix Poisson, Félix Moati…',
+      language: "fr",
     },
     Dexter: {
       key: "_9YrRq23l2M",
-      nom: "Dexter - Saison 1 - Bande-annonce [VF]",
-      langue: "fr",
+      name: "Dexter - Saison 1 - Bande-annonce [VF]",
+      language: "fr",
     },
     "Dexter Les Origines": {
       key: "CEsUKEwto98",
-      nom: "Dexter : Original Sin | bande annonce | CANAL+",
-      langue: "fr",
+      name: "Dexter : Original Sin | bande annonce | CANAL+",
+      language: "fr",
     },
     "Dexter Resurrection": {
       key: "m3CRlxBlszQ",
-      nom: "Dexter : Resurrection | Bande-annonce | CANAL+",
-      langue: "fr",
+      name: "Dexter : Resurrection | Bande-annonce | CANAL+",
+      language: "fr",
     },
     "Dope Girls": {
       key: "plWuq_Ppyxo",
-      nom: "Dope Girls - Bande annonce VF - CANAL+",
-      langue: "fr",
+      name: "Dope Girls - Bande annonce VF - CANAL+",
+      language: "fr",
     },
     "Dope Thief": {
       key: "2sSNMWkSFzc",
-      nom: "DOPE THIEF Bande Annonce VF (2025) Ridley Scott",
-      langue: "fr",
+      name: "DOPE THIEF Bande Annonce VF (2025) Ridley Scott",
+      language: "fr",
     },
     "Douglas Is Cancelled": {
       key: "-t4RuUMDr2Y",
-      nom: "Official Trailer",
-      langue: "en",
+      name: "Official Trailer",
+      language: "en",
     },
     "Down Cemetery Road": {
       key: "0unUwpCfRg0",
-      nom: "Official Trailer",
-      langue: "en",
+      name: "Official Trailer",
+      language: "en",
     },
     "Dune Prophecy": {
       key: "gn154MeJFY4",
-      nom: "Dune Prophecy | Bande-Annonce Officielle",
-      langue: "fr",
+      name: "Dune Prophecy | Bande-Annonce Officielle",
+      language: "fr",
     },
     "Défendre Jacob": {
       key: "iVCMWU7kv2k",
-      nom: "Bande-annonce officielle [VOSTFR]",
-      langue: "fr",
+      name: "Bande-annonce officielle [VOSTFR]",
+      language: "fr",
     },
     Désenchantées: {
       key: "ybpOBQ-81tg",
-      nom: "[Extrait] Désenchantées",
-      langue: "fr",
+      name: "[Extrait] Désenchantées",
+      language: "fr",
     },
     Earl: {
       key: "LyAKsyDN_04",
-      nom: "My Name Is Earl! Season 1 Trailer!",
-      langue: "en",
+      name: "My Name Is Earl! Season 1 Trailer!",
+      language: "en",
     },
     Empathie: {
       key: "SoHFFxrFZtE",
-      nom: "Empathie | Bande-annonce | Création Originale CANAL+",
-      langue: "fr",
+      name: "Empathie | Bande-annonce | Création Originale CANAL+",
+      language: "fr",
     },
     Engrenages: {
       key: "dS4MJHsTWe0",
-      nom: "Engrenages, saison 1 (teaser) - Guillaume Cramoisan.mpg",
-      langue: "fr",
+      name: "Engrenages, saison 1 (teaser) - Guillaume Cramoisan.mpg",
+      language: "fr",
     },
     "Enterrement de vie de garçon": {
       key: "3iiuAIQqrro",
-      nom: "Enterrement de vie de garçon | bande annonce | CANAL+ | Panayotis Pascot, Adib Alkhalidey",
-      langue: "fr",
+      name: "Enterrement de vie de garçon | bande annonce | CANAL+ | Panayotis Pascot, Adib Alkhalidey",
+      language: "fr",
     },
     "Espion à l'ancienne": {
       key: "xhsVj_4ONoA",
-      nom: "Official Trailer",
-      langue: "en",
+      name: "Official Trailer",
+      language: "en",
     },
-    "Esterno Notte": { key: "u6F5qcwq9pg", nom: "Teaser", langue: "en" },
+    "Esterno Notte": { key: "u6F5qcwq9pg", name: "Teaser", language: "en" },
     "Extra-Lucide": {
       key: "AxKQ6chhGyY",
-      nom: "Extra-lucide | bande annonce | OCS",
-      langue: "fr",
+      name: "Extra-lucide | bande annonce | OCS",
+      language: "fr",
     },
     Extrapolations: {
       key: "WuaV2L7NaPs",
-      nom: "EXTRAPOLATIONS Bande Annonce VF (2023)",
-      langue: "fr",
+      name: "EXTRAPOLATIONS Bande Annonce VF (2023)",
+      language: "fr",
     },
     Flashback: {
       key: "CRWD36_0174",
-      nom: "Bande annonce TF1 Série Flashback",
-      langue: "fr",
+      name: "Bande annonce TF1 Série Flashback",
+      language: "fr",
     },
-    "Florida Man": { key: "OW8Y2jnO86E", nom: "Trailer", langue: "en" },
+    "Florida Man": { key: "OW8Y2jnO86E", name: "Trailer", language: "en" },
     "Fonction Juré présente Le Séminaire d'Entreprise": {
       key: "K4q_0DtugOA",
-      nom: "Official Trailer",
-      langue: "en",
+      name: "Official Trailer",
+      language: "en",
     },
     "For All Mankind": {
       key: "yUVzed1bQ9I",
-      nom: "Bande-annonce First Look officielle",
-      langue: "fr",
+      name: "Bande-annonce First Look officielle",
+      language: "fr",
     },
-    Foundation: { key: "WdtbJCU2o2s", nom: "Teaser [VOSTFR]", langue: "fr" },
+    Foundation: { key: "WdtbJCU2o2s", name: "Teaser [VOSTFR]", language: "fr" },
     "La Meilleure Version de moi-même": {
       key: "6QaULag8mYQ",
-      nom: "La Meilleure Version de Moi-Même - Teaser",
-      langue: "fr",
+      name: "La Meilleure Version de Moi-Même - Teaser",
+      language: "fr",
     },
     "La mer de la Tranquillité": {
       key: "w-fcoSiojbY",
-      nom: "The Silent Sea | Teaser Trailer | Netflix",
-      langue: "en",
+      name: "The Silent Sea | Teaser Trailer | Netflix",
+      language: "en",
     },
     "La nuit où Laurier Gaudreault s’est réveillé": {
       key: "iCq7rbXRYCg",
-      nom: "La Nuit où Laurier Gaudreault s'est réveillé - Bande-annonce",
-      langue: "fr",
+      name: "La Nuit où Laurier Gaudreault s'est réveillé - Bande-annonce",
+      language: "fr",
     },
     "La Réalité en face": {
       key: "mVhU9vOIUzQ",
-      nom: "La réalité en face - Bande Annonce [VF]",
-      langue: "fr",
+      name: "La réalité en face - Bande Annonce [VF]",
+      language: "fr",
     },
     "La Résidence": {
       key: "HS_2Ce5q1Wk",
-      nom: "Bande-annonce officielle [VF]",
-      langue: "fr",
+      name: "Bande-annonce officielle [VF]",
+      language: "fr",
     },
     "La Voisine danoise": {
       key: "89tiHi4wM8Q",
-      nom: "The Danish Woman (2025) | Benedikt Erlingsson | OFFICIAL TRAILER",
-      langue: "en",
+      name: "The Danish Woman (2025) | Benedikt Erlingsson | OFFICIAL TRAILER",
+      language: "en",
     },
     Landman: {
       key: "RtQuTPzEERs",
-      nom: "Landman | Bande-annonce VF - Paramount+",
-      langue: "fr",
+      name: "Landman | Bande-annonce VF - Paramount+",
+      language: "fr",
     },
     "Le Garçon et l'Univers": {
       key: "raizBMsLYug",
-      nom: "Official Trailer",
-      langue: "en",
+      name: "Official Trailer",
+      language: "en",
     },
     "Le Livre de Boba Fett": {
       key: "AhmLymzjLRk",
-      nom: "Bande Annonce #1 [VF]",
-      langue: "fr",
+      name: "Bande Annonce #1 [VF]",
+      language: "fr",
     },
     "Le Maître du Haut Château": {
       key: "lj1Mh-NPlSg",
-      nom: "The Man in the High Castle – Bande Annonce [VOST]",
-      langue: "fr",
+      name: "The Man in the High Castle – Bande Annonce [VOST]",
+      language: "fr",
     },
     "Le Problème à 3 corps": {
       key: "mcvHgQplfuY",
-      nom: "Le Problème à 3 corps | Bande-annonce finale VF| Netflix France",
-      langue: "fr",
+      name: "Le Problème à 3 corps | Bande-annonce finale VF| Netflix France",
+      language: "fr",
     },
     "Le Président foudroyé": {
       key: "6jopqrSojQE",
-      nom: "Official Trailer",
-      langue: "en",
+      name: "Official Trailer",
+      language: "en",
     },
     "Blue Lights": {
       key: "C2fifCku6IU",
-      nom: "Blue Lights | Trailer - BBC",
-      langue: "en",
+      name: "Blue Lights | Trailer - BBC",
+      language: "en",
     },
-    Bodies: { key: "RyZjIPB8paw", nom: "Official Trailer", langue: "en" },
-    Boots: { key: "2mjN2f5tu2s", nom: "Official Trailer", langue: "en" },
+    Bodies: { key: "RyZjIPB8paw", name: "Official Trailer", language: "en" },
+    Boots: { key: "2mjN2f5tu2s", name: "Official Trailer", language: "en" },
     "bref.": {
       key: "S757Hf_KGpI",
-      nom: "bref. 2 - Bande-annonce officielle (VF) | Disney+",
-      langue: "fr",
+      name: "bref. 2 - Bande-annonce officielle (VF) | Disney+",
+      language: "fr",
     },
     Cassandra: {
       key: "TNm8bsxhwaQ",
-      nom: "Cassandra mini série 2025 : bande annonce vf",
-      langue: "fr",
+      name: "Cassandra mini série 2025 : bande annonce vf",
+      language: "fr",
     },
     "Cent ans de solitude": {
       key: "E9iK-MGonIo",
-      nom: "Cent ans de solitude - Partie 1 | Bande-annonce officielle VF | Netflix France",
-      langue: "fr",
+      name: "Cent ans de solitude - Partie 1 | Bande-annonce officielle VF | Netflix France",
+      language: "fr",
     },
     Chacal: {
       key: "UAUNg014Qgg",
-      nom: "The Day Of The Jackal - Bande-Annonce | Prime Video",
-      langue: "fr",
+      name: "The Day Of The Jackal - Bande-Annonce | Prime Video",
+      language: "fr",
     },
     "Channel Zero": {
       key: "NJgHZCnpm1w",
-      nom: "CHANNEL ZERO | Season 1 Trailer | SYFY",
-      langue: "en",
+      name: "CHANNEL ZERO | Season 1 Trailer | SYFY",
+      language: "en",
     },
     "Chief of War": {
       key: "APFerY__3iA",
-      nom: "Bande-annonce officielle",
-      langue: "fr",
+      name: "Bande-annonce officielle",
+      language: "fr",
     },
     "Chère petite": {
       key: "nOuMvrHdgiE",
-      nom: "Official Trailer [Subtitled]",
-      langue: "en",
+      name: "Official Trailer [Subtitled]",
+      language: "en",
     },
     "Citoyens clandestins": {
       key: "qouIOp7Emlw",
-      nom: "Citoyens clandestins | Série Fiction | ARTE",
-      langue: "fr",
+      name: "Citoyens clandestins | Série Fiction | ARTE",
+      language: "fr",
     },
     "City on Fire": {
       key: "OVE6xnc5lu4",
-      nom: "Official Trailer",
-      langue: "en",
+      name: "Official Trailer",
+      language: "en",
     },
     Arcane: {
       key: "OweSahDkNtI",
-      nom: "Bande-annonce officielle",
-      langue: "fr",
+      name: "Bande-annonce officielle",
+      language: "fr",
     },
     Archer: {
       key: "awPBndvRoJY",
-      nom: "Adult Swim VF - Archer 🇫🇷 | Quota Ethnique [extrait S01E03]",
-      langue: "fr",
+      name: "Adult Swim VF - Archer 🇫🇷 | Quota Ethnique [extrait S01E03]",
+      language: "fr",
     },
     "Regular Show": {
       key: "1i3ufVR4AXg",
-      nom: "Regular Look at Regular Show",
-      langue: "en",
+      name: "Regular Look at Regular Show",
+      language: "en",
     },
     "The Staircase": {
       key: "Bvv97sCcruY",
-      nom: "The Staircase | Official Trailer [HD] | Netflix",
-      langue: "en",
+      name: "The Staircase | Official Trailer [HD] | Netflix",
+      language: "en",
     },
     "Lucky Luke": {
       key: "9-pf-w95iPo",
-      nom: "LUCKY LUKE - CLASSIC SERIE - TRAILER - DEUTSCH / GERMAN",
-      langue: "en",
+      name: "LUCKY LUKE - CLASSIC SERIE - TRAILER - DEUTSCH / GERMAN",
+      language: "en",
     },
     "Les Animaniacs": {
       key: "6-Pq-5NWASM",
-      nom: "Générique les animaniacs",
-      langue: "fr",
+      name: "Générique les animaniacs",
+      language: "fr",
     },
     "Le Grinch": {
       key: "s8tc12mDbOY",
-      nom: "Le grinch (VF) - Bande Annonce",
-      langue: "fr",
+      name: "Le grinch (VF) - Bande Annonce",
+      language: "fr",
     },
     "Parks and Recreation": {
       key: "cNlL9FWs_KA",
-      nom: "Parks and Recreation Season 1 DVD Trailer",
-      langue: "fr",
+      name: "Parks and Recreation Season 1 DVD Trailer",
+      language: "fr",
     },
     "Une affaire d'honneur": {
       key: "e0CfVraxgqo",
-      nom: "UNE AFFAIRE D'HONNEUR - Bande-annonce [Le 27 décembre au cinéma]",
-      langue: "fr",
+      name: "UNE AFFAIRE D'HONNEUR - Bande-annonce [Le 27 décembre au cinéma]",
+      language: "fr",
     },
     "Une vie": {
       key: "b-_VTW0AYuQ",
-      nom: "UNE VIE Bande Annonce VF (2024)",
-      langue: "fr",
+      name: "UNE VIE Bande Annonce VF (2024)",
+      language: "fr",
     },
-    Vermines: { key: "vvmsk4CjwIk", nom: "Bande Annonce", langue: "fr" },
+    Vermines: { key: "vvmsk4CjwIk", name: "Bande Annonce", language: "fr" },
     "Chérie, j'ai agrandi le bébé": {
       key: "x7cpAOeVRGg",
-      nom: "Cherie, j'ai agrandi le bébé La bande annonce vf",
-      langue: "fr",
+      name: "Cherie, j'ai agrandi le bébé La bande annonce vf",
+      language: "fr",
     },
     "Chérie, j'ai rétréci les gosses": {
       key: "SgwWPBuG8gg",
-      nom: "CHÉRIE, J'AI RÉTRÉCI LES GOSSES : LA CRITIQUE",
-      langue: "fr",
+      name: "CHÉRIE, J'AI RÉTRÉCI LES GOSSES : LA CRITIQUE",
+      language: "fr",
     },
     "Comme un prince": {
       key: "HTINar6eWOM",
-      nom: "Comme Un Prince - Bande-annonce",
-      langue: "fr",
+      name: "Comme Un Prince - Bande-annonce",
+      language: "fr",
     },
-    "Daaaaaalí !": { key: "gXcrzldFhHw", nom: "Bande-annonce", langue: "fr" },
+    "Daaaaaalí !": { key: "gXcrzldFhHw", name: "Bande-annonce", language: "fr" },
     "Dune Deuxième Partie": {
       key: "Do9edhYBYXw",
-      nom: "Bande-annonce officielle 1 [VOST]",
-      langue: "fr",
+      name: "Bande-annonce officielle 1 [VOST]",
+      language: "fr",
     },
-    Breathe: { key: "Hv3Q7uAY60M", nom: "Official Trailer", langue: "en" },
+    Breathe: { key: "Hv3Q7uAY60M", name: "Official Trailer", language: "en" },
     "Mothers' Instinct": {
       key: "aLikloRQiUE",
-      nom: "Official UK Trailer",
-      langue: "en",
+      name: "Official UK Trailer",
+      language: "en",
     },
     Sentinel: {
       key: "e48ojhbaNvM",
-      nom: "SENTINELLE Bande Annonce VF (2024) Science-Fiction",
-      langue: "fr",
+      name: "SENTINELLE Bande Annonce VF (2024) Science-Fiction",
+      language: "fr",
     },
     "Ultraman Rising": {
       key: "gmmDjPiN_mY",
-      nom: "Ultraman: Rising | Bande-annonce officielle VF | Netflix France",
-      langue: "fr",
+      name: "Ultraman: Rising | Bande-annonce officielle VF | Netflix France",
+      language: "fr",
     },
     "22.11.63": {
       key: "KpA7eFgrEt4",
-      nom: "22.11.63 | Bande-Annonce",
-      langue: "fr",
+      name: "22.11.63 | Bande-Annonce",
+      language: "fr",
     },
     "3%": {
       key: "8yyzNQfaQR8",
-      nom: "3% | Official Trailer [HD] | Netflix",
-      langue: "en",
+      name: "3% | Official Trailer [HD] | Netflix",
+      language: "en",
     },
     "Anger Management": {
       key: "PW7fzNSVtOg",
-      nom: "Anger Management trailer Season 1 charlie sheen 720p",
-      langue: "en",
+      name: "Anger Management trailer Season 1 charlie sheen 720p",
+      language: "en",
     },
     "Band of Brothers": {
       key: "aH06LWZs-Ys",
-      nom: "Official HBO UK Trailer",
-      langue: "en",
+      name: "Official HBO UK Trailer",
+      language: "en",
     },
     "Battlestar Galactica": {
       key: "q2x14ZhEc9k",
-      nom: "Series Trailer",
-      langue: "en",
+      name: "Series Trailer",
+      language: "en",
     },
-    "Beacon 23": { key: "yFF22Mgyvzc", nom: "Official Trailer", langue: "en" },
+    "Beacon 23": { key: "yFF22Mgyvzc", name: "Official Trailer", language: "en" },
     "Better Call Saul": {
       key: "hMk6L3UbMuM",
-      nom: "Better Call Saul | Bande-annonce VF | Netflix France",
-      langue: "fr",
+      name: "Better Call Saul | Bande-annonce VF | Netflix France",
+      language: "fr",
     },
-    Bodkin: { key: "KoVnzw4nP10", nom: "Official Trailer", langue: "en" },
+    Bodkin: { key: "KoVnzw4nP10", name: "Official Trailer", language: "en" },
     "Broute 24.": {
       key: "8hptEw1USmc",
-      nom: "Toujours plus vite, toujours plus haut, toujours plus cher - Broute - CANAL+",
-      langue: "fr",
+      name: "Toujours plus vite, toujours plus haut, toujours plus cher - Broute - CANAL+",
+      language: "fr",
     },
     Fiasco: {
       key: "SL5WB8wK6LA",
-      nom: "Fiasco | Bande-annonce Officielle VF | Netflix France",
-      langue: "fr",
+      name: "Fiasco | Bande-annonce Officielle VF | Netflix France",
+      language: "fr",
     },
     Furies: {
       key: "69mXM7ApcDI",
-      nom: "Bande-annonce officielle",
-      langue: "fr",
+      name: "Bande-annonce officielle",
+      language: "fr",
     },
     "Game of Thrones": {
       key: "aAF12LNAeNI",
-      nom: "Game of Thrones - Saison 1 - Bande-annonce [VOSTFR]",
-      langue: "fr",
+      name: "Game of Thrones - Saison 1 - Bande-annonce [VOSTFR]",
+      language: "fr",
     },
     "Heeramandi Les diamants de la cour": {
       key: "WvzZYynDkwA",
-      nom: "Heeramandi: The Diamond Bazaar | Sanjay Leela Bhansali | Official Trailer | Netflix India",
-      langue: "en",
+      name: "Heeramandi: The Diamond Bazaar | Sanjay Leela Bhansali | Official Trailer | Netflix India",
+      language: "en",
     },
     "Hero Corp": {
       key: "6SFy78parQ0",
-      nom: "Hero Corp Saison 2 - Bande Annonce",
-      langue: "fr",
+      name: "Hero Corp Saison 2 - Bande Annonce",
+      language: "fr",
     },
-    Joey: { key: "P7Tbp5DY5g4", nom: '2004 - "Joey" trailer', langue: "fr" },
+    Joey: { key: "P7Tbp5DY5g4", name: '2004 - "Joey" trailer', language: "fr" },
     "Kevin Can Wait": {
       key: "zWqH0GkawvY",
-      nom: "KEVIN CAN WAIT - Official Trailer - CBS New Shows 2016",
-      langue: "en",
+      name: "KEVIN CAN WAIT - Official Trailer - CBS New Shows 2016",
+      language: "en",
     },
-    "La Brea": { key: "UioFjPmKT5Y", nom: "Official UK Trailer", langue: "en" },
+    "La Brea": { key: "UioFjPmKT5Y", name: "Official UK Trailer", language: "en" },
     "La quatrième dimension": {
       key: "G11AhAIf18A",
-      nom: "The Twilight Zone- Both Original 1959 Intros",
-      langue: "en",
+      name: "The Twilight Zone- Both Original 1959 Intros",
+      language: "en",
     },
     "La Vie de famille": {
       key: "Z4R91CR-YZU",
-      nom: "Family Matters Season 6 (Theme Song)",
-      langue: "en",
+      name: "Family Matters Season 6 (Theme Song)",
+      language: "en",
     },
     "Le Caméléon": {
       key: "70qpAt9fAiM",
-      nom: "The Pretender Season 1",
-      langue: "en",
+      name: "The Pretender Season 1",
+      language: "en",
     },
     "Le Régime": {
       key: "ptv-ZKAC11o",
-      nom: "Bande-Annonce [VOSTFR]",
-      langue: "fr",
+      name: "Bande-Annonce [VOSTFR]",
+      language: "fr",
     },
     "Le Visiteur du Futur": {
       key: "6C8UWQB-Tak",
-      nom: "Le Visiteur du Futur : Les Missionnaires -Trailer (Feat. S. Astier)",
-      langue: "fr",
+      name: "Le Visiteur du Futur : Les Missionnaires -Trailer (Feat. S. Astier)",
+      language: "fr",
     },
     "Les Papillons noirs": {
       key: "so7HKB9erLE",
-      nom: "Les papillons  noirs | Série Fiction | ARTE",
-      langue: "fr",
+      name: "Les papillons  noirs | Série Fiction | ARTE",
+      language: "fr",
     },
     MacGyver: {
       key: "8p7FXFyPq1s",
-      nom: "MacGyver (1985-1991) The Iconic Hero Trailer #1 - Richard Dean Anderson",
-      langue: "fr",
+      name: "MacGyver (1985-1991) The Iconic Hero Trailer #1 - Richard Dean Anderson",
+      language: "fr",
     },
     "Man With A Plan": {
       key: "vpN7bRU-Rfo",
-      nom: "MAN WITH A PLAN - Official Trailer - CBS New Shows 2016",
-      langue: "en",
+      name: "MAN WITH A PLAN - Official Trailer - CBS New Shows 2016",
+      language: "en",
     },
-    Manhunt: { key: "VFT-b8eKdSo", nom: "Official Trailer", langue: "en" },
+    Manhunt: { key: "VFT-b8eKdSo", name: "Official Trailer", language: "en" },
     Misfits: {
       key: "d6kIfZp9HbA",
-      nom: "Misfits – Bande Annonce - VOSTFR - 2009",
-      langue: "fr",
+      name: "Misfits – Bande Annonce - VOSTFR - 2009",
+      language: "fr",
     },
     "Mon petit renne": {
       key: "Gzpu1qDsWSo",
-      nom: "Mon petit renne :: Teaser Saison 1 :: On Regarde ?",
-      langue: "fr",
+      name: "Mon petit renne :: Teaser Saison 1 :: On Regarde ?",
+      language: "fr",
     },
     "Mr. & Mrs. Smith": {
       key: "2Nvo-8chtSQ",
-      nom: "MR. & MRS. SMITH Bande Annonce VF (2024)",
-      langue: "fr",
+      name: "MR. & MRS. SMITH Bande Annonce VF (2024)",
+      language: "fr",
     },
     "Mr. Bean": {
       key: "SHvYDPWOVYY",
-      nom: "Car Park Chaos | Mr. Bean Official",
-      langue: "en",
+      name: "Car Park Chaos | Mr. Bean Official",
+      language: "en",
     },
     "Only Murders in the Building": {
       key: "cKy1UZptm-k",
-      nom: "ONLY MURDERS IN THE BUILDING Bande Annonce VF (2021) Selena Gomez",
-      langue: "fr",
+      name: "ONLY MURDERS IN THE BUILDING Bande Annonce VF (2021) Selena Gomez",
+      language: "fr",
     },
     "Reine rouge": {
       key: "EYH0xorc2fU",
-      nom: "Reine Rouge - Bande-Annonce | Prime Video",
-      langue: "fr",
+      name: "Reine Rouge - Bande-Annonce | Prime Video",
+      language: "fr",
     },
     Ripley: {
       key: "34CXvxHm-So",
-      nom: "RIPLEY (Saison 1 Teaser 2) | Bande-Annonce en Français | Netflix",
-      langue: "fr",
+      name: "RIPLEY (Saison 1 Teaser 2) | Bande-Annonce en Français | Netflix",
+      language: "fr",
     },
     Shameless: {
       key: "hlOqmEYsrX0",
-      nom: "Shameless Trailer - Channel 4 2007",
-      langue: "en",
+      name: "Shameless Trailer - Channel 4 2007",
+      language: "en",
     },
     "Six Feet Under": {
       key: "E3gYi-KvKug",
-      nom: "Six Feet Under Trailer (HBO)",
-      langue: "en",
+      name: "Six Feet Under Trailer (HBO)",
+      language: "en",
     },
     "Stargate Atlantis": {
       key: "U6s6iD_nyJ0",
-      nom: "Bande annonce Stargate Atlantis.avi",
-      langue: "fr",
+      name: "Bande annonce Stargate Atlantis.avi",
+      language: "fr",
     },
     "Stargate SG-1": {
       key: "0wkobcJ7Bok",
-      nom: "Bande Annonce Stargate SG1",
-      langue: "fr",
+      name: "Bande Annonce Stargate SG1",
+      language: "fr",
     },
     "Stargate Universe": {
       key: "GVma77--RjI",
-      nom: "Stargate Universe bande annonce VF",
-      langue: "fr",
+      name: "Stargate Universe bande annonce VF",
+      language: "fr",
     },
     Sugar: {
       key: "rEarG10FEC4",
-      nom: "Bande-annonce officielle",
-      langue: "fr",
+      name: "Bande-annonce officielle",
+      language: "fr",
     },
     Terminal: {
       key: "AVPVh6Kc0Ro",
-      nom: "Terminal | Bande-annonce officielle | CANAL+",
-      langue: "fr",
+      name: "Terminal | Bande-annonce officielle | CANAL+",
+      language: "fr",
     },
     "The Acolyte": {
       key: "9WTuhwZGVOs",
-      nom: "Première bande-annonce [VOSTFR]",
-      langue: "fr",
+      name: "Première bande-annonce [VOSTFR]",
+      language: "fr",
     },
     "The Big Cigar": {
       key: "d0t0QL7ba1U",
-      nom: "Official Trailer",
-      langue: "en",
+      name: "Official Trailer",
+      language: "en",
     },
     "The King of Queens": {
       key: "kDfhZTKu5XE",
-      nom: "Doug Heffernan is the King of Leans  🐌 King of Queens",
-      langue: "en",
+      name: "Doug Heffernan is the King of Leans  🐌 King of Queens",
+      language: "en",
     },
     "The Lost Room": {
       key: "aweBDN7l4eU",
-      nom: "Overview - The Lost Room Trailer",
-      langue: "en",
+      name: "Overview - The Lost Room Trailer",
+      language: "en",
     },
     "The Michael J. Fox Show": {
       key: "_yAsYBkJroY",
-      nom: "The Michael J  Fox Show Official Trailer",
-      langue: "en",
+      name: "The Michael J  Fox Show Official Trailer",
+      language: "en",
     },
     "The OA": {
       key: "5oDrs_TN8cs",
-      nom: "The OA - Bande Annonce VF",
-      langue: "fr",
+      name: "The OA - Bande Annonce VF",
+      language: "fr",
     },
     "The Wrong Mans": {
       key: "crkE7x_HFr0",
-      nom: "The Wrong Mans: Episode 1 Trailer - BBC Two",
-      langue: "en",
+      name: "The Wrong Mans: Episode 1 Trailer - BBC Two",
+      language: "en",
     },
     "Twin Peaks": {
       key: "-CnyWm4DjJY",
-      nom: "Twin peaks - Bande annonce Vf - Film d' Horreur Page Facebook",
-      langue: "fr",
+      name: "Twin peaks - Bande annonce Vf - Film d' Horreur Page Facebook",
+      language: "fr",
     },
     "Un meurtre est-il facile": {
       key: "8CduMHAUSzM",
-      nom: "Trailer",
-      langue: "en",
+      name: "Trailer",
+      language: "en",
     },
     Unbelievable: {
       key: "IB8g39oIq40",
-      nom: "Unbelievable - Bande Annonce VF",
-      langue: "fr",
+      name: "Unbelievable - Bande Annonce VF",
+      language: "fr",
     },
     "X-Files  Aux frontières du réel": {
       key: "_HTByz4RlqI",
-      nom: "THE X-FILES Season 11 Official Trailer (2018) TV Show HD",
-      langue: "en",
+      name: "THE X-FILES Season 11 Official Trailer (2018) TV Show HD",
+      language: "en",
     },
     Chernobyl: {
       key: "U_RMuLYrHZo",
-      nom: "Chernobyl - Bande Annonce VOST - 2019",
-      langue: "fr",
+      name: "Chernobyl - Bande Annonce VOST - 2019",
+      language: "fr",
     },
     "Childhood's End": {
       key: "i3e7aMCIxjY",
-      nom: "Childhood's End (2015) Official Trailer",
-      langue: "fr",
+      name: "Childhood's End (2015) Official Trailer",
+      language: "fr",
     },
     "Coupling - Six Sexy": {
       key: "hstPHM3R1dY",
-      nom: "How to chat up a girl - Coupling - BBC comedy",
-      langue: "en",
+      name: "How to chat up a girl - Coupling - BBC comedy",
+      language: "en",
     },
     "Des gens bien ordinaires": {
       key: "r6dPAeMdTyk",
-      nom: "Official Trailer",
-      langue: "en",
+      name: "Official Trailer",
+      language: "en",
     },
     "Doctor Who": {
       key: "Sz1UKlOphP8",
-      nom: "Doctor Who Saison 2 Bande-Annonce VF NRJ12",
-      langue: "fr",
+      name: "Doctor Who Saison 2 Bande-Annonce VF NRJ12",
+      language: "fr",
     },
     Eric: {
       key: "m6axXKbIGHo",
-      nom: "Eric | Bande-annonce officielle VF | Netflix France",
-      langue: "fr",
+      name: "Eric | Bande-annonce officielle VF | Netflix France",
+      language: "fr",
     },
-    Eux: { key: "8y0c6PVlPrs", nom: "Them - Bande Annonce [VF]", langue: "fr" },
+    Eux: { key: "8y0c6PVlPrs", name: "Them - Bande Annonce [VF]", language: "fr" },
     Fallout: {
       key: "dkY47XifLmo",
-      nom: "Fallout – Bande-Annonce | Prime Video",
-      langue: "fr",
+      name: "Fallout – Bande-Annonce | Prime Video",
+      language: "fr",
     },
     "Family Business": {
       key: "-zQbtUVjed4",
-      nom: "Family Business - Bande Annonce VF",
-      langue: "fr",
+      name: "Family Business - Bande Annonce VF",
+      language: "fr",
     },
-    Farscape: { key: "IvGmRULJ4R8", nom: "Trailer Season 1", langue: "en" },
+    Farscape: { key: "IvGmRULJ4R8", name: "Trailer Season 1", language: "en" },
     "That '70s Show": {
       key: "b1za7d3KvHw",
-      nom: "That '70s Show (promo).mov",
-      langue: "en",
+      name: "That '70s Show (promo).mov",
+      language: "en",
     },
     "Good Luck, Have Fun, Don't Die": {
       key: "hO7ynBvhyqI",
-      nom: "GOOD LUCK HAVE FUN DON'T DIE - Bande-annonce VOST",
-      langue: "fr",
+      name: "GOOD LUCK HAVE FUN DON'T DIE - Bande-annonce VOST",
+      language: "fr",
     },
     "Andrew The Problem Prince": {
       key: "mYa_cBCA4Mk",
-      nom: "Trailer",
-      langue: "en",
+      name: "Trailer",
+      language: "en",
     },
-    Monk: { key: "UkWxMnkAcJI", nom: "Generique Monk HD", langue: "fr" },
+    Monk: { key: "UkWxMnkAcJI", name: "Generique Monk HD", language: "fr" },
     "Squid Game": {
       key: "GYoD8oOH31M",
-      nom: "Bande-annonce officielle",
-      langue: "fr",
+      name: "Bande-annonce officielle",
+      language: "fr",
     },
     "Dossier 137": {
       key: "Ll17lAq0MWY",
-      nom: "DOSSIER 137 - Bande-annonce",
-      langue: "fr",
+      name: "DOSSIER 137 - Bande-annonce",
+      language: "fr",
     },
     "I Origins": {
       key: "HhiezQRqXlI",
-      nom: "I Origins - Bande Annonce VOST",
-      langue: "fr",
+      name: "I Origins - Bande Annonce VOST",
+      language: "fr",
     },
     "Dexter New Blood": {
       key: "KMPnJlCmTGY",
-      nom: "Dexter : New Blood - Bande-annonce officielle",
-      langue: "fr",
+      name: "Dexter : New Blood - Bande-annonce officielle",
+      language: "fr",
     },
     "Imperfect Women": {
       key: "iWghxqXCR3Q",
-      nom: "Bande-annonce officielle",
-      langue: "fr",
+      name: "Bande-annonce officielle",
+      language: "fr",
     },
     "Maximum Pleasure Guaranteed": {
       key: "29yw-ak1RXo",
-      nom: "Teaser officiel “La spirale”",
-      langue: "fr",
+      name: "Teaser officiel “La spirale”",
+      language: "fr",
     },
     "Stranger Things Tales from '85": {
       key: "KHiNUbPCzFM",
-      nom: "Stranger Things : Chroniques de 1985 | Annonce officielle VOSTFR | Netflix France",
-      langue: "fr",
+      name: "Stranger Things : Chroniques de 1985 | Annonce officielle VOSTFR | Netflix France",
+      language: "fr",
     },
     "The Boroughs": {
       key: "cL-HUAbenBk",
-      nom: "Official Teaser Trailer",
-      langue: "en",
+      name: "Official Teaser Trailer",
+      language: "en",
     },
     "De si remarquables créatures": {
       key: "b14IFe4an5k",
-      nom: "Official Trailer",
-      langue: "en",
+      name: "Official Trailer",
+      language: "en",
     },
     "Projet Dernière Chance": {
       key: "6nRoftXLBFo",
-      nom: "Bande-annonce officielle",
-      langue: "fr",
+      name: "Bande-annonce officielle",
+      language: "fr",
     },
     "Le Bus Les Bleus en grève": {
       key: "FT4qGBsWo-I",
-      nom: "Le Bus : Les Bleus en grève | Bande-annonce officielle VF | Netflix France",
-      langue: "fr",
+      name: "Le Bus : Les Bleus en grève | Bande-annonce officielle VF | Netflix France",
+      language: "fr",
     },
     "The Killing": {
       key: "OkbfvPeH3G0",
-      nom: "The Killing - Season 1-3 | Series Trailer | Netflix",
-      langue: "en",
+      name: "The Killing - Season 1-3 | Series Trailer | Netflix",
+      language: "en",
     },
     "Les Griffes de la nuit": {
       key: "OuqHdlQ7DBM",
-      nom: "Freddy Les Griffes De La Nuit - Bande Annonce Officielle (VF) - Jackie Earle Haley / Kyle Gallner",
-      langue: "fr",
+      name: "Freddy Les Griffes De La Nuit - Bande Annonce Officielle (VF) - Jackie Earle Haley / Kyle Gallner",
+      language: "fr",
     },
     "Astérix Le Domaine des dieux": {
       key: "yi-ryA07otI",
-      nom: "Astérix : Le Domaine des Dieux - Bande Annonce VF",
-      langue: "fr",
+      name: "Astérix : Le Domaine des Dieux - Bande Annonce VF",
+      language: "fr",
     },
     "Bob l'éponge - Le film Un héros sort de l'eau": {
       key: "PWnayZDOAps",
-      nom: "BOB L'ÉPONGE - Nouvelle Bande Annonce 3 VF",
-      langue: "fr",
+      name: "BOB L'ÉPONGE - Nouvelle Bande Annonce 3 VF",
+      language: "fr",
     },
     "L'Âge de glace 4 La dérive des continents": {
       key: "wTZS0K9XhJE",
-      nom: "L'Age de Glace 4 : La Dérive des Continents - Bande Annonce finale VF HD",
-      langue: "fr",
+      name: "L'Age de Glace 4 : La Dérive des Continents - Bande Annonce finale VF HD",
+      language: "fr",
     },
-    Gourou: { key: "fJPl2vIVyQo", nom: "Bande-annonce 4K", langue: "fr" },
+    Gourou: { key: "fJPl2vIVyQo", name: "Bande-annonce 4K", language: "fr" },
     "Achtsam Morden": {
       key: "cMxkl9X586w",
-      nom: "Official Trailer [Subtitled]",
-      langue: "en",
+      name: "Official Trailer [Subtitled]",
+      language: "en",
     },
     "Lord of the Flies": {
       key: "n6Bf_75BFjs",
-      nom: "Sa majesté des mouches sur CANAL+",
-      langue: "fr",
+      name: "Sa majesté des mouches sur CANAL+",
+      language: "fr",
     },
     Rafa: {
       key: "ISb3KxO_Ntw",
-      nom: "Rafa | Bande-annonce officielle VOSTFR | Netflix France",
-      langue: "fr",
+      name: "Rafa | Bande-annonce officielle VOSTFR | Netflix France",
+      language: "fr",
     },
-    "Spider-Noir": { key: "AYO879YcnTs", nom: "Bande-Annonce", langue: "fr" },
+    "Spider-Noir": { key: "AYO879YcnTs", name: "Bande-Annonce", language: "fr" },
     "Widow's Bay (2026)": {
       key: "YZ4yhHy_GJY",
-      nom: "Bande-annonce officielle",
-      langue: "fr",
+      name: "Bande-annonce officielle",
+      language: "fr",
     },
     "Fantômes contre fantômes": {
       key: "HdP-eMEuexg",
-      nom: "Fantômes contre fantômes (1996) | Bande-annonce VOSTF (HD | 1080p)",
-      langue: "fr",
+      name: "Fantômes contre fantômes (1996) | Bande-annonce VOSTF (HD | 1080p)",
+      language: "fr",
     },
     "La Cité des Anges": {
       key: "5TjFtnkrPxQ",
-      nom: "La cité des Anges - Angel's Tale",
-      langue: "fr",
+      name: "La cité des Anges - Angel's Tale",
+      language: "fr",
     },
     "Les Griffes de la Nuit": {
       key: "hDkF42t7F7U",
-      nom: "Les Griffes de la Nuit (1984) ≈ Bande-Annonce VOSTFR",
-      langue: "fr",
+      name: "Les Griffes de la Nuit (1984) ≈ Bande-Annonce VOSTFR",
+      language: "fr",
     },
     "Les Légendaires": {
       key: "pV1SWn1Ywh8",
-      nom: "Les Légendaires / Bande Annonce (AU CINÉMA LE 28 JANVIER 2026)",
-      langue: "fr",
+      name: "Les Légendaires / Bande Annonce (AU CINÉMA LE 28 JANVIER 2026)",
+      language: "fr",
     },
-    "The Boys": { key: "yRwGoS-KPVE", nom: "Bande Annonce [VF]", langue: "fr" },
-    From: { key: "pDHqAj4eJcM", nom: "Trailer", langue: "en" },
+    "The Boys": { key: "yRwGoS-KPVE", name: "Bande Annonce [VF]", language: "fr" },
+    From: { key: "pDHqAj4eJcM", name: "Trailer", language: "en" },
     "Jack Ryan de Tom Clancy Guerre Fantôme": {
       key: "AgbdF3bLEb8",
-      nom: "Jack Ryan : Guerre Fantôme - Bande-Annonce Officielle | Prime Video",
-      langue: "fr",
+      name: "Jack Ryan : Guerre Fantôme - Bande-Annonce Officielle | Prime Video",
+      language: "fr",
     },
     Jumpers: {
       key: "XBPC4rGBt8k",
-      nom: "Première bande-annonce",
-      langue: "fr",
+      name: "Première bande-annonce",
+      language: "fr",
     },
-    "L'éléphant": { key: "Tli7vrSE28Y", nom: "Official Trailer", langue: "en" },
+    "L'éléphant": { key: "Tli7vrSE28Y", name: "Official Trailer", language: "en" },
     Marsupilami: {
       key: "bkGiQajLaH8",
-      nom: "Bande-annonce officielle",
-      langue: "fr",
+      name: "Bande-annonce officielle",
+      language: "fr",
     },
     "Marty Supreme": {
       key: "hO30TIu3yIE",
-      nom: "Bande-annonce n°1 VOST",
-      langue: "fr",
+      name: "Bande-annonce n°1 VOST",
+      language: "fr",
     },
     Michael: {
       key: "7L_6QbubEuE",
-      nom: "Michael - Bande-annonce officielle - VOST - [Au cinéma le 22 avril]",
-      langue: "fr",
+      name: "Michael - Bande-annonce officielle - VOST - [Au cinéma le 22 avril]",
+      language: "fr",
     },
     "Mortal Kombat II": {
       key: "8qKhWSyVPGA",
-      nom: "Bande-annonce officielle (VF)",
-      langue: "fr",
+      name: "Bande-annonce officielle (VF)",
+      language: "fr",
     },
     "Over Your Dead Body": {
       key: "pGxKTIegUZ4",
-      nom: "Official Trailer",
-      langue: "en",
+      name: "Official Trailer",
+      language: "en",
     },
     "Super Mario Galaxy, le film": {
       key: "IfQo5gqlf3Q",
-      nom: "Bande-annonce officielle VOST",
-      langue: "fr",
+      name: "Bande-annonce officielle VOST",
+      language: "fr",
     },
     "Une famille de bâtards": {
       key: "GP2QUbISWxc",
-      nom: "Une Famille de Bâtards - Bande-annonce Officielle | Prime Video",
-      langue: "fr",
+      name: "Une Famille de Bâtards - Bande-annonce Officielle | Prime Video",
+      language: "fr",
     },
     "War Machine": {
       key: "goNz4e82dTU",
-      nom: "WAR MACHINE Bande Annonce VF (2026) Alan Ritchson, Action",
-      langue: "fr",
+      name: "WAR MACHINE Bande Annonce VF (2026) Alan Ritchson, Action",
+      language: "fr",
     },
-    "Among Us": { key: "eJRgQfXvGkE", nom: "Title Trailer", langue: "en" },
+    "Among Us": { key: "eJRgQfXvGkE", name: "Title Trailer", language: "en" },
     "Dear Killer Nannies Criado por sicarios": {
       key: "Xg6zzjQc5n4",
-      nom: "Dear Killer Nannies - Bande-annonce officielle (VOST) | Disney+",
-      langue: "fr",
+      name: "Dear Killer Nannies - Bande-annonce officielle (VOST) | Disney+",
+      language: "fr",
     },
-    "Due spicci": { key: "LsGrKuPe1tQ", nom: "Official Trailer", langue: "en" },
+    "Due spicci": { key: "LsGrKuPe1tQ", name: "Official Trailer", language: "en" },
     "Michael Jackson The Verdict": {
       key: "rcp-j0StBR0",
-      nom: "Official Trailer",
-      langue: "en",
+      name: "Official Trailer",
+      language: "en",
     },
-    PONIES: { key: "-DlukUWtoCU", nom: "Official Trailer", langue: "en" },
-    "Star City": { key: "V-yAMs307W4", nom: "Official Trailer", langue: "en" },
+    PONIES: { key: "-DlukUWtoCU", name: "Official Trailer", language: "en" },
+    "Star City": { key: "V-yAMs307W4", name: "Official Trailer", language: "en" },
     "The Hack": {
       key: "AShPTasA7eI",
-      nom: "Coming soon to ITV1 & ITVX",
-      langue: "en",
+      name: "Coming soon to ITV1 & ITVX",
+      language: "en",
     },
     "Les Moutons détectives": {
       key: "TivDvnZ9YxE",
-      nom: "Bande-annonce officielle VF",
-      langue: "fr",
+      name: "Bande-annonce officielle VF",
+      language: "fr",
     },
     "I Will Find You": {
       key: "Q9VyVaGgjDg",
-      nom: "Sur tes traces | Teaser officiel VF | Netflix France",
-      langue: "fr",
+      name: "Sur tes traces | Teaser officiel VF | Netflix France",
+      language: "fr",
     },
     "This City Is Ours": {
       key: "f_qJA7VpRr8",
-      nom: "LA VILLE NOUS APPARTIENT - BANDE ANNONCE - CANAL+",
-      langue: "fr",
+      name: "LA VILLE NOUS APPARTIENT - BANDE ANNONCE - CANAL+",
+      language: "fr",
     },
     "La Liste de Schindler": {
       key: "XIXfYHwA-BI",
-      nom: "La Liste de Schindler – Bande Annonce VF",
-      langue: "fr",
+      name: "La Liste de Schindler – Bande Annonce VF",
+      language: "fr",
     },
-    Simpsley: { key: "zHwpTZ2r-DM", nom: "Trailer", langue: "en" },
+    Simpsley: { key: "zHwpTZ2r-DM", name: "Trailer", language: "en" },
     "Smiling Friends": {
       key: "hPlpOXSHNa0",
-      nom: "Smiling Friends Official Trailer (Reupload)",
-      langue: "en",
+      name: "Smiling Friends Official Trailer (Reupload)",
+      language: "en",
     },
     "Benjamin Tranié - Félicitations et tout et tout": {
       key: "IE06pEC6rA4",
-      nom: "Je réclame un album entier plz #benjamintranie #primevideo",
-      langue: "fr",
+      name: "Je réclame un album entier plz #benjamintranie #primevideo",
+      language: "fr",
     },
     "Guillermo Guiz - La formidable ascension sociale temporaire de Guy Verstraeten":
-      { key: "yoqjzPNdJ0c", nom: "La rivalité franco-belge 🤣", langue: "fr" },
+      { key: "yoqjzPNdJ0c", name: "La rivalité franco-belge 🤣", language: "fr" },
     "Le Réveil de la Momie": {
       key: "N_DAYfhM24g",
-      nom: "Le Réveil de la Momie | Bande-annonce officielle (VOST) | Lee Cronin, Jason Blum, James Wan",
-      langue: "fr",
+      name: "Le Réveil de la Momie | Bande-annonce officielle (VOST) | Lee Cronin, Jason Blum, James Wan",
+      language: "fr",
     },
     Obsession: {
       key: "PCRHJGbbjLY",
-      nom: "OBSESSION | Bande-annonce VF",
-      langue: "fr",
+      name: "OBSESSION | Bande-annonce VF",
+      language: "fr",
     },
     Backrooms: {
       key: "_mtlSZAex8w",
-      nom: "BACKROOMS - Bande-annonce VF",
-      langue: "fr",
+      name: "BACKROOMS - Bande-annonce VF",
+      language: "fr",
     },
     Lucky: {
       key: "KYAskjzlGlI",
-      nom: "Bande-annonce officielle",
-      langue: "fr",
+      name: "Bande-annonce officielle",
+      language: "fr",
     },
     "The Alabama Solution dans l’enfer de la prison": {
       key: "xRNND_uve8I",
-      nom: "Official Trailer",
-      langue: "en",
+      name: "Official Trailer",
+      language: "en",
     },
     "Gone Girls The Long Island Serial Killer": {
       key: "eb4qwCfbKrk",
-      nom: "Official Trailer",
-      langue: "en",
+      name: "Official Trailer",
+      language: "en",
     },
     "Le Premier Jour du reste de ta vie": {
       key: "qgb6TDobtPU",
-      nom: "The First Day of the Rest of Your Life",
-      langue: "en",
+      name: "The First Day of the Rest of Your Life",
+      language: "en",
     },
     "Rick and Morty (2013)": {
       key: "WNhH00OIPP0",
-      nom: "Season 1 Promos",
-      langue: "en",
+      name: "Season 1 Promos",
+      language: "en",
     },
     "The Mandalorian and Grogu": {
       key: "fc1_54O8tNg",
-      nom: "The Mandalorian and Grogu | Official Trailer | In Theaters May 22",
-      langue: "fr",
+      name: "The Mandalorian and Grogu | Official Trailer | In Theaters May 22",
+      language: "fr",
     },
     "Disclosure Day": {
       key: "ddtywDACltc",
-      nom: "Bande annonce officielle VOST",
-      langue: "fr",
+      name: "Bande annonce officielle VOST",
+      language: "fr",
     },
     "The Hawk": {
       key: "0Ba3ta0B3EQ",
-      nom: "The Hawk | Bande-annonce officielle VF | Netflix France",
-      langue: "fr",
+      name: "The Hawk | Bande-annonce officielle VF | Netflix France",
+      language: "fr",
     },
     Supergirl: {
       key: "5P25wL5yfmQ",
-      nom: "Supergirl | Bande-annonce officielle (VOST) | Milly Alcock, Jason Momoa",
-      langue: "fr",
+      name: "Supergirl | Bande-annonce officielle (VOST) | Milly Alcock, Jason Momoa",
+      language: "fr",
     },
     "Alexandre Kominek Bâtard sensible": {
       key: "Rm1D-463_FI",
-      nom: "Alexandre Kominek - Bâtard sensible sur CANAL+",
-      langue: "fr",
+      name: "Alexandre Kominek - Bâtard sensible sur CANAL+",
+      language: "fr",
     },
-    Wicker: { key: "HP0BWBWn14I", nom: "Official Trailer", langue: "en" },
+    Wicker: { key: "HP0BWBWn14I", name: "Official Trailer", language: "en" },
     "Spider-Man : Brand New Day": {
       key: "-hS61q5GcHM",
-      nom: "Bande-annonce officielle [VF]",
-      langue: "fr",
+      name: "Bande-annonce officielle [VF]",
+      language: "fr",
     },
     "L'Odyssée": {
       key: "k5K_lAz8ftQ",
-      nom: "L’Odyssée – Bande-annonce officielle VOST [Au cinéma le 15.07.26]",
-      langue: "fr",
+      name: "L’Odyssée – Bande-annonce officielle VOST [Au cinéma le 15.07.26]",
+      language: "fr",
     },
     "Kyma, l'onde mystérieuse": {
       key: "wGIyOG6m6fg",
-      nom: "KYMA, L'ONDE MYSTÉRIEUSE - Bande-annonce officielle (HD)",
-      langue: "fr",
+      name: "KYMA, L'ONDE MYSTÉRIEUSE - Bande-annonce officielle (HD)",
+      language: "fr",
     },
     "Die Hart Die Harter": {
       key: "ym5YVTshIKI",
-      nom: "DIE HART 2 Bande Annonce VF (2024) Kevin Hart",
-      langue: "fr",
+      name: "DIE HART 2 Bande Annonce VF (2024) Kevin Hart",
+      language: "fr",
     },
     "House of the Dragon": {
       key: "r8RE9m3YhUY",
-      nom: "Bande-annonce [VOST]",
-      langue: "fr",
+      name: "Bande-annonce [VOST]",
+      language: "fr",
     },
     "Star Trek: Strange New Worlds": {
       key: "nxuyzk5DUFc",
-      nom: "Teaser Trailer",
-      langue: "en",
+      name: "Teaser Trailer",
+      language: "en",
     },
     "Ted Lasso": {
       key: "L84URww_JQw",
-      nom: "Bande-annonce officielle [VOSTFR]",
-      langue: "fr",
+      name: "Bande-annonce officielle [VOSTFR]",
+      language: "fr",
     },
     "Chris Rock: Kill the Messenger": {
       key: "Doc0H6mZlUI",
-      nom: "Chris Rock: Kill the Messenger Trailer",
-      langue: "en",
+      name: "Chris Rock: Kill the Messenger Trailer",
+      language: "en",
     },
     "Esprits criminels": {
       key: "NTYxiJBbEZk",
-      nom: "Criminal Minds Trailer",
-      langue: "en",
+      name: "Criminal Minds Trailer",
+      language: "en",
     },
     "Avengers : Infinity War": {
       key: "a8v__0kHzNg",
-      nom: "Avengers : Infinity War - Bande-annonce 1 VOST",
-      langue: "fr",
+      name: "Avengers : Infinity War - Bande-annonce 1 VOST",
+      language: "fr",
     },
     Arrow: {
       key: "QLVHmovfMQI",
-      nom: "Arrow - Comic-Con 2017 Trailer",
-      langue: "en",
+      name: "Arrow - Comic-Con 2017 Trailer",
+      language: "en",
     },
     "Avatar : De feu et de cendres": {
       key: "7XSH2NQ2efI",
-      nom: "Première bande-annonce (VF)",
-      langue: "fr",
+      name: "Première bande-annonce (VF)",
+      language: "fr",
     },
     Conclave: {
       key: "JLecn8QjgaE",
-      nom: "CONCLAVE | Bande annonce officielle",
-      langue: "fr",
+      name: "CONCLAVE | Bande annonce officielle",
+      language: "fr",
     },
     "Les Zinzins de l'Espace": {
       key: "mbd2linSia4",
-      nom: "Les zinzins de l'espace - Générique Saison 1",
-      langue: "fr",
+      name: "Les zinzins de l'espace - Générique Saison 1",
+      language: "fr",
     },
     "Star Wars : The Clone Wars": {
       key: "Tas9_TYri4w",
-      nom: "Star Wars: the Clone Wars - Original Theatrical Trailer",
-      langue: "en",
+      name: "Star Wars: the Clone Wars - Original Theatrical Trailer",
+      language: "en",
     },
     "Star Wars : The Mandalorian and Grogu": {
       key: "fc1_54O8tNg",
-      nom: "The Mandalorian and Grogu | Official Trailer | In Theaters May 22",
-      langue: "fr",
+      name: "The Mandalorian and Grogu | Official Trailer | In Theaters May 22",
+      language: "fr",
     },
     "Star Wars : Les Aventures des Petits Jedi": {
       key: "otoDnun24zM",
-      nom: "Young Jedi Adventures | Official Trailer",
-      langue: "en",
+      name: "Young Jedi Adventures | Official Trailer",
+      language: "en",
     },
     "Star Wars Vintage : Clone Wars": {
       key: "y29ING1BTCI",
-      nom: "Star Wars: The Clone Wars (VF) - Bande Annonce",
-      langue: "fr",
+      name: "Star Wars: The Clone Wars (VF) - Bande Annonce",
+      language: "fr",
     },
   };
 
@@ -4599,7 +4599,7 @@ import { screens, panel, bridge } from "../seams.js";
      a page that reaches the network is a page that renders differently
      depending on where it is opened. */
   const ACCOUNT = {
-    nom: "izno",
+    name: "izno",
     mail: "iznogoudatall@gmail.com",
     avatar: "assets/avatar.webp",
   };
@@ -6236,7 +6236,7 @@ import { screens, panel, bridge } from "../seams.js";
      a measurement; nothing to do is a state, and printing nine zeroes for a
      calm run turns a healthy pipeline into a wall of failures.
 
-     `bloque` is what makes this page more than a report: the step that BLOCKS
+     `blockedCount` is what makes this page more than a report: the step that BLOCKS
      is the one the operator can act on, and it points at « Ça coince » just
      below rather than at a log. */
   const PIPELINE = {
@@ -6296,13 +6296,13 @@ import { screens, panel, bridge } from "../seams.js";
       manual: "vous",
     },
     /* The run of 14/08 07:08, exactly as `pipeline_run` recorded it. */
-    dernier: {
+    last: {
       uid: "2b598104",
       when: "aujourd'hui à 07 h 08",
       duree: "1 min 44 s",
       declencheur: "completion",
       issue: "success",
-      faits: [
+      facts: [
         { n: "ingest", r: "3 copiés", s: "79 étaient déjà là" },
         { n: "sort", r: "3 rangés en catégorie" },
         { n: "clean" },
@@ -6317,7 +6317,7 @@ import { screens, panel, bridge } from "../seams.js";
            sentence — an em dash beside « 2 étaient déjà en forme » would
            contradict its own sub-line. */
         { n: "enforce", r: "rien à changer", s: "2 étaient déjà en forme" },
-        { n: "verify", r: "1 validé", bloque: 1 },
+        { n: "verify", r: "1 validé", blockedCount: 1 },
         { n: "trailers" },
         {
           n: "dispatch",
@@ -6783,15 +6783,15 @@ import { screens, panel, bridge } from "../seams.js";
       : service,
   );
 
-  const SCHEDULERS_DOWN = SCHEDULERS.map((planificateur, rang) =>
+  const SCHEDULERS_DOWN = SCHEDULERS.map((scheduler, rang) =>
     rang === 0
       ? {
-          ...planificateur,
+          ...scheduler,
           ton: "alert",
           v: "en retard",
           s: "toutes les heures à la 15ᵉ minute · dernier passage il y a 3 jours · 71 passages manqués",
         }
-      : planificateur,
+      : scheduler,
   );
 
   /* The disks, read from `df`. The percentage is what fills, so it is what is
@@ -6892,10 +6892,10 @@ import { screens, panel, bridge } from "../seams.js";
      is a run that RAISED. */
   const ERRORS = {
     total: 14,
-    sur: 425,
-    derniere: "le 6 août à 08 h 08",
-    quoi: "une maintenance : grab --followed-id 26 est sorti en erreur",
-    ou: "api/torrent/qbittorrent.py, dans build_client",
+    outOf: 425,
+    latest: "le 6 août à 08 h 08",
+    what: "une maintenance : grab --followed-id 26 est sorti en erreur",
+    where: "api/torrent/qbittorrent.py, dans build_client",
   };
 
   /* The pipeline's EXECUTIONS, read from `pipeline_run`: did it run, did it
@@ -6985,11 +6985,11 @@ import { screens, panel, bridge } from "../seams.js";
 
   const INITIAL_STATE = {
     page: "acq",
-    acqTab: "maintenant",
+    acqTab: "now",
     libLens: "cat",
     libCat: "all",
     libMode: "grid",
-    scen: "reel",
+    scen: "real",
     /* The pipeline's state, as the pilot's bar shows it: `repos`, `encours`,
        or `file` — a run asked for while one is running, which DOIT-4 requires
        be QUEUED visibly rather than refused. */
@@ -7003,7 +7003,7 @@ import { screens, panel, bridge } from "../seams.js";
     panne: false,
     maintBlanc: true,
     addMode: "suivi",
-    relTitre: null,
+    relatedTitle: null,
     /* The backend defaults: permissive everywhere EXCEPT exclude_3d. */
     profile: {
       min_resolution: "1080p",
@@ -7013,16 +7013,16 @@ import { screens, panel, bridge } from "../seams.js";
     },
     addKind: "Tout",
     idProv: "TMDB",
-    tri: "recent",
+    sortKey: "recent",
     sortReversed: false,
     resolveTarget: null,
-    phase: "prete",
+    phase: "ready",
     tmdb: true,
     q: "",
-    filtre: "",
+    filter: "",
     addQ: "star wars",
     added: new Set(),
-    recents: ["star wars", "silo", "the bear"],
+    recent: ["star wars", "silo", "the bear"],
     followMode: "list",
     pill: "tout",
     notes: false,
@@ -7185,9 +7185,9 @@ import { screens, panel, bridge } from "../seams.js";
      constructor, `src/components/sheet.tsx` the layer it draws into, and
      `panel.ouvrir` the verb a producer here calls, on a descriptor.
 
-     The DESCRIPTOR crosses unchanged (facts, never markup: `titre`, `meta`,
-     `sousTitre`, `affiche`, `avatar`, `puce`, `blocs`, and the typed blocks
-     `note` / `faits` / `actions` / `saisons` / `field`) — the vocabulary is
+     The DESCRIPTOR crosses unchanged (facts, never markup: `title`, `meta`,
+     `subtitle`, `poster`, `avatar`, `puce`, `blocs`, and the typed blocks
+     `note` / `facts` / `actions` / `seasons` / `field`) — the vocabulary is
      declared with the component, and a view wanting something outside it is
      describing a fact the panel does not know about yet. The fix is still to
      add the fact.
@@ -7206,8 +7206,8 @@ import { screens, panel, bridge } from "../seams.js";
   /* Same split as `skelCardsInner` / `surfErrInner`: a migrated PAGE draws the
      `<div class="empty">` itself and fills it with this. `corps` is HTML, not
      text — the callers pass markup. */
-  function emptyInner(titre, corps) {
-    return `<b>${escapeHtml(titre)}</b>${corps}`;
+  function emptyInner(title, corps) {
+    return `<b>${escapeHtml(title)}</b>${corps}`;
   }
 
   function secHTML(pip, title, count, inner, note) {
@@ -7238,7 +7238,7 @@ import { screens, panel, bridge } from "../seams.js";
      so every measurement starts from the same state. */
   let world = null;
   // The single owner of the mutable state, adopted at boot by
-  // window.__demarrerMoteur — null until the shell calls it.
+  // window.__startEngine — null until the shell calls it.
   let store = null;
   function seedWorld() {
     const deepCopy = (value) => JSON.parse(JSON.stringify(value));
@@ -7272,9 +7272,9 @@ import { screens, panel, bridge } from "../seams.js";
      is not « a toast appears » but « the card leaves À récupérer, appears
      in En vol at the taken step, and the badge loses 1 ». */
 
-  function actionTake(titre) {
+  function actionTake(title) {
     const findIndex = world.takeable.findIndex(
-      (takeable) => takeable.t === titre,
+      (takeable) => takeable.t === title,
     );
     if (findIndex < 0) return;
     const [splice] = world.takeable.splice(findIndex, 1);
@@ -7284,7 +7284,7 @@ import { screens, panel, bridge } from "../seams.js";
       chip: ["info", "Récupération lancée"],
     });
     render();
-    toast(`« ${baseTitle(titre)} » récupéré — suivez-le dans « En vol ».`);
+    toast(`« ${baseTitle(title)} » récupéré — suivez-le dans « En vol ».`);
   }
 
   /* Agreeing with the machine. The automatic result stands, nothing is
@@ -7297,17 +7297,17 @@ import { screens, panel, bridge } from "../seams.js";
      « Résoudre → » on an acquisition card used to change nothing at all: the
      button was there, the screen opened, the choice was made, and the item
      stayed exactly where it was. */
-  function leaveQueue(titre) {
-    for (const [list, versCharge] of [
+  function leaveQueue(title) {
+    for (const [list, towardsLoaded] of [
       [world.stuck, true],
       [world.stuckReel, false],
       [world.blocked, true],
     ]) {
       if (!list) continue;
-      const index = list.findIndex((item) => item.t === titre);
+      const index = list.findIndex((item) => item.t === title);
       if (index < 0) continue;
-      const [sorti] = list.splice(index, 1);
-      return { sorti, versCharge };
+      const [released] = list.splice(index, 1);
+      return { released, towardsLoaded };
     }
     return null;
   }
@@ -7316,50 +7316,50 @@ import { screens, panel, bridge } from "../seams.js";
      re-scraped — and the folder LEAVES the queue, because the operator has
      answered. A queue that kept what has been answered would grow forever and
      stop meaning « what is waiting for me ». */
-  function actionLeave(titre) {
-    const exit = leaveQueue(titre);
+  function actionLeave(title) {
+    const exit = leaveQueue(title);
     if (!exit) return false;
     const card = {
-      t: exit.sorti.t,
-      s: exit.sorti.s,
+      t: exit.released.t,
+      s: exit.released.s,
       strip: [1, 1, 1, "now", 0],
       chip: ["neutral", "Laissé tel quel"],
     };
-    if (exit.versCharge) world.moving.unshift(card);
+    if (exit.towardsLoaded) world.moving.unshift(card);
     else (world.movingReel ??= []).unshift(card);
     render();
     toast(
-      `« ${exit.sorti.t} » laissé tel quel — le résultat automatique est conservé, rien n'a été re-scrapé.`,
+      `« ${exit.released.t} » laissé tel quel — le résultat automatique est conservé, rien n'a été re-scrapé.`,
     );
     return true;
   }
 
-  function actionResolve(titre, choice) {
-    const exit = leaveQueue(titre);
+  function actionResolve(title, choice) {
+    const exit = leaveQueue(title);
     if (!exit) return;
     const card = {
-      t: choice ?? exit.sorti.t,
-      s: exit.sorti.s,
+      t: choice ?? exit.released.t,
+      s: exit.released.s,
       strip: [1, 1, 1, "now", 0],
       chip: ["info", "Scraping"],
     };
-    if (exit.versCharge) world.moving.unshift(card);
+    if (exit.towardsLoaded) world.moving.unshift(card);
     else (world.movingReel ??= []).unshift(card);
     render();
     toast(
-      `Identifié comme « ${choice ?? exit.sorti.t} » — le pipeline reprend jusqu'à la médiathèque.`,
+      `Identifié comme « ${choice ?? exit.released.t} » — le pipeline reprend jusqu'à la médiathèque.`,
     );
   }
 
-  function actionPause(titre) {
-    const found = world.follows.find((follow) => follow.t === titre);
+  function actionPause(title) {
+    const found = world.follows.find((follow) => follow.t === title);
     if (!found) return;
     const before = found.st;
     found.st =
       found.st === "disabled"
         ? found.k === "movie"
-          ? "en_attente"
-          : "a_jour"
+          ? "pending"
+          : "up_to_date"
         : "disabled";
     const remis = found.st !== "disabled";
     render();
@@ -7374,8 +7374,8 @@ import { screens, panel, bridge } from "../seams.js";
     );
   }
 
-  function actionRetirer(titre) {
-    const findIndex = world.follows.findIndex((follow) => follow.t === titre);
+  function actionRetirer(title) {
+    const findIndex = world.follows.findIndex((follow) => follow.t === title);
     if (findIndex < 0) return;
     const [splice] = world.follows.splice(findIndex, 1);
     render();
@@ -7385,24 +7385,24 @@ import { screens, panel, bridge } from "../seams.js";
     });
   }
 
-  function actionFollow(titre, kind) {
+  function actionFollow(title, kind) {
     if (
-      world.follows.some((follow) => baseTitle(follow.t) === baseTitle(titre))
+      world.follows.some((follow) => baseTitle(follow.t) === baseTitle(title))
     )
       return;
     world.follows.unshift({
-      t: titre,
+      t: title,
       k: kind === "Film" ? "movie" : "show",
-      st: "non_verifie",
+      st: "unverified",
       fresh: true,
     });
     toast(
-      `« ${titre} » ${kind === "Film" ? "ajouté à votre liste" : "ajouté à vos suivis"} — il apparaît en tête de « Suivis », marqué Nouveau.`,
+      `« ${title} » ${kind === "Film" ? "ajouté à votre liste" : "ajouté à vos suivis"} — il apparaît en tête de « Suivis », marqué Nouveau.`,
     );
   }
 
   function actionDelete(titres) {
-    titres.forEach((titre) => world.removedLib.add(titre));
+    titres.forEach((title) => world.removedLib.add(title));
     world.lib = world.lib.filter((lib) => !world.removedLib.has(lib.t));
     store.write({ selMode: false, selected: new Set() });
     render();
@@ -7425,9 +7425,9 @@ import { screens, panel, bridge } from "../seams.js";
          measured on its own and the same surface measured after its neighbour
          answered differently. A named state that does not pin its scenario
          pins it here instead. */
-      scen: "reel",
+      scen: "real",
       pill: "tout",
-      filtre: "",
+      filter: "",
       q: "",
       libCount: 24,
       sugCount: 30,
@@ -7469,19 +7469,19 @@ import { screens, panel, bridge } from "../seams.js";
   /* Active datasets, resolved by scenario. The rest of the code does not
      know which scenario is running — it reads these accessors. */
   const derived = {
-    takeable: () => (currentState().scen === "reel" ? [] : world.takeable),
-    blocked: () => (currentState().scen === "reel" ? [] : world.blocked),
+    takeable: () => (currentState().scen === "real" ? [] : world.takeable),
+    blocked: () => (currentState().scen === "real" ? [] : world.blocked),
     inflight: () =>
-      currentState().scen === "reel" ? (world.inflightReel ?? []) : world.inflight,
+      currentState().scen === "real" ? (world.inflightReel ?? []) : world.inflight,
     notfound: () =>
-      currentState().scen === "reel" ? world.notfoundReel : world.notfound,
+      currentState().scen === "real" ? world.notfoundReel : world.notfound,
     doneToday: () =>
-      currentState().scen === "reel" ? (world.doneReel ?? []) : world.doneToday,
-    stuck: () => (currentState().scen === "reel" ? world.stuckReel : world.stuck),
+      currentState().scen === "real" ? (world.doneReel ?? []) : world.doneToday,
+    stuck: () => (currentState().scen === "real" ? world.stuckReel : world.stuck),
     moving: () =>
-      currentState().scen === "reel" ? (world.movingReel ?? []) : world.moving,
+      currentState().scen === "real" ? (world.movingReel ?? []) : world.moving,
     settled: () =>
-      currentState().scen === "reel" ? (world.settledReel ?? []) : world.settled,
+      currentState().scen === "real" ? (world.settledReel ?? []) : world.settled,
     follows: () => world.follows,
   };
 
@@ -7501,12 +7501,12 @@ import { screens, panel, bridge } from "../seams.js";
   function skelTiles(count) {
     return `<div class="grid">${'<div class="sk tile"></div>'.repeat(count)}</div>`;
   }
-  function surfErr(quoi) {
-    return `<div class="surferr">${surfErrInner(quoi)}</div>`;
+  function surfErr(what) {
+    return `<div class="surferr">${surfErrInner(what)}</div>`;
   }
   /* Same split as `skelCardsInner`, and for the same reason. */
-  function surfErrInner(quoi) {
-    return `<b>Impossible de charger ${escapeHtml(quoi)}.</b>
+  function surfErrInner(what) {
+    return `<b>Impossible de charger ${escapeHtml(what)}.</b>
       Le serveur n'a pas répondu dans le temps imparti. Rien n'est perdu — ce qui
       est affiché ailleurs reste valide.
       <button data-phase="prete">Réessayer</button>`;
@@ -7545,8 +7545,8 @@ import { screens, panel, bridge } from "../seams.js";
         const target = ligne.target
           ? Object.entries(ligne.target)
               .map(
-                ([nom, value]) =>
-                  ` data-${nom}="${escapeHtml(String(value))}"`,
+                ([name, value]) =>
+                  ` data-${name}="${escapeHtml(String(value))}"`,
               )
               .join("")
           : "";
@@ -7618,8 +7618,8 @@ import { screens, panel, bridge } from "../seams.js";
     const deleted = action.r === "destructive";
     const blanc = deleted ? true : !!currentState().maintBlanc;
     panel.open({
-      titre: action.l,
-      sousTitre: action.id,
+      title: action.l,
+      subtitle: action.id,
       meta: action.d,
       puce: [RISQUES[action.r].p, RISQUES[action.r].t],
       blocs: [
@@ -7629,7 +7629,7 @@ import { screens, panel, bridge } from "../seams.js";
             {
               c: "Ce qu'elle fait",
               v: RISQUES[action.r].t,
-              pipValeur: RISQUES[action.r].p,
+              pipValue: RISQUES[action.r].p,
             },
             { c: "Durée", v: action.long ? "peut être longue" : "immédiate" },
             {
@@ -7641,7 +7641,7 @@ import { screens, panel, bridge } from "../seams.js";
         deleted
           ? {
               type: "note",
-              texte:
+              text:
                 "**Cette commande supprime.** L'essai à blanc reste activé tant que rien n'a montré ce qui serait détruit : un « êtes-vous sûr ? » se répond sans lire, une liste se regarde. Lancez-la à blanc, lisez ce qu'elle nomme, puis relancez-la pour de vrai.",
             }
           : null,
@@ -7649,7 +7649,7 @@ import { screens, panel, bridge } from "../seams.js";
           type: "actions",
           actions: [
             {
-              texte: action.blanc ? "Lancer à blanc" : "Lancer",
+              text: action.blanc ? "Lancer à blanc" : "Lancer",
               ton: "solid",
               target: {
                 toast: `${action.l} — lancée${action.blanc ? " à blanc" : ""}. Le résultat s'affichera ici.`,
@@ -7657,7 +7657,7 @@ import { screens, panel, bridge } from "../seams.js";
             },
             deleted
               ? {
-                  texte: "Lancer pour de vrai",
+                  text: "Lancer pour de vrai",
                   desactive: true,
                   infobulle: "Lisez d'abord ce que l'essai à blanc nomme.",
                   mention: "après l'essai",
@@ -7700,7 +7700,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "paths",
           c: "paths.torrent_complete_dir",
-          type: "chemin",
+          type: "path",
           brut: "/Volumes/IznoServer SSD/torrents/complete",
           n: "torrent_complete_dir",
           v: "/Volumes/IznoServer SSD/torrents/complete",
@@ -7709,7 +7709,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "paths",
           c: "paths.staging_dir",
-          type: "chemin",
+          type: "path",
           brut: "/Volumes/IznoServer SSD/A TRIER",
           n: "staging_dir",
           v: "/Volumes/IznoServer SSD/A TRIER",
@@ -7718,7 +7718,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "paths",
           c: "paths.data_dir",
-          type: "chemin",
+          type: "path",
           brut: "/Users/izno/dev/PersonalScraper/.data",
           n: "data_dir",
           v: "/Users/izno/dev/PersonalScraper/.data",
@@ -7785,7 +7785,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "custom_categories",
-          type: "liste",
+          type: "list",
           brut: [],
           n: "custom_categories",
           v: "aucun",
@@ -7794,15 +7794,15 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "categories.movies.folder_name",
-          type: "texte",
-          brut: "films",
+          type: "text",
+          brut: "movies",
           n: "folder_name",
-          v: "films",
+          v: "movies",
         },
         {
           f: "categories",
           c: "categories.movies_animation.folder_name",
-          type: "texte",
+          type: "text",
           brut: "films animations",
           n: "folder_name",
           v: "films animations",
@@ -7810,7 +7810,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "categories.movies_animation.aliases",
-          type: "liste",
+          type: "list",
           brut: ["Movies Animation"],
           n: "aliases",
           v: "Movies Animation",
@@ -7818,7 +7818,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "categories.movies_documentary.folder_name",
-          type: "texte",
+          type: "text",
           brut: "films documentaires",
           n: "folder_name",
           v: "films documentaires",
@@ -7826,7 +7826,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "categories.tv_shows.folder_name",
-          type: "texte",
+          type: "text",
           brut: "series",
           n: "folder_name",
           v: "series",
@@ -7834,7 +7834,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "categories.tv_shows_animation.folder_name",
-          type: "texte",
+          type: "text",
           brut: "series animations",
           n: "folder_name",
           v: "series animations",
@@ -7842,7 +7842,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "categories.tv_shows_documentary.folder_name",
-          type: "texte",
+          type: "text",
           brut: "series documentaires",
           n: "folder_name",
           v: "series documentaires",
@@ -7850,7 +7850,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "categories.anime.folder_name",
-          type: "texte",
+          type: "text",
           brut: "series animes",
           n: "folder_name",
           v: "series animes",
@@ -7858,7 +7858,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "categories.audiobooks.folder_name",
-          type: "texte",
+          type: "text",
           brut: "livres audios",
           n: "folder_name",
           v: "livres audios",
@@ -7866,7 +7866,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "categories.standup.folder_name",
-          type: "texte",
+          type: "text",
           brut: "spectacles",
           n: "folder_name",
           v: "spectacles",
@@ -7874,7 +7874,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "categories.theater.folder_name",
-          type: "texte",
+          type: "text",
           brut: "theatres",
           n: "folder_name",
           v: "theatres",
@@ -7882,7 +7882,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "categories.tv_programs.folder_name",
-          type: "texte",
+          type: "text",
           brut: "emissions",
           n: "folder_name",
           v: "emissions",
@@ -7890,7 +7890,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "category_rules",
-          type: "liste",
+          type: "list",
           brut: [],
           n: "category_rules",
           v: "aucun",
@@ -7899,7 +7899,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "anime_rule.enabled",
-          type: "booleen",
+          type: "boolean",
           brut: true,
           n: "enabled",
           v: "oui",
@@ -7907,7 +7907,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "anime_rule.requires_genre_id",
-          type: "nombre",
+          type: "number",
           brut: 16,
           n: "requires_genre_id",
           v: "16",
@@ -7916,7 +7916,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "anime_rule.requires_origin_country",
-          type: "liste",
+          type: "list",
           brut: ["JP"],
           n: "requires_origin_country",
           v: "JP",
@@ -7925,7 +7925,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "anime_rule.maps_to",
-          type: "texte",
+          type: "text",
           brut: "anime",
           n: "maps_to",
           v: "anime",
@@ -7934,7 +7934,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "anime_rule.applies_to",
-          type: "texte",
+          type: "text",
           brut: "tv",
           n: "applies_to",
           v: "tv",
@@ -7943,7 +7943,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "genre_mapping.tmdb_movies.16",
-          type: "texte",
+          type: "text",
           brut: "movies_animation",
           n: "16",
           v: "movies_animation",
@@ -7951,7 +7951,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "genre_mapping.tmdb_movies.99",
-          type: "texte",
+          type: "text",
           brut: "movies_documentary",
           n: "99",
           v: "movies_documentary",
@@ -7959,7 +7959,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "genre_mapping.tmdb_tv.16",
-          type: "texte",
+          type: "text",
           brut: "tv_shows_animation",
           n: "16",
           v: "tv_shows_animation",
@@ -7967,7 +7967,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "genre_mapping.tmdb_tv.99",
-          type: "texte",
+          type: "text",
           brut: "tv_shows_documentary",
           n: "99",
           v: "tv_shows_documentary",
@@ -7975,7 +7975,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "genre_mapping.tmdb_tv.10764",
-          type: "texte",
+          type: "text",
           brut: "tv_programs",
           n: "10764",
           v: "tv_programs",
@@ -7983,7 +7983,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "genre_mapping.tmdb_tv.10767",
-          type: "texte",
+          type: "text",
           brut: "tv_programs",
           n: "10767",
           v: "tv_programs",
@@ -7991,7 +7991,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "genre_mapping.tmdb_tv.10763",
-          type: "texte",
+          type: "text",
           brut: "tv_programs",
           n: "10763",
           v: "tv_programs",
@@ -7999,7 +7999,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "genre_mapping.tvdb.27",
-          type: "texte",
+          type: "text",
           brut: "anime",
           n: "27",
           v: "anime",
@@ -8007,7 +8007,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "genre_mapping.tvdb.17",
-          type: "texte",
+          type: "text",
           brut: "tv_shows_animation",
           n: "17",
           v: "tv_shows_animation",
@@ -8015,7 +8015,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "genre_mapping.tvdb.3",
-          type: "texte",
+          type: "text",
           brut: "tv_shows_documentary",
           n: "3",
           v: "tv_shows_documentary",
@@ -8023,7 +8023,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "genre_mapping.tvdb.8",
-          type: "texte",
+          type: "text",
           brut: "tv_programs",
           n: "8",
           v: "tv_programs",
@@ -8031,7 +8031,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "genre_mapping.tvdb.10",
-          type: "texte",
+          type: "text",
           brut: "tv_programs",
           n: "10",
           v: "tv_programs",
@@ -8039,24 +8039,24 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "categories",
           c: "genre_mapping.tvdb.11",
-          type: "texte",
+          type: "text",
           brut: "tv_programs",
           n: "11",
           v: "tv_programs",
         },
         {
           f: "categories",
-          c: "genre_mapping.default_movies_category",
-          type: "texte",
+          c: "genre_mapping.default_films_category",
+          type: "text",
           brut: "movies",
-          n: "default_movies_category",
+          n: "default_films_category",
           v: "movies",
           note: "Fallback when no genre matches",
         },
         {
           f: "categories",
           c: "genre_mapping.default_tv_category",
-          type: "texte",
+          type: "text",
           brut: "tv_shows",
           n: "default_tv_category",
           v: "tv_shows",
@@ -8090,7 +8090,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "encoding",
           c: "library.video.preferred_codec",
-          type: "texte",
+          type: "text",
           brut: "hevc",
           n: "preferred_codec",
           v: "hevc",
@@ -8099,7 +8099,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "encoding",
           c: "library.video.fallback_codecs",
-          type: "liste",
+          type: "list",
           brut: ["av1"],
           n: "fallback_codecs",
           v: "av1",
@@ -8108,7 +8108,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "encoding",
           c: "library.video.rejected_codecs",
-          type: "liste",
+          type: "list",
           brut: ["mpeg2", "mpeg4"],
           n: "rejected_codecs",
           v: "mpeg2, mpeg4",
@@ -8117,7 +8117,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "encoding",
           c: "library.video.preferred_resolution",
-          type: "texte",
+          type: "text",
           brut: "1080p",
           n: "preferred_resolution",
           v: "1080p",
@@ -8126,7 +8126,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "encoding",
           c: "library.video.max_size_movie_gb",
-          type: "nombre",
+          type: "number",
           brut: 4.0,
           n: "max_size_movie_gb",
           v: "4.0",
@@ -8135,7 +8135,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "encoding",
           c: "library.video.max_size_episode_gb",
-          type: "nombre",
+          type: "number",
           brut: 2.0,
           n: "max_size_episode_gb",
           v: "2.0",
@@ -8144,7 +8144,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "encoding",
           c: "library.audio.profile_priority",
-          type: "liste",
+          type: "list",
           brut: ["multi", "vf", "vostfr", "vo"],
           n: "profile_priority",
           v: "multi, vf, vostfr +1",
@@ -8153,7 +8153,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "encoding",
           c: "library.subtitles.required_languages",
-          type: "liste",
+          type: "list",
           brut: ["fra"],
           n: "required_languages",
           v: "fra",
@@ -8162,7 +8162,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "encoding",
           c: "library.encoding_rules",
-          type: "liste",
+          type: "list",
           brut: [],
           n: "encoding_rules",
           v: "aucun",
@@ -8179,7 +8179,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "acquire",
           c: "acquire.db_path",
-          type: "nul",
+          type: "empty",
           brut: null,
           n: "db_path",
           v: "non défini",
@@ -8200,7 +8200,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "acquire",
           c: "acquire.cadence.cutoff_days",
-          type: "nombre",
+          type: "number",
           brut: 30,
           n: "cutoff_days",
           v: "30",
@@ -8208,7 +8208,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "tracker",
           c: "tracker.providers.lacale.enabled",
-          type: "booleen",
+          type: "boolean",
           brut: false,
           n: "enabled",
           v: "non",
@@ -8217,7 +8217,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "tracker",
           c: "tracker.providers.lacale.cross_seed",
-          type: "booleen",
+          type: "boolean",
           brut: false,
           n: "cross_seed",
           v: "non",
@@ -8225,7 +8225,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "tracker",
           c: "tracker.providers.c411.enabled",
-          type: "booleen",
+          type: "boolean",
           brut: true,
           n: "enabled",
           v: "oui",
@@ -8234,7 +8234,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "tracker",
           c: "tracker.providers.c411.cross_seed",
-          type: "booleen",
+          type: "boolean",
           brut: false,
           n: "cross_seed",
           v: "non",
@@ -8242,7 +8242,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "tracker",
           c: "tracker.providers.c411.economy.target_ratio",
-          type: "nombre",
+          type: "number",
           brut: 2.0,
           n: "target_ratio",
           v: "2.0",
@@ -8250,7 +8250,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "tracker",
           c: "tracker.providers.c411.economy.min_ratio",
-          type: "nombre",
+          type: "number",
           brut: 1.0,
           n: "min_ratio",
           v: "1.0",
@@ -8258,7 +8258,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "tracker",
           c: "tracker.providers.c411.economy.min_seed_time",
-          type: "duree",
+          type: "duration",
           brut: "72h",
           n: "min_seed_time",
           v: "72h",
@@ -8266,7 +8266,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "tracker",
           c: "tracker.providers.c411.economy.hit_and_run_grace",
-          type: "duree",
+          type: "duration",
           brut: "0h",
           n: "hit_and_run_grace",
           v: "0h",
@@ -8274,7 +8274,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "tracker",
           c: "tracker.providers.tr4ker.enabled",
-          type: "booleen",
+          type: "boolean",
           brut: true,
           n: "enabled",
           v: "oui",
@@ -8283,7 +8283,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "tracker",
           c: "tracker.providers.tr4ker.cross_seed",
-          type: "booleen",
+          type: "boolean",
           brut: false,
           n: "cross_seed",
           v: "non",
@@ -8291,7 +8291,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "tracker",
           c: "tracker.priority",
-          type: "liste",
+          type: "list",
           brut: ["c411", "tr4ker"],
           n: "priority",
           v: "c411, tr4ker",
@@ -8300,7 +8300,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "tracker",
           c: "tracker.max_total_results",
-          type: "nombre",
+          type: "number",
           brut: 50,
           n: "max_total_results",
           v: "50",
@@ -8308,7 +8308,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "tracker",
           c: "tracker.max_per_tracker",
-          type: "nombre",
+          type: "number",
           brut: 30,
           n: "max_per_tracker",
           v: "30",
@@ -8316,7 +8316,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "tracker",
           c: "tracker.timeout_per_tracker",
-          type: "nombre",
+          type: "number",
           brut: 15,
           n: "timeout_per_tracker",
           v: "15",
@@ -8324,7 +8324,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "thresholds",
           c: "thresholds.min_free_space_staging_gb",
-          type: "nombre",
+          type: "number",
           brut: 20,
           n: "min_free_space_staging_gb",
           v: "20",
@@ -8333,7 +8333,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "thresholds",
           c: "thresholds.min_free_space_disk_gb",
-          type: "nombre",
+          type: "number",
           brut: 100,
           n: "min_free_space_disk_gb",
           v: "100",
@@ -8342,7 +8342,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "thresholds",
           c: "thresholds.circuit_breaker_threshold",
-          type: "nombre",
+          type: "number",
           brut: 5,
           n: "circuit_breaker_threshold",
           v: "5",
@@ -8351,7 +8351,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "thresholds",
           c: "thresholds.circuit_breaker_cooldown",
-          type: "nombre",
+          type: "number",
           brut: 300,
           n: "circuit_breaker_cooldown",
           v: "300",
@@ -8360,7 +8360,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "torrent",
           c: "torrent.active",
-          type: "texte",
+          type: "text",
           brut: "qbittorrent",
           n: "active",
           v: "qbittorrent",
@@ -8368,7 +8368,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "torrent",
           c: "torrent.clients.qbittorrent.enabled",
-          type: "booleen",
+          type: "boolean",
           brut: true,
           n: "enabled",
           v: "oui",
@@ -8376,7 +8376,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "torrent",
           c: "torrent.clients.qbittorrent.host",
-          type: "texte",
+          type: "text",
           brut: "localhost",
           n: "host",
           v: "localhost",
@@ -8384,7 +8384,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "torrent",
           c: "torrent.clients.qbittorrent.port",
-          type: "nombre",
+          type: "number",
           brut: 8081,
           n: "port",
           v: "8081",
@@ -8392,7 +8392,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "torrent",
           c: "torrent.clients.transmission.enabled",
-          type: "booleen",
+          type: "boolean",
           brut: false,
           n: "enabled",
           v: "non",
@@ -8400,7 +8400,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "torrent",
           c: "torrent.clients.transmission.host",
-          type: "texte",
+          type: "text",
           brut: "localhost",
           n: "host",
           v: "localhost",
@@ -8408,7 +8408,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "torrent",
           c: "torrent.clients.transmission.port",
-          type: "nombre",
+          type: "number",
           brut: 9091,
           n: "port",
           v: "9091",
@@ -8416,7 +8416,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "watch_seed",
           c: "cross_seed.enabled",
-          type: "booleen",
+          type: "boolean",
           brut: false,
           n: "enabled",
           v: "non",
@@ -8424,7 +8424,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "watch_seed",
           c: "watch.enabled",
-          type: "booleen",
+          type: "boolean",
           brut: true,
           n: "enabled",
           v: "oui",
@@ -8440,7 +8440,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "metadata",
           c: "metadata.providers.tmdb.enabled",
-          type: "booleen",
+          type: "boolean",
           brut: true,
           n: "enabled",
           v: "oui",
@@ -8448,7 +8448,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "metadata",
           c: "metadata.providers.tvdb.enabled",
-          type: "booleen",
+          type: "boolean",
           brut: true,
           n: "enabled",
           v: "oui",
@@ -8456,7 +8456,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "metadata",
           c: "metadata.providers.omdb.enabled",
-          type: "booleen",
+          type: "boolean",
           brut: true,
           n: "enabled",
           v: "oui",
@@ -8464,7 +8464,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "metadata",
           c: "metadata.providers.trakt.enabled",
-          type: "booleen",
+          type: "boolean",
           brut: true,
           n: "enabled",
           v: "oui",
@@ -8472,7 +8472,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "metadata",
           c: "metadata.priorities.movie_scraping.tmdb",
-          type: "nombre",
+          type: "number",
           brut: 1,
           n: "tmdb",
           v: "1",
@@ -8480,7 +8480,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "metadata",
           c: "metadata.priorities.movie_scraping.tvdb",
-          type: "nombre",
+          type: "number",
           brut: 2,
           n: "tvdb",
           v: "2",
@@ -8488,7 +8488,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "metadata",
           c: "metadata.priorities.series_scraping.tvdb",
-          type: "nombre",
+          type: "number",
           brut: 1,
           n: "tvdb",
           v: "1",
@@ -8496,7 +8496,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "metadata",
           c: "metadata.priorities.series_scraping.tmdb",
-          type: "nombre",
+          type: "number",
           brut: 2,
           n: "tmdb",
           v: "2",
@@ -8504,7 +8504,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "metadata",
           c: "metadata.priorities.episode_scraping.tvdb",
-          type: "nombre",
+          type: "number",
           brut: 1,
           n: "tvdb",
           v: "1",
@@ -8512,7 +8512,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "metadata",
           c: "metadata.priorities.episode_scraping.tmdb",
-          type: "nombre",
+          type: "number",
           brut: 2,
           n: "tmdb",
           v: "2",
@@ -8520,7 +8520,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "metadata",
           c: "metadata.priorities.recommendations.trakt",
-          type: "nombre",
+          type: "number",
           brut: 1,
           n: "trakt",
           v: "1",
@@ -8528,7 +8528,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "metadata",
           c: "metadata.priorities.recommendations.omdb",
-          type: "nombre",
+          type: "number",
           brut: 2,
           n: "omdb",
           v: "2",
@@ -8536,7 +8536,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "metadata",
           c: "metadata.priorities.notations.omdb",
-          type: "nombre",
+          type: "number",
           brut: 1,
           n: "omdb",
           v: "1",
@@ -8544,7 +8544,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "metadata",
           c: "metadata.priorities.notations.trakt",
-          type: "nombre",
+          type: "number",
           brut: 2,
           n: "trakt",
           v: "2",
@@ -8552,7 +8552,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "metadata",
           c: "metadata.defaults.language",
-          type: "texte",
+          type: "text",
           brut: "fr-FR",
           n: "language",
           v: "fr-FR",
@@ -8560,7 +8560,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "metadata",
           c: "metadata.defaults.fallback_language",
-          type: "texte",
+          type: "text",
           brut: "en-US",
           n: "fallback_language",
           v: "en-US",
@@ -8568,7 +8568,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "metadata",
           c: "metadata.defaults.prefer_local_title",
-          type: "booleen",
+          type: "boolean",
           brut: true,
           n: "prefer_local_title",
           v: "oui",
@@ -8576,7 +8576,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "metadata",
           c: "metadata.episode_scraping_policy.lock_to_series_provider",
-          type: "booleen",
+          type: "boolean",
           brut: true,
           n: "lock_to_series_provider",
           v: "oui",
@@ -8584,7 +8584,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "metadata",
           c: "metadata.episode_scraping_policy.allow_synthetic_rename_on_unmatched",
-          type: "booleen",
+          type: "boolean",
           brut: false,
           n: "allow_synthetic_rename_on_unmatched",
           v: "non",
@@ -8592,7 +8592,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "metadata",
           c: "metadata.season_pack_policy.enabled",
-          type: "booleen",
+          type: "boolean",
           brut: true,
           n: "enabled",
           v: "oui",
@@ -8600,7 +8600,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "providers",
           c: "providers.Searchable.tvdb",
-          type: "nombre",
+          type: "number",
           brut: 1,
           n: "tvdb",
           v: "1",
@@ -8608,7 +8608,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "providers",
           c: "providers.Searchable.tmdb",
-          type: "nombre",
+          type: "number",
           brut: 2,
           n: "tmdb",
           v: "2",
@@ -8616,7 +8616,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "providers",
           c: "providers.MovieDetailsProvider.tmdb",
-          type: "nombre",
+          type: "number",
           brut: 1,
           n: "tmdb",
           v: "1",
@@ -8624,7 +8624,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "providers",
           c: "providers.MovieDetailsProvider.tvdb",
-          type: "nombre",
+          type: "number",
           brut: 2,
           n: "tvdb",
           v: "2",
@@ -8632,7 +8632,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "providers",
           c: "providers.TvDetailsProvider.tvdb",
-          type: "nombre",
+          type: "number",
           brut: 1,
           n: "tvdb",
           v: "1",
@@ -8640,7 +8640,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "providers",
           c: "providers.TvDetailsProvider.tmdb",
-          type: "nombre",
+          type: "number",
           brut: 2,
           n: "tmdb",
           v: "2",
@@ -8648,7 +8648,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "providers",
           c: "providers.EpisodeFetcher.tvdb",
-          type: "nombre",
+          type: "number",
           brut: 1,
           n: "tvdb",
           v: "1",
@@ -8656,7 +8656,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "providers",
           c: "providers.EpisodeFetcher.tmdb",
-          type: "nombre",
+          type: "number",
           brut: 2,
           n: "tmdb",
           v: "2",
@@ -8664,7 +8664,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "providers",
           c: "providers.ArtworkProvider.tmdb",
-          type: "nombre",
+          type: "number",
           brut: 1,
           n: "tmdb",
           v: "1",
@@ -8672,7 +8672,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "providers",
           c: "providers.ArtworkProvider.tvdb",
-          type: "nombre",
+          type: "number",
           brut: 2,
           n: "tvdb",
           v: "2",
@@ -8680,7 +8680,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "providers",
           c: "providers.VideoProvider.tmdb",
-          type: "nombre",
+          type: "number",
           brut: 1,
           n: "tmdb",
           v: "1",
@@ -8688,7 +8688,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "providers",
           c: "providers.VideoProvider.tvdb",
-          type: "nombre",
+          type: "number",
           brut: 2,
           n: "tvdb",
           v: "2",
@@ -8696,7 +8696,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "scraper",
           c: "scraper.language",
-          type: "texte",
+          type: "text",
           brut: "fr-FR",
           n: "language",
           v: "fr-FR",
@@ -8704,7 +8704,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "scraper",
           c: "scraper.fallback_language",
-          type: "texte",
+          type: "text",
           brut: "en-US",
           n: "fallback_language",
           v: "en-US",
@@ -8712,7 +8712,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "scraper",
           c: "scraper.prefer_local_title",
-          type: "booleen",
+          type: "boolean",
           brut: true,
           n: "prefer_local_title",
           v: "oui",
@@ -8720,7 +8720,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "scraper",
           c: "scraper.episode_default_name",
-          type: "texte",
+          type: "text",
           brut: "Episode",
           n: "episode_default_name",
           v: "Episode",
@@ -8728,7 +8728,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "scraper",
           c: "scraper.artwork_language",
-          type: "texte",
+          type: "text",
           brut: "en",
           n: "artwork_language",
           v: "en",
@@ -8736,7 +8736,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "scraper",
           c: "ingest.min_ratio",
-          type: "nombre",
+          type: "number",
           brut: 0.0,
           n: "min_ratio",
           v: "0.0",
@@ -8744,7 +8744,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "scraper",
           c: "sort.verify_seed_pure",
-          type: "booleen",
+          type: "boolean",
           brut: false,
           n: "verify_seed_pure",
           v: "non",
@@ -8752,7 +8752,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "scraper",
           c: "fuzzy_match.min_length_ratio",
-          type: "nombre",
+          type: "number",
           brut: 0.67,
           n: "min_length_ratio",
           v: "0.67",
@@ -8760,7 +8760,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "scraper",
           c: "fuzzy_match.short_title_length",
-          type: "nombre",
+          type: "number",
           brut: 10,
           n: "short_title_length",
           v: "10",
@@ -8768,7 +8768,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "scraper",
           c: "fuzzy_match.short_title_threshold",
-          type: "nombre",
+          type: "number",
           brut: 95.0,
           n: "short_title_threshold",
           v: "95.0",
@@ -8776,7 +8776,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "scraper",
           c: "fuzzy_match.long_title_threshold",
-          type: "nombre",
+          type: "number",
           brut: 90.0,
           n: "long_title_threshold",
           v: "90.0",
@@ -8784,7 +8784,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "trailers",
           c: "trailers.enabled",
-          type: "booleen",
+          type: "boolean",
           brut: true,
           n: "enabled",
           v: "oui",
@@ -8792,7 +8792,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "trailers",
           c: "trailers.languages",
-          type: "liste",
+          type: "list",
           brut: ["fr-FR", "en-US"],
           n: "languages",
           v: "fr-FR, en-US",
@@ -8801,7 +8801,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "trailers",
           c: "trailers.search_query_format",
-          type: "texte",
+          type: "text",
           brut: "{title} {year} bande annonce",
           n: "search_query_format",
           v: "{title} {year} bande annonce",
@@ -8810,7 +8810,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "trailers",
           c: "trailers.seasons.enabled",
-          type: "booleen",
+          type: "boolean",
           brut: false,
           n: "enabled",
           v: "non",
@@ -8818,7 +8818,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "trailers",
           c: "trailers.library_check.movies",
-          type: "booleen",
+          type: "boolean",
           brut: false,
           n: "movies",
           v: "non",
@@ -8826,7 +8826,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "trailers",
           c: "trailers.library_check.tv_shows",
-          type: "booleen",
+          type: "boolean",
           brut: true,
           n: "tv_shows",
           v: "oui",
@@ -8834,7 +8834,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "trailers",
           c: "trailers.fallback_youtube_search",
-          type: "booleen",
+          type: "boolean",
           brut: true,
           n: "fallback_youtube_search",
           v: "oui",
@@ -8851,7 +8851,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "indexer",
           c: "indexer.db_path",
-          type: "nul",
+          type: "empty",
           brut: null,
           n: "db_path",
           v: "non défini",
@@ -8859,7 +8859,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "indexer",
           c: "indexer.scan.budget_seconds",
-          type: "nombre",
+          type: "number",
           brut: 1800,
           n: "budget_seconds",
           v: "1800",
@@ -8867,7 +8867,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "indexer",
           c: "indexer.scan.checkpoint_every_n_files",
-          type: "nombre",
+          type: "number",
           brut: 100,
           n: "checkpoint_every_n_files",
           v: "100",
@@ -8875,7 +8875,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "indexer",
           c: "indexer.scan.max_workers_total",
-          type: "nombre",
+          type: "number",
           brut: 2,
           n: "max_workers_total",
           v: "2",
@@ -8883,7 +8883,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "indexer",
           c: "indexer.scan.n_strikes_for_softdelete",
-          type: "nombre",
+          type: "number",
           brut: 3,
           n: "n_strikes_for_softdelete",
           v: "3",
@@ -8891,7 +8891,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "indexer",
           c: "indexer.scan.read_rate_mb_per_sec",
-          type: "nombre",
+          type: "number",
           brut: 80,
           n: "read_rate_mb_per_sec",
           v: "80",
@@ -8899,7 +8899,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "indexer",
           c: "indexer.scan.drop_indexes_during_full_scan",
-          type: "booleen",
+          type: "boolean",
           brut: true,
           n: "drop_indexes_during_full_scan",
           v: "oui",
@@ -8907,7 +8907,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "indexer",
           c: "indexer.scan.paranoia_window_seconds",
-          type: "nombre",
+          type: "number",
           brut: 86400,
           n: "paranoia_window_seconds",
           v: "86400",
@@ -8915,7 +8915,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "indexer",
           c: "indexer.drift.merkle_delta_freeze_threshold",
-          type: "nombre",
+          type: "number",
           brut: 0.5,
           n: "merkle_delta_freeze_threshold",
           v: "0.5",
@@ -8923,7 +8923,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "indexer",
           c: "indexer.spotlight.use_when_available",
-          type: "booleen",
+          type: "boolean",
           brut: true,
           n: "use_when_available",
           v: "oui",
@@ -8931,7 +8931,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "indexer",
           c: "indexer.log.deleted_item_retention_days",
-          type: "nombre",
+          type: "number",
           brut: 365,
           n: "deleted_item_retention_days",
           v: "365",
@@ -8939,7 +8939,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "notify",
           c: "notify.telegram.enabled",
-          type: "booleen",
+          type: "boolean",
           brut: true,
           n: "enabled",
           v: "oui",
@@ -8947,7 +8947,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "notify",
           c: "notify.healthchecks.enabled",
-          type: "booleen",
+          type: "boolean",
           brut: true,
           n: "enabled",
           v: "oui",
@@ -8955,7 +8955,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "web",
           c: "web.enabled",
-          type: "booleen",
+          type: "boolean",
           brut: true,
           n: "enabled",
           v: "oui",
@@ -8963,7 +8963,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "web",
           c: "web.host",
-          type: "texte",
+          type: "text",
           brut: "127.0.0.1",
           n: "host",
           v: "127.0.0.1",
@@ -8971,7 +8971,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "web",
           c: "web.port",
-          type: "nombre",
+          type: "number",
           brut: 8710,
           n: "port",
           v: "8710",
@@ -8979,7 +8979,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "web",
           c: "web.username",
-          type: "texte",
+          type: "text",
           brut: "izno",
           n: "username",
           v: "izno",
@@ -8987,7 +8987,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "web",
           c: "web.redis_url",
-          type: "texte",
+          type: "text",
           brut: "redis://127.0.0.1:6379/0",
           n: "redis_url",
           v: "redis://127.0.0.1:6379/0",
@@ -8995,7 +8995,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "web",
           c: "web.stream_key",
-          type: "texte",
+          type: "text",
           brut: "personalscraper:events",
           n: "stream_key",
           v: "personalscraper:events",
@@ -9003,7 +9003,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "web",
           c: "web.stream_maxlen",
-          type: "nombre",
+          type: "number",
           brut: 10000,
           n: "stream_maxlen",
           v: "10000",
@@ -9011,7 +9011,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "web",
           c: "web.session_ttl_hours",
-          type: "nombre",
+          type: "number",
           brut: 720,
           n: "session_ttl_hours",
           v: "720",
@@ -9019,7 +9019,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "web",
           c: "web.cookie_secure",
-          type: "booleen",
+          type: "boolean",
           brut: true,
           n: "cookie_secure",
           v: "oui",
@@ -9027,7 +9027,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "web",
           c: "web.dev_mode",
-          type: "booleen",
+          type: "boolean",
           brut: false,
           n: "dev_mode",
           v: "non",
@@ -9035,7 +9035,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "config",
           c: "config_version",
-          type: "nombre",
+          type: "number",
           brut: 1,
           n: "config_version",
           v: "1",
@@ -9044,7 +9044,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "config",
           c: "overlays",
-          type: "liste",
+          type: "list",
           brut: [
             "paths.json5",
             "disks.json5",
@@ -9090,7 +9090,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "ecosystem.config.js",
           c: "personalscraper-health-check",
-          type: "texte",
+          type: "text",
           brut: "15 * * * *",
           n: "cron_restart",
           v: "toutes les heures, à la 15ᵉ minute",
@@ -9099,7 +9099,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "ecosystem.config.js",
           c: "personalscraper-search",
-          type: "texte",
+          type: "text",
           brut: "10 3,15 * * *",
           n: "cron_restart",
           v: "à 03 h 10 et 15 h 10",
@@ -9108,7 +9108,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "ecosystem.config.js",
           c: "personalscraper-grab",
-          type: "texte",
+          type: "text",
           brut: "20 3,15 * * *",
           n: "cron_restart",
           v: "à 03 h 20 et 15 h 20",
@@ -9117,7 +9117,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "ecosystem.config.js",
           c: "personalscraper-follow-detect",
-          type: "texte",
+          type: "text",
           brut: "0 3 * * *",
           n: "cron_restart",
           v: "chaque jour à 03 h 00",
@@ -9126,7 +9126,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "ecosystem.config.js",
           c: "personalscraper-index-enrich",
-          type: "texte",
+          type: "text",
           brut: "30 4 * * 0",
           n: "cron_restart",
           v: "le dimanche à 04 h 30",
@@ -9135,7 +9135,7 @@ import { screens, panel, bridge } from "../seams.js";
         {
           f: "ecosystem.config.js",
           c: "personalscraper-backfill-ids",
-          type: "texte",
+          type: "text",
           brut: "0 5 * * 0",
           n: "cron_restart",
           v: "le dimanche à 05 h 00",
@@ -9192,11 +9192,11 @@ import { screens, panel, bridge } from "../seams.js";
      the files it will write. */
   const SETTINGS_STATE = {
     modifs: new Map(),
-    rubrique: null,
+    topic: null,
     q: "",
-    lectureSeule: false,
+    readOnly: false,
     redemarrage: false,
-    conflit: false,
+    conflict: false,
   };
 
   /* Every named state starts from the same place: pending edits, the rubric
@@ -9204,11 +9204,11 @@ import { screens, panel, bridge } from "../seams.js";
      the one before it. */
   function resetSettings() {
     SETTINGS_STATE.modifs.clear();
-    SETTINGS_STATE.rubrique = null;
+    SETTINGS_STATE.topic = null;
     SETTINGS_STATE.q = "";
-    SETTINGS_STATE.lectureSeule = false;
+    SETTINGS_STATE.readOnly = false;
     SETTINGS_STATE.redemarrage = false;
-    SETTINGS_STATE.conflit = false;
+    SETTINGS_STATE.conflict = false;
   }
 
   function settingId(setting) {
@@ -9236,8 +9236,8 @@ import { screens, panel, bridge } from "../seams.js";
   }
 
   function allSettings() {
-    return SETTINGS.flatMap((rubrique) =>
-      rubrique.r.map((setting) => ({ ...setting, rubrique })),
+    return SETTINGS.flatMap((topic) =>
+      topic.r.map((setting) => ({ ...setting, topic })),
     );
   }
 
@@ -9294,36 +9294,36 @@ import { screens, panel, bridge } from "../seams.js";
   /* What a field's value BECOMES, read from the field itself. A number field
      returns a string; storing it as one would compare unequal to the file's
      number for ever, so the type it goes back as is the type it came from. */
-  function typedValue(setting, texte) {
-    if (setting.type === "nombre") {
-      const n = Number(texte);
-      return texte.trim() === "" ? null : Number.isNaN(n) ? setting.brut : n;
+  function typedValue(setting, text) {
+    if (setting.type === "number") {
+      const n = Number(text);
+      return text.trim() === "" ? null : Number.isNaN(n) ? setting.brut : n;
     }
-    return texte === "" ? null : texte;
+    return text === "" ? null : text;
   }
 
   function openSecret(secret) {
     panel.open({
-      titre: secret.l,
+      title: secret.l,
       meta: [{ m: secret.k }],
       puce: secret.def ? ["success", "définie"] : ["warning", "absente"],
       blocs: [
         {
           type: "note",
-          texte:
+          text:
             "La valeur n'est jamais renvoyée par le serveur, donc elle ne s'affiche pas ici. On sait qu'elle est posée, on ne sait pas ce qu'elle vaut.",
         },
         {
           type: "actions",
           actions: [
-            SETTINGS_STATE.lectureSeule
+            SETTINGS_STATE.readOnly
               ? {
-                  texte: "Lecture seule sur cette instance",
+                  text: "Lecture seule sur cette instance",
                   icone: icons.x,
                   desactive: true,
                 }
               : {
-                  texte: "Remplacer la valeur",
+                  text: "Remplacer la valeur",
                   icone: icons.wrench,
                   ton: "primary",
                   target: {
@@ -9333,7 +9333,7 @@ import { screens, panel, bridge } from "../seams.js";
                 },
             secret.def
               ? {
-                  texte: "Retirer la clé",
+                  text: "Retirer la clé",
                   icone: icons.trash,
                   ton: "danger",
                   target: {
@@ -9357,12 +9357,12 @@ import { screens, panel, bridge } from "../seams.js";
     const courante = displayedValue(setting);
     const changed = SETTINGS_STATE.modifs.has(id);
     panel.open({
-      titre: window.__settingLabels.label(setting),
+      title: window.__settingLabels.label(setting),
       meta: [{ m: `${setting.f}.json5 · ${setting.c}` }],
       ...(changed ? { puce: ["info", "modifié, pas encore écrit"] } : {}),
       blocs: [
-        setting.note ? { type: "note", texte: setting.note } : null,
-        SETTINGS_STATE.lectureSeule ? null : { type: "champ", setting },
+        setting.note ? { type: "note", text: setting.note } : null,
+        SETTINGS_STATE.readOnly ? null : { type: "champ", setting },
         {
           type: "faits",
           lignes: [
@@ -9377,16 +9377,16 @@ import { screens, panel, bridge } from "../seams.js";
         {
           type: "actions",
           actions: [
-            SETTINGS_STATE.lectureSeule
+            SETTINGS_STATE.readOnly
               ? {
-                  texte: "Lecture seule sur cette instance",
+                  text: "Lecture seule sur cette instance",
                   icone: icons.x,
                   desactive: true,
                 }
               : null,
             changed
               ? {
-                  texte: "Annuler la modification",
+                  text: "Annuler la modification",
                   icone: icons.x,
                   target: { cancelsetting: id },
                 }
@@ -9395,7 +9395,7 @@ import { screens, panel, bridge } from "../seams.js";
         },
         {
           type: "note",
-          texte:
+          text:
             "Rien n'est écrit tant que la barre du bas n'est pas utilisée. Elle dit quels fichiers seront touchés.",
         },
       ],
@@ -9457,12 +9457,12 @@ import { screens, panel, bridge } from "../seams.js";
        happening, and a maintenance command is something one goes to DO. It is
        reached from Système and from the drawer. */
     {
-      id: "profil",
+      id: "profile",
       l: "Profil et préférences",
       ic: icons.user,
       /* No `render`: the shell draws this page (`pages/account.tsx`). */
       shellOwned: true,
-      horsBarre: true,
+      offBar: true,
     },
     {
       id: "404",
@@ -9470,7 +9470,7 @@ import { screens, panel, bridge } from "../seams.js";
       ic: icons.wrench,
       /* No `render`: the shell draws this page (`pages/not-found.tsx`). */
       shellOwned: true,
-      horsBarre: true,
+      offBar: true,
     },
     {
       id: "maint",
@@ -9479,7 +9479,7 @@ import { screens, panel, bridge } from "../seams.js";
       /* No `render`: the shell draws this page (`pages/maintenance.tsx`).
          Clearing `shellOwned` without restoring a renderer therefore CRASHES
          rather than quietly drawing a page nobody maintains any more. */
-      horsBarre: true,
+      offBar: true,
       shellOwned: true,
     },
     {
@@ -9488,7 +9488,7 @@ import { screens, panel, bridge } from "../seams.js";
       ic: icons.wrench,
       /* No `render`: the shell draws this page (`pages/settings.tsx`),
          barre d'enregistrement comprise, par un second portail dans #device. */
-      horsBarre: true,
+      offBar: true,
       shellOwned: true,
     },
   ];
@@ -9502,7 +9502,7 @@ import { screens, panel, bridge } from "../seams.js";
 
   function renderNav() {
     nav.innerHTML = PAGES_OF()
-      .filter((element) => !element.horsBarre)
+      .filter((element) => !element.offBar)
       .map(
         (
           element,
@@ -9532,7 +9532,7 @@ import { screens, panel, bridge } from "../seams.js";
        TypeError, which is the worst possible answer to a stale bookmark. */
     let found = PAGES_OF().find((element) => element.id === currentState().page);
     if (!found) {
-      store.write({ introuvable: "/" + currentState().page, page: "404" });
+      store.write({ notFound: "/" + currentState().page, page: "404" });
       found = PAGES_OF().find((element) => element.id === "404");
     }
     /* A page the SHELL owns draws itself, through a React portal into this very
@@ -9880,10 +9880,10 @@ import { screens, panel, bridge } from "../seams.js";
   };
 
   /* The name of the sort in force, which is what the control on the count line
-     reads. `sortReversed` is a store field like any other and, like `tri`, it
+     reads. `sortReversed` is a store field like any other and, like `sortKey`, it
      stays OUT of the address: the sort is a preference, not a place (A7). */
   function sortLabel() {
-    return TRIS[currentState().tri][currentState().sortReversed ? "inverse" : "normal"];
+    return TRIS[currentState().sortKey][currentState().sortReversed ? "inverse" : "normal"];
   }
   const LIB_PAGE = 24;
   const SUG_BATCH = 30;
@@ -9921,9 +9921,9 @@ import { screens, panel, bridge } from "../seams.js";
         ? "tile-overlay"
         : badge.tone === "muted"
           ? "neutral-signal"
-          : badge.tone === "en_attente"
+          : badge.tone === "pending"
             ? "waiting"
-            : badge.tone === "en_acquisition"
+            : badge.tone === "acquiring"
               ? "info"
               : "warning"
       : null;
@@ -9950,9 +9950,9 @@ import { screens, panel, bridge } from "../seams.js";
        at the end says the same thing for all three. */
     const direction = (ordered) =>
       currentState().sortReversed ? ordered.reverse() : ordered;
-    if (currentState().tri === "az")
+    if (currentState().sortKey === "az")
       return direction(slice.sort((l, index) => l.t.localeCompare(index.t, "fr")));
-    if (currentState().tri === "manque") {
+    if (currentState().sortKey === "manque") {
       const manque = (item) => {
         const exec = /^(\d+)\/(\d+)/.exec(item.f ?? "");
         const inc = INCOMPLETE.find((INCOMPLETE2) => INCOMPLETE2.t === item.t);
@@ -10111,7 +10111,7 @@ import { screens, panel, bridge } from "../seams.js";
       element,
       x: point.clientX,
       y: point.clientY,
-      minuteur: window.setTimeout(() => {
+      pollTimer: window.setTimeout(() => {
         press = null;
         /* The panel opens UNDER the finger, so the click that follows the lift
            is swallowed WHEREVER it lands — not only on what was pressed. On a
@@ -10140,12 +10140,12 @@ import { screens, panel, bridge } from "../seams.js";
 
   function cancelPress() {
     if (!press) return;
-    clearTimeout(press.minuteur);
+    clearTimeout(press.pollTimer);
     press = null;
   }
 
   /* Bound to `document`, not `cadre` (`#device`, the phone frame). A
-     migrated screen renders inside `#coquille` — relocated by shell.tsx
+     migrated screen renders inside `#shell` — relocated by shell.tsx
      into `#device` at boot for containment (see that file's own comment),
      but that placement is decided by CSS geometry, not by event delegation:
      nothing here depends on it, and `document` stays the deliberately wider
@@ -10226,21 +10226,21 @@ import { screens, panel, bridge } from "../seams.js";
      its shape twice. */
   function openUserSheet() {
     panel.open({
-      titre: ACCOUNT.nom,
-      sousTitre: ACCOUNT.mail,
+      title: ACCOUNT.name,
+      subtitle: ACCOUNT.mail,
       avatar: ACCOUNT.avatar,
       blocs: [
         {
           type: "actions",
-          secondaire: true,
+          secondary: true,
           actions: [
             {
-              texte: "Profil et préférences",
+              text: "Profil et préférences",
               icone: icons.user,
-              target: { go: "profil" },
+              target: { go: "profile" },
             },
             {
-              texte: "Se déconnecter",
+              text: "Se déconnecter",
               icone: icons.logout,
               ton: "danger",
               target: { signout: "1" },
@@ -10504,21 +10504,21 @@ import { screens, panel, bridge } from "../seams.js";
   function openSugSheet(index) {
     const suggestion = SUGGESTIONS[index];
     panel.open({
-      titre: suggestion.t,
+      title: suggestion.t,
       meta: `${suggestion.y} · ${suggestion.k} · note TMDB ${suggestion.note}`,
       blocs: [
-        { type: "note", texte: suggestion.why },
+        { type: "note", text: suggestion.why },
         {
           type: "actions",
           actions: [
             {
-              texte: sugVerb(suggestion),
+              text: sugVerb(suggestion),
               icone: icons.plus,
               ton: "primary",
               target: { follow: suggestion.t, sugidx: index },
             },
             {
-              texte: "Voir la fiche",
+              text: "Voir la fiche",
               icone: icons.eye,
               target: { mediasheet: suggestion.t },
             },
@@ -10526,10 +10526,10 @@ import { screens, panel, bridge } from "../seams.js";
         },
         {
           type: "actions",
-          secondaire: true,
+          secondary: true,
           actions: [
             {
-              texte: "Pas intéressé",
+              text: "Pas intéressé",
               icone: icons.x,
               ton: "danger",
               target: { dropsug: index },
@@ -10539,7 +10539,7 @@ import { screens, panel, bridge } from "../seams.js";
         suggestion.k === "Film"
           ? {
               type: "note",
-              texte:
+              text:
                 "Une fois acquis, ce film quittera automatiquement votre liste (§5).",
             }
           : null,
@@ -10581,13 +10581,13 @@ import { screens, panel, bridge } from "../seams.js";
     const result = SEARCH.results[index];
     const done = currentState().added.has(index);
     panel.open({
-      titre: result.t,
+      title: result.t,
       meta: `${result.y} · ${result.k} · TMDB`,
       blocs: [
         result.owned && currentState().addMode !== "identifier"
           ? {
               type: "note",
-              texte: [
+              text: [
                 "Déjà en médiathèque — l'acquisition ",
                 { e: "remplacera" },
                 " la version en place.",
@@ -10598,14 +10598,14 @@ import { screens, panel, bridge } from "../seams.js";
           type: "actions",
           actions: [
             {
-              texte: addVerb(result, index),
+              text: addVerb(result, index),
               icone: icons.plus,
               ton: "primary",
               desactive: done,
               target: { act: `add:${index}` },
             },
             {
-              texte: "Voir la fiche",
+              text: "Voir la fiche",
               icone: icons.eye,
               target: { mediasheet: result.t },
             },
@@ -10663,7 +10663,7 @@ import { screens, panel, bridge } from "../seams.js";
     const element2 = document.querySelector("#follq");
     if (element2)
       element2.oninput = () => {
-        store.write({ filtre: element2.value });
+        store.write({ filter: element2.value });
         const pos = element2.selectionStart;
         render();
         const element3 = document.querySelector("#follq");
@@ -10764,9 +10764,9 @@ import { screens, panel, bridge } from "../seams.js";
        call within the same task would ask for one entry too many. */
   let unwindInProgress = 0;
 
-  function unwindLayer(nom) {
+  function unwindLayer(name) {
     if (unwindInProgress) return;
-    if (!history.state || history.state.layer !== nom) return;
+    if (!history.state || history.state.layer !== name) return;
     unwindInProgress += 1;
     try {
       __bridge.back();
@@ -10795,8 +10795,8 @@ import { screens, panel, bridge } from "../seams.js";
      is a WALK of several entries whose top one is not necessarily a layer, so
      there is no single name to check it against. The caller counts what it
      stacked and is the only one that can. */
-  window.__annoncerPops = (nombreDEntrees) => {
-    if (nombreDEntrees > 0) unwindInProgress += 1;
+  window.__announcePops = (entryCount) => {
+    if (entryCount > 0) unwindInProgress += 1;
   };
 
   /* Kept as a VERB the driver can still say: `touch.py`, `drag.py` and
@@ -10847,13 +10847,13 @@ import { screens, panel, bridge } from "../seams.js";
   let currentRender = null;
   let unwinding = false;
 
-  function openScreen(html, cle, rendre) {
+  function openScreen(html, cle, renderFn) {
     const element = select("#screen");
     const alreadyOpen = element.classList.contains("open");
     const sameScreen = alreadyOpen && cle != null && element.dataset.key === cle;
     if (alreadyOpen && !sameScreen && !unwinding && currentRender) {
       screenStack.push({
-        rendre: currentRender,
+        renderFn: currentRender,
         scrollY: element.querySelector(".port")?.scrollTop ?? 0,
       });
       try {
@@ -10913,7 +10913,7 @@ import { screens, panel, bridge } from "../seams.js";
         __bridge.pushLayer("screen");
       } catch (error) {}
     }
-    currentRender = rendre ?? null;
+    currentRender = renderFn ?? null;
   }
   function closeScreen(pop) {
     if (!select("#screen").classList.contains("open")) return;
@@ -10924,7 +10924,7 @@ import { screens, panel, bridge } from "../seams.js";
       // stacking the screen being left on top of itself.
       unwinding = true;
       try {
-        previous.rendre();
+        previous.renderFn();
       } finally {
         unwinding = false;
       }
@@ -10969,7 +10969,7 @@ import { screens, panel, bridge } from "../seams.js";
   // static host answers the document under otherwise (the rule harness's
   // 8899 server names it "/wrapped.html"). Computed once at boot by the
   // shell (shell.tsx, using the router's OWN matching — see its own
-  // comment) and handed through window.__demarrerMoteur, because deciding
+  // comment) and handed through window.__startEngine, because deciding
   // it here would mean re-deriving what the router owns from a second,
   // independently-maintained list. Defaulted to "/" so a call made before
   // the boot handshake (there should be none) fails toward the common case
@@ -10997,7 +10997,7 @@ import { screens, panel, bridge } from "../seams.js";
      has a clean URL and a link carries only what it means to carry. */
   const URL_DEFAULTS = {
     page: "acq",
-    tab: "maintenant",
+    tab: "now",
     lens: "cat",
     mode: "grid",
     cat: "all",
@@ -11013,8 +11013,8 @@ import { screens, panel, bridge } from "../seams.js";
     // `router.history.subscribe(router.load)`) and re-derives its matches
     // from whatever URL lands there, regardless of who pushed it. A legacy
     // nav writing `baseAddress + "?page=lib"` while the address reads
-    // `/ajout` is exactly what makes the router notice the address no
-    // longer matches `/ajout` and unmount the screen — no navigate() call
+    // `/add` is exactly what makes the router notice the address no
+    // longer matches `/add` and unmount the screen — no navigate() call
     // needed on this side of the bridge.
     const courant = {
       page: currentState().page,
@@ -11025,9 +11025,9 @@ import { screens, panel, bridge } from "../seams.js";
       rub: currentState().maintTopic || "",
     };
     const params = new URLSearchParams();
-    for (const [nom, value] of Object.entries(courant))
-      if (value && value !== URL_DEFAULTS[nom])
-        params.set(nom, String(value));
+    for (const [name, value] of Object.entries(courant))
+      if (value && value !== URL_DEFAULTS[name])
+        params.set(name, String(value));
     const query = params.toString();
     return baseAddress + (query ? "?" + query : "");
   }
@@ -11092,7 +11092,7 @@ import { screens, panel, bridge } from "../seams.js";
      CURRENT, which is the entry the gesture landed on. That is what
      `popstate` reported too, so the reading below is unchanged.
 
-     The registration itself moved into window.__demarrerMoteur, below: like
+     The registration itself moved into window.__startEngine, below: like
      every other `__bridge` verb, it needs the REAL bridge to exist first, and
      nothing here forces that anymore — there is no pre-bridge queueing calls
      made before the module evaluates. */
@@ -11134,7 +11134,7 @@ import { screens, panel, bridge } from "../seams.js";
     // Ownership, once more, decided by the entry's own SHAPE: only an entry
     // that carries the guard's own marker (written once, at boot, by
     // __bridge.remplacer({ tm: "garde" })) is the guard. Anything else that
-    // falls through here — notably an entry the ROUTER wrote for /profil/$titre
+    // falls through here — notably an entry the ROUTER wrote for /profile/$title
     // or /ajout, which carries neither "layer" nor "tm" — is not ours to
     // react to: the router has already re-rendered by the new URL, so a true
     // no-op is the correct handling, not "treat every unrecognised shape as
@@ -11163,7 +11163,7 @@ import { screens, panel, bridge } from "../seams.js";
      decided here: it covers three layers at once and closes whichever is up.
      Published rather than bound, because the element does not exist when this
      line runs — the shell calls this from its own `onClick`. */
-  window.__fermerCouches = () => {
+  window.__closeLayers = () => {
     closeDlg();
     panel.close();
     closeDrawer();
@@ -11196,7 +11196,7 @@ import { screens, panel, bridge } from "../seams.js";
      that measures it. An empty table is a legitimate state — a document with
      no driver simply cannot be driven — and `__go` says so by name. */
   let STATES = [];
-  window.__enregistrerEtats = (table) => {
+  window.__recordStates = (table) => {
     STATES = table;
   };
 
@@ -11291,11 +11291,11 @@ import { screens, panel, bridge } from "../seams.js";
 
   /* Shows the screen and leaves it up until the wait it covers resolves.
 
-     `window.__chargementTermine()` is the seam: whatever really knows the
+     `window.__loadingDone()` is the seam: whatever really knows the
      interface is ready calls it. A duration is passed only where the wait is
      PLAYED rather than observed — the sign-in inside the prototype, which
      fetches nothing and has to show what the real one looks like. */
-  window.__chargementTermine = () => {
+  window.__loadingDone = () => {
     loadingEnd?.();
     loadingEnd = null;
     hideStartup();
@@ -11306,7 +11306,7 @@ import { screens, panel, bridge } from "../seams.js";
     new Promise((resoudre) => {
       loadingEnd = resoudre;
     }).then(hideStartup);
-    window.setTimeout(() => window.__chargementTermine(), duree);
+    window.setTimeout(() => window.__loadingDone(), duree);
   }
 
   document
@@ -11481,7 +11481,7 @@ import { screens, panel, bridge } from "../seams.js";
      that keeps them OFF Système has to know their names, and a rule that
      cannot reach them compares against an empty list and passes whatever it
      is shown — which is what it did before this seam existed. */
-  window.__bloques = () => derived.stuck().map((card) => card.t);
+  window.__blocked = () => derived.stuck().map((card) => card.t);
 
   /* Clears ALL harness chrome before a capture or a pixel comparison:
      harness buttons float above the shell, which is a measured region and
@@ -11551,8 +11551,8 @@ import { screens, panel, bridge } from "../seams.js";
       </div>
       <nav>
         ${NAVIGATION.map(
-          ([titre, items]) => `<div class="grp">
-          <p class="sect">${titre}</p>
+          ([title, items]) => `<div class="grp">
+          <p class="sect">${title}</p>
           ${items
             .map(
               ([
@@ -11572,14 +11572,14 @@ import { screens, panel, bridge } from "../seams.js";
         <div class="segmini" role="group" aria-label="Thème">
           ${APPARENCES.map(
             (mode) =>
-              `<button data-apparence="${mode}" aria-pressed="${apparenceCourante() === mode}">${mode === "systeme" ? "Système" : mode === "clair" ? "Clair" : "Sombre"}</button>`,
+              `<button data-apparence="${mode}" aria-pressed="${apparenceCourante() === mode}">${mode === "system" ? "Système" : mode === "light" ? "Clair" : "Sombre"}</button>`,
           ).join("")}
         </div>
       </div>
       <div class="ver">
         <p class="vt">Version déployée</p>
-        <p class="vv">0.97.21</p>
-        <p class="vc">build e21462f4 · à jour</p>
+        <p class="vv">0.97.34</p>
+        <p class="vc">build 71e50163 · à jour</p>
       </div>`;
     element.classList.add("open");
     select("#scrim").classList.add("open");
@@ -11611,12 +11611,12 @@ import { screens, panel, bridge } from "../seams.js";
       <p>Ce panneau ne fait pas partie de l'interface. Il pilote les données et les états pour qu'on puisse tous les regarder — et pour que la sonde de parité les atteigne sans deviner. <code>window.__go("id")</code> fait la même chose sans clic.</p>
       <h4>Données</h4>
       <div class="row">
-        <button data-hscen="reel" aria-pressed="${currentState().scen === "reel"}">État réel du 10 août</button>
-        <button data-hscen="charge" aria-pressed="${currentState().scen === "charge"}">Scénario de charge</button>
+        <button data-hscen="reel" aria-pressed="${currentState().scen === "real"}">État réel du 10 août</button>
+        <button data-hscen="charge" aria-pressed="${currentState().scen === "loaded"}">Scénario de charge</button>
       </div>
       <h4>Phase de la surface</h4>
       <div class="row">
-        ${["prete", "chargement", "erreur"].map((element) => `<button data-hphase="${element}" aria-pressed="${currentState().phase === element}">${element === "prete" ? "Prête" : element === "chargement" ? "Chargement" : "Erreur"}</button>`).join("")}
+        ${["ready", "chargement", "erreur"].map((element) => `<button data-hphase="${element}" aria-pressed="${currentState().phase === element}">${element === "ready" ? "Prête" : element === "chargement" ? "Chargement" : "Erreur"}</button>`).join("")}
       </div>
       <h4>Compte TMDB</h4>
       <div class="row">
@@ -11644,24 +11644,24 @@ import { screens, panel, bridge } from "../seams.js";
      LIVE — the media listener acts only while that mode is chosen. The
      choice persists under the key the envelope reads before the first
      paint, so a reload opens in the chosen appearance without a flash. */
-  const APPARENCES = ["systeme", "clair", "sombre"];
+  const APPARENCES = ["system", "light", "dark"];
   function apparenceCourante() {
     try {
       const lu = localStorage.getItem("tm-apparence");
       if (APPARENCES.includes(lu)) return lu;
     } catch (error) {}
-    return "systeme";
+    return "system";
   }
   function applyAppearance(mode) {
     const light =
-      mode === "clair" ||
-      (mode === "systeme" &&
+      mode === "light" ||
+      (mode === "system" &&
         matchMedia("(prefers-color-scheme: light)").matches);
     if (light) document.documentElement.setAttribute("data-theme", "light");
     else document.documentElement.removeAttribute("data-theme");
   }
   matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => {
-    if (apparenceCourante() === "systeme") applyAppearance("systeme");
+    if (apparenceCourante() === "system") applyAppearance("system");
   });
 
   /* Global delegation */
@@ -11673,7 +11673,7 @@ import { screens, panel, bridge } from "../seams.js";
     if (closest.tagName === "A") event.preventDefault();
 
     if (closest.dataset.topic) {
-      SETTINGS_STATE.rubrique = closest.dataset.topic;
+      SETTINGS_STATE.topic = closest.dataset.topic;
       SETTINGS_STATE.q = "";
       port.scrollTop = 0;
       render();
@@ -11791,7 +11791,7 @@ import { screens, panel, bridge } from "../seams.js";
       closeScreen(true);
       store.write({ page: closest.dataset.go });
       if (closest.dataset.go === "acq")
-        store.write({ acqTab: "maintenant" });
+        store.write({ acqTab: "now" });
       port.scrollTop = 0;
       render();
       try {
@@ -11967,7 +11967,7 @@ import { screens, panel, bridge } from "../seams.js";
       const suite = derived
         .blocked()
         .concat(derived.stuck())
-        .map((bloque) => decisionPending(bloque.t))
+        .map((blockedCount) => decisionPending(blockedCount.t))
         .find(
           (decision) =>
             decision != null && decision.d !== closest.dataset.next,
@@ -11986,7 +11986,7 @@ import { screens, panel, bridge } from "../seams.js";
       const [split, split2] = closest.dataset.sheetprim.split("|");
       panel.close();
       setTimeout(() => {
-        if (split2 === "a_recuperer") actionTake(split);
+        if (split2 === "to_grab") actionTake(split);
         else
           toast(
             `Recherche lancée pour « ${baseTitle(split)} » — le résultat s'affichera sur la carte.`,
@@ -12043,7 +12043,7 @@ import { screens, panel, bridge } from "../seams.js";
       // entry it wrote, so the screen simply unmounts.
       bridge.back();
       setTimeout(() => {
-        actionTake(currentState().relTitre);
+        actionTake(currentState().relatedTitle);
         toast(
           `« ${release.res} ${release.src} ${release.lang} » retenue — récupération lancée.`,
         );
@@ -12169,17 +12169,17 @@ import { screens, panel, bridge } from "../seams.js";
     }
     if (closest.dataset.sort) {
       panel.open({
-        titre: "Trier la médiathèque",
+        title: "Trier la médiathèque",
         meta: "Le tri est une préférence, pas un emplacement : il reste sur cet appareil et n'entre pas dans l'URL (A7).",
         blocs: [
           {
             type: "actions",
             actions: Object.entries(TRIS).flatMap(([cle, noms]) =>
               ["normal", "inverse"].map((sens) => ({
-                texte: noms[sens],
+                text: noms[sens],
                 icone: icons.sort,
                 ton:
-                  currentState().tri === cle &&
+                  currentState().sortKey === cle &&
                   currentState().sortReversed === (sens === "inverse")
                     ? "primary"
                     : null,
@@ -12196,7 +12196,7 @@ import { screens, panel, bridge } from "../seams.js";
     }
     if (closest.dataset.setsort) {
       store.write({
-        tri: closest.dataset.setsort,
+        sortKey: closest.dataset.setsort,
         sortReversed: closest.dataset.reversed === "1",
         libCount: LIB_PAGE,
       });
@@ -12221,7 +12221,7 @@ import { screens, panel, bridge } from "../seams.js";
     if (closest.dataset.clearq) {
       if (closest.dataset.clearq === "lib")
         store.write({ q: "", libCount: LIB_PAGE });
-      else store.write({ filtre: "" });
+      else store.write({ filter: "" });
       render();
       return;
     }
@@ -12294,7 +12294,7 @@ import { screens, panel, bridge } from "../seams.js";
         currentState().added.add(index);
         store.touch();
         /* ONE settlement for the TWO entries this journey stacked — the
-           result's panel, and `/ajout` itself, a router-owned address (which
+           result's panel, and `/add` itself, a router-owned address (which
            is why no legacy screen is closed here: `#screen` was never its
            host). The panel is ASKED before it is closed, because the layer's
            own entry is what decides the count, and it is closed DOM-only
@@ -12366,7 +12366,7 @@ import { screens, panel, bridge } from "../seams.js";
       return;
     }
     if (closest.dataset.complete) {
-      store.write({ page: "acq", acqTab: "maintenant" });
+      store.write({ page: "acq", acqTab: "now" });
       panel.close();
       render();
       toast(
@@ -12694,8 +12694,8 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Bande-annonce officielle",
       ids: { tvdb: "403245", imdb: "tt14688458", tmdb: "125988" },
-      statut: "En cours",
-      saisons: [
+      status: "En cours",
+      seasons: [
         { n: 1, ep: 10, air: "2023-05-04" },
         { n: 2, ep: 10, air: "2024-11-14" },
         { n: 3, ep: 10, air: "2026-07-02" },
@@ -12761,8 +12761,8 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Bande-annonce officielle",
       ids: { tvdb: "403245", imdb: "tt14688458", tmdb: "125988" },
-      statut: "En cours",
-      saisons: [
+      status: "En cours",
+      seasons: [
         { n: 1, ep: 10, air: "2023-05-04" },
         { n: 2, ep: 10, air: "2024-11-14" },
         { n: 3, ep: 10, air: "2026-07-02" },
@@ -12826,8 +12826,8 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Furious - Bande-annonce officielle (VOST) | Disney+",
       ids: { tvdb: "468000", tmdb: "287238", imdb: "tt36303968" },
-      statut: "En cours",
-      saisons: [{ n: 1, ep: 8, air: "2026-07-27" }],
+      status: "En cours",
+      seasons: [{ n: 1, ep: 8, air: "2026-07-27" }],
       tmdbTv: "287238",
       eps: {
         1: [
@@ -12860,8 +12860,8 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Furious - Bande-annonce officielle (VOST) | Disney+",
       ids: { tvdb: "468000", tmdb: "287238", imdb: "tt36303968" },
-      statut: "En cours",
-      saisons: [{ n: 1, ep: 8, air: "2026-07-27" }],
+      status: "En cours",
+      seasons: [{ n: 1, ep: 8, air: "2026-07-27" }],
       tmdbTv: "287238",
       eps: {
         1: [
@@ -12896,7 +12896,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Ninja Turtles - Bande Annonce VOST",
       ids: { tmdb: "98566", imdb: "tt1291150" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Marjorie Prime": {
@@ -12918,7 +12918,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Marjorie Prime v.f.",
       ids: { tmdb: "426254", imdb: "tt4978710" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "American Dad!": {
@@ -12939,8 +12939,8 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tvdb: "73141", tmdb: "1433", imdb: "tt0397306" },
-      statut: "En cours",
-      saisons: [
+      status: "En cours",
+      seasons: [
         { n: 1, ep: 7, air: "2005-02-06" },
         { n: 2, ep: 16, air: "2005-09-11" },
         { n: 3, ep: 19, air: "2006-09-10" },
@@ -13494,8 +13494,8 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tvdb: "72668", tmdb: "1570", imdb: "tt0179552" },
-      statut: "Terminée",
-      saisons: [
+      status: "Terminée",
+      seasons: [
         { n: 1, ep: 13, air: "1991-10-02" },
         { n: 2, ep: 13, air: "1992-01-06" },
         { n: 3, ep: 13, air: "1992-07-06" },
@@ -13579,7 +13579,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "ON L'APPELAIT ROBIN DES BOIS - Bande-annonce n°2 VF",
       ids: { tmdb: "1284465", imdb: "tt32273171" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Batman Caped Crusader (2024)": {
@@ -13594,8 +13594,8 @@ import { screens, panel, bridge } from "../seams.js";
       cast: [{ n: "Hamish Linklater", r: "Batman / Bruce Wayne (voice)" }],
       trailer: "Bande-Annonce",
       ids: { tvdb: "403170", tmdb: "125909", imdb: "tt14681596" },
-      statut: "En cours",
-      saisons: [
+      status: "En cours",
+      seasons: [
         { n: 1, ep: 10, air: "2024-08-01" },
         { n: 2, ep: 10, air: "2026-07-31" },
       ],
@@ -13640,8 +13640,8 @@ import { screens, panel, bridge } from "../seams.js";
       cast: [{ n: "Hamish Linklater", r: "Batman / Bruce Wayne (voice)" }],
       trailer: "Bande-Annonce",
       ids: { tvdb: "403170", tmdb: "125909", imdb: "tt14681596" },
-      statut: "En cours",
-      saisons: [
+      status: "En cours",
+      seasons: [
         { n: 1, ep: 10, air: "2024-08-01" },
         { n: 2, ep: 10, air: "2026-07-31" },
       ],
@@ -13693,8 +13693,8 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tvdb: "456595", tmdb: "248226", imdb: "tt13592494" },
-      statut: "Terminée",
-      saisons: [{ n: 1, ep: 6, air: "2025-05-18" }],
+      status: "Terminée",
+      seasons: [{ n: 1, ep: 6, air: "2025-05-18" }],
       tmdbTv: "248226",
       eps: {
         1: [
@@ -13727,7 +13727,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "1728056", imdb: "tt43657327" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Margin Call": {
@@ -13749,7 +13749,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "MARGIN CALL : BANDE ANNONCE OFFICIELLE VOSTF HD",
       ids: { tmdb: "50839", imdb: "tt1615147" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "President Curtis (2026)": {
@@ -13768,8 +13768,8 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tvdb: "466198", tmdb: "296756", imdb: "tt37692332" },
-      statut: "En cours",
-      saisons: [{ n: 1, ep: 10, air: "2026-07-26" }],
+      status: "En cours",
+      seasons: [{ n: 1, ep: 10, air: "2026-07-26" }],
       tmdbTv: "296756",
       eps: {
         1: [
@@ -13803,8 +13803,8 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tvdb: "466198", tmdb: "296756", imdb: "tt37692332" },
-      statut: "En cours",
-      saisons: [{ n: 1, ep: 10, air: "2026-07-26" }],
+      status: "En cours",
+      seasons: [{ n: 1, ep: 10, air: "2026-07-26" }],
       tmdbTv: "296756",
       eps: {
         1: [
@@ -13841,7 +13841,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: 618354, imdb: "tt11079116" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "Alita : Battle Angel": {
@@ -13863,7 +13863,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Spot « Quelqu'un d'unique » VF",
       ids: { tmdb: 399579, imdb: "tt0437086" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "Numéro quatre": {
@@ -13886,7 +13886,7 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "Numéro Quatre - Bande Annonce Officielle 2 - VF - En DVD / Blu-Ray le 10 Août 2011 I Disney",
       ids: { tmdb: 46529, imdb: "tt1464540" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "Avengers : Endgame": {
@@ -13908,7 +13908,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Avengers : Endgame - Bande Annonce 3 VF",
       ids: { tmdb: 299534, imdb: "tt4154796" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "L'Incroyable Hulk": {
@@ -13930,7 +13930,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "L'Incroyable Hulk - Bande Annonce (VF)",
       ids: { tmdb: 1724, imdb: "tt0800080" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "Man of Steel": {
@@ -13953,7 +13953,7 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "Man Of Steel - Bande Annonce Officielle 1 (VF) - Zack Snyder / Henri Cavill / Kevin Costner",
       ids: { tmdb: 49521, imdb: "tt0770828" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "X-Men : Dark Phoenix": {
@@ -13975,7 +13975,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "X-Men : Dark Phoenix - Spot Controle 30' VF",
       ids: { tmdb: 320288, imdb: "tt6565702" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "Premier Contact": {
@@ -13997,7 +13997,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Premier Contact - Bande Annonce 2 VOST",
       ids: { tmdb: 329865, imdb: "tt2543164" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "Ant-Man et la Guêpe : Quantumania": {
@@ -14019,7 +14019,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Ant-Man et La Guêpe : Quantumania - Bande-annonce [VF]",
       ids: { tmdb: 640146, imdb: "tt10954600" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "The Venture Bros": {
@@ -14040,9 +14040,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: 2418, imdb: "tt0417373", tvdb: 72306 },
-      statut: "Annulée",
+      status: "Annulée",
       possede: false,
-      saisons: [
+      seasons: [
         { n: 1, ep: 13, air: "2004-08-07" },
         { n: 2, ep: 13, air: "2006-06-25" },
         { n: 3, ep: 13, air: "2008-06-01" },
@@ -14168,7 +14168,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: 945937, imdb: "tt6722400" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     Grimsburg: {
@@ -14190,9 +14190,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: 202224, imdb: "tt15791752", tvdb: 420069 },
-      statut: "En cours",
+      status: "En cours",
       possede: false,
-      saisons: [
+      seasons: [
         { n: 1, ep: 13, air: "2024-01-07" },
         { n: 2, ep: 13, air: "2025-02-16" },
         { n: 3, ep: 1, air: "2026-09-27" },
@@ -14250,7 +14250,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Solo : A Star Wars Story - Teaser VOST",
       ids: { tmdb: 348350, imdb: "tt3778644" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "L'Assassin": {
@@ -14272,9 +14272,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: 262352, imdb: "tt33246591", tvdb: 453648 },
-      statut: "En cours",
+      status: "En cours",
       possede: false,
-      saisons: [{ n: 1, ep: 6, air: "2025-07-25" }],
+      seasons: [{ n: 1, ep: 6, air: "2025-07-25" }],
       eps: {
         1: [
           { n: 1, t: "Épisode 1", air: "2025-07-25" },
@@ -14305,7 +14305,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "POWER RANGERS - Bande annonce - VF",
       ids: { tmdb: 305470, imdb: "tt3717490" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "Agent Elvis": {
@@ -14327,9 +14327,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Agent Elvis | Official Trailer | Sony Animation",
       ids: { tmdb: 110126, imdb: "tt10814036", tvdb: 417944 },
-      statut: "Annulée",
+      status: "Annulée",
       possede: false,
-      saisons: [{ n: 1, ep: 10, air: "2023-03-17" }],
+      seasons: [{ n: 1, ep: 10, air: "2023-03-17" }],
       eps: {
         1: [
           { n: 1, t: "Épisode 1", air: "2023-03-17" },
@@ -14367,9 +14367,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "M.O.D.O.K. - Bande Annonce (VOST)",
       ids: { tmdb: 111312, imdb: "tt9811118", tvdb: 361834 },
-      statut: "Annulée",
+      status: "Annulée",
       possede: false,
-      saisons: [{ n: 1, ep: 10, air: "2021-05-21" }],
+      seasons: [{ n: 1, ep: 10, air: "2021-05-21" }],
       eps: {
         1: [
           { n: 1, t: "La grosse tête", air: "2021-05-21" },
@@ -14404,7 +14404,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "1 duplex pour 3",
       ids: { tmdb: 7288, imdb: "tt0266489" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "Les Trois Corniauds": {
@@ -14426,7 +14426,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Les Trois Corniauds - Bande Annonce [VO-HD]",
       ids: { tmdb: 76489, imdb: "tt0383010" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "L'Embrouille est dans le sac": {
@@ -14448,7 +14448,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Oscar - Trailer",
       ids: { tmdb: 11890, imdb: "tt0102603" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     Impostor: {
@@ -14470,7 +14470,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: 4965, imdb: "tt0160399" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "Green Lantern : Le Complot": {
@@ -14492,7 +14492,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: 17445, imdb: "tt1384590" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "Green Lantern : Méfiez-vous de mon pouvoir": {
@@ -14514,7 +14514,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: 887357, imdb: "tt20192230" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "Monsieur le député": {
@@ -14536,7 +14536,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Monsieur le député bande annonce vf",
       ids: { tmdb: 10411, imdb: "tt0104114" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "Touche pas à mon gazon": {
@@ -14558,7 +14558,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: 24109, imdb: "tt0076059" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "LOL 2.0": {
@@ -14580,7 +14580,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "LOL 2.0 - Spot 20 sec",
       ids: { tmdb: 1477170, imdb: "tt36841139" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     Thunderstruck: {
@@ -14602,7 +14602,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: 119738, imdb: "tt2041488" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "American Dreamer": {
@@ -14624,7 +14624,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: 931461, imdb: "tt13884444" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "Y-a-t'il quelqu'un pour l'ambulance ?": {
@@ -14646,7 +14646,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: 32450, imdb: "tt0103872" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "Jim Gaffigan: Beyond the Pale": {
@@ -14661,7 +14661,7 @@ import { screens, panel, bridge } from "../seams.js";
       cast: [{ n: "Jim Gaffigan", r: "Himself" }],
       trailer: null,
       ids: { tmdb: 108930, imdb: "tt0815456" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "Gabriel Iglesias: I'm Sorry for What I Said When I Was Hungry": {
@@ -14679,7 +14679,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: 429801, imdb: "tt6302122" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "Eddie Murphy: Delirious": {
@@ -14697,7 +14697,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: 15251, imdb: "tt0085474" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "SAV des émissions": {
@@ -14715,9 +14715,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "39945", imdb: "tt0499407", tvdb: 85561 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 12, air: "2005-12-02" },
         { n: 2, ep: 30, air: "2007-05-02" },
         { n: 3, ep: 30, air: "2008-05-02" },
@@ -14920,7 +14920,7 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "Star Wars, Episode IV : Un Nouvel Espoir - La Collection des Films en Digital",
       ids: { tmdb: "11", imdb: "tt0076759" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Scary Movie": {
@@ -14940,7 +14940,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Scary Movie 1 Avec moi tu n'à rien perdu",
       ids: { tmdb: "4247", imdb: "tt0175142" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     RoboCop: {
@@ -14960,7 +14960,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "ROBOCOP (1987) BANDE-ANNONCE 2018 [RE-TRAILER VF HD]",
       ids: { tmdb: "5548", imdb: "tt0093870" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     Superman: {
@@ -14980,7 +14980,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "1924", imdb: "tt0078346" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Le Livre de la jungle": {
@@ -15000,7 +15000,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "The Jungle Book (VF) - Bande Annonce",
       ids: { tmdb: "9325", imdb: "tt0061852" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     Pinocchio: {
@@ -15020,7 +15020,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Pinocchio (1940) (VF) - Bande Annonce",
       ids: { tmdb: "10895", imdb: "tt0032910" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Le Temple du Soleil": {
@@ -15040,7 +15040,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "241001", imdb: "tt0065106" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "La Petite Sirène": {
@@ -15061,7 +15061,7 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "La Petite Sirène - Bande Annonce VF - En Pack+ Disney et Coffret Prestige le 25 septembre ! I Disney",
       ids: { tmdb: "10144", imdb: "tt0097757" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     Mulan: {
@@ -15081,7 +15081,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Mulan - La Bande Annonce VF",
       ids: { tmdb: "10674", imdb: "tt0120762" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Les Schtroumpfs": {
@@ -15101,7 +15101,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Les Schtroumpfs - Bande Annonce 3 VF",
       ids: { tmdb: "41513", imdb: "tt0472181" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Lilo & Stitch": {
@@ -15121,7 +15121,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Lilo & Stitch - Bande-annonce [VF]",
       ids: { tmdb: "11544", imdb: "tt0275847" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Dark Matter": {
@@ -15141,9 +15141,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Dark Matter, la bande annonce longue SyFy France",
       ids: { tmdb: "62425", imdb: "tt4159076", tvdb: 292174 },
-      statut: "Annulée",
+      status: "Annulée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 13, air: "2015-06-12" },
         { n: 2, ep: 13, air: "2016-07-01" },
         { n: 3, ep: 13, air: "2017-06-09" },
@@ -15213,9 +15213,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "FRIENDS - Bande Annonce Officielle 3 (VOST)",
       ids: { tmdb: "1668", imdb: "tt0108778", tvdb: 79168 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 24, air: "1994-09-22" },
         { n: 2, ep: 24, air: "1995-09-21" },
         { n: 3, ep: 25, air: "1996-09-16" },
@@ -15771,9 +15771,9 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "Le Scrubs Le Reboot - Bande-annonce officielle (VOSTFR)| Disney+",
       ids: { tmdb: "295778", imdb: "tt40197357", tvdb: 465690 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 9, air: "2026-02-25" },
         { n: 2, ep: 3, air: "2026-09-30" },
       ],
@@ -15813,9 +15813,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Bande-annonce officielle",
       ids: { tmdb: "216082", imdb: "tt23872886", tvdb: 431842 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 6, air: "2025-02-20" }],
+      seasons: [{ n: 1, ep: 6, air: "2025-02-20" }],
       eps: {
         1: [
           { n: 1, t: "Épisode 1", air: "2025-02-20" },
@@ -15844,9 +15844,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Red Band Bande Annonce",
       ids: { tmdb: "200875", imdb: "tt19244304", tvdb: 418424 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [{ n: 1, ep: 8, air: "2025-10-26" }],
+      seasons: [{ n: 1, ep: 8, air: "2025-10-26" }],
       eps: {
         1: [
           { n: 1, t: "Pilote", air: "2025-10-26" },
@@ -15881,9 +15881,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "1418", imdb: "tt0898266", tvdb: 80379 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 17, air: "2007-09-24" },
         { n: 2, ep: 23, air: "2008-09-22" },
         { n: 3, ep: 23, air: "2009-09-21" },
@@ -16304,9 +16304,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "194704", imdb: "tt14761860", tvdb: 403752 },
-      statut: "Annulée",
+      status: "Annulée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 10, air: "2023-03-28" },
         { n: 2, ep: 10, air: "2024-04-23" },
       ],
@@ -16354,9 +16354,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "45016", imdb: "tt1733785", tvdb: 252019 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 10, air: "2011-09-21" },
         { n: 2, ep: 10, air: "2013-09-22" },
         { n: 3, ep: 10, air: "2015-09-27" },
@@ -16428,9 +16428,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "123192", imdb: "tt14417718", tvdb: 400723 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 10, air: "2023-06-07" }],
+      seasons: [{ n: 1, ep: 10, air: "2023-06-07" }],
       eps: {
         1: [
           { n: 1, t: "Exode", air: "2023-06-08" },
@@ -16463,9 +16463,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "286648", imdb: "tt33045762", tvdb: 458212 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 6, air: "2025-08-28" }],
+      seasons: [{ n: 1, ep: 6, air: "2025-08-28" }],
       eps: {
         1: [
           { n: 1, t: "Miss Nobody", air: "2025-08-28" },
@@ -16494,9 +16494,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "The Fall Saison 1 - Bande Annonce",
       ids: { tmdb: "49010", imdb: "tt2294189", tvdb: 258107 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 5, air: "2013-05-12" },
         { n: 2, ep: 6, air: "2014-11-09" },
         { n: 3, ep: 6, air: "2016-09-25" },
@@ -16544,9 +16544,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "The Flight Attendant - Bande Annonce [VOST]",
       ids: { tmdb: "93287", imdb: "tt7569576", tvdb: 366625 },
-      statut: "Annulée",
+      status: "Annulée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 8, air: "2020-11-26" },
         { n: 2, ep: 8, air: "2022-04-21" },
       ],
@@ -16590,9 +16590,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "7317", imdb: "tt1220617", tvdb: 81950 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 6, air: "2008-05-01" },
         { n: 2, ep: 6, air: "2009-04-02" },
         { n: 3, ep: 6, air: "2010-09-13" },
@@ -16641,9 +16641,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "279138", imdb: "tt31921411", tvdb: 457641 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [{ n: 1, ep: 4, air: "2025-01-14" }],
+      seasons: [{ n: 1, ep: 4, air: "2025-01-14" }],
       eps: {
         1: [
           { n: 1, t: "Épisode 1", air: "2025-01-14" },
@@ -16670,9 +16670,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Bande-annonce [VOSTFR]",
       ids: { tmdb: "26101", imdb: "tt6792200", tvdb: 327175 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 7, air: "2017-05-19" }],
+      seasons: [{ n: 1, ep: 7, air: "2017-05-19" }],
       eps: {
         1: [
           { n: 1, t: "Le meurtre", air: "2017-05-19" },
@@ -16702,9 +16702,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "241112", imdb: "tt19891306", tvdb: 419779 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 8, air: "2024-12-12" }],
+      seasons: [{ n: 1, ep: 8, air: "2024-12-12" }],
       eps: {
         1: [
           { n: 1, t: "Portes ouvertes", air: "2024-12-12" },
@@ -16739,9 +16739,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "DES GENS BIEN | S01 | BANDE ANNONCE",
       ids: { tmdb: "213073", imdb: "tt21160458", tvdb: 418337 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 6, air: "2022-10-23" },
         { n: 2, ep: 0, air: "" },
       ],
@@ -16773,9 +16773,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: 'Bande-annonce de la série "Des vivants"',
       ids: { tmdb: "258002", imdb: "tt35363719", tvdb: 459389 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 8, air: "2025-11-03" }],
+      seasons: [{ n: 1, ep: 8, air: "2025-11-03" }],
       eps: {
         1: [
           { n: 1, t: "Les jours d’après", air: "2025-11-03" },
@@ -16806,9 +16806,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Dexter - Saison 1 - Bande-annonce [VF]",
       ids: { tmdb: "1405", imdb: "tt0773262", tvdb: 79349 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 12, air: "2006-10-01" },
         { n: 2, ep: 12, air: "2007-09-30" },
         { n: 3, ep: 12, air: "2008-09-28" },
@@ -16950,9 +16950,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Dexter Les Origines - Bande annonce VF - Canal+",
       ids: { tmdb: "219937", imdb: "tt32252772", tvdb: 430780 },
-      statut: "Annulée",
+      status: "Annulée",
       possede: true,
-      saisons: [{ n: 1, ep: 10, air: "2024-12-15" }],
+      seasons: [{ n: 1, ep: 10, air: "2024-12-15" }],
       eps: {
         1: [
           { n: 1, t: "Et au commencement…", air: "2024-12-15" },
@@ -16989,9 +16989,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Dexter : Resurrection | Bande-annonce | CANAL+",
       ids: { tmdb: "259909", imdb: "tt33043892", tvdb: 452595 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 10, air: "2025-07-13" },
         { n: 2, ep: 0, air: "" },
       ],
@@ -17027,9 +17027,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Dope Girls - Bande annonce VF - CANAL+",
       ids: { tmdb: "239615", imdb: "tt27191732", tvdb: 444004 },
-      statut: "Annulée",
+      status: "Annulée",
       possede: true,
-      saisons: [{ n: 1, ep: 6, air: "2025-02-22" }],
+      seasons: [{ n: 1, ep: 6, air: "2025-02-22" }],
       eps: {
         1: [
           { n: 1, t: "Ne l'énervez pas !", air: "2025-02-22" },
@@ -17058,9 +17058,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "DOPE THIEF Bande Annonce VF (2025) Ridley Scott",
       ids: { tmdb: "209876", imdb: "tt21638826", tvdb: 423332 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 8, air: "2025-03-13" }],
+      seasons: [{ n: 1, ep: 8, air: "2025-03-13" }],
       eps: {
         1: [
           { n: 1, t: "Jolly Rancher", air: "2025-03-13" },
@@ -17091,9 +17091,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "240457", imdb: "tt29940008", tvdb: 442360 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 4, air: "2024-06-27" }],
+      seasons: [{ n: 1, ep: 4, air: "2024-06-27" }],
       eps: {
         1: [
           { n: 1, t: "Épisode 1", air: "2024-06-27" },
@@ -17120,9 +17120,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "252000", imdb: "tt32132630", tvdb: 449071 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [{ n: 1, ep: 8, air: "2025-10-29" }],
+      seasons: [{ n: 1, ep: 8, air: "2025-10-29" }],
       eps: {
         1: [
           { n: 1, t: "La Vérité ou presque", air: "2025-10-29" },
@@ -17153,9 +17153,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Dune Prophecy | Bande-Annonce Officielle",
       ids: { tmdb: "90228", imdb: "tt10466872", tvdb: 367118 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 6, air: "2024-11-17" },
         { n: 2, ep: 8, air: "" },
       ],
@@ -17197,9 +17197,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Bande-annonce officielle [VOSTFR]",
       ids: { tmdb: "87784", imdb: "tt2304589", tvdb: 368122 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 8, air: "2020-04-24" }],
+      seasons: [{ n: 1, ep: 8, air: "2020-04-24" }],
       eps: {
         1: [
           { n: 1, t: "Pilote", air: "2020-04-24" },
@@ -17230,9 +17230,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "[Extrait] Désenchantées",
       ids: { tmdb: "285049", imdb: "tt35889176", tvdb: 460581 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [{ n: 1, ep: 4, air: "2025-11-12" }],
+      seasons: [{ n: 1, ep: 4, air: "2025-11-12" }],
       eps: {
         1: [
           { n: 1, t: "Épisode 1", air: "2025-11-12" },
@@ -17259,9 +17259,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "2317", imdb: "tt0460091", tvdb: 75397 },
-      statut: "Annulée",
+      status: "Annulée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 24, air: "2005-09-20" },
         { n: 2, ep: 23, air: "2006-09-21" },
         { n: 3, ep: 18, air: "2007-09-27" },
@@ -17391,9 +17391,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Empathie | Bande-annonce | Création Originale CANAL+",
       ids: { tmdb: "284656", imdb: "tt32827662", tvdb: 459343 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [{ n: 1, ep: 10, air: "2025-04-10" }],
+      seasons: [{ n: 1, ep: 10, air: "2025-04-10" }],
       eps: {
         1: [
           { n: 1, t: "Déséquilibre", air: "2025-04-10" },
@@ -17426,9 +17426,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Engrenages, saison 1 (teaser) - Guillaume Cramoisan.mpg",
       ids: { tmdb: "11726", imdb: "tt0477507", tvdb: 82152 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 8, air: "2005-12-13" },
         { n: 2, ep: 8, air: "2008-05-12" },
         { n: 3, ep: 12, air: "2010-05-03" },
@@ -17561,9 +17561,9 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "Enterrement de vie de garçon | bande annonce | CANAL+ | Panayotis Pascot, Adib Alkhalidey",
       ids: { tmdb: "244434", imdb: "tt31015525", tvdb: 445175 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 4, air: "2024-02-14" }],
+      seasons: [{ n: 1, ep: 4, air: "2024-02-14" }],
       eps: {
         1: [
           { n: 1, t: "Épisode 1", air: "2024-02-14" },
@@ -17590,9 +17590,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "245312", imdb: "tt26670955", tvdb: 445646 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 8, air: "2024-11-21" },
         { n: 2, ep: 8, air: "2025-11-20" },
       ],
@@ -17644,9 +17644,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "222108", imdb: "tt12822708", tvdb: 427293 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 6, air: "2022-11-14" }],
+      seasons: [{ n: 1, ep: 6, air: "2022-11-14" }],
       eps: {
         1: [
           { n: 1, t: "Aldo Moro", air: "2022-11-14" },
@@ -17674,9 +17674,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Extra-lucide | bande annonce | OCS",
       ids: { tmdb: "305892", imdb: "tt34622930", tvdb: 469951 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [{ n: 1, ep: 6, air: "2025-11-18" }],
+      seasons: [{ n: 1, ep: 6, air: "2025-11-18" }],
       eps: {
         1: [
           { n: 1, t: "Le bruit des autres", air: "2025-11-18" },
@@ -17704,9 +17704,9 @@ import { screens, panel, bridge } from "../seams.js";
       cast: [],
       trailer: "EXTRAPOLATIONS Bande Annonce VF (2023)",
       ids: { tmdb: "138169", imdb: "tt13821126", tvdb: 393148 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 8, air: "2023-03-16" }],
+      seasons: [{ n: 1, ep: 8, air: "2023-03-16" }],
       eps: {
         1: [
           { n: 1, t: "2037 : Une histoire de corbeau", air: "2023-03-16" },
@@ -17737,9 +17737,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Bande annonce TF1 Série Flashback",
       ids: { tmdb: "237979", imdb: "tt32574953", tvdb: 451694 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 6, air: "2025-04-03" },
         { n: 2, ep: 6, air: "2026-04-09" },
       ],
@@ -17779,9 +17779,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "123856", imdb: "tt14509130", tvdb: 408709 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 7, air: "2023-04-13" }],
+      seasons: [{ n: 1, ep: 7, air: "2023-04-13" }],
       eps: {
         1: [
           { n: 1, t: "Épisode 1", air: "2023-04-13" },
@@ -17806,9 +17806,9 @@ import { screens, panel, bridge } from "../seams.js";
       cast: [{ n: "Anthony Norman", r: "Self - Temporary Assistant" }],
       trailer: null,
       ids: { tmdb: "312697" },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 8, air: "2026-03-20" }],
+      seasons: [{ n: 1, ep: 8, air: "2026-03-20" }],
       eps: {
         1: [
           { n: 1, t: "L'intégration", air: "2026-03-20" },
@@ -17839,9 +17839,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Bande-annonce First Look officielle",
       ids: { tmdb: "87917", imdb: "tt7772588", tvdb: 356202 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 10, air: "2019-11-01" },
         { n: 2, ep: 10, air: "2021-02-19" },
         { n: 3, ep: 10, air: "2022-06-09" },
@@ -17929,9 +17929,9 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "Foundation — Bande-annonce officielle de la saison 3 | Apple TV+",
       ids: { tmdb: "93740", imdb: "tt0804484", tvdb: 366972 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 10, air: "2021-09-23" },
         { n: 2, ep: 10, air: "2023-07-13" },
         { n: 3, ep: 10, air: "2025-07-10" },
@@ -17996,9 +17996,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "La Meilleure Version de Moi-Même - Teaser",
       ids: { tmdb: "138753", imdb: "tt16357872", tvdb: 411737 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 9, air: "2021-12-06" }],
+      seasons: [{ n: 1, ep: 9, air: "2021-12-06" }],
       eps: {
         1: [
           { n: 1, t: "Épisode 1", air: "2021-12-06" },
@@ -18030,9 +18030,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "96777", imdb: "tt11570202", tvdb: 383137 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 8, air: "2021-12-24" }],
+      seasons: [{ n: 1, ep: 8, air: "2021-12-24" }],
       eps: {
         1: [
           {
@@ -18068,9 +18068,9 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "La Nuit où Laurier Gaudreault s'est réveillé | Bande-annonce VOST | CANAL+",
       ids: { tmdb: "113732", imdb: "tt13527546", tvdb: 395834 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 5, air: "2022-11-24" }],
+      seasons: [{ n: 1, ep: 5, air: "2022-11-24" }],
       eps: {
         1: [
           { n: 1, t: "Épisode 1", air: "2022-11-24" },
@@ -18098,9 +18098,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "La réalité en face - Bande Annonce [VF]",
       ids: { tmdb: "134029", imdb: "tt13655456", tvdb: 410102 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 7, air: "2021-11-24" }],
+      seasons: [{ n: 1, ep: 7, air: "2021-11-24" }],
       eps: {
         1: [
           { n: 1, t: "Chapitre 1 : Le Roi de la comédie", air: "2021-11-24" },
@@ -18134,9 +18134,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Bande-annonce officielle [VF]",
       ids: { tmdb: "242054", imdb: "tt8740614", tvdb: 417552 },
-      statut: "Annulée",
+      status: "Annulée",
       possede: true,
-      saisons: [{ n: 1, ep: 8, air: "2025-03-20" }],
+      seasons: [{ n: 1, ep: 8, air: "2025-03-20" }],
       eps: {
         1: [
           { n: 1, t: "La Chute de la maison Usher", air: "2025-03-20" },
@@ -18167,9 +18167,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "287740", imdb: "tt33322062", tvdb: 462101 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 6, air: "2025-03-25" }],
+      seasons: [{ n: 1, ep: 6, air: "2025-03-25" }],
       eps: {
         1: [
           { n: 1, t: "Épisode 1", air: "2025-03-25" },
@@ -18198,9 +18198,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Landman | Bande-annonce VF - Paramount+",
       ids: { tmdb: "157741", imdb: "tt14186672", tvdb: 397424 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 10, air: "2024-11-17" },
         { n: 2, ep: 10, air: "2025-11-16" },
         { n: 3, ep: 0, air: "" },
@@ -18253,9 +18253,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "279283", imdb: "tt23221806", tvdb: 432203 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 4, air: "2025-01-07" }],
+      seasons: [{ n: 1, ep: 4, air: "2025-01-07" }],
       eps: {
         1: [
           { n: 1, t: "L'impensable", air: "2025-01-07" },
@@ -18280,9 +18280,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "209332", imdb: "tt10399902", tvdb: 423781 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 7, air: "2024-01-11" }],
+      seasons: [{ n: 1, ep: 7, air: "2024-01-11" }],
       eps: {
         1: [
           { n: 1, t: "Entre taupes et rats", air: "2024-01-11" },
@@ -18310,9 +18310,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Teaser [VF]",
       ids: { tmdb: "115036", imdb: "tt13668894", tvdb: 393589 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 7, air: "2021-12-29" }],
+      seasons: [{ n: 1, ep: 7, air: "2021-12-29" }],
       eps: {
         1: [
           {
@@ -18354,9 +18354,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "The Man in the High Castle – Bande Annonce [VOST]",
       ids: { tmdb: "62017", imdb: "tt1740299", tvdb: 295829 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 10, air: "2015-01-15" },
         { n: 2, ep: 10, air: "2016-12-16" },
         { n: 3, ep: 10, air: "2018-10-04" },
@@ -18431,9 +18431,9 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "Le Problème à 3 corps | Bande-annonce finale VF| Netflix France",
       ids: { tmdb: "108545", imdb: "tt13016388", tvdb: 411959 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [{ n: 1, ep: 8, air: "2024-03-21" }],
+      seasons: [{ n: 1, ep: 8, air: "2024-03-21" }],
       eps: {
         1: [
           { n: 1, t: "Compte à rebours", air: "2024-03-21" },
@@ -18464,9 +18464,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "245219", imdb: "tt31121364", tvdb: 445592 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 4, air: "2025-11-06" }],
+      seasons: [{ n: 1, ep: 4, air: "2025-11-06" }],
       eps: {
         1: [
           { n: 1, t: "L'homme de l'Ohio", air: "2025-11-06" },
@@ -18493,9 +18493,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "218344", imdb: "tt14466018", tvdb: 400187 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 6, air: "2023-03-27" },
         { n: 2, ep: 6, air: "2024-04-15" },
         { n: 3, ep: 6, air: "2025-09-29" },
@@ -18553,9 +18553,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "233629", imdb: "tt18347622", tvdb: 417257 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 8, air: "2023-10-19" }],
+      seasons: [{ n: 1, ep: 8, air: "2023-10-19" }],
       eps: {
         1: [
           { n: 1, t: "Déjà mort", air: "2023-10-19" },
@@ -18586,9 +18586,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "276466", imdb: "tt33268051", tvdb: 455995 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [{ n: 1, ep: 6, air: "2024-11-11" }],
+      seasons: [{ n: 1, ep: 6, air: "2024-11-11" }],
       eps: {
         1: [
           { n: 1, t: "Épisode 1", air: "2024-11-11" },
@@ -18617,9 +18617,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "225647", imdb: "tt27987047", tvdb: 434473 },
-      statut: "Annulée",
+      status: "Annulée",
       possede: true,
-      saisons: [{ n: 1, ep: 8, air: "2025-10-09" }],
+      seasons: [{ n: 1, ep: 8, air: "2025-10-09" }],
       eps: {
         1: [
           { n: 1, t: "The Pink Marine", air: "2025-10-09" },
@@ -18650,9 +18650,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "bref. 2 - Bande-annonce officielle (VF) | Disney+",
       ids: { tmdb: "60715", imdb: "tt2044128", tvdb: 251562 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 82, air: "2011-08-29" },
         { n: 2, ep: 6, air: "2025-02-14" },
       ],
@@ -18856,9 +18856,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Cassandra mini série 2025 : bande annonce vf",
       ids: { tmdb: "248982", imdb: "tt29135600", tvdb: 447572 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 6, air: "2025-02-06" }],
+      seasons: [{ n: 1, ep: 6, air: "2025-02-06" }],
       eps: {
         1: [
           { n: 1, t: "Un nouveau départ", air: "2025-02-06" },
@@ -18887,9 +18887,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "94379", imdb: "tt3177474", tvdb: 272995 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 15, air: "2013-09-07" },
         { n: 2, ep: 10, air: "2014-05-14" },
         { n: 3, ep: 15, air: "2015-05-13" },
@@ -18969,9 +18969,9 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "Cent ans de solitude - Partie 1 | Bande-annonce officielle VF | Netflix France",
       ids: { tmdb: "207333", imdb: "tt9892936", tvdb: 426288 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 8, air: "2024-12-10" },
         { n: 2, ep: 8, air: "2026-08-05" },
       ],
@@ -19015,9 +19015,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "The Day Of The Jackal - Bande-Annonce | Prime Video",
       ids: { tmdb: "222766", imdb: "tt24053860", tvdb: 426866 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [{ n: 1, ep: 10, air: "2024-11-07" }],
+      seasons: [{ n: 1, ep: 10, air: "2024-11-07" }],
       eps: {
         1: [
           { n: 1, t: "Épisode 1", air: "2024-11-07" },
@@ -19050,9 +19050,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "67752", imdb: "tt4820370", tvdb: 315178 },
-      statut: "Annulée",
+      status: "Annulée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 6, air: "2016-10-11" },
         { n: 2, ep: 6, air: "2017-09-20" },
         { n: 3, ep: 6, air: "2018-02-07" },
@@ -19110,9 +19110,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Bande-annonce officielle",
       ids: { tmdb: "196890", imdb: "tt19381692", tvdb: 418633 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 9, air: "2025-07-31" }],
+      seasons: [{ n: 1, ep: 9, air: "2025-07-31" }],
       eps: {
         1: [
           { n: 1, t: "Le chef de guerre", air: "2025-07-31" },
@@ -19144,9 +19144,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "229221", imdb: "tt20863760", tvdb: 417271 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 6, air: "2023-09-07" }],
+      seasons: [{ n: 1, ep: 6, air: "2023-09-07" }],
       eps: {
         1: [
           { n: 1, t: "Hannah", air: "2023-09-07" },
@@ -19175,9 +19175,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Citoyens clandestins | Série Fiction | ARTE",
       ids: { tmdb: "212613", imdb: "tt30271514", tvdb: 447255 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 4, air: "2024-03-21" }],
+      seasons: [{ n: 1, ep: 4, air: "2024-03-21" }],
       eps: {
         1: [
           { n: 1, t: "Épisode 1", air: "2024-03-21" },
@@ -19204,9 +19204,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "155534", imdb: "tt14961770", tvdb: 405848 },
-      statut: "Annulée",
+      status: "Annulée",
       possede: true,
-      saisons: [{ n: 1, ep: 8, air: "2023-05-11" }],
+      seasons: [{ n: 1, ep: 8, air: "2023-05-11" }],
       eps: {
         1: [
           { n: 1, t: "On a rencontré l'ennemi, c'est nous", air: "2023-05-11" },
@@ -19236,9 +19236,9 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "Arcane - Saison 2 | Bande-annonce officielle VF | Netflix France",
       ids: { tmdb: "94605", imdb: "tt11126994", tvdb: 371028 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 9, air: "2021-11-06" },
         { n: 2, ep: 9, air: "2024-11-09" },
       ],
@@ -19292,9 +19292,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "10283", imdb: "tt1486217", tvdb: 110381 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 10, air: "2009-09-17" },
         { n: 2, ep: 13, air: "2011-01-27" },
         { n: 3, ep: 10, air: "2012-01-19" },
@@ -19506,9 +19506,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "31132", imdb: "tt1710308", tvdb: 188401 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 12, air: "2010-09-06" },
         { n: 2, ep: 28, air: "2010-11-29" },
         { n: 3, ep: 39, air: "2011-09-19" },
@@ -19819,9 +19819,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "21421", imdb: "tt0388644", tvdb: 92011 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 13, air: "2004-10-07" }],
+      seasons: [{ n: 1, ep: 13, air: "2004-10-07" }],
       eps: {
         1: [
           { n: 1, t: "Crime ou accident ?", air: "2004-10-07" },
@@ -19857,9 +19857,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "65392", imdb: "tt0175863", tvdb: 71558 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 26, air: "1984-10-20" },
         { n: 2, ep: 26, air: "1991-09-15" },
       ],
@@ -19939,9 +19939,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "82", imdb: "tt0105941", tvdb: 72879 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 172, air: "1993-09-13" },
         { n: 2, ep: 12, air: "1994-09-10" },
         { n: 3, ep: 46, air: "1995-09-09" },
@@ -20317,7 +20317,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Le grinch (VF) - Bande Annonce",
       ids: { tmdb: "8871", imdb: "tt0170016" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Parks and Recreation": {
@@ -20337,9 +20337,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Parks and Recreation Season 1 DVD Trailer",
       ids: { tmdb: "8592", imdb: "tt1266020", tvdb: 84912 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 6, air: "2009-04-09" },
         { n: 2, ep: 24, air: "2009-09-17" },
         { n: 3, ep: 16, air: "2011-01-20" },
@@ -20505,7 +20505,7 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "UNE AFFAIRE D'HONNEUR - Bande-annonce [Le 27 décembre au cinéma]",
       ids: { tmdb: "960044", imdb: "tt28106865" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Une vie": {
@@ -20525,7 +20525,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "UNE VIE Bande Annonce VF (2024)",
       ids: { tmdb: "760774", imdb: "tt13097932" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     Vermines: {
@@ -20545,7 +20545,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Bande annonce (Version censurée)",
       ids: { tmdb: "1063879", imdb: "tt26744289" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Chérie, j'ai agrandi le bébé": {
@@ -20565,7 +20565,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Cherie, j'ai agrandi le bébé La bande annonce vf",
       ids: { tmdb: "11158", imdb: "tt0104437" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Chérie, j'ai rétréci les gosses": {
@@ -20585,7 +20585,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "9354", imdb: "tt0097523" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Comme un prince": {
@@ -20605,7 +20605,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Comme Un Prince - Bande-annonce",
       ids: { tmdb: "1019864", imdb: "tt28487662" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Daaaaaalí !": {
@@ -20625,7 +20625,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Bande-annonce",
       ids: { tmdb: "1045770", imdb: "tt23476446" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Dune Deuxième Partie": {
@@ -20645,7 +20645,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Bande-annonce officielle 3 [VF]",
       ids: { tmdb: "693134", imdb: "tt15239678" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     Breathe: {
@@ -20665,7 +20665,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "720321", imdb: "tt11540468" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Mothers' Instinct": {
@@ -20685,7 +20685,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "758679", imdb: "tt13397574" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     Sentinel: {
@@ -20705,7 +20705,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "SENTINELLE Bande Annonce VF (2024) Science-Fiction",
       ids: { tmdb: "516806", imdb: "tt5153956" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Ultraman Rising": {
@@ -20726,7 +20726,7 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "Ultraman: Rising | Bande-annonce officielle VF | Netflix France",
       ids: { tmdb: "829402", imdb: "tt9471678" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "22.11.63": {
@@ -20746,9 +20746,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "22.11.63 | Bande-Annonce",
       ids: { tmdb: "64464", imdb: "tt2879552", tvdb: 301824 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 8, air: "2016-02-15" }],
+      seasons: [{ n: 1, ep: 8, air: "2016-02-15" }],
       eps: {
         1: [
           { n: 1, t: "Le terrier du lapin", air: "2016-02-15" },
@@ -20779,9 +20779,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "68467", imdb: "tt4922804", tvdb: 250749 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 8, air: "2016-11-25" },
         { n: 2, ep: 10, air: "2018-04-27" },
         { n: 3, ep: 8, air: "2019-06-07" },
@@ -20848,9 +20848,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "42878", imdb: "tt1986770", tvdb: 253350 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 10, air: "2012-06-28" },
         { n: 2, ep: 90, air: "2013-01-17" },
       ],
@@ -21034,9 +21034,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "4613", imdb: "tt0185906", tvdb: 74205 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 10, air: "2001-09-09" }],
+      seasons: [{ n: 1, ep: 10, air: "2001-09-09" }],
       eps: {
         1: [
           { n: 1, t: "Currahee", air: "2001-09-09" },
@@ -21069,9 +21069,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "1972", imdb: "tt0407362", tvdb: 73545 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 13, air: "2004-10-18" },
         { n: 2, ep: 20, air: "2005-07-15" },
         { n: 3, ep: 20, air: "2006-10-06" },
@@ -21173,9 +21173,9 @@ import { screens, panel, bridge } from "../seams.js";
       cast: [{ n: "Stephan James", r: "Halan Kai Nielsen" }],
       trailer: null,
       ids: { tmdb: "112388", imdb: "tt9174724", tvdb: 399240 },
-      statut: "Annulée",
+      status: "Annulée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 8, air: "2023-11-12" },
         { n: 2, ep: 8, air: "2024-04-07" },
       ],
@@ -21223,9 +21223,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Better Call Saul | Bande-annonce VF | Netflix France",
       ids: { tmdb: "60059", imdb: "tt3032476", tvdb: 273181 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 10, air: "2015-02-08" },
         { n: 2, ep: 10, air: "2016-02-15" },
         { n: 3, ep: 10, air: "2017-04-10" },
@@ -21328,9 +21328,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "241257", imdb: "tt21072112", tvdb: 421635 },
-      statut: "Annulée",
+      status: "Annulée",
       possede: true,
-      saisons: [{ n: 1, ep: 7, air: "2024-05-08" }],
+      seasons: [{ n: 1, ep: 7, air: "2024-05-08" }],
       eps: {
         1: [
           { n: 1, t: "Un vrai mystère", air: "2024-05-09" },
@@ -21360,9 +21360,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "1427", imdb: "tt2249364", tvdb: 266398 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 8, air: "2013-03-04" },
         { n: 2, ep: 8, air: "2015-01-05" },
         { n: 3, ep: 8, air: "2017-02-27" },
@@ -21416,9 +21416,9 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "Toujours plus vite, toujours plus haut, toujours plus cher - Broute - CANAL+",
       ids: { tmdb: "253005", imdb: "tt35267958", tvdb: 448998 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [{ n: 1, ep: 8, air: "2024-04-29" }],
+      seasons: [{ n: 1, ep: 8, air: "2024-04-29" }],
       eps: {
         1: [
           { n: 1, t: "Principal", air: "2024-04-29" },
@@ -21449,9 +21449,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Fiasco | Bande-annonce Officielle VF | Netflix France",
       ids: { tmdb: "221120", imdb: "tt27415863", tvdb: 431798 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 7, air: "2024-04-30" }],
+      seasons: [{ n: 1, ep: 7, air: "2024-04-30" }],
       eps: {
         1: [
           { n: 1, t: "C'est toi le patron", air: "2024-04-30" },
@@ -21477,9 +21477,9 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "Furies : Résistance | Bande-annonce officielle VF | Netflix France",
       ids: { tmdb: "212588", imdb: "tt11384300", tvdb: 433160 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 8, air: "2024-03-01" },
         { n: 2, ep: 6, air: "2026-03-18" },
       ],
@@ -21525,9 +21525,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Game of Thrones - Saison 1 - Aguiche (Teaser) [VF]",
       ids: { tmdb: "1399", imdb: "tt0944947", tvdb: 121361 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 10, air: "2011-04-17" },
         { n: 2, ep: 10, air: "2012-04-01" },
         { n: 3, ep: 10, air: "2013-03-31" },
@@ -21650,9 +21650,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "44987", imdb: "tt2300923", tvdb: 258616 },
-      statut: "Annulée",
+      status: "Annulée",
       possede: true,
-      saisons: [{ n: 1, ep: 22, air: "2012-08-08" }],
+      seasons: [{ n: 1, ep: 22, air: "2012-08-08" }],
       eps: {
         1: [
           { n: 1, t: "Une thérapie de fou", air: "2012-08-08" },
@@ -21697,9 +21697,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "156716", imdb: "tt15204292", tvdb: 420398 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 8, air: "2024-05-01" },
         { n: 2, ep: 0, air: "" },
       ],
@@ -21748,9 +21748,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Hero Corp - Teaser Saison 5",
       ids: { tmdb: "21766", imdb: "tt1480072", tvdb: 83750 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 15, air: "2008-10-25" },
         { n: 2, ep: 15, air: "2010-01-08" },
         { n: 3, ep: 36, air: "2013-10-13" },
@@ -21880,9 +21880,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: '2004 - "Joey" trailer',
       ids: { tmdb: "1466", imdb: "tt0375355", tvdb: 72920 },
-      statut: "Annulée",
+      status: "Annulée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 24, air: "2004-09-09" },
         { n: 2, ep: 22, air: "2005-09-22" },
       ],
@@ -21956,9 +21956,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "43257", imdb: "tt2208885", tvdb: 255888 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 12, air: "2012-02-13" },
         { n: 2, ep: 12, air: "2014-01-13" },
         { n: 3, ep: 12, air: "2017-02-20" },
@@ -22025,9 +22025,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "67132", imdb: "tt5462720", tvdb: 311944 },
-      statut: "Annulée",
+      status: "Annulée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 24, air: "2016-09-19" },
         { n: 2, ep: 24, air: "2017-09-25" },
       ],
@@ -22103,9 +22103,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "128839", imdb: "tt11640018", tvdb: 395029 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 10, air: "2021-09-28" },
         { n: 2, ep: 14, air: "2022-09-27" },
         { n: 3, ep: 6, air: "2024-01-09" },
@@ -22172,9 +22172,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "105116", imdb: "tt0285348", tvdb: 206681 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 12, air: "2000-11-04" },
         { n: 2, ep: 12, air: "2001-11-04" },
       ],
@@ -22233,9 +22233,9 @@ import { screens, panel, bridge } from "../seams.js";
       cast: [{ n: "Rod Serling", r: "Self - Host" }],
       trailer: null,
       ids: { tmdb: "6357", imdb: "tt0052520", tvdb: 73587 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 36, air: "1959-10-02" },
         { n: 2, ep: 29, air: "1960-09-30" },
         { n: 3, ep: 37, air: "1961-09-15" },
@@ -22452,9 +22452,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "2685", imdb: "tt0096579", tvdb: 76732 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 22, air: "1989-09-22" },
         { n: 2, ep: 25, air: "1990-09-21" },
         { n: 3, ep: 25, air: "1991-09-20" },
@@ -22722,9 +22722,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "1706", imdb: "tt0115320", tvdb: 70704 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 22, air: "1996-09-19" },
         { n: 2, ep: 22, air: "1997-11-01" },
         { n: 3, ep: 22, air: "1998-10-17" },
@@ -22844,9 +22844,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Bande-Annonce",
       ids: { tmdb: "206829", imdb: "tt21375036", tvdb: 422776 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 6, air: "2024-03-03" }],
+      seasons: [{ n: 1, ep: 6, air: "2024-03-03" }],
       eps: {
         1: [
           { n: 1, t: "Le jour de la Victoire", air: "2024-03-03" },
@@ -22876,9 +22876,9 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "Le Visiteur du Futur : Les Missionnaires -Trailer (Feat. S. Astier)",
       ids: { tmdb: "60013", imdb: "tt2473544", tvdb: 145871 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 22, air: "2009-04-27" },
         { n: 2, ep: 15, air: "2010-11-05" },
         { n: 3, ep: 10, air: "2012-11-14" },
@@ -22985,9 +22985,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Les papillons  noirs | Série Fiction | ARTE",
       ids: { tmdb: "208691", imdb: "tt14485734", tvdb: 396501 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 6, air: "2022-09-22" }],
+      seasons: [{ n: 1, ep: 6, air: "2022-09-22" }],
       eps: {
         1: [
           { n: 1, t: "Episode 1", air: "2022-09-22" },
@@ -23015,9 +23015,9 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "MacGyver (1985-1991) The Iconic Hero Trailer #1 - Richard Dean Anderson",
       ids: { tmdb: "2875", imdb: "tt0088559", tvdb: 77847 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 22, air: "1985-09-29" },
         { n: 2, ep: 22, air: "1986-09-22" },
         { n: 3, ep: 20, air: "1987-09-21" },
@@ -23199,9 +23199,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "67156", imdb: "tt5536400", tvdb: 311946 },
-      statut: "Annulée",
+      status: "Annulée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 22, air: "2016-10-24" },
         { n: 2, ep: 21, air: "2017-11-13" },
         { n: 3, ep: 13, air: "2019-02-04" },
@@ -23316,9 +23316,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "155533", imdb: "tt16912512", tvdb: 414337 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 7, air: "2024-03-14" }],
+      seasons: [{ n: 1, ep: 7, air: "2024-03-14" }],
       eps: {
         1: [
           { n: 1, t: "Pilote", air: "2024-03-14" },
@@ -23348,9 +23348,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Misfits – Bande Annonce - VOSTFR - 2009",
       ids: { tmdb: "31295", imdb: "tt1548850", tvdb: 124051 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 6, air: "2009-11-12" },
         { n: 2, ep: 7, air: "2010-11-11" },
         { n: 3, ep: 8, air: "2011-10-30" },
@@ -23423,9 +23423,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Mon petit renne :: Teaser Saison 1 :: On Regarde ?",
       ids: { tmdb: "241259", imdb: "tt13649112", tvdb: 417223 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 7, air: "2024-04-11" }],
+      seasons: [{ n: 1, ep: 7, air: "2024-04-11" }],
       eps: {
         1: [
           { n: 1, t: "Épisode 1", air: "2024-04-11" },
@@ -23453,9 +23453,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "MR. & MRS. SMITH Bande Annonce VF (2024)",
       ids: { tmdb: "118642", imdb: "tt14044212", tvdb: 396773 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 8, air: "2024-02-01" },
         { n: 2, ep: 0, air: "" },
       ],
@@ -23488,9 +23488,9 @@ import { screens, panel, bridge } from "../seams.js";
       cast: [{ n: "Rowan Atkinson", r: "Mr. Bean" }],
       trailer: null,
       ids: { tmdb: "4327", imdb: "tt0096657", tvdb: 76316 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 14, air: "1990-01-01" }],
+      seasons: [{ n: 1, ep: 14, air: "1990-01-01" }],
       eps: {
         1: [
           { n: 1, t: "Mr. Bean", air: "1990-01-01" },
@@ -23528,9 +23528,9 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "ONLY MURDERS IN THE BUILDING Bande Annonce VF (2021) Selena Gomez",
       ids: { tmdb: "107113", imdb: "tt11691774", tvdb: 399959 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 10, air: "2021-08-31" },
         { n: 2, ep: 10, air: "2022-06-28" },
         { n: 3, ep: 10, air: "2023-08-07" },
@@ -23617,9 +23617,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "195946", imdb: "tt15063296", tvdb: 406785 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 6, air: "2022-05-19" },
         { n: 2, ep: 6, air: "2023-06-15" },
         { n: 3, ep: 6, air: "2024-09-12" },
@@ -23668,9 +23668,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Reine Rouge - Bande-Annonce | Prime Video",
       ids: { tmdb: "203667", imdb: "tt20883126", tvdb: 421883 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 7, air: "2024-02-29" },
         { n: 2, ep: 1, air: "2026-10-02" },
       ],
@@ -23704,9 +23704,9 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "RIPLEY (Saison 1 Teaser 2) | Bande-Annonce en Français | Netflix",
       ids: { tmdb: "94028", imdb: "tt11016042", tvdb: 372727 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 8, air: "2024-04-04" }],
+      seasons: [{ n: 1, ep: 8, air: "2024-04-04" }],
       eps: {
         1: [
           { n: 1, t: "I - UN HOMME DUR À TROUVER", air: "2024-04-04" },
@@ -23737,9 +23737,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "1906", imdb: "tt0377260", tvdb: 78846 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 7, air: "2004-01-13" },
         { n: 2, ep: 10, air: "2005-01-04" },
         { n: 3, ep: 8, air: "2006-01-03" },
@@ -23932,9 +23932,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "1274", imdb: "tt0248654", tvdb: 75450 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 13, air: "2001-06-03" },
         { n: 2, ep: 13, air: "2002-03-03" },
         { n: 3, ep: 13, air: "2003-03-02" },
@@ -24038,9 +24038,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "STARGATE ATLANTIS Saison 1 - Bande Annonce VF",
       ids: { tmdb: "2290", imdb: "tt0374455", tvdb: 70851 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 20, air: "2004-07-15" },
         { n: 2, ep: 20, air: "2005-07-15" },
         { n: 3, ep: 20, air: "2006-07-13" },
@@ -24177,9 +24177,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Bande Annonce Stargate SG1",
       ids: { tmdb: "4629", imdb: "tt0118480", tvdb: 72449 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 22, air: "1997-07-27" },
         { n: 2, ep: 22, air: "1998-06-26" },
         { n: 3, ep: 22, air: "1999-06-25" },
@@ -24453,9 +24453,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Stargate Universe bande annonce VF",
       ids: { tmdb: "5148", imdb: "tt1286039", tvdb: 83237 },
-      statut: "Annulée",
+      status: "Annulée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 20, air: "2009-10-02" },
         { n: 2, ep: 20, air: "2010-09-28" },
       ],
@@ -24523,9 +24523,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Bande-annonce officielle",
       ids: { tmdb: "203744", imdb: "tt16418808", tvdb: 421070 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 8, air: "2024-04-04" },
         { n: 2, ep: 8, air: "2026-06-18" },
       ],
@@ -24569,9 +24569,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Terminal | Bande-annonce officielle | CANAL+",
       ids: { tmdb: "237630", imdb: "tt31712029", tvdb: 441678 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 12, air: "2024-04-22" }],
+      seasons: [{ n: 1, ep: 12, air: "2024-04-22" }],
       eps: {
         1: [
           { n: 1, t: "Good Cop Bap Cop", air: "2024-04-22" },
@@ -24607,9 +24607,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Bande-annonce officielle [VOSTFR]",
       ids: { tmdb: "114479", imdb: "tt12262202", tvdb: 393197 },
-      statut: "Annulée",
+      status: "Annulée",
       possede: true,
-      saisons: [{ n: 1, ep: 8, air: "2024-06-04" }],
+      seasons: [{ n: 1, ep: 8, air: "2024-06-04" }],
       eps: {
         1: [
           { n: 1, t: "Perdu / Trouvé", air: "2024-06-04" },
@@ -24640,9 +24640,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "197124", imdb: "tt19399602", tvdb: 418756 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 6, air: "2024-05-16" }],
+      seasons: [{ n: 1, ep: 6, air: "2024-05-16" }],
       eps: {
         1: [
           { n: 1, t: "Panther/Producteur", air: "2024-05-16" },
@@ -24671,9 +24671,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "97", imdb: "tt0111945", tvdb: 71355 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 22, air: "1995-09-13" },
         { n: 2, ep: 24, air: "1996-09-18" },
         { n: 3, ep: 28, air: "1997-09-23" },
@@ -24955,9 +24955,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "4238", imdb: "tt0165581", tvdb: 73641 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 25, air: "1998-09-21" },
         { n: 2, ep: 25, air: "1999-09-20" },
         { n: 3, ep: 25, air: "2000-10-02" },
@@ -25213,9 +25213,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "61888", imdb: "tt3230454", tvdb: 281622 },
-      statut: "Annulée",
+      status: "Annulée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 13, air: "2015-03-01" },
         { n: 2, ep: 18, air: "2015-09-27" },
         { n: 3, ep: 18, air: "2016-09-25" },
@@ -25320,9 +25320,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "3868", imdb: "tt0830361", tvdb: 79637 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 3, air: "2006-12-11" }],
+      seasons: [{ n: 1, ep: 3, air: "2006-12-11" }],
       eps: {
         1: [
           { n: 1, t: "La Clé et le Réveil", air: "2006-12-11" },
@@ -25348,9 +25348,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "58942", imdb: "tt2338232", tvdb: 269637 },
-      statut: "Annulée",
+      status: "Annulée",
       possede: true,
-      saisons: [{ n: 1, ep: 22, air: "2013-09-26" }],
+      seasons: [{ n: 1, ep: 22, air: "2013-09-26" }],
       eps: {
         1: [
           { n: 1, t: "Épisode 1", air: "2013-09-26" },
@@ -25395,9 +25395,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "The OA - Bande Annonce VF",
       ids: { tmdb: "69061", imdb: "tt4635282", tvdb: 321060 },
-      statut: "Annulée",
+      status: "Annulée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 8, air: "2016-12-16" },
         { n: 2, ep: 8, air: "2019-03-22" },
       ],
@@ -25453,9 +25453,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "61725", imdb: "tt3595776", tvdb: 281700 },
-      statut: "Annulée",
+      status: "Annulée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 12, air: "2015-02-19" },
         { n: 2, ep: 13, air: "2016-04-07" },
         { n: 3, ep: 13, air: "2016-10-17" },
@@ -25522,9 +25522,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "60182", imdb: "tt2603596", tvdb: 268943 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 6, air: "2013-09-24" },
         { n: 2, ep: 2, air: "2014-12-22" },
       ],
@@ -25558,9 +25558,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "66259", imdb: "tt5562058", tvdb: 310000 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 3, air: "2016-04-20" }],
+      seasons: [{ n: 1, ep: 3, air: "2016-04-20" }],
       eps: {
         1: [
           { n: 1, t: "Épisode 1", air: "2016-04-20" },
@@ -25581,9 +25581,9 @@ import { screens, panel, bridge } from "../seams.js";
       cast: [{ n: "Kyle MacLachlan", r: "Dale Cooper / Dougie Jones" }],
       trailer: "Twin peaks - Bande annonce Vf - Film d' Horreur Page Facebook",
       ids: { tmdb: "1920", imdb: "tt0098936", tvdb: 70533 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 8, air: "1990-04-08" },
         { n: 2, ep: 22, air: "1990-09-30" },
         { n: 3, ep: 18, air: "2017-05-21" },
@@ -25682,9 +25682,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "230364", imdb: "tt26771826", tvdb: 431397 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 2, air: "2023-12-27" }],
+      seasons: [{ n: 1, ep: 2, air: "2023-12-27" }],
       eps: {
         1: [
           { n: 1, t: "Épisode 1", air: "2023-12-27" },
@@ -25708,9 +25708,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Unbelievable - Bande Annonce VOST",
       ids: { tmdb: "91275", imdb: "tt7909970", tvdb: 367030 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 8, air: "2019-09-13" }],
+      seasons: [{ n: 1, ep: 8, air: "2019-09-13" }],
       eps: {
         1: [
           { n: 1, t: "Épisode 1", air: "2019-09-13" },
@@ -25741,9 +25741,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "7097", imdb: "tt1001482", tvdb: 83463 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 12, air: "2009-01-18" },
         { n: 2, ep: 12, air: "2010-03-22" },
         { n: 3, ep: 12, air: "2011-03-28" },
@@ -25814,9 +25814,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "4576", imdb: "tt0118364", tvdb: 71936 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 6, air: "1997-03-04" },
         { n: 2, ep: 25, air: "1997-09-23" },
         { n: 3, ep: 25, air: "1998-09-22" },
@@ -26014,9 +26014,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "4087", imdb: "tt0106179", tvdb: 77398 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 24, air: "1993-09-10" },
         { n: 2, ep: 25, air: "1994-09-16" },
         { n: 3, ep: 24, air: "1995-09-22" },
@@ -26289,9 +26289,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "61794", imdb: "tt2364258", tvdb: 263005 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 8, air: "2012-10-05" },
         { n: 2, ep: 8, air: "2014-03-21" },
         { n: 3, ep: 8, air: "2015-04-03" },
@@ -26409,9 +26409,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Chernobyl - Bande Annonce VOST - 2019",
       ids: { tmdb: "87108", imdb: "tt7366338", tvdb: 360893 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 5, air: "2019-05-06" }],
+      seasons: [{ n: 1, ep: 5, air: "2019-05-06" }],
       eps: {
         1: [
           { n: 1, t: "1:23:45", air: "2019-05-06" },
@@ -26439,9 +26439,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Childhood's End (2015) Official Trailer",
       ids: { tmdb: "63647", imdb: "tt4146128", tvdb: 296065 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 3, air: "2015-12-14" }],
+      seasons: [{ n: 1, ep: 3, air: "2015-12-14" }],
       eps: {
         1: [
           { n: 1, t: "Les Seigneurs", air: "2015-12-14" },
@@ -26467,9 +26467,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "2719", imdb: "tt0237123", tvdb: 78131 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 6, air: "2000-05-12" },
         { n: 2, ep: 9, air: "2001-09-03" },
         { n: 3, ep: 7, air: "2002-09-23" },
@@ -26530,9 +26530,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "202277", imdb: "tt21204898", tvdb: 420427 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 8, air: "2022-06-06" },
         { n: 2, ep: 8, air: "2025-03-04" },
       ],
@@ -26575,9 +26575,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Doctor Who: Saison 12 | Bande-Annonce VF",
       ids: { tmdb: "57243", imdb: "tt0436992", tvdb: 78804 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 13, air: "2005-03-26" },
         { n: 2, ep: 13, air: "2006-04-15" },
         { n: 3, ep: 13, air: "2007-04-01" },
@@ -26803,9 +26803,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "ERIC Bande Annonce VF (2024) Benedict Cumberbatch",
       ids: { tmdb: "217667", imdb: "tt16283824", tvdb: 421652 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 6, air: "2024-05-30" }],
+      seasons: [{ n: 1, ep: 6, air: "2024-05-30" }],
       eps: {
         1: [
           { n: 1, t: "Épisode 1", air: "2024-05-30" },
@@ -26834,9 +26834,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Them - Bande Annonce [VF]",
       ids: { tmdb: "120462", imdb: "tt9064858", tvdb: 372974 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 10, air: "2021-04-09" },
         { n: 2, ep: 8, air: "2024-04-25" },
       ],
@@ -26882,9 +26882,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Fallout – Bande-Annonce | Prime Video",
       ids: { tmdb: "106379", imdb: "tt12637874", tvdb: 416744 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 8, air: "2024-04-10" },
         { n: 2, ep: 8, air: "2025-12-16" },
       ],
@@ -26928,9 +26928,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Family Business - Teaser Gerard VF",
       ids: { tmdb: "89785", imdb: "tt10423460", tvdb: 364468 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 6, air: "2019-06-28" },
         { n: 2, ep: 6, air: "2020-09-11" },
         { n: 3, ep: 6, air: "2021-10-08" },
@@ -26979,9 +26979,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "1533", imdb: "tt0296318", tvdb: 83238 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 172, air: "2001-10-29" },
         { n: 2, ep: 159, air: "2003-05-03" },
         { n: 3, ep: 161, air: "2004-03-04" },
@@ -27668,9 +27668,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "4271", imdb: "tt0187636", tvdb: 70522 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 22, air: "1999-03-19" },
         { n: 2, ep: 22, air: "2000-03-17" },
         { n: 3, ep: 22, air: "2001-03-16" },
@@ -27836,9 +27836,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "52", imdb: "tt0165598", tvdb: 73787 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 25, air: "1998-08-23" },
         { n: 2, ep: 26, air: "1999-09-28" },
         { n: 3, ep: 25, air: "2000-10-03" },
@@ -28091,9 +28091,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "92166", imdb: "tt8972242", tvdb: 351461 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 4, air: "2018-08-14" }],
+      seasons: [{ n: 1, ep: 4, air: "2018-08-14" }],
       eps: {
         1: [
           { n: 1, t: "Chasseurs de planètes", air: "2018-08-14" },
@@ -28124,7 +28124,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "GOOD LUCK HAVE FUN DON'T DIE - Bande-annonce VF",
       ids: { tmdb: "1119449", imdb: "tt1341338" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Andrew The Problem Prince": {
@@ -28139,9 +28139,9 @@ import { screens, panel, bridge } from "../seams.js";
       cast: [{ n: "Andrew Mountbatten Windsor", r: "Self" }],
       trailer: null,
       ids: { tmdb: "225658", imdb: "tt27864989", tvdb: 434278 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 2, air: "2023-05-01" }],
+      seasons: [{ n: 1, ep: 2, air: "2023-05-01" }],
       eps: {
         1: [
           { n: 1, t: "Épisode 1", air: "2023-05-01" },
@@ -28166,9 +28166,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "1695", imdb: "tt0312172", tvdb: 78490 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 12, air: "2002-07-12" },
         { n: 2, ep: 16, air: "2003-06-20" },
         { n: 3, ep: 16, air: "2004-06-18" },
@@ -28342,9 +28342,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Bande-annonce officielle",
       ids: { tmdb: "93405", imdb: "tt10919420", tvdb: 383275 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 9, air: "2021-09-17" },
         { n: 2, ep: 7, air: "2024-12-26" },
         { n: 3, ep: 6, air: "2025-06-27" },
@@ -28397,7 +28397,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "BA - Dossier 137",
       ids: { tmdb: "1294698", imdb: "tt34794183" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "I Origins": {
@@ -28417,7 +28417,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "I Origins - Bande Annonce VOST",
       ids: { tmdb: "244267", imdb: "tt2884206" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Dexter New Blood": {
@@ -28437,9 +28437,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Dexter : New Blood - Bande-annonce officielle",
       ids: { tmdb: "131927", imdb: "tt14164730", tvdb: 412366 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 10, air: "2021-11-07" }],
+      seasons: [{ n: 1, ep: 10, air: "2021-11-07" }],
       eps: {
         1: [
           { n: 1, t: "Coup de froid", air: "2021-11-07" },
@@ -28472,9 +28472,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Bande-annonce officielle",
       ids: { tmdb: "108181", imdb: "tt31937954", tvdb: 448179 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 8, air: "2026-03-16" }],
+      seasons: [{ n: 1, ep: 8, air: "2026-03-16" }],
       eps: {
         1: [
           { n: 1, t: "Eleanor", air: "2026-03-17" },
@@ -28505,9 +28505,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Teaser officiel “Chaos maximum“",
       ids: { tmdb: "285404", imdb: "tt35946742", tvdb: 460793 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [{ n: 1, ep: 10, air: "2026-05-19" }],
+      seasons: [{ n: 1, ep: 10, air: "2026-05-19" }],
       eps: {
         1: [
           { n: 1, t: "Comme des aimants", air: "2026-05-19" },
@@ -28541,9 +28541,9 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "Stranger Things : Chroniques de 1985 | Bande-annonce officielle VF | Netflix France",
       ids: { tmdb: "224263", imdb: "tt27486290", tvdb: 462906 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 10, air: "2026-04-23" },
         { n: 2, ep: 0, air: "" },
       ],
@@ -28587,9 +28587,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "224941", imdb: "tt27557289", tvdb: 433989 },
-      statut: "Annulée",
+      status: "Annulée",
       possede: true,
-      saisons: [{ n: 1, ep: 8, air: "2026-05-21" }],
+      seasons: [{ n: 1, ep: 8, air: "2026-05-21" }],
       eps: {
         1: [
           { n: 1, t: "Bienvenue aux Boroughs", air: "2026-05-21" },
@@ -28620,7 +28620,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "1330021", imdb: "tt33100314" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Projet Dernière Chance": {
@@ -28641,7 +28641,7 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "Projet Dernière Chance - Bande-Annonce Officielle | Prime Video",
       ids: { tmdb: "687163", imdb: "tt12042730" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Le Bus Les Bleus en grève": {
@@ -28662,7 +28662,7 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "Le Bus : Les Bleus en grève | Bande-annonce officielle VF | Netflix France",
       ids: { tmdb: "1678844", imdb: "tt37024319" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "The Killing": {
@@ -28682,9 +28682,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "34415", imdb: "tt1637727", tvdb: 210171 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 13, air: "2011-04-03" },
         { n: 2, ep: 13, air: "2012-04-01" },
         { n: 3, ep: 12, air: "2013-06-02" },
@@ -28763,7 +28763,7 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "Freddy Les Griffes De La Nuit - Bande Annonce Officielle (VF) - Jackie Earle Haley / Kyle Gallner",
       ids: { tmdb: "23437", imdb: "tt1179056" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Astérix Le Domaine des dieux": {
@@ -28783,7 +28783,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Astérix : Le Domaine des Dieux - Bande Annonce VF",
       ids: { tmdb: "170522", imdb: "tt3759416" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Bob l'éponge - Le film Un héros sort de l'eau": {
@@ -28803,7 +28803,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "BOB L'EPONGE - Bande Annonce VF",
       ids: { tmdb: "228165", imdb: "tt2279373" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "L'Âge de glace 4 La dérive des continents": {
@@ -28824,7 +28824,7 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "L'Age de Glace 4 : La Dérive des Continents - Bande Annonce finale VF HD",
       ids: { tmdb: "57800", imdb: "tt1667889" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     Gourou: {
@@ -28844,7 +28844,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Bande-annonce 4K",
       ids: { tmdb: "1259983", imdb: "tt31777964" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Achtsam Morden": {
@@ -28859,9 +28859,9 @@ import { screens, panel, bridge } from "../seams.js";
       cast: [{ n: "Tom Schilling", r: "Björn Diemel" }],
       trailer: null,
       ids: { tmdb: "252372", imdb: "tt30217222", tvdb: 417272 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 8, air: "2024-10-31" },
         { n: 2, ep: 8, air: "2026-05-28" },
       ],
@@ -28905,9 +28905,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Sa Majesté des Mouches - Teaser VOST #samajestédesmouches",
       ids: { tmdb: "270572", imdb: "tt27557666", tvdb: 434004 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 4, air: "2026-02-08" }],
+      seasons: [{ n: 1, ep: 4, air: "2026-02-08" }],
       eps: {
         1: [
           { n: 1, t: "Porcinet", air: "2026-02-08" },
@@ -28934,9 +28934,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "323153", imdb: "tt41023696", tvdb: 477735 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [{ n: 1, ep: 10, air: "2026-05-21" }],
+      seasons: [{ n: 1, ep: 10, air: "2026-05-21" }],
       eps: {
         1: [
           { n: 1, t: "Refaire Surface", air: "2026-05-21" },
@@ -28969,9 +28969,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Rafa | Bande-annonce officielle VOSTFR | Netflix France",
       ids: { tmdb: "279884", imdb: "tt35052852", tvdb: 458014 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 4, air: "2026-05-29" }],
+      seasons: [{ n: 1, ep: 4, air: "2026-05-29" }],
       eps: {
         1: [
           { n: 1, t: "Comme si demain n'existait pas", air: "2026-05-29" },
@@ -28998,9 +28998,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Bande-Annonce Officielle version couleur vraie",
       ids: { tmdb: "220102", imdb: "tt30460310", tvdb: 450033 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [{ n: 1, ep: 8, air: "2026-05-25" }],
+      seasons: [{ n: 1, ep: 8, air: "2026-05-25" }],
       eps: {
         1: [
           { n: 1, t: "Passez dans mon bureau", air: "2026-05-25" },
@@ -29035,9 +29035,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Bande-annonce officielle (Le Croque-mitaine)",
       ids: { tmdb: "270476", imdb: "tt33332385", tvdb: 454109 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 10, air: "2026-04-28" },
         { n: 2, ep: 0, air: "" },
       ],
@@ -29077,9 +29077,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Bande-annonce officielle (Le Croque-mitaine)",
       ids: { tmdb: "270476", imdb: "tt33332385", tvdb: 454109 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 10, air: "2026-04-28" },
         { n: 2, ep: 0, air: "" },
       ],
@@ -29120,7 +29120,7 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "Fantômes contre fantômes (1996) | Bande-annonce VF (HD | 1080p)",
       ids: { tmdb: "10779", imdb: "tt0116365" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "La Cité des Anges": {
@@ -29140,7 +29140,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "La cité des Anges - Angel's Tale",
       ids: { tmdb: "795", imdb: "tt0120632" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Les Griffes de la Nuit": {
@@ -29160,7 +29160,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Les Griffes de la Nuit (1984) ≈ Bande-Annonce VOSTFR",
       ids: { tmdb: "377", imdb: "tt0087800" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Les Légendaires": {
@@ -29180,7 +29180,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Les Légendaires / 28 janvier au cinéma",
       ids: { tmdb: "677561", imdb: "tt35659725" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Top Chef": {
@@ -29200,9 +29200,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "54493", imdb: "tt3632140", tvdb: 255968 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 8, air: "2010-02-22" },
         { n: 2, ep: 10, air: "2011-01-31" },
         { n: 3, ep: 11, air: "2012-01-30" },
@@ -29645,9 +29645,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Bande Annonce [VF]",
       ids: { tmdb: "76479", imdb: "tt1190634", tvdb: 355567 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 8, air: "2019-07-25" },
         { n: 2, ep: 8, air: "2020-09-03" },
         { n: 3, ep: 8, air: "2022-06-02" },
@@ -29748,9 +29748,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "124364", imdb: "tt9813792", tvdb: 401003 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 10, air: "2022-02-20" },
         { n: 2, ep: 10, air: "2023-04-23" },
         { n: 3, ep: 10, air: "2024-09-22" },
@@ -29825,7 +29825,7 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "Jack Ryan : Guerre Fantôme - Bande-Annonce Officielle | Prime Video",
       ids: { tmdb: "1380291", imdb: "tt34378301" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     Jumpers: {
@@ -29845,7 +29845,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "JUMPERS - Bande-annonce immersive",
       ids: { tmdb: "1327819", imdb: "tt26443616" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "L'éléphant": {
@@ -29864,7 +29864,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "1497017", imdb: "tt39088896" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     Marsupilami: {
@@ -29884,7 +29884,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Bande-annonce 4DX",
       ids: { tmdb: "1145899", imdb: "tt33029380" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Marty Supreme": {
@@ -29904,7 +29904,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "MARTY SUPREME - Bande-annonce immersive",
       ids: { tmdb: "1317288", imdb: "tt32916440" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     Michael: {
@@ -29924,7 +29924,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "MICHAEL | Bande-annonce finale VOST [Au cinéma le 22 avril]",
       ids: { tmdb: "936075", imdb: "tt11378946" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Mortal Kombat II": {
@@ -29944,7 +29944,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Bande-annonce officielle (VOST)",
       ids: { tmdb: "931285", imdb: "tt17490712" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Over Your Dead Body": {
@@ -29964,7 +29964,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "1390300", imdb: "tt34685692" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Super Mario Galaxy, le film": {
@@ -29984,7 +29984,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Bande-annonce finale VF",
       ids: { tmdb: "1226863", imdb: "tt28650488" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Une famille de bâtards": {
@@ -30005,7 +30005,7 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "Une Famille de Bâtards - Bande-Annonce Officielle (version longue) | Prime Video",
       ids: { tmdb: "1501018", imdb: "tt36963493" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "War Machine": {
@@ -30025,7 +30025,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "WAR MACHINE Bande Annonce VF (2026) Alan Ritchson, Action",
       ids: { tmdb: "1265609", imdb: "tt15940132" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Among Us": {
@@ -30045,9 +30045,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "229544", imdb: "tt28230655", tvdb: 436645 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [{ n: 1, ep: 10, air: "2026-06-05" }],
+      seasons: [{ n: 1, ep: 10, air: "2026-06-05" }],
       eps: {
         1: [
           {
@@ -30097,9 +30097,9 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "Dear Killer Nannies - Bande-annonce officielle (VOST) | Disney+",
       ids: { tmdb: "313721", imdb: "tt32125946", tvdb: 475233 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 8, air: "2026-04-01" }],
+      seasons: [{ n: 1, ep: 8, air: "2026-04-01" }],
       eps: {
         1: [
           { n: 1, t: "Épisode 1", air: "2026-04-01" },
@@ -30128,9 +30128,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "304597", imdb: "tt38821531", tvdb: 470108 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 8, air: "2026-05-27" }],
+      seasons: [{ n: 1, ep: 8, air: "2026-05-27" }],
       eps: {
         1: [
           { n: 1, t: "Épisode 1", air: "2026-05-27" },
@@ -30161,9 +30161,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "323111", imdb: "tt42873612", tvdb: 478240 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 3, air: "2026-06-03" }],
+      seasons: [{ n: 1, ep: 3, air: "2026-06-03" }],
       eps: {
         1: [
           { n: 1, t: "Épisode 1", air: "2026-06-03" },
@@ -30189,9 +30189,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "262793", imdb: "tt33270420", tvdb: 453786 },
-      statut: "Annulée",
+      status: "Annulée",
       possede: true,
-      saisons: [{ n: 1, ep: 8, air: "2026-01-15" }],
+      seasons: [{ n: 1, ep: 8, air: "2026-01-15" }],
       eps: {
         1: [
           { n: 1, t: "Épisode 1", air: "2026-01-15" },
@@ -30222,9 +30222,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "252107", imdb: "tt32140872", tvdb: 449146 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [{ n: 1, ep: 8, air: "2026-05-28" }],
+      seasons: [{ n: 1, ep: 8, air: "2026-05-28" }],
       eps: {
         1: [
           { n: 1, t: "Les yeux", air: "2026-05-28" },
@@ -30255,9 +30255,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "287167", imdb: "tt35615598", tvdb: 459562 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 7, air: "2025-09-24" }],
+      seasons: [{ n: 1, ep: 7, air: "2025-09-24" }],
       eps: {
         1: [
           { n: 1, t: "Épisode 1", air: "2025-09-24" },
@@ -30288,7 +30288,7 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "Les Moutons Détectives - Bande-Annonce Officielle | Prime Video",
       ids: { tmdb: "1301421", imdb: "tt32565993" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Dead Landes": {
@@ -30308,9 +30308,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "68958", imdb: "tt6299370", tvdb: 317920 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 10, air: "2016-12-03" }],
+      seasons: [{ n: 1, ep: 10, air: "2016-12-03" }],
       eps: {
         1: [
           { n: 1, t: "Et sa colère s'abattit", air: "2016-12-03" },
@@ -30343,9 +30343,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Sur tes traces | Bande-annonce officielle VF | Netflix France",
       ids: { tmdb: "278178", imdb: "tt34771210", tvdb: 457173 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 8, air: "2026-06-18" }],
+      seasons: [{ n: 1, ep: 8, air: "2026-06-18" }],
       eps: {
         1: [
           { n: 1, t: "Épisode 1", air: "2026-06-18" },
@@ -30376,9 +30376,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "324143", imdb: "tt43089715", tvdb: 478476 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [{ n: 1, ep: 12, air: "2026-05-26" }],
+      seasons: [{ n: 1, ep: 12, air: "2026-05-26" }],
       eps: {
         1: [
           { n: 1, t: "Moisi mais cozy", air: "2026-05-26" },
@@ -30413,9 +30413,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "LA VILLE NOUS APPARTIENT - BANDE ANNONCE - CANAL+",
       ids: { tmdb: "255570", imdb: "tt31438328", tvdb: 446897 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [{ n: 1, ep: 8, air: "2025-03-23" }],
+      seasons: [{ n: 1, ep: 8, air: "2025-03-23" }],
       eps: {
         1: [
           { n: 1, t: "Épisode 1", air: "2025-03-23" },
@@ -30446,7 +30446,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "La Liste de Schindler – Bande Annonce VF",
       ids: { tmdb: "424", imdb: "tt0108052" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Chouette, un jeu d'enfants": {
@@ -30461,7 +30461,7 @@ import { screens, panel, bridge } from "../seams.js";
       cast: [],
       trailer: null,
       ids: { tmdb: "1368010" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     Simpsley: {
@@ -30481,7 +30481,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "1725116", imdb: "tt43140642" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Smiling Friends": {
@@ -30500,9 +30500,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "126506", imdb: "tt12074628", tvdb: 379403 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 9, air: "2020-04-01" },
         { n: 2, ep: 8, air: "2024-04-01" },
         { n: 3, ep: 10, air: "2025-10-05" },
@@ -30579,7 +30579,7 @@ import { screens, panel, bridge } from "../seams.js";
       cast: [{ n: "Benjamin Tranié", r: "Self" }],
       trailer: "Je réclame un album entier plz #benjamintranie #primevideo",
       ids: { tmdb: "1717577", imdb: "tt39369021" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Guillermo Guiz - La formidable ascension sociale temporaire de Guy Verstraeten":
@@ -30595,7 +30595,7 @@ import { screens, panel, bridge } from "../seams.js";
         cast: [{ n: "Guillermo Guiz", r: "Guillermo Guiz" }],
         trailer: null,
         ids: { tmdb: "1613630", imdb: "tt37444295" },
-        statut: "Sorti",
+        status: "Sorti",
         possede: true,
       },
     "Inès Reg On est toujours ensemble": {
@@ -30610,7 +30610,7 @@ import { screens, panel, bridge } from "../seams.js";
       cast: [{ n: "Inès Reg", r: "Inès Reg" }],
       trailer: null,
       ids: { tmdb: "1721422" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Le Réveil de la Momie": {
@@ -30631,7 +30631,7 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "Le Réveil de la Momie | Bande-annonce officielle (VF) | Lee Cronin, Jason Blum, James Wan",
       ids: { tmdb: "1304313", imdb: "tt32612507" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     Obsession: {
@@ -30651,7 +30651,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "OBSESSION | Spot Quotes",
       ids: { tmdb: "1339713", imdb: "tt37287335" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Aymeric Lompret & Pierre-Emmanuel Barré Woke me up !": {
@@ -30671,7 +30671,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "1629753", imdb: "tt40525855" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     Backrooms: {
@@ -30691,7 +30691,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "BACKROOMS - Bande-annonce",
       ids: { tmdb: "1083381", imdb: "tt26657236" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     Lucky: {
@@ -30711,9 +30711,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Bande-annonce officielle",
       ids: { tmdb: "278624", imdb: "tt34866681", tvdb: 457437 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [{ n: 1, ep: 7, air: "2026-07-14" }],
+      seasons: [{ n: 1, ep: 7, air: "2026-07-14" }],
       eps: {
         1: [
           { n: 1, t: "Pas de raccourci", air: "2026-07-14" },
@@ -30742,7 +30742,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "1413805", imdb: "tt35307139" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Gone Girls The Long Island Serial Killer": {
@@ -30757,9 +30757,9 @@ import { screens, panel, bridge } from "../seams.js";
       cast: [{ n: "Jaclyn Gallucci", r: "Self" }],
       trailer: null,
       ids: { tmdb: "285084", imdb: "tt35629774", tvdb: 459609 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [{ n: 1, ep: 3, air: "2025-03-31" }],
+      seasons: [{ n: 1, ep: 3, air: "2025-03-31" }],
       eps: {
         1: [
           { n: 1, t: "Première partie", air: "2025-03-31" },
@@ -30785,7 +30785,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "12169", imdb: "tt0926759" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Rick and Morty (2013)": {
@@ -30805,9 +30805,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "60625", imdb: "tt2861424", tvdb: 275274 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 11, air: "2013-12-02" },
         { n: 2, ep: 10, air: "2015-07-26" },
         { n: 3, ep: 10, air: "2017-04-01" },
@@ -30987,9 +30987,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "60625", imdb: "tt2861424", tvdb: 275274 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 11, air: "2013-12-02" },
         { n: 2, ep: 10, air: "2015-07-26" },
         { n: 3, ep: 10, air: "2017-04-01" },
@@ -31170,7 +31170,7 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "STAR WARS : THE MANDALORIAN AND GROGU - Bande-annonce immersive",
       ids: { tmdb: "1228710", imdb: "tt30825738" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Disclosure Day": {
@@ -31191,7 +31191,7 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "DISCLOSURE DAY | Bande-annonce finale VOST [Au cinéma le 10.06.2026]",
       ids: { tmdb: "1275779", imdb: "tt15047880" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "The Hawk": {
@@ -31211,9 +31211,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "The Hawk | Bande-annonce officielle VF | Netflix France",
       ids: { tmdb: "254528", imdb: "tt27550719", tvdb: 450088 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [{ n: 1, ep: 10, air: "2026-07-16" }],
+      seasons: [{ n: 1, ep: 10, air: "2026-07-16" }],
       eps: {
         1: [
           { n: 1, t: "The Hawk", air: "2026-07-16" },
@@ -31247,7 +31247,7 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "Supergirl | Bande-annonce officielle 2 (VOST) | Milly Alcock, Jason Momoa",
       ids: { tmdb: "1081003", imdb: "tt8814476" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Alexandre Kominek Bâtard sensible": {
@@ -31262,7 +31262,7 @@ import { screens, panel, bridge } from "../seams.js";
       cast: [{ n: "Alexandre Kominek", r: "Self" }],
       trailer: "Bâtard Sensible d'Alexandre Kominek",
       ids: { tmdb: "1688550" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     "Alison Wheeler La Promesse d'un soir": {
@@ -31277,7 +31277,7 @@ import { screens, panel, bridge } from "../seams.js";
       cast: [{ n: "Alison Wheeler", r: "Self" }],
       trailer: null,
       ids: { tmdb: "1657407" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
     Wicker: {
@@ -31297,7 +31297,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: "1195803", imdb: "tt29611136" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "Spider-Man : Brand New Day": {
@@ -31317,7 +31317,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Spider-Man : Brand New Day - Bande-annonce finale VOSTFR (HD)",
       ids: { tmdb: "969681", imdb: "tt22084616" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "L'Odyssée": {
@@ -31337,7 +31337,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "L'ODYSSÉE | Bande-annonce J-15 VF [Au cinéma le 15.07.26]",
       ids: { tmdb: "1368337", imdb: "tt33764258" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "Kyma, l'onde mystérieuse": {
@@ -31358,7 +31358,7 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "KYMA, L'ONDE MYSTÉRIEUSE - Bande-annonce en audiodescription pour déficients visuels",
       ids: { tmdb: "1365362", imdb: "tt34809883" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "Qui a poussé Mélodie": {
@@ -31378,9 +31378,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: 281321 },
-      statut: "En cours",
+      status: "En cours",
       possede: true,
-      saisons: [{ n: 1, ep: 10, air: "2025-01-06" }],
+      seasons: [{ n: 1, ep: 10, air: "2025-01-06" }],
       eps: {
         1: [
           { n: 1, t: "Épisode 1", air: "2025-01-06" },
@@ -31413,9 +31413,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "DIE HART 2 Bande Annonce VF (2024) Kevin Hart",
       ids: { tmdb: 99072, imdb: "tt10726424", tvdb: 377298 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: true,
-      saisons: [
+      seasons: [
         { n: 1, ep: 10, air: "2020-07-20" },
         { n: 2, ep: 8, air: "2023-03-31" },
         { n: 3, ep: 7, air: "2024-12-13" },
@@ -31471,9 +31471,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "House of the Dragon – Bande-Annonce officielle (VOST)",
       ids: { tmdb: 94997, imdb: "tt11198330", tvdb: 371572 },
-      statut: "En cours",
+      status: "En cours",
       possede: false,
-      saisons: [
+      seasons: [
         { n: 1, ep: 10, air: "2022-08-21" },
         { n: 2, ep: 8, air: "2024-06-16" },
         { n: 3, ep: 8, air: "2026-06-21" },
@@ -31530,9 +31530,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: 103516, imdb: "tt12327578", tvdb: 382389 },
-      statut: "En cours",
+      status: "En cours",
       possede: false,
-      saisons: [
+      seasons: [
         { n: 1, ep: 10, air: "2022-05-05" },
         { n: 2, ep: 10, air: "2023-06-15" },
         { n: 3, ep: 10, air: "2025-07-17" },
@@ -31618,9 +31618,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Bande-annonce officielle [VOSTFR]",
       ids: { tmdb: 97546, imdb: "tt10986410", tvdb: 383203 },
-      statut: "En cours",
+      status: "En cours",
       possede: false,
-      saisons: [
+      seasons: [
         { n: 1, ep: 10, air: "2020-08-14" },
         { n: 2, ep: 12, air: "2021-07-23" },
         { n: 3, ep: 12, air: "2023-03-14" },
@@ -31693,7 +31693,7 @@ import { screens, panel, bridge } from "../seams.js";
       cast: [{ n: "Chris Rock", r: "Self" }],
       trailer: null,
       ids: { tmdb: 14244, imdb: "tt1213574" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "Esprits criminels": {
@@ -31713,9 +31713,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: 4057, imdb: "tt0452046", tvdb: 75710 },
-      statut: "En cours",
+      status: "En cours",
       possede: false,
-      saisons: [
+      seasons: [
         { n: 1, ep: 22, air: "2005-09-22" },
         { n: 2, ep: 23, air: "2006-09-20" },
         { n: 3, ep: 20, air: "2007-09-25" },
@@ -32166,7 +32166,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Avengers : Infinity War - Bande-annonce 3 VOST",
       ids: { tmdb: 299536, imdb: "tt4154756" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     Arrow: {
@@ -32186,9 +32186,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: 1412, imdb: "tt2193021", tvdb: 257655 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: false,
-      saisons: [
+      seasons: [
         { n: 1, ep: 23, air: "2012-10-10" },
         { n: 2, ep: 23, air: "2013-10-09" },
         { n: 3, ep: 23, air: "2014-10-08" },
@@ -32409,7 +32409,7 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "Avatar : De Feu et de Cendres - Bande-annonce officielle (VF) | 20th Century Studios",
       ids: { tmdb: 83533, imdb: "tt1757678" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     Conclave: {
@@ -32429,7 +32429,7 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "CONCLAVE | Bande annonce officielle",
       ids: { tmdb: 974576, imdb: "tt20215234" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "Les Zinzins de l'Espace": {
@@ -32449,9 +32449,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: 11801, imdb: "tt0118343", tvdb: 73248 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: false,
-      saisons: [
+      seasons: [
         { n: 1, ep: 50, air: "1997-09-06" },
         { n: 2, ep: 52, air: "2005-09-03" },
       ],
@@ -32581,9 +32581,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: 1546, imdb: "tt0126170", tvdb: 71780 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: false,
-      saisons: [
+      seasons: [
         { n: 1, ep: 26, air: "1997-09-13" },
         { n: 2, ep: 25, air: "1998-09-12" },
         { n: 3, ep: 16, air: "1999-09-11" },
@@ -32750,9 +32750,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: 4194, imdb: "tt0458290", tvdb: 83268 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: false,
-      saisons: [
+      seasons: [
         { n: 1, ep: 22, air: "2008-10-03" },
         { n: 2, ep: 22, air: "2009-10-02" },
         { n: 3, ep: 22, air: "2010-09-17" },
@@ -32937,7 +32937,7 @@ import { screens, panel, bridge } from "../seams.js";
       trailer:
         "STAR WARS : THE MANDALORIAN AND GROGU - Bande-annonce immersive",
       ids: { tmdb: 1228710, imdb: "tt30825738" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: false,
     },
     "Star Wars : Les Aventures des Petits Jedi": {
@@ -32957,9 +32957,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: null,
       ids: { tmdb: 202998, imdb: "tt20674124", tvdb: 420658 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: false,
-      saisons: [
+      seasons: [
         { n: 1, ep: 25, air: "2023-05-04" },
         { n: 2, ep: 23, air: "2024-08-14" },
         { n: 3, ep: 7, air: "2025-12-08" },
@@ -33155,9 +33155,9 @@ import { screens, panel, bridge } from "../seams.js";
       ],
       trailer: "Star Wars: The Clone Wars (VF) - Bande Annonce",
       ids: { tmdb: 3122, imdb: "tt0361243", tvdb: 72244 },
-      statut: "Terminée",
+      status: "Terminée",
       possede: false,
-      saisons: [
+      seasons: [
         { n: 1, ep: 10, air: "2003-11-07" },
         { n: 2, ep: 10, air: "2004-03-26" },
         { n: 3, ep: 5, air: "2005-03-21" },
@@ -33208,7 +33208,7 @@ import { screens, panel, bridge } from "../seams.js";
       cast: [{ n: "Jim Gaffigan", r: "Himself" }],
       trailer: null,
       ids: { tmdb: 101449, imdb: "tt2273321" },
-      statut: "Sorti",
+      status: "Sorti",
       possede: true,
     },
   };
@@ -33221,7 +33221,7 @@ import { screens, panel, bridge } from "../seams.js";
       g: "Science-Fiction & Fantastique · Drame",
       cr: "Graham Yost",
       ov: "Dans un monde futur dévasté et toxique, des milliers de survivants habitent un gigantesque silo souterrain. Après la transgression d'une règle d'or par leur shérif et la mort mystérieuse de plusieurs résidents, Juliette, une mécanicienne, perce peu à peu les terribles secrets du Silo.",
-      saisons: [
+      seasons: [
         [3, 6, 6],
         [2, 10, 10],
         [1, 10, 10],
@@ -33296,10 +33296,10 @@ import { screens, panel, bridge } from "../seams.js";
      provider catalogue; null when unknown — the sheet then shows « ? »
      rather than an invented total, because each question has a single
      derivation. */
-  function seasonsOf(titre) {
-    const sheetFound = sheetFor(titre);
-    const held = OWNED[titre] ?? OWNED[baseTitle(titre)] ?? null;
-    const cat = sheetFound?.saisons ?? [];
+  function seasonsOf(title) {
+    const sheetFound = sheetFor(title);
+    const held = OWNED[title] ?? OWNED[baseTitle(title)] ?? null;
+    const cat = sheetFound?.seasons ?? [];
     if (cat.length) {
       return cat.map((cat2) => {
         const ownedNumbers = held?.[String(cat2.n)] ?? [];
@@ -33317,17 +33317,17 @@ import { screens, panel, bridge } from "../seams.js";
         .sort((map, index) => map - index)
         .map((sort) => [sort, null, held[String(sort)].length]);
     }
-    return (SEASONS[titre] ?? SEASONS[baseTitle(titre)] ?? []).map(
+    return (SEASONS[title] ?? SEASONS[baseTitle(title)] ?? []).map(
       (element) => [element[0], element[1], element[2]],
     );
   }
 
   /* Owned episodes of a season, as a set. Null when the series is unknown
      to the library: claim nothing in that case. */
-  function ownedFor(titre, saison) {
-    const ownedBySeason = OWNED[titre] ?? OWNED[baseTitle(titre)] ?? null;
+  function ownedFor(title, season) {
+    const ownedBySeason = OWNED[title] ?? OWNED[baseTitle(title)] ?? null;
     if (!ownedBySeason) return null;
-    const ownedNumbers = ownedBySeason[String(saison)];
+    const ownedNumbers = ownedBySeason[String(season)];
     return ownedNumbers ? new Set(ownedNumbers) : new Set();
   }
 
@@ -33401,17 +33401,17 @@ import { screens, panel, bridge } from "../seams.js";
                    owned count » threshold assumes the hole is always at the
                    end of the season: false for 35 series in this library. */
                 const episodeState = future
-                  ? "annonce"
+                  ? "announced"
                   : !possede || !held
-                    ? "non_verifie"
+                    ? "unverified"
                     : held.has(liste2.n)
-                      ? "en_mediatheque"
-                      : "a_recuperer";
+                      ? "in_library"
+                      : "to_grab";
                 return `<div class="eprow ${episodeState}">
                   <span class="epdot"></span>
                   <span class="en">E${String(liste2.n).padStart(2, "0")}</span>
                   <span class="et">${escapeHtml(liste2.t)}</span>
-                  <span class="ed">${liste2.air ? dateFR(liste2.air) : "date inconnue"}${episodeState === "en_mediatheque" ? "" : ` · ${EP_LABEL[episodeState].toLowerCase()}`}</span>
+                  <span class="ed">${liste2.air ? dateFR(liste2.air) : "date inconnue"}${episodeState === "in_library" ? "" : ` · ${EP_LABEL[episodeState].toLowerCase()}`}</span>
                 </div>`;
               })
               .join("")}</div>`
@@ -33425,8 +33425,8 @@ import { screens, panel, bridge } from "../seams.js";
                 (ignored, index) => {
                   const number = index + 1;
                   const episodeState = held.has(number)
-                    ? "en_mediatheque"
-                    : "a_recuperer";
+                    ? "in_library"
+                    : "to_grab";
                   return `<span class="ep ${episodeState}" aria-label="Épisode ${number} — ${EP_LABEL[episodeState]}">${String(number).padStart(2, "0")}</span>`;
                 },
               ).join("")}</div>${
@@ -33461,13 +33461,13 @@ import { screens, panel, bridge } from "../seams.js";
   }
 
   /* The media sheet moved to the shell with the rest of the screens:
-     `src/screens/media.tsx` renders it as the route `/fiche/$titre`. The
+     `src/screens/media.tsx` renders it as the route `/mediasheet/$title`. The
      verb a call site says is `screens.mediaSheet(title)`; the template,
      the seasons and the actions live there, at identical markup — the
      click delegation below still reads their data attributes. */
   /* The resolution screen moved to the shell the same way:
      `src/screens/resolution.tsx` renders it as the route
-     `/resolution/$dossier`, and the design rationale it carries — what the
+     `/resolution/$folder`, and the design rationale it carries — what the
      screen is FOR, why a tied score is not printed, the three ways out —
      moved there with it. The verb a call site says is
      `screens.resolution(dossier, remplacer)`: it resolves the same
@@ -33510,16 +33510,16 @@ import { screens, panel, bridge } from "../seams.js";
     const held = ownedFor(follow.t, seasonNumber);
     if (held)
       return held.has(num)
-        ? "en_mediatheque"
-        : follow && follow.st === "en_attente"
-          ? "en_attente"
-          : follow && follow.st === "en_acquisition"
-            ? "en_acquisition"
-            : "a_recuperer";
-    if (num <= owned) return "en_mediatheque";
-    if (follow && follow.st === "en_attente") return "en_attente";
-    if (follow && follow.st === "en_acquisition") return "en_acquisition";
-    return "a_recuperer";
+        ? "in_library"
+        : follow && follow.st === "pending"
+          ? "pending"
+          : follow && follow.st === "acquiring"
+            ? "acquiring"
+            : "to_grab";
+    if (num <= owned) return "in_library";
+    if (follow && follow.st === "pending") return "pending";
+    if (follow && follow.st === "acquiring") return "acquiring";
+    return "to_grab";
   }
 
   /* Tapping a cell: its air date, in French. The sentence follows the state
@@ -33532,9 +33532,9 @@ import { screens, panel, bridge } from "../seams.js";
   }
   function openPopEp(btn) {
     closePopEp();
-    const [titre, saison, episodeNumber, state] = btn.dataset.ep.split("|");
-    const sheetFound = sheetFor(titre);
-    const list = sheetFound?.eps?.[saison] ?? null;
+    const [title, season, episodeNumber, state] = btn.dataset.ep.split("|");
+    const sheetFound = sheetFor(title);
+    const list = sheetFound?.eps?.[season] ?? null;
     const episode =
       list?.find((liste2) => String(liste2.n) === episodeNumber) ?? null;
     const airDate = episode?.air ? dateFR(episode.air) : null;
@@ -33542,12 +33542,12 @@ import { screens, panel, bridge } from "../seams.js";
     const phrase =
       airDate == null
         ? "Date de diffusion inconnue."
-        : future || state === "annonce"
+        : future || state === "announced"
           ? `Sortie prévue le ${airDate}`
           : `Diffusé le ${airDate}`;
     const createElement = document.createElement("div");
     createElement.className = "eppop";
-    createElement.innerHTML = `<b>S${String(saison).padStart(2, "0")}E${String(episodeNumber).padStart(2, "0")}${episode?.t ? " · " + escapeHtml(episode.t) : ""}</b>${escapeHtml(phrase)}<br><span style="color:var(--muted-foreground)">${escapeHtml(EP_LABEL[state] ?? "")}</span>`;
+    createElement.innerHTML = `<b>S${String(season).padStart(2, "0")}E${String(episodeNumber).padStart(2, "0")}${episode?.t ? " · " + escapeHtml(episode.t) : ""}</b>${escapeHtml(phrase)}<br><span style="color:var(--muted-foreground)">${escapeHtml(EP_LABEL[state] ?? "")}</span>`;
     document.querySelector("#device").appendChild(createElement);
     const rect = btn.getBoundingClientRect();
     const dev = document.querySelector("#device").getBoundingClientRect();
@@ -33571,13 +33571,13 @@ import { screens, panel, bridge } from "../seams.js";
       INCOMPLETE.map((INCOMPLETE2) => ({
         t: INCOMPLETE2.t,
         k: "show",
-        st: "a_recuperer",
+        st: "to_grab",
         own: INCOMPLETE2.o,
         aired: INCOMPLETE2.a,
       })).find((map) => map.t === title) || {
         t: title,
         k: "show",
-        st: "a_jour",
+        st: "up_to_date",
       };
     const seasons = (SEASONS[title] || [])
       .slice()
@@ -33619,8 +33619,8 @@ import { screens, panel, bridge } from "../seams.js";
         ? `${own}/${aired}`
         : (stFraction(follow) ?? "—");
     panel.open({
-      titre: follow.t,
-      affiche: { t: follow.t, k: follow.k },
+      title: follow.t,
+      poster: { t: follow.t, k: follow.k },
       meta: `${follow.y ? String(follow.y) + " · " : ""}${isFilm ? "Film" : "Série"}${frac ? " · " + frac + " épisodes" : ""}`,
       puce: [ST_TONE[follow.st], stLabel(follow)],
       blocs: [
@@ -33637,29 +33637,29 @@ import { screens, panel, bridge } from "../seams.js";
                that would find nothing. */
             toResolve
               ? {
-                  texte: "Résoudre →",
+                  text: "Résoudre →",
                   icone: icons.play,
                   ton: "primary",
                   target: { resolve: follow.t },
                 }
               : toTake
                 ? {
-                    texte: "Récupérer maintenant",
+                    text: "Récupérer maintenant",
                     icone: icons.play,
                     ton: "primary",
                     target: { take: follow.t },
                   }
                 : incomplete
                   ? {
-                      texte: "Compléter → Acquisitions",
+                      text: "Compléter → Acquisitions",
                       icone: icons.play,
                       ton: "primary",
                       target: { complete: follow.t },
                     }
                   : isFollowed
                     ? {
-                        texte:
-                          follow.st === "a_recuperer"
+                        text:
+                          follow.st === "to_grab"
                             ? "Récupérer maintenant"
                             : "Chercher maintenant",
                         icone: icons.play,
@@ -33668,13 +33668,13 @@ import { screens, panel, bridge } from "../seams.js";
                       }
                     : hasSheet
                       ? {
-                          texte: "Voir la fiche",
+                          text: "Voir la fiche",
                           icone: icons.eye,
                           ton: "primary",
                           target: { mediasheet: follow.t },
                         }
                       : {
-                          texte: "Voir le parcours",
+                          text: "Voir le parcours",
                           icone: icons.refresh,
                           ton: "primary",
                           target: { journey: follow.t },
@@ -33682,34 +33682,34 @@ import { screens, panel, bridge } from "../seams.js";
           ],
         },
         seasons.length
-          ? { type: "saisons", isFollowed: follow, saisons: seasons }
+          ? { type: "saisons", isFollowed: follow, seasons: seasons }
           : isFilm
             ? {
                 type: "note",
-                texte:
+                text:
                   "Un film n'a pas de catalogue d'épisodes : il est acquis, ou il ne l'est pas.",
               }
             : {
                 type: "note",
-                texte:
+                text:
                   "Aucune donnée de saison connue pour cette série — le catalogue n'a pas encore été récupéré. La fraction affiche « — », jamais « 0/0 » qui se lirait comme une série vide.",
               },
         {
           type: "actions",
-          secondaire: true,
+          secondary: true,
           actions: [
             /* « Voir la fiche » is reachable from the panel whenever a sheet
                exists. It is omitted only when it is ALREADY the primary
                action, which happens for a medium that is owned and whole. */
             hasSheet && (toResolve || toTake || incomplete || isFollowed)
               ? {
-                  texte: "Voir la fiche",
+                  text: "Voir la fiche",
                   icone: icons.eye,
                   target: { mediasheet: follow.t },
                 }
               : null,
             {
-              texte: "Voir le parcours",
+              text: "Voir le parcours",
               icone: icons.refresh,
               target: { journey: follow.t },
             },
@@ -33718,21 +33718,21 @@ import { screens, panel, bridge } from "../seams.js";
                can only disappoint. */
             isFollowed || incomplete || toTake
               ? {
-                  texte: "Chercher une autre release",
+                  text: "Chercher une autre release",
                   icone: icons.search,
                   target: { releases: follow.t },
                 }
               : null,
             isFollowed || incomplete || toTake
               ? {
-                  texte: "Profil de qualité",
+                  text: "Profil de qualité",
                   icone: icons.sort,
                   target: { profile: follow.t },
                 }
               : null,
             inLibrary
               ? {
-                  texte: "Re-scraper les métadonnées",
+                  text: "Re-scraper les métadonnées",
                   icone: icons.refresh,
                   target: { rescrape: follow.t },
                 }
@@ -33742,14 +33742,14 @@ import { screens, panel, bridge } from "../seams.js";
                there is nothing to stop. */
             isFollowed
               ? {
-                  texte: isFilm ? "Ne plus chercher" : "Mettre en pause",
+                  text: isFilm ? "Ne plus chercher" : "Mettre en pause",
                   icone: icons.x,
                   target: { pause: follow.t },
                 }
               : null,
             isFollowed
               ? {
-                  texte: isFilm ? "Retirer de la liste" : "Retirer le suivi",
+                  text: isFilm ? "Retirer de la liste" : "Retirer le suivi",
                   icone: icons.trash,
                   ton: "danger",
                   target: { remove: follow.t },
@@ -33757,7 +33757,7 @@ import { screens, panel, bridge } from "../seams.js";
               : null,
             inLibrary
               ? {
-                  texte: "Supprimer de la médiathèque",
+                  text: "Supprimer de la médiathèque",
                   icone: icons.trash,
                   ton: "danger",
                   target: { del: follow.t },
@@ -33768,7 +33768,7 @@ import { screens, panel, bridge } from "../seams.js";
         isFilm
           ? {
               type: "note",
-              texte:
+              text:
                 "Une fois acquis, ce film quittera automatiquement votre liste (§5).",
             }
           : null,
@@ -33789,7 +33789,7 @@ import { screens, panel, bridge } from "../seams.js";
       ["Rangé en médiathèque", "à venir", "todo"],
     ];
     panel.open({
-      titre: title,
+      title: title,
       meta: [
         "Parcours de l'acquisition · release ",
         { m: "Furious.S01E01.MULTi.1080p.WEB-DL" },
@@ -33807,14 +33807,14 @@ import { screens, panel, bridge } from "../seams.js";
         },
         {
           type: "note",
-          texte:
+          text:
             "Les dates viennent de la spine de provenance. Une étape non encore atteinte affiche « à venir » — jamais une date reconstruite.",
         },
         {
           type: "actions",
           actions: [
             {
-              texte: "Voir la fiche",
+              text: "Voir la fiche",
               icone: icons.eye,
               target: { mediasheet: title },
             },
@@ -33825,7 +33825,7 @@ import { screens, panel, bridge } from "../seams.js";
   }
 
   /* Add screen (« + ») — migrated to a real route, `AddScreen`
-     (`design/src/screens/add.tsx`, reached at `/ajout`). The design
+     (`design/src/screens/add.tsx`, reached at `/add`). The design
      rationale (full screen not a sheet, vertical result list, the two
      modes' verbs) lives there now, next to the code it explains. `SEARCH`,
      `cardHTML` and `addVerb` stay defined here and cross the handshake
@@ -33833,7 +33833,7 @@ import { screens, panel, bridge } from "../seams.js";
      the engine's, reached through that seam. */
 
   /* Choose another release — migrated to a real route, `ReleasesScreen`
-     (`design/src/screens/releases.tsx`, reached at `/releases/$titre`). Show
+     (`design/src/screens/releases.tsx`, reached at `/releases/$title`). Show
      what is NOT happening and why. Here: why the engine picked this one —
      and enough to pick another knowingly. The score shown is the ranking's,
      not an opinion. `RELEASES` stays defined here and crosses the handshake
@@ -33841,7 +33841,7 @@ import { screens, panel, bridge } from "../seams.js";
 
   function openMoreSheet() {
     panel.open({
-      titre: "Veille et obligations",
+      title: "Veille et obligations",
       meta: "Second rang — consulté, pas surveillé.",
       blocs: [
         {
@@ -33849,7 +33849,7 @@ import { screens, panel, bridge } from "../seams.js";
           lignes: [
             { c: "Dernier passage", v: "il y a 22 min" },
             { c: "Prochain passage", v: "dans 38 min" },
-            { c: "Ratio global", v: "2,41", pipValeur: "success" },
+            { c: "Ratio global", v: "2,41", pipValue: "success" },
             { c: "Obligations en cours", v: "3 torrents" },
           ],
         },
@@ -33857,7 +33857,7 @@ import { screens, panel, bridge } from "../seams.js";
           type: "actions",
           actions: [
             {
-              texte: "Lancer la veille maintenant",
+              text: "Lancer la veille maintenant",
               icone: icons.refresh,
               ton: "primary",
               target: { standby: "1" },
@@ -33979,8 +33979,8 @@ import { screens, panel, bridge } from "../seams.js";
       }
       if (cardDrag.axis !== "x") return;
       const brut = cardDrag.depart + deltaX;
-      cardDrag.dernierX = event.clientX;
-      cardDrag.dernierY = event.clientY;
+      cardDrag.lastX = event.clientX;
+      cardDrag.lastY = event.clientY;
       /* An open row can only be CLOSED by a drag. Its travel is clamped
          between where it rests and zero, so a swipe the other way settles it
          back rather than crossing rest and opening the opposite drawer within
@@ -34040,11 +34040,11 @@ import { screens, panel, bridge } from "../seams.js";
        SWALLOWED rather than that no panel appeared. A panel that fails to
        appear can be an accident of where the release landed. */
     const travelled = Math.hypot(
-      (drag.dernierX ?? drag.x) - drag.x,
-      (drag.dernierY ?? drag.y) - drag.y,
+      (drag.lastX ?? drag.x) - drag.x,
+      (drag.lastY ?? drag.y) - drag.y,
     );
     clickAfterDrag =
-      travelled > 4 ? { x: drag.dernierX, y: drag.dernierY } : null;
+      travelled > 4 ? { x: drag.lastX, y: drag.lastY } : null;
   }
   window.addEventListener("pointerup", endCardDrag);
   window.addEventListener("pointercancel", endCardDrag);
@@ -34396,7 +34396,7 @@ import { screens, panel, bridge } from "../seams.js";
      real — starts it, so no write ever needs recording and replaying, and a
      module that never evaluates leaves the startup screen on screen: a
      visible, truthful failure instead of an app with mute verbs. */
-  window.__demarrerMoteur = function (deps) {
+  window.__startEngine = function (deps) {
     store = deps.store;
     // Set before any write can happen (`adoptState`/`adoptWorld` below
     // do not write to history, but the earliest legacy write is one line
@@ -34436,7 +34436,7 @@ import { screens, panel, bridge } from "../seams.js";
        left to cover — but it does not come off on that line. It comes off
        when the wait it covers RESOLVES, which is the only rule that serves
        both a prototype with nothing to fetch and an app with a real one. */
-    window.__chargementTermine();
+    window.__loadingDone();
     /* The guard is the FIRST entry, and the opening page sits on top of it.
        It cannot be anywhere else: nothing can be inserted below the entry a
        document opens on, so the guard has to BE that entry. */

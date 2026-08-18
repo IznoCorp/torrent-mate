@@ -223,7 +223,7 @@ describe("router", () => {
     ).toBeInTheDocument();
   });
 
-  it("redirige /maintenance (sans ?run=) vers /systeme?tab=journal (canonical, systeme-hub)", async () => {
+  it("redirige /maintenance (sans ?run=) vers /system?tab=journal (canonical, systeme-hub)", async () => {
     const client = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
@@ -242,7 +242,7 @@ describe("router", () => {
     );
 
     await waitFor(() => {
-      expect(router.state.location.pathname).toBe("/systeme");
+      expect(router.state.location.pathname).toBe("/system");
       expect(new URLSearchParams(router.state.location.search).get("tab")).toBe(
         "journal",
       );
@@ -273,7 +273,7 @@ describe("router", () => {
     });
   });
 
-  it("redirige /maintenance (sans ?run=) vers /systeme?tab=journal (canonical, remplace le rendu direct de Maintenance)", async () => {
+  it("redirige /maintenance (sans ?run=) vers /system?tab=journal (canonical, remplace le rendu direct de Maintenance)", async () => {
     const client = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
@@ -291,11 +291,11 @@ describe("router", () => {
       </QueryClientProvider>,
     );
 
-    // The redirect lands on /systeme — the "Système" heading renders.
+    // The redirect lands on /system — the "Système" heading renders.
     expect(
       await screen.findByRole("heading", { name: "Système" }),
     ).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe("/systeme");
+    expect(router.state.location.pathname).toBe("/system");
     expect(new URLSearchParams(router.state.location.search).get("tab")).toBe(
       "journal",
     );
@@ -330,7 +330,7 @@ describe("router", () => {
 
   // --- B2: empty ?run= stays on Maintenance (no redirect) ---
 
-  it("redirige /maintenance?run= (paramètre vide) vers /systeme?tab=journal (no-run branch, systeme-hub)", async () => {
+  it("redirige /maintenance?run= (paramètre vide) vers /system?tab=journal (no-run branch, systeme-hub)", async () => {
     const client = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
@@ -348,19 +348,19 @@ describe("router", () => {
       </QueryClientProvider>,
     );
 
-    // Empty ?run= → no-run branch → redirect to /systeme?tab=journal.
+    // Empty ?run= → no-run branch → redirect to /system?tab=journal.
     await waitFor(() => {
-      expect(router.state.location.pathname).toBe("/systeme");
+      expect(router.state.location.pathname).toBe("/system");
       expect(new URLSearchParams(router.state.location.search).get("tab")).toBe(
         "journal",
       );
     });
   });
 
-  // --- /systeme route (systeme-hub Phase 02) ---
+  // --- /system route (systeme-hub Phase 02) ---
 
-  it("affiche la page Système sur « /systeme »", async () => {
-    renderAt("/systeme");
+  it("affiche la page Système sur « /system »", async () => {
+    renderAt("/system");
 
     expect(
       await screen.findByRole("heading", { name: "Système" }),
@@ -376,7 +376,7 @@ describe("router", () => {
 
   // --- /registry redirect (systeme-hub Phase 02) ---
 
-  it("redirige /registry vers /systeme (canonical, systeme-hub)", async () => {
+  it("redirige /registry vers /system (canonical, systeme-hub)", async () => {
     const client = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
@@ -395,12 +395,12 @@ describe("router", () => {
     );
 
     await waitFor(() => {
-      expect(router.state.location.pathname).toBe("/systeme");
+      expect(router.state.location.pathname).toBe("/system");
       expect(router.state.location.search).toBe("");
     });
   });
 
-  it("transmet les paramètres additionnels de /registry vers /systeme", async () => {
+  it("transmet les paramètres additionnels de /registry vers /system", async () => {
     const client = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
@@ -419,7 +419,7 @@ describe("router", () => {
     );
 
     await waitFor(() => {
-      expect(router.state.location.pathname).toBe("/systeme");
+      expect(router.state.location.pathname).toBe("/system");
       // LegacyRedirect appends source params to the clean target path.
       // Assert PARSED params — not toContain on the raw string (which would
       // certify a double-? broken URL from the old ?tab=etat-in-to approach).
@@ -428,8 +428,8 @@ describe("router", () => {
     });
   });
 
-  it("monte la page Médias sur « /medias »", async () => {
-    renderAt("/medias");
+  it("monte la page Médias sur « /media »", async () => {
+    renderAt("/media");
 
     // The Medias page heading replaces the old Decisions page (S3).
     expect(
@@ -437,16 +437,16 @@ describe("router", () => {
     ).toBeInTheDocument();
   });
 
-  it("redirige « /scraping » vers « /medias »", async () => {
+  it("redirige « /scraping » vers « /media »", async () => {
     renderAt("/scraping");
 
-    // /scraping → LegacyRedirect → Navigate to /medias → Medias heading visible.
+    // /scraping → LegacyRedirect → Navigate to /media → Medias heading visible.
     expect(
       await screen.findByRole("heading", { name: "Médias" }),
     ).toBeInTheDocument();
   });
 
-  it("transmet ?media=X de /scraping vers /medias (memory-router)", async () => {
+  it("transmet ?media=X de /scraping vers /media (memory-router)", async () => {
     const client = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
@@ -465,12 +465,12 @@ describe("router", () => {
     );
 
     await waitFor(() => {
-      expect(router.state.location.pathname).toBe("/medias");
+      expect(router.state.location.pathname).toBe("/media");
       expect(router.state.location.search).toBe("?media=tt0123456");
     });
   });
 
-  it("transmet ?decision=N de /scraping vers /medias (memory-router)", async () => {
+  it("transmet ?decision=N de /scraping vers /media (memory-router)", async () => {
     const client = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
@@ -489,7 +489,7 @@ describe("router", () => {
     );
 
     await waitFor(() => {
-      expect(router.state.location.pathname).toBe("/medias");
+      expect(router.state.location.pathname).toBe("/media");
       expect(router.state.location.search).toBe("?decision=42");
     });
   });
@@ -602,7 +602,7 @@ describe("router", () => {
       );
     });
 
-    renderAtWithSingleton("/controle");
+    renderAtWithSingleton("/control");
 
     // The stale-success `me` is invalidated on the health 401 → we land on the
     // login form and STAY there (no bounce back to the dashboard, no loop).
