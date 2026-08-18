@@ -84,14 +84,38 @@ Repeated rather than referenced.
       divergences.
 - [ ] Full suite. Commit.
 
-### Task 3: The suggestions' loading and the deck move too
+### Task 3: The suggestion machinery — WHAT MOVES, AND WHAT DOES NOT
 
-- [ ] `fillSug`, `sugFoot`, `sugObserver`, `refreshDeck`, `avancerDeck`, `sugCardHTML` move into
-      the component; `mountLoaders` retires.
-- [ ] The deck's gesture still animates: R55 (`touch.py`), R64 (`drag.py`), `deck.py` and
-      `mouse.py` green at unchanged rule code — the deck is measured by four rules, which is what
-      makes this the riskiest half.
-- [ ] Full suite. Commit.
+**Measured before deciding** (2026-08-18): `avancerDeck` mutates the deck's own DOM in place —
+it inserts a card at the back, decrements every `data-depth`, writes an inline transform on the
+outgoing one and removes it 440 ms later, and only rebuilds the pile when it empties. Its own
+comment says why: « a replaced node cannot animate ». React owning that markup would restore the
+string it last rendered on the next repaint and undo all of it, so converting the deck means
+REWRITING the gesture — a behaviour change, in the half four rules measure (R55 `touch.py`, R64
+`drag.py`, `deck.py`, `mouse.py`).
+
+So the page's MARKUP migrates and the suggestion machinery does not, and the seam is named rather
+than left to be discovered: the component draws `#sugitems`, `#sugload` and `.deckbody` as
+containers it never fills, and the fragment keeps filling them exactly as it does today. React
+manages zero children there, so neither world removes the other's nodes — the arrangement
+`paintSelBar` already has, one level down.
+
+- [ ] **Step 1:** The three containers are drawn by the component and filled by the fragment;
+      `mountLoaders` keeps its suggestions half.
+- [x] **Step 2:** A HOLD for the seam: the containers exist and the fragment fills them, proven by
+      what only the fragment does — it sets the container's own `className` and emits rows carrying
+      `data-dismissable`, neither of which any component writes. **The mutation this step first
+      named does not work, and the reason is worth keeping**: making the component render a child
+      into `#sugitems` changes nothing measurable, because `fillSug` writes `innerHTML` and erases
+      it. So the hold proves the arrangement WORKS; « React renders nothing there » is a design
+      rule the code states and the measurement cannot distinguish — and, measured, breaking it
+      costs nothing at runtime either: no crash, no console error, the fragment simply wins.
+- [ ] **Step 3:** R55, R64, `deck.py` and `mouse.py` green at unchanged rule code. Full suite.
+      Commit.
+
+**What this leaves for SP4-end**: the machinery moves to `src/` as an IMPERATIVE module — final
+code that mounts and steps aside — rather than as JSX. An imperative gesture engine is final
+code; what must die is the fragment as an editing source, not the technique.
 
 ### Task 4: `#follq` moves with its field, and `mountSearch` retires
 

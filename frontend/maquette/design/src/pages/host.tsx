@@ -42,9 +42,12 @@ import { useLayoutEffect, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { useUiState } from "../data";
+import { AccountPage } from "./account";
+import { AcquisitionPage } from "./acquisition";
 import { ArrivalsPage } from "./arrivals";
 import { LibraryPage } from "./library";
 import { MaintenancePage } from "./maintenance";
+import { NotFoundPage } from "./not-found";
 import { SettingsPage } from "./settings";
 import { SystemPage } from "./system";
 
@@ -60,11 +63,14 @@ type MigratedPage = {
 // The ONE place a later wave adds a page. An id absent from this table is a
 // page the legacy still draws, and nothing here touches it.
 const PAGES: Record<string, MigratedPage> = {
+  acq: { Body: AcquisitionPage },
   sys: { Body: SystemPage, root: "body" },
   arr: { Body: ArrivalsPage, root: "body" },
   lib: { Body: LibraryPage },
   maint: { Body: MaintenancePage, root: "body" },
   cfg: { Body: SettingsPage, root: "body" },
+  profil: { Body: AccountPage, root: "body" },
+  "404": { Body: NotFoundPage, root: "body" },
 };
 
 // The release, as a value React can subscribe to. It lives outside React

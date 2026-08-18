@@ -553,6 +553,88 @@ conversion removed about 230 lines and E-001 put back about as many, because an 
 written before it is moved. Pages the shell owns: `sys`, `maint`, `cfg`, `arr`, `lib`. The
 fragment still draws `acq`, plus `viewIntrouvable` and `viewProfil`.
 
+## SP4d wave 4 — Acquisition, and the last two pages
+
+Branch `feat/maquette-sp4d4`, version 0.97.21 (ONE bump for the wave). The last page wave, and
+the one that empties the page table: `viewAcquisition` — 290 lines, three tabs, a deck and a
+second infinite scroll — becomes `pages/acquisition.tsx`, and the two small pages nobody had
+counted go with it: `viewProfil` (48 lines, « Profil et préférences », off-bar) and
+`viewIntrouvable` (10, the unknown address). **`PAGES_OF()` now carries no `render` at all**,
+which is the condition SP4-end starts from.
+
+**What does NOT move, and why it was measured before deciding.** `avancerDeck` mutates the deck's
+own DOM in place — it inserts a card at the back, decrements every `data-depth`, writes an inline
+transform on the outgoing one and removes it 440 ms later — and its own comment says why: a
+replaced node cannot animate. React owning that markup would restore the string it last rendered
+on the next repaint and undo the gesture FOUR rules measure (R55, R64, `deck.py`, `mouse.py`). So
+the component draws `#sugitems`, `#sugload` and `.deckbody` and fills them only with what the FRAGMENT emits — the rows come from `fillSug` / `sugFoot`, and the deck's pile from `deckHTML`, written once when the container has none rather than on every commit: rewriting it on each render replaces the very nodes `avancerDeck` is animating, and « Passer » does write the store, so it re-renders. React manages no children there. React manages zero children there, so neither world removes the
+other's nodes — the arrangement `paintSelBar` already had, one level down. What SP4-end owes that
+machinery is a new HOME (`src/`, as an imperative module) rather than a rewrite: an imperative
+gesture engine is final code; what must die is the fragment as an editing source.
+
+**Two things the wholesale `innerHTML` rewrite did for free**, which had to be said out loud
+here. The fragment fills those containers DURING `render()`, before React has put them in the
+document, so a migrated page asks again from an effect — the same way it asks for the selection
+bar to be repainted. And the deck at rest, written into the body by that effect, is a node React
+does not know: a re-render leaves it in place, so the pile stayed at the top of every other
+state until the component learned to clear it.
+
+Fidelity by RECORDING, taken before any deletion: **0 divergences over all EIGHTEEN states** —
+the four of « En cours », the six of « Suivis », the six of « Découvrir », plus Profil and
+Introuvable.
+
+**A deletion that blanked the page, and the lesson under it.** `sugCardHTML` was deleted as dead
+code because counting `name(` found zero callers. It is used as a VALUE — `fillSug` chooses
+between it and `sugTileHTML` and calls whichever it chose — and the suggestions went blank at the
+first measurement. Restored, with the reason it looked dead written above it. The same faulty
+count is what made the recon miscount `secHTML`'s call sites a wave earlier: a symbol referenced
+without parentheses is invisible to it.
+
+R77 grew to 42 holds: the eight pages are all shell-owned, `LEGACY_OWNED` is EMPTY and the rule
+says so out loud rather than passing over an empty list, the « the page is drawn » floor stopped
+encoding the size of the pages that happened to exist when it was written (the unknown-address
+page is seven elements, by design), Acquisition's delegation gained four tap-driven holds — tab,
+pill, display mode, suggestion mode — and the seam itself gained one: the containers survive a
+round trip, still filled. Four mutations, one run each.
+
+**The drawer stays**, and this wave was not its last consumer: it still has two — the topbar
+burger, which is static app shell, and the « Voir toutes les pages » crossref of the
+unknown-address page, which is React now and emits the same `data-drawer`.
+
+**And the review found four defects, the first of which made the page inert.** Every action this
+page offers mutates the world IN PLACE and signals with `toucher()`, which leaves the state's
+identity unchanged — and the component subscribed to the state alone, so React bailed out and the
+page kept drawing what it had drawn. Measured: « Récupérer maintenant » moved a medium from one
+list to the other and left every counter on screen unchanged, 2/1/3/2/4 before and after. The two
+other pages that read mutable data subscribe to the version; this one did not. `#follq` had no
+handler at all — migrated as markup, its binding left to `mountSearch`, which runs inside
+`render()` before React has put the field in the document: typing filtered nothing until some
+other control forced a second render, the clear cross emptied the list but left the word in the
+field, and the `value` attribute never followed. What the operator TYPES reached a
+`dangerouslySetInnerHTML` unescaped, where the legacy escaped it — on the one call site that was
+missed, in a wave that had exported `escapeHtml` for exactly this. And the deck's « Passer »
+swipe had stopped animating: it writes the order to the store, so it re-renders, and the
+dependency-less effect rewrote `.deckbody` on every commit — replacing the very nodes
+`avancerDeck` animates, which is what that function's own comment forbids in as many words.
+
+R77 gained the hold that would have caught the first: an action that moves a medium redraws the
+page it moved it on. Mutation: removing the version subscription fells it, showing the counters
+identical on both sides. **Three more holds were not measuring enough.** The seam hold accepted
+« there are children », which a component rendering one satisfies too — it now reads what only
+the FRAGMENT does: the `className` it sets and the `data-dismissable` rows no component emits.
+The ownership hold read a constant declared fifty lines above it in the same file and could never
+fail — it asks `PAGES_OF()` now. And the « the page is drawn » floor had been lowered for ALL
+eight pages to admit the smallest; it is per page, measured, so a Médiathèque reduced to its tab
+bar no longer passes. `emptyHTML`, whose last four callers left with the pages, was deleted — it
+had stayed, and had been declared in the shell's type as if exported, which would have answered
+« is not a function » to the first component that believed it.
+
+**Wave gate**: `resync.py` moved the drawer's deployed-version card to the branch's base (0.97.20,
+build `52f28213`), committed as data; the full suite is **51 scripts, 571 holds, zero FAIL** (562 + 9 for R77); `make check` green including `check-frontend`; `scripts/check-no-french.py` green;
+R59/R69/R71 byte-identical against the merge point. The fragment went from 39 889 to 39 560
+lines. Every page belongs to the shell: `sys`, `maint`, `cfg`, `arr`, `lib`, `acq`, `profil`,
+`404`.
+
 ## What is already done, ahead of the phase plan
 
 The prototype and its harness carry the design; some app-side work was pulled forward because

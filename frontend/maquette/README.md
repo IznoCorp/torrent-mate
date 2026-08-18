@@ -60,7 +60,7 @@ runs, so nothing needs recording or replaying. A module that fails to evaluate s
 never calls `__demarrerMoteur`, and the startup screen — already first in the frame —
 stays up: a visible, truthful failure instead of an app with mute verbs.
 
-**Five PAGES are the shell's: `sys`, `maint`, `cfg`, `arr`, `lib`.** A page is not a screen — it has no
+**EVERY PAGE is the shell's: `sys`, `maint`, `cfg`, `arr`, `lib`, `acq`, `profil`, `404`.** A page is not a screen — it has no
 address of its own, `/` stays the pages' route with its legacy query, the legacy parser keeps
 owning it, and a page's markup must land inside `#view`, where the stylesheet, the harness
 selectors and the document-level click delegation all expect it. So the shell PORTALS into
@@ -79,7 +79,7 @@ A migrated page's entry loses its `render`, so clearing `shellOwned` without res
 renderer crashes rather than quietly drawing a page nobody maintains. What the page host owes
 the fragment in return: the legacy must never touch a node React holds — the settings page's
 save bar is a second portal, into `#device`, and the legacy's own removal of that node tore the
-React root down until the mounter was deleted. R77 (`page_host.py`) holds all of it — including one law about the RULES rather than the pages: no rule drives a page by mutating the engine's `state` alias. That alias points at the store's CURRENT object, so an in-place write leaves its identity unchanged, nothing React subscribes to moves, and the measurement lands on whatever page was drawn before.
+React root down until the mounter was deleted. The fragment's `PAGES_OF()` carries no `render` at all any more; what it still draws is the SUGGESTION machinery — `#sugitems`, `#sugload` and the deck's `.deckbody`, containers the Acquisition component draws and fills only with what the FRAGMENT emits — the rows from `fillSug`, the deck's pile from `deckHTML`, written once when the container has none rather than on every commit, because `avancerDeck` mutates the deck's own DOM in place and a replaced node cannot animate. R77 (`page_host.py`) holds all of it — including one law about the RULES rather than the pages: no rule drives a page by mutating the engine's `state` alias. That alias points at the store's CURRENT object, so an in-place write leaves its identity unchanged, nothing React subscribes to moves, and the measurement lands on whatever page was drawn before.
 
 **The panel is one component, opened through `window.__panneau`.** `<PanelContent>`
 (`components/panel.tsx`) is the single React constructor every panel draws through — a
