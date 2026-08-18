@@ -37,6 +37,25 @@ whitespace text node and gained a file-name mapping the legacy did not apply.
 Both were found by reading, which is the expensive way. Pass the host as the
 last argument (`--host '#device'`) and compare each one.
 
+A RECORDING AGES, AND TWO THINGS IN IT AGE FASTER THAN THE REST
+---------------------------------------------------------------
+`--against` compares today's page with a file written earlier, so anything the
+page derives from something OUTSIDE its own code will differ for reasons that
+have nothing to do with the conversion being measured. Two are known, and both
+have cost a diagnosis:
+
+- **The wall clock.** « Prochaine recherche à 3 h 20 » is
+  `prochaineRechercheFR(CADENCE_CRON, new Date())`. A recording taken at 03:00
+  and replayed at 15:00 differs on that line in every state that draws it.
+- **The embedded data.** `resync.py` rewrites the follow counters and the
+  drawer's deployed version from the live system, and the drawer is on screen
+  in every state — so one data commit makes a whole recording stale.
+
+Neither is a divergence to debug. Re-record, and take the comparison that
+matters BEFORE committing anything that moves data; if a recording must be
+compared across such a change, classify every differing token rather than
+reading the count — 35 of 82 states differed once, and all of it was those two.
+
 WHAT IT NORMALISES, AND WHY EACH ONE IS NOT A DIFFERENCE
 --------------------------------------------------------
 Three classes of difference cost a full measuring cycle each before they were
