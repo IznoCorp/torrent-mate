@@ -129,13 +129,25 @@ samples it reports a divergence about a clock.
 The 289 lines are the app shell: `.stage`, `.device`, the splash, the login gate, the topbar and
 its burger, the drawer, `#view`, `#screen`, the sheet and dialog hosts, the toast.
 
-- [ ] Measure who else reads this markup as TEXT. `serve.py` extracts the `login:splash` and
-      `pwa` blocks from it for the login gate — a re-point, not a rewrite, and its own tests
-      must be re-exercised.
+**It goes to `index.html`, not into React**, and the reason is the engine's boot. The engine
+captures its containers at module evaluation — `view = F('#view')` and its siblings — and a
+module evaluates BEFORE React has rendered anything. Markup drawn by a component would not
+exist when the engine looks for it, and the shell would have to stop starting the engine before
+its first render to fix that: a change to the boot contract, to move static markup. `index.html`
+is the document Vite owns, it is real source rather than a fragment injected verbatim, and its
+body is parsed before any module runs — exactly the order the markup has today.
+
+- [ ] Re-point `serve.py`'s login gate. It extracts FOUR CSS blocks (`login:font`, `palette`,
+      `socle`, `style`) which stay in the fragment, and ONE markup block (`login:markup`,
+      lines 4378–4427) which moves. So `login_page` reads two files afterwards, the way
+      `design_source()` already does for the rules.
+- [ ] `export.py` slices the fragment at `</style>` to get « markup + JS ». That slice becomes
+      empty — the third instance of this wave's recurring failure, and it must be re-pointed
+      before it can report a silent green.
+- [ ] `startup.py` (R53) reads the fragment for declaration order and the `login:*` markers.
 - [ ] Record before, convert, compare.
-- [ ] R72 (the fragment appears verbatim exactly once) is renegotiated: it can no longer be a
-      byte comparison of a file that no longer holds a program. What replaces it is recorded in
-      `regions.json` with the reason.
+- [ ] R72 measured, not assumed: the fragment is still injected verbatim, so the rule may well
+      survive untouched. Renegotiate only if the measurement says so, and record the reason.
 
 ## Wave 3 — the bridge dies
 
