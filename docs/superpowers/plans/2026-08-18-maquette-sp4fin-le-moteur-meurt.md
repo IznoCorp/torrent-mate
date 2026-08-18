@@ -103,10 +103,11 @@ measures the move, in the same change as the move.
 - [x] `allowJs: true` in the maquette's tsconfig — the engine stays JS, and typing it would mean
       editing it inside a 35 000-line move nobody could review.
 - [x] Compare all 82 states. **0/82, zero JS errors.**
-- [ ] Full rule suite, unchanged hold counts.
-- [ ] `make check`.
-- [ ] Record the wave; amend `regions.json` and the README rule table where they describe the
-      fragment as carrying the engine.
+- [x] Full rule suite: **49 green, 0 red**; holds 566 → 567 against `main`, and the
+      only script that moves is `page_host.py` 43 → 44.
+- [x] `make check` green.
+- [x] Wave recorded; README rule table amended. `regions.json` needed nothing: its `source`
+      names the CSS extraction's file, and the stylesheet did not move.
 
 ### An oracle defect this wave surfaced
 
@@ -137,16 +138,16 @@ its first render to fix that: a change to the boot contract, to move static mark
 is the document Vite owns, it is real source rather than a fragment injected verbatim, and its
 body is parsed before any module runs — exactly the order the markup has today.
 
-- [ ] Re-point `serve.py`'s login gate. It extracts FOUR CSS blocks (`login:font`, `palette`,
+- [x] Re-point `serve.py`'s login gate — **byte-identical output**, both states. It extracts FOUR CSS blocks (`login:font`, `palette`,
       `socle`, `style`) which stay in the fragment, and ONE markup block (`login:markup`,
       lines 4378–4427) which moves. So `login_page` reads two files afterwards, the way
       `design_source()` already does for the rules.
-- [ ] `export.py` slices the fragment at `</style>` to get « markup + JS ». That slice becomes
+- [x] `export.py` slices the fragment at `</style>` to get « markup + JS ». That slice becomes
       empty — the third instance of this wave's recurring failure, and it must be re-pointed
       before it can report a silent green.
-- [ ] `startup.py` (R53) reads the fragment for declaration order and the `login:*` markers.
-- [ ] Record before, convert, compare.
-- [ ] R72 measured, not assumed: the fragment is still injected verbatim, so the rule may well
+- [x] `startup.py` (R53) reads the fragment for declaration order and the `login:*` markers.
+- [x] Record before, convert, compare: **0 / 82**.
+- [x] R72 measured, not assumed — and it needed NO renegotiation: the fragment is still injected verbatim, so the rule may well
       survive untouched. Renegotiate only if the measurement says so, and record the reason.
 
 ## Wave 3 — the bridge dies

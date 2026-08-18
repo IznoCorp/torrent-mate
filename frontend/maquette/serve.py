@@ -85,11 +85,15 @@ DESIGN_ROOT = Path(
     or Path(__file__).resolve().parent / "design"
 ).resolve()
 PROTOTYPE = DESIGN_ROOT / "refonte.html"
+# The document Vite owns, and where the application shell's markup lives — the
+# phone frame, the sign-in card, the startup screen. The login gate clones
+# those from here and inherits its style from the fragment above.
+SHELL_DOCUMENT = DESIGN_ROOT / "index.html"
 DIST = DESIGN_ROOT / "dist" / "index.html"
 # The build inputs that always exist, at the design root.
 BUILD_INPUTS = (
     PROTOTYPE,
-    DESIGN_ROOT / "index.html",
+    SHELL_DOCUMENT,
     DESIGN_ROOT / "vite.config.mjs",
 )
 
@@ -416,7 +420,7 @@ def extract(source: str, marker: str) -> str:
     """Returns the text between a pair of markers.
 
     Args:
-        source: The prototype's full text.
+        source: The full text of whichever file holds the block.
         marker: The marker name, without its `login:` prefix or `:start` /
             `:end` suffix.
 
@@ -430,7 +434,7 @@ def extract(source: str, marker: str) -> str:
     start = source.find(f"login:{marker}:start")
     end = source.find(f"login:{marker}:end")
     if start < 0 or end < 0 or end < start:
-        raise ValueError(f"login:{marker} markers not found in the prototype")
+        raise ValueError(f"login:{marker} markers not found in the source given")
     return source[source.index("\n", start) + 1 : source.rindex("\n", start, end) + 1]
 
 
@@ -462,8 +466,17 @@ def login_page(refused: bool) -> bytes:
     Returns:
         A complete HTML document.
     """
-    source = PROTOTYPE.read_text()
-    markup = extract(source, "markup")
+    # TWO SOURCES, because the gate borrows from two. The MARKUP it clones —
+    # the sign-in card and the startup screen — is the application shell, and
+    # that lives in `index.html` since the fragment stopped carrying a
+    # program. The STYLE it inherits is still the fragment's: the CSS contract
+    # does not move before SP5. Each `extract` below reads whichever file
+    # actually holds its block, and `extract` itself raises when a marker is
+    # missing — so pointing one of them at the wrong file fails the gate
+    # loudly instead of serving a screen stripped of its design.
+    styles_source = PROTOTYPE.read_text()
+    markup_source = SHELL_DOCUMENT.read_text()
+    markup = extract(markup_source, "markup")
     # The screen is drawn hidden inside the shell and centred against it. Here
     # it IS the page, so it drops both.
     markup = markup.replace(' id="login" hidden', ' id="login"', 1)
@@ -473,7 +486,7 @@ def login_page(refused: bool) -> bytes:
         markup = markup.replace('id="loginerr" hidden', 'id="loginerr"', 1)
     # Inside the prototype the startup screen is what the document opens on;
     # here it waits for the submit that makes it true.
-    markup += extract(source, "splash").replace(
+    markup += extract(markup_source, "splash").replace(
         ' id="splash"', ' id="splash" hidden', 1
     )
     # Everything the screen INHERITS inside the prototype — the palette, the box
@@ -483,9 +496,9 @@ def login_page(refused: bool) -> bytes:
     # the wordmark's line height was `normal` instead of 1.35. A retyped value
     # does not merely risk drifting; it CONCEALS a defect in the reference,
     # because the copy is the only place anyone ever looks.
-    styles = (extract(source, "font") + extract(source, "palette")
-              + extract(source, "socle") + extract(source, "style")
-              + extract(source, "splashstyle"))
+    styles = (extract(styles_source, "font") + extract(styles_source, "palette")
+              + extract(styles_source, "socle") + extract(styles_source, "style")
+              + extract(styles_source, "splashstyle"))
     # After the extract, so they win: inside the prototype the screen covers a
     # phone frame; here it IS the page.
     adjustments = """

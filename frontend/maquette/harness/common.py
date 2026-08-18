@@ -28,10 +28,17 @@ BAR = "─" * 62
 # « no violation » about nothing at all, and it does so silently, for as long
 # as nobody thinks to check.
 #
+# `index.html` joined the list when the application shell's markup moved there,
+# and it contributes nothing to any of those four counts TODAY. That is not a
+# reason to leave it out: the list names where the design is WRITTEN, so the
+# next `var(--…)` or `assets/…` added to the shell is covered on the day it is
+# typed rather than on the day someone notices.
+#
 # Reading a missing path raises here rather than yielding "": a renamed source
 # must break the rule that depends on it, loudly, on the next run.
 DESIGN_SOURCES = (
     ROOT / "design" / "refonte.html",
+    ROOT / "design" / "index.html",
     ROOT / "design" / "src" / "engine" / "legacy.js",
 )
 
