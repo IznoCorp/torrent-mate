@@ -136,6 +136,11 @@ FRENCH_TOKENS = {
     "normaliser", "numerateur", "pilotage", "plages", "prendre", "reglee",
     "remis", "restants", "retirer", "risques", "rubrique", "traiter",
     "transparents", "tris", "trier", "trouve",
+    # The two state words that had no underscore to be told apart by, so they
+    # travelled as VALUES (`--whole=`) and no arm ever read them as NAMES —
+    # which is how `test_annonce_state.py` and `test_termine_state.py` kept
+    # their spelling through a wave that renamed everything around them.
+    "annonce", "annoncee", "termine", "terminee",
 }
 # Two tokens mean different things in different halves of the repository, and
 # scope — not a word list — is what settles them. Each entry names the reason.
