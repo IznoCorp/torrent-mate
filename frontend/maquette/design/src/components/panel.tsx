@@ -5,7 +5,7 @@
 // component is that same constructor, transplanted: same tags, same
 // classes, same data-attribute vocabulary, so the document-level click
 // delegation the legacy engine still runs (`.sact[data-fiche]`,
-// `.ep[data-ep]`, `.field*[data-champ]`, …) keeps working unchanged.
+// `.ep[data-ep]`, `.field*[data-field]`, …) keeps working unchanged.
 //
 // Markup is TRANSPLANTED, not translated: React escapes text nodes
 // natively, so there is no `escapeHtml` here — every plain string prop
@@ -424,8 +424,8 @@ function FieldBlock({
           className={`fieldtoggle${v ? " active" : ""}`}
           role="switch"
           aria-checked={v ? "true" : "false"}
-          data-champ={id}
-          data-vers={v ? "non" : "oui"}
+          data-field={id}
+          data-to={v ? "non" : "oui"}
         >
           <span className="fieldknob" />
         </button>
@@ -445,7 +445,7 @@ function FieldBlock({
               <span>{String(x)}</span>
               <button
                 className="lremove"
-                data-champsupp={id}
+                data-deletefield={id}
                 data-index={index}
                 aria-label={t("settings.field.removeAria", {
                   valeur: String(x),
@@ -458,7 +458,7 @@ function FieldBlock({
         ) : (
           <p className="rulenote">{t("settings.field.emptyList")}</p>
         )}
-        <button className="ladd" data-champajout={id}>
+        <button className="ladd" data-addfield={id}>
           <Icon paths={icons.plus} />
           {t("settings.field.add")}
         </button>
@@ -486,7 +486,7 @@ function FieldBlock({
         // setting makes a different setting a different node.
         key={id}
         className={`fieldinput${mono ? " mono" : ""}`}
-        data-champ={id}
+        data-field={id}
         type={numeric ? "number" : "text"}
         inputMode={numeric ? "decimal" : undefined}
         defaultValue={empty ? "" : String(v)}

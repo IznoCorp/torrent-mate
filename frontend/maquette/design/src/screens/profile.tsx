@@ -82,7 +82,7 @@ export function ProfileScreen() {
   }
 
   return (
-    <section className="screen open" data-cle={`profil:${title}`}>
+    <section className="screen open" data-key={`profil:${title}`}>
       <div className="screenbar">
         <button className="fback" onClick={() => window.__pont.retour()}>
           <Icon paths={icons.left} />

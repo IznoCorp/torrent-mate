@@ -11,8 +11,8 @@
 // the map.
 //
 // `SETTINGS_STATE` STAYS THE SOURCE, and this component never replaces it. The
-// document-level delegation writes it (`data-rubrique`, `data-reglage`,
-// `data-qreg`, `data-secret`, `data-enregistrer`, `data-redemarrer`) and then
+// document-level delegation writes it (`data-topic`, `data-setting`,
+// `data-qreg`, `data-secret`, `data-save`, `data-restart`) and then
 // calls `render()`, whose first act is `store?.toucher()` — so subscribing to
 // the store's `version` is what re-reads the mutated object here. Two reasons it
 // must stay there and not become React state: the edits are PENDING data the
@@ -54,7 +54,7 @@ function SettingRow({
   return (
     <button
       className={`settingrow${edited ? " modified" : ""}`}
-      data-reglage={identity}
+      data-setting={identity}
     >
       <span className="rl">
         {settingLabel(setting)}{" "}
@@ -113,7 +113,7 @@ function SaveBar(): ReactElement | null {
         </b>{" "}
         {t("screens.settings.willWrite", { files })}
       </span>
-      <button data-enregistrer="1" disabled={SETTINGS_STATE.lectureSeule}>
+      <button data-save="1" disabled={SETTINGS_STATE.lectureSeule}>
         {t("screens.settings.save")}
       </button>
     </div>,
@@ -286,13 +286,13 @@ export function SettingsPage(): ReactElement | null {
           {changedFiles().join(", ") ||
             t("screens.settings.restartSomeSettings")}
           {t("screens.settings.restartRest")}{" "}
-          <button data-redemarrer="1">
+          <button data-restart="1">
             {t("screens.settings.restartNow")}
           </button>
         </div>
       ) : null}
       {SETTINGS.map((topic) => (
-        <button className="topic" data-rubrique={topic.id} key={topic.id}>
+        <button className="topic" data-topic={topic.id} key={topic.id}>
           <span style={{ minWidth: 0, flex: 1 }}>
             <span className="rt">{topic.t}</span>
             <span className="rs">{topic.s}</span>
@@ -300,7 +300,7 @@ export function SettingsPage(): ReactElement | null {
           <span className="rn">{topic.r.length}</span>
         </button>
       ))}
-      <button className="topic" data-rubrique="secrets">
+      <button className="topic" data-topic="secrets">
         <span style={{ minWidth: 0, flex: 1 }}>
           <span className="rt">{t("screens.settings.secretsTitle")}</span>
           <span className="rs">
@@ -309,7 +309,7 @@ export function SettingsPage(): ReactElement | null {
         </span>
         <span className="rn">{SECRETS.length}</span>
       </button>
-      <button className="topic" data-profil="global">
+      <button className="topic" data-profile="global">
         <span style={{ minWidth: 0, flex: 1 }}>
           <span className="rt">{t("screens.settings.rankingTitle")}</span>
           <span className="rs">

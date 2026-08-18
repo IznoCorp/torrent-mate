@@ -321,7 +321,7 @@ async def main():
         start_state = await pg.evaluate(
             """()=>({
                 screen: !!document.querySelector('.screen.open'),
-                key: document.querySelector('.screen.open')?.dataset.cle,
+                key: document.querySelector('.screen.open')?.dataset.key,
                 cards: document.querySelectorAll('.reslist .card').length,
                 query: document.querySelector('#addq')?.value
             })"""
@@ -352,7 +352,7 @@ async def main():
         back_state = await pg.evaluate(
             """()=>({
                 screen: !!document.querySelector('.screen.open'),
-                key: document.querySelector('.screen.open')?.dataset.cle,
+                key: document.querySelector('.screen.open')?.dataset.key,
                 cards: document.querySelectorAll('.reslist .card').length,
                 query: document.querySelector('#addq')?.value,
                 scroll: document.querySelector('.screen.open .port')?.scrollTop,

@@ -9388,7 +9388,7 @@ import { ecrans, panneau, pont } from "../seams.js";
               ? {
                   texte: "Annuler la modification",
                   icone: icons.x,
-                  target: { annulerreg: id },
+                  target: { cancelsetting: id },
                 }
               : null,
           ],
@@ -10237,7 +10237,7 @@ import { ecrans, panneau, pont } from "../seams.js";
               texte: "Se déconnecter",
               icone: icons.logout,
               ton: "danger",
-              target: { deconnexion: "1" },
+              target: { signout: "1" },
             },
           ],
         },
@@ -10844,7 +10844,7 @@ import { ecrans, panneau, pont } from "../seams.js";
   function openScreen(html, cle, rendre) {
     const element = select("#screen");
     const alreadyOpen = element.classList.contains("open");
-    const sameScreen = alreadyOpen && cle != null && element.dataset.cle === cle;
+    const sameScreen = alreadyOpen && cle != null && element.dataset.key === cle;
     if (alreadyOpen && !sameScreen && !unwinding && currentRender) {
       screenStack.push({
         rendre: currentRender,
@@ -10863,8 +10863,8 @@ import { ecrans, panneau, pont } from "../seams.js";
         champ = { id: activeElement.id, pos: activeElement.selectionStart };
     }
     element.innerHTML = html;
-    if (cle != null) element.dataset.cle = cle;
-    else delete element.dataset.cle;
+    if (cle != null) element.dataset.key = cle;
+    else delete element.dataset.key;
     if (sameScreen) {
       const port = element.querySelector(".port");
       if (port && startY > 0) {
@@ -11666,16 +11666,16 @@ import { ecrans, panneau, pont } from "../seams.js";
     if (!closest) return;
     if (closest.tagName === "A") event.preventDefault();
 
-    if (closest.dataset.rubrique) {
-      SETTINGS_STATE.rubrique = closest.dataset.rubrique;
+    if (closest.dataset.topic) {
+      SETTINGS_STATE.rubrique = closest.dataset.topic;
       SETTINGS_STATE.q = "";
       port.scrollTop = 0;
       render();
       recordPath();
       return;
     }
-    if (closest.dataset.reglage) {
-      openSetting(closest.dataset.reglage);
+    if (closest.dataset.setting) {
+      openSetting(closest.dataset.setting);
       return;
     }
     if (closest.dataset.secret) {
@@ -11685,17 +11685,17 @@ import { ecrans, panneau, pont } from "../seams.js";
       if (secret) openSecret(secret);
       return;
     }
-    if (closest.dataset.champ && closest.dataset.vers) {
-      const id = closest.dataset.champ;
+    if (closest.dataset.field && closest.dataset.to) {
+      const id = closest.dataset.field;
       const reglage = allSettings().find((r) => settingId(r) === id);
       if (reglage) {
-        changeSetting(id, closest.dataset.vers === "oui");
+        changeSetting(id, closest.dataset.to === "oui");
         openSetting(id);
       }
       return;
     }
-    if (closest.dataset.champsupp) {
-      const id = closest.dataset.champsupp;
+    if (closest.dataset.deletefield) {
+      const id = closest.dataset.deletefield;
       const reglage = allSettings().find((r) => settingId(r) === id);
       if (reglage) {
         const list = [...(valeurEnCours(reglage) || [])];
@@ -11705,8 +11705,8 @@ import { ecrans, panneau, pont } from "../seams.js";
       }
       return;
     }
-    if (closest.dataset.champajout) {
-      const id = closest.dataset.champajout;
+    if (closest.dataset.addfield) {
+      const id = closest.dataset.addfield;
       const reglage = allSettings().find((r) => settingId(r) === id);
       if (reglage) {
         // A prototype cannot show a keyboard; the added item is named after
@@ -11718,8 +11718,8 @@ import { ecrans, panneau, pont } from "../seams.js";
       }
       return;
     }
-    if (closest.dataset.annulerreg) {
-      SETTINGS_STATE.modifs.delete(closest.dataset.annulerreg);
+    if (closest.dataset.cancelsetting) {
+      SETTINGS_STATE.modifs.delete(closest.dataset.cancelsetting);
       panneau.fermer();
       setTimeout(() => {
         render();
@@ -11727,7 +11727,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       }, 200);
       return;
     }
-    if (closest.dataset.enregistrer) {
+    if (closest.dataset.save) {
       const fileNames = changedFiles();
       SETTINGS_STATE.modifs.clear();
       SETTINGS_STATE.redemarrage = true;
@@ -11735,7 +11735,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       toast(`Enregistré — ${fileNames.map(fileName).join(", ")}.`);
       return;
     }
-    if (closest.dataset.redemarrer) {
+    if (closest.dataset.restart) {
       SETTINGS_STATE.redemarrage = false;
       render();
       toast("Service redémarré — les réglages sont pris en compte.");
@@ -11856,7 +11856,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       toast("Nouveau lot chargé — 30 suggestions de plus.");
       return;
     }
-    if (closest.dataset.deconnexion) {
+    if (closest.dataset.signout) {
       signOut();
       return;
     }
@@ -11949,7 +11949,7 @@ import { ecrans, panneau, pont } from "../seams.js";
     }
     /* Agreeing with the machine. It keeps the automatic result and re-scrapes
        nothing — which is why it says what it did rather than « fait ». */
-    if (closest.dataset.laisser) {
+    if (closest.dataset.leave) {
       const target = currentState().resolveTarget;
       pont.retour();
       setTimeout(() => actionLeave(target), 240);
@@ -11957,14 +11957,14 @@ import { ecrans, panneau, pont } from "../seams.js";
     }
     /* What the desktop deck's ⏎ did, without a keyboard: the next folder
        waiting, on the same screen. */
-    if (closest.dataset.suivante) {
+    if (closest.dataset.next) {
       const suite = derived
         .blocked()
         .concat(derived.stuck())
         .map((bloque) => decisionPending(bloque.t))
         .find(
           (decision) =>
-            decision != null && decision.d !== closest.dataset.suivante,
+            decision != null && decision.d !== closest.dataset.next,
         );
       if (suite) {
         // Closing the screen and re-opening it on the next folder was a pop
@@ -11994,8 +11994,8 @@ import { ecrans, panneau, pont } from "../seams.js";
       setTimeout(() => actionPause(pause), 240);
       return;
     }
-    if (closest.dataset.retirer) {
-      const retirer = closest.dataset.retirer;
+    if (closest.dataset.remove) {
+      const retirer = closest.dataset.remove;
       panneau.fermer();
       setTimeout(() => actionRetirer(retirer), 240);
       return;
@@ -12006,12 +12006,12 @@ import { ecrans, panneau, pont } from "../seams.js";
       return;
     }
     if (
-      closest.dataset.profil !== undefined &&
-      closest.dataset.profil !== null
+      closest.dataset.profile !== undefined &&
+      closest.dataset.profile !== null
     ) {
       // Route, not screen: the quality-profile surface left the legacy
       // fragment — and so, since this Task, has the release-choice screen
-      // that used to be the ONLY producer of `data-profil` inside `#screen`
+      // that used to be the ONLY producer of `data-profile` inside `#screen`
       // (its own « Ouvrir le profil de qualité → » button). `#screen` is no
       // longer a possible source of this attribute at all — the two
       // remaining producers (the Réglages rubric, a sheet action) were
@@ -12020,8 +12020,8 @@ import { ecrans, panneau, pont } from "../seams.js";
       // was built against, and a router screen leaves no trace in
       // `#screen.classList`: test the router's own identity instead.
       // `__ecrans.profil` does the navigating either way.
-      const profil = closest.dataset.profil;
-      if (document.querySelector('.screen.open[data-cle^="releases:"]')) {
+      const profil = closest.dataset.profile;
+      if (document.querySelector('.screen.open[data-key^="releases:"]')) {
         pont.retour();
         setTimeout(() => ecrans.profil(profil), 260);
       } else {
@@ -12044,7 +12044,7 @@ import { ecrans, panneau, pont } from "../seams.js";
       }, 260);
       return;
     }
-    if (closest.dataset.veille) {
+    if (closest.dataset.standby) {
       panneau.fermer();
       toast(
         "Veille lancée — 12 suivis balayés, 0 nouvelle release conforme. Prochain passage à 15 h 20.",
@@ -12179,8 +12179,8 @@ import { ecrans, panneau, pont } from "../seams.js";
                     : null,
                 target:
                   sens === "inverse"
-                    ? { settri: cle, reversed: "1" }
-                    : { settri: cle },
+                    ? { setsort: cle, reversed: "1" }
+                    : { setsort: cle },
               })),
             ),
           },
@@ -12188,9 +12188,9 @@ import { ecrans, panneau, pont } from "../seams.js";
       });
       return;
     }
-    if (closest.dataset.settri) {
+    if (closest.dataset.setsort) {
       store.write({
-        tri: closest.dataset.settri,
+        tri: closest.dataset.setsort,
         sortReversed: closest.dataset.reversed === "1",
         libCount: LIB_PAGE,
       });
@@ -12359,12 +12359,12 @@ import { ecrans, panneau, pont } from "../seams.js";
       openPanel(closest);
       return;
     }
-    if (closest.dataset.completer) {
+    if (closest.dataset.complete) {
       store.write({ page: "acq", acqTab: "maintenant" });
       panneau.fermer();
       render();
       toast(
-        `« ${baseTitle(closest.dataset.completer)} » : recherche des épisodes manquants lancée.`,
+        `« ${baseTitle(closest.dataset.complete)} » : recherche des épisodes manquants lancée.`,
       );
       return;
     }
@@ -12379,8 +12379,8 @@ import { ecrans, panneau, pont } from "../seams.js";
       setTimeout(() => ecrans.resolution(resolve), 260);
       return;
     }
-    if (closest.dataset.recuperer) {
-      const recuperer = closest.dataset.recuperer;
+    if (closest.dataset.take) {
+      const recuperer = closest.dataset.take;
       panneau.fermer();
       setTimeout(() => actionTake(recuperer), 260);
       return;
@@ -33467,7 +33467,7 @@ import { ecrans, panneau, pont } from "../seams.js";
      `ecrans.resolution(dossier, remplacer)`: it resolves the same
      default this file used to (the first stuck folder) and writes
      `currentState().resolveTarget` before navigating, so the `data-resolve` and
-     `data-laisser` branches below still read the folder they always read.
+     `data-leave` branches below still read the folder they always read.
      `decisionPending` stays here: it is the référentiel's own answer to
      « does this folder have a pending decision », read by the screen AND by
      the « Passer à la suivante » branch below. */
@@ -33641,14 +33641,14 @@ import { ecrans, panneau, pont } from "../seams.js";
                     texte: "Récupérer maintenant",
                     icone: icons.play,
                     ton: "primary",
-                    target: { recuperer: follow.t },
+                    target: { take: follow.t },
                   }
                 : incomplete
                   ? {
                       texte: "Compléter → Acquisitions",
                       icone: icons.play,
                       ton: "primary",
-                      target: { completer: follow.t },
+                      target: { complete: follow.t },
                     }
                   : isFollowed
                     ? {
@@ -33721,7 +33721,7 @@ import { ecrans, panneau, pont } from "../seams.js";
               ? {
                   texte: "Profil de qualité",
                   icone: icons.sort,
-                  target: { profil: follow.t },
+                  target: { profile: follow.t },
                 }
               : null,
             inLibrary
@@ -33746,7 +33746,7 @@ import { ecrans, panneau, pont } from "../seams.js";
                   texte: isFilm ? "Retirer de la liste" : "Retirer le suivi",
                   icone: icons.trash,
                   ton: "danger",
-                  target: { retirer: follow.t },
+                  target: { remove: follow.t },
                 }
               : null,
             inLibrary
@@ -33854,7 +33854,7 @@ import { ecrans, panneau, pont } from "../seams.js";
               texte: "Lancer la veille maintenant",
               icone: icons.refresh,
               ton: "primary",
-              target: { veille: "1" },
+              target: { standby: "1" },
             },
           ],
         },

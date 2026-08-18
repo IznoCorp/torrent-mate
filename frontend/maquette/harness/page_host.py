@@ -220,7 +220,7 @@ async def main():
         # acts on, and R60 reaches every one of its states through
         # `window.__go(...)` — never through a tap. So the whole delegation
         # path was unmeasured: a component that stopped writing
-        # `data-rubrique` would leave a page of rows nothing opens, with R60
+        # `data-topic` would leave a page of rows nothing opens, with R60
         # entirely green. Each control is LOOKED UP before it is tapped: a
         # click on a selector that matches nothing times out and crashes the
         # script, which reads as a broken rule instead of a named defect.
@@ -232,33 +232,33 @@ async def main():
         await page.wait_for_timeout(300)
 
         topic = await page.evaluate(
-            "()=>{const b = document.querySelector('#view .topic[data-rubrique]');"
-            " return b ? b.dataset.rubrique : null;}")
-        refused = await tap("#view .topic[data-rubrique]") if topic else "absent"
+            "()=>{const b = document.querySelector('#view .topic[data-topic]');"
+            " return b ? b.dataset.topic : null;}")
+        refused = await tap("#view .topic[data-topic]") if topic else "absent"
         opened = await page.evaluate("""()=>({
           rubrique: SETTINGS_STATE.rubrique,
-          rows: document.querySelectorAll('#view .settingrow[data-reglage]').length,
+          rows: document.querySelectorAll('#view .settingrow[data-setting]').length,
         })""")
         journal.check(
             "a real tap on a settings topic opens THAT topic",
             not refused and opened["rubrique"] == topic and opened["rows"] > 0,
-            f"{topic} → {opened}" if not refused else f"data-rubrique {refused}")
+            f"{topic} → {opened}" if not refused else f"data-topic {refused}")
 
         # The row's own identity, compared against the field the panel opens on:
         # « a panel opened » would be satisfied by every row opening the same
         # one. The panel's META carries the identity for EVERY type, while
-        # `data-champ` exists only for the types that offer a field — a
+        # `data-field` exists only for the types that offer a field — a
         # structure or a list would fail this hold for the wrong reason.
         identity = await page.evaluate(
-            "()=>{const b = document.querySelector('#view .settingrow[data-reglage]');"
-            " return b ? b.dataset.reglage : null;}")
-        refused = (await tap("#view .settingrow[data-reglage]")
+            "()=>{const b = document.querySelector('#view .settingrow[data-setting]');"
+            " return b ? b.dataset.setting : null;}")
+        refused = (await tap("#view .settingrow[data-setting]")
                    if identity else "absent")
         edited = await page.evaluate("""()=>{
-          const field = document.querySelector('#sheetin [data-champ]');
+          const field = document.querySelector('#sheetin [data-field]');
           const meta = document.querySelector('#sheet .sheetmeta');
           return {open: !!document.querySelector('#sheet.open'),
-                  field: field ? field.dataset.champ : null,
+                  field: field ? field.dataset.field : null,
                   meta: meta ? meta.textContent.trim() : null};}""")
         named = identity and edited["meta"] and all(
             part in edited["meta"] for part in identity.split(":"))
@@ -266,7 +266,7 @@ async def main():
             "and a real tap on a setting opens THAT setting",
             not refused and edited["open"] and bool(named)
             and (edited["field"] is None or edited["field"] == identity),
-            f"{identity} → {edited}" if not refused else f"data-reglage {refused}")
+            f"{identity} → {edited}" if not refused else f"data-setting {refused}")
         await page.evaluate("()=>window.__panneau.fermer()")
         await page.wait_for_timeout(300)
 
@@ -283,7 +283,7 @@ async def main():
           window.__referentiel.render();
           return id;}""")
         await page.wait_for_timeout(300)
-        refused = (await tap("#savebar [data-enregistrer]") if staged else "absent")
+        refused = (await tap("#savebar [data-save]") if staged else "absent")
         saved = await page.evaluate(
             "()=>({pending: SETTINGS_STATE.modifs.size, restart: SETTINGS_STATE.redemarrage,"
             " bar: !!document.querySelector('#savebar')})")
@@ -291,14 +291,14 @@ async def main():
             "a real tap on the save bar files the change and asks for a restart",
             not refused and saved["pending"] == 0 and saved["restart"]
             and not saved["bar"],
-            str(saved) if not refused else f"data-enregistrer {refused}")
+            str(saved) if not refused else f"data-save {refused}")
 
         await page.evaluate("()=>{SETTINGS_STATE.rubrique = null;}")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(300)
-        refused = await tap("#view [data-redemarrer]")
+        refused = await tap("#view [data-restart]")
         # The restart offer only exists because the save above raised it, so a
-        # lost `data-enregistrer` reaches this hold as « absent ». The detail
+        # lost `data-save` reaches this hold as « absent ». The detail
         # says what was MEASURED either way — a line that reads « restart
         # cleared » under a FAIL tells a reader the opposite of what happened.
         restart_left = await page.evaluate("()=>SETTINGS_STATE.redemarrage")
@@ -306,16 +306,16 @@ async def main():
             "and a real tap on the restart offer takes it",
             not refused and not restart_left,
             f"redemarrage={restart_left}" if not refused
-            else f"data-redemarrer {refused} (the save above raises it)")
+            else f"data-restart {refused} (the save above raises it)")
 
-        refused = await tap("#view .topic[data-rubrique='secrets']")
+        refused = await tap("#view .topic[data-topic='secrets']")
         listed = await page.evaluate(
             "()=>({rubrique: SETTINGS_STATE.rubrique,"
             " rows: document.querySelectorAll('#view [data-secret]').length})")
         journal.check(
             "a real tap on the secrets topic lists the secrets",
             not refused and listed["rubrique"] == "secrets" and listed["rows"] > 0,
-            str(listed) if not refused else f"data-rubrique='secrets' {refused}")
+            str(listed) if not refused else f"data-topic='secrets' {refused}")
 
         # THAT secret's panel: the key it carries has to appear in the panel it
         # opened, or every secret row opening one panel would pass.
@@ -358,18 +358,18 @@ async def main():
         # a ROUTE, so what proves the tap landed is the address — the address
         # the ROW NAMED, and only if it was not already there before the tap.
         profile = await page.evaluate(
-            "()=>{const b = document.querySelector('#view .topic[data-profil]');"
-            " return b ? b.dataset.profil : null;}")
+            "()=>{const b = document.querySelector('#view .topic[data-profile]');"
+            " return b ? b.dataset.profile : null;}")
         before_address = await page.evaluate("()=>location.pathname")
-        refused = await tap("#view .topic[data-profil]") if profile else "absent"
+        refused = await tap("#view .topic[data-profile]") if profile else "absent"
         await page.wait_for_timeout(400)
         address = await page.evaluate("()=>location.pathname")
         journal.check(
             "a real tap on the quality-profile row goes to ITS address",
             not refused and profile is not None
             and address == f"/profil/{profile}" and before_address != address,
-            f"{before_address} → {address} for data-profil={profile!r}"
-            if not refused else f"data-profil {refused}")
+            f"{before_address} → {address} for data-profile={profile!r}"
+            if not refused else f"data-profile {refused}")
         await page.evaluate("()=>window.__pont.retour()")
         await page.wait_for_timeout(420)
 
@@ -505,7 +505,7 @@ async def main():
         await page.wait_for_timeout(500)
         returned = await page.evaluate("""()=>({
           roots: [...document.querySelector('#view').children].map((x) => x.className),
-          rows: document.querySelectorAll('#view .topic[data-rubrique]').length,
+          rows: document.querySelectorAll('#view .topic[data-topic]').length,
         })""")
         journal.check(
             "leaving a migrated page with an unsaved change, and coming back, "

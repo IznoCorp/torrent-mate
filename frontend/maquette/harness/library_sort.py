@@ -39,7 +39,7 @@ TITLES = """()=>[...document.querySelectorAll('#libitems .ctitle, #libitems .til
 
 PANEL = """()=>[...document.querySelectorAll('.sheetacts .sact')].map((button) => ({
   text: button.textContent.trim(),
-  sort: button.dataset.settri || null,
+  sort: button.dataset.setsort || null,
   reversed: button.dataset.reversed === '1',
   current: button.className.split(' ').includes('primary'),
 }))"""
@@ -132,7 +132,7 @@ async def main():
                 if not await page.evaluate(
                         "()=>!!document.querySelector('#sheet.open')"):
                     await open_sort_panel(page)
-                selector = (f"#sheet .sact[data-settri='{key}']"
+                selector = (f"#sheet .sact[data-setsort='{key}']"
                             + ("[data-reversed='1']" if reversed_
                                else ":not([data-reversed])"))
                 control = page.locator(selector).first

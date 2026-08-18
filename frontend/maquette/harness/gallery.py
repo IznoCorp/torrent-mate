@@ -46,12 +46,12 @@ async def main():
 
         # 1. A tap opens the media sheet. The sheet left `#screen` for a real
         # route (`/fiche/$titre`, rendered inside `#coquille`), so it is read by
-        # the identity it carries — `data-cle="fiche:…"` — and not by a bare
+        # the identity it carries — `data-key="fiche:…"` — and not by a bare
         # `.screen.open`, which cannot tell two stacked screens apart.
         await pg.locator(sel).first.click()
         await pg.wait_for_timeout(500)
         screen_ = await pg.evaluate(
-            """()=>!!document.querySelector('.screen.open[data-cle^="fiche:"]')""")
+            """()=>!!document.querySelector('.screen.open[data-key^="fiche:"]')""")
         await pg.evaluate("()=>window.__go(arguments0)" if False else "(i)=>window.__go(i)", state_)
         await pg.wait_for_timeout(350)
         if sel == ".tile[data-panel]" and not screen_:

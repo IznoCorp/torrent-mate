@@ -104,7 +104,7 @@ SCREEN_STATE = """() => {
   const screen = document.querySelector('.screen.open');
   return {
     open: !!screen,
-    key: screen?.dataset.cle ?? null,
+    key: screen?.dataset.key ?? null,
     title: (document.querySelector('.screen.open .screenbar span') || {}).textContent ?? null,
     body: (screen?.querySelector('.body') || {}).textContent ?? '',
     pathname: location.pathname,
@@ -115,7 +115,7 @@ ADD_STATE = """() => {
   const screen = document.querySelector('.screen.open');
   return {
     open: !!screen,
-    key: screen?.dataset.cle ?? null,
+    key: screen?.dataset.key ?? null,
     field: document.querySelector('#addq')?.value ?? null,
     cards: document.querySelectorAll('.reslist .card').length,
     pathname: location.pathname,
@@ -156,7 +156,7 @@ SHEET_STATE = """() => {
   const screen = document.querySelector('.screen.open');
   return {
     open: !!screen,
-    key: screen?.dataset.cle ?? null,
+    key: screen?.dataset.key ?? null,
     title: (screen?.querySelector('h2.ht') || {}).textContent ?? null,
     body: (screen?.querySelector('.body') || {}).textContent ?? '',
     noinfos: [...document.querySelectorAll('.screen.open p.noinfo')].map(
@@ -166,10 +166,10 @@ SHEET_STATE = """() => {
 }"""
 
 RESOLUTION_STATE = """() => {
-  const screen = document.querySelector('.screen.open[data-cle^="resolution:"]');
+  const screen = document.querySelector('.screen.open[data-key^="resolution:"]');
   return {
     open: !!screen,
-    key: screen?.dataset.cle ?? null,
+    key: screen?.dataset.key ?? null,
     folder: (screen?.querySelector('h2.h2 code') || {}).textContent ?? null,
     body: (screen?.querySelector('.body') || {}).textContent ?? '',
     pathname: location.pathname,
@@ -181,10 +181,10 @@ RESOLUTION_STATE = """() => {
 # unknown `title` to fail against, so `candidates` stays what it is
 # regardless of which title the bar shows.
 RELEASES_STATE = """() => {
-  const screen = document.querySelector('.screen.open[data-cle^="releases:"]');
+  const screen = document.querySelector('.screen.open[data-key^="releases:"]');
   return {
     open: !!screen,
-    key: screen?.dataset.cle ?? null,
+    key: screen?.dataset.key ?? null,
     bar: (screen?.querySelector('.screenbar span') || {}).textContent ?? null,
     candidates: screen ? screen.querySelectorAll('.rel').length : 0,
     pathname: location.pathname,

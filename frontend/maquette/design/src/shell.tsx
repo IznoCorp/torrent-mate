@@ -512,7 +512,7 @@ window.__ecrans = {
   //     expression, read through the référentiel's live arrow, instead of
   //     being re-derived at each call site.
   //   - `state.resolveTarget` is written. It is what the `data-resolve` and
-  //     `data-laisser` click-delegation branches read as THE FOLDER (the
+  //     `data-leave` click-delegation branches read as THE FOLDER (the
   //     attribute they carry is the choice, not the subject), so it must be
   //     current before the route renders — exactly as the legacy function
   //     wrote it before drawing the screen. Same accepted debt as `/ajout` and

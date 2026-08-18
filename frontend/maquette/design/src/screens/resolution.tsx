@@ -3,10 +3,10 @@
 // reborn as a real route (`/resolution/$dossier`) and a final component.
 // Markup is TRANSPLANTED, not translated: every tag, class and data-attribute
 // below is the one the legacy screen drew, so the same stylesheet applies
-// unchanged. `data-cle="resolution:" + dossier` is an identity this screen
+// unchanged. `data-key="resolution:" + dossier` is an identity this screen
 // never had — the legacy `openScreen(html, undefined, …)` passed no `cle` at
 // all — added here because a router-owned screen needs one to answer
-// `.screen.open[data-cle^="resolution:"]` the way every other migrated screen
+// `.screen.open[data-key^="resolution:"]` the way every other migrated screen
 // already does.
 //
 // ── L'écran de résolution ────────────────────────────────────────────────
@@ -313,7 +313,7 @@ export function ResolutionScreen() {
   // are one value. A target the door could not resolve at all reaches this
   // screen as the legacy's own last resort, « élément inconnu ».
   return (
-    <section className="screen open" data-cle={`resolution:${folder}`}>
+    <section className="screen open" data-key={`resolution:${folder}`}>
       <div className="screenbar">
         <button className="fback" onClick={() => window.__pont.retour()}>
           <Icon paths={icons.left} />
@@ -373,12 +373,12 @@ export function ResolutionScreen() {
             </button>
           </div>
           <div className="sheetacts secondary">
-            <button className="sact" data-laisser={folder}>
+            <button className="sact" data-leave={folder}>
               <Icon paths={icons.check} />
               {t("screens.resolution.leaveAsIs")}
             </button>
             {pending.length > 1 ? (
-              <button className="sact" data-suivante={folder}>
+              <button className="sact" data-next={folder}>
                 <Icon paths={icons.right} />
                 {t("screens.resolution.next")}
               </button>

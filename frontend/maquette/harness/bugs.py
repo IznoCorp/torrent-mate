@@ -31,10 +31,10 @@ async def main():
     await pg.wait_for_timeout(700)
     # The media sheet left `#screen` for a real route (`/fiche/$titre`, rendered
     # inside `#coquille`), so it is read by the identity it carries —
-    # `data-cle="fiche:…"` — rather than by a layer id it no longer uses, or by
+    # `data-key="fiche:…"` — rather than by a layer id it no longer uses, or by
     # a bare `.screen.open` that cannot tell two stacked screens apart.
     r = await pg.evaluate("""()=>({sheet:document.querySelector('#sheet').classList.contains('open'),
-      screen:!!document.querySelector('.screen.open[data-cle^="fiche:"]')})""")
+      screen:!!document.querySelector('.screen.open[data-key^="fiche:"]')})""")
     chk("2. media sheet from a follow sheet", r["screen"] and not r["sheet"], str(r))
 
     # 2b — from Découvrir
@@ -43,13 +43,13 @@ async def main():
     await pg.evaluate("()=>[...document.querySelectorAll('#sheet .sact')].find(x=>x.textContent.includes('Voir la fiche')).click()")
     await pg.wait_for_timeout(700)
     r = await pg.evaluate("""()=>({sheet:document.querySelector('#sheet').classList.contains('open'),
-      screen:!!document.querySelector('.screen.open[data-cle^="fiche:"]')})""")
+      screen:!!document.querySelector('.screen.open[data-key^="fiche:"]')})""")
     chk("2b. the same from Découvrir", r["screen"] and not r["sheet"], str(r))
 
     # 3 — changing page closes the media sheet
     await pg.evaluate("()=>window.__go('fiche-serie')"); await pg.wait_for_timeout(400)
     await pg.evaluate("()=>document.querySelector('[data-page=lib]').click()"); await pg.wait_for_timeout(400)
-    r = await pg.evaluate("""()=>({screen:!!document.querySelector('.screen.open[data-cle^="fiche:"]'),
+    r = await pg.evaluate("""()=>({screen:!!document.querySelector('.screen.open[data-key^="fiche:"]'),
       page:state.page})""")
     chk("3. navigating closes the media sheet", not r["screen"] and r["page"]=="lib", str(r))
 
@@ -63,13 +63,13 @@ async def main():
     chk("5. cast portraits", n >= 4, f"{n} photos")
 
     # 6 — the last action is no longer glued to the bar
-    r = await pg.evaluate("""()=>{const sc=document.querySelector('.screen.open[data-cle^="fiche:"] .port');
+    r = await pg.evaluate("""()=>{const sc=document.querySelector('.screen.open[data-key^="fiche:"] .port');
       const btn=[...sc.querySelectorAll('.sact')].pop();
       const bar=document.querySelector('.bottombar').getBoundingClientRect();
       sc.scrollTop=sc.scrollHeight;
       return {gap:Math.round(bar.top-btn.getBoundingClientRect().bottom)};}""")
     await pg.wait_for_timeout(200)
-    r2 = await pg.evaluate("""()=>{const sc=document.querySelector('.screen.open[data-cle^="fiche:"] .port');
+    r2 = await pg.evaluate("""()=>{const sc=document.querySelector('.screen.open[data-key^="fiche:"] .port');
       const btn=[...sc.querySelectorAll('.sact')].pop();
       return Math.round(document.querySelector('.bottombar').getBoundingClientRect().top - btn.getBoundingClientRect().bottom);}""")
     chk("6. gap under the last action", r2 >= 12, f"{r2}px at maximum scroll")
@@ -80,7 +80,7 @@ async def main():
     has = await pg.evaluate("()=>!!document.querySelector('.reslist .card .poster[data-fiche]')")
     await pg.evaluate("()=>document.querySelector('.reslist .card .poster[data-fiche]').click()"); await pg.wait_for_timeout(600)
     title = await pg.evaluate(
-        """()=>document.querySelector('.screen.open[data-cle^="fiche:"] .ht')?.textContent""")
+        """()=>document.querySelector('.screen.open[data-key^="fiche:"] .ht')?.textContent""")
     chk("7. result → media sheet", has and bool(title), f"→ « {title} »")
 
     # 8 — the resolution screen's way out exists

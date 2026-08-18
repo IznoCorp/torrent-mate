@@ -3,15 +3,15 @@
 // reborn as a real route (`/releases/$titre`) and a final component. Markup
 // is TRANSPLANTED, not translated: every tag, class and data-attribute below
 // is the one the legacy screen drew, so the same stylesheet applies
-// unchanged. `data-cle="releases:" + titre` is an identity this screen never
+// unchanged. `data-key="releases:" + titre` is an identity this screen never
 // had — the legacy `openScreen(html, undefined, () => openReleases(titre))`
 // passed no `cle` at all — added here because a router-owned screen needs one
-// to answer `.screen.open[data-cle^="releases:"]` the way every other
+// to answer `.screen.open[data-key^="releases:"]` the way every other
 // migrated screen already does (see `shell.tsx`'s dispatcher rewrite).
 //
 // The `.rel` rows are release CANDIDATES, not media cards — no poster, no
 // `data-fiche`/`data-panel`. `data-prendre` (pick this release) and
-// `data-profil` (open the quality profile) carry NO onClick: the
+// `data-profile` (open the quality profile) carry NO onClick: the
 // document-level click delegation the legacy engine still runs is the seam
 // this screen leans on, exactly as `media.tsx` and `profile.tsx`.
 import { useParams } from "@tanstack/react-router";
@@ -45,7 +45,7 @@ export function ReleasesScreen() {
   const { t } = useTranslation();
 
   return (
-    <section className="screen open" data-cle={`releases:${title}`}>
+    <section className="screen open" data-key={`releases:${title}`}>
       <div className="screenbar">
         <button className="fback" onClick={() => window.__pont.retour()}>
           <Icon paths={icons.left} />
@@ -124,7 +124,7 @@ export function ReleasesScreen() {
             <button
               className="cfoot"
               style={{ marginTop: "10px" }}
-              data-profil={title}
+              data-profile={title}
             >
               {t("screens.releases.openProfile")}
             </button>

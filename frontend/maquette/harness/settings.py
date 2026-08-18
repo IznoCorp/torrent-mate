@@ -195,7 +195,7 @@ async def main():
         restart = await pg.evaluate("""()=>{
           const v = document.querySelector('#view');
           return {text: (v.textContent||'').replace(/\\s+/g,' '),
-                  button: !!v.querySelector('[data-redemarrer]')};}""")
+                  button: !!v.querySelector('[data-restart]')};}""")
         check("a required restart says so and offers it",
               "edémarrage" in restart["text"] and restart["button"], restart["text"][:70])
 
@@ -386,7 +386,7 @@ async def main():
           render(); openSetting(settingId(x));
           return {id: settingId(x), own: String(x.brut ?? '')};}"""
         read_field = """() => {const e = document.querySelector('#sheetin .fieldinput');
-          return e ? {value: e.value, field: e.dataset.champ} : null;}"""
+          return e ? {value: e.value, field: e.dataset.field} : null;}"""
 
         first = await pg.evaluate(open_text, 0)
         await pg.wait_for_timeout(330)

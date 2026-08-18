@@ -59,7 +59,7 @@ SCREEN_STATE = """() => {
   const screen = document.querySelector('.screen.open');
   return {
     open: !!screen,
-    key: screen?.dataset.cle ?? null,
+    key: screen?.dataset.key ?? null,
     pathname: location.pathname,
   };
 }"""
