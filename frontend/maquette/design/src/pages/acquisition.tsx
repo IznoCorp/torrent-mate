@@ -1,5 +1,5 @@
 // design/src/pages/acquisition.tsx
-// The sixth and last migrated PAGE, and the largest: legacy `viewAcquisition()`
+// The largest migrated PAGE: legacy `viewAcquisition()`
 // (290 lines, three tabs) reborn as a final component. Markup is TRANSPLANTED,
 // not translated.
 //
@@ -24,7 +24,12 @@ import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Icon } from "../components/icon";
 import type { Follow, QueueCard } from "../data";
-import { useReference, useUiState } from "../data";
+import {
+  useReference,
+  useStoreContent,
+  useUiState,
+  writeUiState,
+} from "../data";
 
 // The swipe action a follow that can be searched again reveals. It is a
 // data-ATTRIBUTE VALUE the document-level delegation dispatches on — a contract
@@ -243,6 +248,8 @@ function FollowsTab(): ReactElement {
     gridBadge,
     cadenceFR,
     prochaineRechercheFR,
+    escapeHtml,
+    render,
     ST_TONE,
     URGENCY,
     GROUPS,
@@ -397,7 +404,12 @@ function FollowsTab(): ReactElement {
         className="empty"
         dangerouslySetInnerHTML={{ __html: emptyInner(
       term !== ""
-        ? t("screens.acquisition.emptyFilter", { term: state.filtre as string })
+        ? t("screens.acquisition.emptyFilter", {
+            // ESCAPED, because this string is injected as HTML: i18next
+            // interpolates without escaping — right for a React text node,
+            // wrong here — and the legacy escaped it at exactly this spot.
+            term: escapeHtml(state.filtre as string),
+          })
         : state.pill === "pause"
           ? t("screens.acquisition.emptyPaused")
           : t("screens.acquisition.emptyNoFollows"),
@@ -459,11 +471,33 @@ function FollowsTab(): ReactElement {
         <div className="search">
           <Icon paths={icons.search} />
           <input
+            // UNCONTROLLED, with its own native handler — the arrangement
+            // `#libq` has, for the same reason: `mountSearch` bound this field
+            // from outside, and it runs inside `render()`, BEFORE React has put
+            // the field in the document. Typing did nothing until some other
+            // control forced a second render.
             type="search"
             id="follq"
             defaultValue={state.filtre as string}
             placeholder={t("screens.acquisition.filterPlaceholder")}
             aria-label={t("screens.acquisition.filterLabel")}
+            ref={(element) => {
+              if (!element) return;
+              // What changes the filter from OUTSIDE — the clear cross — has to
+              // reach the field, and only when the two differ, so nothing
+              // touches the node mid-word. The ATTRIBUTE follows too: the
+              // legacy re-emitted it on every draw.
+              const filter = state.filtre as string;
+              if (element.value !== filter) element.value = filter;
+              if (element.getAttribute("value") !== filter)
+                element.setAttribute("value", filter);
+              const commit = () => {
+                writeUiState({ filtre: element.value });
+                render();
+              };
+              element.addEventListener("input", commit);
+              return () => element.removeEventListener("input", commit);
+            }}
           />
           {state.filtre ? (
             <button
@@ -563,8 +597,16 @@ function DiscoverTab(): ReactElement {
   useEffect(() => {
     const deckBody = document.querySelector(".deckbody");
     if (state.sugMode === "deck" && state.phase === "prete" && deckBody) {
-      deckBody.innerHTML = deckHTML();
-      mountDeck();
+      // ONLY IF THE PILE IS NOT ALREADY THERE. Rewriting it on every commit
+      // destroys the gesture in flight: « Passer » writes the order to the
+      // store, which re-renders this component, whose effect would then replace
+      // the very nodes `avancerDeck` is animating — and a replaced node cannot
+      // animate, which is the whole reason this machinery stayed imperative.
+      // Rebuilding a spent pile is `refreshDeck`'s business, and it does it.
+      if (!deckBody.querySelector(".deck")) {
+        deckBody.innerHTML = deckHTML();
+        mountDeck();
+      }
       return;
     }
     // AND WHAT THE LEGACY CLEARED BY REWRITING. The deck at rest is written
@@ -708,6 +750,14 @@ function DiscoverTab(): ReactElement {
 
 export function AcquisitionPage(): ReactElement | null {
   const state = useUiState();
+  // THE WORLD IS MUTATED IN PLACE by every action this page offers — grabbing a
+  // medium splices it out of one list and unshifts it into another, pausing a
+  // follow writes its status — and those actions signal with `toucher()`, which
+  // bumps the store's VERSION and leaves `etat` identical. Subscribing to the
+  // state alone leaves React bailing out: measured, « Récupérer maintenant »
+  // moved the medium and left every counter on screen unchanged. The two other
+  // pages that read mutable data subscribe the same way, for the same reason.
+  useStoreContent((content) => content.version);
   if (state.acqTab === "maintenant") {
     return (
       <>

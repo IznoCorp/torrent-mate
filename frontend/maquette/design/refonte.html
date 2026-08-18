@@ -11655,11 +11655,6 @@
     }<div class="side right">${actions}</div></div>${inner}</div>`;
   }
 
-  /* An empty section does not render — but an empty VIEW says so, with what
-     explains it: never a blank screen, never a dead end. */
-  function emptyHTML(titre, corps) {
-    return `<div class="empty">${emptyInner(titre, corps)}</div>`;
-  }
   /* Same split as `skelCardsInner` / `surfErrInner`: a migrated PAGE draws the
      `<div class="empty">` itself and fills it with this. `corps` is HTML, not
      text — the callers pass markup. */
@@ -14170,6 +14165,11 @@
     sugFoot,
     mountDeck,
     deckHTML,
+    /* Published for the MEASUREMENT of the deck's gesture: a rule drives the
+       two halves the way the swipe handler drives them, and reads what the
+       animation is doing one frame later. */
+    passerSug,
+    avancerDeck,
     /* The page table itself, published so a rule can compare it against the
        shell's: two independent lists that must agree, and a disagreement in
        one direction draws a page in both worlds at once. */

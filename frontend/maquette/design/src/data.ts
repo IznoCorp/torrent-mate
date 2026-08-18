@@ -425,7 +425,6 @@ export type Reference = {
   sugFoot: () => void;
   mountDeck: () => void;
   deckHTML: () => string;
-  emptyHTML: (title: string, body: string) => string;
   // What the Médiathèque draws. `tileHTML` and `swipeHTML` are called VERBATIM
   // for the same reason as `cardHTML` — the rows they emit carry the `data-*`
   // the document-level delegation reads. `sousLigne` is the line under a tile's

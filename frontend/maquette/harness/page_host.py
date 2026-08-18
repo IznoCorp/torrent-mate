@@ -27,6 +27,12 @@ from playwright.async_api import async_playwright
 # The pages the shell owns today. A page absent here is one the fragment still
 # draws, and the rule holds that too — it is the other half of the law.
 SHELL_OWNED = ["sys", "maint", "cfg", "arr", "lib", "acq", "profil", "404"]
+
+# What each page really emits, less a small margin. Measured, not guessed: one
+# floor for eight pages is either too high for the smallest or too low to notice
+# a page that lost half of itself.
+FLOORS = {"sys": 180, "maint": 50, "cfg": 40, "arr": 140, "lib": 150,
+          "acq": 55, "profil": 30, "404": 5}
 # EMPTY, and that is the point of this wave: no page is drawn by the fragment
 # any more. The hold below says so out loud rather than passing over an empty
 # list — a scope that silently empties is a rule that stopped measuring.
@@ -62,26 +68,33 @@ async def main():
             # DRAWN — and it may not assume a root count: the Médiathèque emits
             # four siblings where the other four emit one, which is why the
             # host stopped supplying a root element of its own.
-            # THE FLOOR IS « SOMETHING WAS DRAWN », not « the page is big ».
-            # An earlier version asked for twenty elements and two hundred
-            # characters, which is true of five pages and false of the sixth:
-            # the unknown-address page is SEVEN elements and one sentence, by
-            # design. A threshold that encodes the size of the pages that
-            # happened to exist when it was written fails the day a small one
-            # is added — and says « not drawn » about a page that draws fine.
+            # A FLOOR PER PAGE, and that is the point. One floor for all of
+            # them has to clear the smallest — the unknown-address page is
+            # SEVEN elements and one sentence, by design — and a floor low
+            # enough for that one calls a Médiathèque reduced to its tab bar
+            # « drawn ». Each number is a little under what the page really
+            # emits, so a page that loses a section says so.
+            floor = FLOORS[identifier]
             journal.check(
-                f"the shell-owned page « {identifier} » is drawn",
-                seen.get("children", 0) >= 1 and seen.get("elements", 0) >= 5
-                and seen.get("text", 0) >= 100,
-                str(seen)[:140])
+                f"the shell-owned page « {identifier} » is drawn, whole",
+                seen.get("children", 0) >= 1
+                and seen.get("elements", 0) >= floor,
+                f"{seen.get('elements')} elements, floor {floor}")
 
         # (b) A page the fragment still owns is drawn exactly as before — and
         # when there are none left, that is itself the thing to say.
+        # READ FROM THE APP, never from the list above: a check whose
+        # condition is a constant declared in the same file cannot fail,
+        # and would have counted toward this rule's total while measuring
+        # nothing.
+        drawn_by_legacy = await page.evaluate(
+            "()=>window.__referentiel.PAGES_OF()"
+            ".filter((x) => !x.shellOwned).map((x) => x.id)")
         journal.check(
             "every page in the table has an owner, and the fragment draws none",
-            not LEGACY_OWNED,
-            f"{len(SHELL_OWNED)} shell-owned, {len(LEGACY_OWNED)} legacy-owned"
-            + (f": {LEGACY_OWNED}" if LEGACY_OWNED else ""))
+            not drawn_by_legacy,
+            f"the fragment still draws: {drawn_by_legacy}" if drawn_by_legacy
+            else f"{len(SHELL_OWNED)} shell-owned, none left to the fragment")
         for identifier in LEGACY_OWNED:
             await page.evaluate(f"()=>window.__magasin.ecrire({{page: {identifier!r}}})")
             await page.evaluate("()=>window.__referentiel.render()")
@@ -572,12 +585,51 @@ async def main():
         await page.evaluate("()=>window.__magasin.ecrire({page: 'acq'})")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(600)
+        # WHO FILLED IT, not merely whether it is full: « some children »
+        # is satisfied by React rendering one, which is exactly the
+        # arrangement this hold exists to forbid. What only the FRAGMENT
+        # does is set the container's own `className` — React was never
+        # given that prop — and emit rows carrying `data-dismissable`,
+        # which no component writes.
         refilled = await page.evaluate(
-            "()=>({items: (document.querySelector('#sugitems')||{}).children?.length || 0,"
-            " foot: !!document.querySelector('#sugload')})")
+            "()=>{const box = document.querySelector('#sugitems');"
+            " return {items: box ? box.children.length : 0,"
+            " written: box ? box.className : null,"
+            " fragmentRows: box ?"
+            " box.querySelectorAll('[data-dismissable]').length : 0,"
+            " foot: !!document.querySelector('#sugload')};}")
         journal.check(
-            "the suggestion containers survive a round trip, still filled",
-            refilled["items"] > 0 and refilled["foot"], str(refilled))
+            "the suggestion containers survive a round trip, still filled "
+            "BY THE FRAGMENT",
+            refilled["items"] > 0 and refilled["foot"]
+            and refilled["fragmentRows"] == refilled["items"],
+            str(refilled))
+
+        # AND THE PAGE FOLLOWS THE WORLD. Every action this page offers
+        # mutates the world IN PLACE and signals with `toucher()`, which
+        # leaves the state's identity unchanged — a component subscribed to
+        # the state alone bails out, and the page keeps drawing what it
+        # drew. Measured before it was held: « Récupérer maintenant » moved
+        # a medium from one list to the other and left every counter on
+        # screen unchanged.
+        await page.evaluate("()=>window.__go('acq-encours-charge')")
+        await page.wait_for_timeout(600)
+        counters = await page.evaluate(
+            "()=>[...document.querySelectorAll('#view .sechead .k')]"
+            ".map((x) => x.textContent)")
+        moved = await page.evaluate(
+            "()=>{const first = window.__referentiel.derivedTakeable()[0];"
+            " if (!first) return null;"
+            " window.__referentiel.actionRecuperer(first.t);"
+            " return first.t;}")
+        await page.wait_for_timeout(700)
+        after_action = await page.evaluate(
+            "()=>[...document.querySelectorAll('#view .sechead .k')]"
+            ".map((x) => x.textContent)")
+        journal.check(
+            "an action that moves a medium redraws the page it moved it on",
+            moved is not None and counters != after_action,
+            f"{counters} → {after_action} after « {moved} » was taken")
 
         # (c-quinquies) ARRIVÉES' OWN DELEGATION. This page carries the first
         # migrated control that MUTATES: the pilot's bar writes nothing itself,

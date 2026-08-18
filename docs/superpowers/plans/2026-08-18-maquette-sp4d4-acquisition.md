@@ -102,9 +102,14 @@ manages zero children there, so neither world removes the other's nodes — the 
 
 - [ ] **Step 1:** The three containers are drawn by the component and filled by the fragment;
       `mountLoaders` keeps its suggestions half.
-- [ ] **Step 2:** A HOLD for the seam: the containers exist, the fragment fills them, and React
-      never empties them across a re-render. Mutation: make the component render a child into one
-      of them and the hold must fall.
+- [x] **Step 2:** A HOLD for the seam: the containers exist and the fragment fills them, proven by
+      what only the fragment does — it sets the container's own `className` and emits rows carrying
+      `data-dismissable`, neither of which any component writes. **The mutation this step first
+      named does not work, and the reason is worth keeping**: making the component render a child
+      into `#sugitems` changes nothing measurable, because `fillSug` writes `innerHTML` and erases
+      it. So the hold proves the arrangement WORKS; « React renders nothing there » is a design
+      rule the code states and the measurement cannot distinguish — and, measured, breaking it
+      costs nothing at runtime either: no crash, no console error, the fragment simply wins.
 - [ ] **Step 3:** R55, R64, `deck.py` and `mouse.py` green at unchanged rule code. Full suite.
       Commit.
 

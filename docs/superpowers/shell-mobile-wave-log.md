@@ -567,8 +567,7 @@ own DOM in place — it inserts a card at the back, decrements every `data-depth
 transform on the outgoing one and removes it 440 ms later — and its own comment says why: a
 replaced node cannot animate. React owning that markup would restore the string it last rendered
 on the next repaint and undo the gesture FOUR rules measure (R55, R64, `deck.py`, `mouse.py`). So
-the component draws `#sugitems`, `#sugload` and `.deckbody` and never fills them; the fragment
-fills them exactly as before. React manages zero children there, so neither world removes the
+the component draws `#sugitems`, `#sugload` and `.deckbody` and fills them only with what the FRAGMENT emits — the rows come from `fillSug` / `sugFoot`, and the deck's pile from `deckHTML`, written once when the container has none rather than on every commit: rewriting it on each render replaces the very nodes `avancerDeck` is animating, and « Passer » does write the store, so it re-renders. React manages no children there. React manages zero children there, so neither world removes the
 other's nodes — the arrangement `paintSelBar` already had, one level down. What SP4-end owes that
 machinery is a new HOME (`src/`, as an imperative module) rather than a rewrite: an imperative
 gesture engine is final code; what must die is the fragment as an editing source.
