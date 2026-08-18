@@ -23,7 +23,7 @@ import {
 import { mediaSheetHref } from "@/lib/media-href";
 
 /** View ids for the two panels (spec §3). */
-export type TabId = "maintenant" | "suivis";
+export type TabId = "now" | "follows";
 
 /**
  * Scheduler `name` of the automatic followed-search (grab) cron job (C15).
@@ -85,23 +85,23 @@ export const OBLIGATION_INVALIDATE_EVENTS = new Set([
 export const TABS: readonly { id: TabId; label: string }[] = [
   // Operator directive (2026-08-08, overrides the maquette pane order):
   // Suivis comes first and is the default view.
-  { id: "suivis", label: "Suivis" },
-  { id: "maintenant", label: "Maintenant" },
+  { id: "follows", label: "Suivis" },
+  { id: "now", label: "Maintenant" },
 ];
 
 /** The default view — no ``?tab=`` param, /acquisition stays clean. */
-export const DEFAULT_TAB: TabId = "suivis";
+export const DEFAULT_TAB: TabId = "follows";
 
 /** Old ``?tab=`` values → the view that now answers them (DOIT-10: no dead deep link). */
 export const LEGACY_TAB_REDIRECTS: Readonly<Record<string, TabId>> = {
-  apercu: "maintenant",
-  file: "maintenant",
-  wanted: "maintenant",
-  downloads: "maintenant",
-  obligations: "maintenant",
-  watcher: "maintenant",
-  parcours: "maintenant",
-  followed: "suivis",
+  apercu: "now",
+  file: "now",
+  wanted: "now",
+  downloads: "now",
+  obligations: "now",
+  watcher: "now",
+  parcours: "now",
+  followed: "follows",
 };
 
 /** Allowed status filter values for the wanted queue (includes "all"). */
@@ -268,33 +268,33 @@ export type EpisodeState =
  */
 export const FOLLOW_STATUS_TONE: Record<FollowStatus, BadgeTone> = {
   disabled: "neutral",
-  verification_en_cours: "info",
-  a_recuperer: "warning",
-  en_acquisition: "info",
+  verifying: "info",
+  to_grab: "warning",
+  acquiring: "info",
   // « En attente de torrent » (searched, nothing conforming yet) and « Non
   // vérifié » (no verdict at all yet) must NOT read as the same colour — and
   // neither may collide with « En cours d'acquisition ». Same pair as the
   // episode matrix: teal ``waiting`` vs the colourless dashed ``muted`` ghost.
-  en_attente: "waiting",
-  non_verifie: "muted",
-  a_jour: "success",
+  pending: "waiting",
+  unverified: "muted",
+  up_to_date: "success",
   // « Terminé » shares the success family with « À jour » — both mean « rien à
   // faire » — but reads as the calmer, settled one: a finished series is not
   // waiting for anything, it is closed. The label carries the distinction; a
   // third green would only make the list harder to scan.
-  termine: "neutral",
+  ended: "neutral",
 };
 
 /** Followed-card status → French badge label, série wording (§5). */
 export const FOLLOW_STATUS_LABEL: Record<FollowStatus, string> = {
   disabled: "En pause",
-  verification_en_cours: "Vérification en cours",
-  a_recuperer: "À récupérer",
-  en_acquisition: "En cours d'acquisition",
-  en_attente: "En attente de torrent",
-  non_verifie: "Non vérifié",
-  a_jour: "À jour",
-  termine: "Terminé",
+  verifying: "Vérification en cours",
+  to_grab: "À récupérer",
+  acquiring: "En cours d'acquisition",
+  pending: "En attente de torrent",
+  unverified: "Non vérifié",
+  up_to_date: "À jour",
+  ended: "Terminé",
 };
 
 /**
@@ -306,11 +306,11 @@ export const FOLLOW_STATUS_LABEL: Record<FollowStatus, string> = {
  * Presentational only — tones are shared with {@link FOLLOW_STATUS_TONE}.
  */
 export const FOLLOW_STATUS_LABEL_MOVIE: Partial<Record<FollowStatus, string>> = {
-  a_jour: "Acquis",
+  up_to_date: "Acquis",
   // A film is never « Terminé » — the derivation cannot produce it for a
   // single-unit catalog — but the map stays total in effect: were one ever to
   // arrive, « Acquis » is the only sentence that means anything on a film.
-  termine: "Acquis",
+  ended: "Acquis",
   // A film is not « en pause »: the operator simply stopped searching for it.
   disabled: "Recherche arrêtée",
 };
@@ -461,25 +461,25 @@ export function actionWords(kind: string): ActionWords {
  */
 export const FOLLOW_STATUS_HINT: Record<FollowStatus, string> = {
   disabled: "Suivi en pause — aucune recherche automatique n'est faite.",
-  verification_en_cours:
+  verifying:
     "Vérification en cours — le catalogue puis les trackers sont interrogés.",
-  a_recuperer:
+  to_grab:
     "Une version conforme au profil est disponible — il reste à la récupérer.",
-  en_acquisition:
+  acquiring:
     "Torrent pris — le pipeline le porte jusqu'à la médiathèque.",
-  en_attente:
+  pending:
     "Recherché sur les trackers : rien de conforme au profil pour l'instant.",
-  non_verifie:
+  unverified:
     "Pas encore vérifié sur les trackers — aucune conclusion à ce jour.",
-  a_jour: "Tout ce qui est sorti est en médiathèque — la série continue.",
-  termine:
+  up_to_date: "Tout ce qui est sorti est en médiathèque — la série continue.",
+  ended:
     "Série terminée : tout est en médiathèque et plus aucun épisode n'est attendu.",
 };
 
 /** Film wording of {@link FOLLOW_STATUS_HINT}, for the overridden states only. */
 export const FOLLOW_STATUS_HINT_MOVIE: Partial<Record<FollowStatus, string>> = {
-  a_jour: "Le film est en médiathèque.",
-  termine: "Le film est en médiathèque.",
+  up_to_date: "Le film est en médiathèque.",
+  ended: "Le film est en médiathèque.",
   disabled:
     "Ce film n'est plus cherché — aucune recherche automatique n'est faite.",
 };
@@ -533,26 +533,26 @@ export function followStatusHint(status: FollowStatus, kind: string): string {
  * card status. It lives only in the completeness matrix.
  */
 const COUNT_NOUN: Record<
-  Exclude<EpisodeState, "en_mediatheque" | "annonce" | "absorbed">,
+  Exclude<EpisodeState, "in_library" | "announced" | "absorbed">,
   { readonly one: string; readonly many: string }
 > = {
-  a_recuperer: { one: "à récupérer", many: "à récupérer" },
-  en_acquisition: {
+  to_grab: { one: "à récupérer", many: "à récupérer" },
+  acquiring: {
     one: "en cours d'acquisition",
     many: "en cours d'acquisition",
   },
-  en_attente: {
+  pending: {
     one: "en attente de torrent",
     many: "en attente de torrent",
   },
-  non_verifie: { one: "non vérifié", many: "non vérifiés" },
+  unverified: { one: "non vérifié", many: "non vérifiés" },
 };
 
 /** The caption's bucket order — most actionable first, as the card status is. */
 const COUNT_ORDER: readonly Exclude<
   EpisodeState,
-  "en_mediatheque" | "annonce" | "absorbed"
->[] = ["a_recuperer", "en_acquisition", "en_attente", "non_verifie"];
+  "in_library" | "announced" | "absorbed"
+>[] = ["to_grab", "acquiring", "pending", "unverified"];
 
 /**
  * Derive a media sheet href from a followed item's provider ids.
@@ -632,13 +632,13 @@ export function followFraction(item: FollowedSeriesItem): string | null {
  */
 export function followCountsCaption(item: FollowedSeriesItem): string | null {
   const counts: Record<
-    Exclude<EpisodeState, "en_mediatheque" | "annonce" | "absorbed">,
+    Exclude<EpisodeState, "in_library" | "announced" | "absorbed">,
     number | null
   > = {
-    a_recuperer: item.a_recuperer_count ?? null,
-    en_acquisition: item.en_acquisition_count ?? null,
-    en_attente: item.en_attente_count ?? null,
-    non_verifie: item.non_verifie_count ?? null,
+    to_grab: item.to_grab_count ?? null,
+    acquiring: item.acquiring_count ?? null,
+    pending: item.pending_count ?? null,
+    unverified: item.unverified_count ?? null,
   };
   const parts = COUNT_ORDER.filter((state) => (counts[state] ?? 0) > 0).map(
     (state) => {
@@ -664,7 +664,7 @@ export function followCountsCaption(item: FollowedSeriesItem): string | null {
  *   ``true`` when the grab-only action is meaningful for this follow.
  */
 export function canGrabNow(item: FollowedSeriesItem): boolean {
-  return item.active && item.status === "a_recuperer";
+  return item.active && item.status === "to_grab";
 }
 
 /** Followed kind → French badge label (§5 film vs série). */
@@ -743,12 +743,12 @@ export function formatRunResult(
  * and ``annonce`` onto the violet ``upcoming``.
  */
 export const EPISODE_STATE_TONE: Record<EpisodeState, BadgeTone> = {
-  non_verifie: "muted",
-  annonce: "upcoming",
-  en_attente: "waiting",
-  a_recuperer: "warning",
-  en_acquisition: "info",
-  en_mediatheque: "success",
+  unverified: "muted",
+  announced: "upcoming",
+  pending: "waiting",
+  to_grab: "warning",
+  acquiring: "info",
+  in_library: "success",
   // `absorbed` reaches a surface ONLY when the pointer cannot be followed: the
   // shared seam (states.substitute_absorbed_facts) otherwise replaces it with the
   // carrying season's own state. So this entry renders an UNKNOWN — we know an
@@ -767,12 +767,12 @@ export const EPISODE_STATE_TONE: Record<EpisodeState, BadgeTone> = {
  * is on the disks or it is not.
  */
 export const EPISODE_STATE_LABEL: Record<EpisodeState, string> = {
-  non_verifie: "Non vérifié",
-  annonce: "Annoncé",
-  en_attente: "En attente de torrent",
-  a_recuperer: "À récupérer",
-  en_acquisition: "En cours d'acquisition",
-  en_mediatheque: "En médiathèque",
+  unverified: "Non vérifié",
+  announced: "Annoncé",
+  pending: "En attente de torrent",
+  to_grab: "À récupérer",
+  acquiring: "En cours d'acquisition",
+  in_library: "En médiathèque",
   absorbed: "En cours d'acquisition",
 };
 
@@ -786,12 +786,12 @@ export const EPISODE_STATE_LABEL: Record<EpisodeState, string> = {
  * same chip twice for what is one operator-facing state.
  */
 export const EPISODE_LEGEND_ORDER: readonly EpisodeState[] = [
-  "non_verifie",
-  "annonce",
-  "en_attente",
-  "a_recuperer",
-  "en_acquisition",
-  "en_mediatheque",
+  "unverified",
+  "announced",
+  "pending",
+  "to_grab",
+  "acquiring",
+  "in_library",
 ];
 
 /**
@@ -802,15 +802,15 @@ export const EPISODE_LEGEND_ORDER: readonly EpisodeState[] = [
  * verdict yet).
  */
 export const EPISODE_STATE_HINT: Record<EpisodeState, string> = {
-  annonce: "Sortie prévue — l'épisode n'est pas encore diffusé.",
-  en_mediatheque: "L'épisode est en médiathèque.",
-  a_recuperer:
+  announced: "Sortie prévue — l'épisode n'est pas encore diffusé.",
+  in_library: "L'épisode est en médiathèque.",
+  to_grab:
     "Une version conforme au profil est disponible — il reste à la récupérer.",
-  en_acquisition:
+  acquiring:
     "Torrent pris — le pipeline le porte jusqu'à la médiathèque.",
-  en_attente:
+  pending:
     "Recherché sur les trackers : rien de conforme au profil pour l'instant.",
-  non_verifie:
+  unverified:
     "Pas encore vérifié sur les trackers — aucune conclusion à ce jour.",
   // NEVER claim a torrent was taken here: absorption happens when the SEASON
   // row is enqueued (`pending`), before any search has run — an absorbed
@@ -836,7 +836,7 @@ export const SEARCH_OUTCOME_REASON: Record<string, string> = {
   // Concluding verdicts → « En attente ».
   no_candidates: "aucun résultat",
   no_matching_episode: "pas d'épisode exact",
-  all_filtered: "rien de conforme au profil",
+  all_filtered: "rien de conforme au profile",
   // Inconclusive verdicts → « Non vérifié » (the search never concluded).
   trackers_unavailable: "trackers injoignables",
   circuit_open: "recherche suspendue après trop d'échecs",
@@ -863,7 +863,7 @@ export function searchOutcomeReason(
   state: EpisodeState | FollowStatus,
   outcome: string | null | undefined,
 ): string | null {
-  if (state !== "en_attente" && state !== "non_verifie") return null;
+  if (state !== "pending" && state !== "unverified") return null;
   if (outcome == null || outcome === "") return null;
   return SEARCH_OUTCOME_REASON[outcome] ?? UNKNOWN_OUTCOME_REASON;
 }

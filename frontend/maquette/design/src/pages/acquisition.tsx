@@ -44,12 +44,12 @@ function AcquisitionTabs(): ReactElement {
   const { icons, derivedTakeable, derivedBlocked } = useReference();
   const tabs = [
     {
-      id: "maintenant",
+      id: "now",
       label: t("screens.acquisition.tabNow"),
       count: derivedTakeable().length + derivedBlocked().length,
     },
-    { id: "suivis", label: t("screens.acquisition.tabFollows") },
-    { id: "decouvrir", label: t("screens.acquisition.tabDiscover") },
+    { id: "follows", label: t("screens.acquisition.tabFollows") },
+    { id: "discover", label: t("screens.acquisition.tabDiscover") },
   ];
   return (
     <div className="viewtabs">
@@ -97,7 +97,7 @@ function NowTab(): ReactElement {
     derivedStuck,
   } = useReference();
 
-  if (state.phase !== "prete") {
+  if (state.phase !== "ready") {
     return (
       <div className="body">
         {state.phase === "erreur" ? (
@@ -266,7 +266,7 @@ function FollowsTab(): ReactElement {
       count: follows.filter((follow) => follow.k !== "movie").length,
     },
     {
-      id: "films",
+      id: "movies",
       label: t("screens.acquisition.pillMovies"),
       count: follows.filter((follow) => follow.k === "movie").length,
     },
@@ -280,9 +280,9 @@ function FollowsTab(): ReactElement {
   const matches = (follow: Follow) =>
     state.pill === "tout" ||
     (state.pill === "series" && follow.k !== "movie") ||
-    (state.pill === "films" && follow.k === "movie") ||
+    (state.pill === "movies" && follow.k === "movie") ||
     (state.pill === "pause" && follow.st === "disabled");
-  const term = (state.filtre as string).trim().toLocaleLowerCase();
+  const term = (state.filter as string).trim().toLocaleLowerCase();
   const normalise = (text: string) =>
     text
       .normalize("NFD")
@@ -324,7 +324,7 @@ function FollowsTab(): ReactElement {
       .filter(Boolean)
       .join(" · "),
     r:
-      follow.st === "en_attente"
+      follow.st === "pending"
         ? [
             t("screens.acquisition.noConformRelease"),
             next ? t("screens.acquisition.nextSearch", { at: next }) : null,
@@ -338,17 +338,17 @@ function FollowsTab(): ReactElement {
       : undefined,
     caption:
       [
-        follow.depuis
-          ? t("screens.acquisition.followedSince") + follow.depuis
+        follow.since
+          ? t("screens.acquisition.followedSince") + follow.since
           : null,
         // Zero is a fact worth printing: a follow added and never searched is
         // exactly what one wants to spot.
-        follow.recherches != null
+        follow.searches != null
           ? t(
-              follow.recherches > 1
+              follow.searches > 1
                 ? "screens.acquisition.searchesMany"
                 : "screens.acquisition.searchesOne",
-              { count: follow.recherches },
+              { count: follow.searches },
             )
           : null,
       ]
@@ -362,7 +362,7 @@ function FollowsTab(): ReactElement {
       follow.k === "movie"
         ? `<button class="act pause" data-swipeact="pause">${svgIcon(icons.x)}${t("screens.acquisition.swipeStopSearching")}</button><button class="act remove" data-swipeact="remove">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`
         : `<button class="act pause" data-swipeact="pause">${svgIcon(icons.x)}${t("screens.acquisition.swipePause")}</button><button class="act remove" data-swipeact="remove">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`,
-      follow.st === "en_attente" || follow.st === "a_recuperer"
+      follow.st === "pending" || follow.st === "to_grab"
         ? `<button class="act resume" data-swipeact="${SEARCH_AGAIN}">${svgIcon(icons.refresh)}${t("screens.acquisition.swipeSearch")}</button>`
         : "",
     );
@@ -408,7 +408,7 @@ function FollowsTab(): ReactElement {
             // ESCAPED, because this string is injected as HTML: i18next
             // interpolates without escaping — right for a React text node,
             // wrong here — and the legacy escaped it at exactly this spot.
-            term: escapeHtml(state.filtre as string),
+            term: escapeHtml(state.filter as string),
           })
         : state.pill === "pause"
           ? t("screens.acquisition.emptyPaused")
@@ -478,7 +478,7 @@ function FollowsTab(): ReactElement {
             // control forced a second render.
             type="search"
             id="follq"
-            defaultValue={state.filtre as string}
+            defaultValue={state.filter as string}
             placeholder={t("screens.acquisition.filterPlaceholder")}
             aria-label={t("screens.acquisition.filterLabel")}
             ref={(element) => {
@@ -487,19 +487,19 @@ function FollowsTab(): ReactElement {
               // reach the field, and only when the two differ, so nothing
               // touches the node mid-word. The ATTRIBUTE follows too: the
               // legacy re-emitted it on every draw.
-              const filter = state.filtre as string;
+              const filter = state.filter as string;
               if (element.value !== filter) element.value = filter;
               if (element.getAttribute("value") !== filter)
                 element.setAttribute("value", filter);
               const commit = () => {
-                writeUiState({ filtre: element.value });
+                writeUiState({ filter: element.value });
                 render();
               };
               element.addEventListener("input", commit);
               return () => element.removeEventListener("input", commit);
             }}
           />
-          {state.filtre ? (
+          {state.filter ? (
             <button
               className="searchclear"
               data-clearq="foll"
@@ -596,7 +596,7 @@ function DiscoverTab(): ReactElement {
   // in the legacy, and it is written into the body here.
   useEffect(() => {
     const deckBody = document.querySelector(".deckbody");
-    if (state.sugMode === "deck" && state.phase === "prete" && deckBody) {
+    if (state.sugMode === "deck" && state.phase === "ready" && deckBody) {
       // ONLY IF THE PILE IS NOT ALREADY THERE. Rewriting it on every commit
       // destroys the gesture in flight: « Passer » writes the order to the
       // store, which re-renders this component, whose effect would then replace
@@ -652,7 +652,7 @@ function DiscoverTab(): ReactElement {
 
   // The deck at rest is the whole body: no notes, no containers, just the pile
   // the fragment fills.
-  if (state.sugMode === "deck" && state.phase === "prete") {
+  if (state.sugMode === "deck" && state.phase === "ready") {
     return (
       <>
         {selector}
@@ -733,11 +733,11 @@ function DiscoverTab(): ReactElement {
           />
         ) : null}
         {/* FILLED BY THE FRAGMENT, never by React — see this file's header. */}
-        <div id="sugitems" hidden={state.phase !== "prete"}></div>
+        <div id="sugitems" hidden={state.phase !== "ready"}></div>
         <div
           id="sugload"
           className="loadfoot"
-          hidden={state.phase !== "prete" || state.sugMode === "deck"}
+          hidden={state.phase !== "ready" || state.sugMode === "deck"}
         ></div>
         <div className="note">
           <b>{t("screens.acquisition.tmdbMissingNoteLead")}</b>
@@ -758,7 +758,7 @@ export function AcquisitionPage(): ReactElement | null {
   // moved the medium and left every counter on screen unchanged. The two other
   // pages that read mutable data subscribe the same way, for the same reason.
   useStoreContent((content) => content.version);
-  if (state.acqTab === "maintenant") {
+  if (state.acqTab === "now") {
     return (
       <>
         <AcquisitionTabs />
@@ -766,7 +766,7 @@ export function AcquisitionPage(): ReactElement | null {
       </>
     );
   }
-  if (state.acqTab === "suivis") {
+  if (state.acqTab === "follows") {
     return (
       <>
         <AcquisitionTabs />

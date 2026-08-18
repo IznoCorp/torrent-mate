@@ -101,11 +101,11 @@ def test_states_matrix_over_the_five_states() -> None:
     assert (season.season, season.total, season.owned, season.queued) == (1, 5, 1, 2)
     states = {e.episode: e.state for e in season.episodes}
     assert states == {
-        1: "en_mediatheque",
-        2: "en_acquisition",
-        3: "a_recuperer",
-        4: "en_attente",
-        5: "non_verifie",
+        1: "in_library",
+        2: "acquiring",
+        3: "to_grab",
+        4: "pending",
+        5: "unverified",
     }
 
 
@@ -149,7 +149,7 @@ def test_newer_live_row_outranks_the_old_absorbed_one_in_the_matrix() -> None:
 
     result = compute_completeness(_follow(), ownership=ownership, store=store)
 
-    assert result.seasons[0].episodes[0].state == "a_recuperer"
+    assert result.seasons[0].episodes[0].state == "to_grab"
 
 
 def test_ownership_beats_a_stale_grabbed_row() -> None:
@@ -160,11 +160,11 @@ def test_ownership_beats_a_stale_grabbed_row() -> None:
 
     result = compute_completeness(_follow(), ownership=ownership, store=store)
 
-    assert [e.state for e in result.seasons[0].episodes] == ["en_mediatheque"]
+    assert [e.state for e in result.seasons[0].episodes] == ["in_library"]
     assert (result.seasons[0].owned, result.seasons[0].queued) == (1, 0)
 
 
-def test_an_inconclusive_search_reads_non_verifie() -> None:
+def test_an_inconclusive_search_reads_unverified() -> None:
     """Panne ≠ absence: a tracker outage must never read « rien à prendre »."""
     ownership = MagicMock()
     ownership.owns.return_value = False
@@ -172,7 +172,7 @@ def test_an_inconclusive_search_reads_non_verifie() -> None:
 
     result = compute_completeness(_follow(), ownership=ownership, store=store)
 
-    assert [e.state for e in result.seasons[0].episodes] == ["non_verifie"]
+    assert [e.state for e in result.seasons[0].episodes] == ["unverified"]
     # « Non vérifié » is not « en mouvement » — it must not inflate the queued count.
     assert result.seasons[0].queued == 0
 
@@ -188,7 +188,7 @@ def test_a_closed_row_never_speaks_for_its_episode() -> None:
 
     result = compute_completeness(_follow(), ownership=ownership, store=store)
 
-    assert [e.state for e in result.seasons[0].episodes] == ["non_verifie"]
+    assert [e.state for e in result.seasons[0].episodes] == ["unverified"]
 
 
 def test_the_latest_open_row_governs_over_an_older_leftover() -> None:
@@ -205,7 +205,7 @@ def test_the_latest_open_row_governs_over_an_older_leftover() -> None:
 
     result = compute_completeness(_follow(), ownership=ownership, store=store)
 
-    assert [e.state for e in result.seasons[0].episodes] == ["en_acquisition"]
+    assert [e.state for e in result.seasons[0].episodes] == ["acquiring"]
 
 
 def test_rows_of_another_episode_never_leak() -> None:
@@ -217,7 +217,7 @@ def test_rows_of_another_episode_never_leak() -> None:
     result = compute_completeness(_follow(), ownership=ownership, store=store)
 
     states = {e.episode: e.state for e in result.seasons[0].episodes}
-    assert states == {1: "non_verifie", 2: "en_acquisition"}
+    assert states == {1: "unverified", 2: "acquiring"}
 
 
 def test_an_uncached_follow_is_honest_ignorance() -> None:
@@ -307,7 +307,7 @@ def test_an_unreadable_wanted_row_degrades_to_never_searched() -> None:
 
     result = compute_completeness(_follow(), ownership=ownership, store=store)
 
-    assert [e.state for e in result.seasons[0].episodes] == ["non_verifie"]
+    assert [e.state for e in result.seasons[0].episodes] == ["unverified"]
 
 
 def test_waiting_episode_exposes_the_verdict_it_was_derived_from() -> None:
@@ -325,7 +325,7 @@ def test_waiting_episode_exposes_the_verdict_it_was_derived_from() -> None:
     result = compute_completeness(_follow(), ownership=ownership, store=store)
 
     episodes = {e.episode: e for e in result.seasons[0].episodes}
-    assert episodes[1].state == "en_attente"
+    assert episodes[1].state == "pending"
     assert episodes[1].last_search_outcome == "all_filtered"
     assert episodes[2].last_search_outcome == "no_matching_episode"
 
@@ -347,7 +347,7 @@ def test_exposed_outcome_comes_from_the_governing_row() -> None:
     result = compute_completeness(_follow(), ownership=ownership, store=store)
 
     episode = result.seasons[0].episodes[0]
-    assert episode.state == "non_verifie"
+    assert episode.state == "unverified"
     assert episode.last_search_outcome is None
 
 
@@ -378,7 +378,7 @@ def test_matrix_shows_future_as_annonce_kept_out_of_aired_tallies() -> None:
 
     season = result.seasons[0]
     states = {e.episode: e.state for e in season.episodes}
-    assert states == {1: "en_mediatheque", 2: "annonce"}, "the future episode reads annonce"
+    assert states == {1: "in_library", 2: "announced"}, "the future episode reads announced"
     assert season.total == 1, "total counts AIRED only"
     assert season.owned == 1
     assert season.announced == 1, "the future is counted apart, in announced"

@@ -58,7 +58,7 @@ const KEEP = new Set(["id"]);
  * Collections whose singular is not just « drop the s ».
  *
  * The KEYS are the legacy script's own collection names, French ones included
- * (`saisons`, `titres`, `lignes`) — they are what this tool READS, data about
+ * (`seasons`, `titres`, `lignes`) — they are what this tool READS, data about
  * its subject. The VALUES are the names it WRITES, and those are English.
  */
 const SINGULARS = {
@@ -67,7 +67,7 @@ const SINGULARS = {
   releases: "release",
   entries: "entry",
   candidates: "candidate",
-  saisons: "season",
+  seasons: "season",
   seasons: "season",
   states: "state",
   regions: "region",

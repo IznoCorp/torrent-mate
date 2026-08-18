@@ -14,14 +14,14 @@ async def main():
     # The startup screen covers the frame for as long as the load it stands
     # for lasts. Nothing is being fetched here, so the harness closes that
     # wait through the same seam the app uses, rather than sleeping it out.
-    await pg.evaluate("()=>window.__chargementTermine?.()")
+    await pg.evaluate("()=>window.__loadingDone?.()")
     await pg.evaluate("()=>window.__measure(true)")
     cnt = """()=>({takeable:derived.takeable().length, inflight:derived.inflight().length, stuck:derived.stuck().length, blocked:derived.blocked().length,
                    moving:derived.moving().length, follows:world.follows.length,
                    paused:world.follows.filter(f=>f.st==='disabled').length, lib:world.lib.length,
                    acqBadge:(document.querySelector('[data-page=acq] .navbadge')||{}).textContent||null})"""
 
-    await pg.evaluate("()=>window.__go('acq-encours-charge')"); await pg.wait_for_timeout(300)
+    await pg.evaluate("()=>window.__go('acq-encours-loaded')"); await pg.wait_for_timeout(300)
     a=await pg.evaluate(cnt); print("before grabbing      :", a)
     await pg.evaluate("()=>[...document.querySelectorAll('.cfoot')].find(x=>x.textContent.includes('Récupérer')).click()")
     await pg.wait_for_timeout(400)
@@ -55,7 +55,7 @@ async def main():
     assert b2b["blocked"]==a["blocked"]-1, "the arbitrated item stayed in the queue"
     print("  → candidate picked, and the item leaves « À traiter »")
 
-    await pg.evaluate("()=>window.__go('acq-suivis-liste')"); await pg.wait_for_timeout(300)
+    await pg.evaluate("()=>window.__go('acq-follows-liste')"); await pg.wait_for_timeout(300)
     a=await pg.evaluate(cnt)
     await pg.evaluate("()=>{const w=document.querySelector('#view .swipe');w.querySelector('.act.pause').click();}")
     await pg.wait_for_timeout(400)
@@ -70,13 +70,13 @@ async def main():
     b5=await pg.evaluate(cnt); print("\ndrop a follow        :", a["follows"], "→", b5["follows"])
     assert b5["follows"]==a["follows"]-1
 
-    await pg.evaluate("()=>window.__go('acq-decouvrir')"); await pg.wait_for_timeout(350)
+    await pg.evaluate("()=>window.__go('acq-discover')"); await pg.wait_for_timeout(350)
     a=await pg.evaluate(cnt)
     await pg.evaluate("()=>[...document.querySelectorAll('[data-panel]')].find(e=>e.dataset.panel.startsWith('sug:')).click()"); await pg.wait_for_timeout(400)
     await pg.evaluate("()=>document.querySelector('#sheet .sact.primary').click()"); await pg.wait_for_timeout(450)
     b6=await pg.evaluate(cnt); print("\nfollow a suggestion  :", a["follows"], "→", b6["follows"])
     assert b6["follows"]==a["follows"]+1
-    await pg.evaluate("()=>window.__go('acq-suivis-liste',{keep:true})"); await pg.wait_for_timeout(350)
+    await pg.evaluate("()=>window.__go('acq-follows-liste',{keep:true})"); await pg.wait_for_timeout(350)
     print("  → at the head of Suivis :", await pg.evaluate("()=>document.querySelector('.ctitle').textContent"),
           "| chip Nouveau :", await pg.evaluate("()=>!!document.querySelector('.freshtag')"))
 

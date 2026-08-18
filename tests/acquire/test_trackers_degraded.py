@@ -158,7 +158,7 @@ class TestVocabularyStaysCoherent:
 class TestDegradedEpisodeReadsAsNotVerified:
     """The UI must not say « En attente » about a search that never concluded (§2)."""
 
-    def test_state_is_non_verifie_not_en_attente(self) -> None:
+    def test_state_is_unverified_not_pending(self) -> None:
         """A degraded last verdict yields 'non_verifie', never 'en_attente'.
 
         ``derive_episode_state`` routes every member of ``INCONCLUSIVE_OUTCOMES`` to
@@ -174,7 +174,7 @@ class TestDegradedEpisodeReadsAsNotVerified:
             last_search_found=None,
         )
 
-        assert state == "non_verifie"
+        assert state == "unverified"
 
 
 class TestDegradedSearchDoesNotBurnAnAttempt:

@@ -1,6 +1,6 @@
 // design/src/screens/add.tsx
 // The second pilot: legacy `openAddScreen(query, mode)` (`refonte.html`) reborn
-// as a real route (`/ajout`) and a final component. Markup is TRANSPLANTED,
+// as a real route (`/add`) and a final component. Markup is TRANSPLANTED,
 // not translated — every tag and class below is one `refonte.html`'s BLOCK 2
 // CSS already targets (`.screen`, `.addform`, `.addrow`, `.reslist`, `.byid`,
 // `.addfoot`…), so the same stylesheet applies unchanged.
@@ -28,7 +28,7 @@
 // The FIRST router-owned search params: `q` and `mode` no longer live in the
 // legacy `state.addQ` / `state.addMode` while this screen is open — the
 // router is the single source of truth for as long as the address reads
-// `/ajout`. Typing rewrites the address IN PLACE (`go(..., replace: true)`,
+// `/add`. Typing rewrites the address IN PLACE (`go(..., replace: true)`,
 // same discipline `go()`'s own doc comment states) so keystrokes never stack
 // history — R76's own rule, exercised here for the first time by a CONTROLLED
 // input rather than a one-shot navigation.
@@ -50,7 +50,7 @@ import {
 type Mode = "suivi" | "identifier";
 
 export function AddScreen() {
-  const { q, mode: rawMode } = useSearch({ from: "/ajout" });
+  const { q, mode: rawMode } = useSearch({ from: "/add" });
   const mode: Mode = rawMode === "identifier" ? "identifier" : "suivi";
   const identify = mode === "identifier";
   const query = q ?? "";
@@ -81,20 +81,20 @@ export function AddScreen() {
   }
 
   // Always invoked from INSIDE this screen — search() runs only while
-  // AddScreen is mounted, which means the address already reads `/ajout`.
+  // AddScreen is mounted, which means the address already reads `/add`.
   // Routing it through `window.__screens.ajout()` (a PUSH, meant for arriving
   // here fresh from elsewhere — the FAB, a resolution's manual search)
-  // stacked a second `/ajout` entry per search: the legacy engine never
+  // stacked a second `/add` entry per search: the legacy engine never
   // pushed for a same-key re-render, and a screen already open should not
   // either — one "Retour" from a chip search used to leave the screen still
-  // open, having only popped back onto an earlier `/ajout` entry. `go()`
+  // open, having only popped back onto an earlier `/add` entry. `go()`
   // direct, with `replace: true`, keeps the sync with the legacy readers
   // (`state.addQ`/`state.addMode`) `window.__screens.ajout()` also performs,
   // without the push.
   function search(value: string): void {
     write({ addQ: value, addMode: mode });
     go({
-      to: "/ajout",
+      to: "/add",
       search: {
         q: value || undefined,
         mode: identify ? "identifier" : undefined,
@@ -115,11 +115,11 @@ export function AddScreen() {
   // rendered explicitly, since nothing subscribes the legacy `#view` to the
   // store automatically (see `render`'s own doc comment in data.ts).
   function toFollows(): void {
-    write({ page: "acq", acqTab: "maintenant" });
+    write({ page: "acq", acqTab: "now" });
     render();
     go({
       to: "/",
-      search: { page: "acq", tab: "maintenant" },
+      search: { page: "acq", tab: "now" },
       replace: true,
     });
   }
@@ -182,7 +182,7 @@ export function AddScreen() {
             >
               <b style={{ color: "var(--info)" }}>
                 {t("screens.add.identifyTitle", {
-                  titre: baseTitle(resolveTarget ?? ""),
+                  title: baseTitle(resolveTarget ?? ""),
                 })}
               </b>
               {t("screens.add.identifyBody")}
@@ -200,7 +200,7 @@ export function AddScreen() {
               aria-label={t("screens.add.searchAria")}
               onChange={(event) =>
                 go({
-                  to: "/ajout",
+                  to: "/add",
                   search: {
                     q: event.target.value || undefined,
                     mode: identify ? "identifier" : undefined,

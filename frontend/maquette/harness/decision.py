@@ -41,7 +41,7 @@ def check(name, condition, detail=""):
 
 SCREEN = """() => {
   // The arbitration screen left `#screen` for a real route
-  // (`/resolution/$dossier`, rendered inside `#coquille`), so it answers to
+  // (`/resolution/$folder`, rendered inside `#coquille`), so it answers to
   // its own identity now, the way the mediaSheet and the add screen already do.
   // The identity rather than a bare `.screen.open`: two screens can carry
   // `open` at once, and this rule must measure THIS one. An absent screen
@@ -105,7 +105,7 @@ async def main():
         with_score = [c for c in with_["candidates"] if c["confidence"]]
         check("the tied ones show no score", len(without_score) == 4,
               f"{len(without_score)} without a score")
-        check("the one that stands out shows its own", len(with_score) == 1,
+        check("the one that stands out series its own", len(with_score) == 1,
               str([c["confidence"] for c in with_score]))
         check("and the screen says why it does not rank",
               "ne tranche pas" in with_["text"])
@@ -127,7 +127,7 @@ async def main():
               str([c["title"] for c in with_["candidates"] if not c["plot"]]))
         check("and nothing invites leaving the screen to decide",
               not any(c["link"] for c in with_["candidates"]))
-        check("the one the provider does not illustrate shows the substitute",
+        check("the one the provider does not illustrate series the substitute",
               sum(1 for c in with_["candidates"] if c["noPoster"]) == 1,
               str([c["title"] for c in with_["candidates"] if c["noPoster"]]))
 

@@ -186,7 +186,7 @@ describe("ResolutionDeck", () => {
     });
   });
 
-  it("shows an empty state when there is nothing to resolve", () => {
+  it("series an empty state when there is nothing to resolve", () => {
     setup({ items: [] });
     renderDeck();
     expect(

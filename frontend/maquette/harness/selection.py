@@ -11,7 +11,7 @@ async def main():
     # The startup screen covers the frame for as long as the load it stands
     # for lasts. Nothing is being fetched here, so the harness closes that
     # wait through the same seam the app uses, rather than sleeping it out.
-    await pg.evaluate("()=>window.__chargementTermine?.()")
+    await pg.evaluate("()=>window.__loadingDone?.()")
     await pg.evaluate("()=>document.querySelector('#toastx').click()")
 
     print("tab labels:", await pg.evaluate("()=>[...document.querySelectorAll('.seg button')].map(b=>b.textContent.trim())"))

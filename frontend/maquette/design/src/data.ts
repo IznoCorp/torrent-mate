@@ -7,7 +7,7 @@ import type { PanelDescriptor } from "./components/panel";
 import type { StoreContent, UiState } from "./store";
 
 function subscribe(callback: () => void): () => void {
-  const subscription = window.__magasin.store.subscribe(callback);
+  const subscription = window.__store.store.subscribe(callback);
   return () => subscription.unsubscribe();
 }
 
@@ -15,22 +15,22 @@ export function useStoreContent<T>(select: (c: StoreContent) => T): T {
   // `version` bumps on every write INCLUDING in-place world mutations, so a
   // selector over a mutated-in-place object still re-reads: the snapshot the
   // comparison sees is the selected value, re-derived per notification.
-  return useSyncExternalStore(subscribe, () => select(window.__magasin.read()));
+  return useSyncExternalStore(subscribe, () => select(window.__store.read()));
 }
 
 export const useUiState = (): UiState => useStoreContent((c) => c.state);
 export const useWorld = (): unknown => useStoreContent((c) => c.world);
 
 // The single write door, matching the read side above: a component patches
-// the store through THIS function, never through `window.__magasin.ecrire`
+// the store through THIS function, never through `window.__store.write`
 // directly — the binding mission replaces this function's implementation
 // (and only this one) when the real store arrives, exactly as it replaces
-// `useReference()`'s below. `window.__magasin.ecrire` stays the actual
+// `useReference()`'s below. `window.__store.write` stays the actual
 // primitive underneath because the still-legacy call sites (refonte.html)
 // have no hook to go through; a component reaching around this accessor is
 // what would make that replacement touch component code too.
 export function writeUiState(patch: Partial<UiState>): void {
-  window.__magasin.write(patch);
+  window.__store.write(patch);
 }
 
 export type Resolution = "720p" | "1080p" | "2160p";
@@ -80,7 +80,7 @@ export type CardDescriptor = {
 };
 
 // A media sheet, exactly as `SHEETS_RAW` shapes one in refonte.html — a
-// movie and a show share most fields but not all (a show carries `saisons`
+// movie and a show share most fields but not all (a show carries `seasons`
 // and `eps`, a movie carries `duree`), and the source stays untyped JS. A
 // loose index type is the honest shape here rather than a speculative
 // closed one: a component narrows the fields it actually reads.
@@ -89,8 +89,8 @@ export type MediaSheet = Record<string, unknown>;
 // One YouTube trailer reference, as `trailerIds` shapes one per title.
 export type Trailer = {
   key: string;
-  nom: string;
-  langue: string;
+  name: string;
+  language: string;
 };
 
 // One editable setting, as `allSettings()` flattens one — the legacy
@@ -106,7 +106,7 @@ export type Setting = {
   n: string;
   v: unknown;
   note?: string;
-  rubrique: Record<string, unknown>;
+  topic: Record<string, unknown>;
 };
 
 // One TVDB/TMDB candidate offered for a decision still awaiting arbitration,
@@ -180,8 +180,8 @@ export type Follow = {
   st: string;
   serie?: string;
   fresh?: boolean;
-  depuis?: string;
-  recherches?: number;
+  since?: string;
+  searches?: number;
 };
 
 // One GROUP of the grouped mode: its heading, its pip, and the statuses it
@@ -262,7 +262,7 @@ export type PipelineRun = {
 // THE PIPELINE, as the page that carries its health reads it: the nine steps in
 // the engine's own order, the trigger vocabulary said in words rather than in
 // the engine's token, and the last run exactly as `pipeline_run` recorded it.
-// A step's `faits` entry may carry nothing at all — that is the em dash the
+// A step's `facts` entry may carry nothing at all — that is the em dash the
 // interface draws for « nothing to do », and it is not the same sentence as a
 // step that looked and found everything already in order.
 export type PipelineStep = { n: string; l: string; d: string };
@@ -271,19 +271,19 @@ export type PipelineFact = {
   n: string;
   r?: string;
   s?: string;
-  bloque?: number;
+  blockedCount?: number;
 };
 
 export type Pipeline = {
   steps: PipelineStep[];
   declencheurs: Record<string, string>;
-  dernier: {
+  last: {
     uid: string;
     when: string;
     duree: string;
     declencheur: string;
     issue: string;
-    faits: PipelineFact[];
+    facts: PipelineFact[];
   };
 };
 
@@ -335,20 +335,20 @@ export type Secret = { k: string; l: string; def?: boolean };
 // READS it — it never replaces it — and re-reads on every store bump.
 export type SettingsState = {
   modifs: Map<string, unknown>;
-  rubrique: string | null;
+  topic: string | null;
   q: string;
-  lectureSeule: boolean;
+  readOnly: boolean;
   redemarrage: boolean;
-  conflit: boolean;
+  conflict: boolean;
 };
 
 // The code-error summary the Système page draws as two rows.
 export type CodeErrors = {
   total: number | string;
-  sur: number | string;
-  derniere: string;
-  quoi: string;
-  ou: string;
+  outOf: number | string;
+  latest: string;
+  what: string;
+  where: string;
 };
 
 // EVERY MEMBER NAME BELOW IS THE SEAM: the engine publishes this object under
@@ -416,7 +416,7 @@ export type Reference = {
   // The one account this server has, and the escaper the fragment's emitters
   // use — a page that hands a string of markup to one of them escapes exactly
   // what the legacy escaped.
-  ACCOUNT: { nom: string; mail: string };
+  ACCOUNT: { name: string; mail: string };
   escapeHtml: (text: string) => string;
   // The suggestion machinery. It stays the FRAGMENT's — the deck's gesture
   // mutates its own DOM and a replaced node cannot animate — and a migrated
@@ -490,11 +490,11 @@ export type Reference = {
   CAST: Record<string, string>;
   trailerIds: Record<string, Trailer>;
   EP_LABEL: Record<string, string>;
-  sheetFor: (titre: string) => MediaSheet | null;
-  seasonsOf: (titre: string) => [number, number | null, number][];
-  ownedFor: (titre: string, saison: number) => Set<number> | null;
+  sheetFor: (title: string) => MediaSheet | null;
+  seasonsOf: (title: string) => [number, number | null, number][];
+  ownedFor: (title: string, season: number) => Set<number> | null;
   plages: (nums: number[]) => string;
-  initials: (nom: string) => string;
+  initials: (name: string) => string;
   // `dateFR` returns null on a falsy `iso`, exactly like `sheetFor` on an
   // unresolved title — a sheet's air dates are frequently unset (an
   // announced-but-unaired episode) and the caller decides what to show.
@@ -511,7 +511,7 @@ export type Reference = {
   // file's `brut` otherwise. The pending-edit overlay itself stays private to
   // the engine — this returns the value, never the map.
   rawValue: (setting: Setting) => unknown;
-  typedValue: (setting: Setting, texte: string) => unknown;
+  typedValue: (setting: Setting, text: string) => unknown;
   changeSetting: (id: string, value: unknown) => void;
   openSetting: (id: string) => void;
   // The arbitration flow — decisions the scrape could not make on its own,
@@ -552,9 +552,9 @@ export type Reference = {
   // to the pipeline; `actionTake` restarts a takeable item instead.
   // Each toasts and re-renders on success; `actionLeave` also reports
   // whether the folder was found at all.
-  actionResolve: (titre: string, choice?: string) => void;
-  actionLeave: (titre: string) => boolean;
-  actionTake: (titre: string) => void;
+  actionResolve: (title: string, choice?: string) => void;
+  actionLeave: (title: string) => boolean;
+  actionTake: (title: string) => void;
   toast: (msg: string) => void;
   posterBox: (
     title: string,
@@ -589,9 +589,9 @@ declare global {
     // The engine's own multi-layer closer, published by refonte.html: the
     // scrim covers the drawer, the dialog and the sheet alike, and a tap on it
     // closes whichever is up. Optional for the same reason
-    // `__demarrerMoteur` is — a document served without the fragment must
+    // `__startEngine` is — a document served without the fragment must
     // fail visibly, not here.
-    __fermerCouches?: () => void;
+    __closeLayers?: () => void;
   }
 }
 

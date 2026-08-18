@@ -34,7 +34,7 @@ export function MaintenancePage(): ReactElement | null {
     JOURNAL,
   } = useReference();
 
-  if (state.phase !== "prete") {
+  if (state.phase !== "ready") {
     return state.phase === "erreur" ? (
       <div
         className="surferr"

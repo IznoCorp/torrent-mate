@@ -140,8 +140,8 @@ function routeFetch(input: RequestInfo | URL): Promise<Response> {
     return Promise.resolve(
       buildResponse(200, {
         items: 1200,
-        movies: 800,
-        shows: 400,
+        films: 800,
+        series: 400,
         files: 3400,
         size_gb: 4200.5,
         nfo: { valid: 1150, invalid: 30, missing: 20 },

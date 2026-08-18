@@ -87,8 +87,8 @@ function routeFetch(input: RequestInfo | URL): Promise<Response> {
     return Promise.resolve(
       buildResponse(200, {
         items: 0,
-        movies: 0,
-        shows: 0,
+        films: 0,
+        series: 0,
         files: 0,
         size_gb: 0,
         nfo: { valid: 0, invalid: 0, missing: 0 },
@@ -144,7 +144,7 @@ const fetchMock = vi.fn<typeof fetch>();
 // ---------------------------------------------------------------------------
 
 /** Render the systeme page behind the router and query client. */
-function renderSystemPage(initialEntries: string[] = ["/systeme"]): void {
+function renderSystemPage(initialEntries: string[] = ["/system"]): void {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -236,7 +236,7 @@ describe("SystemPage", () => {
   });
 
   it("l'onglet actions affiche le catalogue d'actions", () => {
-    renderSystemPage(["/systeme?tab=actions"]);
+    renderSystemPage(["/system?tab=actions"]);
 
     // The ActionCatalog fetches /api/maintenance/actions. Since fetch is mocked
     // synchronously, the tab selection is immediate. Assert that the actions
@@ -248,7 +248,7 @@ describe("SystemPage", () => {
   });
 
   it("l'onglet maintenance affiche l'historique filtré", async () => {
-    renderSystemPage(["/systeme?tab=maintenance"]);
+    renderSystemPage(["/system?tab=maintenance"]);
 
     expect(
       screen.getByRole("tab", { name: "Exécutions de maintenance" }),
@@ -261,7 +261,7 @@ describe("SystemPage", () => {
   });
 
   it("l'onglet journal affiche le panneau de journal des suppressions", async () => {
-    renderSystemPage(["/systeme?tab=journal"]);
+    renderSystemPage(["/system?tab=journal"]);
 
     expect(screen.getByRole("tab", { name: "Journal" })).toHaveAttribute(
       "aria-selected",
@@ -277,7 +277,7 @@ describe("SystemPage", () => {
   // ── Unknown tab fallback ────────────────────────────────────────────────
 
   it("un ?tab= inconnu retombe sur l'onglet état", () => {
-    renderSystemPage(["/systeme?tab=inconnu"]);
+    renderSystemPage(["/system?tab=inconnu"]);
 
     // The état tab is still selected — unknown tab falls back to default.
     expect(screen.getByRole("tab", { name: "État" })).toHaveAttribute(
@@ -302,7 +302,7 @@ describe("SystemPage", () => {
   // ── &run= drawer on maintenance tab ─────────────────────────────────────
 
   it("ouvre le drawer RunDetail quand &run= est présent sur l'onglet maintenance", async () => {
-    renderSystemPage(["/systeme?tab=maintenance&run=abc123def456"]);
+    renderSystemPage(["/system?tab=maintenance&run=abc123def456"]);
 
     // The RunDetail component fetches the run and renders. Wait for the
     // "Retour" button (always present in the RunDetail header, even while
@@ -311,7 +311,7 @@ describe("SystemPage", () => {
   });
 
   it("ne charge PAS le RunDetail quand &run= est présent sur un autre onglet", () => {
-    renderSystemPage(["/systeme?tab=etat&run=abc123def456"]);
+    renderSystemPage(["/system?tab=etat&run=abc123def456"]);
 
     // The état tab is selected — RunDetail should NOT mount. The RunDetail
     // header button "Retour" is absent.
@@ -498,7 +498,7 @@ describe("SystemPage", () => {
   // ── Maintenance tab fetch contract ─────────────────────────────────────
 
   it("ne charge QUE l'historique maintenance, pas celui du pipeline (onglet maintenance)", async () => {
-    renderSystemPage(["/systeme?tab=maintenance"]);
+    renderSystemPage(["/system?tab=maintenance"]);
 
     await screen.findByText("Historique des exécutions");
 
@@ -563,12 +563,12 @@ describe("SystemPage — tablist ARIA (ACQUISITION-7, ticket 250)", () => {
     renderSystemPage();
 
     const tab = screen.getByRole("tab", { name: "État" });
-    expect(tab).toHaveAttribute("id", "systeme-tab-etat");
-    expect(tab).toHaveAttribute("aria-controls", "systeme-tabpanel");
+    expect(tab).toHaveAttribute("id", "system-tab-etat");
+    expect(tab).toHaveAttribute("aria-controls", "system-tabpanel");
 
     const panel = screen.getByRole("tabpanel");
-    expect(panel).toHaveAttribute("id", "systeme-tabpanel");
-    expect(panel).toHaveAttribute("aria-labelledby", "systeme-tab-etat");
+    expect(panel).toHaveAttribute("id", "system-tabpanel");
+    expect(panel).toHaveAttribute("aria-labelledby", "system-tab-etat");
   });
 
   it("le tabpanel suit l'onglet actif (aria-labelledby)", () => {
@@ -577,7 +577,7 @@ describe("SystemPage — tablist ARIA (ACQUISITION-7, ticket 250)", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Journal" }));
     expect(screen.getByRole("tabpanel")).toHaveAttribute(
       "aria-labelledby",
-      "systeme-tab-journal",
+      "system-tab-journal",
     );
   });
 
@@ -647,14 +647,14 @@ describe("SystemPage — activation clavier sans empilement d'historique (ACQUIS
     );
   }
 
-  /** Render the page with the back probe (single /systeme history entry). */
+  /** Render the page with the back probe (single /system history entry). */
   function renderWithBackProbe(): void {
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
     const tree: ReactElement = (
       <QueryClientProvider client={client}>
-        <MemoryRouter initialEntries={["/systeme"]}>
+        <MemoryRouter initialEntries={["/system"]}>
           <SystemPage />
           <BackProbe />
         </MemoryRouter>

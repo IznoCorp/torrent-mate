@@ -1,6 +1,6 @@
 // design/src/screens/releases.tsx
 // Legacy `openReleases(title)` (`refonte.html`) — "choose another release" —
-// reborn as a real route (`/releases/$titre`) and a final component. Markup
+// reborn as a real route (`/releases/$title`) and a final component. Markup
 // is TRANSPLANTED, not translated: every tag, class and data-attribute below
 // is the one the legacy screen drew, so the same stylesheet applies
 // unchanged. `data-key="releases:" + titre` is an identity this screen never
@@ -37,7 +37,7 @@ function Icon({ paths, strokeWidth }: { paths: string; strokeWidth?: number }) {
 }
 
 export function ReleasesScreen() {
-  const { titre: raw } = useParams({ from: "/releases/$titre" });
+  const { title: raw } = useParams({ from: "/releases/$title" });
   // Defensive: `__screens.releases` already normalises on write, but an entry
   // reached by a typed/bookmarked URL did not necessarily go through it.
   const title = raw.normalize("NFC");

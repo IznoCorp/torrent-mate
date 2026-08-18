@@ -2,7 +2,7 @@
 // The PAGE host — the machinery a page needs and a screen never did.
 //
 // Every surface migrated before the pages is an overlay SCREEN: it has its own
-// path, and it renders inside the React root `#coquille`, which sits beside
+// path, and it renders inside the React root `#shell`, which sits beside
 // `.stage`. A PAGE has no address of its own. `/` stays the pages' route with
 // its legacy query (`?page=&rub=`), the legacy parser keeps owning it, and a
 // page's markup has to land inside `#view` — where the stylesheet, the harness
@@ -73,7 +73,7 @@ const PAGES: Record<string, MigratedPage> = {
   // `?page=` address. It is data, not a property name: renaming it left
   // the shell unable to find the page at all, and the account surface
   // drew nothing.
-  profil: { Body: AccountPage, root: "body" },
+  profile: { Body: AccountPage, root: "body" },
   "404": { Body: NotFoundPage, root: "body" },
 };
 

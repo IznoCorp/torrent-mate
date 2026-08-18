@@ -16,7 +16,7 @@ async def main():
     # The startup screen covers the frame for as long as the load it stands
     # for lasts. Nothing is being fetched here, so the harness closes that
     # wait through the same seam the app uses, rather than sleeping it out.
-    await pg.evaluate("()=>window.__chargementTermine?.()")
+    await pg.evaluate("()=>window.__loadingDone?.()")
     await pg.evaluate("()=>window.__measure(true)")
     states=await pg.evaluate("()=>window.__states()")
     without=[]

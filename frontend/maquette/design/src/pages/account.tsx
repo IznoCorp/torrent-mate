@@ -30,7 +30,7 @@ export function AccountPage(): ReactElement {
       {facts([
         {
           l: t("screens.accountPage.identifier"),
-          v: ACCOUNT.nom,
+          v: ACCOUNT.name,
           k: "web.username",
           s: t("screens.accountPage.identifierSub"),
         },

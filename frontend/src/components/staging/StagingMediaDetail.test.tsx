@@ -147,7 +147,7 @@ describe("StagingMediaDetail egress actions", () => {
       ).toBeInTheDocument();
     });
 
-    it("shows the blocked_reason in an alert", () => {
+    it("series the blocked_reason in an alert", () => {
       renderDetail(
         stagingItem({
           match: "matched",

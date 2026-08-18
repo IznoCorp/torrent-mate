@@ -27,21 +27,21 @@ VENV="${TM_STAGING_VENV:-$HOME/staging/torrentmate-venv}"
 PORT=8711
 HEALTH_URL="http://127.0.0.1:${PORT}/api/health"
 
-fail() { printf '\n❌ DÉPLOIEMENT STAGING REFUSÉ: %s\n' "$*" >&2; exit 1; }
+fail() { printf '\n❌ STAGING DEPLOYMENT REFUSED: %s\n' "$*" >&2; exit 1; }
 
 # ── Guard 1: only ever serve committed code (dirty tree refused) ──────────────
 if [ -n "$(git status --porcelain)" ]; then
   git status --short >&2
-  fail "arbre non propre — commit d'abord (on ne teste que du code commité)."
+  fail "working tree not clean — commit first (only committed code is tested)."
 fi
 
 # ── Guard 2: the staging venv must exist (per-clone isolation) ────────────────
 [ -x "$VENV/bin/pip" ] \
-  || fail "venv staging introuvable: $VENV (attendu $VENV/bin/pip). Crée-le d'abord (python -m venv \"$VENV\") ou exporte TM_STAGING_VENV."
+  || fail "staging venv not found: $VENV (expected $VENV/bin/pip). Create it first (python -m venv \"$VENV\") or export TM_STAGING_VENV."
 
 branch="$(git rev-parse --abbrev-ref HEAD)"
 sha="$(git rev-parse HEAD)"
-[ "$branch" != "main" ] && printf 'ℹ staging sert une branche non-main: %s (comportement voulu).\n' "$branch"
+[ "$branch" != "main" ] && printf 'ℹ staging is serving a non-main branch: %s (intended).\n' "$branch"
 printf '→ build staging : %s @ %s — build du SPA…\n' "$branch" "$sha"
 
 # ── Build: reproducible from source only; bake the served identity into the bundle ─
@@ -68,14 +68,14 @@ rsync -a --delete \
 printf '%s @ %s\n' "$branch" "$sha" > personalscraper/web/static/BUILD_COMMIT
 
 # ── Reinstall the backend into the staging venv (per-clone isolation) ─────────
-"$VENV/bin/pip" install -e . >/dev/null || fail "pip install -e . a échoué (venv cassé ? dépendances manquantes ?)"
+"$VENV/bin/pip" install -e . >/dev/null || fail "pip install -e . failed (broken venv? missing dependencies?)"
 
 # ── Start-or-restart the staging PM2 app (fail-soft) ──────────────────────────
 # startOrRestart (not restart): the first staging autodeploy must START the app
 # if it was never launched. Uses this clone's own ecosystem.config.js entry and
 # --update-env to pick up .env changes.
 if ! pm2 startOrRestart ecosystem.config.js --only torrentmate-web-staging --update-env >/dev/null 2>&1; then
-  printf 'ℹ pm2 startOrRestart torrentmate-web-staging a échoué — ecosystem.config.js absent ou app mal définie ?\n' >&2
+  printf 'ℹ pm2 startOrRestart torrentmate-web-staging failed — ecosystem.config.js missing, or the app misdeclared?\n' >&2
 fi
 
 # ── Post-check: /api/health on the staging port → expect 200 ──────────────────
@@ -92,9 +92,9 @@ for i in $(seq 1 15); do
   [ "$i" -lt 15 ] && sleep 2
 done
 if $health_ok; then
-  printf '\n✅ staging déployé : %s @ %s\n   health %s → 200 · UI sur 127.0.0.1:%s (board RÉEL, config canonique)\n' \
+  printf '\n✅ staging deployed: %s @ %s\n   health %s → 200 · UI on 127.0.0.1:%s (REAL board, canonical config)\n' \
     "$branch" "$sha" "$HEALTH_URL" "$PORT"
 else
-  printf '\n⚠ staging déployé : %s @ %s — mais health %s a répondu "%s" après 15 tentatives (30 s).\n   Vérifie: pm2 logs torrentmate-web-staging\n' \
+  printf '\n⚠ staging deployed: %s @ %s — but health %s answered "%s" after 15 tries (30 s).\n   Check: pm2 logs torrentmate-web-staging\n' \
     "$branch" "$sha" "$HEALTH_URL" "$code" >&2
 fi

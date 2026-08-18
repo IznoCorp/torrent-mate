@@ -15,6 +15,7 @@
 #
 # Seeded from the codebase on the day the engine's identifiers became English.
 account
+acq
 acqtab
 acquisition
 act
@@ -24,6 +25,7 @@ active
 add
 added
 addfield
+addq
 address
 advance
 after
@@ -62,8 +64,10 @@ borne
 bound
 box
 bridge
+btn
 button
 by
+byidv
 cadence
 cancel
 candidate
@@ -94,6 +98,7 @@ collapse
 commit
 common
 complete
+config
 confirmadd
 containers
 content
@@ -140,11 +145,13 @@ dismissable
 displayed
 distance
 dlg
+dlgcancel
 done
 down
 drag
 drawer
 draws
+dry
 dx
 edited
 element
@@ -164,6 +171,7 @@ event
 exec
 executions
 exit
+fab
 fact
 facts
 fetching
@@ -184,6 +192,7 @@ folder
 follow
 followed
 follows
+follq
 foot
 for
 found
@@ -243,7 +252,13 @@ inset
 inside
 install
 installation
+installbar
+installclose
 installed
+installgo
+installsteps
+installsub
+interval
 ios
 is
 items
@@ -265,7 +280,12 @@ legacy
 lens
 lenses
 lib
+libcount
+libitems
+libload
+libq
 library
+libretry
 light
 line
 list
@@ -277,6 +297,9 @@ load
 loaders
 loading
 lock
+login
+loginerr
+loginform
 maintact
 maintenance
 maintopic
@@ -289,6 +312,7 @@ mediasheet
 migrated
 min
 missing
+mobile
 mode
 modes
 mono
@@ -316,6 +340,7 @@ normalised
 noswipe
 not
 note
+notes
 notfound
 nothing
 now
@@ -393,6 +418,7 @@ reference
 refresh
 refuse
 refused
+region
 register
 reglees
 release
@@ -421,9 +447,12 @@ run
 safari
 same
 save
+savebar
+scen
 schedulers
 screen
 screens
+scrim
 scroll
 seams
 search
@@ -447,6 +476,8 @@ setting
 settings
 settled
 sheet
+sheetgrab
+sheetin
 sheets
 shell
 show
@@ -459,6 +490,7 @@ slice
 slot
 sort
 sorted
+splash
 src
 st
 stack
@@ -483,6 +515,8 @@ suffix
 sug
 suggestion
 suggestions
+sugitems
+sugload
 sugmode
 sugmore
 suite
@@ -495,6 +529,7 @@ swipeact
 synopsis
 system
 tab
+tabpanel
 tabs
 tabular
 tag
@@ -516,6 +551,9 @@ titles
 tmdb
 to
 toast
+toastmsg
+toastundo
+toastx
 today
 toggle
 token
@@ -556,6 +594,7 @@ version
 via
 view
 visible
+watcher
 ways
 when
 width
@@ -563,7 +602,9 @@ window
 words
 world
 write
+year
 yt
+
 
 # ── THE ENGINE'S LAST FRENCH WORDS ─────────────────────────────────────
 #

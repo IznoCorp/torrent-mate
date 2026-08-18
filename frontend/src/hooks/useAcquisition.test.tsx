@@ -69,7 +69,7 @@ const FOLLOWED: FollowedResponse = {
       wanted_pending: 3,
       wanted_grabbed: 0,
       kind: "show",
-      status: "a_recuperer",
+      status: "to_grab",
       priming_running: false,
       tvdb_unresolved: false,
       media_ref: {

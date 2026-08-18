@@ -7,13 +7,13 @@ Covers the five test groups of the frozen contract:
    Reproduces the founding incident: a grab at 09:19:09 over an empty wanted
    queue returned rc=0 — a success report for an action that did nothing.
 
-2. ``test_priming_failure_leaves_non_verifie_not_up_to_date`` — spawn raises →
+2. ``test_priming_failure_leaves_unverified_not_up_to_date`` — spawn raises →
    201 still, item.status == non_verifie (never a_jour), warning logged.
 
 3. ``test_priming_is_idempotent`` — a second POST while a prime run is running
    for the same followed_id does not spawn a second run.
 
-4. ``test_running_prime_reads_verification_en_cours`` — GET /followed shows the
+4. ``test_running_prime_reads_verifying`` — GET /followed shows the
    override while the run row is open; closed run → derived status again.
 
 INTENTIONALLY FAILING — the prime command does not exist yet; ``create_follow``
@@ -270,11 +270,11 @@ class TestCreateFollowPriming:
         assert spawned_primes == [follow_id], f"Expected a spawn for follow {follow_id}, got {spawned_primes}"
 
         # The immediate response shows the truth: verification is running.
-        assert data["status"] == "verification_en_cours", (
+        assert data["status"] == "verifying", (
             f"Expected verification_en_cours on a freshly primed follow, got {data['status']!r}"
         )
 
-    def test_priming_failure_leaves_non_verifie_not_up_to_date(
+    def test_priming_failure_leaves_unverified_not_up_to_date(
         self,
         client: TestClient,
         tmp_path: Path,
@@ -309,7 +309,7 @@ class TestCreateFollowPriming:
         assert data["id"] > 0
 
         # Never a_jour — the card is honest about not knowing.
-        assert data["status"] == "non_verifie", f"A failed prime must read non_verifie, not {data['status']!r}"
+        assert data["status"] == "unverified", f"A failed prime must read non_verifie, not {data['status']!r}"
 
         # A warning about the spawn failure must appear in the logs — a failed
         # amorce is loud (NE-DOIT-PAS-5), never a silent nothing.
@@ -375,7 +375,7 @@ class TestCreateFollowPriming:
         # And the response must reflect the running prime.
         # FAILS TODAY: the status is derived (non_verifie), not overridden.
         status: str = resp.json()["status"]
-        assert status == "verification_en_cours", (
+        assert status == "verifying", (
             f"Reactivation with a running prime must read verification_en_cours, got {status!r}"
         )
 
@@ -388,7 +388,7 @@ class TestCreateFollowPriming:
 class TestVerificationEnCours:
     """GET /api/acquisition/followed — ``verification_en_cours`` override."""
 
-    def test_running_prime_reads_verification_en_cours(self, client: TestClient, tmp_path: Path) -> None:
+    def test_running_prime_reads_verifying(self, client: TestClient, tmp_path: Path) -> None:
         """GET /followed shows verification_en_cours while a prime run is open.
 
         Seed a follow + a running ``pipeline_run`` row (``command='prime'``,
@@ -432,7 +432,7 @@ class TestVerificationEnCours:
         items: list[dict[str, Any]] = resp.json()["items"]
         assert len(items) == 1, f"Expected 1 item, got {len(items)}"
         assert items[0]["id"] == fid
-        assert items[0]["status"] == "verification_en_cours", (
+        assert items[0]["status"] == "verifying", (
             f"Running prime must read verification_en_cours, got {items[0]['status']!r}"
         )
 
@@ -453,15 +453,15 @@ class TestVerificationEnCours:
         )
         assert resp.status_code == 200, resp.text
         items = resp.json()["items"]
-        assert items[0]["status"] != "verification_en_cours", (
+        assert items[0]["status"] != "verifying", (
             f"Closed prime run must no longer override, got {items[0]['status']!r}"
         )
         # With no catalog yet (aired_count=None), the derived status is non_verifie.
-        assert items[0]["status"] == "non_verifie", (
+        assert items[0]["status"] == "unverified", (
             f"Without a catalog, closed prime → non_verifie, got {items[0]['status']!r}"
         )
 
-    def test_dead_pid_prime_run_does_not_pin_verification_en_cours(self, client: TestClient, tmp_path: Path) -> None:
+    def test_dead_pid_prime_run_does_not_pin_verifying(self, client: TestClient, tmp_path: Path) -> None:
         """Regression (PR #320 review, F-M5): a crashed prime must not pin the card.
 
         The batched priming query filtered on ``ended_at IS NULL`` alone, which
@@ -503,12 +503,12 @@ class TestVerificationEnCours:
         assert resp.status_code == 200, resp.text
         items: list[dict[str, Any]] = resp.json()["items"]
         assert len(items) == 1
-        assert items[0]["status"] != "verification_en_cours", (
+        assert items[0]["status"] != "verifying", (
             f"A dead-pid prime row is a stale row, not a live verification; got {items[0]['status']!r}"
         )
-        assert items[0]["status"] == "non_verifie", f"The derived status must take over, got {items[0]['status']!r}"
+        assert items[0]["status"] == "unverified", f"The derived status must take over, got {items[0]['status']!r}"
 
-    def test_pid_null_prime_run_does_not_pin_verification_en_cours(self, client: TestClient, tmp_path: Path) -> None:
+    def test_pid_null_prime_run_does_not_pin_verifying(self, client: TestClient, tmp_path: Path) -> None:
         """A prime row whose runner never claimed a pid is stale, not live."""
         conn = sqlite3.connect(str(tmp_path / "acquire.db"))
         apply_pragmas(conn)
@@ -534,6 +534,6 @@ class TestVerificationEnCours:
         )
         assert resp.status_code == 200, resp.text
         items: list[dict[str, Any]] = resp.json()["items"]
-        assert items[0]["status"] == "non_verifie", (
+        assert items[0]["status"] == "unverified", (
             f"A pid-less prime row must not override the derived status, got {items[0]['status']!r}"
         )

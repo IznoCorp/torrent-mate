@@ -49,7 +49,7 @@ class TestSubstituteAbsorbedFacts:
                 last_search_outcome=outcome,
                 last_search_found=found,
             )
-            == "non_verifie"
+            == "unverified"
         ), "a requeued season is « non vérifié », never « en cours »"
 
     def test_non_absorbed_rows_pass_through_untouched(self) -> None:
@@ -85,11 +85,11 @@ class TestEndToEndStateOfAnAbsorbedEpisode:
     @pytest.mark.parametrize(
         "season_facts,expected",
         [
-            (("grabbed", "grabbed", 4), "en_acquisition"),
-            (("available", "available", 2), "a_recuperer"),
-            (("pending", "no_candidates", 0), "en_attente"),
-            (("pending", None, None), "non_verifie"),
-            (("searching", "no_candidates", 0), "en_attente"),
+            (("grabbed", "grabbed", 4), "acquiring"),
+            (("available", "available", 2), "to_grab"),
+            (("pending", "no_candidates", 0), "pending"),
+            (("pending", None, None), "unverified"),
+            (("searching", "no_candidates", 0), "pending"),
         ],
     )
     def test_episode_mirrors_its_season(self, season_facts: tuple[str, str | None, int | None], expected: str) -> None:

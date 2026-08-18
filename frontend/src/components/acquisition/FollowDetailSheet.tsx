@@ -99,8 +99,8 @@ export function seasonCounts(
   episodes: readonly { readonly state: EpisodeCompleteness["state"] }[],
 ): { readonly owned: number; readonly aired: number } {
   return {
-    owned: episodes.filter((e) => e.state === "en_mediatheque").length,
-    aired: episodes.filter((e) => e.state !== "annonce").length,
+    owned: episodes.filter((e) => e.state === "in_library").length,
+    aired: episodes.filter((e) => e.state !== "announced").length,
   };
 }
 
@@ -391,7 +391,7 @@ function FollowDetailSheetContent({
 
   // §5.3: « Récupérer maintenant » is the primary action ONLY when something is
   // takeable — else there is no primary action at all (never a disabled one).
-  const canGrab = status === "a_recuperer";
+  const canGrab = status === "to_grab";
 
   // Most-recent season first (§5.3). Sort explicitly; the API makes no ordering
   // promise and a fixture that happens to be descending proves nothing.
@@ -417,7 +417,7 @@ function FollowDetailSheetContent({
                 an empty série. §14.1 separates « not aired yet » from
                 « nothing there ». */}
             {data.kind === "movie"
-              ? status === "a_jour"
+              ? status === "up_to_date"
                 ? "en médiathèque"
                 : "pas encore acquis"
               : aggregate == null || aggregate.aired === 0
@@ -437,7 +437,7 @@ function FollowDetailSheetContent({
             cherché » on every open read as a threat, and said nothing about
             the automatic exit that §5 makes normal. An acquired film is past
             the rule, so it gets no sentence. */}
-        {data.kind === "movie" && status !== "a_jour" && (
+        {data.kind === "movie" && status !== "up_to_date" && (
           <p className="rulenote">{MOVIE_LIFECYCLE_NOTE}</p>
         )}
         {unresolved && (
@@ -522,7 +522,7 @@ function FollowDetailSheetContent({
         {/* Always offered — the chain searches, and only takes what is
             takeable; on a resting follow it IS the manual re-check. */}
         <button
-          data-testid="rechercher-maintenant"
+          data-testid="rechercher-now"
           type="button"
           disabled={grabNow.isPending}
           className="sact hover:bg-accent"

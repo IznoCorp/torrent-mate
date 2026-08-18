@@ -113,7 +113,7 @@ function SaveBar(): ReactElement | null {
         </b>{" "}
         {t("screens.settings.willWrite", { files })}
       </span>
-      <button data-save="1" disabled={SETTINGS_STATE.lectureSeule}>
+      <button data-save="1" disabled={SETTINGS_STATE.readOnly}>
         {t("screens.settings.save")}
       </button>
     </div>,
@@ -163,7 +163,7 @@ export function SettingsPage(): ReactElement | null {
     changedFiles,
   } = useReference();
 
-  if (SETTINGS_STATE.rubrique === "secrets") {
+  if (SETTINGS_STATE.topic === "secrets") {
     return (
       <>
         <h2 className="h2">{t("screens.settings.secretsTitle")}</h2>
@@ -201,8 +201,8 @@ export function SettingsPage(): ReactElement | null {
     );
   }
 
-  if (SETTINGS_STATE.rubrique) {
-    const topic = SETTINGS.find((entry) => entry.id === SETTINGS_STATE.rubrique);
+  if (SETTINGS_STATE.topic) {
+    const topic = SETTINGS.find((entry) => entry.id === SETTINGS_STATE.topic);
     if (!topic) {
       return (
         <>
@@ -274,7 +274,7 @@ export function SettingsPage(): ReactElement | null {
   return (
     <>
       <SearchField />
-      {SETTINGS_STATE.lectureSeule ? (
+      {SETTINGS_STATE.readOnly ? (
         <div className="loaderr">
           <b>{t("screens.settings.readOnlyLead")}</b>
           {t("screens.settings.readOnlyRest")}

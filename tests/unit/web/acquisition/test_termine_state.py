@@ -39,10 +39,10 @@ def caught_up(**overrides: object) -> str:
     facts: dict[str, object] = {
         "active": True,
         "aired_count": 12,
-        "a_recuperer_count": 0,
-        "en_acquisition_count": 0,
-        "en_attente_count": 0,
-        "non_verifie_count": 0,
+        "to_grab_count": 0,
+        "acquiring_count": 0,
+        "pending_count": 0,
+        "unverified_count": 0,
         "announced_count": 0,
         "series_status": None,
     }
@@ -81,23 +81,23 @@ class TestCaughtUpSplitsInTwo:
 
     def test_ended_and_nothing_announced_is_termine(self) -> None:
         """The series is over and the library holds all of it."""
-        assert caught_up(series_status="Ended", announced_count=0) == "termine"
+        assert caught_up(series_status="Ended", announced_count=0) == "ended"
 
-    def test_still_running_stays_a_jour(self) -> None:
+    def test_still_running_stays_up_to_date(self) -> None:
         """Caught up on a running series is « À jour », not « Terminé »."""
-        assert caught_up(series_status="Continuing", announced_count=0) == "a_jour"
+        assert caught_up(series_status="Continuing", announced_count=0) == "up_to_date"
 
-    def test_ended_but_a_final_episode_still_ahead_stays_a_jour(self) -> None:
+    def test_ended_but_a_final_episode_still_ahead_stays_up_to_date(self) -> None:
         """« Ended » with an unaired finale is not yet finished FOR US.
 
         A series can be cancelled while its last episodes are still scheduled.
         Until they air and land, the honest card is « À jour ».
         """
-        assert caught_up(series_status="Ended", announced_count=1) == "a_jour"
+        assert caught_up(series_status="Ended", announced_count=1) == "up_to_date"
 
-    def test_unknown_status_stays_a_jour(self) -> None:
+    def test_unknown_status_stays_up_to_date(self) -> None:
         """No provider verdict → no « Terminé ». The founding-incident rule."""
-        assert caught_up(series_status=None, announced_count=0) == "a_jour"
+        assert caught_up(series_status=None, announced_count=0) == "up_to_date"
 
     def test_a_paused_follow_is_still_disabled(self) -> None:
         """« disabled » outranks everything, ended series included."""
@@ -110,7 +110,7 @@ class TestCaughtUpSplitsInTwo:
         ``termine``: we do not know what it contains, so we cannot claim to hold
         all of it.
         """
-        assert caught_up(aired_count=None, series_status="Ended") == "non_verifie"
+        assert caught_up(aired_count=None, series_status="Ended") == "unverified"
 
 
 class TestAbsenceOfAnnouncementIsNotAnEnding:
@@ -127,6 +127,6 @@ class TestAbsenceOfAnnouncementIsNotAnEnding:
 
         The provider knows better, and says so: TVDB carries « Continuing ».
         """
-        announcement_only_rule_would_say = "termine"
+        announcement_only_rule_would_say = "ended"
         assert caught_up(series_status="Continuing", announced_count=0) != announcement_only_rule_would_say
-        assert caught_up(series_status="Continuing", announced_count=0) == "a_jour"
+        assert caught_up(series_status="Continuing", announced_count=0) == "up_to_date"

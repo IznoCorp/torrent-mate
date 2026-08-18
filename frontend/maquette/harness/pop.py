@@ -10,7 +10,7 @@ async def main():
     # The startup screen covers the frame for as long as the load it stands
     # for lasts. Nothing is being fetched here, so the harness closes that
     # wait through the same seam the app uses, rather than sleeping it out.
-    await pg.evaluate("()=>window.__chargementTermine?.()")
+    await pg.evaluate("()=>window.__loadingDone?.()")
     await pg.evaluate("()=>window.__measure(true)")
 
     async def click_(js, label):
@@ -21,12 +21,12 @@ async def main():
 
     print("── Tintin (owned + missing) ──")
     await pg.evaluate("()=>window.__go('feuille-suivi-trous')"); await pg.wait_for_timeout(450)
-    a = await click_("()=>[...document.querySelectorAll('.ep')].find(e=>e.className.includes('en_mediatheque')).click()", "owned episode")
-    b1 = await click_("()=>[...document.querySelectorAll('.ep')].find(e=>e.className.includes('a_recuperer')).click()", "missing episode")
+    a = await click_("()=>[...document.querySelectorAll('.ep')].find(e=>e.className.includes('in_library')).click()", "owned episode")
+    b1 = await click_("()=>[...document.querySelectorAll('.ep')].find(e=>e.className.includes('to_grab')).click()", "missing episode")
     await pg.screenshot(path="m_popover.png")
 
     print("── Silo (including announced episodes) ──")
-    await pg.evaluate("()=>{closePopEp();window.__go('acq-suivis-liste');}"); await pg.wait_for_timeout(300)
+    await pg.evaluate("()=>{closePopEp();window.__go('acq-follows-liste');}"); await pg.wait_for_timeout(300)
     await pg.evaluate("()=>openFollowSheet('Silo')"); await pg.wait_for_timeout(450)
     c1 = await click_("()=>{const l=[...document.querySelectorAll('.ep')];l[l.length-1].click();}", "last episode")
     await pg.screenshot(path="m_popover_silo.png")
@@ -49,12 +49,12 @@ async def announced():
     pg.on("pageerror", lambda e: errs.append(str(e)))
     await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
     await pg.evaluate("()=>window.__measure(true)")
-    await pg.evaluate("()=>window.__go('acq-suivis-liste')"); await pg.wait_for_timeout(300)
+    await pg.evaluate("()=>window.__go('acq-follows-liste')"); await pg.wait_for_timeout(300)
     await pg.evaluate("()=>openFollowSheet('Silo')"); await pg.wait_for_timeout(450)
-    await pg.evaluate("()=>document.querySelector('.ep.annonce').click()"); await pg.wait_for_timeout(330)
+    await pg.evaluate("()=>document.querySelector('.ep.announced').click()"); await pg.wait_for_timeout(330)
     txt = await pg.evaluate("()=>document.querySelector('.eppop')?.innerText.replace(/\\n/g,' | ')")
     print("  popover for an ANNOUNCED episode:", txt)
-    await pg.screenshot(path="m_annonce.png")
+    await pg.screenshot(path="m_announced.png")
 
     # ITS EDGES MUST BE FINDABLE. The popover floats over a matrix of dark
     # cells on a dark surface: a border in `--border` drew a near-black line on

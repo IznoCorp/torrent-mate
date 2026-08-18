@@ -6,9 +6,9 @@ primitives. This rule verifies that: (a) the engine's source makes no raw
 history calls that bypass the seam; (b) the journey through it (results →
 sheet → back) redraws and restores state correctly; (c) deep URL entry lands on
 the promised state; (d) a state-only navigation (__go) does not change history
-depth; (f′) the boot handshake is real — `window.__demarrerMoteur` exists AND
+depth; (f′) the boot handshake is real — `window.__startEngine` exists AND
 the startup screen comes off on its own, before this harness ever calls
-`window.__chargementTermine`.
+`window.__loadingDone`.
 
 WHAT « THE BRIDGE » MEANS NOW, and it is not what it meant when this rule was
 written. It was three globals — `window.__bridge`, `__screens`, `__panel` —
@@ -28,7 +28,7 @@ The boot order used to run the other way: the engine booted itself, ahead
 of the bridge, through a pre-bridge that queued the engine's writes and
 replayed them once the real bridge existed (hold (e), now retired along
 with that pre-bridge). The shell now creates the store and the bridge
-FIRST and only then calls `window.__demarrerMoteur({ store })`, so
+FIRST and only then calls `window.__startEngine({ store })`, so
 nothing is queued and nothing is replayed — a module that never evaluates
 simply never makes that call, and the startup screen stays up: a visible,
 truthful failure rather than an app with mute verbs.
@@ -280,21 +280,21 @@ async def main():
 
         # ─── Hold (f′): the boot handshake exists and fired on its own ─
         # Navigated WITHOUT going through common.open_page(): that helper calls
-        # window.__chargementTermine itself to get past the startup screen,
+        # window.__loadingDone itself to get past the startup screen,
         # which would force the very effect this hold exists to observe.
         # What is measured here is whether the screen came off BEFORE this
         # harness ever touched that seam — proof the real handshake ran.
         await pg.goto("http://127.0.0.1:8899/wrapped.html", wait_until="load")
         probe = await pg.evaluate(
             """()=>({
-                starter: typeof window.__demarrerMoteur,
+                starter: typeof window.__startEngine,
                 splashHidden: document.querySelector('#splash')?.hidden === true
             })"""
         )
         check(
-            "window.__demarrerMoteur exists",
+            "window.__startEngine exists",
             probe["starter"] == "function",
-            f"typeof window.__demarrerMoteur = {probe['starter']}",
+            f"typeof window.__startEngine = {probe['starter']}",
         )
         check(
             "the startup screen clears on its own, before any harness call",
@@ -305,7 +305,7 @@ async def main():
         # Same plumbing common.open_page() would run, on the same page, now
         # that the hold above has taken its measurement: idempotent (it only
         # re-sets #splash.hidden), so calling it again here is harmless.
-        await pg.evaluate("()=>window.__chargementTermine?.()")
+        await pg.evaluate("()=>window.__loadingDone?.()")
         await pg.evaluate("()=>document.querySelector('#toastx')?.click()")
         await pg.wait_for_timeout(250)
 
@@ -313,7 +313,7 @@ async def main():
         await pg.evaluate("()=>window.__go('acq-ajout-resultats')")
         await pg.wait_for_timeout(400)
 
-        # The add screen left `#screen` for a real route (`/ajout`, rendered
+        # The add screen left `#screen` for a real route (`/add`, rendered
         # inside `#coquille`): its results live under `.screen.open` now —
         # the FICHE this journey opens next stays fully legacy, still
         # `#screen`. Not read here (nothing has opened yet), but read
@@ -394,7 +394,7 @@ async def main():
         await pg.goto(
             "http://127.0.0.1:8899/wrapped.html?page=lib&mode=list", wait_until="load"
         )
-        await pg.evaluate("()=>window.__chargementTermine?.()")
+        await pg.evaluate("()=>window.__loadingDone?.()")
         await pg.evaluate("()=>document.querySelector('#toastx')?.click()")
         await pg.wait_for_timeout(250)
 
@@ -412,7 +412,7 @@ async def main():
 
         # ─── Hold (d): __go() does not change history depth ────────────
         depth_before = await pg.evaluate("()=>history.length")
-        await pg.evaluate("()=>window.__go('acq-decouvrir')")
+        await pg.evaluate("()=>window.__go('acq-discover')")
         await pg.wait_for_timeout(400)
         depth_after = await pg.evaluate("()=>history.length")
 

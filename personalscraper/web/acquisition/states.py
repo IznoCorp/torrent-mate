@@ -56,12 +56,12 @@ NO_WANTED_FACTS: WantedFacts = (None, None, None)
 #: it is in motion — reading it as « never checked » (``non_verifie``) would be
 #: untruthful for every episode of a season being grabbed.
 EpisodeState = Literal[
-    "annonce",
-    "en_mediatheque",
-    "a_recuperer",
-    "en_acquisition",
-    "en_attente",
-    "non_verifie",
+    "announced",
+    "in_library",
+    "to_grab",
+    "acquiring",
+    "pending",
+    "unverified",
     "absorbed",
 ]
 
@@ -72,13 +72,13 @@ EpisodeState = Literal[
 #: itself never returns it).
 FollowStatus = Literal[
     "disabled",
-    "verification_en_cours",
-    "a_recuperer",
-    "en_acquisition",
-    "en_attente",
-    "non_verifie",
-    "a_jour",
-    "termine",
+    "verifying",
+    "to_grab",
+    "acquiring",
+    "pending",
+    "unverified",
+    "up_to_date",
+    "ended",
 ]
 
 #: Provider production-status values that mean « no further episode will come ».
@@ -117,15 +117,15 @@ def series_has_ended(series_status: str | None) -> bool:
 #: the identity except ``en_mediatheque`` — a film held by the library reads
 #: « À jour » on its card, not « En médiathèque ».
 _EPISODE_TO_FOLLOW_STATUS: dict[EpisodeState, FollowStatus] = {
-    "en_mediatheque": "a_jour",
-    "a_recuperer": "a_recuperer",
-    "en_acquisition": "en_acquisition",
-    "en_attente": "en_attente",
-    "non_verifie": "non_verifie",
+    "in_library": "up_to_date",
+    "to_grab": "to_grab",
+    "acquiring": "acquiring",
+    "pending": "pending",
+    "unverified": "unverified",
     # Defensive: a movie row can never be 'absorbed' (only episode rows are,
     # by a season wanted), but the mapping stays total so a data anomaly
     # degrades to « in motion » instead of a KeyError on the card.
-    "absorbed": "en_acquisition",
+    "absorbed": "acquiring",
 }
 
 
@@ -338,32 +338,32 @@ def derive_episode_state(
         The episode's :data:`EpisodeState`.
     """
     if air_date is not None and today is not None and air_date > today:
-        return "annonce"
+        return "announced"
     if owned:
-        return "en_mediatheque"
+        return "in_library"
     if wanted_status == "absorbed":
         return "absorbed"
     if wanted_status == "grabbed":
-        return "en_acquisition"
+        return "acquiring"
     if wanted_status == "available":
-        return "a_recuperer"
+        return "to_grab"
     if last_search_outcome is None:
-        return "non_verifie"
+        return "unverified"
     if last_search_outcome in INCONCLUSIVE_OUTCOMES:
-        return "non_verifie"
+        return "unverified"
     if (last_search_found or 0) > 0:
-        return "a_recuperer"
-    return "en_attente"
+        return "to_grab"
+    return "pending"
 
 
 def derive_follow_status(
     *,
     active: bool,
     aired_count: int | None,
-    a_recuperer_count: int | None,
-    en_acquisition_count: int | None,
-    en_attente_count: int | None,
-    non_verifie_count: int | None,
+    to_grab_count: int | None,
+    acquiring_count: int | None,
+    pending_count: int | None,
+    unverified_count: int | None,
     announced_count: int | None,
     series_status: str | None,
 ) -> FollowStatus:
@@ -406,10 +406,10 @@ def derive_follow_status(
         active: Whether the follow is active.
         aired_count: Aired episodes known from the catalog cache, or ``None``
             when no catalog has ever been written for this follow.
-        a_recuperer_count: Aired episodes with a takeable candidate.
-        en_acquisition_count: Aired episodes taken / carried by the pipeline.
-        en_attente_count: Aired episodes searched with nothing takeable.
-        non_verifie_count: Aired episodes never searched or inconclusive.
+        to_grab_count: Aired episodes with a takeable candidate.
+        acquiring_count: Aired episodes taken / carried by the pipeline.
+        pending_count: Aired episodes searched with nothing takeable.
+        unverified_count: Aired episodes never searched or inconclusive.
         announced_count: Future episodes (``air_date > today``) known from the
             catalog cache, or ``None`` when no catalog was read. Only ever
             distinguishes ``termine`` from ``a_jour``.
@@ -423,18 +423,18 @@ def derive_follow_status(
     if not active:
         return "disabled"
     if aired_count is None:
-        return "non_verifie"
-    if (a_recuperer_count or 0) > 0:
-        return "a_recuperer"
-    if (en_acquisition_count or 0) > 0:
-        return "en_acquisition"
-    if (en_attente_count or 0) > 0:
-        return "en_attente"
-    if (non_verifie_count or 0) > 0:
-        return "non_verifie"
+        return "unverified"
+    if (to_grab_count or 0) > 0:
+        return "to_grab"
+    if (acquiring_count or 0) > 0:
+        return "acquiring"
+    if (pending_count or 0) > 0:
+        return "pending"
+    if (unverified_count or 0) > 0:
+        return "unverified"
     if (announced_count or 0) == 0 and series_has_ended(series_status):
-        return "termine"
-    return "a_jour"
+        return "ended"
+    return "up_to_date"
 
 
 def derive_movie_status(

@@ -750,7 +750,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self._send(303, b"", [("Location", "/")])
             return
         # Every other path — "/", "/index.html", and any address the
-        # client-side router owns (/fiche/…, /profil/…, …) — answers the ONE
+        # client-side router owns (/mediasheet/…, /profile/…, …) — answers the ONE
         # document, session-gated exactly like "/".
         #
         # A 303 here would drop the address bar's path before the router ever
@@ -764,7 +764,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             # `do_POST` redirects to (`/?refus=1`), not by the substring
             # "refus" anywhere in the path — a raw substring match also fired
             # on any unrelated address merely containing it (e.g.
-            # `/profil/refusé`), showing the rejection banner to someone who
+            # `/profile/refusé`), showing the rejection banner to someone who
             # never submitted anything.
             params = urllib.parse.parse_qs(
                 urllib.parse.urlsplit(self.path).query)

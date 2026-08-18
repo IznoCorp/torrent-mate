@@ -96,7 +96,7 @@ async def on_arrivals(pg, pipe="repos"):
     # re-renders and the measurement lands on whatever page was drawn before —
     # measured, not assumed: it read the acquisition page's roots.
     await pg.evaluate(
-        f"()=>{{window.__magasin.write({{page: 'arr', pipe: '{pipe}'}}); render();}}")
+        f"()=>{{window.__store.write({{page: 'arr', pipe: '{pipe}'}}); render();}}")
     await pg.wait_for_timeout(320)
     return await pg.evaluate(READ)
 
@@ -113,9 +113,9 @@ async def main():
         # The uid and the counts the prototype claims, read from its own data
         # rather than scraped off the screen — the screen is what is being
         # judged against them.
-        claimed = await pg.evaluate("()=>({uid: PIPELINE.dernier.uid,"
-                                    " decl: PIPELINE.dernier.declencheur,"
-                                    " faits: PIPELINE.dernier.faits})")
+        claimed = await pg.evaluate("()=>({uid: PIPELINE.last.uid,"
+                                    " decl: PIPELINE.last.declencheur,"
+                                    " facts: PIPELINE.last.facts})")
 
         view = await on_arrivals(pg, "repos")
 
@@ -208,7 +208,7 @@ async def main():
             # engine recorded. Only the numbers are compared: the sentence is
             # the interface's business, the figure is the engine's.
             gaps = []
-            for fact in claimed["faits"]:
+            for fact in claimed["facts"]:
                 step = real["steps"].get(fact["n"])
                 if step is None:
                     gaps.append(f"{fact['n']} absent from the database")

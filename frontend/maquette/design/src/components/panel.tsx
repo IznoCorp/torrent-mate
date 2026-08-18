@@ -12,7 +12,7 @@
 // below is a JSX child or attribute value, which is already safe.
 //
 // The DESCRIPTOR's own field names are the seam: the legacy producers build
-// those objects, so every key below (`titre`, `blocs`, a block's `type`, an
+// those objects, so every key below (`title`, `blocs`, a block's `type`, an
 // action's `target`…) stays whatever the fragment writes.
 //
 // Prose — anything a reader reads as a sentence — goes through `t()`, so this
@@ -82,7 +82,7 @@ function Poster({ poster }: { poster: { t: string; k?: string } }) {
 // the click delegation reads those attributes, exactly as it does for a
 // card. This component adds NO `onClick` of its own for it.
 export type Action = {
-  texte: string;
+  text: string;
   icone?: string;
   target?: Record<string, string | number>;
   ton?: string;
@@ -110,7 +110,7 @@ function ActionButton({ action }: { action: Action | null | undefined }) {
       {...attributes}
     >
       {action.icone ? <Icon paths={action.icone} /> : null}
-      {action.texte}
+      {action.text}
       {action.mention ? <span className="soon">{action.mention}</span> : null}
     </button>
   );
@@ -126,7 +126,7 @@ function ActionsBlock({
   );
   if (!list.length) return null;
   return (
-    <div className={`sheetacts${block.secondaire ? " secondary" : ""}`}>
+    <div className={`sheetacts${block.secondary ? " secondary" : ""}`}>
       {list.map((action, index) => (
         <ActionButton key={index} action={action} />
       ))}
@@ -141,7 +141,7 @@ function NoteBlock({
 }) {
   return (
     <p className="rulenote">
-      <RichText value={block.texte} />
+      <RichText value={block.text} />
     </p>
   );
 }
@@ -153,7 +153,7 @@ export type FactLine = {
   c: string;
   v: string;
   pip?: string;
-  pipValeur?: string;
+  pipValue?: string;
   terne?: boolean;
 };
 
@@ -174,8 +174,8 @@ function FactsBlock({
             {line.c}
           </span>
           <span>
-            {line.pipValeur ? (
-              <span className={`pip ${line.pipValeur}`} />
+            {line.pipValue ? (
+              <span className={`pip ${line.pipValue}`} />
             ) : null}
             {line.v}
           </span>
@@ -193,21 +193,21 @@ function FactsBlock({
 // `EP_LABEL` already carries, so they are reproduced here verbatim rather
 // than re-derived.
 const EP_ORDER = [
-  "non_verifie",
-  "annonce",
-  "en_attente",
-  "a_recuperer",
-  "en_acquisition",
-  "en_mediatheque",
+  "unverified",
+  "announced",
+  "pending",
+  "to_grab",
+  "acquiring",
+  "in_library",
 ] as const;
 
 const EP_SWATCH: Record<string, string> = {
-  non_verifie: "sw-muted",
-  annonce: "sw-upcoming",
-  en_attente: "sw-waiting",
-  a_recuperer: "sw-warning",
-  en_acquisition: "sw-info",
-  en_mediatheque: "sw-success",
+  unverified: "sw-muted",
+  announced: "sw-upcoming",
+  pending: "sw-waiting",
+  to_grab: "sw-warning",
+  acquiring: "sw-info",
+  in_library: "sw-success",
 };
 
 // The slice of a "follow" record the season blocks read: `t` for lookups
@@ -235,16 +235,16 @@ function epState(
   const held = reference.ownedFor(follow.t, seasonNum);
   if (held)
     return held.has(number)
-      ? "en_mediatheque"
-      : follow.st === "en_attente"
-        ? "en_attente"
-        : follow.st === "en_acquisition"
-          ? "en_acquisition"
-          : "a_recuperer";
-  if (number <= owned) return "en_mediatheque";
-  if (follow.st === "en_attente") return "en_attente";
-  if (follow.st === "en_acquisition") return "en_acquisition";
-  return "a_recuperer";
+      ? "in_library"
+      : follow.st === "pending"
+        ? "pending"
+        : follow.st === "acquiring"
+          ? "acquiring"
+          : "to_grab";
+  if (number <= owned) return "in_library";
+  if (follow.st === "pending") return "pending";
+  if (follow.st === "acquiring") return "acquiring";
+  return "to_grab";
 }
 
 function catalogFor(
@@ -281,7 +281,7 @@ function SeasonDetails({
     const info = catalog?.find((entry) => entry.n === number) ?? null;
     const upcoming = Boolean(info?.air && info.air > reference.TODAY);
     const state = upcoming
-      ? "annonce"
+      ? "announced"
       : epState(reference, follow, num, number, owned);
     return (
       <button
@@ -331,16 +331,16 @@ function SeasonsBlock({
   block: Extract<PanelBlock, { type: "saisons" }>;
 }) {
   const reference = useReference();
-  const { isFollowed: follow, saisons: seasons } = block;
+  const { isFollowed: follow, seasons: seasons } = block;
   const hasUpcoming = seasons.some((season) =>
     (catalogFor(reference, follow, season[0]) ?? []).some(
       (episode) => episode.air && episode.air > reference.TODAY,
     ),
   );
   const statesPresent = new Set<string>([
-    ...(hasUpcoming ? ["annonce"] : []),
+    ...(hasUpcoming ? ["announced"] : []),
     ...seasons.flatMap((season) => [
-      ...(season[2] > 0 ? ["en_mediatheque"] : []),
+      ...(season[2] > 0 ? ["in_library"] : []),
       ...((season[1] ?? 0) > season[2]
         ? [epState(reference, follow, season[0], season[1] ?? 0, season[2])]
         : []),
@@ -417,7 +417,7 @@ function FieldBlock({
       </div>
     );
 
-  if (setting.type === "booleen")
+  if (setting.type === "boolean")
     return (
       <div className="field">
         <button
@@ -435,7 +435,7 @@ function FieldBlock({
       </div>
     );
 
-  if (setting.type === "liste") {
+  if (setting.type === "list") {
     const items = Array.isArray(v) ? (v as unknown[]) : [];
     return (
       <div className="field list">
@@ -467,8 +467,8 @@ function FieldBlock({
   }
 
   const empty = v === null || v === undefined || v === "";
-  const mono = setting.type === "chemin";
-  const numeric = setting.type === "nombre";
+  const mono = setting.type === "path";
+  const numeric = setting.type === "number";
   const unit = unitOf(setting);
 
   return (
@@ -520,7 +520,7 @@ function FieldBlock({
       />
       {unit ? (
         <span className="fieldunit">{unit}</span>
-      ) : setting.type === "duree" ? (
+      ) : setting.type === "duration" ? (
         <span className="fieldunit">{t("settings.field.durationFormat")}</span>
       ) : null}
     </div>
@@ -533,18 +533,18 @@ function FieldBlock({
 // the five kinds `panneauBlocHTML` switches on in refonte.html. The `type`
 // values and every field name are the producers' own vocabulary.
 export type PanelBlock =
-  | { type: "note"; texte: RichTextValue }
+  | { type: "note"; text: RichTextValue }
   | { type: "faits"; lignes: FactLine[] }
   | {
       type: "actions";
       actions: (Action | null | undefined)[];
-      secondaire?: boolean;
+      secondary?: boolean;
     }
-  | { type: "saisons"; isFollowed: Follow; saisons: Season[] }
+  | { type: "saisons"; isFollowed: Follow; seasons: Season[] }
   | { type: "champ"; setting: Setting };
 
 // The refusal itself, named, so the probe that exercises it
-// (`window.__panneauInconnu`, published by the shell) raises the SAME error
+// (`window.__unknownPanel`, published by the shell) raises the SAME error
 // the renderer raises rather than a copy of its message that can drift.
 export function refuseBlock(block: { type: string }): never {
   // ENGLISH, and deliberately not in `fr.json`: this is a tool message. It
@@ -570,21 +570,21 @@ function BlockView({ block }: { block: PanelBlock }) {
       // Silence here would draw an empty panel and blame the data. A block
       // type nobody declared is a fact nobody declared, and the refusal goes
       // through the ONE named thrower above, so the signal a probe reads (the
-      // Error's text) is the one `window.__panneauInconnu` exercises rather
+      // Error's text) is the one `window.__unknownPanel` exercises rather
       // than a copy of it that can drift.
       return refuseBlock(block as { type: string });
   }
 }
 
-// THE DESCRIPTOR — facts, never markup. `titre` is read unconditionally by
+// THE DESCRIPTOR — facts, never markup. `title` is read unconditionally by
 // `panneauHTML` (no guard around it), so it is required here, not optional
 // as a first read of the legacy source might suggest.
 export type PanelDescriptor = {
-  titre: string;
-  sousTitre?: string;
+  title: string;
+  subtitle?: string;
   meta?: RichTextValue;
   puce?: [string, string] | null;
-  affiche?: { t: string; k?: string };
+  poster?: { t: string; k?: string };
   avatar?: string;
   // A block may be ABSENT and say so in place: a caller writes
   // `setting.note ? { type: "note", … } : null` inline rather than assembling
@@ -603,9 +603,9 @@ export function PanelContent({
 }): JSX.Element {
   const identity = (
     <>
-      <h3 className="sheettitle">{descriptor.titre}</h3>
-      {descriptor.sousTitre ? (
-        <span className="sheetsub">{descriptor.sousTitre}</span>
+      <h3 className="sheettitle">{descriptor.title}</h3>
+      {descriptor.subtitle ? (
+        <span className="sheetsub">{descriptor.subtitle}</span>
       ) : null}
       {descriptor.meta ? (
         <p className="sheetmeta">
@@ -615,9 +615,9 @@ export function PanelContent({
       <Chip chip={descriptor.puce} />
     </>
   );
-  const poster = descriptor.affiche ? (
+  const poster = descriptor.poster ? (
     <span className="sheetposter">
-      <Poster poster={descriptor.affiche} />
+      <Poster poster={descriptor.poster} />
     </span>
   ) : descriptor.avatar ? (
     <span className="avatar big" aria-hidden="true">
@@ -629,7 +629,7 @@ export function PanelContent({
     <>
       {poster ? (
         <div
-          className={`sheethead${descriptor.affiche ? " withposter" : ""}`}
+          className={`sheethead${descriptor.poster ? " withposter" : ""}`}
         >
           {poster}
           <div className="sheetid">{identity}</div>

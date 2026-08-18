@@ -74,7 +74,7 @@ async def main():
         await pg.evaluate("()=>window.__measure(true)")
 
         # ── a follow's card is not empty ────────────────────────────────────
-        await pg.evaluate("()=>window.__go('acq-suivis-liste')")
+        await pg.evaluate("()=>window.__go('acq-follows-liste')")
         await pg.wait_for_timeout(420)
         follows = await pg.evaluate("""()=>[...document.querySelectorAll('#view .card')].map(c => ({
           title: (c.querySelector('.ctitle')||{}).textContent||'',
@@ -103,7 +103,7 @@ async def main():
                 r = real.get(s["title"])
                 if not r:
                     continue
-                # Word-boundary match, not substring: « 1 recherche » must not
+                # Word-boundary match, not substring: « 1 search » must not
                 # pass against a card actually printing « 11 recherches ».
                 pattern = rf"\b{r['searches']}\s+recherche"
                 if not re.search(pattern, s["facts"]):
@@ -114,7 +114,7 @@ async def main():
         # ── the two tabs say the same thing the same way ────────────────────
         # « En cours » already had the sentence; the follow tab had none, and
         # two tabs about the same media must not phrase the same fact twice.
-        await pg.evaluate("()=>window.__go('acq-encours-charge')")
+        await pg.evaluate("()=>window.__go('acq-encours-loaded')")
         await pg.wait_for_timeout(420)
         running = await pg.evaluate("""()=>[...document.querySelectorAll('#view .creason')]
           .map(e => e.textContent)""")
@@ -138,7 +138,7 @@ async def main():
 
         # ── the library says what a medium is ABOUT ─────────────────────────
         for lens, name in (("cat", "Médias"), ("rec", "Récents")):
-            await pg.evaluate("(l)=>{window.__magasin.write({page: 'lib',"
+            await pg.evaluate("(l)=>{window.__store.write({page: 'lib',"
                               " libLens: l, libMode: 'list'}); render();}", lens)
             await pg.wait_for_timeout(650)
             seen = await pg.evaluate("""()=>{
@@ -177,7 +177,7 @@ async def main():
               if (!st) { st = document.createElement('style'); st.id = 'clamptrial';
                          document.head.appendChild(st); }
               st.textContent = '.cov{-webkit-line-clamp:' + n + ' !important}';}""", n)
-            await pg.evaluate("()=>{window.__magasin.write({page: 'lib',"
+            await pg.evaluate("()=>{window.__store.write({page: 'lib',"
                               " libLens: 'cat', libMode: 'list'}); render();}")
             await pg.wait_for_timeout(520)
             return await pg.evaluate(
@@ -194,7 +194,7 @@ async def main():
               (await cards_that_grow(lines + 1)) > 0, f"at {lines + 1} lines")
         await pg.evaluate("""()=>{const st = document.querySelector('#clamptrial');
                                if (st) st.remove();}""")
-        await pg.evaluate("()=>{window.__magasin.write({page: 'lib',"
+        await pg.evaluate("()=>{window.__store.write({page: 'lib',"
                           " libLens: 'cat', libMode: 'list'}); render();}")
         await pg.wait_for_timeout(520)
 
@@ -218,7 +218,7 @@ async def main():
               d.innerHTML = libRowHTML(item, 0);
               const cov = d.querySelector('.cov');
               return cov ? cov.textContent : null;}""", missing[0])
-            check("and its row shows no filler text",
+            check("and its row series no filler text",
                   empty is None, str(empty))
 
         # ── the list starts at the same height on all three lenses ─────────
@@ -229,7 +229,7 @@ async def main():
         for mode in ("list", "grid"):
             starts = {}
             for lens in ("cat", "rec", "inc"):
-                await pg.evaluate("([l, m])=>{window.__magasin.write({page: 'lib',"
+                await pg.evaluate("([l, m])=>{window.__store.write({page: 'lib',"
                                   " libLens: l, libMode: m}); render();}", [lens, mode])
                 await pg.wait_for_timeout(620)
                 starts[lens] = await pg.evaluate("""()=>{

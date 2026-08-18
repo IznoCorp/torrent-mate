@@ -63,17 +63,17 @@ export const NAV_SECTIONS: readonly NavSection[] = [
     title: "Supervision",
     items: [
       // Operator directive: Acquisitions leads the nav (the main page), Contrôle last;
-      // Contrôle lives at /controle (root `/` redirects to the acquisitions landing) and
+      // Contrôle lives at /control (root `/` redirects to the acquisitions landing) and
       // uses a gauge (poste de pilotage) rather than a « home » house.
       { to: "/acquisition", label: "Acquisition", icon: Radar },
-      { to: "/medias", label: "Médias", icon: ScanSearch },
+      { to: "/media", label: "Médias", icon: ScanSearch },
       { to: "/pipeline", label: "Pipeline", icon: Activity },
-      { to: "/controle", label: "Contrôle", icon: Gauge },
+      { to: "/control", label: "Contrôle", icon: Gauge },
     ],
   },
   {
     title: "Système",
-    items: [{ to: "/systeme", label: "Système", icon: Wrench }],
+    items: [{ to: "/system", label: "Système", icon: Wrench }],
   },
   {
     title: "Configuration",
@@ -91,14 +91,14 @@ export const NAV_ITEMS: readonly NavItem[] = NAV_SECTIONS.flatMap(
  * {@link NAV_ITEMS}: Acquisition · Médias · Pipeline · Contrôle.
  *
  * Operator directive: Acquisitions leads the bar (the main page); Contrôle (the
- * control station, now at /controle) closes it. The order follows the nav's
+ * control station, now at /control) closes it. The order follows the nav's
  * display order (see {@link BOTTOM_TAB_ITEMS}).
  */
 export const BOTTOM_TAB_PATHS: readonly string[] = [
   "/acquisition",
-  "/medias",
+  "/media",
   "/pipeline",
-  "/controle",
+  "/control",
 ];
 
 /**

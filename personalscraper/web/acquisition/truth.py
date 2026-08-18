@@ -55,12 +55,12 @@ class FollowTruth:
             every other field is then ``None`` too and the card reads
             ``non_verifie``, never ``a_jour``).
         owned_count: Aired episodes with a live library file (``en_mediatheque``).
-        a_recuperer_count: Aired, unowned episodes with a takeable candidate.
-        en_acquisition_count: Aired, unowned episodes taken / in the pipeline —
+        to_grab_count: Aired, unowned episodes with a takeable candidate.
+        acquiring_count: Aired, unowned episodes taken / in the pipeline —
             including episodes absorbed by a season wanted (season-grab R5),
             whose acquisition is in motion at the season level.
-        en_attente_count: Aired, unowned episodes searched with nothing takeable.
-        non_verifie_count: Aired, unowned episodes never searched or whose last
+        pending_count: Aired, unowned episodes searched with nothing takeable.
+        unverified_count: Aired, unowned episodes never searched or whose last
             search did not conclude.
         announced_count: Episodes cached with an air date STILL AHEAD
             (``air_date > today``). Never a card tally — it does not enter any
@@ -71,10 +71,10 @@ class FollowTruth:
 
     aired_count: int | None = None
     owned_count: int | None = None
-    a_recuperer_count: int | None = None
-    en_acquisition_count: int | None = None
-    en_attente_count: int | None = None
-    non_verifie_count: int | None = None
+    to_grab_count: int | None = None
+    acquiring_count: int | None = None
+    pending_count: int | None = None
+    unverified_count: int | None = None
     announced_count: int | None = None
 
 
@@ -190,11 +190,11 @@ def compute_follow_truth(
     facts_by_episode = governing_facts_by_episode(episode_rows, season_rows)
 
     counts: dict[EpisodeState, int] = {
-        "en_mediatheque": 0,
-        "a_recuperer": 0,
-        "en_acquisition": 0,
-        "en_attente": 0,
-        "non_verifie": 0,
+        "in_library": 0,
+        "to_grab": 0,
+        "acquiring": 0,
+        "pending": 0,
+        "unverified": 0,
         "absorbed": 0,
     }
     for pair in aired:
@@ -209,15 +209,15 @@ def compute_follow_truth(
 
     return FollowTruth(
         aired_count=len(aired),
-        owned_count=counts["en_mediatheque"],
-        a_recuperer_count=counts["a_recuperer"],
+        owned_count=counts["in_library"],
+        to_grab_count=counts["to_grab"],
         # An absorbed episode is IN MOTION — its acquisition is carried by the
         # season wanted that absorbed it (season-grab R5). It tallies with
         # « en cours d'acquisition » so a season being grabbed never degrades
         # the card to « non vérifié ».
-        en_acquisition_count=counts["en_acquisition"] + counts["absorbed"],
-        en_attente_count=counts["en_attente"],
-        non_verifie_count=counts["non_verifie"],
+        acquiring_count=counts["acquiring"] + counts["absorbed"],
+        pending_count=counts["pending"],
+        unverified_count=counts["unverified"],
         announced_count=announced,
     )
 

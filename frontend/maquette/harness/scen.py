@@ -6,10 +6,10 @@ the day a page went blank because a constant had disappeared.
 import asyncio
 from playwright.async_api import async_playwright
 
-VIEWS = [("acq/encours", "acq-encours-{s}"), ("acq/suivis", "acq-suivis-liste"),
-        ("acq/decouvrir", "acq-decouvrir"), ("lib/medias", "lib-grille"),
-        ("lib/incomplets", "lib-incomplets"), ("lib/recents", "lib-recents"),
-        ("arrivees", "arr-{s}"), ("systeme", "systeme")]
+VIEWS = [("acq/encours", "acq-encours-{s}"), ("acq/suivis", "acq-follows-liste"),
+        ("acq/decouvrir", "acq-discover"), ("lib/medias", "lib-grille"),
+        ("lib/incomplets", "lib-incomplete"), ("lib/recents", "lib-recent"),
+        ("arrivees", "arr-{s}"), ("system", "system")]
 
 async def main():
   async with async_playwright() as p:
@@ -22,14 +22,14 @@ async def main():
     # The startup screen covers the frame for as long as the load it stands
     # for lasts. Nothing is being fetched here, so the harness closes that
     # wait through the same seam the app uses, rather than sleeping it out.
-    await pg.evaluate("()=>window.__chargementTermine?.()")
+    await pg.evaluate("()=>window.__loadingDone?.()")
     total_bad = 0
-    for scen, word in (("reel", "repos"), ("charge", "charge")):
+    for scen, word in (("real", "repos"), ("loaded", "loaded")):
         print(f"\n=== scenario {scen} ===")
-        await pg.evaluate("(s)=>{window.__magasin.write({scen: s}); render();}", scen)
+        await pg.evaluate("(s)=>{window.__store.write({scen: s}); render();}", scen)
         for name, sid in VIEWS:
             await pg.evaluate("(i)=>window.__go(i)", sid.format(s=word))
-            await pg.evaluate("(s)=>{window.__magasin.write({scen: s}); render();}", scen)
+            await pg.evaluate("(s)=>{window.__store.write({scen: s}); render();}", scen)
             await pg.wait_for_timeout(320)
             r = await pg.evaluate("""()=>{const v=document.querySelector('#view');
               return {txt:v.textContent.replace(/\\s+/g,' ').trim().length,

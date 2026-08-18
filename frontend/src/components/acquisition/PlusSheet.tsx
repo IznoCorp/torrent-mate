@@ -187,8 +187,8 @@ export function PlusSheet({
 
         {/* Maquette footnote — where the ranking profiles went. */}
         <p className="mt-4 text-xs text-muted-foreground">
-          Les profils de classement (ex-onglet « Réglages ») ont déménagé dans{" "}
-          <Link className="font-semibold text-primary" to="/config?tab=classement">
+          Les profils de ranking (ex-onglet « Réglages ») ont déménagé dans{" "}
+          <Link className="font-semibold text-primary" to="/config?tab=ranking">
             Config
           </Link>
           .

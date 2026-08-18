@@ -402,7 +402,7 @@ def collect_anomalies(
                 # (truth.py: en_acquisition + absorbed). Checking only the literal
                 # ``en_acquisition`` would leave the exact shape of the 2026-08-04
                 # incident invisible — the rule must read what the OPERATOR reads.
-                if state not in ("en_acquisition", "absorbed"):
+                if state not in ("acquiring", "absorbed"):
                     continue
                 live = [
                     h
@@ -695,18 +695,18 @@ def collect_anomalies(
     # values that CANNOT produce « Terminé » (nothing announced, no provider
     # verdict): this probe asks about the empty-catalog fallthrough, and a
     # « Terminé » answer would silence the guard for the wrong reason.
-    empty_catalog_reads_a_jour = (
+    empty_catalog_reads_up_to_date = (
         derive_follow_status(
             active=True,
             aired_count=0,
-            a_recuperer_count=0,
-            en_acquisition_count=0,
-            en_attente_count=0,
-            non_verifie_count=0,
+            to_grab_count=0,
+            acquiring_count=0,
+            pending_count=0,
+            unverified_count=0,
             announced_count=0,
             series_status=None,
         )
-        == "a_jour"
+        == "up_to_date"
     )
 
     for fid, f in followed.items():
@@ -742,7 +742,7 @@ def collect_anomalies(
             # declared « À jour » with three aired episodes missing. Priming
             # (phase 6) is supposed to fill the catalog at follow time, so an
             # active show still without one is a failure, not a note.
-            if empty_catalog_reads_a_jour:
+            if empty_catalog_reads_up_to_date:
                 anomalies.append(
                     Anomaly(
                         rule="ACTIVE_A_JOUR_NO_CATALOG",

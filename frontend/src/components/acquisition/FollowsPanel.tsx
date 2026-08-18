@@ -76,17 +76,17 @@ function isNew(item: FollowedSeriesItem): boolean {
 }
 
 const URGENCY: Record<FollowStatus, number> = {
-  a_recuperer: 0,
-  en_acquisition: 1,
+  to_grab: 0,
+  acquiring: 1,
   // Being verified is in motion — between « acquiring » and « waiting ».
-  verification_en_cours: 2,
-  en_attente: 3,
-  non_verifie: 4,
-  a_jour: 5,
+  verifying: 2,
+  pending: 3,
+  unverified: 4,
+  up_to_date: 5,
   // A finished series asks for less than a running one that happens to be
   // caught up: nothing will ever move it again. It sits below « À jour » and
   // above the follows the operator themself put down.
-  termine: 6,
+  ended: 6,
   disabled: 7,
 };
 
@@ -146,15 +146,15 @@ const GROUPS: readonly {
     key: "demandent",
     label: "Demandent quelque chose",
     pipClass: "bg-warning",
-    of: ["a_recuperer", "en_attente", "non_verifie"],
+    of: ["to_grab", "pending", "unverified"],
   },
   {
     key: "en-cours",
     label: "En cours",
     pipClass: "bg-info",
-    of: ["en_acquisition", "verification_en_cours"],
+    of: ["acquiring", "verifying"],
   },
-  { key: "a-jour", label: "À jour", pipClass: "bg-success", of: ["a_jour"] },
+  { key: "a-jour", label: "À jour", pipClass: "bg-success", of: ["up_to_date"] },
   // Its own group rather than a second tenant of « À jour »: folding it in
   // would bury the very distinction the operator asked for (2026-08-09), and
   // « mes séries finies » is a list they want to be able to look at.
@@ -162,7 +162,7 @@ const GROUPS: readonly {
     key: "terminees",
     label: "Terminées",
     pipClass: "bg-muted-foreground",
-    of: ["termine"],
+    of: ["ended"],
   },
   {
     key: "en-pause",
@@ -237,9 +237,9 @@ function matchesName(item: FollowedSeriesItem, term: string): boolean {
  */
 function gridBadge(item: FollowedSeriesItem): string | null {
   if (
-    item.status === "a_recuperer" ||
-    item.status === "en_acquisition" ||
-    item.status === "en_attente"
+    item.status === "to_grab" ||
+    item.status === "acquiring" ||
+    item.status === "pending"
   ) {
     // A FILM is one unit: « 1 » counts nothing the operator did not already
     // know from the tile being there at all (their words: « ça n'a pas
@@ -250,7 +250,7 @@ function gridBadge(item: FollowedSeriesItem): string | null {
       Math.max(1, (item.aired_count ?? 0) - (item.owned_count ?? 0)),
     );
   }
-  if (item.status === "non_verifie" || item.status === "verification_en_cours")
+  if (item.status === "unverified" || item.status === "verifying")
     return "?";
   return null;
 }
@@ -441,9 +441,9 @@ export function FollowsPanel(): ReactElement {
             className={`absolute right-[5px] top-[5px] grid h-[17px] min-w-[17px] place-items-center rounded-full border-2 border-background px-1 text-[9.5px] font-bold text-white ${
               badge === "?"
                 ? "bg-muted-foreground"
-                : item.status === "en_acquisition"
+                : item.status === "acquiring"
                   ? "bg-info"
-                  : item.status === "en_attente"
+                  : item.status === "pending"
                     ? "bg-waiting"
                     : "bg-warning"
             }`}
@@ -458,7 +458,7 @@ export function FollowsPanel(): ReactElement {
           {dimmed
             ? "en pause"
             : item.kind === "movie"
-              ? item.status === "a_jour"
+              ? item.status === "up_to_date"
                 ? "acquis"
                 : "non acquis"
               : (followFraction(item) ?? "\u00A0")}

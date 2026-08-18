@@ -57,7 +57,7 @@ export function MobileFileSelect({
       <Label htmlFor="config-file-mobile-select">
         {leftTab === "secrets"
           ? "Secrets"
-          : leftTab === "classement"
+          : leftTab === "ranking"
             ? "Classement"
             : "Fichier"}
       </Label>

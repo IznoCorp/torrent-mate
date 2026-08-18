@@ -252,38 +252,38 @@ describe("AcquisitionPage", () => {
       "aria-selected",
       "true",
     );
-    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=maintenant");
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=now");
   });
 
   it("renders the Rien à signaler empty state when all sections are empty", () => {
     mockAllEmpty();
-    renderPage("/acquisition?tab=maintenant");
+    renderPage("/acquisition?tab=now");
     expect(screen.getByText(/Rien à signaler/)).toBeInTheDocument();
   });
 
   // ── Legacy redirects ────────────────────────────────────────────────────
 
   it.each([
-    ["followed", "suivis"],
-    ["file", "maintenant"],
-    ["apercu", "maintenant"],
-    ["obligations", "maintenant"],
-    ["watcher", "maintenant"],
-    ["parcours", "maintenant"],
-    ["wanted", "maintenant"],
-    ["downloads", "maintenant"],
+    ["followed", "follows"],
+    ["file", "now"],
+    ["apercu", "now"],
+    ["obligations", "now"],
+    ["watcher", "now"],
+    ["parcours", "now"],
+    ["wanted", "now"],
+    ["downloads", "now"],
   ])(
     "redirects legacy ?tab=%s to %s without stacking history",
     (legacy) => {
       mockAllEmpty();
       renderPage(`/acquisition?tab=${legacy}`);
 
-      // Redirects to the canonical view — the default "suivis" carries no
-      // param, "maintenant" is explicit.
+      // Redirects to the canonical view — the default "follows" carries no
+      // param, "now" is explicit.
       if (legacy === "followed") {
         expect(screen.getByTestId("loc-search")).toHaveTextContent("");
       } else {
-        expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=maintenant");
+        expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=now");
       }
     },
   );
@@ -295,7 +295,7 @@ describe("AcquisitionPage", () => {
     renderPage("/acquisition?tab=reglages");
 
     expect(screen.getByTestId("loc-pathname")).toHaveTextContent("/config");
-    expect(screen.getByTestId("loc-search")).toHaveTextContent("tab=classement");
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("tab=ranking");
   });
 
   it("a legacy redirect does not stack a history entry (replace, not push)", () => {
@@ -303,7 +303,7 @@ describe("AcquisitionPage", () => {
     renderPage("/acquisition?tab=apercu");
 
     // After redirect the URL names the view (suivis = no param is default).
-    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=maintenant");
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=now");
     expect(screen.getByRole("tab", { name: /Maintenant/ })).toHaveAttribute(
       "aria-selected",
       "true",
@@ -314,7 +314,7 @@ describe("AcquisitionPage", () => {
 
   it("opens the tab indicated by ?tab= on load (deep-link)", () => {
     mockAllEmpty();
-    renderPage("/acquisition?tab=maintenant");
+    renderPage("/acquisition?tab=now");
 
     expect(screen.getByRole("tab", { name: /Maintenant/ })).toHaveAttribute(
       "aria-selected",
@@ -322,9 +322,9 @@ describe("AcquisitionPage", () => {
     );
   });
 
-  it("normalizes an explicit ?tab=suivis to the clean default URL", () => {
+  it("normalizes an explicit ?tab=follows to the clean default URL", () => {
     mockAllEmpty();
-    renderPage("/acquisition?tab=suivis");
+    renderPage("/acquisition?tab=follows");
 
     expect(screen.getByRole("tab", { name: /Suivis/ })).toHaveAttribute(
       "aria-selected",
@@ -346,7 +346,7 @@ describe("AcquisitionPage", () => {
 
   it("clears the param when returning to the default tab", () => {
     mockAllEmpty();
-    renderPage("/acquisition?tab=maintenant");
+    renderPage("/acquisition?tab=now");
 
     fireEvent.click(screen.getByRole("tab", { name: /Suivis/ }));
 
@@ -355,20 +355,20 @@ describe("AcquisitionPage", () => {
 
   it("remembers the last view and reopens it on a plain return (operator ask)", () => {
     mockAllEmpty();
-    localStorage.setItem("tm.acquisition.lastTab", "maintenant");
+    localStorage.setItem("tm.acquisition.lastTab", "now");
     renderPage();
 
     expect(screen.getByRole("tab", { name: /Maintenant/ })).toHaveAttribute(
       "aria-selected",
       "true",
     );
-    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=maintenant");
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=now");
   });
 
   it("a deep link WITH ?tab= beats the remembered view", () => {
     mockAllEmpty();
-    localStorage.setItem("tm.acquisition.lastTab", "maintenant");
-    renderPage("/acquisition?tab=suivis");
+    localStorage.setItem("tm.acquisition.lastTab", "now");
+    renderPage("/acquisition?tab=follows");
 
     expect(screen.getByRole("tab", { name: /Suivis/ })).toHaveAttribute(
       "aria-selected",
@@ -382,7 +382,7 @@ describe("AcquisitionPage", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: /Maintenant/ }));
 
-    expect(localStorage.getItem("tm.acquisition.lastTab")).toBe("maintenant");
+    expect(localStorage.getItem("tm.acquisition.lastTab")).toBe("now");
   });
 
   // ── Tablist scroll classes ──────────────────────────────────────────────
@@ -409,12 +409,12 @@ describe("AcquisitionPage", () => {
     renderPage();
 
     const tab = screen.getByRole("tab", { name: "Suivis" });
-    expect(tab).toHaveAttribute("id", "acq-tab-suivis");
+    expect(tab).toHaveAttribute("id", "acq-tab-follows");
     expect(tab).toHaveAttribute("aria-controls", "acq-tabpanel");
 
     const panel = screen.getByRole("tabpanel");
     expect(panel).toHaveAttribute("id", "acq-tabpanel");
-    expect(panel).toHaveAttribute("aria-labelledby", "acq-tab-suivis");
+    expect(panel).toHaveAttribute("aria-labelledby", "acq-tab-follows");
   });
 
   it("tabpanel tracks the active tab (aria-labelledby)", () => {
@@ -424,7 +424,7 @@ describe("AcquisitionPage", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Maintenant" }));
     expect(screen.getByRole("tabpanel")).toHaveAttribute(
       "aria-labelledby",
-      "acq-tab-maintenant",
+      "acq-tab-now",
     );
   });
 
@@ -517,13 +517,13 @@ describe("AcquisitionPage", () => {
   it("navigate(-1) after legacy redirect lands on first entry, not the legacy URL", async () => {
     mockAllEmpty();
     // Two-entry history: /somewhere (index 0), /acquisition?tab=apercu (index 1).
-    // The redirect useEffect replaces tab=apercu → ?tab=maintenant, so history
-    // becomes [/somewhere, /acquisition?tab=maintenant].
+    // The redirect useEffect replaces tab=apercu → ?tab=now, so history
+    // becomes [/somewhere, /acquisition?tab=now].
     // navigate(-1) must land on /somewhere, NOT /acquisition?tab=apercu.
     renderPageWithProbe("/acquisition?tab=apercu");
 
     await waitFor(() => {
-      expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=maintenant");
+      expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=now");
     });
 
     fireEvent.click(screen.getByTestId("go-back"));
@@ -541,7 +541,7 @@ describe("AcquisitionPage", () => {
 
     // Click pushes one entry.
     fireEvent.click(screen.getByRole("tab", { name: "Maintenant" }));
-    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=maintenant");
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=now");
 
     // One Back lands on Suivis (the pre-click tab), not an intermediate.
     fireEvent.click(screen.getByTestId("go-back"));
@@ -794,7 +794,7 @@ describe("AcquisitionPage", () => {
 
     // Click pushes a new history entry.
     fireEvent.click(screen.getByRole("tab", { name: "Maintenant" }));
-    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=maintenant");
+    expect(screen.getByTestId("loc-search")).toHaveTextContent("?tab=now");
 
     // Keyboard nav replaces, no new entry — back to the clean default URL.
     fireEvent.keyDown(tablist, { key: "ArrowLeft" });
@@ -808,7 +808,7 @@ describe("AcquisitionPage", () => {
 
   // ── Loading state ───────────────────────────────────────────────────────
 
-  it("shows loading text while data is still in flight", () => {
+  it("series loading text while data is still in flight", () => {
     useFollowedMock.mockReturnValue({
       isLoading: true,
       isError: false,
@@ -866,7 +866,7 @@ describe("AcquisitionPage", () => {
       error: null,
     });
 
-    renderPage("/acquisition?tab=maintenant");
+    renderPage("/acquisition?tab=now");
     // The « À traiter » section renders its own error — panne ≠ absence.
     expect(
       screen.getByText(/Impossible de charger les éléments à traiter/),
@@ -940,7 +940,7 @@ describe("AcquisitionPage", () => {
     // lands back on « Suivis » with OR without the guard, so that setup
     // would prove nothing. From « Maintenant » the same drag WOULD switch
     // views if the edge band were not honoured.
-    renderPage("/acquisition?tab=maintenant");
+    renderPage("/acquisition?tab=now");
     const pager = screen.getByRole("tabpanel");
     vi.spyOn(pager, "getBoundingClientRect").mockReturnValue({
       left: 0,

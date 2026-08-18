@@ -67,7 +67,7 @@ afterEach(() => {
 });
 
 describe("SchedulersPanel", () => {
-  it("rend une ligne par planificateur depuis la charge utile", async () => {
+  it("rend une ligne par planificateur depuis la loaded utile", async () => {
     const getSchedulers = await mockGetSchedulers();
     getSchedulers.mockResolvedValue(
       makeResponse([

@@ -66,10 +66,10 @@
          legacy engine below keeps every surface not yet migrated. The mount
          node starts here, a plain sibling of the fragment's phone frame, but
          shell.tsx relocates it into `.device` before the first render —
-         see that file's own comment — so a migrated screen (`/profil/$titre`,
-         `/ajout`) is contained by the phone frame the same way the legacy
+         see that file's own comment — so a migrated screen (`/profile/$title`,
+         `/add`) is contained by the phone frame the same way the legacy
          `#screen` is, and paints behind it when both are open at once. -->
-    <div id="coquille"></div>
+    <div id="shell"></div>
     <script type="module" src="/src/shell.tsx"></script>
     <!-- maquette -->
     <!-- The application shell. It used to live in the fragment, and it is here
@@ -350,7 +350,7 @@
     <div class="screen" id="screen"></div>
     <!-- The scrim and the bottom sheet are rendered by the shell
          (`src/components/sheet.tsx`), at these same ids and classes, into
-         `#coquille` — which sits inside this frame, earlier in document order.
+         `#shell` — which sits inside this frame, earlier in document order.
          They are absent here on purpose: two elements answering `#sheet` is
          one of them being measured and the other being shown. -->
     <div class="dlg" id="dlg"></div>

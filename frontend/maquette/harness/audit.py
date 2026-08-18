@@ -21,7 +21,7 @@ async def main():
     # The startup screen covers the frame for as long as the load it stands
     # for lasts. Nothing is being fetched here, so the harness closes that
     # wait through the same seam the app uses, rather than sleeping it out.
-    await pg.evaluate("()=>window.__chargementTermine?.()")
+    await pg.evaluate("()=>window.__loadingDone?.()")
     await pg.evaluate("()=>window.__measure(true)")
     states = await pg.evaluate("()=>window.__states()")
     violations = {}
@@ -45,9 +45,9 @@ async def main():
           const R = {};
           const vis = (el)=>el.offsetParent!==null || el.getClientRects().length>0;
           // Every screen migrated off `#screen` onto a real route (the media
-          // sheet at `/fiche/$titre`, the add screen at `/ajout`, the
-          // arbitration screen at `/resolution/$dossier`, the release picker
-          // at `/releases/$titre`, the quality profile at `/profil/$titre`)
+          // sheet at `/mediasheet/$title`, the add screen at `/add`, the
+          // arbitration screen at `/resolution/$folder`, the release picker
+          // at `/releases/$title`, the quality profile at `/profile/$title`)
           // answers to ONE generic rung: any OPEN screen carries a `data-key`,
           // so the identity itself is never read here, only its presence —
           // naming each prefix would have re-opened the same hole for the
@@ -176,7 +176,7 @@ async def main():
           // R20 — the library has only ONE sub-line grammar: « année · type ».
           // Two grammars make rows incomparable.
           R.subLines = [];
-          if (stateId.startsWith('lib-') && !stateId.includes('incomplets')) {
+          if (stateId.startsWith('lib-') && !stateId.includes('incomplete')) {
             const expected = /^(\\d{4}|année inconnue) · (Film|Série)$/;
             R.subLines = [...root.querySelectorAll('#libitems .csub, #libitems .fr')]
               .map(e=>e.textContent.trim()).filter(t=>t && !expected.test(t)).slice(0,5);
@@ -270,7 +270,7 @@ async def main():
       const out=[]; const snap=()=>JSON.stringify({t:world.takeable.length,i:world.inflight.length,s:world.stuck.length,
         m:world.moving.length,f:world.follows.length,l:world.lib.length,p:state.page,tab:state.acqTab,lens:state.libLens,
         pipe:state.pipe});
-      for (const id of ['acq-encours-charge','arr-charge','lib-incomplets']) {
+      for (const id of ['acq-encours-loaded','arr-loaded','lib-incomplete']) {
         window.__go(id); await new Promise(r=>setTimeout(r,220));
         const btns=[...document.querySelectorAll('#view .cfoot')];
         for (let i=0;i<btns.length;i++){
@@ -279,7 +279,7 @@ async def main():
           const lab=b.textContent.trim(); const before=snap();
           // Pre-existing gap found while wiring the generic route rung above:
           // this check never learned about a screen migrated off `#screen`
-          // onto a real route (`/resolution/$dossier` among them) — the SAME
+          // onto a real route (`/resolution/$folder` among them) — the SAME
           // generic entry as the root ladder's covers it here too.
           const layer=()=>['#sheet','#screen','#dlg'].some(s=>document.querySelector(s).classList.contains('open'))
             || !!document.querySelector('.screen.open[data-key]');

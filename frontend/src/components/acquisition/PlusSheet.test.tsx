@@ -130,10 +130,10 @@ describe("PlusSheet", () => {
     // at the address it left, or the operator concludes it was removed.
     renderSheet();
 
-    expect(screen.getByText(/profils de\s+classement/i)).toBeInTheDocument();
+    expect(screen.getByText(/profils de\s+ranking/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Config/ })).toHaveAttribute(
       "href",
-      "/config?tab=classement",
+      "/config?tab=ranking",
     );
   });
 

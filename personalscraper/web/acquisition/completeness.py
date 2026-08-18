@@ -231,17 +231,17 @@ def compute_completeness(
     seasons = [
         SeasonCompleteness(
             season=season,
-            owned=sum(1 for e in eps if e.state == "en_mediatheque"),
+            owned=sum(1 for e in eps if e.state == "in_library"),
             # « queued » counts what is IN MOTION. ``absorbed`` belongs here
             # (season-grab R5): the episode's acquisition is carried by the
             # season wanted that absorbed it, so the header stays honest about
             # a season being grabbed.
-            queued=sum(1 for e in eps if e.state in ("a_recuperer", "en_acquisition", "absorbed")),
+            queued=sum(1 for e in eps if e.state in ("to_grab", "acquiring", "absorbed")),
             # ``total`` counts AIRED episodes only — the announced futures are
             # tallied separately (episode-states D2) so they never inflate the
             # season's completeness denominator.
-            total=sum(1 for e in eps if e.state != "annonce"),
-            announced=sum(1 for e in eps if e.state == "annonce"),
+            total=sum(1 for e in eps if e.state != "announced"),
+            announced=sum(1 for e in eps if e.state == "announced"),
             episodes=eps,
         )
         # Newest season first — the operator's eye goes to the current season.

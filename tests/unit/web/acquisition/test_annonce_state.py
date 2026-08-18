@@ -35,7 +35,7 @@ class TestAnnonceDerivation:
             air_date=FUTURE,
             today=TODAY,
         )
-        assert state == "annonce"
+        assert state == "announced"
 
     @pytest.mark.parametrize(
         ("owned", "wanted_status", "outcome", "found"),
@@ -59,9 +59,9 @@ class TestAnnonceDerivation:
             air_date=FUTURE,
             today=TODAY,
         )
-        assert state == "annonce", "a future episode is annonce regardless of its facts"
+        assert state == "announced", "a future episode is announced regardless of its facts"
 
-    def test_annonce_precedes_the_no_row_non_verifie_path(self) -> None:
+    def test_annonce_precedes_the_no_row_unverified_path(self) -> None:
         """A future has no wanted row → no-row facts; annonce must win BEFORE non_verifie.
 
         This is the trap the coordinator called out: a future episode's facts
@@ -77,7 +77,7 @@ class TestAnnonceDerivation:
             air_date=FUTURE,
             today=TODAY,
         )
-        assert no_row == "annonce"
+        assert no_row == "announced"
 
     def test_today_is_not_annonce(self) -> None:
         """Air-date == today is aired (inclusive), not announced."""
@@ -89,8 +89,8 @@ class TestAnnonceDerivation:
             air_date=TODAY,
             today=TODAY,
         )
-        assert state != "annonce"
-        assert state == "non_verifie"  # aired, no row, unowned
+        assert state != "announced"
+        assert state == "unverified"  # aired, no row, unowned
 
     def test_past_episode_keeps_its_five_state_derivation(self) -> None:
         """An aired episode is unchanged by the new parameters."""
@@ -102,24 +102,24 @@ class TestAnnonceDerivation:
             air_date=PAST,
             today=TODAY,
         )
-        assert owned == "en_mediatheque"
+        assert owned == "in_library"
 
     def test_missing_air_date_falls_through_to_the_five_states(self) -> None:
         """Additive: callers passing no air_date/today get the historical behaviour."""
         assert (
             derive_episode_state(owned=True, wanted_status=None, last_search_outcome=None, last_search_found=None)
-            == "en_mediatheque"
+            == "in_library"
         )
         assert (
             derive_episode_state(owned=False, wanted_status="grabbed", last_search_outcome=None, last_search_found=None)
-            == "en_acquisition"
+            == "acquiring"
         )
 
 
 class TestAnnonceExcludedFromCard:
     """ACC-03 — an announced future never degrades the aggregated card status."""
 
-    def test_all_aired_owned_stays_a_jour_with_announced_ahead(self) -> None:
+    def test_all_aired_owned_stays_up_to_date_with_announced_ahead(self) -> None:
         """The card counts AIRED episodes only; announced ones enter no bucket.
 
         ``derive_follow_status`` aggregates the five per-state counts. A future
@@ -131,22 +131,22 @@ class TestAnnonceExcludedFromCard:
         status = derive_follow_status(
             active=True,
             aired_count=8,  # 8 aired episodes...
-            a_recuperer_count=0,
-            en_acquisition_count=0,
-            en_attente_count=0,
-            non_verifie_count=0,  # ...all owned (aired_count == owned, nothing pending)
+            to_grab_count=0,
+            acquiring_count=0,
+            pending_count=0,
+            unverified_count=0,  # ...all owned (aired_count == owned, nothing pending)
             announced_count=3,  # ...and three announced ahead
             series_status="Continuing",
         )
-        assert status == "a_jour", "announced futures must not degrade an up-to-date series"
+        assert status == "up_to_date", "announced futures must not degrade an up-to-date series"
 
     @pytest.mark.parametrize(
         ("counts", "expected"),
         [
-            ({"a_recuperer_count": 1}, "a_recuperer"),
-            ({"en_acquisition_count": 1}, "en_acquisition"),
-            ({"en_attente_count": 1}, "en_attente"),
-            ({"non_verifie_count": 1}, "non_verifie"),
+            ({"to_grab_count": 1}, "to_grab"),
+            ({"acquiring_count": 1}, "acquiring"),
+            ({"pending_count": 1}, "pending"),
+            ({"unverified_count": 1}, "unverified"),
         ],
     )
     def test_announced_count_never_changes_an_actionable_status(self, counts: dict[str, int], expected: str) -> None:
@@ -161,10 +161,10 @@ class TestAnnonceExcludedFromCard:
         consulted once every other bucket is empty.
         """
         base = {
-            "a_recuperer_count": 0,
-            "en_acquisition_count": 0,
-            "en_attente_count": 0,
-            "non_verifie_count": 0,
+            "to_grab_count": 0,
+            "acquiring_count": 0,
+            "pending_count": 0,
+            "unverified_count": 0,
         }
         for announced in (0, 7):
             for series_status in (None, "Ended", "Continuing"):

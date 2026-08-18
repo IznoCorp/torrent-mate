@@ -389,7 +389,7 @@ def _other_ref(tvdb_id: int) -> str:
     return json.dumps({"tvdb_id": tvdb_id, "tmdb_id": None, "imdb_id": None})
 
 
-def test_active_a_jour_no_catalog_fires_on_an_empty_catalog(tmp_path: Path) -> None:
+def test_active_up_to_date_no_catalog_fires_on_an_empty_catalog(tmp_path: Path) -> None:
     """Rule 12 fires for the founding incident: an active show, no aired catalog.
 
     The card derivation, asked about zero knowledge, answers « À jour » — so an
@@ -410,7 +410,7 @@ def test_active_a_jour_no_catalog_fires_on_an_empty_catalog(tmp_path: Path) -> N
     assert fired["ACTIVE_A_JOUR_NO_CATALOG"].title == "Furious"
 
 
-def test_active_a_jour_no_catalog_silent_when_the_catalog_exists(tmp_path: Path) -> None:
+def test_active_up_to_date_no_catalog_silent_when_the_catalog_exists(tmp_path: Path) -> None:
     """Rule 12 is silent on a primed catalog, an inactive follow and a film.
 
     A film has no aired catalog by construction — flagging it would be the

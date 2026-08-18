@@ -42,10 +42,10 @@ async def main():
 
         await pg.evaluate("()=>window.__go('acq-ajout-resultats')")
         await pg.wait_for_timeout(400)
-        # The add screen left `#screen` for a real route (`/ajout`, rendered
+        # The add screen left `#screen` for a real route (`/add`, rendered
         # inside `#coquille`): its results list is `.screen.open`, not
         # literally `#screen` — and so is the FICHE this journey opens further
-        # down (`/fiche/$titre`). Each is named by its own `data-key`.
+        # down (`/mediasheet/$title`). Each is named by its own `data-key`.
         start = await pg.evaluate("""()=>({
             screen: !!document.querySelector('.screen.open'),
             key: document.querySelector('.screen.open')?.dataset.key,
@@ -72,7 +72,7 @@ async def main():
         await pg.evaluate("()=>document.querySelector('.reslist .poster').click()")
         await pg.wait_for_timeout(450)
         # The poster's target is a MEDIA SHEET, and it left `#screen` for a
-        # real route (`/fiche/$titre`, rendered inside `#coquille`) as the add
+        # real route (`/mediasheet/$title`, rendered inside `#coquille`) as the add
         # screen did before it. It is read by its own IDENTITY — the screen
         # carrying `data-key="mediaSheet:…"` — and not by a bare `.screen.open`:
         # two screens can carry `open` at once, and a selector that cannot

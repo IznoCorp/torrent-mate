@@ -141,7 +141,7 @@ describe("StagingLibrary", () => {
     expect(after.with_dispatch).toBe(true);
   });
 
-  it("shows match filter chips with counts", () => {
+  it("series match filter chips with counts", () => {
     renderLib();
     // "Identifiés (1)" filter chip built from the counts block.
     expect(screen.getByText("Identifiés")).toBeInTheDocument();
@@ -232,7 +232,7 @@ describe("StagingLibrary", () => {
     ).toBeGreaterThan(0);
   });
 
-  it("shows a loading skeleton grid", () => {
+  it("series a loading skeleton grid", () => {
     stagingMock.mockReturnValue({
       data: undefined,
       isLoading: true,
@@ -244,7 +244,7 @@ describe("StagingLibrary", () => {
     expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
   });
 
-  it("shows an error state with retry on failure", () => {
+  it("series an error state with retry on failure", () => {
     const refetch = vi.fn();
     stagingMock.mockReturnValue({
       data: undefined,
@@ -258,7 +258,7 @@ describe("StagingLibrary", () => {
     expect(refetch).toHaveBeenCalled();
   });
 
-  it("shows an empty state when there are no items", () => {
+  it("series an empty state when there are no items", () => {
     stagingMock.mockReturnValue({
       data: response([]),
       isLoading: false,

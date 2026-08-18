@@ -4,8 +4,8 @@
 #
 # Mirrors KanbanMate's deploy model (operator rule):
 #
-#     ON NE DÉPLOIE QUE `main`. Si c'est déployé, c'est sur `main`.
-#     Pour déployer, on met sur `main` d'abord.
+#     ONLY `main` IS DEPLOYED. If it is deployed, it is on `main`.
+#     To deploy something, it goes onto `main` first.
 #
 # Run this INSIDE the prod clone (~/deploy/torrentmate, tracks `main`) with the
 # prod venv (TM_VENV). Why the guards: the Vite SPA build (frontend/,
@@ -29,7 +29,7 @@ VENV="${TM_VENV:-$HOME/deploy/torrentmate-venv}"
 PORT=8710
 HEALTH_URL="http://127.0.0.1:${PORT}/api/health"
 
-fail() { printf '\n❌ DÉPLOIEMENT REFUSÉ: %s\n' "$*" >&2; exit 1; }
+fail() { printf '\n❌ DEPLOYMENT REFUSED: %s\n' "$*" >&2; exit 1; }
 
 # ── Guard 0: config-home migration must have run if pins point there ──────────
 # If this clone's ecosystem.config.js pins PERSONALSCRAPER_CONFIG to the
@@ -45,16 +45,16 @@ fi
 
 # ── Guard 1: must be on `main` ────────────────────────────────────────────────
 branch="$(git rev-parse --abbrev-ref HEAD)"
-[ "$branch" = "main" ] || fail "branche '$branch' ≠ main. On ne déploie QUE main."
+[ "$branch" = "main" ] || fail "branch '$branch' is not main. ONLY main is deployed."
 
 # ── Guard 2: working tree must be clean (no uncommitted code can be served) ────
 if [ -n "$(git status --porcelain)" ]; then
   git status --short >&2
-  fail "arbre de travail non propre — commit ou stash d'abord. On ne déploie JAMAIS de code non commité."
+  fail "working tree not clean — commit or stash first. Uncommitted code is NEVER deployed."
 fi
 
 # ── Guard 3: local main must equal origin/main (no un-pushed / diverged code) ──
-timeout 30 git fetch --quiet origin main || fail "git fetch origin main a échoué (réseau ?)."
+timeout 30 git fetch --quiet origin main || fail "git fetch origin main failed (network?)."
 local_sha="$(git rev-parse HEAD)"
 remote_sha="$(git rev-parse origin/main)"
 [ "$local_sha" = "$remote_sha" ] \
@@ -62,9 +62,9 @@ remote_sha="$(git rev-parse origin/main)"
 
 # ── Guard 4: the prod venv must exist (per-clone isolation) ───────────────────
 [ -x "$VENV/bin/pip" ] \
-  || fail "venv prod introuvable: $VENV (attendu $VENV/bin/pip). Crée-le d'abord (python -m venv \"$VENV\") ou exporte TM_VENV."
+  || fail "prod venv not found: $VENV (expected $VENV/bin/pip). Create it first (python -m venv \"$VENV\") or export TM_VENV."
 
-printf '✓ main propre et synchronisée @ %s — build du SPA…\n' "$local_sha"
+printf '✓ main clean and in sync @ %s — building the SPA…\n' "$local_sha"
 
 # ── Build: reproducible from source only; bake the served SHA into the bundle ─
 # TM_BUILD_COMMIT is read by vite.config.ts (define __BUILD_COMMIT__), so the
@@ -87,7 +87,7 @@ rsync -a --delete \
 printf '%s\n' "$local_sha" > personalscraper/web/static/BUILD_COMMIT
 
 # ── Reinstall the backend into the prod venv (per-clone isolation) ────────────
-"$VENV/bin/pip" install -e . >/dev/null || fail "pip install -e . a échoué (venv cassé ? dépendances manquantes ?)"
+"$VENV/bin/pip" install -e . >/dev/null || fail "pip install -e . failed (broken venv? missing dependencies?)"
 
 # ── Start-or-restart the PM2 app (fail-soft) ──────────────────────────────────
 # startOrRestart (not restart): the FIRST post-merge autodeploy must START the
@@ -95,7 +95,7 @@ printf '%s\n' "$local_sha" > personalscraper/web/static/BUILD_COMMIT
 # fail-soft and leave prod down after the merge. Uses this clone's own tracked
 # ecosystem.config.js (absolute-path entry) and --update-env to pick up .env.
 if ! pm2 startOrRestart ecosystem.config.js --only torrentmate-web --update-env >/dev/null 2>&1; then
-  printf 'ℹ pm2 startOrRestart torrentmate-web a échoué — ecosystem.config.js absent ou app mal définie ?\n' >&2
+  printf 'ℹ pm2 startOrRestart torrentmate-web failed — ecosystem.config.js missing, or the app misdeclared?\n' >&2
 fi
 
 # ── Post-check: /api/health is public → expect 200 ────────────────────────────
@@ -111,18 +111,18 @@ for i in $(seq 1 15); do
   [ "$i" -lt 15 ] && sleep 2
 done
 if ! $health_ok; then
-  printf '\n❌ Déployé (prod): %s — mais health %s a répondu "%s" après 15 tentatives (30 s).\n   Vérifie: pm2 logs torrentmate-web\n' \
+  printf '\n❌ Deployed (prod): %s — but health %s answered "%s" after 15 tries (30 s).\n   Check: pm2 logs torrentmate-web\n' \
     "$local_sha" "$HEALTH_URL" "$code" >&2
   exit 1
 fi
 
-# ── Post-check 2 (R27): le process QUI TOURNE sert bien CE build ──────────────
-# /api/version met le BUILD_COMMIT en cache AU BOOT — un ancien process
-# (restart pm2 raté) continuerait de servir l'ANCIEN sha même si le fichier
-# sur disque est frais. La route est session-guardée : on forge un JWT court
-# depuis WEB_JWT_SECRET (.env du clone) avec le python du venv (PyJWT, extra
-# web). Outillage absent (pas de PyJWT / pas de secret) → avertissement
-# fail-soft ; MISMATCH ou timeout → échec dur.
+# ── Post-check 2 (R27): the RUNNING process serves THIS build ─────────────────
+# /api/version caches BUILD_COMMIT AT BOOT — an old process (a pm2 restart that
+# failed) would keep serving the OLD sha even with a fresh file on disk. The
+# route is session-guarded, so a short-lived JWT is forged from WEB_JWT_SECRET
+# (the clone's .env) with the venv's python (PyJWT, the web extra). Tooling
+# absent (no PyJWT, or no secret) → a fail-soft warning; a MISMATCH or a
+# timeout → a hard failure.
 VERSION_URL="http://127.0.0.1:${PORT}/api/version"
 tm_token="$("$VENV/bin/python" - "$REPO" 2>/dev/null <<'PYEOF' || true
 import os, re, sys, time
@@ -151,7 +151,7 @@ PYEOF
 )"
 
 if [ -z "$tm_token" ]; then
-  printf '⚠ post-check version sauté (JWT non forgeable: PyJWT/WEB_JWT_SECRET/config absents) — health seul vérifié.\n' >&2
+  printf '⚠ version post-check skipped (no JWT can be forged: PyJWT/WEB_JWT_SECRET/config absent) — health checked alone.\n' >&2
 else
   served_sha=""
   for i in $(seq 1 10); do
@@ -161,11 +161,11 @@ else
     [ "$i" -lt 10 ] && sleep 2
   done
   if [ "$served_sha" != "$local_sha" ]; then
-    printf '\n❌ Déployé (prod): %s — mais le process en cours sert build_commit="%s".\n   Le restart pm2 a probablement échoué (ancien process toujours vivant). Vérifie: pm2 logs torrentmate-web\n' \
+    printf '\n❌ Deployed (prod): %s — but the running process serves build_commit="%s".\n   The pm2 restart probably failed (the old process is still alive). Check: pm2 logs torrentmate-web\n' \
       "$local_sha" "$served_sha" >&2
     exit 1
   fi
 fi
 
-printf '\n✅ Déployé (prod): %s\n   health %s → 200 · /api/version sert ce commit · tamponné dans personalscraper/web/static/BUILD_COMMIT\n' \
+printf '\n✅ Deployed (prod): %s\n   health %s → 200 · /api/version serves this commit · stamped into personalscraper/web/static/BUILD_COMMIT\n' \
   "$local_sha" "$HEALTH_URL"

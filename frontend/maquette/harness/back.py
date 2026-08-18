@@ -64,7 +64,7 @@ async def main():
 
         # ── the path, walked forward by tapping ────────────────────────────
         path = [
-            ('[data-acqtab="suivis"]', "acq", "suivis"),
+            ('[data-acqtab="follows"]', "acq", "follows"),
             ('[data-page="lib"]', "lib", None),
             ('[data-lens="inc"]', "lib", None),
             ('[data-page="arr"]', "arr", None),
@@ -91,7 +91,7 @@ async def main():
               got[0][1] == "inc" and got[1][1] == "cat", str(got[:2]))
         start = await where(pg)
         check("and the first tab is found again",
-              start is not None and start["tab"] == "maintenant",
+              start is not None and start["tab"] == "now",
               str(start and start["tab"]))
 
         # ── a layer is what a back closes first ────────────────────────────

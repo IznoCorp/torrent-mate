@@ -12,7 +12,7 @@
  *
  * « À traiter » = blocked media that came from ONE OF OUR acquisitions
  * (``useToHandle().items``).  The crossref line carries ``orphan_count`` —
- * blocked media with NO acquisition provenance — linking to ``/controle``.
+ * blocked media with NO acquisition provenance — linking to ``/control``.
  * §méthode: never under-count what needs attention.
  *
  * The journey strip renders ONLY for « En vol » and « À traiter » (A5).
@@ -118,7 +118,7 @@ const SECTION_META: Record<SectionSlug, SectionMeta> = {
  * Build the resolve link for a blocked decision item.
  *
  * Reuses the EXACT href shape from ``ToHandleList.tsx:72-74`` —
- * ``/medias?decision=<id>``.  Do NOT invent a second builder; the resolution
+ * ``/media?decision=<id>``.  Do NOT invent a second builder; the resolution
  * deck is the single destination for every blocked decision.
  *
  * Args:
@@ -128,7 +128,7 @@ const SECTION_META: Record<SectionSlug, SectionMeta> = {
  *   A router ``to`` value for a ``<Link>``.
  */
 function resolveHref(item: ToHandleItem): string {
-  return `/medias?decision=${String(item.decision_id)}`;
+  return `/media?decision=${String(item.decision_id)}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -300,7 +300,7 @@ export function NowPanel(): ReactElement {
 
   /** « À récupérer » — followed items the server says are takeable right now. */
   const aRecuperer: readonly FollowedSeriesItem[] =
-    followed.data?.items.filter((i) => i.status === "a_recuperer") ?? [];
+    followed.data?.items.filter((i) => i.status === "to_grab") ?? [];
 
   /** « À traiter » — blocked items from our acquisitions. */
   const toHandleItems: readonly ToHandleItem[] = toHandle.data?.items ?? [];
@@ -315,7 +315,7 @@ export function NowPanel(): ReactElement {
   const searchedNothingFound: readonly FollowedSeriesItem[] =
     followed.data?.items.filter(
       (i) =>
-        i.active && (i.status === "en_attente" || i.status === "non_verifie"),
+        i.active && (i.status === "pending" || i.status === "unverified"),
     ) ?? [];
 
   /** « Rangé aujourd'hui » — follows whose journey DISPATCHED today.
@@ -356,7 +356,7 @@ export function NowPanel(): ReactElement {
       // landed today reads « Terminé » from that moment on, and it is exactly
       // the one the operator most wants to see in « rangé aujourd'hui ».
       (i) =>
-        (i.status === "a_jour" || i.status === "termine") &&
+        (i.status === "up_to_date" || i.status === "ended") &&
         dispatchedToday.has(i.title),
     ) ?? [];
 
@@ -479,7 +479,7 @@ export function NowPanel(): ReactElement {
     // the next-check substitute (backend addition C). A never-verified
     // follow says WHY it rests instead of faking a verdict (§14).
     const reason =
-      item.status === "non_verifie"
+      item.status === "unverified"
         ? "pas encore vérifié sur les trackers"
         : (followWaitingReason(item) ?? "rien de conforme au dernier passage");
     return item.last_search_at != null
@@ -561,11 +561,11 @@ export function NowPanel(): ReactElement {
           posterUrl={item.poster_url ?? null}
           {...(searchMeta
             ? { subtitle: searchMetaLine(item) }
-            : item.status === "a_recuperer" && takeableDetail(item) != null
+            : item.status === "to_grab" && takeableDetail(item) != null
               ? { subtitle: takeableDetail(item) ?? "" }
               : {})}
           {...(!searchMeta &&
-          item.status === "a_recuperer" &&
+          item.status === "to_grab" &&
           grabFailureLine(item) != null
             ? { reason: grabFailureLine(item) ?? "" }
             : {})}
@@ -828,7 +828,7 @@ export function NowPanel(): ReactElement {
                     /* Maquette .crossref: dashed border, destination pinned
                        right in primary — the row reads as a signpost, not a
                        card. */
-                    <Link to="/controle" className="crossref">
+                    <Link to="/control" className="crossref">
                       {orphanCount === 1
                         ? "1 autre média à traiter ne vient pas d'une acquisition"
                         : `${String(orphanCount)} autres médias à traiter ne viennent pas d'une acquisition`}

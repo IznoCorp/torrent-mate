@@ -47,17 +47,17 @@ class TestFollowedStatusDerivation:
         says nothing about what is owned, aired or searched — with no catalogue
         the card must admit it does not know.
         """
-        assert _item(active=True, wanted_pending=3).status == "non_verifie"
+        assert _item(active=True, wanted_pending=3).status == "unverified"
 
-    def test_idle_without_catalog_is_non_verifie_never_a_jour(self) -> None:
+    def test_idle_without_catalog_is_unverified_never_up_to_date(self) -> None:
         """An active series with no catalogue and no queue is ``non_verifie``.
 
         Was ``up_to_date`` — the founding incident's exact shape: zero wanted
         rows read as « À jour » while aired episodes were missing.
         """
-        assert _item(active=True, wanted_pending=0).status == "non_verifie"
+        assert _item(active=True, wanted_pending=0).status == "unverified"
 
     def test_status_is_serialised(self) -> None:
         """The computed field is present in the serialised payload."""
         dumped = _item(active=True, wanted_pending=0).model_dump()
-        assert dumped["status"] == "non_verifie"
+        assert dumped["status"] == "unverified"

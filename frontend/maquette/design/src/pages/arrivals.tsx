@@ -41,19 +41,19 @@ function lastRunRows(
   const byName = Object.fromEntries(facts.map((fact) => [fact.n, fact]));
   return steps.map((step) => {
     const fact: PipelineFact = byName[step.n] || { n: step.n };
-    const nothing = !fact.r && !fact.s && !fact.bloque;
+    const nothing = !fact.r && !fact.s && !fact.blockedCount;
     return {
       l: step.l,
       k: step.n,
-      v: fact.bloque
-        ? `${fact.r ? fact.r + " · " : ""}${t("screens.arrivals.blockedCount", { count: fact.bloque })}`
+      v: fact.blockedCount
+        ? `${fact.r ? fact.r + " · " : ""}${t("screens.arrivals.blockedCount", { count: fact.blockedCount })}`
         : fact.r || "",
-      s: fact.bloque
+      s: fact.blockedCount
         ? `${fact.s ? fact.s + " · " : ""}${t("screens.arrivals.blockedBelow")}`
         : nothing
           ? t("screens.arrivals.nothingToDo")
           : fact.s || "",
-      state: fact.bloque ? "danger" : "",
+      state: fact.blockedCount ? "danger" : "",
     };
   });
 }
@@ -121,7 +121,7 @@ function PipelineBar(): ReactElement {
         <span className="pt">{t("screens.arrivals.idleTitle")}</span>
         <span className="pq">
           {t("screens.arrivals.idleQualifier", {
-            when: PIPELINE.dernier.when,
+            when: PIPELINE.last.when,
           })}
         </span>
       </div>
@@ -137,7 +137,7 @@ function PipelineBar(): ReactElement {
 function LastRun(): ReactElement {
   const { t } = useTranslation();
   const { PIPELINE, factRowsHTML } = useReference();
-  const run = PIPELINE.dernier;
+  const run = PIPELINE.last;
   return (
     <section className="sec">
       <div className="sechead">
@@ -159,7 +159,7 @@ function LastRun(): ReactElement {
       <ol
         className="flux"
         dangerouslySetInnerHTML={{
-          __html: factRowsHTML(lastRunRows(PIPELINE.steps, run.faits, t)),
+          __html: factRowsHTML(lastRunRows(PIPELINE.steps, run.facts, t)),
         }}
       />
     </section>
@@ -180,7 +180,7 @@ export function ArrivalsPage(): ReactElement | null {
     derivedSettled,
   } = useReference();
 
-  if (state.phase !== "prete") {
+  if (state.phase !== "ready") {
     // Each emits ONE root element, and this draws that element itself so no
     // wrapper appears where the legacy had none.
     return state.phase === "erreur" ? (
@@ -229,7 +229,7 @@ export function ArrivalsPage(): ReactElement | null {
       </div>
       <PipelineBar />
       <LastRun />
-      {state.scen === "reel" ? (
+      {state.scen === "real" ? (
         <div className="note">
           <b>{t("screens.arrivals.realLead")}</b>
           {t("screens.arrivals.realMiddle")}
@@ -274,7 +274,7 @@ export function ArrivalsPage(): ReactElement | null {
           .join(""),
         `<b>${t("screens.arrivals.stuckNoteLead")}</b>${t("screens.arrivals.stuckNoteRest")}`,
       )}
-      {state.scen !== "reel" ? (
+      {state.scen !== "real" ? (
         <button className="crossref" data-go="acq">
           {t("screens.arrivals.toAcquisition")}
           <span>{t("screens.arrivals.toAcquisitionLink")}</span>

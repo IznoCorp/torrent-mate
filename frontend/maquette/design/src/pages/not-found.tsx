@@ -13,7 +13,7 @@ export function NotFoundPage(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
   const { emptyInner, escapeHtml } = useReference();
-  const asked = (state.introuvable as string) || t("screens.notFound.bodyFallback");
+  const asked = (state.notFound as string) || t("screens.notFound.bodyFallback");
   return (
     <>
       <div

@@ -280,7 +280,7 @@ function LibraryList(): ReactElement {
   // before it on the skeleton, on the error surface and on an empty list. So
   // repainting on every draw would destroy and rebuild a node the legacy left
   // alone — and that node lives in `#device`, beside the settings save bar.
-  const drawsRows = state.phase === "prete" && rows.length > 0;
+  const drawsRows = state.phase === "ready" && rows.length > 0;
   useEffect(() => {
     if (drawsRows) paintSelBar();
   });
@@ -297,7 +297,7 @@ function LibraryList(): ReactElement {
   // page while the 620 ms timer is in flight would then be overwritten with the
   // OLD count plus a page, jumping the list past what the count line promised.
   const loadMore = () => {
-    const live = () => window.__magasin.read().state;
+    const live = () => window.__store.read().state;
     if (live().libLoading || live().libErr) return;
     if ((live().libCount as number) >= libFiltered().length) return;
     // WHAT THE LOAD WAS ASKED FROM. Six hundred and twenty milliseconds is long
@@ -315,9 +315,9 @@ function LibraryList(): ReactElement {
     // then let a stale load through. Every write bumps the version, so anything
     // that happened while this load was in flight — a search, a sort, a lens,
     // another state driven by the harness — makes it stale by definition.
-    const askedAt = window.__magasin.read().version;
+    const askedAt = window.__store.read().version;
     window.setTimeout(() => {
-      if (window.__magasin.read().version !== askedAt) return;
+      if (window.__store.read().version !== askedAt) return;
       writeUiState({ libLoading: false });
       if (!live().libFailedOnce && asked >= LIB_PAGE * 3) {
         writeUiState({ libFailedOnce: true, libErr: true });
@@ -584,7 +584,7 @@ export function LibraryPage(): ReactElement | null {
 function SortLabel(): ReactElement {
   const state = useUiState();
   const { icons, TRIS } = useReference();
-  const ways = TRIS[state.tri as string];
+  const ways = TRIS[state.sortKey as string];
   return (
     <>
       <Icon paths={icons.sort} />

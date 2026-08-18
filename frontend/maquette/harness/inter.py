@@ -26,11 +26,11 @@ async def main():
     # The startup screen covers the frame for as long as the load it stands
     # for lasts. Nothing is being fetched here, so the harness closes that
     # wait through the same seam the app uses, rather than sleeping it out.
-    await pg.evaluate("()=>window.__chargementTermine?.()")
+    await pg.evaluate("()=>window.__loadingDone?.()")
     await pg.evaluate("()=>document.querySelector('#toastx').click()")
 
     print("── Suivis: swipe action ──")
-    await pg.click('[data-acqtab="suivis"]'); await pg.wait_for_timeout(300)
+    await pg.click('[data-acqtab="follows"]'); await pg.wait_for_timeout(300)
     await pg.evaluate(SW, ["#view .swipe", -1, 9])
     print("  transform :", await pg.evaluate("()=>getComputedStyle(document.querySelector('#view .swipe .card')).transform"))
 
@@ -61,7 +61,7 @@ async def main():
 
     print("── Découvrir: batch, panel, drag, undo ──")
     await pg.evaluate("()=>document.querySelector('#dlgcancel').click()"); await pg.wait_for_timeout(300)
-    await pg.click('[data-page="acq"]'); await pg.click('[data-acqtab="decouvrir"]'); await pg.wait_for_timeout(450)
+    await pg.click('[data-page="acq"]'); await pg.click('[data-acqtab="discover"]'); await pg.wait_for_timeout(450)
     print("  initial batch   :", await pg.evaluate("()=>document.querySelectorAll('.sugwrap').length"))
     await pg.evaluate(SW, ["[data-dismissable='0']", 1, 9])
     print("  after right swipe:", await pg.evaluate("()=>document.querySelectorAll('.sugwrap').length"))

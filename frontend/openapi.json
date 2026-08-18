@@ -1222,12 +1222,12 @@
           },
           "state": {
             "enum": [
-              "annonce",
-              "en_mediatheque",
-              "a_recuperer",
-              "en_acquisition",
-              "en_attente",
-              "non_verifie",
+              "announced",
+              "in_library",
+              "to_grab",
+              "acquiring",
+              "pending",
+              "unverified",
               "absorbed"
             ],
             "title": "State",
@@ -1370,7 +1370,7 @@
       "FollowedSeriesItem": {
         "description": "A single followed series or film in the list response.",
         "properties": {
-          "a_recuperer_count": {
+          "acquiring_count": {
             "anyOf": [
               {
                 "type": "integer"
@@ -1379,7 +1379,7 @@
                 "type": "null"
               }
             ],
-            "title": "A Recuperer Count"
+            "title": "Acquiring Count"
           },
           "active": {
             "title": "Active",
@@ -1434,28 +1434,6 @@
             ],
             "title": "Cadence Tier"
           },
-          "en_acquisition_count": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "En Acquisition Count"
-          },
-          "en_attente_count": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "En Attente Count"
-          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -1500,17 +1478,6 @@
             ],
             "title": "Next Search At"
           },
-          "non_verifie_count": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Non Verifie Count"
-          },
           "original_title": {
             "anyOf": [
               {
@@ -1543,6 +1510,17 @@
               }
             ],
             "title": "Owned Count"
+          },
+          "pending_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pending Count"
           },
           "poster_url": {
             "anyOf": [
@@ -1598,13 +1576,13 @@
             "description": "Lifecycle status \u2014 pure delegation to the single state derivation.\n\nThe whole business rule lives in\n:mod:`personalscraper.web.acquisition.states` so the card, the\ncompleteness matrix and the episode chips can never disagree; this\nproperty only routes shows to\n:func:`~personalscraper.web.acquisition.states.derive_follow_status`\n(per-state episode counts) and films to\n:func:`~personalscraper.web.acquisition.states.derive_movie_status`\n(their single unit's facts).\n\nThe legacy fallback onto the raw ``wanted_pending`` / ``wanted_grabbed``\ncounters is GONE: those counters know nothing about ownership or about\nthe aired catalog, and it is precisely their \u00ab no rows \u21d2 up_to_date \u00bb\nbranch that declared a freshly-followed series \u00ab \u00c0 jour \u00bb while three\naired episodes were missing (founding incident). They survive as data\nfields for display, never as a status source.\n\nA priming run in flight overrides the card to ``verification_en_cours``\nBEFORE any derived status (phase 6). The flag is set by the route layer\nfrom the live ``pipeline_run`` rows; it is never stored in ``acquire.db``\nand can never disagree with the run history.\n\nReturns:\n    The derived lifecycle status.",
             "enum": [
               "disabled",
-              "verification_en_cours",
-              "a_recuperer",
-              "en_acquisition",
-              "en_attente",
-              "non_verifie",
-              "a_jour",
-              "termine"
+              "verifying",
+              "to_grab",
+              "acquiring",
+              "pending",
+              "unverified",
+              "up_to_date",
+              "ended"
             ],
             "readOnly": true,
             "title": "Status",
@@ -1614,10 +1592,32 @@
             "title": "Title",
             "type": "string"
           },
+          "to_grab_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Grab Count"
+          },
           "tvdb_unresolved": {
             "default": false,
             "title": "Tvdb Unresolved",
             "type": "boolean"
+          },
+          "unverified_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unverified Count"
           },
           "wanted_grabbed": {
             "default": 0,

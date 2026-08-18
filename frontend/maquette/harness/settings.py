@@ -61,7 +61,7 @@ async def main():
         await pg.evaluate("()=>window.__measure(true)")
 
         # ── the map is what one wants to change ────────────────────────────
-        await pg.evaluate("()=>window.__go('reglages')")
+        await pg.evaluate("()=>window.__go('settings')")
         await pg.wait_for_timeout(320)
         map_ = await pg.evaluate("""()=>({
           topics: [...document.querySelectorAll('.topic')].map(r => ({
@@ -107,7 +107,7 @@ async def main():
               + (f" — not found: {', '.join(missing)}" if missing else ""))
 
         # ── a setting says where it comes from, and explains itself ────────
-        await pg.evaluate("()=>window.__go('reglages-rubrique')")
+        await pg.evaluate("()=>window.__go('settings-topic')")
         await pg.wait_for_timeout(320)
         # The origin is read as it is SEEN: the row carries the path, its group
         # header carries the file. Reading only the row would pass a screen where
@@ -125,13 +125,13 @@ async def main():
         check("and the key does not repeat the file",
               not [l for l in rows if ".json5" in l["path"]],
               str([l["path"] for l in rows if ".json5" in l["path"]][:2]))
-        check("and it shows its value",
+        check("and it series its value",
               all(l["value"].strip() for l in rows),
               str([l["label"] for l in rows if not l["value"].strip()][:3]))
 
         # The explanation is the comment the file itself carries. Compared
         # against the file on disk, so invented prose cannot creep in.
-        await pg.evaluate("()=>window.__go('reglages-un')")
+        await pg.evaluate("()=>window.__go('settings-one')")
         await pg.wait_for_timeout(350)
         panel = await pg.evaluate("""()=>{
           const s = document.querySelector('#sheetin');
@@ -153,7 +153,7 @@ async def main():
         at_rest = await pg.evaluate("()=>!!document.querySelector('#savebar')")
         check("no save bar at rest", not at_rest)
 
-        await pg.evaluate("()=>window.__go('reglages-modifie')")
+        await pg.evaluate("()=>window.__go('settings-edited')")
         await pg.wait_for_timeout(350)
         pending = await pg.evaluate("""()=>{
           const bar = document.querySelector('#savebar');
@@ -169,7 +169,7 @@ async def main():
         check("the bar stays inside the frame", pending["insideFrame"])
 
         # ── a secret is never shown ────────────────────────────────────────
-        await pg.evaluate("()=>window.__go('reglages-secrets')")
+        await pg.evaluate("()=>window.__go('settings-secrets')")
         await pg.wait_for_timeout(320)
         secrets = await pg.evaluate("""()=>({
           rows: [...document.querySelectorAll('.settingrow')].map(r =>
@@ -182,7 +182,7 @@ async def main():
               secrets["fields"] == 0, f"{secrets['fields']} field(s)")
 
         # ── read-only says so, and offers nothing ─────────────────────────
-        await pg.evaluate("()=>window.__go('reglages-lecture-seule')")
+        await pg.evaluate("()=>window.__go('settings-read-only')")
         await pg.wait_for_timeout(320)
         read_only = await pg.evaluate("""()=>((document.querySelector('#view')||{}).textContent||'')
           .replace(/\\s+/g,' ')""")
@@ -190,7 +190,7 @@ async def main():
               "lecture seule" in read_only.lower(), read_only[:80])
 
         # ── restart required names what is waiting ────────────────────────
-        await pg.evaluate("()=>window.__go('reglages-redemarrage')")
+        await pg.evaluate("()=>window.__go('settings-restart')")
         await pg.wait_for_timeout(320)
         restart = await pg.evaluate("""()=>{
           const v = document.querySelector('#view');
@@ -200,7 +200,7 @@ async def main():
               "edémarrage" in restart["text"] and restart["button"], restart["text"][:70])
 
         # ── search looks through every setting ─────────────────────────────
-        await pg.evaluate("()=>window.__go('reglages-recherche')")
+        await pg.evaluate("()=>window.__go('settings-search')")
         await pg.wait_for_timeout(320)
         searched = await pg.evaluate("""()=>({
           results: document.querySelectorAll('.settingrow').length,
@@ -291,14 +291,14 @@ async def main():
         # Driven by TYPE for the same reason: naming a key here would pass the
         # day that key moves and open something else.
         expected = {
-            "booleen": ".fieldtoggle",
-            "nombre": ".fieldinput[type=number]",
-            "texte": ".fieldinput[type=text]",
-            "chemin": ".fieldinput.mono",
-            "liste": ".ladd",
-            "duree": ".fieldinput",
+            "boolean": ".fieldtoggle",
+            "number": ".fieldinput[type=number]",
+            "text": ".fieldinput[type=text]",
+            "path": ".fieldinput.mono",
+            "list": ".ladd",
+            "duration": ".fieldinput",
             "structure": ".field.readonly",
-            "nul": ".fieldinput",
+            "empty": ".fieldinput",
         }
         seen = await pg.evaluate(
             """()=>[...new Set(SETTINGS.flatMap(r => r.r).map(x => x.type))].sort()""")
@@ -306,7 +306,7 @@ async def main():
               set(seen) == set(expected), str(sorted(seen)))
 
         for kind, selector in expected.items():
-            await pg.evaluate("(g)=>window.__go(`reglages-champ-${g}`)", kind)
+            await pg.evaluate("(g)=>window.__go(`settings-field-${g}`)", kind)
             await pg.wait_for_timeout(320)
             check(f"a « {kind} » value opens the field it asks for",
                   await pg.evaluate("(s)=>!!document.querySelector('#sheetin ' + s)",
@@ -315,7 +315,7 @@ async def main():
         # A structure is REFUSED rather than half-drawn: a form for a list of
         # objects cannot be validated here, and drawing one would promise an
         # edit that breaks the file.
-        await pg.evaluate("()=>window.__go('reglages-champ-structure')")
+        await pg.evaluate("()=>window.__go('settings-field-structure')")
         await pg.wait_for_timeout(320)
         refusal = await pg.evaluate("""()=>{
           const s = document.querySelector('#sheetin');
@@ -327,7 +327,7 @@ async def main():
         # The value a field files keeps its TYPE. Filed as a string, a number
         # compares unequal to the file's for ever, and the change could never be
         # undone by typing the original back — which is the check after.
-        await pg.evaluate("()=>window.__go('reglages-champ-nombre')")
+        await pg.evaluate("()=>window.__go('settings-field-number')")
         await pg.wait_for_timeout(320)
         await pg.fill("#sheetin .fieldinput", "42")
         await pg.evaluate("()=>document.querySelector('#sheetin .fieldinput')"
@@ -339,7 +339,7 @@ async def main():
               filed == [[42, "number"]], str(filed))
 
         original = await pg.evaluate(
-            """()=>String(SETTINGS.flatMap(r => r.r).find(x => x.type === 'nombre').brut)""")
+            """()=>String(SETTINGS.flatMap(r => r.r).find(x => x.type === 'number').brut)""")
         await pg.fill("#sheetin .fieldinput", original)
         await pg.evaluate("()=>document.querySelector('#sheetin .fieldinput')"
                           ".dispatchEvent(new Event('change'))")
@@ -348,7 +348,7 @@ async def main():
               await pg.evaluate("()=>SETTINGS_STATE.modifs.size") == 0,
               f"original value {original}")
 
-        await pg.evaluate("()=>window.__go('reglages-champ-booleen')")
+        await pg.evaluate("()=>window.__go('settings-field-boolean')")
         await pg.wait_for_timeout(320)
         await pg.click("#sheetin .fieldtoggle")
         await pg.wait_for_timeout(320)
@@ -359,8 +359,8 @@ async def main():
 
         await pg.evaluate("""()=>{
           const x = SETTINGS.flatMap(r => r.r)
-            .find(y => y.type === 'liste' && (y.brut || []).length > 1);
-          SETTINGS_STATE.rubrique = SETTINGS.find(r => r.r.includes(x)).id;
+            .find(y => y.type === 'list' && (y.brut || []).length > 1);
+          SETTINGS_STATE.topic = SETTINGS.find(r => r.r.includes(x)).id;
           render(); openSetting(settingId(x));}""")
         await pg.wait_for_timeout(330)
         before = await pg.evaluate("()=>document.querySelectorAll('#sheetin .litem').length")
@@ -380,9 +380,9 @@ async def main():
         # not the setting's and files it under the setting's id on the next
         # commit — a setting silently overwritten with another's value.
         open_text = """(n) => {
-          const texts = SETTINGS.flatMap(r => r.r).filter(x => x.type === 'texte');
+          const texts = SETTINGS.flatMap(r => r.r).filter(x => x.type === 'text');
           const x = texts[n];
-          SETTINGS_STATE.rubrique = SETTINGS.find(r => r.r.includes(x)).id;
+          SETTINGS_STATE.topic = SETTINGS.find(r => r.r.includes(x)).id;
           render(); openSetting(settingId(x));
           return {id: settingId(x), own: String(x.brut ?? '')};}"""
         read_field = """() => {const e = document.querySelector('#sheetin .fieldinput');

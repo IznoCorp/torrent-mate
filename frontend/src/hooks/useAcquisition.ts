@@ -385,7 +385,7 @@ export function useWaitingForOperator(): {
   const followed = useFollowed({}, { refetchInterval: 60_000, staleTime: 55_000 });
   const toHandle = useToHandle();
   const takeable = (followed.data?.items ?? []).filter(
-    (i) => i.status === "a_recuperer",
+    (i) => i.status === "to_grab",
   ).length;
   const blocked = toHandle.data?.items.length ?? 0;
   return {

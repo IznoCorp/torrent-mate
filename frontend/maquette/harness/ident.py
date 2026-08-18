@@ -2,8 +2,8 @@
 → ASSOCIATE, and not « add to follows ».
 
 The journey also SETTLES a history it stacked — the result's panel and the
-`/ajout` address — and the second half of this script holds that settlement:
-one announced operation, landing where the walk stood before `/ajout`, and the
+`/add` address — and the second half of this script holds that settlement:
+one announced operation, landing where the walk stood before `/add`, and the
 next back still worth exactly one step.
 """
 import asyncio
@@ -21,7 +21,7 @@ COUNTER = """() => {
 
 # Reading the interface after a back that LEFT the document raises instead of
 # naming the defect, so the departure is tested first. The test is the origin,
-# never the file name: a router-owned address (`/`, `/ajout`) is served by the
+# never the file name: a router-owned address (`/`, `/add`) is served by the
 # same document and carries no « wrapped.html » anywhere in it.
 async def where(pg):
   """Where the interface is, or None when the document is gone."""
@@ -50,14 +50,14 @@ async def main():
     # The startup screen covers the frame for as long as the load it stands
     # for lasts. Nothing is being fetched here, so the harness closes that
     # wait through the same seam the app uses, rather than sleeping it out.
-    await pg.evaluate("()=>window.__chargementTermine?.()")
+    await pg.evaluate("()=>window.__loadingDone?.()")
     await pg.evaluate("()=>window.__measure(true)")
     await pg.evaluate(COUNTER)
 
-    await pg.evaluate("()=>window.__go('arr-charge')"); await pg.wait_for_timeout(320)
+    await pg.evaluate("()=>window.__go('arr-loaded')"); await pg.wait_for_timeout(320)
     before = await pg.evaluate("()=>({stuck:derived.stuck().length, moving:derived.moving().length, follows:world.follows.length})")
     print("starting state           :", before)
-    # Where the walk stands BEFORE `/ajout` — the manual search pops the
+    # Where the walk stands BEFORE `/add` — the manual search pops the
     # resolution entry before pushing its own, so this is the entry the add
     # screen was stacked on, and the one the settlement must land back on.
     start = await where(pg)
@@ -65,7 +65,7 @@ async def main():
     await pg.evaluate("()=>[...document.querySelectorAll('.cfoot')].find(x=>x.textContent.includes('Résoudre')).click()")
     await pg.wait_for_timeout(420)
     # The arbitration screen left `#screen` for a real route
-    # (`/resolution/$dossier`, rendered inside `#coquille`): it answers to its
+    # (`/resolution/$folder`, rendered inside `#coquille`): it answers to its
     # own identity now, `.screen.open[data-key^="resolution:"]`, never to the
     # legacy host it used to live in.
     print("resolution screen        :", await pg.evaluate(
@@ -73,7 +73,7 @@ async def main():
 
     await pg.evaluate("()=>document.querySelector('[data-manual]').click()"); await pg.wait_for_timeout(600)
     # The manual search reached from « Chercher manuellement » is the add
-    # screen at `/ajout`, also a real route now — read by its own identity,
+    # screen at `/add`, also a real route now — read by its own identity,
     # falling back to an empty node so a screen that failed to open reports
     # its own absence instead of a TypeError.
     r = await pg.evaluate("""()=>{const s=document.querySelector('.screen.open[data-key^="add:"]')
@@ -101,7 +101,7 @@ async def main():
     print("— NO follow was created           :", after["follows"] == before["follows"])
 
     # ── THE HISTORY IT HOLDS: one settlement, announced ───────────────────
-    # Associer settles TWO entries at once — the result's panel and `/ajout`
+    # Associer settles TWO entries at once — the result's panel and `/add`
     # itself. Three things are held together, because no one of them alone
     # names the defect: the LANDING (both a correct settlement and two racing
     # backs spend the same two entries, so the address alone is silent), the
@@ -136,7 +136,7 @@ async def main():
             and next_["page"] == start["page"])
 
     # and the « + » returns to follow mode
-    await pg.evaluate("()=>window.__go('acq-encours-charge')"); await pg.wait_for_timeout(300)
+    await pg.evaluate("()=>window.__go('acq-encours-loaded')"); await pg.wait_for_timeout(300)
     await pg.evaluate("()=>document.querySelector('#fab').click()"); await pg.wait_for_timeout(500)
     await pg.evaluate("()=>document.querySelector('[data-search]')?.click()"); await pg.wait_for_timeout(500)
     await pg.evaluate("()=>document.querySelector('.reslist .cbody')?.click()"); await pg.wait_for_timeout(420)

@@ -471,7 +471,7 @@ function PreviewColumn({
 }): ReactElement {
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/40 p-3 lg:sticky lg:top-4">
-      <h3 className="text-sm font-semibold">Aperçu du classement</h3>
+      <h3 className="text-sm font-semibold">Aperçu du ranking</h3>
       <p className="text-xs text-muted-foreground">
         Un échantillon représentatif classé avec vos réglages — l'effet est
         visible immédiatement, sans lancer de recherche.

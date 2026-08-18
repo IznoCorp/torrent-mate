@@ -134,7 +134,7 @@ async def open_page(browser, **kwargs):
     ctx = await browser.new_context(**{**PHONE, **kwargs})
     pg = await ctx.new_page()
     await pg.goto(PROTOTYPE, wait_until="load")
-    await pg.evaluate("()=>window.__chargementTermine?.()")
+    await pg.evaluate("()=>window.__loadingDone?.()")
     await pg.evaluate("()=>document.querySelector('#toastx')?.click()")
     await pg.wait_for_timeout(250)
     return ctx, pg

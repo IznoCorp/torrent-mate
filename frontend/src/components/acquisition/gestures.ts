@@ -65,7 +65,7 @@ export function pullArmed(height: number): boolean {
 const AXIS_LOCK_SLOP_PX = 10;
 
 /** The two views a horizontal swipe moves between. */
-export type SwipeView = "maintenant" | "suivis";
+export type SwipeView = "now" | "follows";
 
 /**
  * Decide which axis a drag belongs to, or none yet.
@@ -137,7 +137,7 @@ export function viewSwipeResult(
   // drag lands on the last view whether or not it was already there, which IS
   // the clamp. A third view would need an index walk instead. View order is
   // Suivis → Maintenant (operator directive 2026-08-08).
-  return dx < 0 ? "maintenant" : "suivis";
+  return dx < 0 ? "now" : "follows";
 }
 
 /**

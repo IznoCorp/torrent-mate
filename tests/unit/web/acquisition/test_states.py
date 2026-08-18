@@ -51,7 +51,7 @@ def test_empty_catalog_is_never_up_to_date() -> None:
         queued_count=None,
         missing_count=None,
     )
-    assert item.status == "non_verifie", (
+    assert item.status == "unverified", (
         f"Founding incident: empty catalog returned {item.status!r}, expected 'non_verifie'. "
         "A series with zero catalogue knowledge is NOT up to date — we know nothing about it."
     )
@@ -85,51 +85,51 @@ TRUTH_TABLE: list[tuple[bool, str | None, str | None, int | None, str, str]] = [
     # A file on disk wins — stale grabbed rows and inconclusive verdicts are
     # phantoms, exactly the Silo bug (the card said « En cours d'acquisition »
     # while every episode chip was green).
-    (True, "grabbed", "success", 5, "en_mediatheque", "owned-beats-grabbed-phantom"),
-    (True, None, None, None, "en_mediatheque", "owned-no-wanted-row"),
-    (True, "searching", "circuit_open", 0, "en_mediatheque", "owned-beats-inconclusive"),
-    (True, "available", "success", 3, "en_mediatheque", "owned-beats-available"),
+    (True, "grabbed", "success", 5, "in_library", "owned-beats-grabbed-phantom"),
+    (True, None, None, None, "in_library", "owned-no-wanted-row"),
+    (True, "searching", "circuit_open", 0, "in_library", "owned-beats-inconclusive"),
+    (True, "available", "success", 3, "in_library", "owned-beats-available"),
     # ── Rule 2: wanted_status == "grabbed" ──
-    (False, "grabbed", "success", 3, "en_acquisition", "grabbed-success"),
-    (False, "grabbed", None, None, "en_acquisition", "grabbed-never-searched"),
-    (False, "grabbed", "trackers_unavailable", 0, "en_acquisition", "grabbed-beats-inconclusive"),
+    (False, "grabbed", "success", 3, "acquiring", "grabbed-success"),
+    (False, "grabbed", None, None, "acquiring", "grabbed-never-searched"),
+    (False, "grabbed", "trackers_unavailable", 0, "acquiring", "grabbed-beats-inconclusive"),
     # ── Rule 3: wanted_status == "available" ──
-    (False, "available", "success", 5, "a_recuperer", "available-with-found"),
-    (False, "available", None, None, "a_recuperer", "available-never-searched"),
-    (False, "available", "success", 0, "a_recuperer", "available-zero-found"),
+    (False, "available", "success", 5, "to_grab", "available-with-found"),
+    (False, "available", None, None, "to_grab", "available-never-searched"),
+    (False, "available", "success", 0, "to_grab", "available-zero-found"),
     # ── Rule 4: last_search_outcome is None (never searched) ──
     # "searching" status falls through — a claim in flight derives from its
     # last verdict, not from the transient status.
-    (False, "searching", None, None, "non_verifie", "searching-never-searched"),
-    (False, None, None, None, "non_verifie", "no-row-never-searched"),
-    (False, "pending", None, None, "non_verifie", "pending-never-searched"),
+    (False, "searching", None, None, "unverified", "searching-never-searched"),
+    (False, None, None, None, "unverified", "no-row-never-searched"),
+    (False, "pending", None, None, "unverified", "pending-never-searched"),
     # ── Rule 5: each INCONCLUSIVE outcome → non_verifie ──
     # A search that did NOT conclude (provider outage, open circuit, dead
     # swarm) must never read as « En attente ».  Absence of knowledge is
     # « Non vérifié », never an assertion about the trackers.
-    (False, "searching", "trackers_unavailable", None, "non_verifie", "inconclusive-trackers-unavailable"),
-    (False, "searching", "circuit_open", None, "non_verifie", "inconclusive-circuit-open"),
-    (False, "searching", "search_api_error", None, "non_verifie", "inconclusive-search-api-error"),
-    (False, "searching", "no_seeders", None, "non_verifie", "inconclusive-no-seeders"),
+    (False, "searching", "trackers_unavailable", None, "unverified", "inconclusive-trackers-unavailable"),
+    (False, "searching", "circuit_open", None, "unverified", "inconclusive-circuit-open"),
+    (False, "searching", "search_api_error", None, "unverified", "inconclusive-search-api-error"),
+    (False, "searching", "no_seeders", None, "unverified", "inconclusive-no-seeders"),
     # No wanted row + inconclusive outcome (still non_verifie — no knowledge).
-    (False, None, "trackers_unavailable", None, "non_verifie", "inconclusive-no-row"),
+    (False, None, "trackers_unavailable", None, "unverified", "inconclusive-no-row"),
     # ── Rule 6: (last_search_found or 0) > 0 → a_recuperer (defensive) ──
-    (False, "searching", "success", 2, "a_recuperer", "found-positive-searching"),
-    (False, None, "success", 1, "a_recuperer", "found-positive-no-row"),
-    (False, "pending", "success", 3, "a_recuperer", "found-positive-pending"),
+    (False, "searching", "success", 2, "to_grab", "found-positive-searching"),
+    (False, None, "success", 1, "to_grab", "found-positive-no-row"),
+    (False, "pending", "success", 3, "to_grab", "found-positive-pending"),
     # ── Rule 7: otherwise → en_attente (searched, concluded, nothing takeable) ──
-    (False, "searching", "success", 0, "en_attente", "concluded-zero-searching"),
-    (False, None, "success", 0, "en_attente", "concluded-zero-no-row"),
-    (False, "pending", "success", 0, "en_attente", "concluded-zero-pending"),
+    (False, "searching", "success", 0, "pending", "concluded-zero-searching"),
+    (False, None, "success", 0, "pending", "concluded-zero-no-row"),
+    (False, "pending", "success", 0, "pending", "concluded-zero-pending"),
     # Edge: abandoned/done rows should still derive from last verdict.
-    (False, "abandoned", "success", 0, "en_attente", "abandoned-concluded-zero"),
-    (False, "done", None, None, "non_verifie", "done-never-searched"),
+    (False, "abandoned", "success", 0, "pending", "abandoned-concluded-zero"),
+    (False, "done", None, None, "unverified", "done-never-searched"),
     # ── Rule 1b (season-grab R5, review F7): absorbed short-circuits ──
     # An absorbed episode's acquisition is carried by its season wanted — it
     # is IN MOTION, never « never checked ». Ownership still wins above.
     (False, "absorbed", None, None, "absorbed", "absorbed-never-searched"),
     (False, "absorbed", "no_candidates", 0, "absorbed", "absorbed-beats-stale-verdict"),
-    (True, "absorbed", None, None, "en_mediatheque", "owned-beats-absorbed"),
+    (True, "absorbed", None, None, "in_library", "owned-beats-absorbed"),
 ]
 
 
@@ -176,7 +176,7 @@ def test_derive_episode_state_truth_table(
 #
 # These tests assert the NEW aggregation rules (contract lines 51-60) against
 # the future FollowedSeriesItem carrying the new per-state count fields
-# (a_recuperer_count, en_acquisition_count, en_attente_count, non_verifie_count).
+# (to_grab_count, acquiring_count, pending_count, unverified_count).
 # They WILL fail today — those fields do not exist yet and the current status
 # property uses the old inflight/queued/missing counters.
 
@@ -218,7 +218,7 @@ def test_no_catalog_not_active_disabled() -> None:
     assert item.status == "disabled"
 
 
-def test_aggregation_all_owned_is_a_jour() -> None:
+def test_aggregation_all_owned_is_up_to_date() -> None:
     """Every aired episode owned, nothing wanted → ``a_jour``.
 
     Uses the future fields that phase 4.2 will add to FollowedSeriesItem.
@@ -226,54 +226,54 @@ def test_aggregation_all_owned_is_a_jour() -> None:
     item = _build_item(
         aired_count=5,
         owned_count=5,
-        a_recuperer_count=0,  # type: ignore[call-arg]
-        en_acquisition_count=0,  # type: ignore[call-arg]
-        en_attente_count=0,  # type: ignore[call-arg]
-        non_verifie_count=0,  # type: ignore[call-arg]
+        to_grab_count=0,  # type: ignore[call-arg]
+        acquiring_count=0,  # type: ignore[call-arg]
+        pending_count=0,  # type: ignore[call-arg]
+        unverified_count=0,  # type: ignore[call-arg]
     )
-    assert item.status == "a_jour"
+    assert item.status == "up_to_date"
 
 
-def test_aggregation_a_recuperer_wins_over_en_acquisition() -> None:
+def test_aggregation_to_grab_wins_over_acquiring() -> None:
     """Most-actionable-first: ``a_recuperer`` beats ``en_acquisition``."""
     item = _build_item(
         aired_count=5,
         owned_count=1,
-        a_recuperer_count=2,  # type: ignore[call-arg]
-        en_acquisition_count=1,  # type: ignore[call-arg]
-        en_attente_count=0,  # type: ignore[call-arg]
-        non_verifie_count=0,  # type: ignore[call-arg]
+        to_grab_count=2,  # type: ignore[call-arg]
+        acquiring_count=1,  # type: ignore[call-arg]
+        pending_count=0,  # type: ignore[call-arg]
+        unverified_count=0,  # type: ignore[call-arg]
     )
-    assert item.status == "a_recuperer"
+    assert item.status == "to_grab"
 
 
-def test_aggregation_en_acquisition_wins_over_en_attente() -> None:
+def test_aggregation_acquiring_wins_over_pending() -> None:
     """Most-actionable-first: ``en_acquisition`` beats ``en_attente``."""
     item = _build_item(
         aired_count=5,
         owned_count=1,
-        a_recuperer_count=0,  # type: ignore[call-arg]
-        en_acquisition_count=3,  # type: ignore[call-arg]
-        en_attente_count=1,  # type: ignore[call-arg]
-        non_verifie_count=0,  # type: ignore[call-arg]
+        to_grab_count=0,  # type: ignore[call-arg]
+        acquiring_count=3,  # type: ignore[call-arg]
+        pending_count=1,  # type: ignore[call-arg]
+        unverified_count=0,  # type: ignore[call-arg]
     )
-    assert item.status == "en_acquisition"
+    assert item.status == "acquiring"
 
 
-def test_aggregation_en_attente_wins_over_non_verifie() -> None:
+def test_aggregation_pending_wins_over_unverified() -> None:
     """Most-actionable-first: ``en_attente`` beats ``non_verifie``."""
     item = _build_item(
         aired_count=5,
         owned_count=1,
-        a_recuperer_count=0,  # type: ignore[call-arg]
-        en_acquisition_count=0,  # type: ignore[call-arg]
-        en_attente_count=2,  # type: ignore[call-arg]
-        non_verifie_count=2,  # type: ignore[call-arg]
+        to_grab_count=0,  # type: ignore[call-arg]
+        acquiring_count=0,  # type: ignore[call-arg]
+        pending_count=2,  # type: ignore[call-arg]
+        unverified_count=2,  # type: ignore[call-arg]
     )
-    assert item.status == "en_attente"
+    assert item.status == "pending"
 
 
-def test_aggregation_non_verifie_wins_over_a_jour() -> None:
+def test_aggregation_unverified_wins_over_up_to_date() -> None:
     """Most-actionable-first: ``non_verifie`` beats ``a_jour``.
 
     A series with some owned episodes and some never-verified ones should read
@@ -283,12 +283,12 @@ def test_aggregation_non_verifie_wins_over_a_jour() -> None:
     item = _build_item(
         aired_count=5,
         owned_count=3,
-        a_recuperer_count=0,  # type: ignore[call-arg]
-        en_acquisition_count=0,  # type: ignore[call-arg]
-        en_attente_count=0,  # type: ignore[call-arg]
-        non_verifie_count=2,  # type: ignore[call-arg]
+        to_grab_count=0,  # type: ignore[call-arg]
+        acquiring_count=0,  # type: ignore[call-arg]
+        pending_count=0,  # type: ignore[call-arg]
+        unverified_count=2,  # type: ignore[call-arg]
     )
-    assert item.status == "non_verifie"
+    assert item.status == "unverified"
 
 
 # ── 3b. Which row governs (select_wanted_facts) ───────────────────────────

@@ -400,7 +400,7 @@ describe("ObligationsPanel — repli mobile des colonnes (ACQUISITION-4, ticket 
 // ---------------------------------------------------------------------------
 
 describe("ObligationsPanel — edge states", () => {
-  it("shows the empty-state message when there are no items", () => {
+  it("series the empty-state message when there are no items", () => {
     renderPanel({ items: [] });
 
     expect(
@@ -408,7 +408,7 @@ describe("ObligationsPanel — edge states", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows the error message on fetch failure", () => {
+  it("series the error message on fetch failure", () => {
     useObligationsMock.mockReturnValue({
       isLoading: false,
       isError: true,

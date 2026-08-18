@@ -38,10 +38,10 @@ export type Bridge = {
 // One entry per migrated screen: what a legacy call site invokes instead of
 // its old `openX(...)`.
 export type Screens = {
-  profile: (titre: string) => void;
-  mediaSheet: (titre: string) => void;
-  releases: (titre: string) => void;
-  resolution: (dossier?: string, replace?: boolean) => void;
+  profile: (title: string) => void;
+  mediaSheet: (title: string) => void;
+  releases: (title: string) => void;
+  resolution: (folder?: string, replace?: boolean) => void;
   add: (q?: string, mode?: string) => void;
 };
 
@@ -66,7 +66,7 @@ export let panel: Panel; // french-ok: the seam's own name, as the fragment spel
 /**
  * Fills the seams, once, from the shell's boot.
  *
- * Called before `window.__demarrerMoteur`, so every name is real by the time
+ * Called before `window.__startEngine`, so every name is real by the time
  * the engine can reach one. Calling it twice would silently re-point the
  * engine's collaborators mid-run, so it refuses.
  *

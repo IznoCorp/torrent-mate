@@ -75,7 +75,7 @@ async def main():
         # that restores this very defect proved it by reporting nothing at all.
         try:
             await pg.evaluate(
-                "()=>applyState({page: 'cette-page-n-existe-pas', phase: 'prete'})")
+                "()=>applyState({page: 'cette-page-n-existe-pas', phase: 'ready'})")
         except Exception as trouble:  # noqa: BLE001 — the throw IS the finding
             errors.append(str(trouble))
         await pg.wait_for_timeout(350)
@@ -106,7 +106,7 @@ async def main():
                       f"{lost['overflow']}px")
 
         # ── the account surface, reached the way one reaches it ────────────
-        await pg.evaluate("()=>applyState({page: 'acq', phase: 'prete'})")
+        await pg.evaluate("()=>applyState({page: 'acq', phase: 'ready'})")
         await pg.wait_for_timeout(250)
         await pg.tap('[data-sheet="utilisateur"]')
         await pg.wait_for_timeout(420)
@@ -125,7 +125,7 @@ async def main():
         await pg.wait_for_timeout(420)
         account = await pg.evaluate(READ)
         journal.check("the menu entry does open the account surface",
-                      account["page"] == "profil", account["page"])
+                      account["page"] == "profile", account["page"])
         journal.check("the place of the other accounts is marked AND EMPTY",
                       "pas encore" in account["empty"].lower(), account["empty"])
         journal.check("nothing spills past the account's frame",

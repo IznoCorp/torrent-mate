@@ -42,7 +42,7 @@ WHERE = """() => ({
   lens: state.libLens,
   mode: state.libMode,
   empty: (document.querySelector('#view .empty b') || {}).textContent || '',
-  notFound: state.introuvable || '',
+  notFound: state.notFound || '',
 })"""
 
 
@@ -53,7 +53,7 @@ async def open_page(b, url=PROTOTYPE):
     errors = []
     pg.on("pageerror", lambda e: errors.append(str(e)))
     await pg.goto(url, wait_until="load")
-    await pg.evaluate("()=>window.__chargementTermine?.()")
+    await pg.evaluate("()=>window.__loadingDone?.()")
     await pg.evaluate("()=>document.querySelector('#toastx')?.click()")
     await pg.wait_for_timeout(280)
     return ctx, pg, errors
